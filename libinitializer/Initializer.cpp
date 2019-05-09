@@ -21,6 +21,7 @@
  */
 
 #include "Initializer.h"
+#include "GlobalConfigureInitializer.h"
 
 using namespace dev;
 using namespace dev::initializer;
@@ -38,7 +39,7 @@ void Initializer::init(std::string const& _path)
         m_logInitializer->initLog(pt);
 
         /// init global config
-        m_globalConfigureInitializer->initConfig(pt);
+        initGlobalConfig(pt);
 
         /// init key center
         KeyCenterInitializer::init();
@@ -58,7 +59,6 @@ void Initializer::init(std::string const& _path)
         m_rpcInitializer->setSSLContext(
             m_secureInitializer->SSLContext(SecureInitializer::Usage::ForRPC));
         m_rpcInitializer->initChannelRPCServer(pt);
-        m_rpcInitializer->channelRPCServer()->StartListening();
 
         m_ledgerInitializer = std::make_shared<LedgerInitializer>();
         m_ledgerInitializer->setP2PService(m_p2pInitializer->p2pService());
@@ -69,6 +69,8 @@ void Initializer::init(std::string const& _path)
         m_rpcInitializer->setLedgerManager(m_ledgerInitializer->ledgerManager());
         m_rpcInitializer->initConfig(pt);
         m_ledgerInitializer->startAll();
+        /// start RPC at last when everything is ready
+        m_rpcInitializer->channelRPCServer()->StartListening();
     }
     catch (std::exception& e)
     {

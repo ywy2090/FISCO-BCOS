@@ -14,11 +14,11 @@
  * along with FISCO-BCOS.  If not, see <http://www.gnu.org/licenses/>
  * (c) 2016-2018 fisco-dev contributors.
  */
-/** @file BenchTransferPrecompiled.cpp
+/** @file TransferPerfPrecompiled.cpp
  *  @author octopuswang
  *  @date 20190411
  */
-#include "BenchTransferPrecompiled.h"
+#include "TransferPerfPrecompiled.h"
 #include <libdevcore/easylog.h>
 #include <libethcore/ABI.h>
 #include <libstorage/EntriesPrecompiled.h>
@@ -107,7 +107,7 @@ const std::string BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME = "time";
 pragma solidity >=0.4.19 <0.7.0;
 pragma experimental ABIEncoderV2;
 
-contract BenchAccount
+contract TransferPerf
 {
     function createUser(string memory userID, string memory userName, string memory time) public
 returns(int256);
@@ -202,7 +202,7 @@ const static int CODE_BT_INVALID_ACCOUNT_BALANCE_INSUFFICIENT = 51614;
 const static int CODE_BT_INVALID_ACCOUNT_TRANFER_INVALID_AMOUNT = 51615;
 const static int CODE_BT_INVALID_ACCOUNT_FLOW_NOT_EXIST = 51616;
 
-BenchTransferPrecompiled::BenchTransferPrecompiled()
+TransferPerfPrecompiled::TransferPerfPrecompiled()
 {
     name2Selector[BENCH_METHOD_CREATE_USER_STR3] = getFuncSelector(BENCH_METHOD_CREATE_USER_STR3);
     name2Selector[BENCH_METHOD_CLOSE_USER_STR2] = getFuncSelector(BENCH_METHOD_CLOSE_USER_STR2);
@@ -240,12 +240,12 @@ BenchTransferPrecompiled::BenchTransferPrecompiled()
         getFuncSelector(BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR3_UINT2);
 }
 
-std::string BenchTransferPrecompiled::toString()
+std::string TransferPerfPrecompiled::toString()
 {
-    return "BenchTransferPrecompiled";
+    return "TransferPerfPrecompiled";
 }
 
-std::vector<std::string> BenchTransferPrecompiled::getParallelTag(bytesConstRef _param)
+std::vector<std::string> TransferPerfPrecompiled::getParallelTag(bytesConstRef _param)
 {
     bytesConstRef data = getParamData(_param);
     uint32_t func = getParamFunc(_param);
@@ -591,7 +591,7 @@ std::vector<std::string> BenchTransferPrecompiled::getParallelTag(bytesConstRef 
     return paralleTag;
 }
 
-bytes BenchTransferPrecompiled::call(dev::blockverifier::ExecutiveContext::Ptr _context,
+bytes TransferPerfPrecompiled::call(dev::blockverifier::ExecutiveContext::Ptr _context,
     bytesConstRef _param, Address const& _origin)
 {
     // parse function name
@@ -685,13 +685,13 @@ bytes BenchTransferPrecompiled::call(dev::blockverifier::ExecutiveContext::Ptr _
 }
 
 // remove the white space characters on both sides
-void BenchTransferPrecompiled::trim(std::string& _s)
+void TransferPerfPrecompiled::trim(std::string& _s)
 {
     _s.erase(0, _s.find_first_not_of(" "));
     _s.erase(_s.find_last_not_of(" ") + 1);
 }
 
-bool BenchTransferPrecompiled::validTime(const std::string& _s)
+bool TransferPerfPrecompiled::validTime(const std::string& _s)
 {  // _s => 2019-04-11 03:25:01
     struct tm t;
 
@@ -701,7 +701,7 @@ bool BenchTransferPrecompiled::validTime(const std::string& _s)
     return true;
 }
 
-std::pair<bool, time_t> BenchTransferPrecompiled::stringTime2TimeT(const std::string& _s)
+std::pair<bool, time_t> TransferPerfPrecompiled::stringTime2TimeT(const std::string& _s)
 {
     // _s => 2019-04-11 03:25:01
     struct tm t;
@@ -712,23 +712,23 @@ std::pair<bool, time_t> BenchTransferPrecompiled::stringTime2TimeT(const std::st
     return std::make_pair(true, mktime(&t));
 }
 
-bool BenchTransferPrecompiled::validUserStatus(const std::string& _s)
+bool TransferPerfPrecompiled::validUserStatus(const std::string& _s)
 {
     return (_s == BENCH_TRANSFER_USER_STATUS_CREATE) || (_s == BENCH_TRANSFER_USER_STATUS_USABLE) ||
            (_s == BENCH_TRANSFER_USER_STATUS_CLOSED);
 }
 
-bool BenchTransferPrecompiled::validPhone(const std::string& _s)
+bool TransferPerfPrecompiled::validPhone(const std::string& _s)
 {
     return !_s.empty();
 }
 
-bool BenchTransferPrecompiled::validAddress(const std::string& _s)
+bool TransferPerfPrecompiled::validAddress(const std::string& _s)
 {
     return !_s.empty();
 }
 
-bool BenchTransferPrecompiled::validAccountStatus(const std::string& _s)
+bool TransferPerfPrecompiled::validAccountStatus(const std::string& _s)
 {
     return (_s == BENCH_TRANSFER_ACCOUNT_STATUS_CREATE) ||
            (_s == BENCH_TRANSFER_ACCOUNT_STATUS_FREEZE) ||
@@ -736,22 +736,22 @@ bool BenchTransferPrecompiled::validAccountStatus(const std::string& _s)
            (_s == BENCH_TRANSFER_ACCOUNT_STATUS_CLOSED);
 }
 
-bool BenchTransferPrecompiled::validUserID(const std::string& _s)
+bool TransferPerfPrecompiled::validUserID(const std::string& _s)
 {
     return !_s.empty();
 }
 
-bool BenchTransferPrecompiled::validAccountID(const std::string& _s)
+bool TransferPerfPrecompiled::validAccountID(const std::string& _s)
 {
     return !_s.empty();
 }
 
-bool BenchTransferPrecompiled::validFlowID(const std::string& _s)
+bool TransferPerfPrecompiled::validFlowID(const std::string& _s)
 {
     return !_s.empty();
 }
 
-Table::Ptr BenchTransferPrecompiled::openTable(dev::blockverifier::ExecutiveContext::Ptr _context,
+Table::Ptr TransferPerfPrecompiled::openTable(dev::blockverifier::ExecutiveContext::Ptr _context,
     Address const& _origin, TransferTable _t, const std::string& _id)
 {
     std::string tableName;
@@ -830,13 +830,13 @@ Table::Ptr BenchTransferPrecompiled::openTable(dev::blockverifier::ExecutiveCont
     table = createTable(_context, tableName, tableKey, tableFields, _origin);
     if (table)
     {
-        PRECOMPILED_LOG(DEBUG) << LOG_BADGE("BenchTransferPrecompiled") << LOG_DESC("create table")
+        PRECOMPILED_LOG(DEBUG) << LOG_BADGE("TransferPerfPrecompiled") << LOG_DESC("create table")
                                << LOG_KV("table", tableName) << LOG_KV("key", tableKey)
                                << LOG_KV("fields", tableFields);
     }
     else
     {
-        PRECOMPILED_LOG(ERROR) << LOG_BADGE("BenchTransferPrecompiled")
+        PRECOMPILED_LOG(ERROR) << LOG_BADGE("TransferPerfPrecompiled")
                                << LOG_DESC("create table failed") << LOG_KV("table", tableName)
                                << LOG_KV("key", tableKey) << LOG_KV("fields", tableFields);
     }
@@ -844,7 +844,7 @@ Table::Ptr BenchTransferPrecompiled::openTable(dev::blockverifier::ExecutiveCont
     return table;
 }
 
-bytes BenchTransferPrecompiled::createUser(
+bytes TransferPerfPrecompiled::createUser(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     dev::eth::ContractABI abi;
@@ -921,7 +921,7 @@ bytes BenchTransferPrecompiled::createUser(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::closeUser(
+bytes TransferPerfPrecompiled::closeUser(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     dev::eth::ContractABI abi;
@@ -1006,7 +1006,7 @@ bytes BenchTransferPrecompiled::closeUser(
             {
                 errorCount++;
                 PRECOMPILED_LOG(WARNING)
-                    << LOG_BADGE("closeUser") << LOG_DESC("account not close status")
+                    << LOG_BADGE("closeUser") << LOG_DESC("account not closed status")
                     << LOG_KV("userID", userID) << LOG_KV("accountID", account)
                     << LOG_KV("status", status);
                 break;
@@ -1055,7 +1055,7 @@ bytes BenchTransferPrecompiled::closeUser(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::enableUser(
+bytes TransferPerfPrecompiled::enableUser(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     dev::eth::ContractABI abi;
@@ -1149,7 +1149,7 @@ bytes BenchTransferPrecompiled::enableUser(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::updateUserPhone(
+bytes TransferPerfPrecompiled::updateUserPhone(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     int retCode = 0;
@@ -1246,7 +1246,7 @@ bytes BenchTransferPrecompiled::updateUserPhone(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::updateUserAddress(
+bytes TransferPerfPrecompiled::updateUserAddress(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     int retCode = 0;
@@ -1343,7 +1343,7 @@ bytes BenchTransferPrecompiled::updateUserAddress(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::queryUserStatus(
+bytes TransferPerfPrecompiled::queryUserStatus(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     int retCode = 0;
@@ -1402,7 +1402,7 @@ bytes BenchTransferPrecompiled::queryUserStatus(
     return abi.abiIn("", retCode, status);
 }
 
-bytes BenchTransferPrecompiled::queryUserState(
+bytes TransferPerfPrecompiled::queryUserState(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     //         function queryUserState(string memory userID) view public returns(string
@@ -1484,7 +1484,7 @@ bytes BenchTransferPrecompiled::queryUserState(
 }
 
 // account table operation
-bytes BenchTransferPrecompiled::createAccount(
+bytes TransferPerfPrecompiled::createAccount(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function createAccount(string memory accountID, string memory userID, string memory time)
@@ -1585,6 +1585,8 @@ bytes BenchTransferPrecompiled::createAccount(
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
             retCode = CODE_NO_AUTHORIZED;
+            // throw Exception for rollback
+            BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
         }
 
@@ -1607,7 +1609,7 @@ bytes BenchTransferPrecompiled::createAccount(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::enableAccount(
+bytes TransferPerfPrecompiled::enableAccount(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     //    function enableAccount(string memory accountID, string memory time) public
@@ -1701,7 +1703,7 @@ bytes BenchTransferPrecompiled::enableAccount(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::freezeAccount(
+bytes TransferPerfPrecompiled::freezeAccount(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function freezeAccount(string memory accountID, string memory time) public
@@ -1794,7 +1796,7 @@ bytes BenchTransferPrecompiled::freezeAccount(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::unfreezeAccount(
+bytes TransferPerfPrecompiled::unfreezeAccount(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function unfreezeAccount(string memory accountID,string memory time) public
@@ -1887,7 +1889,7 @@ bytes BenchTransferPrecompiled::unfreezeAccount(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::closeAccount(
+bytes TransferPerfPrecompiled::closeAccount(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function closeAccount(string memory accountID, string memory time) public
@@ -1991,7 +1993,7 @@ bytes BenchTransferPrecompiled::closeAccount(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::queryAccountState(
+bytes TransferPerfPrecompiled::queryAccountState(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // userID,status,time,uint256,uint256
@@ -2069,7 +2071,7 @@ bytes BenchTransferPrecompiled::queryAccountState(
     return abi.abiIn("", retCode, userID, strStatus, strTime);
 }
 
-bytes BenchTransferPrecompiled::balance(
+bytes TransferPerfPrecompiled::balance(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function balance(string memory accountID) public view returns(int256, uint256);
@@ -2139,7 +2141,7 @@ bytes BenchTransferPrecompiled::balance(
     return abi.abiIn("", retCode, balance);
 }
 
-bytes BenchTransferPrecompiled::deposit(
+bytes TransferPerfPrecompiled::deposit(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function deposit(string memory accountID, uint256 amount, string memory flowID, string
@@ -2250,7 +2252,7 @@ bytes BenchTransferPrecompiled::deposit(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::withDraw(
+bytes TransferPerfPrecompiled::withDraw(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function withDraw(string memory accountID, uint256 amount, string memory flowID, string
@@ -2355,7 +2357,7 @@ bytes BenchTransferPrecompiled::withDraw(
     return abi.abiIn("", retCode);
 }
 
-int BenchTransferPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::Ptr _context,
+int TransferPerfPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::Ptr _context,
     Address const& _origin, const std::string& _from, const std::string& _to, const u256& _amount,
     const std::string& _flowID, const std::string& _strTime, const u256& _totalAmount, bool _doTest)
 {
@@ -2476,6 +2478,8 @@ int BenchTransferPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::P
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
             retCode = CODE_NO_AUTHORIZED;
+            // throw Exception for rollback
+            BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
         }
 
@@ -2484,6 +2488,8 @@ int BenchTransferPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::P
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
             retCode = CODE_NO_AUTHORIZED;
+            // throw Exception for rollback
+            BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
         }
 
@@ -2495,7 +2501,7 @@ int BenchTransferPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::P
     return retCode;
 }
 
-bytes BenchTransferPrecompiled::transfer1toN(
+bytes TransferPerfPrecompiled::transfer1toN(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function transfer(string memory fromAccountID, string[] memory toAccountID,uint256[]
@@ -2577,7 +2583,7 @@ bytes BenchTransferPrecompiled::transfer1toN(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::transfer1to1(
+bytes TransferPerfPrecompiled::transfer1to1(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function transfer(string memory fromAccountID, string memory toAccountID,uint256 amount,
@@ -2621,7 +2627,7 @@ bytes BenchTransferPrecompiled::transfer1to1(
     return abi.abiIn("", retCode);
 }
 
-bytes BenchTransferPrecompiled::queryAccountFlow(
+bytes TransferPerfPrecompiled::queryAccountFlow(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
 {
     // function queryAccountFlow(string memory accountID, string memory start, string memory end,
@@ -2825,13 +2831,13 @@ bytes BenchTransferPrecompiled::queryAccountFlow(
     return abi.abiIn("", retCode, resultCount, resultFlows);
 }
 
-FlowType BenchTransferPrecompiled::getFlowType(const std::string& _from, const std::string& _to)
+FlowType TransferPerfPrecompiled::getFlowType(const std::string& _from, const std::string& _to)
 {
     return (_from.empty() ? FlowType::Deposit :
                             (_to.empty() ? FlowType::WithDraw : FlowType::Transfer));
 }
 
-int BenchTransferPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _context,
+int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _context,
     Address const& _origin, const u256& _fromIndex, const u256& _toIndex,
     const std::string& _flowID, const std::string& _from, const std::string& _to,
     const u256& _amount, const std::string& _strTime)
@@ -2878,8 +2884,11 @@ int BenchTransferPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr 
             if (count == CODE_NO_AUTHORIZED)
             {  // permission denied
                 retCode = CODE_NO_AUTHORIZED;
+
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert from failed")
                                        << LOG_KV("origin", "0x" + _origin.hex());
+                // throw Exception for rollback
+                BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
             }
 
@@ -2897,6 +2906,8 @@ int BenchTransferPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr 
                 retCode = CODE_NO_AUTHORIZED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert to failed")
                                        << LOG_KV("origin", "0x" + _origin.hex());
+                // throw Exception for rollback
+                BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
             }
         }
@@ -2928,6 +2939,8 @@ int BenchTransferPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr 
                 retCode = CODE_NO_AUTHORIZED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert failed")
                                        << LOG_KV("origin", "0x" + _origin.hex());
+                // throw Exception for rollback
+                BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
             }
         }
@@ -2939,7 +2952,7 @@ int BenchTransferPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr 
     return retCode;
 }
 
-int BenchTransferPrecompiled::addStateChangeLog(dev::blockverifier::ExecutiveContext::Ptr _context,
+int TransferPerfPrecompiled::addStateChangeLog(dev::blockverifier::ExecutiveContext::Ptr _context,
     Address const& _origin, const std::string& _id, const u256& _index, const std::string& _field,
     const std::string& _old, const std::string& _new, const std::string& _time,
     ChangeRecordType _type)
@@ -2975,6 +2988,8 @@ int BenchTransferPrecompiled::addStateChangeLog(dev::blockverifier::ExecutiveCon
             PRECOMPILED_LOG(WARNING)
                 << LOG_BADGE("addStateChangeLog") << LOG_DESC("insert failed")
                 << LOG_KV("index", index) << LOG_KV("origin", "0x" + _origin.hex());
+            // throw Exception for rollback
+            BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
         }
 

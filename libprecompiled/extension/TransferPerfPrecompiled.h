@@ -64,14 +64,14 @@ enum class ChangeRecordType
 };
 
 /*
-Precompiled for Bench.sol
+Precompiled for TransferPerf.sol
 */
-class BenchTransferPrecompiled : public dev::blockverifier::Precompiled
+class TransferPerfPrecompiled : public dev::blockverifier::Precompiled
 {
 public:
-    typedef std::shared_ptr<BenchTransferPrecompiled> Ptr;
-    BenchTransferPrecompiled();
-    virtual ~BenchTransferPrecompiled(){};
+    typedef std::shared_ptr<TransferPerfPrecompiled> Ptr;
+    TransferPerfPrecompiled();
+    virtual ~TransferPerfPrecompiled(){};
 
     std::string toString() override;
 
