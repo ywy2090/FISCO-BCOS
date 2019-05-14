@@ -118,6 +118,8 @@ private:
     // user operation
     bytes createUser(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
+    bytes createEnabledUser(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
+        Address const& _origin);
     bytes closeUser(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
     bytes enableUser(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
@@ -125,8 +127,6 @@ private:
     bytes updateUserPhone(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
     bytes updateUserAddress(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
-        Address const& _origin);
-    bytes getUserPhone(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
     bytes queryUserStatus(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
@@ -136,6 +136,8 @@ private:
     // account operation
     bytes createAccount(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
+    bytes createEnabledAccount(dev::blockverifier::ExecutiveContext::Ptr _context,
+        bytesConstRef _data, Address const& _origin);
     bytes freezeAccount(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
     bytes enableAccount(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,

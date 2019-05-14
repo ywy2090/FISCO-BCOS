@@ -21,11 +21,13 @@
 #include "TransferPerfPrecompiled.h"
 #include <libdevcore/easylog.h>
 #include <libethcore/ABI.h>
+#include <libethcore/Exceptions.h>
 #include <libstorage/EntriesPrecompiled.h>
 #include <libstorage/TableFactoryPrecompiled.h>
 #include <boost/algorithm/string.hpp>
 
 using namespace dev;
+using namespace dev::eth;
 using namespace dev::blockverifier;
 using namespace dev::storage;
 using namespace dev::precompiled;
@@ -112,6 +114,9 @@ contract TransferPerf
     function createUser(string memory userID, string memory userName, string memory time) public
 returns(int256);
 
+    function createEnabledUser(string memory userID, string memory userName, string memory time)
+public returns(int256);
+
     function closeUser(string memory userID, string memory time) public returns(int256);
 
     function enableUser(string memory userID, string memory time) public returns(int256);
@@ -124,11 +129,14 @@ returns(int256);
 
     function queryUserStatus(string memory userID) view public returns(int256, string memory);
 
-    function queryUserState(string memory userID) view public returns(string memory,string
+    function queryUserState(string memory userID) view public returns(int256, string memory,string
 memory,string memory,string memory,string memory);
 
     function createAccount(string memory accountID, string memory userID, string memory time) public
 returns(int256);
+
+    function createEnabledAccount(string memory accountID, string memory userID, string memory time,
+uint256 amount) public returns(int256);
 
     function enableAccount(string memory accountID, string memory time) public returns(int256);
 
@@ -161,6 +169,7 @@ uint256 page, uint256 limit) public returns(int256, uint256, string[] memory);
 */
 
 const char* const BENCH_METHOD_CREATE_USER_STR3 = "createUser(string,string,string)";
+const char* const BENCH_METHOD_CREATE_ENABLED_USER_STR3 = "createEnabledUser(string,string,string)";
 const char* const BENCH_METHOD_CLOSE_USER_STR2 = "closeUser(string,string)";
 const char* const BENCH_METHOD_ENABLE_USER_STR2 = "enableUser(string,string)";
 const char* const BENCH_METHOD_UPDATE_ADDR_USER_STR3 = "updateUserAddress(string,string,string)";
@@ -169,6 +178,8 @@ const char* const BENCH_METHOD_QUERY_USER_STATUS_STR = "queryUserStatus(string)"
 const char* const BENCH_METHOD_QUERY_USER_STATE = "queryUserState(string)";
 
 const char* const BENCH_METHOD_CREATE_ACCOUNT_STR3 = "createAccount(string,string,string)";
+const char* const BENCH_METHOD_CREATE_ENABLED_ACCOUNT_STR3_UINT =
+    "createEnabledAccount(string,string,string,uint256)";
 const char* const BENCH_METHOD_ENABLE_ACCOUNT_STR2 = "enableAccount(string,string)";
 const char* const BENCH_METHOD_FREEZE_ACCOUNT_STR2 = "freezeAccount(string,string)";
 const char* const BENCH_METHOD_UNFREEZE_ACCOUNT_STR3 = "unfreezeAccount(string,string)";
@@ -184,15 +195,29 @@ const char* const BENCH_METHOD_TRANSFER_ACCOUNT_STR_STR2_UINT_STR2 =
 const char* const BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR3_UINT2 =
     "queryAccountFlow(string,string,string,uint256,uint256)";
 
-const static int CODE_BT_INVALID_UNKOWN_FUNC_CALL = 51600;
+// common
+const static int CODE_BT_INVALID_UNKOWN_FUNC_CALL = 51500;
+const static int CODE_BT_INVALID_INVALID_PARAMS = 51501;
+
+// table operation
 const static int CODE_BT_INVALID_OPEN_USER_TABLE_FAILED = 51601;
 const static int CODE_BT_INVALID_OPEN_ACCOUNT_TABLE_FAILED = 51602;
 const static int CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED = 51603;
-const static int CODE_BT_INVALID_INVALID_PARAMS = 51604;
-const static int CODE_BT_INVALID_USER_EXIST = 51605;
-const static int CODE_BT_INVALID_USER_NT_EXIST = 51606;
-const static int CODE_BT_INVALID_USER_INVALID_STATUS = 51607;
-const static int CODE_BT_INVALID_USER_ACCOUNT_INVALID_STATUS = 51608;
+const static int CODE_BT_INVALID_OPEN_USER_STATE_TABLE_FAILED = 51604;
+const static int CODE_BT_INVALID_OPEN_ACCOUNT_STATE_TABLE_FAILED = 51605;
+const static int CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED = 51606;
+const static int CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED = 51607;
+const static int CODE_BT_INVALID_FLOW_TABLE_NO_AUTHORIZED = 51608;
+const static int CODE_BT_INVALID_USER_STATE_CHANGE_TABLE_NO_AUTHORIZED = 51609;
+const static int CODE_BT_INVALID_ACCOUNT_STATE_CHANGE_NO_AUTHORIZED = 51610;
+
+// user table
+const static int CODE_BT_INVALID_USER_EXIST = 51701;
+const static int CODE_BT_INVALID_USER_NT_EXIST = 51702;
+const static int CODE_BT_INVALID_USER_INVALID_STATUS = 51703;
+const static int CODE_BT_INVALID_USER_ACCOUNT_INVALID_STATUS = 51704;
+
+// account table
 const static int CODE_BT_INVALID_ACCOUNT_NOT_EXIST = 51609;
 const static int CODE_BT_INVALID_ACCOUNT_EXIST = 51610;
 const static int CODE_BT_INVALID_ACCOUNT_INVALID_STATUS = 51611;
@@ -205,6 +230,8 @@ const static int CODE_BT_INVALID_ACCOUNT_FLOW_NOT_EXIST = 51616;
 TransferPerfPrecompiled::TransferPerfPrecompiled()
 {
     name2Selector[BENCH_METHOD_CREATE_USER_STR3] = getFuncSelector(BENCH_METHOD_CREATE_USER_STR3);
+    name2Selector[BENCH_METHOD_CREATE_ENABLED_USER_STR3] =
+        getFuncSelector(BENCH_METHOD_CREATE_ENABLED_USER_STR3);
     name2Selector[BENCH_METHOD_CLOSE_USER_STR2] = getFuncSelector(BENCH_METHOD_CLOSE_USER_STR2);
     name2Selector[BENCH_METHOD_ENABLE_USER_STR2] = getFuncSelector(BENCH_METHOD_ENABLE_USER_STR2);
     name2Selector[BENCH_METHOD_UPDATE_ADDR_USER_STR3] =
@@ -216,6 +243,8 @@ TransferPerfPrecompiled::TransferPerfPrecompiled()
     name2Selector[BENCH_METHOD_QUERY_USER_STATE] = getFuncSelector(BENCH_METHOD_QUERY_USER_STATE);
     name2Selector[BENCH_METHOD_CREATE_ACCOUNT_STR3] =
         getFuncSelector(BENCH_METHOD_CREATE_ACCOUNT_STR3);
+    name2Selector[BENCH_METHOD_CREATE_ENABLED_ACCOUNT_STR3_UINT] =
+        getFuncSelector(BENCH_METHOD_CREATE_ENABLED_ACCOUNT_STR3_UINT);
     name2Selector[BENCH_METHOD_ENABLE_ACCOUNT_STR2] =
         getFuncSelector(BENCH_METHOD_ENABLE_ACCOUNT_STR2);
     name2Selector[BENCH_METHOD_FREEZE_ACCOUNT_STR2] =
@@ -257,6 +286,26 @@ std::vector<std::string> TransferPerfPrecompiled::getParallelTag(bytesConstRef _
     {
         // function createUser(string memory userID, string memory userName, string memory time)
         // public returns(int256);
+        std::string userID;
+        std::string userName;
+        std::string strTime;
+        // analytical parameters
+        abi.abiOut(data, userID, userName, strTime);
+
+        trim(userID);
+        trim(userName);
+        trim(strTime);
+
+        // paramters check
+        if (validUserID(userID) && validTime(strTime))
+        {
+            paralleTag.push_back(userID);
+        }
+    }
+    else if (func == name2Selector[BENCH_METHOD_CREATE_ENABLED_USER_STR3])
+    {
+        // function createEnabledUser(string memory userID, string memory userName, string memory
+        // time) public returns(int256);
         std::string userID;
         std::string userName;
         std::string strTime;
@@ -375,6 +424,29 @@ std::vector<std::string> TransferPerfPrecompiled::getParallelTag(bytesConstRef _
 
         // analytical parameters
         abi.abiOut(data, userID, accountID, strTime);
+
+        trim(userID);
+        trim(accountID);
+        trim(strTime);
+
+        // paramters check
+        if (validUserID(userID) && validAccountID(accountID) && validTime(strTime))
+        {
+            paralleTag.push_back(userID);
+            paralleTag.push_back(accountID);
+        }
+    }
+    else if (func == name2Selector[BENCH_METHOD_CREATE_ENABLED_ACCOUNT_STR3_UINT])
+    {
+        // function createEnabledAccount(string memory accountID, string memory userID, string
+        // memory time, uint256 amount) public returns(int256);
+        std::string userID;
+        std::string accountID;
+        std::string strTime;
+        u256 amount;
+
+        // analytical parameters
+        abi.abiOut(data, userID, accountID, strTime, amount);
 
         trim(userID);
         trim(accountID);
@@ -603,6 +675,10 @@ bytes TransferPerfPrecompiled::call(dev::blockverifier::ExecutiveContext::Ptr _c
     {
         out = createUser(_context, data, _origin);
     }
+    else if (func == name2Selector[BENCH_METHOD_CREATE_ENABLED_USER_STR3])
+    {
+        out = createEnabledUser(_context, data, _origin);
+    }
     else if (func == name2Selector[BENCH_METHOD_CLOSE_USER_STR2])
     {
         out = closeUser(_context, data, _origin);
@@ -630,6 +706,10 @@ bytes TransferPerfPrecompiled::call(dev::blockverifier::ExecutiveContext::Ptr _c
     else if (func == name2Selector[BENCH_METHOD_CREATE_ACCOUNT_STR3])
     {
         out = createAccount(_context, data, _origin);
+    }
+    else if (func == name2Selector[BENCH_METHOD_CREATE_ENABLED_ACCOUNT_STR3_UINT])
+    {
+        out = createEnabledAccount(_context, data, _origin);
     }
     else if (func == name2Selector[BENCH_METHOD_ENABLE_ACCOUNT_STR2])
     {
@@ -893,11 +973,12 @@ bytes TransferPerfPrecompiled::createUser(
         entry->setField(BENCH_TRANSFER_USER_FILED_NAME, userName);
         entry->setField(BENCH_TRANSFER_USER_FILED_TIME, strTime);
         entry->setField(BENCH_TRANSFER_USER_FILED_STATUS, BENCH_TRANSFER_USER_STATUS_CREATE);
+        entry->setField(BENCH_TRANSFER_USER_FILED_MODIFY_COUNT, u256(0).str());
 
         auto count = table->insert(userID, entry, std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -913,6 +994,84 @@ bytes TransferPerfPrecompiled::createUser(
     else
     {
         PRECOMPILED_LOG(ERROR) << LOG_BADGE("createUser") << LOG_DESC("failed")
+                               << LOG_KV("retCode", retCode) << LOG_KV("id", userID)
+                               << LOG_KV("name", userName) << LOG_KV("time", strTime);
+    }
+
+
+    return abi.abiIn("", retCode);
+}
+
+bytes TransferPerfPrecompiled::createEnabledUser(
+    dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
+{
+    dev::eth::ContractABI abi;
+
+    // function createEnabledUser(string memory userID, string memory userName, string memory time)
+    // public returns(int256);
+    int retCode = 0;
+
+    std::string userID;
+    std::string userName;
+    std::string strTime;
+    do
+    {
+        // analytical parameters
+        abi.abiOut(_data, userID, userName, strTime);
+
+        trim(userID);
+        trim(userName);
+        trim(strTime);
+
+        // paramters check
+        if (!validUserID(userID) || !validTime(strTime))
+        {
+            retCode = CODE_BT_INVALID_INVALID_PARAMS;
+            break;
+        }
+
+        auto table = openTable(_context, _origin, TransferTable::User);
+        if (!table)
+        {  // create table failed , unexpected error
+            retCode = CODE_BT_INVALID_OPEN_USER_TABLE_FAILED;
+            break;
+        }
+
+        // check if user id already exist
+        auto entries = table->select(userID, table->newCondition());
+        if (entries.get() && (0u != entries->size()))
+        {
+            retCode = CODE_BT_INVALID_USER_EXIST;
+            break;
+        }
+
+        // insert user
+        auto entry = table->newEntry();
+        entry->setField(BENCH_TRANSFER_USER_FILED_ID, userID);
+        entry->setField(BENCH_TRANSFER_USER_FILED_NAME, userName);
+        entry->setField(BENCH_TRANSFER_USER_FILED_TIME, strTime);
+        entry->setField(BENCH_TRANSFER_USER_FILED_STATUS, BENCH_TRANSFER_USER_STATUS_USABLE);
+        entry->setField(BENCH_TRANSFER_USER_FILED_MODIFY_COUNT, u256(0).str());
+
+        auto count = table->insert(userID, entry, std::make_shared<AccessOptions>(_origin));
+        if (count == CODE_NO_AUTHORIZED)
+        {  // permission denied
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
+            break;
+        }
+
+        // insert successfully
+
+    } while (0);
+
+    if (0 == retCode)
+    {
+        PRECOMPILED_LOG(TRACE) << LOG_BADGE("createEnabledUser") << LOG_KV("id", userID)
+                               << LOG_KV("name", userName) << LOG_KV("time", strTime);
+    }
+    else
+    {
+        PRECOMPILED_LOG(ERROR) << LOG_BADGE("createEnabledUser") << LOG_DESC("failed")
                                << LOG_KV("retCode", retCode) << LOG_KV("id", userID)
                                << LOG_KV("name", userName) << LOG_KV("time", strTime);
     }
@@ -1030,7 +1189,7 @@ bytes TransferPerfPrecompiled::closeUser(
             userID, newEntry, table->newCondition(), std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -1122,7 +1281,7 @@ bytes TransferPerfPrecompiled::enableUser(
             userID, newEntry, table->newCondition(), std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -1218,7 +1377,7 @@ bytes TransferPerfPrecompiled::updateUserPhone(
             userID, newEntry, table->newCondition(), std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -1315,7 +1474,7 @@ bytes TransferPerfPrecompiled::updateUserAddress(
             userID, newEntry, table->newCondition(), std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -1382,7 +1541,7 @@ bytes TransferPerfPrecompiled::queryUserStatus(
         }
 
         auto entry = entries->get(0);
-        // get user address
+        // get user status
         status = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
 
     } while (0);
@@ -1608,6 +1767,135 @@ bytes TransferPerfPrecompiled::createAccount(
 
     return abi.abiIn("", retCode);
 }
+
+bytes TransferPerfPrecompiled::createEnabledAccount(
+    dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
+{
+    // function createEnabledAccount(string memory accountID, string memory userID, string memory
+    // time,uint256 amount) public returns(int256);
+
+    int retCode = 0;
+
+    std::string userID;
+    std::string accountID;
+    std::string strTime;
+    u256 amount;
+
+    dev::eth::ContractABI abi;
+
+    do
+    {
+        // analytical parameters
+        abi.abiOut(_data, userID, accountID, strTime, amount);
+
+        trim(userID);
+        trim(accountID);
+        trim(strTime);
+
+        // paramters check
+        if (!validUserID(userID) || !validAccountID(accountID) || !validTime(strTime))
+        {
+            retCode = CODE_BT_INVALID_INVALID_PARAMS;
+            break;
+        }
+
+        // check if account exist
+        auto accountTable = openTable(_context, _origin, TransferTable::Account);
+        if (!accountTable)
+        {  // create table failed , unexpected error
+            retCode = CODE_BT_INVALID_OPEN_ACCOUNT_TABLE_FAILED;
+            break;
+        }
+
+        // check if account already exist
+        auto entries = accountTable->select(accountID, accountTable->newCondition());
+        if (entries.get() && (0u != entries->size()))
+        {
+            retCode = CODE_BT_INVALID_ACCOUNT_EXIST;
+            break;
+        }
+
+        // check if user exist
+        auto userTable = openTable(_context, _origin, TransferTable::User);
+        if (!userTable)
+        {  // create table failed , unexpected error
+            retCode = CODE_BT_INVALID_OPEN_USER_TABLE_FAILED;
+            break;
+        }
+
+        // check if user id already exist
+        entries = userTable->select(userID, userTable->newCondition());
+        if (!entries.get() || (0u == entries->size()))
+        {
+            retCode = CODE_BT_INVALID_USER_NT_EXIST;
+            break;
+        }
+
+        auto entry = entries->get(0);
+        // get user status
+        std::string userStatus = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
+        // check if user status available
+        if (userStatus != BENCH_TRANSFER_USER_STATUS_USABLE)
+        {
+            retCode = CODE_BT_INVALID_USER_INVALID_STATUS;
+            PRECOMPILED_LOG(WARNING)
+                << LOG_BADGE("createAccount") << LOG_DESC("user not usable status")
+                << LOG_KV("userID", userID) << LOG_KV("userStatus", userStatus);
+            break;
+        }
+
+        // update user accountList filed
+        std::string accounts = entry->getField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST);
+        accounts = (accounts.empty() ? accountID : "," + accountID);
+        auto newUserEntry = userTable->newEntry();
+        newUserEntry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accounts);
+
+        auto count = userTable->update(userID, newUserEntry, userTable->newCondition(),
+            std::make_shared<AccessOptions>(_origin));
+        if (count == CODE_NO_AUTHORIZED)
+        {  // permission denied
+            retCode = CODE_NO_AUTHORIZED;
+            break;
+        }
+
+        // insert account list
+        auto newAccountEntry = accountTable->newEntry();
+        newAccountEntry->setField(BENCH_TRANSFER_ACCOUNT_FILED_ID, accountID);
+        newAccountEntry->setField(BENCH_TRANSFER_ACCOUNT_FILED_TIME, strTime);
+        newAccountEntry->setField(
+            BENCH_TRANSFER_ACCOUNT_FILED_STATUS, BENCH_TRANSFER_ACCOUNT_STATUS_USABLE);
+        newAccountEntry->setField(BENCH_TRANSFER_ACCOUNT_FILED_BALANCE, amount.str());
+        count = accountTable->insert(
+            accountID, newAccountEntry, std::make_shared<AccessOptions>(_origin));
+
+        if (count == CODE_NO_AUTHORIZED)
+        {  // permission denied
+            retCode = CODE_NO_AUTHORIZED;
+            // throw Exception for rollback
+            BOOST_THROW_EXCEPTION(PermissionDenied());
+            break;
+        }
+
+        // insert sucessfully
+
+    } while (0);
+
+    if (0 == retCode)
+    {
+        PRECOMPILED_LOG(TRACE) << LOG_BADGE("createEnabledAccount") << LOG_KV("userID", userID)
+                               << LOG_KV("accountID", accountID) << LOG_KV("time", strTime)
+                               << LOG_KV("amount", amount);
+    }
+    else
+    {
+        PRECOMPILED_LOG(ERROR) << LOG_BADGE("createEnabledAccount") << LOG_DESC("failed")
+                               << LOG_KV("retCode", retCode);
+    }
+
+
+    return abi.abiIn("", retCode);
+}
+
 
 bytes TransferPerfPrecompiled::enableAccount(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
@@ -2857,18 +3145,16 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
             if (!fromTable)
             {  // create table failed , unexpected error
                 retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
-                PRECOMPILED_LOG(ERROR)
-                    << LOG_BADGE("addFlow") << LOG_DESC("openTable failed") << LOG_KV("from", _from)
-                    << LOG_KV("origin", "0x" + _origin.hex());
+                PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("openTable failed")
+                                       << LOG_KV("from", _from) << LOG_KV("origin", _origin.hex());
                 break;
             }
             auto toTable = openTable(_context, _origin, TransferTable::Flow, _to);
             if (!toTable)
             {  // create table failed , unexpected error
                 retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
-                PRECOMPILED_LOG(ERROR)
-                    << LOG_BADGE("addFlow") << LOG_DESC("openTable failed") << LOG_KV("to", _to)
-                    << LOG_KV("origin", "0x" + _origin.hex());
+                PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("openTable failed")
+                                       << LOG_KV("to", _to) << LOG_KV("origin", _origin.hex());
                 break;
             }
 
@@ -2886,7 +3172,7 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
                 retCode = CODE_NO_AUTHORIZED;
 
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert from failed")
-                                       << LOG_KV("origin", "0x" + _origin.hex());
+                                       << LOG_KV("origin", _origin.hex());
                 // throw Exception for rollback
                 BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
@@ -2905,7 +3191,7 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
             {  // permission denied
                 retCode = CODE_NO_AUTHORIZED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert to failed")
-                                       << LOG_KV("origin", "0x" + _origin.hex());
+                                       << LOG_KV("origin", _origin.hex());
                 // throw Exception for rollback
                 BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
@@ -2938,7 +3224,7 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
             {  // permission denied
                 retCode = CODE_NO_AUTHORIZED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert failed")
-                                       << LOG_KV("origin", "0x" + _origin.hex());
+                                       << LOG_KV("origin", _origin.hex());
                 // throw Exception for rollback
                 BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
@@ -2970,7 +3256,8 @@ int TransferPerfPrecompiled::addStateChangeLog(dev::blockverifier::ExecutiveCont
         {  // create table failed , unexpected error
             retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
             PRECOMPILED_LOG(ERROR) << LOG_BADGE("addStateChangeLog") << LOG_DESC("openTable failed")
-                                   << LOG_KV("from", _id) << LOG_KV("origin", "0x" + _origin.hex());
+                                   << LOG_KV("from", _id) << LOG_KV("origin", _origin.hex());
+            BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
         }
 
@@ -2984,10 +3271,9 @@ int TransferPerfPrecompiled::addStateChangeLog(dev::blockverifier::ExecutiveCont
         auto count = table->insert(_index.str(), entry, std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
-            PRECOMPILED_LOG(WARNING)
-                << LOG_BADGE("addStateChangeLog") << LOG_DESC("insert failed")
-                << LOG_KV("index", index) << LOG_KV("origin", "0x" + _origin.hex());
+            retCode = CODE_BT_INVALID_USER_STATE_CHANGE_TABLE_NO_AUTHORIZED;
+            PRECOMPILED_LOG(WARNING) << LOG_BADGE("addStateChangeLog") << LOG_DESC("insert failed")
+                                     << LOG_KV("index", _index) << LOG_KV("origin", _origin.hex());
             // throw Exception for rollback
             BOOST_THROW_EXCEPTION(PermissionDenied());
             break;

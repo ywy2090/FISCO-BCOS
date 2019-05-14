@@ -4,14 +4,16 @@ pragma experimental ABIEncoderV2;
 contract BenchAccount
 {
     function createUser(string memory userID, string memory userName, string memory time) public returns(int256){}
+    function createEnabledUser(string memory userID, string memory userName, string memory time) public returns(int256){}
     function closeUser(string memory userID, string memory time) public returns(int256){}
     function enableUser(string memory userID, string memory time) public returns(int256){}
     function updateUserAddress(string memory userID, string memory addr, string memory time) public returns(int256){}
     function updateUserPhone(string memory userID, string memory phone, string memory time) public returns(int256){}
     function queryUserStatus(string memory userID) view public returns(int256, string memory){}
-    function queryUserState(string memory userID) view public returns(string memory/*address*/,string memory/*phone*/,string memory/*status*/,string memory/*time*/,string memory/*account list*/){}
+    function queryUserState(string memory userID) view public returns(int256, string memory/*address*/,string memory/*phone*/,string memory/*status*/,string memory/*time*/,string memory/*account list*/){}
 
     function createAccount(string memory accountID, string memory userID, string memory time) public returns(int256){}
+    function createEnabledAccount(string memory accountID, string memory userID, string memory time, uint256 amount) public returns(int256){}
     function enableAccount(string memory accountID, string memory time) public returns(int256){}
     function freezeAccount(string memory accountID, string memory time) public returns(int256){}
     function unfreezeAccount(string memory accountID,string memory time) public returns(int256){}
