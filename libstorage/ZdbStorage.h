@@ -26,6 +26,8 @@
 #include <json/json.h>
 
 
+#define ZdbStorage_LOG(LEVEL) LOG(LEVEL) << "[ZdbStorage] "
+
 namespace dev
 {
 namespace storage
@@ -44,7 +46,7 @@ public:
     bool onlyDirty() override;
 
 public:
-    void initSqlAccess(const ZDBConfig& _dbConfig);
+    void setConnPool(SQLConnectionPool::Ptr& _connPool);
 
 private:
     SQLBasicAccess m_sqlBasicAcc;
