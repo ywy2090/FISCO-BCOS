@@ -218,14 +218,12 @@ const static int CODE_BT_INVALID_USER_INVALID_STATUS = 51703;
 const static int CODE_BT_INVALID_USER_ACCOUNT_INVALID_STATUS = 51704;
 
 // account table
-const static int CODE_BT_INVALID_ACCOUNT_NOT_EXIST = 51609;
-const static int CODE_BT_INVALID_ACCOUNT_EXIST = 51610;
-const static int CODE_BT_INVALID_ACCOUNT_INVALID_STATUS = 51611;
-const static int CODE_BT_INVALID_ACCOUNT_BALANCE_NOT_ZERO = 51612;
-const static int CODE_BT_INVALID_ACCOUNT_BALANCE_OVERFLOW = 51613;
-const static int CODE_BT_INVALID_ACCOUNT_BALANCE_INSUFFICIENT = 51614;
-const static int CODE_BT_INVALID_ACCOUNT_TRANFER_INVALID_AMOUNT = 51615;
-const static int CODE_BT_INVALID_ACCOUNT_FLOW_NOT_EXIST = 51616;
+const static int CODE_BT_INVALID_ACCOUNT_NOT_EXIST = 51801;
+const static int CODE_BT_INVALID_ACCOUNT_EXIST = 51802;
+const static int CODE_BT_INVALID_ACCOUNT_INVALID_STATUS = 51803;
+const static int CODE_BT_INVALID_ACCOUNT_BALANCE_NOT_ZERO = 51804;
+const static int CODE_BT_INVALID_ACCOUNT_BALANCE_OVERFLOW = 51805;
+const static int CODE_BT_INVALID_ACCOUNT_BALANCE_INSUFFICIENT = 51806;
 
 TransferPerfPrecompiled::TransferPerfPrecompiled()
 {
@@ -1721,14 +1719,12 @@ bytes TransferPerfPrecompiled::createAccount(
         // update user accountList filed
         std::string accounts = entry->getField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST);
         accounts = (accounts.empty() ? accountID : "," + accountID);
-        auto newUserEntry = userTable->newEntry();
-        newUserEntry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accounts);
 
         auto count = userTable->update(userID, newUserEntry, userTable->newCondition(),
             std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -1743,7 +1739,7 @@ bytes TransferPerfPrecompiled::createAccount(
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             // throw Exception for rollback
             BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
@@ -1763,7 +1759,6 @@ bytes TransferPerfPrecompiled::createAccount(
         PRECOMPILED_LOG(ERROR) << LOG_BADGE("createAccount") << LOG_DESC("failed")
                                << LOG_KV("retCode", retCode);
     }
-
 
     return abi.abiIn("", retCode);
 }
@@ -1854,7 +1849,7 @@ bytes TransferPerfPrecompiled::createEnabledAccount(
             std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -1870,7 +1865,7 @@ bytes TransferPerfPrecompiled::createEnabledAccount(
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             // throw Exception for rollback
             BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
@@ -1965,7 +1960,7 @@ bytes TransferPerfPrecompiled::enableAccount(
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -2059,7 +2054,7 @@ bytes TransferPerfPrecompiled::freezeAccount(
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -2152,7 +2147,7 @@ bytes TransferPerfPrecompiled::unfreezeAccount(
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -2256,7 +2251,7 @@ bytes TransferPerfPrecompiled::closeAccount(
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -2453,13 +2448,8 @@ bytes TransferPerfPrecompiled::deposit(
         trim(strTime);
 
         // paramters check
-        if (!validAccountID(accountID) || !validFlowID(flowID) || !validTime(strTime))
-        {
-            retCode = CODE_BT_INVALID_INVALID_PARAMS;
-            break;
-        }
-
-        if (amount == 0)
+        if (!validAccountID(accountID) || !validFlowID(flowID) || !validTime(strTime) ||
+            (amount == 0))
         {
             retCode = CODE_BT_INVALID_INVALID_PARAMS;
             break;
@@ -2619,7 +2609,7 @@ bytes TransferPerfPrecompiled::withDraw(
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             break;
         }
 
@@ -2639,7 +2629,6 @@ bytes TransferPerfPrecompiled::withDraw(
     {
         PRECOMPILED_LOG(ERROR) << LOG_BADGE("withDraw") << LOG_DESC("failed")
                                << LOG_KV("retCode", retCode);
-        // throw for rollback??
     }
 
     return abi.abiIn("", retCode);
@@ -2652,15 +2641,10 @@ int TransferPerfPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::Pt
     int retCode = 0;
     do
     {
-        if (!validAccountID(_from) || !validAccountID(_to) || !validTime(_strTime))
+        if (!validAccountID(_from) || !validAccountID(_to) || !validTime(_strTime) ||
+            (_amount == 0))
         {
             retCode = CODE_BT_INVALID_INVALID_PARAMS;
-            break;
-        }
-
-        if (/*_totalAmount < _amount || */ _amount == 0)
-        {
-            retCode = CODE_BT_INVALID_ACCOUNT_TRANFER_INVALID_AMOUNT;
             break;
         }
 
@@ -2736,7 +2720,7 @@ int TransferPerfPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::Pt
 
             if (count == CODE_NO_AUTHORIZED)
             {  // permission denied
-                retCode = CODE_NO_AUTHORIZED;
+                retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             }
 
             break;
@@ -2765,7 +2749,7 @@ int TransferPerfPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::Pt
 
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             // throw Exception for rollback
             BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
@@ -2775,14 +2759,14 @@ int TransferPerfPrecompiled::doTransfer(dev::blockverifier::ExecutiveContext::Pt
             _to, newToEntry, table->newCondition(), std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_NO_AUTHORIZED;
+            retCode = CODE_BT_INVALID_ACCOUNT_TABLE_NO_AUTHORIZED;
             // throw Exception for rollback
             BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
         }
 
-        retCode =
-            addFlow(_context, _origin, fromIndex, toIndex, _flowID, _from, _to, _amount, _strTime);
+        // retCode =
+        addFlow(_context, _origin, fromIndex, toIndex, _flowID, _from, _to, _amount, _strTime);
 
     } while (0);
 
@@ -2833,13 +2817,13 @@ bytes TransferPerfPrecompiled::transfer1toN(
             if (0 != r)
             {
                 errorCount += 1;
+                retCode = r;
                 break;
             }
         }
 
         if (errorCount > 0)
         {
-            retCode = CODE_BT_INVALID_INVALID_PARAMS;
             break;
         }
 
@@ -2908,8 +2892,7 @@ bytes TransferPerfPrecompiled::transfer1to1(
         PRECOMPILED_LOG(ERROR) << LOG_BADGE("transfer1to1") << LOG_DESC("failed")
                                << LOG_KV("retCode", retCode) << LOG_KV("from", fromAccountID)
                                << LOG_KV("to", toAccountID) << LOG_KV("flowID", flowID)
-                               << LOG_KV("time", strTime) << LOG_KV("amount", amount);
-        // throw for rollback??
+                               << LOG_KV("time", strTime) << LOG_KV("amount", amount)
     }
 
     return abi.abiIn("", retCode);
@@ -3147,6 +3130,8 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
                 retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("openTable failed")
                                        << LOG_KV("from", _from) << LOG_KV("origin", _origin.hex());
+                // throw Exception for rollback
+                BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
             }
             auto toTable = openTable(_context, _origin, TransferTable::Flow, _to);
@@ -3155,6 +3140,8 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
                 retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("openTable failed")
                                        << LOG_KV("to", _to) << LOG_KV("origin", _origin.hex());
+                // throw Exception for rollback
+                BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
             }
 
@@ -3169,7 +3156,7 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
                 _fromIndex.str(), fromEntry, std::make_shared<AccessOptions>(_origin));
             if (count == CODE_NO_AUTHORIZED)
             {  // permission denied
-                retCode = CODE_NO_AUTHORIZED;
+                retCode = CODE_BT_INVALID_FLOW_TABLE_NO_AUTHORIZED;
 
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert from failed")
                                        << LOG_KV("origin", _origin.hex());
@@ -3189,7 +3176,7 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
                 toTable->insert(_toIndex.str(), toEntry, std::make_shared<AccessOptions>(_origin));
             if (count == CODE_NO_AUTHORIZED)
             {  // permission denied
-                retCode = CODE_NO_AUTHORIZED;
+                retCode = CODE_BT_INVALID_FLOW_TABLE_NO_AUTHORIZED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert to failed")
                                        << LOG_KV("origin", _origin.hex());
                 // throw Exception for rollback
@@ -3207,6 +3194,8 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
                 PRECOMPILED_LOG(ERROR)
                     << LOG_BADGE("addFlow") << LOG_DESC("openTable failed")
                     << LOG_KV("accountID", accountID) << LOG_KV("origin", "0x" + _origin.hex());
+                // throw Exception for rollback
+                BOOST_THROW_EXCEPTION(PermissionDenied());
                 break;
             }
 
@@ -3222,7 +3211,7 @@ int TransferPerfPrecompiled::addFlow(dev::blockverifier::ExecutiveContext::Ptr _
                 table->insert(_fromIndex.str(), entry, std::make_shared<AccessOptions>(_origin));
             if (count == CODE_NO_AUTHORIZED)
             {  // permission denied
-                retCode = CODE_NO_AUTHORIZED;
+                retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
                 PRECOMPILED_LOG(ERROR) << LOG_BADGE("addFlow") << LOG_DESC("insert failed")
                                        << LOG_KV("origin", _origin.hex());
                 // throw Exception for rollback
@@ -3254,9 +3243,12 @@ int TransferPerfPrecompiled::addStateChangeLog(dev::blockverifier::ExecutiveCont
             _id);
         if (!table)
         {  // create table failed , unexpected error
-            retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
+            retCode = (_type == ChangeRecordType::Account ?
+                           CODE_BT_INVALID_OPEN_ACCOUNT_STATE_TABLE_FAILED :
+                           CODE_BT_INVALID_OPEN_USER_STATE_TABLE_FAILED);
             PRECOMPILED_LOG(ERROR) << LOG_BADGE("addStateChangeLog") << LOG_DESC("openTable failed")
                                    << LOG_KV("from", _id) << LOG_KV("origin", _origin.hex());
+            // throw Exception for rollback
             BOOST_THROW_EXCEPTION(PermissionDenied());
             break;
         }
@@ -3271,7 +3263,9 @@ int TransferPerfPrecompiled::addStateChangeLog(dev::blockverifier::ExecutiveCont
         auto count = table->insert(_index.str(), entry, std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
-            retCode = CODE_BT_INVALID_USER_STATE_CHANGE_TABLE_NO_AUTHORIZED;
+            retCode = (_type == ChangeRecordType::Account ?
+                           CODE_BT_INVALID_ACCOUNT_STATE_CHANGE_NO_AUTHORIZED :
+                           CODE_BT_INVALID_USER_STATE_CHANGE_TABLE_NO_AUTHORIZED);
             PRECOMPILED_LOG(WARNING) << LOG_BADGE("addStateChangeLog") << LOG_DESC("insert failed")
                                      << LOG_KV("index", _index) << LOG_KV("origin", _origin.hex());
             // throw Exception for rollback
