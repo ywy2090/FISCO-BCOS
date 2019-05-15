@@ -166,8 +166,11 @@ memory flowID, string memory time) public returns(int256);
     function transfer(string memory fromAccountID, string[] memory toAccountID,uint256[] memory
 amount, string[] memory flowID, string memory time) public returns(int256);
 
-    function queryAccountFlow(string memory accountID, string memory start, string memory end,
-uint256 page, uint256 limit) public returns(int256, uint256, string[] memory);
+    function queryAccountFlow(string memory accountID, string memory index) public returns(int256,
+string memory) {};
+
+    function queryAccountFlow(string memory accountID, string memory start, string
+memory end, uint256 page, uint256 limit) public returns(int256, uint256, string[] memory);
 }
 */
 
@@ -196,6 +199,7 @@ const char* const BENCH_METHOD_TRANSFER_ACCOUNT_STR_ARR3_STR =
     "transfer(string,string[],uint256[],string[],string)";
 const char* const BENCH_METHOD_TRANSFER_ACCOUNT_STR_STR2_UINT_STR2 =
     "transfer(string,string,uint256,string,string)";
+const char* const BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR_UINT = "queryAccountFlow(string,uint256)";
 const char* const BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR3_UINT2 =
     "queryAccountFlow(string,string,string,uint256,uint256)";
 
@@ -230,6 +234,7 @@ const static int CODE_BT_INVALID_ACCOUNT_BALANCE_OVERFLOW = 51805;
 const static int CODE_BT_INVALID_ACCOUNT_BALANCE_INSUFFICIENT = 51806;
 const static int CODE_BT_INVALID_ACCOUNT_CLOSED_STATUS = 51807;
 const static int CODE_BT_INVALID_ACCOUNT_NOT_USABEL_STATUS = 51808;
+const static int CODE_BT_INVALID_ACCOUNT_FLOW_NOT_EXIST = 51809;
 
 TransferPerfPrecompiled::TransferPerfPrecompiled()
 {
@@ -271,6 +276,8 @@ TransferPerfPrecompiled::TransferPerfPrecompiled()
         getFuncSelector(BENCH_METHOD_TRANSFER_ACCOUNT_STR_STR2_UINT_STR2);
     name2Selector[BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR3_UINT2] =
         getFuncSelector(BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR3_UINT2);
+    name2Selector[BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR_UINT] =
+        getFuncSelector(BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR_UINT);
 }
 
 std::string TransferPerfPrecompiled::toString()
@@ -667,6 +674,13 @@ std::vector<std::string> TransferPerfPrecompiled::getParallelTag(bytesConstRef _
 
         // do nothing
     }
+    else if (func == name2Selector[BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR_UINT])
+    {
+        // function queryAccountFlow(string memory accountID, uint256 index) public returns(int256,
+        // string[] memory);
+
+        // do nothing
+    }
     else
     {
         // unkown function call
@@ -770,6 +784,10 @@ bytes TransferPerfPrecompiled::call(dev::blockverifier::ExecutiveContext::Ptr _c
     else if (func == name2Selector[BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR3_UINT2])
     {
         out = queryAccountFlow(_context, data, _origin);
+    }
+    else if (func == name2Selector[BENCH_METHOD_ACCOUNT_QUERY_FLOW_STR_UINT])
+    {
+        out = queryAccountFlowByIndex(_context, data, _origin);
     }
     else
     {  // unkown function call
@@ -2971,10 +2989,73 @@ bytes TransferPerfPrecompiled::transfer1to1(
         PRECOMPILED_LOG(ERROR) << LOG_BADGE("transfer1to1") << LOG_DESC("failed")
                                << LOG_KV("retCode", retCode) << LOG_KV("from", fromAccountID)
                                << LOG_KV("to", toAccountID) << LOG_KV("flowID", flowID)
-                               << LOG_KV("time", strTime) << LOG_KV("amount", amount)
+                               << LOG_KV("time", strTime) << LOG_KV("amount", amount);
     }
 
     return abi.abiIn("", retCode);
+}
+
+bytes TransferPerfPrecompiled::queryAccountFlowByIndex(
+    dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
+{
+    //    function queryAccountFlow(string memory accountID, string memory index) public
+    //    returns(int256, string memory) {}
+    int retCode = 0;
+    std::string accountID;
+    u256 index;
+    std::string result;
+
+    dev::eth::ContractABI abi;
+
+    do
+    {
+        abi.abiOut(_data, accountID, index);
+        trim(accountID);
+
+        if (!validAccountID(accountID))
+        {
+            retCode = CODE_BT_INVALID_INVALID_PARAMS;
+            break;
+        }
+
+        // check if account exist
+        auto table = openTable(_context, _origin, TransferTable::Flow, accountID);
+        if (!table)
+        {  // open table failed , unexpected error
+            retCode = CODE_BT_INVALID_OPEN_FLOW_TABLE_FAILED;
+            break;
+        }
+
+        auto entries = table->select(index.str(), table->newCondition());
+        if (!entries.get() || (0u == entries->size()))
+        {
+            retCode = CODE_BT_INVALID_ACCOUNT_FLOW_NOT_EXIST;
+            break;
+        }
+
+        auto entry = entries->get(0);
+        auto id = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_ID);
+        auto from = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_FROM);
+        auto to = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TO);
+        auto amount = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_AMOUNT);
+        auto time = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME);
+
+        result = id + "|" + from + "|" + to + "|" + amount + "|" + time;
+
+    } while (0);
+
+    if (0 == retCode)
+    {
+        PRECOMPILED_LOG(TRACE) << LOG_BADGE("queryAccountFlow") << LOG_KV("accountID", accountID)
+                               << LOG_KV("index", index) << LOG_KV("result", result);
+    }
+    else
+    {
+        PRECOMPILED_LOG(ERROR) << LOG_BADGE("queryAccountFlow") << LOG_KV("retCode", retCode)
+                               << LOG_KV("accountID", accountID) << LOG_KV("index", index);
+    }
+
+    return abi.abiIn("", retCode, result);
 }
 
 bytes TransferPerfPrecompiled::queryAccountFlow(
@@ -3007,11 +3088,11 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
             break;
         }
 
-        if (limit == 0)
+        /*if (limit == 0)
         {
             retCode = CODE_BT_INVALID_INVALID_PARAMS;
             break;
-        }
+        }*/
 
         auto st = stringTime2TimeT(start);
         auto et = stringTime2TimeT(end);

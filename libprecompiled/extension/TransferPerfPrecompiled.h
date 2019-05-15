@@ -162,6 +162,8 @@ private:
         Address const& _origin);
     bytes queryAccountFlow(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
+    bytes queryAccountFlowByIndex(dev::blockverifier::ExecutiveContext::Ptr _context,
+        bytesConstRef _data, Address const& _origin);
 
 private:
     FlowType getFlowType(const std::string& _from, const std::string& _to);

@@ -1,7 +1,7 @@
 pragma solidity >=0.4.19 <0.7.0;
 pragma experimental ABIEncoderV2;
 
-contract BenchAccount
+contract TransferPerf
 {
     function createUser(string memory userID, string memory userName, string memory time) public returns(int256){}
     function createEnabledUser(string memory userID, string memory userName, string memory time) public returns(int256){}
@@ -25,6 +25,7 @@ contract BenchAccount
     function withDraw(string memory accountID, uint256 amount, string memory flowID, string memory time) public returns(int256){}
     function transfer(string memory fromAccountID, string[] memory toAccountID,uint256[] memory amount, string[] memory flowID, string memory time) public returns(int256){}
     function transfer(string memory fromAccountID, string memory toAccountID,uint256 amount, string memory flowID, string memory time) public returns(int256){}
+    function queryAccountFlow(string memory accountID, string memory index) public returns(int256, string memory) {}
     function queryAccountFlow(string memory accountID, string memory start, string memory end, uint256 page, uint256 limit)
 public returns(int256, uint256, string[] memory){}
 }
