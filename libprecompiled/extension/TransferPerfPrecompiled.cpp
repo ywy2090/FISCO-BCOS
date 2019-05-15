@@ -1756,6 +1756,9 @@ bytes TransferPerfPrecompiled::createAccount(
         std::string accounts = entry->getField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST);
         accounts = (accounts.empty() ? accountID : "," + accountID);
 
+        auto newUserEntry = userTable->newEntry();
+        newUserEntry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accounts);
+
         auto count = userTable->update(userID, newUserEntry, userTable->newCondition(),
             std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
@@ -3071,8 +3074,8 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
     u256 index;
     u256 limit;
 
-    std::vector<std::string> resultFlows;
-    u256 resultCount = 0;
+    std::vector<std::string> results;
+    u256 count = 0;
     dev::eth::ContractABI abi;
 
     do
@@ -3088,15 +3091,9 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
             break;
         }
 
-        /*if (limit == 0)
-        {
-            retCode = CODE_BT_INVALID_INVALID_PARAMS;
-            break;
-        }*/
-
-        auto st = stringTime2TimeT(start);
-        auto et = stringTime2TimeT(end);
-        if (st.first || et.first || (st.second < et.second))
+        auto s = stringTime2TimeT(start);
+        auto e = stringTime2TimeT(end);
+        if (!s.first || !e.first || (s.second < e.second))
         {
             retCode = CODE_BT_INVALID_INVALID_PARAMS;
             break;
@@ -3124,17 +3121,17 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
         if (status != BENCH_TRANSFER_ACCOUNT_STATUS_USABLE)
         {
             retCode = CODE_BT_INVALID_ACCOUNT_INVALID_STATUS;
-            PRECOMPILED_LOG(WARNING)
-                << LOG_BADGE("queryAccountFlow") << LOG_DESC("account not usable status")
-                << LOG_KV("accountID", accountID) << LOG_KV("status", status);
             break;
         }
 
-        resultCount = u256(entry->getField(BENCH_TRANSFER_ACCOUNT_FILED_FLOW_COUNT));
-        if (resultCount == 0)
+        count = u256(entry->getField(BENCH_TRANSFER_ACCOUNT_FILED_FLOW_COUNT));
+        if (count == 0)
         {  // account flow null
             break;
         }
+
+        PRECOMPILED_LOG(DEBUG) << LOG_BADGE("queryAccountFlow") << LOG_KV("accountID", accountID)
+                               << LOG_KV("flowCount", count);
 
         // check if account exist
         auto flowTable = openTable(_context, _origin, TransferTable::Flow, accountID);
@@ -3146,25 +3143,27 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
 
         // binary search
         u256 left = 0;
-        u256 right = resultCount - 1;
-        u256 start_flow = 0;
-        u256 end_flow = 0;
+        u256 right = count - 1;
+        u256 startFlowIndex = 0;
+        u256 endFlowInex = 0;
 
         while (left <= right)
         {
-            u256 mid = (left + right) / 2;
+            u256 mid = left + (right - left) / 2;
             auto entries = flowTable->select(mid.str(), flowTable->newCondition());
             if (!entries.get() || (0u == entries->size()))
             {
                 retCode = CODE_BT_INVALID_ACCOUNT_FLOW_NOT_EXIST;
+                PRECOMPILED_LOG(WARNING)
+                    << LOG_BADGE("queryAccountFlow") << LOG_KV("accountID", accountID)
+                    << LOG_KV("flowCount", count) << LOG_KV("midFlow0", mid);
                 break;
             }
 
             auto entry = entries->get(0);
-            auto flowTime = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME);
-            auto flowT = stringTime2TimeT(flowTime);
+            auto flowT = stringTime2TimeT(entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME));
             // time compare
-            if (flowT.second >= st.second)
+            if (flowT.second >= s.second)
             {
                 right = mid - 1;
             }
@@ -3174,31 +3173,37 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
             }
         }
 
-        if (retCode != 0)
+        if (!(retCode == 0))
         {
             break;
         }
 
+        if (left > count - 1)
+        {  // not exist
+            break;
+        }
 
-        start_flow = left;
+        startFlowIndex = left;
 
         left = 0;
-        right = resultCount - 1;
+        right = count - 1;
 
         while (left <= right)
         {
-            u256 mid = (left + right) / 2;
+            u256 mid = left + (right - left) / 2;
             auto entries = flowTable->select(mid.str(), flowTable->newCondition());
             if (!entries.get() || (0u == entries->size()))
             {
                 retCode = CODE_BT_INVALID_ACCOUNT_FLOW_NOT_EXIST;
+                PRECOMPILED_LOG(WARNING)
+                    << LOG_BADGE("queryAccountFlow") << LOG_KV("accountID", accountID)
+                    << LOG_KV("flowCount", count) << LOG_KV("midFlow1", mid);
                 break;
             }
 
             auto entry = entries->get(0);
-            auto flowTime = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME);
-            auto flowT = stringTime2TimeT(flowTime);
-            if (flowT.second >= et.second)
+            auto flowT = stringTime2TimeT(entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME));
+            if (flowT.second >= e.second)
             {
                 right = mid - 1;
             }
@@ -3208,38 +3213,43 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
             }
         }
 
-        if (retCode != 0)
+        if (!(retCode == 0))
         {
             break;
         }
 
-        end_flow = right;
+        if (right = (u256(0) - 1))
+        {  // not exist
+            break;
+        }
 
-        if (end_flow > start_flow)
+        endFlowInex = right;
+
+        count = (endFlowInex - startFlowIndex + 1);
+
+        for (u256 i = startFlowIndex; i <= endFlowInex && limit > 0; ++i)
         {
-            for (u256 i = start_flow; i <= end_flow; ++i)
+            if (i < index || i >= index + limit)
             {
-                if (i < index || i >= index + limit)
-                {
-                    continue;
-                }
-
-                auto entries = flowTable->select(i.str(), flowTable->newCondition());
-                if (!entries.get() || (0u == entries->size()))
-                {
-                    continue;
-                }
-
-                auto entry = entries->get(0);
-
-                auto id = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_ID);
-                auto from = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_FROM);
-                auto to = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TO);
-                auto amount = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_AMOUNT);
-                auto time = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME);
-
-                resultFlows.push_back(id + "|" + from + "|" + to + "|" + amount + "|" + time);
+                continue;
             }
+
+            auto entries = flowTable->select(i.str(), flowTable->newCondition());
+            if (!entries.get() || (0u == entries->size()))
+            {
+                continue;
+            }
+
+            auto entry = entries->get(0);
+
+            auto id = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_ID);
+            auto from = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_FROM);
+            auto to = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TO);
+            auto amount = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_AMOUNT);
+            auto time = entry->getField(BENCH_TRANSFER_ACCOUNT_FLOW_FIELD_TIME);
+
+            results.push_back(
+                i.str() + "|" + id + "|" + from + "|" + to + "|" + amount + "|" + time);
         }
 
     } while (0);
@@ -3249,7 +3259,7 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
         PRECOMPILED_LOG(DEBUG) << LOG_BADGE("queryAccountFlow") << LOG_KV("accountID", accountID)
                                << LOG_KV("start", start) << LOG_KV("end", end)
                                << LOG_KV("index", index) << LOG_KV("limit", limit)
-                               << LOG_KV("totalCount", resultCount);
+                               << LOG_KV("count", count);
     }
     else
     {
@@ -3259,7 +3269,7 @@ bytes TransferPerfPrecompiled::queryAccountFlow(
                                << LOG_KV("limit", limit);
     }
 
-    return abi.abiIn("", retCode, resultCount, resultFlows);
+    return abi.abiIn("", retCode, count, results);
 }
 
 FlowType TransferPerfPrecompiled::getFlowType(const std::string& _from, const std::string& _to)
