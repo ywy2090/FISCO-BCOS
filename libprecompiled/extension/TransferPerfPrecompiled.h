@@ -146,6 +146,8 @@ private:
         Address const& _origin);
     bytes closeAccount(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
+    bytes queryAccountStatus(dev::blockverifier::ExecutiveContext::Ptr _context,
+        bytesConstRef _data, Address const& _origin);
     bytes queryAccountState(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,
         Address const& _origin);
     bytes balance(dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data,

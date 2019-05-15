@@ -18,7 +18,7 @@ contract BenchAccount
     function freezeAccount(string memory accountID, string memory time) public returns(int256){}
     function unfreezeAccount(string memory accountID,string memory time) public returns(int256){}
     function closeAccount(string memory accountID, string memory time) public returns(int256){}
-    // userID,status,time,uint256,uint256
+    function queryAccountStatus(string memory accountID) public view returns(int256, string memory){}
     function queryAccountState(string memory accountID) public view returns(int256, string memory/*user*/, string memory/*status*/, string memory/*time*/){}
     function balance(string memory accountID) public view returns(int256, uint256){}
     function deposit(string memory accountID, uint256 amount, string memory flowID, string memory time) public returns(int256){}

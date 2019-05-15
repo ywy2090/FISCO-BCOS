@@ -146,8 +146,11 @@ uint256 amount) public returns(int256);
 
     function closeAccount(string memory accountID, string memory time) public returns(int256);
 
-    function queryAccountState(string memory accountID) public view returns(int256, string memory,
-string memory, string memory,uint256,uint256);
+    function queryAccountStatus(string memory accountID) public view returns(int256, string
+memory);
+
+    function queryAccountState(string memory accountID) public view returns(int256, string
+memory, string memory, string memory,uint256,uint256);
 
     function balance(string memory accountID) public view returns(int256, uint256);
 
@@ -184,6 +187,7 @@ const char* const BENCH_METHOD_ENABLE_ACCOUNT_STR2 = "enableAccount(string,strin
 const char* const BENCH_METHOD_FREEZE_ACCOUNT_STR2 = "freezeAccount(string,string)";
 const char* const BENCH_METHOD_UNFREEZE_ACCOUNT_STR3 = "unfreezeAccount(string,string)";
 const char* const BENCH_METHOD_CLOSE_ACCOUNT_STR2 = "closeAccount(string,string)";
+const char* const BENCH_METHOD_QUERY_ACCOUNT_STATUS_STR = "queryAccountStatus(string)";
 const char* const BENCH_METHOD_QUERY_ACCOUNT_STATE_STR = "queryAccountState(string)";
 const char* const BENCH_METHOD_BALANCE_ACCOUNT_STR = "balance(string)";
 const char* const BENCH_METHOD_DEPOSIT_ACCOUNT_STR3 = "deposit(string,string,string,string)";
@@ -224,6 +228,8 @@ const static int CODE_BT_INVALID_ACCOUNT_INVALID_STATUS = 51803;
 const static int CODE_BT_INVALID_ACCOUNT_BALANCE_NOT_ZERO = 51804;
 const static int CODE_BT_INVALID_ACCOUNT_BALANCE_OVERFLOW = 51805;
 const static int CODE_BT_INVALID_ACCOUNT_BALANCE_INSUFFICIENT = 51806;
+const static int CODE_BT_INVALID_ACCOUNT_CLOSED_STATUS = 51807;
+const static int CODE_BT_INVALID_ACCOUNT_NOT_USABEL_STATUS = 51808;
 
 TransferPerfPrecompiled::TransferPerfPrecompiled()
 {
@@ -541,6 +547,14 @@ std::vector<std::string> TransferPerfPrecompiled::getParallelTag(bytesConstRef _
 
         // do nothing
     }
+    else if (func == name2Selector[BENCH_METHOD_QUERY_ACCOUNT_STATUS_STR])
+    {
+        // userID,status,time,uint256,uint256
+        // function queryAccountStatus(string memory accountID) public view returns(int256, string
+        // memory, string memory, string memory,uint256,uint256);
+
+        // do nothing
+    }
     else if (func == name2Selector[BENCH_METHOD_BALANCE_ACCOUNT_STR])
     {
         // function balance(string memory accountID) public view returns(int256, uint256);
@@ -728,6 +742,10 @@ bytes TransferPerfPrecompiled::call(dev::blockverifier::ExecutiveContext::Ptr _c
     else if (func == name2Selector[BENCH_METHOD_QUERY_ACCOUNT_STATE_STR])
     {
         out = queryAccountState(_context, data, _origin);
+    }
+    else if (func == name2Selector[BENCH_METHOD_QUERY_ACCOUNT_STATUS_STR])
+    {
+        out = queryAccountStatus(_context, data, _origin);
     }
     else if (func == name2Selector[BENCH_METHOD_BALANCE_ACCOUNT_STR])
     {
@@ -2275,6 +2293,67 @@ bytes TransferPerfPrecompiled::closeAccount(
     }
     return abi.abiIn("", retCode);
 }
+
+bytes TransferPerfPrecompiled::queryAccountStatus(
+    dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
+{
+    // function queryAccountStatus(string memory accountID) public view returns(int256, string
+    // memory);
+    int retCode = 0;
+    std::string accountID;
+    std::string status;
+
+    dev::eth::ContractABI abi;
+    do
+    {
+        // analytical parameters
+        abi.abiOut(_data, accountID);
+
+        trim(accountID);
+
+        // paramters check
+        if (!validAccountID(accountID))
+        {
+            retCode = CODE_BT_INVALID_INVALID_PARAMS;
+            break;
+        }
+
+        // check if user exist
+        auto table = openTable(_context, _origin, TransferTable::Account);
+        if (!table)
+        {  // create table failed , unexpected error
+            retCode = CODE_BT_INVALID_OPEN_ACCOUNT_TABLE_FAILED;
+            break;
+        }
+
+        // check if user id already exist
+        auto entries = table->select(accountID, table->newCondition());
+        if (!entries.get() || (0u == entries->size()))
+        {
+            retCode = CODE_BT_INVALID_ACCOUNT_NOT_EXIST;
+            break;
+        }
+
+        auto entry = entries->get(0);
+        // get acount status
+        status = entry->getField(BENCH_TRANSFER_ACCOUNT_FILED_STATUS);
+
+    } while (0);
+
+    if (0 == retCode)
+    {
+        PRECOMPILED_LOG(TRACE) << LOG_BADGE("queryAccountStatus") << LOG_KV("retCode", retCode)
+                               << LOG_KV("accountID", accountID) << LOG_KV("status", status);
+    }
+    else
+    {
+        PRECOMPILED_LOG(ERROR) << LOG_BADGE("queryAccountStatus") << LOG_DESC("failed")
+                               << LOG_KV("retCode", retCode);
+    }
+
+    return abi.abiIn("", retCode, status);
+}
+
 
 bytes TransferPerfPrecompiled::queryAccountState(
     dev::blockverifier::ExecutiveContext::Ptr _context, bytesConstRef _data, Address const& _origin)
