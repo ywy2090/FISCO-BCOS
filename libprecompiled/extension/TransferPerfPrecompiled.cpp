@@ -1914,7 +1914,7 @@ bytes TransferPerfPrecompiled::createEnabledAccount(
         newAccountEntry->setField(
             BENCH_TRANSFER_ACCOUNT_FILED_STATUS, BENCH_TRANSFER_ACCOUNT_STATUS_USABLE);
         newAccountEntry->setField(BENCH_TRANSFER_ACCOUNT_FILED_BALANCE, amount.str());
-        count = accountTable->insert(
+        auto count = accountTable->insert(
             accountID, newAccountEntry, std::make_shared<AccessOptions>(_origin));
 
         if (count == CODE_NO_AUTHORIZED)
