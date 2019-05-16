@@ -1606,7 +1606,7 @@ bytes TransferPerfPrecompiled::queryUserState(
     std::string userID;
     std::string userAddr;
     std::string userPhone;
-    std::string userStatus;
+    std::string status;
     std::string userAccouts;
     std::string userTime;
 
@@ -1654,7 +1654,7 @@ bytes TransferPerfPrecompiled::queryUserState(
         // get user address
         userAddr = entry->getField(BENCH_TRANSFER_USER_FILED_ADDRESS);
         userPhone = entry->getField(BENCH_TRANSFER_USER_FILED_PHONE);
-        userStatus = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
+        status = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
         userTime = entry->getField(BENCH_TRANSFER_USER_FILED_TIME);
         userAccouts = entry->getField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST);
 
@@ -1664,7 +1664,7 @@ bytes TransferPerfPrecompiled::queryUserState(
     {
         PRECOMPILED_LOG(TRACE) << LOG_BADGE("queryUserState") << LOG_KV("retCode", retCode)
                                << LOG_KV("id", userID) << LOG_KV("address", userAddr)
-                               << LOG_KV("phone", userPhone) << LOG_KV("status", userStatus)
+                               << LOG_KV("phone", userPhone) << LOG_KV("status", status)
                                << LOG_KV("time", userTime) << LOG_KV("accounts", userAccouts);
     }
     else
@@ -1673,7 +1673,7 @@ bytes TransferPerfPrecompiled::queryUserState(
                                << LOG_KV("retCode", retCode);
     }
 
-    return abi.abiIn("", retCode, userAddr, userPhone, userStatus, userTime, userAccouts);
+    return abi.abiIn("", retCode, userAddr, userPhone, status, userTime, userAccouts);
 }
 
 // account table operation
@@ -1741,14 +1741,14 @@ bytes TransferPerfPrecompiled::createAccount(
 
         auto entry = entries->get(0);
         // get user status
-        std::string userStatus = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
+        std::string status = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
         // check if user status available
-        if (userStatus != BENCH_TRANSFER_USER_STATUS_USABLE)
+        if (status != BENCH_TRANSFER_USER_STATUS_USABLE)
         {
             retCode = CODE_BT_INVALID_USER_INVALID_STATUS;
             PRECOMPILED_LOG(WARNING)
                 << LOG_BADGE("createAccount") << LOG_DESC("user not usable status")
-                << LOG_KV("userID", userID) << LOG_KV("userStatus", userStatus);
+                << LOG_KV("userID", userID) << LOG_KV("status", status);
             break;
         }
 
@@ -1756,11 +1756,11 @@ bytes TransferPerfPrecompiled::createAccount(
         std::string accounts = entry->getField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST);
         accounts = (accounts.empty() ? accountID : "," + accountID);
 
-        auto newUserEntry = userTable->newEntry();
-        newUserEntry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accounts);
+        auto nEntry = userTable->newEntry();
+        nEntry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accounts);
 
-        auto count = userTable->update(userID, newUserEntry, userTable->newCondition(),
-            std::make_shared<AccessOptions>(_origin));
+        auto count = userTable->update(
+            userID, nEntry, userTable->newCondition(), std::make_shared<AccessOptions>(_origin));
         if (count == CODE_NO_AUTHORIZED)
         {  // permission denied
             retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
@@ -1857,39 +1857,54 @@ bytes TransferPerfPrecompiled::createEnabledAccount(
             break;
         }
 
-        // check if user id already exist
+        // check if user already exist
         entries = userTable->select(userID, userTable->newCondition());
         if (!entries.get() || (0u == entries->size()))
         {
-            retCode = CODE_BT_INVALID_USER_NT_EXIST;
-            break;
-        }
+            // retCode = CODE_BT_INVALID_USER_NT_EXIST;
+            // break;
 
-        auto entry = entries->get(0);
-        // get user status
-        std::string userStatus = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
-        // check if user status available
-        if (userStatus != BENCH_TRANSFER_USER_STATUS_USABLE)
+            // if user not exist, create it first
+            auto entry = userTable->newEntry();
+            entry->setField(BENCH_TRANSFER_USER_FILED_ID, userID);
+            entry->setField(BENCH_TRANSFER_USER_FILED_TIME, strTime);
+            entry->setField(BENCH_TRANSFER_USER_FILED_STATUS, BENCH_TRANSFER_USER_STATUS_USABLE);
+            entry->setField(BENCH_TRANSFER_USER_FILED_MODIFY_COUNT, u256(0).str());
+            entry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accountID);
+
+            auto count = table->insert(userID, entry, std::make_shared<AccessOptions>(_origin));
+            if (count == CODE_NO_AUTHORIZED)
+            {  // permission denied
+                retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
+                break;
+            }
+        }
+        else
         {
-            retCode = CODE_BT_INVALID_USER_INVALID_STATUS;
-            PRECOMPILED_LOG(WARNING)
-                << LOG_BADGE("createAccount") << LOG_DESC("user not usable status")
-                << LOG_KV("userID", userID) << LOG_KV("userStatus", userStatus);
-            break;
-        }
+            // update user info
+            auto entry = entries->get(0);
+            // get user status
+            std::string status = entry->getField(BENCH_TRANSFER_USER_FILED_STATUS);
+            // check if user status available
+            if (status != BENCH_TRANSFER_USER_STATUS_USABLE)
+            {
+                retCode = CODE_BT_INVALID_USER_INVALID_STATUS;
+                break;
+            }
 
-        // update user accountList filed
-        std::string accounts = entry->getField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST);
-        accounts = (accounts.empty() ? accountID : "," + accountID);
-        auto newUserEntry = userTable->newEntry();
-        newUserEntry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accounts);
+            // update user accountList filed
+            std::string accounts = entry->getField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST);
+            accounts = (accounts.empty() ? accountID : "," + accountID);
+            auto nEntry = userTable->newEntry();
+            nEntry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accounts);
 
-        auto count = userTable->update(userID, newUserEntry, userTable->newCondition(),
-            std::make_shared<AccessOptions>(_origin));
-        if (count == CODE_NO_AUTHORIZED)
-        {  // permission denied
-            retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
-            break;
+            auto count = userTable->update(userID, nEntry, userTable->newCondition(),
+                std::make_shared<AccessOptions>(_origin));
+            if (count == CODE_NO_AUTHORIZED)
+            {  // permission denied
+                retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
+                break;
+            }
         }
 
         // insert account list
