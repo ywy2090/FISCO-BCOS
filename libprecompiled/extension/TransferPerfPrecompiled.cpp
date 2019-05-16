@@ -1872,7 +1872,7 @@ bytes TransferPerfPrecompiled::createEnabledAccount(
             entry->setField(BENCH_TRANSFER_USER_FILED_MODIFY_COUNT, u256(0).str());
             entry->setField(BENCH_TRANSFER_USER_FILED_ACCOUNT_LIST, accountID);
 
-            auto count = table->insert(userID, entry, std::make_shared<AccessOptions>(_origin));
+            auto count = userTable->insert(userID, entry, std::make_shared<AccessOptions>(_origin));
             if (count == CODE_NO_AUTHORIZED)
             {  // permission denied
                 retCode = CODE_BT_INVALID_USER_TABLE_NO_AUTHORIZED;
