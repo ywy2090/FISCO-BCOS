@@ -44,6 +44,7 @@ const char* const DAG_TRANSFER_METHOD_ADD_STR_UINT = "userAdd(string,uint256)";
 const char* const DAG_TRANSFER_METHOD_SAV_STR_UINT = "userSave(string,uint256)";
 const char* const DAG_TRANSFER_METHOD_DRAW_STR_UINT = "userDraw(string,uint256)";
 const char* const DAG_TRANSFER_METHOD_TRS_STR2_UINT = "userTransfer(string,string,uint256)";
+const char* const DAG_TRANSFER_METHOD_TRS_STRARR = "userTransfer(string[])";
 const char* const DAG_TRANSFER_METHOD_BAL_STR = "userBalance(string)";
 
 // fields of table '_dag_transfer_'
@@ -60,6 +61,7 @@ DagTransferPrecompiled::DagTransferPrecompiled()
         getFuncSelector(DAG_TRANSFER_METHOD_DRAW_STR_UINT);
     name2Selector[DAG_TRANSFER_METHOD_TRS_STR2_UINT] =
         getFuncSelector(DAG_TRANSFER_METHOD_TRS_STR2_UINT);
+    name2Selector[DAG_TRANSFER_METHOD_TRS_STRARR] = getFuncSelector(DAG_TRANSFER_METHOD_TRS_STRARR);
     name2Selector[DAG_TRANSFER_METHOD_BAL_STR] = getFuncSelector(DAG_TRANSFER_METHOD_BAL_STR);
 }
 
@@ -125,6 +127,19 @@ std::vector<std::string> DagTransferPrecompiled::getParallelTag(bytesConstRef pa
         {
             results.push_back(fromUser);
             results.push_back(toUser);
+        }
+    }
+    else if (func == name2Selector[DAG_TRANSFER_METHOD_TRS_STRARR])
+    {
+        // userTransfer(string[])
+        std::vector<std::string> params;
+
+        abi.abiOut(data, params);
+        // if params is invalid , parallel process can be done
+        if (params.size() >= 3 && !invalidUserName(params[0]) && !invalidUserName(params[1]))
+        {
+            results.push_back(params[0]);
+            results.push_back(params[1]);
         }
     }
     else if (func == name2Selector[DAG_TRANSFER_METHOD_BAL_STR])
@@ -202,13 +217,18 @@ PrecompiledExecResult::Ptr DagTransferPrecompiled::call(
     {  // userTransfer(string,string,uint256)
         userTransferCall(context, data, origin, callResult->mutableExecResult());
     }
+    else if (func == name2Selector[DAG_TRANSFER_METHOD_TRS_STRARR])
+    {  // userTransfer(string[])
+        userTransfer0Call(context, data, origin, callResult->mutableExecResult());
+    }
     else if (func == name2Selector[DAG_TRANSFER_METHOD_BAL_STR])
     {  // userBalance(string user)
         userBalanceCall(context, data, origin, callResult->mutableExecResult());
     }
     else
     {
-        // PRECOMPILED_LOG(ERROR) << LOG_BADGE("DagTransferPrecompiled") << LOG_DESC("error func")
+        // PRECOMPILED_LOG(ERROR) << LOG_BADGE("DagTransferPrecompiled") << LOG_DESC("error
+        // func")
         //                       << LOG_KV("func", func);
     }
 
@@ -598,6 +618,149 @@ void DagTransferPrecompiled::userTransferCall(
         // end with success
         ret = 0;
     } while (0);
+
+    out = abi.abiIn("", u256(ret));
+}
+
+
+void DagTransferPrecompiled::userTransfer0Call(
+    ExecutiveContext::Ptr context, bytesConstRef data, Address const& origin, bytes& out)
+{
+    std::string fromUser, toUser;
+    std::vector<std::string> params;
+    dev::u256 amount;
+    dev::eth::ContractABI abi;
+    abi.abiOut(data, params);
+
+    dev::u256 fromUserBalance, newFromUserBalance;
+    dev::u256 toUserBalance, newToUserBalance;
+
+    std::string strErrorMsg;
+    int ret;
+
+    do
+    {
+        // parameters check
+        if (params.size() < 3)
+        {
+            strErrorMsg = "invalid params size";
+            ret = CODE_INVALID_USER_NAME;
+            break;
+        }
+
+        fromUser = params[0];
+        toUser = params[1];
+        amount = dev::u256(params[2]);
+
+        // parameters check
+        if (invalidUserName(fromUser) || invalidUserName(toUser))
+        {
+            strErrorMsg = "invalid user name";
+            ret = CODE_INVALID_USER_NAME;
+            break;
+        }
+
+        if (amount == 0)
+        {
+            strErrorMsg = "invalid amount";
+            ret = CODE_INVALID_AMOUNT;
+            break;
+        }
+
+        // transfer self, do nothing
+        if (fromUser == toUser)
+        {
+            ret = 0;
+            break;
+        }
+
+        Table::Ptr table = openTable(context, origin);
+        if (!table)
+        {
+            strErrorMsg = "openTable failed.";
+            ret = CODE_INVALID_OPENTALBLE_FAILED;
+            break;
+        }
+
+        auto entries = table->select(fromUser, table->newCondition());
+        if (!entries.get() || (0u == entries->size()))
+        {
+            strErrorMsg = "from user not exist";
+            ret = CODE_INVALID_USER_NOT_EXIST;
+            break;
+        }
+
+        fromUserBalance = dev::u256(entries->get(0)->getField(DAG_TRANSFER_FIELD_BALANCE));
+        if (fromUserBalance < amount)
+        {
+            strErrorMsg = "from user insufficient balance";
+            ret = CODE_INVALID_INSUFFICIENT_BALANCE;
+            break;
+        }
+
+        entries = table->select(toUser, table->newCondition());
+        if (!entries.get() || (0u == entries->size()))
+        {
+            // If to user not exist, add it first.
+            auto entry = table->newEntry();
+            entry->setField(DAG_TRANSFER_FIELD_NAME, toUser);
+            entry->setField(DAG_TRANSFER_FIELD_BALANCE, dev::u256(0).str());
+
+            auto count = table->insert(toUser, entry, std::make_shared<AccessOptions>(origin));
+            if (count == CODE_NO_AUTHORIZED)
+            {  // permission denied
+                strErrorMsg = "permission denied";
+                ret = CODE_NO_AUTHORIZED;
+                break;
+            }
+            toUserBalance = 0;
+        }
+        else
+        {
+            toUserBalance = dev::u256(entries->get(0)->getField(DAG_TRANSFER_FIELD_BALANCE));
+        }
+
+        // overflow check
+        if (toUserBalance + amount < toUserBalance)
+        {
+            strErrorMsg = "to user balance overflow.";
+            ret = CODE_INVALID_BALANCE_OVERFLOW;
+            break;
+        }
+
+        newFromUserBalance = fromUserBalance - amount;
+        newToUserBalance = toUserBalance + amount;
+
+        // update fromUser balance info.
+        auto entry = table->newEntry();
+        entry->setField(DAG_TRANSFER_FIELD_NAME, fromUser);
+        entry->setField(DAG_TRANSFER_FIELD_BALANCE, newFromUserBalance.str());
+        auto count = table->update(
+            fromUser, entry, table->newCondition(), std::make_shared<AccessOptions>(origin));
+        if (count == CODE_NO_AUTHORIZED)
+        {  // permission denied
+            strErrorMsg = "permission denied";
+            ret = CODE_NO_AUTHORIZED;
+            break;
+        }
+
+        // update toUser balance info.
+        entry = table->newEntry();
+        entry->setField(DAG_TRANSFER_FIELD_NAME, toUser);
+        entry->setField(DAG_TRANSFER_FIELD_BALANCE, newToUserBalance.str());
+        count = table->update(
+            toUser, entry, table->newCondition(), std::make_shared<AccessOptions>(origin));
+
+        LOG(TRACE) << "from: " << fromUser << " to: " << toUser << " amount: " << amount;
+
+        // end with success
+        ret = 0;
+    } while (0);
+
+    if (ret != 0)
+    {
+        LOG(ERROR) << "ret=" << ret << " , message=" << strErrorMsg;
+    }
 
     out = abi.abiIn("", u256(ret));
 }
