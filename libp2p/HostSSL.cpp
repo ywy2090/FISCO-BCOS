@@ -122,14 +122,16 @@ void HostSSL::doneWorking()
 
 void HostSSL::startPeerSession( RLP const& _rlp, unique_ptr<RLPXFrameCoder>&& _io, std::shared_ptr<RLPXSocketSSL> const& _s, RLPBaseData &/*rlpBaseData*/)
 {
-	
 	auto protocolVersion = _rlp[0].toInt<unsigned>();
 	auto clientVersion = _rlp[1].toString();
 	auto caps = _rlp[2].toVector<CapDesc>();
 	//auto listenPort = _rlp[3].toInt<unsigned short>();
 	auto listenPort = _s->remoteEndpoint().port();
 	auto pub = _rlp[4].toHash<Public>();
-	LOG(INFO) << "HostSSL::startPeerSession! " << pub.abridged() ;
+	LOG(INFO) << "HostSSL::startPeerSession! pub: " << pub.abridged() 
+      << " address:" << _s->remoteEndpoint().address()
+      << " host:" << _s->nodeIPEndpoint().host
+      << " port:" << listenPort;
 	Public  _id=pub;
 
 	//connection must be disconnect before the creation of session object and peer object - morebtcg
@@ -173,7 +175,7 @@ void HostSSL::startPeerSession( RLP const& _rlp, unique_ptr<RLPXFrameCoder>&& _i
 	for (auto cap : caps)
 		capslog << "(" << cap.first << "," << dec << cap.second << ")";
 
-	LOG(INFO) << "Hello: " << clientVersion << "V[" << protocolVersion << "]" << _id << showbase << capslog.str() << dec << listenPort;
+	LOG(INFO) << "HostSSL::startPeerSession Hello: " << clientVersion << "V[" << protocolVersion << "]" << _id << showbase << capslog.str() << dec << listenPort;
 
 	shared_ptr<SessionFace> ps = make_shared<Session>(this, move(_io), _s, p, PeerSessionInfo({_id, clientVersion, p->endpoint.address.to_string(), listenPort, chrono::steady_clock::duration(), _rlp[2].toSet<CapDesc>(), 0, map<string, string>(), protocolVersion, _nodeIPEndpoint}));
 	//((Session *)ps.get())->setStatistics(new InterfaceStatistics(getDataDir() + "P2P" + p->id.hex(), m_statisticsInterval));
@@ -191,7 +193,7 @@ void HostSSL::startPeerSession( RLP const& _rlp, unique_ptr<RLPXFrameCoder>&& _i
 
 	if (m_netPrefs.pin && !m_requiredPeers.count(_id))
 	{
-		LOG(WARNING) << "Unexpected identity from peer (got" << _id << ", must be one of " << m_requiredPeers << ")";
+		LOG(WARNING) << "HostSSL::startPeerSession Unexpected identity from peer (got" << _id << ", must be one of " << m_requiredPeers << ")";
 		ps->disconnect(UnexpectedIdentity);
 		return;
 	}
@@ -203,14 +205,14 @@ void HostSSL::startPeerSession( RLP const& _rlp, unique_ptr<RLPXFrameCoder>&& _i
 				if (s->isConnected())
 				{
 					// Already connected.
-					LOG(WARNING) << "Session already exists for peer with id " << _id.abridged();
+					LOG(WARNING) << "HostSSL::startPeerSession Session already exists for peer with id " << _id.abridged();
 					ps->disconnect(DuplicatePeer);
 					return;
 				}
 
 		if (!peerSlotsAvailable())
 		{
-			LOG(WARNING) << "too many  peer ! " ;
+			LOG(WARNING) << "HostSSL::startPeerSession too many  peer ! " ;
 			ps->disconnect(TooManyPeers);
 			return;
 		}
@@ -237,7 +239,7 @@ void HostSSL::startPeerSession( RLP const& _rlp, unique_ptr<RLPXFrameCoder>&& _i
 		m_sessions[_id] = ps;
 	}
 
-	LOG(INFO) << "p2p.host.peer.register: " << _id;
+	LOG(INFO) << "HostSSL::startPeerSession p2p.host.peer.register: " << _id;
 }
 
 void HostSSL::onNodeTableEvent(NodeID const& _n, NodeTableEventType const& _e)
@@ -292,7 +294,7 @@ void HostSSL::sslHandshakeServer(const boost::system::error_code& error, std::sh
 {
 	if (error)
 	{
-		LOG(WARNING) << "HostSSL::async_handshake err:" << error.message();
+		LOG(WARNING) << "HostSSL::sslHandshakeServer err:" << error.message();
 
 		socket->ref().close();
 
@@ -311,11 +313,11 @@ void HostSSL::sslHandshakeServer(const boost::system::error_code& error, std::sh
 	}
 	catch (Exception const& _e)
 	{
-		LOG(WARNING) << "ERROR: " << diagnostic_information(_e);
+		LOG(WARNING) << "HostSSL::sslHandshakeServer Exception: " << diagnostic_information(_e);
 	}
 	catch (std::exception const& _e)
 	{
-		LOG(WARNING) << "ERROR: " << _e.what();
+		LOG(WARNING) << "HostSSL::sslHandshakeServer exception: " << _e.what();
 	}
 	if (!success)
 		socket->ref().close();
@@ -339,7 +341,7 @@ bool HostSSL::sslVerifyCert(bool preverified, ba::ssl::verify_context& ctx)
 
 	if (isExpire)
 	{
-		LOG(WARNING) << "Verify Certificate Expire Data Error!";
+		LOG(WARNING) << "[HostSSL] Verify Certificate Expire Data Error!";
 		return false;
 	}
 
@@ -347,7 +349,7 @@ bool HostSSL::sslVerifyCert(bool preverified, ba::ssl::verify_context& ctx)
 	{
 		if ( true == NodeConnManagerSingleton::GetInstance().checkCertOut(serialNumber) )
 		{
-			LOG(WARNING) << "Verify Certificate: Has Out! ("<<serialNumber<<")";
+			LOG(WARNING) << "[HostSSL] Verify Certificate: Has Out! ("<<serialNumber<<")";
 			return false;
 		}
 	}
@@ -360,10 +362,10 @@ void HostSSL::runAcceptor()
 
 	if (m_run && !m_accepting)
 	{
-		LOG(INFO) << "Listening on local port " << m_listenPort << " (public: " << m_tcpPublic << ")";
+		LOG(INFO) << "[HostSSL] Listening on local port " << m_listenPort << " (public: " << m_tcpPublic << ")";
 		m_accepting = true;
 
-		LOG(INFO) << "P2P Start Accept";
+		LOG(INFO) << "[HostSSL] P2P Start Accept";
 		std::shared_ptr<RLPXSocketSSL> socket;
 		socket.reset(new RLPXSocketSSL(m_ioService,NodeIPEndpoint()));
 			
@@ -372,7 +374,7 @@ void HostSSL::runAcceptor()
 		m_tcp4Acceptor.async_accept(socket->ref(), m_strand.wrap([ = ](boost::system::error_code ec)
 		{
 			auto remoteEndpoint = socket->ref().remote_endpoint();
-			LOG(INFO) << "P2P Recv Connect: " << remoteEndpoint.address().to_string() << ":" << remoteEndpoint.port();
+			LOG(INFO) << "[HostSSL] P2P Recv Connect: " << remoteEndpoint.address().to_string() << ":" << remoteEndpoint.port();
 
 			m_accepting = false;
 			if (ec || !m_run)
@@ -382,7 +384,7 @@ void HostSSL::runAcceptor()
 			}
 			if (peerCount() > peerSlots(Ingress))
 			{
-				LOG(INFO) << "Dropping incoming connect due to maximum peer count (" << Ingress << " * ideal peer count): " << socket->remoteEndpoint();
+				LOG(INFO) << "[HostSSL] Dropping incoming connect due to maximum peer count (" << Ingress << " * ideal peer count): " << socket->remoteEndpoint();
 				socket->close();
 				if (ec.value() < 1)
 					runAcceptor();
@@ -391,8 +393,8 @@ void HostSSL::runAcceptor()
 
 			m_tcpClient = socket->remoteEndpoint();
 			socket->setNodeIPEndpoint(NodeIPEndpoint(m_tcpClient.address(),(uint16_t)0,m_tcpClient.port()));
-			LOG(INFO) << "client port:" << m_tcpClient.port() << "|ip:" << m_tcpClient.address().to_string();
-			LOG(INFO) << "server port:" << m_listenPort << "|ip:" << m_tcpPublic.address().to_string();
+			LOG(INFO) << "[HostSSL] client port:" << m_tcpClient.port() << "|ip:" << m_tcpClient.address().to_string();
+			LOG(INFO) << "[HostSSL] server port:" << m_listenPort << "|ip:" << m_tcpPublic.address().to_string();
 			
 			socket->sslref().async_handshake(ba::ssl::stream_base::server, m_strand.wrap(boost::bind(&HostSSL::sslHandshakeServer, this, ba::placeholders::error, socket)) );
 		}));
@@ -523,7 +525,7 @@ void HostSSL::connect(NodeIPEndpoint const& _nodeIPEndpoint)
 			}
 		}
 
-		LOG(INFO) << "Attempting connection to node " << id().abridged() << "@" << _nodeIPEndpoint.name();
+		LOG(INFO) << "[HostSSL] Attempting connection to node " << id().abridged() << "@" << _nodeIPEndpoint.name();
 		std::shared_ptr<RLPXSocketSSL> socket;
 		socket.reset(new RLPXSocketSSL(m_ioService,_nodeIPEndpoint));
 
@@ -542,7 +544,7 @@ void HostSSL::connect(NodeIPEndpoint const& _nodeIPEndpoint)
 						if (error)
 						{
 							if(error != boost::asio::error::operation_aborted ) {
-								LOG(WARNING) << "shutdown timer error: " << error.message();
+								LOG(ERROR) << "[HostSSL] shutdown timer error: " << error.message();
 							}
 							else {
 								return;
@@ -551,7 +553,7 @@ void HostSSL::connect(NodeIPEndpoint const& _nodeIPEndpoint)
 
 						auto socket = weakSocket.lock();
 						if(socket && socket->ref().is_open()) {
-							LOG(WARNING) << "connection timeout, force close";
+							LOG(WARNING) << "[HostSSL] connection timeout, force close, name: " << _nodeIPEndpoint.name();
 							socket->ref().close();
 						}
 
@@ -561,7 +563,7 @@ void HostSSL::connect(NodeIPEndpoint const& _nodeIPEndpoint)
 						}
 					}
 					catch (std::exception &e) {
-						LOG(WARNING) << "connectTimer error: " << e.what();
+						LOG(WARNING) << "[HostSSL] connectTimer error: " << e.what();
 					}
 				});
 
@@ -571,7 +573,7 @@ void HostSSL::connect(NodeIPEndpoint const& _nodeIPEndpoint)
 			if(host) {
 				if (ec)
 				{
-					LOG(WARNING) << "Connection refused to node" << host->id().abridged() <<  "@" << _nodeIPEndpoint.name() << "(" << ec.message() << ")";
+					LOG(WARNING) << "[HostSSL] Connection refused to node" << host->id().abridged() <<  "@" << _nodeIPEndpoint.name() << "(" << ec.message() << ")";
 
 					connectTimer->cancel();
 					host->erasePeedingPeerConn(_nodeIPEndpoint);
@@ -595,7 +597,7 @@ void HostSSL::connect(NodeIPEndpoint const& _nodeIPEndpoint)
 		});
 	}
 	catch (std::exception &e) {
-		LOG(ERROR) << "connect error:" << e.what();
+		LOG(ERROR) << "[HostSSL] connect error:" << e.what();
 	}
 }
 

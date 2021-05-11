@@ -146,10 +146,11 @@ int Network::tcp4Listen(bi::tcp::acceptor& _acceptor, NetworkPreferences const& 
 #else
 			bool reuse = true;
 #endif
+			int backlog_size = 1024;
 			_acceptor.open(endpoint.protocol());
 			_acceptor.set_option(ba::socket_base::reuse_address(reuse));
 			_acceptor.bind(endpoint);
-			_acceptor.listen();
+			_acceptor.listen(backlog_size);
 			return _acceptor.local_endpoint().port();
 		}
 		catch (...)

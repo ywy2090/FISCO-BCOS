@@ -56,13 +56,13 @@ void RLPXHandshakeSSL::error()
 
 void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 {
-	LOG(INFO) << "Start Handshake";
+	LOG(INFO) << "RLPXHandshakeSSL::transition Start Handshake this: " << this;
 	// reset timeout
 	m_idleTimer.cancel();
 
 	if (_ech || m_nextState == Error || m_cancel)
 	{
-		LOG(WARNING) << "Handshake Failed (I/O Error:" << _ech.message() << ")";
+		LOG(WARNING) << "RLPXHandshakeSSL::transition Handshake Failed (I/O Error:" << _ech.message() << ")";
 		return error();
 	}
 
@@ -74,7 +74,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 		if (!_ec)
 		{
 			if (!m_socket->remoteEndpoint().address().is_unspecified())
-				LOG(INFO) << "Disconnecting " << m_socket->remoteEndpoint() << " (Handshake Timeout)";
+				LOG(INFO) << "RLPXHandshakeSSL::transition Disconnecting " << m_socket->remoteEndpoint() << " (Handshake Timeout)";
 			cancel();
 		}
 	}));
@@ -82,7 +82,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 	if (m_nextState == WriteHello)
 	{
 		m_nextState = ReadHello;
-		LOG(INFO) << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "sending capabilities handshake";
+		LOG(INFO) << "RLPXHandshakeSSL::transition " << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "sending capabilities handshake";
 
 		m_io.reset(new RLPXFrameCoder(*this));
 
@@ -127,7 +127,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 			{
 				if (!m_io)
 				{
-					LOG(WARNING) << "Internal error in handshake: RLPXFrameCoder disappeared.";
+					LOG(WARNING) << "RLPXHandshakeSSL::transition Internal error in handshake: RLPXFrameCoder disappeared.";
 					m_nextState = Error;
 					transition();
 					return;
@@ -141,7 +141,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 					return;
 				}
 
-				LOG(INFO) << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "recvd hello header";
+				LOG(INFO) << "RLPXHandshakeSSL::transition " << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "recvd hello header";
 
 				/// check frame size
 				bytes& header = m_handshakeInBuffer;
@@ -149,7 +149,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 				if (frameSize > 1024)
 				{
 					// all future frames: 16777216
-					LOG(WARNING) << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame is too large" << frameSize;
+					LOG(WARNING)  << "RLPXHandshakeSSL::transition " << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame is too large" << frameSize;
 					m_nextState = Error;
 					transition();
 					return;
@@ -171,7 +171,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 					{
 						if (!m_io)
 						{
-							LOG(WARNING) << "Internal error in handshake: RLPXFrameCoder disappeared.";
+							LOG(WARNING) << "RLPXHandshakeSSL::transition " << "Internal error in handshake: RLPXFrameCoder disappeared.";
 							m_nextState = Error;
 							transition();
 							return;
@@ -180,7 +180,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 						bytesRef frame(&m_handshakeInBuffer);
 						if (!m_io->authAndDecryptFrame(frame))
 						{
-							LOG(WARNING) << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame: decrypt failed";
+							LOG(WARNING)  << "RLPXHandshakeSSL::transition " << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame: decrypt failed";
 							m_nextState = Error;
 							transition();
 							return;
@@ -189,13 +189,13 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 						PacketType packetType = frame[0] == 0x80 ? HelloPacket : (PacketType)frame[0];
 						if (packetType != HelloPacket)
 						{
-							LOG(WARNING) << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame: invalid packet type:" << packetType;
+							LOG(WARNING) << "RLPXHandshakeSSL::transition " << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame: invalid packet type:" << packetType;
 							m_nextState = Error;
 							transition();
 							return;
 						}
 
-						LOG(INFO) << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame: success. starting session.";
+						LOG(INFO)  << "RLPXHandshakeSSL::transition " << (m_originated ? "p2p.connect.egress " : "p2p.connect.ingress ") << "hello frame: success. starting session";
 						try
 						{
 							RLP rlp(frame.cropped(1), RLP::ThrowOnFail | RLP::FailIfTooSmall);
@@ -203,7 +203,7 @@ void RLPXHandshakeSSL::transition(boost::system::error_code _ech)
 						}
 						catch (std::exception const& _e)
 						{
-							LOG(WARNING) << "Handshake causing an exception:" << _e.what();
+							LOG(WARNING)  << "RLPXHandshakeSSL::transition " << "Handshake causing an exception:" << _e.what();
 							m_nextState = Error;
 							transition();
 						}
