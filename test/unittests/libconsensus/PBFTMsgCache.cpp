@@ -40,9 +40,9 @@ void checkKeyExist(PBFTBroadcastCache& cache, unsigned const& type, KeyPair cons
     if (insert)
         cache.insertKey(keyPair.pub(), type, key);
     if (exist)
-        BOOST_CHECK(cache.keyExists(keyPair.pub(), type, key));
+        BOOST_TEST(cache.keyExists(keyPair.pub(), type, key));
     else
-        BOOST_CHECK(!cache.keyExists(keyPair.pub(), type, key));
+        BOOST_TEST(!cache.keyExists(keyPair.pub(), type, key));
 }
 
 BOOST_AUTO_TEST_CASE(testInsertKey)
@@ -98,9 +98,9 @@ PBFTMsgPacket::Ptr testAndCheckPBFTMsgFactory(
     decodedMsgPacket->decode(ref(*encodedData));
 
     // check decodedMsgPacket
-    BOOST_CHECK(msgPacket->packet_id == decodedMsgPacket->packet_id);
-    BOOST_CHECK(msgPacket->ttl == decodedMsgPacket->ttl);
-    BOOST_CHECK(msgPacket->data == decodedMsgPacket->data);
+    BOOST_TEST(msgPacket->packet_id == decodedMsgPacket->packet_id);
+    BOOST_TEST(msgPacket->ttl == decodedMsgPacket->ttl);
+    BOOST_TEST(msgPacket->data == decodedMsgPacket->data);
     return decodedMsgPacket;
 }
 
@@ -111,13 +111,13 @@ BOOST_AUTO_TEST_CASE(testPBFTMsgFactory)
     // test PBFTMsgPacket
     std::shared_ptr<PBFTMsgFactory> factory = std::make_shared<PBFTMsgFactory>();
     auto msgPacket = testAndCheckPBFTMsgFactory(factory, nodeId);
-    BOOST_CHECK(msgPacket->forwardNodes == nullptr);
+    BOOST_TEST(msgPacket->forwardNodes == nullptr);
 
     // test OPBFTMsgPacket
     std::shared_ptr<OPBFTMsgFactory> optimizedFactory = std::make_shared<OPBFTMsgFactory>();
     msgPacket = testAndCheckPBFTMsgFactory(optimizedFactory, nodeId);
-    BOOST_CHECK(std::dynamic_pointer_cast<OPBFTMsgPacket>(msgPacket) != nullptr);
-    BOOST_CHECK((*msgPacket->forwardNodes)[0] == nodeId);
+    BOOST_TEST(std::dynamic_pointer_cast<OPBFTMsgPacket>(msgPacket) != nullptr);
+    BOOST_TEST((*msgPacket->forwardNodes)[0] == nodeId);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

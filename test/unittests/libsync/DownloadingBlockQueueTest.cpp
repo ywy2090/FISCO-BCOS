@@ -55,46 +55,46 @@ BOOST_AUTO_TEST_CASE(AllTest)
     };
 
     // Empty
-    BOOST_CHECK(fakeQueue.empty() == true);
+    BOOST_TEST(fakeQueue.empty() == true);
 
     // Push
     pushFunc(0, 5);
     fakeQueue.flushBufferToQueue();
     // 0, 1, 2, 3, 4 should in queue
-    BOOST_CHECK(fakeQueue.size() == 5);
+    BOOST_TEST(fakeQueue.size() == 5);
 
     // Push double unit
     pushFunc(0, 1);
     fakeQueue.flushBufferToQueue();
     // 0, 0, 1, 2, 3, 4 should in queue
-    BOOST_CHECK(fakeQueue.size() == 6);
+    BOOST_TEST(fakeQueue.size() == 6);
 
     // Top
     // 0, 0, 1, 2, 3, 4 should in queue
-    BOOST_CHECK(fakeQueue.top()->header().number() == 0);
+    BOOST_TEST(fakeQueue.top()->header().number() == 0);
 
     // Pop 1 uint
     // 0, 1, 2, 3, 4 should in queue
     fakeQueue.pop();
-    BOOST_CHECK(fakeQueue.top()->header().number() == 0);
+    BOOST_TEST(fakeQueue.top()->header().number() == 0);
 
     // Pop 2 uint
     // 2, 3, 4 should in queue
     fakeQueue.pop();
     fakeQueue.pop();
-    BOOST_CHECK(fakeQueue.top()->header().number() == 2);
+    BOOST_TEST(fakeQueue.top()->header().number() == 2);
 
     // Clear
     fakeQueue.clear();
-    BOOST_CHECK(fakeQueue.top() == nullptr);
-    BOOST_CHECK(fakeQueue.size() == 0);
+    BOOST_TEST(fakeQueue.top() == nullptr);
+    BOOST_TEST(fakeQueue.size() == 0);
 
     // buffer full test
     for (size_t i = 0; i < c_maxDownloadingBlockQueueBufferSize; i++)
         pushFunc(0, 1);
-    BOOST_CHECK(fakeQueue.size() == c_maxDownloadingBlockQueueBufferSize);
+    BOOST_TEST(fakeQueue.size() == c_maxDownloadingBlockQueueBufferSize);
     pushFunc(0, 1);
-    BOOST_CHECK(fakeQueue.size() == c_maxDownloadingBlockQueueBufferSize);
+    BOOST_TEST(fakeQueue.size() == c_maxDownloadingBlockQueueBufferSize);
 
     // queue full test
     fakeQueue.clear();
@@ -104,15 +104,15 @@ BOOST_AUTO_TEST_CASE(AllTest)
     fakeQueue.flushBufferToQueue();
     cout << "fakeQueue size: " << fakeQueue.size()
          << " c_maxDownloadingBlockQueueSize: " << c_maxDownloadingBlockQueueSize << endl;
-    BOOST_CHECK(fakeQueue.size() == c_maxDownloadingBlockQueueSize);
+    BOOST_TEST(fakeQueue.size() == c_maxDownloadingBlockQueueSize);
 
     // all full test
     for (size_t i = 0; i < c_maxDownloadingBlockQueueBufferSize; i++)
         pushFunc(0, 1);
-    BOOST_CHECK(
+    BOOST_TEST(
         fakeQueue.size() == c_maxDownloadingBlockQueueSize + c_maxDownloadingBlockQueueBufferSize);
     pushFunc(0, 1);
-    BOOST_CHECK(
+    BOOST_TEST(
         fakeQueue.size() == c_maxDownloadingBlockQueueSize + c_maxDownloadingBlockQueueBufferSize);
 }
 

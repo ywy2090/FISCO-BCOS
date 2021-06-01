@@ -324,7 +324,7 @@ BOOST_AUTO_TEST_CASE(getBlockRLPByNumber)
 
     std::shared_ptr<dev::eth::Block> bptr =
         m_blockChainImp->getBlockByHash(h256(c_commonHashPrefix));
-    BOOST_CHECK(bptr->rlp() == *bRLPptr);
+    BOOST_TEST(bptr->rlp() == *bRLPptr);
 }
 
 BOOST_AUTO_TEST_CASE(getLocalisedTxByHash)
@@ -361,16 +361,16 @@ BOOST_AUTO_TEST_CASE(commitBlock)
     auto fakeBlock2 = std::make_shared<FakeBlock>(10);
     fakeBlock2->getBlock()->header().setNumber(m_blockChainImp->number());
     auto commitResult = m_blockChainImp->commitBlock(fakeBlock2->getBlock(), m_executiveContext);
-    BOOST_CHECK(commitResult == CommitResult::ERROR_NUMBER);
+    BOOST_TEST(commitResult == CommitResult::ERROR_NUMBER);
 
     fakeBlock2->getBlock()->header().setNumber(m_blockChainImp->number() + 1);
     commitResult = m_blockChainImp->commitBlock(fakeBlock2->getBlock(), m_executiveContext);
-    BOOST_CHECK(commitResult == CommitResult::ERROR_PARENT_HASH);
+    BOOST_TEST(commitResult == CommitResult::ERROR_PARENT_HASH);
 
     fakeBlock2->getBlock()->header().setParentHash(
         m_blockChainImp->numberHash(m_blockChainImp->number()));
     commitResult = m_blockChainImp->commitBlock(fakeBlock2->getBlock(), m_executiveContext);
-    BOOST_CHECK(commitResult == CommitResult::OK);
+    BOOST_TEST(commitResult == CommitResult::OK);
     BOOST_CHECK_EQUAL(m_blockChainImp->number(), 1);
     BOOST_CHECK_EQUAL(m_blockChainImp->totalTransactionCount().first, 15);
     BOOST_CHECK_EQUAL(m_blockChainImp->totalTransactionCount().second, 1);
@@ -380,7 +380,7 @@ BOOST_AUTO_TEST_CASE(commitBlock)
     fakeBlock3->getBlock()->header().setParentHash(
         m_blockChainImp->numberHash(m_blockChainImp->number()));
     commitResult = m_blockChainImp->commitBlock(fakeBlock3->getBlock(), m_executiveContext);
-    BOOST_CHECK(commitResult == CommitResult::OK);
+    BOOST_TEST(commitResult == CommitResult::OK);
     BOOST_CHECK_EQUAL(m_blockChainImp->number(), 2);
     BOOST_CHECK_EQUAL(m_blockChainImp->totalTransactionCount().first, 30);
     BOOST_CHECK_EQUAL(m_blockChainImp->totalTransactionCount().second, 2);

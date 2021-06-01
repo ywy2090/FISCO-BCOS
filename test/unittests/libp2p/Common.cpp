@@ -79,31 +79,31 @@ BOOST_AUTO_TEST_CASE(testNodeIPEndpoint)
 {
     /// test default construct
     dev::network::NodeIPEndpoint m_endpoint(boost::asio::ip::make_address("0.0.0.0"), 0);
-    BOOST_CHECK(m_endpoint.address() == "0.0.0.0");
-    BOOST_CHECK(m_endpoint.port() == 0);
-    BOOST_CHECK(boost::lexical_cast<std::string>(m_endpoint) == "0.0.0.0:0");
+    BOOST_TEST(m_endpoint.address() == "0.0.0.0");
+    BOOST_TEST(m_endpoint.port() == 0);
+    BOOST_TEST(boost::lexical_cast<std::string>(m_endpoint) == "0.0.0.0:0");
     /// "0.0.0.0" is not the specified address
     /// test construct: NodeIPEndpoint(bi::address _addr, uint16_t _udp, uint16_t _tcp)
     uint16_t port = 30303;
     NodeIPEndpoint m_endpoint2(boost::asio::ip::make_address("127.0.0.1"), port);
-    BOOST_CHECK(m_endpoint2.address() == "127.0.0.1");
-    BOOST_CHECK(m_endpoint2.port() == port);
+    BOOST_TEST(m_endpoint2.address() == "127.0.0.1");
+    BOOST_TEST(m_endpoint2.port() == port);
     BOOST_CHECK_MESSAGE(true, "127.0.0.1:" + toString(port) + ":" + toString(port));
 
     /// test operators
     /// operator ==
-    BOOST_CHECK(m_endpoint2 == NodeIPEndpoint(boost::asio::ip::make_address("127.0.0.1"), port));
+    BOOST_TEST(m_endpoint2 == NodeIPEndpoint(boost::asio::ip::make_address("127.0.0.1"), port));
     /// opearator <
-    BOOST_CHECK(m_endpoint < m_endpoint2);
+    BOOST_TEST(m_endpoint < m_endpoint2);
     /// test map
     std::map<NodeIPEndpoint, bool> m_endpoint_map;
     m_endpoint_map[m_endpoint] = true;
-    BOOST_CHECK(m_endpoint_map.size() == 1);
+    BOOST_TEST(m_endpoint_map.size() == 1);
     m_endpoint_map[m_endpoint2] = false;
-    BOOST_CHECK(m_endpoint_map.size() == 2);
-    BOOST_CHECK(m_endpoint_map[m_endpoint2] == false);
+    BOOST_TEST(m_endpoint_map.size() == 2);
+    BOOST_TEST(m_endpoint_map[m_endpoint2] == false);
     m_endpoint_map[NodeIPEndpoint(boost::asio::ip::make_address("127.0.0.1"), port)] = true;
-    BOOST_CHECK(m_endpoint_map[m_endpoint2] == true);
+    BOOST_TEST(m_endpoint_map[m_endpoint2] == true);
 }
 
 BOOST_AUTO_TEST_CASE(testMessage)
@@ -115,19 +115,19 @@ BOOST_AUTO_TEST_CASE(testMessage)
     std::shared_ptr<bytes> buf(new bytes());
     std::string s = "hello world!";
     msg->setBuffer(buf);
-    BOOST_CHECK(msg->length() == (p2p::P2PMessage::HEADER_LENGTH + buf->size()));
+    BOOST_TEST(msg->length() == (p2p::P2PMessage::HEADER_LENGTH + buf->size()));
     buf->assign(s.begin(), s.end());
 
     auto buffer = std::make_shared<bytes>();
     msg->encode(*buffer);
-    BOOST_CHECK(msg->length() == (p2p::P2PMessage::HEADER_LENGTH + buf->size()));
+    BOOST_TEST(msg->length() == (p2p::P2PMessage::HEADER_LENGTH + buf->size()));
 
     auto message = std::make_shared<p2p::P2PMessage>();
     message->decode(buffer->data(), buffer->size());
-    BOOST_CHECK(message->protocolID() == 2);
-    BOOST_CHECK(message->packetType() == 2);
-    BOOST_CHECK(message->seq() == 1);
-    /// BOOST_CHECK(message->getResponceProtocolID() == -2);
+    BOOST_TEST(message->protocolID() == 2);
+    BOOST_TEST(message->packetType() == 2);
+    BOOST_TEST(message->seq() == 1);
+    /// BOOST_TEST(message->getResponceProtocolID() == -2);
 
     /*msg->encodeAMOPBuffer("topic");
     std::string t;

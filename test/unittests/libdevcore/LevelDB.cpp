@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(testLevelDBKeyExist)
     dev::db::LevelDB ldb(path);
     std::string key = "hellow";
     dev::db::Slice sliceKey(key.data(), key.size());
-    BOOST_CHECK(ldb.exists(sliceKey) == false);
+    BOOST_TEST(ldb.exists(sliceKey) == false);
     boost::filesystem::remove_all(path);
 }
 
@@ -48,14 +48,14 @@ BOOST_AUTO_TEST_CASE(testLevelDBKeyValue)
     ldb.insert(sliceKey, sliceValue);
 
     // check key exist
-    BOOST_CHECK(ldb.exists(sliceKey) == true);
+    BOOST_TEST(ldb.exists(sliceKey) == true);
 
     // check value eq
     std::string ret = ldb.lookup(sliceKey);
-    BOOST_CHECK(ret == value);
+    BOOST_TEST(ret == value);
 
     ldb.kill(sliceKey);
-    BOOST_CHECK(ldb.exists(sliceKey) == false);
+    BOOST_TEST(ldb.exists(sliceKey) == false);
     boost::filesystem::remove_all(path);
 }
 
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(testLevelDBBatch)
         dev::db::Slice sliceKey(key.data(), key.size());
         dev::db::Slice sliceValue(value.data(), value.size());
         wb->insert(sliceKey, sliceValue);
-        BOOST_CHECK(ldb.exists(sliceKey) == false);
+        BOOST_TEST(ldb.exists(sliceKey) == false);
     }
 
     ldb.commit(std::move(wb));
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(testLevelDBBatch)
         std::string value = "world" + std::to_string(i);
         dev::db::Slice sliceKey(key.data(), key.size());
         std::string ret = ldb.lookup(sliceKey);
-        BOOST_CHECK(ret == value);
+        BOOST_TEST(ret == value);
         ldb.kill(sliceKey);
     }
 
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(testLevelDBForeach)
 
     ldb.forEach(f);
 
-    BOOST_CHECK(count == 1);
+    BOOST_TEST(count == 1);
 
     ldb.kill(sliceKey);
 

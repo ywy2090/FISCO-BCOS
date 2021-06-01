@@ -84,27 +84,27 @@ BOOST_FIXTURE_TEST_SUITE(SessionTest, P2PSessionFixure)
 BOOST_AUTO_TEST_CASE(start)
 {
     auto session = newSession();
-    BOOST_CHECK(session->actived() == false);
+    BOOST_TEST(session->actived() == false);
 
     session->start();
-    BOOST_CHECK(session->actived() == true);
+    BOOST_TEST(session->actived() == true);
 }
 
 BOOST_AUTO_TEST_CASE(stop)
 {
     auto session = newSession();
     session->start();
-    BOOST_CHECK(session->actived() == true);
+    BOOST_TEST(session->actived() == true);
 
     session->stop(UserReason);
-    BOOST_CHECK(session->actived() == false);
+    BOOST_TEST(session->actived() == false);
 }
 
 BOOST_AUTO_TEST_CASE(heartBeat)
 {
     auto session = newSession();
     session->start();
-    BOOST_CHECK(session->actived() == true);
+    BOOST_TEST(session->actived() == true);
 
     session->heartBeat();
 }

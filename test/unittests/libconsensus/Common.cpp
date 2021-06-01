@@ -39,19 +39,19 @@ void checkSignAndCommitReq()
     PrepareReq prepare_req(key_pair, 1000, 1, 134, block_hash);
     KeyPair key_pair2 = KeyPair::create();
     T checked_req(prepare_req, key_pair2, prepare_req.idx);
-    BOOST_CHECK(prepare_req.sig != checked_req.sig);
-    BOOST_CHECK(prepare_req.sig2 != checked_req.sig2);
+    BOOST_TEST(prepare_req.sig != checked_req.sig);
+    BOOST_TEST(prepare_req.sig2 != checked_req.sig2);
     /// test encode && decode
     bytes req_data;
     BOOST_REQUIRE_NO_THROW(checked_req.encode(req_data));
     T tmp_req;
     BOOST_REQUIRE_NO_THROW(tmp_req.decode(ref(req_data)));
-    BOOST_CHECK(tmp_req.height == checked_req.height);
-    BOOST_CHECK(tmp_req.view == checked_req.view);
-    BOOST_CHECK(tmp_req.block_hash == checked_req.block_hash);
-    BOOST_CHECK(tmp_req.sig == checked_req.sig);
-    BOOST_CHECK(tmp_req.sig2 == checked_req.sig2);
-    BOOST_CHECK(tmp_req == checked_req);
+    BOOST_TEST(tmp_req.height == checked_req.height);
+    BOOST_TEST(tmp_req.view == checked_req.view);
+    BOOST_TEST(tmp_req.block_hash == checked_req.block_hash);
+    BOOST_TEST(tmp_req.sig == checked_req.sig);
+    BOOST_TEST(tmp_req.sig2 == checked_req.sig2);
+    BOOST_TEST(tmp_req == checked_req);
     /// test decode exception
     req_data[0] += 1;
     BOOST_CHECK_THROW(tmp_req.decode(ref(req_data)), std::exception);
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(testPBFTMsg)
     /// test encode
     bytes faked_pbft_data;
     faked_pbft_msg.encode(faked_pbft_data);
-    BOOST_CHECK(faked_pbft_data.size());
+    BOOST_TEST(faked_pbft_data.size());
     /// test decode
     PBFTMsg decoded_pbft_msg;
     BOOST_REQUIRE_NO_THROW(decoded_pbft_msg.decode(ref(faked_pbft_data)));
@@ -116,13 +116,13 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
     /// test encode && decode
     bytes prepare_req_data;
     BOOST_REQUIRE_NO_THROW(prepare_req.encode(prepare_req_data));
-    BOOST_CHECK(prepare_req_data.size());
+    BOOST_TEST(prepare_req_data.size());
     /// test decode
     PrepareReq decode_prepare;
     decode_prepare.decode(ref(prepare_req_data));
     BOOST_REQUIRE_NO_THROW(decode_prepare.decode(ref(prepare_req_data)));
     checkPBFTMsg(decode_prepare, key_pair, 1000, 1, 134, prepare_req.timestamp, block_hash);
-    BOOST_CHECK(*decode_prepare.block == fake_block.m_blockData);
+    BOOST_TEST(*decode_prepare.block == fake_block.m_blockData);
     /// test exception case
     prepare_req_data[0] += 1;
     BOOST_CHECK_THROW(decode_prepare.decode(ref(prepare_req_data)), std::exception);
@@ -132,14 +132,14 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
     PrepareReq constructed_prepare(decode_prepare, key_pair2, 2, 135);
     checkPBFTMsg(
         constructed_prepare, key_pair2, 1000, 2, 135, constructed_prepare.timestamp, block_hash);
-    BOOST_CHECK(constructed_prepare.timestamp >= decode_prepare.timestamp);
-    BOOST_CHECK(*decode_prepare.block == *constructed_prepare.block);
+    BOOST_TEST(constructed_prepare.timestamp >= decode_prepare.timestamp);
+    BOOST_TEST(*decode_prepare.block == *constructed_prepare.block);
 
     /// test construct prepare from given block
     PrepareReq block_populated_prepare(fake_block.m_block, key_pair2, 2, 135);
     checkPBFTMsg(block_populated_prepare, key_pair2, fake_block.m_block->blockHeader().number(), 2,
         135, block_populated_prepare.timestamp, fake_block.m_block->header().hash());
-    BOOST_CHECK(block_populated_prepare.timestamp >= constructed_prepare.timestamp);
+    BOOST_TEST(block_populated_prepare.timestamp >= constructed_prepare.timestamp);
     /// test encode && decode
     block_populated_prepare.encode(prepare_req_data);
     PrepareReq tmp_req;
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
         block_populated_prepare.timestamp, fake_block.m_block->header().hash());
     Block tmp_block;
     BOOST_REQUIRE_NO_THROW(tmp_block.decode(ref(*tmp_req.block)));
-    BOOST_CHECK(tmp_block.equalAll(*fake_block.m_block));
+    BOOST_TEST(tmp_block.equalAll(*fake_block.m_block));
 
     /// test updatePrepareReq
     Sealing sealing;
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
     PrepareReq new_req(block_populated_prepare, sealing, key_pair2);
     checkPBFTMsg(new_req, key_pair2, fake_block.m_block->blockHeader().number(), 2, 135,
         new_req.timestamp, fake_block.m_block->header().hash());
-    BOOST_CHECK(new_req.timestamp >= tmp_req.timestamp);
+    BOOST_TEST(new_req.timestamp >= tmp_req.timestamp);
 }
 
 /// test SignReq and CommitReq
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(testViewChange)
     BOOST_REQUIRE_NO_THROW(viewChange_req.encode(req_data));
     ViewChangeReq tmp_req;
     BOOST_REQUIRE_NO_THROW(tmp_req.decode(ref(req_data)));
-    BOOST_CHECK(tmp_req == viewChange_req);
+    BOOST_TEST(tmp_req == viewChange_req);
     /// test decode exception
     req_data[0] += 1;
     BOOST_CHECK_THROW(tmp_req.decode(ref(req_data)), std::exception);
@@ -205,17 +205,17 @@ BOOST_AUTO_TEST_CASE(testPBFTMsgPacket)
     BOOST_REQUIRE_NO_THROW(packet.encode(packet_data));
     PBFTMsgPacket tmp_packet;
     tmp_packet.decode(ref(packet_data));
-    BOOST_CHECK(tmp_packet.data == packet.data);
-    BOOST_CHECK(tmp_packet.packet_id == packet.packet_id);
-    BOOST_CHECK(tmp_packet.ttl == 10);
-    BOOST_CHECK(tmp_packet == packet);
+    BOOST_TEST(tmp_packet.data == packet.data);
+    BOOST_TEST(tmp_packet.packet_id == packet.packet_id);
+    BOOST_TEST(tmp_packet.ttl == 10);
+    BOOST_TEST(tmp_packet == packet);
     /// test exception case
     packet_data[1] += 1;
     BOOST_CHECK_THROW(tmp_packet.decode(ref(packet_data)), std::exception);
     /// set other field
     tmp_packet.setOtherField(12, key_pair.pub(), "");
-    BOOST_CHECK(tmp_packet != packet);
-    BOOST_CHECK(tmp_packet.timestamp >= packet.timestamp);
+    BOOST_TEST(tmp_packet != packet);
+    BOOST_TEST(tmp_packet.timestamp >= packet.timestamp);
 }
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE(testPBFTMsg)
     /// test encode
     bytes faked_pbft_data;
     faked_pbft_msg.encode(faked_pbft_data);
-    BOOST_CHECK(faked_pbft_data.size());
+    BOOST_TEST(faked_pbft_data.size());
     /// test decode
     PBFTMsg decoded_pbft_msg;
     BOOST_REQUIRE_NO_THROW(decoded_pbft_msg.decode(ref(faked_pbft_data)));
@@ -278,13 +278,13 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
     /// test encode && decode
     bytes prepare_req_data;
     BOOST_REQUIRE_NO_THROW(prepare_req.encode(prepare_req_data));
-    BOOST_CHECK(prepare_req_data.size());
+    BOOST_TEST(prepare_req_data.size());
     /// test decode
     PrepareReq decode_prepare;
     decode_prepare.decode(ref(prepare_req_data));
     BOOST_REQUIRE_NO_THROW(decode_prepare.decode(ref(prepare_req_data)));
     checkPBFTMsg(decode_prepare, key_pair, 1000, 1, 134, prepare_req.timestamp, block_hash);
-    BOOST_CHECK(*decode_prepare.block == fake_block.m_blockData);
+    BOOST_TEST(*decode_prepare.block == fake_block.m_blockData);
     /// test exception case
     prepare_req_data[0] += 1;
     BOOST_CHECK_THROW(decode_prepare.decode(ref(prepare_req_data)), std::exception);
@@ -294,14 +294,14 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
     PrepareReq constructed_prepare(decode_prepare, key_pair2, 2, 135);
     checkPBFTMsg(
         constructed_prepare, key_pair2, 1000, 2, 135, constructed_prepare.timestamp, block_hash);
-    BOOST_CHECK(constructed_prepare.timestamp >= decode_prepare.timestamp);
-    BOOST_CHECK(*decode_prepare.block == *constructed_prepare.block);
+    BOOST_TEST(constructed_prepare.timestamp >= decode_prepare.timestamp);
+    BOOST_TEST(*decode_prepare.block == *constructed_prepare.block);
 
     /// test construct prepare from given block
     PrepareReq block_populated_prepare(fake_block.m_block, key_pair2, 2, 135);
     checkPBFTMsg(block_populated_prepare, key_pair2, fake_block.m_block->blockHeader().number(), 2,
         135, block_populated_prepare.timestamp, fake_block.m_block->header().hash());
-    BOOST_CHECK(block_populated_prepare.timestamp >= constructed_prepare.timestamp);
+    BOOST_TEST(block_populated_prepare.timestamp >= constructed_prepare.timestamp);
     /// test encode && decode
     block_populated_prepare.encode(prepare_req_data);
     PrepareReq tmp_req;
@@ -310,7 +310,7 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
         block_populated_prepare.timestamp, fake_block.m_block->header().hash());
     Block tmp_block;
     BOOST_REQUIRE_NO_THROW(tmp_block.decode(ref(*tmp_req.block)));
-    BOOST_CHECK(tmp_block.equalAll(*fake_block.m_block));
+    BOOST_TEST(tmp_block.equalAll(*fake_block.m_block));
 
     /// test updatePrepareReq
     Sealing sealing;
@@ -321,7 +321,7 @@ BOOST_AUTO_TEST_CASE(testPrepareReq)
     PrepareReq new_req(block_populated_prepare, sealing, key_pair2);
     checkPBFTMsg(new_req, key_pair2, fake_block.m_block->blockHeader().number(), 2, 135,
         new_req.timestamp, fake_block.m_block->header().hash());
-    BOOST_CHECK(new_req.timestamp >= tmp_req.timestamp);
+    BOOST_TEST(new_req.timestamp >= tmp_req.timestamp);
 }
 
 /// test SignReq and CommitReq
@@ -344,7 +344,7 @@ BOOST_AUTO_TEST_CASE(testViewChange)
     BOOST_REQUIRE_NO_THROW(viewChange_req.encode(req_data));
     ViewChangeReq tmp_req;
     BOOST_REQUIRE_NO_THROW(tmp_req.decode(ref(req_data)));
-    BOOST_CHECK(tmp_req == viewChange_req);
+    BOOST_TEST(tmp_req == viewChange_req);
     /// test decode exception
     req_data[0] += 1;
     BOOST_CHECK_THROW(tmp_req.decode(ref(req_data)), std::exception);
@@ -367,17 +367,17 @@ BOOST_AUTO_TEST_CASE(testPBFTMsgPacket)
     BOOST_REQUIRE_NO_THROW(packet.encode(packet_data));
     PBFTMsgPacket tmp_packet;
     tmp_packet.decode(ref(packet_data));
-    BOOST_CHECK(tmp_packet.data == packet.data);
-    BOOST_CHECK(tmp_packet.packet_id == packet.packet_id);
-    BOOST_CHECK(tmp_packet.ttl == 10);
-    BOOST_CHECK(tmp_packet == packet);
+    BOOST_TEST(tmp_packet.data == packet.data);
+    BOOST_TEST(tmp_packet.packet_id == packet.packet_id);
+    BOOST_TEST(tmp_packet.ttl == 10);
+    BOOST_TEST(tmp_packet == packet);
     /// test exception case
     packet_data[1] += 1;
     BOOST_CHECK_THROW(tmp_packet.decode(ref(packet_data)), std::exception);
     /// set other field
     tmp_packet.setOtherField(12, key_pair.pub(), "");
-    BOOST_CHECK(tmp_packet != packet);
-    BOOST_CHECK(tmp_packet.timestamp >= packet.timestamp);
+    BOOST_TEST(tmp_packet != packet);
+    BOOST_TEST(tmp_packet.timestamp >= packet.timestamp);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

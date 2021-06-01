@@ -95,10 +95,10 @@ BOOST_AUTO_TEST_CASE(testRaftVoteReq)
     RLP r(ref(out));
     req2.populate(r[0]);
 
-    BOOST_CHECK(BasisMsgEqual(req1, req2) == true);
-    BOOST_CHECK(req1.candidate == req2.candidate);
-    BOOST_CHECK(req1.lastLeaderTerm == req2.lastLeaderTerm);
-    BOOST_CHECK(req1.lastBlockNumber == req2.lastBlockNumber);
+    BOOST_TEST(BasisMsgEqual(req1, req2) == true);
+    BOOST_TEST(req1.candidate == req2.candidate);
+    BOOST_TEST(req1.lastLeaderTerm == req2.lastLeaderTerm);
+    BOOST_TEST(req1.lastBlockNumber == req2.lastBlockNumber);
 }
 
 BOOST_AUTO_TEST_CASE(testRaftVoteResp)
@@ -120,9 +120,9 @@ BOOST_AUTO_TEST_CASE(testRaftVoteResp)
     RLP r(ref(out));
     resp2.populate(r[0]);
 
-    BOOST_CHECK(BasisMsgEqual(resp1, resp2) == true);
-    BOOST_CHECK(resp1.voteFlag == resp2.voteFlag);
-    BOOST_CHECK(resp1.lastLeaderTerm == resp2.lastLeaderTerm);
+    BOOST_TEST(BasisMsgEqual(resp1, resp2) == true);
+    BOOST_TEST(resp1.voteFlag == resp2.voteFlag);
+    BOOST_TEST(resp1.lastLeaderTerm == resp2.lastLeaderTerm);
 }
 
 BOOST_AUTO_TEST_CASE(testRaftHeartBeat)
@@ -145,10 +145,10 @@ BOOST_AUTO_TEST_CASE(testRaftHeartBeat)
     RLP r(ref(out));
     hb2.populate(r[0]);
 
-    BOOST_CHECK(BasisMsgEqual(hb1, hb2) == true);
-    BOOST_CHECK(hb1.leader == hb2.leader);
-    BOOST_CHECK(hb1.uncommitedBlock == hb2.uncommitedBlock);
-    BOOST_CHECK(hb1.uncommitedBlockNumber == hb2.uncommitedBlockNumber);
+    BOOST_TEST(BasisMsgEqual(hb1, hb2) == true);
+    BOOST_TEST(hb1.leader == hb2.leader);
+    BOOST_TEST(hb1.uncommitedBlock == hb2.uncommitedBlock);
+    BOOST_TEST(hb1.uncommitedBlockNumber == hb2.uncommitedBlockNumber);
 }
 
 BOOST_AUTO_TEST_CASE(testRaftHeartBeatResp)
@@ -169,8 +169,8 @@ BOOST_AUTO_TEST_CASE(testRaftHeartBeatResp)
 
     RLP r(ref(out));
     resp2.populate(r[0]);
-    BOOST_CHECK(BasisMsgEqual(resp1, resp2) == true);
-    BOOST_CHECK(resp1.uncommitedBlockHash == resp2.uncommitedBlockHash);
+    BOOST_TEST(BasisMsgEqual(resp1, resp2) == true);
+    BOOST_TEST(resp1.uncommitedBlockHash == resp2.uncommitedBlockHash);
 }
 
 BOOST_AUTO_TEST_CASE(testBadMessage)
@@ -211,8 +211,8 @@ BOOST_AUTO_TEST_CASE(testMsgPacket)
     RaftMsgPacket packet2;
     packet2.decode(ref(data));
 
-    BOOST_CHECK(packet1.packetType == packet2.packetType);
-    BOOST_CHECK(packet1.data == packet2.data);
+    BOOST_TEST(packet1.packetType == packet2.packetType);
+    BOOST_TEST(packet1.data == packet2.data);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

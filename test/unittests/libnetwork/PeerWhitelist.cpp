@@ -48,10 +48,10 @@ BOOST_AUTO_TEST_CASE(NodeIDOkTest)
         "2e18411c287bc0f6c106fb025210e67dedd90fa30c95b7b21004f5928b8c86aa0c4eb5a769bb5858d5ea69dd4e"
         "4329106e78c501866dcfb829dceb31gggggggg";
 
-    BOOST_CHECK(isNodeIDOk(okIDStr));
-    BOOST_CHECK(!isNodeIDOk(nullStr));
-    BOOST_CHECK(!isNodeIDOk(shortStr));
-    BOOST_CHECK(!isNodeIDOk(illegalTextStr));
+    BOOST_TEST(isNodeIDOk(okIDStr));
+    BOOST_TEST(!isNodeIDOk(nullStr));
+    BOOST_TEST(!isNodeIDOk(shortStr));
+    BOOST_TEST(!isNodeIDOk(illegalTextStr));
 }
 
 BOOST_AUTO_TEST_CASE(AllTest)
@@ -77,53 +77,53 @@ BOOST_AUTO_TEST_CASE(AllTest)
 
     LOG(INFO) << LOG_BADGE("Whitelist") << whitelist.dump();
 
-    BOOST_CHECK(whitelist.enable());
+    BOOST_TEST(whitelist.enable());
 
-    BOOST_CHECK(whitelist.has(id0));
-    BOOST_CHECK(whitelist.has(NodeID(id0)));
+    BOOST_TEST(whitelist.has(id0));
+    BOOST_TEST(whitelist.has(NodeID(id0)));
 
-    BOOST_CHECK(whitelist.has(id1));
-    BOOST_CHECK(whitelist.has(NodeID(id1)));
+    BOOST_TEST(whitelist.has(id1));
+    BOOST_TEST(whitelist.has(NodeID(id1)));
 
-    BOOST_CHECK(whitelist.has(id2));
-    BOOST_CHECK(whitelist.has(NodeID(id2)));
+    BOOST_TEST(whitelist.has(id2));
+    BOOST_TEST(whitelist.has(NodeID(id2)));
 
-    BOOST_CHECK(!whitelist.has(id3));
-    BOOST_CHECK(!whitelist.has(NodeID(id3)));
+    BOOST_TEST(!whitelist.has(id3));
+    BOOST_TEST(!whitelist.has(NodeID(id3)));
 
     // set disable
     whitelist.setEnable(false);
 
-    BOOST_CHECK(!whitelist.enable());
+    BOOST_TEST(!whitelist.enable());
 
-    BOOST_CHECK(whitelist.has(id0));
-    BOOST_CHECK(whitelist.has(NodeID(id0)));
+    BOOST_TEST(whitelist.has(id0));
+    BOOST_TEST(whitelist.has(NodeID(id0)));
 
-    BOOST_CHECK(whitelist.has(id1));
-    BOOST_CHECK(whitelist.has(NodeID(id1)));
+    BOOST_TEST(whitelist.has(id1));
+    BOOST_TEST(whitelist.has(NodeID(id1)));
 
-    BOOST_CHECK(whitelist.has(id2));
-    BOOST_CHECK(whitelist.has(NodeID(id2)));
+    BOOST_TEST(whitelist.has(id2));
+    BOOST_TEST(whitelist.has(NodeID(id2)));
 
-    BOOST_CHECK(whitelist.has(id3));
-    BOOST_CHECK(whitelist.has(NodeID(id3)));
+    BOOST_TEST(whitelist.has(id3));
+    BOOST_TEST(whitelist.has(NodeID(id3)));
 
     // set enable
     whitelist.setEnable(true);
 
-    BOOST_CHECK(whitelist.enable());
+    BOOST_TEST(whitelist.enable());
 
-    BOOST_CHECK(whitelist.has(id0));
-    BOOST_CHECK(whitelist.has(NodeID(id0)));
+    BOOST_TEST(whitelist.has(id0));
+    BOOST_TEST(whitelist.has(NodeID(id0)));
 
-    BOOST_CHECK(whitelist.has(id1));
-    BOOST_CHECK(whitelist.has(NodeID(id1)));
+    BOOST_TEST(whitelist.has(id1));
+    BOOST_TEST(whitelist.has(NodeID(id1)));
 
-    BOOST_CHECK(whitelist.has(id2));
-    BOOST_CHECK(whitelist.has(NodeID(id2)));
+    BOOST_TEST(whitelist.has(id2));
+    BOOST_TEST(whitelist.has(NodeID(id2)));
 
-    BOOST_CHECK(!whitelist.has(id3));
-    BOOST_CHECK(!whitelist.has(NodeID(id3)));
+    BOOST_TEST(!whitelist.has(id3));
+    BOOST_TEST(!whitelist.has(NodeID(id3)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

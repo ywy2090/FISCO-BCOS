@@ -56,31 +56,31 @@ BOOST_AUTO_TEST_CASE(testCheckReceivedRawPrepareStatus)
     VIEWTYPE view = 10;
     IDXTYPE nodeIdx = 1;
     auto pbftMsg = fakeRawPrepareStatus<PBFTMsg>(blockHash, blockHeight, view, nodeIdx);
-    BOOST_CHECK(rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, blockHeight) == false);
-    BOOST_CHECK(
+    BOOST_TEST(rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, blockHeight) == false);
+    BOOST_TEST(
         rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, (blockHeight - 1)) == true);
 
     // addRawPrepare
     PrepareReq::Ptr prepareReq =
         fakeRawPrepareStatus<PrepareReq>(blockHash, blockHeight, view, nodeIdx);
     rpbftReqCache->addRawPrepare(prepareReq);
-    BOOST_CHECK(
+    BOOST_TEST(
         rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, (blockHeight - 1)) == false);
 
     // pbftMsg with larger view, the blockHeight is the same
     pbftMsg->view += 1;
-    BOOST_CHECK(
+    BOOST_TEST(
         rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, (blockHeight - 1)) == true);
 
     //  pbftMsg with larger blockHeight and lower view
     pbftMsg->view -= 2;
     pbftMsg->height += 1;
-    BOOST_CHECK(rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, blockHeight) == true);
+    BOOST_TEST(rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, blockHeight) == true);
 
     // pbftMsg with lower blockHeight and larger view
     pbftMsg->view += 10;
     pbftMsg->height -= 2;
-    BOOST_CHECK(
+    BOOST_TEST(
         rpbftReqCache->checkReceivedRawPrepareStatus(pbftMsg, view, (blockHeight - 3)) == false);
 }
 
@@ -93,22 +93,22 @@ BOOST_AUTO_TEST_CASE(testCheckAndRequestRawPrepare)
     IDXTYPE idx = 1;
     auto pbftMsg = fakeRawPrepareStatus<PBFTMsg>(hash, blockNumber, reqView, idx);
 
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
 
     pbftMsg->block_hash = crypto::Hash("test2");
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
 
     pbftReqCache->setMaxRequestedPrepareQueueSize(2);
     pbftMsg->block_hash = crypto::Hash("test3");
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
 
     // check pop
     pbftMsg->block_hash = crypto::Hash("test");
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
-    BOOST_CHECK(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == true);
+    BOOST_TEST(pbftReqCache->checkAndRequestRawPrepare(pbftMsg) == false);
 }
 
 BOOST_AUTO_TEST_CASE(testResponseRawPrepare)
@@ -129,10 +129,10 @@ BOOST_AUTO_TEST_CASE(testResponseRawPrepare)
         fakeRawPrepareStatus<PrepareReq>(blockHash, blockHeight, view, nodeIdx);
     reqCache->addRawPrepare(prepareReq);
     reqCache->responseRawPrepare(encodedRawPrepare, pbftMsg);
-    BOOST_CHECK(encodedRawPrepare->size() > 0);
+    BOOST_TEST(encodedRawPrepare->size() > 0);
     PrepareReq::Ptr decodedPrepare = std::make_shared<PrepareReq>();
     decodedPrepare->decode(ref(*encodedRawPrepare));
-    BOOST_CHECK(*prepareReq == *decodedPrepare);
+    BOOST_TEST(*prepareReq == *decodedPrepare);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

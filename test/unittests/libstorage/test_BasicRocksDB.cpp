@@ -66,8 +66,8 @@ void testReGetValue(std::shared_ptr<BasicRocksDB> basicRocksDB, std::string cons
     {
         std::string key = keyPrefix + std::to_string(i);
         auto dbStatus = basicRocksDB->Get(rocksdb::ReadOptions(), key, value);
-        BOOST_CHECK(dbStatus.ok());
-        BOOST_CHECK(value == valuePrefix + std::to_string(i));
+        BOOST_TEST(dbStatus.ok());
+        BOOST_TEST(value == valuePrefix + std::to_string(i));
     }
 }
 
@@ -82,8 +82,8 @@ std::shared_ptr<BasicRocksDB> testBasicOperation(std::shared_ptr<BasicRocksDB> b
     ROCKSDB_LOG(DEBUG) << LOG_DESC("* Check get non-exist key from rocksDB");
     // get a non-exist key
     auto dbStatus = basicRocksDB->Get(rocksdb::ReadOptions(), key, value);
-    BOOST_CHECK(dbStatus.IsNotFound() == true);
-    BOOST_CHECK(value == "");
+    BOOST_TEST(dbStatus.IsNotFound() == true);
+    BOOST_TEST(value == "");
 
     ROCKSDB_LOG(DEBUG) << LOG_DESC("* Check Write and Get value from DB");
     // put the key value into batch
@@ -97,7 +97,7 @@ std::shared_ptr<BasicRocksDB> testBasicOperation(std::shared_ptr<BasicRocksDB> b
         if (dbStatus.ok())
         {
             succNum++;
-            BOOST_CHECK((size_t)batch.Count() == succNum);
+            BOOST_TEST((size_t)batch.Count() == succNum);
         }
     }
     // write batch into DB
@@ -116,7 +116,7 @@ void testAllDBOperation(
     auto handler = testBasicOperation(basicRocksDB, dbName, keyPrefix, valuePrefix, succNum);
     if (handler)
     {
-        BOOST_CHECK(succNum > 0);
+        BOOST_TEST(succNum > 0);
         // test reopen table
         basicRocksDB->closeDB();
         testReGetValue(basicRocksDB, keyPrefix, valuePrefix, dbName, succNum, true);
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(testWithEncryptDecryptHandler)
         data = aesCBCDecrypt(data, g_BCOSConfig.diskEncryption.dataKey);
     });
 
-    BOOST_CHECK(basicRocksDB != nullptr);
+    BOOST_TEST(basicRocksDB != nullptr);
 
     // test db operation
     std::string keyPrefix = "test_encKey";
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(testWithEncryptDecryptHandler)
     auto handler = testBasicOperation(basicRocksDB, dbName, keyPrefix, valuePrefix, succNum);
     if (handler)
     {
-        BOOST_CHECK(succNum > 0);
+        BOOST_TEST(succNum > 0);
         // test reopen table
         basicRocksDB->closeDB();
         testReGetValue(basicRocksDB, keyPrefix, valuePrefix, dbName, succNum, true);

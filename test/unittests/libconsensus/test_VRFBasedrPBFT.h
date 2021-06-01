@@ -53,9 +53,9 @@ public:
         storageFixture->setSystemConfigByKey("tx_gas_limit", "3000000000");
         storageFixture->setSystemConfigByKey("notify_rotate", "0");
 
-        BOOST_CHECK(getSystemConfigByKey("tx_count_limit") == "1000");
-        BOOST_CHECK(getSystemConfigByKey("tx_gas_limit") == "3000000000");
-        BOOST_CHECK(getSystemConfigByKey("notify_rotate") == "0");
+        BOOST_TEST(getSystemConfigByKey("tx_count_limit") == "1000");
+        BOOST_TEST(getSystemConfigByKey("tx_gas_limit") == "3000000000");
+        BOOST_TEST(getSystemConfigByKey("notify_rotate") == "0");
     }
 
     std::string getSystemConfigByKey(std::string const& _key, int64_t _number = -1) override

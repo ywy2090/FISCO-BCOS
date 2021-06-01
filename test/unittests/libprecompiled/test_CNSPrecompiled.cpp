@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(insert)
     bytes out2 = callResult->execResult();
     s256 errCode;
     abi.abiOut(&out2, errCode);
-    BOOST_TEST(errCode == CODE_VERSION_LENGTH_OVERFLOW);
+    BOOST_CHECK_EQUAL(errCode, CODE_VERSION_LENGTH_OVERFLOW);
 
     // insert
     bytes in = abi.abiIn("insert(string,string,string,string)", contractName, contractVersion,

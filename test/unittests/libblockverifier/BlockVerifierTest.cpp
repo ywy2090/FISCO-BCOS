@@ -206,7 +206,7 @@ public:
         initParam->mutableTxParam().txGasLimit = 300000000;
         initParam->mutableGenesisParam().timeStamp = 0;
         bool ret = blockChain->checkAndBuildGenesisBlock(initParam);
-        BOOST_CHECK(ret);
+        BOOST_TEST(ret);
 
         dev::h256 genesisHash = blockChain->getBlockByNumber(0)->headerHash();
         dbInitializer->initState(genesisHash);

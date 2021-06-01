@@ -48,7 +48,7 @@ public:
     void close() override { m_isOpen = false; };
     Json::Value callMethod(const std::string& _method, Json::Value _params) override
     {
-        BOOST_CHECK(m_isOpen);
+        BOOST_TEST(m_isOpen);
         queryCnt++;
 
         Json::Value queryJson;
@@ -99,7 +99,7 @@ BOOST_FIXTURE_TEST_SUITE(KeyCenterTest, KeyCenterFixture)
 BOOST_AUTO_TEST_CASE(SetIpPortTest)
 {
     keyCenter->setIpPort("127.0.0.1", 2333);
-    BOOST_CHECK(keyCenter->url() == "127.0.0.1:2333");
+    BOOST_TEST(keyCenter->url() == "127.0.0.1:2333");
 }
 
 BOOST_AUTO_TEST_CASE(getDataKeyTest)
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(getDataKeyTest)
 
     bytes key = keyCenter->getDataKey(fakeKey);
     bytes compareKey = keyCenter->uniformDataKey(fromHex(kcClient->dataKeyStr));
-    BOOST_CHECK(key == compareKey);
+    BOOST_TEST(key == compareKey);
     BOOST_CHECK_EQUAL(kcClient->queryCnt, 1);
 
     string queryStr = kcClient->latestQueryJsonString();
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(getDataKeyTest)
 
     // test query buffer
     key = keyCenter->getDataKey(fakeKey);
-    BOOST_CHECK(key == compareKey);
+    BOOST_TEST(key == compareKey);
     BOOST_CHECK_EQUAL(kcClient->queryCnt, 1);
 }
 

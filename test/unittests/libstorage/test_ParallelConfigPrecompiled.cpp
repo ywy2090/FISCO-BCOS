@@ -136,15 +136,15 @@ BOOST_AUTO_TEST_CASE(registerParallelFunction)
     const string TRANSFER_FUNC = "transfer(string,string,uint256)";
     uint32_t selector = getFuncSelector(TRANSFER_FUNC);
 
-    BOOST_CHECK(hasRegistered(contractAddr, TRANSFER_FUNC) == false);
+    BOOST_TEST(hasRegistered(contractAddr, TRANSFER_FUNC) == false);
 
     // insert
     ContractABI abi;
     bytes param =
         abi.abiIn(PARA_CONFIG_REGISTER_METHOD_ADDR_STR_UINT, contractAddr, TRANSFER_FUNC, 2);
     bytes ret = callPrecompiled(ref(param));
-    BOOST_CHECK(ret == abi.abiIn("", (int)CODE_SUCCESS));
-    BOOST_CHECK(hasRegistered(contractAddr, TRANSFER_FUNC) == true);
+    BOOST_TEST(ret == abi.abiIn("", (int)CODE_SUCCESS));
+    BOOST_TEST(hasRegistered(contractAddr, TRANSFER_FUNC) == true);
 
     auto config = parallelConfigPrecompiled->getParallelConfig(
         context, contractAddr, selector, Address(0x12345));
@@ -154,8 +154,8 @@ BOOST_AUTO_TEST_CASE(registerParallelFunction)
     // update
     param = abi.abiIn(PARA_CONFIG_REGISTER_METHOD_ADDR_STR_UINT, contractAddr, TRANSFER_FUNC, 1);
     ret = callPrecompiled(ref(param));
-    BOOST_CHECK(ret == abi.abiIn("", (int)CODE_SUCCESS));
-    BOOST_CHECK(hasRegistered(contractAddr, TRANSFER_FUNC) == true);
+    BOOST_TEST(ret == abi.abiIn("", (int)CODE_SUCCESS));
+    BOOST_TEST(hasRegistered(contractAddr, TRANSFER_FUNC) == true);
 
     config = parallelConfigPrecompiled->getParallelConfig(
         context, contractAddr, selector, Address(0x12345));
@@ -165,8 +165,8 @@ BOOST_AUTO_TEST_CASE(registerParallelFunction)
     // delete
     param = abi.abiIn(PARA_CONFIG_UNREGISTER_METHOD_ADDR_STR, contractAddr, TRANSFER_FUNC);
     ret = callPrecompiled(ref(param));
-    BOOST_CHECK(ret == abi.abiIn("", (int)CODE_SUCCESS));
-    BOOST_CHECK(hasRegistered(contractAddr, TRANSFER_FUNC) == false);
+    BOOST_TEST(ret == abi.abiIn("", (int)CODE_SUCCESS));
+    BOOST_TEST(hasRegistered(contractAddr, TRANSFER_FUNC) == false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -68,8 +68,8 @@ public:
 void checkFillBlock(std::shared_ptr<FakePartiallyBlock> fakePartiallyBlockReceiver,
     std::shared_ptr<FakePartiallyBlock> fakePartiallyBlock, size_t const& _txsSize)
 {
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->txsAllHit() == false);
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->missedTxs()->size() == _txsSize);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->txsAllHit() == false);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->missedTxs()->size() == _txsSize);
 
     // step2: request transactions to the sender
     std::shared_ptr<bytes> encodedData = std::make_shared<bytes>();
@@ -81,11 +81,11 @@ void checkFillBlock(std::shared_ptr<FakePartiallyBlock> fakePartiallyBlockReceiv
     // step4: the receiver fill the block according to responsed transactions
     fakePartiallyBlockReceiver->m_block->fillBlock(ref(*fetchedTxs));
     // check the result
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->missedTransactions()->size() == _txsSize);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->missedTransactions()->size() == _txsSize);
     size_t index = 0;
     for (auto _tx : *fakePartiallyBlockReceiver->m_block->transactions())
     {
-        BOOST_CHECK(*_tx == *((*fakePartiallyBlock->m_block->transactions())[index]));
+        BOOST_TEST(*_tx == *((*fakePartiallyBlock->m_block->transactions())[index]));
         index++;
     }
 }
@@ -104,22 +104,22 @@ BOOST_AUTO_TEST_CASE(testEncodeDecodeProposal)
 
     std::shared_ptr<FakePartiallyBlock> fakeReceiver =
         std::make_shared<FakePartiallyBlock>(fakePartiallyBlock->m_block);
-    BOOST_CHECK(fakePartiallyBlock->m_block->blockHeader() == fakeReceiver->m_block->blockHeader());
+    BOOST_TEST(fakePartiallyBlock->m_block->blockHeader() == fakeReceiver->m_block->blockHeader());
 
     fakeReceiver->m_block->transactions()->clear();
 
     BOOST_CHECK_NO_THROW(fakeReceiver->m_block->decodeProposal(ref(*encodedData), true));
     // check transaction size
-    BOOST_CHECK(fakeReceiver->m_block->transactions()->size() == 5);
+    BOOST_TEST(fakeReceiver->m_block->transactions()->size() == 5);
     // check txsHash
-    BOOST_CHECK(fakeReceiver->m_block->txsHash()->size() == 5);
+    BOOST_TEST(fakeReceiver->m_block->txsHash()->size() == 5);
     // check block header
-    BOOST_CHECK(fakeReceiver->m_block->blockHeader() == fakePartiallyBlock->m_block->blockHeader());
+    BOOST_TEST(fakeReceiver->m_block->blockHeader() == fakePartiallyBlock->m_block->blockHeader());
     // check transaction hash
     size_t index = 0;
     for (auto tx : *(fakePartiallyBlock->m_block->transactions()))
     {
-        BOOST_CHECK(tx->hash() == (*fakePartiallyBlock->m_block->txsHash())[index]);
+        BOOST_TEST(tx->hash() == (*fakePartiallyBlock->m_block->txsHash())[index]);
         index++;
     }
 
@@ -128,14 +128,14 @@ BOOST_AUTO_TEST_CASE(testEncodeDecodeProposal)
     fakeReceiver = std::make_shared<FakePartiallyBlock>(fakePartiallyBlock->m_block);
     BOOST_CHECK_NO_THROW(fakeReceiver->m_block->decodeProposal(ref(*encodedData), false));
     // check transaction size
-    BOOST_CHECK(fakeReceiver->m_block->transactions()->size() == 5);
+    BOOST_TEST(fakeReceiver->m_block->transactions()->size() == 5);
     // check block header
-    BOOST_CHECK(fakeReceiver->m_block->blockHeader() == fakePartiallyBlock->m_block->blockHeader());
+    BOOST_TEST(fakeReceiver->m_block->blockHeader() == fakePartiallyBlock->m_block->blockHeader());
     // check transaction
     index = 0;
     for (auto tx : *(fakePartiallyBlock->m_block->transactions()))
     {
-        BOOST_CHECK(*tx == *((*fakeReceiver->m_block->transactions())[index]));
+        BOOST_TEST(*tx == *((*fakeReceiver->m_block->transactions())[index]));
         index++;
     }
 }
@@ -148,12 +148,12 @@ BOOST_AUTO_TEST_CASE(testEncodeFetchMissedTxs)
     std::shared_ptr<FakePartiallyBlock> fakePartiallyBlockReceiver =
         std::make_shared<FakePartiallyBlock>(fakePartiallyBlock->m_block);
 
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->blockHeader() ==
-                fakePartiallyBlock->m_block->blockHeader());
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->blockHeader() ==
+               fakePartiallyBlock->m_block->blockHeader());
 
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->transactions()->size() == 10);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->transactions()->size() == 10);
     fakePartiallyBlockReceiver->m_block->transactions()->clear();
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->transactions()->size() == 0);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->transactions()->size() == 0);
 
     std::shared_ptr<TxPoolFixture> txPoolFixture = std::make_shared<TxPoolFixture>(5, 5);
     auto txPool = txPoolFixture->m_txPool;
@@ -161,15 +161,15 @@ BOOST_AUTO_TEST_CASE(testEncodeFetchMissedTxs)
     std::shared_ptr<bytes> encodedData = std::make_shared<bytes>();
     fakePartiallyBlock->m_block->encodeProposal(encodedData, true);
     fakePartiallyBlockReceiver->m_block->decodeProposal(ref(*encodedData), true);
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->txsHash()->size() == 10);
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->missedTxs()->size() == 0);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->txsHash()->size() == 10);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->missedTxs()->size() == 0);
     // for resize
-    BOOST_CHECK(fakePartiallyBlockReceiver->m_block->transactions()->size() == 10);
+    BOOST_TEST(fakePartiallyBlockReceiver->m_block->transactions()->size() == 10);
 
     /// case1: miss all the txs
     // step1: fetch transactions from txPool
     auto allHit = txPool->initPartiallyBlock(fakePartiallyBlockReceiver->m_block);
-    BOOST_CHECK(allHit == false);
+    BOOST_TEST(allHit == false);
     checkFillBlock(fakePartiallyBlockReceiver, fakePartiallyBlock, 10);
 
     // case2: hit two transactions
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(testEncodeFetchMissedTxs)
         txPool->submitTransactions((*fakePartiallyBlock->m_block->transactions())[index]);
     }
     allHit = txPool->initPartiallyBlock(fakePartiallyBlockReceiver2->m_block);
-    BOOST_CHECK(allHit == false);
+    BOOST_TEST(allHit == false);
     checkFillBlock(fakePartiallyBlockReceiver2, fakePartiallyBlock, 8);
 
     // case3: hit all the transactions
@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_CASE(testEncodeFetchMissedTxs)
         txPool->submitTransactions((*fakePartiallyBlock->m_block->transactions())[index]);
     }
     allHit = txPool->initPartiallyBlock(fakePartiallyBlockReceiver3->m_block);
-    BOOST_CHECK(allHit == true);
+    BOOST_TEST(allHit == true);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

@@ -44,26 +44,26 @@ BOOST_AUTO_TEST_CASE(testConstructor)
 {
     // case1: empty vector_ref
     vector_ref<int> ref;
-    BOOST_CHECK(ref.data() == nullptr);
-    BOOST_CHECK(ref.count() == 0);
-    BOOST_CHECK(ref.empty() == true);
+    BOOST_TEST(ref.data() == nullptr);
+    BOOST_TEST(ref.count() == 0);
+    BOOST_TEST(ref.empty() == true);
 
     // case2: pointing to part data of given object
     unsigned int size = 10;
     char* test_char = new char[size];
     vector_ref<char> char_ref(test_char, size);
-    BOOST_CHECK(char_ref.empty() == false);
-    BOOST_CHECK(char_ref.data() == test_char);
-    BOOST_CHECK(char_ref.count() == size);
+    BOOST_TEST(char_ref.empty() == false);
+    BOOST_TEST(char_ref.data() == test_char);
+    BOOST_TEST(char_ref.count() == size);
     for (unsigned int i = 0; i < size - 1; i++)
     {
         test_char[i] = '0' + i;
-        BOOST_CHECK(char_ref[i] == test_char[i]);
+        BOOST_TEST(char_ref[i] == test_char[i]);
     }
     if (size > 4)
     {
         char_ref[3] = 'a';
-        BOOST_CHECK(test_char[3] == 'a');
+        BOOST_TEST(test_char[3] == 'a');
     }
     delete[] test_char;
 }
@@ -79,12 +79,12 @@ BOOST_AUTO_TEST_CASE(testConstructString)
     BOOST_CHECK_EQUAL(string_ref.data(), str);
     BOOST_CHECK_EQUAL(string_ref.size(), str.length());
     BOOST_CHECK_EQUAL(str, string_ref.toString());
-    BOOST_CHECK((vector_ref<const char>)(&str) == string_ref);
-    BOOST_CHECK((vector_ref<const char>)(&str2) != string_ref);
+    BOOST_TEST((vector_ref<const char>)(&str) == string_ref);
+    BOOST_TEST((vector_ref<const char>)(&str2) != string_ref);
     // test retarget
     string_ref.retarget(str2.c_str(), str2.length());
-    BOOST_CHECK((vector_ref<const char>)(&str) != string_ref);
-    BOOST_CHECK((vector_ref<const char>)(&str2) == string_ref);
+    BOOST_TEST((vector_ref<const char>)(&str) != string_ref);
+    BOOST_TEST((vector_ref<const char>)(&str2) == string_ref);
 
     // test pointer
     std::string* pstr = &str;
@@ -92,15 +92,15 @@ BOOST_AUTO_TEST_CASE(testConstructString)
     BOOST_CHECK_EQUAL(pstring_ref.data(), *pstr);
     BOOST_CHECK_EQUAL(pstring_ref.size(), pstr->length());
     BOOST_CHECK_EQUAL(*pstr, pstring_ref.toString());
-    BOOST_CHECK((vector_ref<const char>)(pstr) == pstring_ref);
+    BOOST_TEST((vector_ref<const char>)(pstr) == pstring_ref);
     pstr = &str2;
-    BOOST_CHECK((vector_ref<const char>)(pstr) != pstring_ref);
+    BOOST_TEST((vector_ref<const char>)(pstr) != pstring_ref);
     // to vector
     // test retarget
     pstring_ref.retarget(str2.c_str(), str2.length());
-    BOOST_CHECK((vector_ref<const char>)(pstr) == pstring_ref);
+    BOOST_TEST((vector_ref<const char>)(pstr) == pstring_ref);
     pstr = &str;
-    BOOST_CHECK((vector_ref<const char>)(pstr) != pstring_ref);
+    BOOST_TEST((vector_ref<const char>)(pstr) != pstring_ref);
 }
 
 /// case4: create a new vector_ref pointing to the data part of a vector (given as pointer).
@@ -115,13 +115,13 @@ BOOST_AUTO_TEST_CASE(testConstructVector)
     {
         ref_v1[i] = i;
         int_v2[i] = i;
-        BOOST_CHECK(ref_v1[i] == (signed)(i));
+        BOOST_TEST(ref_v1[i] == (signed)(i));
     }
     // vector to vector_ref
-    BOOST_CHECK(vector_ref<int>(&int_v1) == ref_v1);
+    BOOST_TEST(vector_ref<int>(&int_v1) == ref_v1);
     // vector_ref to vector
-    BOOST_CHECK(ref_v1.toVector() == int_v1);
-    BOOST_CHECK(ref_v1.toVector() == int_v2);
+    BOOST_TEST(ref_v1.toVector() == int_v1);
+    BOOST_TEST(ref_v1.toVector() == int_v2);
 }
 
 // test function "contentsEqual"
@@ -130,13 +130,13 @@ BOOST_AUTO_TEST_CASE(testContentsEqual)
     std::vector<int> v1(10, 19);
     std::vector<int> v2(10, 19);
     vector_ref<int> ref_v1(&v1);
-    BOOST_CHECK(vector_ref<int>(&v2) != ref_v1);
-    BOOST_CHECK(ref_v1.contentsEqual(v2));
+    BOOST_TEST(vector_ref<int>(&v2) != ref_v1);
+    BOOST_TEST(ref_v1.contentsEqual(v2));
     // test empty vec_ref
     vector_ref<int> empty_vec;
     vector_ref<int> empty_vec2;
-    BOOST_CHECK(empty_vec.contentsEqual(v1) == false);
-    BOOST_CHECK(empty_vec.contentsEqual(empty_vec2.toVector()) == true);
+    BOOST_TEST(empty_vec.contentsEqual(v1) == false);
+    BOOST_TEST(empty_vec.contentsEqual(empty_vec2.toVector()) == true);
 }
 
 BOOST_AUTO_TEST_CASE(testEmptyCropped)
@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(testEmptyCropped)
     std::vector<int> v1(1, 19);
     vector_ref<int> origin = ref(v1);
     vector_ref<int> ret = origin.cropped(2, 10);
-    BOOST_CHECK(ret.empty() == true);
+    BOOST_TEST(ret.empty() == true);
 }
 
 // test function "Overlap"
@@ -166,9 +166,9 @@ BOOST_AUTO_TEST_CASE(testOverlap)
         str_ref.data() + 3, (size_t)std::min((size_t)str.length() - 2, (size_t)5) / sizeof(char));
     // std::string tmp_str = "abcd";
     // vector_ref<const char> non_overlap_ref(tmp_str);
-    BOOST_CHECK(str_ref.overlapsWith(sub_str_ref1) == true);
-    BOOST_CHECK(str_ref.overlapsWith(sub_str_ref2) == true);
-    BOOST_CHECK(sub_str_ref1.overlapsWith(sub_str_ref2) == true);
+    BOOST_TEST(str_ref.overlapsWith(sub_str_ref1) == true);
+    BOOST_TEST(str_ref.overlapsWith(sub_str_ref2) == true);
+    BOOST_TEST(sub_str_ref1.overlapsWith(sub_str_ref2) == true);
 
     /// ====test vector Overlap ====
     std::vector<int> v1_int(size);
@@ -181,10 +181,10 @@ BOOST_AUTO_TEST_CASE(testOverlap)
     vector_ref<int> v2_ref(&(*v1_int.begin()) + (size_t)std::min(v1_int.size(), (size_t)(1)),
         std::min(v1_int.size(), (size_t)(5)));
     // test overlap
-    BOOST_CHECK(v2_ref.overlapsWith(v1_ref));
+    BOOST_TEST(v2_ref.overlapsWith(v1_ref));
     std::vector<int> tmp_v;
     // test no-overlap
-    BOOST_CHECK(v2_ref.overlapsWith(vector_ref<int>(&tmp_v)) == false);
+    BOOST_TEST(v2_ref.overlapsWith(vector_ref<int>(&tmp_v)) == false);
 }
 
 // test function "populate"

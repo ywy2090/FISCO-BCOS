@@ -36,9 +36,9 @@ BOOST_FIXTURE_TEST_SUITE(TxPoolTest, TestOutputHelperFixture)
 BOOST_AUTO_TEST_CASE(testSessionRead)
 {
     TxPoolFixture pool_test(5, 5);
-    BOOST_CHECK(!!pool_test.m_txPool);
-    BOOST_CHECK(!!pool_test.m_topicService);
-    BOOST_CHECK(!!pool_test.m_blockChain);
+    BOOST_TEST(!!pool_test.m_txPool);
+    BOOST_TEST(!!pool_test.m_topicService);
+    BOOST_TEST(!!pool_test.m_blockChain);
     ba::io_service m_ioservice(2);
     NodeIPEndpoint m_endpoint(boost::asio::ip::make_address("127.0.0.1"), 30303);
     // std::shared_ptr<FakeSocket> fake_socket = std::make_shared<FakeSocket>(m_ioservice,
@@ -51,9 +51,9 @@ BOOST_AUTO_TEST_CASE(testSessionRead)
 BOOST_AUTO_TEST_CASE(testImportAndSubmit)
 {
     TxPoolFixture pool_test(5, 5);
-    BOOST_CHECK(!!pool_test.m_txPool);
-    BOOST_CHECK(!!pool_test.m_topicService);
-    BOOST_CHECK(!!pool_test.m_blockChain);
+    BOOST_TEST(!!pool_test.m_txPool);
+    BOOST_TEST(!!pool_test.m_topicService);
+    BOOST_TEST(!!pool_test.m_blockChain);
     std::shared_ptr<dev::ThreadPool> threadPool =
         std::make_shared<dev::ThreadPool>("SessionCallBackThreadPool", 2);
 
@@ -84,15 +84,15 @@ BOOST_AUTO_TEST_CASE(testImportAndSubmit)
         tx->updateSignature(sig);
         tx->encode(trans_bytes2);
         auto result = pool_test.m_txPool->import(tx);
-        BOOST_CHECK(result == ImportResult::Success);
+        BOOST_TEST(result == ImportResult::Success);
         i++;
     }
-    BOOST_CHECK(pool_test.m_txPool->pendingSize() == 5);
+    BOOST_TEST(pool_test.m_txPool->pendingSize() == 5);
     /// test ordering of txPool
     Transactions pending_list = *(pool_test.m_txPool->pendingList());
     for (unsigned int i = 1; i < pool_test.m_txPool->pendingSize(); i++)
     {
-        BOOST_CHECK(pending_list[i - 1]->importTime() <= pending_list[i]->importTime());
+        BOOST_TEST(pending_list[i - 1]->importTime() <= pending_list[i]->importTime());
     }
     /// test out of limit, clear the queue
     tx->setNonce(tx->nonce() + utcTime() + u256(100));
@@ -102,34 +102,34 @@ BOOST_AUTO_TEST_CASE(testImportAndSubmit)
     tx->encode(trans_data);
     pool_test.m_txPool->setTxPoolLimit(5);
     auto result = pool_test.m_txPool->import(tx);
-    BOOST_CHECK(pool_test.m_txPool->pendingSize() == 5);
-    BOOST_CHECK(result == ImportResult::TransactionPoolIsFull);
+    BOOST_TEST(pool_test.m_txPool->pendingSize() == 5);
+    BOOST_TEST(result == ImportResult::TransactionPoolIsFull);
     /// test status
     TxPoolStatus m_status = pool_test.m_txPool->status();
-    BOOST_CHECK(m_status.current == 5);
-    BOOST_CHECK(m_status.dropped == 0);
+    BOOST_TEST(m_status.current == 5);
+    BOOST_TEST(m_status.dropped == 0);
     /// test drop
     bool ret = pool_test.m_txPool->drop(pending_list[0]->hash());
-    BOOST_CHECK(ret == true);
-    BOOST_CHECK(pool_test.m_txPool->pendingSize() == 4);
+    BOOST_TEST(ret == true);
+    BOOST_TEST(pool_test.m_txPool->pendingSize() == 4);
     m_status = pool_test.m_txPool->status();
-    BOOST_CHECK(m_status.current == 4);
-    BOOST_CHECK(m_status.dropped == 1);
+    BOOST_TEST(m_status.current == 4);
+    BOOST_TEST(m_status.dropped == 1);
 
     /// test topTransactions
     Transactions top_transactions = *(pool_test.m_txPool->topTransactions(20));
-    BOOST_CHECK(top_transactions.size() == pool_test.m_txPool->pendingSize());
+    BOOST_TEST(top_transactions.size() == pool_test.m_txPool->pendingSize());
     h256Hash avoid;
     for (size_t i = 0; i < pool_test.m_txPool->pendingList()->size(); i++)
         avoid.insert((*pool_test.m_txPool->pendingList())[i]->hash());
     top_transactions = *(pool_test.m_txPool->topTransactions(20, avoid));
-    BOOST_CHECK(top_transactions.size() == 0);
+    BOOST_TEST(top_transactions.size() == 0);
     /// check getProtocol id
-    BOOST_CHECK(
+    BOOST_TEST(
         pool_test.m_txPool->getProtocolId() == getGroupProtoclID(1, dev::eth::ProtocolID::TxPool));
-    BOOST_CHECK(pool_test.m_txPool->maxBlockLimit() == 1000);
+    BOOST_TEST(pool_test.m_txPool->maxBlockLimit() == 1000);
     pool_test.m_txPool->setMaxBlockLimit(100);
-    BOOST_CHECK(pool_test.m_txPool->maxBlockLimit() == 100);
+    BOOST_TEST(pool_test.m_txPool->maxBlockLimit() == 100);
 }
 
 BOOST_AUTO_TEST_CASE(BlockLimitCheck)
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(BlockLimitCheck)
     tx->encode(trans_data);
     pool_test.m_txPool->setTxPoolLimit(5);
     ImportResult result = pool_test.m_txPool->import(tx);
-    BOOST_CHECK(result == ImportResult::BlockLimitCheckFailed);
+    BOOST_TEST(result == ImportResult::BlockLimitCheckFailed);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

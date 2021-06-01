@@ -67,8 +67,8 @@ BOOST_AUTO_TEST_CASE(testVMOptionParser)
     argv[1] = new char[strlen(arg2) + 1];
     strcpy(argv[0], arg1);
     strcpy(argv[1], arg2);
-    BOOST_CHECK(Options::get(argc, argv).vm_name == "interpreter");
-    BOOST_CHECK(Options::get(argc, argv).evmc_options.size() == 0);
+    BOOST_TEST(Options::get(argc, argv).vm_name == "interpreter");
+    BOOST_TEST(Options::get(argc, argv).evmc_options.size() == 0);
     delete[] argv[0];
     delete[] argv[1];
     delete[] argv;
@@ -78,19 +78,19 @@ BOOST_AUTO_TEST_CASE(testToRevision)
 {
     EVMSchedule schedule;
     schedule.haveDelegateCall = false;
-    BOOST_CHECK(EVMC_FRONTIER == toRevision(schedule));
+    BOOST_TEST(EVMC_FRONTIER == toRevision(schedule));
     schedule.haveDelegateCall = true;
-    BOOST_CHECK(EVMC_HOMESTEAD == toRevision(schedule));
+    BOOST_TEST(EVMC_HOMESTEAD == toRevision(schedule));
     schedule.eip150Mode = true;
-    BOOST_CHECK(EVMC_TANGERINE_WHISTLE == toRevision(schedule));
+    BOOST_TEST(EVMC_TANGERINE_WHISTLE == toRevision(schedule));
     schedule.eip158Mode = true;
-    BOOST_CHECK(EVMC_SPURIOUS_DRAGON == toRevision(schedule));
+    BOOST_TEST(EVMC_SPURIOUS_DRAGON == toRevision(schedule));
     schedule.haveRevert = true;
-    BOOST_CHECK(EVMC_BYZANTIUM == toRevision(schedule));
+    BOOST_TEST(EVMC_BYZANTIUM == toRevision(schedule));
     schedule.haveCreate2 = true;
-    BOOST_CHECK(EVMC_CONSTANTINOPLE == toRevision(schedule));
+    BOOST_TEST(EVMC_CONSTANTINOPLE == toRevision(schedule));
     schedule.enableIstanbul = true;
-    BOOST_CHECK(EVMC_ISTANBUL == toRevision(schedule));
+    BOOST_TEST(EVMC_ISTANBUL == toRevision(schedule));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

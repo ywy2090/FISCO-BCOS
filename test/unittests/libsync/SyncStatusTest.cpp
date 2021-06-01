@@ -53,10 +53,10 @@ BOOST_AUTO_TEST_CASE(PeerNewHasDeleteTest)
     for (unsigned id = 0; id < 10; id++)
     {
         auto node = std::make_shared<SyncStatusPacket>(NodeID(id), id, h256(id), h256(id));
-        BOOST_CHECK(!status.hasPeer(node->nodeId));
-        BOOST_CHECK(status.newSyncPeerStatus(node));
-        BOOST_CHECK(!status.newSyncPeerStatus(node));
-        BOOST_CHECK(status.hasPeer(node->nodeId));
+        BOOST_TEST(!status.hasPeer(node->nodeId));
+        BOOST_TEST(status.newSyncPeerStatus(node));
+        BOOST_TEST(!status.newSyncPeerStatus(node));
+        BOOST_TEST(status.hasPeer(node->nodeId));
     }
 
     NodeIDs peers = *(status.peers());
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(PeerNewHasDeleteTest)
     for (auto peer : peers)
     {
         status.deletePeer(peer);
-        BOOST_CHECK(!status.hasPeer(peer));
+        BOOST_TEST(!status.hasPeer(peer));
     }
 }
 

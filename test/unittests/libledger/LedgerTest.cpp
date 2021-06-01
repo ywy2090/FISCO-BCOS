@@ -53,9 +53,9 @@ public:
         m_param = _ledgerParams;
         /// init dbInitializer
         m_dbInitializer = std::make_shared<dev::ledger::DBInitializer>(m_param, 1);
-        BOOST_CHECK(m_dbInitializer->storage() == nullptr);
-        BOOST_CHECK(m_dbInitializer->stateFactory() == nullptr);
-        BOOST_CHECK(m_dbInitializer->executiveContextFactory() == nullptr);
+        BOOST_TEST(m_dbInitializer->storage() == nullptr);
+        BOOST_TEST(m_dbInitializer->stateFactory() == nullptr);
+        BOOST_TEST(m_dbInitializer->executiveContextFactory() == nullptr);
         /// init blockChain
         FakeLedger::initBlockChain();
         /// intit blockVerifier
@@ -145,17 +145,17 @@ BOOST_AUTO_TEST_CASE(testGensisConfig)
     std::shared_ptr<LedgerParam> param =
         std::dynamic_pointer_cast<LedgerParam>(fakeLedger.getParam());
     /// check consensus params
-    BOOST_CHECK(param->mutableConsensusParam().consensusType == "raft");
-    BOOST_CHECK(param->mutableConsensusParam().maxTransactions == 2000);
-    BOOST_CHECK(toHex(param->mutableConsensusParam().sealerList[0]) ==
-                "7dcce48da1c464c7025614a54a4e26df7d6f92cd4d315601e057c1659796736c5c8730e380fcbe63"
-                "7191cc2aebf4746846c0db2604adebf9c70c7f418d4d5a61");
-    BOOST_CHECK(toHex(param->mutableConsensusParam().sealerList[1]) ==
-                "46787132f4d6285bfe108427658baf2b48de169bdb745e01610efd7930043dcc414dc6f6ddc3"
-                "da6fc491cc1c15f46e621ea7304a9b5f0b3fb85ba20a6b1c0fc1");
+    BOOST_TEST(param->mutableConsensusParam().consensusType == "raft");
+    BOOST_TEST(param->mutableConsensusParam().maxTransactions == 2000);
+    BOOST_TEST(toHex(param->mutableConsensusParam().sealerList[0]) ==
+               "7dcce48da1c464c7025614a54a4e26df7d6f92cd4d315601e057c1659796736c5c8730e380fcbe63"
+               "7191cc2aebf4746846c0db2604adebf9c70c7f418d4d5a61");
+    BOOST_TEST(toHex(param->mutableConsensusParam().sealerList[1]) ==
+               "46787132f4d6285bfe108427658baf2b48de169bdb745e01610efd7930043dcc414dc6f6ddc3"
+               "da6fc491cc1c15f46e621ea7304a9b5f0b3fb85ba20a6b1c0fc1");
     /// check state DB param
-    BOOST_CHECK(param->mutableStorageParam().type == "sql");
-    BOOST_CHECK(param->mutableStateParam().type == "mpt");
+    BOOST_TEST(param->mutableStorageParam().type == "sql");
+    BOOST_TEST(param->mutableStateParam().type == "mpt");
 
     /// check timestamp
     /// init genesis configuration
@@ -176,62 +176,62 @@ BOOST_AUTO_TEST_CASE(testGensisConfig)
     {
         mark += "mpt-2000-300000000";
     }
-    BOOST_CHECK(fakeLedger.getParam()->mutableGenesisMark() == mark);
+    BOOST_TEST(fakeLedger.getParam()->mutableGenesisMark() == mark);
 
     /// init ini config
     configurationPath = getTestPath().string() + "/fisco-bcos-data/group.10.ini";
     fakeLedger.initIniConfig(configurationPath);
-    BOOST_CHECK(fakeLedger.getParam()->mutableTxPoolParam().txPoolLimit == 150000);
-    BOOST_CHECK(fakeLedger.getParam()->mutableTxParam().enableParallel == false);
-    BOOST_CHECK(fakeLedger.getParam()->mutableConsensusParam().maxTTL == 3);
+    BOOST_TEST(fakeLedger.getParam()->mutableTxPoolParam().txPoolLimit == 150000);
+    BOOST_TEST(fakeLedger.getParam()->mutableTxParam().enableParallel == false);
+    BOOST_TEST(fakeLedger.getParam()->mutableConsensusParam().maxTTL == 3);
     param->mutableStateParam().type = "storage";
     /// modify state to storage(the default option)
     boost::property_tree::ptree pt;
     // fakeLedger.initDBConfig(pt);
     if (g_BCOSConfig.version() > RC2_VERSION)
     {
-        BOOST_CHECK(fakeLedger.getParam()->mutableStorageParam().type == "RocksDB");
+        BOOST_TEST(fakeLedger.getParam()->mutableStorageParam().type == "RocksDB");
     }
     else
     {
         fakeLedger.getParam()->mutableStorageParam().type = "LevelDB";
     }
-    BOOST_CHECK(fakeLedger.getParam()->mutableStateParam().type == "storage");
+    BOOST_TEST(fakeLedger.getParam()->mutableStateParam().type == "storage");
     fakeLedger.initIniConfig(configurationPath);
-    BOOST_CHECK(fakeLedger.getParam()->mutableTxParam().enableParallel == true);
+    BOOST_TEST(fakeLedger.getParam()->mutableTxParam().enableParallel == true);
 
     /// test DBInitializer
     std::shared_ptr<dev::ledger::DBInitializer> dbInitializer =
         std::make_shared<dev::ledger::DBInitializer>(fakeLedger.getParam(), groupId);
     /// init storageDB
-    BOOST_CHECK(dbInitializer->storage() == nullptr);
+    BOOST_TEST(dbInitializer->storage() == nullptr);
     dbInitializer->initStorageDB();
-    BOOST_CHECK(
+    BOOST_TEST(
         boost::filesystem::exists(fakeLedger.getParam()->mutableStorageParam().path) == true);
-    BOOST_CHECK(dbInitializer->storage() != nullptr);
+    BOOST_TEST(dbInitializer->storage() != nullptr);
     /// create stateDB
     dev::h256 genesisHash = crypto::Hash("abc");
-    BOOST_CHECK(dbInitializer->stateFactory() == nullptr);
-    BOOST_CHECK(dbInitializer->executiveContextFactory() == nullptr);
+    BOOST_TEST(dbInitializer->stateFactory() == nullptr);
+    BOOST_TEST(dbInitializer->executiveContextFactory() == nullptr);
     /// create executiveContext and stateFactory
     dbInitializer->initState(genesisHash);
-    BOOST_CHECK(dbInitializer->stateFactory() != nullptr);
-    BOOST_CHECK(dbInitializer->executiveContextFactory() != nullptr);
+    BOOST_TEST(dbInitializer->stateFactory() != nullptr);
+    BOOST_TEST(dbInitializer->executiveContextFactory() != nullptr);
     fakeLedger.setDBInitializer(dbInitializer);
 
     /// test initBlockChain
-    BOOST_CHECK(fakeLedger.blockChain() == nullptr);
+    BOOST_TEST(fakeLedger.blockChain() == nullptr);
     /// test initBlockVerifier
-    BOOST_CHECK(fakeLedger.blockVerifier() == nullptr);
-    BOOST_CHECK(fakeLedger.consensus() == nullptr);
-    BOOST_CHECK(fakeLedger.txPool() == nullptr);
-    BOOST_CHECK(fakeLedger.sync() == nullptr);
+    BOOST_TEST(fakeLedger.blockVerifier() == nullptr);
+    BOOST_TEST(fakeLedger.consensus() == nullptr);
+    BOOST_TEST(fakeLedger.txPool() == nullptr);
+    BOOST_TEST(fakeLedger.sync() == nullptr);
     fakeLedger.initRealLedger();
-    BOOST_CHECK(fakeLedger.blockVerifier() != nullptr);
-    BOOST_CHECK(fakeLedger.blockChain() != nullptr);
-    BOOST_CHECK(fakeLedger.consensus() != nullptr);
-    BOOST_CHECK(fakeLedger.txPool() != nullptr);
-    BOOST_CHECK(fakeLedger.sync() != nullptr);
+    BOOST_TEST(fakeLedger.blockVerifier() != nullptr);
+    BOOST_TEST(fakeLedger.blockChain() != nullptr);
+    BOOST_TEST(fakeLedger.consensus() != nullptr);
+    BOOST_TEST(fakeLedger.txPool() != nullptr);
+    BOOST_TEST(fakeLedger.sync() != nullptr);
 }
 
 /// test initLedgers of LedgerManager
@@ -259,7 +259,7 @@ BOOST_AUTO_TEST_CASE(testInitLedger)
     std::shared_ptr<Block> populateBlock = std::make_shared<Block>();
     populateBlock->resetCurrentBlock(block->header());
     m_blockChain->commitBlock(populateBlock, nullptr);
-    BOOST_CHECK(ledgerManager->blockChain(groupId)->number() == 1);
+    BOOST_TEST(ledgerManager->blockChain(groupId)->number() == 1);
 }
 
 void initChannel(std::shared_ptr<LedgerInterface> ledger)

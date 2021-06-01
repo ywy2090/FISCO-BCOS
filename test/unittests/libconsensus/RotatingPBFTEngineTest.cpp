@@ -56,12 +56,12 @@ void checkResetConfig(RotatingPBFTEngineFixture::Ptr _fixture, int64_t const& _r
         // update the blockNumber
         _fixture->rotatingPBFT()->fakedBlockChain()->setBlockNumber(i + 1);
         _fixture->rotatingPBFT()->resetConfigWrapper();
-        BOOST_CHECK(_fixture->rotatingPBFT()->sealersNum() == _sealersNum);
-        BOOST_CHECK(_fixture->rotatingPBFT()->startNodeIdx() == _round % _sealersNum);
-        BOOST_CHECK(_fixture->rotatingPBFT()->rotatingRound() == _round);
+        BOOST_TEST(_fixture->rotatingPBFT()->sealersNum() == _sealersNum);
+        BOOST_TEST(_fixture->rotatingPBFT()->startNodeIdx() == _round % _sealersNum);
+        BOOST_TEST(_fixture->rotatingPBFT()->rotatingRound() == _round);
         auto selectedConsensusNodes = _fixture->rotatingPBFT()->chosedConsensusNodes();
-        BOOST_CHECK(selectedConsensusNodes.size() == (size_t)epochSize);
-        BOOST_CHECK(selectedConsensusNodes == expectedSelectedNodes);
+        BOOST_TEST(selectedConsensusNodes.size() == (size_t)epochSize);
+        BOOST_TEST(selectedConsensusNodes == expectedSelectedNodes);
         _fixture->rotatingPBFT()->setSealerListUpdated(false);
     }
 }
@@ -85,16 +85,16 @@ BOOST_AUTO_TEST_CASE(testConstantSealers)
 
         fixture->rotatingPBFT()->setEpochSealerNum(epochSize);
         fixture->rotatingPBFT()->setEpochBlockNum(rotatingInterval);
-        BOOST_CHECK(fixture->rotatingPBFT()->rotatingInterval() == rotatingInterval);
+        BOOST_TEST(fixture->rotatingPBFT()->rotatingInterval() == rotatingInterval);
         auto tmpEpochSize = epochSize;
         if (epochSize <= 8)
         {
-            BOOST_CHECK(fixture->rotatingPBFT()->epochSize() == epochSize);
+            BOOST_TEST(fixture->rotatingPBFT()->epochSize() == epochSize);
         }
         else
         {
             tmpEpochSize = 8;
-            BOOST_CHECK(fixture->rotatingPBFT()->epochSize() == 8);
+            BOOST_TEST(fixture->rotatingPBFT()->epochSize() == 8);
         }
 
         auto currentSealerList = fixture->rotatingPBFT()->sealerList();
@@ -105,10 +105,10 @@ BOOST_AUTO_TEST_CASE(testConstantSealers)
             checkResetConfig(fixture, round, rotatingInterval, tmpEpochSize, sealersNum);
         }
         // check falut-tolerance
-        BOOST_CHECK(fixture->rotatingPBFT()->f() == (tmpEpochSize - 1) / 3);
+        BOOST_TEST(fixture->rotatingPBFT()->f() == (tmpEpochSize - 1) / 3);
         // check minValidNodes
-        BOOST_CHECK(fixture->rotatingPBFT()->minValidNodes() ==
-                    (tmpEpochSize - fixture->rotatingPBFT()->f()));
+        BOOST_TEST(fixture->rotatingPBFT()->minValidNodes() ==
+                   (tmpEpochSize - fixture->rotatingPBFT()->f()));
     }
 }
 
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(testRawPrepareTreeBroadcast)
     leaderRPBFT->fakePBFTSuite()->consensus()->wrapperConstructPrepareReq(prepareReq->pBlock);
     auto selectedNodes = leaderRPBFT->fakePBFTSuite()->consensus()->treeRouter()->selectNodes(
         sealerSet, leaderRPBFT->fakePBFTSuite()->consensus()->nodeIdx());
-    BOOST_CHECK(selectedNodes->size() == 3);
+    BOOST_TEST(selectedNodes->size() == 3);
     receivedP2pMsg = nullptr;
     count = 10000;
     while (!receivedP2pMsg && --count > 0)
@@ -258,7 +258,7 @@ BOOST_AUTO_TEST_CASE(testRawPrepareTreeBroadcast)
         }
         index++;
     }
-    BOOST_CHECK(sendedSize == selectedSize);
+    BOOST_TEST(sendedSize == selectedSize);
 
     // the chosed node receive rawPrepareStatus and request the rawPrepareReq
     // make sure the followRPBFT is not the child of the leaderRPBFT

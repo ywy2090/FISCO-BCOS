@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(PushAndTopTest)
     // top[5] (10, 2)               [10, 12]    can not merge into (1, 7) leave it for next turn
 
     DownloadRequestQueue queue(NodeID(100));
-    BOOST_CHECK(queue.empty());
+    BOOST_TEST(queue.empty());
 
     queue.push(1, 3);
     queue.push(1, 4);
@@ -65,45 +65,45 @@ BOOST_AUTO_TEST_CASE(PushAndTopTest)
     BOOST_CHECK_EQUAL(top.fromNumber, 1);
     BOOST_CHECK_EQUAL(top.size, 7);
 
-    BOOST_CHECK(!queue.empty());
+    BOOST_TEST(!queue.empty());
 
     top = queue.topAndPop();
     BOOST_CHECK_EQUAL(top.fromNumber, 10);
     BOOST_CHECK_EQUAL(top.size, 2);
 
-    BOOST_CHECK(queue.empty());
+    BOOST_TEST(queue.empty());
 }
 
 BOOST_AUTO_TEST_CASE(disableTest)
 {
     DownloadRequestQueue queue(NodeID(100));
-    BOOST_CHECK(queue.empty());
+    BOOST_TEST(queue.empty());
 
 #if 0
     queue.disablePush();
     queue.push(1, 3);
-    BOOST_CHECK(queue.empty());
+    BOOST_TEST(queue.empty());
     queue.enablePush();
 #endif
     queue.push(1, 3);
-    BOOST_CHECK(!queue.empty());
+    BOOST_TEST(!queue.empty());
 }
 
 BOOST_AUTO_TEST_CASE(fullTest)
 {
     DownloadRequestQueue queue(NodeID(100));
-    BOOST_CHECK(queue.empty());
+    BOOST_TEST(queue.empty());
 
     for (size_t i = 0; i < c_maxReceivedDownloadRequestPerPeer; i++)
     {
         queue.push(1, 3);
     }
-    BOOST_CHECK(!queue.empty());
+    BOOST_TEST(!queue.empty());
 
     queue.push(100, 3);  // must not success
-    BOOST_CHECK(!queue.empty());
+    BOOST_TEST(!queue.empty());
     queue.topAndPop();
-    BOOST_CHECK(queue.empty());  // Only has (1, 3), no (100, 3)
+    BOOST_TEST(queue.empty());  // Only has (1, 3), no (100, 3)
 }
 
 BOOST_AUTO_TEST_SUITE_END()

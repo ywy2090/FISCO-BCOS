@@ -125,20 +125,20 @@ BOOST_AUTO_TEST_CASE(ASIOInterface)
 
 BOOST_AUTO_TEST_CASE(Hostfunctions)
 {
-    BOOST_CHECK(m_port == m_host->listenPort());
-    BOOST_CHECK(m_hostIP == m_host->listenHost());
+    BOOST_TEST(m_port == m_host->listenPort());
+    BOOST_TEST(m_hostIP == m_host->listenHost());
     string hostIP = "0.0.0.0";
     uint16_t port = 8546;
     m_host->setHostPort(hostIP, port);
-    BOOST_CHECK(port == m_host->listenPort());
-    BOOST_CHECK(hostIP == m_host->listenHost());
-    BOOST_CHECK(false == m_host->haveNetwork());
-    BOOST_CHECK(m_certBlacklist == m_host->certBlacklist());
+    BOOST_TEST(port == m_host->listenPort());
+    BOOST_TEST(hostIP == m_host->listenHost());
+    BOOST_TEST(false == m_host->haveNetwork());
+    BOOST_TEST(m_certBlacklist == m_host->certBlacklist());
     m_host->connectionHandler();
-    BOOST_CHECK(m_asioInterface == m_host->asioInterface());
-    BOOST_CHECK(m_sessionFactory == m_host->sessionFactory());
-    BOOST_CHECK(m_messageFactory == m_host->messageFactory());
-    BOOST_CHECK(m_threadPool == m_host->threadPool());
+    BOOST_TEST(m_asioInterface == m_host->asioInterface());
+    BOOST_TEST(m_sessionFactory == m_host->sessionFactory());
+    BOOST_TEST(m_messageFactory == m_host->messageFactory());
+    BOOST_TEST(m_threadPool == m_host->threadPool());
 }
 
 BOOST_AUTO_TEST_CASE(Host_run)
@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(Host_run)
     m_host->start();
     // start() will create a new thread and call host->startAccept, so wait
     this_thread::sleep_for(chrono::milliseconds(50));
-    BOOST_CHECK(true == m_host->haveNetwork());
+    BOOST_TEST(true == m_host->haveNetwork());
     auto fakeAsioInterface = dynamic_pointer_cast<FakeASIOInterface>(m_asioInterface);
     while (!fakeAsioInterface->m_acceptorInfo.first)
     {
@@ -155,12 +155,12 @@ BOOST_AUTO_TEST_CASE(Host_run)
     auto nodeIP = NodeIPEndpoint(boost::asio::ip::address::from_string("127.0.0.1"), 8888);
     socket->setNodeIPEndpoint(nodeIP);
     // TODO: fix the ut
-    BOOST_CHECK(true == m_sessions.empty());
+    BOOST_TEST(true == m_sessions.empty());
     boost::system::error_code ec;
     // accept successfully
     fakeAsioInterface->callAcceptHandler(ec);
     this_thread::sleep_for(chrono::milliseconds(50));
-    BOOST_CHECK(1u == m_sessions.size());
+    BOOST_TEST(1u == m_sessions.size());
 
     // accept failed
     fakeAsioInterface->callAcceptHandler(boost::asio::error::operation_aborted);
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(Host_run)
         NodeIPEndpoint(boost::asio::ip::address::from_string("127.0.0.1"), EMPTY_CERT_SOCKET_PORT);
     socket->setNodeIPEndpoint(nodeIP);
     fakeAsioInterface->callAcceptHandler(ec);
-    BOOST_CHECK(1u == m_sessions.size());
+    BOOST_TEST(1u == m_sessions.size());
     auto fp = [](NetworkException, NodeInfo const&, std::shared_ptr<SessionFace>) {};
     m_certBlacklist.push_back(
         string("7dcce48da1c464c7025614a54a4e26df7d6f92cd4d315601e057c1659796736c5c8730e380fcbe6"
@@ -179,43 +179,43 @@ BOOST_AUTO_TEST_CASE(Host_run)
     // connect failed, nodeID is in blackList
     m_host->asyncConnect(nodeIP, fp);
     this_thread::sleep_for(chrono::milliseconds(50));
-    BOOST_CHECK(1u == m_sessions.size());
+    BOOST_TEST(1u == m_sessions.size());
     // clear blacklist
     m_certBlacklist.clear();
     m_host->setCRL(m_certBlacklist);
     // connect failed, cert is empty
     m_host->asyncConnect(nodeIP, fp);
     this_thread::sleep_for(chrono::milliseconds(50));
-    BOOST_CHECK(1u == m_sessions.size());
+    BOOST_TEST(1u == m_sessions.size());
     // connect failed, operation_aborted
     nodeIP = NodeIPEndpoint(boost::asio::ip::address::from_string("127.0.0.1"), ERROR_SOCKET_PORT);
     m_host->asyncConnect(nodeIP, fp);
-    BOOST_CHECK(1u == m_sessions.size());
+    BOOST_TEST(1u == m_sessions.size());
     // connect success
     nodeIP = NodeIPEndpoint(boost::asio::ip::address::from_string("127.0.0.1"), 8890);
     m_host->asyncConnect(nodeIP, fp);
     this_thread::sleep_for(chrono::milliseconds(50));
-    BOOST_CHECK(2u == m_sessions.size());
+    BOOST_TEST(2u == m_sessions.size());
 
     // Session unit test
     auto s = std::dynamic_pointer_cast<Session>(m_sessions[0]);
     s->nodeIPEndpoint();
-    BOOST_CHECK(m_host == s->host().lock());
-    BOOST_CHECK(m_messageFactory == s->messageFactory());
-    BOOST_CHECK(true == s->actived());
+    BOOST_TEST(m_host == s->host().lock());
+    BOOST_TEST(m_messageFactory == s->messageFactory());
+    BOOST_TEST(true == s->actived());
 
     // close socket
     auto fakeSocket = std::dynamic_pointer_cast<FakeSocket>(s->socket());
     fakeSocket->close();
     this_thread::sleep_for(chrono::milliseconds(50));
-    BOOST_CHECK(false == s->actived());
-    BOOST_CHECK(2u == m_sessions.size());
+    BOOST_TEST(false == s->actived());
+    BOOST_TEST(2u == m_sessions.size());
     auto messageHandler = std::function<void(NetworkException, SessionFace::Ptr, Message::Ptr)>(
         [](NetworkException, SessionFace::Ptr, Message::Ptr m) { LOG(INFO) << m->length(); });
     s->setMessageHandler(messageHandler);
     // empty callback
     // TODO: fix this ut
-    BOOST_CHECK(nullptr == s->getCallbackBySeq(0u));
+    BOOST_TEST(nullptr == s->getCallbackBySeq(0u));
 
     m_host->stop();
 }
@@ -236,20 +236,20 @@ BOOST_AUTO_TEST_CASE(ASIOInterface)
 
 BOOST_AUTO_TEST_CASE(Hostfunctions)
 {
-    BOOST_CHECK(m_port == m_host->listenPort());
-    BOOST_CHECK(m_hostIP == m_host->listenHost());
+    BOOST_TEST(m_port == m_host->listenPort());
+    BOOST_TEST(m_hostIP == m_host->listenHost());
     string hostIP = "0.0.0.0";
     uint16_t port = 8546;
     m_host->setHostPort(hostIP, port);
-    BOOST_CHECK(port == m_host->listenPort());
-    BOOST_CHECK(hostIP == m_host->listenHost());
-    BOOST_CHECK(false == m_host->haveNetwork());
-    BOOST_CHECK(m_certBlacklist == m_host->certBlacklist());
+    BOOST_TEST(port == m_host->listenPort());
+    BOOST_TEST(hostIP == m_host->listenHost());
+    BOOST_TEST(false == m_host->haveNetwork());
+    BOOST_TEST(m_certBlacklist == m_host->certBlacklist());
     m_host->connectionHandler();
-    BOOST_CHECK(m_asioInterface == m_host->asioInterface());
-    BOOST_CHECK(m_sessionFactory == m_host->sessionFactory());
-    BOOST_CHECK(m_messageFactory == m_host->messageFactory());
-    BOOST_CHECK(m_threadPool == m_host->threadPool());
+    BOOST_TEST(m_asioInterface == m_host->asioInterface());
+    BOOST_TEST(m_sessionFactory == m_host->sessionFactory());
+    BOOST_TEST(m_messageFactory == m_host->messageFactory());
+    BOOST_TEST(m_threadPool == m_host->threadPool());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

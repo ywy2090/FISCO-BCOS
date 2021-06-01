@@ -37,31 +37,31 @@ BOOST_AUTO_TEST_CASE(testFromUUID)
 {
     const std::string uuid = "067150c0-7dab-4fac-b716-0e075548007e";
     h128 h = fromUUID(uuid);
-    BOOST_CHECK("0x067150c07dab4facb7160e075548007e" == toJS(h));
+    BOOST_TEST("0x067150c07dab4facb7160e075548007e" == toJS(h));
 
     const std::string uuidError = "067150c0+7dab-4fac-b716-0e075548007e";
-    BOOST_CHECK(h128() == fromUUID(uuidError));
+    BOOST_TEST(h128() == fromUUID(uuidError));
 }
 
 BOOST_AUTO_TEST_CASE(testToUUID)
 {
     const std::string str = "0x067150c07dab4facb7160e075548007e";
     h128 h = jsToFixed<16>(str);
-    BOOST_CHECK("067150c0-7dab-4fac-b716-0e075548007e" == toUUID(h));
+    BOOST_TEST("067150c0-7dab-4fac-b716-0e075548007e" == toUUID(h));
 }
 
 BOOST_AUTO_TEST_CASE(testLeft160)
 {
     const std::string str = "0x067150c07dab4facb7160e075548007e067150c07dab4facb7160e075548007e";
     h256 h = jsToFixed<32>(str);
-    BOOST_CHECK("0x067150c07dab4facb7160e075548007e067150c0" == toJS(left160(h)));
+    BOOST_TEST("0x067150c07dab4facb7160e075548007e067150c0" == toJS(left160(h)));
 }
 
 BOOST_AUTO_TEST_CASE(testRight160)
 {
     const std::string str = "0x067150c07dab4facb7160e075548007e067150c07dab4facb7160e075548007e";
     h256 h = jsToFixed<32>(str);
-    BOOST_CHECK("0x5548007e067150c07dab4facb7160e075548007e" == toJS(right160(h)));
+    BOOST_TEST("0x5548007e067150c07dab4facb7160e075548007e" == toJS(right160(h)));
     // test u256
     h256 h256Data(fromHex("12b5155eda010a5b7ae26a4a268e466a4b8d31547ad875fce9ab298c639a1b2f"));
     // trans h256Data to u256
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(testRight160)
     h256 convertedH256Data = value;
     std::cout << "### value: " << value << ", h256Data:" << dev::toHex(h256Data)
               << "convertedH256Data" << dev::toHex(convertedH256Data) << std::endl;
-    BOOST_CHECK(convertedH256Data == h256Data);
+    BOOST_TEST(convertedH256Data == h256Data);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -53,7 +53,7 @@ void checkErrorInfo(const T& error_info)
     }
     catch (const Exception& e)
     {
-        BOOST_CHECK(*(boost::get_error_info<E>(e)) == error_info);
+        BOOST_TEST(*(boost::get_error_info<E>(e)) == error_info);
     }
 }
 

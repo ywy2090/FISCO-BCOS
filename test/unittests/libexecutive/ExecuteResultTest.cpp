@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(toTransactionExceptionConvert)
 BOOST_AUTO_TEST_CASE(GettingSenderForUnsignedTransactionThrows)
 {
     Transaction tx(0, 0, 10000, Address("a94f5374fce5edbc8e2a8697c15331677e6ebf0b"), bytes(), 0);
-    BOOST_CHECK(!tx.hasSignature());
+    BOOST_TEST(!tx.hasSignature());
 
     BOOST_REQUIRE_THROW(tx.sender(), TransactionIsUnsigned);
 }

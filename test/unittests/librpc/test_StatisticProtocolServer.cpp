@@ -74,9 +74,9 @@ void checkSuccessResponse(std::string const& _responseStr)
     Json::Reader reader;
     Json::Value response;
     reader.parse(_responseStr, response, false);
-    BOOST_CHECK(response["jsonrpc"] == "2.0");
-    BOOST_CHECK(response["error"]["code"] = 0);
-    BOOST_CHECK(response["error"]["message"] = "success");
+    BOOST_TEST(response["jsonrpc"] == "2.0");
+    BOOST_TEST(response["error"]["code"] = 0);
+    BOOST_TEST(response["error"]["message"] = "success");
 }
 
 void checkPermssionDenied(std::string const& _responseStr)
@@ -84,8 +84,8 @@ void checkPermssionDenied(std::string const& _responseStr)
     Json::Reader reader;
     Json::Value response;
     reader.parse(_responseStr, response, false);
-    BOOST_CHECK(response["jsonrpc"] == "2.0");
-    BOOST_CHECK(response["error"]["code"] = RPCExceptionType::PermissionDenied);
+    BOOST_TEST(response["jsonrpc"] == "2.0");
+    BOOST_TEST(response["error"]["code"] = RPCExceptionType::PermissionDenied);
 }
 
 void checkPermission(std::shared_ptr<FakeStatisticProtocolServer> fakeRPCHandler)
@@ -127,16 +127,16 @@ BOOST_AUTO_TEST_CASE(testHandleChannelRequest)
     Json::Value fakedRequest;
     fakedRequest[KEY_REQUEST_METHODNAME] = "getBlockByNumber";
     fakedRequest[KEY_REQUEST_PARAMETERS][0u] = 1;
-    BOOST_CHECK(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == 1);
+    BOOST_TEST(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == 1);
 
     fakedRequest[KEY_REQUEST_PARAMETERS][0u] = 1000;
-    BOOST_CHECK(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == 1000);
+    BOOST_TEST(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == 1000);
 
     uint64_t invalidGroupId = 65536;
     fakedRequest[KEY_REQUEST_PARAMETERS][0u] = invalidGroupId;
-    BOOST_CHECK(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == -1);
+    BOOST_TEST(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == -1);
     fakedRequest[KEY_REQUEST_PARAMETERS][0u] = 655360000;
-    BOOST_CHECK(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == -1);
+    BOOST_TEST(fakeRPCHandler->WrapperGetGroupID(fakedRequest) == -1);
 
     // checkPermission without limitRPCQPS
     checkPermission(fakeRPCHandler);

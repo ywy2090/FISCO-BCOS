@@ -38,8 +38,8 @@ namespace test
 BOOST_FIXTURE_TEST_SUITE(SM_DevcryptoCommonTest, SM_CryptoTestFixture)
 BOOST_AUTO_TEST_CASE(SM_testCommonTrans)
 {
-    BOOST_CHECK(Secret::size == 32);
-    BOOST_CHECK(Public::size == 64);
+    BOOST_TEST(Secret::size == 32);
+    BOOST_TEST(Public::size == 64);
     // check secret->public
     Secret sec1(
         "bcec428d5205abe0f0cc8a7340839"
@@ -49,46 +49,46 @@ BOOST_AUTO_TEST_CASE(SM_testCommonTrans)
     Secret sec2("bcec428d5205abe0");
     Public pub2 = toPublic(sec2);
     // std::cout << "public key:" << toHex(pub1) << std::endl;
-    BOOST_CHECK(pub1 != pub2);
+    BOOST_TEST(pub1 != pub2);
     // check public->address
     Address addr_pub1 = toAddress(pub1);
     Address addr_pub2 = toAddress(pub2);
-    BOOST_CHECK(addr_pub1 != addr_pub2);
+    BOOST_TEST(addr_pub1 != addr_pub2);
     // check secret->address
     Address addr_sec1 = toAddress(sec1);
     Address addr_sec2 = toAddress(sec2);
-    BOOST_CHECK(addr_sec1 != addr_sec2);
-    BOOST_CHECK(addr_pub1 == addr_sec1);
-    BOOST_CHECK(addr_pub2 == addr_sec2);
+    BOOST_TEST(addr_sec1 != addr_sec2);
+    BOOST_TEST(addr_pub1 == addr_sec1);
+    BOOST_TEST(addr_pub2 == addr_sec2);
     // check toAddress with nonce
     u256 nonce("13432343243");
     u256 invalid_nonce("9987543");
     Address addr_nonce1 = toAddress(addr_pub2, nonce);
     Address addr_nonce2 = toAddress(addr_sec2, nonce);
-    BOOST_CHECK(addr_nonce1 == addr_nonce2);
+    BOOST_TEST(addr_nonce1 == addr_nonce2);
     // change nonce
     addr_nonce2 = toAddress(addr_pub2, invalid_nonce);
-    BOOST_CHECK(addr_nonce1 != addr_nonce2);
+    BOOST_TEST(addr_nonce1 != addr_nonce2);
     // change address
     addr_nonce2 = toAddress(addr_pub1, nonce);
-    BOOST_CHECK(addr_nonce2 != addr_nonce1);
+    BOOST_TEST(addr_nonce2 != addr_nonce1);
 }
 
 /// test key pair
 BOOST_AUTO_TEST_CASE(SM_testEcKeypair)
 {
     KeyPair k = KeyPair::create();
-    BOOST_CHECK(k.secret());
-    BOOST_CHECK(k.pub());
+    BOOST_TEST(k.secret());
+    BOOST_TEST(k.pub());
     Public test = toPublic(k.secret());
     BOOST_CHECK_EQUAL(k.pub(), test);
 
     Secret empty;
     KeyPair kNot(empty);
-    BOOST_CHECK(!kNot.address());
+    BOOST_TEST(!kNot.address());
 #if 0
     KeyPair k2(crypto::Hash(empty));
-    BOOST_CHECK(k2.address());
+    BOOST_TEST(k2.address());
 #endif
 }
 
@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(SM_testKdf) {}
 /// test nonce
 BOOST_AUTO_TEST_CASE(SM_testNonce)
 {
-    BOOST_CHECK(dev::crypto::Nonce::get() != dev::crypto::Nonce::get());
+    BOOST_TEST(dev::crypto::Nonce::get() != dev::crypto::Nonce::get());
 }
 
 // /// test ecdha
@@ -116,40 +116,40 @@ BOOST_AUTO_TEST_CASE(SM_testSigAndVerify)
     /// normal check
     // sign
     auto sig = crypto::Sign(key_pair, hash);
-    BOOST_CHECK(sig->isValid() == true);
+    BOOST_TEST(sig->isValid() == true);
     // verify
     bool result = crypto::Verify(key_pair.pub(), sig, hash);
-    BOOST_CHECK(result == true);
+    BOOST_TEST(result == true);
     // recover
     Public pub = crypto::Recover(sig, hash);
-    BOOST_CHECK(pub == key_pair.pub());
+    BOOST_TEST(pub == key_pair.pub());
     /// exception check:
     // check1: invalid payload(hash)
     h256 invalid_hash = crypto::Hash("abce");
     result = crypto::Verify(key_pair.pub(), sig, invalid_hash);
-    BOOST_CHECK(result == false);
+    BOOST_TEST(result == false);
     Public invalid_pub = {};
     invalid_pub = crypto::Recover(sig, invalid_hash);
-    BOOST_CHECK(invalid_pub != key_pair.pub());
+    BOOST_TEST(invalid_pub != key_pair.pub());
 
     // check2: invalid sig
     auto another_sig(crypto::Sign(key_pair, invalid_hash));
     result = crypto::Verify(key_pair.pub(), another_sig, hash);
-    BOOST_CHECK(result == false);
+    BOOST_TEST(result == false);
 
     invalid_pub = crypto::Recover(another_sig, hash);
-    BOOST_CHECK(invalid_pub != key_pair.pub());
+    BOOST_TEST(invalid_pub != key_pair.pub());
     // check3: invalid secret
     Public random_key = Public::random();
     result = crypto::Verify(random_key, sig, hash);
-    BOOST_CHECK(result == false);
+    BOOST_TEST(result == false);
 
     // construct invalid r, v,s and check isValid() function
     h256 r(crypto::Hash("+++"));
     h256 s(crypto::Hash("24324"));
     h512 v(crypto::Hash("123456"));
     auto constructed_sig = std::make_shared<crypto::SM2Signature>(r, s, v);
-    BOOST_CHECK(constructed_sig->isValid() == true);
+    BOOST_TEST(constructed_sig->isValid() == true);
 }
 /// test ecRocer
 BOOST_AUTO_TEST_CASE(SM_testSigecRocer)
@@ -168,8 +168,8 @@ BOOST_AUTO_TEST_CASE(SM_testSigecRocer)
     RLP rlpObj(rlpBytes);
     bytesConstRef _in = rlpObj.data();
     KeyPair = recover(_in);
-    BOOST_CHECK(KeyPair.first == true);
-    BOOST_CHECK(KeyPair.second != ret.asBytes());
+    BOOST_TEST(KeyPair.first == true);
+    BOOST_TEST(KeyPair.second != ret.asBytes());
 }
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -177,8 +177,8 @@ BOOST_FIXTURE_TEST_SUITE(DevcryptoCommonTest, TestOutputHelperFixture)
 /// test toPublic && toAddress
 BOOST_AUTO_TEST_CASE(testCommonTrans)
 {
-    BOOST_CHECK(Secret::size == 32);
-    BOOST_CHECK(Public::size == 64);
+    BOOST_TEST(Secret::size == 32);
+    BOOST_TEST(Public::size == 64);
     // check secret->public
     Secret sec1(
         "bcec428d5205abe0f0cc8a7340839"
@@ -188,43 +188,43 @@ BOOST_AUTO_TEST_CASE(testCommonTrans)
     Secret sec2("bcec428d5205abe0");
     Public pub2 = toPublic(sec2);
     // std::cout << "public key:" << toHex(pub1) << std::endl;
-    BOOST_CHECK(pub1 != pub2);
+    BOOST_TEST(pub1 != pub2);
     // check public->address
     Address addr_pub1 = toAddress(pub1);
     Address addr_pub2 = toAddress(pub2);
-    BOOST_CHECK(addr_pub1 != addr_pub2);
+    BOOST_TEST(addr_pub1 != addr_pub2);
     // check secret->address
     Address addr_sec1 = toAddress(sec1);
     Address addr_sec2 = toAddress(sec2);
-    BOOST_CHECK(addr_sec1 != addr_sec2);
-    BOOST_CHECK(addr_pub1 == addr_sec1);
-    BOOST_CHECK(addr_pub2 == addr_sec2);
+    BOOST_TEST(addr_sec1 != addr_sec2);
+    BOOST_TEST(addr_pub1 == addr_sec1);
+    BOOST_TEST(addr_pub2 == addr_sec2);
     // check toAddress with nonce
     u256 nonce("13432343243");
     u256 invalid_nonce("9987543");
     Address addr_nonce1 = toAddress(addr_pub2, nonce);
     Address addr_nonce2 = toAddress(addr_sec2, nonce);
-    BOOST_CHECK(addr_nonce1 == addr_nonce2);
+    BOOST_TEST(addr_nonce1 == addr_nonce2);
     // change nonce
     addr_nonce2 = toAddress(addr_pub2, invalid_nonce);
-    BOOST_CHECK(addr_nonce1 != addr_nonce2);
+    BOOST_TEST(addr_nonce1 != addr_nonce2);
     // change address
     addr_nonce2 = toAddress(addr_pub1, nonce);
-    BOOST_CHECK(addr_nonce2 != addr_nonce1);
+    BOOST_TEST(addr_nonce2 != addr_nonce1);
 }
 
 /// test key pair
 BOOST_AUTO_TEST_CASE(testEcKeypair)
 {
     KeyPair k = KeyPair::create();
-    BOOST_CHECK(k.secret());
-    BOOST_CHECK(k.pub());
+    BOOST_TEST(k.secret());
+    BOOST_TEST(k.pub());
     Public test = toPublic(k.secret());
     BOOST_CHECK_EQUAL(k.pub(), test);
 
     Secret empty;
     KeyPair kNot(empty);
-    BOOST_CHECK(!kNot.address());
+    BOOST_TEST(!kNot.address());
 }
 
 BOOST_AUTO_TEST_CASE(testKdf) {}
@@ -232,7 +232,7 @@ BOOST_AUTO_TEST_CASE(testKdf) {}
 /// test nonce
 BOOST_AUTO_TEST_CASE(testNonce)
 {
-    BOOST_CHECK(dev::crypto::Nonce::get() != dev::crypto::Nonce::get());
+    BOOST_TEST(dev::crypto::Nonce::get() != dev::crypto::Nonce::get());
 }
 
 BOOST_AUTO_TEST_CASE(testSigAndVerify)
@@ -242,40 +242,40 @@ BOOST_AUTO_TEST_CASE(testSigAndVerify)
     /// normal check
     // sign
     auto sig = crypto::Sign(key_pair, hash);
-    BOOST_CHECK(sig->isValid() == true);
+    BOOST_TEST(sig->isValid() == true);
     // verify
     bool result = crypto::Verify(key_pair.pub(), sig, hash);
-    BOOST_CHECK(result == true);
+    BOOST_TEST(result == true);
     // recover
     Public pub = crypto::Recover(sig, hash);
-    BOOST_CHECK(pub == key_pair.pub());
+    BOOST_TEST(pub == key_pair.pub());
     /// exception check:
     // check1: invalid payload(hash)
     h256 invalid_hash = crypto::Hash("abce");
     result = crypto::Verify(key_pair.pub(), sig, invalid_hash);
-    BOOST_CHECK(result == false);
+    BOOST_TEST(result == false);
     Public invalid_pub = {};
     invalid_pub = crypto::Recover(sig, invalid_hash);
-    BOOST_CHECK(invalid_pub != key_pair.pub());
+    BOOST_TEST(invalid_pub != key_pair.pub());
 
     // check2: invalid sig
     auto another_sig(crypto::Sign(key_pair, invalid_hash));
     result = crypto::Verify(key_pair.pub(), another_sig, hash);
-    BOOST_CHECK(result == false);
+    BOOST_TEST(result == false);
 
     invalid_pub = crypto::Recover(another_sig, hash);
-    BOOST_CHECK(invalid_pub != key_pair.pub());
+    BOOST_TEST(invalid_pub != key_pair.pub());
     // check3: invalid secret
     Public random_key = Public::random();
     result = crypto::Verify(random_key, sig, hash);
-    BOOST_CHECK(result == false);
+    BOOST_TEST(result == false);
 
     // construct invalid r, v,s and check isValid() function
     h256 r(crypto::Hash("+++"));
     h256 s(crypto::Hash("24324"));
     byte v = 4;
     auto constructed_sig = std::make_shared<crypto::ECDSASignature>(r, s, v - 27);
-    BOOST_CHECK(constructed_sig->isValid() == false);
+    BOOST_TEST(constructed_sig->isValid() == false);
 }
 /// test ecRocer
 BOOST_AUTO_TEST_CASE(testSigecRocer)
@@ -300,12 +300,12 @@ BOOST_AUTO_TEST_CASE(testSigecRocer)
     RLP rlpObj(rlpBytes);
     bytesConstRef _in = rlpObj.data();
     keyPair = dev::ecRecover(_in);
-    BOOST_CHECK(keyPair.first == true);
-    BOOST_CHECK(keyPair.second != ret.asBytes());
+    BOOST_TEST(keyPair.first == true);
+    BOOST_TEST(keyPair.second != ret.asBytes());
     KeyPairR = dev::ecRecover(ref(rlpBytesRight));
     cout << toHex(KeyPairR.second) << endl;
     cout << toHex(ret.asBytes()) << endl;
-    BOOST_CHECK(KeyPairR.second == ret.asBytes());
+    BOOST_TEST(KeyPairR.second == ret.asBytes());
 }
 BOOST_AUTO_TEST_CASE(testSign)
 {
@@ -320,8 +320,8 @@ BOOST_AUTO_TEST_CASE(testSign)
     bytes signatureBytes = fromHex(signature);
     dev::h256 blockHashBytes = dev::h256(blockHash);
     std::cout << "### before test sign" << std::endl;
-    BOOST_CHECK(dev::ecdsaVerify(publicKeyBytes, dev::crypto::SignatureFromBytes(signatureBytes),
-                    blockHashBytes) == true);
+    BOOST_TEST(dev::ecdsaVerify(publicKeyBytes, dev::crypto::SignatureFromBytes(signatureBytes),
+                   blockHashBytes) == true);
     std::cout << "### test sign passed" << std::endl;
 }
 

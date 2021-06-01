@@ -30,21 +30,21 @@ BOOST_AUTO_TEST_CASE(testFileSystem)
 {
     dev::setDataDir("./data");
     /// test getDataDir
-    BOOST_CHECK((dev::getDataDir("ethereum").string() == "./ethereum") == true);
-    BOOST_CHECK((dev::getDataDir("fisco-bcos-data").string() == "./data") == true);
-    BOOST_CHECK((dev::getDataDir("test").filename() == "test") == true);
-    BOOST_CHECK((dev::getDataDir().string() == "./data") == true);
-    BOOST_CHECK(dev::getDataDir("/data").string() == "/data");
+    BOOST_TEST((dev::getDataDir("ethereum").string() == "./ethereum") == true);
+    BOOST_TEST((dev::getDataDir("fisco-bcos-data").string() == "./data") == true);
+    BOOST_TEST((dev::getDataDir("test").filename() == "test") == true);
+    BOOST_TEST((dev::getDataDir().string() == "./data") == true);
+    BOOST_TEST(dev::getDataDir("/data").string() == "/data");
 
     /// test getLedgerDir
-    BOOST_CHECK(dev::getLedgerDir("ledger1").string() == "./data/ledger1");
-    BOOST_CHECK(dev::getLedgerDir("ledger1", "/data").string() == "/data/ledger1");
+    BOOST_TEST(dev::getLedgerDir("ledger1").string() == "./data/ledger1");
+    BOOST_TEST(dev::getLedgerDir("ledger1", "/data").string() == "/data/ledger1");
 
     dev::setIpcPath("/xxx/geth.ipc");
-    BOOST_CHECK((dev::getIpcPath().string() == "/xxx") == true);
+    BOOST_TEST((dev::getIpcPath().string() == "/xxx") == true);
 
     dev::setIpcPath("/xxx/eth.ipc");
-    BOOST_CHECK((dev::getIpcPath().string() == "/xxx/eth.ipc") == true);
+    BOOST_TEST((dev::getIpcPath().string() == "/xxx/eth.ipc") == true);
 
     dev::setIpcPath("geth.ipc");
 }

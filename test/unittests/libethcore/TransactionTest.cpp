@@ -58,8 +58,8 @@ BOOST_AUTO_TEST_CASE(testCreateTxByRLP)
     /// test decode
     Transaction decodeTx;
     decodeTx.decode(ref(encodeBytes));
-    BOOST_CHECK(tx == decodeTx);
-    BOOST_CHECK(decodeTx.sender() == tx.safeSender());
+    BOOST_TEST(tx == decodeTx);
+    BOOST_TEST(decodeTx.sender() == tx.safeSender());
     BOOST_CHECK_NO_THROW(decodeTx.signature());
     /*bytes s;
     BOOST_CHECK_NO_THROW(tx.encode(s, eth::IncludeSignature::WithSignature));*/
@@ -104,8 +104,8 @@ BOOST_FIXTURE_TEST_CASE(SM_testCreateTxByRLP, SM_CryptoTestFixture)
     /// test decode
     Transaction decodeTx;
     decodeTx.decode(ref(encodeBytes));
-    BOOST_CHECK(tx == decodeTx);
-    BOOST_CHECK(decodeTx.sender() == tx.safeSender());
+    BOOST_TEST(tx == decodeTx);
+    BOOST_TEST(decodeTx.sender() == tx.safeSender());
     BOOST_CHECK_NO_THROW(decodeTx.signature());
     /*bytes s;
     BOOST_CHECK_NO_THROW(tx.encode(s, eth::IncludeSignature::WithSignature));*/

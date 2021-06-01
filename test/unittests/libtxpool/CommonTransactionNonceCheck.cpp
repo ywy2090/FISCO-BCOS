@@ -68,21 +68,21 @@ BOOST_AUTO_TEST_CASE(updateTest)
 
     CommonTransactionNonceCheck cache;
 
-    BOOST_CHECK(cache.isNonceOk(*txs[0]));
+    BOOST_TEST(cache.isNonceOk(*txs[0]));
 
     cache.insertCache(*txs[0]);
-    BOOST_CHECK(!cache.isNonceOk(*txs[0]));
+    BOOST_TEST(!cache.isNonceOk(*txs[0]));
 
-    BOOST_CHECK(cache.isNonceOk(*txs[1]));
-    BOOST_CHECK(cache.isNonceOk(*txs[1], true));  // insert cache if true
-    BOOST_CHECK(!cache.isNonceOk(*txs[1]));
+    BOOST_TEST(cache.isNonceOk(*txs[1]));
+    BOOST_TEST(cache.isNonceOk(*txs[1], true));  // insert cache if true
+    BOOST_TEST(!cache.isNonceOk(*txs[1]));
 
     dev::eth::NonceKeyType nonce = txs[0]->nonce();
     cache.delCache(nonce);
-    BOOST_CHECK(cache.isNonceOk(*txs[0]));
+    BOOST_TEST(cache.isNonceOk(*txs[0]));
 
     cache.delCache(txs);
-    BOOST_CHECK(cache.isNonceOk(*txs[1]));
+    BOOST_TEST(cache.isNonceOk(*txs[1]));
 }
 
 

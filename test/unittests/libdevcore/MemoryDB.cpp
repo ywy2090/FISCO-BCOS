@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(testMemoryDBKeyExist)
 {
     dev::MemoryDB memoryDB;
     h256 key("0x2979B90fF15080A5F956bE0dD2dF1A345b120183");
-    BOOST_CHECK(memoryDB.exists(key) == false);
+    BOOST_TEST(memoryDB.exists(key) == false);
 }
 
 BOOST_AUTO_TEST_CASE(testMemoryDBKeyValue)
@@ -53,24 +53,24 @@ BOOST_AUTO_TEST_CASE(testMemoryDBKeyValue)
 
     bytesConstRef value("helloworld");
     memoryDB.insert(key, value);
-    BOOST_CHECK(memoryDB.exists(key) == true);
+    BOOST_TEST(memoryDB.exists(key) == true);
 
-    BOOST_CHECK(memoryDB.lookup(keyNotExist) == "");
+    BOOST_TEST(memoryDB.lookup(keyNotExist) == "");
 
     memoryDB.insert(key2, value);
     auto keyMap = memoryDB.get();
-    BOOST_CHECK(keyMap.size() == 2);
+    BOOST_TEST(keyMap.size() == 2);
 
     auto keys = memoryDB.keys();
-    BOOST_CHECK(keys.size() == 2);
+    BOOST_TEST(keys.size() == 2);
 
     bool ok = memoryDB.kill(key);
-    BOOST_CHECK(ok == true);
+    BOOST_TEST(ok == true);
 
     ok = memoryDB.kill(keyNotExist);
-    BOOST_CHECK(ok == false);
+    BOOST_TEST(ok == false);
 
-    BOOST_CHECK(memoryDB.exists(key) == false);
+    BOOST_TEST(memoryDB.exists(key) == false);
 }
 
 BOOST_AUTO_TEST_CASE(testMemoryDBAux)
@@ -86,14 +86,14 @@ BOOST_AUTO_TEST_CASE(testMemoryDBAux)
 
     auto valueBytes = memoryDB.lookupAux(key);
     valueStr = dev::asString(valueBytes);
-    BOOST_CHECK(valueStr == "helloworld");
+    BOOST_TEST(valueStr == "helloworld");
 
     memoryDB.removeAux(key);
-    BOOST_CHECK(memoryDB.lookupAux(key) == dev::bytes());
+    BOOST_TEST(memoryDB.lookupAux(key) == dev::bytes());
 
     dev::EnforceRefs enforceRefsFalse(memoryDB, false);
     memoryDB.purge();
-    BOOST_CHECK(memoryDB.lookupAux(key) == dev::bytes());
+    BOOST_TEST(memoryDB.lookupAux(key) == dev::bytes());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

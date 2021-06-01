@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(call)
     PrecompiledGas::Ptr gasPricer = createGasPricer();
     gasPricer->setMemUsed(in.size());
     gasPricer->appendOperation(InterfaceOpcode::EQ);
-    BOOST_CHECK(gasPricer->calTotalGas() == callResult->gasPricer()->calTotalGas());
+    BOOST_TEST(gasPricer->calTotalGas() == callResult->gasPricer()->calTotalGas());
 
     // set supported version to v2.6.0
     g_BCOSConfig.setSupportedVersion("v2.6.0", V2_6_0);
@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(call)
     callResult = createdConditionPrecompiled->call(context, bytesConstRef(&in));
     gasPricer = createGasPricer();
     gasPricer->setMemUsed(in.size());
-    BOOST_CHECK(gasPricer->calTotalGas() == callResult->gasPricer()->calTotalGas());
+    BOOST_TEST(gasPricer->calTotalGas() == callResult->gasPricer()->calTotalGas());
 
     // recover the supported version
     g_BCOSConfig.setSupportedVersion(orgSupportedVersion, orgVersionNumber);

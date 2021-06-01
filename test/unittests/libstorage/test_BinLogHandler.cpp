@@ -95,31 +95,31 @@ BOOST_AUTO_TEST_CASE(testTableData)
     data->newEntries->addEntry(entry3);
     oirDatas.push_back(data);
 
-    BOOST_CHECK(binLogHandler->writeBlocktoBinLog(0, oirDatas) == true);
-    BOOST_CHECK(binLogHandler->writeBlocktoBinLog(1, oirDatas) == true);
+    BOOST_TEST(binLogHandler->writeBlocktoBinLog(0, oirDatas) == true);
+    BOOST_TEST(binLogHandler->writeBlocktoBinLog(1, oirDatas) == true);
     std::shared_ptr<BlockDataMap> binLogData = binLogHandler->getMissingBlocksFromBinLog(0, 1);
-    BOOST_CHECK((*binLogData)[1].size() == 1);
-    BOOST_CHECK((*binLogData)[1][0]->info->name == "t_test");
-    BOOST_CHECK((*binLogData)[1][0]->info->key == "key");
-    BOOST_CHECK((*binLogData)[1][0]->info->fields.size() == 12);
-    BOOST_CHECK((*binLogData)[1][0]->info->fields[0] == "value1");
-    BOOST_CHECK((*binLogData)[1][0]->info->fields[1] == "value2");
-    BOOST_CHECK((*binLogData)[1][0]->dirtyEntries->size() == 1);
-    BOOST_CHECK((*binLogData)[1][0]->newEntries->size() == 2);
+    BOOST_TEST((*binLogData)[1].size() == 1);
+    BOOST_TEST((*binLogData)[1][0]->info->name == "t_test");
+    BOOST_TEST((*binLogData)[1][0]->info->key == "key");
+    BOOST_TEST((*binLogData)[1][0]->info->fields.size() == 12);
+    BOOST_TEST((*binLogData)[1][0]->info->fields[0] == "value1");
+    BOOST_TEST((*binLogData)[1][0]->info->fields[1] == "value2");
+    BOOST_TEST((*binLogData)[1][0]->dirtyEntries->size() == 1);
+    BOOST_TEST((*binLogData)[1][0]->newEntries->size() == 2);
 
     Entry::Ptr entry = (*binLogData)[1][0]->newEntries->get(1);
-    BOOST_CHECK(entry->getField("value2") == "newValue2");
-    BOOST_CHECK(entry->getField("value4") == "newValue4");
-    BOOST_CHECK(entry->getField("value5") == "newValue5");
-    BOOST_CHECK(entry->getField("value6") == "newValue6");
-    BOOST_CHECK(entry->getField("value8") == "newValue8");
-    BOOST_CHECK(entry->getField("value10") == "newValue10");
-    BOOST_CHECK(entry->getField("value12") == "newValue12");
-    BOOST_CHECK(entry->find("value1") == entry->end());
-    BOOST_CHECK(entry->find("value3") == entry->end());
-    BOOST_CHECK(entry->find("value7") == entry->end());
-    BOOST_CHECK(entry->find("value9") == entry->end());
-    BOOST_CHECK(entry->find("value11") == entry->end());
+    BOOST_TEST(entry->getField("value2") == "newValue2");
+    BOOST_TEST(entry->getField("value4") == "newValue4");
+    BOOST_TEST(entry->getField("value5") == "newValue5");
+    BOOST_TEST(entry->getField("value6") == "newValue6");
+    BOOST_TEST(entry->getField("value8") == "newValue8");
+    BOOST_TEST(entry->getField("value10") == "newValue10");
+    BOOST_TEST(entry->getField("value12") == "newValue12");
+    BOOST_TEST(entry->find("value1") == entry->end());
+    BOOST_TEST(entry->find("value3") == entry->end());
+    BOOST_TEST(entry->find("value7") == entry->end());
+    BOOST_TEST(entry->find("value9") == entry->end());
+    BOOST_TEST(entry->find("value11") == entry->end());
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test_BinLogHandler

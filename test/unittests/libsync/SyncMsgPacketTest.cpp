@@ -109,12 +109,12 @@ BOOST_AUTO_TEST_CASE(PacketDecodeTest)
 
     // message is nullptr
     bool isSuccessful = msgPacket.decode(fakeSessionPtr, fakeMessagePtr);
-    BOOST_CHECK(isSuccessful == false);
+    BOOST_TEST(isSuccessful == false);
 
     // message contains no data
     fakeMessagePtr = make_shared<P2PMessage>();
     isSuccessful = msgPacket.decode(fakeSessionPtr, fakeMessagePtr);
-    BOOST_CHECK(isSuccessful == false);
+    BOOST_TEST(isSuccessful == false);
 
     // message is not char
     auto bufferPtr = make_shared<bytes>();
@@ -122,13 +122,13 @@ BOOST_AUTO_TEST_CASE(PacketDecodeTest)
     bufferPtr->push_back(0x20);
     fakeMessagePtr->setBuffer(bufferPtr);
     isSuccessful = msgPacket.decode(fakeSessionPtr, fakeMessagePtr);
-    BOOST_CHECK(isSuccessful == false);
+    BOOST_TEST(isSuccessful == false);
 
     // message is char
     bufferPtr->at(0) = 0x7f;
     fakeMessagePtr->setBuffer(bufferPtr);
     isSuccessful = msgPacket.decode(fakeSessionPtr, fakeMessagePtr);
-    BOOST_CHECK(isSuccessful == true);
+    BOOST_TEST(isSuccessful == true);
 }
 
 void testSyncStatus(SyncMsgPacketFactory::Ptr _statusFactory, int64_t _blockNumber,
@@ -146,12 +146,12 @@ void testSyncStatus(SyncMsgPacketFactory::Ptr _statusFactory, int64_t _blockNumb
     decodedStatus->decode(fakeSession, p2pMessage);
     decodedStatus->decodePacket(decodedStatus->rlp(), peer);
 
-    BOOST_CHECK(decodedStatus->number == status->number);
-    BOOST_CHECK(decodedStatus->genesisHash == status->genesisHash);
-    BOOST_CHECK(decodedStatus->latestHash == status->latestHash);
+    BOOST_TEST(decodedStatus->number == status->number);
+    BOOST_TEST(decodedStatus->genesisHash == status->genesisHash);
+    BOOST_TEST(decodedStatus->latestHash == status->latestHash);
     if (_checkTime)
     {
-        BOOST_CHECK(decodedStatus->alignedTime == status->alignedTime);
+        BOOST_TEST(decodedStatus->alignedTime == status->alignedTime);
     }
 }
 
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(SyncTransactionsPacketTest)
     auto rlpTx = txPacket.rlp()[0];
     std::shared_ptr<Transactions> txs = std::make_shared<Transactions>();
     dev::eth::TxsParallelParser::decode(txs, rlpTx.toBytesConstRef());
-    BOOST_CHECK((*(*txs)[0]) == *fakeTransaction);
+    BOOST_TEST((*(*txs)[0]) == *fakeTransaction);
 }
 
 BOOST_AUTO_TEST_CASE(SyncBlocksPacketTest)
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE(SyncBlocksPacketTest)
     blocksPacket.decode(fakeSessionPtr, msgPtr);
     RLP const& rlps = blocksPacket.rlp();
     Block block(rlps[0].toBytes());
-    BOOST_CHECK(block.equalAll(*fakeBlock.getBlock()));
+    BOOST_TEST(block.equalAll(*fakeBlock.getBlock()));
 }
 
 BOOST_AUTO_TEST_CASE(SyncReqBlockPacketTest)
@@ -208,8 +208,8 @@ BOOST_AUTO_TEST_CASE(SyncReqBlockPacketTest)
     auto msgPtr = reqBlockPacket.toMessage(0x03);
     reqBlockPacket.decode(fakeSessionPtr, msgPtr);
     auto rlpReqBlock = reqBlockPacket.rlp();
-    BOOST_CHECK(rlpReqBlock[0].toInt<int64_t>() == 0x30);
-    BOOST_CHECK(rlpReqBlock[1].toInt<unsigned>() == 0x40);
+    BOOST_TEST(rlpReqBlock[0].toInt<int64_t>() == 0x30);
+    BOOST_TEST(rlpReqBlock[1].toInt<unsigned>() == 0x40);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

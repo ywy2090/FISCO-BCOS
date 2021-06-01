@@ -46,14 +46,14 @@ public:
 
         /// compress test
         size_t compressLen = SnappyCompress::compress(ref(inputDataBytes), compressedData);
-        BOOST_CHECK((compressLen) == compressedData.size());
+        BOOST_TEST((compressLen) == compressedData.size());
 
         /// uncompress test
         bytes uncompressData;
         size_t uncompressLen = SnappyCompress::uncompress(ref(compressedData), uncompressData);
-        BOOST_CHECK(uncompressData.size() == uncompressLen);
-        BOOST_CHECK(toHex(uncompressData) == toHex(inputDataBytes));
-        BOOST_CHECK(asString(uncompressData) == inputData);
+        BOOST_TEST(uncompressData.size() == uncompressLen);
+        BOOST_TEST(toHex(uncompressData) == toHex(inputDataBytes));
+        BOOST_TEST(asString(uncompressData) == inputData);
     }
 };
 

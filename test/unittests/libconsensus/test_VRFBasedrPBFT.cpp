@@ -35,11 +35,11 @@ void fakeLeader(VRFBasedrPBFTFixture::Ptr _fixture)
     auto pbftEngine = _fixture->vrfBasedrPBFT();
     pbftEngine->setLocatedInConsensusNodes(true);
     auto leader = pbftEngine->getLeader();
-    BOOST_CHECK(leader.first == true);
+    BOOST_TEST(leader.first == true);
     dev::h512 leaderNodeID;
     pbftEngine->wrapperGetNodeIDByIndex(leaderNodeID, leader.second);
-    BOOST_CHECK(leaderNodeID != dev::h512());
-    BOOST_CHECK(_fixture->nodeID2KeyPair.count(leaderNodeID));
+    BOOST_TEST(leaderNodeID != dev::h512());
+    BOOST_TEST(_fixture->nodeID2KeyPair.count(leaderNodeID));
     auto keyPair = (_fixture->nodeID2KeyPair)[leaderNodeID];
     pbftEngine->setKeyPair(keyPair);
 }
@@ -51,12 +51,12 @@ BOOST_AUTO_TEST_CASE(testVRFBasedrPBFT)
     auto fakedSealer = fixture->vrfBasedrPBFTSealer();
     auto engine = fixture->vrfBasedrPBFT();
     auto fakeConsensus = fixture->fakerPBFT();
-    BOOST_CHECK(engine->shouldRotateSealers() == false);
+    BOOST_TEST(engine->shouldRotateSealers() == false);
     // check epoch_sealer_num and epoch_block_num
-    BOOST_CHECK(engine->epochSealerNum() == 10);
-    BOOST_CHECK(engine->epochBlockNum() == 10);
+    BOOST_TEST(engine->epochSealerNum() == 10);
+    BOOST_TEST(engine->epochBlockNum() == 10);
     // 10 working sealer
-    BOOST_CHECK(engine->consensusList().size() == 10);
+    BOOST_TEST(engine->consensusList().size() == 10);
 
     auto prepareReq = std::make_shared<PrepareReq>();
     TestIsValidPrepare(*fakeConsensus, prepareReq, true);
@@ -71,13 +71,13 @@ BOOST_AUTO_TEST_CASE(testVRFBasedrPBFT)
     // check the first transaction is the WorkingSealerManagerPrecompiled
     auto rotatingTx = (*(fakedSealer->mutableSealing().block->transactions()))[0];
     // check from
-    BOOST_CHECK(rotatingTx->from() == toAddress(engine->keyPair().pub()));
+    BOOST_TEST(rotatingTx->from() == toAddress(engine->keyPair().pub()));
     // check to
-    BOOST_CHECK(rotatingTx->to() == WORKING_SEALER_MGR_ADDRESS);
+    BOOST_TEST(rotatingTx->to() == WORKING_SEALER_MGR_ADDRESS);
     // check transaction signature
-    BOOST_CHECK(rotatingTx->sender() == toAddress(engine->keyPair().pub()));
+    BOOST_TEST(rotatingTx->sender() == toAddress(engine->keyPair().pub()));
     // check transaction type
-    BOOST_CHECK(rotatingTx->type() == dev::eth::Transaction::Type::MessageCall);
+    BOOST_TEST(rotatingTx->type() == dev::eth::Transaction::Type::MessageCall);
     // check input
     auto const& txData = rotatingTx->data();
     ContractABI abi;
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(testVRFBasedrPBFT)
 
     auto selector = getFuncSelectorByFunctionName(interface);
     auto functionSelector = getParamFunc(ref(rotatingTx->data()));
-    BOOST_CHECK(functionSelector == selector);
+    BOOST_TEST(functionSelector == selector);
 
     auto paramData = getParamData(ref(txData));
     BOOST_CHECK_NO_THROW(abi.abiOut(paramData, vrfPublicKey, blockHashStr, vrfProof));
@@ -96,11 +96,11 @@ BOOST_AUTO_TEST_CASE(testVRFBasedrPBFT)
     auto blockNumber = engine->blockChain()->number();
     auto blockHash = engine->blockChain()->numberHash(blockNumber);
     // check vrf input
-    BOOST_CHECK(h256(blockHashStr) == blockHash);
+    BOOST_TEST(h256(blockHashStr) == blockHash);
     // check vrf publicKey
-    BOOST_CHECK(fakedSealer->vrfPublicKey() == vrfPublicKey);
+    BOOST_TEST(fakedSealer->vrfPublicKey() == vrfPublicKey);
     // check vrfProof
-    BOOST_CHECK(
+    BOOST_TEST(
         curve25519_vrf_verify(vrfPublicKey.c_str(), blockHashStr.c_str(), vrfProof.c_str()) == 0);
 
     // test checkTransactionsValid
@@ -154,11 +154,11 @@ BOOST_AUTO_TEST_CASE(testVRFBasedrPBFT)
         auto pbftEngine = _fixture->vrfBasedrPBFT();
     pbftEngine->setLocatedInConsensusNodes(true);
     auto leader = pbftEngine->getLeader();
-    BOOST_CHECK(leader.first == true);
+    BOOST_TEST(leader.first == true);
     dev::h512 leaderNodeID;
     pbftEngine->wrapperGetNodeIDByIndex(leaderNodeID, leader.second);
-    BOOST_CHECK(leaderNodeID != dev::h512());
-    BOOST_CHECK(_fixture->nodeID2KeyPair.count(leaderNodeID));
+    BOOST_TEST(leaderNodeID != dev::h512());
+    BOOST_TEST(_fixture->nodeID2KeyPair.count(leaderNodeID));
     auto keyPair = (_fixture->nodeID2KeyPair)[leaderNodeID];
     pbftEngine->setKeyPair(keyPair);
 #endif
@@ -167,43 +167,41 @@ BOOST_AUTO_TEST_CASE(testVRFBasedrPBFT)
     // set epoch_block_num to 5(the current block number is 4)
     auto storageFixture = fixture->m_workingSealerManager;
     storageFixture->setSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_BLOCK_NUM, "4");
-    BOOST_CHECK(
-        engine->blockChain()->getSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_BLOCK_NUM) == "4");
+    BOOST_TEST(engine->blockChain()->getSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_BLOCK_NUM) == "4");
     engine->resetConfig();
-    BOOST_CHECK(engine->shouldRotateSealers() == true);
-    BOOST_CHECK(engine->minValidNodes() == 7);
+    BOOST_TEST(engine->shouldRotateSealers() == true);
+    BOOST_TEST(engine->minValidNodes() == 7);
 
     storageFixture->setSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_BLOCK_NUM, "3");
-    BOOST_CHECK(
-        engine->blockChain()->getSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_BLOCK_NUM) == "3");
+    BOOST_TEST(engine->blockChain()->getSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_BLOCK_NUM) == "3");
     engine->resetConfig();
-    BOOST_CHECK(engine->shouldRotateSealers() == false);
+    BOOST_TEST(engine->shouldRotateSealers() == false);
 
     // current workingSealer size is 5, should rotate for the size of current working sealer is
     // smaller than sealer
     storageFixture->updateNodeListType(fixture->sealerList, 5, NODE_TYPE_SEALER);
     engine->resetConfig();
-    BOOST_CHECK(engine->shouldRotateSealers() == true);
+    BOOST_TEST(engine->shouldRotateSealers() == true);
     storageFixture->setSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_SEALER_NUM, "5");
-    BOOST_CHECK(
+    BOOST_TEST(
         engine->blockChain()->getSystemConfigByKey(SYSTEM_KEY_RPBFT_EPOCH_SEALER_NUM) == "5");
     engine->resetConfig();
-    BOOST_CHECK(engine->shouldRotateSealers() == true);
+    BOOST_TEST(engine->shouldRotateSealers() == true);
     // should not rotate for the size of current working sealer is equal to the size of the sealers
     engine->resetConfig();
-    BOOST_CHECK(engine->shouldRotateSealers() == false);
+    BOOST_TEST(engine->shouldRotateSealers() == false);
 
     // reset "notify_rotate" to 1
     storageFixture->setSystemConfigByKey("notify_rotate", "1");
-    BOOST_CHECK(engine->blockChain()->getSystemConfigByKey("notify_rotate") == "1");
+    BOOST_TEST(engine->blockChain()->getSystemConfigByKey("notify_rotate") == "1");
     engine->resetConfig();
-    BOOST_CHECK(engine->shouldRotateSealers() == true);
+    BOOST_TEST(engine->shouldRotateSealers() == true);
 
     // reset "notify_rotate" to 0
     storageFixture->setSystemConfigByKey("notify_rotate", "0");
-    BOOST_CHECK(engine->blockChain()->getSystemConfigByKey("notify_rotate") == "0");
+    BOOST_TEST(engine->blockChain()->getSystemConfigByKey("notify_rotate") == "0");
     engine->resetConfig();
-    BOOST_CHECK(engine->shouldRotateSealers() == false);
+    BOOST_TEST(engine->shouldRotateSealers() == false);
 }
 
 BOOST_AUTO_TEST_CASE(testBasicFunctionForVRFBasedrPBFTEngine) {}

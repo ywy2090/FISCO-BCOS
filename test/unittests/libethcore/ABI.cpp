@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(ContractABIType_func0)
 
     auto r = ct.abiInHex("", a, b, c, d);
     auto rb = ct.abiIn("", a, b, c, d);
-    BOOST_CHECK(r == toHex(rb));
+    BOOST_TEST(r == toHex(rb));
 
     BOOST_CHECK_EQUAL(
         r, std::string("0000000000000000000000000000000000000000000000000000000000000123"
@@ -72,11 +72,11 @@ BOOST_AUTO_TEST_CASE(ContractABIType_func0)
     string32 outC;
     std::string outD;
     auto Ok = ct.abiOutHex(r, outA, outB, outC, outD);
-    BOOST_CHECK(Ok == true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
-    BOOST_CHECK(d == outD);
+    BOOST_TEST(Ok == true);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
+    BOOST_TEST(d == outD);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABIType_func1)
@@ -103,10 +103,10 @@ BOOST_AUTO_TEST_CASE(ContractABIType_func1)
     bool outB;
     std::vector<u256> outC;
     auto Ok = ct.abiOutHex(r, outA, outB, outC);
-    BOOST_CHECK(Ok == true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
+    BOOST_TEST(Ok == true);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABIType_func2)
@@ -130,13 +130,13 @@ BOOST_AUTO_TEST_CASE(ContractABIType_func2)
     Address outF;
 
     auto Ok = ct.abiOutHex(r, outA, outB, outC, outD, outE, outF);
-    BOOST_CHECK(Ok == true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
-    BOOST_CHECK(d == outD);
-    BOOST_CHECK(e == outE);
-    BOOST_CHECK(f == outF);
+    BOOST_TEST(Ok == true);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
+    BOOST_TEST(d == outD);
+    BOOST_TEST(e == outE);
+    BOOST_TEST(f == outF);
 }
 
 
@@ -166,11 +166,11 @@ BOOST_AUTO_TEST_CASE(ContractABIType_func3)
     s256 outD;
 
     auto Ok = ct.abiOutHex(r, outA, outB, outC, outD);
-    BOOST_CHECK(Ok == true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
-    BOOST_CHECK(d == outD);
+    BOOST_TEST(Ok == true);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
+    BOOST_TEST(d == outD);
 }
 
 
@@ -196,13 +196,13 @@ BOOST_AUTO_TEST_CASE(ContractABIType_func4)
     std::vector<std::array<std::string, 3>> outF;
 
     auto Ok = ct.abiOutHex(r, outA, outB, outC, outD, outE, outF);
-    BOOST_CHECK(Ok == true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
-    BOOST_CHECK(d == outD);
-    BOOST_CHECK(e == outE);
-    BOOST_CHECK(f == outF);
+    BOOST_TEST(Ok == true);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
+    BOOST_TEST(d == outD);
+    BOOST_TEST(e == outE);
+    BOOST_TEST(f == outF);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABIType_u256)
@@ -211,19 +211,19 @@ BOOST_AUTO_TEST_CASE(ContractABIType_u256)
 
     u256 x = 0;
     std::string r = toHex(ct.serialise(x));
-    BOOST_CHECK(r == "0000000000000000000000000000000000000000000000000000000000000000");
+    BOOST_TEST(r == "0000000000000000000000000000000000000000000000000000000000000000");
 
     u256 y("0x7fffffffffffffff");
     r = toHex(ct.serialise(y));
-    BOOST_CHECK(r == "0000000000000000000000000000000000000000000000007fffffffffffffff");
+    BOOST_TEST(r == "0000000000000000000000000000000000000000000000007fffffffffffffff");
 
     u256 z("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     r = toHex(ct.serialise(z));
-    BOOST_CHECK(r == "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    BOOST_TEST(r == "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
     u256 u("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe");
     r = toHex(ct.serialise(u));
-    BOOST_CHECK(r == "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe");
+    BOOST_TEST(r == "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe");
 }
 
 BOOST_AUTO_TEST_CASE(ContractABIType_s256)
@@ -333,11 +333,11 @@ BOOST_AUTO_TEST_CASE(ContractABITest0)
     string32 outD;
 
     bool Ok = ct.abiOutHex(r, outA, outB, outC, outD);
-    BOOST_CHECK(Ok == true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
-    BOOST_CHECK(d == outD);
+    BOOST_TEST(Ok == true);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
+    BOOST_TEST(d == outD);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABITest1)
@@ -383,11 +383,11 @@ BOOST_AUTO_TEST_CASE(ContractABITest1)
     bool Ok = ct.abiOutHex(r, outA, outB, outC, outD, outE);
 
     BOOST_CHECK_EQUAL(Ok, true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
-    BOOST_CHECK(d == outD);
-    BOOST_CHECK(e == outE);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
+    BOOST_TEST(d == outD);
+    BOOST_TEST(e == outE);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABITest2)
@@ -411,13 +411,13 @@ BOOST_AUTO_TEST_CASE(ContractABITest2)
     auto rb = ct.abiIn("", a);
     auto r = toHex(rb);
 
-    BOOST_CHECK(r == expect);
+    BOOST_TEST(r == expect);
 
     std::array<std::vector<u256>, 3> outA;
     bool Ok = ct.abiOutHex(r, outA);
 
     BOOST_CHECK_EQUAL(Ok, true);
-    BOOST_CHECK(a == outA);
+    BOOST_TEST(a == outA);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABITest3)
@@ -498,16 +498,16 @@ BOOST_AUTO_TEST_CASE(ContractABITest3)
     std::vector<std::array<u256, 3>> outI;
     bool Ok = ct.abiOutHex(r, outA, outB, outC, outD, outE, outF, outG, outH, outI);
 
-    BOOST_CHECK(Ok == true);
-    BOOST_CHECK(a == outA);
-    BOOST_CHECK(b == outB);
-    BOOST_CHECK(c == outC);
-    BOOST_CHECK(d == outD);
-    BOOST_CHECK(e == outE);
-    BOOST_CHECK(f == outF);
-    BOOST_CHECK(g == outG);
-    BOOST_CHECK(h == outH);
-    BOOST_CHECK(i == outI);
+    BOOST_TEST(Ok == true);
+    BOOST_TEST(a == outA);
+    BOOST_TEST(b == outB);
+    BOOST_TEST(c == outC);
+    BOOST_TEST(d == outD);
+    BOOST_TEST(e == outE);
+    BOOST_TEST(f == outF);
+    BOOST_TEST(g == outG);
+    BOOST_TEST(h == outH);
+    BOOST_TEST(i == outI);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABI_ABIType)
@@ -515,67 +515,67 @@ BOOST_AUTO_TEST_CASE(ContractABI_ABIType)
     std::string s = "string";
     ABIInType at;
     auto ok = at.reset(s);
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(at.getType() == "string");
-    BOOST_CHECK(at.dynamic() == true);
-    BOOST_CHECK(at.getEleType() == "string");
-    BOOST_CHECK(at.rank() == 0);
+    BOOST_TEST(ok == true);
+    BOOST_TEST(at.getType() == "string");
+    BOOST_TEST(at.dynamic() == true);
+    BOOST_TEST(at.getEleType() == "string");
+    BOOST_TEST(at.rank() == 0);
 
     ok = at.reset("adf");
-    BOOST_CHECK(ok == false);
+    BOOST_TEST(ok == false);
 
     ok = at.reset("uint256");
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(at.getType() == "uint256");
-    BOOST_CHECK(at.dynamic() == false);
-    BOOST_CHECK(at.getEleType() == "uint256");
-    BOOST_CHECK(at.rank() == 0);
+    BOOST_TEST(ok == true);
+    BOOST_TEST(at.getType() == "uint256");
+    BOOST_TEST(at.dynamic() == false);
+    BOOST_TEST(at.getEleType() == "uint256");
+    BOOST_TEST(at.rank() == 0);
 
 
     ok = at.reset("bool");
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(at.getType() == "bool");
-    BOOST_CHECK(at.dynamic() == false);
-    BOOST_CHECK(at.getEleType() == "bool");
-    BOOST_CHECK(at.rank() == 0);
+    BOOST_TEST(ok == true);
+    BOOST_TEST(at.getType() == "bool");
+    BOOST_TEST(at.dynamic() == false);
+    BOOST_TEST(at.getEleType() == "bool");
+    BOOST_TEST(at.rank() == 0);
 
     ok = at.reset("bool[]");
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(at.getType() == "bool[]");
-    BOOST_CHECK(at.dynamic() == true);
-    BOOST_CHECK(at.getEleType() == "bool");
-    BOOST_CHECK(at.rank() == 1);
+    BOOST_TEST(ok == true);
+    BOOST_TEST(at.getType() == "bool[]");
+    BOOST_TEST(at.dynamic() == true);
+    BOOST_TEST(at.getEleType() == "bool");
+    BOOST_TEST(at.rank() == 1);
 
     ok = at.reset("bool[10]");
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(at.getType() == "bool[10]");
-    BOOST_CHECK(at.dynamic() == false);
-    BOOST_CHECK(at.getEleType() == "bool");
-    BOOST_CHECK(at.extent(1) == 10);
-    BOOST_CHECK(at.rank() == 1);
+    BOOST_TEST(ok == true);
+    BOOST_TEST(at.getType() == "bool[10]");
+    BOOST_TEST(at.dynamic() == false);
+    BOOST_TEST(at.getEleType() == "bool");
+    BOOST_TEST(at.extent(1) == 10);
+    BOOST_TEST(at.rank() == 1);
 
 
     ok = at.reset("string[10][][20]");
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(at.getType() == "string[10][][20]");
-    BOOST_CHECK(at.dynamic() == true);
-    BOOST_CHECK(at.getEleType() == "string");
-    BOOST_CHECK(at.extent(1) == 10);
-    BOOST_CHECK(at.extent(2) == 0);
-    BOOST_CHECK(at.extent(3) == 20);
-    BOOST_CHECK(at.rank() == 3);
+    BOOST_TEST(ok == true);
+    BOOST_TEST(at.getType() == "string[10][][20]");
+    BOOST_TEST(at.dynamic() == true);
+    BOOST_TEST(at.getEleType() == "string");
+    BOOST_TEST(at.extent(1) == 10);
+    BOOST_TEST(at.extent(2) == 0);
+    BOOST_TEST(at.extent(3) == 20);
+    BOOST_TEST(at.rank() == 3);
 
     at.removeExtent();
-    BOOST_CHECK(at.extent(1) == 10);
-    BOOST_CHECK(at.extent(2) == 0);
-    BOOST_CHECK(at.rank() == 2);
+    BOOST_TEST(at.extent(1) == 10);
+    BOOST_TEST(at.extent(2) == 0);
+    BOOST_TEST(at.rank() == 2);
 
     at.removeExtent();
-    BOOST_CHECK(at.extent(1) == 10);
-    BOOST_CHECK(at.rank() == 1);
+    BOOST_TEST(at.extent(1) == 10);
+    BOOST_TEST(at.rank() == 1);
 
     at.removeExtent();
-    BOOST_CHECK(at.rank() == 0);
+    BOOST_TEST(at.rank() == 0);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABI_ABIFunc0)
@@ -583,11 +583,11 @@ BOOST_AUTO_TEST_CASE(ContractABI_ABIFunc0)
     std::string s = "transfer (string, uint256, int256, string[])";
     ABIFunc afunc;
     auto ok = afunc.parser(s);
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(afunc.getFuncName() == "transfer");
-    BOOST_CHECK(afunc.getSignature() == "transfer(string,uint256,int256,string[])");
+    BOOST_TEST(ok == true);
+    BOOST_TEST(afunc.getFuncName() == "transfer");
+    BOOST_TEST(afunc.getSignature() == "transfer(string,uint256,int256,string[])");
     std::vector<std::string> exp{"string", "uint256", "int256", "string[]"};
-    BOOST_CHECK(afunc.getParamsType() == exp);
+    BOOST_TEST(afunc.getParamsType() == exp);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABI_ABIFunc1)
@@ -595,15 +595,15 @@ BOOST_AUTO_TEST_CASE(ContractABI_ABIFunc1)
     std::string s0 = "register(string,uint25)";
     ABIFunc afunc0;
     auto ok = afunc0.parser(s0);
-    BOOST_CHECK(ok == false);
+    BOOST_TEST(ok == false);
 
 
     std::string s1 = "f()";
     ABIFunc afunc1;
     ok = afunc1.parser(s1);
-    BOOST_CHECK(ok == true);
-    BOOST_CHECK(afunc1.getFuncName() == "f");
-    BOOST_CHECK(afunc1.getSignature() == "f()");
+    BOOST_TEST(ok == true);
+    BOOST_TEST(afunc1.getFuncName() == "f");
+    BOOST_TEST(afunc1.getSignature() == "f()");
 }
 
 BOOST_AUTO_TEST_CASE(ContractABI_ABIFunc2)
@@ -612,12 +612,12 @@ BOOST_AUTO_TEST_CASE(ContractABI_ABIFunc2)
 
     ABIFunc afunc;
     auto ok = afunc.parser(s);
-    BOOST_CHECK(ok == true);
+    BOOST_TEST(ok == true);
 
-    BOOST_CHECK(afunc.getFuncName() == "trans");
-    BOOST_CHECK(afunc.getSignature() == "trans(string,uint256)");
+    BOOST_TEST(afunc.getFuncName() == "trans");
+    BOOST_TEST(afunc.getSignature() == "trans(string,uint256)");
     std::vector<std::string> exp{"string", "uint256"};
-    BOOST_CHECK(afunc.getParamsType() == exp);
+    BOOST_TEST(afunc.getParamsType() == exp);
 }
 
 BOOST_AUTO_TEST_CASE(ContractABI_AbiOutString0)
@@ -629,19 +629,19 @@ BOOST_AUTO_TEST_CASE(ContractABI_AbiOutString0)
 
     ABIFunc afunc;
     auto ok = afunc.parser("test(uint256,string)");
-    BOOST_CHECK(ok == true);
+    BOOST_TEST(ok == true);
 
     auto allTypes = afunc.getParamsType();
 
-    BOOST_CHECK(allTypes.size() == 2);
-    BOOST_CHECK(allTypes[0] == "uint256");
-    BOOST_CHECK(allTypes[1] == "string");
+    BOOST_TEST(allTypes.size() == 2);
+    BOOST_TEST(allTypes[0] == "uint256");
+    BOOST_TEST(allTypes[1] == "string");
 
     std::vector<std::string> allOut;
     ct.abiOutByFuncSelector(bytesConstRef(&in), allTypes, allOut);
-    BOOST_CHECK(allOut.size() == 2);
-    BOOST_CHECK(allOut[0] == "111111111");
-    BOOST_CHECK(allOut[1] == "test string");
+    BOOST_TEST(allOut.size() == 2);
+    BOOST_TEST(allOut[0] == "111111111");
+    BOOST_TEST(allOut[1] == "test string");
 }
 
 BOOST_AUTO_TEST_CASE(ContractABI_AbiOutString1)
@@ -654,21 +654,21 @@ BOOST_AUTO_TEST_CASE(ContractABI_AbiOutString1)
 
     ABIFunc afunc;
     auto ok = afunc.parser("f(string,uint256,int256)");
-    BOOST_CHECK(ok == true);
+    BOOST_TEST(ok == true);
 
     auto allTypes = afunc.getParamsType();
 
-    BOOST_CHECK(allTypes.size() == 3);
-    BOOST_CHECK(allTypes[0] == "string");
-    BOOST_CHECK(allTypes[1] == "uint256");
-    BOOST_CHECK(allTypes[2] == "int256");
+    BOOST_TEST(allTypes.size() == 3);
+    BOOST_TEST(allTypes[0] == "string");
+    BOOST_TEST(allTypes[1] == "uint256");
+    BOOST_TEST(allTypes[2] == "int256");
 
     std::vector<std::string> allOut;
     ct.abiOutByFuncSelector(bytesConstRef(&in), allTypes, allOut);
-    BOOST_CHECK(allOut.size() == 3);
-    BOOST_CHECK(allOut[1] == "111111111");
-    BOOST_CHECK(allOut[2] == "-11111111");
-    BOOST_CHECK(allOut[0] == "aaaaaaa");
+    BOOST_TEST(allOut.size() == 3);
+    BOOST_TEST(allOut[1] == "111111111");
+    BOOST_TEST(allOut[2] == "-11111111");
+    BOOST_TEST(allOut[0] == "aaaaaaa");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

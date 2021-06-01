@@ -36,12 +36,12 @@ namespace test
 BOOST_FIXTURE_TEST_SUITE(BlockTest, TestOutputHelperFixture)
 void checkBlock(Block& m_block, FakeBlock const& fake_block, size_t trans_size, size_t sig_size)
 {
-    BOOST_CHECK(m_block.blockHeader() == fake_block.m_blockHeader);
-    BOOST_CHECK(m_block.headerHash() == fake_block.m_block->blockHeader().hash());
-    BOOST_CHECK(*m_block.transactions() == *fake_block.m_transaction);
-    BOOST_CHECK(m_block.transactions()->size() == trans_size);
-    BOOST_CHECK(m_block.sigList()->size() == sig_size);
-    BOOST_CHECK(*m_block.sigList() == *fake_block.m_sigList);
+    BOOST_TEST(m_block.blockHeader() == fake_block.m_blockHeader);
+    BOOST_TEST(m_block.headerHash() == fake_block.m_block->blockHeader().hash());
+    BOOST_TEST(*m_block.transactions() == *fake_block.m_transaction);
+    BOOST_TEST(m_block.transactions()->size() == trans_size);
+    BOOST_TEST(m_block.sigList()->size() == sig_size);
+    BOOST_TEST(*m_block.sigList() == *fake_block.m_sigList);
 }
 /// test constructors and operators
 BOOST_AUTO_TEST_CASE(testConstructorsAndOperators)
@@ -54,21 +54,21 @@ BOOST_AUTO_TEST_CASE(testConstructorsAndOperators)
     Block copied_block(m_block);
     checkBlock(copied_block, fake_block, 5, 5);
     /// test operators==
-    BOOST_CHECK(copied_block.equalAll(m_block));
-    BOOST_CHECK(copied_block.equalHeader(m_block));
-    BOOST_CHECK(copied_block.equalWithoutSig(m_block));
+    BOOST_TEST(copied_block.equalAll(m_block));
+    BOOST_TEST(copied_block.equalHeader(m_block));
+    BOOST_TEST(copied_block.equalWithoutSig(m_block));
     BlockHeader emptyHeader;
     copied_block.setBlockHeader(emptyHeader);
     /// test operator !=
-    BOOST_CHECK(copied_block.equalAll(m_block) == false);
-    BOOST_CHECK(copied_block.equalHeader(m_block) == false);
-    BOOST_CHECK(copied_block.equalWithoutSig(m_block) == false);
+    BOOST_TEST(copied_block.equalAll(m_block) == false);
+    BOOST_TEST(copied_block.equalHeader(m_block) == false);
+    BOOST_TEST(copied_block.equalWithoutSig(m_block) == false);
     /// test operator =
     copied_block = m_block;
     checkBlock(copied_block, fake_block, 5, 5);
-    BOOST_CHECK(copied_block.equalAll(m_block));
-    BOOST_CHECK(copied_block.equalHeader(m_block));
-    BOOST_CHECK(copied_block.equalWithoutSig(m_block));
+    BOOST_TEST(copied_block.equalAll(m_block));
+    BOOST_TEST(copied_block.equalHeader(m_block));
+    BOOST_TEST(copied_block.equalWithoutSig(m_block));
 
     /// test empty case
     FakeBlock fake_block_empty;
@@ -76,9 +76,9 @@ BOOST_AUTO_TEST_CASE(testConstructorsAndOperators)
     checkBlock(m_empty_block, fake_block_empty, 0, 0);
     m_empty_block = m_block;
     checkBlock(m_empty_block, fake_block, 5, 5);
-    BOOST_CHECK(m_empty_block.equalAll(m_block));
-    BOOST_CHECK(m_empty_block.equalHeader(m_block));
-    BOOST_CHECK(m_empty_block.equalWithoutSig(m_block));
+    BOOST_TEST(m_empty_block.equalAll(m_block));
+    BOOST_TEST(m_empty_block.equalHeader(m_block));
+    BOOST_TEST(m_empty_block.equalWithoutSig(m_block));
 }
 
 /// test Exceptions

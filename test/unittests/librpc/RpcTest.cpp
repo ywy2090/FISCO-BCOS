@@ -86,11 +86,11 @@ BOOST_FIXTURE_TEST_SUITE(SM_RpcTest, SM_RpcTestFixure)
 BOOST_AUTO_TEST_CASE(SM_testConsensusPart)
 {
     std::string blockNumber = rpc->getBlockNumber(groupId);
-    BOOST_CHECK(blockNumber == "0x0");
+    BOOST_TEST(blockNumber == "0x0");
     BOOST_CHECK_THROW(rpc->getBlockNumber(invalidGroup), JsonRpcException);
 
     std::string pbftView = rpc->getPbftView(groupId);
-    BOOST_CHECK(pbftView == "0x0");
+    BOOST_TEST(pbftView == "0x0");
     BOOST_CHECK_THROW(rpc->getPbftView(invalidGroup), JsonRpcException);
 
     Json::Value status = rpc->getConsensusStatus(groupId);
@@ -100,25 +100,25 @@ BOOST_AUTO_TEST_CASE(SM_testConsensusPart)
 BOOST_AUTO_TEST_CASE(SM_testSyncPart)
 {
     Json::Value status = rpc->getSyncStatus(groupId);
-    BOOST_CHECK(status.size() == 9);
+    BOOST_TEST(status.size() == 9);
     BOOST_CHECK_THROW(rpc->getSyncStatus(invalidGroup), JsonRpcException);
 }
 
 BOOST_AUTO_TEST_CASE(SM_testP2pPart)
 {
     Json::Value version = rpc->getClientVersion();
-    BOOST_CHECK(version.size() != 0);
+    BOOST_TEST(version.size() != 0);
 
     Json::Value response = rpc->getPeers(groupId);
-    BOOST_CHECK(response[0]["NodeID"].asString() != "");
-    BOOST_CHECK(response[0]["IPAndPort"].asString() == "127.0.0.1:30310");
-    BOOST_CHECK(response[0]["Topic"][0].asString() == "Topic1");
+    BOOST_TEST(response[0]["NodeID"].asString() != "");
+    BOOST_TEST(response[0]["IPAndPort"].asString() == "127.0.0.1:30310");
+    BOOST_TEST(response[0]["Topic"][0].asString() == "Topic1");
 
     response = rpc->getGroupPeers(groupId);
-    BOOST_CHECK(response.size() == 1);
+    BOOST_TEST(response.size() == 1);
 
     response = rpc->getGroupList();
-    BOOST_CHECK(response.size() == 0);
+    BOOST_TEST(response.size() == 0);
 }
 
 BOOST_AUTO_TEST_CASE(SM_testGetBlockByHash)
@@ -127,24 +127,24 @@ BOOST_AUTO_TEST_CASE(SM_testGetBlockByHash)
     Json::Value response = rpc->getBlockByHash(groupId, blockHash, true);
     std::cout << "* SM_testGetBlockByHash: block number" << response["number"] << std::endl;
     std::cout << "* SM_testGetBlockByHash: block hash" << response["hash"] << std::endl;
-    BOOST_CHECK(response["number"].asString() == "0x0" || response["number"].asString() == "0");
-    BOOST_CHECK(response["hash"].asString() == blockHash);
-    BOOST_CHECK(response["sealer"].asString() == "0x1");
-    BOOST_CHECK(response["extraData"][0].asString() == "0x0a");
-    BOOST_CHECK(response["gasLimit"].asString() == "0x9");
-    BOOST_CHECK(response["gasUsed"].asString() == "0x8");
-    BOOST_CHECK(response["timestamp"].asString() == "0x9");
+    BOOST_TEST(response["number"].asString() == "0x0" || response["number"].asString() == "0");
+    BOOST_TEST(response["hash"].asString() == blockHash);
+    BOOST_TEST(response["sealer"].asString() == "0x1");
+    BOOST_TEST(response["extraData"][0].asString() == "0x0a");
+    BOOST_TEST(response["gasLimit"].asString() == "0x9");
+    BOOST_TEST(response["gasUsed"].asString() == "0x8");
+    BOOST_TEST(response["timestamp"].asString() == "0x9");
 
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
         BOOST_CHECK_EQUAL(response["transactions"][0]["hash"].asString(),
             "0x9319b663d2982b6d3894b455757843b5b68ca84a94356eebccdfa6d1eb34d680");
-        BOOST_CHECK(response["transactions"][0]["to"].asString() ==
-                    "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["transactions"][0]["to"].asString() ==
+                   "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
         BOOST_CHECK_EQUAL(response["transactions"][0]["from"].asString(),
             "0xb5e55058e234c6a58cde2d0f128546d31ea80c1d");
-        BOOST_CHECK(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
         BOOST_CHECK_EQUAL(response["transactions"][0]["nonce"].asString(),
             "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d144");
     }
@@ -162,11 +162,11 @@ BOOST_AUTO_TEST_CASE(SM_testGetBlockByHash)
             "0x3eebc46c9c0e3b84799097c5a6ccd6657a9295c11270407707366d0750fcd59");
     }
 
-    BOOST_CHECK(response["transactions"][0]["value"].asString() == "0x0");
-    BOOST_CHECK(response["transactions"][0]["blockHash"].asString() ==
-                "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
-    BOOST_CHECK(response["transactions"][0]["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["transactions"][0]["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["value"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["blockHash"].asString() ==
+               "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
+    BOOST_TEST(response["transactions"][0]["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["blockNumber"].asString() == "0x0");
 
     response = rpc->getBlockByHash(groupId, blockHash, false);
     if (g_BCOSConfig.version() == RC1_VERSION)
@@ -188,25 +188,25 @@ BOOST_AUTO_TEST_CASE(SM_getBlockByNumber)
 {
     Json::Value response = rpc->getBlockByNumber(groupId, "0x0", true);
 
-    BOOST_CHECK(response["number"].asString() == "0x0" || response["number"].asString() == "0");
+    BOOST_TEST(response["number"].asString() == "0x0" || response["number"].asString() == "0");
     BOOST_CHECK_EQUAL(response["hash"].asString(),
         "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
-    BOOST_CHECK(response["sealer"].asString() == "0x1");
-    BOOST_CHECK(response["extraData"][0].asString() == "0x0a");
-    BOOST_CHECK(response["gasLimit"].asString() == "0x9");
-    BOOST_CHECK(response["gasUsed"].asString() == "0x8");
-    BOOST_CHECK(response["timestamp"].asString() == "0x9");
+    BOOST_TEST(response["sealer"].asString() == "0x1");
+    BOOST_TEST(response["extraData"][0].asString() == "0x0a");
+    BOOST_TEST(response["gasLimit"].asString() == "0x9");
+    BOOST_TEST(response["gasUsed"].asString() == "0x8");
+    BOOST_TEST(response["timestamp"].asString() == "0x9");
 
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
         BOOST_CHECK_EQUAL(response["transactions"][0]["hash"].asString(),
             "0x9319b663d2982b6d3894b455757843b5b68ca84a94356eebccdfa6d1eb34d680");
-        BOOST_CHECK(response["transactions"][0]["to"].asString() ==
-                    "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["transactions"][0]["to"].asString() ==
+                   "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
         BOOST_CHECK_EQUAL(response["transactions"][0]["from"].asString(),
             "0xb5e55058e234c6a58cde2d0f128546d31ea80c1d");
-        BOOST_CHECK(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
         BOOST_CHECK_EQUAL(response["transactions"][0]["nonce"].asString(),
             "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d144");
     }
@@ -223,11 +223,11 @@ BOOST_AUTO_TEST_CASE(SM_getBlockByNumber)
         BOOST_CHECK_EQUAL(response["transactions"][0]["nonce"].asString(),
             "0x3eebc46c9c0e3b84799097c5a6ccd6657a9295c11270407707366d0750fcd59");
     }
-    BOOST_CHECK(response["transactions"][0]["value"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["value"].asString() == "0x0");
     BOOST_CHECK_EQUAL(response["transactions"][0]["blockHash"].asString(),
         "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
-    BOOST_CHECK(response["transactions"][0]["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["transactions"][0]["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["blockNumber"].asString() == "0x0");
 
     response = rpc->getBlockByNumber(groupId, "0x0", false);
     if (g_BCOSConfig.version() == RC1_VERSION)
@@ -248,7 +248,7 @@ BOOST_AUTO_TEST_CASE(SM_testGetBlockHashByNumber)
 {
     std::string blockNumber = "0x0";
     std::string response = rpc->getBlockHashByNumber(groupId, blockNumber);
-    BOOST_CHECK(response == "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
+    BOOST_TEST(response == "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
 
     BOOST_CHECK_THROW(rpc->getBlockHashByNumber(invalidGroup, blockNumber), JsonRpcException);
 }
@@ -257,18 +257,18 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionByHash)
 {
     std::string txHash = "0xe1054f38907ab3bef251caf8cbd8b25e779a40445b8dd4fcf15fce917d3e4ebe";
     Json::Value response = rpc->getTransactionByHash(groupId, txHash);
-    BOOST_CHECK(response["hash"].asString() ==
-                "0xe1054f38907ab3bef251caf8cbd8b25e779a40445b8dd4fcf15fce917d3e4ebe");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["hash"].asString() ==
+               "0xe1054f38907ab3bef251caf8cbd8b25e779a40445b8dd4fcf15fce917d3e4ebe");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
         BOOST_CHECK_EQUAL(
             response["from"].asString(), "0xb5e55058e234c6a58cde2d0f128546d31ea80c1d");
-        BOOST_CHECK(response["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["gasPrice"].asString() == "0x174876e7ff");
         BOOST_CHECK_EQUAL(response["nonce"].asString(),
             "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d144");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
@@ -280,8 +280,8 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionByHash)
             "0x3eebc46c9c0e3b84799097c5a6ccd6657a9295c11270407707366d0750fcd59");
         BOOST_CHECK_EQUAL(response["to"].asString(), "0xbab78cea98af2320ad4ee81bba8a7473e0c8c48d");
     }
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["value"].asString() == "0x0");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["value"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTransactionByHash(invalidGroup, txHash), JsonRpcException);
 }
@@ -292,20 +292,20 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionByBlockHashAndIndex)
     std::string index = "0x0";
     Json::Value response = rpc->getTransactionByBlockHashAndIndex(groupId, blockHash, index);
 
-    BOOST_CHECK(response["blockHash"].asString() ==
-                "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["blockHash"].asString() ==
+               "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
         BOOST_CHECK_EQUAL(
             response["from"].asString(), "0xb5e55058e234c6a58cde2d0f128546d31ea80c1d");
-        BOOST_CHECK(response["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["gasPrice"].asString() == "0x174876e7ff");
         BOOST_CHECK_EQUAL(response["hash"].asString(),
             "0x9319b663d2982b6d3894b455757843b5b68ca84a94356eebccdfa6d1eb34d680");
         BOOST_CHECK_EQUAL(response["nonce"].asString(),
             "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d144");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
@@ -319,8 +319,8 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionByBlockHashAndIndex)
         BOOST_CHECK_EQUAL(response["nonce"].asString(),
             "0x3eebc46c9c0e3b84799097c5a6ccd6657a9295c11270407707366d0750fcd59");
     }
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["value"].asString() == "0x0");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["value"].asString() == "0x0");
 
     BOOST_CHECK_THROW(
         rpc->getTransactionByBlockHashAndIndex(invalidGroup, blockHash, index), JsonRpcException);
@@ -341,18 +341,18 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionByBlockNumberAndIndex)
 
     BOOST_CHECK_EQUAL(response["blockHash"].asString(),
         "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
         BOOST_CHECK_EQUAL(
             response["from"].asString(), "0xb5e55058e234c6a58cde2d0f128546d31ea80c1d");
-        BOOST_CHECK(response["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["gasPrice"].asString() == "0x174876e7ff");
         BOOST_CHECK_EQUAL(response["hash"].asString(),
             "0x9319b663d2982b6d3894b455757843b5b68ca84a94356eebccdfa6d1eb34d680");
         BOOST_CHECK_EQUAL(response["nonce"].asString(),
             "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d144");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
@@ -366,8 +366,8 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionByBlockNumberAndIndex)
         BOOST_CHECK_EQUAL(response["nonce"].asString(),
             "0x3eebc46c9c0e3b84799097c5a6ccd6657a9295c11270407707366d0750fcd59");
     }
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["value"].asString() == "0x0");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["value"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTransactionByBlockNumberAndIndex(invalidGroup, blockNumber, index),
         JsonRpcException);
@@ -381,17 +381,17 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionReceipt)
     std::string txHash = "0xe1054f38907ab3bef251caf8cbd8b25e779a40445b8dd4fcf15fce917d3e4ebe";
     Json::Value response = rpc->getTransactionReceipt(groupId, txHash);
 
-    BOOST_CHECK(response["transactionHash"].asString() ==
-                "0xe1054f38907ab3bef251caf8cbd8b25e779a40445b8dd4fcf15fce917d3e4ebe");
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
-    BOOST_CHECK(response["blockHash"].asString() ==
-                "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
+    BOOST_TEST(response["transactionHash"].asString() ==
+               "0xe1054f38907ab3bef251caf8cbd8b25e779a40445b8dd4fcf15fce917d3e4ebe");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["blockHash"].asString() ==
+               "0xa5529e6035e28f69977bb893888d338b9f76f023124216484e4056219d4e7e68");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
         BOOST_CHECK_EQUAL(
             response["from"].asString(), "0xb5e55058e234c6a58cde2d0f128546d31ea80c1d");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
@@ -399,14 +399,14 @@ BOOST_AUTO_TEST_CASE(SM_testGetTransactionReceipt)
             response["from"].asString(), "0x1a3fc157bd47c3fc2e260b34abbf481730d0f80f");
         BOOST_CHECK_EQUAL(response["to"].asString(), "0xbab78cea98af2320ad4ee81bba8a7473e0c8c48d");
     }
-    BOOST_CHECK(response["gasUsed"].asString() == "0x8");
-    BOOST_CHECK(
+    BOOST_TEST(response["gasUsed"].asString() == "0x8");
+    BOOST_TEST(
         response["contractAddress"].asString() == "0x0000000000000000000000000000000000001000");
-    BOOST_CHECK(
+    BOOST_TEST(
         response["logs"][0]["address"].asString() == "0x0000000000000000000000000000000000002000");
-    BOOST_CHECK(response["logs"][0]["data"].asString() == "0x");
-    BOOST_CHECK(response["logs"][0]["topics"].size() == 0);
-    BOOST_CHECK(response["status"].asString() == "0x0");
+    BOOST_TEST(response["logs"][0]["data"].asString() == "0x");
+    BOOST_TEST(response["logs"][0]["topics"].size() == 0);
+    BOOST_TEST(response["status"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTransactionReceipt(invalidGroup, txHash), JsonRpcException);
 }
@@ -418,11 +418,11 @@ BOOST_AUTO_TEST_CASE(SM_testGetpendingTransactions)
     {
         BOOST_CHECK_EQUAL(
             response[0]["from"].asString(), "0xb5e55058e234c6a58cde2d0f128546d31ea80c1d");
-        BOOST_CHECK(response[0]["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response[0]["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response[0]["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response[0]["gasPrice"].asString() == "0x174876e7ff");
         BOOST_CHECK_EQUAL(response[0]["nonce"].asString(),
             "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d144");
-        BOOST_CHECK(response[0]["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response[0]["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
@@ -435,7 +435,7 @@ BOOST_AUTO_TEST_CASE(SM_testGetpendingTransactions)
         BOOST_CHECK_EQUAL(response[0]["nonce"].asString(),
             "0x3eebc46c9c0e3b84799097c5a6ccd6657a9295c11270407707366d0750fcd59");
     }
-    BOOST_CHECK(response[0]["value"].asString() == "0x0");
+    BOOST_TEST(response[0]["value"].asString() == "0x0");
     // no need to avoid getPendingTransactions for the node that doesn't belong to the group
     // BOOST_CHECK_THROW(rpc->getPendingTransactions(invalidGroup), JsonRpcException);
 }
@@ -444,7 +444,7 @@ BOOST_AUTO_TEST_CASE(SM_testGetCode)
 {
     std::string address = "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b";
     std::string response = rpc->getCode(groupId, address);
-    BOOST_CHECK(response == "0x");
+    BOOST_TEST(response == "0x");
 
     BOOST_CHECK_THROW(rpc->getCode(invalidGroup, address), JsonRpcException);
 }
@@ -452,8 +452,8 @@ BOOST_AUTO_TEST_CASE(SM_testGetCode)
 BOOST_AUTO_TEST_CASE(SM_testGetTotalTransactionCount)
 {
     Json::Value response = rpc->getTotalTransactionCount(groupId);
-    BOOST_CHECK(response["txSum"].asString() == "0x0");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["txSum"].asString() == "0x0");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTotalTransactionCount(invalidGroup), JsonRpcException);
 }
@@ -472,8 +472,8 @@ BOOST_AUTO_TEST_CASE(SM_testCall)
     request["blockLimit"] = "0x5";
     Json::Value response = rpc->call(groupId, request);
 
-    BOOST_CHECK(response["currentBlockNumber"].asString() == "0x0");
-    BOOST_CHECK(response["output"].asString() == "0x");
+    BOOST_TEST(response["currentBlockNumber"].asString() == "0x0");
+    BOOST_TEST(response["output"].asString() == "0x");
 
     BOOST_CHECK_THROW(rpc->call(invalidGroup, request), JsonRpcException);
 }
@@ -522,122 +522,122 @@ BOOST_FIXTURE_TEST_SUITE(RpcTest, RpcTestFixure)
 BOOST_AUTO_TEST_CASE(testSystemConfig)
 {
     std::string value = rpc->getSystemConfigByKey(groupId, "tx_gas_limit");
-    BOOST_CHECK(value == "300000000");
+    BOOST_TEST(value == "300000000");
     BOOST_CHECK_THROW(rpc->getSystemConfigByKey(invalidGroup, "tx_gas_limit"), JsonRpcException);
 }
 
 BOOST_AUTO_TEST_CASE(testConsensusPart)
 {
     std::string blockNumber = rpc->getBlockNumber(groupId);
-    BOOST_CHECK(blockNumber == "0x0");
+    BOOST_TEST(blockNumber == "0x0");
     BOOST_CHECK_THROW(rpc->getBlockNumber(invalidGroup), JsonRpcException);
 
     std::string pbftView = rpc->getPbftView(groupId);
-    BOOST_CHECK(pbftView == "0x0");
+    BOOST_TEST(pbftView == "0x0");
     BOOST_CHECK_THROW(rpc->getPbftView(invalidGroup), JsonRpcException);
 
     Json::Value status = rpc->getConsensusStatus(groupId);
     BOOST_CHECK_THROW(rpc->getConsensusStatus(invalidGroup), JsonRpcException);
 
     Json::Value sealerList = rpc->getSealerList(groupId);
-    BOOST_CHECK(sealerList.size() == 1);
+    BOOST_TEST(sealerList.size() == 1);
     BOOST_CHECK_THROW(rpc->getSealerList(invalidGroup), JsonRpcException);
 
     Json::Value observerList = rpc->getObserverList(groupId);
-    BOOST_CHECK(observerList.size() == 0);
+    BOOST_TEST(observerList.size() == 0);
     BOOST_CHECK_THROW(rpc->getObserverList(invalidGroup), JsonRpcException);
 
     // test getEpochSealersList
     BOOST_CHECK_THROW(rpc->getEpochSealersList(invalidGroup), JsonRpcException);
     auto param = m_ledgerManager->getParamByGroupId(groupId);
     param->mutableConsensusParam().consensusType = "rpbft";
-    BOOST_CHECK((rpc->getEpochSealersList(groupId)).size() == 1);
+    BOOST_TEST((rpc->getEpochSealersList(groupId)).size() == 1);
     param->mutableConsensusParam().consensusType = "pbft";
 }
 
 BOOST_AUTO_TEST_CASE(testSyncPart)
 {
     Json::Value status = rpc->getSyncStatus(groupId);
-    BOOST_CHECK(status.size() == 9);
+    BOOST_TEST(status.size() == 9);
     BOOST_CHECK_THROW(rpc->getSyncStatus(invalidGroup), JsonRpcException);
 }
 
 BOOST_AUTO_TEST_CASE(testP2pPart)
 {
     Json::Value version = rpc->getClientVersion();
-    BOOST_CHECK(version.size() != 0);
+    BOOST_TEST(version.size() != 0);
 
     Json::Value response = rpc->getPeers(groupId);
-    BOOST_CHECK(response[0]["NodeID"].asString() != "");
-    BOOST_CHECK(response[0]["IPAndPort"].asString() == "127.0.0.1:30310");
-    BOOST_CHECK(response[0]["Topic"][0].asString() == "Topic1");
+    BOOST_TEST(response[0]["NodeID"].asString() != "");
+    BOOST_TEST(response[0]["IPAndPort"].asString() == "127.0.0.1:30310");
+    BOOST_TEST(response[0]["Topic"][0].asString() == "Topic1");
 
     response = rpc->getGroupPeers(groupId);
-    BOOST_CHECK(response.size() == 1);
+    BOOST_TEST(response.size() == 1);
 
     response = rpc->getGroupList();
-    BOOST_CHECK(response.size() == 0);
+    BOOST_TEST(response.size() == 0);
 
     response = rpc->getNodeIDList(groupId);
-    BOOST_CHECK(response.size() == 2);
+    BOOST_TEST(response.size() == 2);
 }
 
 BOOST_AUTO_TEST_CASE(testGetBlockByHash)
 {
     std::string blockHash = "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87";
     Json::Value response = rpc->getBlockByHash(groupId, blockHash, true);
-    BOOST_CHECK(response["number"].asString() == "0x0" || response["number"].asString() == "0");
-    BOOST_CHECK(response["hash"].asString() ==
-                "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
-    BOOST_CHECK(response["sealer"].asString() == "0x1");
-    BOOST_CHECK(response["extraData"][0].asString() == "0x0a");
-    BOOST_CHECK(response["gasLimit"].asString() == "0x9");
-    BOOST_CHECK(response["gasUsed"].asString() == "0x8");
-    BOOST_CHECK(response["timestamp"].asString() == "0x9");
+    BOOST_TEST(response["number"].asString() == "0x0" || response["number"].asString() == "0");
+    BOOST_TEST(response["hash"].asString() ==
+               "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response["sealer"].asString() == "0x1");
+    BOOST_TEST(response["extraData"][0].asString() == "0x0a");
+    BOOST_TEST(response["gasLimit"].asString() == "0x9");
+    BOOST_TEST(response["gasUsed"].asString() == "0x8");
+    BOOST_TEST(response["timestamp"].asString() == "0x9");
 
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["transactions"][0]["hash"].asString() ==
-                    "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
-        BOOST_CHECK(response["transactions"][0]["to"].asString() ==
-                    "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
-        BOOST_CHECK(response["transactions"][0]["from"].asString() ==
-                    "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
-        BOOST_CHECK(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
-        BOOST_CHECK(response["transactions"][0]["nonce"].asString() ==
-                    "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
+        BOOST_TEST(response["transactions"][0]["hash"].asString() ==
+                   "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
+        BOOST_TEST(response["transactions"][0]["to"].asString() ==
+                   "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["transactions"][0]["from"].asString() ==
+                   "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
+        BOOST_TEST(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["transactions"][0]["nonce"].asString() ==
+                   "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
     }
     else
     {
-        BOOST_CHECK(response["transactions"][0]["hash"].asString() ==
-                    "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
-        BOOST_CHECK(response["transactions"][0]["to"].asString() ==
-                    "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
-        BOOST_CHECK(response["transactions"][0]["from"].asString() ==
-                    "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
-        BOOST_CHECK(response["transactions"][0]["gas"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["transactions"][0]["gasPrice"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["transactions"][0]["nonce"].asString() ==
-                    "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
+        BOOST_TEST(response["transactions"][0]["hash"].asString() ==
+                   "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+        BOOST_TEST(response["transactions"][0]["to"].asString() ==
+                   "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
+        BOOST_TEST(response["transactions"][0]["from"].asString() ==
+                   "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
+        BOOST_TEST(response["transactions"][0]["gas"].asString() == "0x11e1a300");
+        BOOST_TEST(response["transactions"][0]["gasPrice"].asString() == "0x11e1a300");
+        BOOST_TEST(response["transactions"][0]["nonce"].asString() ==
+                   "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
     }
 
-    BOOST_CHECK(response["transactions"][0]["value"].asString() == "0x0");
-    BOOST_CHECK(response["transactions"][0]["blockHash"].asString() ==
-                "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
-    BOOST_CHECK(response["transactions"][0]["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["transactions"][0]["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["value"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["blockHash"].asString() ==
+               "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response["transactions"][0]["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["blockNumber"].asString() == "0x0");
 
     response = rpc->getBlockByHash(groupId, blockHash, false);
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["transactions"][0].asString() ==
-                    "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
+        BOOST_TEST(response["transactions"][0].asString() ==
+                   "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
     }
     else
     {
-        BOOST_CHECK(response["transactions"][0].asString() ==
-                    "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+        BOOST_TEST(response["transactions"][0].asString() ==
+                   "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
     }
 
     BOOST_CHECK_THROW(rpc->getBlockByHash(invalidGroup, blockHash, false), JsonRpcException);
@@ -647,14 +647,14 @@ BOOST_AUTO_TEST_CASE(testGetBlockByHash)
 
 void checkHeaderByNumber(Json::Value const& response)
 {
-    BOOST_CHECK(response["number"].asString() == "0x0" || response["number"].asString() == "0");
-    BOOST_CHECK(response["hash"].asString() ==
-                "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
-    BOOST_CHECK(response["sealer"].asString() == "0x1");
-    BOOST_CHECK(response["extraData"][0].asString() == "0x0a");
-    BOOST_CHECK(response["gasLimit"].asString() == "0x9");
-    BOOST_CHECK(response["gasUsed"].asString() == "0x8");
-    BOOST_CHECK(response["timestamp"].asString() == "0x9");
+    BOOST_TEST(response["number"].asString() == "0x0" || response["number"].asString() == "0");
+    BOOST_TEST(response["hash"].asString() ==
+               "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response["sealer"].asString() == "0x1");
+    BOOST_TEST(response["extraData"][0].asString() == "0x0a");
+    BOOST_TEST(response["gasLimit"].asString() == "0x9");
+    BOOST_TEST(response["gasUsed"].asString() == "0x8");
+    BOOST_TEST(response["timestamp"].asString() == "0x9");
 }
 
 BOOST_AUTO_TEST_CASE(getBlockHeader)
@@ -670,12 +670,12 @@ BOOST_AUTO_TEST_CASE(getBlockHeader)
 
     auto hash = "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87";
     response = rpc->getBlockHeaderByHash(groupId, hash, true);
-    BOOST_CHECK(response["number"].asString() == "0");
-    BOOST_CHECK(response["sealer"].asString() == "0x1");
-    BOOST_CHECK(response["extraData"][0].asString() == "0x0a");
-    BOOST_CHECK(response["gasLimit"].asString() == "0x9");
-    BOOST_CHECK(response["gasUsed"].asString() == "0x8");
-    BOOST_CHECK(response["timestamp"].asString() == "0x9");
+    BOOST_TEST(response["number"].asString() == "0");
+    BOOST_TEST(response["sealer"].asString() == "0x1");
+    BOOST_TEST(response["extraData"][0].asString() == "0x0a");
+    BOOST_TEST(response["gasLimit"].asString() == "0x9");
+    BOOST_TEST(response["gasUsed"].asString() == "0x8");
+    BOOST_TEST(response["timestamp"].asString() == "0x9");
 }
 
 BOOST_AUTO_TEST_CASE(getBlockByNumber)
@@ -685,46 +685,46 @@ BOOST_AUTO_TEST_CASE(getBlockByNumber)
 
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["transactions"][0]["hash"].asString() ==
-                    "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
-        BOOST_CHECK(response["transactions"][0]["to"].asString() ==
-                    "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
-        BOOST_CHECK(response["transactions"][0]["from"].asString() ==
-                    "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
-        BOOST_CHECK(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
-        BOOST_CHECK(response["transactions"][0]["nonce"].asString() ==
-                    "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
+        BOOST_TEST(response["transactions"][0]["hash"].asString() ==
+                   "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
+        BOOST_TEST(response["transactions"][0]["to"].asString() ==
+                   "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["transactions"][0]["from"].asString() ==
+                   "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
+        BOOST_TEST(response["transactions"][0]["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["transactions"][0]["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["transactions"][0]["nonce"].asString() ==
+                   "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
     }
     else
     {
-        BOOST_CHECK(response["transactions"][0]["hash"].asString() ==
-                    "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
-        BOOST_CHECK(response["transactions"][0]["to"].asString() ==
-                    "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
-        BOOST_CHECK(response["transactions"][0]["from"].asString() ==
-                    "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
-        BOOST_CHECK(response["transactions"][0]["gas"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["transactions"][0]["gasPrice"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["transactions"][0]["nonce"].asString() ==
-                    "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
+        BOOST_TEST(response["transactions"][0]["hash"].asString() ==
+                   "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+        BOOST_TEST(response["transactions"][0]["to"].asString() ==
+                   "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
+        BOOST_TEST(response["transactions"][0]["from"].asString() ==
+                   "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
+        BOOST_TEST(response["transactions"][0]["gas"].asString() == "0x11e1a300");
+        BOOST_TEST(response["transactions"][0]["gasPrice"].asString() == "0x11e1a300");
+        BOOST_TEST(response["transactions"][0]["nonce"].asString() ==
+                   "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
     }
-    BOOST_CHECK(response["transactions"][0]["value"].asString() == "0x0");
-    BOOST_CHECK(response["transactions"][0]["blockHash"].asString() ==
-                "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
-    BOOST_CHECK(response["transactions"][0]["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["transactions"][0]["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["value"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["blockHash"].asString() ==
+               "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response["transactions"][0]["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["transactions"][0]["blockNumber"].asString() == "0x0");
 
     response = rpc->getBlockByNumber(groupId, "0x0", false);
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["transactions"][0].asString() ==
-                    "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
+        BOOST_TEST(response["transactions"][0].asString() ==
+                   "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
     }
     else
     {
-        BOOST_CHECK(response["transactions"][0].asString() ==
-                    "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+        BOOST_TEST(response["transactions"][0].asString() ==
+                   "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
     }
 
     BOOST_CHECK_THROW(rpc->getBlockByNumber(invalidGroup, "0x0", false), JsonRpcException);
@@ -734,7 +734,7 @@ BOOST_AUTO_TEST_CASE(testGetBlockHashByNumber)
 {
     std::string blockNumber = "0x0";
     std::string response = rpc->getBlockHashByNumber(groupId, blockNumber);
-    BOOST_CHECK(response == "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response == "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
 
     BOOST_CHECK_THROW(rpc->getBlockHashByNumber(invalidGroup, blockNumber), JsonRpcException);
 }
@@ -748,31 +748,31 @@ BOOST_AUTO_TEST_CASE(testGetTransactionByHash)
     }
     Json::Value response = rpc->getTransactionByHash(groupId, txHash);
 
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
-        BOOST_CHECK(response["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x174876e7ff");
-        BOOST_CHECK(response["hash"].asString() ==
-                    "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
-        BOOST_CHECK(response["nonce"].asString() ==
-                    "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
+        BOOST_TEST(response["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["hash"].asString() ==
+                   "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
+        BOOST_TEST(response["nonce"].asString() ==
+                   "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
-        BOOST_CHECK(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
-        BOOST_CHECK(response["gas"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["hash"].asString() ==
-                    "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
-        BOOST_CHECK(response["nonce"].asString() ==
-                    "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
-        BOOST_CHECK(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
+        BOOST_TEST(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
+        BOOST_TEST(response["gas"].asString() == "0x11e1a300");
+        BOOST_TEST(response["gasPrice"].asString() == "0x11e1a300");
+        BOOST_TEST(response["hash"].asString() ==
+                   "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+        BOOST_TEST(response["nonce"].asString() ==
+                   "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
+        BOOST_TEST(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
     }
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["value"].asString() == "0x0");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["value"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTransactionByHash(invalidGroup, txHash), JsonRpcException);
 }
@@ -783,33 +783,33 @@ BOOST_AUTO_TEST_CASE(testGetTransactionByBlockHashAndIndex)
     std::string index = "0x0";
     Json::Value response = rpc->getTransactionByBlockHashAndIndex(groupId, blockHash, index);
 
-    BOOST_CHECK(response["blockHash"].asString() ==
-                "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["blockHash"].asString() ==
+               "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
-        BOOST_CHECK(response["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x174876e7ff");
-        BOOST_CHECK(response["hash"].asString() ==
-                    "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
-        BOOST_CHECK(response["nonce"].asString() ==
-                    "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
+        BOOST_TEST(response["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["hash"].asString() ==
+                   "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
+        BOOST_TEST(response["nonce"].asString() ==
+                   "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
-        BOOST_CHECK(response["hash"].asString() ==
-                    "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
-        BOOST_CHECK(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
-        BOOST_CHECK(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
-        BOOST_CHECK(response["gas"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["nonce"].asString() ==
-                    "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
+        BOOST_TEST(response["hash"].asString() ==
+                   "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+        BOOST_TEST(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
+        BOOST_TEST(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
+        BOOST_TEST(response["gas"].asString() == "0x11e1a300");
+        BOOST_TEST(response["gasPrice"].asString() == "0x11e1a300");
+        BOOST_TEST(response["nonce"].asString() ==
+                   "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
     }
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["value"].asString() == "0x0");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["value"].asString() == "0x0");
 
     BOOST_CHECK_THROW(
         rpc->getTransactionByBlockHashAndIndex(invalidGroup, blockHash, index), JsonRpcException);
@@ -828,33 +828,33 @@ BOOST_AUTO_TEST_CASE(testGetTransactionByBlockNumberAndIndex)
     std::string index = "0x0";
     Json::Value response = rpc->getTransactionByBlockNumberAndIndex(groupId, blockNumber, index);
 
-    BOOST_CHECK(response["blockHash"].asString() ==
-                "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["blockHash"].asString() ==
+               "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
-        BOOST_CHECK(response["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x174876e7ff");
-        BOOST_CHECK(response["hash"].asString() ==
-                    "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
-        BOOST_CHECK(response["nonce"].asString() ==
-                    "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
+        BOOST_TEST(response["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response["hash"].asString() ==
+                   "0x7536cf1286b5ce6c110cd4fea5c891467884240c9af366d678eb4191e1c31c6f");
+        BOOST_TEST(response["nonce"].asString() ==
+                   "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
-        BOOST_CHECK(response["hash"].asString() ==
-                    "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
-        BOOST_CHECK(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
-        BOOST_CHECK(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
-        BOOST_CHECK(response["gas"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["gasPrice"].asString() == "0x11e1a300");
-        BOOST_CHECK(response["nonce"].asString() ==
-                    "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
+        BOOST_TEST(response["hash"].asString() ==
+                   "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+        BOOST_TEST(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
+        BOOST_TEST(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
+        BOOST_TEST(response["gas"].asString() == "0x11e1a300");
+        BOOST_TEST(response["gasPrice"].asString() == "0x11e1a300");
+        BOOST_TEST(response["nonce"].asString() ==
+                   "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
     }
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["value"].asString() == "0x0");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["value"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTransactionByBlockNumberAndIndex(invalidGroup, blockNumber, index),
         JsonRpcException);
@@ -868,30 +868,30 @@ BOOST_AUTO_TEST_CASE(testGetTransactionReceipt)
     std::string txHash = "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba";
     Json::Value response = rpc->getTransactionReceipt(groupId, txHash);
 
-    BOOST_CHECK(response["transactionHash"].asString() ==
-                "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
-    BOOST_CHECK(response["transactionIndex"].asString() == "0x0");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
-    BOOST_CHECK(response["blockHash"].asString() ==
-                "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
+    BOOST_TEST(response["transactionHash"].asString() ==
+               "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+    BOOST_TEST(response["transactionIndex"].asString() == "0x0");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["blockHash"].asString() ==
+               "0xba6e71fbc207e776c74b66bc031d1a599d5b35cd03fd9f5e2331fa5ecdccdc87");
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
-        BOOST_CHECK(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
+        BOOST_TEST(response["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
-        BOOST_CHECK(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
-        BOOST_CHECK(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
+        BOOST_TEST(response["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
+        BOOST_TEST(response["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
     }
-    BOOST_CHECK(response["gasUsed"].asString() == "0x8");
-    BOOST_CHECK(
+    BOOST_TEST(response["gasUsed"].asString() == "0x8");
+    BOOST_TEST(
         response["contractAddress"].asString() == "0x0000000000000000000000000000000000001000");
-    BOOST_CHECK(
+    BOOST_TEST(
         response["logs"][0]["address"].asString() == "0x0000000000000000000000000000000000002000");
-    BOOST_CHECK(response["logs"][0]["data"].asString() == "0x");
-    BOOST_CHECK(response["logs"][0]["topics"].size() == 0);
-    BOOST_CHECK(response["status"].asString() == "0x0");
+    BOOST_TEST(response["logs"][0]["data"].asString() == "0x");
+    BOOST_TEST(response["logs"][0]["topics"].size() == 0);
+    BOOST_TEST(response["status"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTransactionReceipt(invalidGroup, txHash), JsonRpcException);
 }
@@ -901,23 +901,23 @@ BOOST_AUTO_TEST_CASE(testGetPendingTransactions)
 
     if (g_BCOSConfig.version() == RC1_VERSION)
     {
-        BOOST_CHECK(response[0]["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
-        BOOST_CHECK(response[0]["gas"].asString() == "0x9184e729fff");
-        BOOST_CHECK(response[0]["gasPrice"].asString() == "0x174876e7ff");
-        BOOST_CHECK(response[0]["nonce"].asString() ==
-                    "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
-        BOOST_CHECK(response[0]["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
+        BOOST_TEST(response[0]["from"].asString() == "0x6bc952a2e4db9c0c86a368d83e9df0c6ab481102");
+        BOOST_TEST(response[0]["gas"].asString() == "0x9184e729fff");
+        BOOST_TEST(response[0]["gasPrice"].asString() == "0x174876e7ff");
+        BOOST_TEST(response[0]["nonce"].asString() ==
+                   "0x65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f");
+        BOOST_TEST(response[0]["to"].asString() == "0xd6f1a71052366dbae2f7ab2d5d5845e77965cf0d");
     }
     else
     {
-        BOOST_CHECK(response[0]["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
-        BOOST_CHECK(response[0]["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
-        BOOST_CHECK(response[0]["gas"].asString() == "0x11e1a300");
-        BOOST_CHECK(response[0]["gasPrice"].asString() == "0x11e1a300");
-        BOOST_CHECK(response[0]["nonce"].asString() ==
-                    "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
+        BOOST_TEST(response[0]["to"].asString() == "0xd6c8a04b8826b0a37c6d4aa0eaa8644d8e35b79f");
+        BOOST_TEST(response[0]["from"].asString() == "0x148947262ec5e21739fe3a931c29e8b84ee34a0f");
+        BOOST_TEST(response[0]["gas"].asString() == "0x11e1a300");
+        BOOST_TEST(response[0]["gasPrice"].asString() == "0x11e1a300");
+        BOOST_TEST(response[0]["nonce"].asString() ==
+                   "0x3922ee720bb7445e3a914d8ab8f507d1a647296d563100e49548d83fd98865c");
     }
-    BOOST_CHECK(response[0]["value"].asString() == "0x0");
+    BOOST_TEST(response[0]["value"].asString() == "0x0");
 
     // no need to check the node in the group or not
     // BOOST_CHECK_THROW(rpc->getPendingTransactions(invalidGroup), JsonRpcException);
@@ -925,7 +925,7 @@ BOOST_AUTO_TEST_CASE(testGetPendingTransactions)
 BOOST_AUTO_TEST_CASE(testGetPendingTxSize)
 {
     std::string response = rpc->getPendingTxSize(groupId);
-    BOOST_CHECK(response == "0x1");
+    BOOST_TEST(response == "0x1");
 
     // no need to check the node in the group or not
     // BOOST_CHECK_THROW(rpc->getPendingTxSize(invalidGroup), JsonRpcException);
@@ -935,7 +935,7 @@ BOOST_AUTO_TEST_CASE(testGetCode)
 {
     std::string address = "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b";
     std::string response = rpc->getCode(groupId, address);
-    BOOST_CHECK(response == "0x");
+    BOOST_TEST(response == "0x");
 
     BOOST_CHECK_THROW(rpc->getCode(invalidGroup, address), JsonRpcException);
 }
@@ -943,9 +943,9 @@ BOOST_AUTO_TEST_CASE(testGetCode)
 BOOST_AUTO_TEST_CASE(testGetTotalTransactionCount)
 {
     Json::Value response = rpc->getTotalTransactionCount(groupId);
-    BOOST_CHECK(response["txSum"].asString() == "0x0");
-    BOOST_CHECK(response["blockNumber"].asString() == "0x0");
-    BOOST_CHECK(response["failedTxSum"].asString() == "0x0");
+    BOOST_TEST(response["txSum"].asString() == "0x0");
+    BOOST_TEST(response["blockNumber"].asString() == "0x0");
+    BOOST_TEST(response["failedTxSum"].asString() == "0x0");
 
     BOOST_CHECK_THROW(rpc->getTotalTransactionCount(invalidGroup), JsonRpcException);
 }
@@ -964,8 +964,8 @@ BOOST_AUTO_TEST_CASE(testCall)
     request["blockLimit"] = "0x5";
     Json::Value response = rpc->call(groupId, request);
 
-    BOOST_CHECK(response["currentBlockNumber"].asString() == "0x0");
-    BOOST_CHECK(response["output"].asString() == "0x");
+    BOOST_TEST(response["currentBlockNumber"].asString() == "0x0");
+    BOOST_TEST(response["output"].asString() == "0x");
 
     BOOST_CHECK_THROW(rpc->call(invalidGroup, request), JsonRpcException);
 }
@@ -991,10 +991,10 @@ BOOST_AUTO_TEST_CASE(testSendRawTransaction)
 
     std::string response = rpc->sendRawTransaction(groupId, rlpStr);
 
-    BOOST_CHECK(response == "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+    BOOST_TEST(response == "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
 
     response = rpc->sendRawTransactionAndGetProof(groupId, rlpStr);
-    BOOST_CHECK(response == "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
+    BOOST_TEST(response == "0x0accad4228274b0d78939f48149767883a6e99c95941baa950156e926f1c96ba");
 
     BOOST_CHECK_THROW(rpc->sendRawTransaction(invalidGroup, rlpStr), JsonRpcException);
     BOOST_CHECK_THROW(rpc->sendRawTransactionAndGetProof(invalidGroup, rlpStr), JsonRpcException);

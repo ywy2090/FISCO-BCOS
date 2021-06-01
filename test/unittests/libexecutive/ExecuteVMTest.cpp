@@ -193,7 +193,7 @@ contract HelloWorld{
         "50506040513d60208110156101a857600080fd5b81019080805190602001909291905050509050905600a16562"
         "7a7a723058207eb70dc4a752ca8296fc60a702b8fba26d66ed4ac38c8801fe7eff92664b671e0029");
 
-    BOOST_CHECK(runtimeCode == createdCode);
+    BOOST_TEST(runtimeCode == createdCode);
 
     // set()
     bytes callDataToSet =
@@ -223,7 +223,7 @@ contract HelloWorld{
 
     bytes compareName = fromHex("00000000000000000000000000000000000000000000000000000000000000aa");
     // cout << "get() result: " << toHex(getExeRes.output) << endl;
-    // BOOST_CHECK(getExeRes.output == compareName);
+    // BOOST_TEST(getExeRes.output == compareName);
 
     // getByCall()
     bytes callDataToGetByCall = fromHex(string("b7379733") +  // getByCall()
@@ -239,7 +239,7 @@ contract HelloWorld{
     executeTransaction(e3, getByCallTx);
 
     // cout << "getByCall() result: " << toHex(getExeResByCall.output) << endl;
-    // BOOST_CHECK(getExeResByCall.output == compareName);
+    // BOOST_TEST(getExeResByCall.output == compareName);
 
     // destroy
     bytes callDestroy = fromHex(string("83197ef0") +  // destroy()
@@ -253,7 +253,7 @@ contract HelloWorld{
 
     Executive e4(m_mptStates, initEnvInfo());
     executeTransaction(e4, destroyTx);
-    BOOST_CHECK(!m_mptStates->addressHasCode(newAddress));
+    BOOST_TEST(!m_mptStates->addressHasCode(newAddress));
 }
 
 BOOST_AUTO_TEST_CASE(OutOfGasIntrinsicTest)
@@ -405,7 +405,7 @@ contract HelloWorld{
         "50506040513d60208110156101a857600080fd5b81019080805190602001909291905050509050905600a16562"
         "7a7a723058207eb70dc4a752ca8296fc60a702b8fba26d66ed4ac38c8801fe7eff92664b671e0029");
 
-    BOOST_CHECK(runtimeCode == createdCode);
+    BOOST_TEST(runtimeCode == createdCode);
 
     // set()
     bytes callDataToSet =
@@ -431,7 +431,7 @@ contract HelloWorld{
 
     bytes compareName = fromHex("00000000000000000000000000000000000000000000000000000000000000aa");
     // cout << "get() result: " << toHex(getExeRes.output) << endl;
-    // BOOST_CHECK(getExeRes.output == compareName);
+    // BOOST_TEST(getExeRes.output == compareName);
 
     // getByCall()
     bytes callDataToGetByCall = fromHex(string("b7379733") +  // getByCall()
@@ -448,7 +448,7 @@ contract HelloWorld{
     executeTransaction(e3, getByCallTx);
 
     // cout << "getByCall() result: " << toHex(getExeResByCall.output) << endl;
-    // BOOST_CHECK(getExeResByCall.output == compareName);
+    // BOOST_TEST(getExeResByCall.output == compareName);
 
     // destroy
     bytes callDestroy = fromHex(string("83197ef0") +  // destroy()
@@ -462,7 +462,7 @@ contract HelloWorld{
 
     Executive e4(m_mptStates, initEnvInfo());
     executeTransaction(e4, destroyTx);
-    BOOST_CHECK(!m_mptStates->addressHasCode(newAddress));
+    BOOST_TEST(!m_mptStates->addressHasCode(newAddress));
     g_BCOSConfig.setSupportedVersion(supportedVersion, version);
 }
 

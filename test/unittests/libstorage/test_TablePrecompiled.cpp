@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(call_newEntry)
     bytes out1 = callResult->execResult();
     Address address(++addressCount);
     bytes out2 = abi.abiIn("", address);
-    BOOST_CHECK(out1 == out2);
+    BOOST_TEST(out1 == out2);
 }
 
 BOOST_AUTO_TEST_CASE(call_remove)

@@ -138,8 +138,8 @@ BOOST_AUTO_TEST_CASE(addTest)
     for (size_t i = 0; i < 32; i++)
         r = (r << 8) | result.output_data[i];
 
-    BOOST_CHECK(u256(3) == r);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(u256(3) == r);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(contractDeployTest)
@@ -172,8 +172,8 @@ BOOST_AUTO_TEST_CASE(contractDeployTest)
         "c39de3580029");
     bytes codeRes = bytesConstRef(result.output_data, result.output_size).toVector();
 
-    BOOST_CHECK(compare == codeRes);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(compare == codeRes);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(contractConstructorTest)
@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(contractConstructorTest)
 
     BOOST_CHECK_EQUAL(u256(66), ra);
     BOOST_CHECK_EQUAL(u256(66), rb);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(arithmeticCaculateTest1)
@@ -296,7 +296,7 @@ BOOST_AUTO_TEST_CASE(arithmeticCaculateTest1)
     BOOST_CHECK_EQUAL(u256(66 * 66), x6);
     BOOST_CHECK_EQUAL(u256(66 << 3), x7);
     BOOST_CHECK_EQUAL(u256(66 >> 1), x8);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(arithmeticCaculateTest2)
@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE(arithmeticCaculateTest2)
     BOOST_CHECK_EQUAL(s256((10 + 7) % 6), x9);
     BOOST_CHECK_EQUAL(s256((3 * 4) % 7), x10);
     BOOST_CHECK_EQUAL(s256(0xff), x11);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(comparisonsTest1)
@@ -461,7 +461,7 @@ BOOST_AUTO_TEST_CASE(comparisonsTest1)
 
     // 5 true variables from x1 to x5: 01 01 01 01 01 is combined together.
     BOOST_CHECK_EQUAL(u256(0x0101010101), xall);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(comparisonsTest2)
@@ -515,7 +515,7 @@ BOOST_AUTO_TEST_CASE(comparisonsTest2)
 
     // 5 true variables from x1 to x5: 01 01 01 01 01 is combined together.
     BOOST_CHECK_EQUAL(u256(0x0101010101), xall);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(bitOperationTest)
@@ -570,7 +570,7 @@ BOOST_AUTO_TEST_CASE(bitOperationTest)
     BOOST_CHECK_EQUAL(u256(66 | 0x0101), x2);
     BOOST_CHECK_EQUAL(u256(66 ^ 0x0101), x3);
     BOOST_CHECK_EQUAL(~u256(66), x4);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(contextTest)
@@ -687,20 +687,20 @@ BOOST_AUTO_TEST_CASE(contextTest)
     h256 blockHashResult = FixedHash<32>(getStateValueU256(
         destination, "000000000000000000000000000000000000000000000000000000000000000d"));
 
-    BOOST_CHECK(originResult == FAKE_ORIGIN);
-    BOOST_CHECK(destResult == destination);
-    BOOST_CHECK(callerResult == caller);
-    BOOST_CHECK(coinbaseResult == FAKE_COINBASE);
-    BOOST_CHECK(blocknumberResult == u256(FAKE_BLOCK_NUMBER));
-    BOOST_CHECK(difficultyResult == FAKE_DIFFICULTY);
-    BOOST_CHECK(gaslimitResult == u256(FAKE_GAS_LIMIT));
-    BOOST_CHECK(timestampResult == u256(FAKE_TIMESTAMP));
-    // BOOST_CHECK(gasResult == );
-    BOOST_CHECK(valueResult == value);
-    BOOST_CHECK(gasPriceResult == FAKE_GAS_PRICE);
-    BOOST_CHECK(blockHashResult == FAKE_BLOCK_HASH);
+    BOOST_TEST(originResult == FAKE_ORIGIN);
+    BOOST_TEST(destResult == destination);
+    BOOST_TEST(callerResult == caller);
+    BOOST_TEST(coinbaseResult == FAKE_COINBASE);
+    BOOST_TEST(blocknumberResult == u256(FAKE_BLOCK_NUMBER));
+    BOOST_TEST(difficultyResult == FAKE_DIFFICULTY);
+    BOOST_TEST(gaslimitResult == u256(FAKE_GAS_LIMIT));
+    BOOST_TEST(timestampResult == u256(FAKE_TIMESTAMP));
+    // BOOST_TEST(gasResult == );
+    BOOST_TEST(valueResult == value);
+    BOOST_TEST(gasPriceResult == FAKE_GAS_PRICE);
+    BOOST_TEST(blockHashResult == FAKE_BLOCK_HASH);
 
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 
@@ -738,7 +738,7 @@ BOOST_AUTO_TEST_CASE(balanceTest)
     printAccount(destination);
 
     BOOST_CHECK_EQUAL(getStateValueU256(destination, "balance"), balance);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 
@@ -798,7 +798,7 @@ BOOST_AUTO_TEST_CASE(LogTest)
     BOOST_CHECK_EQUAL(3, fakeLogs[3].topics.size());
     BOOST_CHECK_EQUAL(4, fakeLogs[4].topics.size());
 
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(accessFunctionTest)
@@ -841,7 +841,7 @@ BOOST_AUTO_TEST_CASE(accessFunctionTest)
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
     printResult(result);
     printAccount(destination);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 
     // call function get()
     code = getContractCode(destination);
@@ -853,7 +853,7 @@ BOOST_AUTO_TEST_CASE(accessFunctionTest)
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
     printResult(result);
     printAccount(destination);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 
     // call function set(456)
     code = getContractCode(destination);
@@ -865,7 +865,7 @@ BOOST_AUTO_TEST_CASE(accessFunctionTest)
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
     printResult(result);
     printAccount(destination);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 
     u256 xResult = getStateValueU256(
         destination, "0000000000000000000000000000000000000000000000000000000000000000");
@@ -923,7 +923,7 @@ BOOST_AUTO_TEST_CASE(createTest)
         newContractAddr, "0000000000000000000000000000000000000000000000000000000000000000");
 
     BOOST_CHECK_EQUAL(100, xResult);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(callTest)
@@ -997,7 +997,7 @@ BOOST_AUTO_TEST_CASE(callTest)
     u256 xResult = getStateValueU256(
         newContractAddr, "0000000000000000000000000000000000000000000000000000000000000000");
     BOOST_CHECK_EQUAL(456, xResult);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_FIXTURE_TEST_CASE(SM_callTest, SM_InterpreterFixture)
@@ -1071,7 +1071,7 @@ BOOST_FIXTURE_TEST_CASE(SM_callTest, SM_InterpreterFixture)
     u256 xResult = getStateValueU256(
         newContractAddr, "0000000000000000000000000000000000000000000000000000000000000000");
     BOOST_CHECK_EQUAL(100, xResult);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(internalStaticCallTest)
@@ -1130,7 +1130,7 @@ BOOST_AUTO_TEST_CASE(internalStaticCallTest)
 
     evmc_result result = evmc.execute(
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
     printResult(result);
     printAccount(destination);
 
@@ -1153,7 +1153,7 @@ BOOST_AUTO_TEST_CASE(internalStaticCallTest)
 
     result = evmc.execute(
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
     printResult(result);
     printAccount(destination);
 
@@ -1162,7 +1162,7 @@ BOOST_AUTO_TEST_CASE(internalStaticCallTest)
 
     BOOST_CHECK_EQUAL(123, xResult);
 
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
 }
 
 BOOST_AUTO_TEST_CASE(internalCallTest)
@@ -1240,7 +1240,7 @@ BOOST_AUTO_TEST_CASE(internalCallTest)
 
     result = evmc.execute(
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
-    BOOST_CHECK(0 == result.status_code);
+    BOOST_TEST(0 == result.status_code);
     printResult(result);
     printAccount(destination);
 
@@ -1271,14 +1271,14 @@ BOOST_AUTO_TEST_CASE(errorCodeTest)
     result = evmc.execute(
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
     printResult(result);
-    BOOST_CHECK(result.status_code == EVMC_REVERT);
+    BOOST_TEST(result.status_code == EVMC_REVERT);
 
     // BadInstruction
     code = fromHex("4f");
     result = evmc.execute(
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
     printResult(result);
-    BOOST_CHECK(result.status_code == EVMC_UNDEFINED_INSTRUCTION);
+    BOOST_TEST(result.status_code == EVMC_UNDEFINED_INSTRUCTION);
 
     // OutOfStack
     // PUSH 0
@@ -1286,7 +1286,7 @@ BOOST_AUTO_TEST_CASE(errorCodeTest)
     // JUMP
     // code = fromHex("5600560056");
     // result = evmc.execute(schedule, code, data, destination, caller, value, gas, depth, isCreate,
-    // isStaticCall); printResult(result); BOOST_CHECK(result.status_code == EVMC_STACK_OVERFLOW);
+    // isStaticCall); printResult(result); BOOST_TEST(result.status_code == EVMC_STACK_OVERFLOW);
 
     // StackUnderflow
     // JUMP
@@ -1294,7 +1294,7 @@ BOOST_AUTO_TEST_CASE(errorCodeTest)
     result = evmc.execute(
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
     printResult(result);
-    BOOST_CHECK(result.status_code == EVMC_STACK_UNDERFLOW);
+    BOOST_TEST(result.status_code == EVMC_STACK_UNDERFLOW);
 
     // Bad jump destination
     // PUSH8 FFFFFFFFFFFFFFFF
@@ -1303,7 +1303,7 @@ BOOST_AUTO_TEST_CASE(errorCodeTest)
     result = evmc.execute(
         schedule, code, data, destination, caller, value, gas, depth, isCreate, isStaticCall);
     printResult(result);
-    BOOST_CHECK(result.status_code == EVMC_BAD_JUMP_DESTINATION);
+    BOOST_TEST(result.status_code == EVMC_BAD_JUMP_DESTINATION);
 }
 
 

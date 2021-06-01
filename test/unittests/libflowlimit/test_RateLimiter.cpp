@@ -70,16 +70,16 @@ BOOST_AUTO_TEST_CASE(testTryAcquireWithoutBurst)
 {
     int64_t maxQPS = 2000;
     auto rateLimiter = std::make_shared<RateLimiterTest>(maxQPS);
-    BOOST_CHECK(rateLimiter->maxPermits() == 2000);
-    BOOST_CHECK(rateLimiter->permitsUpdateInterval() == 500);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 0);
+    BOOST_TEST(rateLimiter->maxPermits() == 2000);
+    BOOST_TEST(rateLimiter->permitsUpdateInterval() == 500);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 0);
     int64_t sleepInterval = 1000000 / maxQPS;
 
     // with enough permits
     for (int64_t i = 0; i < maxQPS; i++)
     {
         std::this_thread::sleep_for(std::chrono::microseconds(sleepInterval));
-        BOOST_CHECK(rateLimiter->tryAcquire() == true);
+        BOOST_TEST(rateLimiter->tryAcquire() == true);
     }
 }
 
@@ -88,47 +88,47 @@ BOOST_AUTO_TEST_CASE(testFetchPermitsAndGetWaitTime)
     int64_t qpsLimit = 50000;
     int64_t intervalPerPermit = 1000000 / qpsLimit;
     auto rateLimiter = std::make_shared<RateLimiterTest>(qpsLimit);
-    BOOST_CHECK(rateLimiter->maxPermits() == qpsLimit);
-    BOOST_CHECK(rateLimiter->permitsUpdateInterval() == intervalPerPermit);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 0);
+    BOOST_TEST(rateLimiter->maxPermits() == qpsLimit);
+    BOOST_TEST(rateLimiter->permitsUpdateInterval() == intervalPerPermit);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 0);
 
     /// case1: insufficient permits
     int64_t orglastPermitsUpdateTime = rateLimiter->lastPermitsUpdateTime();
     // set now to be smaller than m_lastPermitsUpdateTime
     auto now = rateLimiter->lastPermitsUpdateTime() - 10;
     // acquire permits failed, return wait time large than zero directly
-    BOOST_CHECK(rateLimiter->tryAcquire(1, now) == false);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == orglastPermitsUpdateTime);
+    BOOST_TEST(rateLimiter->tryAcquire(1, now) == false);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == orglastPermitsUpdateTime);
 
     // acquire permits failed, return the wait time that can acquire the permit
-    BOOST_CHECK(rateLimiter->wrapperFetchPermitsAndGetWaitTime(1, true, now) == 10);
-    BOOST_CHECK(
+    BOOST_TEST(rateLimiter->wrapperFetchPermitsAndGetWaitTime(1, true, now) == 10);
+    BOOST_TEST(
         rateLimiter->lastPermitsUpdateTime() == orglastPermitsUpdateTime + intervalPerPermit);
 
     // Because there is not enough time, get 0 permits, advance the future permits
     now = rateLimiter->lastPermitsUpdateTime() + 10;
-    BOOST_CHECK(rateLimiter->tryAcquire(1, now) == true);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 0);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now + 10);
+    BOOST_TEST(rateLimiter->tryAcquire(1, now) == true);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 0);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now + 10);
 
     // won't update lastePermitsUpdateTime for the request will not wait to occupy a permit
-    BOOST_CHECK(rateLimiter->tryAcquire(1, now) == false);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now + 10);
+    BOOST_TEST(rateLimiter->tryAcquire(1, now) == false);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now + 10);
 
     // will update lastePermitsUpdateTime for the request will wait to occupy a permit
-    BOOST_CHECK(rateLimiter->wrapperFetchPermitsAndGetWaitTime(1, true, now) == 10);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now + 10 + intervalPerPermit);
+    BOOST_TEST(rateLimiter->wrapperFetchPermitsAndGetWaitTime(1, true, now) == 10);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now + 10 + intervalPerPermit);
 
     /// case2: enough permits
     int64_t reqNum = 1000;
     now = rateLimiter->lastPermitsUpdateTime() + 2 * reqNum * intervalPerPermit;
     // Consume half of the permits
-    BOOST_CHECK(rateLimiter->tryAcquire(reqNum, now) == true);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == reqNum);
-    BOOST_CHECK(rateLimiter->wrapperFetchPermitsAndGetWaitTime(reqNum, true, now) == 0);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 0);
+    BOOST_TEST(rateLimiter->tryAcquire(reqNum, now) == true);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == reqNum);
+    BOOST_TEST(rateLimiter->wrapperFetchPermitsAndGetWaitTime(reqNum, true, now) == 0);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 0);
 }
 
 BOOST_AUTO_TEST_CASE(testAcquireWithBurstSupported)
@@ -143,36 +143,36 @@ BOOST_AUTO_TEST_CASE(testAcquireWithBurstSupported)
     // set now to be smaller than m_lastPermitsUpdateTime
     auto now = rateLimiter->lastPermitsUpdateTime() - 100;
     // accept the burst request
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(10, now) == true);
-    BOOST_CHECK(rateLimiter->burstReqNum() == 10);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(10, now) == true);
+    BOOST_TEST(rateLimiter->burstReqNum() == 10);
 
     now = rateLimiter->lastPermitsUpdateTime() + intervalPerPermit * 20;
     // consume 40 permits in advance
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(40, now) == true);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now + intervalPerPermit * 20);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(40, now) == true);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now + intervalPerPermit * 20);
 
     // consume 40 burst permits
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(40, now) == true);
-    BOOST_CHECK(rateLimiter->burstReqNum() == 50);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now + intervalPerPermit * 20);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 0);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(40, now) == true);
+    BOOST_TEST(rateLimiter->burstReqNum() == 50);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now + intervalPerPermit * 20);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 0);
 
     // another 1000 burst request
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(burstReqNum, now) == false);
-    BOOST_CHECK(rateLimiter->burstReqNum() == 50);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(burstReqNum, now) == false);
+    BOOST_TEST(rateLimiter->burstReqNum() == 50);
 
     // require only 950 permits
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(burstReqNum - 50, now) == true);
-    BOOST_CHECK(rateLimiter->burstReqNum() == burstReqNum);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(burstReqNum - 50, now) == true);
+    BOOST_TEST(rateLimiter->burstReqNum() == burstReqNum);
 
     now = rateLimiter->lastPermitsUpdateTime() + intervalPerPermit * 20;
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(10, now) == true);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 10);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(10, now) == true);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 10);
 
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(10, now) == true);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 0);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == now);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(10, now) == true);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 0);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == now);
 
     // test reset m_futureBurstResetTime
     now = rateLimiter->futureBurstResetTime() + 1000001;
@@ -185,22 +185,22 @@ BOOST_AUTO_TEST_CASE(testAcquireWithBurstSupported)
         updatedLastTime = now;
     }
     // release new burst requests
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(1, now) == true);
-    BOOST_CHECK(rateLimiter->futureBurstResetTime() == orgFutureBurstResetTime);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(1, now) == true);
+    BOOST_TEST(rateLimiter->futureBurstResetTime() == orgFutureBurstResetTime);
 
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == (releasedPermits - 1));
+    BOOST_TEST(rateLimiter->currentStoredPermits() == (releasedPermits - 1));
 
-    BOOST_CHECK(rateLimiter->futureBurstResetTime() == orgFutureBurstResetTime);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == updatedLastTime);
+    BOOST_TEST(rateLimiter->futureBurstResetTime() == orgFutureBurstResetTime);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == updatedLastTime);
 
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(releasedPermits, now) == true);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == updatedLastTime + intervalPerPermit);
-    BOOST_CHECK(rateLimiter->currentStoredPermits() == 0);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(releasedPermits, now) == true);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == updatedLastTime + intervalPerPermit);
+    BOOST_TEST(rateLimiter->currentStoredPermits() == 0);
 
-    BOOST_CHECK(rateLimiter->acquireWithBurstSupported(burstReqNum, now) == true);
-    BOOST_CHECK(rateLimiter->futureBurstResetTime() == now + 1000000);
-    BOOST_CHECK(rateLimiter->burstReqNum() == burstReqNum);
-    BOOST_CHECK(rateLimiter->lastPermitsUpdateTime() == updatedLastTime + intervalPerPermit);
+    BOOST_TEST(rateLimiter->acquireWithBurstSupported(burstReqNum, now) == true);
+    BOOST_TEST(rateLimiter->futureBurstResetTime() == now + 1000000);
+    BOOST_TEST(rateLimiter->burstReqNum() == burstReqNum);
+    BOOST_TEST(rateLimiter->lastPermitsUpdateTime() == updatedLastTime + intervalPerPermit);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

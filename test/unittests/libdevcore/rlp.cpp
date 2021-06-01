@@ -126,7 +126,7 @@ void RlpTest::buildRLP(Json::Value const& jsonObj, dev::RLPStream& retRlp)
         Json::Value::Members mem = jsonObj.getMemberNames();
         for (auto it = mem.begin(); it != mem.end(); it++)
         {
-            BOOST_CHECK(jsonObj[*it].type() == Json::objectValue);
+            BOOST_TEST(jsonObj[*it].type() == Json::objectValue);
             buildRLP(jsonObj[*it], item_rlp);
         }
         retRlp.appendList(item_rlp.out());
@@ -157,26 +157,26 @@ void RlpTest::checkRlp(Json::Value const& jsonObj, dev::RLP const& rlp)
     {
         // ##check type
         // must be list
-        BOOST_CHECK(rlp.isList());
+        BOOST_TEST(rlp.isList());
         // must be not int or data
-        BOOST_CHECK(!rlp.isInt());
-        BOOST_CHECK(!rlp.isData());
+        BOOST_TEST(!rlp.isInt());
+        BOOST_TEST(!rlp.isData());
         // compare value
         Json::Value::Members mem = jsonObj.getMemberNames();
         size_t i = 0;
         for (auto it = mem.begin(); it != mem.end(); it++)
         {
-            BOOST_CHECK(jsonObj[*it].type() == Json::objectValue);
+            BOOST_TEST(jsonObj[*it].type() == Json::objectValue);
             checkRlp(jsonObj[*it], rlp[i]);
             i++;
         }
     }
     else if (jsonObj.type() == Json::intValue)
     {
-        BOOST_CHECK(rlp.isInt());
-        BOOST_CHECK(!rlp.isList());
-        BOOST_CHECK(!rlp.isNull());
-        BOOST_CHECK(rlp == jsonObj.asInt());
+        BOOST_TEST(rlp.isInt());
+        BOOST_TEST(!rlp.isList());
+        BOOST_TEST(!rlp.isNull());
+        BOOST_TEST(rlp == jsonObj.asInt());
     }
     else if (jsonObj.type() == Json::stringValue)
     {
@@ -188,16 +188,16 @@ void RlpTest::checkRlp(Json::Value const& jsonObj, dev::RLP const& rlp)
             std::stringstream bintStream(bigIntStr);
             bigint val;
             bintStream >> val;
-            BOOST_CHECK(!rlp.isList());
-            BOOST_CHECK(!rlp.isNull());
-            BOOST_CHECK(rlp == val);
+            BOOST_TEST(!rlp.isList());
+            BOOST_TEST(!rlp.isNull());
+            BOOST_TEST(rlp == val);
         }
         else
         {
-            BOOST_CHECK(!rlp.isList());
-            BOOST_CHECK(!rlp.isNull());
-            BOOST_CHECK(rlp.isData());
-            BOOST_CHECK(rlp == jsonObj.asString());
+            BOOST_TEST(!rlp.isList());
+            BOOST_TEST(!rlp.isNull());
+            BOOST_TEST(rlp.isData());
+            BOOST_TEST(rlp == jsonObj.asString());
         }
     }
 }

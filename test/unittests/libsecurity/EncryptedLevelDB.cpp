@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(PutTest)
 
     string* compareVPtr = new string();
     db->Get(LevelDB::defaultReadOptions(), Slice(k), compareVPtr);
-    BOOST_CHECK(*compareVPtr == v);
+    BOOST_TEST(*compareVPtr == v);
     delete compareVPtr;
 }
 
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(WriteTest)
     for (size_t i = 0; i < 10; i++)
     {
         db->Get(LevelDB::defaultReadOptions(), Slice(ks[i]), compareVPtr);
-        BOOST_CHECK(*compareVPtr == vs[i]);
+        BOOST_TEST(*compareVPtr == vs[i]);
     }
 
     delete compareVPtr;

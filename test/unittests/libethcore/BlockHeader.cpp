@@ -111,22 +111,22 @@ BOOST_FIXTURE_TEST_SUITE(BlockHeaderTest, BlockHeaderFixture)
 BOOST_AUTO_TEST_CASE(testBlockerHeaderGetter)
 {
     /// get interfaces
-    BOOST_CHECK(block_header_genesis.parentHash() == crypto::Hash("parent"));
-    BOOST_CHECK(block_header_genesis.stateRoot() == crypto::Hash("stateRoot"));
-    BOOST_CHECK(block_header_genesis.stateRoot() != crypto::Hash("stateroot"));
-    BOOST_CHECK(block_header_genesis.transactionsRoot() == crypto::Hash("transactionRoot"));
-    BOOST_CHECK(block_header_genesis.receiptsRoot() == crypto::Hash("receiptRoot"));
-    BOOST_CHECK(block_header_genesis.logBloom() == LogBloom(0));
-    BOOST_CHECK(block_header_genesis.number() == 0);
-    BOOST_CHECK(block_header_genesis.gasLimit() == u256(3000000));
-    BOOST_CHECK(block_header_genesis.gasUsed() == u256(100000));
-    BOOST_CHECK(block_header_genesis.timestamp() == current_time);
+    BOOST_TEST(block_header_genesis.parentHash() == crypto::Hash("parent"));
+    BOOST_TEST(block_header_genesis.stateRoot() == crypto::Hash("stateRoot"));
+    BOOST_TEST(block_header_genesis.stateRoot() != crypto::Hash("stateroot"));
+    BOOST_TEST(block_header_genesis.transactionsRoot() == crypto::Hash("transactionRoot"));
+    BOOST_TEST(block_header_genesis.receiptsRoot() == crypto::Hash("receiptRoot"));
+    BOOST_TEST(block_header_genesis.logBloom() == LogBloom(0));
+    BOOST_TEST(block_header_genesis.number() == 0);
+    BOOST_TEST(block_header_genesis.gasLimit() == u256(3000000));
+    BOOST_TEST(block_header_genesis.gasUsed() == u256(100000));
+    BOOST_TEST(block_header_genesis.timestamp() == current_time);
     bytes valid_item = block_header_genesis.extraData(0);
-    BOOST_CHECK(valid_item.size());
-    BOOST_CHECK(valid_item == jsToBytes("0x1020"));
-    BOOST_CHECK(block_header_genesis.extraData().size() == 1);
-    BOOST_CHECK(block_header_genesis.sealer() == u256("0x00"));
-    BOOST_CHECK(block_header_genesis.sealerList() == sealer_list);
+    BOOST_TEST(valid_item.size());
+    BOOST_TEST(valid_item == jsToBytes("0x1020"));
+    BOOST_TEST(block_header_genesis.extraData().size() == 1);
+    BOOST_TEST(block_header_genesis.sealer() == u256("0x00"));
+    BOOST_TEST(block_header_genesis.sealerList() == sealer_list);
 }
 /// test copy construct && operator == of BlockHeader
 BOOST_AUTO_TEST_CASE(testCopyStruct)
@@ -136,31 +136,31 @@ BOOST_AUTO_TEST_CASE(testCopyStruct)
     block_header_genesis.encode(block_bytes);
     BlockHeader block_header_copy(block_bytes, HeaderData);
     BOOST_CHECK_THROW(BlockHeader(block_bytes, BlockData), InvalidBlockFormat);
-    BOOST_CHECK(block_header_copy.hash() == block_header_genesis.hash());
+    BOOST_TEST(block_header_copy.hash() == block_header_genesis.hash());
     ///----- check details: for debug
-    BOOST_CHECK(block_header_genesis.parentHash() == block_header_copy.parentHash());
-    BOOST_CHECK(block_header_genesis.stateRoot() == block_header_copy.stateRoot());
-    BOOST_CHECK(block_header_genesis.transactionsRoot() == block_header_copy.transactionsRoot());
-    BOOST_CHECK(block_header_genesis.receiptsRoot() == block_header_copy.receiptsRoot());
-    BOOST_CHECK(block_header_genesis.logBloom() == block_header_copy.logBloom());
-    BOOST_CHECK(block_header_genesis.number() == block_header_copy.number());
-    BOOST_CHECK(block_header_genesis.gasLimit() == block_header_copy.gasLimit());
-    BOOST_CHECK(block_header_genesis.gasUsed() == block_header_copy.gasUsed());
-    BOOST_CHECK(block_header_genesis.timestamp() == block_header_copy.timestamp());
-    BOOST_CHECK(block_header_genesis.extraData() == block_header_copy.extraData());
-    BOOST_CHECK(block_header_genesis.sealer() == block_header_copy.sealer());
-    BOOST_CHECK(block_header_genesis.sealerList() == block_header_copy.sealerList());
+    BOOST_TEST(block_header_genesis.parentHash() == block_header_copy.parentHash());
+    BOOST_TEST(block_header_genesis.stateRoot() == block_header_copy.stateRoot());
+    BOOST_TEST(block_header_genesis.transactionsRoot() == block_header_copy.transactionsRoot());
+    BOOST_TEST(block_header_genesis.receiptsRoot() == block_header_copy.receiptsRoot());
+    BOOST_TEST(block_header_genesis.logBloom() == block_header_copy.logBloom());
+    BOOST_TEST(block_header_genesis.number() == block_header_copy.number());
+    BOOST_TEST(block_header_genesis.gasLimit() == block_header_copy.gasLimit());
+    BOOST_TEST(block_header_genesis.gasUsed() == block_header_copy.gasUsed());
+    BOOST_TEST(block_header_genesis.timestamp() == block_header_copy.timestamp());
+    BOOST_TEST(block_header_genesis.extraData() == block_header_copy.extraData());
+    BOOST_TEST(block_header_genesis.sealer() == block_header_copy.sealer());
+    BOOST_TEST(block_header_genesis.sealerList() == block_header_copy.sealerList());
     /// check operator ==
-    BOOST_CHECK(block_header_copy == block_header_genesis);
+    BOOST_TEST(block_header_copy == block_header_genesis);
     /// test copy block_header_copy
     BlockHeader block_header_backup(block_header_copy);
-    BOOST_CHECK(block_header_copy == block_header_backup);
-    BOOST_CHECK(block_header_backup.hash() == block_header_copy.hash());
+    BOOST_TEST(block_header_copy == block_header_backup);
+    BOOST_TEST(block_header_backup.hash() == block_header_copy.hash());
     /// test assignment
     BlockHeader block_header_copy2;
     block_header_copy2 = block_header_genesis;
-    BOOST_CHECK(block_header_copy2 == block_header_genesis);
-    BOOST_CHECK(block_header_copy2.hash() == block_header_genesis.hash());
+    BOOST_TEST(block_header_copy2 == block_header_genesis);
+    BOOST_TEST(block_header_copy2.hash() == block_header_genesis.hash());
 }
 
 /// test pupulateFromParent()
@@ -168,13 +168,13 @@ BOOST_AUTO_TEST_CASE(testPopulateFromParent)
 {
     BlockHeader block_header_populated;
     block_header_populated.populateFromParent(block_header_genesis);
-    BOOST_CHECK(block_header_populated.hash() != block_header_genesis.hash());
-    BOOST_CHECK(block_header_populated != block_header_genesis);
-    BOOST_CHECK(block_header_populated.stateRoot() == block_header_genesis.stateRoot());
-    BOOST_CHECK(block_header_populated.number() == block_header_genesis.number() + 1);
-    BOOST_CHECK(block_header_populated.parentHash() == block_header_genesis.hash());
-    BOOST_CHECK(block_header_populated.gasLimit() == block_header_genesis.gasLimit());
-    BOOST_CHECK(block_header_populated.gasUsed() == u256(0));
+    BOOST_TEST(block_header_populated.hash() != block_header_genesis.hash());
+    BOOST_TEST(block_header_populated != block_header_genesis);
+    BOOST_TEST(block_header_populated.stateRoot() == block_header_genesis.stateRoot());
+    BOOST_TEST(block_header_populated.number() == block_header_genesis.number() + 1);
+    BOOST_TEST(block_header_populated.parentHash() == block_header_genesis.hash());
+    BOOST_TEST(block_header_populated.gasLimit() == block_header_genesis.gasLimit());
+    BOOST_TEST(block_header_populated.gasUsed() == u256(0));
 }
 
 /// test construct BlockHeader from Block bytes
@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE(testConstructFromBlock)
     BOOST_REQUIRE_NO_THROW(BlockHeader(block_rlp.out(), BlockData));
     BOOST_CHECK_THROW(BlockHeader(block_rlp.out(), HeaderData), Exception);
     /// test headerHashFromBlock
-    BOOST_CHECK(block_header_genesis.headerHashFromBlock(block_rlp.out()));
+    BOOST_TEST(block_header_genesis.headerHashFromBlock(block_rlp.out()));
 }
 
 BOOST_AUTO_TEST_CASE(testExtraHeaderException)

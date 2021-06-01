@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(call_select)
     auto entriesPrecompiled =
         std::dynamic_pointer_cast<EntriesPrecompiled>(context->getPrecompiled(entriesAddress));
     Entries::ConstPtr entries = entriesPrecompiled->getEntries();
-    BOOST_TEST(entries->size() == 0u);
+    BOOST_CHECK(entries->size() == 0u);
 }
 
 BOOST_AUTO_TEST_CASE(call_insert)
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(call_insert)
     bytes out = callResult->execResult();
     u256 num;
     abi.abiOut(bytesConstRef(&out), num);
-    BOOST_TEST(num == 1u);
+    BOOST_CHECK(num == 1u);
 }
 
 BOOST_AUTO_TEST_CASE(call_newCondition)
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(call_newCondition)
     bytes out1 = callResult->execResult();
     Address address(++addressCount);
     bytes out2 = abi.abiIn("", address);
-    BOOST_TEST(out1 == out2);
+    BOOST_CHECK(out1 == out2);
 }
 
 BOOST_AUTO_TEST_CASE(call_newEntry)
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE(call_remove)
     bytes out = callResult->execResult();
     u256 num;
     abi.abiOut(bytesConstRef(&out), num);
-    BOOST_TEST(num == 0u);
+    BOOST_CHECK(num == 0u);
 }
 
 BOOST_AUTO_TEST_CASE(call_update2)
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE(call_update2)
     bytes out = callResult->execResult();
     u256 num;
     abi.abiOut(bytesConstRef(&out), num);
-    BOOST_TEST(num == 0u);
+    BOOST_CHECK(num == 0u);
 }
 
 BOOST_AUTO_TEST_CASE(insert_remove_select)
@@ -217,12 +217,12 @@ BOOST_AUTO_TEST_CASE(insert_remove_select)
     m_table->setStateStorage(memStorage);
     auto condition = std::make_shared<storage::Condition>();
     auto entries = m_table->select(std::string("WangWu"), condition);
-    BOOST_TEST(entries->size() == 1u);
+    BOOST_CHECK(entries->size() == 1u);
     // remove
     condition = std::make_shared<storage::Condition>();
     condition->EQ("name", "WangWu");
     auto ret = m_table->remove(std::string("WangWu"), condition);
-    BOOST_TEST(ret == 1);
+    BOOST_CHECK(ret == 1);
 
     auto m_version = g_BCOSConfig.version();
     auto m_supportedVersion = g_BCOSConfig.supportedVersion();
@@ -230,12 +230,12 @@ BOOST_AUTO_TEST_CASE(insert_remove_select)
     // select
     condition = std::make_shared<storage::Condition>();
     entries = m_table->select(std::string("WangWu"), condition);
-    BOOST_TEST(entries->size() == 1u);
+    BOOST_CHECK(entries->size() == 1u);
 
     g_BCOSConfig.setSupportedVersion("2.5.0", V2_5_0);
     condition = std::make_shared<storage::Condition>();
     entries = m_table->select(std::string("WangWu"), condition);
-    BOOST_TEST(entries->size() == 0);
+    BOOST_CHECK(entries->size() == 0);
     g_BCOSConfig.setSupportedVersion(m_supportedVersion, m_version);
 }
 

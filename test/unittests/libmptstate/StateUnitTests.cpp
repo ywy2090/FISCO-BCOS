@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(LoadAccountCode)
     s.commit();
 
     auto& loadedCode = s.code(addr);
-    BOOST_CHECK(std::equal(std::begin(codeData), std::end(codeData), std::begin(loadedCode)));
+    BOOST_TEST(std::equal(std::begin(codeData), std::end(codeData), std::begin(loadedCode)));
 }
 
 class AddressRangeTestFixture : public TestOutputHelperFixture
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(addressesReturnsAllAddresses)
     State::AddressMap addresses = addressesAndNextKey.first;
 
     BOOST_CHECK_EQUAL(addresses.size(), addressCount);
-    BOOST_CHECK(addresses == hashToAddress);
+    BOOST_TEST(addresses == hashToAddress);
     BOOST_CHECK_EQUAL(addressesAndNextKey.second, h256{});
 }
 
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(addressesReturnsNoMoreThanRequested)
 
     BOOST_CHECK_EQUAL(addresses.size(), maxResults);
     auto itHashToAddressEnd = std::next(hashToAddress.begin(), maxResults);
-    BOOST_CHECK(addresses == State::AddressMap(hashToAddress.begin(), itHashToAddressEnd));
+    BOOST_TEST(addresses == State::AddressMap(hashToAddress.begin(), itHashToAddressEnd));
     BOOST_CHECK_EQUAL(nextKey, itHashToAddressEnd->first);
 
     // request next chunk
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(addressesReturnsNoMoreThanRequested)
     State::AddressMap& addresses2 = addressesAndNextKey2.first;
     BOOST_CHECK_EQUAL(addresses2.size(), maxResults);
     auto itHashToAddressEnd2 = std::next(itHashToAddressEnd, maxResults);
-    BOOST_CHECK(addresses2 == State::AddressMap(itHashToAddressEnd, itHashToAddressEnd2));
+    BOOST_TEST(addresses2 == State::AddressMap(itHashToAddressEnd, itHashToAddressEnd2));
 }
 
 BOOST_AUTO_TEST_CASE(addressesDoesntReturnDeletedInCache)
@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(addressesDoesntReturnDeletedInCache)
         state.addresses(h256{}, addressCount * 2);
     State::AddressMap& addresses = addressesAndNextKey.first;
     BOOST_CHECK_EQUAL(addresses.size(), addressCount - deleteCount);
-    BOOST_CHECK(addresses == State::AddressMap(it, hashToAddress.end()));
+    BOOST_TEST(addresses == State::AddressMap(it, hashToAddress.end()));
 }
 
 BOOST_AUTO_TEST_CASE(addressesReturnsCreatedInCache)
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(addressesReturnsCreatedInCache)
         state.addresses(newHashToAddress.begin()->first, addressCount + createCount);
     State::AddressMap& addresses = addressesAndNextKey.first;
     for (auto const& hashAndAddr : newHashToAddress)
-        BOOST_CHECK(addresses.find(hashAndAddr.first) != addresses.end());
+        BOOST_TEST(addresses.find(hashAndAddr.first) != addresses.end());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -46,26 +46,26 @@ BOOST_FIXTURE_TEST_SUITE(GlobalConfig, GlobalConfigFixture)
 BOOST_AUTO_TEST_CASE(test_initGlobalConfig)
 {
     initGlobalConfig(pt);
-    BOOST_CHECK(g_BCOSConfig.version() == RC1_VERSION);
-    BOOST_CHECK(g_BCOSConfig.compressEnabled() == true);
-    BOOST_CHECK(g_BCOSConfig.diskEncryption.enable == false);
-    BOOST_CHECK(g_BCOSConfig.diskEncryption.keyCenterIP == "");
-    BOOST_CHECK(g_BCOSConfig.diskEncryption.keyCenterPort == 20000);
-    BOOST_CHECK(g_BCOSConfig.diskEncryption.cipherDataKey == "");
+    BOOST_TEST(g_BCOSConfig.version() == RC1_VERSION);
+    BOOST_TEST(g_BCOSConfig.compressEnabled() == true);
+    BOOST_TEST(g_BCOSConfig.diskEncryption.enable == false);
+    BOOST_TEST(g_BCOSConfig.diskEncryption.keyCenterIP == "");
+    BOOST_TEST(g_BCOSConfig.diskEncryption.keyCenterPort == 20000);
+    BOOST_TEST(g_BCOSConfig.diskEncryption.cipherDataKey == "");
     pt.put("compatibility.supported_version", "2.0.3");
     initGlobalConfig(pt);
-    BOOST_CHECK(g_BCOSConfig.version() == static_cast<VERSION>(33555200));
+    BOOST_TEST(g_BCOSConfig.version() == static_cast<VERSION>(33555200));
     pt.put("compatibility.supported_version", "2.5.3");
     initGlobalConfig(pt);
-    BOOST_CHECK(g_BCOSConfig.version() == static_cast<VERSION>(0x02050300));
+    BOOST_TEST(g_BCOSConfig.version() == static_cast<VERSION>(0x02050300));
     pt.put("compatibility.supported_version", "22.5.3");
     BOOST_CHECK_THROW(initGlobalConfig(pt), std::exception);
     pt.put("compatibility.supported_version", "2.0.0-rc2");
     initGlobalConfig(pt);
-    BOOST_CHECK(g_BCOSConfig.version() == RC2_VERSION);
+    BOOST_TEST(g_BCOSConfig.version() == RC2_VERSION);
     pt.put("compatibility.supported_version", "2.0.0-rc3");
     initGlobalConfig(pt);
-    BOOST_CHECK(g_BCOSConfig.version() == RC3_VERSION);
+    BOOST_TEST(g_BCOSConfig.version() == RC3_VERSION);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -40,42 +40,42 @@ BOOST_AUTO_TEST_CASE(testArithCal)
     ///=========test u2s==================
     u256 u_bigint("343894723987432");
     bigint c_end = bigint(1) << 256;
-    BOOST_CHECK(u2s(u_bigint) == u_bigint);
+    BOOST_TEST(u2s(u_bigint) == u_bigint);
     u_bigint = Invalid256;
-    BOOST_CHECK(u2s(u_bigint) < s256(0));
+    BOOST_TEST(u2s(u_bigint) < s256(0));
     u_bigint = u256("0xa170d8e0ae1b57d7ecc121f6fe5ceb03c1267801ff720edd2f8463e7effac6c6");
-    BOOST_CHECK(u2s(u_bigint) < s256(0));
-    BOOST_CHECK(u2s(u_bigint) == s256(-(c_end - u_bigint)));
+    BOOST_TEST(u2s(u_bigint) < s256(0));
+    BOOST_TEST(u2s(u_bigint) == s256(-(c_end - u_bigint)));
     u_bigint = u256("0x7170d8e0ae1b57d7ecc121f6fe5ceb03c1267801ff720edd2f8463e7effac6c6");
-    BOOST_CHECK(u2s(u_bigint) == u_bigint);
+    BOOST_TEST(u2s(u_bigint) == u_bigint);
     ///=========test s2u==================
     s256 s_bigint("0x7170d8e0ae1b57d7ecc121f6fe5ceb03c1267801ff720edd2f8463e7effac6c6");
-    BOOST_CHECK(s2u(s_bigint) == s_bigint);
+    BOOST_TEST(s2u(s_bigint) == s_bigint);
     s_bigint = s256("0xf170d8e0ae1b57d7ecc121f6fe5ceb03c1267801ff720edd2f8463e7effac6c6");
-    BOOST_CHECK(s2u(s_bigint) == u256(c_end + s_bigint));
+    BOOST_TEST(s2u(s_bigint) == u256(c_end + s_bigint));
     ///=========test exp10==================
-    BOOST_CHECK(exp10<1>() == u256(10));
-    BOOST_CHECK(exp10<9>() == u256(1000000000));
-    BOOST_CHECK(exp10<0>() == u256(1));
+    BOOST_TEST(exp10<1>() == u256(10));
+    BOOST_TEST(exp10<9>() == u256(1000000000));
+    BOOST_TEST(exp10<0>() == u256(1));
     ///=========test diff==================
     int a = 10;
     int b = 20;
-    BOOST_CHECK(diff(a, b) == diff(b, a));
-    BOOST_CHECK(diff(b, a) == 10);
+    BOOST_TEST(diff(a, b) == diff(b, a));
+    BOOST_TEST(diff(b, a) == 10);
     b = 10;
-    BOOST_CHECK(diff(a, b) == diff(b, a));
-    BOOST_CHECK(diff(b, a) == 0);
+    BOOST_TEST(diff(a, b) == diff(b, a));
+    BOOST_TEST(diff(b, a) == 0);
     u256 a_u256("0xf170d8e0ae1b57d7ecc121f6fe5ceb03c1267801ff720edd2f8463e7effac6c6");
     u256 b_u256("0xf170d8e0ae1b57d7ecc121f6fe5ceb03c1267801ff720edd2f8463e7effac6c4");
-    BOOST_CHECK(diff(a_u256, b_u256) == diff(b_u256, a_u256));
-    BOOST_CHECK(diff(a_u256, b_u256) == u256(2));
+    BOOST_TEST(diff(a_u256, b_u256) == diff(b_u256, a_u256));
+    BOOST_TEST(diff(a_u256, b_u256) == u256(2));
 }
 /// test utcTime
 BOOST_AUTO_TEST_CASE(testUtcTime)
 {
     uint64_t old_time = utcTime();
     usleep(1000);
-    BOOST_CHECK(old_time < utcTime());
+    BOOST_TEST(old_time < utcTime());
 }
 /// test Timer
 BOOST_AUTO_TEST_CASE(testTimer)
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(testTimer)
     Timer timer;
     usleep(10);
     double elapsed = timer.elapsed();
-    BOOST_CHECK(elapsed >= 0.00001);
+    BOOST_TEST(elapsed >= 0.00001);
     timer.restart();
 }
 

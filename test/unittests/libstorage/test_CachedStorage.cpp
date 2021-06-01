@@ -89,22 +89,22 @@ public:
     {
         (void)datas;
 
-        BOOST_CHECK(num == commitNum);
+        BOOST_TEST(num == commitNum);
 
-        BOOST_CHECK(datas.size() == 1);
+        BOOST_TEST(datas.size() == 1);
         for (auto it : datas)
         {
             if (it->info->name == "t_test")
             {
-                BOOST_CHECK(it->newEntries->size() == 1);
+                BOOST_TEST(it->newEntries->size() == 1);
             }
             else if (it->info->name == SYS_CURRENT_STATE)
             {
-                // BOOST_CHECK(it->dirtyEntries->size() == 1);
+                // BOOST_TEST(it->dirtyEntries->size() == 1);
             }
             else
             {
-                BOOST_CHECK(false);
+                BOOST_TEST(false);
             }
         }
 
@@ -163,9 +163,9 @@ public:
 
     size_t commit(int64_t num, const std::vector<TableData::Ptr>& datas) override
     {
-        BOOST_CHECK(num == commitNum);
+        BOOST_TEST(num == commitNum);
 
-        BOOST_CHECK(datas.size() == 100);
+        BOOST_TEST(datas.size() == 100);
         for (size_t i = 0; i < 100; ++i)
         {
             auto tableData = datas[i];

@@ -154,11 +154,11 @@ private:
 void checkSelectedNodes(SyncTreeToplogyFixture::Ptr fakeSyncTreeTopology,
     dev::h512s const& selectedNodes, std::vector<size_t> idxVec)
 {
-    BOOST_CHECK(selectedNodes.size() == idxVec.size());
+    BOOST_TEST(selectedNodes.size() == idxVec.size());
     size_t i = 0;
     for (auto const& node : selectedNodes)
     {
-        BOOST_CHECK(node == fakeSyncTreeTopology->syncTreeRouter()->nodeList()[idxVec[i]]);
+        BOOST_TEST(node == fakeSyncTreeTopology->syncTreeRouter()->nodeList()[idxVec[i]]);
         i++;
     }
 }
@@ -172,32 +172,32 @@ BOOST_AUTO_TEST_CASE(testFreeNode)
 
     // updateConsensusNodeInfo and check consensusList
     fakeSyncTreeTopology->updateConsensusNodeInfo();
-    BOOST_CHECK(fakeSyncTreeTopology->consensusList() ==
-                fakeSyncTreeTopology->syncTreeRouter()->currentConsensusNodes());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->consensusList() ==
+               fakeSyncTreeTopology->syncTreeRouter()->currentConsensusNodes());
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
     // check node list
-    BOOST_CHECK(
+    BOOST_TEST(
         fakeSyncTreeTopology->syncTreeRouter()->nodeList() == fakeSyncTreeTopology->nodeList());
     // check startIndex and endIndex
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 0);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 0);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 0);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 0);
 
     // updateNodeInfo and check NodeInfo
     fakeSyncTreeTopology->updateNodeListInfo();
-    BOOST_CHECK(
+    BOOST_TEST(
         fakeSyncTreeTopology->nodeList() == fakeSyncTreeTopology->syncTreeRouter()->nodeList());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
-                (int64_t)fakeSyncTreeTopology->nodeList().size());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == -1);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 0);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 0);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
+               (int64_t)fakeSyncTreeTopology->nodeList().size());
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 0);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 0);
 
     // selectNodes: no need to send blocks to any nodes
     std::shared_ptr<dev::h512s> selectedNodeList = std::make_shared<dev::h512s>();
     fakeSyncTreeTopology->syncTreeRouter()->recursiveSelectChildNodesWrapper(
         selectedNodeList, -1, fakeSyncTreeTopology->peers());
-    BOOST_CHECK(*selectedNodeList == dev::h512s());
+    BOOST_TEST(*selectedNodeList == dev::h512s());
 }
 
 /// case2: the node locates in the observerList
@@ -209,32 +209,32 @@ BOOST_AUTO_TEST_CASE(testForTheObserverNode)
     fakeSyncTreeTopology->updateConsensusNodeInfo();
     fakeSyncTreeTopology->updateNodeListInfo();
 
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == -1);
 
     // push the node into the observerList
     /// case1: nodeIndex is 2, no need to broadcast to any node
     fakeSyncTreeTopology->addNodeIntoObserverList(fakeSyncTreeTopology->syncTreeRouter()->nodeId());
     fakeSyncTreeTopology->updateNodeListInfo();
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 2);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 2);
     // check NodeList
-    BOOST_CHECK(
+    BOOST_TEST(
         fakeSyncTreeTopology->nodeList() == fakeSyncTreeTopology->syncTreeRouter()->nodeList());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
-                (int64_t)fakeSyncTreeTopology->nodeList().size());
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
+               (int64_t)fakeSyncTreeTopology->nodeList().size());
 
     // select target nodes from peers for this node
     std::shared_ptr<dev::h512s> selectedNodeList = std::make_shared<dev::h512s>();
     fakeSyncTreeTopology->syncTreeRouter()->recursiveSelectChildNodesWrapper(
         selectedNodeList, 2, fakeSyncTreeTopology->peers());
-    BOOST_CHECK(*selectedNodeList == dev::h512s());
+    BOOST_TEST(*selectedNodeList == dev::h512s());
 
     // select parent for the 2th nodes
     selectedNodeList->clear();
     fakeSyncTreeTopology->syncTreeRouter()->selectParentNodesWrapper(
         selectedNodeList, fakeSyncTreeTopology->peers(), 1);
-    BOOST_CHECK(*selectedNodeList == dev::h512s());
+    BOOST_TEST(*selectedNodeList == dev::h512s());
 
     /// case2: nodeIndex is 0
     fakeSyncTreeTopology->clearNodeList();
@@ -243,14 +243,14 @@ BOOST_AUTO_TEST_CASE(testForTheObserverNode)
     fakeSyncTreeTopology->fakeConsensusList(2);
     fakeSyncTreeTopology->updateConsensusNodeInfo();
     fakeSyncTreeTopology->updateNodeListInfo();
-    BOOST_CHECK(
+    BOOST_TEST(
         fakeSyncTreeTopology->syncTreeRouter()->nodeList() == fakeSyncTreeTopology->nodeList());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
-                (int64_t)fakeSyncTreeTopology->nodeList().size());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 0);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 0);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 7);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
+               (int64_t)fakeSyncTreeTopology->nodeList().size());
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 0);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 0);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 7);
 
     // check and select nodes for the 0th node
     selectedNodeList->clear();
@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE(testForTheObserverNode)
         selectedNodeList->clear();
         fakeSyncTreeTopology->syncTreeRouter()->selectParentNodesWrapper(
             selectedNodeList, fakeSyncTreeTopology->peers(), i);
-        BOOST_CHECK(*selectedNodeList == dev::h512s());
+        BOOST_TEST(*selectedNodeList == dev::h512s());
     }
     // check parent for 2th node
     for (size_t i = 2; i <= 3; i++)
@@ -319,10 +319,10 @@ BOOST_AUTO_TEST_CASE(testForTheObserverNode)
     fakeSyncTreeTopology->updateConsensusNodeInfo();
     fakeSyncTreeTopology->updateNodeListInfo();
 
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 12);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 7);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 6);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 12);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == -1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 7);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 6);
 
     // check the 7th nodes
     selectedNodeList->clear();
@@ -365,14 +365,14 @@ BOOST_AUTO_TEST_CASE(testForTheConsensusNode)
         fakeSyncTreeTopology->syncTreeRouter()->nodeId());
     fakeSyncTreeTopology->updateConsensusNodeInfo();
     fakeSyncTreeTopology->updateNodeListInfo();
-    BOOST_CHECK(
+    BOOST_TEST(
         fakeSyncTreeTopology->syncTreeRouter()->nodeList() == fakeSyncTreeTopology->nodeList());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
-                (int64_t)fakeSyncTreeTopology->nodeList().size());
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 12);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == 1);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 7);
-    BOOST_CHECK(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 6);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeNum() ==
+               (int64_t)fakeSyncTreeTopology->nodeList().size());
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->nodeIndex() == 12);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->consIndex() == 1);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->startIndex() == 7);
+    BOOST_TEST(fakeSyncTreeTopology->syncTreeRouter()->endIndex() == 6);
 
     // get childNodes and parentNodes for this node
     std::shared_ptr<dev::h512s> selectedNodeList = std::make_shared<dev::h512s>();
@@ -384,7 +384,7 @@ BOOST_AUTO_TEST_CASE(testForTheConsensusNode)
     selectedNodeList->clear();
     fakeSyncTreeTopology->syncTreeRouter()->selectParentNodesWrapper(selectedNodeList,
         fakeSyncTreeTopology->peers(), fakeSyncTreeTopology->syncTreeRouter()->nodeIndex());
-    BOOST_CHECK(
+    BOOST_TEST(
         *selectedNodeList == fakeSyncTreeTopology->syncTreeRouter()->currentConsensusNodes());
 }
 

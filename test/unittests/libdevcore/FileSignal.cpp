@@ -42,11 +42,11 @@ BOOST_AUTO_TEST_CASE(FileSignal)
     string file = ".file_signal_test";
 
     // check the file is not exist
-    BOOST_CHECK(!boost::filesystem::exists(file));
+    BOOST_TEST(!boost::filesystem::exists(file));
 
     // check caller is not triggered as the file is not exist
     dev::FileSignal::callIfFileExist(file, caller);
-    BOOST_CHECK(!called);
+    BOOST_TEST(!called);
 
     // create the file
     ofstream fs(file);
@@ -54,14 +54,14 @@ BOOST_AUTO_TEST_CASE(FileSignal)
     fs.close();
 
     // check the file is exist
-    BOOST_CHECK(boost::filesystem::exists(file));
+    BOOST_TEST(boost::filesystem::exists(file));
 
     // check caller is triggered as the file is exist
     dev::FileSignal::callIfFileExist(file, caller);
-    BOOST_CHECK(called);
+    BOOST_TEST(called);
 
     // check the file is deleted after trigger
-    BOOST_CHECK(!boost::filesystem::exists(file));
+    BOOST_TEST(!boost::filesystem::exists(file));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

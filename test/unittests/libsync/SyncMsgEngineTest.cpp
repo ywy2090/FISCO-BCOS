@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(SyncStatusPacketTest)
     auto fakeSessionPtr = fakeSyncToolsSet.createSession();
     fakeMsgEngine.messageHandler(fakeException, fakeSessionPtr, msgPtr);
 
-    BOOST_CHECK(fakeStatusPtr->hasPeer(NodeID()));
+    BOOST_TEST(fakeStatusPtr->hasPeer(NodeID()));
     fakeMsgEngine.messageHandler(fakeException, fakeSessionPtr, msgPtr);
     BOOST_CHECK_EQUAL(fakeStatusPtr->peerStatus(NodeID())->number, 0x1);
     BOOST_CHECK_EQUAL(fakeStatusPtr->peerStatus(NodeID())->genesisHash, h256(0xcdef));
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(SyncTransactionPacketTest)
     std::cout << "pop2TxPool finished" << std::endl;
     auto topTxs = txPoolPtr->topTransactions(1);
     std::cout << "topTransactions finished" << std::endl;
-    BOOST_CHECK(topTxs->size() == 1);
+    BOOST_TEST(topTxs->size() == 1);
     BOOST_CHECK_EQUAL((*topTxs)[0]->hash(), txPtr->hash());
     // TODO: this unit test may cause fatal error randomly
 }
@@ -255,9 +255,9 @@ BOOST_AUTO_TEST_CASE(SyncBlocksPacketTest)
     auto fakeSessionPtr = fakeSyncToolsSet.createSession();
     fakeMsgEngine.messageHandler(fakeException, fakeSessionPtr, msgPtr);
 
-    BOOST_CHECK(fakeStatusPtr->bq().size() == 1);
+    BOOST_TEST(fakeStatusPtr->bq().size() == 1);
     auto block = fakeStatusPtr->bq().top(true);
-    BOOST_CHECK(block->equalAll(fakeBlock));
+    BOOST_TEST(block->equalAll(fakeBlock));
 }
 
 BOOST_AUTO_TEST_CASE(SyncReqBlockPacketTest)
@@ -271,8 +271,8 @@ BOOST_AUTO_TEST_CASE(SyncReqBlockPacketTest)
         std::make_shared<SyncStatusPacket>(h512(0), 0, h256(), h256()));
     fakeMsgEngine.messageHandler(fakeException, fakeSessionPtr, msgPtr);
 
-    BOOST_CHECK(fakeStatusPtr->hasPeer(h512(0)));
-    BOOST_CHECK(!fakeStatusPtr->peerStatus(h512(0))->reqQueue.empty());
+    BOOST_TEST(fakeStatusPtr->hasPeer(h512(0)));
+    BOOST_TEST(!fakeStatusPtr->peerStatus(h512(0))->reqQueue.empty());
 }  // namespace test
 
 BOOST_AUTO_TEST_CASE(BatchSendTest)

@@ -43,7 +43,8 @@ BOOST_AUTO_TEST_CASE(SM_testEmptyKeccak256)
     BOOST_CHECK_EQUAL(
         ts, std::string("afe4ccac5ab7d52bcae36373676215368baf52d3905e1fecbe369cc120e97628"));
 
-    h256 emptyKeccak256(fromHex("1ab21d8355cfa17f8e61194831e81a8f22bec8c728fefb747ed035eb5082aa2b"));
+    h256 emptyKeccak256(
+        fromHex("1ab21d8355cfa17f8e61194831e81a8f22bec8c728fefb747ed035eb5082aa2b"));
     BOOST_REQUIRE_EQUAL(emptyKeccak256, EmptyHash);
 }
 
@@ -65,17 +66,17 @@ BOOST_AUTO_TEST_CASE(SM_testKeccak256CommonFunc)
     SecureFixedHash<32> copyed_keccak256 = sec_keccak256;
     // const byte* ptr = copyed_keccak256.data();
     /// const byte* p_sec = sec_keccak256.data();
-    BOOST_CHECK(copyed_keccak256.data() != sec_keccak256.data());
-    BOOST_CHECK(sec_keccak256.data());
+    BOOST_TEST(copyed_keccak256.data() != sec_keccak256.data());
+    BOOST_TEST(sec_keccak256.data());
 #if 0
     // test keccak256 with SecureFixedHash input
-    BOOST_CHECK(crypto::Hash(sec_keccak256).data());
+    BOOST_TEST(crypto::Hash(sec_keccak256).data());
 #endif
     // test keccak256Mac
     h256 egressMac(crypto::Hash("+++"));
     bytes magic{0x22, 0x40, 0x08, 0x91};
     sm3mac(egressMac.ref(), &magic, egressMac.ref());
-    BOOST_CHECK(
+    BOOST_TEST(
         toHex(egressMac) == "c58b0b390d16cdfc1b81cbf01614aa3d8ec3f47c81cd0e29cd0a61718a38ec83");
 }
 
@@ -91,7 +92,7 @@ BOOST_AUTO_TEST_CASE(SM_testSha256)
         bs.push_back((byte)plainText[i]);
     }
     bytesConstRef bsConst(&bs);
-    BOOST_CHECK(toJS(sm3(bsConst)) == cipherText);
+    BOOST_TEST(toJS(sm3(bsConst)) == cipherText);
 }
 
 BOOST_AUTO_TEST_CASE(SM_testRipemd160)
@@ -104,7 +105,7 @@ BOOST_AUTO_TEST_CASE(SM_testRipemd160)
         bs.push_back((byte)plainText[i]);
     }
     bytesConstRef bsConst(&bs);
-    BOOST_CHECK(toJS(ripemd160(bsConst)) == cipherText);
+    BOOST_TEST(toJS(ripemd160(bsConst)) == cipherText);
 }
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -120,7 +121,8 @@ BOOST_AUTO_TEST_CASE(testEmptyKeccak256)
     BOOST_CHECK_EQUAL(
         ts, std::string("6377c7e66081cb65e473c1b95db5195a27d04a7108b468890224bedbe1a8a6eb"));
 
-    h256 emptyKeccak256(fromHex("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"));
+    h256 emptyKeccak256(
+        fromHex("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"));
     BOOST_REQUIRE_EQUAL(emptyKeccak256, EmptyHash);
 }
 
@@ -140,19 +142,19 @@ BOOST_AUTO_TEST_CASE(testKeccak256CommonFunc)
     // test keccak256Secure
     SecureFixedHash<32> sec_keccak256 = keccak256Secure(ref(content_bytes));
     SecureFixedHash<32> copyed_keccak256 = sec_keccak256;
-    BOOST_CHECK(copyed_keccak256.data() != sec_keccak256.data());
-    BOOST_CHECK(sec_keccak256.data());
+    BOOST_TEST(copyed_keccak256.data() != sec_keccak256.data());
+    BOOST_TEST(sec_keccak256.data());
 #if 0
     // test keccak256 with SecureFixedHash input
-    BOOST_CHECK(crypto::Hash(sec_keccak256).data());
+    BOOST_TEST(crypto::Hash(sec_keccak256).data());
 #endif
     // test keccak256Mac
     h256 egressMac(crypto::Hash("+++"));
     bytes magic{0x22, 0x40, 0x08, 0x91};
     keccak256mac(egressMac.ref(), &magic, egressMac.ref());
-    BOOST_CHECK(toHex(egressMac) ==
-                "75759ba49fdef48a80840b669"
-                "9c4cc25ecb5e60f5dd0bf889381084ca6fc4199");
+    BOOST_TEST(toHex(egressMac) ==
+               "75759ba49fdef48a80840b669"
+               "9c4cc25ecb5e60f5dd0bf889381084ca6fc4199");
 }
 // test sha2
 BOOST_AUTO_TEST_CASE(testSha256)
@@ -166,7 +168,7 @@ BOOST_AUTO_TEST_CASE(testSha256)
         bs.push_back((byte)plainText[i]);
     }
     bytesConstRef bsConst(&bs);
-    BOOST_CHECK(toJS(sha256(bsConst)) == cipherText);
+    BOOST_TEST(toJS(sha256(bsConst)) == cipherText);
 }
 
 BOOST_AUTO_TEST_CASE(testRipemd160)
@@ -179,7 +181,7 @@ BOOST_AUTO_TEST_CASE(testRipemd160)
         bs.push_back((byte)plainText[i]);
     }
     bytesConstRef bsConst(&bs);
-    BOOST_CHECK(toJS(ripemd160(bsConst)) == cipherText);
+    BOOST_TEST(toJS(ripemd160(bsConst)) == cipherText);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(sycnStatus);
     }
     // check the medianTimeOffset
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->medianTimeOffset()) < 1000);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->medianTimeOffset()) < 1000);
 
     // case2: medianTimeOffset is the future time, after correcting the time, return to normal time
     LOG(INFO) << LOG_DESC("### test case2 ###");
@@ -83,14 +83,14 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
     nodeTimeMaintenance->tryToUpdatePeerTimeInfo(status);
 
     int64_t delta = 1000;
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->medianTimeOffset()) >= (120 * 60 * 1000 - delta));
+    BOOST_TEST(std::abs(nodeTimeMaintenance->medianTimeOffset()) >= (120 * 60 * 1000 - delta));
     // correcting the time
     for (auto const& status : sycStatusVec)
     {
         status->alignedTime = utcTime();
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(status);
     }
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->medianTimeOffset()) <= delta);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->medianTimeOffset()) <= delta);
 
     // case3: medianTimeOffset is the past time, after correcting the time, return to normal time
     LOG(INFO) << LOG_DESC("### test case3 ###");
@@ -99,14 +99,14 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
         status->alignedTime = utcTime() - 1200 * 60 * 1000;
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(status);
     }
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->medianTimeOffset()) >= (1200 * 60 * 1000 - delta));
+    BOOST_TEST(std::abs(nodeTimeMaintenance->medianTimeOffset()) >= (1200 * 60 * 1000 - delta));
     // correcting the time
     for (auto const& status : sycStatusVec)
     {
         status->alignedTime = utcTime();
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(status);
     }
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->medianTimeOffset()) <= delta);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->medianTimeOffset()) <= delta);
 
     // case4: all the time-offset of the same node is within 3min, not update the cache
     LOG(INFO) << LOG_DESC("### test case4 ###");
@@ -116,13 +116,13 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
         status->alignedTime = utcTime() + std::rand() % (3 * 60 * 1000 - 1000);
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(status);
     }
-    BOOST_CHECK(orgMedianTimeOffset == nodeTimeMaintenance->medianTimeOffset());
+    BOOST_TEST(orgMedianTimeOffset == nodeTimeMaintenance->medianTimeOffset());
     for (auto const& status : sycStatusVec)
     {
         status->alignedTime = utcTime() - std::rand() % (3 * 60 * 1000 - 1000);
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(status);
     }
-    BOOST_CHECK(orgMedianTimeOffset == nodeTimeMaintenance->medianTimeOffset());
+    BOOST_TEST(orgMedianTimeOffset == nodeTimeMaintenance->medianTimeOffset());
 
     // case5: mine time is error, 5 nodes time is error, and time of the left nodes is right
     LOG(INFO) << LOG_DESC("### test case5 ###");
@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
         sycStatusVec[i]->alignedTime = rightTime;
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(sycStatusVec[i]);
     }
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
 
     // case6: mine time is error, the time of 10 nodes are error, the time of the other nodes are
     // right
@@ -152,14 +152,14 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
         sycStatusVec[i]->alignedTime = rightTime;
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(sycStatusVec[i]);
     }
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
     // correct the time
     for (size_t i = 0; i < 9; i++)
     {
         sycStatusVec[i]->alignedTime = rightTime;
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(sycStatusVec[i]);
     }
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
 
     // case7: mine time is error, the time of 11  nodes are error, and the time of the other nodes
     // are right
@@ -180,11 +180,11 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
         sycStatusVec[i]->alignedTime = rightTime;
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(sycStatusVec[i]);
     }
-    BOOST_CHECK(nodeTimeMaintenance->medianTimeOffset() <= (maxOffset + delta));
+    BOOST_TEST(nodeTimeMaintenance->medianTimeOffset() <= (maxOffset + delta));
     // a node correct the time
     sycStatusVec[0]->alignedTime = rightTime;
     nodeTimeMaintenance->tryToUpdatePeerTimeInfo(sycStatusVec[0]);
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
 
     // all the node correct the time
     for (size_t i = 1; i < 11; i++)
@@ -192,7 +192,7 @@ BOOST_AUTO_TEST_CASE(testTryToUpdatePeerTimeInfo)
         sycStatusVec[i]->alignedTime = rightTime;
         nodeTimeMaintenance->tryToUpdatePeerTimeInfo(sycStatusVec[0]);
     }
-    BOOST_CHECK(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
+    BOOST_TEST(std::abs(nodeTimeMaintenance->getAlignedTime() - rightTime) <= delta);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

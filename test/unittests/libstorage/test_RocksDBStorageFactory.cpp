@@ -39,10 +39,10 @@ BOOST_AUTO_TEST_CASE(Constructor)
     rf.setDBOpitons(options);
     auto rocksdbStorage1 = rf.getStorage("1");
     auto rocksdbStorage2 = rf.getStorage("1");
-    BOOST_CHECK(rocksdbStorage1 == rocksdbStorage2);
+    BOOST_TEST(rocksdbStorage1 == rocksdbStorage2);
     auto rocksdbStorage3 = rf.getStorage("2");
-    BOOST_CHECK(rocksdbStorage1 != rocksdbStorage3);
-    BOOST_CHECK(rocksdbStorage2 != rocksdbStorage3);
+    BOOST_TEST(rocksdbStorage1 != rocksdbStorage3);
+    BOOST_TEST(rocksdbStorage2 != rocksdbStorage3);
 }
 
 

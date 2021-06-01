@@ -58,12 +58,12 @@ BOOST_AUTO_TEST_CASE(testSocket)
     m_socket.sslref();
     auto endpoint = m_socket.nodeIPEndpoint();
     m_socket.setNodeIPEndpoint(endpoint);
-    BOOST_CHECK(m_socket.isConnected() == false);
-    BOOST_CHECK(SSL_get_verify_mode(m_socket.sslref().native_handle()) ==
-                (boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert));
+    BOOST_TEST(m_socket.isConnected() == false);
+    BOOST_TEST(SSL_get_verify_mode(m_socket.sslref().native_handle()) ==
+               (boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert));
     /// close socket
     m_socket.close();
-    BOOST_CHECK(m_socket.isConnected() == false);
+    BOOST_TEST(m_socket.isConnected() == false);
 }
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace test

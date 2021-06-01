@@ -45,23 +45,23 @@ std::shared_ptr<VM> createAndInitVMSchedule(VMFlagType const& _vmFlag)
 
 void checkBasicCost(VMSchedule::Ptr _schedule)
 {
-    BOOST_CHECK(_schedule->stepGas0 == 0);
-    BOOST_CHECK(_schedule->stepGas1 == 2);
-    BOOST_CHECK(_schedule->stepGas2 == 3);
-    BOOST_CHECK(_schedule->stepGas3 == 5);
-    BOOST_CHECK(_schedule->stepGas4 == 8);
-    BOOST_CHECK(_schedule->stepGas5 == 10);
-    BOOST_CHECK(_schedule->stepGas6 == 20);
-    BOOST_CHECK(_schedule->sha3Gas == 30);
-    BOOST_CHECK(_schedule->sha3WordGas == 6);
+    BOOST_TEST(_schedule->stepGas0 == 0);
+    BOOST_TEST(_schedule->stepGas1 == 2);
+    BOOST_TEST(_schedule->stepGas2 == 3);
+    BOOST_TEST(_schedule->stepGas3 == 5);
+    BOOST_TEST(_schedule->stepGas4 == 8);
+    BOOST_TEST(_schedule->stepGas5 == 10);
+    BOOST_TEST(_schedule->stepGas6 == 20);
+    BOOST_TEST(_schedule->sha3Gas == 30);
+    BOOST_TEST(_schedule->sha3WordGas == 6);
 
-    BOOST_CHECK(_schedule->jumpdestGas == 1);
-    BOOST_CHECK(_schedule->logGas == 375);
-    BOOST_CHECK(_schedule->logDataGas == 8);
-    BOOST_CHECK(_schedule->logTopicGas == 375);
-    BOOST_CHECK(_schedule->memoryGas == 3);
-    BOOST_CHECK(_schedule->quadCoeffDiv == 512);
-    BOOST_CHECK(_schedule->copyGas == 3);
+    BOOST_TEST(_schedule->jumpdestGas == 1);
+    BOOST_TEST(_schedule->logGas == 375);
+    BOOST_TEST(_schedule->logDataGas == 8);
+    BOOST_TEST(_schedule->logTopicGas == 375);
+    BOOST_TEST(_schedule->memoryGas == 3);
+    BOOST_TEST(_schedule->quadCoeffDiv == 512);
+    BOOST_TEST(_schedule->copyGas == 3);
 }
 #endif
 
@@ -72,13 +72,13 @@ BOOST_AUTO_TEST_CASE(testBasicVMSchedule)
     auto evmSchedule = vm->vmSchedule();
     // check gasCost for evmSchedule
     checkBasicCost(evmSchedule);
-    BOOST_CHECK(evmSchedule->sloadGas == 200);
-    BOOST_CHECK(evmSchedule->sstoreSetGas == 20000);
-    BOOST_CHECK(evmSchedule->sstoreResetGas == 5000);
-    BOOST_CHECK(evmSchedule->createGas == 32000);
-    BOOST_CHECK(evmSchedule->valueTransferGas == 9000);
-    BOOST_CHECK(evmSchedule->callStipend == 2300);
-    BOOST_CHECK(evmSchedule->callNewAccount == 25000);
+    BOOST_TEST(evmSchedule->sloadGas == 200);
+    BOOST_TEST(evmSchedule->sstoreSetGas == 20000);
+    BOOST_TEST(evmSchedule->sstoreResetGas == 5000);
+    BOOST_TEST(evmSchedule->createGas == 32000);
+    BOOST_TEST(evmSchedule->valueTransferGas == 9000);
+    BOOST_TEST(evmSchedule->callStipend == 2300);
+    BOOST_TEST(evmSchedule->callNewAccount == 25000);
 #endif
 }
 
@@ -91,13 +91,13 @@ BOOST_AUTO_TEST_CASE(testFreeStorageVMSchedule)
     auto evmSchedule = vm->vmSchedule();
     // check gasCost for evmSchedule
     checkBasicCost(evmSchedule);
-    BOOST_CHECK(evmSchedule->createGas == 16000);
-    BOOST_CHECK(evmSchedule->sstoreSetGas == 1200);
-    BOOST_CHECK(evmSchedule->sstoreResetGas == 1200);
-    BOOST_CHECK(evmSchedule->sloadGas == 1200);
-    BOOST_CHECK(evmSchedule->valueTransferGas == 0);
-    BOOST_CHECK(evmSchedule->callStipend == 10);
-    BOOST_CHECK(evmSchedule->callNewAccount == 10);
+    BOOST_TEST(evmSchedule->createGas == 16000);
+    BOOST_TEST(evmSchedule->sstoreSetGas == 1200);
+    BOOST_TEST(evmSchedule->sstoreResetGas == 1200);
+    BOOST_TEST(evmSchedule->sloadGas == 1200);
+    BOOST_TEST(evmSchedule->valueTransferGas == 0);
+    BOOST_TEST(evmSchedule->callStipend == 10);
+    BOOST_TEST(evmSchedule->callNewAccount == 10);
 #endif
 }
 BOOST_AUTO_TEST_SUITE_END()

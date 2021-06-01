@@ -41,27 +41,27 @@ BOOST_AUTO_TEST_CASE(testJsToPublic)
         "0x519775d37a45a9d2c8a072e1701792f91"
         "da54a008de970e5c75ba0e4a198f76a";
     Public pub = jsToPublic(public_str);
-    BOOST_CHECK(pub == h512(public_str));
+    BOOST_TEST(pub == h512(public_str));
 
     KeyPair key_pair = KeyPair::create();
     pub = jsToPublic(toHex(key_pair.pub()));
-    BOOST_CHECK(pub != key_pair.pub());
+    BOOST_TEST(pub != key_pair.pub());
     pub = jsToPublic(toHexPrefixed(key_pair.pub()));
-    BOOST_CHECK(pub == key_pair.pub());
+    BOOST_TEST(pub == key_pair.pub());
     /// test jsToSecret
     std::string sec_str =
         "0xbcec428d5205abe0f0cc8a734083908d9eb8"
         "563e31f943d760786edf42ad67dd";
     Secret sec = jsToSecret(sec_str);
-    BOOST_CHECK(sec);
+    BOOST_TEST(sec);
 
     sec_str = "1234324";
     sec = jsToSecret(sec_str);
-    BOOST_CHECK(sec);
+    BOOST_TEST(sec);
 
     /// test jsToAddress
     std::string addr = toHexPrefixed(toAddress(key_pair.pub()));
-    BOOST_CHECK(jsToAddress(addr) == toAddress(key_pair.pub()));
+    BOOST_TEST(jsToAddress(addr) == toAddress(key_pair.pub()));
     // exception test
     std::string invalid_addr = "0x1234";
     BOOST_CHECK_THROW(jsToAddress(invalid_addr), dev::eth::InvalidAddress);
@@ -71,8 +71,8 @@ BOOST_AUTO_TEST_CASE(testJsToPublic)
 
 BOOST_AUTO_TEST_CASE(testToBlockNumber)
 {
-    BOOST_CHECK(dev::eth::jsToBlockNumber("0x14") == (dev::eth::BlockNumber)(20));
-    BOOST_CHECK(dev::eth::jsToBlockNumber("100") == (dev::eth::BlockNumber)(100));
+    BOOST_TEST(dev::eth::jsToBlockNumber("0x14") == (dev::eth::BlockNumber)(20));
+    BOOST_TEST(dev::eth::jsToBlockNumber("100") == (dev::eth::BlockNumber)(100));
     BOOST_CHECK_THROW(dev::eth::jsToBlockNumber("adk"), std::exception);
 }
 BOOST_AUTO_TEST_SUITE_END()

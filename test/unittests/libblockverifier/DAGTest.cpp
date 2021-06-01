@@ -61,10 +61,10 @@ BOOST_AUTO_TEST_CASE(DAGPopConsumeTest)
     dag.addEdge(6, 7);
     // single 8 vertex
 
-    // BOOST_CHECK(dag.isQueueEmpty());
+    // BOOST_TEST(dag.isQueueEmpty());
 
     dag.generate();
-    // BOOST_CHECK(!dag.isQueueEmpty());
+    // BOOST_TEST(!dag.isQueueEmpty());
 
     set<ID> topSet;
     for (int i = 0; i < 9; i++)
@@ -78,9 +78,9 @@ BOOST_AUTO_TEST_CASE(DAGPopConsumeTest)
         topSet.insert(id);
     }
     BOOST_CHECK_EQUAL(topSet.size(), 3);
-    BOOST_CHECK(have(topSet, 0));
-    BOOST_CHECK(have(topSet, 6));
-    BOOST_CHECK(have(topSet, 8));
+    BOOST_TEST(have(topSet, 0));
+    BOOST_TEST(have(topSet, 6));
+    BOOST_TEST(have(topSet, 8));
     topSet.clear();
     consumeAndPush(dag, 0, topSet);
     std::cout << "consume " << 0 << std::endl;
@@ -100,9 +100,9 @@ BOOST_AUTO_TEST_CASE(DAGPopConsumeTest)
         topSet.insert(id);
     }
     BOOST_CHECK_EQUAL(topSet.size(), 3);
-    BOOST_CHECK(have(topSet, 1));
-    BOOST_CHECK(have(topSet, 3));
-    BOOST_CHECK(have(topSet, 7));
+    BOOST_TEST(have(topSet, 1));
+    BOOST_TEST(have(topSet, 3));
+    BOOST_TEST(have(topSet, 7));
     topSet.clear();
     consumeAndPush(dag, 1, topSet);
     std::cout << "consume " << 1 << std::endl;
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(DAGPopConsumeTest)
         topSet.insert(id);
     }
     BOOST_CHECK_EQUAL(topSet.size(), 1);
-    BOOST_CHECK(have(topSet, 2));
+    BOOST_TEST(have(topSet, 2));
     topSet.clear();
     consumeAndPush(dag, 2, topSet);
     std::cout << "consume " << 2 << std::endl;
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(DAGPopConsumeTest)
         topSet.insert(id);
     }
     BOOST_CHECK_EQUAL(topSet.size(), 1);
-    BOOST_CHECK(have(topSet, 4));
+    BOOST_TEST(have(topSet, 4));
     topSet.clear();
     consumeAndPush(dag, 4, topSet);
     std::cout << "consume " << 4 << std::endl;
@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_CASE(DAGPopConsumeTest)
         topSet.insert(id);
     }
     BOOST_CHECK_EQUAL(topSet.size(), 1);
-    BOOST_CHECK(have(topSet, 5));
+    BOOST_TEST(have(topSet, 5));
     topSet.clear();
     consumeAndPush(dag, 5, topSet);
     std::cout << "consume " << 5 << std::endl;

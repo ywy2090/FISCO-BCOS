@@ -39,11 +39,11 @@ void checkPBFTMsg(T const& msg, KeyPair const _keyPair = KeyPair::create(),
     dev::consensus::IDXTYPE const& _idx = dev::consensus::MAXIDX,
     u256 const& _timestamp = Invalid256, h256 const& _blockHash = h256())
 {
-    BOOST_CHECK(msg.height == _height);
-    BOOST_CHECK(msg.view == _view);
-    BOOST_CHECK(msg.idx == _idx);
-    BOOST_CHECK(msg.timestamp == _timestamp);
-    BOOST_CHECK(msg.block_hash == _blockHash);
+    BOOST_TEST(msg.height == _height);
+    BOOST_TEST(msg.view == _view);
+    BOOST_TEST(msg.idx == _idx);
+    BOOST_TEST(msg.timestamp == _timestamp);
+    BOOST_TEST(msg.block_hash == _blockHash);
     if (!msg.sig.empty())
     {
         if (g_BCOSConfig.SMCrypto())

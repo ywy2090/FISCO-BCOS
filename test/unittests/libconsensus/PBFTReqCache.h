@@ -60,7 +60,7 @@ void FakeInvalidReq(PrepareReq::Ptr prepare_req, PBFTReqCache& reqCache, S& cach
         /// update height of req
         req->height -= (i + 1);
         reqCache.addReq(req, cache);
-        BOOST_CHECK(reqCache.getSizeFromCache(prepare_req->block_hash, cache) == i + 1);
+        BOOST_TEST(reqCache.getSizeFromCache(prepare_req->block_hash, cache) == i + 1);
     }
     /// fake invalid hash
     for (size_t i = 0; i < invalidHash; i++)
@@ -76,7 +76,7 @@ void FakeInvalidReq(PrepareReq::Ptr prepare_req, PBFTReqCache& reqCache, S& cach
             std::make_shared<T>(*prepare_req, KeyPair::create(), prepare_req->idx);
         req->height += 1;
         reqCache.addReq(req, cache);
-        BOOST_CHECK(
+        BOOST_TEST(
             reqCache.getSizeFromCache(prepare_req->block_hash, cache) == invalidHeightNum + i + 1);
     }
 }

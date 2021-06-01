@@ -68,11 +68,11 @@ void testWriteFile(const std::string& file_dir, const std::string& content, unsi
     {
         file_name = file_dir + "/" + toString(i) + ".txt";
         create_file(file_name, content);
-        BOOST_CHECK(boost::filesystem::exists(file_name));
+        BOOST_TEST(boost::filesystem::exists(file_name));
         // test content
-        BOOST_CHECK(contents(file_name) == asBytes(content));
+        BOOST_TEST(contents(file_name) == asBytes(content));
         // test contentsString
-        BOOST_CHECK(contentsString(file_name) == content);
+        BOOST_TEST(contentsString(file_name) == content);
         // test contentsSec
         contentsSec(file_name);
     }
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(testFileOptions)
     for (unsigned i = 0; i < size; i++)
     {
         if (boost::filesystem::exists(file_name))
-            BOOST_CHECK(contentsString(file_name) == content);
+            BOOST_TEST(contentsString(file_name) == content);
     }
     remove_files(file_dir);
     remove_files(file_dir2);

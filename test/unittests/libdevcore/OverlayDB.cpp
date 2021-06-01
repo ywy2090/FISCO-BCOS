@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(testOverlayDBKeyExist)
 
     dev::OverlayDB overlayDB(std::move(dbp));
     h256 key("0x2979B90fF15080A5F956bE0dD2dF1A345b120183");
-    BOOST_CHECK(overlayDB.exists(key) == false);
+    BOOST_TEST(overlayDB.exists(key) == false);
 
     boost::filesystem::remove_all(path);
 }
@@ -68,19 +68,19 @@ BOOST_AUTO_TEST_CASE(testOverlayDBKeyValue)
     overlayDB.commit();
     overlayDB1.commit();
 
-    BOOST_CHECK(overlayDB.exists(key) == true);
+    BOOST_TEST(overlayDB.exists(key) == true);
 
     overlayDB.kill(key);
     overlayDB1.kill(key);
 
-    BOOST_CHECK(overlayDB.exists(key) == true);    // will find key in leveldb
-    BOOST_CHECK(overlayDB1.exists(key) == false);  // will find key in leveldb
+    BOOST_TEST(overlayDB.exists(key) == true);    // will find key in leveldb
+    BOOST_TEST(overlayDB1.exists(key) == false);  // will find key in leveldb
 
     auto keyMap = overlayDB.get();
-    BOOST_CHECK(keyMap.size() == 0);
+    BOOST_TEST(keyMap.size() == 0);
 
     auto keys = overlayDB.keys();
-    BOOST_CHECK(keys.size() == 0);
+    BOOST_TEST(keys.size() == 0);
 
     boost::filesystem::remove_all(path);
 }
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(testOverlayDBAux)
 
     auto valueBytes = overlayDB.lookupAux(key);
     valueStr = dev::asString(valueBytes);
-    BOOST_CHECK(valueStr == "helloworld");
+    BOOST_TEST(valueStr == "helloworld");
 
     boost::filesystem::remove_all(path);
 }

@@ -797,12 +797,12 @@ BOOST_AUTO_TEST_CASE(hashedLowerBound)
          ++itTrie, ++itHashToKey)
     {
         // check hashed key
-        BOOST_CHECK((*itTrie).first.toBytes() == itHashToKey->first.asBytes());
+        BOOST_TEST((*itTrie).first.toBytes() == itHashToKey->first.asBytes());
         // check key
-        BOOST_CHECK(itTrie.key() == bytes(itHashToKey->second.begin(), itHashToKey->second.end()));
+        BOOST_TEST(itTrie.key() == bytes(itHashToKey->second.begin(), itHashToKey->second.end()));
     }
 
-    BOOST_CHECK(itHashToKey == hashToKey.end());
+    BOOST_TEST(itHashToKey == hashToKey.end());
 }
 
 BOOST_AUTO_TEST_CASE(trieStess)

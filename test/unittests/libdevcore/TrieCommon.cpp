@@ -38,14 +38,14 @@ BOOST_AUTO_TEST_CASE(NibbleSlice)
     LOG(INFO) << "NibbleSlice1: " << nb1;
     LOG(INFO) << "NibbleSlice2: " << nb2;
 
-    BOOST_CHECK(nb2.isEarlierThan(nb1));
+    BOOST_TEST(nb2.isEarlierThan(nb1));
     nb1.clear();
     LOG(INFO) << "Clear NibbleSlice1";
     LOG(INFO) << "NibbleSlice1: " << nb1;
     LOG(INFO) << "NibbleSlice2: " << nb2;
-    BOOST_CHECK(nb1.empty());
-    BOOST_CHECK(nb1 != nb2);
-    BOOST_CHECK(!nb2.isEarlierThan(nb1));
+    BOOST_TEST(nb1.empty());
+    BOOST_TEST(nb1 != nb2);
+    BOOST_TEST(!nb2.isEarlierThan(nb1));
 }
 
 BOOST_AUTO_TEST_SUITE_END() BOOST_AUTO_TEST_SUITE_END()

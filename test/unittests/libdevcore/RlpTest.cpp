@@ -101,8 +101,7 @@ BOOST_AUTO_TEST_CASE(testTxRlp)
     RLP const rlp(rlpData);
     dev::h256 r = rlp[11].toInt<u256>();
     std::cout << "decoded r:" << toHex(r);
-    BOOST_CHECK(
-        dev::toHex(r) == "3faa8232ad248fc31c68eb56e8bbedf4e70be9381460afd99819b8cf8b6c91cb");
+    BOOST_TEST(dev::toHex(r) == "3faa8232ad248fc31c68eb56e8bbedf4e70be9381460afd99819b8cf8b6c91cb");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

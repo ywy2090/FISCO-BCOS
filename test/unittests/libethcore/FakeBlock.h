@@ -66,9 +66,9 @@ public:
         m_block->setTransactions(m_transaction);
         m_block->setBlockHeader(m_blockHeader);
         m_block->setTransactionReceipts(m_transactionReceipt);
-        BOOST_CHECK(*m_transaction == *m_block->transactions());
-        BOOST_CHECK(*m_sigList == *(m_block->sigList()));
-        BOOST_CHECK(m_blockHeader = m_block->header());
+        BOOST_TEST(*m_transaction == *m_block->transactions());
+        BOOST_TEST(*m_sigList == *(m_block->sigList()));
+        BOOST_TEST(m_blockHeader = m_block->header());
         m_block->encode(m_blockData);
     }
 

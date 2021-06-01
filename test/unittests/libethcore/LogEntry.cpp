@@ -48,18 +48,18 @@ BOOST_AUTO_TEST_CASE(LogEntryBasic)
     bytes data({'a', 'b', '5', '6'});
 
     LogEntry le = LogEntry(address, topics, data);
-    BOOST_CHECK(le.address == address);
-    BOOST_CHECK(le.topics == topics);
-    BOOST_CHECK(le.data == data);
+    BOOST_TEST(le.address == address);
+    BOOST_TEST(le.topics == topics);
+    BOOST_TEST(le.data == data);
 
     RLPStream s;
     le.streamRLP(s);
     RLP r(&s.out());
     LogEntry compareLe(r);
 
-    BOOST_CHECK(le.address == compareLe.address);
-    BOOST_CHECK(le.topics == compareLe.topics);
-    BOOST_CHECK(le.data == compareLe.data);
+    BOOST_TEST(le.address == compareLe.address);
+    BOOST_TEST(le.topics == compareLe.topics);
+    BOOST_TEST(le.data == compareLe.data);
 }
 
 BOOST_AUTO_TEST_CASE(BloomTest)
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(BloomTest)
         "000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000"
         "00000000000000000000000000000000000000000000000000000000000000");
     BOOST_CHECK_EQUAL(bl.hex(), compareLb);
-    // BOOST_CHECK(bl.hex() == compareLb);
+    // BOOST_TEST(bl.hex() == compareLb);
 }
 
 BOOST_FIXTURE_TEST_CASE(SM_BloomTest, SM_CryptoTestFixture)
@@ -108,7 +108,7 @@ BOOST_FIXTURE_TEST_CASE(SM_BloomTest, SM_CryptoTestFixture)
         "0000"
         "000000000000000000000000000000000000800000");
     BOOST_CHECK_EQUAL(bl.hex(), compareLb);
-    // BOOST_CHECK(bl.hex() == compareLb);
+    // BOOST_TEST(bl.hex() == compareLb);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

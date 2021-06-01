@@ -44,12 +44,12 @@ BOOST_AUTO_TEST_CASE(testRotateWorkingSealerWithoutRotate)
     auto sealerAccount = dev::toAddress(fixture->m_keyPair.pub());
     BOOST_CHECK_NO_THROW(fixture->workingSealerManagerPrecompiled->call(
         fixture->context, bytesConstRef(&in), sealerAccount, sealerAccount));
-    BOOST_CHECK(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "");
+    BOOST_TEST(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "");
 
     // get the current workingSealers and sealers
     fixture->getSealerList();
-    BOOST_CHECK(fixture->m_workingSealerList == fixture->sealerList);
-    BOOST_CHECK(fixture->m_pendingSealerList.size() == 0);
+    BOOST_TEST(fixture->m_workingSealerList == fixture->sealerList);
+    BOOST_TEST(fixture->m_pendingSealerList.size() == 0);
     auto workingSealers = fixture->m_workingSealerList;
     auto pendingSealers = fixture->m_pendingSealerList;
     auto orgSealerList = fixture->sealerList;
@@ -61,10 +61,10 @@ BOOST_AUTO_TEST_CASE(testRotateWorkingSealerWithoutRotate)
             fixture->context, bytesConstRef(&in), sealerAccount, sealerAccount));
         fixture->getSealerList();
         // check the result is equal
-        BOOST_CHECK(workingSealers == fixture->m_workingSealerList);
-        BOOST_CHECK(pendingSealers == fixture->m_pendingSealerList);
-        BOOST_CHECK(fixture->m_pendingSealerList.size() == 0);
-        BOOST_CHECK(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "");
+        BOOST_TEST(workingSealers == fixture->m_workingSealerList);
+        BOOST_TEST(pendingSealers == fixture->m_pendingSealerList);
+        BOOST_TEST(fixture->m_pendingSealerList.size() == 0);
+        BOOST_TEST(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "");
     }
 
     // case2: valid proof, but the origin is not exist in the workingSealers
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(testRotateWorkingSealerWithoutRotate)
                           fixture->context, bytesConstRef(&in), nonSealerAccount, nonSealerAccount),
         PrecompiledException);
     // check INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE flag
-    BOOST_CHECK(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
+    BOOST_TEST(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
 
     // case3: invalid input(must be lastest hash)
     LOG(INFO) << LOG_DESC("testRotateWorkingSealerWithoutRotate: valid proof, invalid input");
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(testRotateWorkingSealerWithoutRotate)
     BOOST_CHECK_THROW(fixture->workingSealerManagerPrecompiled->call(
                           fixture->context, bytesConstRef(&in), nonSealerAccount, nonSealerAccount),
         PrecompiledException);
-    BOOST_CHECK(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
+    BOOST_TEST(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
 
     // case4: invalid public key(the origin is not one of the sealers)
     LOG(INFO) << LOG_DESC("testRotateWorkingSealerWithoutRotate: invalid public key");
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(testRotateWorkingSealerWithoutRotate)
     BOOST_CHECK_THROW(fixture->workingSealerManagerPrecompiled->call(
                           fixture->context, bytesConstRef(&in), nonSealerAccount, nonSealerAccount),
         PrecompiledException);
-    BOOST_CHECK(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
+    BOOST_TEST(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
 
     // case5: invalid proof
     LOG(INFO) << LOG_DESC("testRotateWorkingSealerWithoutRotate: invalid proof");
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(testRotateWorkingSealerWithoutRotate)
     BOOST_CHECK_THROW(fixture->workingSealerManagerPrecompiled->call(
                           fixture->context, bytesConstRef(&in), sealerAccount, sealerAccount),
         PrecompiledException);
-    BOOST_CHECK(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
+    BOOST_TEST(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "1");
 
     // case6: vaild proof
     LOG(INFO) << LOG_DESC(
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(testRotateWorkingSealerWithoutRotate)
     sealerAccount = dev::toAddress(fixture->m_keyPair.pub());
     BOOST_CHECK_NO_THROW(fixture->workingSealerManagerPrecompiled->call(
         fixture->context, bytesConstRef(&in), sealerAccount, sealerAccount));
-    BOOST_CHECK(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "0");
+    BOOST_TEST(fixture->getSystemConfigByKey(INTERNAL_SYSTEM_KEY_NOTIFY_ROTATE) == "0");
 }
 
 BOOST_AUTO_TEST_CASE(testRotateOneSealer)
@@ -146,10 +146,10 @@ BOOST_AUTO_TEST_CASE(testRotateOneSealer)
     fixture->getSealerList();
     auto currentWorkingSealerList = fixture->m_workingSealerList;
     auto currentPendingSealerList = fixture->m_pendingSealerList;
-    BOOST_CHECK(fixture->m_workingSealerList.size() == 4);
-    BOOST_CHECK(fixture->m_pendingSealerList.size() == 6);
-    BOOST_CHECK(fixture->m_workingSealerList != orgWorkingSealers);
-    BOOST_CHECK(fixture->m_pendingSealerList != orgPendingSealers);
+    BOOST_TEST(fixture->m_workingSealerList.size() == 4);
+    BOOST_TEST(fixture->m_pendingSealerList.size() == 6);
+    BOOST_TEST(fixture->m_workingSealerList != orgWorkingSealers);
+    BOOST_TEST(fixture->m_pendingSealerList != orgPendingSealers);
 
     // check the result is consistent for every sealer
     for (size_t i = 0; i < fixture->sealerList.size(); i++)
@@ -158,10 +158,10 @@ BOOST_AUTO_TEST_CASE(testRotateOneSealer)
         BOOST_CHECK_NO_THROW(otherNodeFixture->workingSealerManagerPrecompiled->call(
             otherNodeFixture->context, bytesConstRef(&in), origin, origin));
         otherNodeFixture->getSealerList();
-        BOOST_CHECK(otherNodeFixture->m_workingSealerList.size() == 4);
-        BOOST_CHECK(otherNodeFixture->m_pendingSealerList.size() == 6);
-        BOOST_CHECK(currentWorkingSealerList == otherNodeFixture->m_workingSealerList);
-        BOOST_CHECK(currentPendingSealerList == otherNodeFixture->m_pendingSealerList);
+        BOOST_TEST(otherNodeFixture->m_workingSealerList.size() == 4);
+        BOOST_TEST(otherNodeFixture->m_pendingSealerList.size() == 6);
+        BOOST_TEST(currentWorkingSealerList == otherNodeFixture->m_workingSealerList);
+        BOOST_TEST(currentPendingSealerList == otherNodeFixture->m_pendingSealerList);
     }
 }
 
@@ -210,8 +210,8 @@ BOOST_AUTO_TEST_CASE(testRotateMultiSealers)
         fixture->context, bytesConstRef(&in), origin, origin));
     fixture->getSealerList();
 
-    BOOST_CHECK(fixture->m_workingSealerList.size() == 6);
-    BOOST_CHECK(fixture->m_pendingSealerList.size() == 2);
+    BOOST_TEST(fixture->m_workingSealerList.size() == 6);
+    BOOST_TEST(fixture->m_pendingSealerList.size() == 2);
 
     // remove 1 pendingSealer, remove 2 workingSealers
     fixture->updateNodeListType(fixture->m_pendingSealerList, 1, NODE_TYPE_OBSERVER);
@@ -224,8 +224,8 @@ BOOST_AUTO_TEST_CASE(testRotateMultiSealers)
     BOOST_CHECK_NO_THROW(fixture->workingSealerManagerPrecompiled->call(
         fixture->context, bytesConstRef(&in), origin, origin));
     fixture->getSealerList();
-    BOOST_CHECK(fixture->m_workingSealerList.size() == 5);
-    BOOST_CHECK(fixture->m_pendingSealerList.size() == 0);
+    BOOST_TEST(fixture->m_workingSealerList.size() == 5);
+    BOOST_TEST(fixture->m_pendingSealerList.size() == 0);
 
     // add 1 pending sealer, remove 2 workingSealers
     fixture->updateNodeListType(fixture->m_observerList, 1, NODE_TYPE_SEALER);
@@ -238,8 +238,8 @@ BOOST_AUTO_TEST_CASE(testRotateMultiSealers)
     BOOST_CHECK_NO_THROW(fixture->workingSealerManagerPrecompiled->call(
         fixture->context, bytesConstRef(&in), origin, origin));
     fixture->getSealerList();
-    BOOST_CHECK(fixture->m_workingSealerList.size() == 4);
-    BOOST_CHECK(fixture->m_pendingSealerList.size() == 0);
+    BOOST_TEST(fixture->m_workingSealerList.size() == 4);
+    BOOST_TEST(fixture->m_pendingSealerList.size() == 0);
 
     // remove all the workingSealers into sealer
     auto workingSealerSize = fixture->m_workingSealerList.size();
@@ -254,8 +254,8 @@ BOOST_AUTO_TEST_CASE(testRotateMultiSealers)
     BOOST_CHECK_NO_THROW(fixture->workingSealerManagerPrecompiled->call(
         fixture->context, bytesConstRef(&in), origin, origin));
     fixture->getSealerList();
-    BOOST_CHECK(fixture->m_workingSealerList.size() == 3);
-    BOOST_CHECK(fixture->m_pendingSealerList.size() == 0);
+    BOOST_TEST(fixture->m_workingSealerList.size() == 3);
+    BOOST_TEST(fixture->m_pendingSealerList.size() == 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

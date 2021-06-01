@@ -162,7 +162,7 @@ BOOST_AUTO_TEST_CASE(syncInfoFormatTest)
 
     Json::Reader reader;
     Json::Value syncInfo;
-    BOOST_CHECK(reader.parse(info, syncInfo));  // return string can parse to json obj
+    BOOST_TEST(reader.parse(info, syncInfo));  // return string can parse to json obj
 }
 
 BOOST_AUTO_TEST_CASE(ConstructorTest)
@@ -464,14 +464,14 @@ BOOST_AUTO_TEST_CASE(DoWorkTest)
     sync->doWork();
 
     sync->noteDownloadingBegin();
-    BOOST_CHECK(sync->status().state == SyncState::Downloading);
+    BOOST_TEST(sync->status().state == SyncState::Downloading);
     sync->doWork();
-    // BOOST_CHECK(sync->status().state == SyncState::Idle);
+    // BOOST_TEST(sync->status().state == SyncState::Idle);
 
     sync->noteDownloadingBegin();
-    BOOST_CHECK(sync->status().state == SyncState::Downloading);
+    BOOST_TEST(sync->status().state == SyncState::Downloading);
     sync->noteDownloadingFinish();
-    BOOST_CHECK(sync->status().state == SyncState::Idle);
+    BOOST_TEST(sync->status().state == SyncState::Idle);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

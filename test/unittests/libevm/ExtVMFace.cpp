@@ -45,11 +45,11 @@ BOOST_AUTO_TEST_CASE(testEVMCTrans)
     /// test fromEVMC
     Address transed_eth_addr = fromEvmC(evm_addr);
     // std::cout << "transed address:" << toHex(transed_eth_addr) << std::endl;
-    BOOST_CHECK(eth_addr == transed_eth_addr);
+    BOOST_TEST(eth_addr == transed_eth_addr);
     /// test u256 translation
     evmc_uint256be evm_uint = toEvmC(crypto::Hash("+++"));
     u256 eth_u256 = fromEvmC(evm_uint);
-    BOOST_CHECK(eth_u256 == u256(crypto::Hash("+++")));
+    BOOST_TEST(eth_u256 == u256(crypto::Hash("+++")));
 }
 
 BOOST_AUTO_TEST_CASE(testFunctionTables)
@@ -67,17 +67,17 @@ BOOST_AUTO_TEST_CASE(testFunctionTables)
     /// test account_exists
     evmc_address code_addr = toEvmC(fake_ext_vm.myAddress());
     int exist = fake_ext_vm.interface->account_exists(&fake_ext_vm, &code_addr);
-    BOOST_CHECK(exist == 1);
+    BOOST_TEST(exist == 1);
     evmc_address sender_addr = toEvmC(fake_ext_vm.origin());
     exist = fake_ext_vm.interface->account_exists(&fake_ext_vm, &sender_addr);
-    BOOST_CHECK(exist == 1);
+    BOOST_TEST(exist == 1);
     evmc_address caller_addr = toEvmC(fake_ext_vm.caller());
     exist = fake_ext_vm.interface->account_exists(&fake_ext_vm, &caller_addr);
-    BOOST_CHECK(exist == 1);
+    BOOST_TEST(exist == 1);
     /// test account doesn't exists
     code_addr = toEvmC(Address("0xa12312a"));
     exist = fake_ext_vm.interface->account_exists(&fake_ext_vm, &code_addr);
-    BOOST_CHECK(exist == 0);
+    BOOST_TEST(exist == 0);
 
     ///========== TEST setStorage and getStorage=====================
     /// test setStorage
@@ -92,39 +92,39 @@ BOOST_AUTO_TEST_CASE(testFunctionTables)
     evmc_storage_status status =
         fake_ext_vm.interface->set_storage(&fake_ext_vm, &code_addr, &evm_key, &evm_value);
     // std::cout << "#########callback set_storage succ" << std::endl;
-    BOOST_CHECK(status == EVMC_STORAGE_ADDED);
-    BOOST_CHECK(origin_refunds == fake_ext_vm.sub().refunds);
+    BOOST_TEST(status == EVMC_STORAGE_ADDED);
+    BOOST_TEST(origin_refunds == fake_ext_vm.sub().refunds);
     /// test getStorage
     evmc_uint256be result;
     result = fake_ext_vm.interface->get_storage(&fake_ext_vm, &code_addr, &evm_key);
     // std::cout<<"####fromEvmC(result):"<<toString(fromEvmC(result))<<std::endl;
     // std::cout<<"####fromEvmC(evm_value):"<<toString(fromEvmC(evm_value))<<std::endl;
-    BOOST_CHECK(fromEvmC(result) == fromEvmC(evm_value));
-    BOOST_CHECK(origin_refunds == fake_ext_vm.sub().refunds);
+    BOOST_TEST(fromEvmC(result) == fromEvmC(evm_value));
+    BOOST_TEST(origin_refunds == fake_ext_vm.sub().refunds);
     /// modify storage
     evmc_uint256be evm_new_value = toEvmC(crypto::Hash("hello, modified"));
     status = fake_ext_vm.interface->set_storage(&fake_ext_vm, &code_addr, &evm_key, &evm_new_value);
-    BOOST_CHECK(status == EVMC_STORAGE_MODIFIED);
-    BOOST_CHECK(origin_refunds == fake_ext_vm.sub().refunds);
+    BOOST_TEST(status == EVMC_STORAGE_MODIFIED);
+    BOOST_TEST(origin_refunds == fake_ext_vm.sub().refunds);
     /// callbcak getStorage to make sure value has been updated
     result = fake_ext_vm.interface->get_storage(&fake_ext_vm, &code_addr, &evm_key);
-    BOOST_CHECK(fromEvmC(result) == fromEvmC(evm_new_value));
-    BOOST_CHECK(origin_refunds == fake_ext_vm.sub().refunds);
+    BOOST_TEST(fromEvmC(result) == fromEvmC(evm_new_value));
+    BOOST_TEST(origin_refunds == fake_ext_vm.sub().refunds);
     /// no modify, but callback SetStorage
     status = fake_ext_vm.interface->set_storage(&fake_ext_vm, &code_addr, &evm_key, &evm_new_value);
-    BOOST_CHECK(status == EVMC_STORAGE_UNCHANGED);
+    BOOST_TEST(status == EVMC_STORAGE_UNCHANGED);
     /// check has not been changed
     result = fake_ext_vm.interface->get_storage(&fake_ext_vm, &code_addr, &evm_key);
-    BOOST_CHECK(fromEvmC(result) == fromEvmC(evm_new_value));
-    BOOST_CHECK(origin_refunds == fake_ext_vm.sub().refunds);
+    BOOST_TEST(fromEvmC(result) == fromEvmC(evm_new_value));
+    BOOST_TEST(origin_refunds == fake_ext_vm.sub().refunds);
     /// test EVMC_STORAGE_DELETED(set value to 0)
     evm_new_value = toEvmC(u256(0));
     status = fake_ext_vm.interface->set_storage(&fake_ext_vm, &code_addr, &evm_key, &evm_new_value);
-    BOOST_CHECK(status == EVMC_STORAGE_DELETED);
+    BOOST_TEST(status == EVMC_STORAGE_DELETED);
     result = fake_ext_vm.interface->get_storage(&fake_ext_vm, &code_addr, &evm_key);
-    BOOST_CHECK(fromEvmC(result) == fromEvmC(evm_new_value));
+    BOOST_TEST(fromEvmC(result) == fromEvmC(evm_new_value));
     /// check refunds
-    BOOST_CHECK(fake_ext_vm.sub().refunds == (origin_refunds + u256(15000)));
+    BOOST_TEST(fake_ext_vm.sub().refunds == (origin_refunds + u256(15000)));
 
     ///========== TEST call contract=====================
     evmc_message message;
@@ -142,26 +142,26 @@ BOOST_AUTO_TEST_CASE(testFunctionTables)
     /// test call function
     evmc_result call_result;
     call_result = fake_ext_vm.interface->call(&fake_ext_vm, &message);
-    BOOST_CHECK(call_result.gas_left == (message.gas - 10));
-    BOOST_CHECK(call_result.status_code == EVMC_SUCCESS);
+    BOOST_TEST(call_result.gas_left == (message.gas - 10));
+    BOOST_TEST(call_result.status_code == EVMC_SUCCESS);
     std::string origin_str = "fake call";
-    BOOST_CHECK(memcmp(call_result.output_data, origin_str.c_str(), call_result.output_size) == 0);
+    BOOST_TEST(memcmp(call_result.output_data, origin_str.c_str(), call_result.output_size) == 0);
     /// test evmc_get_optional_storage
     auto* data = evmc_get_optional_storage(&call_result);
-    BOOST_CHECK(memcmp(data->pointer, origin_str.c_str(), call_result.output_size) == 0);
+    BOOST_TEST(memcmp(data->pointer, origin_str.c_str(), call_result.output_size) == 0);
     ///========== TEST emit_log(eth::log)=====================
     evmc_uint256be topics[2];
     topics[0] = toEvmC(crypto::Hash("0"));
     topics[1] = toEvmC(crypto::Hash("1"));
     fake_ext_vm.interface->emit_log(
         &fake_ext_vm, &code_addr, call_result.output_data, call_result.output_size, topics, 2);
-    BOOST_CHECK(fake_ext_vm.sub().logs.size() == 1);
-    BOOST_CHECK(fake_ext_vm.sub().logs[0].topics.size() == 2);
-    BOOST_CHECK(fake_ext_vm.sub().logs[0].topics[0] == crypto::Hash("0"));
-    BOOST_CHECK(fake_ext_vm.sub().logs[0].topics[1] == crypto::Hash("1"));
-    BOOST_CHECK(memcpy(
+    BOOST_TEST(fake_ext_vm.sub().logs.size() == 1);
+    BOOST_TEST(fake_ext_vm.sub().logs[0].topics.size() == 2);
+    BOOST_TEST(fake_ext_vm.sub().logs[0].topics[0] == crypto::Hash("0"));
+    BOOST_TEST(fake_ext_vm.sub().logs[0].topics[1] == crypto::Hash("1"));
+    BOOST_TEST(memcpy(
         fake_ext_vm.sub().logs[0].data.data(), call_result.output_data, call_result.output_size));
-    BOOST_CHECK(fake_ext_vm.sub().logs[0].data.size() == call_result.output_size);
+    BOOST_TEST(fake_ext_vm.sub().logs[0].data.size() == call_result.output_size);
     /// test release
     call_result.release(&call_result);
     ///========== TEST create contract=====================
@@ -170,17 +170,17 @@ BOOST_AUTO_TEST_CASE(testFunctionTables)
     evmc_result create_result;
     fake_ext_vm.setMyAddress(fromEvmC(message.sender));
     create_result = fake_ext_vm.interface->call(&fake_ext_vm, &message);
-    BOOST_CHECK(create_result.status_code == EVMC_SUCCESS);
-    BOOST_CHECK(create_result.output_data == nullptr);
-    BOOST_CHECK(create_result.output_size == 0);
+    BOOST_TEST(create_result.status_code == EVMC_SUCCESS);
+    BOOST_TEST(create_result.output_data == nullptr);
+    BOOST_TEST(create_result.output_size == 0);
     /// test failed
     create_result = fake_ext_vm.interface->call(&fake_ext_vm, &message);
-    BOOST_CHECK(create_result.status_code == EVMC_FAILURE);
+    BOOST_TEST(create_result.status_code == EVMC_FAILURE);
     std::string create_str = "fake create";
-    BOOST_CHECK(strncmp((const char*)create_result.output_data, create_str.c_str(),
+    BOOST_TEST(strncmp((const char*)create_result.output_data, create_str.c_str(),
                     create_result.output_size) == 0);
     data = evmc_get_optional_storage(&create_result);
-    BOOST_CHECK(memcmp(data->pointer, create_str.c_str(), create_result.output_size) == 0);
+    BOOST_TEST(memcmp(data->pointer, create_str.c_str(), create_result.output_size) == 0);
     create_result.release(&create_result);
 }
 
@@ -199,23 +199,23 @@ BOOST_AUTO_TEST_CASE(testCodeRelated)
     evmc_uint256be balance_result;
     evmc_address balance_addr = toEvmC(fake_ext_vm.myAddress());
     balance_result = fake_ext_vm.interface->get_balance(&fake_ext_vm, &balance_addr);
-    BOOST_CHECK(fromEvmC(balance_result) == param.valueTransfer);
+    BOOST_TEST(fromEvmC(balance_result) == param.valueTransfer);
 
     ///========== TEST CodeSize=====================
     evmc_address code_addr = toEvmC(Address(0));
     size_t code_size = fake_ext_vm.interface->get_code_size(&fake_ext_vm, &code_addr);
-    BOOST_CHECK(code_size == 0);
+    BOOST_TEST(code_size == 0);
     code_addr = toEvmC(fake_ext_vm.myAddress());
     code_size = fake_ext_vm.interface->get_code_size(&fake_ext_vm, &code_addr);
-    BOOST_CHECK(code_size == fake_ext_vm.code().size());
+    BOOST_TEST(code_size == fake_ext_vm.code().size());
     ///========== TEST CodeHash=====================
     evmc_uint256be hash_result;
     hash_result = fake_ext_vm.interface->get_code_hash(&fake_ext_vm, &code_addr);
-    BOOST_CHECK(fromEvmC(hash_result) != h256{});
-    BOOST_CHECK(fromEvmC(hash_result) == crypto::Hash(code_str));
+    BOOST_TEST(fromEvmC(hash_result) != h256{});
+    BOOST_TEST(fromEvmC(hash_result) == crypto::Hash(code_str));
     code_addr = toEvmC(Address(0));
     hash_result = fake_ext_vm.interface->get_code_hash(&fake_ext_vm, &code_addr);
-    BOOST_CHECK(fromEvmC(hash_result) == h256{});
+    BOOST_TEST(fromEvmC(hash_result) == h256{});
 
     ///========== TEST copyCode=====================
     unsigned int offset = 5;
@@ -223,42 +223,42 @@ BOOST_AUTO_TEST_CASE(testCodeRelated)
     code_addr = toEvmC(fake_ext_vm.myAddress());
     size_t copied_size = fake_ext_vm.interface->copy_code(
         &fake_ext_vm, &code_addr, offset, &(copied_buf[0]), offset);
-    BOOST_CHECK(copied_buf.size() == offset);
-    BOOST_CHECK(copied_size == offset);
+    BOOST_TEST(copied_buf.size() == offset);
+    BOOST_TEST(copied_size == offset);
     for (unsigned int i = offset; i < 2 * offset; i++)
-        BOOST_CHECK(copied_buf[i - offset] == fake_ext_vm.code()[i]);
+        BOOST_TEST(copied_buf[i - offset] == fake_ext_vm.code()[i]);
     /// test offset too large
     offset = 100;
     size_t copy_len = 10;
     copied_buf.resize(copy_len);
     copied_size = fake_ext_vm.interface->copy_code(
         &fake_ext_vm, &code_addr, offset, &(copied_buf[0]), copy_len);
-    BOOST_CHECK(copied_size == 0);
+    BOOST_TEST(copied_size == 0);
     /// test len too large
     copy_len = 100;
     offset = 5;
     copied_buf.resize(copy_len);
     copied_size = fake_ext_vm.interface->copy_code(
         &fake_ext_vm, &code_addr, offset, &(copied_buf[0]), copy_len);
-    BOOST_CHECK(copied_size == fake_ext_vm.code().size() - offset);
+    BOOST_TEST(copied_size == fake_ext_vm.code().size() - offset);
     for (unsigned int i = offset; i < offset + copied_size; i++)
-        BOOST_CHECK(copied_buf[i - offset] == fake_ext_vm.code()[i]);
+        BOOST_TEST(copied_buf[i - offset] == fake_ext_vm.code()[i]);
     ///========== TEST selfdestruct=====================
     fake_ext_vm.interface->selfdestruct(&fake_ext_vm, &code_addr, &code_addr);
-    BOOST_CHECK(fake_ext_vm.sub().suicides.count(fromEvmC(code_addr)) == 1);
+    BOOST_TEST(fake_ext_vm.sub().suicides.count(fromEvmC(code_addr)) == 1);
 
     ///========== test getTxContext =====================
     evmc_tx_context result;
     result = fake_ext_vm.interface->get_tx_context(&fake_ext_vm);
-    BOOST_CHECK(fromEvmC(result.tx_gas_price) == fake_ext_vm.gasPrice());
-    BOOST_CHECK(fromEvmC(result.tx_origin) == fake_ext_vm.origin());
-    BOOST_CHECK(result.block_number == fake_ext_vm.envInfo().number());
-    BOOST_CHECK((uint64_t)result.block_timestamp == fake_ext_vm.envInfo().timestamp());
-    BOOST_CHECK(result.block_gas_limit == static_cast<int64_t>(fake_ext_vm.envInfo().gasLimit()));
+    BOOST_TEST(fromEvmC(result.tx_gas_price) == fake_ext_vm.gasPrice());
+    BOOST_TEST(fromEvmC(result.tx_origin) == fake_ext_vm.origin());
+    BOOST_TEST(result.block_number == fake_ext_vm.envInfo().number());
+    BOOST_TEST((uint64_t)result.block_timestamp == fake_ext_vm.envInfo().timestamp());
+    BOOST_TEST(result.block_gas_limit == static_cast<int64_t>(fake_ext_vm.envInfo().gasLimit()));
     ///========== test getBlockHash =====================
     evmc_uint256be block_hash;
     block_hash = fake_ext_vm.interface->get_block_hash(&fake_ext_vm, 20);
-    BOOST_CHECK(fromEvmC(block_hash) == crypto::Hash(toString(20)));
+    BOOST_TEST(fromEvmC(block_hash) == crypto::Hash(toString(20)));
     block_hash =
         fake_ext_vm.interface->get_block_hash(&fake_ext_vm, fake_ext_vm.envInfo().number());
 }
