@@ -90,7 +90,7 @@ void dev::channel::ChannelServer::onAccept(
     if (!error)
     {
         boost::system::error_code ec;
-        auto remoteEndpoint = session->sslSocket()->next_layer().remote_endpoint(ec);
+        auto remoteEndpoint = session->sslSocket()->lowest_layer().remote_endpoint(ec);
         CHANNEL_LOG(TRACE) << LOG_DESC("Receive new connection")
                            << LOG_KV("from", remoteEndpoint.address().to_string()) << ":"
                            << remoteEndpoint.port();
@@ -123,7 +123,7 @@ void dev::channel::ChannelServer::onAccept(
 
         try
         {
-            session->sslSocket()->next_layer().close();
+            session->sslSocket()->lowest_layer().close();
         }
         catch (std::exception& e)
         {
@@ -219,7 +219,7 @@ void dev::channel::ChannelServer::startAccept()
             std::make_shared<boost::asio::ssl::stream<boost::asio::ip::tcp::socket> >(
                 *m_ioService, *m_sslContext));
 
-        m_acceptor->async_accept(session->sslSocket()->next_layer(),
+        m_acceptor->async_accept(session->sslSocket()->lowest_layer(),
             boost::bind(&ChannelServer::onAccept, shared_from_this(),
                 boost::asio::placeholders::error, session));
     }
@@ -286,7 +286,7 @@ void dev::channel::ChannelServer::onHandshake(const boost::system::error_code& e
 
             try
             {
-                session->sslSocket()->next_layer().close();
+                session->sslSocket()->lowest_layer().close();
             }
             catch (std::exception& e)
             {

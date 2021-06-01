@@ -85,7 +85,7 @@ ExternalProject_Add(boost
     # INSTALL_COMMAND ${BOOST_INSTALL_COMMAND}
     BUILD_BYPRODUCTS ${BOOST_BUILD_FILES}
 )
-add_dependencies(boost swssl)
+add_dependencies(boost tassl)
 
 ExternalProject_Get_Property(boost SOURCE_DIR)
 set(BOOST_INCLUDE_DIR ${SOURCE_DIR})

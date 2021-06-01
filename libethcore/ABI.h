@@ -408,7 +408,8 @@ bytes ContractABI::serialise(const std::array<T, N>& _in)
         content += out;
         if (ABIDynamicType<T>::value)
         {  // dynamic
-            offset_bytes += serialise(static_cast<u256>(length));
+            auto len = static_cast<std::size_t>(length);
+            offset_bytes += serialise(static_cast<u256>(len));
             length += out.size();
         }
     }
@@ -425,14 +426,16 @@ bytes ContractABI::serialise(const std::vector<T>& _in)
 
     auto length = _in.size() * MAX_BYTE_LENGTH;
 
-    offset_bytes += serialise(static_cast<u256>(_in.size()));
+    auto len = static_cast<std::size_t>(_in.size());
+    offset_bytes += serialise(static_cast<u256>(len));
     for (const auto& t : _in)
     {
         bytes out = serialise(t);
         content += out;
         if (ABIDynamicType<T>::value)
         {  // dynamic
-            offset_bytes += serialise(static_cast<u256>(length));
+            auto len = static_cast<std::size_t>(length);
+            offset_bytes += serialise(static_cast<u256>(len));
             length += out.size();
         }
     }

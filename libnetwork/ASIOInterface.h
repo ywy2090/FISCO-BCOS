@@ -148,12 +148,6 @@ public:
                     ba::async_write(socket->sslref(), buffers, handler);
                     break;
                 }
-                case WEBSOCKET:
-                {
-                    // ba::async_write(socket->wsref(), buffers, handler);
-                    socket->wsref().async_write(buffers, handler);
-                    break;
-                }
                 }
             }
         });
@@ -174,11 +168,6 @@ public:
             ba::async_read(socket->sslref(), buffers, handler);
             break;
         }
-        case WEBSOCKET:
-        {
-            ba::async_read(socket->wsref(), buffers, handler);
-            break;
-        }
         }
     }
 
@@ -195,11 +184,6 @@ public:
         case SSL:
         {
             socket->sslref().async_read_some(buffers, handler);
-            break;
-        }
-        case WEBSOCKET:
-        {
-            socket->wsref().async_read_some(buffers, handler);
             break;
         }
         }

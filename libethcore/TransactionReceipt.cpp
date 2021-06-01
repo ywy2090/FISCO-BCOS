@@ -62,8 +62,9 @@ TransactionReceipt::TransactionReceipt(TransactionReceipt const& _other)
 
 void TransactionReceipt::streamRLP(RLPStream& _s) const
 {
+    auto status = static_cast<uint32_t>(m_status);
     _s.appendList(7) << m_stateRoot << m_gasUsed << m_contractAddress << m_bloom
-                     << static_cast<u256>(m_status) << m_outputBytes;
+                     << static_cast<u256>(status) << m_outputBytes;
     _s.appendList(m_log.size());
     for (LogEntry const& l : m_log)
         l.streamRLP(_s);
