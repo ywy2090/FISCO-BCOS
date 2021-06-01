@@ -66,9 +66,9 @@ public:
         try
         {
             boost::system::error_code ec;
-            m_wsSocket->lowest_layer().shutdown(bi::tcp::socket::shutdown_both, ec);
-            if (m_wsSocket->lowest_layer().is_open())
-                m_wsSocket->lowest_layer().close();
+            m_wsSocket->next_layer().shutdown(bi::tcp::socket::shutdown_both, ec);
+            if (m_wsSocket->next_layer().is_open())
+                m_wsSocket->next_layer().close();
         }
         catch (...)
         {
