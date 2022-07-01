@@ -9,6 +9,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <string>
 
 namespace bcos
 {
@@ -41,6 +42,13 @@ public:
         std::string enNodeKey;
     };
 
+    // config for rate limit
+    struct RateLimitConfig
+    {
+        int64_t outgoingBWLimit = -1;
+        std::vector<uint16_t> modulesWithNoBWLimit;
+    };
+
     /**
      * @brief: loads configuration items from the config.ini
      * @param _configPath: config.ini path
@@ -66,6 +74,10 @@ public:
     void initCertConfig(const boost::property_tree::ptree& _pt);
     // loads sm ca configuration items from the configuration file
     void initSMCertConfig(const boost::property_tree::ptree& _pt);
+    //
+    bcos::protocol::ModuleID stringToModuleID(const std::string& _module);
+    // loads rate limit configuration items from the configuration file
+    void initRateLimitConfig(const boost::property_tree::ptree& _pt);
     // check if file exist, exception will be throw if the file not exist
     void checkFileExist(const std::string& _path);
     // load p2p connected peers
@@ -78,6 +90,8 @@ public:
 
     CertConfig certConfig() const { return m_certConfig; }
     SMCertConfig smCertConfig() const { return m_smCertConfig; }
+    RateLimitConfig rateLimitConfig() const { return m_rateLimitConfig; }
+
     const std::set<NodeIPEndpoint>& connectedNodes() const { return m_connectedNodes; }
 
     std::string const& uuid() const { return m_uuid; }
@@ -98,6 +112,8 @@ private:
     // cert config for ssl connection
     CertConfig m_certConfig;
     SMCertConfig m_smCertConfig;
+
+    RateLimitConfig m_rateLimitConfig;
 
     std::string m_certPath;
     std::string m_nodePath;

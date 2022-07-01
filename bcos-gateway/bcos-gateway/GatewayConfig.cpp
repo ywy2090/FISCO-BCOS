@@ -3,12 +3,14 @@
  *  @date 2021-05-19
  */
 
+#include <bcos-framework/protocol/Protocol.h>
 #include <bcos-gateway/GatewayConfig.h>
 #include <bcos-security/bcos-security/KeyCenter.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <bcos-utilities/FileUtility.h>
 #include <json/json.h>
 #include <boost/throw_exception.hpp>
+#include <algorithm>
 
 using namespace bcos;
 using namespace security;
@@ -127,6 +129,7 @@ void GatewayConfig::initConfig(std::string const& _configPath, bool _uuidRequire
         boost::property_tree::ptree pt;
         boost::property_tree::ini_parser::read_ini(_configPath, pt);
         initP2PConfig(pt, _uuidRequired);
+        initRateLimitConfig(pt);
         if (m_smSSL)
         {
             initSMCertConfig(pt);
@@ -323,6 +326,103 @@ void GatewayConfig::initSMCertConfig(const boost::property_tree::ptree& _pt)
                              << LOG_KV("sm_node_key", smCertConfig.nodeKey)
                              << LOG_KV("sm_ennode_cert", smCertConfig.enNodeCert)
                              << LOG_KV("sm_ennode_key", smCertConfig.enNodeKey);
+}
+
+//
+bcos::protocol::ModuleID GatewayConfig::stringToModuleID(const std::string& _module)
+{
+    /*
+       enum ModuleID
+       {
+           PBFT = 1000,
+           Raft = 1001,
+           BlockSync = 2000,
+           TxsSync = 2001,
+           AMOP = 3000,
+       };
+       */
+    if (boost::iequals(_module, "raft"))
+    {
+        return bcos::protocol::ModuleID::Raft;
+    }
+    else if (boost::iequals(_module, "pbft"))
+    {
+        return bcos::protocol::ModuleID::PBFT;
+    }
+    else if (boost::iequals(_module, "amop"))
+    {
+        return bcos::protocol::ModuleID::AMOP;
+    }
+    else if (boost::iequals(_module, "block_sync"))
+    {
+        return bcos::protocol::ModuleID::BlockSync;
+    }
+    else if (boost::iequals(_module, "txs_sync"))
+    {
+        return bcos::protocol::ModuleID::TxsSync;
+    }
+    else
+    {
+        BOOST_THROW_EXCEPTION(
+            InvalidParameter() << errinfo_comment(
+                "unrecognized module string: " + _module +
+                " ,list of available modules: raft,pbft,amop,block_sync,txs_sync"));
+    }
+}
+
+// loads rate limit configuration items from the configuration file
+void GatewayConfig::initRateLimitConfig(const boost::property_tree::ptree& _pt)
+{
+    /*
+    [flow_control]
+    ; the module that does not limit bandwidth, default: raft,pbft
+    ; list of all modules: raft,pbft,amop,block_sync,txs_sync
+    ; modules_without_bw_limit=raft,pbft
+
+    ; restrict the outgoing bandwidth of the node
+    ; both integer and decimal is support, unit: Mb
+    ; outgoing_bw_limit=2
+
+    ; restrict the outgoing bandwidth of the the connection
+    ; both integer and decimal is support, unit: Mb
+    ; per_connection_outgoing_bw_limit=2
+    ;
+    ; default bandwidth limit for the group
+    ; group_outgoing_bw_limit=2
+    */
+    double outgoingBWLimit = _pt.get<double>("flow_control.outgoing_bw_limit", INT64_MAX);
+    if (outgoingBWLimit == (double)INT64_MAX)
+    {
+        GATEWAY_CONFIG_LOG(INFO) << LOG_DESC("disable bandwidth limit for p2p network");
+    }
+    else
+    {
+        outgoingBWLimit *= 1024 * 1024 / 8;
+    }
+
+    std::string strNoLimitModules =
+        _pt.get<std::string>("flow_control.modules_without_bw_limit", "");
+    if (strNoLimitModules.empty())
+    {
+        strNoLimitModules = "raft,pbft";
+    }
+
+    std::vector<std::string> modules;
+    boost::split(modules, strNoLimitModules, boost::is_any_of(","), boost::token_compress_on);
+
+    std::vector<uint16_t> moduleIDs;
+    for (auto module : modules)
+    {
+        boost::trim(module);
+        moduleIDs.push_back(stringToModuleID(module));
+    }
+
+    m_rateLimitConfig.outgoingBWLimit = (int64_t)outgoingBWLimit;
+    m_rateLimitConfig.modulesWithNoBWLimit = moduleIDs;
+
+    GATEWAY_CONFIG_LOG(INFO) << LOG_DESC("initRateLimitConfig")
+                             << LOG_KV("outgoingBWLimit", outgoingBWLimit)
+                             << LOG_KV("moduleIDs", boost::join(modules, ","));
 }
 
 void GatewayConfig::checkFileExist(const std::string& _path)

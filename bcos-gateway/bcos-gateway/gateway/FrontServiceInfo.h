@@ -18,10 +18,10 @@
  * @date 2021-05-13
  */
 #pragma once
-#include <bcos-framework//front/FrontServiceInterface.h>
-#include <bcos-framework//multigroup/ChainNodeInfo.h>
-#include <bcos-framework//protocol/ProtocolInfo.h>
-#include <bcos-framework//protocol/ProtocolTypeDef.h>
+#include <bcos-framework/front/FrontServiceInterface.h>
+#include <bcos-framework/multigroup/ChainNodeInfo.h>
+#include <bcos-framework/protocol/ProtocolInfo.h>
+#include <bcos-framework/protocol/ProtocolTypeDef.h>
 #include <bcos-tars-protocol/client/FrontServiceClient.h>
 namespace bcos
 {
@@ -48,8 +48,8 @@ public:
             return false;
         }
         vector<EndpointInfo> activeEndPoints;
-        vector<EndpointInfo> nactiveEndPoints;
-        m_frontServicePrx->tars_endpointsAll(activeEndPoints, nactiveEndPoints);
+        vector<EndpointInfo> inactiveEndPoints;
+        m_frontServicePrx->tars_endpointsAll(activeEndPoints, inactiveEndPoints);
         return (activeEndPoints.size() == 0);
     }
 
