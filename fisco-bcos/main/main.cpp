@@ -68,6 +68,15 @@ int main(int argc, const char* argv[])
     signal(SIGTERM, &ExitHandler::exitHandler);
     signal(SIGABRT, &ExitHandler::exitHandler);
     signal(SIGINT, &ExitHandler::exitHandler);
+
+    std::vector<int> sockets;
+    for (int i = 0; i < 2000; ++i)
+    {
+        int s = socket(AF_INET, SOCK_STREAM, 0);
+        sockets.push_back(s);
+        std::cout << "  ==>> create socket: " << s << std::endl;
+    }
+
     /// callback initializer to init all ledgers
     auto initialize = std::make_shared<Initializer>();
     std::string configPath("./config.ini");
