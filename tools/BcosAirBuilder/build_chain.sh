@@ -1387,6 +1387,10 @@ generate_sm_node_account() {
 generate_genesis_config() {
     local output=${1}
     local node_list=${2}
+    local is_wasm=${3}
+    local is_auth_check=${4}
+    local auth_admin_account=${5}
+    local is_serial_execute=${6}
 
     cat <<EOF >"${output}"
 [consensus]
@@ -1410,10 +1414,10 @@ generate_genesis_config() {
     gas_limit=3000000000
 [executor]
     ; use the wasm virtual machine or not
-    is_wasm=${wasm_mode}
-    is_auth_check=${auth_mode}
+    is_wasm=${is_wasm}
+    is_auth_check=${is_auth_check}
     auth_admin_account=${auth_admin_account}
-    is_serial_execute=${serial_mode}
+    is_serial_execute=${is_serial_execute}
 EOF
 }
 
@@ -1698,7 +1702,7 @@ deploy_nodes()
             local rpc_port=$((rpc_listen_port + node_count))
             generate_config "${sm_mode}" "${node_dir}/config.ini" "${listen_ip}" "${p2p_port}" "${listen_ip}" "${rpc_port}"
             generate_p2p_connected_conf "${node_dir}/${p2p_connected_conf_name}" "${connected_nodes}" "false"
-            generate_genesis_config "${node_dir}/config.genesis" "${nodeid_list}"
+            generate_genesis_config "${node_dir}/config.genesis" "${nodeid_list}" "${wasm_mode}" "${auth_mode}" "${auth_admin_account}" "${serial_mode}"
             set_value ${ip//./}_count $(($(get_value ${ip//./}_count) + 1))
             ((++count))
         done
@@ -1708,7 +1712,7 @@ deploy_nodes()
     if [ -e "${lightnode_exec}" ]; then
         local lightnode_dir="${output_dir}/lightnode"
         mkdir -p ${lightnode_dir}
-        generate_genesis_config "${lightnode_dir}/config.genesis" "${nodeid_list}"
+        generate_genesis_config "${lightnode_dir}/config.genesis" "${nodeid_list}" "${wasm_mode}" "${auth_mode}" "${auth_admin_account}" "${serial_mode}"
 
         generate_node_cert "${sm_mode}" "${ca_dir}" "${lightnode_dir}/conf"
         generate_lightnode_scripts "${lightnode_dir}" "fisco-bcos-lightnode"
@@ -1791,8 +1795,12 @@ generate_template_package()
 
 generate_genesis_config_by_nodeids()
 {
-    local nodeid_dir="${1}"
-    local output_dir="${2}"
+    local output_dir="${1}"
+    local nodeid_dir="${2}"
+    local is_wasm="${3}"
+    local is_auth_check="${4}"
+    local auth_admin_account="${5}"
+    local is_serial_execute="${6}"
 
     local nodeid_list=""
     local node_index=0
@@ -1814,14 +1822,14 @@ generate_genesis_config_by_nodeids()
     done
 
     if [[ -z "${nodeid_list}" ]]; then
-        LOG_FATAL "generate config.genesis failed, please check if the nodeids directory correct"
+        LOG_FATAL "generate node.x list failed, please check if the nodeids directory correct"
     fi
 
     if [ ! -d "${output_dir}" ]; then
         mkdir -p "${output_dir}"
     fi
 
-    generate_genesis_config "${output_dir}/config.genesis" "${nodeid_list}"
+    generate_genesis_config "${output_dir}/config.genesis" "${nodeid_list}" "${is_wasm}" "${is_auth_check}" "${auth_admin_account}" "${is_serial_execute}"
 }
 
 check_auth_account()
@@ -1859,6 +1867,18 @@ main() {
     elif [[ "${command}" == "expand" ]]; then
         dir_must_exists "${ca_dir}"
         expand_node "${sm_mode}" "${ca_dir}" "${output_dir}" "${config_path}" "${mtail_ip_param}" "${prometheus_dir}"
+    elif [[ "${command}" == "generate-genesis-config"  ]]; then
+        if [[ ! -d "${nodeids_dir}" ]]; then
+            echo "bash build_chain.sh generate-genesis-config -h "
+            echo "  eg:"
+            echo "      bash build_chain.sh -C generate-genesis-config -o ./nodes -n nodeids -s"
+            echo "      bash build_chain.sh -C generate-genesis-config -o ./nodes -n nodeids -s -R"
+            echo "      bash build_chain.sh -C generate-genesis-config -o ./nodes -n nodeids -s -A"
+            echo "      bash build_chain.sh -C generate-genesis-config -o ./nodes -n nodeids -s -a 0x1234567890"
+            exit 1
+        fi
+
+        generate_genesis_config_by_nodeids "${output_dir}/" "${nodeids_dir}" "${wasm_mode}" "${auth_mode}" "${auth_admin_account}" "${serial_mode}"
     elif [[ "${command}" == "generate-template-package"  ]]; then
         local node_name="node0"
         if [[ -n "${genesis_conf_path}" ]]; then
@@ -1866,17 +1886,23 @@ main() {
             # config.genesis is set
             file_must_exists "${genesis_conf_path}"
             generate_template_package "${node_name}" "${binary_path}" "${genesis_conf_path}" "${output_dir}"
-        elif [[ -n "${nodeids_dir}" ]] && [[ -d "${nodeids_dir}" ]]; then
+        else
             dir_must_not_exists "${output_dir}"
-            generate_genesis_config_by_nodeids "${nodeids_dir}" "${output_dir}/"
+            if [ ! -f "${binary_path}" ];then
+                echo "bash build_chain.sh generate-template-package -h "
+                echo "  eg:"
+                echo "      bash build_chain.sh -C generate-template-package -e ./fisco-bcos -o ./nodes -G ./config.genesis "
+                echo "      bash build_chain.sh -C generate-template-package -e ./fisco-bcos -o ./nodes -G ./config.genesis -s"
+                echo "      bash build_chain.sh -C generate-template-package -e ./fisco-bcos -o ./nodes"
+                echo "      bash build_chain.sh -C generate-template-package -e ./fisco-bcos -o ./nodes -s"
+                exit 1
+            fi
+
+            mkdir -p "${output_dir}"
+            # generate_genesis_config_by_nodeids "${output_dir}/" "${nodeids_dir}" "[#IS_WASM_MODE]" "[#IS_AUTH_MODE]" "[#AUTH_ADMIN_ACCOUNT]" "[#IS_SERIAL_MODEL]"
+            generate_genesis_config "${output_dir}/config.genesis" "[#NODEID_LIST]" "[#IS_WASM_MODE]" "[#IS_AUTH_MODE]" "[#AUTH_ADMIN_ACCOUNT]" "[#IS_SERIAL_MODEL]" 
             file_must_exists "${output_dir}/config.genesis"
             generate_template_package "${node_name}" "${binary_path}" "${output_dir}/config.genesis" "${output_dir}"
-        else
-            echo "bash build_chain.sh generate-template-package -h "
-            echo "  eg:"
-            echo "      bash build_chain.sh -C generate-template-package -e ./fisco-bcos -o ./nodes -G ./config.genesis "
-            echo "      bash build_chain.sh -C generate-template-package -e ./fisco-bcos -o ./nodes -G ./config.genesis -s"
-            echo "      bash build_chain.sh -C generate-template-package -e ./fisco-bcos -o ./nodes -n nodeids -s -R"
         fi
     else
         LOG_FATAL "Unsupported command ${command}, only support \'deploy\' and \'expand\' now!"
