@@ -404,12 +404,14 @@ generate_multi_nodes_private_key_impl()
 
     mkdir -p "${nodeids_dir}"
 
+    node_index=0
     # generate rsa node cert for every server
     for line in ${ip_array[*]}; do
         ip=${line%:*}
         num=${line#*:}
 
         for ((i = 0; i < num; ++i)); do
+
             if [[ "${sm_mode}" == "false" ]]; then
                 generate_node_account "${output}/${ip}_${i}/"
             else 
@@ -418,9 +420,12 @@ generate_multi_nodes_private_key_impl()
 
             file_must_exists "${output}/${ip}_${i}/node.nodeid"
             cp "${output}/${ip}_${i}/node.nodeid" "${nodeids_dir}/${ip}_${i}.nodeid"
+            nodeid=$(cat ${output}/${ip}_${i}/node.nodeid)
+            # echo " ===>> i: ${node_index}, nodeid ===>>> ${nodeid}"
+            echo "node.${node_index}=${nodeid}" >> "${nodeids_dir}/nodes_list.txt"
+            ((node_index=node_index+1))
         done
     done
-
 }
 
 gen_sm_node_cert() {
@@ -657,6 +662,19 @@ generate_multi_nodes_private_key()
     LOG_INFO "generate multi nodes private key success"
 }
 
+generate_multi_nodes_all()
+{
+    LOG_INFO "generate multi nodes all, ip param: ${ip_param}"
+    # ca cert
+    # generate_ca_cert
+    # node cert
+    generate_multi_nodes_cert
+    # node private key and config.genesis nodex.list
+    generate_multi_nodes_private_key
+    # p2p connected node.list
+    LOG_INFO "generate multi nodes all success"
+}
+
 main() {
     parse_params "$@"
     # FIXME: use openssl 1.1 to generate gm certificates
@@ -680,6 +698,8 @@ main() {
         generate_cert_node_private_key
     elif [[ "${command}" == "generate_multi_private_key" ]]; then
         generate_multi_nodes_private_key
+    elif [[ "${command}" == "generate_multi_nodes_all" ]]; then
+        generate_multi_nodes_all  
     else
         LOG_FALT "Unsupported command"
     fi
