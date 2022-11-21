@@ -116,10 +116,14 @@ void ExecutorServiceApp::createAndInitExecutor()
         m_protocolInitializer->cryptoSuite(), m_protocolInitializer->blockFactory());
 
     auto schedulerServiceName = m_nodeConfig->schedulerServiceName();
+
+    m_nodeConfig->getTarsClientProxyEndpoints(bcos::protocol::SCHEDULER_NAME, endPoints);
+
     EXECUTOR_SERVICE_LOG(INFO) << LOG_DESC("create SchedulerServiceClient")
                                << LOG_KV("schedulerServiceName", schedulerServiceName);
 
-    auto schedulerPrx = createServantProxy<bcostars::SchedulerServicePrx>(schedulerServiceName);
+    auto schedulerPrx = createServantProxy<bcostars::SchedulerServicePrx>(
+        withoutTarsFramework, schedulerServiceName, endPoints);
 
     m_scheduler = std::make_shared<bcostars::SchedulerServiceClient>(
         schedulerPrx, m_protocolInitializer->cryptoSuite());
@@ -155,14 +159,15 @@ void ExecutorServiceApp::createAndInitExecutor()
     m_executor = std::make_shared<bcos::executor::SwitchExecutorManager>(executorFactory);
 
     std::weak_ptr<bcos::executor::SwitchExecutorManager> executorWeakPtr = m_executor;
-    std::weak_ptr<bcos::storage::TiKVStorage> storageWeakPtr = dynamic_pointer_cast<bcos::storage::TiKVStorage>(storage);
+    std::weak_ptr<bcos::storage::TiKVStorage> storageWeakPtr =
+        dynamic_pointer_cast<bcos::storage::TiKVStorage>(storage);
     auto switchHandler = [executor = executorWeakPtr, storageWeakPtr]() {
         if (executor.lock())
         {
             executor.lock()->triggerSwitch();
         }
         auto storage = storageWeakPtr.lock();
-        if(storage)
+        if (storage)
         {
             storage->reset();
         }
