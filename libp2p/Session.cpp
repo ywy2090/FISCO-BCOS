@@ -184,7 +184,8 @@ bool Session::interpret(PacketType _t, RLP const& _r)
 	}
 	case PingPacket:
 	{
-		LOG(TRACE) << "Recv Ping " << m_info.id.abridged();
+		LOG(INFO) << " ==> Recv Ping " << m_info.id.abridged();
+		std::this_thread::sleep_for(std::chrono::seconds(15));
 		RLPStream s;
 		sealAndSend(prep(s, PongPacket), 0);
 		break;
@@ -216,6 +217,7 @@ bool Session::interpret(PacketType _t, RLP const& _r)
 void Session::ping()
 {
 	RLPStream s;
+	LOG(INFO) << " ==> Send Ping " << m_info.id.abridged();
 	sealAndSend(prep(s, PingPacket), 0);
 	m_ping = std::chrono::steady_clock::now();
 }
