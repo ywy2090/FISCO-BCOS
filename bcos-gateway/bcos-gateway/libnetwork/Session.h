@@ -47,6 +47,7 @@ public:
     NodeIPEndpoint nodeIPEndpoint() const override;
 
     bool actived() const override;
+    std::size_t writeQueueSize() override;
 
     virtual std::weak_ptr<Host> host() { return m_server; }
     virtual void setHost(std::weak_ptr<Host> host) { m_server = host; }

@@ -157,6 +157,9 @@ public:
         m_msgHandlers.erase(_type);
     }
 
+    // handlers called when the node is unreachable
+    virtual void registerUnreachableHandler(std::function<void(std::string)> _handler) {}
+
 
     void asyncSendMessageByEndPoint(NodeIPEndpoint const& _endPoint, P2PMessage::Ptr message,
         CallbackFuncWithSession callback, Options options = Options());

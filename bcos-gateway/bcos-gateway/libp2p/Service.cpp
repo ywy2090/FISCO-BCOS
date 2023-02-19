@@ -110,10 +110,19 @@ void Service::heartBeat()
             it.first, std::bind(&Service::onConnect, shared_from_this(), std::placeholders::_1,
                           std::placeholders::_2, std::placeholders::_3));
     }
+
+    std::unordered_map<P2pID, P2PSession::Ptr> sessions;
     {
         RecursiveGuard l(x_sessions);
+        sessions = m_sessions;
+    }
+    SERVICE_LOG(INFO) << METRIC << LOG_DESC("heartBeat")
+                      << LOG_KV("connected count", sessions.size());
+    for (auto& [p2pID, session] : sessions)
+    {
         SERVICE_LOG(INFO) << METRIC << LOG_DESC("heartBeat")
-                          << LOG_KV("connected count", m_sessions.size());
+                          << LOG_KV("endpoint", session->session()->nodeIPEndpoint().address())
+                          << LOG_KV("write queue size", session->session()->writeQueueSize());
     }
 
     auto self = std::weak_ptr<Service>(shared_from_this());

@@ -49,6 +49,7 @@ public:
     virtual NodeIPEndpoint nodeIPEndpoint() const = 0;
 
     virtual bool actived() const = 0;
+    virtual std::size_t writeQueueSize() = 0;
 };
 }  // namespace gateway
 }  // namespace bcos

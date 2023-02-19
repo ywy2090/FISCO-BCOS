@@ -133,15 +133,23 @@ void Session::asyncSendMessage(Message::Ptr message, Options options, SessionCal
     if (c_fileLogLevel <= LogLevel::TRACE)
     {
         SESSION_LOG(TRACE) << LOG_DESC("Session asyncSendMessage")
-                           << LOG_KV("endpoint", nodeIPEndpoint()) << LOG_KV("seq", message->seq())
-                           << LOG_KV("packetType", message->packetType())
-                           << LOG_KV("resp", message->isRespPacket());
+                          << LOG_KV("endpoint", nodeIPEndpoint()) << LOG_KV("seq", message->seq())
+                          << LOG_KV("packetType", message->packetType())
+                          << LOG_KV("ext", message->ext()) << LOG_KV("version", message->version())
+                          << LOG_KV("length", message->length())
+                          << LOG_KV("resp", message->isRespPacket());
     }
 
     std::shared_ptr<bytes> p_buffer = std::make_shared<bytes>();
     message->encode(*p_buffer);
 
     send(p_buffer);
+}
+
+std::size_t Session::writeQueueSize()
+{
+    Guard lockGuard(x_writeQueue);
+    return m_writeQueue.size();
 }
 
 void Session::send(const std::shared_ptr<bytes>& _msg)
