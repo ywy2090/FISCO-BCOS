@@ -313,6 +313,7 @@ bcos::boostssl::ws::WsService::Ptr RpcFactory::buildWsService(
     auto wsService = std::make_shared<bcos::boostssl::ws::WsService>();
     auto initializer = std::make_shared<bcos::boostssl::ws::WsInitializer>();
 
+    wsService->setTimerFactory(timer::TimerFactory::getInstance());
     initializer->setConfig(_config);
     initializer->initWsService(wsService);
 

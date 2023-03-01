@@ -62,8 +62,8 @@ void WsSession::drop(uint32_t _reason)
     auto self = std::weak_ptr<WsSession>(shared_from_this());
     // call callbacks
     {
-        auto error = BCOS_ERROR_PTR(
-            WsError::SessionDisconnect, "the session has been disconnected");
+        auto error =
+            BCOS_ERROR_PTR(WsError::SessionDisconnect, "the session has been disconnected");
 
         ReadGuard l(x_callback);
         WEBSOCKET_SESSION(INFO) << LOG_BADGE("drop") << LOG_KV("reason", _reason)
@@ -246,29 +246,58 @@ void WsSession::asyncRead()
     }
 }
 
-void WsSession::onWritePacket()
+void WsSession::write()
 {
     if (m_writing)
     {
         return;
     }
-    WriteGuard l(x_writeQueue);
-    if (m_writing)
+
+    EncodedMsg::Ptr encodedMsg = nullptr;
     {
-        return;
+        Guard lockGuard(x_writeQueue);
+        if (m_writing)
+        {
+            return;
+        }
+        if (m_writeQueue.empty())
+        {
+            return;
+        }
+        m_writing = true;
+        encodedMsg = m_writeQueue.front();
     }
-    if (m_writeQueue.empty())
-    {
-        m_writing = false;
-        return;
-    }
-    m_writing = true;
-    auto msg = m_writeQueue.top();
-    m_writeQueue.pop();
-    asyncWrite(msg->buffer);
+
+    asyncWrite(std::move(encodedMsg));
 }
 
-void WsSession::asyncWrite(std::shared_ptr<bcos::bytes> _buffer)
+void WsSession::onWrite(boost::beast::error_code _ec, std::size_t)
+{
+    if (_ec)
+    {
+        BCOS_LOG(WARNING) << LOG_BADGE(moduleName()) << LOG_BADGE("Session")
+                          << LOG_BADGE("asyncWrite") << LOG_KV("message", _ec.message())
+                          << LOG_KV("endpoint", endPoint());
+        return drop(WsError::WriteError);
+    }
+
+    {
+        Guard lockGuard(x_writeQueue);
+        if (!m_writeQueue.empty())
+        {
+            m_writeQueue.pop_front();
+        }
+
+        if (m_writing)
+        {
+            m_writing = false;
+        }
+    }
+
+    write();
+}
+
+void WsSession::asyncWrite(std::shared_ptr<EncodedMsg> _encodeMsg)
 {
     if (!isConnected())
     {
@@ -277,19 +306,21 @@ void WsSession::asyncWrite(std::shared_ptr<bcos::bytes> _buffer)
                                  << LOG_KV("endpoint", endPoint()) << LOG_KV("session", this);
         return;
     }
-
+    // send header
     try
     {
+        // send header
         auto self = std::weak_ptr<WsSession>(shared_from_this());
-        // Note: add one simple way to monitor message sending latency
+        // TODO: add one simple way to monitor message sending latency
         // Note: the lambda[] should not include session directly, this will cause memory leak
-        m_wsStreamDelegate->asyncWrite(
-            *_buffer, [self, _buffer](boost::beast::error_code _ec, std::size_t) {
+        m_wsStreamDelegate->asyncWrite(_encodeMsg->header, false,
+            [self, _encodeMsg](boost::beast::error_code _ec, std::size_t) {
                 auto session = self.lock();
                 if (!session)
                 {
                     return;
                 }
+
                 if (_ec)
                 {
                     BCOS_LOG(WARNING) << LOG_BADGE(session->moduleName()) << LOG_BADGE("Session")
@@ -297,11 +328,18 @@ void WsSession::asyncWrite(std::shared_ptr<bcos::bytes> _buffer)
                                       << LOG_KV("endpoint", session->endPoint());
                     return session->drop(WsError::WriteError);
                 }
-                if (session->m_writing)
-                {
-                    session->m_writing = false;
-                }
-                session->onWritePacket();
+
+                // send payload
+                session->m_wsStreamDelegate->asyncWrite(*_encodeMsg->payload, true,
+                    [self](boost::beast::error_code _ec, std::size_t _size) {
+                        auto session = self.lock();
+                        if (!session)
+                        {
+                            return;
+                        }
+
+                        session->onWrite(_ec, _size);
+                    });
             });
     }
     catch (const std::exception& _e)
@@ -314,16 +352,14 @@ void WsSession::asyncWrite(std::shared_ptr<bcos::bytes> _buffer)
     }
 }
 
-void WsSession::send(std::shared_ptr<bytes> buffer)
+void WsSession::send(const std::shared_ptr<EncodedMsg>& _encodeMsg)
 {
-    auto msg = std::make_shared<Message>();
-    msg->buffer = std::move(buffer);
     {
-        WriteGuard lock(x_writeQueue);
+        Guard lockGuard(x_writeQueue);
         // data to be sent is always enqueue first
-        m_writeQueue.push(msg);
+        m_writeQueue.push_back(std::move(_encodeMsg));
     }
-    onWritePacket();
+    write();
 }
 
 /**
@@ -346,8 +382,8 @@ void WsSession::asyncSendMessage(
 
         if (_respFunc)
         {
-            auto error = BCOS_ERROR_PTR(
-                WsError::SessionDisconnect, "the session has been disconnected");
+            auto error =
+                BCOS_ERROR_PTR(WsError::SessionDisconnect, "the session has been disconnected");
             _respFunc(error, nullptr, nullptr);
         }
 
@@ -371,20 +407,20 @@ void WsSession::asyncSendMessage(
         return;
     }
 
-    auto buffer = std::make_shared<bytes>();
-    auto r = _msg->encode(*buffer);
+    EncodedMsg::Ptr encodedMsg = std::make_shared<EncodedMsg>();
+    auto r = _msg->encode(*encodedMsg);
     if (!r)
     {
         if (_respFunc)
         {
-            auto error =
-                BCOS_ERROR_PTR(WsError::MessageEncodeError, "Message encode failed");
+            auto error = BCOS_ERROR_PTR(WsError::MessageEncodeError, "Message encode failed");
             _respFunc(error, nullptr, nullptr);
         }
 
         WEBSOCKET_SESSION(WARNING)
             << LOG_BADGE("asyncSendMessage") << LOG_DESC("message encode failed")
             << LOG_KV("endpoint", endPoint()) << LOG_KV("seq", seq)
+            << LOG_KV("packetType", _msg->packetType())
             << LOG_KV("msgSize", _msg->payload()->size())
             << LOG_KV("maxWriteMsgSize", maxWriteMsgSize());
         return;
@@ -402,7 +438,7 @@ void WsSession::asyncSendMessage(
                 *m_ioc, boost::posix_time::milliseconds(timeout));
 
             callback->timer = timer;
-            auto self = std::weak_ptr<WsSession>(shared_from_this());
+            auto self = weak_from_this();
             timer->async_wait([self, seq](const boost::system::error_code& e) {
                 auto session = self.lock();
                 if (session)
@@ -417,7 +453,7 @@ void WsSession::asyncSendMessage(
 
     {
         boost::asio::post(m_wsStreamDelegate->tcpStream().get_executor(),
-            boost::beast::bind_front_handler(&WsSession::send, shared_from_this(), buffer));
+            boost::beast::bind_front_handler(&WsSession::send, shared_from_this(), encodedMsg));
     }
 }
 
@@ -470,7 +506,6 @@ void WsSession::onRespTimeout(const boost::system::error_code& _error, const std
 
     WEBSOCKET_SESSION(WARNING) << LOG_BADGE("onRespTimeout") << LOG_KV("seq", _seq);
 
-    auto error =
-        BCOS_ERROR_PTR(WsError::TimeOut, "waiting for message response timed out");
+    auto error = BCOS_ERROR_PTR(WsError::TimeOut, "waiting for message response timed out");
     m_threadPool->enqueue([callback, error]() { callback->respCallBack(error, nullptr, nullptr); });
 }

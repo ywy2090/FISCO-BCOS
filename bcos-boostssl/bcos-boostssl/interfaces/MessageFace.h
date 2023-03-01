@@ -19,16 +19,26 @@
  */
 #pragma once
 
+#include "bcos-utilities/ObjectCounter.h"
 #include <bcos-utilities/Common.h>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <memory>
 #include <string>
 
 namespace bcos
 {
 namespace boostssl
 {
+
+struct EncodedMsg : public ObjectCounter<EncodedMsg>
+{
+    using Ptr = std::shared_ptr<EncodedMsg>;
+    bcos::bytes header;
+    std::shared_ptr<bcos::bytes> payload = nullptr;
+};
+
 class MessageFace
 {
 public:
@@ -48,7 +58,10 @@ public:
     virtual std::shared_ptr<bytes> payload() const = 0;
     virtual void setPayload(std::shared_ptr<bcos::bytes>) = 0;
 
-    virtual bool encode(bcos::bytes& _buffer) = 0;
+    // TODO: remote the old encode interface
+    /*[[deprecated("Use encode(EncodedMessage& _buffer)")]] */ virtual bool encode(
+        bcos::bytes& _buffer) = 0;
+    virtual bool encode(EncodedMsg& _encodedMsg) = 0;
     virtual int64_t decode(bytesConstRef _buffer) = 0;
 
     virtual bool isRespPacket() const = 0;

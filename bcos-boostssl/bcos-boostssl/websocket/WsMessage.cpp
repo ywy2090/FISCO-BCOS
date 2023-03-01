@@ -51,6 +51,28 @@ bool WsMessage::encode(bytes& _buffer)
     return true;
 }
 
+bool WsMessage::encode(EncodedMsg& _encodedMsg)
+{
+    uint16_t version = boost::asio::detail::socket_ops::host_to_network_short(m_version);
+    uint16_t type = boost::asio::detail::socket_ops::host_to_network_short(m_packetType);
+    int16_t status = boost::asio::detail::socket_ops::host_to_network_short(m_status);
+    uint16_t seqLength = boost::asio::detail::socket_ops::host_to_network_short(m_seq.size());
+    uint16_t ext = boost::asio::detail::socket_ops::host_to_network_short(m_ext);
+
+    bytes& headerBuffer = _encodedMsg.header;
+    headerBuffer.insert(headerBuffer.end(), (byte*)&version, (byte*)&version + 2);
+    headerBuffer.insert(headerBuffer.end(), (byte*)&type, (byte*)&type + 2);
+    headerBuffer.insert(headerBuffer.end(), (byte*)&status, (byte*)&status + 2);
+    headerBuffer.insert(headerBuffer.end(), (byte*)&seqLength, (byte*)&seqLength + 2);
+    headerBuffer.insert(headerBuffer.end(), m_seq.begin(), m_seq.end());
+    headerBuffer.insert(headerBuffer.end(), (byte*)&ext, (byte*)&ext + 2);
+
+    uint32_t length = headerBuffer.size() + m_payload->size();
+    m_length = length;
+    _encodedMsg.payload = m_payload;
+    return true;
+}
+
 int64_t WsMessage::decode(bytesConstRef _buffer)
 {
     auto length = _buffer.size();

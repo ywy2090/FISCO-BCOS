@@ -202,6 +202,13 @@ public:
         return timer;
     }
 
+public:
+    static TimerFactory::Ptr getInstance()
+    {
+        static TimerFactory::Ptr timeFactory = std::make_shared<TimerFactory>();
+        return timeFactory;
+    }
+
 private:
     void startThread()
     {

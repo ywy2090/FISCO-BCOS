@@ -140,10 +140,10 @@ public:
     std::shared_ptr<boost::beast::websocket::stream<STREAM>> stream() const { return m_stream; }
 
 public:
-    void asyncWrite(const bcos::bytes& _buffer, WsStreamRWHandler _handler)
+    void asyncWrite(const bcos::bytes& _buffer, bool _fin, WsStreamRWHandler _handler)
     {
         m_stream->binary(true);
-        m_stream->async_write(boost::asio::buffer(_buffer), _handler);
+        m_stream->async_write_some(_fin, boost::asio::buffer(_buffer), _handler);
     }
 
     void asyncRead(boost::beast::flat_buffer& _buffer, WsStreamRWHandler _handler)
@@ -235,10 +235,10 @@ public:
         return m_isSsl ? m_sslStream->remoteEndpoint() : m_rawStream->remoteEndpoint();
     }
 
-    void asyncWrite(const bcos::bytes& _buffer, WsStreamRWHandler _handler)
+    void asyncWrite(const bcos::bytes& _buffer, bool _fin, WsStreamRWHandler _handler)
     {
-        return m_isSsl ? m_sslStream->asyncWrite(_buffer, _handler) :
-                         m_rawStream->asyncWrite(_buffer, _handler);
+        return m_isSsl ? m_sslStream->asyncWrite(_buffer, _fin, _handler) :
+                         m_rawStream->asyncWrite(_buffer, _fin, _handler);
     }
 
     void asyncRead(boost::beast::flat_buffer& _buffer, WsStreamRWHandler _handler)

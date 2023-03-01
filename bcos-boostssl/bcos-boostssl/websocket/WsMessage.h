@@ -57,21 +57,8 @@ public:
     const static size_t MESSAGE_MIN_LENGTH;
 
     using Ptr = std::shared_ptr<WsMessage>;
-    WsMessage()
-    {
-        m_payload = std::make_shared<bcos::bytes>();
-        if (c_fileLogLevel == LogLevel::TRACE) [[unlikely]]
-        {
-            WEBSOCKET_MESSAGE(TRACE) << LOG_KV("[NEWOBJ][WsMessage]", this);
-        }
-    }
-    virtual ~WsMessage()
-    {
-        if (c_fileLogLevel == LogLevel::TRACE) [[unlikely]]
-        {
-            WEBSOCKET_MESSAGE(TRACE) << LOG_KV("[DELOBJ][WsMessage]", this);
-        }
-    }
+    WsMessage() { m_payload = std::make_shared<bcos::bytes>(); }
+    virtual ~WsMessage() {}
 
 
     virtual uint16_t version() const override { return m_version; }
@@ -85,13 +72,14 @@ public:
     virtual std::shared_ptr<bcos::bytes> payload() const override { return m_payload; }
     virtual void setPayload(std::shared_ptr<bcos::bytes> _payload) override
     {
-        m_payload = _payload;
+        m_payload = std::move(_payload);
     }
     virtual uint16_t ext() const override { return m_ext; }
     virtual void setExt(uint16_t _ext) override { m_ext = _ext; }
 
-
     virtual bool encode(bcos::bytes& _buffer) override;
+
+    virtual bool encode(EncodedMsg& _encodedMsg) override;
     virtual int64_t decode(bytesConstRef _buffer) override;
 
     bool isRespPacket() const override

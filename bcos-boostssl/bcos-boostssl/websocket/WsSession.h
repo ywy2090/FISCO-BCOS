@@ -86,11 +86,13 @@ public:
     std::string endPoint() const { return m_endPoint; }
     void setEndPoint(const std::string& _endPoint) { m_endPoint = _endPoint; }
 
-    std::string connectedEndPoint() const { return m_connectedEndPoint; }
-    void setConnectedEndPoint(const std::string& _connectedEndPoint)
-    {
-        m_connectedEndPoint = _connectedEndPoint;
-    }
+    std::string connectedEndPoint() const { return m_endPoint; }
+
+    // std::string connectedEndPoint() const { return m_connectedEndPoint; }
+    // void setConnectedEndPoint(const std::string& _connectedEndPoint)
+    // {
+    //     m_connectedEndPoint = _connectedEndPoint;
+    // }
 
     void setConnectHandler(WsConnectHandler _connectHandler) { m_connectHandler = _connectHandler; }
     WsConnectHandler connectHandler() { return m_connectHandler; }
@@ -142,7 +144,7 @@ public:
 
     std::size_t writeQueueSize()
     {
-        bcos::ReadGuard lockGuard(x_writeQueue);
+        bcos::Guard lockGuard(x_writeQueue);
         return m_writeQueue.size();
     }
 
@@ -173,18 +175,12 @@ public:
     virtual void onWsAccept(boost::beast::error_code _ec);
 
     virtual void asyncRead();
-    virtual void asyncWrite(std::shared_ptr<bcos::bytes> _buffer);
-
-    virtual void send(std::shared_ptr<bcos::bytes> _buffer);
-
-    // async read
     virtual void onReadPacket(boost::beast::flat_buffer& _buffer);
-    void onWritePacket();
 
-    struct Message : public bcos::ObjectCounter<Message>
-    {
-        std::shared_ptr<bcos::bytes> buffer;
-    };
+    virtual void asyncWrite(std::shared_ptr<EncodedMsg> _encodeMsg);
+    virtual void send(const std::shared_ptr<EncodedMsg>& _encodedMsg);
+    void write();
+    void onWrite(boost::beast::error_code _ec, std::size_t _size);
 
 protected:
     // flag for message that need to check respond packet like p2pmessage
@@ -224,9 +220,10 @@ protected:
     std::shared_ptr<bcos::ThreadPool> m_threadPool;
     // ioc
     std::shared_ptr<boost::asio::io_context> m_ioc;
+
     // send message queue
-    mutable bcos::SharedMutex x_writeQueue;
-    std::priority_queue<std::shared_ptr<Message>> m_writeQueue;
+    mutable bcos::Mutex x_writeQueue;
+    std::list<std::shared_ptr<EncodedMsg>> m_writeQueue;
     std::atomic_bool m_writing = {false};
 };
 
