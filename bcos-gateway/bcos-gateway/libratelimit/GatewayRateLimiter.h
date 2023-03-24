@@ -95,7 +95,7 @@ public:
     }
 
 public:
-    std::optional<std::string> checkOutGoing(const std::string& _endpoint,
+    std::optional<std::string> checkOutGoing(const std::string& _endpoint, uint16_t _pkgType,
         const std::string& _groupID, uint16_t _moduleID, int64_t _msgLength);
 
     std::optional<std::string> checkInComing(

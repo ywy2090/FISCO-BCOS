@@ -88,7 +88,8 @@ public:
     void stop();
 
     // ---------------- statistics on inbound and outbound begin -------------------
-    void updateInComing(const std::string& _endpoint, uint64_t _dataSize, bool _suc);
+    void updateInComing0(
+        const std::string& _endpoint, uint16_t _pgkType, uint64_t _dataSize, bool _suc);
     void updateInComing(
         const std::string& _groupID, uint16_t _moduleID, uint64_t _dataSize, bool _suc);
 
@@ -108,7 +109,17 @@ public:
         return " module : " + protocol::moduleIDToString((protocol::ModuleID)_moduleID);
     }
 
-    static inline std::string toEndPointKey(const std::string& _ep) { return " endpoint:  " + _ep; }
+    static inline std::string toModuleKey(const std::string& _groupID, uint16_t _moduleID)
+    {
+        return " group|module: " + _groupID + "|" +
+               protocol::moduleIDToString((protocol::ModuleID)_moduleID);
+    }
+
+    static inline std::string toEndpointKey(const std::string& _ep) { return " endpoint:  " + _ep; }
+    static inline std::string toEndpointPkgTypeKey(const std::string& _ep, uint16_t _pkgType)
+    {
+        return " endpoint|pkgType:  " + _ep + "|" + std::to_string(_pkgType);
+    }
 
     void flushStat();
 
@@ -124,6 +135,8 @@ public:
 
 private:
     bool m_running = false;
+
+    bool enableModuleInfo = true;
 
     std::mutex m_inLock;
     std::mutex m_outLock;

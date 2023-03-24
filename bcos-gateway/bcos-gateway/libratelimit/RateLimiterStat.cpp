@@ -20,6 +20,7 @@
 
 #include "bcos-gateway/Common.h"
 #include "bcos-utilities/BoostLog.h"
+#include "bcos-utilities/Common.h"
 #include <bcos-framework/protocol/Protocol.h>
 #include <bcos-gateway/libratelimit/RateLimiterStat.h>
 #include <boost/lexical_cast.hpp>
@@ -43,6 +44,7 @@ std::optional<std::string> Stat::toString(const std::string& _prefix, uint32_t _
     }
 
     auto avgRate = calcAvgRate(lastDataSize.load(), _periodMS);
+    auto avgQPS = calcAvgQPS(lastTimes.load(), _periodMS);
 
     std::stringstream ss;
 
@@ -54,6 +56,7 @@ std::optional<std::string> Stat::toString(const std::string& _prefix, uint32_t _
        << " |last failed times: " << lastFailedTimes.load() << " |avg rate(Mb/s): ";
 
     ss << std::fixed << std::setprecision(2) << avgRate;
+    ss << " |avg qps(per/s): " << avgQPS;
 
     return ss.str();
 }
@@ -112,14 +115,16 @@ void RateLimiterStat::stop()
 }
 
 // ---------------- statistics on inbound and outbound begin -------------------
-void RateLimiterStat::updateInComing(const std::string& _endpoint, uint64_t _dataSize, bool _suc)
+void RateLimiterStat::updateInComing0(
+    const std::string& _endpoint, uint16_t _pgkType, uint64_t _dataSize, bool _suc)
 {
     if (!working())
     {
         return;
     }
 
-    std::string epKey = toEndPointKey(_endpoint);
+    std::string epKey = toEndpointKey(_endpoint);
+    std::string epPkgKey = toEndpointPkgTypeKey(_endpoint, _pgkType);
     std::string totalKey = TOTAL_OUTGOING;
 
     // RATELIMIT_LOG(DEBUG) << LOG_BADGE("updateInComing") << LOG_KV("endpoint", _endpoint)
@@ -129,12 +134,24 @@ void RateLimiterStat::updateInComing(const std::string& _endpoint, uint64_t _dat
 
     auto& totalInStat = m_inStat[totalKey];
     auto& epInStat = m_inStat[epKey];
+    auto& epPkgInStat = m_inStat[epPkgKey];
 
-    // update total incoming
-    totalInStat.update(_dataSize);
-
-    // update connection incoming
-    epInStat.update(_dataSize);
+    if (_suc)
+    {
+        // update total incoming
+        totalInStat.update(_dataSize);
+        // update connection incoming
+        epInStat.update(_dataSize);
+        epPkgInStat.update(_dataSize);
+    }
+    else
+    {
+        // update total incoming
+        totalInStat.updateFailed();
+        // update connection incoming
+        epInStat.updateFailed();
+        epPkgInStat.updateFailed();
+    }
 }
 
 void RateLimiterStat::updateOutGoing(const std::string& _endpoint, uint64_t _dataSize, bool suc)
@@ -144,7 +161,7 @@ void RateLimiterStat::updateOutGoing(const std::string& _endpoint, uint64_t _dat
         return;
     }
 
-    std::string epKey = toEndPointKey(_endpoint);
+    std::string epKey = toEndpointKey(_endpoint);
     std::string totalKey = TOTAL_OUTGOING;
 
     std::lock_guard<std::mutex> lock(m_outLock);
@@ -181,16 +198,40 @@ void RateLimiterStat::updateInComing(
         std::lock_guard<std::mutex> lock(m_inLock);
 
         auto& moduleInStat = m_inStat[moduleKey];
-        moduleInStat.update(_dataSize);
+
+        if (_suc)
+        {
+            moduleInStat.update(_dataSize);
+        }
+        else
+        {
+            moduleInStat.updateFailed();
+        }
 
         return;
     }
 
     std::string groupKey = toGroupKey(_groupID);
-    std::lock_guard<std::mutex> lock(m_inLock);
 
+    std::lock_guard<std::mutex> lock(m_inLock);
     auto& groupInStat = m_inStat[groupKey];
     groupInStat.update(_dataSize);
+
+    if (enableModuleInfo && (_moduleID != 0))
+    {
+        std::string key = toModuleKey(_groupID, _moduleID);
+
+        auto& inStat = m_inStat[key];
+
+        if (_suc)
+        {
+            inStat.update(_dataSize);
+        }
+        else
+        {
+            inStat.updateFailed();
+        }
+    }
 }
 
 void RateLimiterStat::updateOutGoing(
@@ -201,22 +242,29 @@ void RateLimiterStat::updateOutGoing(
         return;
     }
 
-    if (_groupID.empty() && (_moduleID != 0))
+    if (_groupID.empty())
     {
-        std::string moduleKey = toModuleKey(_moduleID);
-        std::lock_guard<std::mutex> lock(m_outLock);
+        if (_moduleID != 0)
+        {  // AMOP
+            std::string moduleKey = toModuleKey(_moduleID);
+            std::lock_guard<std::mutex> lock(m_outLock);
 
-        auto& moduleOutStat = m_outStat[moduleKey];
-        moduleOutStat.update(_dataSize);
-
-        if (suc)
-        {
-            // update total outgoing
+            auto& moduleOutStat = m_outStat[moduleKey];
             moduleOutStat.update(_dataSize);
+
+            if (suc)
+            {
+                // update total outgoing
+                moduleOutStat.update(_dataSize);
+            }
+            else
+            {
+                moduleOutStat.updateFailed();
+            }
         }
         else
         {
-            moduleOutStat.updateFailed();
+            // TODO: gateway basic message
         }
 
         return;
@@ -234,6 +282,22 @@ void RateLimiterStat::updateOutGoing(
     else
     {
         groupOutStat.updateFailed();
+    }
+
+    if (enableModuleInfo && (_moduleID != 0))
+    {
+        std::string key = toModuleKey(_groupID, _moduleID);
+
+        auto& outStat = m_outStat[key];
+        if (suc)
+        {
+            // update total outgoing
+            outStat.update(_dataSize);
+        }
+        else
+        {
+            outStat.updateFailed();
+        }
     }
 }
 // ---------------- statistics on inbound and outbound end -------------------
@@ -259,7 +323,7 @@ void RateLimiterStat::flushStat()
 
 std::pair<std::string, std::string> RateLimiterStat::inAndOutStat(uint32_t _intervalMS)
 {
-    std::string in = " <incoming bandwidth> :";
+    std::string in = " <incoming flow_control> :";
     {
         std::lock_guard<std::mutex> lock(m_inLock);
         for (auto& [k, s] : m_inStat)
@@ -274,7 +338,7 @@ std::pair<std::string, std::string> RateLimiterStat::inAndOutStat(uint32_t _inte
         }
     }
 
-    std::string out = " <outgoing bandwidth> :";
+    std::string out = " <outgoing flow_control> :";
     {
         std::lock_guard<std::mutex> lock(m_outLock);
         for (auto& [k, s] : m_outStat)
