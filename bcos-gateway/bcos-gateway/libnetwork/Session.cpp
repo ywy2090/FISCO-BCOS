@@ -164,7 +164,22 @@ void Session::asyncSendMessage(Message::Ptr message, Options options, SessionCal
 
     EncodedMessage::Ptr encodedMessage = std::make_shared<EncodedMessage>();
     encodedMessage->compress = m_enableCompress;
-    message->encode(*encodedMessage);
+    bool encodeResult = message->encode(*encodedMessage);
+    if (!encodeResult)
+    {
+        SESSION_LOG(WARNING) << LOG_BADGE("asyncSendMessage") << LOG_DESC("encode msg failed")
+                             << LOG_KV("endpoint", nodeIPEndpoint())
+                             << LOG_KV("seq", message->seq())
+                             << LOG_KV("packetType", message->packetType())
+                             << LOG_KV("ext", message->ext());
+        if (callback)
+        {
+            server->asyncTo([callback = std::move(callback)] {
+                callback(NetworkException(-1, "Encode msg failed"), Message::Ptr());
+            });
+        }
+        return;
+    }
 
     if (c_fileLogLevel <= LogLevel::TRACE)
     {
@@ -226,6 +241,8 @@ void Session::onWrite(boost::system::error_code ec, std::size_t /*unused*/)
             {
                 m_writing = false;
             }
+
+            // TODO:
             m_writeConstBuffer.clear();
         }
 
@@ -325,7 +342,7 @@ void Session::write()
         m_writeConstBuffer.clear();
         // Try to send multi packets one time to improve the efficiency of sending
         // data
-        tryPopSomeEncodedMsgs(encodedMsgs, m_maxSendDataSize, m_maxSendMsgCountS);
+        auto sendSize = tryPopSomeEncodedMsgs(encodedMsgs, m_maxSendDataSize, m_maxSendMsgCountS);
 
         if (server && server->haveNetwork())
         {
@@ -337,13 +354,21 @@ void Session::write()
 
                 toMultiBuffers(m_writeConstBuffer, encodedMsgs);
                 server->asioInterface()->asyncWrite(m_socket, m_writeConstBuffer,
-                    [self, encodedMsgs](const boost::system::error_code _error, std::size_t _size) {
+                    [self, encodedMsgs, sendSize](
+                        const boost::system::error_code _error, std::size_t _size) {
                         auto session = self.lock();
                         if (!session)
                         {
                             return;
                         }
                         session->onWrite(_error, _size);
+
+                        if (sendSize != _size)
+                        {
+                            SESSION_LOG(ERROR)
+                                << "async write msg size is not equal to send size"
+                                << LOG_KV("sendSize", sendSize) << LOG_KV("onSize", _size);
+                        }
                     });
             }
             else
@@ -537,7 +562,21 @@ void Session::doRead()
                 session->m_lastReadTime.store(utcSteadyTime());
 
                 auto& recvBuffer = session->recvBuffer();
-                recvBuffer.onWrite(bytesTransferred);
+                auto onWriteResult = recvBuffer.onWrite(bytesTransferred);
+                if (!onWriteResult)
+                {
+                    SESSION_LOG(ERROR)
+                        << LOG_BADGE("doRead") << LOG_DESC("session recv buffer on write failed")
+                        << LOG_KV("endpoint", session->nodeIPEndpoint())
+                        << LOG_KV("bytesTransferred", bytesTransferred)
+                        << LOG_KV("recvBufferSize", recvBuffer.recvBufferSize())
+                        << LOG_KV("recvBufferDataSize", recvBuffer.dataSize())
+                        << LOG_KV("readPos", recvBuffer.readPos())
+                        << LOG_KV("writePos", recvBuffer.writePos());
+
+                    session->drop(TCPError);
+                    return;
+                }
 
                 while (true)
                 {
@@ -552,7 +591,24 @@ void Session::doRead()
                         {
                             NetworkException e(P2PExceptionType::Success, "Success");
                             session->onMessage(e, message);
-                            recvBuffer.onRead(result);
+                            auto onReadResult = recvBuffer.onRead(result);
+                            if (!onReadResult)
+                            {
+                                SESSION_LOG(ERROR)
+                                    << LOG_BADGE("doRead")
+                                    << LOG_DESC("session recv buffer on read failed")
+                                    << LOG_KV("endpoint", session->nodeIPEndpoint())
+                                    << LOG_KV("msgSize", result)
+                                    << LOG_KV("recvBufferSize", recvBuffer.recvBufferSize())
+                                    << LOG_KV("recvBufferDataSize", recvBuffer.dataSize())
+                                    << LOG_KV("readPos", recvBuffer.readPos())
+                                    << LOG_KV("writePos", recvBuffer.writePos());
+
+                                session->onMessage(NetworkException(P2PExceptionType::ProtocolError,
+                                                       "ProtocolError(recv on read failed)"),
+                                    message);
+                                break;
+                            }
                         }
                         else if (result == 0)
                         {
@@ -563,7 +619,8 @@ void Session::doRead()
                                 SESSION_LOG(ERROR)
                                     << LOG_BADGE("doRead")
                                     << LOG_DESC("the message size exceeded the allow maximum value")
-                                    << LOG_KV("msgSize", message->length())
+                                    << LOG_KV("endpoint", session->nodeIPEndpoint())
+                                    << LOG_KV("msgSize", result)
                                     << LOG_KV("allowMaxMsgSize", session->allowMaxMsgSize());
 
                                 session->onMessage(NetworkException(P2PExceptionType::ProtocolError,
@@ -595,6 +652,7 @@ void Session::doRead()
                                                "the current recv buffer size is not enough for "
                                                "the "
                                                "next message, resize the recv buffer")
+                                        << LOG_KV("endpoint", session->nodeIPEndpoint())
                                         << LOG_KV("msgSize", length)
                                         << LOG_KV("resizeRecvBufferSize", resizeRecvBufferSize)
                                         << LOG_KV("allowMaxMsgSize", session->allowMaxMsgSize());

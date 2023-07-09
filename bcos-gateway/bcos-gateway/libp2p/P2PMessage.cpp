@@ -45,16 +45,18 @@ bool P2PMessageOptions::encode(bytes& _buffer)
     }
     if (m_dstNodeIDs.size() > MAX_DST_NODEID_COUNT)
     {
-        P2PMSG_LOG(ERROR) << LOG_DESC("dstNodeID amount overfow")
+        P2PMSG_LOG(ERROR) << LOG_DESC("dstNodeID amount overflow")
                           << LOG_KV("dstNodeID size", m_dstNodeIDs.size());
         return false;
     }
 
     for (const auto& dstNodeID : m_dstNodeIDs)
     {
-        if (!dstNodeID || dstNodeID->empty() || (dstNodeID->size() > MAX_NODEID_LENGTH))
+        if (!dstNodeID || dstNodeID->empty() || (dstNodeID->size() > MAX_NODEID_LENGTH) ||
+            dstNodeID->size() != m_srcNodeID->size())
         {
             P2PMSG_LOG(ERROR) << LOG_DESC("dstNodeID length valid")
+                              << LOG_KV("srcNodeID length", (m_srcNodeID ? m_srcNodeID->size() : 0))
                               << LOG_KV("dstNodeID length", (dstNodeID ? dstNodeID->size() : 0));
             return false;
         }

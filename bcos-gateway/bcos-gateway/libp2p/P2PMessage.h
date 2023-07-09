@@ -25,6 +25,7 @@
 #include <bcos-gateway/libnetwork/Common.h>
 #include <bcos-gateway/libnetwork/Message.h>
 #include <bcos-utilities/Common.h>
+#include <utility>
 #include <vector>
 
 #define CHECK_OFFSET_WITH_THROW_EXCEPTION(offset, length)                                    \
@@ -85,7 +86,7 @@ public:
     void setGroupID(const std::string& _groupID) { m_groupID = _groupID; }
 
     std::shared_ptr<bytes> srcNodeID() const { return m_srcNodeID; }
-    void setSrcNodeID(std::shared_ptr<bytes> _srcNodeID) { m_srcNodeID = _srcNodeID; }
+    void setSrcNodeID(std::shared_ptr<bytes> _srcNodeID) { m_srcNodeID = std::move(_srcNodeID); }
 
     std::vector<std::shared_ptr<bytes>>& dstNodeIDs() { return m_dstNodeIDs; }
     void setDstNodeIDs(const std::vector<std::shared_ptr<bytes>>& _dstNodeIDs)
@@ -149,12 +150,14 @@ public:
 
         // estimate the length of msg to be encoded
         int64_t length = (int64_t)payload()->size() + (int64_t)P2PMessage::MESSAGE_HEADER_LENGTH;
+
         if (hasOptions() && options() && options()->srcNodeID())
         {
             length += P2PMessageOptions::OPTIONS_MIN_LENGTH;
             length +=
                 (int64_t)(options()->srcNodeID()->size() * (1 + options()->dstNodeIDs().size()));
         }
+
         return length;
     }
     // virtual void setLength(uint32_t length) { m_length = length; }
@@ -172,10 +175,10 @@ public:
     virtual void setExt(uint16_t _ext) { m_ext |= _ext; }
 
     P2PMessageOptions::Ptr options() const { return m_options; }
-    void setOptions(P2PMessageOptions::Ptr _options) { m_options = _options; }
+    void setOptions(P2PMessageOptions::Ptr _options) { m_options = std::move(_options); }
 
     std::shared_ptr<bytes> payload() const { return m_payload; }
-    void setPayload(std::shared_ptr<bytes> _payload) { m_payload = _payload; }
+    void setPayload(std::shared_ptr<bytes> _payload) { m_payload = std::move(_payload); }
 
     void setRespPacket() { m_ext |= bcos::protocol::MessageExtFieldFlag::Response; }
     bool encode(bytes& _buffer) override;

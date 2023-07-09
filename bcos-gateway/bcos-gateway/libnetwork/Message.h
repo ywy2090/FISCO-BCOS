@@ -71,8 +71,7 @@ inline void toMultiBuffers(
     std::vector<boost::asio::const_buffer>& _bufs, const EncodedMessage::Ptr& _encodedMessage)
 {
     // header
-    _bufs.emplace_back(
-        boost::asio::buffer(_encodedMessage->header.data(), _encodedMessage->header.size()));
+    _bufs.emplace_back(_encodedMessage->header.data(), _encodedMessage->header.size());
 
     // payload
     if (_encodedMessage->payloadSize() <= 0)
@@ -80,8 +79,7 @@ inline void toMultiBuffers(
         return;
     }
 
-    _bufs.emplace_back(
-        boost::asio::buffer(_encodedMessage->payload->data(), _encodedMessage->payload->size()));
+    _bufs.emplace_back(_encodedMessage->payload->data(), _encodedMessage->payload->size());
 
     // auto& buffers = _encodedMessage->payload->buffers();
     // std::for_each(buffers.begin(), buffers.end(), [&_bufs](const bcos::bytes& _buffer) {

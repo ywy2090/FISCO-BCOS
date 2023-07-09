@@ -49,13 +49,13 @@ bool P2PMessageV2::encodeHeader(bytes& _buffer)
 
     // encode srcP2PNodeID
     auto srcP2PNodeIDLen =
-        boost::asio::detail::socket_ops::host_to_network_short(m_srcP2PNodeID.size());
+        boost::asio::detail::socket_ops::host_to_network_short((uint16_t)m_srcP2PNodeID.size());
     _buffer.insert(_buffer.end(), (byte*)&srcP2PNodeIDLen, (byte*)&srcP2PNodeIDLen + 2);
     _buffer.insert(_buffer.end(), m_srcP2PNodeID.begin(), m_srcP2PNodeID.end());
 
     // encode dstP2PNodeID
     auto dstP2PNodeIDLen =
-        boost::asio::detail::socket_ops::host_to_network_short(m_dstP2PNodeID.size());
+        boost::asio::detail::socket_ops::host_to_network_short((uint16_t)m_dstP2PNodeID.size());
     _buffer.insert(_buffer.end(), (byte*)&dstP2PNodeIDLen, (byte*)&dstP2PNodeIDLen + 2);
     _buffer.insert(_buffer.end(), m_dstP2PNodeID.begin(), m_dstP2PNodeID.end());
     return true;
