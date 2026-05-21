@@ -263,6 +263,11 @@ void TransactionExecutor::initEvmEnvironment()
     m_evmPrecompiled->insert({fillZero(9),
         make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("blake2_compression"),
             PrecompiledRegistrar::executor("blake2_compression"))});
+    // EIP-4844 point evaluation (Cancun) — gated by feature_evm_cancun in callBuiltInPrecompiled
+    m_evmPrecompiled->insert({fillZero(10),
+        make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("point_evaluation"),
+            PrecompiledRegistrar::executor("point_evaluation"))});
+
     // EIP-2537 BLS12-381 precompiles (Prague) — gated by feature_evm_prague in
     // callBuiltInPrecompiled
     static const char* bls_names[] = {"bls12_g1add", "bls12_g1msm", "bls12_g2add", "bls12_g2msm",
