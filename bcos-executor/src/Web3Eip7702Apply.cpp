@@ -53,14 +53,21 @@ std::optional<bcos::Address> recoverEip7702Authority(
     signature[crypto::SECP256K1_SIGNATURE_V] = auth.yParity;
 
     static crypto::Secp256k1Crypto const secp;
-    auto pub = secp.recover(
-        hash, bcos::bytesConstRef(
-                  reinterpret_cast<bcos::byte const*>(signature.data()), signature.size()));
-    if (!pub)
+    try
+    {
+        auto pub = secp.recover(
+            hash, bcos::bytesConstRef(
+                      reinterpret_cast<bcos::byte const*>(signature.data()), signature.size()));
+        if (!pub)
+        {
+            return std::nullopt;
+        }
+        return crypto::calculateAddress(hashImpl, pub);
+    }
+    catch (...)
     {
         return std::nullopt;
     }
-    return crypto::calculateAddress(hashImpl, pub);
 }
 
 evmc_address addressToEvmc(bcos::Address const& addr) noexcept
