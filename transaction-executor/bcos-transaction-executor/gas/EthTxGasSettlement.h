@@ -8,6 +8,7 @@
 
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
+#include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-transaction-executor/Eip7702Common.h"
 #include <evmc/evmc.h>

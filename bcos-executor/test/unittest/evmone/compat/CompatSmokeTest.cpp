@@ -24,7 +24,8 @@ BOOST_AUTO_TEST_CASE(FC_S_cancun_only_identity_precompile)
     auto host =
         makeCompatHostContext(*this, CompatFeatureProfile::cancunOnly(), CompatEvmAttach::Identity);
     bytes input = bcos::fromHex("deadbeef");
-    auto r = compatCallBuiltInPrecompiled(host, compatFillZeroAddr(4), std::move(input));
+    auto r = compatCallBuiltInPrecompiled(
+        host, std::string(bcos::executor::IDENTITY_PRECOMPILE_ADDRESS), std::move(input));
     BOOST_CHECK_EQUAL(r.status_code, EVMC_SUCCESS);
     BOOST_CHECK_GT(r.output_size, 0U);
 }
@@ -36,7 +37,8 @@ BOOST_AUTO_TEST_CASE(FC_S_legacy_tx_no_prague_path)
 
     auto host =
         makeCompatHostContext(*this, CompatFeatureProfile::cancunOnly(), CompatEvmAttach::Identity);
-    auto r = compatCallBuiltInPrecompiled(host, compatFillZeroAddr(4), bytes{0x01, 0x02});
+    auto r = compatCallBuiltInPrecompiled(
+        host, std::string(bcos::executor::IDENTITY_PRECOMPILE_ADDRESS), bytes{0x01, 0x02});
     BOOST_CHECK_EQUAL(r.status_code, EVMC_SUCCESS);
 }
 

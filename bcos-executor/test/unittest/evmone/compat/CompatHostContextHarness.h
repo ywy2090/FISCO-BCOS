@@ -14,12 +14,11 @@
 #include "bcos-task/Wait.h"
 #include "executive/BlockContext.h"
 #include "executive/TransactionExecutive.h"
+#include "vm/EvmPrecompiledAddress.h"
 #include "vm/HostContext.h"
 #include "vm/Precompiled.h"
-#include <iomanip>
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
 
 namespace bcos::test
@@ -74,22 +73,15 @@ struct CompatHostContextFixture
     wasm::GasInjector gasInjector;
 };
 
-inline std::string compatFillZeroAddr(int num)
-{
-    std::stringstream stream;
-    stream << std::setfill('0') << std::setw(40) << std::hex << num;
-    return stream.str();
-}
-
 /// Bare TransactionExecutive has no m_evmPrecompiled; tests that run EVM precompiles must attach.
 inline void compatAttachBlsG1AddEvmPrecompile(std::shared_ptr<CompatHostTestExecutive> const& exe)
 {
     auto m =
         std::make_shared<std::map<std::string, std::shared_ptr<executor::PrecompiledContract>>>();
-    m->insert(
-        {compatFillZeroAddr(0x0b), std::make_shared<executor::PrecompiledContract>(
-                                       executor::PrecompiledRegistrar::pricer("bls12_g1add"),
-                                       executor::PrecompiledRegistrar::executor("bls12_g1add"))});
+    m->insert({std::string(executor::BLS_G1ADD_PRECOMPILE_ADDRESS),
+        std::make_shared<executor::PrecompiledContract>(
+            executor::PrecompiledRegistrar::pricer("bls12_g1add"),
+            executor::PrecompiledRegistrar::executor("bls12_g1add"))});
     exe->setEVMPrecompiled(std::move(m));
 }
 
@@ -99,12 +91,14 @@ inline void compatAttachBlsAllEvmPrecompile(std::shared_ptr<CompatHostTestExecut
         std::make_shared<std::map<std::string, std::shared_ptr<executor::PrecompiledContract>>>();
     static const char* blsNames[] = {"bls12_g1add", "bls12_g1msm", "bls12_g2add", "bls12_g2msm",
         "bls12_pairing_check", "bls12_map_fp_to_g1", "bls12_map_fp2_to_g2"};
-    for (int addr = 0x0b; addr <= 0x11; ++addr)
+    for (int addr = executor::BLS_PRECOMPILE_INDEX_FIRST;
+         addr <= executor::BLS_PRECOMPILE_INDEX_LAST; ++addr)
     {
-        const char* name = blsNames[addr - 0x0b];
-        m->insert({compatFillZeroAddr(addr), std::make_shared<executor::PrecompiledContract>(
-                                                 executor::PrecompiledRegistrar::pricer(name),
-                                                 executor::PrecompiledRegistrar::executor(name))});
+        const char* name = blsNames[addr - executor::BLS_PRECOMPILE_INDEX_FIRST];
+        m->insert({executor::formatEvmPrecompiledAddress(static_cast<uint32_t>(addr)),
+            std::make_shared<executor::PrecompiledContract>(
+                executor::PrecompiledRegistrar::pricer(name),
+                executor::PrecompiledRegistrar::executor(name))});
     }
     exe->setEVMPrecompiled(std::move(m));
 }
@@ -113,8 +107,9 @@ inline void compatAttachIdentityEvmPrecompile(std::shared_ptr<CompatHostTestExec
 {
     auto m =
         std::make_shared<std::map<std::string, std::shared_ptr<executor::PrecompiledContract>>>();
-    m->insert({compatFillZeroAddr(4), std::make_shared<executor::PrecompiledContract>(15, 3,
-                                          executor::PrecompiledRegistrar::executor("identity"))});
+    m->insert({std::string(executor::IDENTITY_PRECOMPILE_ADDRESS),
+        std::make_shared<executor::PrecompiledContract>(
+            15, 3, executor::PrecompiledRegistrar::executor("identity"))});
     exe->setEVMPrecompiled(std::move(m));
 }
 
@@ -122,9 +117,10 @@ inline void compatAttachModexpEvmPrecompile(std::shared_ptr<CompatHostTestExecut
 {
     auto m =
         std::make_shared<std::map<std::string, std::shared_ptr<executor::PrecompiledContract>>>();
-    m->insert({compatFillZeroAddr(5), std::make_shared<executor::PrecompiledContract>(
-                                          executor::PrecompiledRegistrar::pricer("modexp"),
-                                          executor::PrecompiledRegistrar::executor("modexp"))});
+    m->insert({std::string(executor::MODEXP_PRECOMPILE_ADDRESS),
+        std::make_shared<executor::PrecompiledContract>(
+            executor::PrecompiledRegistrar::pricer("modexp"),
+            executor::PrecompiledRegistrar::executor("modexp"))});
     exe->setEVMPrecompiled(std::move(m));
 }
 
@@ -132,10 +128,10 @@ inline void compatAttachP256VerifyEvmPrecompile(std::shared_ptr<CompatHostTestEx
 {
     auto m =
         std::make_shared<std::map<std::string, std::shared_ptr<executor::PrecompiledContract>>>();
-    m->insert(
-        {compatFillZeroAddr(0x100), std::make_shared<executor::PrecompiledContract>(
-                                        executor::PrecompiledRegistrar::pricer("p256verify"),
-                                        executor::PrecompiledRegistrar::executor("p256verify"))});
+    m->insert({std::string(executor::P256VERIFY_PRECOMPILE_ADDRESS),
+        std::make_shared<executor::PrecompiledContract>(
+            executor::PrecompiledRegistrar::pricer("p256verify"),
+            executor::PrecompiledRegistrar::executor("p256verify"))});
     exe->setEVMPrecompiled(std::move(m));
 }
 
@@ -144,7 +140,7 @@ inline void compatAttachPointEvaluationEvmPrecompiled(
 {
     auto m =
         std::make_shared<std::map<std::string, std::shared_ptr<executor::PrecompiledContract>>>();
-    m->insert({compatFillZeroAddr(10),
+    m->insert({std::string(executor::POINT_EVALUATION_PRECOMPILE_ADDRESS),
         std::make_shared<executor::PrecompiledContract>(
             executor::PrecompiledRegistrar::pricer("point_evaluation"),
             executor::PrecompiledRegistrar::executor("point_evaluation"))});

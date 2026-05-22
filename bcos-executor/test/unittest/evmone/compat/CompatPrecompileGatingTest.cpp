@@ -8,8 +8,8 @@
 
 #include "CompatHostContextHarness.h"
 #include "CompatTestFixture.h"
-#include "bcos-executor/src/vm/EvmPrecompiledAddress.h"
 #include "bcos-utilities/DataConvertUtility.h"
+#include "vm/EvmPrecompiledAddress.h"
 #include <evmc/evmc.h>
 #include <boost/test/unit_test.hpp>
 #include <cstring>
@@ -83,11 +83,16 @@ BOOST_AUTO_TEST_SUITE(CompatEvmPrecompiledAddress)
 
 BOOST_AUTO_TEST_CASE(bls_range_byte_parse_no_stoul)
 {
+    using bcos::executor::BLS_G1ADD_PRECOMPILE_ADDRESS;
+    using bcos::executor::BLS_MAP_FP2_TO_G2_PRECOMPILE_ADDRESS;
+    using bcos::executor::BLS_PAIRING_CHECK_PRECOMPILE_ADDRESS;
     using bcos::executor::isBLSPrecompileAddress;
-    BOOST_CHECK(isBLSPrecompileAddress("000000000000000000000000000000000000000b"));
-    BOOST_CHECK(isBLSPrecompileAddress("0000000000000000000000000000000000000011"));
-    BOOST_CHECK(isBLSPrecompileAddress("0x000000000000000000000000000000000000000f"));
-    BOOST_CHECK(!isBLSPrecompileAddress("000000000000000000000000000000000000000a"));
+    using bcos::executor::POINT_EVALUATION_PRECOMPILE_ADDRESS;
+    BOOST_CHECK(isBLSPrecompileAddress(BLS_G1ADD_PRECOMPILE_ADDRESS));
+    BOOST_CHECK(isBLSPrecompileAddress(BLS_MAP_FP2_TO_G2_PRECOMPILE_ADDRESS));
+    BOOST_CHECK(isBLSPrecompileAddress(
+        std::string("0x") + std::string(BLS_PAIRING_CHECK_PRECOMPILE_ADDRESS)));
+    BOOST_CHECK(!isBLSPrecompileAddress(POINT_EVALUATION_PRECOMPILE_ADDRESS));
     BOOST_CHECK(!isBLSPrecompileAddress("0000000000000000000000000000000000000012"));
     BOOST_CHECK(isBLSPrecompileAddress("000000000000000000000000000000000000000B"));
     BOOST_CHECK(!isBLSPrecompileAddress("000000000000000000000000000000000000000g"));
@@ -99,17 +104,22 @@ BOOST_AUTO_TEST_CASE(bls_range_byte_parse_no_stoul)
 BOOST_AUTO_TEST_CASE(p256verify_accepts_optional_0x_prefix)
 {
     using bcos::executor::isP256verifyPrecompileAddress;
-    BOOST_CHECK(isP256verifyPrecompileAddress("0000000000000000000000000000000000000100"));
-    BOOST_CHECK(isP256verifyPrecompileAddress("0x0000000000000000000000000000000000000100"));
+    using bcos::executor::P256VERIFY_PRECOMPILE_ADDRESS;
+    BOOST_CHECK(isP256verifyPrecompileAddress(P256VERIFY_PRECOMPILE_ADDRESS));
+    BOOST_CHECK(isP256verifyPrecompileAddress(
+        std::string("0x") + std::string(P256VERIFY_PRECOMPILE_ADDRESS)));
     BOOST_CHECK(!isP256verifyPrecompileAddress("0000000000000000000000000000000000000101"));
 }
 
 BOOST_AUTO_TEST_CASE(point_evaluation_address_byte_parse)
 {
+    using bcos::executor::BLS_G1ADD_PRECOMPILE_ADDRESS;
     using bcos::executor::isPointEvaluationPrecompileAddress;
-    BOOST_CHECK(isPointEvaluationPrecompileAddress("000000000000000000000000000000000000000a"));
-    BOOST_CHECK(isPointEvaluationPrecompileAddress("0x000000000000000000000000000000000000000a"));
-    BOOST_CHECK(!isPointEvaluationPrecompileAddress("000000000000000000000000000000000000000b"));
+    using bcos::executor::POINT_EVALUATION_PRECOMPILE_ADDRESS;
+    BOOST_CHECK(isPointEvaluationPrecompileAddress(POINT_EVALUATION_PRECOMPILE_ADDRESS));
+    BOOST_CHECK(isPointEvaluationPrecompileAddress(
+        std::string("0x") + std::string(POINT_EVALUATION_PRECOMPILE_ADDRESS)));
+    BOOST_CHECK(!isPointEvaluationPrecompileAddress(BLS_G1ADD_PRECOMPILE_ADDRESS));
     BOOST_CHECK(!isPointEvaluationPrecompileAddress("0000000000000000000000000000000000000009"));
 }
 

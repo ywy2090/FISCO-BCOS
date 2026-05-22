@@ -52,6 +52,7 @@
 #include "../precompiled/extension/RingSigPrecompiled.h"
 #include "../precompiled/extension/SmallBankPrecompiled.h"
 #include "../precompiled/extension/ZkpPrecompiled.h"
+#include "../vm/EvmPrecompiledAddress.h"
 #include "../vm/Precompiled.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 
@@ -230,41 +231,36 @@ void TransactionExecutor::resetEnvironment()
 
 void TransactionExecutor::initEvmEnvironment()
 {
-    auto fillZero = [](int _num) -> std::string {
-        std::stringstream stream;
-        stream << std::setfill('0') << std::setw(40) << std::hex << _num;
-        return stream.str();
-    };
     m_evmPrecompiled =
         std::make_shared<std::map<std::string, std::shared_ptr<PrecompiledContract>>>();
     m_staticPrecompiled = std::make_shared<std::set<std::string>>();
     m_precompiled = std::make_shared<PrecompiledMap>();
 
-    m_evmPrecompiled->insert(std::make_pair(fillZero(1),
+    m_evmPrecompiled->insert(std::make_pair(std::string(ECRECOVER_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(3000, 0, PrecompiledRegistrar::executor("ecrecover"))));
-    m_evmPrecompiled->insert(std::make_pair(fillZero(2),
+    m_evmPrecompiled->insert(std::make_pair(std::string(SHA256_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(60, 12, PrecompiledRegistrar::executor("sha256"))));
-    m_evmPrecompiled->insert(std::make_pair(fillZero(3),
+    m_evmPrecompiled->insert(std::make_pair(std::string(RIPEMD160_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(600, 120, PrecompiledRegistrar::executor("ripemd160"))));
-    m_evmPrecompiled->insert(std::make_pair(fillZero(4),
+    m_evmPrecompiled->insert(std::make_pair(std::string(IDENTITY_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(15, 3, PrecompiledRegistrar::executor("identity"))));
-    m_evmPrecompiled->insert(
-        {fillZero(5), make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("modexp"),
-                          PrecompiledRegistrar::executor("modexp"))});
-    m_evmPrecompiled->insert(
-        {fillZero(6), make_shared<PrecompiledContract>(
-                          150, 0, PrecompiledRegistrar::executor("alt_bn128_G1_add"))});
-    m_evmPrecompiled->insert(
-        {fillZero(7), make_shared<PrecompiledContract>(
-                          6000, 0, PrecompiledRegistrar::executor("alt_bn128_G1_mul"))});
-    m_evmPrecompiled->insert({fillZero(8),
+    m_evmPrecompiled->insert({std::string(MODEXP_PRECOMPILE_ADDRESS),
+        make_shared<PrecompiledContract>(
+            PrecompiledRegistrar::pricer("modexp"), PrecompiledRegistrar::executor("modexp"))});
+    m_evmPrecompiled->insert({std::string(ALT_BN128_G1_ADD_PRECOMPILE_ADDRESS),
+        make_shared<PrecompiledContract>(
+            150, 0, PrecompiledRegistrar::executor("alt_bn128_G1_add"))});
+    m_evmPrecompiled->insert({std::string(ALT_BN128_G1_MUL_PRECOMPILE_ADDRESS),
+        make_shared<PrecompiledContract>(
+            6000, 0, PrecompiledRegistrar::executor("alt_bn128_G1_mul"))});
+    m_evmPrecompiled->insert({std::string(ALT_BN128_PAIRING_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("alt_bn128_pairing_product"),
             PrecompiledRegistrar::executor("alt_bn128_pairing_product"))});
-    m_evmPrecompiled->insert({fillZero(9),
+    m_evmPrecompiled->insert({std::string(BLAKE2F_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("blake2_compression"),
             PrecompiledRegistrar::executor("blake2_compression"))});
     // EIP-4844 point evaluation (Cancun) — gated by feature_evm_cancun in callBuiltInPrecompiled
-    m_evmPrecompiled->insert({fillZero(10),
+    m_evmPrecompiled->insert({std::string(POINT_EVALUATION_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("point_evaluation"),
             PrecompiledRegistrar::executor("point_evaluation"))});
 
@@ -272,16 +268,16 @@ void TransactionExecutor::initEvmEnvironment()
     // callBuiltInPrecompiled
     static const char* bls_names[] = {"bls12_g1add", "bls12_g1msm", "bls12_g2add", "bls12_g2msm",
         "bls12_pairing_check", "bls12_map_fp_to_g1", "bls12_map_fp2_to_g2"};
-    for (int addr = 0x0b; addr <= 0x11; ++addr)
+    for (int addr = BLS_PRECOMPILE_INDEX_FIRST; addr <= BLS_PRECOMPILE_INDEX_LAST; ++addr)
     {
-        const char* name = bls_names[addr - 0x0b];
-        m_evmPrecompiled->insert(
-            {fillZero(addr), make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer(name),
-                                 PrecompiledRegistrar::executor(name))});
+        const char* name = bls_names[addr - BLS_PRECOMPILE_INDEX_FIRST];
+        m_evmPrecompiled->insert({formatEvmPrecompiledAddress(static_cast<uint32_t>(addr)),
+            make_shared<PrecompiledContract>(
+                PrecompiledRegistrar::pricer(name), PrecompiledRegistrar::executor(name))});
     }
 
     // EIP-7951 p256verify at 0x0100 (Osaka-gated, guard in HostContext)
-    m_evmPrecompiled->insert({"0000000000000000000000000000000000000100",
+    m_evmPrecompiled->insert({std::string(P256VERIFY_PRECOMPILE_ADDRESS),
         make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("p256verify"),
             PrecompiledRegistrar::executor("p256verify"))});
 
