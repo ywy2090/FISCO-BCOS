@@ -15,6 +15,7 @@
 #include <bcos-tars-protocol/protocol/TransactionReceiptFactoryImpl.h>
 #include <bcos-task/Wait.h>
 #include <boost/test/unit_test.hpp>
+#include <algorithm>
 
 using namespace bcos;
 using namespace bcos::storage2;
@@ -24,6 +25,45 @@ using bcos::ledger::account::EVMAccount;
 
 namespace bcos::test
 {
+
+namespace
+{
+bytes mixedCalldata100()
+{
+    bytes mixed(100);
+    std::fill(mixed.begin(), mixed.begin() + 50, 0x00);
+    std::fill(mixed.begin() + 50, mixed.end(), 0x42);
+    return mixed;
+}
+
+std::shared_ptr<bcostars::protocol::TransactionImpl> makeWeb3Type2Transaction(
+    evmc_address const& sender, bcos::Address const& to, bcos::bytes const& data, uint64_t gasLimit)
+{
+    bcos::rpc::Web3Transaction w3;
+    w3.type = bcos::rpc::TransactionType::EIP1559;
+    w3.chainId = 1;
+    w3.nonce = 0;
+    w3.maxPriorityFeePerGas = 1;
+    w3.maxFeePerGas = 2;
+    w3.gasLimit = gasLimit;
+    w3.to = to;
+    w3.value = 0;
+    w3.data = data;
+    w3.signatureR = bcos::bytes(32, 0x11);
+    w3.signatureS = bcos::bytes(32, 0x22);
+    w3.signatureV = 27;
+
+    auto tarsHolder = std::make_shared<bcostars::Transaction>(w3.takeToTarsTransaction());
+    auto const signBytes = w3.encodeForSign();
+    tarsHolder->extraTransactionBytes.assign(signBytes.begin(), signBytes.end());
+    auto const txHash = w3.hashForSign();
+    tarsHolder->extraTransactionHash.assign(txHash.begin(), txHash.end());
+    tarsHolder->sender.assign(sender.bytes, sender.bytes + sizeof(sender.bytes));
+
+    return std::make_shared<bcostars::protocol::TransactionImpl>(
+        [tarsHolder]() { return tarsHolder.get(); });
+}
+}  // namespace
 
 class EthTxGasSettlementExecutorFixture
 {
@@ -152,6 +192,40 @@ BOOST_AUTO_TEST_CASE(type4_estimateCall_matchesExecute_gasUsed)
         BOOST_CHECK_EQUAL(callReceipt->status(), 0);
         BOOST_CHECK_EQUAL(execReceipt->gasUsed(), callReceipt->gasUsed());
         BOOST_CHECK_EQUAL(execReceipt->gasUsed(), u256(gas::TX_BASE_GAS));
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(type2_mixedCalldata_floorDominatesReceiptGasUsed)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        evmc_address sender{};
+        sender.bytes[19] = 0xe9;
+        evmc_address target{};
+        target.bytes[19] = 0xea;
+        co_await fundSender(sender);
+        co_await deployStopAt(target);
+
+        bcos::Address toAddr{};
+        std::memcpy(toAddr.data(), target.bytes, sizeof(target.bytes));
+        auto const data = mixedCalldata100();
+
+        evmc_message msg{};
+        msg.kind = EVMC_CALL;
+        msg.input_data = data.data();
+        msg.input_size = data.size();
+        auto const intrinsic = gas::computeTxIntrinsicGas(msg, nullptr, 2, nullptr);
+        constexpr int64_t expectedGasUsed = gas::TX_BASE_GAS + 2500;
+        BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimum(), expectedGasUsed);
+        BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), gas::TX_BASE_GAS + 1000);
+
+        auto tx =
+            makeWeb3Type2Transaction(sender, toAddr, data, static_cast<uint64_t>(expectedGasUsed));
+        auto receipt = co_await executor.executeTransaction(
+            storage, blockHeader, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_CHECK_EQUAL(receipt->gasUsed(), u256(expectedGasUsed));
     }());
 }
 

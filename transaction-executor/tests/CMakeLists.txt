@@ -11,6 +11,8 @@ set_source_files_properties("Eip2929AccessStateTest.cpp" PROPERTIES SKIP_UNITY_B
 set_source_files_properties("Task0EvmoneRefundSemanticsTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("EthTxGasSettlementTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("EthTxGasSettlementExecutorTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("Eip6780HostContextTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("Modexp7823TeTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_target_properties(test-transaction-executor PROPERTIES UNITY_BUILD "ON")
 # add_test(NAME test-transaction-executor WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} COMMAND test-transaction-executor)
 config_test_cases("" "${SOURCES}" "test-transaction-executor" "" "")

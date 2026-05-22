@@ -19,6 +19,7 @@ using bcos::task::syncWait;
 #include <bcos-tars-protocol/protocol/TransactionFactoryImpl.h>
 #include <bcos-tars-protocol/protocol/TransactionReceiptFactoryImpl.h>
 #include <boost/test/unit_test.hpp>
+#include <algorithm>
 #include <cstring>
 
 using namespace bcos;
@@ -141,6 +142,35 @@ BOOST_AUTO_TEST_CASE(SkipsInvalidNonce)
         BOOST_CHECK(!codeEntry || codeEntry->get().empty());
         auto const nonce = co_await authorityAccount.nonce();
         BOOST_CHECK_EQUAL(nonce.value(), "7");
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(SkipsUnrecoverableSignature)
+{
+    syncWait([this]() -> task::Task<void> {
+        auto const keyPair = testAuthorityKeyPair();
+        auto const authority = authorityAddressFromKey(cryptoSuite->hashImpl(), keyPair);
+        auto const authorityEvmc = executor::addressToEvmc(authority);
+        auto const target = address19(0x25);
+
+        EVMAccount<decltype(storage)> authorityAccount(storage, authorityEvmc, false);
+        co_await authorityAccount.create();
+        co_await authorityAccount.setNonce("0");
+
+        auto auth = signAuthorizationTuple(cryptoSuite->hashImpl(), keyPair, 1, target, 0);
+        auth.yParity = 9;
+        BOOST_CHECK(!executor::recoverEip7702Authority(cryptoSuite->hashImpl(), auth));
+
+        evmc_address sender = evmcAddr19(0x04);
+        co_await fundSender(sender);
+
+        auto tx = makeWeb3Type4Transaction(*cryptoSuite, {auth}, sender, Address{}, bytes{}, 0);
+        co_await runSteps01(*tx);
+
+        auto const codeEntry = co_await readAccountCode(storage, authorityEvmc, false);
+        BOOST_CHECK(!codeEntry || codeEntry->get().empty());
+        auto const nonce = co_await authorityAccount.nonce();
+        BOOST_CHECK_EQUAL(nonce.value(), "0");
     }());
 }
 
