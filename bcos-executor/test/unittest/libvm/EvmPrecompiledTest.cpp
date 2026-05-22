@@ -243,105 +243,110 @@ BOOST_AUTO_TEST_CASE(modexp_modlen_zero_baselen_nonzero)
 }
 
 // ===== modexp gas pricing ==================================================
-// EIP-2565 formula: multComplexity(max(baseLen,modLen)) * max(adjExpLen,1) / 20
-// multComplexity(x): x≤64 → x²; 64<x≤1024 → x²/4+96x-3072; x>1024 → x²/16+480x-199680
+// EIP-198 (pre-Berlin): multComplexity(bytes) * max(adjExpLen,1) / 20
+// EIP-2565 (Berlin+):   ceil(maxLen/8)² * max(iterCount,1) / 3, min 200
 
-BOOST_AUTO_TEST_CASE(modexp_pricer_small_inputs)
+BOOST_AUTO_TEST_CASE(modexp_gas_eip198_small_inputs)
 {
-    // baseLen=modLen=1, expLen=1 → maxLen=1, adjExpLen=msb(exp)
-    // For exp=2 (msb=1): multComplexity(1)=1, max(1,1)=1, gas = 1*1/20 = 0
-    // (integer division rounds down, minimum is floored by EVM callers but pricer itself returns 0)
-    const std::string modexpName{"modexp"};
-    auto& pricer = executor::PrecompiledRegistrar::pricer(modexpName);
     bytes input(96, 0);
-    input[31] = 1;          // baseLen = 1
-    input[63] = 1;          // expLen  = 1
-    input[95] = 1;          // modLen  = 1
-    input.push_back(0x03);  // base
-    input.push_back(0x02);  // exp = 2 → adjExpLen = msb(2) = 1
-    input.push_back(0x05);  // mod
-    // multComplexity(1)=1, max(1,1)=1, 1*1/20 = 0
-    BOOST_CHECK_EQUAL(pricer(ref(input)), 0);
+    input[31] = 1;
+    input[63] = 1;
+    input[95] = 1;
+    input.push_back(0x03);
+    input.push_back(0x02);
+    input.push_back(0x05);
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_ISTANBUL), 0);
 }
 
-BOOST_AUTO_TEST_CASE(modexp_pricer_multcomplexity_branch_le64)
+BOOST_AUTO_TEST_CASE(modexp_gas_eip198_multcomplexity_branch_le64)
 {
-    // maxLen=32 (≤64): multComplexity(32) = 32*32 = 1024
-    // exp=1 → adjExpLen = msb(1) = 0 → max(0,1) = 1
-    // gas = 1024 * 1 / 20 = 51
-    const std::string modexpName{"modexp"};
-    auto& pricer = executor::PrecompiledRegistrar::pricer(modexpName);
     bytes input(96, 0);
-    input[31] = 32;  // baseLen = 32
-    input[63] = 1;   // expLen  = 1
-    input[95] = 32;  // modLen  = 32
+    input[31] = 32;
+    input[63] = 1;
+    input[95] = 32;
     input.resize(96 + 32 + 1 + 32, 0);
-    input[96] = 0x01;       // base = 1 (32 bytes, only last byte matters)
-    input[96 + 32] = 0x01;  // exp  = 1 → adjExpLen = 0
-    input[96 + 33] = 0x01;  // mod  = 1 (last byte of 32-byte big-endian)
-    BOOST_CHECK_EQUAL(pricer(ref(input)), 51);
+    input[96] = 0x01;
+    input[96 + 32] = 0x01;
+    input[96 + 33] = 0x01;
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_ISTANBUL), 51);
 }
 
-BOOST_AUTO_TEST_CASE(modexp_pricer_multcomplexity_branch_le1024)
+BOOST_AUTO_TEST_CASE(modexp_gas_eip198_multcomplexity_branch_le1024)
 {
-    // maxLen=128 (64<x≤1024): multComplexity(128) = 128²/4 + 96*128 - 3072
-    //                                              = 16384/4 + 12288 - 3072
-    //                                              = 4096 + 12288 - 3072 = 13312
-    // exp=1 → adjExpLen=0 → max(0,1)=1; gas = 13312 / 20 = 665
-    const std::string modexpName{"modexp"};
-    auto& pricer = executor::PrecompiledRegistrar::pricer(modexpName);
     bytes input(96, 0);
-    input[31] = 128;  // baseLen = 128
-    input[63] = 1;    // expLen  = 1
-    input[95] = 128;  // modLen  = 128
+    input[31] = 128;
+    input[63] = 1;
+    input[95] = 128;
     input.resize(96 + 128 + 1 + 128, 0);
-    input[96] = 0x01;        // base LSB
-    input[96 + 128] = 0x01;  // exp = 1
-    input[96 + 129] = 0x01;  // mod LSB
-    BOOST_CHECK_EQUAL(pricer(ref(input)), 665);
+    input[96] = 0x01;
+    input[96 + 128] = 0x01;
+    input[96 + 129] = 0x01;
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_ISTANBUL), 665);
 }
 
-BOOST_AUTO_TEST_CASE(modexp_pricer_multcomplexity_branch_gt1024)
+BOOST_AUTO_TEST_CASE(modexp_gas_eip198_multcomplexity_branch_gt1024)
 {
-    // maxLen=2048 (>1024): multComplexity(2048) = 2048²/16 + 480*2048 - 199680
-    //                                            = 262144 + 983040 - 199680 = 1045504
-    // exp=1 → adjExpLen=msb(1)=0 → max(0,1)=1; gas = 1045504 * 1 / 20 = 52275
-    const std::string modexpName{"modexp"};
-    auto& pricer = executor::PrecompiledRegistrar::pricer(modexpName);
     bytes input(96, 0);
-    // Use uint16_t to set lengths > 255
-    input[30] = 0x08;  // baseLen high byte → 0x0800 = 2048
+    input[30] = 0x08;
     input[31] = 0x00;
-    input[62] = 0x00;  // expLen = 1
+    input[62] = 0x00;
     input[63] = 0x01;
-    input[94] = 0x08;  // modLen = 2048
+    input[94] = 0x08;
     input[95] = 0x00;
     input.resize(96 + 2048 + 1 + 2048, 0);
-    input[96] = 0x01;         // base = 1 (first byte of 2048-byte big-endian)
-    input[96 + 2048] = 0x01;  // exp  = 1 → adjExpLen = 0
-    input[96 + 2049] = 0x01;  // mod  = 1 (first byte of 2048-byte big-endian)
-    BOOST_CHECK_EQUAL(pricer(ref(input)), 52275);
+    input[96] = 0x01;
+    input[96 + 2048] = 0x01;
+    input[96 + 2049] = 0x01;
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_ISTANBUL), 52275);
 }
 
-BOOST_AUTO_TEST_CASE(modexp_pricer_explengthadjust_long_exponent)
+BOOST_AUTO_TEST_CASE(modexp_gas_eip198_explengthadjust_long_exponent)
 {
-    // expLength > 32 branch in expLengthAdjust:
-    //   adjExpLen = 8 * (expLength - 32) + highestBit(first 32 bytes of exp)
-    // Setup: baseLen=32, expLen=33, modLen=32 → maxLen=32
-    //   first 32 bytes of exp = 1 (msb=0) → highestBit=0 → adjExpLen = 8*(33-32)+0 = 8
-    //   multComplexity(32) = 32² = 1024
-    //   gas = 1024 * max(8,1) / 20 = 8192 / 20 = 409
-    const std::string modexpName{"modexp"};
-    auto& pricer = executor::PrecompiledRegistrar::pricer(modexpName);
-    bytes input(193, 0);  // 96 header + 32 base + 33 exp + 32 mod
-    input[31] = 32;       // baseLen = 32
-    input[63] = 33;       // expLen  = 33
-    input[95] = 32;       // modLen  = 32
-    input[127] = 0x01;    // base = 1  (last byte of 32-byte big-endian value)
-    input[159] = 0x01;    // first 32 bytes of exp (big-endian) = 1 → highestBit = 0
-    // input[160] = 0x00   33rd byte of exp (already 0)
-    input[192] = 0x01;  // mod = 1   (last byte of 32-byte big-endian value)
-    BOOST_CHECK_EQUAL(pricer(ref(input)), 409);
+    bytes input(193, 0);
+    input[31] = 32;
+    input[63] = 33;
+    input[95] = 32;
+    input[127] = 0x01;
+    input[159] = 0x01;
+    input[192] = 0x01;
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_ISTANBUL), 409);
+}
+
+BOOST_AUTO_TEST_CASE(modexp_gas_eip2565_small_inputs_min_200)
+{
+    bytes input(96, 0);
+    input[31] = 1;
+    input[63] = 1;
+    input[95] = 1;
+    input.push_back(0x03);
+    input.push_back(0x02);
+    input.push_back(0x05);
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_BERLIN), 200);
+}
+
+BOOST_AUTO_TEST_CASE(modexp_gas_eip2565_multcomplexity_32_bytes)
+{
+    bytes input(96, 0);
+    input[31] = 32;
+    input[63] = 1;
+    input[95] = 32;
+    input.resize(96 + 32 + 1 + 32, 0);
+    input[96] = 0x01;
+    input[96 + 32] = 0x01;
+    input[96 + 33] = 0x01;
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_BERLIN), 200);
+}
+
+BOOST_AUTO_TEST_CASE(modexp_gas_eip2565_long_exponent)
+{
+    bytes input(193, 0);
+    input[31] = 32;
+    input[63] = 33;
+    input[95] = 32;
+    input[127] = 0x01;
+    input[159] = 0x01;
+    input[192] = 0x01;
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_BERLIN), 200);
 }
 
 // ===== blake2_compression ==================================================

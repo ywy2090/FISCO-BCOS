@@ -206,44 +206,16 @@ ETH_REGISTER_PRECOMPILED(identity)(bytesConstRef _in)
     return {true, _in.toBytes()};
 }
 
-// Parse _count bytes of _in starting with _begin offset as big endian int.
-// If there's not enough bytes in _in, consider it infinitely right-padded with zeroes.
-bigint parseBigEndianRightPadded(bytesConstRef _in, bigint const& _begin, bigint const& _count)
-{
-    if (_begin > _in.count())
-        return 0;
-    assert(_count <= numeric_limits<size_t>::max() / 8);  // Otherwise, the return value would not
-                                                          // fit in the memory.
-
-    size_t const begin{_begin};
-    size_t const count{_count};
-
-    // crop _in, not going beyond its size
-    bytesConstRef cropped = _in.getCroppedData(begin, min(count, _in.count() - begin));
-
-    bigint ret = fromBigEndian<bigint>(cropped);
-    // shift as if we had right-padding zeroes
-    assert(count - cropped.count() <= numeric_limits<size_t>::max() / 8);
-    ret <<= 8 * (count - cropped.count());
-
-    return ret;
-}
-
 ETH_REGISTER_PRECOMPILED(modexp)(bytesConstRef _in)
 {
     // EIP-198: big-number modular exponentiation (base^exp) % mod.
     // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-198.md
-    auto parseLen = [&](size_t offset) -> size_t {
-        if (_in.size() < offset + 32)
-            return 0;
-        bigint v(parseBigEndianRightPadded(_in, offset, 32));
-        return v > std::numeric_limits<size_t>::max() ? 0 : static_cast<size_t>(v);
-    };
-    size_t const baseLen = parseLen(0);
-    size_t const expLen = parseLen(32);
-    size_t const modLen = parseLen(64);
+    auto const lens = parseModexpLengths(_in);
+    size_t const baseLen = lens.baseLen;
+    size_t const expLen = lens.expLen;
+    size_t const modLen = lens.modLen;
 
-    if (modLen == 0)
+    if (baseLen == 0 && modLen == 0)
         return {true, {}};
 
     // Zero-pad inputs to declared lengths (EIP-198: missing bytes are right-padded with zeros)
@@ -270,44 +242,9 @@ ETH_REGISTER_PRECOMPILED(modexp)(bytesConstRef _in)
     return {true, std::move(output)};
 }
 
-namespace
-{
-bigint expLengthAdjust(bigint const& _expOffset, bigint const& _expLength, bytesConstRef _in)
-{
-    if (_expLength <= 32)
-    {
-        bigint const exp(parseBigEndianRightPadded(_in, _expOffset, _expLength));
-        return exp ? msb(exp) : 0;
-    }
-    else
-    {
-        bigint const expFirstWord(parseBigEndianRightPadded(_in, _expOffset, 32));
-        size_t const highestBit(expFirstWord ? msb(expFirstWord) : 0);
-        return 8 * (_expLength - 32) + highestBit;
-    }
-}
-
-bigint multComplexity(bigint const& _x)
-{
-    if (_x <= 64)
-        return _x * _x;
-    if (_x <= 1024)
-        return (_x * _x) / 4 + 96 * _x - 3072;
-    else
-        return (_x * _x) / 16 + 480 * _x - 199680;
-}
-}  // namespace
-
 ETH_REGISTER_PRECOMPILED_PRICER(modexp)(bytesConstRef _in)
 {
-    bigint const baseLength(parseBigEndianRightPadded(_in, 0, 32));
-    bigint const expLength(parseBigEndianRightPadded(_in, 32, 32));
-    bigint const modLength(parseBigEndianRightPadded(_in, 64, 32));
-
-    bigint const maxLength(max(modLength, baseLength));
-    bigint const adjustedExpLength(expLengthAdjust(baseLength + 96, expLength, _in));
-
-    return multComplexity(maxLength) * max<bigint>(adjustedExpLength, 1) / 20;
+    return bcos::executor::calcModexpGasEip198Public(_in);
 }
 
 ETH_REGISTER_PRECOMPILED(alt_bn128_G1_add)(bytesConstRef _in)

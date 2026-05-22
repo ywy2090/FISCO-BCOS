@@ -24,6 +24,7 @@
 #include "../executive/TransactionExecutive.h"
 #include "EVMHostInterface.h"
 #include "EvmPrecompiledAddress.h"
+#include "Precompiled.h"
 #include "bcos-codec/wrapper/CodecWrapper.h"
 #include "bcos-executor/src/precompiled/common/Utilities.h"
 #include "bcos-framework/bcos-framework/ledger/LedgerTypeDef.h"
@@ -389,8 +390,24 @@ evmc_result HostContext::callBuiltInPrecompiled(
             return preResult;
         }
 
-        auto gasUsed =
-            m_executive->costOfPrecompiled(_request->receiveAddress, ref(_request->data));
+        int64_t gasUsed = 0;
+        if (isModexpPrecompileAddress(_request->receiveAddress))
+        {
+            if (!validateModexpEip7823(ref(_request->data), revision()))
+            {
+                callResults->type = CallParameters::REVERT;
+                callResults->status = (int32_t)TransactionStatus::RevertInstruction;
+                preResult.status_code = EVMC_FAILURE;
+                preResult.gas_left = 0;
+                m_responseStore.emplace_back(std::move(callResults));
+                return preResult;
+            }
+            gasUsed = calcModexpGas(ref(_request->data), revision()).convert_to<int64_t>();
+        }
+        else
+        {
+            gasUsed = m_executive->costOfPrecompiled(_request->receiveAddress, ref(_request->data));
+        }
         /// NOTE: this assignment is wrong, will cause out of gas, should not use evm precompiled
         /// before 3.1.0
         callResults->gas = gasUsed;

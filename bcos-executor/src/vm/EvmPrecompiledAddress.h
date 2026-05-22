@@ -6,6 +6,7 @@
  */
 #pragma once
 
+#include <evmc/evmc.h>
 #include <cstdint>
 #include <iomanip>
 #include <sstream>
@@ -150,5 +151,23 @@ inline bool isP256verifyPrecompileAddress(std::string_view addr)
 {
     const auto body = normalizeHexAddressBody(addr);
     return !body.empty() && body == P256VERIFY_PRECOMPILE_ADDRESS;
+}
+
+inline bool isModexpPrecompileAddress(std::string_view addr)
+{
+    const auto body = normalizeHexAddressBody(addr);
+    return !body.empty() && body == MODEXP_PRECOMPILE_ADDRESS;
+}
+
+inline bool isModexpPrecompileEvmcAddress(evmc_address const& addr) noexcept
+{
+    for (size_t i = 0; i < 19; ++i)
+    {
+        if (addr.bytes[i] != 0)
+        {
+            return false;
+        }
+    }
+    return addr.bytes[19] == 0x05;
 }
 }  // namespace bcos::executor

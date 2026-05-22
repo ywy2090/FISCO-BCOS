@@ -28,6 +28,7 @@ target_link_libraries(executor PRIVATE rpc)
 
 set_source_files_properties(
     "src/vm/VMFactory.cpp"
+    "src/vm/ModexpGas.cpp"
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_target_properties(executor PROPERTIES UNITY_BUILD "ON")
 
