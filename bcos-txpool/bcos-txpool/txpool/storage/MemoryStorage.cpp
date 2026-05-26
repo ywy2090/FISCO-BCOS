@@ -446,6 +446,11 @@ TransactionStatus MemoryStorage::verifyAndSubmitTransaction(
             }
             return bcos::protocol::TransactionStatus::None;
         },
+        [this, transaction]() {
+            // Step 7: EIP-7702 path gating (defence in depth; spec §7.1)
+            return task::syncWait(m_config->txValidator()->validateEip7702Admission(
+                *transaction, m_config->ledger()));
+        },
     };
 
     // Execute validation chain - stop at first failure
