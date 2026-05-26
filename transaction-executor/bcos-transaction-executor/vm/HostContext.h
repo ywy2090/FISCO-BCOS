@@ -46,6 +46,7 @@
 #include "bcos-ledger/LedgerMethods.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-transaction-executor/EVMCResult.h"
+#include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-task/Wait.h>
@@ -196,6 +197,14 @@ private:
     std::shared_ptr<const executor::Eip2930AccessList> m_eip2930AccessList;
     uint8_t m_web3TypedTxKindForAccessList = 0;
 
+    gas::TxGasSettlementContext* m_gasSettlementCtx{};
+
+    bool ethGasSettlementEnabled() const noexcept
+    {
+        return gas::ethGasSettlementEnabled(
+            m_ledgerConfig.get().features(), m_revision, m_level, m_web3Tx);
+    }
+
     constexpr auto buildLegacyExternalCaller()
     {
         return
@@ -244,7 +253,8 @@ private:
         const evmc_host_interface* hostInterface,
         std::shared_ptr<executor::Eip2929AccessState> eip2929Access,
         std::shared_ptr<const executor::Eip2930AccessList> eip2930AccessList,
-        uint8_t web3TypedTxKindForAccessList)
+        uint8_t web3TypedTxKindForAccessList,
+        gas::TxGasSettlementContext* gasSettlementCtx = nullptr)
       : evmc_host_context{.interface = hostInterface,
             .wasm_interface = nullptr,
             .hash_fn = evm_hash_fn,
@@ -269,7 +279,8 @@ private:
         m_web3Tx(web3Tx),
         m_eip2929Access(std::move(eip2929Access)),
         m_eip2930AccessList(std::move(eip2930AccessList)),
-        m_web3TypedTxKindForAccessList(web3TypedTxKindForAccessList)
+        m_web3TypedTxKindForAccessList(web3TypedTxKindForAccessList),
+        m_gasSettlementCtx(gasSettlementCtx)
     {}
 
 public:
@@ -279,12 +290,13 @@ public:
         PrecompiledManager const& precompiledManager, ledger::LedgerConfig const& ledgerConfig,
         crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce, auto&& waitOperator,
         std::shared_ptr<const executor::Eip2930AccessList> eip2930AccessList = {},
-        uint8_t web3TypedTxKindForAccessList = 0)
+        uint8_t web3TypedTxKindForAccessList = 0,
+        gas::TxGasSettlementContext* gasSettlementCtx = nullptr)
       : HostContext(innerConstructor, storage, transientStorage, blockHeader, message, origin, abi,
             contextID, seq, precompiledManager, ledgerConfig, hashImpl, web3Tx, nonce,
             getHostInterface<HostContext>(std::forward<decltype(waitOperator)>(waitOperator)),
             std::make_shared<executor::Eip2929AccessState>(), std::move(eip2930AccessList),
-            web3TypedTxKindForAccessList)
+            web3TypedTxKindForAccessList, gasSettlementCtx)
     {}
 
     ~HostContext() noexcept = default;
@@ -524,7 +536,29 @@ public:
                 // EIP-7623 calldata floor cost (Prague+, top-level transactions only)
                 // Computes max(standard_calldata_gas, tokens*10) and deducts it upfront.
                 // The 21000 base cost sits outside this formula and is handled separately.
-                if (m_level == 0 && m_revision >= EVMC_PRAGUE)
+                if (ethGasSettlementEnabled())
+                {
+                    auto& msg = mutableMessage();
+                    auto const intrinsic = gas::computeTxIntrinsicGas(msg,
+                        m_eip2930AccessList ? m_eip2930AccessList.get() : nullptr,
+                        m_web3TypedTxKindForAccessList, nullptr);
+                    if (msg.gas < intrinsic.preExecutionDebit())
+                    {
+                        evmResult.emplace(makeErrorEVMCResult(m_hashImpl,
+                            protocol::TransactionStatus::OutOfGas, EVMC_OUT_OF_GAS,
+                            fixErrorGas ? 0 : msg.gas, "Ethereum intrinsic gas OOG"));
+                    }
+                    else if (m_gasSettlementCtx != nullptr)
+                    {
+                        m_gasSettlementCtx->calldata = executor::calcEip7623Components(
+                            bcos::bytesConstRef(msg.input_data, msg.input_size));
+                        m_gasSettlementCtx->fixedIntrinsic = intrinsic.fixedCost();
+                        m_gasSettlementCtx->createTerm = intrinsic.createIntrinsic;
+                        msg.gas -= intrinsic.preExecutionDebit();
+                        m_gasSettlementCtx->gasBeforeEvm = msg.gas;
+                    }
+                }
+                else if (m_level == 0 && m_revision >= EVMC_PRAGUE)
                 {
                     auto& msg = mutableMessage();
                     const int64_t calldataGas = executor::calcEip7623CalldataGas(
@@ -541,34 +575,37 @@ public:
                     }
                 }
 
-                // Transfer first, then proceed execute
-                if (m_ledgerConfig.get().features().get(
-                        ledger::Features::Flag::bugfix_delegatecall_transfer))
+                if (!evmResult)
                 {
-                    if (((ref->kind == EVMC_CALL && (ref->flags & EVMC_STATIC) == 0) ||
-                            (ref->kind == EVMC_CREATE) || ref->kind == EVMC_CREATE2) &&
-                        !::ranges::equal(ref->value.bytes, executor::EMPTY_EVM_BYTES32.bytes) &&
-                        m_ledgerConfig.get().balanceTransfer())
+                    // Transfer first, then proceed execute
+                    if (m_ledgerConfig.get().features().get(
+                            ledger::Features::Flag::bugfix_delegatecall_transfer))
                     {
-                        co_await transferBalance(*ref);
+                        if (((ref->kind == EVMC_CALL && (ref->flags & EVMC_STATIC) == 0) ||
+                                (ref->kind == EVMC_CREATE) || ref->kind == EVMC_CREATE2) &&
+                            !::ranges::equal(ref->value.bytes, executor::EMPTY_EVM_BYTES32.bytes) &&
+                            m_ledgerConfig.get().balanceTransfer())
+                        {
+                            co_await transferBalance(*ref);
+                        }
                     }
-                }
-                else
-                {
-                    if (!::ranges::equal(ref->value.bytes, executor::EMPTY_EVM_BYTES32.bytes) &&
-                        m_ledgerConfig.get().balanceTransfer())
+                    else
                     {
-                        co_await transferBalance(*ref);
+                        if (!::ranges::equal(ref->value.bytes, executor::EMPTY_EVM_BYTES32.bytes) &&
+                            m_ledgerConfig.get().balanceTransfer())
+                        {
+                            co_await transferBalance(*ref);
+                        }
                     }
-                }
 
-                if (ref->kind == EVMC_CREATE || ref->kind == EVMC_CREATE2)
-                {
-                    evmResult.emplace(co_await executeCreate());
-                }
-                else
-                {
-                    evmResult.emplace(co_await executeCall());
+                    if (ref->kind == EVMC_CREATE || ref->kind == EVMC_CREATE2)
+                    {
+                        evmResult.emplace(co_await executeCreate());
+                    }
+                    else
+                    {
+                        evmResult.emplace(co_await executeCall());
+                    }
                 }
             }
         }
@@ -669,7 +706,8 @@ public:
         HostContext hostcontext(innerConstructor, m_rollbackableStorage.get(),
             m_rollbackableTransientStorage.get(), m_blockHeader, message, m_origin, {}, m_contextID,
             m_seq, m_precompiledManager.get(), m_ledgerConfig, m_hashImpl, m_web3Tx, nonce,
-            interface, m_eip2929Access, m_eip2930AccessList, m_web3TypedTxKindForAccessList);
+            interface, m_eip2929Access, m_eip2930AccessList, m_web3TypedTxKindForAccessList,
+            nullptr);
 
         co_await hostcontext.prepare();
         auto result = co_await hostcontext.execute();
@@ -797,6 +835,10 @@ private:
 
     void consumeTransferGas(evmc_message& ref)
     {
+        if (ethGasSettlementEnabled())
+        {
+            return;
+        }
         if (m_level == 0)
         {
             if (ref.gas < executor::BALANCE_TRANSFER_GAS)
