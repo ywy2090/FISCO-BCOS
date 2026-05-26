@@ -30,6 +30,8 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
+#include "bcos-executor/src/Eip7702Delegation.h"
+#include "bcos-executor/src/Web3Eip7702Apply.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/ledger/EVMAccount.h"
@@ -46,6 +48,7 @@
 #include "bcos-ledger/LedgerMethods.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-transaction-executor/EVMCResult.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -196,7 +199,9 @@ private:
     /// Optional EIP-2930 access list (TE path); warmed after W1 for any typed tx (kind != 0).
     std::shared_ptr<const executor::Eip2930AccessList> m_eip2930AccessList;
     uint8_t m_web3TypedTxKindForAccessList = 0;
-
+    std::shared_ptr<const executor::Eip7702AuthorizationList> m_eip7702AuthorizationList;
+    std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmAuthorities;
+    std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmTargets;
     gas::TxGasSettlementContext* m_gasSettlementCtx{};
 
     bool ethGasSettlementEnabled() const noexcept
@@ -254,6 +259,9 @@ private:
         std::shared_ptr<executor::Eip2929AccessState> eip2929Access,
         std::shared_ptr<const executor::Eip2930AccessList> eip2930AccessList,
         uint8_t web3TypedTxKindForAccessList,
+        std::shared_ptr<const executor::Eip7702AuthorizationList> eip7702AuthorizationList,
+        std::shared_ptr<std::vector<evmc_address>> eip7702WarmAuthorities,
+        std::shared_ptr<std::vector<evmc_address>> eip7702WarmTargets,
         gas::TxGasSettlementContext* gasSettlementCtx = nullptr)
       : evmc_host_context{.interface = hostInterface,
             .wasm_interface = nullptr,
@@ -280,6 +288,9 @@ private:
         m_eip2929Access(std::move(eip2929Access)),
         m_eip2930AccessList(std::move(eip2930AccessList)),
         m_web3TypedTxKindForAccessList(web3TypedTxKindForAccessList),
+        m_eip7702AuthorizationList(std::move(eip7702AuthorizationList)),
+        m_eip7702WarmAuthorities(std::move(eip7702WarmAuthorities)),
+        m_eip7702WarmTargets(std::move(eip7702WarmTargets)),
         m_gasSettlementCtx(gasSettlementCtx)
     {}
 
@@ -291,13 +302,40 @@ public:
         crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce, auto&& waitOperator,
         std::shared_ptr<const executor::Eip2930AccessList> eip2930AccessList = {},
         uint8_t web3TypedTxKindForAccessList = 0,
+        std::shared_ptr<const executor::Eip7702AuthorizationList> eip7702AuthorizationList = {},
+        std::shared_ptr<std::vector<evmc_address>> eip7702WarmAuthorities = {},
+        std::shared_ptr<std::vector<evmc_address>> eip7702WarmTargets = {},
         gas::TxGasSettlementContext* gasSettlementCtx = nullptr)
       : HostContext(innerConstructor, storage, transientStorage, blockHeader, message, origin, abi,
             contextID, seq, precompiledManager, ledgerConfig, hashImpl, web3Tx, nonce,
             getHostInterface<HostContext>(std::forward<decltype(waitOperator)>(waitOperator)),
             std::make_shared<executor::Eip2929AccessState>(), std::move(eip2930AccessList),
-            web3TypedTxKindForAccessList, gasSettlementCtx)
+            web3TypedTxKindForAccessList, std::move(eip7702AuthorizationList),
+            std::move(eip7702WarmAuthorities), std::move(eip7702WarmTargets), gasSettlementCtx)
     {}
+
+    /// EIP-7702 W3: warm authority + target for successfully applied tuples only (spec §5.6).
+    void warmEip7702Addresses()
+    {
+        if (!m_eip2929Access)
+        {
+            return;
+        }
+        if (m_eip7702WarmAuthorities)
+        {
+            for (auto const& addr : *m_eip7702WarmAuthorities)
+            {
+                (void)m_eip2929Access->warmUpAddressNoJournal(addr);
+            }
+        }
+        if (m_eip7702WarmTargets)
+        {
+            for (auto const& addr : *m_eip7702WarmTargets)
+            {
+                (void)m_eip2929Access->warmUpAddressNoJournal(addr);
+            }
+        }
+    }
 
     ~HostContext() noexcept = default;
     HostContext(HostContext const&) = default;
@@ -533,15 +571,13 @@ public:
 
             if (!evmResult)
             {
-                // EIP-7623 calldata floor cost (Prague+, top-level transactions only)
-                // Computes max(standard_calldata_gas, tokens*10) and deducts it upfront.
-                // The 21000 base cost sits outside this formula and is handled separately.
                 if (ethGasSettlementEnabled())
                 {
                     auto& msg = mutableMessage();
                     auto const intrinsic = gas::computeTxIntrinsicGas(msg,
                         m_eip2930AccessList ? m_eip2930AccessList.get() : nullptr,
-                        m_web3TypedTxKindForAccessList, nullptr);
+                        m_web3TypedTxKindForAccessList,
+                        m_eip7702AuthorizationList ? m_eip7702AuthorizationList.get() : nullptr);
                     if (msg.gas < intrinsic.preExecutionDebit())
                     {
                         evmResult.emplace(makeErrorEVMCResult(m_hashImpl,
@@ -572,6 +608,24 @@ public:
                     else
                     {
                         msg.gas -= calldataGas;
+                    }
+
+                    if (!evmResult && m_web3TypedTxKindForAccessList == EIP_7702_WEB3_TX_TYPE &&
+                        m_eip7702AuthorizationList && !m_eip7702AuthorizationList->empty())
+                    {
+                        const int64_t authIntrinsic =
+                            static_cast<int64_t>(m_eip7702AuthorizationList->size()) *
+                            EIP_7702_PER_EMPTY_ACCOUNT_COST;
+                        if (msg.gas < authIntrinsic)
+                        {
+                            evmResult.emplace(makeErrorEVMCResult(m_hashImpl,
+                                protocol::TransactionStatus::OutOfGas, EVMC_OUT_OF_GAS,
+                                fixErrorGas ? 0 : msg.gas, "EIP-7702 auth intrinsic OOG"));
+                        }
+                        else
+                        {
+                            msg.gas -= authIntrinsic;
+                        }
                     }
                 }
 
@@ -707,7 +761,7 @@ public:
             m_rollbackableTransientStorage.get(), m_blockHeader, message, m_origin, {}, m_contextID,
             m_seq, m_precompiledManager.get(), m_ledgerConfig, m_hashImpl, m_web3Tx, nonce,
             interface, m_eip2929Access, m_eip2930AccessList, m_web3TypedTxKindForAccessList,
-            nullptr);
+            m_eip7702AuthorizationList, m_eip7702WarmAuthorities, m_eip7702WarmTargets, nullptr);
 
         co_await hostcontext.prepare();
         auto result = co_await hostcontext.execute();
@@ -761,6 +815,30 @@ public:
     }
 
 private:
+    task::Task<evmc_address> resolveDelegateCodeAddress(evmc_address const& addr)
+    {
+        if (m_revision < EVMC_PRAGUE ||
+            !m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_evm_prague))
+        {
+            co_return addr;
+        }
+
+        if (auto codeEntry = co_await code(addr))
+        {
+            auto const codeView = codeEntry->get();
+            if (executor::isEip7702DelegationIndicator(bcos::bytesConstRef(
+                    reinterpret_cast<bcos::byte const*>(codeView.data()), codeView.size())))
+            {
+                evmc_address target{};
+                std::memcpy(target.bytes,
+                    codeView.data() + executor::EIP7702_DELEGATION_TARGET_OFFSET,
+                    sizeof(target.bytes));
+                co_return target;
+            }
+        }
+        co_return addr;
+    }
+
     void prepareCreate()
     {
         auto& ref = message();
@@ -924,7 +1002,13 @@ private:
                 m_revision);
         }
 
-        if (m_executable = co_await getExecutable(m_rollbackableStorage.get(), ref.code_address,
+        evmc_address codeLoadAddress = ref.code_address;
+        if (ref.kind == EVMC_CALL || ref.kind == EVMC_DELEGATECALL)
+        {
+            codeLoadAddress = co_await resolveDelegateCodeAddress(ref.code_address);
+        }
+
+        if (m_executable = co_await getExecutable(m_rollbackableStorage.get(), codeLoadAddress,
                 m_revision,
                 m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_raw_address));
             !m_executable)
