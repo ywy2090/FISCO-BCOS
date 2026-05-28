@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2024 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  @file EvmPrecompiledAddress.h
  *  @brief Ethereum-style precompile address constants and helpers for evmone HostContext.
