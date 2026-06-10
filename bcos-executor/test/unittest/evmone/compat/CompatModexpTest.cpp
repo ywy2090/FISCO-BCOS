@@ -6,6 +6,7 @@
  */
 
 #include "CompatTestFixture.h"
+#include "vm/ModexpGas.h"
 #include "vm/Precompiled.h"
 #include <Common.h>
 #include <boost/test/unit_test.hpp>
@@ -131,6 +132,45 @@ BOOST_AUTO_TEST_CASE(FC_M_modexp_mod_zero_nonzero_len)
     BOOST_REQUIRE(r.first);
     BOOST_CHECK_EQUAL(r.second.size(), 3u);
     BOOST_CHECK(r.second == bytes(3, 0));  // all-zeros, length = modLen
+}
+
+BOOST_AUTO_TEST_CASE(FC_M_modexp_gas_berlin_vs_istanbul)
+{
+    bytes input(96, 0);
+    input[31] = 32;
+    input[63] = 1;
+    input[95] = 32;
+    input.resize(96 + 32 + 1 + 32, 0);
+    input[96] = 0x01;
+    input[96 + 32] = 0x01;
+    input[96 + 33] = 0x01;
+
+    auto const gas198 = executor::calcModexpGas(ref(input), EVMC_ISTANBUL).convert_to<int64_t>();
+    auto const gas2565 = executor::calcModexpGas(ref(input), EVMC_BERLIN).convert_to<int64_t>();
+    BOOST_CHECK_EQUAL(gas198, 51);
+    BOOST_CHECK_EQUAL(gas2565, 200);
+    BOOST_CHECK_NE(gas198, gas2565);
+}
+
+BOOST_AUTO_TEST_CASE(FC_M_modexp_gas_osaka_7883_min)
+{
+    bytes input(96, 0);
+    input[31] = 1;
+    input[63] = 1;
+    input[95] = 1;
+    input.push_back(0x03);
+    input.push_back(0x01);
+    input.push_back(0x01);
+    BOOST_CHECK_EQUAL(executor::calcModexpGas(ref(input), EVMC_OSAKA).convert_to<int64_t>(), 500);
+}
+
+BOOST_AUTO_TEST_CASE(FC_M_modexp_eip7823_header_reject)
+{
+    bytes input(96, 0);
+    input[30] = 4;
+    input[31] = 1;
+    BOOST_CHECK(!executor::validateModexpEip7823(ref(input), EVMC_OSAKA));
+    BOOST_CHECK(executor::validateModexpEip7823(ref(input), EVMC_PRAGUE));
 }
 
 BOOST_AUTO_TEST_SUITE_END()  // CompatModexp
