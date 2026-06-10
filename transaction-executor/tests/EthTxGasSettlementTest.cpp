@@ -102,7 +102,6 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_accessList_cost)
     BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), TX_BASE_GAS + ACCESS_LIST_ADDRESS_COST + 3800);
 }
 
-#if 0   // TODO(pr5b): re-enable when Eip7702AuthorizationList is fully defined
 BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_eip7702_only_type4)
 {
     evmc_message msg{};
@@ -114,7 +113,6 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_eip7702_only_type4)
     BOOST_CHECK_EQUAL(type4Intrinsic.eip7702AuthCost, 50000);
     BOOST_CHECK_EQUAL(type2Intrinsic.eip7702AuthCost, 0);
 }
-#endif  // TODO(pr5b)
 
 BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_createIntrinsic_words)
 {

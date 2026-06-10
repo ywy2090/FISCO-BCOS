@@ -8,36 +8,14 @@
 
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
+#include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-framework/ledger/Features.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include <evmc/evmc.h>
 #include <algorithm>
-#include <cstddef>
-#include <string>
-#include <vector>
-
-namespace bcos::executor
-{
-// Minimal stub; real type defined in pr5b (Web3AuthorizationList.h / Eip7702Common.h).
-struct Web3AuthorizationEntry
-{
-    std::string chainIdDec;
-    std::string addressHex;
-    std::string nonceDec;
-    uint8_t yParity = 0;
-    bcos::h256 r;
-    bcos::h256 s;
-};
-using Eip7702AuthorizationList = std::vector<Web3AuthorizationEntry>;
-}  // namespace bcos::executor
 
 namespace bcos::executor_v1
 {
-
-/// EIP-2718 type byte for EIP-7702 (must match `bcos::rpc::TransactionType::EIP7702`).
-constexpr uint8_t EIP_7702_WEB3_TX_TYPE = 4;
-
-constexpr int64_t EIP_7702_PER_EMPTY_ACCOUNT_COST = 25000;
-
 namespace gas
 {
 

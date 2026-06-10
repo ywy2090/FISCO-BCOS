@@ -2,12 +2,16 @@
 
 #include "RollbackableStorage.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
+#include "bcos-executor/src/Web3Eip7702Apply.h"
+#include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"
+#include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"
 #include "bcos-task/Wait.h"
 #include "bcos-transaction-executor/EVMCResult.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Exceptions.h"
@@ -20,6 +24,7 @@
 #include <iterator>
 #include <memory>
 #include <type_traits>
+#include <unordered_set>
 
 namespace bcos::executor_v1
 {
@@ -87,11 +92,15 @@ public:
             u256 m_nonce;
             executor::Web3AccessListResolved m_web3AccessListResolved;
             std::shared_ptr<executor::Eip2929AccessState> m_eip2929Access;
+            executor::Web3Eip7702Parsed m_eip7702Parsed;
+            int64_t m_eip7702Refund = 0;
+            std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmAuthorities;
+            std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmTargets;
+            gas::TxGasSettlementContext m_gasSettlement{};
             hostcontext::HostContext<decltype(m_rollbackableStorage),
                 decltype(m_rollbackableTransientStorage)>
                 m_hostContext;
             std::optional<EVMCResult> m_evmcResult;
-            gas::TxGasSettlementContext m_gasSettlement{};
 
             Data(TransactionExecutorImpl& executor, Storage& storage,
                 protocol::BlockHeader const& blockHeader, protocol::Transaction const& transaction,
@@ -113,13 +122,17 @@ public:
                 m_nonce(hex2u(transaction.nonce())),
                 m_web3AccessListResolved(executor::resolveWeb3AccessList(transaction)),
                 m_eip2929Access(std::make_shared<executor::Eip2929AccessState>()),
+                m_eip7702Parsed(executor::parseEip7702FromWeb3Transaction(transaction)),
+                m_eip7702WarmAuthorities(std::make_shared<std::vector<evmc_address>>()),
+                m_eip7702WarmTargets(std::make_shared<std::vector<evmc_address>>()),
                 m_hostContext(m_rollbackableStorage, m_rollbackableTransientStorage, blockHeader,
                     newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
                     ledgerConfig, *executor.m_hashImpl, transaction.type() != 0, m_nonce,
                     task::syncWait, m_web3AccessListResolved.accessList,
-                    m_web3AccessListResolved.web3TypedTxKind, m_eip2929Access,
-                    std::addressof(m_gasSettlement))
+                    m_web3AccessListResolved.web3TypedTxKind, m_eip7702Parsed.authorizationList,
+                    m_eip7702WarmAuthorities, m_eip7702WarmTargets, std::addressof(m_gasSettlement),
+                    m_eip2929Access)
             {
                 m_gasSettlement.gasLimit = m_gasLimit;
             }
@@ -145,6 +158,10 @@ public:
                 auto updated = co_await updateNonce();
                 if (updated)
                 {
+                    // FC_G_7702_apply_before_savepoint: EIP-7702 state is committed before the
+                    // post-execute savepoint so balance rollback and EVM REVERT do not undo it.
+                    co_await applyEip7702AuthorizationList();
+                    m_data->m_hostContext.warmEip7702Addresses();
                     m_data->m_startSavepoint = m_data->m_rollbackableStorage.current();
                 }
 
@@ -161,12 +178,14 @@ public:
                         co_return {};
                     }
                     m_data->m_evmcResult.emplace(co_await m_data->m_hostContext.execute());
+                    m_data->m_evmcResult->gas_refund += m_data->m_eip7702Refund;
                     co_await refundGas();
                 }
                 else
                 {
                     // Legacy path
                     m_data->m_evmcResult.emplace(co_await m_data->m_hostContext.execute());
+                    m_data->m_evmcResult->gas_refund += m_data->m_eip7702Refund;
                     co_await consumeBalance();
                 }
             }
@@ -341,16 +360,132 @@ public:
             }
 
             auto const& msg = m_data->m_hostContext.message();
-            auto const web3TypedTxKind = m_data->m_web3AccessListResolved.web3TypedTxKind;
+            auto const web3TypedTxKind = m_data->m_eip7702Parsed.web3TypedTxKind != 0 ?
+                                             m_data->m_eip7702Parsed.web3TypedTxKind :
+                                             m_data->m_web3AccessListResolved.web3TypedTxKind;
             auto const* accessList = m_data->m_web3AccessListResolved.accessList ?
                                          m_data->m_web3AccessListResolved.accessList.get() :
                                          nullptr;
+            auto const* authorizationList = m_data->m_eip7702Parsed.authorizationList ?
+                                                m_data->m_eip7702Parsed.authorizationList.get() :
+                                                nullptr;
             auto const intrinsic =
-                gas::computeTxIntrinsicGas(msg, accessList, web3TypedTxKind, nullptr);
+                gas::computeTxIntrinsicGas(msg, accessList, web3TypedTxKind, authorizationList);
             auto const fixErrorGas =
                 features.get(ledger::Features::Flag::bugfix_evm_exception_gas_used);
             m_data->m_gasUsed = gas::finalizeEthereumGasUsedWithoutEvmStart(m_data->m_gasSettlement,
                 intrinsic.preExecutionDebit(), evmcResult.gas_left, fixErrorGas);
+        }
+
+        task::Task<void> applyEip7702AuthorizationList()
+        {
+            auto const& features = m_data->m_ledgerConfig.get().features();
+            if (!features.get(ledger::Features::Flag::feature_evm_prague))
+            {
+                co_return;
+            }
+            if (m_data->m_eip7702Parsed.web3TypedTxKind != executor_v1::EIP_7702_WEB3_TX_TYPE)
+            {
+                co_return;
+            }
+            auto const& list = m_data->m_eip7702Parsed.authorizationList;
+            if (!list || list->empty())
+            {
+                co_return;
+            }
+            if (list->size() > executor_v1::EIP_7702_MAX_AUTHORIZATION_LIST_SIZE)
+            {
+                TRANSACTION_EXECUTOR_LOG(WARNING)
+                    << LOG_DESC("authorization_list exceeds max size; skipping apply")
+                    << LOG_KV("size", list->size())
+                    << LOG_KV("max", executor_v1::EIP_7702_MAX_AUTHORIZATION_LIST_SIZE);
+                co_return;
+            }
+
+            auto const& hashImpl = m_data->m_executor.get().m_hashImpl;
+            auto const ledgerChainId = m_data->m_ledgerConfig.get().chainId();
+            auto const binaryAddress = features.get(ledger::Features::Flag::feature_raw_address);
+
+            std::unordered_set<evmc_address, executor::Eip2929AddrHash, executor::Eip2929AddrEqual>
+                seenAuthorities;
+            std::unordered_set<evmc_address, executor::Eip2929AddrHash, executor::Eip2929AddrEqual>
+                seenTargets;
+            m_data->m_eip7702WarmAuthorities->clear();
+            m_data->m_eip7702WarmTargets->clear();
+
+            static bcos::Address const zeroAddress;
+
+            for (auto const& tuple : *list)
+            {
+                if (!executor::eip7702ChainIdMatches(tuple.chainId, ledgerChainId))
+                {
+                    continue;
+                }
+
+                auto const authorityAddrOpt = executor::recoverEip7702Authority(hashImpl, tuple);
+                if (!authorityAddrOpt)
+                {
+                    continue;
+                }
+                auto const authorityEvmc = executor::addressToEvmc(*authorityAddrOpt);
+
+                ledger::account::EVMAccount<decltype(m_data->m_rollbackableStorage)> authority(
+                    m_data->m_rollbackableStorage, authorityEvmc, binaryAddress);
+
+                if (auto codeEntry = co_await authority.code())
+                {
+                    auto const codeView = codeEntry->get();
+                    if (!codeView.empty() &&
+                        !executor::isEip7702DelegationIndicator(bcos::bytesConstRef(
+                            reinterpret_cast<bcos::byte const*>(codeView.data()), codeView.size())))
+                    {
+                        continue;
+                    }
+                }
+
+                auto const nonceInStorage = co_await authority.nonce();
+                auto const storageNonce =
+                    u256(nonceInStorage.value_or(std::string("0"))).convert_to<uint64_t>();
+                if (tuple.nonce != storageNonce)
+                {
+                    continue;
+                }
+
+                bool const existed = co_await authority.exists();
+                if (!existed)
+                {
+                    co_await authority.create();
+                }
+
+                if (tuple.address == zeroAddress)
+                {
+                    auto const emptyHash = hashImpl->hash(std::string_view{});
+                    co_await authority.setCode({}, std::string{}, emptyHash);
+                }
+                else
+                {
+                    bcos::bytes delegCode;
+                    delegCode.reserve(executor::EIP7702_DELEGATION_CODE_SIZE);
+                    delegCode.insert(delegCode.end(),
+                        std::begin(executor::EIP7702_DELEGATION_PREFIX),
+                        std::end(executor::EIP7702_DELEGATION_PREFIX));
+                    delegCode.insert(delegCode.end(), tuple.address.begin(), tuple.address.end());
+                    auto const codeHash = hashImpl->hash(bcos::bytesConstRef(
+                        reinterpret_cast<bcos::byte const*>(delegCode.data()), delegCode.size()));
+                    co_await authority.setCode(std::move(delegCode), std::string{}, codeHash);
+                }
+
+                co_await authority.setNonce(std::to_string(storageNonce + 1));
+
+                seenAuthorities.insert(authorityEvmc);
+                seenTargets.insert(executor::addressToEvmc(tuple.address));
+                m_data->m_eip7702Refund +=
+                    (existed ? executor_v1::EIP_7702_REFUND_PER_EXISTING_AUTHORITY : 0);
+            }
+
+            m_data->m_eip7702WarmAuthorities->assign(
+                seenAuthorities.begin(), seenAuthorities.end());
+            m_data->m_eip7702WarmTargets->assign(seenTargets.begin(), seenTargets.end());
         }
 
         // Legacy balance consumption — only used when bugfix_gas_payment_balance_precheck is OFF.

@@ -900,8 +900,7 @@ BOOST_AUTO_TEST_CASE(FIB48_SubmitTransactionResumesOnce)
         sharedStorage->batchRemoveSealedTxs(/*batchId*/ 1, txsResult);
     }
 
-    BOOST_CHECK_MESSAGE(
-        doneFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready,
+    BOOST_CHECK_MESSAGE(doneFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready,
         "submitTransaction did not complete within 5 seconds");
     if (waitThread.joinable())
     {

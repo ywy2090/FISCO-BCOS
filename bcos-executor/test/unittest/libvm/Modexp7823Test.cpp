@@ -6,6 +6,7 @@
  */
 
 #include "vm/ModexpGas.h"
+#include "vm/Precompiled.h"
 #include <boost/test/unit_test.hpp>
 
 namespace bcos::test
@@ -72,6 +73,19 @@ BOOST_AUTO_TEST_CASE(validate_1025_ok_prague)
     input[30] = 4;
     input[31] = 1;
     BOOST_CHECK(executor::validateModexpEip7823(ref(input), EVMC_PRAGUE));
+}
+
+BOOST_AUTO_TEST_CASE(modexp_executor_does_not_enforce_7823)
+{
+    // EIP-7823 is enforced at host call sites (legacy HostContext / TE callBuiltinPrecompiled),
+    // not inside the modexp executor itself.
+    bytes input(96, 0);
+    input[30] = 4;
+    input[31] = 1;
+    BOOST_CHECK(!executor::validateModexpEip7823(ref(input), EVMC_OSAKA));
+    auto const [ok, out] = executor::PrecompiledRegistrar::executor("modexp")(ref(input));
+    BOOST_CHECK(ok);
+    BOOST_CHECK(out.empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
