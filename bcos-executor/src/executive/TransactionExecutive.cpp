@@ -287,6 +287,24 @@ CallParameters::UniquePtr TransactionExecutive::execute(CallParameters::UniquePt
                                                            ledger::Features::Flag::feature_balance))
                              << LOG_KV("value", callParameters->value);
     }
+    // EIP-7623 calldata floor cost (Prague+)
+    // Applies to top-level transactions (seq == 0) when Prague is active.
+    //
+    // EIP-7623 spec: tx.gasUsed = 21000 + max(standard_calldata + execution_gas, tokens*10)
+    // The 21000 sits outside the max() and is NOT part of the floor formula itself.
+    // This block implements only the calldata portion: max(standard_calldata, tokens*10).
+    if (callParameters->seq == 0 && m_blockContext.vmSchedule().enablePrague)
+    {
+        // EIP-7623: calldata floor cost — floor = max(normal, tokens*10) per byte
+        const int64_t calldataGas = calcEip7623CalldataGas(ref(callParameters->data));
+        if (callParameters->gas < calldataGas)
+        {
+            callParameters->status = (int32_t)TransactionStatus::OutOfGas;
+            callParameters->evmStatus = EVMC_OUT_OF_GAS;
+            return callParameters;
+        }
+        callParameters->gas -= calldataGas;
+    }
     // policy1 disable transfer balance
     bool disableTransfer =
         m_blockContext.features().get(ledger::Features::Flag::feature_balance_policy1);

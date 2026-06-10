@@ -8,6 +8,7 @@
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"
 #include "bcos-task/Wait.h"
 #include "bcos-transaction-executor/EVMCResult.h"
+#include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Exceptions.h"
 #include "precompiled/PrecompiledManager.h"
@@ -90,6 +91,7 @@ public:
                 decltype(m_rollbackableTransientStorage)>
                 m_hostContext;
             std::optional<EVMCResult> m_evmcResult;
+            gas::TxGasSettlementContext m_gasSettlement{};
 
             Data(TransactionExecutorImpl& executor, Storage& storage,
                 protocol::BlockHeader const& blockHeader, protocol::Transaction const& transaction,
@@ -116,8 +118,11 @@ public:
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
                     ledgerConfig, *executor.m_hashImpl, transaction.type() != 0, m_nonce,
                     task::syncWait, m_web3AccessListResolved.accessList,
-                    m_web3AccessListResolved.web3TypedTxKind, m_eip2929Access)
-            {}
+                    m_web3AccessListResolved.web3TypedTxKind, m_eip2929Access,
+                    std::addressof(m_gasSettlement))
+            {
+                m_gasSettlement.gasLimit = m_gasLimit;
+            }
         };
         std::unique_ptr<Data> m_data;
 
@@ -282,7 +287,7 @@ public:
         task::Task<void> refundGas()
         {
             auto& evmcResult = *m_data->m_evmcResult;
-            m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
+            finalizeGasUsed();
 
             if (m_data->m_call)
             {
@@ -314,13 +319,47 @@ public:
             }
         }
 
+        void finalizeGasUsed()
+        {
+            auto& evmcResult = *m_data->m_evmcResult;
+            auto const& features = m_data->m_ledgerConfig.get().features();
+            auto const revision =
+                bcos::executor::toRevision(features, m_data->m_blockHeader.get().version());
+            auto const web3Tx = m_data->m_transaction.get().type() != 0;
+            if (!gas::ethGasSettlementEnabled(features, revision, 0, web3Tx))
+            {
+                m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
+                return;
+            }
+
+            if (m_data->m_gasSettlement.gasBeforeEvm > 0)
+            {
+                m_data->m_gasSettlement.evmGasLeft = evmcResult.gas_left;
+                m_data->m_gasSettlement.evmGasRefund = evmcResult.gas_refund;
+                m_data->m_gasUsed = gas::finalizeEthereumGasUsed(m_data->m_gasSettlement);
+                return;
+            }
+
+            auto const& msg = m_data->m_hostContext.message();
+            auto const web3TypedTxKind = m_data->m_web3AccessListResolved.web3TypedTxKind;
+            auto const* accessList = m_data->m_web3AccessListResolved.accessList ?
+                                         m_data->m_web3AccessListResolved.accessList.get() :
+                                         nullptr;
+            auto const intrinsic =
+                gas::computeTxIntrinsicGas(msg, accessList, web3TypedTxKind, nullptr);
+            auto const fixErrorGas =
+                features.get(ledger::Features::Flag::bugfix_evm_exception_gas_used);
+            m_data->m_gasUsed = gas::finalizeEthereumGasUsedWithoutEvmStart(m_data->m_gasSettlement,
+                intrinsic.preExecutionDebit(), evmcResult.gas_left, fixErrorGas);
+        }
+
         // Legacy balance consumption — only used when bugfix_gas_payment_balance_precheck is OFF.
         // Kept unchanged from pre-FIB-75 behavior: on insufficient balance, rollback execution
         // effects and deduct nothing (the original FIB-75 bug that's fixed by the precheck flag).
         task::Task<void> consumeBalance()
         {
             auto& evmcResult = *m_data->m_evmcResult;
-            m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
+            finalizeGasUsed();
             if (!m_data->m_call)
             {
                 auto& evmcMessage = m_data->m_hostContext.message();
