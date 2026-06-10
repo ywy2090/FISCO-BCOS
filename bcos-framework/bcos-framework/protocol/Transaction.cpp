@@ -22,6 +22,17 @@ Web3AccessList const& Transaction::web3AccessList() const
     return emptyWeb3AccessList();
 }
 
+Web3AuthorizationList const& Transaction::emptyWeb3AuthorizationList()
+{
+    static Web3AuthorizationList const empty;
+    return empty;
+}
+
+Web3AuthorizationList const& Transaction::web3AuthorizationList() const
+{
+    return emptyWeb3AuthorizationList();
+}
+
 Transaction::Transaction(const Transaction& other)
   : m_submitCallback(other.m_submitCallback),
     m_batchHash(other.m_batchHash),
