@@ -51,6 +51,30 @@ constexpr auto operator<=>(bcos::protocol::TransactionType const& _lhs, auto _rh
     return static_cast<uint8_t>(_lhs) <=> static_cast<uint8_t>(_rhs);
 }
 
+// EIP-2718 transaction type
+// https://github.com/ethereum/eth1.0-specs/tree/master/lists/signature-types
+enum class Web3TransactionType : uint8_t
+{
+    Legacy = 0,
+    EIP2930 = 1,  // https://eips.ethereum.org/EIPS/eip-2930
+    EIP1559 = 2,  // https://eips.ethereum.org/EIPS/eip-1559
+    EIP4844 = 3,  // https://eips.ethereum.org/EIPS/eip-4844
+};
+
+constexpr auto operator<=>(Web3TransactionType const& _lhs, auto _rhs)
+    requires(
+        std::same_as<decltype(_rhs), Web3TransactionType> || std::unsigned_integral<decltype(_rhs)>)
+{
+    return static_cast<uint8_t>(_lhs) <=> static_cast<uint8_t>(_rhs);
+}
+
+constexpr bool operator==(Web3TransactionType const& _lhs, auto _rhs)
+    requires(
+        std::same_as<decltype(_rhs), Web3TransactionType> || std::unsigned_integral<decltype(_rhs)>)
+{
+    return static_cast<uint8_t>(_lhs) == static_cast<uint8_t>(_rhs);
+}
+
 constexpr bool operator==(bcos::protocol::TransactionType const& _lhs, auto _rhs)
     requires(std::same_as<decltype(_rhs), bcos::protocol::TransactionType> ||
              std::unsigned_integral<decltype(_rhs)>)
@@ -87,8 +111,8 @@ public:
     virtual bcos::crypto::HashType hash() const = 0;
     virtual bcos::bytesConstRef extraTransactionBytes() const = 0;
 
-    /// EIP-2718 typed tx kind when type()==Web3Transaction (see bcos::rpc::TransactionType). 0 if
-    /// unset.
+    /// EIP-2718 typed tx kind when type()==Web3Transaction (see
+    /// bcos::protocol::Web3TransactionType). 0 if unset.
     virtual uint8_t web3TypedTxKind() const { return 0; }
     /// Parsed access list when populated at submission (may be empty for non-EIP-2930 Web3 txs).
     virtual Web3AccessList const& web3AccessList() const;

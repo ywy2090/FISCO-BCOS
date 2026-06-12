@@ -34,22 +34,9 @@ namespace bcos
 {
 namespace rpc
 {
-// EIP-2718 transaction type
-// https://github.com/ethereum/eth1.0-specs/tree/master/lists/signature-types
-enum class TransactionType : uint8_t
-{
-    Legacy = 0,
-    EIP2930 = 1,  // https://eips.ethereum.org/EIPS/eip-2930
-    EIP1559 = 2,  // https://eips.ethereum.org/EIPS/eip-1559
-    EIP4844 = 3,  // https://eips.ethereum.org/EIPS/eip-4844
-};
-
-constexpr auto operator<=>(TransactionType const& ltype, auto rtype)
-    requires std::same_as<decltype(rtype), TransactionType> ||
-             std::unsigned_integral<decltype(rtype)>
-{
-    return static_cast<uint8_t>(ltype) <=> static_cast<uint8_t>(rtype);
-}
+// Alias for convenience: use bcos::protocol::Web3TransactionType
+using TransactionType = bcos::protocol::Web3TransactionType;
+using bcos::protocol::Web3TransactionType;
 
 std::ostream& operator<<(std::ostream& _out, const TransactionType& _in);
 
