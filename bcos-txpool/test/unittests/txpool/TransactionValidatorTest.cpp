@@ -27,6 +27,7 @@
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-rpc/web3jsonrpc/model/Web3Transaction.h"
 #include "bcos-tars-protocol/protocol/TransactionImpl.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 
 #include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
@@ -332,6 +333,44 @@ BOOST_AUTO_TEST_CASE(testValidateEip7623GasFloor)
         BOOST_CHECK(result == TransactionStatus::Malformed);
 
         txImpl->mutableInner().data.gasLimit = gethMinGas;
+        result = task::syncWait(txpoolConfig->txValidator()->validateEip7623GasFloor(*tx, ledger));
+        BOOST_CHECK(result == TransactionStatus::None);
+    }
+
+    // EIP-7702: authorization_list adds 25000 per tuple to gasLimitMinimum.
+    {
+        auto tx = fakeWeb3Tx(cryptoSuite, "7702", eoaKey, "");
+        auto txImpl = std::dynamic_pointer_cast<bcostars::protocol::TransactionImpl>(tx);
+        txImpl->mutableInner().web3TypedTxKind =
+            static_cast<tars::Char>(bcos::rpc::TransactionType::EIP7702);
+        txImpl->mutableInner().data.to =
+            eoaKey->address(cryptoSuite->hashImpl()).hexPrefixed().substr(2);
+        bcostars::Web3AuthorizationListEntry authEntry;
+        authEntry.chainId = "1";
+        authEntry.address = eoaKey->address(cryptoSuite->hashImpl()).hexPrefixed().substr(2);
+        authEntry.nonce = "0";
+        authEntry.yParity = 0;
+        authEntry.r.assign(32, static_cast<char>(0xaa));
+        authEntry.s.assign(32, static_cast<char>(0xbb));
+        txImpl->mutableInner().data.authorizationList.emplace_back(std::move(authEntry));
+
+        evmc_message msg{};
+        msg.kind = EVMC_CALL;
+        bcos::bytes const emptyInput;
+        msg.input_data = emptyInput.data();
+        msg.input_size = emptyInput.size();
+        executor::Eip7702AuthorizationList authList(1);
+        auto const intrinsic = executor_v1::gas::computeTxIntrinsicGas(msg, nullptr,
+            static_cast<uint8_t>(bcos::rpc::TransactionType::EIP7702), std::addressof(authList));
+        auto const minGas = intrinsic.gasLimitMinimum();
+        BOOST_REQUIRE_GE(minGas, 21000 + executor_v1::EIP_7702_PER_EMPTY_ACCOUNT_COST);
+
+        txImpl->mutableInner().data.gasLimit = minGas - 1;
+        auto result =
+            task::syncWait(txpoolConfig->txValidator()->validateEip7623GasFloor(*tx, ledger));
+        BOOST_CHECK(result == TransactionStatus::Malformed);
+
+        txImpl->mutableInner().data.gasLimit = minGas;
         result = task::syncWait(txpoolConfig->txValidator()->validateEip7623GasFloor(*tx, ledger));
         BOOST_CHECK(result == TransactionStatus::None);
     }

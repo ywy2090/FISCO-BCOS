@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RollbackableStorage.h"
-#include "bcos-executor/src/Web3Eip2930Fill.h"
+#include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-executor/src/Web3Eip7702Apply.h"
 #include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"
@@ -87,7 +87,7 @@ public:
             int64_t m_seq = 0;
             evmc_address m_origin;
             u256 m_nonce;
-            executor::Web3Eip2930Parsed m_eip2930Parsed;
+            executor::Web3AccessListResolved m_accessListResolved;
             executor::Web3Eip7702Parsed m_eip7702Parsed;
             int64_t m_eip7702Refund = 0;
             std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmAuthorities;
@@ -116,7 +116,7 @@ public:
                              *(evmc_address*)m_transaction.get().sender().data() :
                              evmc_address{}),
                 m_nonce(hex2u(transaction.nonce())),
-                m_eip2930Parsed(executor::parseEip2930FromWeb3Transaction(transaction)),
+                m_accessListResolved(executor::resolveWeb3AccessList(transaction)),
                 m_eip7702Parsed(executor::parseEip7702FromWeb3Transaction(transaction)),
                 m_eip7702WarmAuthorities(std::make_shared<std::vector<evmc_address>>()),
                 m_eip7702WarmTargets(std::make_shared<std::vector<evmc_address>>()),
@@ -124,9 +124,9 @@ public:
                     newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
                     ledgerConfig, *executor.m_hashImpl, transaction.type() != 0, m_nonce,
-                    task::syncWait, m_eip2930Parsed.accessList, m_eip2930Parsed.web3TypedTxKind,
-                    m_eip7702Parsed.authorizationList, m_eip7702WarmAuthorities,
-                    m_eip7702WarmTargets, std::addressof(m_gasSettlement))
+                    task::syncWait, m_accessListResolved.accessList,
+                    m_accessListResolved.web3TypedTxKind, m_eip7702Parsed.authorizationList,
+                    m_eip7702WarmAuthorities, m_eip7702WarmTargets, std::addressof(m_gasSettlement))
             {
                 m_gasSettlement.gasLimit = m_gasLimit;
             }
@@ -357,6 +357,10 @@ public:
                     continue;
                 }
                 auto const authorityEvmc = executor::addressToEvmc(*authorityAddrOpt);
+                if (seenAuthorities.insert(authorityEvmc).second)
+                {
+                    m_data->m_eip7702WarmAuthorities->push_back(authorityEvmc);
+                }
 
                 ledger::account::EVMAccount<decltype(m_data->m_rollbackableStorage)> authority(
                     m_data->m_rollbackableStorage, authorityEvmc, binaryAddress);
@@ -411,10 +415,6 @@ public:
                     m_data->m_eip7702Refund += executor_v1::EIP_7702_REFUND_PER_EXISTING_AUTHORITY;
                 }
 
-                if (seenAuthorities.insert(authorityEvmc).second)
-                {
-                    m_data->m_eip7702WarmAuthorities->push_back(authorityEvmc);
-                }
                 if (tuple.address != zeroAddress)
                 {
                     auto const targetEvmc = executor::addressToEvmc(tuple.address);
@@ -450,9 +450,9 @@ public:
             auto const& msg = m_data->m_hostContext.message();
             auto const web3TypedTxKind = m_data->m_eip7702Parsed.web3TypedTxKind != 0 ?
                                              m_data->m_eip7702Parsed.web3TypedTxKind :
-                                             m_data->m_eip2930Parsed.web3TypedTxKind;
-            auto const* accessList = m_data->m_eip2930Parsed.accessList ?
-                                         m_data->m_eip2930Parsed.accessList.get() :
+                                             m_data->m_accessListResolved.web3TypedTxKind;
+            auto const* accessList = m_data->m_accessListResolved.accessList ?
+                                         m_data->m_accessListResolved.accessList.get() :
                                          nullptr;
             auto const* authorizationList = m_data->m_eip7702Parsed.authorizationList ?
                                                 m_data->m_eip7702Parsed.authorizationList.get() :
@@ -460,7 +460,7 @@ public:
             auto const intrinsic =
                 gas::computeTxIntrinsicGas(msg, accessList, web3TypedTxKind, authorizationList);
             auto const fixErrorGas =
-                features.get(ledger::Features::Flag::bugfix_v1_exec_error_gas_used);
+                features.get(ledger::Features::Flag::bugfix_evm_exception_gas_used);
             m_data->m_gasUsed = gas::finalizeEthereumGasUsedWithoutEvmStart(m_data->m_gasSettlement,
                 intrinsic.preExecutionDebit(), evmcResult.gas_left, fixErrorGas);
         }

@@ -305,13 +305,16 @@ public:
         std::shared_ptr<const executor::Eip7702AuthorizationList> eip7702AuthorizationList = {},
         std::shared_ptr<std::vector<evmc_address>> eip7702WarmAuthorities = {},
         std::shared_ptr<std::vector<evmc_address>> eip7702WarmTargets = {},
-        gas::TxGasSettlementContext* gasSettlementCtx = nullptr)
+        gas::TxGasSettlementContext* gasSettlementCtx = nullptr,
+        std::shared_ptr<executor::Eip2929AccessState> eip2929Access = nullptr)
       : HostContext(innerConstructor, storage, transientStorage, blockHeader, message, origin, abi,
             contextID, seq, precompiledManager, ledgerConfig, hashImpl, web3Tx, nonce,
             getHostInterface<HostContext>(std::forward<decltype(waitOperator)>(waitOperator)),
-            std::make_shared<executor::Eip2929AccessState>(), std::move(eip2930AccessList),
-            web3TypedTxKindForAccessList, std::move(eip7702AuthorizationList),
-            std::move(eip7702WarmAuthorities), std::move(eip7702WarmTargets), gasSettlementCtx)
+            eip2929Access ? std::move(eip2929Access) :
+                            std::make_shared<executor::Eip2929AccessState>(),
+            std::move(eip2930AccessList), web3TypedTxKindForAccessList,
+            std::move(eip7702AuthorizationList), std::move(eip7702WarmAuthorities),
+            std::move(eip7702WarmTargets), gasSettlementCtx)
     {}
 
     /// EIP-7702 W3: warm authority + target for successfully applied tuples only (spec §5.6).
@@ -516,8 +519,8 @@ public:
             if (m_web3TypedTxKindForAccessList != 0 && m_eip2930AccessList &&
                 !m_eip2930AccessList->empty())
             {
-                m_eip2929Access->warmUpAccessList(
-                    *m_eip2930AccessList, [](std::string const& hex) { return unhexAddress(hex); });
+                m_eip2929Access->warmUpAccessList(*m_eip2930AccessList,
+                    [](bcos::Address const& account) { return executor::addressToEvmc(account); });
             }
         }
 
@@ -549,7 +552,7 @@ public:
         std::optional<EVMCResult> evmResult;
         // FIB-88/89/92: read once, gate receipt-affecting error paths for hard-fork compat
         const bool fixErrorGas = m_ledgerConfig.get().features().get(
-            ledger::Features::Flag::bugfix_v1_exec_error_gas_used);
+            ledger::Features::Flag::bugfix_evm_exception_gas_used);
         try
         {
             // FIB-91: checkAuth() moved inside try block so exceptions
@@ -855,8 +858,7 @@ private:
             // FIB-82: when feature_raw_address is on, m_recipientAccount.path() returns a binary
             // path, but ContractAuthMgrPrecompiled always looks up auth tables using hex paths.
             // Force hex to match the lookup path.
-            if (m_ledgerConfig.get().features().get(
-                    ledger::Features::Flag::bugfix_auth_table_raw_address) &&
+            if (m_ledgerConfig.get().features().get(ledger::Features::Flag::bugfix_auth_check) &&
                 m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_raw_address))
             {
                 authTablePath =

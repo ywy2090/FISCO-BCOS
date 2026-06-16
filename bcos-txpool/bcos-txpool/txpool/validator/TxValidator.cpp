@@ -21,9 +21,11 @@
 #include "TxValidator.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
+#include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/bcos-framework/ledger/Ledger.h"
 #include "bcos-framework/ledger/EVMAccount.h"
+#include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/ledger/LedgerTypeDef.h"
 #include "bcos-framework/ledger/SystemConfigs.h"
 #include "bcos-framework/protocol/Web3AuthorizationList.h"
@@ -32,6 +34,7 @@
 #include "bcos-ledger/LedgerMethods.h"
 #include "bcos-task/Wait.h"
 #include "bcos-tool/VersionConverter.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/DataConvertUtility.h"
 
@@ -307,8 +310,21 @@ int64_t web3Eip7623GasLimitMinimum(protocol::Transaction const& tx)
     auto const resolved = executor::resolveWeb3AccessList(tx);
     executor::Eip2930AccessList const* accessListPtr =
         resolved.accessList ? resolved.accessList.get() : nullptr;
-    auto const intrinsic =
-        executor_v1::gas::computeTxIntrinsicGas(msg, accessListPtr, resolved.web3TypedTxKind);
+    uint8_t const web3TypedTxKind =
+        resolved.web3TypedTxKind != 0 ? resolved.web3TypedTxKind : tx.web3TypedTxKind();
+
+    executor::Eip7702AuthorizationList const* authorizationListPtr = nullptr;
+    if (web3TypedTxKind == executor_v1::EIP_7702_WEB3_TX_TYPE)
+    {
+        auto const parsed = executor::parseEip7702FromWeb3Transaction(tx);
+        if (parsed.authorizationList)
+        {
+            authorizationListPtr = parsed.authorizationList.get();
+        }
+    }
+
+    auto const intrinsic = executor_v1::gas::computeTxIntrinsicGas(
+        msg, accessListPtr, web3TypedTxKind, authorizationListPtr);
     return intrinsic.gasLimitMinimum();
 }
 }  // namespace
@@ -350,10 +366,44 @@ task::Task<protocol::TransactionStatus> TxValidator::validateEip7702Admission(
     {
         co_return TransactionStatus::None;
     }
-    if (_tx.web3AuthorizationList().empty())
+
+    auto const typedKind = _tx.web3TypedTxKind();
+    if (typedKind != executor_v1::EIP_7702_WEB3_TX_TYPE)
     {
+        if (!_tx.web3AuthorizationList().empty())
+        {
+            TX_VALIDATOR_CHECKER_LOG(WARNING)
+                << LOG_BADGE("validateEip7702Admission")
+                << LOG_DESC("Reject authorization_list on non-EIP-7702 typed tx")
+                << LOG_KV("web3TypedTxKind", static_cast<int>(typedKind));
+            co_return TransactionStatus::Malformed;
+        }
         co_return TransactionStatus::None;
     }
+
+    auto const features = co_await ledger::getFeatures(*_ledger);
+    if (!features.get(ledger::Features::Flag::feature_evm_prague))
+    {
+        TX_VALIDATOR_CHECKER_LOG(WARNING) << LOG_BADGE("validateEip7702Admission")
+                                          << LOG_DESC("Reject EIP-7702 without feature_evm_prague");
+        co_return TransactionStatus::Malformed;
+    }
+
+    if (_tx.web3AuthorizationList().empty())
+    {
+        TX_VALIDATOR_CHECKER_LOG(WARNING) << LOG_BADGE("validateEip7702Admission")
+                                          << LOG_DESC("Reject EIP-7702 empty authorization_list");
+        co_return TransactionStatus::Malformed;
+    }
+
+    if (_tx.to().empty())
+    {
+        TX_VALIDATOR_CHECKER_LOG(WARNING)
+            << LOG_BADGE("validateEip7702Admission")
+            << LOG_DESC("Reject EIP-7702 contract-creation (to must be set)");
+        co_return TransactionStatus::Malformed;
+    }
+
     if (_tx.web3AuthorizationList().size() > protocol::WEB3_EIP7702_MAX_AUTHORIZATION_LIST_ENTRIES)
     {
         TX_VALIDATOR_CHECKER_LOG(WARNING) << LOG_BADGE("validateEip7702Admission")
