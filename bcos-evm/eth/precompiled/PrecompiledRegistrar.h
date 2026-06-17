@@ -13,7 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief evm precompiled registrar
+ * @brief evm precompiled registrar (LEGACY — FISCO-native precompiles only)
+ *
+ * Ethereum built-in precompiles (0x01-0x11, 0x0100) are now registered via
+ * the compile-time PrecompileTraits table in PrecompileTraits.h.
+ * This registrar remains for:
+ *   - FISCO-native precompiles (0x1000+) with ABI selector dispatch
+ *   - Backward compatibility with ETH_REGISTER_PRECOMPILED macros (deprecated)
+ *
  * @file PrecompiledRegistrar.h
  * @author: xingqiangbai
  * @date: 2021-05-24
@@ -30,7 +37,7 @@
 
 namespace bcos
 {
-namespace executor
+namespace evm
 {
 using PrecompiledExecutor = std::function<std::pair<bool, bytes>(bytesConstRef)>;
 using PrecompiledPricer = std::function<bigint(bytesConstRef)>;
@@ -85,5 +92,5 @@ private:
             #Name, &__eth_registerPricerFunction##Name);                         \
     static bigint __eth_registerPricerFunction##Name
 
-}  // namespace executor
+}  // namespace evm
 }  // namespace bcos
