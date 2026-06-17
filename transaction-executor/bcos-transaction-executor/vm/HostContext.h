@@ -200,6 +200,7 @@ private:
     std::shared_ptr<const executor::Eip2930AccessList> m_eip2930AccessList;
     uint8_t m_web3TypedTxKindForAccessList = 0;
     std::shared_ptr<const executor::Eip7702AuthorizationList> m_eip7702AuthorizationList;
+    size_t m_eip7702WireAuthTupleCount = 0;
     std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmAuthorities;
     std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmTargets;
     gas::TxGasSettlementContext* m_gasSettlementCtx{};
@@ -260,6 +261,7 @@ private:
         std::shared_ptr<const executor::Eip2930AccessList> eip2930AccessList,
         uint8_t web3TypedTxKindForAccessList,
         std::shared_ptr<const executor::Eip7702AuthorizationList> eip7702AuthorizationList,
+        size_t eip7702WireAuthTupleCount,
         std::shared_ptr<std::vector<evmc_address>> eip7702WarmAuthorities,
         std::shared_ptr<std::vector<evmc_address>> eip7702WarmTargets,
         gas::TxGasSettlementContext* gasSettlementCtx = nullptr)
@@ -289,6 +291,7 @@ private:
         m_eip2930AccessList(std::move(eip2930AccessList)),
         m_web3TypedTxKindForAccessList(web3TypedTxKindForAccessList),
         m_eip7702AuthorizationList(std::move(eip7702AuthorizationList)),
+        m_eip7702WireAuthTupleCount(eip7702WireAuthTupleCount),
         m_eip7702WarmAuthorities(std::move(eip7702WarmAuthorities)),
         m_eip7702WarmTargets(std::move(eip7702WarmTargets)),
         m_gasSettlementCtx(gasSettlementCtx)
@@ -303,6 +306,7 @@ public:
         std::shared_ptr<const executor::Eip2930AccessList> eip2930AccessList = {},
         uint8_t web3TypedTxKindForAccessList = 0,
         std::shared_ptr<const executor::Eip7702AuthorizationList> eip7702AuthorizationList = {},
+        size_t eip7702WireAuthTupleCount = 0,
         std::shared_ptr<std::vector<evmc_address>> eip7702WarmAuthorities = {},
         std::shared_ptr<std::vector<evmc_address>> eip7702WarmTargets = {},
         gas::TxGasSettlementContext* gasSettlementCtx = nullptr,
@@ -313,8 +317,8 @@ public:
             eip2929Access ? std::move(eip2929Access) :
                             std::make_shared<executor::Eip2929AccessState>(),
             std::move(eip2930AccessList), web3TypedTxKindForAccessList,
-            std::move(eip7702AuthorizationList), std::move(eip7702WarmAuthorities),
-            std::move(eip7702WarmTargets), gasSettlementCtx)
+            std::move(eip7702AuthorizationList), eip7702WireAuthTupleCount,
+            std::move(eip7702WarmAuthorities), std::move(eip7702WarmTargets), gasSettlementCtx)
     {}
 
     /// EIP-7702 W3: warm authority + target for successfully applied tuples only (spec §5.6).
@@ -579,8 +583,7 @@ public:
                     auto& msg = mutableMessage();
                     auto const intrinsic = gas::computeTxIntrinsicGas(msg,
                         m_eip2930AccessList ? m_eip2930AccessList.get() : nullptr,
-                        m_web3TypedTxKindForAccessList,
-                        m_eip7702AuthorizationList ? m_eip7702AuthorizationList.get() : nullptr);
+                        m_web3TypedTxKindForAccessList, m_eip7702WireAuthTupleCount);
                     if (msg.gas < intrinsic.preExecutionDebit())
                     {
                         evmResult.emplace(makeErrorEVMCResult(m_hashImpl,
@@ -614,10 +617,10 @@ public:
                     }
 
                     if (!evmResult && m_web3TypedTxKindForAccessList == EIP_7702_WEB3_TX_TYPE &&
-                        m_eip7702AuthorizationList && !m_eip7702AuthorizationList->empty())
+                        m_eip7702WireAuthTupleCount > 0)
                     {
                         const int64_t authIntrinsic =
-                            static_cast<int64_t>(m_eip7702AuthorizationList->size()) *
+                            static_cast<int64_t>(m_eip7702WireAuthTupleCount) *
                             EIP_7702_PER_EMPTY_ACCOUNT_COST;
                         if (msg.gas < authIntrinsic)
                         {
@@ -764,7 +767,8 @@ public:
             m_rollbackableTransientStorage.get(), m_blockHeader, message, m_origin, {}, m_contextID,
             m_seq, m_precompiledManager.get(), m_ledgerConfig, m_hashImpl, m_web3Tx, nonce,
             interface, m_eip2929Access, m_eip2930AccessList, m_web3TypedTxKindForAccessList,
-            m_eip7702AuthorizationList, m_eip7702WarmAuthorities, m_eip7702WarmTargets, nullptr);
+            m_eip7702AuthorizationList, m_eip7702WireAuthTupleCount, m_eip7702WarmAuthorities,
+            m_eip7702WarmTargets, nullptr);
 
         co_await hostcontext.prepare();
         auto result = co_await hostcontext.execute();

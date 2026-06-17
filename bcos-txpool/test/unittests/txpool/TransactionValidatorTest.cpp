@@ -359,9 +359,8 @@ BOOST_AUTO_TEST_CASE(testValidateEip7623GasFloor)
         bcos::bytes const emptyInput;
         msg.input_data = emptyInput.data();
         msg.input_size = emptyInput.size();
-        executor::Eip7702AuthorizationList authList(1);
-        auto const intrinsic = executor_v1::gas::computeTxIntrinsicGas(msg, nullptr,
-            static_cast<uint8_t>(bcos::rpc::TransactionType::EIP7702), std::addressof(authList));
+        auto const intrinsic = executor_v1::gas::computeTxIntrinsicGas(
+            msg, nullptr, static_cast<uint8_t>(bcos::rpc::TransactionType::EIP7702), 1);
         auto const minGas = intrinsic.gasLimitMinimum();
         BOOST_REQUIRE_GE(minGas, 21000 + executor_v1::EIP_7702_PER_EMPTY_ACCOUNT_COST);
 

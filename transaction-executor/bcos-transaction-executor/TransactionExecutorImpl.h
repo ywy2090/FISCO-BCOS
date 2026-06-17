@@ -126,7 +126,8 @@ public:
                     ledgerConfig, *executor.m_hashImpl, transaction.type() != 0, m_nonce,
                     task::syncWait, m_accessListResolved.accessList,
                     m_accessListResolved.web3TypedTxKind, m_eip7702Parsed.authorizationList,
-                    m_eip7702WarmAuthorities, m_eip7702WarmTargets, std::addressof(m_gasSettlement))
+                    transaction.web3AuthorizationList().size(), m_eip7702WarmAuthorities,
+                    m_eip7702WarmTargets, std::addressof(m_gasSettlement))
             {
                 m_gasSettlement.gasLimit = m_gasLimit;
             }
@@ -454,11 +455,13 @@ public:
             auto const* accessList = m_data->m_accessListResolved.accessList ?
                                          m_data->m_accessListResolved.accessList.get() :
                                          nullptr;
-            auto const* authorizationList = m_data->m_eip7702Parsed.authorizationList ?
-                                                m_data->m_eip7702Parsed.authorizationList.get() :
-                                                nullptr;
+            size_t wireAuthCount = 0;
+            if (web3TypedTxKind == executor_v1::EIP_7702_WEB3_TX_TYPE)
+            {
+                wireAuthCount = m_data->m_transaction.get().web3AuthorizationList().size();
+            }
             auto const intrinsic =
-                gas::computeTxIntrinsicGas(msg, accessList, web3TypedTxKind, authorizationList);
+                gas::computeTxIntrinsicGas(msg, accessList, web3TypedTxKind, wireAuthCount);
             auto const fixErrorGas =
                 features.get(ledger::Features::Flag::bugfix_evm_exception_gas_used);
             m_data->m_gasUsed = gas::finalizeEthereumGasUsedWithoutEvmStart(m_data->m_gasSettlement,

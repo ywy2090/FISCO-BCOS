@@ -314,18 +314,14 @@ int64_t web3Eip7623GasLimitMinimum(protocol::Transaction const& tx)
     uint8_t const web3TypedTxKind =
         resolved.web3TypedTxKind != 0 ? resolved.web3TypedTxKind : tx.web3TypedTxKind();
 
-    executor::Eip7702AuthorizationList const* authorizationListPtr = nullptr;
+    size_t wireAuthCount = 0;
     if (web3TypedTxKind == executor_v1::EIP_7702_WEB3_TX_TYPE)
     {
-        auto const parsed = executor::parseEip7702FromWeb3Transaction(tx);
-        if (parsed.authorizationList)
-        {
-            authorizationListPtr = parsed.authorizationList.get();
-        }
+        wireAuthCount = tx.web3AuthorizationList().size();
     }
 
-    auto const intrinsic = executor_v1::gas::computeTxIntrinsicGas(
-        msg, accessListPtr, web3TypedTxKind, authorizationListPtr);
+    auto const intrinsic =
+        executor_v1::gas::computeTxIntrinsicGas(msg, accessListPtr, web3TypedTxKind, wireAuthCount);
     return intrinsic.gasLimitMinimum();
 }
 }  // namespace

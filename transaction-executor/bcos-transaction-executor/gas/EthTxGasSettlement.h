@@ -103,7 +103,7 @@ inline int64_t calcCreateIntrinsic(evmc_message const& message) noexcept
 
 inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
     executor::Eip2930AccessList const* accessList, uint8_t web3TypedTxKind,
-    executor::Eip7702AuthorizationList const* authorizationList = nullptr)
+    size_t eip7702WireAuthTupleCount = 0)
 {
     TxIntrinsicGas intrinsic;
     auto const components = executor::calcEip7623Components(
@@ -116,10 +116,10 @@ inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
         intrinsic.accessListCost = calcAccessListCost(accessList);
     }
 
-    if (web3TypedTxKind == EIP_7702_WEB3_TX_TYPE && authorizationList != nullptr)
+    if (web3TypedTxKind == EIP_7702_WEB3_TX_TYPE && eip7702WireAuthTupleCount > 0)
     {
         intrinsic.eip7702AuthCost =
-            static_cast<int64_t>(authorizationList->size()) * EIP_7702_PER_EMPTY_ACCOUNT_COST;
+            static_cast<int64_t>(eip7702WireAuthTupleCount) * EIP_7702_PER_EMPTY_ACCOUNT_COST;
     }
 
     intrinsic.createIntrinsic = calcCreateIntrinsic(message);
