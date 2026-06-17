@@ -20,6 +20,7 @@
 #include <bcos-codec/rlp/RLPEncode.h>
 #include <bcos-crypto/hash/SM3.h>
 #include <bcos-crypto/signature/sm2/SM2Crypto.h>
+#include <bcos-framework/ledger/Features.h>
 #include <bcos-framework/ledger/SystemConfigs.h>
 #include <bcos-rpc/jsonrpc/Common.h>
 #include <bcos-rpc/web3jsonrpc/endpoints/EthEndpoint.h>
@@ -114,6 +115,36 @@ void expectSendRawRejectsEip7702(
         BOOST_CHECK(ex.msg().find(expectedMessage) != std::string::npos);
     }
 }
+
+ledger::Features pragueEnabledFeatures()
+{
+    ledger::Features features;
+    features.set(ledger::Features::Flag::feature_evm_prague);
+    return features;
+}
+
+void expectGateRejectsEip7702Call(
+    rpc::NodeService::Ptr const& nodeService, std::string_view expectedMessage)
+{
+    EthEndpoint endpoint(nodeService, nullptr, false);
+    Json::Value request(Json::arrayValue);
+    Json::Value callObj;
+    callObj["type"] = "0x4";
+    callObj["to"] = "0x0000000000000000000000000000000000000001";
+    request.append(callObj);
+    request.append("latest");
+    Json::Value response;
+
+    try
+    {
+        task::syncWait(endpoint.call(request, response));
+        BOOST_FAIL("expected JsonRpcException");
+    }
+    catch (JsonRpcException const& ex)
+    {
+        BOOST_CHECK(ex.msg().find(expectedMessage) != std::string::npos);
+    }
+}
 }  // namespace
 
 BOOST_FIXTURE_TEST_SUITE(testEthEndpoint, RPCFixture)
@@ -134,6 +165,66 @@ BOOST_AUTO_TEST_CASE(sendRawTransaction_rejectsEip7702OnSm2Chain)
     auto smCryptoSuite = std::make_shared<crypto::CryptoSuite>(sm3, sm2, nullptr);
     auto smNodeService = rebuildNodeServiceWithCryptoSuite(*this, smCryptoSuite);
     expectSendRawRejectsEip7702(smNodeService, "EIP-7702 transactions require secp256k1");
+}
+
+BOOST_AUTO_TEST_CASE(sendRawTransaction_rejectsEip7702WithoutPrague)
+{
+    m_ledger->setTestFeatures(ledger::Features{});
+    m_ledger->setSystemConfig(
+        std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
+    expectSendRawRejectsEip7702(nodeService, "feature_evm_prague");
+}
+
+BOOST_AUTO_TEST_CASE(sendRawTransaction_passesEip7702Gate_whenPragueEnabled)
+{
+    m_ledger->setTestFeatures(pragueEnabledFeatures());
+    m_ledger->setSystemConfig(
+        std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
+
+    EthEndpoint endpoint(nodeService, nullptr, false);
+    Json::Value request(Json::arrayValue);
+    request.append(buildMinimalEip7702RawTxHex());
+    Json::Value response;
+
+    try
+    {
+        task::syncWait(endpoint.sendRawTransaction(request, response));
+    }
+    catch (JsonRpcException const& ex)
+    {
+        BOOST_CHECK(ex.msg().find("feature_evm_prague") == std::string::npos);
+        BOOST_CHECK(ex.msg().find("legacy executor") == std::string::npos);
+        BOOST_CHECK(ex.msg().find("secp256k1") == std::string::npos);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(call_rejectsEip7702_when_prague_off)
+{
+    m_ledger->setTestFeatures(ledger::Features{});
+    m_ledger->setSystemConfig(
+        std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
+    expectGateRejectsEip7702Call(nodeService, "feature_evm_prague");
+}
+
+BOOST_AUTO_TEST_CASE(estimateGas_passesEip7702Gate_whenPragueEnabled)
+{
+    m_ledger->setTestFeatures(pragueEnabledFeatures());
+    m_ledger->setSystemConfig(
+        std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
+
+    EthEndpoint endpoint(nodeService, nullptr, false);
+    Json::Value request(Json::arrayValue);
+    Json::Value callObj;
+    callObj["to"] = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    callObj["authorizationList"] = Json::arrayValue;
+    callObj["authorizationList"].append(Json::objectValue);
+    request.append(callObj);
+    request.append("latest");
+    Json::Value response;
+
+    task::syncWait(endpoint.estimateGas(request, response));
+    BOOST_CHECK(response.isMember("result"));
+    BOOST_CHECK(!response.isMember("error"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
