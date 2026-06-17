@@ -32,7 +32,7 @@ inline task::Task<void> createAuthTable(auto& storage, protocol::BlockHeader con
 inline std::optional<EVMCResult> checkAuth(auto& storage, protocol::BlockHeader const& blockHeader,
     evmc_message const& message, evmc_address const& origin, ExternalCaller auto&& externalCaller,
     auto& precompiledManager, int64_t contextID, int64_t seq, crypto::Hash const& hashImpl,
-    const ledger::Features& features)
+    bool fixAuthCheck)
 {
     auto contractAddress = address2HexString(message.code_address);
     auto executive = buildLegacyExecutive(storage, blockHeader, contractAddress,
@@ -48,7 +48,7 @@ inline std::optional<EVMCResult> checkAuth(auto& storage, protocol::BlockHeader 
     params->gas = message.gas;
     params->staticCall = (message.flags & EVMC_STATIC) != 0;
     // FIB-77: include EVMC_CREATE2 in deploy authorization check
-    if (features.get(ledger::Features::Flag::bugfix_auth_check))
+    if (fixAuthCheck)
     {
         params->create = (message.kind == EVMC_CREATE || message.kind == EVMC_CREATE2);
     }
@@ -62,7 +62,7 @@ inline std::optional<EVMCResult> checkAuth(auto& storage, protocol::BlockHeader 
     {
         // FIB-81: return ABI-encoded error message instead of full transaction input
         bcos::bytes errorOutput;
-        if (features.get(ledger::Features::Flag::bugfix_auth_check))
+        if (fixAuthCheck)
         {
             errorOutput = writeErrInfoToOutput(
                 hashImpl, params->message.empty() ? "Authorization check failed" : params->message);

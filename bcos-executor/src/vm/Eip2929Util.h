@@ -19,8 +19,7 @@
 
 #pragma once
 
-#include "bcos-framework/ledger/Features.h"
-#include "bcos-framework/ledger/LedgerConfig.h"
+#include "transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h"
 #include <evmc/evmc.h>
 
 namespace bcos::executor
@@ -28,23 +27,17 @@ namespace bcos::executor
 
 struct Eip2929AccessState;
 
-/// True when Berlin+ revision semantics apply and `feature_evm_eip2929` is enabled.
-inline bool eip2929Enabled(evmc_revision revision, ledger::Features const& features) noexcept
+/// True when Berlin+ revision semantics apply and EIP-2929 is enabled in revision config.
+inline bool eip2929Enabled(const bcos::evm_standard::RevisionConfig& rev) noexcept
 {
-    return revision >= EVMC_BERLIN && features.get(ledger::Features::Flag::feature_evm_eip2929);
-}
-
-inline bool eip2929Enabled(
-    evmc_revision revision, ledger::LedgerConfig const& ledgerConfig) noexcept
-{
-    return eip2929Enabled(revision, ledgerConfig.features());
+    return rev.eip2929;
 }
 
 /// Top-level transaction entry (W1/W2) prewarm applies only at CALL depth 0.
-inline bool eip2929TransactionEntryWarmEnabled(int64_t level, evmc_revision revision,
-    ledger::Features const& features, Eip2929AccessState const* state) noexcept
+inline bool eip2929TransactionEntryWarmEnabled(int64_t level,
+    const bcos::evm_standard::RevisionConfig& rev, Eip2929AccessState const* state) noexcept
 {
-    return level == 0 && state != nullptr && eip2929Enabled(revision, features);
+    return level == 0 && state != nullptr && eip2929Enabled(rev);
 }
 
 }  // namespace bcos::executor

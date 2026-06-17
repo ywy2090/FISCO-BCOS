@@ -7,8 +7,7 @@
 #include "bcos-executor/src/vm/Eip2929PrecompileWarm.h"
 #include "bcos-executor/src/vm/Eip2929TransactionPrewarm.h"
 #include "bcos-executor/src/vm/Eip2929Util.h"
-#include "bcos-framework/ledger/Features.h"
-#include "bcos-framework/ledger/LedgerConfig.h"
+#include "transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h"
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <cstring>
@@ -52,41 +51,40 @@ bool containsOsakaPrecompile(std::vector<evmc_address> const& addrs)
         [](evmc_address const& a) { return a.bytes[18] == 0x01 && a.bytes[19] == 0x00; });
 }
 
-bcos::ledger::Features featuresWithEip2929On()
+bcos::evm_standard::RevisionConfig revWithEip2929On()
 {
-    bcos::ledger::Features features;
-    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
-    return features;
+    bcos::evm_standard::RevisionConfig rev;
+    rev.eip2929 = true;
+    return rev;
+}
+
+bcos::evm_standard::RevisionConfig revWithEip2929Off()
+{
+    bcos::evm_standard::RevisionConfig rev;
+    rev.eip2929 = false;
+    return rev;
 }
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(Eip2929Util)
 
-BOOST_AUTO_TEST_CASE(enabled_requires_berlin_and_feature_flag)
+BOOST_AUTO_TEST_CASE(enabled_requires_eip2929_revision_config)
 {
-    auto const enabled = featuresWithEip2929On();
-    bcos::ledger::Features disabled;
-    BOOST_CHECK(!eip2929Enabled(EVMC_ISTANBUL, enabled));
-    BOOST_CHECK(!eip2929Enabled(EVMC_BERLIN, disabled));
-    BOOST_CHECK(eip2929Enabled(EVMC_BERLIN, enabled));
-    BOOST_CHECK(eip2929Enabled(EVMC_CANCUN, enabled));
-}
-
-BOOST_AUTO_TEST_CASE(enabled_ledger_config_overload)
-{
-    bcos::ledger::LedgerConfig config;
-    config.setFeatures(featuresWithEip2929On());
-    BOOST_CHECK(eip2929Enabled(EVMC_BERLIN, config));
+    auto const revOn = revWithEip2929On();
+    auto const revOff = revWithEip2929Off();
+    BOOST_CHECK(!eip2929Enabled(revOff));
+    BOOST_CHECK(eip2929Enabled(revOn));
 }
 
 BOOST_AUTO_TEST_CASE(transaction_entry_warm_gate)
 {
     Eip2929AccessState state;
-    auto const features = featuresWithEip2929On();
-    BOOST_CHECK(eip2929TransactionEntryWarmEnabled(0, EVMC_BERLIN, features, &state));
-    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(1, EVMC_BERLIN, features, &state));
-    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, EVMC_BERLIN, features, nullptr));
-    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, EVMC_ISTANBUL, features, &state));
+    auto const revOn = revWithEip2929On();
+    auto const revOff = revWithEip2929Off();
+    BOOST_CHECK(eip2929TransactionEntryWarmEnabled(0, revOn, &state));
+    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(1, revOn, &state));
+    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, revOn, nullptr));
+    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, revOff, &state));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

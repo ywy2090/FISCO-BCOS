@@ -264,7 +264,7 @@ private:
         // W1 warm at top-level construction (sync). Nested HostContext (m_level>0) skips.
         // prepare() handles prepareCall/Create only; see TransactionExecutorImpl executeStep<0>.
         warmEip2929AtTransactionEntry();
-        assert(!executor::eip2929Enabled(m_revision, m_ledgerConfig.get()) || m_eip2929Access);
+        assert(!executor::eip2929Enabled(m_rev) || m_eip2929Access);
     }
 
 public:
@@ -467,8 +467,7 @@ public:
         auto transientSavepoint = m_rollbackableTransientStorage.get().current();
 
         std::optional<bcos::executor::Eip2929CheckpointGuard> topCheckpointGuard;
-        if (m_level == 0 && m_eip2929Access &&
-            executor::eip2929Enabled(m_revision, m_ledgerConfig.get()))
+        if (m_level == 0 && m_eip2929Access && executor::eip2929Enabled(m_rev))
         {
             topCheckpointGuard.emplace(m_eip2929Access);
         }
@@ -481,19 +480,26 @@ public:
         {
             // FIB-91: checkAuth() moved inside try block so exceptions
             // trigger rollback/cleanup instead of bypassing it
-            if (m_ledgerConfig.get().authCheckStatus() != 0U)
+            if (m_rev.enable_auth_check)
             {
                 HOST_CONTEXT_LOG(DEBUG)
                     << "Checking auth..." << m_ledgerConfig.get().authCheckStatus()
                     << " gas: " << ref->gas;
 
-                if (auto result = checkAuth(m_rollbackableStorage.get(), m_blockHeader, *ref,
-                        m_origin, buildLegacyExternalCaller(), m_precompiledManager.get(),
-                        m_contextID, m_seq, m_hashImpl, m_ledgerConfig.get().features()))
+                if constexpr (bcos::evm_standard::HasAuthCheck<Policy,
+                                  decltype(m_rollbackableStorage.get()),
+                                  const protocol::BlockHeader&, const evmc_message&,
+                                  const evmc_address&, decltype(buildLegacyExternalCaller()),
+                                  const PrecompiledManager&, int64_t, int64_t, const crypto::Hash&>)
                 {
-                    HOST_CONTEXT_LOG(DEBUG) << "Auth check failed";
-                    evmResult = std::move(result);
-                };
+                    if (auto result = m_policy->checkAuth(m_rollbackableStorage.get(),
+                            m_blockHeader, *ref, m_origin, buildLegacyExternalCaller(),
+                            m_precompiledManager.get(), m_contextID, m_seq, m_hashImpl))
+                    {
+                        HOST_CONTEXT_LOG(DEBUG) << "Auth check failed";
+                        evmResult = std::move(*result);
+                    }
+                }
             }
 
             if (!evmResult)
@@ -625,7 +631,7 @@ public:
         auto nonce = u256(nonceStr.value_or(std::string("0")));
 
         std::optional<bcos::executor::Eip2929CheckpointGuard> checkpointGuard;
-        if (m_eip2929Access && executor::eip2929Enabled(m_revision, m_ledgerConfig.get()))
+        if (m_eip2929Access && executor::eip2929Enabled(m_rev))
         {
             checkpointGuard.emplace(m_eip2929Access);
             if (message.kind == EVMC_CREATE || message.kind == EVMC_CREATE2)
@@ -665,8 +671,7 @@ public:
 
     evmc_access_status accessAccount(const evmc_address& addr) noexcept
     {
-        if (!m_eip2929Access ||
-            !executor::eip2929Enabled(m_revision, m_ledgerConfig.get().features()))
+        if (!m_eip2929Access || !executor::eip2929Enabled(m_rev))
         {
             return EVMC_ACCESS_COLD;
         }
@@ -675,8 +680,7 @@ public:
 
     evmc_access_status accessStorage(const evmc_address& addr, const evmc_bytes32& key) noexcept
     {
-        if (!m_eip2929Access ||
-            !executor::eip2929Enabled(m_revision, m_ledgerConfig.get().features()))
+        if (!m_eip2929Access || !executor::eip2929Enabled(m_rev))
         {
             return EVMC_ACCESS_COLD;
         }
@@ -687,8 +691,7 @@ private:
     void warmEip2929AtTransactionEntry() noexcept
     {
         auto const& ref = message();
-        if (!executor::eip2929TransactionEntryWarmEnabled(
-                m_level, m_revision, m_ledgerConfig.get().features(), m_eip2929Access.get()))
+        if (!executor::eip2929TransactionEntryWarmEnabled(m_level, m_rev, m_eip2929Access.get()))
         {
             return;
         }
