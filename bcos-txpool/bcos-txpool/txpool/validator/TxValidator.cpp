@@ -20,6 +20,7 @@
  */
 #include "TxValidator.h"
 #include "bcos-executor/src/Common.h"
+#include "bcos-executor/src/Eip7702Gate.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-executor/src/vm/VMInstance.h"
@@ -381,14 +382,6 @@ task::Task<protocol::TransactionStatus> TxValidator::validateEip7702Admission(
         co_return TransactionStatus::None;
     }
 
-    auto const features = co_await ledger::getFeatures(*_ledger);
-    if (!features.get(ledger::Features::Flag::feature_evm_prague))
-    {
-        TX_VALIDATOR_CHECKER_LOG(WARNING) << LOG_BADGE("validateEip7702Admission")
-                                          << LOG_DESC("Reject EIP-7702 without feature_evm_prague");
-        co_return TransactionStatus::Malformed;
-    }
-
     if (_tx.web3AuthorizationList().empty())
     {
         TX_VALIDATOR_CHECKER_LOG(WARNING) << LOG_BADGE("validateEip7702Admission")
@@ -412,14 +405,7 @@ task::Task<protocol::TransactionStatus> TxValidator::validateEip7702Admission(
         co_return TransactionStatus::Malformed;
     }
 
-    if (dynamic_cast<crypto::Secp256k1Crypto const*>(m_cryptoSuite->signatureImpl().get()) ==
-        nullptr)
-    {
-        TX_VALIDATOR_CHECKER_LOG(WARNING) << LOG_BADGE("validateEip7702Admission")
-                                          << LOG_DESC("Reject EIP-7702 on non-secp256k1 chain");
-        co_return TransactionStatus::Malformed;
-    }
-
+    auto const features = co_await ledger::getFeatures(*_ledger);
     auto const key = std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version));
     auto config = co_await ledger::getSystemConfig(*_ledger, key);
     int executorVersion = 0;
@@ -427,11 +413,12 @@ task::Task<protocol::TransactionStatus> TxValidator::validateEip7702Admission(
     {
         executorVersion = boost::lexical_cast<int>(std::get<0>(config.value()));
     }
-    if (executorVersion != 1)
+    if (!executor::isEip7702Enabled(features, executorVersion, *m_cryptoSuite->signatureImpl()))
     {
-        TX_VALIDATOR_CHECKER_LOG(WARNING) << LOG_BADGE("validateEip7702Admission")
-                                          << LOG_DESC("Reject EIP-7702 on legacy executor")
-                                          << LOG_KV("executorVersion", executorVersion);
+        TX_VALIDATOR_CHECKER_LOG(WARNING)
+            << LOG_BADGE("validateEip7702Admission") << LOG_DESC("EIP-7702 gate closed")
+            << LOG_KV("executorVersion", executorVersion)
+            << LOG_KV("prague", features.get(ledger::Features::Flag::feature_evm_prague));
         co_return TransactionStatus::Malformed;
     }
 
