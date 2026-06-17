@@ -12,6 +12,7 @@
 #include "../bcos-transaction-executor/vm/HostContext.h"
 #include "Eip2929TestHelpers.h"
 #include "TestMemoryStorage.h"
+#include "bcos-chain-policy/include/bcos-chain-policy/FiscoPolicy.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-executor/src/vm/VMInstance.h"
@@ -69,8 +70,9 @@ public:
         blockHeader.calculateHash(*hashImpl);
     }
 
-    HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)> makeHost(
-        bcos::ledger::Features const& features,
+    HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage),
+        bcos::chain_policy::FiscoPolicy>
+    makeHost(bcos::ledger::Features const& features,
         uint32_t blockHeaderVersion = static_cast<uint32_t>(
             bcos::protocol::BlockVersion::MAX_VERSION),
         evmc_address originIn = {}, evmc_address recipientIn = {},
@@ -86,6 +88,9 @@ public:
         ledgerConfig.setFeatures(features);
         blockHeader.setVersion(blockHeaderVersion);
         blockHeader.calculateHash(*hashImpl);
+        bcos::chain_policy::FiscoPolicy policy(ledgerConfig.features(),
+            ledgerConfig.balanceTransfer(), ledgerConfig.authCheckStatus() != 0);
+        auto rev = policy.computeRevisionConfig(blockHeader);
         evmc_message message = {.kind = kindIn,
             .flags = 0,
             .depth = 0,
@@ -103,10 +108,11 @@ public:
             .destination_len = 0,
             .sender_ptr = nullptr,
             .sender_len = 0};
-        return HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>(
-            rollbackableStorage, rollbackableTransientStorage, blockHeader, message, originIn, "",
-            0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0, bcos::task::syncWait,
-            std::move(eip2930AccessList), web3TypedTxKindForAccessList, std::move(eip2929Access));
+        return HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage),
+            bcos::chain_policy::FiscoPolicy>(rollbackableStorage, rollbackableTransientStorage,
+            blockHeader, message, originIn, "", 0, seq, *precompiledManager, rev, policy, *hashImpl,
+            false, 0, bcos::task::syncWait, std::move(eip2930AccessList),
+            web3TypedTxKindForAccessList, std::move(eip2929Access));
     }
 
     /// Feature profiles for EIP-2929 matrix tests (see eip2929::makeFeatures*).
@@ -416,8 +422,8 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_eip2929_warm_shared_across_external_call_depth)
     features.set(bcos::ledger::Features::Flag::feature_evm_prague);
     features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
 
-    using HostTy =
-        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>;
+    using HostTy = HostContext<decltype(rollbackableStorage),
+        decltype(rollbackableTransientStorage), bcos::chain_policy::FiscoPolicy>;
     HostTy parent = makeHost(features);
     evmc_address warmed{};
     std::memset(warmed.bytes, 0xaa, sizeof(warmed.bytes));
@@ -1691,8 +1697,8 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_eip2929_create_fail_keeps_contract_warm)
             .sender_ptr = nullptr,
             .sender_len = 0};
         int64_t const childSeq = seq + 1;
-        auto const resolved =
-            getMessage(false, nested, blockHeader.number(), 0, childSeq, nonce, *hashImpl);
+        auto const resolved = bcos::chain_policy::FiscoPolicy::deriveMessage(
+            false, nested, blockHeader.number(), 0, childSeq, nonce, *hashImpl);
         evmc_address const createAddr = resolved.code_address;
         auto out = co_await host.externalCall(nested);
         BOOST_REQUIRE_NE(out.status_code, EVMC_SUCCESS);
@@ -1746,8 +1752,8 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_eip2929_create_fail_evmone_inner_warm_rolled_back)
             .sender_ptr = nullptr,
             .sender_len = 0};
         int64_t const childSeq = seq + 1;
-        auto const resolved =
-            getMessage(false, nested, blockHeader.number(), 0, childSeq, nonce, *hashImpl);
+        auto const resolved = bcos::chain_policy::FiscoPolicy::deriveMessage(
+            false, nested, blockHeader.number(), 0, childSeq, nonce, *hashImpl);
         evmc_address const createAddr = resolved.code_address;
         auto out = co_await host.externalCall(nested);
         BOOST_REQUIRE_NE(out.status_code, EVMC_SUCCESS);
@@ -1786,8 +1792,8 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_eip2929_create2_fail_keeps_contract_warm)
             bcos::bytesConstRef(initCode.data(), initCode.size()), 1'000'000);
         nested.depth = host.message().depth + 1;
         int64_t const childSeq = seq + 1;
-        auto const resolved =
-            getMessage(false, nested, blockHeader.number(), 0, childSeq, nonce, *hashImpl);
+        auto const resolved = bcos::chain_policy::FiscoPolicy::deriveMessage(
+            false, nested, blockHeader.number(), 0, childSeq, nonce, *hashImpl);
         evmc_address const create2Addr = resolved.code_address;
         auto out = co_await host.externalCall(nested);
         BOOST_REQUIRE_NE(out.status_code, EVMC_SUCCESS);

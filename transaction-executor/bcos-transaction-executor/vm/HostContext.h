@@ -754,8 +754,7 @@ private:
         }
 
         co_await m_recipientAccount.create();
-        auto bugfixNest =
-            m_ledgerConfig.get().features().get(ledger::Features::Flag::bugfix_nonce_initialize);
+        auto bugfixNest = m_rev.fix_nonce_init;
         if (bugfixNest)
         {
             co_await m_recipientAccount.setNonce("1");
@@ -863,7 +862,7 @@ private:
             co_return executor_v1::callPrecompiled(*m_preparedPrecompiled,
                 m_rollbackableStorage.get(), m_blockHeader, ref, m_origin,
                 buildLegacyExternalCaller(), m_precompiledManager.get(), m_contextID, m_seq,
-                m_ledgerConfig.get().authCheckStatus(), m_ledgerConfig.get().features(), m_revision,
+                m_ledgerConfig.get().authCheckStatus(), m_rev, m_revision,
                 m_rev.fix_error_handling);
         }
 
@@ -893,7 +892,7 @@ private:
             co_return executor_v1::callPrecompiled(*m_preparedPrecompiled,
                 m_rollbackableStorage.get(), m_blockHeader, ref, m_origin,
                 buildLegacyExternalCaller(), m_precompiledManager.get(), m_contextID, m_seq,
-                m_ledgerConfig.get().authCheckStatus(), m_ledgerConfig.get().features(), m_revision,
+                m_ledgerConfig.get().authCheckStatus(), m_rev, m_revision,
                 m_rev.fix_error_handling);
         }
 

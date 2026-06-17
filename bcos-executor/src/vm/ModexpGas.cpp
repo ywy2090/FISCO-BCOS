@@ -194,13 +194,13 @@ bool validateModexpEip7823(bytesConstRef input, evmc_revision revision)
 }
 
 bool shouldRejectModexpEip7823(evmc_address const& addr, bytesConstRef input,
-    ledger::Features const& features, evmc_revision revision) noexcept
+    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept
 {
     if (!isModexpPrecompileEvmcAddress(addr))
     {
         return false;
     }
-    if (!modexpEip7823Enabled(features, revision))
+    if (!modexpEip7823Enabled(rev))
     {
         return false;
     }
@@ -208,13 +208,13 @@ bool shouldRejectModexpEip7823(evmc_address const& addr, bytesConstRef input,
 }
 
 bool shouldRejectModexpEip7823(std::string_view addr, bytesConstRef input,
-    ledger::Features const& features, evmc_revision revision) noexcept
+    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept
 {
     if (!isModexpPrecompileAddress(addr))
     {
         return false;
     }
-    if (!modexpEip7823Enabled(features, revision))
+    if (!modexpEip7823Enabled(rev))
     {
         return false;
     }

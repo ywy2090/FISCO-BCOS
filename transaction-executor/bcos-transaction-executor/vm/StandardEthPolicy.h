@@ -1,5 +1,6 @@
 #pragma once
 #include "RevisionConfig.h"
+#include "bcos-framework/ledger/Features.h"
 #include <evmc/evmc.h>
 #include <cstdint>
 
@@ -44,6 +45,12 @@ struct StandardEthPolicy
     }
 
     bool allowDelegateCallToPrecompile() const { return true; }
+
+    const ledger::Features& features() const
+    {
+        static const ledger::Features empty;
+        return empty;
+    }
 };
 
 inline evmc_revision evmcRevisionFromBlockNumber(int64_t blockNum)

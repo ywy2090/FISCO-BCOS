@@ -47,15 +47,13 @@ public:
             bcos::executor_v1::StateValue, bcos::storage2::memory_storage::ORDERED>;
 
     // FIB-75: Effective gas limit for EVM execution.
-    // When bugfix_gas_payment_balance_precheck is enabled and the tx declares gasLimit > 0,
+    // When fix_gas_precheck is enabled and the tx declares gasLimit > 0,
     // the EVM budget is capped at tx.gasLimit() (geth-compatible); otherwise falls back to
     // blockGasLimit for backward compat.
     static int64_t computeEffectiveGasLimit(
-        protocol::Transaction const& tx, ledger::LedgerConfig const& cfg)
+        protocol::Transaction const& tx, int64_t txSysGasLimit, bool fixGasPrecheck)
     {
-        const auto txSysGasLimit = static_cast<int64_t>(std::get<0>(cfg.gasLimit()));
-        if (cfg.features().get(ledger::Features::Flag::bugfix_gas_payment_balance_precheck) &&
-            tx.gasLimit() > 0)
+        if (fixGasPrecheck && tx.gasLimit() > 0)
         {
             return std::min<int64_t>(tx.gasLimit(), txSysGasLimit);
         }
@@ -83,13 +81,13 @@ public:
             int64_t m_gasUsed = 0;
             std::string m_gasPriceStr;
 
+            bcos::chain_policy::FiscoPolicy m_policy;
             int64_t m_gasLimit;
             int64_t m_seq = 0;
             evmc_address m_origin;
             u256 m_nonce;
             executor::Web3AccessListResolved m_web3AccessListResolved;
             std::shared_ptr<executor::Eip2929AccessState> m_eip2929Access;
-            bcos::chain_policy::FiscoPolicy m_policy;
             hostcontext::HostContext<decltype(m_rollbackableStorage),
                 decltype(m_rollbackableTransientStorage), bcos::chain_policy::FiscoPolicy>
                 m_hostContext;
@@ -107,7 +105,11 @@ public:
                 m_startSavepoint(m_rollbackableStorage.current()),
                 m_rollbackableTransientStorage(m_transientStorage),
                 m_call(call),
-                m_gasLimit(computeEffectiveGasLimit(transaction, ledgerConfig)),
+                m_policy(ledgerConfig.features(), ledgerConfig.balanceTransfer(),
+                    ledgerConfig.authCheckStatus() != 0),
+                m_gasLimit(computeEffectiveGasLimit(transaction,
+                    static_cast<int64_t>(std::get<0>(ledgerConfig.gasLimit())),
+                    m_policy.computeRevisionConfig(blockHeader).fix_gas_precheck)),
                 m_origin((!m_transaction.get().sender().empty() &&
                              m_transaction.get().sender().size() == sizeof(evmc_address)) ?
                              *(evmc_address*)m_transaction.get().sender().data() :
@@ -115,8 +117,6 @@ public:
                 m_nonce(hex2u(transaction.nonce())),
                 m_web3AccessListResolved(executor::resolveWeb3AccessList(transaction)),
                 m_eip2929Access(std::make_shared<executor::Eip2929AccessState>()),
-                m_policy(ledgerConfig.features(), ledgerConfig.balanceTransfer(),
-                    ledgerConfig.authCheckStatus() != 0),
                 m_hostContext(m_rollbackableStorage, m_rollbackableTransientStorage, blockHeader,
                     newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
@@ -154,9 +154,7 @@ public:
                         u256{std::get<0>(m_data->m_ledgerConfig.get().gasPrice())};
                     m_data->m_transaction.get().type() ==
                         protocol::TransactionType::Web3Transaction &&
-                    m_data->m_ledgerConfig.get().features().get(
-                        ledger::Features::Flag::bugfix_gas_payment_balance_precheck) &&
-                    gasPrice > 0)
+                    m_data->m_hostContext.revisionConfig().fix_gas_precheck && gasPrice > 0)
                 {
                     // FIB-75 geth-style: buy gas (pre-deduct), execute, refund unused gas.
                     if (!co_await buyGas())
@@ -190,8 +188,7 @@ public:
             {
                 auto& callNonce = m_data->m_nonce;
                 ledger::account::EVMAccount account(m_data->m_rollbackableStorage, m_data->m_origin,
-                    m_data->m_ledgerConfig.get().features().get(
-                        ledger::Features::Flag::feature_raw_address));
+                    m_data->m_hostContext.revisionConfig().use_raw_address);
 
                 if (!co_await account.exists())
                 {
@@ -421,8 +418,7 @@ public:
                     evmcResult.output_size = outputSize;
                     evmcResult.release = release;
                 }
-                if (m_data->m_ledgerConfig.get().features().get(
-                        ledger::Features::Flag::bugfix_revert_logs))
+                if (m_data->m_hostContext.revisionConfig().fix_revert_logs)
                 {
                     m_data->m_hostContext.logs().clear();
                 }

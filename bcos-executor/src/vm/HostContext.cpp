@@ -34,6 +34,7 @@
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-framework/storage/LegacyStorageMethods.h"
 #include "bcos-utilities/Common.h"
+#include "transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h"
 #include <evmc/evmc.h>
 #include <evmc/helpers.h>
 #include <boost/algorithm/hex.hpp>
@@ -384,8 +385,11 @@ evmc_result HostContext::callBuiltInPrecompiled(
             return preResult;
         }
 
-        if (shouldRejectModexpEip7823(_request->receiveAddress, ref(_request->data), features(),
-                toRevision(features(), m_executive->blockContext().blockVersion())))
+        auto const revision = toRevision(features(), m_executive->blockContext().blockVersion());
+        bcos::evm_standard::RevisionConfig rev{.revision = revision,
+            .eip7823 = revision >= EVMC_OSAKA &&
+                       features().get(ledger::Features::Flag::feature_evm_osaka)};
+        if (shouldRejectModexpEip7823(_request->receiveAddress, ref(_request->data), rev, revision))
         {
             callResults->status = (int32_t)TransactionStatus::RevertInstruction;
             callResults->gas = 0;

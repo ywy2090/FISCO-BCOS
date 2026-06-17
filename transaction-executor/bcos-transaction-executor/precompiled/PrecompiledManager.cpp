@@ -1,4 +1,5 @@
 #include "PrecompiledManager.h"
+#include "../vm/RevisionConfig.h"
 #include "bcos-executor/src/precompiled/BFSPrecompiled.h"
 #include "bcos-executor/src/precompiled/CastPrecompiled.h"
 #include "bcos-executor/src/precompiled/ConsensusPrecompiled.h"
@@ -210,4 +211,42 @@ bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::get
         return nullptr;
     }
     return precompiled;
+}
+
+bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+    unsigned long contractAddress, const bcos::evm_standard::RevisionConfig& rev,
+    const ledger::Features& features) const
+{
+    const auto* precompiled = getPrecompiled(contractAddress);
+    if (!precompiled)
+        return nullptr;
+
+    if (!rev.fix_precompiled_feature_gate)
+        return precompiled;
+
+    auto flag = featureFlag(*precompiled);
+    if (!flag)
+        return precompiled;
+
+    // Ethereum EIP gating -> RevisionConfig
+    if (*flag == ledger::Features::Flag::feature_evm_prague)
+        return rev.eip2537 ? precompiled : nullptr;
+    if (*flag == ledger::Features::Flag::feature_evm_osaka)
+        return rev.eip7212 ? precompiled : nullptr;
+
+    // FISCO-native gating -> Features
+    return features.get(*flag) ? precompiled : nullptr;
+}
+
+bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+    const evmc_address& address, const bcos::evm_standard::RevisionConfig& rev,
+    const ledger::Features& features) const
+{
+    constexpr static unsigned long MAX_ADDR = 100000;
+    u160 intAddress;
+    boost::multiprecision::import_bits(
+        intAddress, address.bytes, address.bytes + sizeof(address.bytes));
+    if (intAddress > 0 && intAddress < MAX_ADDR)
+        return getPrecompiled(intAddress.convert_to<unsigned long>(), rev, features);
+    return nullptr;
 }

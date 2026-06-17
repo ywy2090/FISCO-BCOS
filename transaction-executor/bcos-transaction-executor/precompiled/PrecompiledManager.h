@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../vm/RevisionConfig.h"
 #include "PrecompiledImpl.h"
 #include "bcos-framework/ledger/Features.h"
 
@@ -18,6 +19,14 @@ public:
         unsigned long contractAddress, const ledger::Features& features) const;
     Precompiled const* getPrecompiled(
         const evmc_address& address, const ledger::Features& features) const;
+
+    // RevisionConfig+gated lookup - maps Flag->RevisionConfig for Ethereum EIP-gated
+    // precompiles while retaining Features access for FISCO-native precompiles.
+    Precompiled const* getPrecompiled(unsigned long contractAddress,
+        const bcos::evm_standard::RevisionConfig& rev, const ledger::Features& features) const;
+
+    Precompiled const* getPrecompiled(const evmc_address& address,
+        const bcos::evm_standard::RevisionConfig& rev, const ledger::Features& features) const;
 
 private:
     crypto::Hash::Ptr m_hashImpl;

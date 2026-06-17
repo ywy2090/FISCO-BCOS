@@ -9,6 +9,7 @@
 #include "vm/Precompiled.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-framework/protocol/Protocol.h>
+#include <transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h>
 #include <boost/test/unit_test.hpp>
 
 namespace bcos::test
@@ -16,14 +17,16 @@ namespace bcos::test
 
 namespace
 {
-ledger::Features osakaFeatures()
+bcos::evm_standard::RevisionConfig osakaRev()
 {
-    ledger::Features features;
-    features.setGenesisFeatures(protocol::BlockVersion::MAX_VERSION);
-    features.set(ledger::Features::Flag::feature_evm_cancun);
-    features.set(ledger::Features::Flag::feature_evm_prague);
-    features.set(ledger::Features::Flag::feature_evm_osaka);
-    return features;
+    bcos::evm_standard::RevisionConfig rev{.revision = EVMC_OSAKA, .eip7823 = true};
+    return rev;
+}
+
+bcos::evm_standard::RevisionConfig pragueRev()
+{
+    bcos::evm_standard::RevisionConfig rev{.revision = EVMC_PRAGUE, .eip7823 = false};
+    return rev;
 }
 
 bytes modexpHeaderBaseLen1025()
@@ -100,19 +103,16 @@ BOOST_AUTO_TEST_CASE(validate_1025_ok_prague)
 
 BOOST_AUTO_TEST_CASE(modexpEip7823Enabled_gateMatrix)
 {
-    auto const features = osakaFeatures();
-    BOOST_CHECK(executor::modexpEip7823Enabled(features, EVMC_OSAKA));
-    BOOST_CHECK(!executor::modexpEip7823Enabled(features, EVMC_PRAGUE));
-
-    ledger::Features noOsaka;
-    noOsaka.setGenesisFeatures(protocol::BlockVersion::MAX_VERSION);
-    noOsaka.set(ledger::Features::Flag::feature_evm_prague);
-    BOOST_CHECK(!executor::modexpEip7823Enabled(noOsaka, EVMC_OSAKA));
+    auto const osaka = osakaRev();
+    BOOST_CHECK(executor::modexpEip7823Enabled(osaka));
+    auto const prague = pragueRev();
+    BOOST_CHECK(!executor::modexpEip7823Enabled(prague));
 }
 
 BOOST_AUTO_TEST_CASE(shouldRejectModexpEip7823_boundaries)
 {
-    auto const features = osakaFeatures();
+    auto const osaka = osakaRev();
+    auto const prague = pragueRev();
     auto const oversize = modexpHeaderBaseLen1025();
     bytes inputOk(96, 0);
     inputOk[30] = 4;
@@ -122,20 +122,14 @@ BOOST_AUTO_TEST_CASE(shouldRejectModexpEip7823_boundaries)
     evmc_address otherAddr{};
     otherAddr.bytes[19] = 0x01;
 
+    BOOST_CHECK(executor::shouldRejectModexpEip7823(modexpAddr, ref(oversize), osaka, EVMC_OSAKA));
+    BOOST_CHECK(!executor::shouldRejectModexpEip7823(modexpAddr, ref(inputOk), osaka, EVMC_OSAKA));
+    BOOST_CHECK(!executor::shouldRejectModexpEip7823(otherAddr, ref(oversize), osaka, EVMC_OSAKA));
     BOOST_CHECK(
-        executor::shouldRejectModexpEip7823(modexpAddr, ref(oversize), features, EVMC_OSAKA));
-    BOOST_CHECK(
-        !executor::shouldRejectModexpEip7823(modexpAddr, ref(inputOk), features, EVMC_OSAKA));
-    BOOST_CHECK(
-        !executor::shouldRejectModexpEip7823(otherAddr, ref(oversize), features, EVMC_OSAKA));
-    BOOST_CHECK(
-        !executor::shouldRejectModexpEip7823(modexpAddr, ref(oversize), features, EVMC_PRAGUE));
+        !executor::shouldRejectModexpEip7823(modexpAddr, ref(oversize), prague, EVMC_PRAGUE));
 
-    ledger::Features noOsaka;
-    noOsaka.setGenesisFeatures(protocol::BlockVersion::MAX_VERSION);
-    noOsaka.set(ledger::Features::Flag::feature_evm_prague);
     BOOST_CHECK(
-        !executor::shouldRejectModexpEip7823(modexpAddr, ref(oversize), noOsaka, EVMC_OSAKA));
+        !executor::shouldRejectModexpEip7823(modexpAddr, ref(oversize), prague, EVMC_OSAKA));
 }
 
 BOOST_AUTO_TEST_CASE(modexp_executor_does_not_enforce_7823)

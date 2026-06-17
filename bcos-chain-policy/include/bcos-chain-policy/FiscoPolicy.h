@@ -1,10 +1,15 @@
 #pragma once
+#include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/vm/VMInstance.h"  // toRevision
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/BlockHeader.h"
+#include "bcos-utilities/DataConvertUtility.h"
 #include "transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h"
 #include <evmc/evmc.h>
+#include <evmc/helpers.h>
+#include <fmt/compile.h>
+#include <fmt/format.h>
 
 namespace bcos::chain_policy
 {
@@ -19,7 +24,8 @@ public:
         m_authCheckEnabled(authCheckEnabled)
     {}
 
-    RevisionConfig computeRevisionConfig(const protocol::BlockHeader& header) const
+    bcos::evm_standard::RevisionConfig computeRevisionConfig(
+        const protocol::BlockHeader& header) const
     {
         using Flag = ledger::Features::Flag;
         RevisionConfig cfg;
@@ -79,6 +85,8 @@ public:
 
     bool allowDelegateCallToPrecompile() const { return false; }
 
+    const ledger::Features& features() const { return m_features; }
+
     template <class Storage>
     task::Task<std::optional<struct bcos::executor_v1::EVMCResult>> checkAuth(Storage& storage,
         const protocol::BlockHeader& blockHeader, const evmc_message& msg,
@@ -94,8 +102,55 @@ private:
         protocol::BlockNumber blockNum, int64_t ctxId, int64_t seq, const u256& nonce,
         const crypto::Hash& hashImpl)
     {
-        // TODO: Move getMessage() body from HostContext.h here in Task 2-preamble
-        return msg;
+        evmc_message message = msg;
+        switch (message.kind)
+        {
+        case EVMC_CREATE:
+        {
+            if (concepts::bytebuffer::equalTo(
+                    message.code_address.bytes, executor::EMPTY_EVM_ADDRESS.bytes))
+            {
+                if (!web3Tx)
+                {
+                    auto address = fmt::format(FMT_COMPILE("{}_{}_{}"), blockNum, ctxId, seq);
+                    auto hash = hashImpl.hash(address);
+                    std::copy_n(hash.data(), sizeof(message.code_address.bytes),
+                        message.code_address.bytes);
+                }
+                else
+                {
+                    auto legacyAddr =
+                        newLegacyEVMAddress(bytesConstRef(message.sender.bytes), nonce);
+                    std::copy(legacyAddr.begin(), legacyAddr.end(), message.code_address.bytes);
+                }
+            }
+            message.recipient = message.code_address;
+            break;
+        }
+        case EVMC_CREATE2:
+        {
+            std::array<bcos::byte, 1 + sizeof(message.sender.bytes) + sizeof(message.create2_salt) +
+                                       crypto::HashType::SIZE>
+                buffer;
+            uint8_t* ptr = buffer.data();
+            *ptr++ = 0xff;
+            ptr =
+                std::uninitialized_copy_n(message.sender.bytes, sizeof(message.sender.bytes), ptr);
+            auto salt = toBigEndian(fromEvmC(message.create2_salt));
+            ptr = std::uninitialized_copy(salt.begin(), salt.end(), ptr);
+            auto inputHash = hashImpl.hash(bytesConstRef(message.input_data, message.input_size));
+            ptr = std::uninitialized_copy(inputHash.begin(), inputHash.end(), ptr);
+            auto addressHash = hashImpl.hash(bytesConstRef(buffer.data(), buffer.size()));
+
+            std::copy_n(addressHash.begin() + 12, sizeof(message.code_address.bytes),
+                message.code_address.bytes);
+            message.recipient = message.code_address;
+            break;
+        }
+        default:
+            break;
+        }
+        return message;
     }
 
     const ledger::Features& m_features;

@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka)
 
     auto const features = osakaFeatures();
     auto const result =
-        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA);
+        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA, true);
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_FAILURE);
     // geth/evmone: EIP-7823 rejection happens before execution; all call gas is consumed.
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka_legacyPath_bu
 
     auto const features = osakaFeatures(false);
     auto const result =
-        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA);
+        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA, false);
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_FAILURE);
     BOOST_CHECK_EQUAL(result.gas_left, 0);
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_dynamicPrecompiledR
 
     auto const features = osakaFeatures();
     auto const result =
-        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA);
+        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA, true);
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_FAILURE);
     BOOST_CHECK_EQUAL(result.gas_left, 0);
