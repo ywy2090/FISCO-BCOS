@@ -25,6 +25,7 @@
 #include "../precompiled/PrecompiledImpl.h"
 #include "../precompiled/PrecompiledManager.h"
 #include "EVMHostInterface.h"
+#include "RevisionConfig.h"
 #include "VMInstance.h"
 #include "bcos-codec/abi/ContractABICodec.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
@@ -84,10 +85,6 @@ struct NotFoundCodeError : public bcos::Error {};
 
 evmc_bytes32 evm_hash_fn(evmc_host_context* context, const uint8_t* data, size_t size);
 
-evmc_message getMessage(bool web3Tx, const evmc_message& inputMessage,
-    protocol::BlockNumber blockNumber, int64_t contextID, int64_t seq, const u256& nonce,
-    crypto::Hash const& hashImpl);
-
 struct Executable
 {
     Executable(storage::Entry code);
@@ -125,7 +122,7 @@ task::Task<std::shared_ptr<Executable>> getExecutable(
     co_return {};
 }
 
-template <class Storage, class TransientStorage>
+template <class Storage, class TransientStorage, class Policy>
 class HostContext : public evmc_host_context
 {
 private:
@@ -155,6 +152,9 @@ private:
     std::shared_ptr<executor::Eip2929AccessState> m_eip2929Access;
     std::shared_ptr<const executor::Eip2930AccessList> m_eip2930AccessList;
     uint8_t m_web3TypedTxKindForAccessList = 0;
+
+    bcos::evm_standard::RevisionConfig m_rev;  // Pre-computed per-block revision config
+    Policy* m_policy = nullptr;                // Chain-variant behavior hooks
 
     std::optional<executor_v1::gas::TxGasSettlementContext> m_gasSettlementSnapshot;
     int64_t m_gasSettlementGasLimit = 0;
@@ -224,8 +224,8 @@ private:
     HostContext(InnerConstructor /*unused*/, Storage& storage, TransientStorage& transientStorage,
         const protocol::BlockHeader& blockHeader, const evmc_message& message,
         const evmc_address& origin, std::string_view abi, int contextID, int64_t& seq,
-        PrecompiledManager const& precompiledManager, ledger::LedgerConfig const& ledgerConfig,
-        crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce,
+        PrecompiledManager const& precompiledManager, bcos::evm_standard::RevisionConfig rev,
+        Policy& policy, crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce,
         const evmc_host_interface* hostInterface,
         std::shared_ptr<const executor::Eip2930AccessList> accessList = nullptr,
         uint8_t web3TypedTxKind = 0,
@@ -244,9 +244,10 @@ private:
         m_contextID(contextID),
         m_seq(seq),
         m_precompiledManager(precompiledManager),
-        m_ledgerConfig(ledgerConfig),
+        m_rev(rev),
+        m_policy(&policy),
         m_hashImpl(hashImpl),
-        m_message(getMessage(
+        m_message(Policy::deriveMessage(
             web3Tx, message, m_blockHeader.get().number(), m_contextID, m_seq, nonce, m_hashImpl)),
         m_recipientAccount(getAccount(*this, this->message().recipient)),
         // Never downgrade below EVMC_CANCUN (pre-PR baseline).
@@ -271,13 +272,14 @@ public:
     HostContext(Storage& storage, TransientStorage& transientStorage,
         protocol::BlockHeader const& blockHeader, const evmc_message& message,
         const evmc_address& origin, std::string_view abi, int contextID, int64_t& seq,
-        PrecompiledManager const& precompiledManager, ledger::LedgerConfig const& ledgerConfig,
-        crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce, auto&& waitOperator,
+        PrecompiledManager const& precompiledManager, bcos::evm_standard::RevisionConfig rev,
+        Policy& policy, crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce,
+        auto&& waitOperator,
         std::shared_ptr<const executor::Eip2930AccessList> accessList = nullptr,
         uint8_t web3TypedTxKind = 0,
         std::shared_ptr<executor::Eip2929AccessState> eip2929Access = nullptr)
       : HostContext(innerConstructor, storage, transientStorage, blockHeader, message, origin, abi,
-            contextID, seq, precompiledManager, ledgerConfig, hashImpl, web3Tx, nonce,
+            contextID, seq, precompiledManager, rev, policy, hashImpl, web3Tx, nonce,
             getHostInterface<HostContext>(std::forward<decltype(waitOperator)>(waitOperator)),
             std::move(accessList), web3TypedTxKind, std::move(eip2929Access))
     {}
@@ -291,6 +293,8 @@ public:
     constexpr evmc_message const& message() const& { return m_message; }
     constexpr evmc_message& mutableMessage() & { return m_message; }
     constexpr ledger::LedgerConfig const& ledgerConfig() const& { return m_ledgerConfig.get(); }
+    Policy& policy() const { return *m_policy; }
+    const bcos::evm_standard::RevisionConfig& revisionConfig() const { return m_rev; }
 
     friend auto getAccount(HostContext& hostContext, const evmc_address& address)
     {
@@ -414,14 +418,7 @@ public:
     uint32_t blockVersion() const { return m_blockHeader.get().version(); }
     int64_t timestamp() const
     {
-        if (m_ledgerConfig.get().features().get(ledger::Features::Flag::bugfix_v1_timestamp) &&
-            m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_evm_timestamp))
-        {
-            return std::chrono::duration_cast<std::chrono::seconds>(
-                std::chrono::milliseconds(m_blockHeader.get().timestamp()))
-                .count();
-        }
-        return m_blockHeader.get().timestamp();
+        return m_policy->convertTimestamp(m_blockHeader.get().timestamp());
     }
     evmc_address const& origin() const { return m_origin; }
     int64_t blockGasLimit() const { return std::get<0>(m_ledgerConfig.get().gasLimit()); }
@@ -646,16 +643,17 @@ public:
             checkpointGuard.emplace(m_eip2929Access);
             if (message.kind == EVMC_CREATE || message.kind == EVMC_CREATE2)
             {
-                // EVM CREATE passes empty code_address; pin must match getMessage() resolution.
-                auto const resolved = getMessage(m_web3Tx, message, m_blockHeader.get().number(),
-                    m_contextID, m_seq, nonce, m_hashImpl);
+                // EVM CREATE passes empty code_address; pin must match Policy::deriveMessage
+                // resolution.
+                auto const resolved = Policy::deriveMessage(m_web3Tx, message,
+                    m_blockHeader.get().number(), m_contextID, m_seq, nonce, m_hashImpl);
                 m_eip2929Access->setCreateRollbackPin(resolved.code_address);
             }
         }
 
         HostContext hostcontext(innerConstructor, m_rollbackableStorage.get(),
             m_rollbackableTransientStorage.get(), m_blockHeader, message, m_origin, {}, m_contextID,
-            m_seq, m_precompiledManager.get(), m_ledgerConfig, m_hashImpl, m_web3Tx, nonce,
+            m_seq, m_precompiledManager.get(), m_rev, *m_policy, m_hashImpl, m_web3Tx, nonce,
             interface, m_eip2930AccessList, m_web3TypedTxKindForAccessList, m_eip2929Access);
 
         co_await hostcontext.prepare();
