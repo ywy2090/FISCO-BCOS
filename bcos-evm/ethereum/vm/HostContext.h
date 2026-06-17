@@ -21,21 +21,20 @@
 
 #pragma once
 
-#include "../precompiled/AuthCheck.h"
-#include "../precompiled/PrecompiledImpl.h"
-#include "../precompiled/PrecompiledManager.h"
-#include "EVMHostInterface.h"
 #include "RevisionConfig.h"
 #include "VMInstance.h"
 #include "bcos-codec/abi/ContractABICodec.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/bcos/AuthCheck.h"
+#include "bcos-evm/bcos/PrecompiledImpl.h"
+#include "bcos-evm/bcos/PrecompiledManager.h"
+#include "bcos-evm/ethereum/eip2929/Eip2929AccessState.h"
+#include "bcos-evm/ethereum/eip2929/Eip2929CheckpointGuard.h"
+#include "bcos-evm/ethereum/eip2929/Eip2929TransactionPrewarm.h"
+#include "bcos-evm/ethereum/eip2929/Eip2929Util.h"
+#include "bcos-evm/ethereum/vm/VMInstance.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
-#include "bcos-executor/src/vm/Eip2929AccessState.h"
-#include "bcos-executor/src/vm/Eip2929CheckpointGuard.h"
-#include "bcos-executor/src/vm/Eip2929TransactionPrewarm.h"
-#include "bcos-executor/src/vm/Eip2929Util.h"
-#include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/ledger/Ledger.h"
@@ -64,6 +63,7 @@
 #include <boost/multiprecision/cpp_int/import_export.hpp>
 #include <boost/throw_exception.hpp>
 #include <cassert>
+#include <evmc/evmc.hpp>  // evmc::HostInterface, evmc::Result
 #include <functional>
 #include <intx/intx.hpp>
 #include <iterator>
@@ -122,8 +122,69 @@ task::Task<std::shared_ptr<Executable>> getExecutable(
     co_return {};
 }
 
+}  // namespace bcos::executor_v1::hostcontext
+
+namespace bcos::evm_standard::detail
+{
+constexpr evmc_host_interface s_hostTable = {
+    [](evmc_host_context* c, const evmc_address* a) noexcept -> bool {
+        return static_cast<evmc::HostInterface*>(c)->account_exists(*a);
+    },
+    [](evmc_host_context* c, const evmc_address* a, const evmc_bytes32* k) noexcept
+    -> evmc_bytes32 { return static_cast<evmc::HostInterface*>(c)->get_storage(*a, *k); },
+    [](evmc_host_context* c, const evmc_address* a, const evmc_bytes32* k,
+        const evmc_bytes32* v) noexcept -> evmc_storage_status {
+        return static_cast<evmc::HostInterface*>(c)->set_storage(*a, *k, *v);
+    },
+    [](evmc_host_context* c, const evmc_address* a) noexcept -> evmc_bytes32 {
+        return static_cast<evmc::HostInterface*>(c)->get_balance(*a);
+    },
+    [](evmc_host_context* c, const evmc_address* a) noexcept -> size_t {
+        return static_cast<evmc::HostInterface*>(c)->get_code_size(*a);
+    },
+    [](evmc_host_context* c, const evmc_address* a) noexcept -> evmc_bytes32 {
+        return static_cast<evmc::HostInterface*>(c)->get_code_hash(*a);
+    },
+    [](evmc_host_context* c, const evmc_address* a, size_t off, uint8_t* buf, size_t sz) noexcept
+    -> size_t { return static_cast<evmc::HostInterface*>(c)->copy_code(*a, off, buf, sz); },
+    [](evmc_host_context* c, const evmc_address* a, const evmc_address* b) noexcept -> bool {
+        return static_cast<evmc::HostInterface*>(c)->selfdestruct(*a, *b);
+    },
+    [](evmc_host_context* c, const evmc_message* m) noexcept -> evmc_result {
+        auto result = static_cast<evmc::HostInterface*>(c)->call(*m);
+        evmc_result raw = result;
+        result.release = nullptr;
+        return raw;
+    },
+    [](evmc_host_context* c) noexcept -> evmc_tx_context {
+        return static_cast<evmc::HostInterface*>(c)->get_tx_context();
+    },
+    [](evmc_host_context* c, int64_t n) noexcept -> evmc_bytes32 {
+        return static_cast<evmc::HostInterface*>(c)->get_block_hash(n);
+    },
+    [](evmc_host_context* c, const evmc_address* a, const uint8_t* d, size_t ds,
+        const evmc_bytes32* t, size_t nt) noexcept -> void {
+        static_cast<evmc::HostInterface*>(c)->emit_log(*a, d, ds, t, nt);
+    },
+    [](evmc_host_context* c, const evmc_address* a) noexcept -> evmc_access_status {
+        return static_cast<evmc::HostInterface*>(c)->access_account(*a);
+    },
+    [](evmc_host_context* c, const evmc_address* a, const evmc_bytes32* k) noexcept
+    -> evmc_access_status { return static_cast<evmc::HostInterface*>(c)->access_storage(*a, *k); },
+    [](evmc_host_context* c, const evmc_address* a, const evmc_bytes32* k) noexcept
+    -> evmc_bytes32 { return static_cast<evmc::HostInterface*>(c)->get_transient_storage(*a, *k); },
+    [](evmc_host_context* c, const evmc_address* a, const evmc_bytes32* k,
+        const evmc_bytes32* v) noexcept -> void {
+        static_cast<evmc::HostInterface*>(c)->set_transient_storage(*a, *k, *v);
+    },
+};
+}  // namespace bcos::evm_standard::detail
+
+namespace bcos::executor_v1::hostcontext
+{
+
 template <class Storage, class TransientStorage, class Policy>
-class HostContext : public evmc_host_context
+class HostContext : public evmc_host_context, public evmc::HostInterface
 {
 private:
     std::reference_wrapper<Storage> m_rollbackableStorage;
@@ -225,11 +286,10 @@ private:
         const evmc_address& origin, std::string_view abi, int contextID, int64_t& seq,
         PrecompiledManager const& precompiledManager, bcos::evm_standard::RevisionConfig rev,
         Policy& policy, crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce,
-        const evmc_host_interface* hostInterface,
         std::shared_ptr<const executor::Eip2930AccessList> accessList = nullptr,
         uint8_t web3TypedTxKind = 0,
         std::shared_ptr<executor::Eip2929AccessState> eip2929Access = nullptr)
-      : evmc_host_context{.interface = hostInterface,
+      : evmc_host_context{.interface = &bcos::evm_standard::detail::s_hostTable,
             .wasm_interface = nullptr,
             .hash_fn = evm_hash_fn,
             .isSMCrypto = (hashImpl.getHashImplType() == crypto::HashImplType::Sm3Hash),
@@ -273,13 +333,11 @@ public:
         const evmc_address& origin, std::string_view abi, int contextID, int64_t& seq,
         PrecompiledManager const& precompiledManager, bcos::evm_standard::RevisionConfig rev,
         Policy& policy, crypto::Hash const& hashImpl, bool web3Tx, const u256& nonce,
-        auto&& waitOperator,
         std::shared_ptr<const executor::Eip2930AccessList> accessList = nullptr,
         uint8_t web3TypedTxKind = 0,
         std::shared_ptr<executor::Eip2929AccessState> eip2929Access = nullptr)
       : HostContext(innerConstructor, storage, transientStorage, blockHeader, message, origin, abi,
             contextID, seq, precompiledManager, rev, policy, hashImpl, web3Tx, nonce,
-            getHostInterface<HostContext>(std::forward<decltype(waitOperator)>(waitOperator)),
             std::move(accessList), web3TypedTxKind, std::move(eip2929Access))
     {}
 
@@ -647,7 +705,7 @@ public:
         HostContext hostcontext(innerConstructor, m_rollbackableStorage.get(),
             m_rollbackableTransientStorage.get(), m_blockHeader, message, m_origin, {}, m_contextID,
             m_seq, m_precompiledManager.get(), m_rev, *m_policy, m_hashImpl, m_web3Tx, nonce,
-            interface, m_eip2930AccessList, m_web3TypedTxKindForAccessList, m_eip2929Access);
+            m_eip2930AccessList, m_web3TypedTxKindForAccessList, m_eip2929Access);
 
         co_await hostcontext.prepare();
         auto result = co_await hostcontext.execute();
@@ -685,6 +743,153 @@ public:
             return EVMC_ACCESS_COLD;
         }
         return m_eip2929Access->warmUpStorage(addr, key) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
+    }
+
+public:
+    // ── evmc::HostInterface ──
+    // const_cast note: coroutines modify internal state machine (promise/awaiter),
+    // not EVM-observable state (storage/balance/code). Same pattern as evmone::MockedHost.
+
+    bool account_exists(const address& addr) const noexcept final
+    {
+        return syncWait(const_cast<HostContext*>(this)->exists(addr));
+    }
+
+    bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final
+    {
+        return syncWait(const_cast<HostContext*>(this)->get(&key));
+    }
+
+    evmc_storage_status set_storage(
+        const address& addr, const bytes32& key, const bytes32& value) noexcept final
+    {
+        auto status = sstoreStatus(&key, &value);
+        syncWait(this->set(&key, &value));
+        return status;
+    }
+
+    uint256be get_balance(const address& addr) const noexcept final
+    {
+        return toEvmC(syncWait(const_cast<HostContext*>(this)->balance(addr)));
+    }
+
+    size_t get_code_size(const address& addr) const noexcept final
+    {
+        return syncWait(const_cast<HostContext*>(this)->codeSizeAt(addr));
+    }
+
+    bytes32 get_code_hash(const address& addr) const noexcept final
+    {
+        return toEvmC(syncWait(const_cast<HostContext*>(this)->codeHashAt(addr)));
+    }
+
+    size_t copy_code(const address& addr, size_t code_offset, uint8_t* buffer_data,
+        size_t buffer_size) const noexcept final
+    {
+        auto* self = const_cast<HostContext*>(this);
+        auto entry = syncWait(self->code(addr));
+        if (!entry || code_offset >= static_cast<size_t>(entry->size()))
+            return 0;
+        auto code = entry->get();
+        size_t n = std::min(code.size() - code_offset, buffer_size);
+        std::copy_n(&code[code_offset], n, buffer_data);
+        return n;
+    }
+
+    bool selfdestruct(const address& addr, const address& beneficiary) noexcept final
+    {
+        this->suicide();
+        return m_policy->selfdestruct(addr, beneficiary);
+    }
+
+    Result call(const evmc_message& msg) noexcept final
+    {
+        auto result = syncWait(externalCall(msg));
+        evmc_result raw = result;
+        result.release = nullptr;
+        return Result(raw);
+    }
+
+    evmc_tx_context get_tx_context() const noexcept final
+    {
+        return {
+            .tx_gas_price = toEvmC(gasPrice()),
+            .tx_origin = origin(),
+            .block_coinbase = {},
+            .block_number = blockNumber(),
+            .block_timestamp = m_policy->convertTimestamp(m_blockHeader.get().timestamp()),
+            .block_gas_limit = blockGasLimit(),
+            .block_prev_randao = {},
+            .chain_id = chainId(),
+            .block_base_fee = {},
+            .blob_base_fee = {},
+            .blob_hashes = {},
+            .blob_hashes_count = 0,
+            .initcodes = {},
+            .initcodes_count = 0,
+        };
+    }
+
+    evmc_bytes32 get_block_hash(int64_t number) const noexcept final
+    {
+        return toEvmC(syncWait(const_cast<HostContext*>(this)->blockHash(number)));
+    }
+
+    void emit_log(const address& addr, const uint8_t* data, size_t data_size,
+        const bytes32 topics[], size_t num_topics) noexcept final
+    {
+        h256s htopics;
+        htopics.reserve(num_topics);
+        for (size_t i = 0; i < num_topics; ++i)
+            htopics.emplace_back(topics[i].bytes);
+        this->log(addr, std::move(htopics), bytesConstRef{data, data_size});
+    }
+
+    evmc_access_status access_account(const address& addr) noexcept final
+    {
+        return this->accessAccount(addr);
+    }
+
+    evmc_access_status access_storage(const address& addr, const bytes32& key) noexcept final
+    {
+        return this->accessStorage(addr, key);
+    }
+
+    bytes32 get_transient_storage(const address& addr, const bytes32& key) const noexcept final
+    {
+        return syncWait(const_cast<HostContext*>(this)->getTransientStorage(&key));
+    }
+
+    void set_transient_storage(
+        const address& addr, const bytes32& key, const bytes32& value) noexcept final
+    {
+        syncWait(const_cast<HostContext*>(this)->setTransientStorage(&key, &value));
+    }
+
+private:
+    // SSTORE status — migrated from EVMHostInterface.h
+    evmc_storage_status sstoreStatus(const bytes32* key, const bytes32* value)
+    {
+        bool newIsZero =
+            concepts::bytebuffer::equalTo(value->bytes, executor::EMPTY_EVM_BYTES32.bytes);
+
+        evmc_storage_status status;
+        if (m_rev.fix_storage_status)
+        {
+            auto existingValue =
+                syncWait(const_cast<HostContext*>(this)->get(key, storage2::DIRECT));
+            const bool existingIsZero = concepts::bytebuffer::equalTo(
+                existingValue.bytes, executor::EMPTY_EVM_BYTES32.bytes);
+            if (newIsZero)
+                status = existingIsZero ? EVMC_STORAGE_ASSIGNED : EVMC_STORAGE_DELETED;
+            else
+                status = existingIsZero ? EVMC_STORAGE_ADDED : EVMC_STORAGE_MODIFIED;
+        }
+        else
+        {
+            status = newIsZero ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
+        }
+        return status;
     }
 
 private:

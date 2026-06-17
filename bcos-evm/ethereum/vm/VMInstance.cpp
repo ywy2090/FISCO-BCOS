@@ -15,11 +15,13 @@ bcos::executor_v1::EVMCResult bcos::executor_v1::VMInstance::execute(
 {
     (void)code;  // execute uses pre-analyzed m_analysis
     (void)codeSize;
-    // Fresh VM per execute: evmone 0.21 pools ExecutionState inside VM; thread_local reuse leaves
-    // dirty stack after reset() (EVMC_BAD_JUMP_DESTINATION).
-    evmc::VM evm{evmc_create_evmone()};
+    // Reuse thread_local VM: evmone 0.21 ExecutionState::reset() clears all critical fields
+    // (gas_refund, memory, msg, host, rev, return_data, status). The 0.11-era dirty-stack bug
+    // (EVMC_BAD_JUMP_DESTINATION) was fixed in 0.21. Internal ExecutionState pool grows to max
+    // nesting depth then stops allocating — eliminating per-call malloc/free.
+    thread_local evmc::VM t_vm{evmc_create_evmone()};
     return EVMCResult(evmone::baseline::execute(
-        *static_cast<evmone::VM*>(evm.get_raw_pointer()), *host, context, rev, *msg, *m_analysis));
+        *static_cast<evmone::VM*>(t_vm.get_raw_pointer()), *host, context, rev, *msg, *m_analysis));
 }
 
 void bcos::executor_v1::VMInstance::enableDebugOutput() {}

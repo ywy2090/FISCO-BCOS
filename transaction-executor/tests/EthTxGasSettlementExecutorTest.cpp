@@ -3,6 +3,7 @@
  */
 #include "../bcos-transaction-executor/TransactionExecutorImpl.h"
 #include "TestMemoryStorage.h"
+#include "bcos-evm/ethereum/gas/EthTxGasSettlement.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
@@ -11,7 +12,6 @@
 #include "bcos-rpc/web3jsonrpc/model/Web3Transaction.h"
 #include "bcos-tars-protocol/protocol/TransactionImpl.h"
 #include "bcos-tars-protocol/tars/Transaction.h"
-#include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <bcos-tars-protocol/protocol/TransactionReceiptFactoryImpl.h>

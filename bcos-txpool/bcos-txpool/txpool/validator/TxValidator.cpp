@@ -19,9 +19,10 @@
  * @date 2021-05-11
  */
 #include "TxValidator.h"
+#include "bcos-evm/ethereum/gas/EthTxGasSettlement.h"
+#include "bcos-evm/ethereum/vm/VMInstance.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
-#include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/bcos-framework/ledger/Ledger.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/LedgerTypeDef.h"
@@ -30,7 +31,6 @@
 #include "bcos-ledger/LedgerMethods.h"
 #include "bcos-task/Wait.h"
 #include "bcos-tool/VersionConverter.h"
-#include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/DataConvertUtility.h"
 
 #include <bcos-rpc/jsonrpc/Common.h>

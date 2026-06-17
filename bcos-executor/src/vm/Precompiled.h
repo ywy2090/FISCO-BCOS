@@ -20,9 +20,9 @@
  */
 
 #pragma once
-#include "bcos-evm-standard/precompiled/PrecompiledContract.h"
-#include "bcos-evm-standard/precompiled/PrecompiledRegistrar.h"
-#include "bcos-precompiled-extension/Precompiled.h"
+#include "bcos-evm/bcos/Precompiled.h"
+#include "bcos-evm/ethereum/precompiled/PrecompiledContract.h"
+#include "bcos-evm/ethereum/precompiled/PrecompiledRegistrar.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/FixedBytes.h"
 #include <cstdint>

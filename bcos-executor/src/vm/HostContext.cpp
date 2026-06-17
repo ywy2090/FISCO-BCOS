@@ -27,6 +27,7 @@
 #include "ModexpGas.h"
 #include "VMInstance.h"
 #include "bcos-codec/wrapper/CodecWrapper.h"
+#include "bcos-evm/ethereum/RevisionConfig.h"
 #include "bcos-executor/src/precompiled/common/Utilities.h"
 #include "bcos-framework/bcos-framework/ledger/LedgerTypeDef.h"
 #include "bcos-framework/executor/ExecutionMessage.h"
@@ -34,7 +35,6 @@
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-framework/storage/LegacyStorageMethods.h"
 #include "bcos-utilities/Common.h"
-#include "transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h"
 #include <evmc/evmc.h>
 #include <evmc/helpers.h>
 #include <boost/algorithm/hex.hpp>

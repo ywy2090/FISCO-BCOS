@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h"
+#include "bcos-evm/ethereum/RevisionConfig.h"
 #include <evmc/evmc.h>
 
 namespace bcos::executor

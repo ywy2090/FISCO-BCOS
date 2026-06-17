@@ -19,8 +19,8 @@
  * @date: 2021-05-24
  */
 
-#include "bcos-evm-standard/precompiled/PrecompiledContract.h"
-#include "bcos-evm-standard/precompiled/ModexpGas.h"
+#include "bcos-evm/ethereum/precompiled/PrecompiledContract.h"
+#include "bcos-evm/ethereum/precompiled/ModexpGas.h"
 
 using namespace bcos;
 

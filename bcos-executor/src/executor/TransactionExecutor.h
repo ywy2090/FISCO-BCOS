@@ -26,8 +26,8 @@
 
 #include "../dag/CriticalFields.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/ethereum/vm/VMFactory.h"
 #include "bcos-executor/src/executive/LedgerCache.h"
-#include "bcos-executor/src/vm/VMFactory.h"
 #include "bcos-framework/executor/ExecutionMessage.h"
 #include "bcos-framework/executor/ParallelTransactionExecutorInterface.h"
 #include "bcos-framework/ledger/LedgerInterface.h"
@@ -118,7 +118,7 @@ public:
     void preExecuteTransactions(int64_t schedulerTermId,
         const bcos::protocol::BlockHeader::ConstPtr& blockHeader, std::string contractAddress,
         gsl::span<bcos::protocol::ExecutionMessage::UniquePtr> inputs,
-        std::function<void(bcos::Error::UniquePtr)> callback) override {
+        std::function<void(bcos::Error::UniquePtr)> callback) override{
         // do nothing
     };
 

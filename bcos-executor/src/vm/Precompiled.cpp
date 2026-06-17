@@ -23,7 +23,7 @@
 #include "../Common.h"
 #include "ModexpGas.h"
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
-#include "bcos-evm-standard/precompiled/PrecompiledRegistrar.h"
+#include "bcos-evm/ethereum/precompiled/PrecompiledRegistrar.h"
 #include "wedpr-crypto/WedprCrypto.h"
 #include <algorithm>
 #include <array>

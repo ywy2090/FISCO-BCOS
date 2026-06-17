@@ -1,5 +1,6 @@
 #include "PrecompiledManager.h"
-#include "../vm/RevisionConfig.h"
+#include "bcos-evm/bcos/PrecompiledImpl.h"
+#include "bcos-evm/ethereum/RevisionConfig.h"
 #include "bcos-executor/src/precompiled/BFSPrecompiled.h"
 #include "bcos-executor/src/precompiled/CastPrecompiled.h"
 #include "bcos-executor/src/precompiled/ConsensusPrecompiled.h"
@@ -19,7 +20,6 @@
 #include "bcos-executor/src/precompiled/extension/PaillierPrecompiled.h"
 #include "bcos-executor/src/precompiled/extension/RingSigPrecompiled.h"
 #include "bcos-executor/src/precompiled/extension/ZkpPrecompiled.h"
-#include "bcos-transaction-executor/precompiled/PrecompiledImpl.h"
 #include <memory>
 #include <range/v3/algorithm/sort.hpp>
 

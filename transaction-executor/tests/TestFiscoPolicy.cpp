@@ -1,4 +1,4 @@
-#include "bcos-chain-policy/include/bcos-chain-policy/FiscoPolicy.h"
+#include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-framework/ledger/Features.h"
 #include <boost/test/unit_test.hpp>
 

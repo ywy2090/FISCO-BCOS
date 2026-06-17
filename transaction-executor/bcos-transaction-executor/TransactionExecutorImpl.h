@@ -1,16 +1,16 @@
 #pragma once
 
 #include "RollbackableStorage.h"
-#include "bcos-chain-policy/include/bcos-chain-policy/FiscoPolicy.h"
+#include "bcos-evm/bcos/FiscoPolicy.h"
+#include "bcos-evm/ethereum/EVMCResult.h"
+#include "bcos-evm/ethereum/eip2929/Eip2929AccessState.h"
+#include "bcos-evm/ethereum/gas/EthTxGasSettlement.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
-#include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"
 #include "bcos-task/Wait.h"
-#include "bcos-transaction-executor/EVMCResult.h"
-#include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Exceptions.h"
 #include "precompiled/PrecompiledManager.h"
@@ -121,9 +121,8 @@ public:
                     newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
                     m_policy.computeRevisionConfig(blockHeader), m_policy, *executor.m_hashImpl,
-                    transaction.type() != 0, m_nonce, task::syncWait,
-                    m_web3AccessListResolved.accessList, m_web3AccessListResolved.web3TypedTxKind,
-                    m_eip2929Access)
+                    transaction.type() != 0, m_nonce, m_web3AccessListResolved.accessList,
+                    m_web3AccessListResolved.web3TypedTxKind, m_eip2929Access)
             {}
         };
         std::unique_ptr<Data> m_data;

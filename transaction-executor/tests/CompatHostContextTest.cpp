@@ -12,10 +12,10 @@
 #include "../bcos-transaction-executor/vm/HostContext.h"
 #include "Eip2929TestHelpers.h"
 #include "TestMemoryStorage.h"
-#include "bcos-chain-policy/include/bcos-chain-policy/FiscoPolicy.h"
+#include "bcos-evm/bcos/FiscoPolicy.h"
+#include "bcos-evm/ethereum/eip2929/Eip2929AccessState.h"
+#include "bcos-evm/ethereum/vm/VMInstance.h"
 #include "bcos-executor/src/CallParameters.h"
-#include "bcos-executor/src/vm/Eip2929AccessState.h"
-#include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
@@ -111,8 +111,8 @@ public:
         return HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage),
             bcos::chain_policy::FiscoPolicy>(rollbackableStorage, rollbackableTransientStorage,
             blockHeader, message, originIn, "", 0, seq, *precompiledManager, rev, policy, *hashImpl,
-            false, 0, bcos::task::syncWait, std::move(eip2930AccessList),
-            web3TypedTxKindForAccessList, std::move(eip2929Access));
+            false, 0, std::move(eip2930AccessList), web3TypedTxKindForAccessList,
+            std::move(eip2929Access));
     }
 
     /// Feature profiles for EIP-2929 matrix tests (see eip2929::makeFeatures*).

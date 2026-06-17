@@ -1,11 +1,11 @@
 #pragma once
 #include "bcos-crypto/ChecksumAddress.h"
+#include "bcos-evm/ethereum/RevisionConfig.h"
+#include "bcos-evm/ethereum/vm/VMInstance.h"  // toRevision
 #include "bcos-executor/src/Common.h"
-#include "bcos-executor/src/vm/VMInstance.h"  // toRevision
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-utilities/DataConvertUtility.h"
-#include "transaction-executor/bcos-transaction-executor/vm/RevisionConfig.h"
 #include <evmc/evmc.h>
 #include <evmc/helpers.h>
 #include <fmt/compile.h>
