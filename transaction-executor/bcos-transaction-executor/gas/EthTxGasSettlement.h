@@ -8,7 +8,9 @@
 
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
+#include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-framework/ledger/Features.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include <evmc/evmc.h>
 #include <algorithm>
 
@@ -28,10 +30,11 @@ struct TxIntrinsicGas
     int64_t txBase = TX_BASE_GAS;
     int64_t normalCalldata = 0;
     int64_t accessListCost = 0;
+    int64_t eip7702AuthCost = 0;
     int64_t createIntrinsic = 0;
     int64_t floorReserve = 0;
 
-    int64_t fixedCost() const { return txBase + accessListCost; }
+    int64_t fixedCost() const { return txBase + accessListCost + eip7702AuthCost; }
 
     int64_t preExecutionDebit() const { return fixedCost() + normalCalldata + createIntrinsic; }
 
@@ -99,7 +102,8 @@ inline int64_t calcCreateIntrinsic(evmc_message const& message) noexcept
 }
 
 inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
-    executor::Eip2930AccessList const* accessList, uint8_t web3TypedTxKind)
+    executor::Eip2930AccessList const* accessList, uint8_t web3TypedTxKind,
+    executor::Eip7702AuthorizationList const* authorizationList = nullptr)
 {
     TxIntrinsicGas intrinsic;
     auto const components = executor::calcEip7623Components(
@@ -110,6 +114,12 @@ inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
     if (web3TypedTxKind != 0 && accessList != nullptr)
     {
         intrinsic.accessListCost = calcAccessListCost(accessList);
+    }
+
+    if (web3TypedTxKind == EIP_7702_WEB3_TX_TYPE && authorizationList != nullptr)
+    {
+        intrinsic.eip7702AuthCost =
+            static_cast<int64_t>(authorizationList->size()) * EIP_7702_PER_EMPTY_ACCOUNT_COST;
     }
 
     intrinsic.createIntrinsic = calcCreateIntrinsic(message);
@@ -141,6 +151,17 @@ inline int64_t finalizeEthereumGasUsed(TxGasSettlementContext const& ctx) noexce
     int64_t const gasUsedAfterRefund = gasUsedBeforeRefund - effectiveRefund;
     int64_t const floorDataGas = TX_BASE_GAS + ctx.calldata.floorCost;
     return std::max(gasUsedAfterRefund, floorDataGas);
+}
+
+/// EVM returned but intrinsic debit never ran (e.g. preExecutionDebit OOG).
+inline int64_t finalizeEthereumGasUsedWithoutEvmStart(TxGasSettlementContext const& ctx,
+    int64_t preExecutionDebit, int64_t evmGasLeft, bool fixErrorGasConsumesAllGas) noexcept
+{
+    if (fixErrorGasConsumesAllGas && evmGasLeft == 0)
+    {
+        return std::min(ctx.gasLimit, preExecutionDebit);
+    }
+    return ctx.gasLimit - evmGasLeft;
 }
 
 }  // namespace gas

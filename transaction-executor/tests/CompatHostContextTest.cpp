@@ -106,7 +106,8 @@ public:
         return HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>(
             rollbackableStorage, rollbackableTransientStorage, blockHeader, message, originIn, "",
             0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0, bcos::task::syncWait,
-            std::move(eip2930AccessList), web3TypedTxKindForAccessList, std::move(eip2929Access));
+            std::move(eip2930AccessList), web3TypedTxKindForAccessList, {}, {}, {}, nullptr,
+            std::move(eip2929Access));
     }
 
     /// Feature profiles for EIP-2929 matrix tests (see eip2929::makeFeatures*).

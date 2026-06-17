@@ -945,6 +945,12 @@ BOOST_AUTO_TEST_CASE(FIB50_NonceNotInsertedOnValidationFailure)
             co_return TransactionStatus::None;
         });
 
+    // validateEip7702Admission() mocked for FIB50 nonce experiment; see TxValidatorEip7702Test.
+    fakeit::When(Method(localValidator, validateEip7702Admission))
+        .AlwaysDo([](const auto&, auto) -> task::Task<TransactionStatus> {
+            co_return TransactionStatus::None;
+        });
+
     std::shared_ptr<TxValidatorInterface> v(&localValidator.get(), [](auto*) {});
     auto cfg = std::make_shared<TxPoolConfig>(
         v, nullptr, nullptr, nullptr, nc, 1000, 1024, /*checkSig=*/true);

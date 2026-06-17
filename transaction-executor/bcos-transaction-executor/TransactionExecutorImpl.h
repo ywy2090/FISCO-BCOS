@@ -2,13 +2,18 @@
 
 #include "RollbackableStorage.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
+#include "bcos-executor/src/Web3Eip7702Apply.h"
+#include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"
+#include "bcos-executor/src/vm/VMInstance.h"
+#include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"
 #include "bcos-task/Wait.h"
 #include "bcos-transaction-executor/EVMCResult.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Exceptions.h"
@@ -21,6 +26,7 @@
 #include <iterator>
 #include <memory>
 #include <type_traits>
+#include <unordered_set>
 
 namespace bcos::executor_v1
 {
@@ -46,9 +52,6 @@ public:
             bcos::executor_v1::StateValue, bcos::storage2::memory_storage::ORDERED>;
 
     // FIB-75: Effective gas limit for EVM execution.
-    // When bugfix_gas_payment_balance_precheck is enabled and the tx declares gasLimit > 0,
-    // the EVM budget is capped at tx.gasLimit() (geth-compatible); otherwise falls back to
-    // blockGasLimit for backward compat.
     static int64_t computeEffectiveGasLimit(
         protocol::Transaction const& tx, ledger::LedgerConfig const& cfg)
     {
@@ -73,8 +76,6 @@ public:
             std::reference_wrapper<ledger::LedgerConfig const> m_ledgerConfig;
             Rollbackable<Storage> m_rollbackableStorage;
             Rollbackable<Storage>::Savepoint m_startSavepoint;
-            // FIB-75: savepoint right after buyGas() pre-deduction — used to rollback only EVM
-            // effects while preserving the pre-deducted balance.
             Rollbackable<Storage>::Savepoint m_afterBuyGasSavepoint{0};
             TransientStorage m_transientStorage;
             Rollbackable<decltype(m_transientStorage)> m_rollbackableTransientStorage;
@@ -86,8 +87,12 @@ public:
             int64_t m_seq = 0;
             evmc_address m_origin;
             u256 m_nonce;
-            executor::Web3AccessListResolved m_web3AccessListResolved;
-            std::shared_ptr<executor::Eip2929AccessState> m_eip2929Access;
+            executor::Web3AccessListResolved m_accessListResolved;
+            executor::Web3Eip7702Parsed m_eip7702Parsed;
+            int64_t m_eip7702Refund = 0;
+            std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmAuthorities;
+            std::shared_ptr<std::vector<evmc_address>> m_eip7702WarmTargets;
+            gas::TxGasSettlementContext m_gasSettlement{};
             hostcontext::HostContext<decltype(m_rollbackableStorage),
                 decltype(m_rollbackableTransientStorage)>
                 m_hostContext;
@@ -111,15 +116,20 @@ public:
                              *(evmc_address*)m_transaction.get().sender().data() :
                              evmc_address{}),
                 m_nonce(hex2u(transaction.nonce())),
-                m_web3AccessListResolved(executor::resolveWeb3AccessList(transaction)),
-                m_eip2929Access(std::make_shared<executor::Eip2929AccessState>()),
+                m_accessListResolved(executor::resolveWeb3AccessList(transaction)),
+                m_eip7702Parsed(executor::parseEip7702FromWeb3Transaction(transaction)),
+                m_eip7702WarmAuthorities(std::make_shared<std::vector<evmc_address>>()),
+                m_eip7702WarmTargets(std::make_shared<std::vector<evmc_address>>()),
                 m_hostContext(m_rollbackableStorage, m_rollbackableTransientStorage, blockHeader,
                     newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
                     ledgerConfig, *executor.m_hashImpl, transaction.type() != 0, m_nonce,
-                    task::syncWait, m_web3AccessListResolved.accessList,
-                    m_web3AccessListResolved.web3TypedTxKind, m_eip2929Access)
-            {}
+                    task::syncWait, m_accessListResolved.accessList,
+                    m_accessListResolved.web3TypedTxKind, m_eip7702Parsed.authorizationList,
+                    m_eip7702WarmAuthorities, m_eip7702WarmTargets, std::addressof(m_gasSettlement))
+            {
+                m_gasSettlement.gasLimit = m_gasLimit;
+            }
         };
         std::unique_ptr<Data> m_data;
 
@@ -142,8 +152,18 @@ public:
                 auto updated = co_await updateNonce();
                 if (updated)
                 {
+                    // FC_G_7702_apply_before_savepoint: EIP-7702 state is committed before the
+                    // post-execute savepoint so balance rollback and EVM REVERT do not undo it.
+                    co_await applyEip7702AuthorizationList();
+                    m_data->m_hostContext.warmEip7702Addresses();
                     m_data->m_startSavepoint = m_data->m_rollbackableStorage.current();
                 }
+
+                auto runEvm = [&]() -> task::Task<void> {
+                    m_data->m_evmcResult.emplace(co_await m_data->m_hostContext.execute());
+                    m_data->m_evmcResult->gas_refund += m_data->m_eip7702Refund;
+                    finalizeGasUsed();
+                };
 
                 if (const auto gasPrice =
                         u256{std::get<0>(m_data->m_ledgerConfig.get().gasPrice())};
@@ -153,20 +173,16 @@ public:
                         ledger::Features::Flag::bugfix_gas_payment_balance_precheck) &&
                     gasPrice > 0)
                 {
-                    // FIB-75 geth-style: buy gas (pre-deduct), execute, refund unused gas.
                     if (!co_await buyGas())
                     {
                         co_return {};
                     }
-                    m_data->m_hostContext.setGasSettlementGasLimit(m_data->m_gasLimit);
-                    m_data->m_evmcResult.emplace(co_await m_data->m_hostContext.execute());
+                    co_await runEvm();
                     co_await refundGas();
                 }
                 else
                 {
-                    // Legacy path (precheck OFF): still need gasLimit on settlement snapshot.
-                    m_data->m_hostContext.setGasSettlementGasLimit(m_data->m_gasLimit);
-                    m_data->m_evmcResult.emplace(co_await m_data->m_hostContext.execute());
+                    co_await runEvm();
                     co_await consumeBalance();
                 }
             }
@@ -201,12 +217,6 @@ public:
             co_return false;
         }
 
-        // FIB-75 (geth-style): Pre-deduct gasLimit * gasPrice from sender before EVM execution.
-        // If balance is insufficient to cover gas + value, fail immediately (EVM does not run,
-        // no balance deducted, nonce preserved as replay protection).
-        // On success, balance -= gasLimit * gasPrice; EVM then runs with m_gasLimit as its
-        // gas budget, guaranteeing gasUsed <= gasLimit so refundGas() always has enough to
-        // settle without confiscating extra balance.
         task::Task<bool> buyGas()
         {
             if (m_data->m_call)
@@ -214,15 +224,8 @@ public:
                 co_return true;
             }
 
-            // FIB-75: use the transaction's effective gas price (legacy gasPrice or EIP-1559
-            // maxFeePerGas) so charging matches what the txpool validated.
             const auto gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
-            if (gasPrice == 0)
-            {
-                co_return true;
-            }
-
-            if (m_data->m_gasLimit <= 0)
+            if (gasPrice == 0 || m_data->m_gasLimit <= 0)
             {
                 co_return true;
             }
@@ -242,12 +245,6 @@ public:
                     << LOG_KV("maxGasCost", maxGasCost) << LOG_KV("txValue", txValue)
                     << LOG_KV("totalRequired", totalRequired);
 
-                // FIB-75: charge minimum penalty = min(balance, intrinsic_gas * gasPrice).
-                // The transaction is already in a consensus-packed block and consumed
-                // consensus/storage resources, so a sender who can't cover full gas cost
-                // still pays at least the 21000-gas base cost (geth's intrinsic gas for
-                // an empty tx). If balance < intrinsic cost, drain what's left. This
-                // prevents free spam from repeatedly submitting under-funded transactions.
                 constexpr static int64_t INTRINSIC_GAS = 21000;
                 const auto intrinsicCost = u256(INTRINSIC_GAS) * gasPrice;
                 const auto penalty = std::min(senderBalance, intrinsicCost);
@@ -265,71 +262,38 @@ public:
                 failResult.create_address = {};
                 m_data->m_evmcResult.emplace(
                     EVMCResult(failResult, protocol::TransactionStatus::NotEnoughCash));
-                // gasUsed reflects what was actually charged as penalty (in gas units).
                 m_data->m_gasUsed = (penalty / gasPrice).template convert_to<int64_t>();
                 m_data->m_gasPriceStr = "0x" + gasPrice.str(256, std::ios_base::hex);
 
                 co_return false;
             }
 
-            // Pre-deduct max gas cost from sender
             co_await senderAccount.setBalance(senderBalance - maxGasCost);
             m_data->m_afterBuyGasSavepoint = m_data->m_rollbackableStorage.current();
             m_data->m_gasPriceStr = "0x" + gasPrice.str(256, std::ios_base::hex);
             co_return true;
         }
 
-        void settleGasUsedFromEvmResult()
-        {
-            auto& evmcResult = *m_data->m_evmcResult;
-            auto const& features = m_data->m_ledgerConfig.get().features();
-            auto const& snapOpt = m_data->m_hostContext.gasSettlementSnapshot();
-
-            if (snapOpt && executor_v1::gas::ethGasSettlementEnabled(features,
-                               m_data->m_hostContext.revision(), 0,
-                               m_data->m_transaction.get().type() ==
-                                   protocol::TransactionType::Web3Transaction))
-            {
-                auto ctx = *snapOpt;
-                ctx.evmGasLeft = evmcResult.gas_left;
-                ctx.evmGasRefund = evmcResult.gas_refund;
-                m_data->m_gasUsed = executor_v1::gas::finalizeEthereumGasUsed(ctx);
-            }
-            else
-            {
-                m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
-            }
-        }
-
-        // FIB-75 (geth-style): After EVM execution, refund (gasLimit - gasUsed) * gasPrice.
-        // If EVM failed (non-SUCCESS, non-REVERT), roll back state changes while preserving
-        // the pre-deducted gas cost. gasUsed <= gasLimit is guaranteed because the EVM's
-        // gas budget is m_gasLimit.
         task::Task<void> refundGas()
         {
             auto& evmcResult = *m_data->m_evmcResult;
-            settleGasUsedFromEvmResult();
 
             if (m_data->m_call)
             {
                 co_return;
             }
 
-            // FIB-75: mirror buyGas() — use the tx's effective gas price.
             const auto gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
             if (gasPrice == 0)
             {
                 co_return;
             }
 
-            // On EVM failure (not SUCCESS / REVERT), rollback EVM state changes but keep
-            // the pre-deducted gas — the sender still pays for the wasted execution.
             if (evmcResult.status_code != EVMC_SUCCESS && evmcResult.status_code != EVMC_REVERT)
             {
                 co_await m_data->m_rollbackableStorage.rollback(m_data->m_afterBuyGasSavepoint);
             }
 
-            // Refund unused gas (settled gasUsed when EIP-7623 path active)
             const int64_t refundGasUnits =
                 std::max<int64_t>(0, m_data->m_gasLimit - m_data->m_gasUsed);
             if (refundGasUnits > 0)
@@ -342,13 +306,168 @@ public:
             }
         }
 
-        // Legacy balance consumption — only used when bugfix_gas_payment_balance_precheck is OFF.
-        // Kept unchanged from pre-FIB-75 behavior: on insufficient balance, rollback execution
-        // effects and deduct nothing (the original FIB-75 bug that's fixed by the precheck flag).
+        task::Task<void> applyEip7702AuthorizationList()
+        {
+            auto const& features = m_data->m_ledgerConfig.get().features();
+            if (!features.get(ledger::Features::Flag::feature_evm_prague))
+            {
+                co_return;
+            }
+            if (m_data->m_eip7702Parsed.web3TypedTxKind != executor_v1::EIP_7702_WEB3_TX_TYPE)
+            {
+                co_return;
+            }
+            auto const& list = m_data->m_eip7702Parsed.authorizationList;
+            if (!list || list->empty())
+            {
+                co_return;
+            }
+            if (list->size() > executor_v1::EIP_7702_MAX_AUTHORIZATION_LIST_SIZE)
+            {
+                TRANSACTION_EXECUTOR_LOG(WARNING)
+                    << LOG_DESC("authorization_list exceeds max size; skipping apply")
+                    << LOG_KV("size", list->size())
+                    << LOG_KV("max", executor_v1::EIP_7702_MAX_AUTHORIZATION_LIST_SIZE);
+                co_return;
+            }
+
+            auto const& hashImpl = m_data->m_executor.get().m_hashImpl;
+            auto const ledgerChainId = m_data->m_ledgerConfig.get().chainId();
+            auto const binaryAddress = features.get(ledger::Features::Flag::feature_raw_address);
+
+            std::unordered_set<evmc_address, executor::Eip2929AddrHash, executor::Eip2929AddrEqual>
+                seenAuthorities;
+            std::unordered_set<evmc_address, executor::Eip2929AddrHash, executor::Eip2929AddrEqual>
+                seenTargets;
+            m_data->m_eip7702WarmAuthorities->clear();
+            m_data->m_eip7702WarmTargets->clear();
+
+            static bcos::Address const zeroAddress;
+
+            for (auto const& tuple : *list)
+            {
+                if (!executor::eip7702ChainIdMatches(tuple.chainId, ledgerChainId))
+                {
+                    continue;
+                }
+
+                auto const authorityAddrOpt = executor::recoverEip7702Authority(hashImpl, tuple);
+                if (!authorityAddrOpt)
+                {
+                    continue;
+                }
+                auto const authorityEvmc = executor::addressToEvmc(*authorityAddrOpt);
+                if (seenAuthorities.insert(authorityEvmc).second)
+                {
+                    m_data->m_eip7702WarmAuthorities->push_back(authorityEvmc);
+                }
+
+                ledger::account::EVMAccount<decltype(m_data->m_rollbackableStorage)> authority(
+                    m_data->m_rollbackableStorage, authorityEvmc, binaryAddress);
+
+                if (auto codeEntry = co_await authority.code())
+                {
+                    auto const codeView = codeEntry->get();
+                    if (!codeView.empty() &&
+                        !executor::isEip7702DelegationIndicator(bcos::bytesConstRef(
+                            reinterpret_cast<bcos::byte const*>(codeView.data()), codeView.size())))
+                    {
+                        continue;
+                    }
+                }
+
+                auto const nonceInStorage = co_await authority.nonce();
+                auto const storageNonce =
+                    u256(nonceInStorage.value_or(std::string("0"))).convert_to<uint64_t>();
+                if (tuple.nonce != storageNonce)
+                {
+                    continue;
+                }
+
+                bool const existed = co_await authority.exists();
+                if (!existed)
+                {
+                    co_await authority.create();
+                }
+
+                if (tuple.address == zeroAddress)
+                {
+                    auto const emptyHash = hashImpl->hash(std::string_view{});
+                    co_await authority.setCode({}, std::string{}, emptyHash);
+                }
+                else
+                {
+                    bcos::bytes delegCode;
+                    delegCode.reserve(executor::EIP7702_DELEGATION_CODE_SIZE);
+                    delegCode.insert(delegCode.end(),
+                        std::begin(executor::EIP7702_DELEGATION_PREFIX),
+                        std::end(executor::EIP7702_DELEGATION_PREFIX));
+                    delegCode.insert(delegCode.end(), tuple.address.begin(), tuple.address.end());
+                    auto const codeHash = hashImpl->hash(bcos::bytesConstRef(
+                        reinterpret_cast<bcos::byte const*>(delegCode.data()), delegCode.size()));
+                    co_await authority.setCode(std::move(delegCode), std::string{}, codeHash);
+                }
+
+                co_await authority.setNonce(std::to_string(storageNonce + 1));
+
+                if (existed)
+                {
+                    m_data->m_eip7702Refund += executor_v1::EIP_7702_REFUND_PER_EXISTING_AUTHORITY;
+                }
+
+                if (tuple.address != zeroAddress)
+                {
+                    auto const targetEvmc = executor::addressToEvmc(tuple.address);
+                    if (seenTargets.insert(targetEvmc).second)
+                    {
+                        m_data->m_eip7702WarmTargets->push_back(targetEvmc);
+                    }
+                }
+            }
+        }
+
+        void finalizeGasUsed()
+        {
+            auto& evmcResult = *m_data->m_evmcResult;
+            auto const& features = m_data->m_ledgerConfig.get().features();
+            auto const revision =
+                bcos::executor::toRevision(features, m_data->m_blockHeader.get().version());
+            auto const web3Tx = m_data->m_transaction.get().type() != 0;
+            if (!gas::ethGasSettlementEnabled(features, revision, 0, web3Tx))
+            {
+                m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
+                return;
+            }
+
+            if (m_data->m_gasSettlement.gasBeforeEvm > 0)
+            {
+                m_data->m_gasSettlement.evmGasLeft = evmcResult.gas_left;
+                m_data->m_gasSettlement.evmGasRefund = evmcResult.gas_refund;
+                m_data->m_gasUsed = gas::finalizeEthereumGasUsed(m_data->m_gasSettlement);
+                return;
+            }
+
+            auto const& msg = m_data->m_hostContext.message();
+            auto const web3TypedTxKind = m_data->m_eip7702Parsed.web3TypedTxKind != 0 ?
+                                             m_data->m_eip7702Parsed.web3TypedTxKind :
+                                             m_data->m_accessListResolved.web3TypedTxKind;
+            auto const* accessList = m_data->m_accessListResolved.accessList ?
+                                         m_data->m_accessListResolved.accessList.get() :
+                                         nullptr;
+            auto const* authorizationList = m_data->m_eip7702Parsed.authorizationList ?
+                                                m_data->m_eip7702Parsed.authorizationList.get() :
+                                                nullptr;
+            auto const intrinsic =
+                gas::computeTxIntrinsicGas(msg, accessList, web3TypedTxKind, authorizationList);
+            auto const fixErrorGas =
+                features.get(ledger::Features::Flag::bugfix_evm_exception_gas_used);
+            m_data->m_gasUsed = gas::finalizeEthereumGasUsedWithoutEvmStart(m_data->m_gasSettlement,
+                intrinsic.preExecutionDebit(), evmcResult.gas_left, fixErrorGas);
+        }
+
         task::Task<void> consumeBalance()
         {
             auto& evmcResult = *m_data->m_evmcResult;
-            settleGasUsedFromEvmResult();
             if (!m_data->m_call)
             {
                 auto& evmcMessage = m_data->m_hostContext.message();

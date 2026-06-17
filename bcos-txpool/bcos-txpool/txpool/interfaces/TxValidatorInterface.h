@@ -60,5 +60,8 @@ public:
     virtual task::Task<protocol::TransactionStatus> validateEip7623GasFloor(
         const bcos::protocol::Transaction& _tx,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger) = 0;
+    virtual task::Task<protocol::TransactionStatus> validateEip7702Admission(
+        const bcos::protocol::Transaction& _tx,
+        std::shared_ptr<bcos::ledger::LedgerInterface> _ledger) = 0;
 };
 }  // namespace bcos::txpool
