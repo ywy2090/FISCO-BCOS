@@ -24,7 +24,7 @@
 
 using namespace bcos;
 
-namespace bcos::executor
+namespace bcos::evm
 {
 PrecompiledRegistrar* PrecompiledRegistrar::get()
 {
@@ -83,4 +83,4 @@ void PrecompiledRegistrar::registerAllBuiltins()
     // ETH_REGISTER_PRECOMPILED macros continue to work via static-init for now.
 }
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

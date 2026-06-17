@@ -53,7 +53,7 @@ public:
     Web3AccessListResolverTEFixture()
       : rollbackableStorage(storage), rollbackableTransientStorage(transientStorage)
     {
-        bcos::executor::GlobalHashImpl::g_hashImpl = hashImpl;
+        bcos::evm::GlobalHashImpl::g_hashImpl = hashImpl;
         precompiledManager.emplace(hashImpl);
         blockHeader.setVersion(static_cast<uint32_t>(bcos::protocol::BlockVersion::MAX_VERSION));
         blockHeader.calculateHash(*hashImpl);
@@ -94,7 +94,7 @@ public:
             rollbackableStorage, rollbackableTransientStorage, blockHeader, message, origin, "", 0,
             seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0, bcos::task::syncWait,
             std::move(eip2930AccessList), web3TypedTxKindForAccessList,
-            std::make_shared<bcos::executor::Eip2929AccessState>());
+            std::make_shared<bcos::evm::Eip2929AccessState>());
     }
 };
 

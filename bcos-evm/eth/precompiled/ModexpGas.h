@@ -16,7 +16,7 @@ namespace bcos::evm_standard
 struct RevisionConfig;
 }  // namespace bcos::evm_standard
 
-namespace bcos::executor
+namespace bcos::evm
 {
 
 struct ModexpLengths
@@ -51,4 +51,4 @@ bcos::bigint calcModexpGas(bcos::bytesConstRef input, evmc_revision revision);
 /// Production uses PrecompiledContract::modexp() -> calcModexpGas(input, revision).
 bcos::bigint calcModexpGasEip198Public(bcos::bytesConstRef input);
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

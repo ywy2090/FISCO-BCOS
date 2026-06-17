@@ -25,7 +25,7 @@
 #include <evmc/evmc.h>
 #include <optional>
 
-namespace bcos::executor
+namespace bcos::evm
 {
 
 /// Inputs for warming accessed_addresses at transaction entry (before EVM execution).
@@ -79,4 +79,4 @@ void warmEip2930AccessListOnly(Eip2929AccessState& state, uint8_t web3TypedTxKin
     state.warmUpAccessList(accessList, std::forward<AddrConverter>(toAddr));
 }
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

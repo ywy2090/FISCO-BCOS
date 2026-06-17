@@ -11,7 +11,7 @@
 #include <evmc/evmc.h>
 #include <algorithm>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 namespace gas
 {
@@ -127,4 +127,4 @@ inline int64_t finalizeEthereumGasUsed(
 }
 
 }  // namespace gas
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

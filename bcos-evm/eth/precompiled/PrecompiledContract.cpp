@@ -24,7 +24,7 @@
 
 using namespace bcos;
 
-namespace bcos::executor
+namespace bcos::evm
 {
 PrecompiledContract::PrecompiledContract(
     PrecompiledPricer const& _cost, PrecompiledExecutor const& _exec, u256 const& _startingBlock)
@@ -84,4 +84,4 @@ u256 const& PrecompiledContract::startingBlock() const
     return m_startingBlock;
 }
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

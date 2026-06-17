@@ -11,7 +11,7 @@
 #include <evmc/evmc.h>
 #include <boost/algorithm/hex.hpp>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 
 #define FISCO_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("FISCO_TX_EXECUTOR")
@@ -249,4 +249,4 @@ struct FiscoTxExecutor
     }
 };
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

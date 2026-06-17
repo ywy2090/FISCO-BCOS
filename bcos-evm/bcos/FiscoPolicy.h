@@ -88,10 +88,10 @@ public:
     const ledger::Features& features() const { return m_features; }
 
     template <class Storage>
-    task::Task<std::optional<struct bcos::executor_v1::EVMCResult>> checkAuth(Storage& storage,
+    task::Task<std::optional<struct bcos::evm::EVMCResult>> checkAuth(Storage& storage,
         const protocol::BlockHeader& blockHeader, const evmc_message& msg,
         const evmc_address& origin, auto&& externalCaller,
-        const struct bcos::executor_v1::PrecompiledManager& precompiledMgr, int64_t contextID,
+        const struct bcos::evm::PrecompiledManager& precompiledMgr, int64_t contextID,
         int64_t& seq, const crypto::Hash& hashImpl) const
     {
         co_return std::nullopt;  // Stub — full implementation wired in Task 2-preamble

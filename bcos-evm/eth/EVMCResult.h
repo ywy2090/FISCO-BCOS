@@ -25,7 +25,7 @@
 #include <gsl/pointers>
 #include <tuple>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 class EVMCResult : public evmc_result
 {
@@ -54,7 +54,7 @@ EVMCResult makeErrorEVMCResult(crypto::Hash const& hashImpl, protocol::Transacti
     evmc_status_code evmStatus, int64_t gas, const std::string& errorInfo,
     bool clampGasLeft = false);
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm
 
 std::ostream& operator<<(std::ostream& output, const evmc_message& message);
 std::ostream& operator<<(std::ostream& output, const evmc_result& result);

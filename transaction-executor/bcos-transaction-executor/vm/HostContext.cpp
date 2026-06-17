@@ -4,13 +4,13 @@
 #include <fmt/compile.h>
 #include <fmt/format.h>
 
-evmc_bytes32 bcos::executor_v1::hostcontext::evm_hash_fn(
+evmc_bytes32 bcos::evm::hostcontext::evm_hash_fn(
     evmc_host_context* /*context*/, const uint8_t* data, size_t size)
 {
     return toEvmC(executor::GlobalHashImpl::g_hashImpl->hash(bytesConstRef(data, size)));
 }
 
-evmc_message bcos::executor_v1::hostcontext::getMessage(bool web3Tx,
+evmc_message bcos::evm::hostcontext::getMessage(bool web3Tx,
     const evmc_message& inputMessage, protocol::BlockNumber blockNumber, int64_t contextID,
     int64_t seq, const u256& nonce, crypto::Hash const& hashImpl)
 {
@@ -65,12 +65,12 @@ evmc_message bcos::executor_v1::hostcontext::getMessage(bool web3Tx,
     return message;
 }
 
-bcos::executor_v1::hostcontext::CacheExecutables&
-bcos::executor_v1::hostcontext::getCacheExecutables()
+bcos::evm::hostcontext::CacheExecutables&
+bcos::evm::hostcontext::getCacheExecutables()
 {
     struct CacheExecutables
     {
-        bcos::executor_v1::hostcontext::CacheExecutables m_cachedExecutables;
+        bcos::evm::hostcontext::CacheExecutables m_cachedExecutables;
 
         CacheExecutables()
         {
@@ -82,12 +82,12 @@ bcos::executor_v1::hostcontext::getCacheExecutables()
     return cachedExecutables.m_cachedExecutables;
 }
 
-bcos::executor_v1::hostcontext::Executable::Executable(storage::Entry code)
+bcos::evm::hostcontext::Executable::Executable(storage::Entry code)
   : m_code(std::make_optional(std::move(code))),
     m_vmInstance(VMFactory::create(VMKind::evmone,
         bytesConstRef(reinterpret_cast<const uint8_t*>(m_code->data()), m_code->size())))
 {}
 
-bcos::executor_v1::hostcontext::Executable::Executable(bytesConstRef code)
+bcos::evm::hostcontext::Executable::Executable(bytesConstRef code)
   : m_vmInstance(VMFactory::create(VMKind::evmone, code))
 {}

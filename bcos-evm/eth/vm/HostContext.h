@@ -74,7 +74,7 @@
 #include <range/v3/algorithm/move.hpp>
 #include <string_view>
 
-namespace bcos::executor_v1::hostcontext
+namespace bcos::evm::hostcontext
 {
 
 #define HOST_CONTEXT_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("HOST_CONTEXT")
@@ -122,7 +122,7 @@ task::Task<std::shared_ptr<Executable>> getExecutable(
     co_return {};
 }
 
-}  // namespace bcos::executor_v1::hostcontext
+}  // namespace bcos::evm::hostcontext
 
 namespace bcos::evm_standard::detail
 {
@@ -180,7 +180,7 @@ constexpr evmc_host_interface s_hostTable = {
 };
 }  // namespace bcos::evm_standard::detail
 
-namespace bcos::executor_v1::hostcontext
+namespace bcos::evm::hostcontext
 {
 
 template <class Storage, class TransientStorage, class Policy>
@@ -203,7 +203,7 @@ private:
     evmc_revision m_revision;
     std::vector<protocol::LogEntry> m_logs;
     std::shared_ptr<Executable> m_executable;
-    const bcos::executor_v1::Precompiled* m_preparedPrecompiled{};
+    const bcos::evm::Precompiled* m_preparedPrecompiled{};
     bcos::bytes m_dynamicPrecompiledInput;
     bool m_enableTransfer = false;
     int64_t m_level;
@@ -524,7 +524,7 @@ public:
         auto savepoint = m_rollbackableStorage.get().current();
         auto transientSavepoint = m_rollbackableTransientStorage.get().current();
 
-        std::optional<bcos::executor::Eip2929CheckpointGuard> topCheckpointGuard;
+        std::optional<bcos::evm::Eip2929CheckpointGuard> topCheckpointGuard;
         if (m_level == 0 && m_eip2929Access && executor::eip2929Enabled(m_rev))
         {
             topCheckpointGuard.emplace(m_eip2929Access);
@@ -688,7 +688,7 @@ public:
         auto nonceStr = co_await senderAccount.nonce();
         auto nonce = u256(nonceStr.value_or(std::string("0")));
 
-        std::optional<bcos::executor::Eip2929CheckpointGuard> checkpointGuard;
+        std::optional<bcos::evm::Eip2929CheckpointGuard> checkpointGuard;
         if (m_eip2929Access && executor::eip2929Enabled(m_rev))
         {
             checkpointGuard.emplace(m_eip2929Access);
@@ -1107,4 +1107,4 @@ private:
     }
 };
 
-}  // namespace bcos::executor_v1::hostcontext
+}  // namespace bcos::evm::hostcontext

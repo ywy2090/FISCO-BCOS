@@ -23,28 +23,28 @@ static void cleanEVMCResult(evmc_result& from)
     from.output_size = 0;
 }
 
-bcos::executor_v1::EVMCResult::EVMCResult(evmc_result from)
+bcos::evm::EVMCResult::EVMCResult(evmc_result from)
   : evmc_result(from), status{evmcStatusToTransactionStatus(from.status_code)}
 {}
 
-bcos::executor_v1::EVMCResult::EVMCResult(evmc_result from, protocol::TransactionStatus statusCode)
+bcos::evm::EVMCResult::EVMCResult(evmc_result from, protocol::TransactionStatus statusCode)
   : evmc_result(from), status(statusCode)
 {}
 
-bcos::executor_v1::EVMCResult::EVMCResult(EVMCResult&& from) noexcept
+bcos::evm::EVMCResult::EVMCResult(EVMCResult&& from) noexcept
   : evmc_result(from), status{from.status}
 {
     cleanEVMCResult(from);
 }
 
-bcos::executor_v1::EVMCResult& bcos::executor_v1::EVMCResult::operator=(EVMCResult&& from) noexcept
+bcos::evm::EVMCResult& bcos::evm::EVMCResult::operator=(EVMCResult&& from) noexcept
 {
     evmc_result::operator=(from);
     cleanEVMCResult(from);
     return *this;
 }
 
-bcos::executor_v1::EVMCResult::~EVMCResult() noexcept
+bcos::evm::EVMCResult::~EVMCResult() noexcept
 {
     if (release != nullptr)
     {
@@ -55,7 +55,7 @@ bcos::executor_v1::EVMCResult::~EVMCResult() noexcept
     }
 }
 
-bcos::bytes bcos::executor_v1::writeErrInfoToOutput(
+bcos::bytes bcos::evm::writeErrInfoToOutput(
     const crypto::Hash& hashImpl, std::string const& errInfo)
 {
     bcos::codec::abi::ContractABICodec abi(hashImpl);
@@ -63,7 +63,7 @@ bcos::bytes bcos::executor_v1::writeErrInfoToOutput(
 }
 
 std::tuple<gsl::owner<uint8_t*>, size_t, decltype(evmc_result::release)>
-bcos::executor_v1::fillErrorOutputInPlace(
+bcos::evm::fillErrorOutputInPlace(
     const crypto::Hash& hashImpl, evmc_status_code status, const std::string& errorInfo)
 {
     bytes errorBytes;
@@ -93,7 +93,7 @@ bcos::executor_v1::fillErrorOutputInPlace(
     return {output, errorBytes.size(), release};
 }
 
-bcos::protocol::TransactionStatus bcos::executor_v1::evmcStatusToTransactionStatus(
+bcos::protocol::TransactionStatus bcos::evm::evmcStatusToTransactionStatus(
     evmc_status_code status)
 {
     switch (status)
@@ -119,7 +119,7 @@ bcos::protocol::TransactionStatus bcos::executor_v1::evmcStatusToTransactionStat
 }
 
 std::tuple<bcos::protocol::TransactionStatus, bcos::bytes>
-bcos::executor_v1::evmcStatusToErrorMessage(
+bcos::evm::evmcStatusToErrorMessage(
     const bcos::crypto::Hash& hashImpl, evmc_status_code status)
 {
     using namespace std::string_literals;
@@ -133,32 +133,32 @@ bcos::executor_v1::evmcStatusToErrorMessage(
         return {bcos::protocol::TransactionStatus::RevertInstruction, {}};
     case EVMC_OUT_OF_GAS:
         return {bcos::protocol::TransactionStatus::OutOfGas,
-            bcos::executor_v1::writeErrInfoToOutput(hashImpl, "Execution out of gas."s)};
+            bcos::evm::writeErrInfoToOutput(hashImpl, "Execution out of gas."s)};
     case EVMC_INSUFFICIENT_BALANCE:
         return {bcos::protocol::TransactionStatus::NotEnoughCash, {}};
     case EVMC_STACK_OVERFLOW:
         return {bcos::protocol::TransactionStatus::OutOfStack,
-            bcos::executor_v1::writeErrInfoToOutput(hashImpl, "Execution stack overflow."s)};
+            bcos::evm::writeErrInfoToOutput(hashImpl, "Execution stack overflow."s)};
     case EVMC_STACK_UNDERFLOW:
         return {bcos::protocol::TransactionStatus::StackUnderflow,
-            bcos::executor_v1::writeErrInfoToOutput(
+            bcos::evm::writeErrInfoToOutput(
                 hashImpl, "Execution needs more items on EVM stack."s)};
     case EVMC_INVALID_INSTRUCTION:
     case EVMC_UNDEFINED_INSTRUCTION:
         return {bcos::protocol::TransactionStatus::BadInstruction,
-            bcos::executor_v1::writeErrInfoToOutput(
+            bcos::evm::writeErrInfoToOutput(
                 hashImpl, "Execution invalid/undefined opcode."s)};
     case EVMC_BAD_JUMP_DESTINATION:
         return {bcos::protocol::TransactionStatus::BadJumpDestination,
-            bcos::executor_v1::writeErrInfoToOutput(
+            bcos::evm::writeErrInfoToOutput(
                 hashImpl, "Execution has violated the jump destination restrictions."s)};
     case EVMC_INVALID_MEMORY_ACCESS:
         return {bcos::protocol::TransactionStatus::StackUnderflow,
-            bcos::executor_v1::writeErrInfoToOutput(
+            bcos::evm::writeErrInfoToOutput(
                 hashImpl, "Execution tried to read outside memory bounds."s)};
     case EVMC_STATIC_MODE_VIOLATION:
         return {bcos::protocol::TransactionStatus::Unknown,
-            bcos::executor_v1::writeErrInfoToOutput(hashImpl,
+            bcos::evm::writeErrInfoToOutput(hashImpl,
                 "Execution tried to execute an operation which is restricted in static mode."s)};
     case EVMC_INTERNAL_ERROR:
     default:
@@ -166,7 +166,7 @@ bcos::executor_v1::evmcStatusToErrorMessage(
     }
 }
 
-bcos::executor_v1::EVMCResult bcos::executor_v1::makeErrorEVMCResult(crypto::Hash const& hashImpl,
+bcos::evm::EVMCResult bcos::evm::makeErrorEVMCResult(crypto::Hash const& hashImpl,
     protocol::TransactionStatus status, evmc_status_code evmStatus, int64_t gas,
     const std::string& errorInfo, bool clampGasLeft)
 {

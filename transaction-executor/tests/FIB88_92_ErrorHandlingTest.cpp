@@ -63,7 +63,7 @@ public:
     FIB88_92_Fixture()
       : rollbackableStorage(storage), rollbackableTransientStorage(transientStorage)
     {
-        bcos::executor::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
+        bcos::evm::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
         precompiledManager.emplace(hashImpl);
 
         blockHeader.setVersion(static_cast<uint32_t>(bcos::protocol::BlockVersion::MAX_VERSION));
@@ -290,7 +290,7 @@ BOOST_AUTO_TEST_CASE(FIB91_AuthCheckInsideTryBlock)
         // Enable auth checking (non-zero authCheckStatus)
         ledgerConfig.setAuthCheckStatus(1);
 
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
         auto input = abiCodec.abiIn(std::string("getInt()"));
 
         evmc_message message = {.kind = EVMC_CALL,

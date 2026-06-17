@@ -61,7 +61,7 @@ public:
     TestHostContextFixture()
       : rollbackableStorage(storage), rollbackableTransientStorage(transientStorage)
     {
-        bcos::executor::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
+        bcos::evm::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
         precompiledManager.emplace(hashImpl);
 
         // deploy the hello world contract
@@ -105,7 +105,7 @@ public:
     Task<EVMCResult> call(const evmc_address& address, std::string_view abi, evmc_address sender,
         bool web3, auto&&... args)
     {
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
         auto input = abiCodec.abiIn(std::string(abi), std::forward<decltype(args)>(args)...);
 
         static std::atomic_int64_t number = 0;
@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(simpleCall)
 
         BOOST_CHECK_EQUAL(result.status_code, 0);
         bcos::s256 getIntResult = -1;
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
         abiCodec.abiOut(bcos::bytesConstRef(result.output_data, result.output_size), getIntResult);
         BOOST_CHECK_EQUAL(getIntResult, 0);
     }());
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(executeAndCall)
         BOOST_CHECK_EQUAL(result3.status_code, 0);
         BOOST_CHECK_EQUAL(result4.status_code, 0);
         bcos::s256 getIntResult = -1;
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
         abiCodec.abiOut(
             bcos::bytesConstRef(result2.output_data, result2.output_size), getIntResult);
         BOOST_CHECK_EQUAL(getIntResult, 10000);
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_CASE(contractDeploy)
 
         BOOST_CHECK_EQUAL(result.status_code, 0);
         bcos::s256 getIntResult = -1;
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
         abiCodec.abiOut(bcos::bytesConstRef(result.output_data, result.output_size), getIntResult);
         BOOST_CHECK_EQUAL(getIntResult, 999);
     }());
@@ -316,7 +316,7 @@ BOOST_AUTO_TEST_CASE(emptyCreate)
 BOOST_AUTO_TEST_CASE(failure)
 {
     syncWait([this]() -> Task<void> {
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
 
         auto result1 = co_await call("returnRequire()", {}, false);
         BOOST_CHECK_EQUAL(result1.status_code, 2);
@@ -342,7 +342,7 @@ BOOST_AUTO_TEST_CASE(failure)
 BOOST_AUTO_TEST_CASE(delegateCall)
 {
     syncWait([this]() -> Task<void> {
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
 
         evmc_address sender = bcos::unhexAddress("0x0000000000000000000000000000000000000050");
         auto result1 = co_await call("delegateCall()", sender, false);
@@ -383,11 +383,11 @@ BOOST_AUTO_TEST_CASE(precompiled)
 
     bcostars::protocol::BlockHeaderImpl blockHeader;
     blockHeader.inner().data.version = (int)bcos::protocol::BlockVersion::V3_5_VERSION;
-    blockHeader.calculateHash(*bcos::executor::GlobalHashImpl::g_hashImpl);
+    blockHeader.calculateHash(*bcos::evm::GlobalHashImpl::g_hashImpl);
 
     syncWait(initBFS(blockHeader, *hashImpl));
 
-    bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+    bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
     std::optional<EVMCResult> result;
     {
         auto input = abiCodec.abiIn(std::string("makeShard(string)"), std::string("shared1"));
@@ -592,7 +592,7 @@ BOOST_AUTO_TEST_CASE(evmTimestamp)
 
         BOOST_TEST(result.status_code == 0);
         bcos::u256 getIntResult = -1;
-        bcos::codec::abi::ContractABICodec abiCodec(*bcos::executor::GlobalHashImpl::g_hashImpl);
+        bcos::codec::abi::ContractABICodec abiCodec(*bcos::evm::GlobalHashImpl::g_hashImpl);
         abiCodec.abiOut(bcos::bytesConstRef(result.output_data, result.output_size), getIntResult);
         BOOST_TEST(getIntResult == 100);
     }(this));

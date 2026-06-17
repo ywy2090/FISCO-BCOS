@@ -74,14 +74,14 @@ private:
 // [deprecated] These macros will be removed after registerAllBuiltins() is fully wired.
 #define ETH_REGISTER_PRECOMPILED(Name)                                                        \
     static std::pair<bool, bytes> __eth_registerPrecompiledFunction##Name(bytesConstRef _in); \
-    static bcos::executor::PrecompiledExecutor __eth_registerPrecompiledFactory##Name =       \
-        ::bcos::executor::PrecompiledRegistrar::registerExecutor(                             \
+    static bcos::evm::PrecompiledExecutor __eth_registerPrecompiledFactory##Name =       \
+        ::bcos::evm::PrecompiledRegistrar::registerExecutor(                             \
             #Name, &__eth_registerPrecompiledFunction##Name);                                 \
     static std::pair<bool, bytes> __eth_registerPrecompiledFunction##Name
 #define ETH_REGISTER_PRECOMPILED_PRICER(Name)                                    \
     static bigint __eth_registerPricerFunction##Name(bytesConstRef _in);         \
-    static bcos::executor::PrecompiledPricer __eth_registerPricerFactory##Name = \
-        ::bcos::executor::PrecompiledRegistrar::registerPricer(                  \
+    static bcos::evm::PrecompiledPricer __eth_registerPricerFactory##Name = \
+        ::bcos::evm::PrecompiledRegistrar::registerPricer(                  \
             #Name, &__eth_registerPricerFunction##Name);                         \
     static bigint __eth_registerPricerFunction##Name
 

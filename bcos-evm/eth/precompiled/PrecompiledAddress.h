@@ -11,7 +11,7 @@
 #include <cstring>
 #include <string_view>
 
-namespace bcos::executor
+namespace bcos::evm
 {
 
 /// 40-nibble hex body prefix shared by all Ethereum precompiles (see also
@@ -149,4 +149,4 @@ inline bool isModexpPrecompileEvmcAddress(evmc_address const& addr) noexcept
     return addr.bytes[19] == 0x05;
 }
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

@@ -9,12 +9,12 @@
 
 // Forward-declared; defined in bcos-executor/src/vm/ModexpGas.h (avoid pulling executor HostContext
 // here).
-namespace bcos::executor
+namespace bcos::evm
 {
 bcos::bigint calcModexpGas(bcos::bytesConstRef input, evmc_revision revision);
 bool shouldRejectModexpEip7823(evmc_address const& addr, bcos::bytesConstRef input,
     const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept;
-}  // namespace bcos::executor
+}  // namespace bcos::evm
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-utilities/Overloaded.h"
@@ -26,7 +26,7 @@ bool shouldRejectModexpEip7823(evmc_address const& addr, bcos::bytesConstRef inp
 #include <range/v3/algorithm/copy.hpp>
 #include <variant>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 
 #define PRECOMPILE_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("PRECOMPILE")
@@ -227,4 +227,4 @@ inline constexpr struct
     }
 } callPrecompiled{};
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

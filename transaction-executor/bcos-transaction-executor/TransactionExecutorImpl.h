@@ -24,7 +24,7 @@
 #include <memory>
 #include <type_traits>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 
 enum class ExecutePhase : uint8_t
@@ -54,8 +54,8 @@ public:
     TxExec m_txExecutor;
 
     using TransientStorage =
-        bcos::storage2::memory_storage::MemoryStorage<bcos::executor_v1::StateKey,
-            bcos::executor_v1::StateValue, bcos::storage2::memory_storage::ORDERED>;
+        bcos::storage2::memory_storage::MemoryStorage<bcos::evm::StateKey,
+            bcos::evm::StateValue, bcos::storage2::memory_storage::ORDERED>;
 
     // FIB-75: Effective gas limit for EVM execution.
     // When fix_gas_precheck is enabled and the tx declares gasLimit > 0,
@@ -246,4 +246,4 @@ public:
     }
 };
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

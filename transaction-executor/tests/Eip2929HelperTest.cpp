@@ -13,10 +13,10 @@
 #include <cstring>
 #include <vector>
 
-using bcos::executor::Eip2929AccessState;
+using bcos::evm::Eip2929AccessState;
 using bcos::executor::eip2929Enabled;
 using bcos::executor::eip2929TransactionEntryWarmEnabled;
-using bcos::executor::Eip2929TxPrewarmInput;
+using bcos::evm::Eip2929TxPrewarmInput;
 using bcos::executor::forEachActivePrecompileAddress;
 using bcos::executor::warmEip2929AtTransactionEntry;
 using bcos::executor::warmEip2930AccessListOnly;

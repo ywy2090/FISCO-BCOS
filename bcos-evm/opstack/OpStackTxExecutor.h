@@ -12,7 +12,7 @@
 #include <functional>
 #include <optional>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 #define OP_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("OP_TX_EXECUTOR")
 
@@ -225,4 +225,4 @@ private:
     }
 };
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

@@ -24,7 +24,7 @@
 #include <range/v3/algorithm/sort.hpp>
 
 
-bcos::executor_v1::PrecompiledManager::PrecompiledManager(crypto::Hash::Ptr hashImpl)
+bcos::evm::PrecompiledManager::PrecompiledManager(crypto::Hash::Ptr hashImpl)
   : m_hashImpl(std::move(hashImpl))
 {
     m_address2Precompiled.emplace_back(
@@ -139,7 +139,7 @@ bcos::executor_v1::PrecompiledManager::PrecompiledManager(crypto::Hash::Ptr hash
     // Init the AUTH_COMMITTEE_ADDRESS
 }
 
-bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
     unsigned long contractAddress) const
 {
     auto it = std::lower_bound(m_address2Precompiled.begin(), m_address2Precompiled.end(),
@@ -155,7 +155,7 @@ bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::get
     return nullptr;
 }
 
-bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
     const evmc_address& address) const
 {
     constexpr static unsigned long MAX_PRECOMPILED_ADDRESS = 100000;
@@ -175,7 +175,7 @@ bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::get
 // FIB-84: feature-aware lookup, gated by bugfix_precompiled_feature_gate
 // When the bugfix flag is off, returns unconditionally (pre-fix behavior) to preserve
 // replay of historical blocks that ran with feature flags improperly enforced.
-bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
     unsigned long contractAddress, const ledger::Features& features) const
 {
     const auto* precompiled = getPrecompiled(contractAddress);
@@ -194,7 +194,7 @@ bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::get
     return precompiled;
 }
 
-bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
     const evmc_address& address, const ledger::Features& features) const
 {
     const auto* precompiled = getPrecompiled(address);
@@ -213,7 +213,7 @@ bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::get
     return precompiled;
 }
 
-bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
     unsigned long contractAddress, const bcos::evm_standard::RevisionConfig& rev,
     const ledger::Features& features) const
 {
@@ -238,7 +238,7 @@ bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::get
     return features.get(*flag) ? precompiled : nullptr;
 }
 
-bcos::executor_v1::Precompiled const* bcos::executor_v1::PrecompiledManager::getPrecompiled(
+bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
     const evmc_address& address, const bcos::evm_standard::RevisionConfig& rev,
     const ledger::Features& features) const
 {

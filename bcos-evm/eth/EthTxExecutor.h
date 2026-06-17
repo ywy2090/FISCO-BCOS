@@ -10,7 +10,7 @@
 #include <boost/algorithm/hex.hpp>
 #include <boost/exception/diagnostic_information.hpp>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 #define ETH_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("ETH_TX_EXECUTOR")
 
@@ -141,4 +141,4 @@ struct EthTxExecutor
     }
 };
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

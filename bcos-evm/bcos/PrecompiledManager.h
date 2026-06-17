@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-framework/ledger/Features.h"
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 
 class PrecompiledManager
@@ -33,4 +33,4 @@ private:
     std::vector<std::tuple<unsigned long, Precompiled>> m_address2Precompiled{};
 };
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

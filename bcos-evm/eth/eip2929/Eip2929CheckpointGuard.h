@@ -22,7 +22,7 @@
 #include "Eip2929AccessState.h"
 #include <memory>
 
-namespace bcos::executor
+namespace bcos::evm
 {
 
 /// Pushes an EIP-2929 checkpoint on construction; commits on `commit()`, rolls back on destruction
@@ -59,4 +59,4 @@ struct Eip2929CheckpointGuard
     }
 };
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

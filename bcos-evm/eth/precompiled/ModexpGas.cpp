@@ -15,7 +15,7 @@
 using namespace std;
 using namespace bcos;
 
-namespace bcos::executor
+namespace bcos::evm
 {
 namespace
 {
@@ -239,4 +239,4 @@ bigint calcModexpGasEip198Public(bytesConstRef input)
     return calcModexpGasEip198(input);
 }
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

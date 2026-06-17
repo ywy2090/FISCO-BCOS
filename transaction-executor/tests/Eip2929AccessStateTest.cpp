@@ -8,7 +8,7 @@
 #include <boost/test/unit_test.hpp>
 #include <cstring>
 
-using bcos::executor::Eip2929AccessState;
+using bcos::evm::Eip2929AccessState;
 
 BOOST_AUTO_TEST_SUITE(Eip2929AccessStateCheckpoint)
 

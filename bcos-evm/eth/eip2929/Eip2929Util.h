@@ -22,7 +22,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include <evmc/evmc.h>
 
-namespace bcos::executor
+namespace bcos::evm
 {
 
 struct Eip2929AccessState;
@@ -40,4 +40,4 @@ inline bool eip2929TransactionEntryWarmEnabled(int64_t level,
     return level == 0 && state != nullptr && eip2929Enabled(rev);
 }
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

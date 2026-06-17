@@ -22,7 +22,7 @@
 #include <evmc/evmc.h>
 #include <cstdint>
 
-namespace bcos::executor
+namespace bcos::evm
 {
 
 /// Invoke @p consume for each precompile address active at @p revision (EIP-2929 initial set).
@@ -60,4 +60,4 @@ void forEachActivePrecompileAddress(evmc_revision revision, AddressConsumer&& co
     }
 }
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm

@@ -42,7 +42,7 @@ template <typename P, typename Storage, typename... Args>
 concept HasAuthCheck = requires(P& p, Storage& s, Args... args) {
     {
         p.checkAuth(s, args...)
-    } -> std::same_as<task::Task<std::optional<struct bcos::executor_v1::EVMCResult>>>;
+    } -> std::same_as<task::Task<std::optional<struct bcos::evm::EVMCResult>>>;
 };
 
 }  // namespace bcos::evm_standard

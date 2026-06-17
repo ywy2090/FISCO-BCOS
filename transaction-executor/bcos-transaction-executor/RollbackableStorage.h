@@ -6,7 +6,7 @@
 #include <range/v3/view/map.hpp>
 #include <type_traits>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 
 template <class Storage>
@@ -186,4 +186,4 @@ public:
 };
 
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm

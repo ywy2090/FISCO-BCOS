@@ -29,7 +29,7 @@
 #include <evmone/baseline.hpp>
 #include <memory>
 
-namespace bcos::executor_v1
+namespace bcos::evm
 {
 
 using EvmoneCodeAnalysis = evmone::baseline::CodeAnalysis;
@@ -55,7 +55,7 @@ private:
     std::shared_ptr<EvmoneCodeAnalysis const> m_analysis;
 };
 
-}  // namespace bcos::executor_v1
+}  // namespace bcos::evm
 
 std::strong_ordering operator<=>(const evmc_address& lhs, const evmc_address& rhs) noexcept;
 bool operator==(const evmc_address& lhs, const evmc_address& rhs) noexcept;

@@ -2,7 +2,7 @@
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/protocol/ProtocolTypeDef.h"
 
-bcos::executor_v1::TransactionExecutorImpl::TransactionExecutorImpl(
+bcos::evm::TransactionExecutorImpl::TransactionExecutorImpl(
     protocol::TransactionReceiptFactory const& receiptFactory, crypto::Hash::Ptr hashImpl,
     PrecompiledManager& precompiledManager)
   : m_receiptFactory(receiptFactory),
@@ -10,7 +10,7 @@ bcos::executor_v1::TransactionExecutorImpl::TransactionExecutorImpl(
     m_precompiledManager(precompiledManager)
 {}
 
-evmc_message bcos::executor_v1::newEVMCMessage(protocol::BlockNumber blockNumber,
+evmc_message bcos::evm::newEVMCMessage(protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin)
 {
     auto recipientAddress = unhexAddress(transaction.to());

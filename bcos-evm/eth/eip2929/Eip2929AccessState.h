@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-namespace bcos::executor
+namespace bcos::evm
 {
 
 struct Eip2929AddrHash
@@ -272,4 +272,4 @@ private:
     }
 };
 
-}  // namespace bcos::executor
+}  // namespace bcos::evm
