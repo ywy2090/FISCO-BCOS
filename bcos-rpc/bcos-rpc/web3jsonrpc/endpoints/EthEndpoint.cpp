@@ -56,6 +56,8 @@ constexpr std::string_view EIP7702_LEGACY_EXECUTOR_MSG = "type-4 unsupported on 
 constexpr std::string_view EIP7702_SM2_REJECT_MSG = "EIP-7702 transactions require secp256k1";
 constexpr std::string_view EIP7702_PRAGUE_OFF_MSG =
     "EIP-7702 transactions require feature_evm_prague";
+constexpr std::string_view EIP7702_EMPTY_AUTH_LIST_MSG =
+    "EIP-7702 authorization_list must not be empty";
 
 bool nodeUsesSecp256k1(NodeService::Ptr const& nodeService)
 {
@@ -91,6 +93,30 @@ bool jsonRequestLooksLikeEip7702(Json::Value const& txJson)
     }
     return txJson.isMember("authorizationList") && txJson["authorizationList"].isArray() &&
            !txJson["authorizationList"].empty();
+}
+
+bool jsonRequestIsType4(Json::Value const& txJson)
+{
+    if (!txJson.isMember("type"))
+    {
+        return false;
+    }
+    auto const typeStr = txJson["type"].asString();
+    return typeStr == "0x4" || typeStr == "4";
+}
+
+void validateEip7702JsonCallRequest(Json::Value const& txJson)
+{
+    if (!jsonRequestIsType4(txJson))
+    {
+        return;
+    }
+    if (!txJson.isMember("authorizationList") || !txJson["authorizationList"].isArray() ||
+        txJson["authorizationList"].empty())
+    {
+        BOOST_THROW_EXCEPTION(
+            JsonRpcException(InvalidParams, std::string(EIP7702_EMPTY_AUTH_LIST_MSG)));
+    }
 }
 
 task::Task<void> rejectEip7702IfGated(bool isEip7702Request, NodeService::Ptr const& nodeService)
@@ -594,6 +620,7 @@ task::Task<void> EthEndpoint::call(
     if (jsonRequestLooksLikeEip7702(request[0U]))
     {
         co_await rejectEip7702IfGated(true, m_nodeService);
+        validateEip7702JsonCallRequest(request[0U]);
     }
     auto const blockTag = toView(request[1U]);
     auto [blockNumber, _] = co_await getBlockNumberByTag(blockTag);

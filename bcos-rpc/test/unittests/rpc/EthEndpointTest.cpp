@@ -207,6 +207,54 @@ void expectGateRejectsEip7702Call(
         BOOST_CHECK(ex.msg().find(expectedMessage) != std::string::npos);
     }
 }
+
+void expectEip7702CallRejectsEmptyAuthList(rpc::NodeService::Ptr const& nodeService)
+{
+    EthEndpoint endpoint(nodeService, nullptr, false);
+    Json::Value request(Json::arrayValue);
+    Json::Value callObj;
+    callObj["type"] = "0x4";
+    callObj["to"] = "0x0000000000000000000000000000000000000001";
+    callObj["authorizationList"] = Json::arrayValue;
+    request.append(callObj);
+    request.append("latest");
+    Json::Value response;
+
+    try
+    {
+        task::syncWait(endpoint.call(request, response));
+        BOOST_FAIL("expected JsonRpcException");
+    }
+    catch (JsonRpcException const& ex)
+    {
+        BOOST_CHECK_EQUAL(ex.code(), static_cast<int32_t>(InvalidParams));
+        BOOST_CHECK(ex.msg().find("authorization_list must not be empty") != std::string::npos);
+    }
+}
+
+void expectEip7702EstimateGasRejectsEmptyAuthList(rpc::NodeService::Ptr const& nodeService)
+{
+    EthEndpoint endpoint(nodeService, nullptr, false);
+    Json::Value request(Json::arrayValue);
+    Json::Value callObj;
+    callObj["type"] = "0x4";
+    callObj["to"] = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    callObj["authorizationList"] = Json::arrayValue;
+    request.append(callObj);
+    request.append("latest");
+    Json::Value response;
+
+    try
+    {
+        task::syncWait(endpoint.estimateGas(request, response));
+        BOOST_FAIL("expected JsonRpcException");
+    }
+    catch (JsonRpcException const& ex)
+    {
+        BOOST_CHECK_EQUAL(ex.code(), static_cast<int32_t>(InvalidParams));
+        BOOST_CHECK(ex.msg().find("authorization_list must not be empty") != std::string::npos);
+    }
+}
 }  // namespace
 
 BOOST_FIXTURE_TEST_SUITE(testEthEndpoint, RPCFixture)
@@ -275,6 +323,22 @@ BOOST_AUTO_TEST_CASE(call_rejectsEip7702_when_prague_off)
     m_ledger->setSystemConfig(
         std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
     expectGateRejectsEip7702Call(nodeService, "feature_evm_prague");
+}
+
+BOOST_AUTO_TEST_CASE(call_rejects_type4_empty_authorization_list_when_prague_on)
+{
+    m_ledger->setTestFeatures(pragueEnabledFeatures());
+    m_ledger->setSystemConfig(
+        std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
+    expectEip7702CallRejectsEmptyAuthList(nodeService);
+}
+
+BOOST_AUTO_TEST_CASE(estimateGas_rejects_type4_empty_authorization_list_when_prague_on)
+{
+    m_ledger->setTestFeatures(pragueEnabledFeatures());
+    m_ledger->setSystemConfig(
+        std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
+    expectEip7702EstimateGasRejectsEmptyAuthList(nodeService);
 }
 
 BOOST_AUTO_TEST_CASE(estimateGas_passesEip7702Gate_whenPragueEnabled)
