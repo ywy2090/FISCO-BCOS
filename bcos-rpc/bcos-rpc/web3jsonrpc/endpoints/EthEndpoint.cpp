@@ -28,6 +28,7 @@
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
 #include <bcos-executor/src/Common.h>
+#include <bcos-executor/src/Eip7702Gate.h>
 #include <bcos-rpc/Common.h>
 #include <bcos-rpc/util.h>
 #include <bcos-rpc/web3jsonrpc/Web3JsonRpcImpl.h>
@@ -53,6 +54,8 @@ namespace
 {
 constexpr std::string_view EIP7702_LEGACY_EXECUTOR_MSG = "type-4 unsupported on legacy executor";
 constexpr std::string_view EIP7702_SM2_REJECT_MSG = "EIP-7702 transactions require secp256k1";
+constexpr std::string_view EIP7702_PRAGUE_OFF_MSG =
+    "EIP-7702 transactions require feature_evm_prague";
 
 bool nodeUsesSecp256k1(NodeService::Ptr const& nodeService)
 {
@@ -76,12 +79,38 @@ task::Task<int> queryActiveExecutorVersion(ledger::LedgerInterface& ledger)
     co_return boost::lexical_cast<int>(std::get<0>(config.value()));
 }
 
-void rejectEip7702IfGated(
-    Web3Transaction const& web3Tx, NodeService::Ptr const& nodeService, int executorVersion)
+bool jsonRequestLooksLikeEip7702(Json::Value const& txJson)
 {
-    if (web3Tx.type != TransactionType::EIP7702) [[likely]]
+    if (txJson.isMember("type"))
     {
-        return;
+        auto const typeStr = txJson["type"].asString();
+        if (typeStr == "0x4" || typeStr == "4")
+        {
+            return true;
+        }
+    }
+    return txJson.isMember("authorizationList") && txJson["authorizationList"].isArray() &&
+           !txJson["authorizationList"].empty();
+}
+
+task::Task<void> rejectEip7702IfGated(bool isEip7702Request, NodeService::Ptr const& nodeService)
+{
+    if (!isEip7702Request) [[likely]]
+    {
+        co_return;
+    }
+    auto ledger = nodeService->ledger();
+    if (!ledger) [[unlikely]]
+    {
+        BOOST_THROW_EXCEPTION(
+            JsonRpcException(JsonRpcError::InternalError, "Ledger not available!"));
+    }
+    auto const features = co_await ledger::getFeatures(*ledger);
+    auto const executorVersion = co_await queryActiveExecutorVersion(*ledger);
+    if (executor::isEip7702Enabled(features, executorVersion,
+            *nodeService->blockFactory()->cryptoSuite()->signatureImpl()))
+    {
+        co_return;
     }
     if (executorVersion == 0) [[unlikely]]
     {
@@ -93,6 +122,8 @@ void rejectEip7702IfGated(
         BOOST_THROW_EXCEPTION(JsonRpcException(
             Web3JsonRpcError::Web3DefaultError, std::string(EIP7702_SM2_REJECT_MSG)));
     }
+    BOOST_THROW_EXCEPTION(
+        JsonRpcException(Web3JsonRpcError::Web3DefaultError, std::string(EIP7702_PRAGUE_OFF_MSG)));
 }
 }  // namespace
 
@@ -485,12 +516,7 @@ task::Task<void> EthEndpoint::sendRawTransaction(const Json::Value& request, Jso
         BOOST_THROW_EXCEPTION(JsonRpcException(InvalidParams, error->errorMessage()));
     }
 
-    int executorVersion = 0;
-    if (auto ledger = m_nodeService->ledger()) [[likely]]
-    {
-        executorVersion = co_await queryActiveExecutorVersion(*ledger);
-    }
-    rejectEip7702IfGated(web3Tx, m_nodeService, executorVersion);
+    co_await rejectEip7702IfGated(web3Tx.type == TransactionType::EIP7702, m_nodeService);
 
     auto encodeTxHash = web3Tx.txHash();
 
@@ -564,6 +590,10 @@ task::Task<void> EthEndpoint::call(
     if (!valid)
     {
         BOOST_THROW_EXCEPTION(JsonRpcException(InvalidParams, "Invalid call request!"));
+    }
+    if (jsonRequestLooksLikeEip7702(request[0U]))
+    {
+        co_await rejectEip7702IfGated(true, m_nodeService);
     }
     auto const blockTag = toView(request[1U]);
     auto [blockNumber, _] = co_await getBlockNumberByTag(blockTag);
