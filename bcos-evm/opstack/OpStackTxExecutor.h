@@ -25,6 +25,7 @@ struct RollupCostData
 
 struct OpStackTxExecutor
 {
+    using PolicyType = bcos::evm_standard::StandardEthPolicy;
     // Injected at construction — mirrors op-geth BlockContext:
     //   L1CostFunc:      st.evm.Context.L1CostFunc(...)
     //   OperatorCostFunc: st.evm.Context.OperatorCostFunc(...)

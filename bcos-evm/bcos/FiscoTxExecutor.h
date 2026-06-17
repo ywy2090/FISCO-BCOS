@@ -18,6 +18,7 @@ namespace bcos::executor_v1
 
 struct FiscoTxExecutor
 {
+    using PolicyType = bcos::chain_policy::FiscoPolicy;
     // FIB-75 (geth-style): Pre-deduct gasLimit * gasPrice from sender before EVM execution.
     // If balance is insufficient to cover gas + value, fail immediately (EVM does not run,
     // no balance deducted, nonce preserved as replay protection).

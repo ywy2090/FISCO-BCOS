@@ -100,7 +100,7 @@ public:
             executor::Web3AccessListResolved m_web3AccessListResolved;
             std::shared_ptr<executor::Eip2929AccessState> m_eip2929Access;
             hostcontext::HostContext<decltype(m_rollbackableStorage),
-                decltype(m_rollbackableTransientStorage), bcos::chain_policy::FiscoPolicy>
+                decltype(m_rollbackableTransientStorage), typename TxExec::PolicyType>
                 m_hostContext;
             std::optional<EVMCResult> m_evmcResult;
 
