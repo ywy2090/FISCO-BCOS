@@ -23,6 +23,7 @@
 #include "../Common.h"
 #include "ModexpGas.h"
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
+#include "bcos-evm-standard/precompiled/PrecompiledRegistrar.h"
 #include "wedpr-crypto/WedprCrypto.h"
 #include <algorithm>
 #include <array>
@@ -46,92 +47,6 @@ using namespace bcos::crypto;
 
 namespace bcos::executor
 {
-PrecompiledRegistrar* PrecompiledRegistrar::get()
-{
-    static PrecompiledRegistrar instance;
-    return &instance;
-}
-
-PrecompiledExecutor PrecompiledRegistrar::registerExecutor(
-    std::string const& _name, PrecompiledExecutor const& _exec)
-{
-    return (get()->m_execs[_name] = _exec);
-}
-
-void PrecompiledRegistrar::unregisterExecutor(std::string const& _name)
-{
-    get()->m_execs.erase(_name);
-}
-
-PrecompiledPricer PrecompiledRegistrar::registerPricer(
-    std::string const& _name, PrecompiledPricer const& _exec)
-{
-    return (get()->m_pricers[_name] = _exec);
-}
-
-void PrecompiledRegistrar::unregisterPricer(std::string const& _name)
-{
-    get()->m_pricers.erase(_name);
-}
-
-PrecompiledContract::PrecompiledContract(
-    PrecompiledPricer const& _cost, PrecompiledExecutor const& _exec, u256 const& _startingBlock)
-  : m_cost(_cost), m_execute(_exec), m_startingBlock(_startingBlock)
-{}
-
-PrecompiledContract::PrecompiledContract(
-    unsigned _base, unsigned _word, PrecompiledExecutor const& _exec, u256 const& _startingBlock)
-  : PrecompiledContract(
-        [=](bytesConstRef _in) -> bigint {
-            bigint size = _in.size();
-            bigint base = _base;
-            bigint word = _word;
-            return base + (size + 31) / 32 * word;
-        },
-        _exec, _startingBlock)
-{}
-
-PrecompiledContract PrecompiledContract::modexp(
-    PrecompiledExecutor const& exec, u256 const& startingBlock)
-{
-    PrecompiledContract contract;
-    contract.m_execute = exec;
-    contract.m_startingBlock = startingBlock;
-    contract.m_revisionAwareCost = [](bytesConstRef input, evmc_revision revision) {
-        return calcModexpGas(input, revision);
-    };
-    return contract;
-}
-
-bigint PrecompiledContract::cost(bytesConstRef _in) const
-{
-    if (m_revisionAwareCost)
-    {
-        // Fallback for callers without revision; Berlin/EIP-2565 minimum post-fork pricing.
-        return m_revisionAwareCost(_in, EVMC_BERLIN);
-    }
-    return m_cost(_in);
-}
-
-bigint PrecompiledContract::cost(bytesConstRef _in, evmc_revision revision) const
-{
-    if (m_revisionAwareCost)
-    {
-        return m_revisionAwareCost(_in, revision);
-    }
-    return m_cost(_in);
-}
-
-std::pair<bool, bytes> PrecompiledContract::execute(bytesConstRef _in) const
-{
-    return m_execute(_in);
-}
-
-u256 const& PrecompiledContract::startingBlock() const
-{
-    return m_startingBlock;
-}
-
 bcos::precompiled::Precompiled::Ptr bcos::executor::PrecompiledMap::at(std::string_view _key,
     uint32_t version, bool isAuth, ledger::Features const& features) const noexcept
 {
@@ -154,26 +69,6 @@ bool bcos::executor::PrecompiledMap::contains(std::string const& key, uint32_t v
     ledger::Features const& features) const noexcept
 {
     return at(key, version, isAuth, features) != nullptr;
-}
-
-PrecompiledExecutor const& PrecompiledRegistrar::executor(std::string const& _name)
-{
-    auto const it = get()->m_execs.find(_name);
-    if (it == get()->m_execs.end())
-    {
-        BOOST_THROW_EXCEPTION(ExecutorNotFound());
-    }
-    return it->second;
-}
-
-PrecompiledPricer const& PrecompiledRegistrar::pricer(std::string const& _name)
-{
-    const auto it = get()->m_pricers.find(_name);
-    if (it == get()->m_pricers.end())
-    {
-        BOOST_THROW_EXCEPTION(PricerNotFound());
-    }
-    return it->second;
 }
 
 }  // namespace bcos::executor
@@ -645,10 +540,6 @@ ETH_REGISTER_PRECOMPILED_PRICER(p256verify)(bytesConstRef)
 
 namespace bcos
 {
-namespace precompiled
-{
-}  // namespace precompiled
-
 
 namespace crypto
 {
