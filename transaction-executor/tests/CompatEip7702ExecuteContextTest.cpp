@@ -473,6 +473,44 @@ BOOST_AUTO_TEST_CASE(InsufficientBalanceDoesNotUndoDelegations)
     }());
 }
 
+BOOST_AUTO_TEST_CASE(recipient_delegation_target_warmed_before_call)
+{
+    syncWait([this]() -> task::Task<void> {
+        auto const keyPair = testAuthorityKeyPair();
+        auto const authority = authorityAddressFromKey(cryptoSuite->hashImpl(), keyPair);
+        auto const authorityEvmc = executor::addressToEvmc(authority);
+        auto const target = address19(0x55);
+
+        co_await setDelegationIndicator(storage, cryptoSuite->hashImpl(), authorityEvmc, target);
+
+        EVMAccount<decltype(storage)> authorityAccount(storage, authorityEvmc, false);
+        co_await authorityAccount.setNonce("0");
+
+        auto auth = signAuthorizationTuple(cryptoSuite->hashImpl(), keyPair, 1, target, 0);
+
+        evmc_address sender = evmcAddr19(0x03);
+        co_await fundSender(sender);
+
+        static bcos::bytes const stopCode{0x00};
+        {
+            EVMAccount<decltype(storage)> targetAcct(storage, target, false);
+            co_await targetAcct.create();
+            auto const codeHash =
+                cryptoSuite->hashImpl()->hash(bytesConstRef(stopCode.data(), stopCode.size()));
+            co_await targetAcct.setCode(stopCode, std::string{}, codeHash);
+        }
+
+        auto tx =
+            makeWeb3Type4Transaction(*cryptoSuite, {auth}, sender, authority, bytes{}, 0, 500'000);
+        auto receipt =
+            co_await executor.executeTransaction(storage, blockHeader, *tx, 0, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_CHECK_LE(receipt->gasUsed(), 60'000u);
+    }());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }  // namespace bcos::test
