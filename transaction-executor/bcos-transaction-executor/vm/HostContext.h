@@ -298,9 +298,8 @@ public:
 
     friend auto getAccount(HostContext& hostContext, const evmc_address& address)
     {
-        return Account<std::decay_t<Storage>>(hostContext.m_rollbackableStorage.get(), address,
-            hostContext.m_ledgerConfig.get().features().get(
-                ledger::Features::Flag::feature_raw_address));
+        return Account<std::decay_t<Storage>>(
+            hostContext.m_rollbackableStorage.get(), address, hostContext.m_rev.use_raw_address);
     }
 
     task::Task<evmc_bytes32> get(const evmc_bytes32* key, auto&&... /*unused*/)
@@ -363,9 +362,8 @@ public:
     task::Task<std::optional<storage::Entry>> code(
         const evmc_address& address, auto&&... /*unused*/)
     {
-        if (auto executable = co_await getExecutable(m_rollbackableStorage.get(), address,
-                m_revision,
-                m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_raw_address));
+        if (auto executable = co_await getExecutable(
+                m_rollbackableStorage.get(), address, m_revision, m_rev.use_raw_address);
             executable && executable->m_code)
         {
             co_return executable->m_code;
@@ -376,7 +374,7 @@ public:
     task::Task<size_t> codeSizeAt(const evmc_address& address, auto&&... /*unused*/)
     {
         if (auto const* precompiled =
-                m_precompiledManager.get().getPrecompiled(address, m_ledgerConfig.get().features()))
+                m_precompiledManager.get().getPrecompiled(address, m_rev, m_policy->features()))
         {
             co_return executor_v1::size(*precompiled);
         }
@@ -390,8 +388,7 @@ public:
 
     task::Task<h256> codeHashAt(const evmc_address& address, auto&&... /*unused*/)
     {
-        Account<Storage> account(m_rollbackableStorage.get(), address,
-            m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_raw_address));
+        Account<Storage> account(m_rollbackableStorage.get(), address, m_rev.use_raw_address);
         co_return co_await account.codeHash();
     }
 
@@ -480,8 +477,7 @@ public:
         std::optional<EVMCResult> evmResult;
         // FIB-76~92 (bugfix_v1_error_handling): read once, gates all receipt-affecting
         // error paths below for hard-fork compat
-        const bool fixErrorHandling =
-            m_ledgerConfig.get().features().get(ledger::Features::Flag::bugfix_v1_error_handling);
+        const bool fixErrorHandling = m_rev.fix_error_handling;
         try
         {
             // FIB-91: checkAuth() moved inside try block so exceptions
@@ -527,21 +523,15 @@ public:
                 }
 
                 // Transfer first, then proceed execute
-                if (m_ledgerConfig.get().features().get(
-                        ledger::Features::Flag::bugfix_delegatecall_transfer))
+                if (m_rev.enable_balance_transfer &&
+                    !::ranges::equal(ref->value.bytes, executor::EMPTY_EVM_BYTES32.bytes))
                 {
-                    if (((ref->kind == EVMC_CALL && (ref->flags & EVMC_STATIC) == 0) ||
-                            (ref->kind == EVMC_CREATE) || ref->kind == EVMC_CREATE2) &&
-                        !::ranges::equal(ref->value.bytes, executor::EMPTY_EVM_BYTES32.bytes) &&
-                        m_ledgerConfig.get().balanceTransfer())
-                    {
-                        co_await transferBalance(*ref);
-                    }
-                }
-                else
-                {
-                    if (!::ranges::equal(ref->value.bytes, executor::EMPTY_EVM_BYTES32.bytes) &&
-                        m_ledgerConfig.get().balanceTransfer())
+                    bool shouldTransfer =
+                        m_rev.fix_delegatecall_transfer ?
+                            ((ref->kind == EVMC_CALL && (ref->flags & EVMC_STATIC) == 0) ||
+                                (ref->kind == EVMC_CREATE) || ref->kind == EVMC_CREATE2) :
+                            true;
+                    if (shouldTransfer)
                     {
                         co_await transferBalance(*ref);
                     }
@@ -743,8 +733,7 @@ private:
             // FIB-82: when feature_raw_address is on, m_recipientAccount.path() returns a binary
             // path, but ContractAuthMgrPrecompiled always looks up auth tables using hex paths.
             // Force hex to match the lookup path.
-            if (m_ledgerConfig.get().features().get(ledger::Features::Flag::bugfix_auth_check) &&
-                m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_raw_address))
+            if (m_rev.fix_auth_check && m_rev.use_raw_address)
             {
                 authTablePath =
                     std::string(executor::USER_APPS_PREFIX) + address2HexString(ref.code_address);
@@ -842,7 +831,7 @@ private:
                 << LOG_KV("recvAddr", message.recipient) << LOG_KV("code", code);
 
             if (m_preparedPrecompiled = m_precompiledManager.get().getPrecompiled(
-                    message.recipient, m_ledgerConfig.get().features());
+                    message.recipient, m_rev, m_policy->features());
                 m_preparedPrecompiled == nullptr)
             {
                 BOOST_THROW_EXCEPTION(NotFoundCodeError());
@@ -854,26 +843,10 @@ private:
     {
         auto& ref = message();
         // delegatecall static precompiled is not allowed
-        if (ref.kind != EVMC_DELEGATECALL)
+        if (m_policy->allowDelegateCallToPrecompile() || ref.kind != EVMC_DELEGATECALL)
         {
-            auto const& features = m_ledgerConfig.get().features();
-            if (auto const* precompiled =
-                    m_precompiledManager.get().getPrecompiled(ref.code_address, features))
-            {
-                // FIB-84: preserve pre-fix manual feature check when bugfix flag is off,
-                // since getPrecompiled(...) in that mode skips enforcement.
-                if (features.get(ledger::Features::Flag::bugfix_precompiled_feature_gate))
-                {
-                    m_preparedPrecompiled = precompiled;
-                    co_return;
-                }
-                if (auto flag = executor_v1::featureFlag(*precompiled);
-                    !flag || features.get(*flag))
-                {
-                    m_preparedPrecompiled = precompiled;
-                    co_return;
-                }
-            }
+            m_preparedPrecompiled = m_precompiledManager.get().getPrecompiled(
+                ref.code_address, m_rev, m_policy->features());
         }
     }
 
@@ -890,13 +863,12 @@ private:
             co_return executor_v1::callPrecompiled(*m_preparedPrecompiled,
                 m_rollbackableStorage.get(), m_blockHeader, ref, m_origin,
                 buildLegacyExternalCaller(), m_precompiledManager.get(), m_contextID, m_seq,
-                m_ledgerConfig.get().authCheckStatus(), m_ledgerConfig.get().features(),
-                m_revision);
+                m_ledgerConfig.get().authCheckStatus(), m_ledgerConfig.get().features(), m_revision,
+                m_rev.fix_error_handling);
         }
 
-        if (m_executable = co_await getExecutable(m_rollbackableStorage.get(), ref.code_address,
-                m_revision,
-                m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_raw_address));
+        if (m_executable = co_await getExecutable(
+                m_rollbackableStorage.get(), ref.code_address, m_revision, m_rev.use_raw_address);
             !m_executable)
         {
             if (ref.input_size > 0)
@@ -921,8 +893,8 @@ private:
             co_return executor_v1::callPrecompiled(*m_preparedPrecompiled,
                 m_rollbackableStorage.get(), m_blockHeader, ref, m_origin,
                 buildLegacyExternalCaller(), m_precompiledManager.get(), m_contextID, m_seq,
-                m_ledgerConfig.get().authCheckStatus(), m_ledgerConfig.get().features(),
-                m_revision);
+                m_ledgerConfig.get().authCheckStatus(), m_ledgerConfig.get().features(), m_revision,
+                m_rev.fix_error_handling);
         }
 
         co_return m_executable->m_vmInstance.execute(interface, this, m_revision,
