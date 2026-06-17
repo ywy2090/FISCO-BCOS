@@ -103,6 +103,7 @@ public:
                 decltype(m_rollbackableTransientStorage), typename TxExec::PolicyType>
                 m_hostContext;
             std::optional<EVMCResult> m_evmcResult;
+            std::optional<executor_v1::RollupCostData> m_rollupCostData;  // OP-Stack only
 
             Data(TransactionExecutorImpl& executor, Storage& storage,
                 protocol::BlockHeader const& blockHeader, protocol::Transaction const& transaction,
