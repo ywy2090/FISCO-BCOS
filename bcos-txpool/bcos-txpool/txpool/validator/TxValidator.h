@@ -32,6 +32,13 @@
 
 namespace bcos::txpool
 {
+
+/// EIP-7623 txpool validation gate: EIP-7623 active AND web3 transaction.
+inline bool eip7623TxpoolValidationEnabled(bool eip7623Active, bool web3Tx) noexcept
+{
+    return web3Tx && eip7623Active;
+}
+
 class TxValidator : public TxValidatorInterface
 {
 public:

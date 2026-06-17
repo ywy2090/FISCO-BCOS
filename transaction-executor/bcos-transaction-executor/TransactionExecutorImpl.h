@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RollbackableStorage.h"
+#include "bcos-chain-policy/include/bcos-chain-policy/FiscoPolicy.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-framework/protocol/BlockHeader.h"
@@ -88,8 +89,9 @@ public:
             u256 m_nonce;
             executor::Web3AccessListResolved m_web3AccessListResolved;
             std::shared_ptr<executor::Eip2929AccessState> m_eip2929Access;
+            bcos::chain_policy::FiscoPolicy m_policy;
             hostcontext::HostContext<decltype(m_rollbackableStorage),
-                decltype(m_rollbackableTransientStorage)>
+                decltype(m_rollbackableTransientStorage), bcos::chain_policy::FiscoPolicy>
                 m_hostContext;
             std::optional<EVMCResult> m_evmcResult;
 
@@ -113,12 +115,15 @@ public:
                 m_nonce(hex2u(transaction.nonce())),
                 m_web3AccessListResolved(executor::resolveWeb3AccessList(transaction)),
                 m_eip2929Access(std::make_shared<executor::Eip2929AccessState>()),
+                m_policy(ledgerConfig.features(), ledgerConfig.balanceTransfer(),
+                    ledgerConfig.authCheckStatus() != 0),
                 m_hostContext(m_rollbackableStorage, m_rollbackableTransientStorage, blockHeader,
                     newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
-                    ledgerConfig, *executor.m_hashImpl, transaction.type() != 0, m_nonce,
-                    task::syncWait, m_web3AccessListResolved.accessList,
-                    m_web3AccessListResolved.web3TypedTxKind, m_eip2929Access)
+                    m_policy.computeRevisionConfig(blockHeader), m_policy, *executor.m_hashImpl,
+                    transaction.type() != 0, m_nonce, task::syncWait,
+                    m_web3AccessListResolved.accessList, m_web3AccessListResolved.web3TypedTxKind,
+                    m_eip2929Access)
             {}
         };
         std::unique_ptr<Data> m_data;
@@ -282,18 +287,17 @@ public:
         void settleGasUsedFromEvmResult()
         {
             auto& evmcResult = *m_data->m_evmcResult;
-            auto const& features = m_data->m_ledgerConfig.get().features();
             auto const& snapOpt = m_data->m_hostContext.gasSettlementSnapshot();
 
-            if (snapOpt && executor_v1::gas::ethGasSettlementEnabled(features,
-                               m_data->m_hostContext.revision(), 0,
-                               m_data->m_transaction.get().type() ==
-                                   protocol::TransactionType::Web3Transaction))
+            if (snapOpt &&
+                m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction &&
+                m_data->m_hostContext.revisionConfig().eip7623)
             {
                 auto ctx = *snapOpt;
                 ctx.evmGasLeft = evmcResult.gas_left;
                 ctx.evmGasRefund = evmcResult.gas_refund;
-                m_data->m_gasUsed = executor_v1::gas::finalizeEthereumGasUsed(ctx);
+                m_data->m_gasUsed = executor_v1::gas::finalizeEthereumGasUsed(
+                    ctx, m_data->m_hostContext.revisionConfig().calldata_floor_per_token);
             }
             else
             {

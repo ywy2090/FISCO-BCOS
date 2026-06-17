@@ -323,7 +323,9 @@ task::Task<protocol::TransactionStatus> TxValidator::validateEip7623GasFloor(
         blockVersion = tool::toVersionNumber(std::get<0>(*versionConfig));
     }
     auto const revision = executor::toRevision(features, blockVersion);
-    if (!executor_v1::gas::eip7623TxpoolValidationEnabled(features, revision, true))
+    bool eip7623Active =
+        revision >= EVMC_PRAGUE && features.get(ledger::Features::Flag::feature_evm_prague);
+    if (!eip7623TxpoolValidationEnabled(eip7623Active, true))
     {
         co_return TransactionStatus::None;
     }

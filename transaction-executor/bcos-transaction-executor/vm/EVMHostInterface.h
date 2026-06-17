@@ -67,8 +67,7 @@ struct EVMHostInterface
             concepts::bytebuffer::equalTo(value->bytes, executor::EMPTY_EVM_BYTES32.bytes);
 
         evmc_storage_status status;
-        if (hostContext.ledgerConfig().features().get(
-                ledger::Features::Flag::bugfix_evm_storage_status))
+        if (hostContext.revisionConfig().fix_storage_status)
         {
             // TODO: full EIP-2200 support — also report the 5 dirty-slot statuses
             // (DELETED_ADDED, MODIFIED_DELETED, DELETED_RESTORED, ADDED_DELETED,

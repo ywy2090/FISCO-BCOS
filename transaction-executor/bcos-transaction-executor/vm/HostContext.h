@@ -161,8 +161,7 @@ private:
 
     void captureGasSettlementSnapshotBeforeEvm()
     {
-        if (!executor_v1::gas::ethGasSettlementEnabled(
-                m_ledgerConfig.get().features(), m_revision, m_level, m_web3Tx))
+        if (!(m_level == 0 && m_web3Tx && m_rev.eip7623))
         {
             return;
         }
@@ -501,9 +500,7 @@ public:
             {
                 // EIP-7623 (Prague+): debit normal calldata (4/16) upfront; floor applied at
                 // finalize in TransactionExecutorImpl. 21000 base via consumeTransferGas.
-                if (m_level == 0 &&
-                    executor_v1::gas::ethGasSettlementEnabled(
-                        m_ledgerConfig.get().features(), m_revision, m_level, m_web3Tx))
+                if (m_level == 0 && m_web3Tx && m_rev.eip7623)
                 {
                     auto& msg = mutableMessage();
                     auto const components = executor::calcEip7623Components(

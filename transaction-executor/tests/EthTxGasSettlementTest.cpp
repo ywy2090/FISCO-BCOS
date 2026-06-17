@@ -53,22 +53,25 @@ BOOST_AUTO_TEST_CASE(EthGasSettlementEnabled_gateMatrix)
     auto const revision = bcos::executor::toRevision(
         features, static_cast<uint32_t>(protocol::BlockVersion::MAX_VERSION));
 
+    auto const eip7623Active = [](ledger::Features const& f, evmc_revision rev) {
+        return rev >= EVMC_PRAGUE && f.get(ledger::Features::Flag::feature_evm_prague);
+    };
+    auto const ethGasSettlementEnabled = [](bool eip7623, int64_t level, bool web3Tx) {
+        return web3Tx && level == 0 && eip7623;
+    };
+
     BOOST_CHECK(eip7623Active(features, revision));
     BOOST_CHECK(!eip7623Active(features, EVMC_CANCUN));
-    BOOST_CHECK(eip7623TxpoolValidationEnabled(features, revision, true));
-    BOOST_CHECK(!eip7623TxpoolValidationEnabled(features, revision, false));
-    BOOST_CHECK(!eip7623TxpoolValidationEnabled(features, EVMC_CANCUN, true));
-
-    BOOST_CHECK(ethGasSettlementEnabled(features, revision, 0, true));
-    BOOST_CHECK(!ethGasSettlementEnabled(features, revision, 0, false));
-    BOOST_CHECK(!ethGasSettlementEnabled(features, revision, 1, true));
-    BOOST_CHECK(!ethGasSettlementEnabled(features, EVMC_CANCUN, 0, true));
+    BOOST_CHECK(ethGasSettlementEnabled(eip7623Active(features, revision), 0, true));
+    BOOST_CHECK(!ethGasSettlementEnabled(eip7623Active(features, revision), 0, false));
+    BOOST_CHECK(!ethGasSettlementEnabled(eip7623Active(features, revision), 1, true));
+    BOOST_CHECK(!ethGasSettlementEnabled(eip7623Active(features, EVMC_CANCUN), 0, true));
 
     ledger::Features noPrague;
     noPrague.setGenesisFeatures(protocol::BlockVersion::MAX_VERSION);
     noPrague.set(ledger::Features::Flag::feature_evm_cancun);
     BOOST_CHECK(!eip7623Active(noPrague, revision));
-    BOOST_CHECK(!ethGasSettlementEnabled(noPrague, revision, 0, true));
+    BOOST_CHECK(!ethGasSettlementEnabled(eip7623Active(noPrague, revision), 0, true));
 }
 
 BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_emptyCalldata)
@@ -172,20 +175,23 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_cases)
     ctx.fixedIntrinsic = TX_BASE_GAS;
     ctx.calldata.normalCost = 800;
     ctx.calldata.floorCost = 1000;
+    ctx.calldata.tokenCount = 100;
     ctx.createTerm = 0;
 
     ctx.gasBeforeEvm = 100000;
     ctx.evmGasRefund = 0;
 
+    constexpr uint8_t calldataFloorPerToken = 10;
+
     // gasBeforeEvm is post-normal-debit; executionBurn is EVM-only.
     ctx.evmGasLeft = 100000 - 500;
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), 22300);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, calldataFloorPerToken), 22300);
 
     ctx.evmGasLeft = 100000 - 200;
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), 22000);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, calldataFloorPerToken), 22000);
 
     ctx.evmGasLeft = 100000 - 50;
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), 22000);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, calldataFloorPerToken), 22000);
 }
 
 BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_floorDominatesLowExecution)
@@ -200,7 +206,7 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_floorDominatesLowExecution)
     ctx.evmGasLeft = 100000 - 50;
     ctx.evmGasRefund = 0;
 
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), TX_BASE_GAS + components.floorCost);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), TX_BASE_GAS + components.floorCost);
 }
 
 BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_task0SstoreClear_vector)
@@ -214,7 +220,7 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_task0SstoreClear_vector)
     ctx.evmGasRefund = 4800;
 
     BOOST_CHECK_EQUAL(ctx.gasBeforeEvm - ctx.evmGasLeft, 2906);
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), TX_BASE_GAS);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), TX_BASE_GAS);
 }
 
 BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_highIntrinsicRefundSubjectTo3529Cap)
@@ -235,7 +241,7 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_highIntrinsicRefundSubjectTo3529Cap
     int64_t const cap = effectiveRefundEip3529(ctx.evmGasRefund, gasUsedBeforeRefund);
     BOOST_CHECK_EQUAL(cap, gasUsedBeforeRefund / 5);
     // geth: intrinsic + execution - capped refund; floorDataGas = 21000 when floorCost = 0.
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), gasUsedBeforeRefund - cap);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), gasUsedBeforeRefund - cap);
 }
 
 BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_gethAligned_accessListLightCalldata)
@@ -245,12 +251,13 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_gethAligned_accessListLightCalldata
     ctx.fixedIntrinsic = TX_BASE_GAS + accessListCost;
     ctx.calldata.normalCost = 16;
     ctx.calldata.floorCost = 40;
+    ctx.calldata.tokenCount = 4;
     ctx.gasBeforeEvm = 100'000;
     ctx.evmGasLeft = 100'000;
     ctx.evmGasRefund = 0;
 
     // Minimal execution (16 burn): receipt = intrinsic + normal calldata, not floor uplift.
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), TX_BASE_GAS + accessListCost + 16);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), TX_BASE_GAS + accessListCost + 16);
 }
 
 BOOST_AUTO_TEST_CASE(EffectiveRefundEip3529_cap)
@@ -273,20 +280,23 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_create_noDoubleCount)
     ctx.fixedIntrinsic = intrinsic.fixedCost();
     ctx.calldata.normalCost = intrinsic.normalCalldata;
     ctx.calldata.floorCost = intrinsic.floorReserve;
+    // 10-byte all-nonzero initcode: tokenCount = 10 * 4 = 40
+    ctx.calldata.tokenCount = 40;
     ctx.createTerm = intrinsic.createIntrinsic;
     ctx.gasBeforeEvm = 50'000;
     // evmone debited full CREATE intrinsic from the execution gas pool.
     ctx.evmGasLeft = ctx.gasBeforeEvm - intrinsic.createIntrinsic;
     ctx.evmGasRefund = 0;
 
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), intrinsic.gasLimitMinimum());
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), intrinsic.gasLimitMinimum());
 
     // When executionBurn already includes createTerm, adding createTerm again must not inflate.
     ctx.gasBeforeEvm =
         intrinsic.gasLimitMinimum() - intrinsic.fixedCost() - intrinsic.normalCalldata;
     constexpr int64_t extraOpcodeGas = 38;
     ctx.evmGasLeft = ctx.gasBeforeEvm - intrinsic.createIntrinsic - extraOpcodeGas;
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), intrinsic.gasLimitMinimum() + extraOpcodeGas);
+    BOOST_CHECK_EQUAL(
+        finalizeEthereumGasUsed(ctx, 10), intrinsic.gasLimitMinimum() + extraOpcodeGas);
 }
 
 BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_postEvmOOG_chargesFullGasLimit)
@@ -309,7 +319,7 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_postEvmOOG_chargesFullGasLimit)
     ctx.evmGasLeft = 0;
     ctx.evmGasRefund = 0;
 
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), gasLimit);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), gasLimit);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
