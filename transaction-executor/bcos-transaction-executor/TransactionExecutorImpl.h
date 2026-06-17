@@ -25,6 +25,13 @@
 
 namespace bcos::executor_v1
 {
+
+enum class ExecutePhase : uint8_t {
+    Prepare  = 0,
+    Execute  = 1,
+    Finalize = 2
+};
+
 #define TRANSACTION_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("TRANSACTION_EXECUTOR")
 
 DERIVE_BCOS_EXCEPTION(InvalidReceiptVersion);
@@ -134,14 +141,14 @@ public:
                 executor, storage, blockHeader, transaction, contextID, ledgerConfig, call))
         {}
 
-        template <int step>
+        template <ExecutePhase phase>
         task::Task<protocol::TransactionReceipt::Ptr> executeStep()
         {
-            if constexpr (step == 0)
+            if constexpr (phase == ExecutePhase::Prepare)
             {
                 co_await m_data->m_hostContext.prepare();
             }
-            else if constexpr (step == 1)
+            else if constexpr (phase == ExecutePhase::Execute)
             {
                 auto updated = co_await updateNonce();
                 if (updated)
@@ -172,7 +179,7 @@ public:
                     co_await consumeBalance();
                 }
             }
-            else if constexpr (step == 2)
+            else if constexpr (phase == ExecutePhase::Finalize)
             {
                 co_return co_await finish();
             }
@@ -470,9 +477,9 @@ public:
         auto executeContext = co_await createExecuteContext(
             storage, blockHeader, transaction, contextID, ledgerConfig, call);
 
-        co_await executeContext.template executeStep<0>();
-        co_await executeContext.template executeStep<1>();
-        co_return co_await executeContext.template executeStep<2>();
+        co_await executeContext.template executeStep<ExecutePhase::Prepare>();
+        co_await executeContext.template executeStep<ExecutePhase::Execute>();
+        co_return co_await executeContext.template executeStep<ExecutePhase::Finalize>();
     }
 };
 
