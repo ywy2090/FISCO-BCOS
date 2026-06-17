@@ -1,5 +1,6 @@
 #include "PrecompiledManager.h"
 #include "bcos-evm/bcos/PrecompiledImpl.h"
+#include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-executor/src/precompiled/BFSPrecompiled.h"
 #include "bcos-executor/src/precompiled/CastPrecompiled.h"
@@ -27,6 +28,9 @@
 bcos::evm::PrecompiledManager::PrecompiledManager(crypto::Hash::Ptr hashImpl)
   : m_hashImpl(std::move(hashImpl))
 {
+    // Wire Ethereum precompile backends into compile-time traits table
+    precompiles::initPrecompileTraits();
+
     m_address2Precompiled.emplace_back(
         1, Precompiled{executor::PrecompiledContract(
                            3000, 0, executor::PrecompiledRegistrar::executor("ecrecover")),

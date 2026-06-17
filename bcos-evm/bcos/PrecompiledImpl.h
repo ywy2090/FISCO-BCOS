@@ -156,15 +156,11 @@ inline EVMCResult callBuiltinPrecompiled(evmc_message const& message,
                 protocol::TransactionStatus::OutOfGas, EVMC_OUT_OF_GAS, 0,
                 "Precompiled contract out of gas", fixErrorHandling);
         }
-        const auto& exec = PrecompiledRegistrar::executor(
-            precompileName(traits->address_suffix));
-        auto [success, output] = exec(input);
+        auto [success, output] = traits->execute(input);
         return buildBuiltinPrecompiledResult(success, output, message.gas - gasCost);
     }
 
-    const auto& exec = PrecompiledRegistrar::executor(
-        precompileName(traits->address_suffix));
-    auto [success, output] = exec(input);
+    auto [success, output] = traits->execute(input);
     return buildBuiltinPrecompiledResult(
         success, output, message.gas - gas.template convert_to<int64_t>());
 }
