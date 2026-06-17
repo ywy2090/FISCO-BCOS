@@ -7,6 +7,7 @@
 #include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
 #include <boost/test/unit_test.hpp>
 #include <cstring>
 
@@ -310,6 +311,35 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_postEvmOOG_chargesFullGasLimit)
     ctx.evmGasRefund = 0;
 
     BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx), gasLimit);
+}
+
+BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_eip7702_one_wire_tuple)
+{
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    bytes const emptyInput;
+    msg.input_data = emptyInput.data();
+    msg.input_size = emptyInput.size();
+
+    auto const intrinsic =
+        computeTxIntrinsicGas(msg, nullptr, executor_v1::EIP_7702_WEB3_TX_TYPE, 1);
+    BOOST_CHECK_EQUAL(intrinsic.eip7702AuthCost, executor_v1::EIP_7702_PER_EMPTY_ACCOUNT_COST);
+    BOOST_CHECK_EQUAL(
+        intrinsic.gasLimitMinimum(), TX_BASE_GAS + executor_v1::EIP_7702_PER_EMPTY_ACCOUNT_COST);
+}
+
+BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_eip7702_two_wire_tuples)
+{
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    bytes const emptyInput;
+    msg.input_data = emptyInput.data();
+    msg.input_size = emptyInput.size();
+
+    auto const intrinsic =
+        computeTxIntrinsicGas(msg, nullptr, executor_v1::EIP_7702_WEB3_TX_TYPE, 2);
+    BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimum(),
+        TX_BASE_GAS + 2 * executor_v1::EIP_7702_PER_EMPTY_ACCOUNT_COST);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
