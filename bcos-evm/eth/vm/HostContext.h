@@ -21,8 +21,8 @@
 
 #pragma once
 
-#include "RevisionConfig.h"
-#include "VMInstance.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/vm/VMInstance.h"
 #include "bcos-codec/abi/ContractABICodec.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/AuthCheck.h"
@@ -48,8 +48,8 @@
 #include "bcos-framework/storage2/Storage.h"
 #include "bcos-ledger/LedgerMethods.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "bcos-transaction-executor/EVMCResult.h"
-#include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-task/Wait.h>

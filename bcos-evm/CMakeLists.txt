@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.28)
 
+find_package(evmone CONFIG REQUIRED)
+
 add_library(bcos-evm STATIC
-    ethereum/vm/VMInstance.cpp
-    ethereum/EVMCResult.cpp
-    ethereum/precompiled/PrecompiledRegistrar.cpp
-    ethereum/precompiled/PrecompiledContract.cpp
-    ethereum/precompiled/ModexpGas.cpp
-    bcos/FiscoPolicy.h
-    bcos/PrecompiledManager.cpp
+    eth/vm/VMInstance.cpp
+    eth/EVMCResult.cpp
+    eth/precompiled/PrecompiledRegistrar.cpp
+    eth/precompiled/PrecompiledContract.cpp
+    eth/precompiled/ModexpGas.cpp
 )
 
 target_include_directories(bcos-evm PUBLIC
@@ -18,4 +18,6 @@ target_link_libraries(bcos-evm PUBLIC
     evmone::evmone
     bcos-task
     bcos-framework
+    bcos-protocol
+    bcos-utilities
 )

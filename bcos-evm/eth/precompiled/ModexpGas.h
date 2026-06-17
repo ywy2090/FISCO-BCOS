@@ -6,15 +6,11 @@
  */
 #pragma once
 
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-utilities/Common.h"
 #include <evmc/evmc.h>
 #include <cstddef>
 #include <string_view>
-
-namespace bcos::evm_standard
-{
-struct RevisionConfig;
-}  // namespace bcos::evm_standard
 
 namespace bcos::evm
 {

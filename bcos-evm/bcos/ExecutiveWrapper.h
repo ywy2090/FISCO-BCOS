@@ -1,5 +1,5 @@
 #pragma once
-#include "../EVMCResult.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-codec/wrapper/CodecWrapper.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/eth/vm/HostContext.h"

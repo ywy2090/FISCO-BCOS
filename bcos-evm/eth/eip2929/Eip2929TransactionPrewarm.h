@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "../CallParameters.h"
+#include "bcos-executor/src/CallParameters.h"
 #include "Eip2929AccessState.h"
 #include "Eip2929Util.h"
 #include <evmc/evmc.h>

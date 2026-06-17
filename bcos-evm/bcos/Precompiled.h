@@ -37,7 +37,7 @@
 
 namespace bcos
 {
-namespace executor
+namespace evm
 {
 class TransactionExecutive;
 }
@@ -175,7 +175,7 @@ private:
 
 }  // namespace precompiled
 
-namespace executor
+namespace evm
 {
 struct PrecompiledAvailable
 {
@@ -223,5 +223,5 @@ public:
 private:
     std::unordered_map<std::string, PrecompiledAvailable> m_map;
 };
-}  // namespace executor
+}  // namespace evm
 }  // namespace bcos

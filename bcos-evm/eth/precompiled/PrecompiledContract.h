@@ -26,7 +26,7 @@
 
 namespace bcos
 {
-namespace executor
+namespace evm
 {
 class PrecompiledContract
 {
@@ -55,5 +55,5 @@ private:
     PrecompiledExecutor m_execute;
     u256 m_startingBlock = 0;
 };
-}  // namespace executor
+}  // namespace evm
 }  // namespace bcos

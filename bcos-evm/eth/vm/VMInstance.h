@@ -22,7 +22,7 @@
  */
 
 #pragma once
-#include "../EVMCResult.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include <bcos-utilities/Common.h>
 #include <compare>
 #include <evmc/evmc.hpp>
