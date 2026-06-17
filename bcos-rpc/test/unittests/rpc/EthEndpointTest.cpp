@@ -28,8 +28,10 @@
 #include <bcos-rpc/web3jsonrpc/utils/Common.h>
 #include <bcos-tars-protocol/protocol/BlockFactoryImpl.h>
 #include <bcos-tars-protocol/protocol/TransactionFactoryImpl.h>
+#include <bcos-tars-protocol/protocol/TransactionReceiptImpl.h>
 #include <bcos-task/Wait.h>
 #include <bcos-txpool/TxPoolFactory.h>
+#include <bcos-utilities/DataConvertUtility.h>
 #include <magic_enum/magic_enum.hpp>
 
 using namespace bcos;
@@ -40,7 +42,13 @@ namespace bcos::test
 {
 namespace
 {
-std::string buildMinimalEip7702RawTxHex()
+struct MinimalEip7702RawTx
+{
+    std::string hex;
+    crypto::HashType hash;
+};
+
+MinimalEip7702RawTx buildMinimalEip7702RawTx()
 {
     Web3Transaction tx;
     tx.type = rpc::TransactionType::EIP7702;
@@ -65,9 +73,63 @@ std::string buildMinimalEip7702RawTxHex()
     tx.signatureR = h256(3).asBytes();
     tx.signatureS = h256(4).asBytes();
 
+    MinimalEip7702RawTx out;
+    out.hash = tx.txHash();
     bcos::bytes encoded;
     encode(encoded, tx);
-    return "0x" + toHex(encoded);
+    out.hex = "0x" + toHex(encoded);
+    return out;
+}
+
+std::string buildMinimalEip7702RawTxHex()
+{
+    return buildMinimalEip7702RawTx().hex;
+}
+
+/// Scheduler stub returning geth-aligned EIP-7702 estimateGas floor (1 wire auth).
+class Eip7702EstimateGasScheduler : public bcos::test::FakeScheduler
+{
+public:
+    using FakeScheduler::FakeScheduler;
+
+    void call(protocol::Transaction::Ptr,
+        std::function<void(Error::Ptr, protocol::TransactionReceipt::Ptr)> callback) noexcept
+        override
+    {
+        auto holder = std::make_shared<bcostars::TransactionReceipt>();
+        holder->data.status = 0;
+        holder->data.gasUsed = "46000";
+        auto receipt = std::make_shared<bcostars::protocol::TransactionReceiptImpl>(
+            [holder]() { return holder.get(); });
+        callback(nullptr, receipt);
+    }
+};
+
+rpc::NodeService::Ptr rebuildNodeServiceWithScheduler(
+    RPCFixture& fixture, bcos::test::FakeScheduler::Ptr scheduler)
+{
+    auto blockHeaderFactory =
+        std::make_shared<bcostars::protocol::BlockHeaderFactoryImpl>(fixture.cryptoSuite);
+    auto txFactory =
+        std::make_shared<bcostars::protocol::TransactionFactoryImpl>(fixture.cryptoSuite);
+    auto receiptFactory =
+        std::make_shared<bcostars::protocol::TransactionReceiptFactoryImpl>(fixture.cryptoSuite);
+    auto blockFactory = std::make_shared<bcostars::protocol::BlockFactoryImpl>(
+        fixture.cryptoSuite, blockHeaderFactory, txFactory, receiptFactory);
+
+    auto nodeId = std::make_shared<KeyImpl>(
+        h256("1110000000000000000000000000000000000000000000000000000000000000").asBytes());
+    auto txResultFactory = std::make_shared<TransactionSubmitResultFactoryImpl>();
+    auto txPoolFactory = std::make_shared<TxPoolFactory>(nodeId, fixture.cryptoSuite,
+        txResultFactory, blockFactory, fixture.m_frontService, fixture.m_ledger, "group0", "chain0",
+        100000000, bcos::txpool::DEFAULT_POOL_LIMIT, true);
+    txPoolFactory->setScheduler(scheduler);
+    auto txPool = txPoolFactory->createTxPool(*fixture.ioServicePool->getIOService());
+    txPool->init();
+    txPool->start();
+
+    return std::make_shared<rpc::NodeService>(
+        fixture.m_ledger, scheduler, txPool, nullptr, nullptr, blockFactory);
 }
 
 rpc::NodeService::Ptr rebuildNodeServiceWithCryptoSuite(
@@ -88,7 +150,7 @@ rpc::NodeService::Ptr rebuildNodeServiceWithCryptoSuite(
         blockFactory, fixture.m_frontService, fixture.m_ledger, "group0", "chain0", 100000000,
         bcos::txpool::DEFAULT_POOL_LIMIT, true);
     txPoolFactory->setScheduler(fixture.scheduler);
-    auto txPool = txPoolFactory->createTxPool();
+    auto txPool = txPoolFactory->createTxPool(*fixture.ioServicePool->getIOService());
     txPool->init();
     txPool->start();
 
@@ -181,20 +243,29 @@ BOOST_AUTO_TEST_CASE(sendRawTransaction_passesEip7702Gate_whenPragueEnabled)
     m_ledger->setSystemConfig(
         std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
 
+    auto const rawTx = buildMinimalEip7702RawTx();
     EthEndpoint endpoint(nodeService, nullptr, false);
     Json::Value request(Json::arrayValue);
-    request.append(buildMinimalEip7702RawTxHex());
+    request.append(rawTx.hex);
     Json::Value response;
 
-    try
+    task::syncWait(endpoint.sendRawTransaction(request, response));
+
+    auto const expectedHash = rawTx.hash.hexPrefixed();
+    if (response.isMember("result"))
     {
-        task::syncWait(endpoint.sendRawTransaction(request, response));
+        BOOST_CHECK_EQUAL(response["result"].asString(), expectedHash);
     }
-    catch (JsonRpcException const& ex)
+    else
     {
-        BOOST_CHECK(ex.msg().find("feature_evm_prague") == std::string::npos);
-        BOOST_CHECK(ex.msg().find("legacy executor") == std::string::npos);
-        BOOST_CHECK(ex.msg().find("secp256k1") == std::string::npos);
+        BOOST_REQUIRE(response.isMember("error"));
+        BOOST_REQUIRE(response["error"].isMember("data"));
+        BOOST_CHECK(response["error"]["data"].isMember("txHash"));
+        BOOST_CHECK_EQUAL(response["error"]["data"]["txHash"].asString(), expectedHash);
+        auto const msg = response["error"]["message"].asString();
+        BOOST_CHECK(msg.find("feature_evm_prague") == std::string::npos);
+        BOOST_CHECK(msg.find("legacy executor") == std::string::npos);
+        BOOST_CHECK(msg.find("secp256k1") == std::string::npos);
     }
 }
 
@@ -212,9 +283,14 @@ BOOST_AUTO_TEST_CASE(estimateGas_passesEip7702Gate_whenPragueEnabled)
     m_ledger->setSystemConfig(
         std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
 
-    EthEndpoint endpoint(nodeService, nullptr, false);
+    auto estimateScheduler =
+        std::make_shared<Eip7702EstimateGasScheduler>(m_ledger, m_blockFactory);
+    auto estimateNodeService = rebuildNodeServiceWithScheduler(*this, estimateScheduler);
+
+    EthEndpoint endpoint(estimateNodeService, nullptr, false);
     Json::Value request(Json::arrayValue);
     Json::Value callObj;
+    callObj["type"] = "0x4";
     callObj["to"] = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     callObj["authorizationList"] = Json::arrayValue;
     callObj["authorizationList"].append(Json::objectValue);
@@ -225,6 +301,7 @@ BOOST_AUTO_TEST_CASE(estimateGas_passesEip7702Gate_whenPragueEnabled)
     task::syncWait(endpoint.estimateGas(request, response));
     BOOST_CHECK(response.isMember("result"));
     BOOST_CHECK(!response.isMember("error"));
+    BOOST_CHECK_EQUAL(response["result"].asString(), toQuantity(46000ULL));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

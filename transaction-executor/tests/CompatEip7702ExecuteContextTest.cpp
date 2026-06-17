@@ -5,13 +5,16 @@
  */
 
 #include "../bcos-transaction-executor/TransactionExecutorImpl.h"
+#include "../bcos-transaction-executor/vm/HostContext.h"
 #include "Eip7702TestHelpers.h"
 #include "TestMemoryStorage.h"
 #include "bcos-executor/src/Web3Eip7702Apply.h"
+#include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-task/Wait.h"
 #include "bcos-transaction-executor/Eip7702Common.h"
+#include "bcos-transaction-executor/RollbackableStorage.h"
 
 using bcos::task::syncWait;
 #include <bcos-crypto/hash/Keccak256.h>
@@ -25,6 +28,7 @@ using bcos::task::syncWait;
 using namespace bcos;
 using namespace bcos::storage2;
 using namespace bcos::executor_v1;
+using namespace bcos::executor_v1::hostcontext;
 using namespace bcos::test::eip7702;
 using bcos::ledger::account::EVMAccount;
 
@@ -52,7 +56,14 @@ Address address19(uint8_t suffix)
 class CompatEip7702ExecFixture
 {
 public:
+    using TransientStorageType = storage2::memory_storage::MemoryStorage<StateKey, StateValue,
+        storage2::memory_storage::Attribute(
+            storage2::memory_storage::ORDERED | storage2::memory_storage::LOGICAL_DELETION)>;
+
     MutableStorage storage;
+    Rollbackable<MutableStorage> rollbackableStorage{storage};
+    TransientStorageType transientStorage;
+    Rollbackable<TransientStorageType> rollbackableTransientStorage{transientStorage};
     ledger::LedgerConfig ledgerConfig;
     std::shared_ptr<crypto::CryptoSuite> cryptoSuite = std::make_shared<crypto::CryptoSuite>(
         std::make_shared<crypto::Keccak256>(), nullptr, nullptr);
@@ -480,16 +491,9 @@ BOOST_AUTO_TEST_CASE(recipient_delegation_target_warmed_before_call)
         auto const authority = authorityAddressFromKey(cryptoSuite->hashImpl(), keyPair);
         auto const authorityEvmc = executor::addressToEvmc(authority);
         auto const target = address19(0x55);
+        auto const targetEvmc = executor::addressToEvmc(target);
 
         co_await setDelegationIndicator(storage, cryptoSuite->hashImpl(), authorityEvmc, target);
-
-        EVMAccount<decltype(storage)> authorityAccount(storage, authorityEvmc, false);
-        co_await authorityAccount.setNonce("0");
-
-        auto auth = signAuthorizationTuple(cryptoSuite->hashImpl(), keyPair, 1, target, 0);
-
-        evmc_address sender = evmcAddr19(0x03);
-        co_await fundSender(sender);
 
         static bcos::bytes const stopCode{0x00};
         {
@@ -500,14 +504,26 @@ BOOST_AUTO_TEST_CASE(recipient_delegation_target_warmed_before_call)
             co_await targetAcct.setCode(stopCode, std::string{}, codeHash);
         }
 
-        auto tx =
-            makeWeb3Type4Transaction(*cryptoSuite, {auth}, sender, authority, bytes{}, 0, 500'000);
-        auto receipt =
-            co_await executor.executeTransaction(storage, blockHeader, *tx, 0, ledgerConfig, false);
-
-        BOOST_REQUIRE(receipt);
-        BOOST_CHECK_EQUAL(receipt->status(), 0);
-        BOOST_CHECK_LE(receipt->gasUsed(), 60'000u);
+        auto access = std::make_shared<bcos::executor::Eip2929AccessState>();
+        evmc_address origin = evmcAddr19(0x03);
+        evmc_message message{.kind = EVMC_CALL,
+            .flags = 0,
+            .depth = 0,
+            .gas = 500'000,
+            .recipient = authorityEvmc,
+            .sender = origin,
+            .input_data = nullptr,
+            .input_size = 0};
+        int64_t seq = 0;
+        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)> host(
+            rollbackableStorage, rollbackableTransientStorage, blockHeader, message, origin, "", 0,
+            seq, precompiledManager, ledgerConfig, *cryptoSuite->hashImpl(), true, u256(0),
+            bcos::task::syncWait, {}, executor_v1::EIP_7702_WEB3_TX_TYPE, {}, 1, nullptr, nullptr,
+            nullptr, access);
+        co_await host.prepare();
+        BOOST_CHECK(!access->containsAddress(targetEvmc));
+        co_await host.warmEip7702RecipientDelegationTarget();
+        BOOST_CHECK(access->containsAddress(targetEvmc));
     }());
 }
 

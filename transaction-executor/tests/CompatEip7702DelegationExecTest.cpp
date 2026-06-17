@@ -11,6 +11,7 @@
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-task/Wait.h"
 #include "bcos-transaction-executor/Eip7702Common.h"
+#include "bcos-transaction-executor/gas/EthTxGasSettlement.h"
 
 using bcos::task::syncWait;
 #include <bcos-crypto/hash/Keccak256.h>
@@ -23,6 +24,7 @@ using bcos::task::syncWait;
 using namespace bcos;
 using namespace bcos::storage2;
 using namespace bcos::executor_v1;
+using namespace bcos::executor_v1::gas;
 using namespace bcos::test::eip7702;
 using bcos::ledger::account::EVMAccount;
 
@@ -128,6 +130,12 @@ BOOST_AUTO_TEST_CASE(delegated_call_writes_storage_slot)
 BOOST_AUTO_TEST_CASE(delegated_account_call_gas_near_geth_5455)
 {
     syncWait([this]() -> task::Task<void> {
+        // geth runtime_test.go TestDelegatedAccountAccessCost: warm delegated CALL ≈ 5455.
+        constexpr uint64_t kGethDelegatedWarmCallGas = 5455;
+        constexpr uint64_t kEip7702IntrinsicOneAuth =
+            gas::TX_BASE_GAS + executor_v1::EIP_7702_PER_EMPTY_ACCOUNT_COST;
+        constexpr uint64_t kGasTolerance = 500;
+
         auto const keyPair = testAuthorityKeyPair();
         auto const authority = authorityAddressFromKey(cryptoSuite->hashImpl(), keyPair);
         auto const authorityEvmc = executor::addressToEvmc(authority);
@@ -142,10 +150,12 @@ BOOST_AUTO_TEST_CASE(delegated_account_call_gas_near_geth_5455)
             co_await targetAcct.setCode(stopCode, std::string{}, codeHash);
         }
 
-        EVMAccount<decltype(storage)> authorityAccount(storage, authorityEvmc, false);
-        co_await authorityAccount.create();
-        co_await authorityAccount.setNonce("0");
+        co_await setDelegationIndicator(storage, cryptoSuite->hashImpl(), authorityEvmc, target);
 
+        EVMAccount<decltype(storage)> authorityAccount(storage, authorityEvmc, false);
+        co_await authorityAccount.setNonce("1");
+
+        // Wire auth present for intrinsic (46000) but nonce mismatch => apply skipped.
         auto auth = signAuthorizationTuple(cryptoSuite->hashImpl(), keyPair, 1, target, 0);
 
         evmc_address sender = evmcAddr19(0x02);
@@ -158,9 +168,9 @@ BOOST_AUTO_TEST_CASE(delegated_account_call_gas_near_geth_5455)
 
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_EQUAL(receipt->status(), 0);
-        // geth TestDelegatedAccountAccessCost: ~5455 for warm delegated CALL (tx gas includes intrinsic).
-        BOOST_CHECK_LE(receipt->gasUsed(), 60'000u);
-        BOOST_CHECK_GE(receipt->gasUsed(), 5'000u);
+        auto const gasUsed = receipt->gasUsed().convert_to<uint64_t>();
+        BOOST_CHECK_GE(gasUsed, kEip7702IntrinsicOneAuth + kGethDelegatedWarmCallGas - kGasTolerance);
+        BOOST_CHECK_LE(gasUsed, kEip7702IntrinsicOneAuth + kGethDelegatedWarmCallGas + kGasTolerance);
     }());
 }
 
