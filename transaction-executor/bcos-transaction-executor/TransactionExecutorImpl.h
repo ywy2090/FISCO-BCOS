@@ -41,6 +41,7 @@ DERIVE_BCOS_EXCEPTION(InvalidReceiptVersion);
 evmc_message newEVMCMessage(protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin);
 
+template <class TxExec = FiscoTxExecutor>
 class TransactionExecutorImpl
 {
 public:
@@ -50,6 +51,7 @@ public:
     std::reference_wrapper<protocol::TransactionReceiptFactory const> m_receiptFactory;
     crypto::Hash::Ptr m_hashImpl;
     std::reference_wrapper<PrecompiledManager> m_precompiledManager;
+    TxExec m_txExecutor;
 
     using TransientStorage =
         bcos::storage2::memory_storage::MemoryStorage<bcos::executor_v1::StateKey,
@@ -101,7 +103,6 @@ public:
                 decltype(m_rollbackableTransientStorage), bcos::chain_policy::FiscoPolicy>
                 m_hostContext;
             std::optional<EVMCResult> m_evmcResult;
-            FiscoTxExecutor m_txExecutor;
 
             Data(TransactionExecutorImpl& executor, Storage& storage,
                 protocol::BlockHeader const& blockHeader, protocol::Transaction const& transaction,
@@ -159,7 +160,7 @@ public:
 
                 if (!m_data->m_call)
                 {
-                    if (!co_await m_data->m_txExecutor.buyGas(*m_data))
+                    if (!co_await m_data->m_executor.get().m_txExecutor.buyGas(*m_data))
                         co_return {};
                 }
                 m_data->m_hostContext.setGasSettlementGasLimit(m_data->m_gasLimit);
@@ -167,12 +168,12 @@ public:
                 settleGasUsedFromEvmResult();
                 if (!m_data->m_call)
                 {
-                    co_await m_data->m_txExecutor.refundGas(*m_data);
+                    co_await m_data->m_executor.get().m_txExecutor.refundGas(*m_data);
                 }
             }
             else if constexpr (phase == ExecutePhase::Finalize)
             {
-                co_return co_await m_data->m_txExecutor.makeReceipt(*m_data);
+                co_return co_await m_data->m_executor.get().m_txExecutor.makeReceipt(*m_data);
             }
 
             co_return {};
