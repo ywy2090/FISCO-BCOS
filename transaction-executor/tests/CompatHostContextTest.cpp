@@ -106,7 +106,7 @@ public:
         return HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>(
             rollbackableStorage, rollbackableTransientStorage, blockHeader, message, originIn, "",
             0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0, bcos::task::syncWait,
-            std::move(eip2930AccessList), web3TypedTxKindForAccessList, {}, {}, {}, nullptr,
+            std::move(eip2930AccessList), web3TypedTxKindForAccessList, {}, 0, {}, {}, nullptr,
             std::move(eip2929Access));
     }
 

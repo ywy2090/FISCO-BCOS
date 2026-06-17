@@ -17,10 +17,12 @@
  */
 
 #include "../common/RPCFixture.h"
+#include <bcos-codec/rlp/RLPDecode.h>
 #include <bcos-codec/rlp/RLPEncode.h>
 #include <bcos-crypto/hash/SM3.h>
 #include <bcos-crypto/signature/sm2/SM2Crypto.h>
 #include <bcos-framework/ledger/Features.h>
+#include <bcos-framework/ledger/LedgerTypeDef.h>
 #include <bcos-framework/ledger/SystemConfigs.h>
 #include <bcos-rpc/jsonrpc/Common.h>
 #include <bcos-rpc/web3jsonrpc/endpoints/EthEndpoint.h>
@@ -33,6 +35,7 @@
 #include <bcos-txpool/TxPoolFactory.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <magic_enum/magic_enum.hpp>
+#include <stdexcept>
 
 using namespace bcos;
 using namespace bcos::rpc;
@@ -46,6 +49,7 @@ struct MinimalEip7702RawTx
 {
     std::string hex;
     crypto::HashType hash;
+    std::string sender;  // lowercase hex without 0x prefix (FakeLedger table key)
 };
 
 MinimalEip7702RawTx buildMinimalEip7702RawTx()
@@ -56,7 +60,7 @@ MinimalEip7702RawTx buildMinimalEip7702RawTx()
     tx.nonce = 0;
     tx.maxPriorityFeePerGas = 1;
     tx.maxFeePerGas = 1;
-    tx.gasLimit = 21000;
+    tx.gasLimit = 100000;
     tx.to = Address("0x0000000000000000000000000000000000000001");
     tx.value = 0;
 
@@ -74,10 +78,18 @@ MinimalEip7702RawTx buildMinimalEip7702RawTx()
     tx.signatureS = h256(4).asBytes();
 
     MinimalEip7702RawTx out;
-    out.hash = tx.txHash();
     bcos::bytes encoded;
-    encode(encoded, tx);
+    bcos::codec::rlp::encode(encoded, tx);
     out.hex = "0x" + toHex(encoded);
+    Web3Transaction roundTrip;
+    auto encodedRef = bcos::ref(encoded);
+    if (auto const error = bcos::codec::rlp::decode(encodedRef, roundTrip); error != nullptr)
+    {
+        BOOST_THROW_EXCEPTION(std::runtime_error(error->errorMessage()));
+    }
+    out.hash = roundTrip.txHash();
+    auto senderPrefixed = tx.sender();
+    out.sender = senderPrefixed.starts_with("0x") ? senderPrefixed.substr(2) : senderPrefixed;
     return out;
 }
 
@@ -129,7 +141,7 @@ rpc::NodeService::Ptr rebuildNodeServiceWithScheduler(
     txPool->start();
 
     return std::make_shared<rpc::NodeService>(
-        fixture.m_ledger, scheduler, txPool, nullptr, nullptr, blockFactory);
+        fixture.m_ledger, scheduler, txPool, nullptr, nullptr, blockFactory, nullptr);
 }
 
 rpc::NodeService::Ptr rebuildNodeServiceWithCryptoSuite(
@@ -155,7 +167,7 @@ rpc::NodeService::Ptr rebuildNodeServiceWithCryptoSuite(
     txPool->start();
 
     return std::make_shared<rpc::NodeService>(
-        fixture.m_ledger, fixture.scheduler, txPool, nullptr, nullptr, blockFactory);
+        fixture.m_ledger, fixture.scheduler, txPool, nullptr, nullptr, blockFactory, nullptr);
 }
 
 void expectSendRawRejectsEip7702(
@@ -292,6 +304,13 @@ BOOST_AUTO_TEST_CASE(sendRawTransaction_passesEip7702Gate_whenPragueEnabled)
         std::string(magic_enum::enum_name(ledger::SystemConfig::executor_version)), "1");
 
     auto const rawTx = buildMinimalEip7702RawTx();
+    // Gate test: skip txpool balance debit (see MemoryStorageTest validationLedger pattern).
+    m_ledger->setSystemConfig(ledger::SYSTEM_KEY_TX_GAS_PRICE, "0");
+    std::optional<storage::Entry> balanceEntry = storage::Entry();
+    balanceEntry->set(asBytes("1000000000000000000000"));
+    m_ledger->setStorageAt(
+        rawTx.sender, std::string(ledger::ACCOUNT_TABLE_FIELDS::BALANCE), balanceEntry);
+
     EthEndpoint endpoint(nodeService, nullptr, false);
     Json::Value request(Json::arrayValue);
     request.append(rawTx.hex);

@@ -44,6 +44,74 @@ inline bcos::crypto::Secp256k1KeyPair testAuthorityKeyPair()
     return bcos::crypto::Secp256k1KeyPair(testAuthorityKey());
 }
 
+/// geth `core/blockchain_test.go` TestEIP7702 key material.
+inline bcos::crypto::Secp256k1KeyPair gethEip7702Key1()
+{
+    return bcos::crypto::Secp256k1KeyPair(std::make_shared<bcos::crypto::KeyImpl>(
+        bcos::fromHex("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")));
+}
+
+inline bcos::crypto::Secp256k1KeyPair gethEip7702Key2()
+{
+    return bcos::crypto::Secp256k1KeyPair(std::make_shared<bcos::crypto::KeyImpl>(
+        bcos::fromHex("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")));
+}
+
+inline bcos::Address gethEip7702AddressAa()
+{
+    return bcos::Address("0x000000000000000000000000000000000000aaaa");
+}
+
+inline bcos::Address gethEip7702AddressBb()
+{
+    return bcos::Address("0x000000000000000000000000000000000000bbbb");
+}
+
+/// `program.New().Call(nil, callee, 1, 0, 0, 0, 0)` — CALL with value 1, all zero in/out.
+inline bcos::bytes callWithValue1Bytecode(bcos::Address const& callee)
+{
+    bcos::bytes code;
+    code.reserve(32);
+    static constexpr uint8_t pushZeros[] = {0x60, 0x00, 0x60, 0x00, 0x60, 0x00, 0x60, 0x00};
+    code.insert(code.end(), std::begin(pushZeros), std::end(pushZeros));
+    code.push_back(0x60);
+    code.push_back(0x01);
+    code.push_back(0x73);
+    code.insert(code.end(), callee.begin(), callee.end());
+    code.push_back(0x5a);
+    code.push_back(0xf1);
+    code.push_back(0x00);
+    return code;
+}
+
+/// `program.New().Sstore(slot, value)` for single-byte slot/value.
+inline bcos::bytes sstoreSlotValueBytecode(uint8_t slot, uint8_t value)
+{
+    return {0x60, value, 0x60, slot, 0x55, 0x00};
+}
+
+inline evmc_bytes32 bytes32WithTrailingByte(uint8_t value)
+{
+    evmc_bytes32 out{};
+    out.bytes[31] = value;
+    return out;
+}
+
+inline evmc_address evmcAddr19(uint8_t suffix)
+{
+    evmc_address a{};
+    a.bytes[19] = suffix;
+    return a;
+}
+
+inline bcos::Address address19(uint8_t suffix)
+{
+    evmc_address a = evmcAddr19(suffix);
+    bcos::Address out;
+    std::memcpy(out.data(), a.bytes, sizeof(a.bytes));
+    return out;
+}
+
 inline void setPragueFeatures(bcos::ledger::LedgerConfig& ledgerConfig)
 {
     bcos::ledger::Features features;
@@ -121,6 +189,48 @@ task::Task<std::optional<bcos::storage::Entry>> readAccountCode(
 {
     bcos::ledger::account::EVMAccount<Storage> account(storage, addr, binaryAddress);
     co_return co_await account.code();
+}
+
+/// geth runtime_test.go TestDelegatedAccountAccessCost: CALL(authority) bytecode.
+inline bcos::bytes callDelegatedAccountBytecode(uint8_t authoritySuffix)
+{
+    return {0x60, 0x00, 0x80, 0x80, 0x80, 0x80, 0x60, authoritySuffix, 0x80, 0xf1, 0x50};
+}
+
+/// geth program.New().Return(0, 0)
+inline bcos::bytes const& returnEmptyBytecode()
+{
+    static bcos::bytes const code{0x60, 0x00, 0x60, 0x00, 0xf3};
+    return code;
+}
+
+inline std::shared_ptr<bcostars::protocol::TransactionImpl> makeWeb3Type2Transaction(
+    evmc_address const& sender, bcos::Address const& to, bcos::bytes const& data, uint64_t gasLimit,
+    uint64_t txNonce = 0, bcos::u256 value = 0)
+{
+    bcos::rpc::Web3Transaction w3;
+    w3.type = bcos::rpc::TransactionType::EIP1559;
+    w3.chainId = 1;
+    w3.nonce = txNonce;
+    w3.maxPriorityFeePerGas = 1;
+    w3.maxFeePerGas = 2;
+    w3.gasLimit = gasLimit;
+    w3.to = to;
+    w3.value = value;
+    w3.data = data;
+    w3.signatureR = bcos::bytes(32, 0x11);
+    w3.signatureS = bcos::bytes(32, 0x22);
+    w3.signatureV = 27;
+
+    auto tarsHolder = std::make_shared<bcostars::Transaction>(w3.takeToTarsTransaction());
+    auto const signBytes = w3.encodeForSign();
+    tarsHolder->extraTransactionBytes.assign(signBytes.begin(), signBytes.end());
+    auto const txHash = w3.hashForSign();
+    tarsHolder->extraTransactionHash.assign(txHash.begin(), txHash.end());
+    tarsHolder->sender.assign(sender.bytes, sender.bytes + sizeof(sender.bytes));
+
+    return std::make_shared<bcostars::protocol::TransactionImpl>(
+        [tarsHolder]() { return tarsHolder.get(); });
 }
 
 inline std::shared_ptr<bcostars::protocol::TransactionImpl> makeWeb3Type4Transaction(

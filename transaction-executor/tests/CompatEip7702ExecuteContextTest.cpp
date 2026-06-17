@@ -35,24 +35,6 @@ using bcos::ledger::account::EVMAccount;
 namespace bcos::test
 {
 
-namespace
-{
-evmc_address evmcAddr19(uint8_t suffix)
-{
-    evmc_address a{};
-    a.bytes[19] = suffix;
-    return a;
-}
-
-Address address19(uint8_t suffix)
-{
-    evmc_address a = evmcAddr19(suffix);
-    Address out;
-    std::memcpy(out.data(), a.bytes, sizeof(a.bytes));
-    return out;
-}
-}  // namespace
-
 class CompatEip7702ExecFixture
 {
 public:
@@ -106,6 +88,39 @@ public:
 };
 
 BOOST_FIXTURE_TEST_SUITE(CompatEip7702ExecuteContext, CompatEip7702ExecFixture)
+
+BOOST_AUTO_TEST_CASE(AppliesWithChainIdZeroWildcard)
+{
+    syncWait([this]() -> task::Task<void> {
+        auto const keyPair = testAuthorityKeyPair();
+        auto const authority = authorityAddressFromKey(cryptoSuite->hashImpl(), keyPair);
+        auto const authorityEvmc = executor::addressToEvmc(authority);
+        auto const target = address19(0x21);
+
+        EVMAccount<decltype(storage)> authorityAccount(storage, authorityEvmc, false);
+        co_await authorityAccount.create();
+        co_await authorityAccount.setNonce("0");
+
+        // chainId=0 in tuple matches any ledger chain id (geth SetCodeAuthorization semantics).
+        auto auth = signAuthorizationTuple(cryptoSuite->hashImpl(), keyPair, 0, target, 0);
+
+        evmc_address sender = evmcAddr19(0x11);
+        co_await fundSender(sender);
+
+        auto tx = makeWeb3Type4Transaction(*cryptoSuite, {auth}, sender, Address{}, bytes{}, 0);
+        co_await runSteps01(*tx);
+
+        auto const expected = makeDelegationIndicatorCode(target);
+        auto const codeEntry = co_await readAccountCode(storage, authorityEvmc, false);
+        BOOST_REQUIRE(codeEntry);
+        auto const view = codeEntry->get();
+        BOOST_REQUIRE_EQUAL(view.size(), expected.size());
+        BOOST_CHECK(executor::isEip7702DelegationIndicator(
+            bytesConstRef(reinterpret_cast<byte const*>(view.data()), view.size())));
+        auto const nonce = co_await authorityAccount.nonce();
+        BOOST_CHECK_EQUAL(nonce.value(), "1");
+    }());
+}
 
 BOOST_AUTO_TEST_CASE(SkipsInvalidChainId)
 {
@@ -513,7 +528,16 @@ BOOST_AUTO_TEST_CASE(recipient_delegation_target_warmed_before_call)
             .recipient = authorityEvmc,
             .sender = origin,
             .input_data = nullptr,
-            .input_size = 0};
+            .input_size = 0,
+            .value = {},
+            .create2_salt = {},
+            .code_address = {},
+            .code = nullptr,
+            .code_size = 0,
+            .destination_ptr = nullptr,
+            .destination_len = 0,
+            .sender_ptr = nullptr,
+            .sender_len = 0};
         int64_t seq = 0;
         HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)> host(
             rollbackableStorage, rollbackableTransientStorage, blockHeader, message, origin, "", 0,

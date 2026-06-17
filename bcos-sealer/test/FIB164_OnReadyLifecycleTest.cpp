@@ -29,9 +29,10 @@
 #include "bcos-tars-protocol/protocol/BlockHeaderFactoryImpl.h"
 #include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
 #include <bcos-utilities/Worker.h>
-#include <boost/asio/io_context.hpp>
 #include <boost/asio/executor_work_guard.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/test/unit_test.hpp>
+#include <future>
 #include <memory>
 #include <thread>
 
@@ -93,6 +94,16 @@ bcos::sealer::SealerConfig::Ptr makeSealerConfig()
     return std::make_shared<bcos::sealer::SealerConfig>(blockFactory, txpool, nullptr);
 }
 
+// Worker::startWorking() and Sealer::notify() post handlers to the shared
+// io_context. Drain them before synchronous teardown to avoid timer/handler
+// races (bad_executor / use-after-free) on fast test paths.
+void pumpIoContext(boost::asio::io_context& ioContext)
+{
+    while (ioContext.poll_one() > 0)
+    {
+    }
+}
+
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(FIB164_OnReadyLifecycle)
@@ -109,6 +120,7 @@ BOOST_AUTO_TEST_CASE(callback_no_uaf_after_sealer_destroyed)
     {
         auto sealer = std::make_shared<bcos::sealer::Sealer>(cfg, ioContext);
         sealer->start();
+        pumpIoContext(ioContext);
         // Acquire a strong reference to the SealingManager so it outlives the
         // Sealer. The onReady callback (registered in start()) holds a
         // weak_ptr<Sealer>, so it should safely no-op after Sealer destruction.
@@ -141,7 +153,16 @@ BOOST_AUTO_TEST_CASE(callback_invokes_noteGenerateProposal_while_sealer_alive)
     auto cfg = makeSealerConfig();
     auto sealer = std::make_shared<bcos::sealer::Sealer>(cfg, ioContext);
     sealer->start();
+
+    // Ensure the executor is alive and can accept posted work before
+    // resetSealingInfo triggers the onReady callback path.
+    std::promise<void> ready;
+    auto future = ready.get_future();
+    boost::asio::post(ioContext, [&ready]() { ready.set_value(); });
+    future.get();
+
     BOOST_CHECK_NO_THROW(sealer->sealingManager()->resetSealingInfo(2, 1000, 1));
+    pumpIoContext(ioContext);
     sealer->stop();
 
     // Manually reset sealer while io_context is alive

@@ -64,6 +64,7 @@ endif()
 set(TMPFILE "${FISCO_BCOS_DST_DIR}/BuildInfo.h.tmp")
 set(OUTFILE "${FISCO_BCOS_DST_DIR}/BuildInfo.h")
 
+file(MAKE_DIRECTORY "${FISCO_BCOS_DST_DIR}")
 configure_file("${FISCO_BCOS_BUILDINFO_IN}" "${TMPFILE}")
 
 replace_if_different("${TMPFILE}" "${OUTFILE}" CREATE)

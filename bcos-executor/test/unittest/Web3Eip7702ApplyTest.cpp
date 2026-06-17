@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstring>
 #include <intx/intx.hpp>
+#include <span>
 
 using namespace bcos;
 using namespace bcos::executor;
@@ -83,11 +84,12 @@ BOOST_AUTO_TEST_CASE(recover_rejects_high_s)
     Address const target("0x2222222222222222222222222222222222222222");
     auto auth = signTuple(hashImpl, keyPair, 1, target, 0);
 
-    auto s = intx::be::load<intx::uint256>(auth.s);
+    auto s = intx::be::load<intx::uint256>(
+        std::span<uint8_t const, bcos::h256::SIZE>(auth.s.data(), bcos::h256::SIZE));
     constexpr auto N = intx::from_string<intx::uint256>(
         "0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
     s = N - s;
-    intx::be::store(auth.s, s);
+    intx::be::store(std::span<uint8_t, bcos::h256::SIZE>(auth.s.data(), bcos::h256::SIZE), s);
 
     BOOST_CHECK(!recoverEip7702Authority(hashImpl, auth));
 }

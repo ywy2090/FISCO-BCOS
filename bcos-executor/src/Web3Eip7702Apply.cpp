@@ -4,6 +4,7 @@
 #include <cstring>
 #include <intx/intx.hpp>
 #include <limits>
+#include <span>
 
 namespace bcos::executor
 {
@@ -14,14 +15,20 @@ constexpr auto SECP256K1_N = intx::from_string<intx::uint256>(
     "0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
 constexpr auto SECP256K1_HALF_N = SECP256K1_N / 2;
 
+intx::uint256 loadH256AsUint256(bcos::h256 const& hash) noexcept
+{
+    return intx::be::load<intx::uint256>(
+        std::span<uint8_t const, bcos::h256::SIZE>(hash.data(), bcos::h256::SIZE));
+}
+
 bool validateEip7702SignatureValues(Eip7702Authorization const& auth) noexcept
 {
     if (auth.yParity != 0 && auth.yParity != 1)
     {
         return false;
     }
-    auto const r = intx::be::load<intx::uint256>(auth.r);
-    auto const s = intx::be::load<intx::uint256>(auth.s);
+    auto const r = loadH256AsUint256(auth.r);
+    auto const s = loadH256AsUint256(auth.s);
     if (r < 1 || s < 1)
     {
         return false;

@@ -165,16 +165,20 @@ BOOST_AUTO_TEST_CASE(cleanup_on_exception)
     auto pool = makeInspectable(m_txpool);
     auto h = makeBlockHashFib154(8);
 
-    BOOST_CHECK(pool->tryAcquirePreStoreSlot(h) ==
-                InspectableTxPool::PreStoreAdmission::Accepted);
-    try
-    {
-        throw std::runtime_error("simulated storeVerifiedBlock failure");
-    }
-    catch (std::exception const&)
-    {
-        pool->releasePreStoreSlot(h);
-    }
+    BOOST_REQUIRE(pool->tryAcquirePreStoreSlot(h) ==
+                  InspectableTxPool::PreStoreAdmission::Accepted);
+
+    BOOST_CHECK_NO_THROW([&]() {
+        try
+        {
+            throw std::runtime_error("simulated storeVerifiedBlock failure");
+        }
+        catch (std::exception const&)
+        {
+            pool->releasePreStoreSlot(h);
+        }
+    }());
+
     BOOST_CHECK_EQUAL(inflightSize(*pool), 0u);
 }
 
