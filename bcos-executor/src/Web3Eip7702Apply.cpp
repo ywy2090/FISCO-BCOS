@@ -10,6 +10,32 @@ namespace bcos::executor
 namespace
 {
 constexpr uint8_t EIP7702_SIGN_MAGIC = 0x05;
+constexpr auto SECP256K1_N = intx::from_string<intx::uint256>(
+    "0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+constexpr auto SECP256K1_HALF_N = SECP256K1_N / 2;
+
+bool validateEip7702SignatureValues(Eip7702Authorization const& auth) noexcept
+{
+    if (auth.yParity != 0 && auth.yParity != 1)
+    {
+        return false;
+    }
+    auto const r = intx::be::load<intx::uint256>(auth.r);
+    auto const s = intx::be::load<intx::uint256>(auth.s);
+    if (r < 1 || s < 1)
+    {
+        return false;
+    }
+    if (r >= SECP256K1_N || s >= SECP256K1_N)
+    {
+        return false;
+    }
+    if (s > SECP256K1_HALF_N)
+    {
+        return false;
+    }
+    return true;
+}
 
 uint64_t evmcChainIdToU64(evmc_uint256be const& chainId) noexcept
 {
@@ -35,6 +61,10 @@ bool isEip7702DelegationIndicator(bcos::bytesConstRef code) noexcept
 std::optional<bcos::Address> recoverEip7702Authority(
     crypto::Hash::Ptr const& hashImpl, Eip7702Authorization const& auth)
 {
+    if (!validateEip7702SignatureValues(auth))
+    {
+        return std::nullopt;
+    }
     bcos::bytes rlpList;
     codec::rlp::encode(rlpList, auth.chainId, auth.address, auth.nonce);
 

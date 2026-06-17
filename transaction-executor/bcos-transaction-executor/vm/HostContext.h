@@ -344,6 +344,30 @@ public:
         }
     }
 
+    task::Task<void> warmEip7702RecipientDelegationTarget()
+    {
+        if (!m_eip2929Access || m_revision < EVMC_PRAGUE ||
+            !m_ledgerConfig.get().features().get(ledger::Features::Flag::feature_evm_prague))
+        {
+            co_return;
+        }
+        if (m_web3TypedTxKindForAccessList != EIP_7702_WEB3_TX_TYPE)
+        {
+            co_return;
+        }
+        auto const& ref = message();
+        if (ref.kind != EVMC_CALL)
+        {
+            co_return;
+        }
+        auto const target = co_await resolveDelegateCodeAddress(ref.recipient);
+        if (std::memcmp(target.bytes, ref.recipient.bytes, sizeof(evmc_address)) != 0)
+        {
+            (void)m_eip2929Access->warmUpAddressNoJournal(target);
+        }
+        co_return;
+    }
+
     ~HostContext() noexcept = default;
     HostContext(HostContext const&) = default;
     HostContext& operator=(HostContext const&) = default;

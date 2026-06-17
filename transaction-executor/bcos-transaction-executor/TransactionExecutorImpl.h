@@ -157,6 +157,7 @@ public:
                     // post-execute savepoint so balance rollback and EVM REVERT do not undo it.
                     co_await applyEip7702AuthorizationList();
                     m_data->m_hostContext.warmEip7702Addresses();
+                    co_await m_data->m_hostContext.warmEip7702RecipientDelegationTarget();
                     m_data->m_startSavepoint = m_data->m_rollbackableStorage.current();
                 }
 
