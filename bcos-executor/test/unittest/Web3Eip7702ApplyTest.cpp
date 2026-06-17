@@ -11,6 +11,7 @@
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <cstring>
+#include <intx/intx.hpp>
 
 using namespace bcos;
 using namespace bcos::executor;
@@ -73,6 +74,31 @@ BOOST_AUTO_TEST_CASE(recover_invalid_y_parity_returns_nullopt)
     auth.yParity = 9;
 
     BOOST_CHECK(!recoverEip7702Authority(hashImpl, auth));
+}
+
+BOOST_AUTO_TEST_CASE(recover_rejects_high_s)
+{
+    auto const hashImpl = std::make_shared<crypto::Keccak256>();
+    auto const keyPair = testKeyPair();
+    Address const target("0x2222222222222222222222222222222222222222");
+    auto auth = signTuple(hashImpl, keyPair, 1, target, 0);
+
+    auto s = intx::be::load<intx::uint256>(auth.s);
+    constexpr auto N = intx::from_string<intx::uint256>(
+        "0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+    s = N - s;
+    intx::be::store(auth.s, s);
+
+    BOOST_CHECK(!recoverEip7702Authority(hashImpl, auth));
+}
+
+BOOST_AUTO_TEST_CASE(chain_id_zero_matches_any_ledger)
+{
+    evmc_uint256be ledgerChain{};
+    intx::be::store(ledgerChain.bytes, intx::uint256{42});
+    BOOST_CHECK(eip7702ChainIdMatches(0, ledgerChain));
+    BOOST_CHECK(eip7702ChainIdMatches(42, ledgerChain));
+    BOOST_CHECK(!eip7702ChainIdMatches(43, ledgerChain));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
