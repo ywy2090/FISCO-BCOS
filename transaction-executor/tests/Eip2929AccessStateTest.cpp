@@ -1,7 +1,7 @@
 /*
  * EIP-2929 checkpoint journal unit tests (TE scope revert warm rollback).
  */
-#include "bcos-evm/ethereum/eip2929/Eip2929AccessState.h"
+#include "bcos-evm/eth/eip2929/Eip2929AccessState.h"
 #include "Eip2929TestHelpers.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"

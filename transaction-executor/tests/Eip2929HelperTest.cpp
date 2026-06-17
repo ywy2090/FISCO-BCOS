@@ -2,11 +2,11 @@
  * Unit tests for Eip2929Util, Eip2929PrecompileWarm, and Eip2929TransactionPrewarm.
  */
 #include "Eip2929TestHelpers.h"
-#include "bcos-evm/ethereum/RevisionConfig.h"
-#include "bcos-evm/ethereum/eip2929/Eip2929AccessState.h"
-#include "bcos-evm/ethereum/eip2929/Eip2929PrecompileWarm.h"
-#include "bcos-evm/ethereum/eip2929/Eip2929TransactionPrewarm.h"
-#include "bcos-evm/ethereum/eip2929/Eip2929Util.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip2929/Eip2929AccessState.h"
+#include "bcos-evm/eth/eip2929/Eip2929PrecompileWarm.h"
+#include "bcos-evm/eth/eip2929/Eip2929TransactionPrewarm.h"
+#include "bcos-evm/eth/eip2929/Eip2929Util.h"
 #include "bcos-executor/src/Common.h"
 #include <boost/test/unit_test.hpp>
 #include <algorithm>

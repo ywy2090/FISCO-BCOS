@@ -1,7 +1,7 @@
 #pragma once
 
 #include "PrecompiledImpl.h"
-#include "bcos-evm/ethereum/RevisionConfig.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-framework/ledger/Features.h"
 
 namespace bcos::executor_v1

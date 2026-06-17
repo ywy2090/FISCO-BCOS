@@ -1,14 +1,14 @@
-#include "bcos-transaction-executor/vm/StandardEthPolicy.h"
+#include "bcos-transaction-executor/vm/EthPolicy.h"
 #include <evmc/evmc.h>
 #include <boost/test/unit_test.hpp>
 
 using namespace bcos::evm_standard;
 
-BOOST_AUTO_TEST_SUITE(StandardEthPolicyTest)
+BOOST_AUTO_TEST_SUITE(EthPolicyTest)
 
 BOOST_AUTO_TEST_CASE(computeRevisionConfigPrague)
 {
-    StandardEthPolicy policy;
+    EthPolicy policy;
     protocol::BlockHeader header;
     header.setNumber(23000000);
 
@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigPrague)
 
 BOOST_AUTO_TEST_CASE(computeRevisionConfigLondon)
 {
-    StandardEthPolicy policy;
+    EthPolicy policy;
     protocol::BlockHeader header;
     header.setNumber(13000000);
 
@@ -45,13 +45,13 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigLondon)
 
 BOOST_AUTO_TEST_CASE(allowDelegateCallToPrecompile)
 {
-    StandardEthPolicy policy;
+    EthPolicy policy;
     BOOST_CHECK(policy.allowDelegateCallToPrecompile());
 }
 
 BOOST_AUTO_TEST_CASE(convertTimestamp)
 {
-    StandardEthPolicy policy;
+    EthPolicy policy;
     BOOST_CHECK_EQUAL(policy.convertTimestamp(1000), 1);
     BOOST_CHECK_EQUAL(policy.convertTimestamp(1500), 1);
     BOOST_CHECK_EQUAL(policy.convertTimestamp(0), 0);

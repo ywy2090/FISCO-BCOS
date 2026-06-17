@@ -1,7 +1,7 @@
 #pragma once
 #include "bcos-crypto/ChecksumAddress.h"
-#include "bcos-evm/ethereum/RevisionConfig.h"
-#include "bcos-evm/ethereum/vm/VMInstance.h"  // toRevision
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/vm/VMInstance.h"  // toRevision
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/BlockHeader.h"

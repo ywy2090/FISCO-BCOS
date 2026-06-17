@@ -26,7 +26,7 @@
 
 #include "../dag/CriticalFields.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/ethereum/vm/VMFactory.h"
+#include "bcos-evm/eth/vm/VMFactory.h"
 #include "bcos-executor/src/executive/LedgerCache.h"
 #include "bcos-framework/executor/ExecutionMessage.h"
 #include "bcos-framework/executor/ParallelTransactionExecutorInterface.h"

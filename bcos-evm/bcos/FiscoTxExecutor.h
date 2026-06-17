@@ -1,5 +1,5 @@
 #pragma once
-#include "bcos-evm/ethereum/EVMCResult.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"

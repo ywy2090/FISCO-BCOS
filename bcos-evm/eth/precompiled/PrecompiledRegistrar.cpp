@@ -19,7 +19,7 @@
  * @date: 2021-05-24
  */
 
-#include "bcos-evm/ethereum/precompiled/PrecompiledRegistrar.h"
+#include "bcos-evm/eth/precompiled/PrecompiledRegistrar.h"
 #include <boost/throw_exception.hpp>
 
 using namespace bcos;

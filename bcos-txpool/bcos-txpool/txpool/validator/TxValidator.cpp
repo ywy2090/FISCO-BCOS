@@ -19,8 +19,8 @@
  * @date 2021-05-11
  */
 #include "TxValidator.h"
-#include "bcos-evm/ethereum/gas/EthTxGasSettlement.h"
-#include "bcos-evm/ethereum/vm/VMInstance.h"
+#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/vm/VMInstance.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/bcos-framework/ledger/Ledger.h"

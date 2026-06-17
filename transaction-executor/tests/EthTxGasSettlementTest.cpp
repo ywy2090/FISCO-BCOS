@@ -1,8 +1,8 @@
 /*
  * Unit tests for EIP-7623 TE gas settlement helpers (spec §6.1).
  */
-#include "bcos-evm/ethereum/gas/EthTxGasSettlement.h"
-#include "bcos-evm/ethereum/vm/VMInstance.h"
+#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/vm/VMInstance.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/Features.h"

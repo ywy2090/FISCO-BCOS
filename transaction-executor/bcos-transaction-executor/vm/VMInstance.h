@@ -1,2 +1,2 @@
 #pragma once
-#include "bcos-evm/ethereum/vm/VMInstance.h"
+#include "bcos-evm/eth/vm/VMInstance.h"

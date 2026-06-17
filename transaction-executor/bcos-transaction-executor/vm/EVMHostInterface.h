@@ -1,2 +1,2 @@
 #pragma once
-#include "bcos-evm/ethereum/vm/EVMHostInterface.h"
+#include "bcos-evm/eth/vm/EVMHostInterface.h"

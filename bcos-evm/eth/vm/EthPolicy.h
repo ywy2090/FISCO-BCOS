@@ -7,7 +7,7 @@
 namespace bcos::evm_standard
 {
 
-struct StandardEthPolicy
+struct EthPolicy
 {
     RevisionConfig computeRevisionConfig(const protocol::BlockHeader& header) const
     {
