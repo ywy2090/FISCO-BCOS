@@ -173,11 +173,18 @@ EthHost::bytes32 EthHost::get_block_hash(int64_t number) const noexcept
 void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_size,
     const bytes32 topics[], size_t num_topics) noexcept
 {
-    (void)addr;
-    (void)data;
-    (void)data_size;
-    (void)topics;
-    (void)num_topics;
+    LogEntry entry;
+    entry.address = addr;
+    if (data != nullptr && data_size > 0)
+    {
+        entry.data.assign(data, data + data_size);
+    }
+    entry.topics.reserve(num_topics);
+    for (size_t i = 0; i < num_topics; ++i)
+    {
+        entry.topics.push_back(topics[i]);
+    }
+    m_logs.push_back(std::move(entry));
 }
 
 evmc_access_status EthHost::access_account(const address& addr) noexcept
@@ -210,6 +217,11 @@ void EthHost::set_transient_storage(
     const address& addr, const bytes32& key, const bytes32& value) noexcept
 {
     m_state.set_transient_storage(addr, key, value);
+}
+
+std::vector<LogEntry> EthHost::take_logs()
+{
+    return std::exchange(m_logs, {});
 }
 
 bool EthHost::isCreateKind(evmc_call_kind kind) noexcept

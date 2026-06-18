@@ -21,6 +21,7 @@
 
 #include "bcos-evm/eth/policy/HostExtension.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/Transaction.hpp"
 #include <evmc/evmc.hpp>
 #include <optional>
 #include <string_view>
@@ -60,6 +61,7 @@ public:
     bytes32 get_transient_storage(const address& addr, const bytes32& key) const noexcept final;
     void set_transient_storage(
         const address& addr, const bytes32& key, const bytes32& value) noexcept final;
+    std::vector<LogEntry> take_logs();
 
 private:
     struct RoutedCall
@@ -90,5 +92,6 @@ private:
         WarmStorageKeyEqual>
         m_storageOriginalValues;
     bool m_fixStorageStatus{true};
+    std::vector<LogEntry> m_logs;
 };
 }  // namespace bcos::evm::state

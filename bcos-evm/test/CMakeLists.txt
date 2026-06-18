@@ -48,6 +48,25 @@ add_test(
     COMMAND ${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
 )
 
+set(EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME ExecuteViaHostSmokeTest)
+
+add_executable(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
+    ExecuteViaHostSmokeTest.cpp
+)
+
+target_include_directories(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME ExecuteViaHostSmoke
+    COMMAND ${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
+)
+
 set(SMOKE_TEST_BINARY_NAME StateHostSmokeTest)
 
 add_executable(${SMOKE_TEST_BINARY_NAME}
