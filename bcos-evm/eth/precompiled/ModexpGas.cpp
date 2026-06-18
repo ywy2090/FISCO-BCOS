@@ -6,8 +6,8 @@
  */
 
 #include "ModexpGas.h"
-#include "bcos-executor/src/Common.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
+#include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.h>
 #include <algorithm>
 #include <limits>

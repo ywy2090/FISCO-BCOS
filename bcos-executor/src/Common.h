@@ -27,6 +27,7 @@
 
 #include "bcos-concepts/ByteBuffer.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-framework/ledger/LedgerTypeDef.h"
 #include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-framework/storage/LegacyStorageMethods.h"
@@ -228,54 +229,11 @@ static const VMSchedule FiscoBcosScheduleOsaka = [] {
 
 constexpr static int64_t BALANCE_TRANSFER_GAS = 21000;
 
-// EIP-7623: calldata floor cost constants (Prague+)
-// token = 1 for zero byte, TOKENS_PER_NONZERO_BYTE for non-zero byte; floor = tokens * 10
-constexpr static int64_t TOKENS_PER_NONZERO_BYTE = 4;  // EIP-7623 token weight for non-zero byte
-constexpr static int64_t TOTAL_COST_FLOOR_PER_TOKEN = 10;  // EIP-7623 floor cost per token
-
-/// EIP-7623 calldata cost breakdown (normal vs floor).
-struct Eip7623Components
-{
-    int64_t normalCost = 0;
-    int64_t floorCost = 0;
-    int64_t tokenCount = 0;
-};
-
-inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data)
-{
-    constexpr auto maxSafeBytes =
-        static_cast<size_t>(std::numeric_limits<int64_t>::max() /
-                            (TOKENS_PER_NONZERO_BYTE * TOTAL_COST_FLOOR_PER_TOKEN));
-    if (data.size() > maxSafeBytes)
-    {
-        return {std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max(),
-            std::numeric_limits<int64_t>::max()};
-    }
-
-    Eip7623Components components;
-    for (auto byte : data)
-    {
-        if (byte == 0)
-        {
-            components.normalCost += 4;
-            ++components.tokenCount;
-        }
-        else
-        {
-            components.normalCost += 16;
-            components.tokenCount += TOKENS_PER_NONZERO_BYTE;
-        }
-    }
-    components.floorCost = components.tokenCount * TOTAL_COST_FLOOR_PER_TOKEN;
-    return components;
-}
-
-/// EIP-7623 calldata floor: max(standard calldata gas, tokens * 10).
-inline int64_t calcEip7623CalldataGas(bcos::bytesConstRef data)
-{
-    auto const components = calcEip7623Components(data);
-    return std::max(components.normalCost, components.floorCost);
-}
+using bcos::evm::gas::calcEip7623CalldataGas;
+using bcos::evm::gas::calcEip7623Components;
+using bcos::evm::gas::Eip7623Components;
+using bcos::evm::gas::TOKENS_PER_NONZERO_BYTE;
+using bcos::evm::gas::TOTAL_COST_FLOOR_PER_TOKEN;
 
 constexpr evmc_gas_metrics ethMetrics{32000, 20000, 5000, 200, 9000, 2300, 25000};
 

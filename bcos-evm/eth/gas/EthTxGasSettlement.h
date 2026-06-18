@@ -6,8 +6,8 @@
  */
 #pragma once
 
-#include "bcos-executor/src/CallParameters.h"
-#include "bcos-executor/src/Common.h"
+#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/gas/Eip7623.h"
 #include <evmc/evmc.h>
 #include <algorithm>
 
@@ -47,14 +47,14 @@ struct TxGasSettlementContext
 {
     int64_t gasLimit = 0;
     int64_t gasBeforeEvm = 0;
-    executor::Eip7623Components calldata{};
+    gas::Eip7623Components calldata{};
     int64_t fixedIntrinsic = 0;
     int64_t createTerm = 0;
     int64_t evmGasLeft = 0;
     int64_t evmGasRefund = 0;
 };
 
-inline int64_t calcAccessListCost(executor::Eip2930AccessList const* accessList) noexcept
+inline int64_t calcAccessListCost(Eip2930AccessList const* accessList) noexcept
 {
     if (accessList == nullptr)
     {
@@ -80,12 +80,12 @@ inline int64_t calcCreateIntrinsic(evmc_message const& message) noexcept
     return CREATE_BASE_GAS + INITCODE_WORD_GAS * words;
 }
 
-inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
-    executor::Eip2930AccessList const* accessList, uint8_t web3TypedTxKind)
+inline TxIntrinsicGas computeTxIntrinsicGas(
+    evmc_message const& message, Eip2930AccessList const* accessList, uint8_t web3TypedTxKind)
 {
     TxIntrinsicGas intrinsic;
-    auto const components = executor::calcEip7623Components(
-        bcos::bytesConstRef(message.input_data, message.input_size));
+    auto const components =
+        gas::calcEip7623Components(bcos::bytesConstRef(message.input_data, message.input_size));
     intrinsic.normalCalldata = components.normalCost;
     intrinsic.floorReserve = components.floorCost;
 
