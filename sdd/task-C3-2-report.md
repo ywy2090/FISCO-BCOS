@@ -44,3 +44,13 @@ Executed in this workspace:
 
 Result: all registered `bcos-evm` tests pass, including `ExecuteViaHostSmoke`.
 
+## 2026-06-18 BUG-1 Fix
+
+- `ExecuteViaHost.cpp` `NotFoundCodeError` handler: changed `message.flags == EVMC_STATIC` to
+  `(message.flags & EVMC_STATIC) != 0` so combined EVMC flag bits are handled correctly (matches
+  `HostContext.h` bit-check pattern at line 591).
+
+### Follow-up Verification
+
+- `ctest --test-dir build/bcos-evm/test -R ExecuteViaHost` ✅
+

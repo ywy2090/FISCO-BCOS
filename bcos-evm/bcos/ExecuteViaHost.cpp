@@ -386,7 +386,7 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
     }
     catch (NotFoundCodeError&)
     {
-        if (message.flags == EVMC_STATIC || message.kind == EVMC_DELEGATECALL)
+        if ((message.flags & EVMC_STATIC) != 0 || message.kind == EVMC_DELEGATECALL)
         {
             output.evmcResult = makeErrorEVMCResult(*input.hashImpl,
                 protocol::TransactionStatus::None, EVMC_SUCCESS, message.gas, "", false);
