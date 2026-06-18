@@ -14,8 +14,8 @@
 #include "TestMemoryStorage.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/eth/vm/VMInstance.h"
-#include "bcos-evm/eth/warmset/Eip2929AccessState.h"
 #include "bcos-executor/src/CallParameters.h"
+#include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
@@ -79,11 +79,11 @@ public:
         evmc_call_kind kindIn = EVMC_CALL,
         std::shared_ptr<const bcos::executor::Eip2930AccessList> eip2930AccessList = {},
         uint8_t web3TypedTxKindForAccessList = 0, int64_t gas = 1'000'000,
-        std::shared_ptr<bcos::evm::Eip2929AccessState> warmsetAccess = nullptr)
+        std::shared_ptr<bcos::executor::Eip2929AccessState> warmsetAccess = nullptr)
     {
         if (!warmsetAccess)
         {
-            warmsetAccess = std::make_shared<bcos::evm::Eip2929AccessState>();
+            warmsetAccess = std::make_shared<bcos::executor::Eip2929AccessState>();
         }
         ledgerConfig.setFeatures(features);
         blockHeader.setVersion(blockHeaderVersion);
@@ -282,7 +282,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_warmset_warm_storage)
 
 BOOST_AUTO_TEST_CASE(TE_FC_A_warmup_api_idempotent)
 {
-    bcos::evm::Eip2929AccessState accessState;
+    bcos::executor::Eip2929AccessState accessState;
     evmc_address addr{};
     std::memset(addr.bytes, 0x51, sizeof(addr.bytes));
     evmc_bytes32 key{};
@@ -371,7 +371,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_warmset_flag_off_never_mutates_warm_set)
     features.set(bcos::ledger::Features::Flag::feature_evm_cancun);
     features.set(bcos::ledger::Features::Flag::feature_evm_prague);
 
-    auto access = std::make_shared<bcos::evm::Eip2929AccessState>();
+    auto access = std::make_shared<bcos::executor::Eip2929AccessState>();
     evmc_address origin{};
     origin.bytes[19] = 0x01;
     evmc_address recipient{};

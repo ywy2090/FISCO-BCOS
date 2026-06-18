@@ -94,7 +94,7 @@ public:
             rollbackableStorage, rollbackableTransientStorage, blockHeader, message, origin, "", 0,
             seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0, bcos::task::syncWait,
             std::move(eip2930AccessList), web3TypedTxKindForAccessList,
-            std::make_shared<bcos::evm::Eip2929AccessState>());
+            std::make_shared<bcos::executor::Eip2929AccessState>());
     }
 };
 

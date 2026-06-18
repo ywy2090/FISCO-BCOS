@@ -30,7 +30,7 @@ struct Eip2929AccessState;
 /// True when Berlin+ revision semantics apply and EIP-2929 is enabled in revision config.
 inline bool eip2929Enabled(const bcos::evm_standard::RevisionConfig& rev) noexcept
 {
-    return rev.eip2929;
+    return rev.warm_access;
 }
 
 /// Top-level transaction entry (W1/W2) prewarm applies only at CALL depth 0.

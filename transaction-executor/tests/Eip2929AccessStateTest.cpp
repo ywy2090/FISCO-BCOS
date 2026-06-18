@@ -1,14 +1,14 @@
 /*
  * EIP-2929 checkpoint journal unit tests (TE scope revert warm rollback).
  */
-#include "bcos-evm/eth/warmset/Eip2929AccessState.h"
+#include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "Eip2929TestHelpers.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
 #include <boost/test/unit_test.hpp>
 #include <cstring>
 
-using bcos::evm::Eip2929AccessState;
+using bcos::executor::Eip2929AccessState;
 
 BOOST_AUTO_TEST_SUITE(Eip2929AccessStateCheckpoint)
 

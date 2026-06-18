@@ -3,23 +3,23 @@
  */
 #include "Eip2929TestHelpers.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/warmset/Eip2929AccessState.h"
-#include "bcos-evm/eth/warmset/Eip2929PrecompileWarm.h"
-#include "bcos-evm/eth/warmset/Eip2929TransactionPrewarm.h"
-#include "bcos-evm/eth/warmset/Eip2929Util.h"
 #include "bcos-executor/src/Common.h"
+#include "bcos-executor/src/vm/Eip2929AccessState.h"
+#include "bcos-executor/src/vm/Eip2929PrecompileWarm.h"
+#include "bcos-executor/src/vm/Eip2929TransactionPrewarm.h"
+#include "bcos-executor/src/vm/Eip2929Util.h"
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <cstring>
 #include <vector>
 
-using bcos::evm::Eip2929AccessState;
-using bcos::evm::Eip2929TxPrewarmInput;
+using bcos::executor::Eip2929AccessState;
+using bcos::executor::eip2929Enabled;
+using bcos::executor::eip2929TransactionEntryWarmEnabled;
+using bcos::executor::Eip2929TxPrewarmInput;
 using bcos::executor::forEachActivePrecompileAddress;
 using bcos::executor::warmEip2929AtTransactionEntry;
 using bcos::executor::warmEip2930AccessListOnly;
-using bcos::executor::warmsetEnabled;
-using bcos::executor::warmsetTransactionEntryWarmEnabled;
 
 namespace
 {
@@ -54,14 +54,14 @@ bool containsOsakaPrecompile(std::vector<evmc_address> const& addrs)
 bcos::evm_standard::RevisionConfig revWithEip2929On()
 {
     bcos::evm_standard::RevisionConfig rev;
-    rev.warmset = true;
+    rev.warm_access = true;
     return rev;
 }
 
 bcos::evm_standard::RevisionConfig revWithEip2929Off()
 {
     bcos::evm_standard::RevisionConfig rev;
-    rev.warmset = false;
+    rev.warm_access = false;
     return rev;
 }
 }  // namespace
@@ -72,8 +72,8 @@ BOOST_AUTO_TEST_CASE(enabled_requires_warmset_revision_config)
 {
     auto const revOn = revWithEip2929On();
     auto const revOff = revWithEip2929Off();
-    BOOST_CHECK(!warmsetEnabled(revOff));
-    BOOST_CHECK(warmsetEnabled(revOn));
+    BOOST_CHECK(!eip2929Enabled(revOff));
+    BOOST_CHECK(eip2929Enabled(revOn));
 }
 
 BOOST_AUTO_TEST_CASE(transaction_entry_warm_gate)
@@ -81,10 +81,10 @@ BOOST_AUTO_TEST_CASE(transaction_entry_warm_gate)
     Eip2929AccessState state;
     auto const revOn = revWithEip2929On();
     auto const revOff = revWithEip2929Off();
-    BOOST_CHECK(warmsetTransactionEntryWarmEnabled(0, revOn, &state));
-    BOOST_CHECK(!warmsetTransactionEntryWarmEnabled(1, revOn, &state));
-    BOOST_CHECK(!warmsetTransactionEntryWarmEnabled(0, revOn, nullptr));
-    BOOST_CHECK(!warmsetTransactionEntryWarmEnabled(0, revOff, &state));
+    BOOST_CHECK(eip2929TransactionEntryWarmEnabled(0, revOn, &state));
+    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(1, revOn, &state));
+    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, revOn, nullptr));
+    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, revOff, &state));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
