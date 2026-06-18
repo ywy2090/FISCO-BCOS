@@ -27,7 +27,7 @@
 
 namespace bcos::evm::state
 {
-class EthHost : public evmc::HostInterface
+class EthHost : public evmc::Host
 {
 public:
     using address = evmc::address;
