@@ -26,6 +26,7 @@
 
 #include "../dag/CriticalFields.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/precompiled/PrecompiledContract.h"
 #include "bcos-evm/eth/vm/VMFactory.h"
 #include "bcos-executor/src/executive/LedgerCache.h"
 #include "bcos-framework/executor/ExecutionMessage.h"
@@ -55,6 +56,10 @@ namespace precompiled
 class Precompiled;
 struct PrecompiledExecResult;
 }  // namespace precompiled
+namespace evm
+{
+class PrecompiledMap;
+}
 namespace wasm
 {
 class GasInjector;
@@ -66,16 +71,17 @@ enum ExecutorVersion : int32_t
     Version_3_0_0 = 1,
 };
 
+using PrecompiledContract = bcos::evm::PrecompiledContract;
+using PrecompiledMap = bcos::evm::PrecompiledMap;
+
 class TransactionExecutive;
 class ExecutiveFlowInterface;
 class BlockContext;
-class PrecompiledContract;
 template <typename T, typename V>
 class ClockCache;
 class StateStorageFactory;
 struct FunctionAbi;
 struct CallParameters;
-class PrecompiledMap;
 
 using executionCallback = std::function<void(
     const Error::ConstPtr&, std::vector<protocol::ExecutionMessage::UniquePtr>&)>;
@@ -92,7 +98,7 @@ public:
         storage::TransactionalStorageInterface::Ptr backendStorage,
         protocol::ExecutionMessageFactory::Ptr executionMessageFactory,
         storage::StateStorageFactory::Ptr stateStorageFactory, bcos::crypto::Hash::Ptr hashImpl,
-        bool isWasm, bool isAuthCheck, std::shared_ptr<VMFactory> vmFactory,
+        bool isWasm, bool isAuthCheck, std::shared_ptr<evm::VMFactory> vmFactory,
         std::shared_ptr<std::set<std::string, std::less<>>> keyPageIgnoreTables, std::string name);
 
     ~TransactionExecutor() override = default;
@@ -309,7 +315,7 @@ protected:
     std::shared_mutex m_stateStoragesMutex;
 
     std::shared_ptr<std::map<std::string, std::shared_ptr<PrecompiledContract>>> m_evmPrecompiled;
-    std::shared_ptr<executor::PrecompiledMap> m_precompiled;
+    std::shared_ptr<PrecompiledMap> m_precompiled;
     std::shared_ptr<const std::set<std::string>> m_staticPrecompiled;
 
     unsigned int m_DAGThreadNum = std::max(std::thread::hardware_concurrency(), (unsigned int)1);
@@ -333,7 +339,7 @@ protected:
     std::function<void()> f_onNeedSwitchEvent;
 
     LedgerCache::Ptr m_ledgerCache;
-    std::shared_ptr<VMFactory> m_vmFactory;
+    std::shared_ptr<evm::VMFactory> m_vmFactory;
 };
 
 }  // namespace executor

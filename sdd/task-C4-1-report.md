@@ -49,6 +49,41 @@ Command:
 Result:
 - PASS (`100% tests passed, 0 tests failed out of 8`)
 
+## C4-1 Review Follow-up (on top of 4b2fcc8e8)
+
+### A) EIP-2929 include-path sanity scan (case-insensitive)
+Commands:
+
+- `rtk rg -n -i "eip2929" transaction-executor bcos-evm`
+- `rtk rg -n "warmset/Eip2929|eth/eip2929/Eip2929" .`
+
+Result:
+- no remaining include refs to deleted `bcos-evm/eth/warmset/Eip2929*.h` or `bcos-evm/eth/eip2929/Eip2929*.h`
+- active TE include refs use executor path (e.g. `bcos-executor/src/vm/Eip2929AccessState.h`)
+
+### B) Critical build blocker fixed while validating C4-1
+Issue found during `transaction-executor` target build:
+- `bcos-executor/src/executor/TransactionExecutor.h` still included deleted
+  `bcos-evm/eth/precompiled/PrecompiledRegistrar.h`
+
+Fix applied:
+- removed stale `PrecompiledRegistrar` include/alias in `bcos-executor/src/executor/TransactionExecutor.h`
+- migrated `bcos-executor/src/executor/TransactionExecutor.cpp` builtin precompile registration
+  from `PrecompiledRegistrar::{executor,pricer}(name)` to
+  `bcos::evm::{builtinExecutorBySuffix,builtinPricerBySuffix}(suffix)`
+
+### C) Requested build command
+Command:
+
+`rtk cmake --build build --target bcos-evm transaction-executor test-execute-via-host-compat`
+
+Result:
+- `bcos-evm`: PASS
+- `transaction-executor`: FAIL (build proceeds past deleted `PrecompiledRegistrar.h` include, then fails on
+  existing unrelated compile errors in `bcos-executor/src/executive/TransactionExecutive.cpp`
+  and VMFactory type/signature mismatch paths)
+- `test-execute-via-host-compat`: not reached due upstream `transaction-executor` failure
+
 ## C4-1 Fix Follow-up (post `4b2fcc8e8`)
 
 ### 5) Broken EIP-2929 include-path fixes

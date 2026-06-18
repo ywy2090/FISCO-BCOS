@@ -237,50 +237,47 @@ void TransactionExecutor::initEvmEnvironment()
         stream << std::setfill('0') << std::setw(40) << std::hex << _num;
         return stream.str();
     };
+    auto builtinExec = [](uint16_t suffix) -> bcos::evm::PrecompiledExecutor const& {
+        return bcos::evm::builtinExecutorBySuffix(suffix);
+    };
+    auto builtinPricer = [](uint16_t suffix) -> bcos::evm::PrecompiledPricer const& {
+        return bcos::evm::builtinPricerBySuffix(suffix);
+    };
     m_evmPrecompiled =
         std::make_shared<std::map<std::string, std::shared_ptr<PrecompiledContract>>>();
     m_staticPrecompiled = std::make_shared<std::set<std::string>>();
     m_precompiled = std::make_shared<PrecompiledMap>();
 
-    m_evmPrecompiled->insert(std::make_pair(fillZero(1),
-        make_shared<PrecompiledContract>(3000, 0, PrecompiledRegistrar::executor("ecrecover"))));
-    m_evmPrecompiled->insert(std::make_pair(fillZero(2),
-        make_shared<PrecompiledContract>(60, 12, PrecompiledRegistrar::executor("sha256"))));
-    m_evmPrecompiled->insert(std::make_pair(fillZero(3),
-        make_shared<PrecompiledContract>(600, 120, PrecompiledRegistrar::executor("ripemd160"))));
-    m_evmPrecompiled->insert(std::make_pair(fillZero(4),
-        make_shared<PrecompiledContract>(15, 3, PrecompiledRegistrar::executor("identity"))));
+    m_evmPrecompiled->insert(std::make_pair(
+        fillZero(1), make_shared<PrecompiledContract>(3000, 0, builtinExec(0x0001))));
     m_evmPrecompiled->insert(
-        {fillZero(5), make_shared<PrecompiledContract>(
-                          PrecompiledContract::modexp(PrecompiledRegistrar::executor("modexp")))});
+        std::make_pair(fillZero(2), make_shared<PrecompiledContract>(60, 12, builtinExec(0x0002))));
+    m_evmPrecompiled->insert(std::make_pair(
+        fillZero(3), make_shared<PrecompiledContract>(600, 120, builtinExec(0x0003))));
     m_evmPrecompiled->insert(
-        {fillZero(6), make_shared<PrecompiledContract>(
-                          150, 0, PrecompiledRegistrar::executor("alt_bn128_G1_add"))});
+        std::make_pair(fillZero(4), make_shared<PrecompiledContract>(15, 3, builtinExec(0x0004))));
+    m_evmPrecompiled->insert({fillZero(5),
+        make_shared<PrecompiledContract>(PrecompiledContract::modexp(builtinExec(0x0005)))});
     m_evmPrecompiled->insert(
-        {fillZero(7), make_shared<PrecompiledContract>(
-                          6000, 0, PrecompiledRegistrar::executor("alt_bn128_G1_mul"))});
+        {fillZero(6), make_shared<PrecompiledContract>(150, 0, builtinExec(0x0006))});
+    m_evmPrecompiled->insert(
+        {fillZero(7), make_shared<PrecompiledContract>(6000, 0, builtinExec(0x0007))});
     m_evmPrecompiled->insert({fillZero(8),
-        make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("alt_bn128_pairing_product"),
-            PrecompiledRegistrar::executor("alt_bn128_pairing_product"))});
+        make_shared<PrecompiledContract>(builtinPricer(0x0008), builtinExec(0x0008))});
     m_evmPrecompiled->insert({fillZero(9),
-        make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("blake2_compression"),
-            PrecompiledRegistrar::executor("blake2_compression"))});
+        make_shared<PrecompiledContract>(builtinPricer(0x0009), builtinExec(0x0009))});
     // EIP-2537 BLS12-381 precompiles (Prague) — gated by feature_evm_prague in
     // callBuiltInPrecompiled
-    static const char* bls_names[] = {"bls12_g1add", "bls12_g1msm", "bls12_g2add", "bls12_g2msm",
-        "bls12_pairing_check", "bls12_map_fp_to_g1", "bls12_map_fp2_to_g2"};
     for (int addr = 0x0b; addr <= 0x11; ++addr)
     {
-        const char* name = bls_names[addr - 0x0b];
-        m_evmPrecompiled->insert(
-            {fillZero(addr), make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer(name),
-                                 PrecompiledRegistrar::executor(name))});
+        auto const suffix = static_cast<uint16_t>(addr);
+        m_evmPrecompiled->insert({fillZero(addr),
+            make_shared<PrecompiledContract>(builtinPricer(suffix), builtinExec(suffix))});
     }
 
     // EIP-7212 / RIP-7212 p256verify at 0x0100 (Osaka-gated, guard in HostContext)
     m_evmPrecompiled->insert({std::string(P256VERIFY_PRECOMPILED_ADDRESS),
-        make_shared<PrecompiledContract>(PrecompiledRegistrar::pricer("p256verify"),
-            PrecompiledRegistrar::executor("p256verify"))});
+        make_shared<PrecompiledContract>(builtinPricer(0x0100), builtinExec(0x0100))});
 
 
     auto sysConfig = std::make_shared<precompiled::SystemConfigPrecompiled>(m_hashImpl);
