@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-framework/ledger/Features.h"
 #include <evmc/evmc.h>
 
 namespace bcos::executor
@@ -27,7 +28,13 @@ namespace bcos::executor
 
 struct Eip2929AccessState;
 
-/// True when Berlin+ revision semantics apply and EIP-2929 is enabled in revision config.
+/// Legacy bcos-executor gate: Berlin+ revision and feature_evm_eip2929 flag.
+inline bool eip2929Enabled(evmc_revision revision, ledger::Features const& features) noexcept
+{
+    return revision >= EVMC_BERLIN && features.get(ledger::Features::Flag::feature_evm_eip2929);
+}
+
+/// True when warm access semantics apply in RevisionConfig (executeViaHost / FiscoPolicy path).
 inline bool eip2929Enabled(const bcos::evm_standard::RevisionConfig& rev) noexcept
 {
     return rev.warm_access;
