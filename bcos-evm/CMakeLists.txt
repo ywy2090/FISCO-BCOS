@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.28)
 find_package(evmone CONFIG REQUIRED)
 
 add_library(bcos-evm STATIC
+    bcos/FiscoHostExtension.cpp
     bcos/FiscoStateView.cpp
     eth/vm/VMInstance.cpp
     eth/EVMCResult.cpp

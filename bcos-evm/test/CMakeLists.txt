@@ -33,6 +33,21 @@ add_test(
     COMMAND ${HOOKS_TEST_BINARY_NAME}
 )
 
+set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoHostExtensionTest)
+
+add_executable(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
+    FiscoHostExtensionTest.cpp
+)
+
+target_link_libraries(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME FiscoHostExtension
+    COMMAND ${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
+)
+
 set(SMOKE_TEST_BINARY_NAME StateHostSmokeTest)
 
 add_executable(${SMOKE_TEST_BINARY_NAME}
@@ -89,4 +104,41 @@ target_link_libraries(${SSTORE_STATUS_TEST_BINARY_NAME} PRIVATE
 add_test(
     NAME SstoreStatus
     COMMAND ${SSTORE_STATUS_TEST_BINARY_NAME}
+)
+
+set(PRAGUE_STATE_TEST_BINARY_NAME PragueStateTest)
+
+add_executable(${PRAGUE_STATE_TEST_BINARY_NAME}
+    state/PragueStateTest.cpp
+    ../eth/state/State.cpp
+    ../eth/state/EthHost.cpp
+    ../eth/state/bloom_filter.cpp
+    ../eth/state/EthPrecompiles.cpp
+    ../eth/state/transition.cpp
+    ../eth/precompiled/PrecompiledRegistrar.cpp
+    ../eth/precompiled/PrecompiledContract.cpp
+    ../eth/precompiled/ModexpGas.cpp
+)
+
+target_include_directories(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_compile_definitions(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
+    PRAGUE_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state"
+)
+
+target_link_libraries(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
+    evmone::evmone
+    bcos-task
+    bcos-framework
+    ledger
+    bcos-protocol
+    bcos-utilities
+)
+
+add_test(
+    NAME PragueState
+    COMMAND ${PRAGUE_STATE_TEST_BINARY_NAME}
 )
