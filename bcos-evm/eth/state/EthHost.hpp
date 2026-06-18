@@ -24,6 +24,8 @@
 #include <evmc/evmc.hpp>
 #include <optional>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
 
 namespace bcos::evm::state
 {
@@ -36,7 +38,7 @@ public:
     using Result = evmc::Result;
 
     EthHost(State& state, evmc_tx_context txContext, evmc_revision revision,
-        HostExtension* extension = nullptr);
+        HostExtension* extension = nullptr, bool fixStorageStatus = true);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -74,7 +76,7 @@ private:
     static evmc::Result makeResult(
         evmc_status_code status, int64_t gasLeft, const bcos::bytes& output = {});
     static evmc_storage_status classifyStorageStatus(
-        const evmc_bytes32& oldValue, const evmc_bytes32& newValue) noexcept;
+        const evmc_bytes32& oldValue, const evmc_bytes32& newValue, bool fixStorageStatus) noexcept;
 
     RoutedCall routeCall(const evmc_message& msg) noexcept;
     bool transferValue(const evmc_message& msg) noexcept;
@@ -84,5 +86,9 @@ private:
     evmc_tx_context m_txContext{};
     evmc_revision m_revision{EVMC_CANCUN};
     HostExtension* m_extension{nullptr};
+    std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
+        WarmStorageKeyEqual>
+        m_storageOriginalValues;
+    bool m_fixStorageStatus{true};
 };
 }  // namespace bcos::evm::state

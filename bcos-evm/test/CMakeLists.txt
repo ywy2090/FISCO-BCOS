@@ -71,3 +71,22 @@ add_test(
     NAME WarmTransactionEntry
     COMMAND ${WARM_ENTRY_TEST_BINARY_NAME}
 )
+
+set(SSTORE_STATUS_TEST_BINARY_NAME SstoreStatusTest)
+
+add_executable(${SSTORE_STATUS_TEST_BINARY_NAME}
+    state/SstoreStatusTest.cpp
+)
+
+target_include_directories(${SSTORE_STATUS_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(${SSTORE_STATUS_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME SstoreStatus
+    COMMAND ${SSTORE_STATUS_TEST_BINARY_NAME}
+)

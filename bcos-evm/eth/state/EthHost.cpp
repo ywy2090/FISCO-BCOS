@@ -56,9 +56,13 @@ std::vector<std::string_view> splitByComma(std::string_view input)
 }
 }  // namespace
 
-EthHost::EthHost(
-    State& state, evmc_tx_context txContext, evmc_revision revision, HostExtension* extension)
-  : m_state(state), m_txContext(txContext), m_revision(revision), m_extension(extension)
+EthHost::EthHost(State& state, evmc_tx_context txContext, evmc_revision revision,
+    HostExtension* extension, bool fixStorageStatus)
+  : m_state(state),
+    m_txContext(txContext),
+    m_revision(revision),
+    m_extension(extension),
+    m_fixStorageStatus(fixStorageStatus)
 {}
 
 bool EthHost::account_exists(const address& addr) const noexcept
@@ -74,9 +78,16 @@ EthHost::bytes32 EthHost::get_storage(const address& addr, const bytes32& key) c
 evmc_storage_status EthHost::set_storage(
     const address& addr, const bytes32& key, const bytes32& value) noexcept
 {
-    auto oldValue = m_state.get_storage(addr, key);
+    auto const slot = std::make_pair(addr, key);
+    auto [it, inserted] = m_storageOriginalValues.try_emplace(slot, evmc_bytes32{});
+    if (inserted)
+    {
+        // FISCO sstoreStatus reads committed storage directly for status classification.
+        it->second = m_state.get_storage(addr, key);
+    }
+
     m_state.set_storage(addr, key, value);
-    return classifyStorageStatus(oldValue, value);
+    return classifyStorageStatus(it->second, value, m_fixStorageStatus);
 }
 
 EthHost::uint256be EthHost::get_balance(const address& addr) const noexcept
@@ -273,21 +284,22 @@ evmc::Result EthHost::makeResult(
 }
 
 evmc_storage_status EthHost::classifyStorageStatus(
-    const evmc_bytes32& oldValue, const evmc_bytes32& newValue) noexcept
+    const evmc_bytes32& oldValue, const evmc_bytes32& newValue, bool fixStorageStatus) noexcept
 {
-    auto const oldZero = isZeroBytes32(oldValue);
     auto const newZero = isZeroBytes32(newValue);
-    if (oldZero && newZero)
+    if (!fixStorageStatus)
     {
-        return EVMC_STORAGE_ASSIGNED;
+        return newZero ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
     }
-    if (oldZero && !newZero)
+
+    auto const oldZero = isZeroBytes32(oldValue);
+    if (newZero)
+    {
+        return oldZero ? EVMC_STORAGE_ASSIGNED : EVMC_STORAGE_DELETED;
+    }
+    if (oldZero)
     {
         return EVMC_STORAGE_ADDED;
-    }
-    if (!oldZero && newZero)
-    {
-        return EVMC_STORAGE_DELETED;
     }
     return EVMC_STORAGE_MODIFIED;
 }
