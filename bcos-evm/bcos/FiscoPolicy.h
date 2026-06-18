@@ -29,7 +29,7 @@ public:
         const protocol::BlockHeader& header) const
     {
         using Flag = ledger::Features::Flag;
-        RevisionConfig cfg;
+        bcos::evm_standard::RevisionConfig cfg;
 
         cfg.revision =
             std::max(bcos::executor::toRevision(m_features, header.version()), EVMC_CANCUN);
@@ -89,10 +89,10 @@ public:
     const ledger::Features& features() const { return m_features; }
 
     template <class Storage>
-    task::Task<std::optional<struct bcos::evm::EVMCResult>> checkAuth(Storage& storage,
+    task::Task<std::optional<class bcos::evm::EVMCResult>> checkAuth(Storage& storage,
         const protocol::BlockHeader& blockHeader, const evmc_message& msg,
         const evmc_address& origin, auto&& externalCaller,
-        const struct bcos::evm::PrecompiledManager& precompiledMgr, int64_t contextID, int64_t& seq,
+        const class bcos::evm::PrecompiledManager& precompiledMgr, int64_t contextID, int64_t& seq,
         const crypto::Hash& hashImpl) const
     {
         if (!m_authCheckEnabled)

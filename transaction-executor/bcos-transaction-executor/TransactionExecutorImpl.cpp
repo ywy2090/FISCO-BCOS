@@ -2,15 +2,10 @@
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/protocol/ProtocolTypeDef.h"
 
-bcos::evm::TransactionExecutorImpl::TransactionExecutorImpl(
-    protocol::TransactionReceiptFactory const& receiptFactory, crypto::Hash::Ptr hashImpl,
-    PrecompiledManager& precompiledManager)
-  : m_receiptFactory(receiptFactory),
-    m_hashImpl(std::move(hashImpl)),
-    m_precompiledManager(precompiledManager)
-{}
+namespace bcos::evm
+{
 
-evmc_message bcos::evm::newEVMCMessage(protocol::BlockNumber blockNumber,
+evmc_message newEVMCMessage(protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin)
 {
     auto recipientAddress = unhexAddress(transaction.to());
@@ -39,3 +34,5 @@ evmc_message bcos::evm::newEVMCMessage(protocol::BlockNumber blockNumber,
 
     return message;
 }
+
+}  // namespace bcos::evm

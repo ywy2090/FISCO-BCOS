@@ -22,6 +22,7 @@
 #pragma once
 #include "../Common.h"
 #include "../vm/Eip2929AccessState.h"
+#include "../vm/VMFactory.h"
 #include "ExecutiveFactory.h"
 #include "ExecutiveFlowInterface.h"
 #include "LedgerCache.h"
@@ -40,7 +41,6 @@
 namespace bcos::executor
 {
 class TransactionExecutive;
-class PrecompiledContract;
 
 class BlockContext : public std::enable_shared_from_this<BlockContext>
 {

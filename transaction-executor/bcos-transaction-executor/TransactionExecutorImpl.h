@@ -43,9 +43,7 @@ enum class ExecutePhase : uint8_t
 
 #define TRANSACTION_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("TRANSACTION_EXECUTOR")
 
-DERIVE_BCOS_EXCEPTION(InvalidReceiptVersion);
-
-evmc_message newEVMCMessage(protocol::BlockNumber blockNumber,
+evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin);
 
 template <class TxExec = FiscoTxExecutor>
@@ -106,7 +104,6 @@ public:
             executor::Web3AccessListResolved m_web3AccessListResolved;
             evmc::VM m_vm;
             std::optional<EVMCResult> m_evmcResult;
-            std::optional<executor_v1::RollupCostData> m_rollupCostData;  // OP-Stack only
 
             Data(TransactionExecutorImpl& executor, Storage& storage,
                 protocol::BlockHeader const& blockHeader, protocol::Transaction const& transaction,
@@ -252,7 +249,7 @@ public:
                 auto ctx = snapshot;
                 ctx.evmGasLeft = evmcResult.gas_left;
                 ctx.evmGasRefund = evmcResult.gas_refund;
-                m_data->m_gasUsed = executor_v1::gas::finalizeEthereumGasUsed(
+                m_data->m_gasUsed = gas::finalizeEthereumGasUsed(
                     ctx, m_data->m_executionContext.revisionConfig.calldata_floor_per_token);
             }
             else

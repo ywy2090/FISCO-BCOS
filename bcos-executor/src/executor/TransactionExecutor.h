@@ -25,9 +25,9 @@
 #pragma once
 
 #include "../dag/CriticalFields.h"
+#include "../vm/VMFactory.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/precompiled/PrecompiledContract.h"
-#include "bcos-evm/eth/vm/VMFactory.h"
 #include "bcos-executor/src/executive/LedgerCache.h"
 #include "bcos-framework/executor/ExecutionMessage.h"
 #include "bcos-framework/executor/ParallelTransactionExecutorInterface.h"
@@ -98,7 +98,7 @@ public:
         storage::TransactionalStorageInterface::Ptr backendStorage,
         protocol::ExecutionMessageFactory::Ptr executionMessageFactory,
         storage::StateStorageFactory::Ptr stateStorageFactory, bcos::crypto::Hash::Ptr hashImpl,
-        bool isWasm, bool isAuthCheck, std::shared_ptr<evm::VMFactory> vmFactory,
+        bool isWasm, bool isAuthCheck, std::shared_ptr<VMFactory> vmFactory,
         std::shared_ptr<std::set<std::string, std::less<>>> keyPageIgnoreTables, std::string name);
 
     ~TransactionExecutor() override = default;
@@ -339,7 +339,7 @@ protected:
     std::function<void()> f_onNeedSwitchEvent;
 
     LedgerCache::Ptr m_ledgerCache;
-    std::shared_ptr<evm::VMFactory> m_vmFactory;
+    std::shared_ptr<VMFactory> m_vmFactory;
 };
 
 }  // namespace executor

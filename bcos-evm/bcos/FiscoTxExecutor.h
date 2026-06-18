@@ -15,6 +15,8 @@
 namespace bcos::evm
 {
 
+DERIVE_BCOS_EXCEPTION(InvalidReceiptVersion);
+
 #define FISCO_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("FISCO_TX_EXECUTOR")
 
 struct FiscoTxExecutor

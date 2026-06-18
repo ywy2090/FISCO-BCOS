@@ -52,12 +52,12 @@ public:
             }
 
             auto const codeHash = task::syncWait(account.codeHash());
-            loadedAccount.codeHash = toEvmC(codeHash);
+            loadedAccount.codeHash = state::toEvmC(codeHash);
 
             // Legacy contracts may store code in account.code without codeHash.
             if (isZeroHash(loadedAccount.codeHash) && !loadedAccount.code.empty())
             {
-                loadedAccount.codeHash = toEvmC(hashImpl.hash(
+                loadedAccount.codeHash = state::toEvmC(hashImpl.hash(
                     bytesConstRef(loadedAccount.code.data(), loadedAccount.code.size())));
             }
 

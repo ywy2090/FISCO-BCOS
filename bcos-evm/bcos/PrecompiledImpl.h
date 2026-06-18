@@ -1,5 +1,6 @@
 #pragma once
 #include "ExecutiveWrapper.h"
+#include "PrecompiledEntry.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompileTraits.h"
@@ -31,21 +32,6 @@ namespace bcos::evm
 {
 
 #define PRECOMPILE_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("PRECOMPILE")
-
-struct Precompiled
-{
-    std::variant<executor::PrecompiledContract, std::shared_ptr<precompiled::Precompiled>>
-        m_precompiled;
-    std::optional<ledger::Features::Flag> m_flag;
-    size_t m_size{1};
-
-    explicit Precompiled(decltype(m_precompiled) precompiled);
-    Precompiled(decltype(m_precompiled) precompiled, ledger::Features::Flag flag);
-    Precompiled(decltype(m_precompiled) precompiled, size_t size);
-};
-
-size_t size(Precompiled const& precompiled);
-std::optional<ledger::Features::Flag> featureFlag(Precompiled const& precompiled);
 
 // Build an EVMCResult for a built-in precompiled call, taking ownership of the output buffer.
 inline EVMCResult buildBuiltinPrecompiledResult(bool success, auto const& output, int64_t gasLeft)
@@ -88,7 +74,7 @@ inline EVMCResult callBuiltinPrecompiled(evmc_message const& message,
             protocol::TransactionStatus::RevertInstruction, EVMC_FAILURE, 0, "Unknown precompile");
     }
 
-    if (executor::shouldRejectModexpEip7823(message.recipient, input, rev, revision))
+    if (shouldRejectModexpEip7823(message.recipient, input, rev, revision))
     {
         return makeErrorEVMCResult(*executor::GlobalHashImpl::g_hashImpl,
             protocol::TransactionStatus::RevertInstruction, EVMC_FAILURE, 0,
@@ -217,9 +203,9 @@ inline constexpr struct
         try
         {
             return std::visit(
-                bcos::overloaded{[&](executor::PrecompiledContract const& contract) {
+                bcos::overloaded{[&](PrecompiledContract const& /*contract*/) {
                                      return callBuiltinPrecompiled(
-                                         contract, message, rev, revision, fixErrorHandling);
+                                         message, rev, revision, fixErrorHandling);
                                  },
                     [&](std::shared_ptr<precompiled::Precompiled> const& contract) {
                         return callBcosPrecompiled(contract, storage, blockHeader, message, origin,
