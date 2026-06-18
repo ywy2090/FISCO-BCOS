@@ -6,6 +6,7 @@ add_library(bcos-evm STATIC
     eth/vm/VMInstance.cpp
     eth/EVMCResult.cpp
     eth/state/State.cpp
+    eth/state/EthHost.cpp
     eth/precompiled/PrecompiledRegistrar.cpp
     eth/precompiled/PrecompiledContract.cpp
     eth/precompiled/ModexpGas.cpp

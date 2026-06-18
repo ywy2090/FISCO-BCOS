@@ -19,46 +19,11 @@
 
 #pragma once
 
-#include "bcos-utilities/Common.h"
-#include <evmc/evmc.h>
-#include <boost/container_hash/hash.hpp>
-#include <cstring>
+#include "bcos-evm/eth/state/hash_utils.hpp"
 #include <unordered_map>
 
 namespace bcos::evm::state
 {
-struct AddressHash
-{
-    size_t operator()(evmc_address const& address) const noexcept
-    {
-        return boost::hash_range(address.bytes, address.bytes + sizeof(address.bytes));
-    }
-};
-
-struct AddressEqual
-{
-    bool operator()(evmc_address const& lhs, evmc_address const& rhs) const noexcept
-    {
-        return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
-    }
-};
-
-struct Bytes32Hash
-{
-    size_t operator()(evmc_bytes32 const& value) const noexcept
-    {
-        return boost::hash_range(value.bytes, value.bytes + sizeof(value.bytes));
-    }
-};
-
-struct Bytes32Equal
-{
-    bool operator()(evmc_bytes32 const& lhs, evmc_bytes32 const& rhs) const noexcept
-    {
-        return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
-    }
-};
-
 using StorageMap = std::unordered_map<evmc_bytes32, evmc_bytes32, Bytes32Hash, Bytes32Equal>;
 
 struct Account

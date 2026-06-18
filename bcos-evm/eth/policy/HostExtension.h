@@ -41,5 +41,11 @@ struct HostExtension
         (void)msg;
         return std::nullopt;
     }
+
+    virtual void onCreateFrameEntry(evmc_revision rev, const evmc_message& msg)
+    {
+        (void)rev;
+        (void)msg;
+    }
 };
 }  // namespace bcos::evm::state

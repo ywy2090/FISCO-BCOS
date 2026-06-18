@@ -1,0 +1,127 @@
+/*
+ *  Copyright (C) 2021 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @brief Hash and conversion helpers for evmc address/bytes32 keys.
+ * @file hash_utils.hpp
+ */
+
+#pragma once
+
+#include "bcos-utilities/DataConvertUtility.h"
+#include <evmc/evmc.h>
+#include <boost/container_hash/hash.hpp>
+#include <algorithm>
+#include <cctype>
+#include <cstring>
+#include <string_view>
+
+namespace bcos::evm::state
+{
+struct AddressHash
+{
+    size_t operator()(evmc_address const& address) const noexcept
+    {
+        return boost::hash_range(address.bytes, address.bytes + sizeof(address.bytes));
+    }
+};
+
+struct AddressEqual
+{
+    bool operator()(evmc_address const& lhs, evmc_address const& rhs) const noexcept
+    {
+        return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
+    }
+};
+
+struct Bytes32Hash
+{
+    size_t operator()(evmc_bytes32 const& value) const noexcept
+    {
+        return boost::hash_range(value.bytes, value.bytes + sizeof(value.bytes));
+    }
+};
+
+struct Bytes32Equal
+{
+    bool operator()(evmc_bytes32 const& lhs, evmc_bytes32 const& rhs) const noexcept
+    {
+        return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
+    }
+};
+
+inline bool isZeroAddress(const evmc_address& address) noexcept
+{
+    return std::all_of(std::begin(address.bytes), std::end(address.bytes),
+        [](uint8_t value) { return value == 0; });
+}
+
+inline bool isZeroBytes32(const evmc_bytes32& value) noexcept
+{
+    return std::all_of(
+        std::begin(value.bytes), std::end(value.bytes), [](uint8_t item) { return item == 0; });
+}
+
+inline bcos::u256 fromEvmC(const evmc_bytes32& value)
+{
+    return fromBigEndian<bcos::u256>(value.bytes);
+}
+
+inline evmc_bytes32 toEvmC(const bcos::u256& value)
+{
+    evmc_bytes32 out{};
+    auto encoded = toBigEndian(value);
+    std::copy(encoded.begin(), encoded.end(), out.bytes);
+    return out;
+}
+
+inline uint8_t fromHexNibble(char value) noexcept
+{
+    auto lower = static_cast<char>(std::tolower(static_cast<unsigned char>(value)));
+    if (lower >= '0' && lower <= '9')
+    {
+        return static_cast<uint8_t>(lower - '0');
+    }
+    if (lower >= 'a' && lower <= 'f')
+    {
+        return static_cast<uint8_t>(10 + lower - 'a');
+    }
+    return 0xff;
+}
+
+inline evmc_address parseHexAddress(std::string_view value) noexcept
+{
+    if (value.starts_with("0x") || value.starts_with("0X"))
+    {
+        value.remove_prefix(2);
+    }
+    if (value.size() != sizeof(evmc_address) * 2)
+    {
+        return {};
+    }
+
+    evmc_address address{};
+    for (size_t index = 0; index < sizeof(evmc_address); ++index)
+    {
+        auto high = fromHexNibble(value[index * 2]);
+        auto low = fromHexNibble(value[index * 2 + 1]);
+        if (high == 0xff || low == 0xff)
+        {
+            return {};
+        }
+        address.bytes[index] = static_cast<uint8_t>((high << 4) | low);
+    }
+    return address;
+}
+}  // namespace bcos::evm::state

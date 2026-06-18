@@ -17,3 +17,18 @@ add_test(
     NAME StateJournalRevert
     COMMAND ${TEST_BINARY_NAME}
 )
+
+set(HOOKS_TEST_BINARY_NAME EthHostExtensionHooksTest)
+
+add_executable(${HOOKS_TEST_BINARY_NAME}
+    EthHostExtensionHooksTest.cpp
+)
+
+target_link_libraries(${HOOKS_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME EthHostExtensionHooks
+    COMMAND ${HOOKS_TEST_BINARY_NAME}
+)
