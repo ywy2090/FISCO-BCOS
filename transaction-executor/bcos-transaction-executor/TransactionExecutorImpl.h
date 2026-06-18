@@ -184,7 +184,7 @@ public:
                 if (updated)
                     m_data->m_startSavepoint = m_data->m_rollbackableStorage.current();
 
-                if (!m_data->m_call)
+                if (!m_data->m_call && m_data->m_executionContext.revisionConfig.fix_gas_precheck)
                 {
                     if (!co_await m_data->m_executor.get().m_txExecutor.buyGas(*m_data))
                         co_return {};
