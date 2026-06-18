@@ -1,7 +1,7 @@
 #include "PrecompiledManager.h"
 #include "bcos-evm/bcos/PrecompiledImpl.h"
-#include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-executor/src/precompiled/BFSPrecompiled.h"
 #include "bcos-executor/src/precompiled/CastPrecompiled.h"
 #include "bcos-executor/src/precompiled/ConsensusPrecompiled.h"

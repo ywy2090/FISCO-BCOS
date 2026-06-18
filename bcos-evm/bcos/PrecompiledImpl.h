@@ -1,8 +1,8 @@
 #pragma once
+#include "ExecutiveWrapper.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-evm/eth/precompiled/PrecompiledRegistrar.h"
-#include "ExecutiveWrapper.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/executive/BlockContext.h"
 #include "bcos-executor/src/executive/TransactionExecutive.h"
@@ -53,25 +53,44 @@ inline const char* precompileName(uint16_t suffix) noexcept
 {
     switch (suffix)
     {
-    case 0x0001: return "ecrecover";
-    case 0x0002: return "sha256";
-    case 0x0003: return "ripemd160";
-    case 0x0004: return "identity";
-    case 0x0005: return "modexp";
-    case 0x0006: return "alt_bn128_G1_add";
-    case 0x0007: return "alt_bn128_G1_mul";
-    case 0x0008: return "alt_bn128_pairing_product";
-    case 0x0009: return "blake2_compression";
-    case 0x000a: return "point_evaluation";
-    case 0x000b: return "bls12_g1add";
-    case 0x000c: return "bls12_g1msm";
-    case 0x000d: return "bls12_g2add";
-    case 0x000e: return "bls12_g2msm";
-    case 0x000f: return "bls12_pairing_check";
-    case 0x0010: return "bls12_map_fp_to_g1";
-    case 0x0011: return "bls12_map_fp2_to_g2";
-    case 0x0100: return "p256verify";
-    default: return nullptr;
+    case 0x0001:
+        return "ecrecover";
+    case 0x0002:
+        return "sha256";
+    case 0x0003:
+        return "ripemd160";
+    case 0x0004:
+        return "identity";
+    case 0x0005:
+        return "modexp";
+    case 0x0006:
+        return "alt_bn128_G1_add";
+    case 0x0007:
+        return "alt_bn128_G1_mul";
+    case 0x0008:
+        return "alt_bn128_pairing_product";
+    case 0x0009:
+        return "blake2_compression";
+    case 0x000a:
+        return "point_evaluation";
+    case 0x000b:
+        return "bls12_g1add";
+    case 0x000c:
+        return "bls12_g1msm";
+    case 0x000d:
+        return "bls12_g2add";
+    case 0x000e:
+        return "bls12_g2msm";
+    case 0x000f:
+        return "bls12_pairing_check";
+    case 0x0010:
+        return "bls12_map_fp_to_g1";
+    case 0x0011:
+        return "bls12_map_fp2_to_g2";
+    case 0x0100:
+        return "p256verify";
+    default:
+        return nullptr;
     }
 }
 
@@ -106,17 +125,14 @@ inline bcos::bigint builtinPrecompileGasCost(
 // Execute an EVM built-in precompiled contract (sha256, ecrecover, etc.).
 // ── New path: PrecompileTraits-based lookup (compile-time table) ──
 inline EVMCResult callBuiltinPrecompiled(evmc_message const& message,
-    const bcos::evm_standard::RevisionConfig& rev,
-    evmc_revision revision, bool fixErrorHandling)
+    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision, bool fixErrorHandling)
 {
     bytesConstRef const input{message.input_data, message.input_size};
-    const auto* traits =
-        precompiles::findPrecompile(revision, message.recipient);
+    const auto* traits = precompiles::findPrecompile(revision, message.recipient);
     if (!traits)
     {
         return makeErrorEVMCResult(*executor::GlobalHashImpl::g_hashImpl,
-            protocol::TransactionStatus::RevertInstruction, EVMC_FAILURE, 0,
-            "Unknown precompile");
+            protocol::TransactionStatus::RevertInstruction, EVMC_FAILURE, 0, "Unknown precompile");
     }
 
     if (executor::shouldRejectModexpEip7823(message.recipient, input, rev, revision))
@@ -131,14 +147,12 @@ inline EVMCResult callBuiltinPrecompiled(evmc_message const& message,
     if (precompiles::hasRevisionAwarePricer(traits))
     {
         // modexp / blake2f / bn256 pairing / BLS MSM → use existing pricer
-        const auto& contract = PrecompiledRegistrar::pricer(
-            precompileName(traits->address_suffix));
+        const auto& contract = PrecompiledRegistrar::pricer(precompileName(traits->address_suffix));
         gas = contract(input, revision);
     }
     else
     {
-        gas = traits->gas_base + traits->gas_per_word *
-            ((input.size() + 31) / 32);
+        gas = traits->gas_base + traits->gas_per_word * ((input.size() + 31) / 32);
     }
 
     if (fixErrorHandling)
