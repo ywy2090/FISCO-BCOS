@@ -13,39 +13,6 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief transition() skeleton for eth-state vectors.
- * @file transition.hpp
- */
-
-#pragma once
-
-#include "bcos-evm/eth/policy/HostExtension.h"
-#include "bcos-evm/eth/state/BlockInfo.hpp"
-#include "bcos-evm/eth/state/StateView.hpp"
-#include "bcos-evm/eth/state/Transaction.hpp"
-#include <evmc/evmc.hpp>
-
-namespace bcos::evm::state
-{
-TransactionReceipt transition(const StateView& stateView, const BlockInfo& block,
-    const BlockHashes& blockHashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
-    const TransactionProperties& txProps, HostExtension* ext = nullptr);
-}  // namespace bcos::evm::state
-/*
- *  Copyright (C) 2021 FISCO BCOS.
- *  SPDX-License-Identifier: Apache-2.0
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
  * @brief Ethereum state transition skeleton over State/EthHost.
  * @file transition.hpp
  */

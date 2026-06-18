@@ -44,11 +44,11 @@ evmc_tx_context buildTxContext(const BlockInfo& block, const Transaction& tx) no
 }
 
 evmc_message buildTopLevelMessage(
-    const Transaction& tx, const TransactionProperties& txProps) noexcept
+    const Transaction& tx, const TransactionProperties& tx_props) noexcept
 {
     evmc_message msg{};
     msg.kind = tx.to.has_value() ? EVMC_CALL : EVMC_CREATE;
-    msg.flags = txProps.isStatic ? EVMC_STATIC : 0;
+    msg.flags = tx_props.isStatic ? EVMC_STATIC : 0;
     msg.depth = 0;
     msg.gas = tx.gasLimit;
     msg.recipient = tx.to.value_or(evmc_address{});
@@ -75,10 +75,10 @@ bcos::bytes resultOutputToBytes(const evmc::Result& result)
     return bcos::bytes(result.output_data, result.output_data + result.output_size);
 }
 
-int64_t calcGasUsed(int64_t gasLimit, int64_t gasLeft) noexcept
+int64_t calcGasUsed(int64_t gas_limit, int64_t gas_left) noexcept
 {
-    auto const clampedLeft = std::max<int64_t>(gasLeft, 0);
-    return std::clamp<int64_t>(gasLimit - clampedLeft, 0, gasLimit);
+    auto const clamped_left = std::max<int64_t>(gas_left, 0);
+    return std::clamp<int64_t>(gas_limit - clamped_left, 0, gas_limit);
 }
 }  // namespace
 
@@ -103,26 +103,26 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
 
     if (tx.to.has_value())
     {
-        auto const precompileResult =
-            EthPrecompiles::dispatch(*tx.to, bcos::bytesConstRef(&tx.data), tx.gasLimit, rev);
-        if (precompileResult.has_value())
+        auto const precompile_result = EthPrecompiles::dispatch(
+            *tx.to, bcos::bytesConstRef(tx.data.data(), tx.data.size()), tx.gasLimit, rev);
+        if (precompile_result.has_value())
         {
-            receipt.status = precompileResult->status;
-            receipt.output = precompileResult->output;
+            receipt.status = precompile_result->status;
+            receipt.output = precompile_result->output;
             if (receipt.status == EVMC_OUT_OF_GAS)
             {
                 receipt.gasUsed = tx.gasLimit;
             }
             else
             {
-                receipt.gasUsed = std::clamp<int64_t>(precompileResult->gasCost, 0, tx.gasLimit);
+                receipt.gasUsed = std::clamp<int64_t>(precompile_result->gasCost, 0, tx.gasLimit);
             }
             return receipt;
         }
     }
 
-    auto const txContext = buildTxContext(block, tx);
-    EthHost host(state, txContext, rev, ext);
+    auto const tx_context = buildTxContext(block, tx);
+    EthHost host(state, tx_context, rev, ext);
     auto msg = buildTopLevelMessage(tx, tx_props);
 
     bcos::bytes code;

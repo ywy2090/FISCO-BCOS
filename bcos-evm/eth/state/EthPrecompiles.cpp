@@ -21,6 +21,7 @@
 #include "bcos-utilities/DataConvertUtility.h"
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstring>
 #include <evmone_precompiles/blake2b.hpp>
 #include <evmone_precompiles/bls.hpp>
@@ -85,7 +86,7 @@ int64_t wordsCost(size_t inputSize, int64_t base, int64_t perWord) noexcept
 
 std::pair<bool, bcos::bytes> executeModexp(bcos::bytesConstRef input)
 {
-    auto const lens = parseModexpLengths(input);
+    auto const lens = bcos::evm::parseModexpLengths(input);
     auto const baseLen = lens.baseLen;
     auto const expLen = lens.expLen;
     auto const modLen = lens.modLen;
@@ -234,7 +235,6 @@ std::pair<bool, bcos::bytes> executePointEvaluation(bcos::bytesConstRef input)
     constexpr size_t VERSIONED_HASH_SIZE = 32;
     constexpr size_t Y_END = 96;
     constexpr size_t COMMITMENT_END = 144;
-    constexpr size_t PROOF_END = 192;
     if (input.size() != INPUT_SIZE)
     {
         return {false, {}};
@@ -402,13 +402,15 @@ int64_t precompileGasCost(uint16_t suffix, bcos::bytesConstRef input, evmc_revis
     case 0x0004:
         return wordsCost(input.size(), 15, 3);
     case 0x0005:
-        return safeBigintToI64(calcModexpGas(input, revision));
+        return safeBigintToI64(bcos::evm::calcModexpGas(input, revision));
     case 0x0006:
-        return 150;
+        return revision >= EVMC_ISTANBUL ? 150 : 500;
     case 0x0007:
-        return 6000;
+        return revision >= EVMC_ISTANBUL ? 6000 : 40000;
     case 0x0008:
-        return 45000 + static_cast<int64_t>(input.size() / 192) * 34000;
+        return (revision >= EVMC_ISTANBUL ? 45000 : 100000) +
+               static_cast<int64_t>(input.size() / 192) *
+                   (revision >= EVMC_ISTANBUL ? 34000 : 80000);
     case 0x0009:
         return input.size() < 4 ?
                    0 :
