@@ -51,3 +51,23 @@ add_test(
     NAME StateHostSmoke
     COMMAND ${SMOKE_TEST_BINARY_NAME}
 )
+
+set(WARM_ENTRY_TEST_BINARY_NAME WarmTransactionEntryTest)
+
+add_executable(${WARM_ENTRY_TEST_BINARY_NAME}
+    state/WarmTransactionEntryTest.cpp
+)
+
+target_include_directories(${WARM_ENTRY_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(${WARM_ENTRY_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+    ledger
+)
+
+add_test(
+    NAME WarmTransactionEntry
+    COMMAND ${WARM_ENTRY_TEST_BINARY_NAME}
+)

@@ -19,12 +19,12 @@
 
 #pragma once
 
-#include "bcos-utilities/Common.h"
+#include "bcos-utilities/FixedBytes.h"
 #include <utility>
 #include <vector>
 
 namespace bcos::evm
 {
 /// EIP-2930 access list: 20-byte address + storage keys (h256).
-using Eip2930AccessList = std::vector<std::pair<bcos::Address, std::vector<h256>>>;
+using Eip2930AccessList = std::vector<std::pair<h160, std::vector<h256>>>;
 }  // namespace bcos::evm

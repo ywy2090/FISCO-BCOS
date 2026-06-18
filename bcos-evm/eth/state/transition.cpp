@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/state/transition.hpp"
+#include "bcos-evm/eth/execution/warmTransactionEntry.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -91,15 +92,7 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
     TransactionReceipt receipt{};
     State state(state_view);
 
-    if (tx_props.warmCoinbase)
-    {
-        (void)state.warm_up_address(block.coinbase);
-    }
-    if (tx_props.warmDestination && tx.to.has_value())
-    {
-        (void)state.warm_up_address(*tx.to);
-    }
-    (void)state.warm_up_address(tx.from);
+    execution::warmTransactionEntry(state, rev, tx, block, tx_props);
 
     if (tx.to.has_value())
     {
