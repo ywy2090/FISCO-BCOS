@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-task/Task.h"
@@ -9,7 +10,7 @@ namespace bcos::evm::state
 {
 template <class Storage>
 task::Task<void> applyStateDiff(Storage& storage, const StateDiff& diff, bool useBinaryAddress,
-    const bcos::crypto::Hash& hashImpl, std::string_view abi)
+    const bcos::crypto::Hash& hashImpl, std::string_view defaultAbi = {})
 {
     for (auto const& [address, accountDiff] : diff.accounts)
     {
@@ -26,7 +27,8 @@ task::Task<void> applyStateDiff(Storage& storage, const StateDiff& diff, bool us
         {
             auto const codeHash =
                 hashImpl.hash(bytesConstRef(accountDiff.code.data(), accountDiff.code.size()));
-            co_await account.setCode(accountDiff.code, std::string(abi), codeHash);
+            auto abi = accountDiff.abi.empty() ? std::string(defaultAbi) : accountDiff.abi;
+            co_await account.setCode(accountDiff.code, std::move(abi), codeHash);
         }
 
         for (auto const& [key, value] : accountDiff.storage)

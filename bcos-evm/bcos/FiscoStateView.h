@@ -1,10 +1,11 @@
 #pragma once
 
-#include "../RollbackableStorage.h"
+#include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/state/StateView.hpp"
-#include "bcos-executor/src/Common.h"
+#include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-task/Wait.h"
+#include <functional>
 #include <optional>
 
 namespace bcos::evm::state
@@ -13,8 +14,7 @@ class FiscoStateView : public StateView
 {
 public:
     template <class Storage>
-    FiscoStateView(
-        Rollbackable<Storage>& storage, bool useBinaryAddress, const bcos::crypto::Hash& hashImpl)
+    FiscoStateView(Storage& storage, bool useBinaryAddress, const bcos::crypto::Hash& hashImpl)
       : m_storageRead([&storage, useBinaryAddress](
                           const evmc_address& address, const evmc_bytes32& key) -> evmc_bytes32 {
             ledger::account::EVMAccount account(storage, address, useBinaryAddress);
@@ -46,6 +46,11 @@ public:
                 loadedAccount.code.assign(codeView.begin(), codeView.end());
             }
 
+            if (auto abiEntry = task::syncWait(account.abi()); abiEntry.has_value())
+            {
+                loadedAccount.abi = std::string(abiEntry->get());
+            }
+
             auto const codeHash = task::syncWait(account.codeHash());
             loadedAccount.codeHash = toEvmC(codeHash);
 
@@ -60,28 +65,11 @@ public:
         })
     {}
 
-    std::optional<Account> get_account(const evmc_address& address) const override
-    {
-        return m_accountRead(address);
-    }
-
-    evmc_bytes32 get_storage(const evmc_address& address, const evmc_bytes32& key) const override
-    {
-        return m_storageRead(address, key);
-    }
+    std::optional<Account> get_account(const evmc_address& address) const override;
+    evmc_bytes32 get_storage(const evmc_address& address, const evmc_bytes32& key) const override;
 
 private:
-    static bool isZeroHash(const evmc_bytes32& value)
-    {
-        for (auto byte : value.bytes)
-        {
-            if (byte != 0)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
+    static bool isZeroHash(const evmc_bytes32& value);
 
     std::function<evmc_bytes32(const evmc_address&, const evmc_bytes32&)> m_storageRead;
     std::function<std::optional<Account>(const evmc_address&)> m_accountRead;

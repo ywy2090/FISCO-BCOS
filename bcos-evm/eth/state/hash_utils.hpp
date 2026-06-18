@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-crypto/interfaces/crypto/CommonType.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.h>
 #include <boost/container_hash/hash.hpp>
@@ -83,6 +84,13 @@ inline evmc_bytes32 toEvmC(const bcos::u256& value)
     evmc_bytes32 out{};
     auto encoded = toBigEndian(value);
     std::copy(encoded.begin(), encoded.end(), out.bytes);
+    return out;
+}
+
+inline evmc_bytes32 toEvmC(const bcos::crypto::HashType& value)
+{
+    evmc_bytes32 out{};
+    std::copy(value.begin(), value.end(), out.bytes);
     return out;
 }
 

@@ -1,9 +1,9 @@
-#include "../bcos-transaction-executor/state/FiscoStateView.h"
+#include "bcos-evm/bcos/FiscoStateView.h"
 #include "../bcos-transaction-executor/RollbackableStorage.h"
-#include "../bcos-transaction-executor/state/FiscoBlockInfo.h"
-#include "../bcos-transaction-executor/state/StateDiffApplier.h"
 #include "TestMemoryStorage.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/bcos/FiscoBlockInfo.h"
+#include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/LedgerTypeDef.h"
 #include "bcos-ledger/LedgerMethods.h"
@@ -60,6 +60,7 @@ BOOST_AUTO_TEST_CASE(read_account_from_storage)
     BOOST_CHECK_EQUAL(loaded->balance, bcos::u256(1234));
     BOOST_CHECK_EQUAL(loaded->nonce, 7);
     BOOST_CHECK_EQUAL(loaded->code, code);
+    BOOST_CHECK_EQUAL(loaded->abi, "abi()");
     BOOST_CHECK_EQUAL_COLLECTIONS(
         loaded->codeHash.bytes, loaded->codeHash.bytes + 32, codeHash.begin(), codeHash.end());
     auto storageValue = view.get_storage(address, slot);
@@ -82,14 +83,16 @@ BOOST_AUTO_TEST_CASE(apply_state_diff_to_storage)
     account.balance = 9999;
     account.nonce = 42;
     account.code = {0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3};
+    account.abi = "set(uint)";
     account.storage[slot] = value;
 
-    task::syncWait(state::applyStateDiff(rollbackableStorage, diff, false, *hashImpl, "set(uint)"));
+    task::syncWait(state::applyStateDiff(rollbackableStorage, diff, false, *hashImpl));
 
     ledger::account::EVMAccount storedAccount(rollbackableStorage, address, false);
     auto storedBalance = task::syncWait(storedAccount.balance());
     auto storedNonce = task::syncWait(storedAccount.nonce());
     auto storedCode = task::syncWait(storedAccount.code());
+    auto storedAbi = task::syncWait(storedAccount.abi());
     auto storedStorage = task::syncWait(storedAccount.storage(slot));
 
     BOOST_CHECK_EQUAL(storedBalance, bcos::u256(9999));
@@ -97,6 +100,8 @@ BOOST_AUTO_TEST_CASE(apply_state_diff_to_storage)
     BOOST_CHECK_EQUAL(*storedNonce, "42");
     BOOST_REQUIRE(storedCode.has_value());
     BOOST_CHECK_EQUAL(storedCode->get(), std::string(account.code.begin(), account.code.end()));
+    BOOST_REQUIRE(storedAbi.has_value());
+    BOOST_CHECK_EQUAL(storedAbi->get(), account.abi);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         storedStorage.bytes, storedStorage.bytes + 32, value.bytes, value.bytes + 32);
 }
@@ -109,6 +114,7 @@ BOOST_AUTO_TEST_CASE(build_block_info_and_hash_reader)
     bcostars::protocol::BlockHeaderImpl blockHeader;
     blockHeader.setNumber(100);
     blockHeader.setTimestamp(123456);
+    blockHeader.setExtraData(bcos::bytes(20, 0x2a));
 
     ledger::LedgerConfig ledgerConfig;
     ledgerConfig.setGasLimit({30'000'000, 0});
@@ -119,6 +125,8 @@ BOOST_AUTO_TEST_CASE(build_block_info_and_hash_reader)
     BOOST_CHECK_EQUAL(blockInfo.timestamp, 123456);
     BOOST_CHECK_EQUAL(blockInfo.gasLimit, 30'000'000);
     BOOST_CHECK_EQUAL(blockInfo.chainId, bcos::u256(2025));
+    BOOST_CHECK_EQUAL_COLLECTIONS(blockInfo.coinbase.bytes, blockInfo.coinbase.bytes + 20,
+        blockHeader.extraData().begin(), blockHeader.extraData().begin() + 20);
 
     bcos::crypto::HashType hash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     task::syncWait(
