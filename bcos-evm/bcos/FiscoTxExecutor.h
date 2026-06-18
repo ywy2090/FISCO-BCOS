@@ -1,5 +1,6 @@
 #pragma once
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"
@@ -50,8 +51,9 @@ struct FiscoTxExecutor
         const auto txValue = u256(data.m_transaction.get().value());
         const auto totalRequired = maxGasCost + txValue;
 
-        auto& evmcMessage = data.m_hostContext.message();
-        auto senderAccount = getAccount(data.m_hostContext, evmcMessage.sender);
+        auto& evmcMessage = data.m_executionContext.message;
+        ledger::account::EVMAccount senderAccount(data.m_rollbackableStorage, evmcMessage.sender,
+            data.m_executionContext.revisionConfig.use_raw_address);
         auto senderBalance = co_await senderAccount.balance();
 
         if (senderBalance < totalRequired)
@@ -131,8 +133,9 @@ struct FiscoTxExecutor
         if (refundGasUnits > 0)
         {
             auto refund = u256(refundGasUnits) * gasPrice;
-            auto& evmcMessage = data.m_hostContext.message();
-            auto senderAccount = getAccount(data.m_hostContext, evmcMessage.sender);
+            auto& evmcMessage = data.m_executionContext.message;
+            ledger::account::EVMAccount senderAccount(data.m_rollbackableStorage,
+                evmcMessage.sender, data.m_executionContext.revisionConfig.use_raw_address);
             auto balance = co_await senderAccount.balance();
             co_await senderAccount.setBalance(balance + refund);
         }
@@ -147,7 +150,7 @@ struct FiscoTxExecutor
         auto& evmcResult = *data.m_evmcResult;
         if (!data.m_call)
         {
-            auto& evmcMessage = data.m_hostContext.message();
+            auto& evmcMessage = data.m_executionContext.message;
             if (auto gasPrice = u256{std::get<0>(data.m_ledgerConfig.get().gasPrice())};
                 gasPrice > 0)
             {
@@ -155,7 +158,8 @@ struct FiscoTxExecutor
                 data.m_gasPriceStr = "0x" + gasPrice.str(GAS_PRICE_DIGITS, std::ios_base::hex);
 
                 auto balanceUsed = data.m_gasUsed * gasPrice;
-                auto senderAccount = getAccount(data.m_hostContext, evmcMessage.sender);
+                ledger::account::EVMAccount senderAccount(data.m_rollbackableStorage,
+                    evmcMessage.sender, data.m_executionContext.revisionConfig.use_raw_address);
                 auto senderBalance = co_await senderAccount.balance();
 
                 if (senderBalance < balanceUsed)
@@ -185,7 +189,7 @@ struct FiscoTxExecutor
     template <class Data>
     task::Task<protocol::TransactionReceipt::Ptr> makeReceipt(Data& data)
     {
-        const auto& evmcMessage = data.m_hostContext.message();
+        const auto& evmcMessage = data.m_executionContext.message;
         auto& evmcResult = *data.m_evmcResult;
 
         std::string newContractAddress;
@@ -213,14 +217,14 @@ struct FiscoTxExecutor
                 evmcResult.output_size = outputSize;
                 evmcResult.release = release;
             }
-            if (data.m_hostContext.revisionConfig().fix_revert_logs)
+            if (data.m_executionContext.revisionConfig.fix_revert_logs)
             {
-                data.m_hostContext.logs().clear();
+                data.m_executionContext.logs.clear();
             }
         }
 
         auto receiptStatus = static_cast<int32_t>(evmcResult.status);
-        auto const& logEntries = data.m_hostContext.logs();
+        auto const& logEntries = data.m_executionContext.logs;
         protocol::TransactionReceipt::Ptr receipt;
         switch (auto transactionVersion = static_cast<bcos::protocol::TransactionVersion>(
                     data.m_transaction.get().version()))

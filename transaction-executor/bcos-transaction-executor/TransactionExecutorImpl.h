@@ -1,12 +1,18 @@
 #pragma once
 
 #include "RollbackableStorage.h"
+#include "bcos-evm/bcos/AuthCheck.h"
+#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
+#include "bcos-evm/bcos/FiscoStateView.h"
+#include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxExecutor.h"
+#include "bcos-evm/bcos/PrecompiledImpl.h"
+#include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
-#include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
@@ -15,10 +21,11 @@
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Exceptions.h"
 #include "precompiled/PrecompiledManager.h"
-#include "vm/ExecuteFrame.h"
 #include <evmc/evmc.h>
+#include <evmone/evmone.h>
 #include <boost/algorithm/hex.hpp>
 #include <boost/exception/diagnostic_information.hpp>
+#include <evmc/evmc.hpp>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -46,15 +53,16 @@ class TransactionExecutorImpl
 {
 public:
     TransactionExecutorImpl(protocol::TransactionReceiptFactory const& receiptFactory,
-        crypto::Hash::Ptr hashImpl, PrecompiledManager& precompiledManager);
+        crypto::Hash::Ptr hashImpl, PrecompiledManager& precompiledManager)
+      : m_receiptFactory(receiptFactory),
+        m_hashImpl(std::move(hashImpl)),
+        m_precompiledManager(precompiledManager)
+    {}
 
     std::reference_wrapper<protocol::TransactionReceiptFactory const> m_receiptFactory;
     crypto::Hash::Ptr m_hashImpl;
     std::reference_wrapper<PrecompiledManager> m_precompiledManager;
     TxExec m_txExecutor;
-
-    using TransientStorage = bcos::storage2::memory_storage::MemoryStorage<bcos::evm::StateKey,
-        bcos::evm::StateValue, bcos::storage2::memory_storage::ORDERED>;
 
     // FIB-75: Effective gas limit for EVM execution.
     // When fix_gas_precheck is enabled and the tx declares gasLimit > 0,
@@ -85,22 +93,18 @@ public:
             // FIB-75: savepoint right after buyGas() pre-deduction — used to rollback only EVM
             // effects while preserving the pre-deducted balance.
             Rollbackable<Storage>::Savepoint m_afterBuyGasSavepoint{0};
-            TransientStorage m_transientStorage;
-            Rollbackable<decltype(m_transientStorage)> m_rollbackableTransientStorage;
             bool m_call;
             int64_t m_gasUsed = 0;
             std::string m_gasPriceStr;
 
             bcos::chain_policy::FiscoPolicy m_policy;
+            bcos::evm::FiscoExecutionContext m_executionContext;
             int64_t m_gasLimit;
             int64_t m_seq = 0;
             evmc_address m_origin;
             u256 m_nonce;
             executor::Web3AccessListResolved m_web3AccessListResolved;
-            std::shared_ptr<executor::Eip2929AccessState> m_warmsetAccess;
-            hostcontext::ExecuteFrame<decltype(m_rollbackableStorage),
-                decltype(m_rollbackableTransientStorage), typename TxExec::PolicyType>
-                m_hostContext;
+            evmc::VM m_vm;
             std::optional<EVMCResult> m_evmcResult;
             std::optional<executor_v1::RollupCostData> m_rollupCostData;  // OP-Stack only
 
@@ -114,26 +118,24 @@ public:
                 m_ledgerConfig(ledgerConfig),
                 m_rollbackableStorage(storage),
                 m_startSavepoint(m_rollbackableStorage.current()),
-                m_rollbackableTransientStorage(m_transientStorage),
                 m_call(call),
                 m_policy(ledgerConfig.features(), ledgerConfig.balanceTransfer(),
                     ledgerConfig.authCheckStatus() != 0),
+                m_executionContext(),
                 m_gasLimit(computeEffectiveGasLimit(transaction,
                     static_cast<int64_t>(std::get<0>(ledgerConfig.gasLimit())),
-                    m_policy.computeRevisionConfig(blockHeader).fix_gas_precheck)),
+                    [&]() {
+                        m_executionContext.revisionConfig =
+                            m_policy.computeRevisionConfig(blockHeader);
+                        return m_executionContext.revisionConfig.fix_gas_precheck;
+                    }())),
                 m_origin((!m_transaction.get().sender().empty() &&
                              m_transaction.get().sender().size() == sizeof(evmc_address)) ?
                              *(evmc_address*)m_transaction.get().sender().data() :
                              evmc_address{}),
                 m_nonce(hex2u(transaction.nonce())),
                 m_web3AccessListResolved(executor::resolveWeb3AccessList(transaction)),
-                m_warmsetAccess(std::make_shared<executor::Eip2929AccessState>()),
-                m_hostContext(m_rollbackableStorage, m_rollbackableTransientStorage, blockHeader,
-                    newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
-                    m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
-                    m_policy.computeRevisionConfig(blockHeader), m_policy, *executor.m_hashImpl,
-                    transaction.type() != 0, m_nonce, m_web3AccessListResolved.accessList,
-                    m_web3AccessListResolved.web3TypedTxKind, m_warmsetAccess)
+                m_vm(evmc_create_evmone())
             {}
         };
         std::unique_ptr<Data> m_data;
@@ -150,7 +152,31 @@ public:
         {
             if constexpr (phase == ExecutePhase::Prepare)
             {
-                co_await m_data->m_hostContext.prepare();
+                bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
+                    m_data->m_executionContext.revisionConfig.use_raw_address,
+                    *m_data->m_executor.get().m_hashImpl);
+                bcos::evm::state::State state(stateView);
+                auto const blockInfo = bcos::evm::state::buildFiscoBlockInfo(
+                    m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get(),
+                    [policy = m_data->m_policy](
+                        int64_t timestamp) { return policy.convertTimestamp(timestamp); });
+
+                state::Transaction tx;
+                auto const& msg = m_data->m_executionContext.message;
+                tx.from = msg.sender;
+                if (msg.kind != EVMC_CREATE && msg.kind != EVMC_CREATE2)
+                {
+                    tx.to = msg.recipient;
+                }
+                tx.data.assign(msg.input_data, msg.input_data + msg.input_size);
+                tx.value = fromEvmC(msg.value);
+                tx.gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
+                tx.gasLimit = msg.gas;
+                prepareTransaction(state, tx, blockInfo,
+                    FiscoTransactionPrepareInput{
+                        .revision = m_data->m_executionContext.revisionConfig.revision,
+                        .properties = {},
+                        .accessList = m_data->m_web3AccessListResolved.accessList.get()});
             }
             else if constexpr (phase == ExecutePhase::Execute)
             {
@@ -163,12 +189,26 @@ public:
                     if (!co_await m_data->m_executor.get().m_txExecutor.buyGas(*m_data))
                         co_return {};
                 }
-                m_data->m_hostContext.setGasSettlementGasLimit(m_data->m_gasLimit);
-                m_data->m_evmcResult.emplace(co_await m_data->m_hostContext.execute());
+                auto output = co_await executeViaHostTx();
+                m_data->m_executionContext = std::move(output.executionContext);
+                m_data->m_evmcResult.emplace(std::move(output.evmcResult));
+                if (m_data->m_evmcResult->status_code == EVMC_SUCCESS)
+                {
+                    co_await bcos::evm::state::applyStateDiff(m_data->m_rollbackableStorage,
+                        output.stateDiff, m_data->m_executionContext.revisionConfig.use_raw_address,
+                        *m_data->m_executor.get().m_hashImpl, m_data->m_transaction.get().abi());
+                }
                 settleGasUsedFromEvmResult();
                 if (!m_data->m_call)
                 {
-                    co_await m_data->m_executor.get().m_txExecutor.refundGas(*m_data);
+                    if (m_data->m_executionContext.revisionConfig.fix_gas_precheck)
+                    {
+                        co_await m_data->m_executor.get().m_txExecutor.refundGas(*m_data);
+                    }
+                    else
+                    {
+                        co_await m_data->m_executor.get().m_txExecutor.consumeBalance(*m_data);
+                    }
                 }
             }
             else if constexpr (phase == ExecutePhase::Finalize)
@@ -186,7 +226,7 @@ public:
             {
                 auto& callNonce = m_data->m_nonce;
                 ledger::account::EVMAccount account(m_data->m_rollbackableStorage, m_data->m_origin,
-                    m_data->m_hostContext.revisionConfig().use_raw_address);
+                    m_data->m_executionContext.revisionConfig.use_raw_address);
 
                 if (!co_await account.exists())
                 {
@@ -204,22 +244,95 @@ public:
         void settleGasUsedFromEvmResult()
         {
             auto& evmcResult = *m_data->m_evmcResult;
-            auto const& snapOpt = m_data->m_hostContext.gasSettlementSnapshot();
-
-            if (snapOpt &&
+            auto const& snapshot = m_data->m_executionContext.gasSettlementSnapshot;
+            if (snapshot.gasLimit > 0 &&
                 m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction &&
-                m_data->m_hostContext.revisionConfig().eip7623)
+                m_data->m_executionContext.revisionConfig.eip7623)
             {
-                auto ctx = *snapOpt;
+                auto ctx = snapshot;
                 ctx.evmGasLeft = evmcResult.gas_left;
                 ctx.evmGasRefund = evmcResult.gas_refund;
                 m_data->m_gasUsed = executor_v1::gas::finalizeEthereumGasUsed(
-                    ctx, m_data->m_hostContext.revisionConfig().calldata_floor_per_token);
+                    ctx, m_data->m_executionContext.revisionConfig.calldata_floor_per_token);
             }
             else
             {
                 m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
             }
+        }
+
+        task::Task<ExecuteViaHostOutput> executeViaHostTx()
+        {
+            ExecuteViaHostInput input;
+            input.vm = std::addressof(m_data->m_vm);
+            input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
+            input.message = m_data->m_executionContext.message;
+            input.blockInfo = bcos::evm::state::buildFiscoBlockInfo(m_data->m_blockHeader.get(),
+                m_data->m_ledgerConfig.get(), [policy = m_data->m_policy](int64_t timestamp) {
+                    return policy.convertTimestamp(timestamp);
+                });
+            input.blockHashes = bcos::evm::state::buildFiscoBlockHashes(
+                m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
+            input.revisionConfig = m_data->m_executionContext.revisionConfig;
+            input.nonce = m_data->m_nonce;
+            input.gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
+            input.contextID = m_data->m_contextID;
+            input.seq = m_data->m_seq;
+            input.web3Tx = m_data->m_transaction.get().type() != 0;
+            input.web3TypedTxKind = m_data->m_web3AccessListResolved.web3TypedTxKind;
+            input.accessList = m_data->m_web3AccessListResolved.accessList;
+
+            bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
+                m_data->m_executionContext.revisionConfig.use_raw_address,
+                *m_data->m_executor.get().m_hashImpl);
+            input.stateView = std::addressof(stateView);
+
+            auto externalCaller = [](const evmc_message&) -> EVMCResult {
+                return makeErrorEVMCResult(*executor::GlobalHashImpl::g_hashImpl,
+                    protocol::TransactionStatus::Unknown, EVMC_INTERNAL_ERROR, 0,
+                    "external call not available");
+            };
+
+            input.authChecker = [this, externalCaller](
+                                    const evmc_message& msg) -> std::optional<EVMCResult> {
+                return checkAuth(m_data->m_rollbackableStorage, m_data->m_blockHeader.get(), msg,
+                    m_data->m_origin, externalCaller,
+                    m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
+                    m_data->m_seq, *m_data->m_executor.get().m_hashImpl,
+                    m_data->m_executionContext.revisionConfig.fix_auth_check);
+            };
+            input.precompileCaller = [this, externalCaller](evmc_revision rev,
+                                         const evmc_message& msg) -> std::optional<evmc_result> {
+                auto const* precompiled =
+                    m_data->m_executor.get().m_precompiledManager.get().getPrecompiled(
+                        msg.recipient, m_data->m_executionContext.revisionConfig,
+                        m_data->m_ledgerConfig.get().features());
+                if (precompiled == nullptr)
+                {
+                    return std::nullopt;
+                }
+
+                auto result = callPrecompiled(*precompiled, m_data->m_rollbackableStorage,
+                    m_data->m_blockHeader.get(), msg, m_data->m_origin, externalCaller,
+                    m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
+                    m_data->m_seq, m_data->m_executionContext.revisionConfig.enable_auth_check,
+                    m_data->m_executionContext.revisionConfig, rev,
+                    m_data->m_executionContext.revisionConfig.fix_error_handling);
+                evmc_result raw = result;
+                result.output_data = nullptr;
+                result.output_size = 0;
+                result.release = nullptr;
+                return raw;
+            };
+            input.createAuthTableInvoker = [this, externalCaller](const evmc_message& msg,
+                                               std::string_view tableName) {
+                task::syncWait(createAuthTable(m_data->m_rollbackableStorage,
+                    m_data->m_blockHeader.get(), msg, m_data->m_origin, tableName, externalCaller,
+                    m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
+                    m_data->m_seq, m_data->m_ledgerConfig.get()));
+            };
+
+            co_return co_await executeViaHost(std::move(input));
         }
     };
 
@@ -229,7 +342,11 @@ public:
         -> task::Task<ExecuteContext<std::decay_t<decltype(storage)>>>
     {
         TRANSACTION_EXECUTOR_LOG(TRACE) << "Create transaction context: " << transaction;
-        co_return {*this, storage, blockHeader, transaction, contextID, ledgerConfig, call};
+        auto executeContext = ExecuteContext<std::decay_t<decltype(storage)>>{
+            *this, storage, blockHeader, transaction, contextID, ledgerConfig, call};
+        executeContext.m_data->m_executionContext.message = newEVMCMessage(blockHeader.number(),
+            transaction, executeContext.m_data->m_gasLimit, executeContext.m_data->m_origin);
+        co_return executeContext;
     }
 
     task::Task<protocol::TransactionReceipt::Ptr> executeTransaction(auto& storage,
