@@ -78,6 +78,54 @@ BOOST_AUTO_TEST_CASE(revert_discards_post_checkpoint_writes)
     BOOST_CHECK(bytes32Equal(state.get_storage(address, keyB), evmc_bytes32{}));
 }
 
+BOOST_AUTO_TEST_CASE(revert_discards_post_checkpoint_transient_storage)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address address{};
+    address.bytes[19] = 0x01;
+
+    evmc_bytes32 key{};
+    key.bytes[31] = 0x0C;
+    evmc_bytes32 valueBefore{};
+    valueBefore.bytes[31] = 0xCC;
+    evmc_bytes32 valueAfter{};
+    valueAfter.bytes[31] = 0xDD;
+
+    state.set_transient_storage(address, key, valueBefore);
+    state.checkpoint();
+    state.set_transient_storage(address, key, valueAfter);
+    state.revert();
+
+    auto account = state.find(address);
+    BOOST_REQUIRE(account.has_value());
+    auto it = account->transientStorage.find(key);
+    BOOST_REQUIRE(it != account->transientStorage.end());
+    BOOST_CHECK(bytes32Equal(it->second, valueBefore));
+}
+
+BOOST_AUTO_TEST_CASE(revert_discards_post_checkpoint_warm_sets)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address address{};
+    address.bytes[19] = 0x02;
+    evmc_bytes32 key{};
+    key.bytes[31] = 0x0D;
+
+    state.checkpoint();
+    BOOST_REQUIRE(state.warm_up_address(address));
+    BOOST_REQUIRE(state.warm_up_storage(address, key));
+    BOOST_CHECK(state.is_address_warm(address));
+    BOOST_CHECK(state.is_storage_warm(address, key));
+
+    state.revert();
+    BOOST_CHECK(!state.is_address_warm(address));
+    BOOST_CHECK(!state.is_storage_warm(address, key));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }  // namespace bcos::evm::state::test
