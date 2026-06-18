@@ -14,6 +14,22 @@ set_source_files_properties("Task0EvmoneRefundSemanticsTest.cpp" PROPERTIES SKIP
 set_source_files_properties("Web3AccessListResolverTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("EthTxGasSettlementExecutorTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("Modexp7823TeTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("ExecuteViaHostCompatTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_target_properties(test-transaction-executor PROPERTIES UNITY_BUILD "ON")
 # add_test(NAME test-transaction-executor WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} COMMAND test-transaction-executor)
 config_test_cases("" "${SOURCES}" "test-transaction-executor" "" "")
+
+# Minimal regression harness target for executeViaHost compat.
+# This bypasses transaction-executor's transitive executor linkage while that area is under refactor.
+add_executable(test-execute-via-host-compat
+    main.cpp
+    ExecuteViaHostCompatTest.cpp
+)
+target_link_libraries(test-execute-via-host-compat
+    PRIVATE
+    bcos-evm
+    evmone::evmone
+    Boost::unit_test_framework
+)
+add_test(NAME ExecuteViaHostCompat WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    COMMAND test-execute-via-host-compat)
