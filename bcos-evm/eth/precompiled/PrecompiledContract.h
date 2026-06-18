@@ -20,7 +20,7 @@
  */
 
 #pragma once
-#include "PrecompiledRegistrar.h"
+#include "EthBuiltinRegistry.h"
 #include <evmc/evmc.h>
 #include <memory>
 

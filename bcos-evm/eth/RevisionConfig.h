@@ -10,7 +10,7 @@ struct RevisionConfig
     evmc_revision revision = EVMC_CANCUN;
 
     // A. Feature-gated EIPs (require explicit flag ON in FISCO)
-    bool eip2929 : 1 = false;
+    bool warm_access : 1 = false;
     bool eip2537 : 1 = false;
     bool eip7212 : 1 = false;
     bool eip7623 : 1 = false;

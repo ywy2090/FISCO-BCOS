@@ -1,6 +1,6 @@
-#include "PrecompiledManager.h"
-#include "bcos-evm/bcos/PrecompiledImpl.h"
+#include "bcos-evm/bcos/PrecompiledManager.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-executor/src/precompiled/BFSPrecompiled.h"
 #include "bcos-executor/src/precompiled/CastPrecompiled.h"
@@ -29,27 +29,31 @@ bcos::evm::PrecompiledManager::PrecompiledManager(crypto::Hash::Ptr hashImpl)
   : m_hashImpl(std::move(hashImpl))
 {
     m_address2Precompiled.emplace_back(
-        1, Precompiled{executor::PrecompiledContract(3000, 0, builtinExecutorBySuffix(0x0001)), 0});
+        1, Precompiled{PrecompiledContract(3000, 0, builtinExecutorBySuffix(0x0001)), 0});
     m_address2Precompiled.emplace_back(
-        2, Precompiled{executor::PrecompiledContract(60, 12, builtinExecutorBySuffix(0x0002)), 0});
-    m_address2Precompiled.emplace_back(3,
-        Precompiled{executor::PrecompiledContract(600, 120, builtinExecutorBySuffix(0x0003)), 0});
+        2, Precompiled{PrecompiledContract(60, 12, builtinExecutorBySuffix(0x0002)), 0});
     m_address2Precompiled.emplace_back(
-        4, Precompiled{executor::PrecompiledContract(15, 3, builtinExecutorBySuffix(0x0004)), 0});
+        3, Precompiled{PrecompiledContract(600, 120, builtinExecutorBySuffix(0x0003)), 0});
     m_address2Precompiled.emplace_back(
-        5, Precompiled{executor::PrecompiledContract::modexp(builtinExecutorBySuffix(0x0005)), 0});
+        4, Precompiled{PrecompiledContract(15, 3, builtinExecutorBySuffix(0x0004)), 0});
     m_address2Precompiled.emplace_back(
-        6, Precompiled{executor::PrecompiledContract(150, 0, builtinExecutorBySuffix(0x0006)), 0});
+        5, Precompiled{PrecompiledContract::modexp(builtinExecutorBySuffix(0x0005)), 0});
     m_address2Precompiled.emplace_back(
-        7, Precompiled{executor::PrecompiledContract(6000, 0, builtinExecutorBySuffix(0x0007)), 0});
+        6, Precompiled{PrecompiledContract(150, 0, builtinExecutorBySuffix(0x0006)), 0});
     m_address2Precompiled.emplace_back(
-        8, Precompiled{executor::PrecompiledContract(
-                           builtinPricerBySuffix(0x0008), builtinExecutorBySuffix(0x0008)),
+        7, Precompiled{PrecompiledContract(6000, 0, builtinExecutorBySuffix(0x0007)), 0});
+    m_address2Precompiled.emplace_back(
+        8, Precompiled{
+               PrecompiledContract(builtinPricerBySuffix(0x0008), builtinExecutorBySuffix(0x0008)),
                0});
     m_address2Precompiled.emplace_back(
-        9, Precompiled{executor::PrecompiledContract(
-                           builtinPricerBySuffix(0x0009), builtinExecutorBySuffix(0x0009)),
+        9, Precompiled{
+               PrecompiledContract(builtinPricerBySuffix(0x0009), builtinExecutorBySuffix(0x0009)),
                0});
+    m_address2Precompiled.emplace_back(0x0a,
+        Precompiled{
+            PrecompiledContract(builtinPricerBySuffix(0x000a), builtinExecutorBySuffix(0x000a)),
+            0});
 
     // EIP-2537 BLS12-381 precompiles (Prague, 0x0b–0x11)
     static const std::pair<int, const char*> blsPrecompiles[] = {
@@ -65,17 +69,16 @@ bcos::evm::PrecompiledManager::PrecompiledManager(crypto::Hash::Ptr hashImpl)
     {
         (void)name;
         m_address2Precompiled.emplace_back(addr,
-            Precompiled{
-                executor::PrecompiledContract(builtinPricerBySuffix(static_cast<uint16_t>(addr)),
-                    builtinExecutorBySuffix(static_cast<uint16_t>(addr))),
+            Precompiled{PrecompiledContract(builtinPricerBySuffix(static_cast<uint16_t>(addr)),
+                            builtinExecutorBySuffix(static_cast<uint16_t>(addr))),
                 ledger::Features::Flag::feature_evm_prague});
     }
 
     // EIP-7212 p256verify (Osaka, 0x0100)
-    m_address2Precompiled.emplace_back(
-        0x0100, Precompiled{executor::PrecompiledContract(
-                                builtinPricerBySuffix(0x0100), builtinExecutorBySuffix(0x0100)),
-                    ledger::Features::Flag::feature_evm_osaka});
+    m_address2Precompiled.emplace_back(0x0100,
+        Precompiled{
+            PrecompiledContract(builtinPricerBySuffix(0x0100), builtinExecutorBySuffix(0x0100)),
+            ledger::Features::Flag::feature_evm_osaka});
 
     m_address2Precompiled.emplace_back(
         0x1000, std::make_shared<precompiled::SystemConfigPrecompiled>(m_hashImpl));

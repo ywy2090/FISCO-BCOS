@@ -21,11 +21,16 @@
 
 #pragma once
 #include "bcos-evm/bcos/Precompiled.h"
+#include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompiledContract.h"
-#include "bcos-evm/eth/precompiled/PrecompiledRegistrar.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/FixedBytes.h"
 #include <cstdint>
+
+namespace bcos::executor
+{
+using PrecompiledContract = evm::PrecompiledContract;
+}  // namespace bcos::executor
 
 namespace bcos
 {

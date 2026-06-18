@@ -1,4 +1,5 @@
 #pragma once
+#include "AuthCheck.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/vm/VMInstance.h"  // toRevision
@@ -33,7 +34,7 @@ public:
         cfg.revision =
             std::max(bcos::executor::toRevision(m_features, header.version()), EVMC_CANCUN);
 
-        cfg.eip2929 = cfg.revision >= EVMC_BERLIN && m_features.get(Flag::feature_evm_eip2929);
+        cfg.warm_access = cfg.revision >= EVMC_BERLIN;
         cfg.eip1153 = cfg.revision >= EVMC_CANCUN;
         cfg.eip4844 = cfg.revision >= EVMC_CANCUN;
         cfg.eip5656 = cfg.revision >= EVMC_CANCUN;
@@ -91,10 +92,17 @@ public:
     task::Task<std::optional<struct bcos::evm::EVMCResult>> checkAuth(Storage& storage,
         const protocol::BlockHeader& blockHeader, const evmc_message& msg,
         const evmc_address& origin, auto&& externalCaller,
-        const struct bcos::evm::PrecompiledManager& precompiledMgr, int64_t contextID,
-        int64_t& seq, const crypto::Hash& hashImpl) const
+        const struct bcos::evm::PrecompiledManager& precompiledMgr, int64_t contextID, int64_t& seq,
+        const crypto::Hash& hashImpl) const
     {
-        co_return std::nullopt;  // Stub — full implementation wired in Task 2-preamble
+        if (!m_authCheckEnabled)
+        {
+            co_return std::nullopt;
+        }
+        auto result = bcos::evm::checkAuth(storage, blockHeader, msg, origin,
+            std::forward<decltype(externalCaller)>(externalCaller), precompiledMgr, contextID, seq,
+            hashImpl, m_features.get(ledger::Features::Flag::bugfix_auth_check));
+        co_return result;
     }
 
 private:

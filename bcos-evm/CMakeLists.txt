@@ -13,7 +13,7 @@ add_library(bcos-evm STATIC
     eth/state/bloom_filter.cpp
     eth/state/EthPrecompiles.cpp
     eth/state/transition.cpp
-    eth/precompiled/PrecompiledRegistrar.cpp
+    eth/precompiled/EthBuiltinRegistry.cpp
     eth/precompiled/PrecompiledContract.cpp
     eth/precompiled/ModexpGas.cpp
 )

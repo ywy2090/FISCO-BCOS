@@ -1,10 +1,10 @@
 /**
  * @file Web3AccessListResolverTest.cpp
- * @brief End-to-end: resolve typed Web3 tx → HostContext prepare() → access list warm.
+ * @brief End-to-end: resolve typed Web3 tx → ExecuteFrame prepare() → access list warm.
  */
 
 #include "bcos-executor/src/Web3AccessListResolver.h"
-#include "../bcos-transaction-executor/vm/HostContext.h"
+#include "../bcos-transaction-executor/vm/ExecuteFrame.h"
 #include "Eip2929TestHelpers.h"
 #include "TestMemoryStorage.h"
 #include "bcos-framework/ledger/Features.h"
@@ -59,7 +59,7 @@ public:
         blockHeader.calculateHash(*hashImpl);
     }
 
-    HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)> makeHost(
+    ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)> makeHost(
         bcos::ledger::Features const& features,
         std::shared_ptr<const bcos::executor::Eip2930AccessList> eip2930AccessList,
         uint8_t web3TypedTxKindForAccessList)
@@ -90,7 +90,7 @@ public:
             .destination_len = 0,
             .sender_ptr = nullptr,
             .sender_len = 0};
-        return HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>(
+        return ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>(
             rollbackableStorage, rollbackableTransientStorage, blockHeader, message, origin, "", 0,
             seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0, bcos::task::syncWait,
             std::move(eip2930AccessList), web3TypedTxKindForAccessList,
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(Web3AccessListResolver_end_to_end_warm)
     BOOST_REQUIRE(resolved.accessList);
     BOOST_CHECK_EQUAL(resolved.accessList->size(), 2U);
 
-    auto const features = eip2929::makeFeaturesPragueEip2929();
+    auto const features = warmset::makeFeaturesPragueEip2929();
     auto host = makeHost(features, resolved.accessList, resolved.web3TypedTxKind);
     syncWait([&host]() -> task::Task<void> {
         co_await host.prepare();

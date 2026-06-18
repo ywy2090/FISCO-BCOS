@@ -43,7 +43,7 @@ bool shouldRejectModexpEip7823(std::string_view addr, bcos::bytesConstRef input,
 /// EIP-198 (< Berlin), EIP-2565 (Berlin..Osaka-1), EIP-7883 (Osaka+).
 bcos::bigint calcModexpGas(bcos::bytesConstRef input, evmc_revision revision);
 
-/// Legacy EIP-198 pricing for PrecompiledRegistrar::pricer("modexp") and unit tests only.
+/// Legacy EIP-198 pricing for legacy modexp gas tests only.
 /// Production uses PrecompiledContract::modexp() -> calcModexpGas(input, revision).
 bcos::bigint calcModexpGasEip198Public(bcos::bytesConstRef input);
 

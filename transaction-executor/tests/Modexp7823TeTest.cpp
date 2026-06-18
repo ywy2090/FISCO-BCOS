@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka)
 {
     executor::GlobalHashImpl::g_hashImpl = std::make_shared<crypto::Keccak256>();
     executor::PrecompiledContract const contract(
-        executor::PrecompiledContract::modexp(executor::PrecompiledRegistrar::executor("modexp")));
+        executor::PrecompiledContract::modexp(executor::BuiltinRegistry::executor("modexp")));
 
     auto const input = modexpHeaderBaseLen1025();
     evmc_address modexpAddr{};
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka_legacyPath_bu
 {
     executor::GlobalHashImpl::g_hashImpl = std::make_shared<crypto::Keccak256>();
     executor::PrecompiledContract const contract(
-        executor::PrecompiledContract::modexp(executor::PrecompiledRegistrar::executor("modexp")));
+        executor::PrecompiledContract::modexp(executor::BuiltinRegistry::executor("modexp")));
 
     auto const input = modexpHeaderBaseLen1025();
     evmc_address modexpAddr{};
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_dynamicPrecompiledR
 {
     executor::GlobalHashImpl::g_hashImpl = std::make_shared<crypto::Keccak256>();
     executor::PrecompiledContract const contract(
-        executor::PrecompiledContract::modexp(executor::PrecompiledRegistrar::executor("modexp")));
+        executor::PrecompiledContract::modexp(executor::BuiltinRegistry::executor("modexp")));
 
     auto const input = modexpHeaderBaseLen1025();
     evmc_address modexpAddr{};

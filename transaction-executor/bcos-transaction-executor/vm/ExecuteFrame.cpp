@@ -1,4 +1,4 @@
-#include "HostContext.h"
+#include "ExecuteFrame.h"
 #include "VMFactory.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include <fmt/compile.h>
@@ -10,9 +10,9 @@ evmc_bytes32 bcos::evm::hostcontext::evm_hash_fn(
     return toEvmC(executor::GlobalHashImpl::g_hashImpl->hash(bytesConstRef(data, size)));
 }
 
-evmc_message bcos::evm::hostcontext::getMessage(bool web3Tx,
-    const evmc_message& inputMessage, protocol::BlockNumber blockNumber, int64_t contextID,
-    int64_t seq, const u256& nonce, crypto::Hash const& hashImpl)
+evmc_message bcos::evm::hostcontext::getMessage(bool web3Tx, const evmc_message& inputMessage,
+    protocol::BlockNumber blockNumber, int64_t contextID, int64_t seq, const u256& nonce,
+    crypto::Hash const& hashImpl)
 {
     evmc_message message = inputMessage;
     switch (message.kind)
@@ -31,10 +31,8 @@ evmc_message bcos::evm::hostcontext::getMessage(bool web3Tx,
             }
             else
             {
-                auto legacyAddr =
-                    newLegacyEVMAddress(bytesConstRef(message.sender.bytes), nonce);
-                std::copy(
-                    legacyAddr.begin(), legacyAddr.end(), message.code_address.bytes);
+                auto legacyAddr = newLegacyEVMAddress(bytesConstRef(message.sender.bytes), nonce);
+                std::copy(legacyAddr.begin(), legacyAddr.end(), message.code_address.bytes);
             }
         }
         message.recipient = message.code_address;
@@ -65,8 +63,7 @@ evmc_message bcos::evm::hostcontext::getMessage(bool web3Tx,
     return message;
 }
 
-bcos::evm::hostcontext::CacheExecutables&
-bcos::evm::hostcontext::getCacheExecutables()
+bcos::evm::hostcontext::CacheExecutables& bcos::evm::hostcontext::getCacheExecutables()
 {
     struct CacheExecutables
     {

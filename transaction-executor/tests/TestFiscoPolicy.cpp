@@ -10,7 +10,7 @@ BOOST_AUTO_TEST_SUITE(FiscoPolicyTest)
 ledger::Features makeFeatures()
 {
     ledger::Features f;
-    f.set(Flag::feature_evm_eip2929);
+    f.set(Flag::feature_evm_warmset);
     f.set(Flag::feature_evm_prague);
     f.set(Flag::feature_evm_osaka);
     f.set(Flag::bugfix_v1_error_handling);
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOn)
 
     auto rev = policy.computeRevisionConfig(header);
 
-    BOOST_CHECK(rev.eip2929);
+    BOOST_CHECK(rev.warmset);
     BOOST_CHECK(rev.eip2537);
     BOOST_CHECK(rev.eip7212);
     BOOST_CHECK(rev.eip7623);
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOff)
 
     auto rev = policy.computeRevisionConfig(header);
 
-    BOOST_CHECK(!rev.eip2929);
+    BOOST_CHECK(!rev.warmset);
     BOOST_CHECK(!rev.eip2537);
     BOOST_CHECK(!rev.eip7212);
     BOOST_CHECK(!rev.eip7623);

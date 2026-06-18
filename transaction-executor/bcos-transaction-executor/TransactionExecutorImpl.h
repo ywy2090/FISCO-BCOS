@@ -4,8 +4,8 @@
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoTxExecutor.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/eip2929/Eip2929AccessState.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/warmset/Eip2929AccessState.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
@@ -15,7 +15,7 @@
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Exceptions.h"
 #include "precompiled/PrecompiledManager.h"
-#include "vm/HostContext.h"
+#include "vm/ExecuteFrame.h"
 #include <evmc/evmc.h>
 #include <boost/algorithm/hex.hpp>
 #include <boost/exception/diagnostic_information.hpp>
@@ -53,9 +53,8 @@ public:
     std::reference_wrapper<PrecompiledManager> m_precompiledManager;
     TxExec m_txExecutor;
 
-    using TransientStorage =
-        bcos::storage2::memory_storage::MemoryStorage<bcos::evm::StateKey,
-            bcos::evm::StateValue, bcos::storage2::memory_storage::ORDERED>;
+    using TransientStorage = bcos::storage2::memory_storage::MemoryStorage<bcos::evm::StateKey,
+        bcos::evm::StateValue, bcos::storage2::memory_storage::ORDERED>;
 
     // FIB-75: Effective gas limit for EVM execution.
     // When fix_gas_precheck is enabled and the tx declares gasLimit > 0,
@@ -98,8 +97,8 @@ public:
             evmc_address m_origin;
             u256 m_nonce;
             executor::Web3AccessListResolved m_web3AccessListResolved;
-            std::shared_ptr<executor::Eip2929AccessState> m_eip2929Access;
-            hostcontext::HostContext<decltype(m_rollbackableStorage),
+            std::shared_ptr<executor::Eip2929AccessState> m_warmsetAccess;
+            hostcontext::ExecuteFrame<decltype(m_rollbackableStorage),
                 decltype(m_rollbackableTransientStorage), typename TxExec::PolicyType>
                 m_hostContext;
             std::optional<EVMCResult> m_evmcResult;
@@ -128,13 +127,13 @@ public:
                              evmc_address{}),
                 m_nonce(hex2u(transaction.nonce())),
                 m_web3AccessListResolved(executor::resolveWeb3AccessList(transaction)),
-                m_eip2929Access(std::make_shared<executor::Eip2929AccessState>()),
+                m_warmsetAccess(std::make_shared<executor::Eip2929AccessState>()),
                 m_hostContext(m_rollbackableStorage, m_rollbackableTransientStorage, blockHeader,
                     newEVMCMessage(m_blockHeader.get().number(), transaction, m_gasLimit, m_origin),
                     m_origin, transaction.abi(), contextID, m_seq, executor.m_precompiledManager,
                     m_policy.computeRevisionConfig(blockHeader), m_policy, *executor.m_hashImpl,
                     transaction.type() != 0, m_nonce, m_web3AccessListResolved.accessList,
-                    m_web3AccessListResolved.web3TypedTxKind, m_eip2929Access)
+                    m_web3AccessListResolved.web3TypedTxKind, m_warmsetAccess)
             {}
         };
         std::unique_ptr<Data> m_data;

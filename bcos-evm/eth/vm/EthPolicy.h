@@ -13,7 +13,7 @@ struct EthPolicy
     {
         RevisionConfig cfg;
         cfg.revision = evmcRevisionFromBlockNumber(header.number());
-        cfg.eip2929 = cfg.revision >= EVMC_BERLIN;
+        cfg.warm_access = cfg.revision >= EVMC_BERLIN;
         cfg.eip1153 = cfg.revision >= EVMC_CANCUN;
         cfg.eip4844 = cfg.revision >= EVMC_CANCUN;
         cfg.eip5656 = cfg.revision >= EVMC_CANCUN;

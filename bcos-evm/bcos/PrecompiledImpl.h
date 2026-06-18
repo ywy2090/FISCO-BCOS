@@ -1,16 +1,15 @@
 #pragma once
 #include "ExecutiveWrapper.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompileTraits.h"
-#include "bcos-evm/eth/precompiled/PrecompiledRegistrar.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/executive/BlockContext.h"
 #include "bcos-executor/src/executive/TransactionExecutive.h"
 #include "bcos-executor/src/vm/EvmPrecompiledAddress.h"
 #include "bcos-executor/src/vm/Precompiled.h"
 
-// Forward-declared; defined in bcos-executor/src/vm/ModexpGas.h (avoid pulling executor HostContext
-// here).
+// Forward-declared; defined in bcos-executor/src/vm/ModexpGas.h.
 namespace bcos::evm
 {
 bcos::bigint calcModexpGas(bcos::bytesConstRef input, evmc_revision revision);
@@ -47,52 +46,6 @@ struct Precompiled
 
 size_t size(Precompiled const& precompiled);
 std::optional<ledger::Features::Flag> featureFlag(Precompiled const& precompiled);
-
-// Address suffix → precompile name (for PrecompiledRegistrar lookup).
-inline const char* precompileName(uint16_t suffix) noexcept
-{
-    switch (suffix)
-    {
-    case 0x0001:
-        return "ecrecover";
-    case 0x0002:
-        return "sha256";
-    case 0x0003:
-        return "ripemd160";
-    case 0x0004:
-        return "identity";
-    case 0x0005:
-        return "modexp";
-    case 0x0006:
-        return "alt_bn128_G1_add";
-    case 0x0007:
-        return "alt_bn128_G1_mul";
-    case 0x0008:
-        return "alt_bn128_pairing_product";
-    case 0x0009:
-        return "blake2_compression";
-    case 0x000a:
-        return "point_evaluation";
-    case 0x000b:
-        return "bls12_g1add";
-    case 0x000c:
-        return "bls12_g1msm";
-    case 0x000d:
-        return "bls12_g2add";
-    case 0x000e:
-        return "bls12_g2msm";
-    case 0x000f:
-        return "bls12_pairing_check";
-    case 0x0010:
-        return "bls12_map_fp_to_g1";
-    case 0x0011:
-        return "bls12_map_fp2_to_g2";
-    case 0x0100:
-        return "p256verify";
-    default:
-        return nullptr;
-    }
-}
 
 // Build an EVMCResult for a built-in precompiled call, taking ownership of the output buffer.
 inline EVMCResult buildBuiltinPrecompiledResult(bool success, auto const& output, int64_t gasLeft)
@@ -146,9 +99,7 @@ inline EVMCResult callBuiltinPrecompiled(evmc_message const& message,
     bigint gas;
     if (precompiles::hasRevisionAwarePricer(traits))
     {
-        // modexp / blake2f / bn256 pairing / BLS MSM → use existing pricer
-        const auto& contract = PrecompiledRegistrar::pricer(precompileName(traits->address_suffix));
-        gas = contract(input, revision);
+        gas = builtinPricerBySuffix(traits->address_suffix)(input);
     }
     else
     {
@@ -170,11 +121,11 @@ inline EVMCResult callBuiltinPrecompiled(evmc_message const& message,
                 protocol::TransactionStatus::OutOfGas, EVMC_OUT_OF_GAS, 0,
                 "Precompiled contract out of gas", fixErrorHandling);
         }
-        auto [success, output] = traits->execute(input);
+        auto [success, output] = builtinExecutorBySuffix(traits->address_suffix)(input);
         return buildBuiltinPrecompiledResult(success, output, message.gas - gasCost);
     }
 
-    auto [success, output] = traits->execute(input);
+    auto [success, output] = builtinExecutorBySuffix(traits->address_suffix)(input);
     return buildBuiltinPrecompiledResult(
         success, output, message.gas - gas.template convert_to<int64_t>());
 }

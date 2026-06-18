@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "../bcos-transaction-executor/vm/HostContext.h"
+#include "../bcos-transaction-executor/vm/ExecuteFrame.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace bcos::test::eip2929
+namespace bcos::test::warmset
 {
 
 /// PUSH20 <addr> EXTCODESIZE — warms @p target in current EVM frame.
@@ -201,7 +201,7 @@ inline bcos::ledger::Features makeFeaturesPragueEip2929()
     features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
     features.set(bcos::ledger::Features::Flag::feature_evm_cancun);
     features.set(bcos::ledger::Features::Flag::feature_evm_prague);
-    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
+    features.set(bcos::ledger::Features::Flag::feature_evm_warmset);
     return features;
 }
 
@@ -210,7 +210,7 @@ inline bcos::ledger::Features makeFeaturesCancunEip2929()
     bcos::ledger::Features features;
     features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
     features.set(bcos::ledger::Features::Flag::feature_evm_cancun);
-    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
+    features.set(bcos::ledger::Features::Flag::feature_evm_warmset);
     return features;
 }
 
@@ -219,7 +219,7 @@ inline bcos::ledger::Features makeFeaturesShanghaiEip2929()
 {
     bcos::ledger::Features features;
     features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
-    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
+    features.set(bcos::ledger::Features::Flag::feature_evm_warmset);
     return features;
 }
 
@@ -371,4 +371,4 @@ int64_t measureTwoAccountsExtCodeSizeGas(Fixture& fixture, bcos::ledger::Feature
         fixture, features, target1, target2, startGas, runnerTag));
 }
 
-}  // namespace bcos::test::eip2929
+}  // namespace bcos::test::warmset

@@ -3,10 +3,10 @@
  */
 #include "Eip2929TestHelpers.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/eip2929/Eip2929AccessState.h"
-#include "bcos-evm/eth/eip2929/Eip2929PrecompileWarm.h"
-#include "bcos-evm/eth/eip2929/Eip2929TransactionPrewarm.h"
-#include "bcos-evm/eth/eip2929/Eip2929Util.h"
+#include "bcos-evm/eth/warmset/Eip2929AccessState.h"
+#include "bcos-evm/eth/warmset/Eip2929PrecompileWarm.h"
+#include "bcos-evm/eth/warmset/Eip2929TransactionPrewarm.h"
+#include "bcos-evm/eth/warmset/Eip2929Util.h"
 #include "bcos-executor/src/Common.h"
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
@@ -14,12 +14,12 @@
 #include <vector>
 
 using bcos::evm::Eip2929AccessState;
-using bcos::executor::eip2929Enabled;
-using bcos::executor::eip2929TransactionEntryWarmEnabled;
 using bcos::evm::Eip2929TxPrewarmInput;
 using bcos::executor::forEachActivePrecompileAddress;
 using bcos::executor::warmEip2929AtTransactionEntry;
 using bcos::executor::warmEip2930AccessListOnly;
+using bcos::executor::warmsetEnabled;
+using bcos::executor::warmsetTransactionEntryWarmEnabled;
 
 namespace
 {
@@ -54,26 +54,26 @@ bool containsOsakaPrecompile(std::vector<evmc_address> const& addrs)
 bcos::evm_standard::RevisionConfig revWithEip2929On()
 {
     bcos::evm_standard::RevisionConfig rev;
-    rev.eip2929 = true;
+    rev.warmset = true;
     return rev;
 }
 
 bcos::evm_standard::RevisionConfig revWithEip2929Off()
 {
     bcos::evm_standard::RevisionConfig rev;
-    rev.eip2929 = false;
+    rev.warmset = false;
     return rev;
 }
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(Eip2929Util)
 
-BOOST_AUTO_TEST_CASE(enabled_requires_eip2929_revision_config)
+BOOST_AUTO_TEST_CASE(enabled_requires_warmset_revision_config)
 {
     auto const revOn = revWithEip2929On();
     auto const revOff = revWithEip2929Off();
-    BOOST_CHECK(!eip2929Enabled(revOff));
-    BOOST_CHECK(eip2929Enabled(revOn));
+    BOOST_CHECK(!warmsetEnabled(revOff));
+    BOOST_CHECK(warmsetEnabled(revOn));
 }
 
 BOOST_AUTO_TEST_CASE(transaction_entry_warm_gate)
@@ -81,10 +81,10 @@ BOOST_AUTO_TEST_CASE(transaction_entry_warm_gate)
     Eip2929AccessState state;
     auto const revOn = revWithEip2929On();
     auto const revOff = revWithEip2929Off();
-    BOOST_CHECK(eip2929TransactionEntryWarmEnabled(0, revOn, &state));
-    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(1, revOn, &state));
-    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, revOn, nullptr));
-    BOOST_CHECK(!eip2929TransactionEntryWarmEnabled(0, revOff, &state));
+    BOOST_CHECK(warmsetTransactionEntryWarmEnabled(0, revOn, &state));
+    BOOST_CHECK(!warmsetTransactionEntryWarmEnabled(1, revOn, &state));
+    BOOST_CHECK(!warmsetTransactionEntryWarmEnabled(0, revOn, nullptr));
+    BOOST_CHECK(!warmsetTransactionEntryWarmEnabled(0, revOff, &state));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(warm_at_transaction_entry_covers_w1_create_coinbase_and_w2)
     evmc_address const listAddr = addrByte(0x55);
     evmc_bytes32 slot{};
     slot.bytes[31] = 0x09;
-    bcos::executor::Eip2930AccessList accessList{{bcos::test::eip2929::addressFromEvmc(listAddr),
+    bcos::executor::Eip2930AccessList accessList{{bcos::test::warmset::addressFromEvmc(listAddr),
         {bcos::h256(slot.bytes, bcos::h256::SIZE)}}};
 
     Eip2929TxPrewarmInput input;
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(warm_eip2930_access_list_only_skips_legacy_kind)
 {
     Eip2929AccessState state;
     bcos::executor::Eip2930AccessList list{
-        {bcos::test::eip2929::addressFromEvmc(addrByte(0x77)), {}}};
+        {bcos::test::warmset::addressFromEvmc(addrByte(0x77)), {}}};
     warmEip2930AccessListOnly(
         state, 0, list, [](bcos::Address const& addr) { return bcos::toEvmC(addr); });
     BOOST_CHECK(!state.containsAddress(addrByte(0x77)));

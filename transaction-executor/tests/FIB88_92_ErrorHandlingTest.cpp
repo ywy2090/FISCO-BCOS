@@ -13,11 +13,11 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Unit tests for audit fixes FIB-88 through FIB-92 in HostContext::execute()
+ * @brief Unit tests for audit fixes FIB-88 through FIB-92 in ExecuteFrame::execute()
  */
 
 #include "../bcos-transaction-executor/precompiled/PrecompiledManager.h"
-#include "../bcos-transaction-executor/vm/HostContext.h"
+#include "../bcos-transaction-executor/vm/ExecuteFrame.h"
 #include "TestBytecode.h"
 #include "TestMemoryStorage.h"
 #include "bcos-codec/bcos-codec/abi/ContractABICodec.h"
@@ -97,7 +97,7 @@ public:
             .sender_len = 0};
         evmc_address origin = {};
 
-        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
+        ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
             hostContext(rollbackableStorage, rollbackableTransientStorage, blockHeader, message,
                 origin, "", 0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0,
                 bcos::task::syncWait);
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(FIB88_InsufficientBalanceConsumesAllGas)
             .sender_len = 0};
         evmc_address origin{};
 
-        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
+        ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
             hostContext(rollbackableStorage, rollbackableTransientStorage, blockHeader, message,
                 origin, "", 0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0,
                 bcos::task::syncWait);
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(FIB88_NotFoundCodeRevertPreservesGas)
             .sender_len = 0};
         evmc_address origin{};
 
-        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
+        ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
             hostContext(rollbackableStorage, rollbackableTransientStorage, blockHeader, message,
                 origin, "", 0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0,
                 bcos::task::syncWait);
@@ -243,7 +243,7 @@ BOOST_AUTO_TEST_CASE(FIB88_NotFoundCodeStaticCallReturnsSuccess)
             .sender_len = 0};
         evmc_address origin{};
 
-        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
+        ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
             hostContext(rollbackableStorage, rollbackableTransientStorage, blockHeader, message,
                 origin, "", 0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0,
                 bcos::task::syncWait);
@@ -312,7 +312,7 @@ BOOST_AUTO_TEST_CASE(FIB91_AuthCheckInsideTryBlock)
             .sender_len = 0};
         evmc_address origin{};
 
-        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
+        ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
             hostContext(rollbackableStorage, rollbackableTransientStorage, blockHeader, message,
                 origin, "", 0, seq, *precompiledManager, ledgerConfig, *hashImpl, false, 0,
                 bcos::task::syncWait);
@@ -408,7 +408,7 @@ BOOST_AUTO_TEST_CASE(FIB88_FlagOff_InsufficientBalancePreservesGas)
             .sender_len = 0};
         evmc_address origin{};
 
-        HostContext<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
+        ExecuteFrame<decltype(rollbackableStorage), decltype(rollbackableTransientStorage)>
             hostContext(rollbackableStorage, rollbackableTransientStorage, oldHeader, message,
                 origin, "", 0, seq, *precompiledManager, oldConfig, *hashImpl, false, 0,
                 bcos::task::syncWait);

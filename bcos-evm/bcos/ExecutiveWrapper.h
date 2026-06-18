@@ -1,8 +1,7 @@
 #pragma once
-#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-codec/wrapper/CodecWrapper.h"
 #include "bcos-crypto/ChecksumAddress.h"
-#include "bcos-evm/eth/vm/HostContext.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/executive/TransactionExecutive.h"
 #include <evmc/evmc.h>

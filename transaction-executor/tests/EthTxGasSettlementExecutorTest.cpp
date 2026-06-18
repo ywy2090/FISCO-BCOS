@@ -44,7 +44,7 @@ void setPragueFeatures(ledger::LedgerConfig& ledgerConfig)
     features.setGenesisFeatures(protocol::BlockVersion::MAX_VERSION);
     features.set(ledger::Features::Flag::feature_evm_cancun);
     features.set(ledger::Features::Flag::feature_evm_prague);
-    features.set(ledger::Features::Flag::feature_evm_eip2929);
+    features.set(ledger::Features::Flag::feature_evm_warmset);
     features.set(ledger::Features::Flag::feature_balance);
     features.set(ledger::Features::Flag::feature_balance_policy1);
     ledgerConfig.setFeatures(features);
@@ -55,7 +55,7 @@ void setPragueFeaturesWithoutBalancePrecheck(ledger::LedgerConfig& ledgerConfig)
     ledger::Features features;
     features.set(ledger::Features::Flag::feature_evm_cancun);
     features.set(ledger::Features::Flag::feature_evm_prague);
-    features.set(ledger::Features::Flag::feature_evm_eip2929);
+    features.set(ledger::Features::Flag::feature_evm_warmset);
     features.set(ledger::Features::Flag::feature_balance);
     features.set(ledger::Features::Flag::feature_balance_policy1);
     features.set(ledger::Features::Flag::bugfix_evm_exception_gas_used);
