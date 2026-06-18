@@ -29,6 +29,7 @@
 #include <evmone_precompiles/kzg.hpp>
 #include <evmone_precompiles/modexp.hpp>
 #include <evmone_precompiles/ripemd160.hpp>
+#include <evmone_precompiles/secp256k1.hpp>
 #include <evmone_precompiles/sha256.hpp>
 #include <intx/intx.hpp>
 #include <limits>
@@ -82,6 +83,34 @@ int64_t wordsCost(size_t inputSize, int64_t base, int64_t perWord) noexcept
 {
     auto const words = static_cast<int64_t>((inputSize + 31) / 32);
     return base + words * perWord;
+}
+
+std::pair<bool, bcos::bytes> executeEcrecover(bcos::bytesConstRef input)
+{
+    std::array<uint8_t, 128> buffer{};
+    std::copy_n(input.data(), std::min(input.size(), buffer.size()), buffer.data());
+
+    auto const hash = std::span<uint8_t const, 32>{buffer.data(), 32};
+    auto const vBytes = std::span<uint8_t const, 32>{buffer.data() + 32, 32};
+    auto const sigBytes = std::span<uint8_t const, 64>{buffer.data() + 64, 64};
+
+    auto const v = intx::be::unsafe::load<intx::uint256>(vBytes.data());
+    if (v != 27 && v != 28)
+    {
+        return {true, {}};
+    }
+    auto const parity = v == 28;
+
+    auto const recovered = evmmax::secp256k1::ecrecover(
+        hash, sigBytes.subspan<0, 32>(), sigBytes.subspan<32, 32>(), parity);
+    if (!recovered.has_value())
+    {
+        return {true, {}};
+    }
+
+    bcos::bytes output(32, 0);
+    std::copy_n(recovered->bytes, sizeof(*recovered), output.data() + 12);
+    return {true, std::move(output)};
 }
 
 std::pair<bool, bcos::bytes> executeModexp(bcos::bytesConstRef input)
@@ -463,9 +492,7 @@ std::optional<EthPrecompileResult> EthPrecompiles::dispatch(
     switch (*suffix)
     {
     case 0x0001:
-        // TODO(C0-3): evmone_precompiles keccak/secp256k1 headers are not available in current
-        // portfile; keep ecrecover execution as precompile failure skeleton.
-        executed = {false, {}};
+        executed = executeEcrecover(input);
         break;
     case 0x0002:
     {
