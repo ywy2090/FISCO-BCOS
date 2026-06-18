@@ -24,7 +24,7 @@ target_link_libraries(bcos-evm PUBLIC
     evmone::evmone
     bcos-task
     bcos-framework
-    bcos-ledger
+    ledger
     bcos-protocol
     bcos-utilities
 )
