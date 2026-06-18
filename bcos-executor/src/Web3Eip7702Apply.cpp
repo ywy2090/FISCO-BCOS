@@ -1,5 +1,7 @@
 #include "Web3Eip7702Apply.h"
 #include "bcos-codec/rlp/RLPEncode.h"
+#include <bcos-crypto/interfaces/crypto/CommonType.h>
+#include <bcos-crypto/signature/Exceptions.h>
 #include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
 #include <cstring>
 #include <intx/intx.hpp>
@@ -101,10 +103,30 @@ std::optional<bcos::Address> recoverEip7702Authority(
         }
         return crypto::calculateAddress(hashImpl, pub);
     }
-    catch (...)
+    catch (bcos::crypto::InvalidSignature const&)
     {
         return std::nullopt;
     }
+}
+
+std::vector<bcos::Address> collectRecoveredEip7702Authorities(
+    crypto::Hash::Ptr const& hashImpl, protocol::Transaction const& tx)
+{
+    std::vector<bcos::Address> authorities;
+    auto const parsed = parseEip7702FromWeb3Transaction(tx);
+    if (!parsed.authorizationList || parsed.authorizationList->empty())
+    {
+        return authorities;
+    }
+    authorities.reserve(parsed.authorizationList->size());
+    for (auto const& tuple : *parsed.authorizationList)
+    {
+        if (auto const authority = recoverEip7702Authority(hashImpl, tuple))
+        {
+            authorities.push_back(*authority);
+        }
+    }
+    return authorities;
 }
 
 evmc_address addressToEvmc(bcos::Address const& addr) noexcept

@@ -3,9 +3,11 @@
 #include "Eip7702Delegation.h"
 #include "Web3Eip7702Fill.h"
 #include <bcos-crypto/interfaces/crypto/Hash.h>
+#include <bcos-framework/protocol/Transaction.h>
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <optional>
+#include <vector>
 
 namespace bcos::executor
 {
@@ -22,5 +24,9 @@ evmc_address addressToEvmc(bcos::Address const& addr) noexcept;
 /// @p tupleChainId == 0 means "any chain"; otherwise must match configured ledger chain id.
 bool eip7702ChainIdMatches(
     uint64_t tupleChainId, std::optional<evmc_uint256be> const& ledgerChainId) noexcept;
+
+/// Recover authority addresses from wire tuples (invalid signatures skipped; geth pool style).
+std::vector<bcos::Address> collectRecoveredEip7702Authorities(
+    crypto::Hash::Ptr const& hashImpl, protocol::Transaction const& tx);
 
 }  // namespace bcos::executor

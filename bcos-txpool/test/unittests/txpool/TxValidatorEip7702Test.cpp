@@ -18,6 +18,7 @@
 #include "bcos-tars-protocol/protocol/TransactionImpl.h"
 #include "bcos-tars-protocol/tars/Transaction.h"
 #include "bcos-task/Wait.h"
+#include "bcos-txpool/txpool/Eip7702PendingAuthIndex.h"
 #include "bcos-txpool/txpool/validator/TxValidator.h"
 #include "bcos-txpool/txpool/validator/Web3NonceChecker.h"
 #include <bcos-utilities/Error.h>
@@ -257,6 +258,20 @@ BOOST_AUTO_TEST_CASE(executor_version_one_returns_none)
 
     BOOST_CHECK_EQUAL(
         runAdmission(validator, *tx, makeLedgerWithExecutorVersion(1)), TransactionStatus::None);
+}
+
+BOOST_AUTO_TEST_CASE(pending_auth_index_tracks_and_releases_authorities)
+{
+    Eip7702PendingAuthIndex index;
+    bcos::Address authority("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    bcos::crypto::HashType txHash;
+    txHash[0] = 0x42;
+
+    BOOST_CHECK(!index.hasPendingAuth(authority));
+    index.track(txHash, {authority});
+    BOOST_CHECK(index.hasPendingAuth(authority));
+    index.untrack(txHash);
+    BOOST_CHECK(!index.hasPendingAuth(authority));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

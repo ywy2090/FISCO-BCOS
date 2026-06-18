@@ -950,6 +950,10 @@ BOOST_AUTO_TEST_CASE(FIB50_NonceNotInsertedOnValidationFailure)
         .AlwaysDo([](const auto&, auto) -> task::Task<TransactionStatus> {
             co_return TransactionStatus::None;
         });
+    fakeit::When(Method(localValidator, validateEip7702PoolAuth))
+        .AlwaysDo([](const auto&, const auto&) -> task::Task<TransactionStatus> {
+            co_return TransactionStatus::None;
+        });
 
     std::shared_ptr<TxValidatorInterface> v(&localValidator.get(), [](auto*) {});
     auto cfg = std::make_shared<TxPoolConfig>(

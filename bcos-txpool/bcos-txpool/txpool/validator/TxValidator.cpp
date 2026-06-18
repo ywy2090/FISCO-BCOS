@@ -22,6 +22,7 @@
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/Eip7702Gate.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
+#include "bcos-executor/src/Web3Eip7702Apply.h"
 #include "bcos-executor/src/Web3Eip7702Fill.h"
 #include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/bcos-framework/ledger/Ledger.h"
@@ -419,4 +420,36 @@ task::Task<protocol::TransactionStatus> TxValidator::validateEip7702Admission(
     }
 
     co_return TransactionStatus::None;
+}
+
+task::Task<protocol::TransactionStatus> TxValidator::validateEip7702PoolAuth(
+    const bcos::protocol::Transaction& _tx, Eip7702PendingAuthIndex const& _pendingAuth)
+{
+    if (_tx.type() != static_cast<uint8_t>(TransactionType::Web3Transaction) ||
+        _tx.web3TypedTxKind() != executor_v1::EIP_7702_WEB3_TX_TYPE)
+    {
+        co_return TransactionStatus::None;
+    }
+
+    auto const authorities =
+        executor::collectRecoveredEip7702Authorities(m_cryptoSuite->hashImpl(), _tx);
+    for (auto const& authority : authorities)
+    {
+        if (_pendingAuth.hasPendingAuth(authority))
+        {
+            TX_VALIDATOR_CHECKER_LOG(WARNING)
+                << LOG_BADGE("validateEip7702PoolAuth")
+                << LOG_DESC("Reject EIP-7702 authority already reserved in txpool")
+                << LOG_KV("authority", authority.hex());
+            co_return TransactionStatus::Malformed;
+        }
+    }
+
+    co_return TransactionStatus::None;
+}
+
+std::vector<bcos::Address> TxValidator::recoveredEip7702Authorities(
+    const bcos::protocol::Transaction& _tx) const
+{
+    return executor::collectRecoveredEip7702Authorities(m_cryptoSuite->hashImpl(), _tx);
 }

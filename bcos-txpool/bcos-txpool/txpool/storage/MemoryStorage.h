@@ -25,6 +25,7 @@
 #include "bcos-task/Task.h"
 #include "bcos-txpool/TxPoolConfig.h"
 #include "bcos-txpool/txpool/utilities/Common.h"
+#include "txpool/Eip7702PendingAuthIndex.h"
 #include "txpool/interfaces/TxPoolStorageInterface.h"
 #include <bcos-utilities/BucketMap.h>
 #include <bcos-utilities/FixedBytes.h>
@@ -39,9 +40,8 @@ class MemoryStorage : public TxPoolStorageInterface,
 {
 public:
     // the default txsExpirationTime is 10 minutes
-    explicit MemoryStorage(TxPoolConfig::Ptr _config,
-        boost::asio::io_context& _ioContext, size_t _notifyWorkerNum = 2,
-        uint64_t _txsExpirationTime = TX_DEFAULT_EXPIRATION_TIME);
+    explicit MemoryStorage(TxPoolConfig::Ptr _config, boost::asio::io_context& _ioContext,
+        size_t _notifyWorkerNum = 2, uint64_t _txsExpirationTime = TX_DEFAULT_EXPIRATION_TIME);
     ~MemoryStorage() override;
     MemoryStorage(const MemoryStorage&) = delete;
     MemoryStorage(MemoryStorage&&) = delete;
@@ -132,6 +132,7 @@ protected:
 
     // the txs expiration time, default is 10 minutes
     uint64_t m_txsExpirationTime = TX_DEFAULT_EXPIRATION_TIME;
+    Eip7702PendingAuthIndex m_eip7702PendingAuth;
     // timer to clear up the expired txs in-period
     std::shared_ptr<Timer> m_cleanUpTimer;
     // timer to notify txs size

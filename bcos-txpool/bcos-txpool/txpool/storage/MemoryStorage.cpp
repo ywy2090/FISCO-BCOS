@@ -23,6 +23,8 @@
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-protocol/TransactionSubmitResultImpl.h"
 #include "bcos-task/Wait.h"
+#include "bcos-transaction-executor/Eip7702Common.h"
+#include "bcos-txpool/txpool/validator/TxValidator.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/ITTAPI.h"
 #include <oneapi/tbb/blocked_range.h>
@@ -451,6 +453,11 @@ TransactionStatus MemoryStorage::verifyAndSubmitTransaction(
             return task::syncWait(m_config->txValidator()->validateEip7702Admission(
                 *transaction, m_config->ledger()));
         },
+        [this, transaction]() {
+            // Step 8: EIP-7702 pending authority reservation (geth legacypool validateAuth)
+            return task::syncWait(m_config->txValidator()->validateEip7702PoolAuth(
+                *transaction, m_eip7702PendingAuth));
+        },
     };
 
     // Execute validation chain - stop at first failure
@@ -518,6 +525,14 @@ TransactionStatus MemoryStorage::insert(Transaction::Ptr transaction)
             return TransactionStatus::None;
         }
         return TransactionStatus::AlreadyInTxPool;
+    }
+    if (ptr->type() == static_cast<uint8_t>(TransactionType::Web3Transaction) &&
+        ptr->web3TypedTxKind() == executor_v1::EIP_7702_WEB3_TX_TYPE)
+    {
+        if (auto validator = std::dynamic_pointer_cast<TxValidator>(m_config->txValidator()))
+        {
+            m_eip7702PendingAuth.track(ptr->hash(), validator->recoveredEip7702Authorities(*ptr));
+        }
     }
     return TransactionStatus::None;
 }
@@ -612,6 +627,7 @@ void MemoryStorage::batchRemoveSealedTxs(
             continue;
         }
 
+        m_eip7702PendingAuth.untrack(txHash);
         ++succCount;
         results[i].first = std::move(tx);
     }
@@ -1354,6 +1370,7 @@ void MemoryStorage::notifyTxsSize(size_t _retryTime)
 
 void MemoryStorage::remove(crypto::HashType const& _txHash)
 {
+    m_eip7702PendingAuth.untrack(_txHash);
     TxsMap::WriteAccessor accessor;
     if (m_bcosTransactions.sealedTransactions.find(accessor, _txHash))
     {

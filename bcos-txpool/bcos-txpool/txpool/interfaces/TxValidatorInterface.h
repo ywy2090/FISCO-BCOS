@@ -19,6 +19,7 @@
  * @date 2021-05-08
  */
 #pragma once
+#include "bcos-txpool/txpool/Eip7702PendingAuthIndex.h"
 #include "bcos-txpool/txpool/interfaces/NonceCheckerInterface.h"
 #include "bcos-txpool/txpool/validator/LedgerNonceChecker.h"
 #include "bcos-txpool/txpool/validator/Web3NonceChecker.h"
@@ -63,5 +64,7 @@ public:
     virtual task::Task<protocol::TransactionStatus> validateEip7702Admission(
         const bcos::protocol::Transaction& _tx,
         std::shared_ptr<bcos::ledger::LedgerInterface> _ledger) = 0;
+    virtual task::Task<protocol::TransactionStatus> validateEip7702PoolAuth(
+        const bcos::protocol::Transaction& _tx, Eip7702PendingAuthIndex const& _pendingAuth) = 0;
 };
 }  // namespace bcos::txpool

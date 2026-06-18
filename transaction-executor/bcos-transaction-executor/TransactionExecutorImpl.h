@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RollbackableStorage.h"
+#include "bcos-executor/src/Eip7702Gate.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-executor/src/Web3Eip7702Apply.h"
 #include "bcos-executor/src/Web3Eip7702Fill.h"
@@ -311,7 +312,9 @@ public:
         task::Task<void> applyEip7702AuthorizationList()
         {
             auto const& features = m_data->m_ledgerConfig.get().features();
-            if (!features.get(ledger::Features::Flag::feature_evm_prague))
+            if (!executor::isEip7702Enabled(features,
+                    m_data->m_ledgerConfig.get().executorVersion(),
+                    m_data->m_executor.get().m_hashImpl))
             {
                 co_return;
             }

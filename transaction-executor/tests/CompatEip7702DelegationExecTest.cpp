@@ -191,9 +191,9 @@ BOOST_AUTO_TEST_CASE(geth_TestEIP7702_chained_delegation_writes_slot_42)
 BOOST_AUTO_TEST_CASE(delegated_account_call_gas_near_geth_5455)
 {
     syncWait([this]() -> task::Task<void> {
-        // geth core/vm/runtime/runtime_test.go TestDelegatedAccountAccessCost measures the
-        // CALL opcode cost (~5455) when invoking a warm delegated account from contract code,
-        // not type-4 intrinsic gas (46000) on a top-level message.
+        // geth runtime_test.go TestDelegatedAccountAccessCost reports absolute CALL opcode cost
+        // (~5455) via tracer; the marginal receipt delta here is cold delegation-target access
+        // (evmone cold_account_access_cost = 2600) plus callee execution overhead.
         auto const authority = evmcAddr19(0xff);
         auto const target = address19(0xaa);
         auto const caller = address19(0xcc);
@@ -240,11 +240,10 @@ BOOST_AUTO_TEST_CASE(delegated_account_call_gas_near_geth_5455)
         auto const gasDelegated = co_await runCallerTx(1);
         auto const delegatedCallOverhead = gasDelegated > gasPlain ? gasDelegated - gasPlain : 0;
 
-        // geth runtime_test.go reports CALL opcode cost 5455; TE receipt delta is lower (~2606)
-        // on the same bytecode layout — track regression band, not exact geth parity here.
+        // evmone Prague: extra cold delegation-target access (2600) + minimal callee work.
         BOOST_CHECK_GT(delegatedCallOverhead, 0U);
-        BOOST_CHECK_GE(delegatedCallOverhead, 2000U);
-        BOOST_CHECK_LE(delegatedCallOverhead, 4000U);
+        BOOST_CHECK_GE(delegatedCallOverhead, 2550U);
+        BOOST_CHECK_LE(delegatedCallOverhead, 2650U);
     }());
 }
 
