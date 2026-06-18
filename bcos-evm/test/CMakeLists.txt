@@ -32,3 +32,22 @@ add_test(
     NAME EthHostExtensionHooks
     COMMAND ${HOOKS_TEST_BINARY_NAME}
 )
+
+set(SMOKE_TEST_BINARY_NAME StateHostSmokeTest)
+
+add_executable(${SMOKE_TEST_BINARY_NAME}
+    state/StateHostSmokeTest.cpp
+)
+
+target_include_directories(${SMOKE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(${SMOKE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME StateHostSmoke
+    COMMAND ${SMOKE_TEST_BINARY_NAME}
+)
