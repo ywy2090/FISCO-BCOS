@@ -20,6 +20,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
+#include <string>
 
 namespace bcos::evm::test
 {
@@ -39,6 +40,18 @@ evmc_address addressFromValue(uint64_t value)
 bool bytes32Equal(const evmc_bytes32& lhs, const evmc_bytes32& rhs)
 {
     return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
+}
+
+std::string addressToHex(const evmc_address& address)
+{
+    static constexpr char HEX[] = "0123456789abcdef";
+    std::string out(sizeof(address.bytes) * 2, '0');
+    for (size_t i = 0; i < sizeof(address.bytes); ++i)
+    {
+        out[i * 2] = HEX[(address.bytes[i] >> 4U) & 0x0F];
+        out[i * 2 + 1] = HEX[address.bytes[i] & 0x0F];
+    }
+    return out;
 }
 
 class MockStateView : public state::StateView
@@ -61,7 +74,7 @@ BOOST_AUTO_TEST_SUITE(FiscoHostExtensionTest)
 
 BOOST_AUTO_TEST_CASE(default_policy_matches_fisco_rules)
 {
-    FiscoHostExtension ext(/*enableBalanceTransfer*/ true);
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true);
 
     BOOST_CHECK(!ext.allowSelfdestruct(state::Account{}));
     BOOST_CHECK(!ext.allowDelegateCallToPrecompile());
@@ -79,7 +92,7 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_uses_callback_for_0x1000_plus)
         result.gas_left = message.gas - 123;
         return result;
     };
-    FiscoHostExtension ext(/*enableBalanceTransfer*/ true, callback);
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, {}, callback);
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -95,6 +108,88 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_uses_callback_for_0x1000_plus)
     BOOST_CHECK_EQUAL(result->gas_left, msg.gas - 123);
 }
 
+BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_returns_nullopt_for_below_0x1000)
+{
+    bool called = false;
+    auto callback = [&called](evmc_revision /*rev*/,
+                        const evmc_message& /*message*/) -> std::optional<evmc_result> {
+        called = true;
+        return evmc_result{};
+    };
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, {}, callback);
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.sender = addressFromValue(0x01);
+    msg.recipient = addressFromValue(0x0FFF);
+    msg.code_address = msg.recipient;
+    auto result = ext.callFiscoPrecompile(EVMC_CANCUN, msg);
+    BOOST_CHECK(!result.has_value());
+    BOOST_CHECK(!called);
+}
+
+BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_rule)
+{
+    MockStateView baseView;
+    state::State state(baseView);
+    std::string capturedAuthTablePath;
+    bool createAuthTableCalled = false;
+
+    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    deps.state = &state;
+    deps.blockNumber = 1;
+    deps.revisionFlags.fix_auth_check = true;
+    deps.revisionFlags.use_raw_address = true;
+    deps.createAuthTableInvoker = [&createAuthTableCalled, &capturedAuthTablePath](
+                                      const evmc_message& /*msg*/, std::string_view tablePath) {
+        createAuthTableCalled = true;
+        capturedAuthTablePath = std::string(tablePath);
+    };
+
+    FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+
+    evmc_message createMsg{};
+    createMsg.kind = EVMC_CREATE;
+    createMsg.gas = 100000;
+    createMsg.sender = addressFromValue(0x01);
+    createMsg.code_address = addressFromValue(0x3001);
+    createMsg.recipient = createMsg.code_address;
+
+    auto result = host.call(createMsg);
+    BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
+    BOOST_CHECK(createAuthTableCalled);
+    BOOST_CHECK_EQUAL(capturedAuthTablePath,
+        std::string(executor::USER_APPS_PREFIX) + addressToHex(createMsg.code_address));
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)
+{
+    MockStateView baseView;
+    state::State state(baseView);
+    auto sender = addressFromValue(0x01);
+
+    state.set_nonce(sender, 7);
+    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    deps.state = &state;
+    deps.revisionFlags.web3Tx = true;
+    deps.revisionFlags.createLevel = 1;
+
+    FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+
+    evmc_message createMsg{};
+    createMsg.kind = EVMC_CREATE;
+    createMsg.gas = 100000;
+    createMsg.sender = sender;
+    createMsg.code_address = addressFromValue(0x4001);
+    createMsg.recipient = createMsg.code_address;
+
+    auto result = host.call(createMsg);
+    BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 8);
+}
+
 BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
 {
     MockStateView baseView;
@@ -106,12 +201,16 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
     evmc_bytes32 markerValue{};
     markerValue.bytes[31] = 0x5A;
 
-    auto createHook = [&state, &createAuthTableCalled, markerKey, markerValue](
-                          evmc_revision /*rev*/, const evmc_message& msg) {
+    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    deps.state = &state;
+    deps.blockNumber = 1;
+    deps.revisionFlags.fix_nonce_init = true;
+    deps.createAuthTableInvoker = [&state, &createAuthTableCalled, markerKey, markerValue](
+                                      const evmc_message& msg, std::string_view /*tablePath*/) {
         createAuthTableCalled = true;
         state.set_storage(msg.code_address, markerKey, markerValue);
     };
-    FiscoHostExtension extension(/*enableBalanceTransfer*/ true, {}, createHook);
+    FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
 
@@ -127,6 +226,7 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
     BOOST_CHECK(createAuthTableCalled);
     BOOST_CHECK(bytes32Equal(state.get_storage(createMsg.code_address, markerKey), markerValue));
+    BOOST_CHECK_EQUAL(state.get_nonce(createMsg.code_address), 1);
 
     state.revert();
     BOOST_CHECK(bytes32Equal(state.get_storage(createMsg.code_address, markerKey), evmc_bytes32{}));

@@ -44,3 +44,34 @@
   - `cmake --build build --target bcos-evm`
   - `cmake --build build --target FiscoHostExtensionTest`
   - `ctest --test-dir build/bcos-evm/test -R FiscoHostExtension`
+
+## 2026-06-18 Review Fix Follow-up
+
+- Refactored constructor inputs to `FiscoHostExtensionDeps` and kept required Hook#8 context as retained members:
+  - `storageRef`, `blockHeader`, `ledgerConfig`, `precompiledManager`, `contextID`, `seq`,
+    `externalCaller`, `origin`, revision flags, and `state::State*`.
+- Implemented `onCreateFrameEntry` semantics aligned to `HostContext` create flow:
+  - `blockNumber != 0` triggers auth-table path resolution.
+  - FIB-82 path rule: `fix_auth_check && use_raw_address` uses
+    `"/apps/" + hex(code_address)`, otherwise uses recipient resolver path.
+  - Hook#8 nonce behavior:
+    - `web3Tx && createLevel != 0` increments sender nonce in `state::State`.
+    - `fix_nonce_init` sets recipient/create-target nonce to `1` before initcode run.
+- Clarified balance-transfer flag naming:
+  - replaced `enableBalanceTransfer` with `skipEvmNativeValueTransfer` in extension constructor
+    and tests.
+- Extended `FiscoHostExtensionTest`:
+  - asserts auth-table path callback invocation with FIB-82 raw-address path behavior,
+  - asserts nested CREATE sender nonce increment (`web3Tx + level != 0`),
+  - keeps journal revert behavior test for CREATE-frame side effects,
+  - adds `<0x1000` precompile dispatch negative test (`nullopt`).
+- Added Apache license headers to new files:
+  - `bcos-evm/bcos/FiscoHostExtension.h`
+  - `bcos-evm/bcos/FiscoHostExtension.cpp`
+  - `bcos-evm/bcos/FiscoExecutionContext.h`
+- Left `PragueStateTest` CMake placement unchanged in this follow-up (C2-2 scope guardrail).
+
+### Follow-up Verification
+
+- `cmake --build build --target bcos-evm FiscoHostExtensionTest` ✅
+- `ctest --test-dir build/bcos-evm/test -R FiscoHostExtension` ✅
