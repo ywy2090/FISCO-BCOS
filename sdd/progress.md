@@ -71,4 +71,6 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Task 18: complete (3d868fe47..HEAD) — bcos-evm 三库拆分：`bcos-evm-eth`/`bcos-evm-bcos`/`bcos-evm-op`，并保留 `bcos-evm -> bcos-evm-bcos` 兼容别名；`OpStackExecuteViaHostSmokeTest` 改链 `bcos-evm-op`
   - `cmake -S . -B build-c3-3`：PASS
   - `cmake --build build-c3-3 --target bcos-evm-eth bcos-evm-bcos bcos-evm-op -j8`：PASS
+- Task 19: complete (HEAD) — 新增 `bcos-evm/include/bcos-evm/*.hpp` 公共 facade 头（executor/eth/fisco/op）；`bcos-evm/CMakeLists.txt` 增加 build/install include interface 与 install/export 规则
+  - `cmake --build build-c3-3 --target bcos-evm-eth bcos-evm-bcos bcos-evm-op -j8`：PASS
 - Optional: open PR / merge to base branch

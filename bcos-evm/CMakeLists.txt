@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 find_package(evmone CONFIG REQUIRED)
+include(GNUInstallDirs)
 
 set(BCOS_EVM_ETH_SOURCES
     eth/vm/VMInstance.cpp
@@ -32,15 +33,21 @@ add_library(bcos-evm-op STATIC ${BCOS_EVM_OP_SOURCES})
 add_library(bcos-evm ALIAS bcos-evm-bcos)
 
 target_include_directories(bcos-evm-eth PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_include_directories(bcos-evm-bcos PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_include_directories(bcos-evm-op PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(bcos-evm-eth PUBLIC
@@ -59,6 +66,11 @@ target_link_libraries(bcos-evm-bcos PUBLIC
 target_link_libraries(bcos-evm-op PUBLIC
     bcos-evm-eth
 )
+
+install(TARGETS bcos-evm-eth bcos-evm-bcos bcos-evm-op EXPORT fiscobcosTargets
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+install(DIRECTORY "include/bcos-evm" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 
 if(TESTS)
     add_subdirectory(test)
