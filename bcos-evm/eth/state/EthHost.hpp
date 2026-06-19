@@ -82,6 +82,7 @@ private:
         const evmc_bytes32& oldValue, const evmc_bytes32& newValue, bool fixStorageStatus) noexcept;
 
     RoutedCall routeCall(const evmc_message& msg) noexcept;
+    bcos::bytes resolveExecutionCode(const evmc_message& msg) const;
     bool transferValue(const evmc_message& msg) noexcept;
 
 private:

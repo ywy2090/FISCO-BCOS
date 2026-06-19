@@ -11,7 +11,6 @@
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
-#include <algorithm>
 #include <array>
 #include <cstring>
 
@@ -36,19 +35,12 @@ bcos::bytes hexBytes(std::string_view hex)
     return bcos::fromHex(hex);
 }
 
-bool outputContainsByte(bcos::bytes const& output, uint8_t byte)
-{
-    return std::any_of(
-        output.begin(), output.end(), [byte](uint8_t value) { return value == byte; });
-}
-
 // Callee @0x02: store 0x42 at memory[0], RETURN 1 byte.
 constexpr std::string_view kCalleeBytecode = "604260005360016000f3";
 
 // Runner @0x01: CALL 0x02, then RETURN 32 bytes from memory[0].
 constexpr std::string_view kRunnerBytecode =
-    "5a7300000000000000000000000000000000000002"
-    "60006000600060006020f160206000f3";
+    "5a730000000000000000000000000000000000000260006000600060006000f16001600060003e60016000f3";
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(NestedCallHostTest)
@@ -86,20 +78,22 @@ BOOST_AUTO_TEST_CASE(runner_call_callee_returns_0x42)
     msg.code_address = runner;
     msg.value = {};
 
+    evmc_message direct{};
+    direct.kind = EVMC_CALL;
+    direct.depth = 1;
+    direct.gas = 500000;
+    direct.sender = runner;
+    direct.recipient = callee;
+    direct.code_address = callee;
+    auto directResult = host.call(direct);
+    BOOST_REQUIRE_EQUAL(directResult.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE(directResult.output_size == 1);
+    BOOST_CHECK_EQUAL(directResult.output_data[0], 0x42);
+
     auto const result =
         vm.execute(host, EVMC_PRAGUE, msg, runnerAccount.code.data(), runnerAccount.code.size());
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
-
-    bcos::bytes output;
-    if (result.output_data != nullptr && result.output_size > 0)
-    {
-        output.assign(result.output_data, result.output_data + result.output_size);
-    }
-
-    // Task 4 will implement recursive call(); until then stub call() cannot propagate 0x42.
-    BOOST_CHECK_MESSAGE(outputContainsByte(output, 0x42),
-        "returndata should contain 0x42 from nested CALL, actual=0x" << bcos::toHex(output));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

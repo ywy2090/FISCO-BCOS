@@ -21,6 +21,7 @@
 
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
+#include <evmc/evmc.hpp>
 #include <optional>
 
 namespace bcos::evm::state
@@ -39,5 +40,8 @@ public:
 
     static std::optional<EthPrecompileResult> dispatch(const evmc_address& address,
         bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision);
+
+    static std::optional<evmc::Result> tryDispatchInCall(
+        const evmc_address& address, const evmc_message& msg, evmc_revision revision);
 };
 }  // namespace bcos::evm::state

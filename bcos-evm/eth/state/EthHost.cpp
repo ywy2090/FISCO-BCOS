@@ -17,11 +17,13 @@
  */
 
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
 #include <array>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace bcos::evm::state
@@ -147,10 +149,24 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         }
     }
 
+    if (routed.hasPrecompileTarget)
+    {
+        if (auto precompiled =
+                EthPrecompiles::tryDispatchInCall(routed.precompileTarget, callMessage, m_revision))
+        {
+            return std::move(*precompiled);
+        }
+    }
+
     if (callMessage.kind == EVMC_DELEGATECALL && routed.hasPrecompileTarget &&
         m_extension != nullptr && !m_extension->allowDelegateCallToPrecompile())
     {
         return makeResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas);
+    }
+
+    if (m_extension != nullptr)
+    {
+        m_extension->prepareMessage(m_revision, callMessage);
     }
 
     if (!transferValue(callMessage))
@@ -158,7 +174,18 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         return makeResult(EVMC_INSUFFICIENT_BALANCE, 0);
     }
 
-    return makeResult(EVMC_SUCCESS, callMessage.gas);
+    auto code = resolveExecutionCode(callMessage);
+    m_state.checkpoint();
+    auto result = m_vm.execute(*this, m_revision, callMessage, code.data(), code.size());
+    if (result.status_code == EVMC_SUCCESS)
+    {
+        m_state.commit();
+    }
+    else
+    {
+        m_state.revert();
+    }
+    return result;
 }
 
 evmc_tx_context EthHost::get_tx_context() const noexcept
@@ -331,29 +358,33 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         if (!isZeroAddress(routed.message.recipient))
         {
             routed.message.code_address = routed.message.recipient;
-            access_account(routed.message.code_address);
+            m_state.pin_warm_create_address(routed.message.code_address);
         }
         else if (!isZeroAddress(routed.message.code_address))
         {
             routed.message.recipient = routed.message.code_address;
-            access_account(routed.message.code_address);
-        }
-
-        if (m_extension != nullptr)
-        {
-            m_extension->prepareMessage(m_revision, routed.message);
+            m_state.pin_warm_create_address(routed.message.code_address);
         }
     }
 
-    auto target = routed.message.code_address;
-    if (!isZeroAddress(target) && isBuiltinPrecompileAddress(target))
+    auto target = isZeroAddress(routed.message.code_address) ? routed.message.recipient :
+                                                               routed.message.code_address;
+    if (!isZeroAddress(target))
+    {
+        routed.message.code_address = target;
+        if (isZeroAddress(routed.message.recipient))
+        {
+            routed.message.recipient = target;
+        }
+    }
+    auto const code = m_state.get_code(target);
+    if (!isZeroAddress(target) && isBuiltinPrecompileAddress(target) && code.empty())
     {
         routed.precompileTarget = target;
         routed.hasPrecompileTarget = true;
         return routed;
     }
 
-    auto const code = m_state.get_code(target);
     if (!code.empty())
     {
         std::string_view codeView(reinterpret_cast<const char*>(code.data()), code.size());
@@ -365,6 +396,20 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         }
     }
     return routed;
+}
+
+bcos::bytes EthHost::resolveExecutionCode(const evmc_message& msg) const
+{
+    if (isCreateKind(msg.kind))
+    {
+        if (msg.input_data == nullptr || msg.input_size == 0)
+        {
+            return {};
+        }
+        return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
+    }
+    auto const codeAddress = isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address;
+    return m_state.get_code(codeAddress);
 }
 
 bool EthHost::transferValue(const evmc_message& msg) noexcept

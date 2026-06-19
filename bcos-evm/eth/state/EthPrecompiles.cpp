@@ -560,4 +560,39 @@ std::optional<EthPrecompileResult> EthPrecompiles::dispatch(
     result.output = std::move(executed.second);
     return result;
 }
+
+std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(
+    const evmc_address& address, const evmc_message& msg, evmc_revision revision)
+{
+    bcos::bytesConstRef input(msg.input_data, msg.input_size);
+    auto dispatched = dispatch(address, input, msg.gas, revision);
+    if (!dispatched.has_value())
+    {
+        return std::nullopt;
+    }
+
+    evmc_result result{};
+    result.status_code = dispatched->status;
+    result.gas_refund = 0;
+    result.create_address = {};
+
+    if (dispatched->status == EVMC_OUT_OF_GAS)
+    {
+        result.gas_left = 0;
+    }
+    else
+    {
+        result.gas_left = std::max<int64_t>(0, msg.gas - dispatched->gasCost);
+    }
+
+    if (!dispatched->output.empty())
+    {
+        auto* data = new uint8_t[dispatched->output.size()];
+        std::copy(dispatched->output.begin(), dispatched->output.end(), data);
+        result.output_data = data;
+        result.output_size = dispatched->output.size();
+        result.release = [](const evmc_result* value) { delete[] value->output_data; };
+    }
+    return evmc::Result(result);
+}
 }  // namespace bcos::evm::state
