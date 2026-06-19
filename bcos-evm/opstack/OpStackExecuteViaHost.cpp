@@ -3,6 +3,7 @@
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackFloorGas.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/OpStackPreCheck.h"
 #include <stdexcept>
 
 namespace bcos::evm
@@ -55,7 +56,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
 
     OpStackTxExecutor::OpStackTxExecutionData txData;
     txData.m_call = input.call;
-    txData.m_isDepositTx = input.isDepositTx;
+    txData.m_isDepositTx = isDepositTx(input);
     txData.m_state = &state;
     txData.m_message = input.message;
     txData.m_gasTipCap = input.gasTipCap;
@@ -70,6 +71,12 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     txData.m_noBaseFee = input.noBaseFee;
     txData.m_floorDataGas = input.floorDataGas;
     txData.m_rollupCostData = input.rollupCostData;
+
+    if (auto preCheckError = opStackPreCheck(input, state); preCheckError.has_value())
+    {
+        output.evmcResult = std::move(*preCheckError);
+        co_return output;
+    }
 
     auto buyGasOk = co_await input.opTxExecutor.buyGas(txData);
     if (!buyGasOk)

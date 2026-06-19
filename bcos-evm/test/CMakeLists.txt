@@ -425,6 +425,26 @@ add_test(
     COMMAND ${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 
+set(DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME DepositTxPreCheckTest)
+
+add_executable(${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME}
+    opstack/DepositTxPreCheckTest.cpp
+)
+
+target_include_directories(${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME DepositTxPreCheck
+    COMMAND ${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME}
+)
+
 set(ROLLUP_COST_TEST_BINARY_NAME RollupCostTest)
 
 add_executable(${ROLLUP_COST_TEST_BINARY_NAME}
