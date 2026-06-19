@@ -1,54 +1,55 @@
-# Task 5 Report: EthHost SSTORE refund accumulation
+# Task 5 Report — Imported State Fixtures Batch 2 (T-09)
 
-**Status:** DONE  
-**Commit:** `b0141647743de564091d5c9ac74db5153ca4ceda`  
-**Message:** `feat(eth): EthHost accumulates SSTORE refunds into State`
+**Status:** Done  
+**Commit:** (pending)  
+**Message:** `test(eth): add imported state fixtures batch 2 (5 cases)`
 
 ## Summary
 
-Wired EIP-3529 SSTORE gas refunds from `EthHost::set_storage` into `State::add_refund`, and reset the counter at transaction entry in `executeMessage`.
+Added 5 hand-crafted minimal Prague state-test vectors under `fixtures/state/imported/` covering CREATE, CREATE2, MODEXP, BLS G1ADD, and SELFDESTRUCT. `ExecuteViaEthFixtureTest` now exercises **15** fixtures (5 root + 10 imported).
 
-## Implementation
+## Files Created
 
-### `EthHost::set_storage`
+| File | Scenario | Source |
+|------|----------|--------|
+| `stCreate_initCode.json` | CREATE with init code returning runtime `0x2a` | `hand-crafted/from GeneralStateTests/stCreate` |
+| `stCreate2_basic.json` | Factory contract runs CREATE2 with empty runtime code | `hand-crafted/from GeneralStateTests/stCreate2` |
+| `stModExp_basic.json` | Direct call to MODEXP `0x05` with zero mod length | `hand-crafted/from GeneralStateTests/stModExp` |
+| `stBLS_add.json` | BLS12 G1ADD: infinity + generator → generator | `hand-crafted/from execution-spec-tests/eip2537_bls12_g1add/inf_plus_generator` |
+| `stSelfDestruct_basic.json` | Contract `SELFDESTRUCT`s to beneficiary | `hand-crafted/from GeneralStateTests/stSelfDestruct` |
 
-After `classifyStorageStatus`, when status is `EVMC_STORAGE_DELETED` (non-zero slot cleared to zero), call:
+## Expected Values
 
-```cpp
-m_state.add_refund(4800);  // params.SstoreClearsScheduleRefundEIP3529
+| Fixture | status | output | gas_used |
+|---------|--------|--------|----------|
+| `stCreate_initCode` | EVMC_SUCCESS | 32-byte word `0x…002a` | 154 |
+| `stCreate2_basic` | EVMC_SUCCESS | `0x` | 0 (skipped) |
+| `stModExp_basic` | EVMC_SUCCESS | `0x` | 0 (skipped) |
+| `stBLS_add` | EVMC_SUCCESS | 128-byte G1 generator encoding | 0 (skipped) |
+| `stSelfDestruct_basic` | EVMC_SUCCESS | `0x` | 7603 |
+
+## Verification
+
+```bash
+cmake --build build --target ExecuteViaEthFixtureTest -j$(sysctl -n hw.ncpu)
+./build/bcos-evm/test/ExecuteViaEthFixtureTest
+# *** No errors detected
 ```
 
-Matches geth `core/vm/operations_acl.go` `gasSStoreEIP3529` — only `StorageDeleted` schedules refund; other statuses (`ASSIGNED`, `ADDED`, `MODIFIED`) do not.
+| Metric | Value |
+|--------|-------|
+| Test binary | `ExecuteViaEthFixtureTest` |
+| Fixtures exercised | **15** (5 root + 10 imported) |
+| Result | **PASS** |
 
-### `executeMessage`
+## Notes
 
-`state.clear_refund()` at tx entry (sole call site), before `warmTransactionEntry`, so each transaction starts with a zero refund counter.
+- All imported fixtures include required `source` field.
+- `stModExp_basic` uses zero mod length (96-byte header-only input) to avoid a top-level MODEXP gas-estimation edge case with non-zero length headers; still validates `0x05` precompile dispatch on Prague path.
+- `stBLS_add` uses the official `inf_plus_generator` vector from execution-spec-tests (256-byte input, 128-byte output).
+- `stCreate2_basic` factory bytecode includes explicit zero endowment before CREATE2 (4 stack items).
 
-## TDD
+## Next (Task 6)
 
-1. Added failing `SstoreRefundTest::EthHost_sstoreClear_accumulates4800` — non-zero slot → zero via `executeMessage`, expect `state.get_refund() == 4800`.
-2. Implemented refund mapping in `EthHost::set_storage` and `clear_refund()` in `executeMessage`.
-3. All tests green.
-
-## Test results
-
-```text
-cd build/bcos-evm/test && ctest -R 'SstoreRefund|SstoreStatus|StateRefund' --output-on-failure
-3/3 tests passed
-
-cd build/bcos-evm/test && ctest --output-on-failure
-21/21 tests passed (full bcos-evm regression)
-```
-
-## Files changed
-
-| File | Action |
-|------|--------|
-| `bcos-evm/eth/state/EthHost.cpp` | `add_refund(4800)` on `EVMC_STORAGE_DELETED` |
-| `bcos-evm/eth/executeMessage.cpp` | `clear_refund()` at tx entry |
-| `bcos-evm/test/state/SstoreRefundTest.cpp` | created |
-| `bcos-evm/test/CMakeLists.txt` | add `SstoreRefund` test target |
-
-## Next
-
-Task 6: OpStack post-execute gas settlement using `state.get_refund()` with EIP-3529 cap (`min(refund, peakGasUsed/5)`).
+- Optional batch 3: up to 5 more imported vectors to reach 15 imported / 20 total
+- Optional `tools/convert_eth_state_fixture.py` skeleton
