@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
     input.hashImpl = &hash;
     input.message = message;
     input.blockInfo = blockInfo;
-    input.revisionConfig.revision = EVMC_CANCUN;
+    input.revisionConfig.eth().revision = EVMC_CANCUN;
 
     auto output = task::syncWait(executeViaHost(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);

@@ -70,7 +70,7 @@ public:
     }
 };
 
-BlockHashes emptyBlockHashes()
+state::BlockHashes emptyBlockHashes()
 {
     return [](int64_t) { return evmc_bytes32{}; };
 }
@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_ru
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
     BOOST_CHECK(createAuthTableCalled);
     BOOST_CHECK_EQUAL(capturedAuthTablePath,
-        std::string(executor::USER_APPS_PREFIX) + addressToHex(createMsg.code_address));
+        std::string(USER_APPS_PREFIX) + addressToHex(createMsg.code_address));
 }
 
 BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)

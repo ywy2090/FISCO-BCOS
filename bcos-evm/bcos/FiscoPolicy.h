@@ -1,9 +1,8 @@
 #pragma once
 #include "AuthCheck.h"
+#include "FiscoConstants.h"
 #include "FiscoRevisionConfig.h"
 #include "bcos-crypto/ChecksumAddress.h"
-#include "bcos-evm/eth/vm/VMInstance.h"  // toRevision
-#include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -11,9 +10,30 @@
 #include <evmc/helpers.h>
 #include <fmt/compile.h>
 #include <fmt/format.h>
+#include <cstring>
 
 namespace bcos::chain_policy
 {
+namespace
+{
+inline evmc_revision toFiscoRevision(const ledger::Features& features, uint32_t blockVersion)
+{
+    using Flag = ledger::Features::Flag;
+    if (features.get(Flag::feature_evm_osaka))
+    {
+        return EVMC_OSAKA;
+    }
+    if (features.get(Flag::feature_evm_prague))
+    {
+        return EVMC_PRAGUE;
+    }
+    if (blockVersion >= static_cast<uint32_t>(protocol::BlockVersion::V3_2_VERSION))
+    {
+        return features.get(Flag::feature_evm_cancun) ? EVMC_CANCUN : EVMC_PARIS;
+    }
+    return EVMC_LONDON;
+}
+}  // namespace
 
 class FiscoPolicy
 {
@@ -31,8 +51,7 @@ public:
         FiscoRevisionConfig cfg;
         auto& ethCfg = cfg.eth();
 
-        ethCfg.revision =
-            std::max(bcos::executor::toRevision(m_features, header.version()), EVMC_CANCUN);
+        ethCfg.revision = std::max(toFiscoRevision(m_features, header.version()), EVMC_CANCUN);
 
         ethCfg.warm_access = ethCfg.revision >= EVMC_BERLIN;
         ethCfg.eip1153 = ethCfg.revision >= EVMC_CANCUN;
@@ -115,8 +134,8 @@ private:
         {
         case EVMC_CREATE:
         {
-            if (concepts::bytebuffer::equalTo(
-                    message.code_address.bytes, executor::EMPTY_EVM_ADDRESS.bytes))
+            if (std::memcmp(message.code_address.bytes, bcos::evm::EMPTY_EVM_ADDRESS.bytes,
+                    sizeof(bcos::evm::EMPTY_EVM_ADDRESS.bytes)) == 0)
             {
                 if (!web3Tx)
                 {

@@ -19,10 +19,10 @@
 
 #pragma once
 
+#include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/policy/HostExtension.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include <evmc/evmc.h>

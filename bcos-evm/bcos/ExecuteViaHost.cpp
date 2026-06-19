@@ -18,6 +18,7 @@
 
 #include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-crypto/ChecksumAddress.h"
+#include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
@@ -29,6 +30,7 @@
 #include <fmt/format.h>
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <exception>
 #include <memory>
 #include <span>
@@ -62,7 +64,7 @@ std::vector<protocol::LogEntry> convertLogs(const std::vector<state::LogEntry>& 
         topics.reserve(log.topics.size());
         for (auto const& topic : log.topics)
         {
-            topics.emplace_back(fromEvmC(topic));
+            topics.emplace_back(state::fromEvmC(topic));
         }
         out.emplace_back(
             toHex<decltype(addressView), bcos::bytes>(addressView), std::move(topics), log.data);
@@ -83,8 +85,8 @@ evmc_message deriveMessage(const FiscoTxAdapterInput& input)
     {
     case EVMC_CREATE:
     {
-        if (concepts::bytebuffer::equalTo(
-                message.code_address.bytes, executor::EMPTY_EVM_ADDRESS.bytes))
+        if (std::memcmp(message.code_address.bytes, EMPTY_EVM_ADDRESS.bytes,
+                sizeof(EMPTY_EVM_ADDRESS.bytes)) == 0)
         {
             if (!input.web3Tx)
             {
@@ -112,7 +114,7 @@ evmc_message deriveMessage(const FiscoTxAdapterInput& input)
         uint8_t* ptr = buffer.data();
         *ptr++ = 0xff;
         ptr = std::uninitialized_copy_n(message.sender.bytes, sizeof(message.sender.bytes), ptr);
-        auto salt = toBigEndian(fromEvmC(message.create2_salt));
+        auto salt = toBigEndian(state::fromEvmC(message.create2_salt));
         ptr = std::uninitialized_copy(salt.begin(), salt.end(), ptr);
         auto inputHash =
             input.hashImpl->hash(bytesConstRef(message.input_data, message.input_size));

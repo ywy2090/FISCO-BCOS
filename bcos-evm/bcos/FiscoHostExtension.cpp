@@ -82,7 +82,7 @@ FiscoHostExtension::FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHos
     else
     {
         m_recipientPathResolver = [](const evmc_message& message) {
-            return std::string(executor::USER_APPS_PREFIX) + hexAddress(message.recipient);
+            return std::string(USER_APPS_PREFIX) + hexAddress(message.recipient);
         };
     }
     m_createAuthTableInvoker = std::move(deps.createAuthTableInvoker);
@@ -195,13 +195,13 @@ std::string FiscoHostExtension::resolveAuthTablePath(const evmc_message& message
 {
     if (m_revisionFlags.fix_auth_check && m_revisionFlags.use_raw_address)
     {
-        return std::string(executor::USER_APPS_PREFIX) + hexAddress(createTarget(message));
+        return std::string(USER_APPS_PREFIX) + hexAddress(createTarget(message));
     }
     if (m_recipientPathResolver)
     {
         return m_recipientPathResolver(message);
     }
-    return std::string(executor::USER_APPS_PREFIX) + hexAddress(message.recipient);
+    return std::string(USER_APPS_PREFIX) + hexAddress(message.recipient);
 }
 
 std::string FiscoHostExtension::hexAddress(const evmc_address& address)
