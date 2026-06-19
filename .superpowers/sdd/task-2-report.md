@@ -1,62 +1,48 @@
-# Task 2 Report: OpStackFee (Fjord L1 + Isthmus operator)
+# Task 2 Report — EthFixtureAdapter + FixtureAssert
 
-**Status:** DONE  
-**Commit:** _(see git log)_  
-**Message:** `feat(opstack): Fjord L1 and Isthmus operator fee formulas`
+**Status:** Done  
+**Commit:** `66b8839cd4d85654508b5a076c20ea32be17f170`  
+**Message:** `feat(test): add EthFixtureAdapter and fixture assertion helpers`
 
 ## Summary
 
-Implemented OpStack fee formulas in `bcos-evm-op`:
+Added two header-only helpers under `bcos-evm/test/fixtures/` for T-09 `executeViaEth` fixture validation:
 
-- **`OpStackFee.h/.cpp`** — `OpStackFeeParams`, `l1CostFjord`, `operatorCostIsthmus`, `loadOpStackFeeParams`.
-- **`empty_tx.bin`** — op-geth `emptyTx.MarshalBinary()` fixture (`fastLz=31`).
-- **`OpStackFeeTest.cpp`** — op-geth `rollup_cost_test.go` vectors + slot 3/8 unpack test.
+1. **`EthFixtureAdapter.h`**
+   - `makePragueRevisionConfig()` — inline Prague `RevisionConfig` matching `EthPolicy::computeRevisionConfig` for block ≥ 22M (`EVMC_PRAGUE`, `warm_access`, Cancun EIPs, `eip2537`, `eip7623`, `calldata_floor_per_token=10`).
+   - `buildExecuteViaEthInput()` — maps `FixtureCase` → `ExecuteViaEthInput`:
+     - `tx.to` present → `EVMC_CALL`; absent → `EVMC_CREATE`
+     - `evmc_message` from `fixture.tx` + `fixture.txProps.isStatic`
+     - `blockInfo` from `fixture.block`
+     - empty `blockHashes` lambda (same as `PragueStateTest`)
+     - `gasPrice` from `fixture.tx.gasPrice`
 
-## TDD
+2. **`FixtureAssert.h`**
+   - `assertFixtureResult()` — compares `evmcResult.status`, output bytes (`sameBytes`), logs count, and gas used with tolerance when `expected.gasUsed != 0`.
 
-1. Wrote failing `OpStackFeeTest` (Fjord empty tx → 3_203_000; operator gas=1618 → fixture value).
-2. Implemented §6.1 Fjord L1 formula and §6.2 Isthmus operator formula; slot unpack mirrors op-geth `ExtractEcotoneFeeParams` / `ExtractOperatorFeeParams`.
-3. Fixed signed intercept handling (`L1_COST_INTERCEPT` negative) via `s256` before clamp to `MIN_TX_SIZE_SCALED`.
-4. All tests pass.
+## Files Created
 
-## Test results
+| File | Purpose |
+|------|---------|
+| `bcos-evm/test/fixtures/EthFixtureAdapter.h` | Fixture → `ExecuteViaEthInput` adapter |
+| `bcos-evm/test/fixtures/FixtureAssert.h` | Shared result assertions |
 
-```text
-cd build/bcos-evm/test && ctest -R OpStackFee --output-on-failure
-1/1 Test #18: OpStackFee .......................   Passed
+## Verification
 
-cd build/bcos-evm/test && ctest --output-on-failure
-18/18 tests passed (full bcos-evm regression)
-```
+| Check | Result |
+|-------|--------|
+| Header compile (via temporary `#include` in `PragueStateTest.cpp`) | PASS |
+| Dedicated test target | N/A — Task 2 is headers only; Task 3 adds `ExecuteViaEthFixtureTest` |
+| Runtime tests | N/A |
 
-### Vectors verified
+## Concerns / Notes
 
-| Case | Expected |
-|------|----------|
-| `empty_tx.bin` fastLz | 31 |
-| Fjord L1 cost (test params) | 3_203_000 |
-| `operatorCostIsthmus(1618)` | 1256417826611659930 |
-| Empty `RollupCostData` | L1 cost 0 |
-| Zero operator params | operator cost 0 |
-| `loadOpStackFeeParams` slots 1/3/7/8 | matches test constants |
+1. **`EthPolicy.h` not included** — Including `EthPolicy.h` pulls in `protocol::BlockHeader`, which is unavailable in lightweight test TU link contexts. Prague flags are inlined from `RevisionConfig.h` instead; values mirror `EthPolicy::computeRevisionConfig` for Prague.
+2. **`eip7702` default false** — `EthPolicy` does not set `eip7702`; flag left at default. EIP-7702 fixture cases (Task 4+) may need explicit config extension.
+3. **Gas assertion vs EIP-7623** — `assertFixtureResult` uses `gasBefore - gas_left`. Callers should pass `fixture.tx.gasLimit` as `gasBefore`; EIP-7623 intrinsic deduction inside `executeViaEth` may require non-zero `gas_used_tolerance` on imported fixtures.
+4. **`evmc_message` data lifetime** — `input.message.input_data` points into `fixture.tx.data`; caller must keep `fixture` alive for the duration of `executeViaEth`.
 
-## Files changed
+## Next (Task 3)
 
-| File | Action |
-|------|--------|
-| `bcos-evm/opstack/OpStackFee.h` | created |
-| `bcos-evm/opstack/OpStackFee.cpp` | created |
-| `bcos-evm/test/fixtures/opstack/empty_tx.bin` | created |
-| `bcos-evm/test/opstack/OpStackFeeTest.cpp` | created |
-| `bcos-evm/CMakeLists.txt` | add `OpStackFee.cpp` |
-| `bcos-evm/test/CMakeLists.txt` | add `OpStackFeeTest` target |
-
-## Notes
-
-- Fjord formula: `estimatedSizeScaled = max(MIN_TX_SIZE_SCALED, INTERCEPT + FASTLZ_COEF × fastLzSize)`; `l1Cost = estimatedSizeScaled × l1FeeScaled / FJORD_DIVISOR`.
-- Operator formula: `gas × operatorFeeScalar / 1_000_000 + operatorFeeConstant`; all-zero slot 8 → 0.
-- Slot 3 scalars at bytes `[16:20)` / `[20:24)`; slot 8 at `[20:24)` / `[24:32)`.
-
-## Next
-
-Task 3: wire `OpStackFee` into `OpStackTxExecutor` buyGas / refundGas settlement.
+- `ExecuteViaEthFixtureTest.cpp` consuming these headers
+- CMake target + ctest registration
