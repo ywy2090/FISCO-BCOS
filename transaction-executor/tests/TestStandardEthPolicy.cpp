@@ -1,4 +1,5 @@
-#include "bcos-transaction-executor/vm/EthPolicy.h"
+#include "bcos-evm/eth/vm/EthPolicy.h"
+#include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <evmc/evmc.h>
 #include <boost/test/unit_test.hpp>
 
@@ -9,7 +10,8 @@ BOOST_AUTO_TEST_SUITE(EthPolicyTest)
 BOOST_AUTO_TEST_CASE(computeRevisionConfigPrague)
 {
     EthPolicy policy;
-    protocol::BlockHeader header;
+    bcostars::protocol::BlockHeaderImpl header(
+        [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
     header.setNumber(23000000);
 
     auto rev = policy.computeRevisionConfig(header);
@@ -23,16 +25,14 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigPrague)
     BOOST_CHECK(rev.eip6780);
     BOOST_CHECK(!rev.eip7212);
     BOOST_CHECK(!rev.eip7823);
-    BOOST_CHECK(!rev.enable_auth_check);
-    BOOST_CHECK(rev.use_web3_timestamp);
-    BOOST_CHECK(rev.enable_balance_transfer);
     BOOST_CHECK_EQUAL(rev.calldata_floor_per_token, 10);
 }
 
 BOOST_AUTO_TEST_CASE(computeRevisionConfigLondon)
 {
     EthPolicy policy;
-    protocol::BlockHeader header;
+    bcostars::protocol::BlockHeaderImpl header(
+        [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
     header.setNumber(13000000);
 
     auto rev = policy.computeRevisionConfig(header);

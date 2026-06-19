@@ -1,7 +1,7 @@
 #pragma once
 #include "AuthCheck.h"
+#include "FiscoRevisionConfig.h"
 #include "bcos-crypto/ChecksumAddress.h"
-#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/vm/VMInstance.h"  // toRevision
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/Features.h"
@@ -25,26 +25,26 @@ public:
         m_authCheckEnabled(authCheckEnabled)
     {}
 
-    bcos::evm_standard::RevisionConfig computeRevisionConfig(
-        const protocol::BlockHeader& header) const
+    FiscoRevisionConfig computeRevisionConfig(const protocol::BlockHeader& header) const
     {
         using Flag = ledger::Features::Flag;
-        bcos::evm_standard::RevisionConfig cfg;
+        FiscoRevisionConfig cfg;
+        auto& ethCfg = cfg.eth();
 
-        cfg.revision =
+        ethCfg.revision =
             std::max(bcos::executor::toRevision(m_features, header.version()), EVMC_CANCUN);
 
-        cfg.warm_access = cfg.revision >= EVMC_BERLIN;
-        cfg.eip1153 = cfg.revision >= EVMC_CANCUN;
-        cfg.eip4844 = cfg.revision >= EVMC_CANCUN;
-        cfg.eip5656 = cfg.revision >= EVMC_CANCUN;
-        cfg.eip6780 = cfg.revision >= EVMC_CANCUN;
-        cfg.eip1559 = cfg.revision >= EVMC_LONDON;
-        cfg.eip2537 = cfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
-        cfg.eip7623 = cfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
-        cfg.eip7212 = cfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
-        cfg.eip7823 = cfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
-        cfg.calldata_floor_per_token = cfg.eip7623 ? 10 : 0;
+        ethCfg.warm_access = ethCfg.revision >= EVMC_BERLIN;
+        ethCfg.eip1153 = ethCfg.revision >= EVMC_CANCUN;
+        ethCfg.eip4844 = ethCfg.revision >= EVMC_CANCUN;
+        ethCfg.eip5656 = ethCfg.revision >= EVMC_CANCUN;
+        ethCfg.eip6780 = ethCfg.revision >= EVMC_CANCUN;
+        ethCfg.eip1559 = ethCfg.revision >= EVMC_LONDON;
+        ethCfg.eip2537 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
+        ethCfg.eip7623 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
+        ethCfg.eip7212 = ethCfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
+        ethCfg.eip7823 = ethCfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
+        ethCfg.calldata_floor_per_token = ethCfg.eip7623 ? 10 : 0;
 
         cfg.fix_storage_status = m_features.get(Flag::bugfix_evm_storage_status);
         cfg.fix_error_handling = m_features.get(Flag::bugfix_v1_error_handling);

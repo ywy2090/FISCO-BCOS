@@ -1,11 +1,26 @@
 #pragma once
-#include "RevisionConfig.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-framework/ledger/Features.h"
 #include <evmc/evmc.h>
 #include <cstdint>
 
 namespace bcos::evm_standard
 {
+
+inline evmc_revision evmcRevisionFromBlockNumber(int64_t blockNum)
+{
+    if (blockNum >= 25000000)
+        return EVMC_OSAKA;
+    if (blockNum >= 22000000)
+        return EVMC_PRAGUE;
+    if (blockNum >= 19426587)
+        return EVMC_CANCUN;
+    if (blockNum >= 17034870)
+        return EVMC_SHANGHAI;
+    if (blockNum >= 15537394)
+        return EVMC_PARIS;
+    return EVMC_LONDON;
+}
 
 struct EthPolicy
 {
@@ -23,10 +38,6 @@ struct EthPolicy
         cfg.eip7212 = cfg.revision >= EVMC_OSAKA;
         cfg.eip7823 = cfg.revision >= EVMC_OSAKA;
         cfg.calldata_floor_per_token = cfg.eip7623 ? 10 : 0;
-        cfg.use_raw_address = false;
-        cfg.use_web3_timestamp = true;
-        cfg.enable_balance_transfer = true;
-        cfg.enable_auth_check = false;
         return cfg;
     }
 
@@ -52,21 +63,5 @@ struct EthPolicy
         return empty;
     }
 };
-
-inline evmc_revision evmcRevisionFromBlockNumber(int64_t blockNum)
-{
-    // Standard Ethereum fork schedule — used for testing the Policy seam only.
-    if (blockNum >= 25000000)
-        return EVMC_OSAKA;
-    if (blockNum >= 22000000)
-        return EVMC_PRAGUE;
-    if (blockNum >= 19426587)
-        return EVMC_CANCUN;
-    if (blockNum >= 17034870)
-        return EVMC_SHANGHAI;
-    if (blockNum >= 15537394)
-        return EVMC_PARIS;
-    return EVMC_LONDON;
-}
 
 }  // namespace bcos::evm_standard

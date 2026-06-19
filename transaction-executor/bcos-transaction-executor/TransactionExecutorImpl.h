@@ -171,7 +171,7 @@ public:
                 tx.gasLimit = msg.gas;
                 prepareTransaction(state, tx, blockInfo,
                     FiscoTransactionPrepareInput{
-                        .revision = m_data->m_executionContext.revisionConfig.revision,
+                        .revision = m_data->m_executionContext.revisionConfig.eth().revision,
                         .properties = {},
                         .accessList = m_data->m_web3AccessListResolved.accessList.get()});
             }
@@ -244,13 +244,13 @@ public:
             auto const& snapshot = m_data->m_executionContext.gasSettlementSnapshot;
             if (snapshot.gasLimit > 0 &&
                 m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction &&
-                m_data->m_executionContext.revisionConfig.eip7623)
+                m_data->m_executionContext.revisionConfig.eth().eip7623)
             {
                 auto ctx = snapshot;
                 ctx.evmGasLeft = evmcResult.gas_left;
                 ctx.evmGasRefund = evmcResult.gas_refund;
                 m_data->m_gasUsed = gas::finalizeEthereumGasUsed(
-                    ctx, m_data->m_executionContext.revisionConfig.calldata_floor_per_token);
+                    ctx, m_data->m_executionContext.revisionConfig.eth().calldata_floor_per_token);
             }
             else
             {
@@ -313,7 +313,7 @@ public:
                     m_data->m_blockHeader.get(), msg, m_data->m_origin, externalCaller,
                     m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
                     m_data->m_seq, m_data->m_executionContext.revisionConfig.enable_auth_check,
-                    m_data->m_executionContext.revisionConfig, rev,
+                    m_data->m_executionContext.revisionConfig.eth(), rev,
                     m_data->m_executionContext.revisionConfig.fix_error_handling);
                 evmc_result raw = result;
                 result.output_data = nullptr;

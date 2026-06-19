@@ -242,10 +242,19 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
 
     state::State state(*input.stateView);
     auto transaction = toStateTransaction(message, input.gasPrice);
+    state::TransactionProperties txProps;
+    txProps.warmDestination = !isCreateKind(message.kind);
+    std::optional<evmc_address> createCodeAddress;
+    if (isCreateKind(message.kind))
+    {
+        createCodeAddress = message.code_address;
+    }
     prepareTransaction(state, transaction, input.blockInfo,
-        FiscoTransactionPrepareInput{.revision = input.revisionConfig.revision,
-            .properties = {},
-            .accessList = input.accessList.get()});
+        FiscoTransactionPrepareInput{.revision = input.revisionConfig.eth().revision,
+            .properties = txProps,
+            .accessList = input.accessList.get(),
+            .web3TypedTxKind = input.web3TypedTxKind,
+            .createCodeAddress = createCodeAddress});
 
     auto const fixErrorHandling = input.revisionConfig.fix_error_handling;
 
@@ -260,7 +269,7 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             }
         }
 
-        if (input.web3Tx && input.revisionConfig.eip7623)
+        if (input.web3Tx && input.revisionConfig.eth().eip7623)
         {
             auto const components =
                 gas::calcEip7623Components(bytesConstRef(message.input_data, message.input_size));
@@ -285,7 +294,7 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         }
         message.gas -= executor::BALANCE_TRANSFER_GAS;
 
-        if (input.web3Tx && input.revisionConfig.eip7623)
+        if (input.web3Tx && input.revisionConfig.eth().eip7623)
         {
             auto const intrinsic =
                 gas::computeTxIntrinsicGas(message, input.accessList.get(), input.web3TypedTxKind);
@@ -312,8 +321,8 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             input.revisionConfig.enable_balance_transfer, std::move(deps), input.precompileCaller);
 
         auto const txContext = buildTxContext(input.blockInfo, message, input.gasPrice);
-        state::EthHost host(state, txContext, input.revisionConfig.revision, &extension,
-            input.revisionConfig.fix_storage_status);
+        state::EthHost host(state, txContext, input.revisionConfig.eth().revision, *input.vm,
+            input.blockHashes, &extension, input.revisionConfig.fix_storage_status);
 
         bcos::bytes code;
         if (isCreateKind(message.kind))
@@ -346,7 +355,7 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         }
 
         auto result = input.vm->execute(
-            host, input.revisionConfig.revision, message, code.data(), code.size());
+            host, input.revisionConfig.eth().revision, message, code.data(), code.size());
         output.evmcResult = adoptResult(std::move(result), *input.hashImpl);
         output.executionContext.logs = convertLogs(host.take_logs());
         output.executionContext.message = message;

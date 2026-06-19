@@ -10,6 +10,7 @@
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-protocol/TransactionStatus.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/unit_test.hpp>
@@ -52,7 +53,7 @@ evmc_address addressFromByte(uint8_t value)
 
 bcos::evm::ExecuteViaHostInput makeBaseInput(InMemoryStateView const& stateView, evmc::VM& vm,
     bcos::crypto::Hash const& hashImpl, evmc_message message,
-    bcos::evm_standard::RevisionConfig revisionConfig)
+    bcos::chain_policy::FiscoRevisionConfig revisionConfig)
 {
     bcos::evm::state::BlockInfo blockInfo;
     blockInfo.number = 1;
@@ -89,8 +90,8 @@ BOOST_AUTO_TEST_CASE(auth_fail_path_returns_checker_result)
         message.recipient = target;
         message.code_address = target;
 
-        bcos::evm_standard::RevisionConfig revisionConfig;
-        revisionConfig.revision = EVMC_CANCUN;
+        bcos::chain_policy::FiscoRevisionConfig revisionConfig;
+        revisionConfig.eth().revision = EVMC_CANCUN;
         revisionConfig.enable_auth_check = true;
         revisionConfig.fix_error_handling = fixErrorHandling;
 
@@ -141,8 +142,8 @@ BOOST_AUTO_TEST_CASE(revert_logs_fix_gate_controls_revert_logs_visibility)
         message.recipient = target;
         message.code_address = target;
 
-        bcos::evm_standard::RevisionConfig revisionConfig;
-        revisionConfig.revision = EVMC_CANCUN;
+        bcos::chain_policy::FiscoRevisionConfig revisionConfig;
+        revisionConfig.eth().revision = EVMC_CANCUN;
         revisionConfig.fix_revert_logs = fixRevertLogs;
 
         bcos::crypto::Keccak256 hashImpl;
@@ -177,8 +178,8 @@ BOOST_AUTO_TEST_CASE(empty_account_call_via_execute_via_host_returns_success)
     message.recipient = target;
     message.code_address = target;
 
-    bcos::evm_standard::RevisionConfig revisionConfig;
-    revisionConfig.revision = EVMC_CANCUN;
+    bcos::chain_policy::FiscoRevisionConfig revisionConfig;
+    revisionConfig.eth().revision = EVMC_CANCUN;
 
     bcos::crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -188,6 +189,96 @@ BOOST_AUTO_TEST_CASE(empty_account_call_via_execute_via_host_returns_success)
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK(output.executionContext.logs.empty());
     BOOST_CHECK(output.stateDiff.empty());
+}
+
+BOOST_AUTO_TEST_CASE(fib88_insufficient_balance_consumes_all_gas)
+{
+    auto const sender = addressFromByte(0xaa);
+    auto const recipient = addressFromByte(0xbb);
+
+    InMemoryStateView stateView;
+    bcos::evm::state::Account senderAccount;
+    senderAccount.balance = 100;
+    stateView.insertAccount(sender, senderAccount);
+
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 300'000;
+    message.sender = sender;
+    message.recipient = recipient;
+    message.code_address = recipient;
+    message.value = bcos::evm::state::toEvmC(bcos::u256(1000));
+
+    bcos::chain_policy::FiscoRevisionConfig revisionConfig;
+    revisionConfig.eth().revision = EVMC_CANCUN;
+    revisionConfig.enable_balance_transfer = true;
+    revisionConfig.fix_error_handling = true;
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
+
+    auto output = bcos::task::syncWait(bcos::evm::executeViaHost(std::move(input)));
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_CHECK_EQUAL(output.evmcResult.gas_left, 0);
+    BOOST_CHECK_EQUAL(output.evmcResult.status, bcos::protocol::TransactionStatus::NotEnoughCash);
+}
+
+BOOST_AUTO_TEST_CASE(fib88_not_found_code_revert_preserves_gas)
+{
+    auto const target = addressFromByte(0xde);
+    bcos::bytes dummyInput{0x01, 0x02, 0x03, 0x04};
+
+    InMemoryStateView stateView;
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 500'000;
+    message.recipient = target;
+    message.code_address = target;
+    message.input_data = dummyInput.data();
+    message.input_size = dummyInput.size();
+
+    bcos::chain_policy::FiscoRevisionConfig revisionConfig;
+    revisionConfig.eth().revision = EVMC_CANCUN;
+    revisionConfig.fix_error_handling = true;
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
+
+    auto output = bcos::task::syncWait(bcos::evm::executeViaHost(std::move(input)));
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
+    BOOST_CHECK_EQUAL(
+        output.evmcResult.status, bcos::protocol::TransactionStatus::RevertInstruction);
+    // executeViaHost deducts BALANCE_TRANSFER_GAS before the NotFoundCode check.
+    BOOST_CHECK_EQUAL(output.evmcResult.gas_left, message.gas - 21'000);
+}
+
+BOOST_AUTO_TEST_CASE(fib88_not_found_code_static_call_returns_success)
+{
+    auto const target = addressFromByte(0xad);
+    bcos::bytes dummyInput{0x01, 0x02, 0x03, 0x04};
+
+    InMemoryStateView stateView;
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.flags = EVMC_STATIC;
+    message.gas = 500'000;
+    message.recipient = target;
+    message.code_address = target;
+    message.input_data = dummyInput.data();
+    message.input_size = dummyInput.size();
+
+    bcos::chain_policy::FiscoRevisionConfig revisionConfig;
+    revisionConfig.eth().revision = EVMC_CANCUN;
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
+
+    auto output = bcos::task::syncWait(bcos::evm::executeViaHost(std::move(input)));
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(output.evmcResult.status, bcos::protocol::TransactionStatus::None);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

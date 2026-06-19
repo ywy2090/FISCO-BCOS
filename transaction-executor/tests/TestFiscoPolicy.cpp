@@ -1,5 +1,6 @@
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-framework/ledger/Features.h"
+#include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <boost/test/unit_test.hpp>
 
 using namespace bcos::chain_policy;
@@ -10,7 +11,7 @@ BOOST_AUTO_TEST_SUITE(FiscoPolicyTest)
 ledger::Features makeFeatures()
 {
     ledger::Features f;
-    f.set(Flag::feature_evm_warmset);
+    f.set(Flag::feature_evm_cancun);
     f.set(Flag::feature_evm_prague);
     f.set(Flag::feature_evm_osaka);
     f.set(Flag::bugfix_v1_error_handling);
@@ -32,16 +33,18 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOn)
     auto features = makeFeatures();
     FiscoPolicy policy(features, true, true);
 
-    protocol::BlockHeader header;
+    bcostars::protocol::BlockHeaderImpl header(
+        [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
     header.setVersion(static_cast<uint32_t>(protocol::BlockVersion::V3_2_VERSION));
 
     auto rev = policy.computeRevisionConfig(header);
+    auto const& ethRev = rev.eth();
 
-    BOOST_CHECK(rev.warmset);
-    BOOST_CHECK(rev.eip2537);
-    BOOST_CHECK(rev.eip7212);
-    BOOST_CHECK(rev.eip7623);
-    BOOST_CHECK(rev.eip7823);
+    BOOST_CHECK(ethRev.warm_access);
+    BOOST_CHECK(ethRev.eip2537);
+    BOOST_CHECK(ethRev.eip7212);
+    BOOST_CHECK(ethRev.eip7623);
+    BOOST_CHECK(ethRev.eip7823);
     BOOST_CHECK(rev.fix_error_handling);
     BOOST_CHECK(rev.fix_delegatecall_transfer);
     BOOST_CHECK(rev.fix_auth_check);
@@ -54,7 +57,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOn)
     BOOST_CHECK(rev.use_web3_timestamp);
     BOOST_CHECK(rev.enable_balance_transfer);
     BOOST_CHECK(rev.enable_auth_check);
-    BOOST_CHECK_EQUAL(rev.calldata_floor_per_token, 10);
+    BOOST_CHECK_EQUAL(ethRev.calldata_floor_per_token, 10);
 }
 
 BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOff)
@@ -62,16 +65,22 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOff)
     ledger::Features features;
     FiscoPolicy policy(features, false, false);
 
-    protocol::BlockHeader header;
+    bcostars::protocol::BlockHeaderImpl header(
+        [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
     header.setVersion(0);
 
     auto rev = policy.computeRevisionConfig(header);
+    auto const& ethRev = rev.eth();
 
-    BOOST_CHECK(!rev.warmset);
-    BOOST_CHECK(!rev.eip2537);
-    BOOST_CHECK(!rev.eip7212);
-    BOOST_CHECK(!rev.eip7623);
-    BOOST_CHECK(!rev.eip7823);
+    BOOST_CHECK(ethRev.warm_access);
+    BOOST_CHECK(ethRev.eip1153);
+    BOOST_CHECK(ethRev.eip4844);
+    BOOST_CHECK(ethRev.eip5656);
+    BOOST_CHECK(ethRev.eip6780);
+    BOOST_CHECK(!ethRev.eip2537);
+    BOOST_CHECK(!ethRev.eip7212);
+    BOOST_CHECK(!ethRev.eip7623);
+    BOOST_CHECK(!ethRev.eip7823);
     BOOST_CHECK(!rev.fix_error_handling);
     BOOST_CHECK(!rev.fix_delegatecall_transfer);
     BOOST_CHECK(!rev.fix_auth_check);
@@ -83,7 +92,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOff)
     BOOST_CHECK(!rev.use_web3_timestamp);
     BOOST_CHECK(!rev.enable_balance_transfer);
     BOOST_CHECK(!rev.enable_auth_check);
-    BOOST_CHECK_EQUAL(rev.calldata_floor_per_token, 0);
+    BOOST_CHECK_EQUAL(ethRev.calldata_floor_per_token, 0);
 }
 
 BOOST_AUTO_TEST_CASE(allowDelegateCallToPrecompile)

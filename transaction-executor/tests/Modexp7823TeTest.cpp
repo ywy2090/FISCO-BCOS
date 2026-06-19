@@ -5,9 +5,9 @@
  *  @file Modexp7823TeTest.cpp
  */
 
-#include "../bcos-transaction-executor/precompiled/PrecompiledImpl.h"
-#include "bcos-executor/src/vm/ModexpGas.h"
-#include "bcos-executor/src/vm/Precompiled.h"
+#include "bcos-evm/bcos/PrecompiledImpl.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-executor/src/Common.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-framework/protocol/Protocol.h>
@@ -26,18 +26,11 @@ bytes modexpHeaderBaseLen1025()
     return input;
 }
 
-ledger::Features osakaFeatures(bool bugfixErrorHandling = true)
+bcos::evm_standard::RevisionConfig osakaRev(bool fixErrorHandling = true)
 {
-    ledger::Features features;
-    features.setGenesisFeatures(protocol::BlockVersion::MAX_VERSION);
-    features.set(ledger::Features::Flag::feature_evm_cancun);
-    features.set(ledger::Features::Flag::feature_evm_prague);
-    features.set(ledger::Features::Flag::feature_evm_osaka);
-    if (bugfixErrorHandling)
-    {
-        features.set(ledger::Features::Flag::bugfix_v1_error_handling);
-    }
-    return features;
+    (void)fixErrorHandling;
+    bcos::evm_standard::RevisionConfig rev{.revision = EVMC_OSAKA, .eip7823 = true};
+    return rev;
 }
 }  // namespace
 
@@ -46,8 +39,6 @@ BOOST_AUTO_TEST_SUITE(Modexp7823Te)
 BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka)
 {
     executor::GlobalHashImpl::g_hashImpl = std::make_shared<crypto::Keccak256>();
-    executor::PrecompiledContract const contract(
-        executor::PrecompiledContract::modexp(executor::BuiltinRegistry::executor("modexp")));
 
     auto const input = modexpHeaderBaseLen1025();
     evmc_address modexpAddr{};
@@ -61,20 +52,15 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka)
     message.input_data = input.data();
     message.input_size = input.size();
 
-    auto const features = osakaFeatures();
-    auto const result =
-        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA, true);
+    auto const result = bcos::evm::callBuiltinPrecompiled(message, osakaRev(), EVMC_OSAKA, true);
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_FAILURE);
-    // geth/evmone: EIP-7823 rejection happens before execution; all call gas is consumed.
     BOOST_CHECK_EQUAL(result.gas_left, 0);
 }
 
 BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka_legacyPath_burnsAllGas)
 {
     executor::GlobalHashImpl::g_hashImpl = std::make_shared<crypto::Keccak256>();
-    executor::PrecompiledContract const contract(
-        executor::PrecompiledContract::modexp(executor::BuiltinRegistry::executor("modexp")));
 
     auto const input = modexpHeaderBaseLen1025();
     evmc_address modexpAddr{};
@@ -88,9 +74,8 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka_legacyPath_bu
     message.input_data = input.data();
     message.input_size = input.size();
 
-    auto const features = osakaFeatures(false);
     auto const result =
-        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA, false);
+        bcos::evm::callBuiltinPrecompiled(message, osakaRev(false), EVMC_OSAKA, false);
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_FAILURE);
     BOOST_CHECK_EQUAL(result.gas_left, 0);
@@ -99,8 +84,6 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_osaka_legacyPath_bu
 BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_dynamicPrecompiledRecipient)
 {
     executor::GlobalHashImpl::g_hashImpl = std::make_shared<crypto::Keccak256>();
-    executor::PrecompiledContract const contract(
-        executor::PrecompiledContract::modexp(executor::BuiltinRegistry::executor("modexp")));
 
     auto const input = modexpHeaderBaseLen1025();
     evmc_address modexpAddr{};
@@ -110,16 +93,13 @@ BOOST_AUTO_TEST_CASE(callBuiltinPrecompiled_rejects_oversize_dynamicPrecompiledR
 
     evmc_message message{};
     message.kind = EVMC_CALL;
-    // processDynamicPrecompiled() keeps wrapper in code_address and routes recipient to 0x05.
     message.recipient = modexpAddr;
     message.code_address = wrapperAddr;
     message.gas = 1'000'000;
     message.input_data = input.data();
     message.input_size = input.size();
 
-    auto const features = osakaFeatures();
-    auto const result =
-        executor_v1::callBuiltinPrecompiled(contract, message, features, EVMC_OSAKA, true);
+    auto const result = bcos::evm::callBuiltinPrecompiled(message, osakaRev(), EVMC_OSAKA, true);
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_FAILURE);
     BOOST_CHECK_EQUAL(result.gas_left, 0);

@@ -1,5 +1,4 @@
 #include "bcos-evm/bcos/PrecompiledManager.h"
-#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-executor/src/precompiled/BFSPrecompiled.h"
@@ -203,7 +202,7 @@ bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
 }
 
 bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
-    unsigned long contractAddress, const bcos::evm_standard::RevisionConfig& rev,
+    unsigned long contractAddress, const bcos::chain_policy::FiscoRevisionConfig& rev,
     const ledger::Features& features) const
 {
     const auto* precompiled = getPrecompiled(contractAddress);
@@ -219,16 +218,16 @@ bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
 
     // Ethereum EIP gating -> RevisionConfig
     if (*flag == ledger::Features::Flag::feature_evm_prague)
-        return rev.eip2537 ? precompiled : nullptr;
+        return rev.eth().eip2537 ? precompiled : nullptr;
     if (*flag == ledger::Features::Flag::feature_evm_osaka)
-        return rev.eip7212 ? precompiled : nullptr;
+        return rev.eth().eip7212 ? precompiled : nullptr;
 
     // FISCO-native gating -> Features
     return features.get(*flag) ? precompiled : nullptr;
 }
 
 bcos::evm::Precompiled const* bcos::evm::PrecompiledManager::getPrecompiled(
-    const evmc_address& address, const bcos::evm_standard::RevisionConfig& rev,
+    const evmc_address& address, const bcos::chain_policy::FiscoRevisionConfig& rev,
     const ledger::Features& features) const
 {
     constexpr static unsigned long MAX_ADDR = 100000;

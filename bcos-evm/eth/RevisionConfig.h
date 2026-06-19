@@ -25,23 +25,7 @@ struct RevisionConfig
     bool eip3651 : 1 = false;
     bool eip7702 : 1 = false;
 
-    // C. Bugfix toggles (FISCO-specific; false for standard Ethereum)
-    bool fix_storage_status : 1 = false;
-    bool fix_error_handling : 1 = false;
-    bool fix_delegatecall_transfer : 1 = false;
-    bool fix_auth_check : 1 = false;
-    bool fix_nonce_init : 1 = false;
-    bool fix_revert_logs : 1 = false;
-    bool fix_gas_precheck : 1 = false;
-    bool fix_precompiled_feature_gate : 1 = false;
-
-    // D. Chain identity
-    bool use_raw_address : 1 = false;
-    bool use_web3_timestamp : 1 = false;
-    bool enable_balance_transfer : 1 = false;
-    bool enable_auth_check : 1 = false;
-
-    // E. Fork-dependent parameters
+    // C. Fork-dependent parameters
     uint8_t calldata_floor_per_token = 10;
 };
 

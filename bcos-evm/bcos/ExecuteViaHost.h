@@ -21,6 +21,7 @@
 
 #include "bcos-evm/bcos/FiscoExecutionContext.h"
 #include "bcos-evm/bcos/FiscoHostExtension.h"
+#include "bcos-evm/bcos/FiscoRevisionConfig.h"
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
@@ -50,7 +51,7 @@ struct ExecuteViaHostInput
     evmc_message message{};
     state::BlockInfo blockInfo{};
     state::BlockHashes blockHashes{};
-    bcos::evm_standard::RevisionConfig revisionConfig{};
+    bcos::chain_policy::FiscoRevisionConfig revisionConfig{};
     bcos::u256 nonce{0};
     bcos::u256 gasPrice{0};
     int64_t contextID{0};
