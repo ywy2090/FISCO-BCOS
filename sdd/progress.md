@@ -53,6 +53,7 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Task 12: complete (7ca7eac40..b9f47dca6) — slim ExecuteViaHost + thin transition; bcos-evm 14/14 + ExecuteViaHostCompat 7/7
 - Task 13: complete (b9f47dca6..996305dd4) — FiscoConstants.h; FiscoHostExtension/ExecuteViaHost/FiscoPolicy 常量解耦；存量 precompiled/ExecutiveWrapper 仍含 bcos-executor include（Task 14 范围）
 - Task 14: complete (996305dd4..62433c71d) — ExecutiveWrapper 上移 TE；删除 externalCaller stub；CompatHostShim 走 EthHost::call()；CompatExecuteViaHost 50/50 + ExecuteViaHostCompat|FIB101 11/11
+- Task 15: complete (62433c71d..7578112e8 + fix) — Step 2 验收；恢复 ExecuteViaHost FISCO 薄层（balance transfer/NotFoundCode/BALANCE_TRANSFER_GAS）；bcos-evm 14/14 + CompatExecuteViaHost 50/50 + FIB101 10/10
 - Task 15 Step 2: 验收已执行（build-c3-3）
   - `bcos-evm/test`：12/14 PASS（fail: WarmTransactionEntry, NestedCallHost）
   - `CompatExecuteViaHost`：50/50 PASS

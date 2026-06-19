@@ -12,4 +12,6 @@ inline constexpr evmc_uint256be EMPTY_EVM_UINT256 = {};
 
 inline constexpr std::string_view USER_APPS_PREFIX = "/apps/";
 
+inline constexpr int64_t BALANCE_TRANSFER_GAS = 21'000;
+
 }  // namespace bcos::evm

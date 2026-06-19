@@ -21,11 +21,43 @@
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
 #include <array>
+#include <cstring>
+#include <string>
 #include <utility>
 #include <vector>
 
 namespace bcos::evm::state
 {
+namespace
+{
+constexpr std::string_view PRECOMPILED_CODE_FIELD = "[PRECOMPILED]";
+constexpr size_t PRECOMPILED_CODE_FIELD_SIZE = 13;
+
+bool startsWith(std::string_view input, std::string_view prefix) noexcept
+{
+    return input.size() >= prefix.size() &&
+           std::memcmp(input.data(), prefix.data(), prefix.size()) == 0;
+}
+
+std::vector<std::string_view> splitByComma(std::string_view input)
+{
+    std::vector<std::string_view> tokens;
+    size_t begin = 0;
+    while (begin <= input.size())
+    {
+        auto const end = input.find(',', begin);
+        if (end == std::string_view::npos)
+        {
+            tokens.push_back(input.substr(begin));
+            break;
+        }
+        tokens.push_back(input.substr(begin, end - begin));
+        begin = end + 1;
+    }
+    return tokens;
+}
+}  // namespace
+
 EthHost::EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
     BlockHashes blockHashes, HostExtension* extension, bool fixStorageStatus)
   : m_state(state),
@@ -254,6 +286,27 @@ bool EthHost::isBuiltinPrecompileAddress(const evmc_address& address) noexcept
     return high == 0x01 && low == 0x00;
 }
 
+std::optional<evmc_address> EthHost::parseDynamicPrecompileTarget(std::string_view code) noexcept
+{
+    if (code.size() <= PRECOMPILED_CODE_FIELD_SIZE || !startsWith(code, PRECOMPILED_CODE_FIELD))
+    {
+        return std::nullopt;
+    }
+
+    auto const tokens = splitByComma(code);
+    if (tokens.size() < 2)
+    {
+        return std::nullopt;
+    }
+
+    auto target = parseHexAddress(tokens[1]);
+    if (isZeroAddress(target))
+    {
+        return std::nullopt;
+    }
+    return target;
+}
+
 evmc::Result EthHost::makeResult(
     evmc_status_code status, int64_t gasLeft, const bcos::bytes& output)
 {
@@ -332,6 +385,16 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         return routed;
     }
 
+    if (!code.empty())
+    {
+        std::string_view codeView(reinterpret_cast<const char*>(code.data()), code.size());
+        if (auto dynamicTarget = parseDynamicPrecompileTarget(codeView))
+        {
+            routed.precompileTarget = *dynamicTarget;
+            routed.hasPrecompileTarget = isBuiltinPrecompileAddress(*dynamicTarget);
+            routed.message.recipient = *dynamicTarget;
+        }
+    }
     return routed;
 }
 

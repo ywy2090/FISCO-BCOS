@@ -103,7 +103,8 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
     Eip2930AccessList accessList{{accessAddress, {keyA, keyB}}};
 
     TransactionProperties props;
-    execution::warmTransactionEntry(state, EVMC_SHANGHAI, tx, block, props, &accessList);
+    execution::warmTransactionEntry(
+        state, EVMC_SHANGHAI, tx, block, props, &accessList, /*web3TypedTxKind=*/1);
 
     auto const evmcAccessAddress = evmcAddressFromLastByte(0x21);
     BOOST_CHECK(state.is_address_warm(evmcAccessAddress));

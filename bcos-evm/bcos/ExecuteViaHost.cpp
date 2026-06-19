@@ -28,6 +28,7 @@
 #include "bcos-utilities/DataConvertUtility.h"
 #include <fmt/compile.h>
 #include <fmt/format.h>
+#include <boost/throw_exception.hpp>
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -40,6 +41,23 @@ namespace bcos::evm
 {
 namespace
 {
+struct NotFoundCodeError : public std::runtime_error
+{
+    NotFoundCodeError() : std::runtime_error("code not found") {}
+};
+
+bool hasNonZeroValue(const evmc_bytes32& value)
+{
+    for (auto byte : value.bytes)
+    {
+        if (byte != 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool isCreateKind(evmc_call_kind kind) noexcept
 {
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
@@ -51,6 +69,44 @@ EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl
     auto [status, ignored] = evmcStatusToErrorMessage(hashImpl, raw.status_code);
     (void)ignored;
     return EVMCResult(raw, status);
+}
+
+bool addressEqual(const evmc_address& lhs, const evmc_address& rhs) noexcept
+{
+    return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
+}
+
+void maybeTransferValue(state::State& state, const evmc_message& msg, bool fixDelegateCallTransfer)
+{
+    if (!hasNonZeroValue(msg.value))
+    {
+        return;
+    }
+
+    bool const shouldTransfer =
+        fixDelegateCallTransfer ?
+            ((msg.kind == EVMC_CALL && (msg.flags & EVMC_STATIC) == 0) || isCreateKind(msg.kind)) :
+            true;
+    if (!shouldTransfer)
+    {
+        return;
+    }
+
+    if (addressEqual(msg.code_address, msg.sender) || addressEqual(msg.recipient, msg.sender))
+    {
+        return;
+    }
+
+    auto const value = state::fromEvmC(msg.value);
+    auto const fromBalance = state.get_balance(msg.sender);
+    if (fromBalance < value)
+    {
+        BOOST_THROW_EXCEPTION(
+            protocol::NotEnoughCashError{} << errinfo_comment("Account balance is not enough!"));
+    }
+    auto const toBalance = state.get_balance(msg.recipient);
+    state.set_balance(msg.sender, fromBalance - value);
+    state.set_balance(msg.recipient, toBalance + value);
 }
 
 std::vector<protocol::LogEntry> convertLogs(const std::vector<state::LogEntry>& logs)
@@ -194,6 +250,26 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             output.executionContext.gasSettlementSnapshot.createTerm = intrinsic.createIntrinsic;
         }
 
+        if (input.revisionConfig.enable_balance_transfer)
+        {
+            maybeTransferValue(state, message, input.revisionConfig.fix_delegatecall_transfer);
+        }
+
+        if (message.gas < BALANCE_TRANSFER_GAS)
+        {
+            BOOST_THROW_EXCEPTION(protocol::OutOfGas{});
+        }
+        message.gas -= BALANCE_TRANSFER_GAS;
+
+        if (!isCreateKind(message.kind))
+        {
+            auto const code = state.get_code(message.code_address);
+            if (code.empty() && message.input_size > 0)
+            {
+                BOOST_THROW_EXCEPTION(NotFoundCodeError{});
+            }
+        }
+
         FiscoHostExtension::FiscoHostExtensionDeps deps;
         deps.state = &state;
         deps.blockNumber = input.blockInfo.number;
@@ -250,6 +326,24 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         output.evmcResult = makeErrorEVMCResult(*input.hashImpl,
             protocol::TransactionStatus::NotEnoughCash, EVMC_INSUFFICIENT_BALANCE,
             fixErrorHandling ? 0 : message.gas, e.what(), fixErrorHandling);
+        if (state.has_checkpoint())
+        {
+            state.revert();
+        }
+    }
+    catch (NotFoundCodeError&)
+    {
+        if ((message.flags & EVMC_STATIC) != 0 || message.kind == EVMC_DELEGATECALL)
+        {
+            output.evmcResult = makeErrorEVMCResult(*input.hashImpl,
+                protocol::TransactionStatus::None, EVMC_SUCCESS, message.gas, "", false);
+        }
+        else
+        {
+            output.evmcResult =
+                makeErrorEVMCResult(*input.hashImpl, protocol::TransactionStatus::RevertInstruction,
+                    EVMC_REVERT, message.gas, "Call address error.", fixErrorHandling);
+        }
         if (state.has_checkpoint())
         {
             state.revert();
