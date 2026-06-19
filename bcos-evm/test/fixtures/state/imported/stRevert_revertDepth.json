@@ -1,0 +1,48 @@
+{
+  "name": "stRevert_revertDepth",
+  "source": "hand-crafted/from GeneralStateTests/stRevertTest/RevertDepth",
+  "revision": "prague",
+  "tx": {
+    "from": "0x0000000000000000000000000000000000000001",
+    "to": "0x0000000000000000000000000000000000000055",
+    "gas_limit": 100000,
+    "gas_price": "0x0",
+    "value": "0x0",
+    "nonce": 1,
+    "data": "0x"
+  },
+  "block": {
+    "number": 1,
+    "timestamp": 1,
+    "gas_limit": 30000000,
+    "coinbase": "0x00000000000000000000000000000000000000cb",
+    "base_fee": "0x0",
+    "chain_id": "0x1"
+  },
+  "pre": [
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "balance": "0x1000000",
+      "nonce": 1,
+      "code": "0x"
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000055",
+      "balance": "0x0",
+      "nonce": 0,
+      "code": "0x60006000600060006000606660005af1fd"
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000066",
+      "balance": "0x0",
+      "nonce": 0,
+      "code": "0x60006000fd"
+    }
+  ],
+  "expected": {
+    "status": "EVMC_REVERT",
+    "gas_used": 0,
+    "logs": 0,
+    "output": "0x"
+  }
+}

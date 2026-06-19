@@ -1,0 +1,36 @@
+{
+  "name": "stPrecompile_ecrecover",
+  "source": "hand-crafted/from GeneralStateTests/stPreCompiledContracts/ecrecover",
+  "revision": "prague",
+  "tx": {
+    "from": "0x0000000000000000000000000000000000000001",
+    "to": "0x0000000000000000000000000000000000000001",
+    "gas_limit": 100000,
+    "gas_price": "0x0",
+    "value": "0x0",
+    "nonce": 1,
+    "data": "0x18c5478686584796a8860e9fcb466c0dfa0b077d41741b868f0d0fa5dadbe55f000000000000000000000000000000000000000000000000000000000000001b844bee540e21a53727167c356497d245134bfbe8ae8017148e0d1a0989bdc9f000000000000000000000000000000000000000000000000000000000000001c"
+  },
+  "block": {
+    "number": 1,
+    "timestamp": 1,
+    "gas_limit": 30000000,
+    "coinbase": "0x00000000000000000000000000000000000000cb",
+    "base_fee": "0x0",
+    "chain_id": "0x1"
+  },
+  "pre": [
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "balance": "0x1000000",
+      "nonce": 1,
+      "code": "0x"
+    }
+  ],
+  "expected": {
+    "status": "EVMC_SUCCESS",
+    "gas_used": 0,
+    "logs": 0,
+    "output": "0x"
+  }
+}
