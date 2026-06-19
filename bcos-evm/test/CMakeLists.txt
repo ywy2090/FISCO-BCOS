@@ -178,6 +178,25 @@ add_test(
     COMMAND ${SSTORE_STATUS_TEST_BINARY_NAME}
 )
 
+set(SSTORE_REFUND_TEST_BINARY_NAME SstoreRefundTest)
+
+add_executable(${SSTORE_REFUND_TEST_BINARY_NAME}
+    state/SstoreRefundTest.cpp
+)
+
+target_include_directories(${SSTORE_REFUND_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(${SSTORE_REFUND_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME SstoreRefund
+    COMMAND ${SSTORE_REFUND_TEST_BINARY_NAME}
+)
+
 set(PRAGUE_STATE_TEST_BINARY_NAME PragueStateTest)
 
 add_executable(${PRAGUE_STATE_TEST_BINARY_NAME}

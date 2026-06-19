@@ -128,6 +128,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     ExecuteMessageOutput output;
     std::optional<state::State> stateCopy;
     auto& state = resolveState(*input.stateView, stateCopy);
+    state.clear_refund();
 
     auto const transaction = toStateTransaction(input.message);
     std::optional<evmc_address> createCodeAddress;
