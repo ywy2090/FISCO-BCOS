@@ -21,3 +21,22 @@
 ### Verification
 - `ctest --test-dir build/bcos-evm/test -R "NestedCallHost|PragueState|Eip2929AccessHost|EthHostExtensionHooks|FiscoHostExtension" --output-on-failure`
   - Result: 5/5 passed.
+
+### Critical Fix Follow-up (on top of 30dfc9675)
+- Fix 1 (delegatecall precompile gate):
+  - Reordered `EthHost::call()` to enforce:
+    - `tryChainPrecompile`
+    - DELEGATECALL precompile gate (`!allowDelegateCallToPrecompile`)
+    - `EthPrecompiles::tryDispatchInCall`
+    - `prepareMessage` -> `transferValue` -> `checkpoint` -> `vm.execute` -> `commit/revert`
+  - This prevents delegatecall-to-precompile bypass before gate evaluation.
+- Fix 2 (nested call assertion hardening):
+  - Restored/added `vm.execute(runner)` path assertion in `NestedCallHostTest`:
+    - `result.output_size == 1`
+    - `result.output_data[0] == 0x42`
+  - Direct `host.call()` callee assertion remains covered.
+
+### Fix Verification Result
+- Command:
+  - `ctest --test-dir build/bcos-evm/test -R "NestedCallHost|PragueState|Eip2929AccessHost" --output-on-failure`
+- Result: 3/3 passed (`Eip2929AccessHost`, `PragueState`, `NestedCallHost`).

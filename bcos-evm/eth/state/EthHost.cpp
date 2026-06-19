@@ -149,6 +149,12 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         }
     }
 
+    if (callMessage.kind == EVMC_DELEGATECALL && routed.hasPrecompileTarget &&
+        m_extension != nullptr && !m_extension->allowDelegateCallToPrecompile())
+    {
+        return makeResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas);
+    }
+
     if (routed.hasPrecompileTarget)
     {
         if (auto precompiled =
@@ -156,12 +162,6 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         {
             return std::move(*precompiled);
         }
-    }
-
-    if (callMessage.kind == EVMC_DELEGATECALL && routed.hasPrecompileTarget &&
-        m_extension != nullptr && !m_extension->allowDelegateCallToPrecompile())
-    {
-        return makeResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas);
     }
 
     if (m_extension != nullptr)

@@ -94,6 +94,8 @@ BOOST_AUTO_TEST_CASE(runner_call_callee_returns_0x42)
         vm.execute(host, EVMC_PRAGUE, msg, runnerAccount.code.data(), runnerAccount.code.size());
 
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE(result.output_size == 1);
+    BOOST_CHECK_EQUAL(result.output_data[0], 0x42);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
