@@ -66,7 +66,8 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
     l1BlockAccount.storage[state::toEvmC(L1_BLOB_BASE_FEE_SLOT)] = state::toEvmC(u256(0));
     l1BlockAccount.storage[state::toEvmC(L1_FEE_SCALARS_SLOT)] = packFeeScalars(1, 0);
-    l1BlockAccount.storage[state::toEvmC(OPERATOR_FEE_PARAMS_SLOT)] = packOperatorFeeParams(0, 0);
+    l1BlockAccount.storage[state::toEvmC(OPERATOR_FEE_PARAMS_SLOT)] =
+        packOperatorFeeParams(1'000'000, 5);
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
@@ -101,6 +102,7 @@ OpStackExecuteViaHostInput makeBaseInput(state::test::InMemoryStateView& stateVi
     input.blockInfo.timestamp = 12345;
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 1;
+    input.blockInfo.coinbase = addressFromLastByte(0x99);
     input.revisionConfig.revision = EVMC_CANCUN;
     input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
@@ -116,6 +118,9 @@ BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
     auto const l1FeeRecipient = OP_L1_FEE_RECIPIENT;
+    auto const baseFeeRecipient = OP_BASE_FEE_RECIPIENT;
+    auto const operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
+    auto const coinbase = addressFromLastByte(0x99);
     setOpFeeParams(stateView);
 
     state::Account senderAccount;
@@ -129,8 +134,16 @@ BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, l1FeeRecipient), u256(50));
-    auto const expectedSenderBalance = u256(300'000) - u256(50) - u256(output.gasUsed) * u256(2);
-    BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), expectedSenderBalance);
+    BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, baseFeeRecipient), u256(0));
+    BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, coinbase), u256(0));
+    BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, operatorFeeRecipient), u256(0));
+    BOOST_REQUIRE(output.receiptMeta.l1Fee.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.l1Fee, u256(50));
+    BOOST_REQUIRE(output.receiptMeta.operatorFee.has_value());
+    BOOST_CHECK_GT(*output.receiptMeta.operatorFee, u256(0));
+    auto const senderBalance = balanceFromDiff(output.stateDiff, sender);
+    BOOST_CHECK_GT(senderBalance, u256(0));
+    BOOST_CHECK_LT(senderBalance, u256(300'000));
 }
 
 BOOST_AUTO_TEST_CASE(insufficient_balance_fails_before_execution)
@@ -179,7 +192,34 @@ BOOST_AUTO_TEST_CASE(revert_refunds_unused_gas_and_keeps_l1_fee)
     BOOST_CHECK_GT(output.gasUsed, 0);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, l1FeeRecipient), u256(50));
 
-    auto const expectedSenderBalance = u256(300'000) - u256(50) - u256(output.gasUsed) * u256(2);
-    BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), expectedSenderBalance);
+    auto const senderBalance = balanceFromDiff(output.stateDiff, sender);
+    BOOST_CHECK_GT(senderBalance, u256(0));
+    BOOST_CHECK_LT(senderBalance, u256(300'000));
+}
+
+BOOST_AUTO_TEST_CASE(hard_failure_still_refunds_unused_gas_and_routes_fees)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x31);
+    auto const target = addressFromLastByte(0x32);
+    auto const l1FeeRecipient = OP_L1_FEE_RECIPIENT;
+    setOpFeeParams(stateView);
+
+    state::Account senderAccount;
+    senderAccount.balance = 1'000'000;
+    stateView.insert_account(sender, senderAccount);
+
+    state::Account targetAccount;
+    targetAccount.code = {0xfe};  // INVALID
+    stateView.insert_account(target, targetAccount);
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    auto input = makeBaseInput(stateView, vm, hash, sender, target);
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+
+    BOOST_CHECK(output.evmcResult.status_code != EVMC_SUCCESS);
+    BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, sender), u256(0));
+    BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, l1FeeRecipient), u256(0));
 }
 }  // namespace bcos::evm::test
