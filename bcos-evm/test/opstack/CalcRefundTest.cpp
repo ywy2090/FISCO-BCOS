@@ -21,4 +21,15 @@ BOOST_AUTO_TEST_CASE(Settlement_floorDataGasBumpsGasUsed)
     BOOST_CHECK_EQUAL(settlement.gasRemaining, 918u);
     BOOST_CHECK_EQUAL(settlement.maxUsedGas, 700u);
 }
+
+BOOST_AUTO_TEST_CASE(EvmoneParity_noDoubleCount)
+{
+    // evmone reports gas_left before host refund accounting.
+    auto const settlement = postExecuteGasSettlement(50'000, 20'000, 30'000, 0);
+    BOOST_CHECK_EQUAL(settlement.gasLeft, 20'000u);
+    BOOST_CHECK_EQUAL(settlement.refund, 6'000u);
+    BOOST_CHECK_EQUAL(settlement.gasRemaining, 26'000u);
+    BOOST_CHECK_EQUAL(settlement.gasUsed, 24'000u);
+    BOOST_CHECK_EQUAL(settlement.maxUsedGas, 30'000u);
+}
 }  // namespace bcos::evm::test

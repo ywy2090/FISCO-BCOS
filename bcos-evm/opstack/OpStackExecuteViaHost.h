@@ -18,10 +18,8 @@ struct OpStackExecuteViaHostInput
     evmc::VM* vm{nullptr};
     bcos::crypto::Hash const* hashImpl{nullptr};
     evmc_message message{};
-    bcos::u256 gasPrice{0};
     bcos::u256 gasTipCap{0};
     bcos::u256 gasFeeCap{0};
-    bool hasGasFeeCap{false};
     state::BlockInfo blockInfo{};
     state::BlockHashes blockHashes{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
