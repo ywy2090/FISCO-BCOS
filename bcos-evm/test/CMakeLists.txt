@@ -167,6 +167,7 @@ set(PRAGUE_STATE_TEST_BINARY_NAME PragueStateTest)
 
 add_executable(${PRAGUE_STATE_TEST_BINARY_NAME}
     state/PragueStateTest.cpp
+    ../eth/executeMessage.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -204,6 +205,7 @@ set(NESTED_CALL_HOST_TEST_BINARY_NAME NestedCallHostTest)
 
 add_executable(${NESTED_CALL_HOST_TEST_BINARY_NAME}
     state/NestedCallHostTest.cpp
+    ../eth/executeMessage.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -237,6 +239,7 @@ set(PRECOMPILE_IN_CALL_TEST_BINARY_NAME PrecompileInCallTest)
 
 add_executable(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME}
     state/PrecompileInCallTest.cpp
+    ../eth/executeMessage.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -270,6 +273,7 @@ set(BLOCK_HASH_HOST_TEST_BINARY_NAME BlockHashHostTest)
 
 add_executable(${BLOCK_HASH_HOST_TEST_BINARY_NAME}
     state/BlockHashHostTest.cpp
+    ../eth/executeMessage.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -303,6 +307,7 @@ set(NESTED_REVERT_WARM_TEST_BINARY_NAME NestedRevertWarmTest)
 
 add_executable(${NESTED_REVERT_WARM_TEST_BINARY_NAME}
     state/NestedRevertWarmTest.cpp
+    ../eth/executeMessage.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp

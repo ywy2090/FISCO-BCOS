@@ -46,10 +46,16 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Per-task review minors (PragueState CMake, nonce revert assertion, report duplicate)
 
 ## Next
-- Layer Refactor Step 1: complete (Task 8/9 accepted)
-- Layer Refactor Step 2–4 in progress (subagent-driven)
-- Task 1: complete (8147b8d..63e01c8b8, review clean) — HostExtension hook rename
-- Task 2: complete (63e01c8b..fd02f558d, review approved w/ issues) — EthHost VM+BlockHashes; bcos-evm lib compile deferred to Step 2 ExecuteViaHost fix
-- Task 3: complete (fd02f558d..d50bff17a, review approved w/ issues) — NestedCallHostTest TDD RED
-- Task 4: complete (d50bff17a..3b6ac60e1, review clean after fix) — recursive EthHost::call + delegate gate order fix
+- Layer Refactor Step 1: complete (Task 8/9, 13/13 bcos-evm tests)
+- Layer Refactor Step 2 in progress
+- Task 10: complete (f2bdf2e..805e6730b) — FiscoRevisionConfig split + ExecuteViaHost EthHost fix
+- Task 11: complete (805e6730..7ca7eac40) — eth::executeMessage extract
+- Task 12: complete (7ca7eac40..b9f47dca6) — slim ExecuteViaHost + thin transition; bcos-evm 14/14 + ExecuteViaHostCompat 7/7
+- Task 13: complete (b9f47dca6..996305dd4) — FiscoConstants.h; FiscoHostExtension/ExecuteViaHost/FiscoPolicy 常量解耦；存量 precompiled/ExecutiveWrapper 仍含 bcos-executor include（Task 14 范围）
+- Task 14: complete (996305dd4..62433c71d) — ExecutiveWrapper 上移 TE；删除 externalCaller stub；CompatHostShim 走 EthHost::call()；CompatExecuteViaHost 50/50 + ExecuteViaHostCompat|FIB101 11/11
+- Task 15 Step 2: 验收已执行（build-c3-3）
+  - `bcos-evm/test`：12/14 PASS（fail: WarmTransactionEntry, NestedCallHost）
+  - `CompatExecuteViaHost`：50/50 PASS
+  - `ExecuteViaHostCompat|FIB101`：14/17 PASS（FIB101 10/10 PASS；fail: fib88 两个 case）
+  - fix: `bcos-evm/test/CMakeLists.txt` 为 5 个 state test target 补齐 `../eth/executeMessage.cpp` 链接
 - Optional: open PR / merge to base branch
