@@ -608,3 +608,27 @@ add_test(
     NAME OpStackSettlement
     COMMAND ${OPSTACK_SETTLEMENT_TEST_BINARY_NAME}
 )
+
+set(L1BLOCK_PREDEPLOY_TEST_BINARY_NAME L1BlockPredeployTest)
+
+add_executable(${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME}
+    opstack/L1BlockPredeployTest.cpp
+)
+
+target_include_directories(${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_compile_definitions(${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME} PRIVATE
+    OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/opstack"
+)
+
+target_link_libraries(${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME L1BlockPredeploy
+    COMMAND ${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME}
+)

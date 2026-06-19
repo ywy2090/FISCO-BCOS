@@ -45,7 +45,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
 
     OpStackExecuteViaHostOutput output;
     state::State state(*input.stateView);
-    OpHostExtension extension;
+    OpHostExtension extension(&state);
     auto const feeParams = loadOpStackFeeParams(state);
     input.opTxExecutor.m_l1CostFunc = [feeParams](RollupCostData const& data, uint64_t) {
         return l1CostFjord(data, feeParams);

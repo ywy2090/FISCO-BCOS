@@ -30,6 +30,8 @@ set(BCOS_EVM_OP_SOURCES
     opstack/RollupCost.cpp
     opstack/OpStackFee.cpp
     opstack/OpStackFloorGas.cpp
+    opstack/L1BlockStorage.cpp
+    opstack/L1BlockPredeploy.cpp
 )
 
 add_library(bcos-evm-eth STATIC ${BCOS_EVM_ETH_SOURCES})
