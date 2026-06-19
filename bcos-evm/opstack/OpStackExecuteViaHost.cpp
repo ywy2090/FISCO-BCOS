@@ -78,6 +78,65 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         co_return output;
     }
 
+    if (txData.m_isDepositTx)
+    {
+        if (input.depositTx.has_value() && input.depositTx->mint.has_value() &&
+            *input.depositTx->mint > 0)
+        {
+            state.set_balance(input.message.sender,
+                state.get_balance(input.message.sender) + *input.depositTx->mint);
+        }
+
+        state.checkpoint();
+        if (auto entryError = executeEntryChecks(txData); entryError.has_value())
+        {
+            output.evmcResult = std::move(*entryError);
+            state.revert();
+            output.stateDiff = state.build_diff();
+            co_return output;
+        }
+
+        auto executeOutput = executeMessage(ExecuteMessageInput{.stateView = &state,
+            .vm = input.vm,
+            .message = input.message,
+            .gasPrice = 0,
+            .blockInfo = input.blockInfo,
+            .blockHashes = input.blockHashes,
+            .revisionConfig = input.revisionConfig,
+            .txProps = input.txProps,
+            .accessList = input.accessList,
+            .web3TypedTxKind = input.web3TypedTxKind,
+            .extension = &extension,
+            .fixStorageStatus = true});
+
+        output.evmcResult = adoptResult(std::move(executeOutput.result), *input.hashImpl);
+        output.logs = std::move(executeOutput.logs);
+
+        if (output.evmcResult.status_code == EVMC_SUCCESS)
+        {
+            auto const settlement = postExecuteGasSettlement(
+                static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
+                static_cast<uint64_t>(std::max<int64_t>(0, output.evmcResult.gas_left)),
+                state.get_refund(), txData.m_floorDataGas);
+            txData.m_gasRemaining = settlement.gasRemaining;
+            txData.m_maxUsedGas = settlement.maxUsedGas;
+            txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
+            output.gasUsed = txData.m_gasUsed;
+            state.commit();
+        }
+        else
+        {
+            state.revert();
+            auto const nonce = state.get_nonce(input.message.sender);
+            state.set_nonce(input.message.sender, nonce + 1);
+            txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
+            output.gasUsed = txData.m_gasUsed;
+        }
+
+        output.stateDiff = state.build_diff();
+        co_return output;
+    }
+
     auto buyGasOk = co_await input.opTxExecutor.buyGas(txData);
     if (!buyGasOk)
     {

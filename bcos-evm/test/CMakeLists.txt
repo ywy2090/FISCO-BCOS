@@ -445,6 +445,46 @@ add_test(
     COMMAND ${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME}
 )
 
+set(DEPOSIT_MINT_TEST_BINARY_NAME DepositMintTest)
+
+add_executable(${DEPOSIT_MINT_TEST_BINARY_NAME}
+    opstack/DepositMintTest.cpp
+)
+
+target_include_directories(${DEPOSIT_MINT_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${DEPOSIT_MINT_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME DepositMint
+    COMMAND ${DEPOSIT_MINT_TEST_BINARY_NAME}
+)
+
+set(DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME DepositNoFeeRoutingTest)
+
+add_executable(${DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME}
+    opstack/DepositNoFeeRoutingTest.cpp
+)
+
+target_include_directories(${DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME DepositNoFeeRouting
+    COMMAND ${DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME}
+)
+
 set(ROLLUP_COST_TEST_BINARY_NAME RollupCostTest)
 
 add_executable(${ROLLUP_COST_TEST_BINARY_NAME}

@@ -1,0 +1,92 @@
+#define BOOST_TEST_MODULE DepositMintTest
+
+#include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-framework/executor/OpStackTxType.h"
+#include "state/InMemoryStateView.h"
+#include <bcos-task/Wait.h>
+#include <boost/test/included/unit_test.hpp>
+#include <evmone/evmone.h>
+
+namespace bcos::evm::test
+{
+namespace
+{
+class FakeHash final : public crypto::Hash
+{
+public:
+    crypto::HashType hash(bytesConstRef /*unused*/) const override { return crypto::HashType{}; }
+    bcos::crypto::hasher::AnyHasher hasher() const override { return {}; }
+};
+
+evmc_address addressFromLastByte(uint8_t value)
+{
+    evmc_address address{};
+    address.bytes[19] = value;
+    return address;
+}
+
+u256 balanceFromDiff(const state::StateDiff& diff, const evmc_address& address)
+{
+    auto const it = diff.accounts.find(address);
+    if (it == diff.accounts.end())
+    {
+        return 0;
+    }
+    return it->second.balance;
+}
+
+OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+    const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
+{
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 50'000;
+    message.sender = sender;
+    message.recipient = recipient;
+    message.code_address = recipient;
+
+    OpStackExecuteViaHostInput input;
+    input.stateView = &stateView;
+    input.vm = &vm;
+    input.hashImpl = &hash;
+    input.message = message;
+    input.gasTipCap = 1;
+    input.gasFeeCap = 2;
+    input.blockInfo.number = 1;
+    input.blockInfo.timestamp = 12345;
+    input.blockInfo.gasLimit = 30'000'000;
+    input.blockInfo.baseFee = 1;
+    input.revisionConfig.revision = EVMC_CANCUN;
+    input.txProps.warmDestination = true;
+    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.depositTx = OpStackDepositTx{.from = sender,
+        .to = recipient,
+        .mint = u256(100),
+        .value = 0,
+        .gas = static_cast<uint64_t>(message.gas)};
+    input.opTxExecutor.m_isIsthmus = true;
+    return input;
+}
+}  // namespace
+
+BOOST_AUTO_TEST_CASE(deposit_mint_is_applied_before_execution)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x31);
+    auto const target = addressFromLastByte(0x32);
+
+    state::Account senderAccount;
+    senderAccount.balance = 0;
+    stateView.insert_account(sender, senderAccount);
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    auto input = makeDepositInput(stateView, vm, hash, sender, target);
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), u256(100));
+}
+}  // namespace bcos::evm::test
+
