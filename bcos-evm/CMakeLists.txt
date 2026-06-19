@@ -8,6 +8,7 @@ add_library(bcos-evm STATIC
     bcos/FiscoStateView.cpp
     eth/vm/VMInstance.cpp
     eth/EVMCResult.cpp
+    eth/executeMessage.cpp
     eth/state/State.cpp
     eth/state/EthHost.cpp
     eth/state/bloom_filter.cpp

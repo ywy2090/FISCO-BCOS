@@ -18,11 +18,10 @@
 
 #include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-crypto/ChecksumAddress.h"
-#include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
+#include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
-#include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/protocol/Exceptions.h"
@@ -62,38 +61,6 @@ bool hasNonZeroValue(const evmc_bytes32& value)
 bool isCreateKind(evmc_call_kind kind) noexcept
 {
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
-
-state::Transaction toStateTransaction(const evmc_message& msg, const bcos::u256& gasPrice)
-{
-    state::Transaction tx;
-    tx.from = msg.sender;
-    if (!isCreateKind(msg.kind))
-    {
-        tx.to = msg.recipient;
-    }
-    tx.data.assign(msg.input_data, msg.input_data + msg.input_size);
-    tx.value = fromEvmC(msg.value);
-    tx.gasPrice = gasPrice;
-    tx.gasLimit = msg.gas;
-    return tx;
-}
-
-evmc_tx_context buildTxContext(
-    const state::BlockInfo& block, const evmc_message& msg, const bcos::u256& gasPrice)
-{
-    evmc_tx_context context{};
-    context.tx_gas_price = toEvmC(gasPrice);
-    context.tx_origin = msg.sender;
-    context.block_coinbase = block.coinbase;
-    context.block_number = block.number;
-    context.block_timestamp = block.timestamp;
-    context.block_gas_limit = block.gasLimit;
-    context.block_prev_randao = block.prevRandao;
-    context.chain_id = toEvmC(block.chainId);
-    context.block_base_fee = toEvmC(block.baseFee);
-    context.blob_base_fee = toEvmC(block.blobBaseFee);
-    return context;
 }
 
 EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl)
@@ -241,20 +208,8 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
     output.executionContext.revisionConfig = input.revisionConfig;
 
     state::State state(*input.stateView);
-    auto transaction = toStateTransaction(message, input.gasPrice);
     state::TransactionProperties txProps;
     txProps.warmDestination = !isCreateKind(message.kind);
-    std::optional<evmc_address> createCodeAddress;
-    if (isCreateKind(message.kind))
-    {
-        createCodeAddress = message.code_address;
-    }
-    prepareTransaction(state, transaction, input.blockInfo,
-        FiscoTransactionPrepareInput{.revision = input.revisionConfig.eth().revision,
-            .properties = txProps,
-            .accessList = input.accessList.get(),
-            .web3TypedTxKind = input.web3TypedTxKind,
-            .createCodeAddress = createCodeAddress});
 
     auto const fixErrorHandling = input.revisionConfig.fix_error_handling;
 
@@ -306,7 +261,6 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             output.executionContext.gasSettlementSnapshot.createTerm = intrinsic.createIntrinsic;
         }
 
-        state.checkpoint();
         FiscoHostExtension::FiscoHostExtensionDeps deps;
         deps.state = &state;
         deps.blockNumber = input.blockInfo.number;
@@ -320,18 +274,9 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         FiscoHostExtension extension(
             input.revisionConfig.enable_balance_transfer, std::move(deps), input.precompileCaller);
 
-        auto const txContext = buildTxContext(input.blockInfo, message, input.gasPrice);
-        state::EthHost host(state, txContext, input.revisionConfig.eth().revision, *input.vm,
-            input.blockHashes, &extension, input.revisionConfig.fix_storage_status);
-
-        bcos::bytes code;
-        if (isCreateKind(message.kind))
+        if (!isCreateKind(message.kind))
         {
-            code.assign(message.input_data, message.input_data + message.input_size);
-        }
-        else
-        {
-            code = state.get_code(message.code_address);
+            auto const code = state.get_code(message.code_address);
             if (code.empty() && message.input_size > 0)
             {
                 BOOST_THROW_EXCEPTION(NotFoundCodeError{});
@@ -348,26 +293,33 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
                                                    .padding = {}},
                     protocol::TransactionStatus::None);
                 state.commit();
-                output.executionContext.logs = convertLogs(host.take_logs());
                 output.executionContext.message = message;
                 co_return output;
             }
         }
 
-        auto result = input.vm->execute(
-            host, input.revisionConfig.eth().revision, message, code.data(), code.size());
-        output.evmcResult = adoptResult(std::move(result), *input.hashImpl);
-        output.executionContext.logs = convertLogs(host.take_logs());
+        auto executeOutput = executeMessage(ExecuteMessageInput{.stateView = &state,
+            .vm = input.vm,
+            .message = message,
+            .blockInfo = input.blockInfo,
+            .blockHashes = input.blockHashes,
+            .revisionConfig = input.revisionConfig.eth(),
+            .txProps = txProps,
+            .accessList = input.accessList.get(),
+            .web3TypedTxKind = input.web3TypedTxKind,
+            .extension = &extension,
+            .fixStorageStatus = input.revisionConfig.fix_storage_status});
+
+        output.evmcResult = adoptResult(std::move(executeOutput.result), *input.hashImpl);
+        output.executionContext.logs = convertLogs(executeOutput.logs);
         output.executionContext.message = message;
 
         if (output.evmcResult.status_code == EVMC_SUCCESS)
         {
-            state.commit();
-            output.stateDiff = state.build_diff();
+            output.stateDiff = std::move(executeOutput.stateDiff);
         }
         else
         {
-            state.revert();
             if (input.revisionConfig.fix_revert_logs)
             {
                 output.executionContext.logs.clear();

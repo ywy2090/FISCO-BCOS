@@ -67,6 +67,25 @@ add_test(
     COMMAND ${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 
+set(EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME ExecuteMessageSmokeTest)
+
+add_executable(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
+    ExecuteMessageSmokeTest.cpp
+)
+
+target_include_directories(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME ExecuteMessageSmoke
+    COMMAND ${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
+)
+
 set(SMOKE_TEST_BINARY_NAME StateHostSmokeTest)
 
 add_executable(${SMOKE_TEST_BINARY_NAME}
