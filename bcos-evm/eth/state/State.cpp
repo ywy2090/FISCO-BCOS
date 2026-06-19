@@ -81,7 +81,7 @@ bool State::has_checkpoint() const noexcept
 
 void State::checkpoint()
 {
-    m_checkpoints.push_back({m_journal.size(), {}});
+    m_checkpoints.push_back({m_journal.size(), m_gasRefund, {}});
 }
 
 void State::commit()
@@ -140,6 +140,8 @@ void State::revert()
             break;
         }
     }
+
+    m_gasRefund = checkpoint.gasRefund;
 }
 
 Account& State::mutable_account(const evmc_address& address)
@@ -256,5 +258,20 @@ StateDiff State::build_diff() const
     StateDiff diff;
     diff.accounts = m_accounts;
     return diff;
+}
+
+void State::add_refund(uint64_t amount)
+{
+    m_gasRefund += amount;
+}
+
+uint64_t State::get_refund() const noexcept
+{
+    return m_gasRefund;
+}
+
+void State::clear_refund() noexcept
+{
+    m_gasRefund = 0;
 }
 }  // namespace bcos::evm::state

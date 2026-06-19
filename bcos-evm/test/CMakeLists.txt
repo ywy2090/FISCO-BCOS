@@ -18,6 +18,21 @@ add_test(
     COMMAND ${TEST_BINARY_NAME}
 )
 
+set(STATE_REFUND_TEST_BINARY_NAME StateRefundTest)
+
+add_executable(${STATE_REFUND_TEST_BINARY_NAME}
+    state/StateRefundTest.cpp
+)
+
+target_link_libraries(${STATE_REFUND_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME StateRefund
+    COMMAND ${STATE_REFUND_TEST_BINARY_NAME}
+)
+
 set(HOOKS_TEST_BINARY_NAME EthHostExtensionHooksTest)
 
 add_executable(${HOOKS_TEST_BINARY_NAME}

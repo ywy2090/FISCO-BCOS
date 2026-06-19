@@ -80,6 +80,10 @@ public:
 
     [[nodiscard]] StateDiff build_diff() const;
 
+    void add_refund(uint64_t amount);
+    [[nodiscard]] uint64_t get_refund() const noexcept;
+    void clear_refund() noexcept;
+
 private:
     enum class JournalType : uint8_t
     {
@@ -99,6 +103,7 @@ private:
     struct Checkpoint
     {
         size_t journalSize{0};
+        uint64_t gasRefund{0};
         std::unordered_set<evmc_address, AddressHash, AddressEqual> touchedAccounts;
     };
 
@@ -117,5 +122,6 @@ private:
         m_warmStorage;
     std::vector<JournalEntry> m_journal;
     std::vector<Checkpoint> m_checkpoints;
+    uint64_t m_gasRefund{0};
 };
 }  // namespace bcos::evm::state
