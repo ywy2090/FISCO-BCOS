@@ -34,7 +34,7 @@ struct HostExtension
     virtual bool allowSelfdestruct(const Account& acc) { return true; }
     virtual bool allowDelegateCallToPrecompile() { return true; }
     virtual bool skipHostValueTransfer() { return false; }
-    virtual std::optional<evmc_result> callFiscoPrecompile(
+    virtual std::optional<evmc_result> tryChainPrecompile(
         evmc_revision rev, const evmc_message& msg)
     {
         (void)rev;
@@ -42,7 +42,7 @@ struct HostExtension
         return std::nullopt;
     }
 
-    virtual void onCreateFrameEntry(evmc_revision rev, const evmc_message& msg)
+    virtual void prepareMessage(evmc_revision rev, const evmc_message& msg)
     {
         (void)rev;
         (void)msg;

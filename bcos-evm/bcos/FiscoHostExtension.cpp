@@ -58,7 +58,7 @@ FiscoHostExtension::FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHos
     m_createAuthTableInvoker = std::move(deps.createAuthTableInvoker);
 }
 
-std::optional<evmc_result> FiscoHostExtension::callFiscoPrecompile(
+std::optional<evmc_result> FiscoHostExtension::tryChainPrecompile(
     evmc_revision rev, const evmc_message& msg)
 {
     if (!m_precompileCaller)
@@ -78,7 +78,7 @@ std::optional<evmc_result> FiscoHostExtension::callFiscoPrecompile(
     return m_precompileCaller(rev, msg);
 }
 
-void FiscoHostExtension::onCreateFrameEntry(evmc_revision rev, const evmc_message& msg)
+void FiscoHostExtension::prepareMessage(evmc_revision rev, const evmc_message& msg)
 {
     (void)rev;
     if (m_state == nullptr)

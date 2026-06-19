@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_uses_callback_for_0x1000_plus)
     msg.recipient = addressFromValue(0x1000);
     msg.code_address = msg.recipient;
 
-    auto result = ext.callFiscoPrecompile(EVMC_CANCUN, msg);
+    auto result = ext.tryChainPrecompile(EVMC_CANCUN, msg);
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK(called);
     BOOST_CHECK_EQUAL(result->status_code, EVMC_SUCCESS);
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_returns_nullopt_for_below_0x1000)
     msg.sender = addressFromValue(0x01);
     msg.recipient = addressFromValue(0x0FFF);
     msg.code_address = msg.recipient;
-    auto result = ext.callFiscoPrecompile(EVMC_CANCUN, msg);
+    auto result = ext.tryChainPrecompile(EVMC_CANCUN, msg);
     BOOST_CHECK(!result.has_value());
     BOOST_CHECK(!called);
 }

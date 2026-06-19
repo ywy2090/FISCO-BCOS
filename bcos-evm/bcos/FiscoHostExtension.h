@@ -79,9 +79,9 @@ public:
     bool allowDelegateCallToPrecompile() override { return false; }
     bool skipHostValueTransfer() override { return m_skipEvmNativeValueTransfer; }
 
-    std::optional<evmc_result> callFiscoPrecompile(
+    std::optional<evmc_result> tryChainPrecompile(
         evmc_revision rev, const evmc_message& msg) override;
-    void onCreateFrameEntry(evmc_revision rev, const evmc_message& msg) override;
+    void prepareMessage(evmc_revision rev, const evmc_message& msg) override;
 
 private:
     static bool isFiscoPrecompileAddress(const evmc_address& address) noexcept;

@@ -139,7 +139,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 
     if (m_extension != nullptr)
     {
-        if (auto precompiled = m_extension->callFiscoPrecompile(m_revision, callMessage))
+        if (auto precompiled = m_extension->tryChainPrecompile(m_revision, callMessage))
         {
             return Result(*precompiled);
         }
@@ -336,7 +336,7 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
 
         if (m_extension != nullptr)
         {
-            m_extension->onCreateFrameEntry(m_revision, routed.message);
+            m_extension->prepareMessage(m_revision, routed.message);
         }
     }
 
