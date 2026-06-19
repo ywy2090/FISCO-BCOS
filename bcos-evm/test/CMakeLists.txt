@@ -410,3 +410,27 @@ add_test(
     NAME RollupCost
     COMMAND ${ROLLUP_COST_TEST_BINARY_NAME}
 )
+
+set(OPSTACK_FEE_TEST_BINARY_NAME OpStackFeeTest)
+
+add_executable(${OPSTACK_FEE_TEST_BINARY_NAME}
+    opstack/OpStackFeeTest.cpp
+)
+
+target_include_directories(${OPSTACK_FEE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_compile_definitions(${OPSTACK_FEE_TEST_BINARY_NAME} PRIVATE
+    OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/opstack"
+)
+
+target_link_libraries(${OPSTACK_FEE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME OpStackFee
+    COMMAND ${OPSTACK_FEE_TEST_BINARY_NAME}
+)
