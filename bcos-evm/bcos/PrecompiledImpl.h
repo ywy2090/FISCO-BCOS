@@ -1,7 +1,7 @@
 #pragma once
-#include "ExecutiveWrapper.h"
 #include "PrecompiledEntry.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-executor/src/Common.h"
@@ -9,6 +9,7 @@
 #include "bcos-executor/src/executive/TransactionExecutive.h"
 #include "bcos-executor/src/vm/EvmPrecompiledAddress.h"
 #include "bcos-executor/src/vm/Precompiled.h"
+#include "transaction-executor/bcos-transaction-executor/ExecutiveWrapper.h"
 
 // Forward-declared; defined in bcos-executor/src/vm/ModexpGas.h.
 namespace bcos::evm

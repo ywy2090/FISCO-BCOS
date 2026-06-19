@@ -110,17 +110,15 @@ public:
     template <class Storage>
     task::Task<std::optional<class bcos::evm::EVMCResult>> checkAuth(Storage& storage,
         const protocol::BlockHeader& blockHeader, const evmc_message& msg,
-        const evmc_address& origin, auto&& externalCaller,
-        const class bcos::evm::PrecompiledManager& precompiledMgr, int64_t contextID, int64_t& seq,
-        const crypto::Hash& hashImpl) const
+        const evmc_address& origin, const class bcos::evm::PrecompiledManager& precompiledMgr,
+        int64_t contextID, int64_t& seq, const crypto::Hash& hashImpl) const
     {
         if (!m_authCheckEnabled)
         {
             co_return std::nullopt;
         }
-        auto result = bcos::evm::checkAuth(storage, blockHeader, msg, origin,
-            std::forward<decltype(externalCaller)>(externalCaller), precompiledMgr, contextID, seq,
-            hashImpl, m_features.get(ledger::Features::Flag::bugfix_auth_check));
+        auto result = bcos::evm::checkAuth(storage, blockHeader, msg, origin, precompiledMgr,
+            contextID, seq, hashImpl, m_features.get(ledger::Features::Flag::bugfix_auth_check));
         co_return result;
     }
 

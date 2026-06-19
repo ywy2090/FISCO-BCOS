@@ -1,10 +1,12 @@
 #pragma once
 
-#include "ExecutiveWrapper.h"
-#include "bcos-executor/src/CallParameters.h"
-#include "bcos-framework/ledger/LedgerConfig.h"
-#include "bcos-protocol/TransactionStatus.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-executor/src/CallParameters.h"
+#include "bcos-executor/src/Common.h"
+#include "bcos-framework/ledger/LedgerConfig.h"
+#include "bcos-framework/protocol/BlockHeader.h"
+#include "bcos-protocol/TransactionStatus.h"
+#include "transaction-executor/bcos-transaction-executor/ExecutiveWrapper.h"
 #include <evmc/evmc.h>
 #include <boost/throw_exception.hpp>
 #include <memory>
@@ -12,6 +14,15 @@
 
 namespace bcos::evm
 {
+
+inline auto noOpExternalCaller()
+{
+    return [](const evmc_message&) -> EVMCResult {
+        return makeErrorEVMCResult(*executor::GlobalHashImpl::g_hashImpl,
+            protocol::TransactionStatus::Unknown, EVMC_INTERNAL_ERROR, 0,
+            "external call not available");
+    };
+}
 
 inline task::Task<void> createAuthTable(auto& storage, protocol::BlockHeader const& blockHeader,
     evmc_message const& message, evmc_address const& origin, std::string_view tableName,
@@ -30,14 +41,13 @@ inline task::Task<void> createAuthTable(auto& storage, protocol::BlockHeader con
 }
 
 inline std::optional<EVMCResult> checkAuth(auto& storage, protocol::BlockHeader const& blockHeader,
-    evmc_message const& message, evmc_address const& origin, ExternalCaller auto&& externalCaller,
-    auto& precompiledManager, int64_t contextID, int64_t seq, crypto::Hash const& hashImpl,
-    bool fixAuthCheck)
+    evmc_message const& message, evmc_address const& origin, auto& precompiledManager,
+    int64_t contextID, int64_t seq, crypto::Hash const& hashImpl, bool fixAuthCheck)
 {
+    auto externalCaller = noOpExternalCaller();
     auto contractAddress = address2HexString(message.code_address);
-    auto executive = buildLegacyExecutive(storage, blockHeader, contractAddress,
-        std::forward<decltype(externalCaller)>(externalCaller), precompiledManager, contextID, seq,
-        true);
+    auto executive = buildLegacyExecutive(storage, blockHeader, contractAddress, externalCaller,
+        precompiledManager, contextID, seq, true);
 
     auto params = std::make_unique<executor::CallParameters>(executor::CallParameters::MESSAGE);
     params->senderAddress = address2HexString(message.sender);

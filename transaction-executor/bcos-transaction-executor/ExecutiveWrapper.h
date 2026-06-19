@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/executive/TransactionExecutive.h"
+#include "bcos-executor/src/vm/HostContext.h"
 #include <evmc/evmc.h>
 #include <memory>
 #ifdef WITH_WASM

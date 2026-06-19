@@ -284,21 +284,13 @@ public:
                 *m_data->m_executor.get().m_hashImpl);
             input.stateView = std::addressof(stateView);
 
-            auto externalCaller = [](const evmc_message&) -> EVMCResult {
-                return makeErrorEVMCResult(*executor::GlobalHashImpl::g_hashImpl,
-                    protocol::TransactionStatus::Unknown, EVMC_INTERNAL_ERROR, 0,
-                    "external call not available");
-            };
-
-            input.authChecker = [this, externalCaller](
-                                    const evmc_message& msg) -> std::optional<EVMCResult> {
+            input.authChecker = [this](const evmc_message& msg) -> std::optional<EVMCResult> {
                 return checkAuth(m_data->m_rollbackableStorage, m_data->m_blockHeader.get(), msg,
-                    m_data->m_origin, externalCaller,
-                    m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
-                    m_data->m_seq, *m_data->m_executor.get().m_hashImpl,
+                    m_data->m_origin, m_data->m_executor.get().m_precompiledManager.get(),
+                    m_data->m_contextID, m_data->m_seq, *m_data->m_executor.get().m_hashImpl,
                     m_data->m_executionContext.revisionConfig.fix_auth_check);
             };
-            input.precompileCaller = [this, externalCaller](evmc_revision rev,
+            input.precompileCaller = [this](evmc_revision rev,
                                          const evmc_message& msg) -> std::optional<evmc_result> {
                 auto const* precompiled =
                     m_data->m_executor.get().m_precompiledManager.get().getPrecompiled(
@@ -310,7 +302,7 @@ public:
                 }
 
                 auto result = callPrecompiled(*precompiled, m_data->m_rollbackableStorage,
-                    m_data->m_blockHeader.get(), msg, m_data->m_origin, externalCaller,
+                    m_data->m_blockHeader.get(), msg, m_data->m_origin, noOpExternalCaller(),
                     m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
                     m_data->m_seq, m_data->m_executionContext.revisionConfig.enable_auth_check,
                     m_data->m_executionContext.revisionConfig.eth(), rev,
@@ -321,12 +313,12 @@ public:
                 result.release = nullptr;
                 return raw;
             };
-            input.createAuthTableInvoker = [this, externalCaller](const evmc_message& msg,
+            input.createAuthTableInvoker = [this](const evmc_message& msg,
                                                std::string_view tableName) {
                 task::syncWait(createAuthTable(m_data->m_rollbackableStorage,
-                    m_data->m_blockHeader.get(), msg, m_data->m_origin, tableName, externalCaller,
-                    m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
-                    m_data->m_seq, m_data->m_ledgerConfig.get()));
+                    m_data->m_blockHeader.get(), msg, m_data->m_origin, tableName,
+                    noOpExternalCaller(), m_data->m_executor.get().m_precompiledManager.get(),
+                    m_data->m_contextID, m_data->m_seq, m_data->m_ledgerConfig.get()));
             };
 
             co_return co_await executeViaHost(std::move(input));

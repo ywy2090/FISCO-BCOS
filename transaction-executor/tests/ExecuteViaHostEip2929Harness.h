@@ -212,11 +212,17 @@ public:
             co_return;
         }
 
-        bcos::task::Task<bcos::evm::EVMCResult> execute() { co_return co_await runEvm(m_message); }
+        bcos::task::Task<bcos::evm::EVMCResult> execute() { co_return callThroughHost(m_message); }
 
         bcos::task::Task<bcos::evm::EVMCResult> externalCall(evmc_message nested)
         {
-            co_return co_await runEvm(nested);
+            nested = bcos::evm::deriveMessage(bcos::evm::FiscoTxAdapterInput{.message = nested,
+                .blockNumber = m_fixture.blockHeader.number(),
+                .contextID = 0,
+                .seq = m_fixture.seq + 1,
+                .nonce = 0,
+                .hashImpl = m_fixture.hashImpl.get()});
+            co_return callThroughHost(nested);
         }
 
         evmc_access_status accessAccount(evmc_address const& addr)
@@ -259,54 +265,15 @@ public:
             return *m_host;
         }
 
-        bcos::task::Task<bcos::evm::EVMCResult> runEvm(evmc_message msg)
+        bcos::evm::EVMCResult callThroughHost(evmc_message const& msg)
         {
             if (!m_state)
             {
                 m_state = std::make_unique<bcos::evm::state::State>(m_fixture.stateView);
             }
-            m_host.reset();
-
-            msg = bcos::evm::deriveMessage(bcos::evm::FiscoTxAdapterInput{.message = msg,
-                .blockNumber = m_fixture.blockHeader.number(),
-                .contextID = 0,
-                .seq = m_fixture.seq + 1,
-                .nonce = 0,
-                .hashImpl = m_fixture.hashImpl.get()});
-
-            m_state->checkpoint();
-            if (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2)
-            {
-                m_state->pin_warm_create_address(msg.code_address);
-            }
-            bool const fixStorageStatus = m_revisionConfig.fix_storage_status;
-            m_host.emplace(*m_state, buildTxContext(msg), m_revisionConfig.eth().revision,
-                m_fixture.evm(), bcos::evm::state::BlockHashes{}, nullptr, fixStorageStatus);
-
-            bcos::bytes code;
-            if (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2)
-            {
-                code.assign(msg.input_data, msg.input_data + msg.input_size);
-            }
-            else
-            {
-                code = m_state->get_code(msg.code_address);
-            }
-
-            auto raw = m_fixture.evm().execute(
-                *m_host, m_revisionConfig.eth().revision, msg, code.data(), code.size());
-            bcos::evm::EVMCResult result(
+            auto raw = host().call(msg);
+            return bcos::evm::EVMCResult(
                 raw.release_raw(), bcos::protocol::TransactionStatus::None);
-
-            if (result.status_code == EVMC_SUCCESS)
-            {
-                m_state->commit();
-            }
-            else
-            {
-                m_state->revert();
-            }
-            co_return result;
         }
 
         evmc_tx_context buildTxContext(evmc_message const& msg) const
