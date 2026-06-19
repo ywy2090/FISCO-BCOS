@@ -337,6 +337,40 @@ add_test(
     COMMAND ${NESTED_REVERT_WARM_TEST_BINARY_NAME}
 )
 
+set(EVMONE_REFUND_SPIKE_TEST_BINARY_NAME EvmoneRefundSpikeTest)
+
+add_executable(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
+    opstack/EvmoneRefundSpikeTest.cpp
+    ../eth/executeMessage.cpp
+    ../eth/state/State.cpp
+    ../eth/state/EthHost.cpp
+    ../eth/state/bloom_filter.cpp
+    ../eth/state/EthPrecompiles.cpp
+    ../eth/state/transition.cpp
+    ../eth/precompiled/EthBuiltinRegistry.cpp
+    ../eth/precompiled/PrecompiledContract.cpp
+    ../eth/precompiled/ModexpGas.cpp
+)
+
+target_include_directories(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME} PRIVATE
+    evmone::evmone
+    bcos-task
+    bcos-framework
+    ledger
+    bcos-protocol
+    bcos-utilities
+)
+
+add_test(
+    NAME EvmoneRefundSpike
+    COMMAND ${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
+)
+
 set(OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME OpStackExecuteViaHostSmokeTest)
 
 add_executable(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
