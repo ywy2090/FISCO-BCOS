@@ -94,20 +94,15 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
 
     if (tx.to.has_value())
     {
-        auto const precompile_result = EthPrecompiles::dispatch(
-            *tx.to, bcos::bytesConstRef(tx.data.data(), tx.data.size()), tx.gasLimit, rev);
-        if (precompile_result.has_value())
+        evmc_message precompileMsg{};
+        precompileMsg.gas = tx.gasLimit;
+        precompileMsg.input_data = tx.data.data();
+        precompileMsg.input_size = tx.data.size();
+        if (auto precompiled = EthPrecompiles::tryDispatchInCall(*tx.to, precompileMsg, rev))
         {
-            receipt.status = precompile_result->status;
-            receipt.output = precompile_result->output;
-            if (receipt.status == EVMC_OUT_OF_GAS)
-            {
-                receipt.gasUsed = tx.gasLimit;
-            }
-            else
-            {
-                receipt.gasUsed = std::clamp<int64_t>(precompile_result->gasCost, 0, tx.gasLimit);
-            }
+            receipt.status = precompiled->status_code;
+            receipt.output = resultOutputToBytes(*precompiled);
+            receipt.gasUsed = calcGasUsed(tx.gasLimit, precompiled->gas_left);
             return receipt;
         }
     }
