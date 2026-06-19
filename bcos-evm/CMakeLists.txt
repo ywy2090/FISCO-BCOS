@@ -6,6 +6,7 @@ add_library(bcos-evm STATIC
     bcos/ExecuteViaHost.cpp
     bcos/FiscoHostExtension.cpp
     bcos/FiscoStateView.cpp
+    opstack/OpStackExecuteViaHost.cpp
     eth/vm/VMInstance.cpp
     eth/EVMCResult.cpp
     eth/executeMessage.cpp

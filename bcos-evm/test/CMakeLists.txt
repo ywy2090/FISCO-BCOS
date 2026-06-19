@@ -336,3 +336,23 @@ add_test(
     NAME NestedRevertWarm
     COMMAND ${NESTED_REVERT_WARM_TEST_BINARY_NAME}
 )
+
+set(OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME OpStackExecuteViaHostSmokeTest)
+
+add_executable(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
+    opstack/OpStackExecuteViaHostSmokeTest.cpp
+)
+
+target_include_directories(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME OpStackExecuteViaHost
+    COMMAND ${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
+)
