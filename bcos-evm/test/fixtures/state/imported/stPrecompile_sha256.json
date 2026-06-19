@@ -1,0 +1,36 @@
+{
+  "name": "stPrecompile_sha256",
+  "source": "hand-crafted/from GeneralStateTests/stPrecompiledTestContract",
+  "revision": "prague",
+  "tx": {
+    "from": "0x0000000000000000000000000000000000000001",
+    "to": "0x0000000000000000000000000000000000000002",
+    "gas_limit": 100000,
+    "gas_price": "0x0",
+    "value": "0x0",
+    "nonce": 1,
+    "data": "0x68656c6c6f"
+  },
+  "block": {
+    "number": 1,
+    "timestamp": 1,
+    "gas_limit": 30000000,
+    "coinbase": "0x00000000000000000000000000000000000000cb",
+    "base_fee": "0x0",
+    "chain_id": "0x1"
+  },
+  "pre": [
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "balance": "0x1000000",
+      "nonce": 1,
+      "code": "0x"
+    }
+  ],
+  "expected": {
+    "status": "EVMC_SUCCESS",
+    "gas_used": 0,
+    "logs": 0,
+    "output": "0x2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "stRevert_revertBasic",
+  "source": "hand-crafted/from GeneralStateTests/stRevertTest",
+  "revision": "prague",
+  "tx": {
+    "from": "0x0000000000000000000000000000000000000001",
+    "to": "0x0000000000000000000000000000000000000044",
+    "gas_limit": 50000,
+    "gas_price": "0x0",
+    "value": "0x0",
+    "nonce": 1,
+    "data": "0x"
+  },
+  "block": {
+    "number": 3,
+    "timestamp": 3,
+    "gas_limit": 30000000,
+    "coinbase": "0x00000000000000000000000000000000000000cb",
+    "base_fee": "0x0",
+    "chain_id": "0x1"
+  },
+  "pre": [
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "balance": "0x1000000",
+      "nonce": 1,
+      "code": "0x"
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000044",
+      "balance": "0x0",
+      "nonce": 0,
+      "code": "0x60006000fd"
+    }
+  ],
+  "expected": {
+    "status": "EVMC_REVERT",
+    "gas_used": 6,
+    "logs": 0,
+    "output": "0x"
+  }
+}
