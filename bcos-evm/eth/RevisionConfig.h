@@ -24,9 +24,21 @@ struct RevisionConfig
     bool eip1559 : 1 = false;
     bool eip3651 : 1 = false;
     bool eip7702 : 1 = false;
+    bool prague_post_execution : 1 = false;
 
     // C. Fork-dependent parameters
     uint8_t calldata_floor_per_token = 10;
 };
+
+inline RevisionConfig makeIsthmusRevisionConfig()
+{
+    RevisionConfig config;
+    config.revision = EVMC_PRAGUE;
+    config.eip7623 = true;
+    config.eip7702 = true;
+    config.prague_post_execution = false;
+    config.calldata_floor_per_token = 10;
+    return config;
+}
 
 }  // namespace bcos::evm_standard

@@ -1,4 +1,5 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackFloorGas.h"
@@ -20,6 +21,16 @@ EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl
 
 std::optional<EVMCResult> executeEntryChecks(OpStackTxExecutor::OpStackTxExecutionData& txData)
 {
+    auto const value = state::fromEvmC(txData.m_message.value);
+    if (!txData.m_skipTransactionChecks && value != 0 &&
+        !canTransfer(*txData.m_state, txData.m_message.sender, value))
+    {
+        evmc_result failResult{};
+        failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
+        failResult.gas_left = 0;
+        return EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
+    }
+
     bcos::bytesConstRef inputData{txData.m_message.input_data, txData.m_message.input_size};
     auto const floorCheck = executeEntryFloorDataGasCheck(
         static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)), inputData);
@@ -80,6 +91,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
 
     if (txData.m_isDepositTx)
     {
+        output.receiptMeta.depositNonce = state.get_nonce(input.message.sender);
         if (input.depositTx.has_value() && input.depositTx->mint.has_value() &&
             *input.depositTx->mint > 0)
         {
@@ -105,6 +117,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             .revisionConfig = input.revisionConfig,
             .txProps = input.txProps,
             .accessList = input.accessList,
+            .authorizationListPresent = input.authorizationListPresent,
+            .authorizations = input.authorizations,
             .web3TypedTxKind = input.web3TypedTxKind,
             .extension = &extension,
             .fixStorageStatus = true});
@@ -160,6 +174,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             .revisionConfig = input.revisionConfig,
             .txProps = input.txProps,
             .accessList = input.accessList,
+            .authorizationListPresent = input.authorizationListPresent,
+            .authorizations = input.authorizations,
             .web3TypedTxKind = input.web3TypedTxKind,
             .extension = &extension,
             .fixStorageStatus = true});
@@ -187,6 +203,13 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     co_await input.opTxExecutor.refundGas(txData);
 
     output.gasUsed = txData.m_gasUsed;
+    output.receiptMeta.l1Fee = txData.m_l1CostCharged;
+    if (input.opTxExecutor.m_isIsthmus && input.opTxExecutor.m_operatorCostFunc)
+    {
+        auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
+        output.receiptMeta.operatorFee =
+            input.opTxExecutor.m_operatorCostFunc(gasUsed, txData.m_blockInfo.timestamp);
+    }
     output.stateDiff = state.build_diff();
     co_return output;
 }

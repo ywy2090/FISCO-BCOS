@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
@@ -372,14 +373,11 @@ bool EthHost::transferValue(const evmc_message& msg) noexcept
     }
 
     auto const value = fromEvmC(msg.value);
-    auto const from = m_state.get_balance(msg.sender);
-    if (from < value)
+    if (!canTransfer(m_state, msg.sender, value))
     {
         return false;
     }
-    auto const to = m_state.get_balance(msg.recipient);
-    m_state.set_balance(msg.sender, from - value);
-    m_state.set_balance(msg.recipient, to + value);
+    transfer(m_state, msg.sender, msg.recipient, value);
     return true;
 }
 }  // namespace bcos::evm::state
