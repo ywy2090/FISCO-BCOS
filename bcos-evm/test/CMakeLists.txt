@@ -202,6 +202,7 @@ set(PRAGUE_STATE_TEST_BINARY_NAME PragueStateTest)
 add_executable(${PRAGUE_STATE_TEST_BINARY_NAME}
     state/PragueStateTest.cpp
     ../eth/executeMessage.cpp
+    ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -880,3 +881,12 @@ add_test(
     NAME L1BlockGetter
     COMMAND ${L1BLOCK_GETTER_TEST_BINARY_NAME}
 )
+
+add_executable(ExecuteViaEthFixtureTest eth/ExecuteViaEthFixtureTest.cpp)
+target_include_directories(ExecuteViaEthFixtureTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_compile_definitions(ExecuteViaEthFixtureTest PRIVATE
+    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
+target_link_libraries(ExecuteViaEthFixtureTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
+add_test(NAME ExecuteViaEthFixture COMMAND ExecuteViaEthFixtureTest)

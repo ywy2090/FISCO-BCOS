@@ -1,68 +1,72 @@
-# Task 3 Report: OpStackFloorGas (EIP-7623)
+# Task 3 Report — ExecuteViaEthFixtureTest
 
-**Status:** DONE  
-**Commit:** `<pending>`  
-**Message:** `feat(opstack): add EIP-7623 floorDataGas`
+**Status:** Done  
+**Commit:** `f903542be` (amended from `5b65a82e2`)  
+**Message:** `feat(test): add ExecuteViaEthFixtureTest for existing Prague fixtures`
 
 ## Summary
 
-Implemented EIP-7623 floor data gas in `bcos-evm-op`:
+Added `ExecuteViaEthFixtureTest` to run all 5 existing Prague root fixtures through `executeViaEth`, validating the Task 1/2 fixture loader, adapter, and assertion helpers end-to-end.
 
-- **`OpStackFloorGas.h/.cpp`** — `floorDataGas`, `tryFloorDataGas` (with overflow check), `executeEntryFloorDataGasCheck` stub for Task 8 wiring.
-- **`OpStackFloorGasTest.cpp`** — op-geth `TestFloorDataGas` vectors + overflow + execute-entry reject/accept cases.
+## Files Changed
 
-## Formula (op-geth `state_transition.go:120-133`)
-
-```
-zeroes = count(data, 0x00)
-nonZeroes = len(data) - zeroes
-tokens = nonZeroes × 4 + zeroes
-floorDataGas = 21000 + tokens × 10
-```
-
-Overflow: `(MaxUint64 - TxGas) / TxCostFloorPerToken < tokens` → `GasUintOverflow`.
-
-## TDD
-
-1. Wrote failing `OpStackFloorGasTest` (empty calldata → 21000).
-2. Implemented `floorDataGas` / `tryFloorDataGas` with op-geth overflow guard.
-3. Added `executeEntryFloorDataGasCheck` stub (gasLimit < floor → `BelowFloor`).
-4. All tests pass.
-
-## Test results
-
-```text
-cd build/bcos-evm/test && ctest -R OpStackFloorGas --output-on-failure
-1/1 Test #19: OpStackFloorGas ..................   Passed
-
-cd build/bcos-evm/test && ctest --output-on-failure
-19/19 tests passed (full bcos-evm regression)
-```
-
-### Vectors verified
-
-| Case | Expected |
-|------|----------|
-| Empty calldata | 21_000 |
-| 100 zero bytes | 22_000 |
-| 100 non-zero bytes | 25_000 |
-| 50 zero + 50 non-zero | 23_500 |
-| Single zero byte | 21_010 |
-| Single non-zero byte | 21_040 |
-| tokens > max safe | `GasUintOverflow` |
-| gasLimit < floor | `BelowFloor` |
-| gasLimit == floor | accept |
-
-## Files changed
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `bcos-evm/opstack/OpStackFloorGas.h` | created |
-| `bcos-evm/opstack/OpStackFloorGas.cpp` | created |
-| `bcos-evm/test/opstack/OpStackFloorGasTest.cpp` | created |
-| `bcos-evm/CMakeLists.txt` | add `OpStackFloorGas.cpp` |
-| `bcos-evm/test/CMakeLists.txt` | add `OpStackFloorGasTest` target |
+| `bcos-evm/test/eth/ExecuteViaEthFixtureTest.cpp` | New — iterates `listAllFixtureFiles`, builds input via `buildExecuteViaEthInput`, runs `executeViaEth`, asserts with `assertFixtureResult` |
+| `bcos-evm/test/CMakeLists.txt` | Added `ExecuteViaEthFixtureTest` target + ctest; added `../eth/Eip7702.cpp` to `PragueStateTest` sources (clean-rebuild linker fix) |
 
-## Next
+## CMake Notes
 
-Task 4: State refund counter (`m_gasRefund` in State journal).
+- Brief specified `bcos-evm` + `Boost::unit_test_framework`; adjusted to `bcos-evm-eth` (where `executeViaEth` lives) and header-only Boost.Test (matches other bcos-evm tests — `Boost::unit_test_framework` target not available in this build).
+
+## Verification
+
+| Test | Result | Details |
+|------|--------|---------|
+| `ExecuteViaEthFixtureTest` | **PASS** | 1 test case, 5 fixtures (all root Prague JSON) |
+| `PragueStateTest` | **PASS** | Regression after `Eip7702.cpp` source addition |
+
+Build dir: `build/`  
+```bash
+cmake --build build --target ExecuteViaEthFixtureTest PragueStateTest -j$(sysctl -n hw.ncpu)
+./build/bcos-evm/test/ExecuteViaEthFixtureTest   # *** No errors detected
+./build/bcos-evm/test/PragueStateTest            # *** No errors detected
+```
+
+### Fixtures exercised
+
+1. `prague_call_empty_account`
+2. `prague_call_return_word` (gas_used=18 asserted)
+3. `prague_call_revert`
+4. `prague_create_empty_initcode`
+5. `prague_selfdestruct`
+
+## txProps / warm-flags decision
+
+**No fix required.** All 5 fixtures passed without Option A (txProps override) or Option B (expected-value adjustment).
+
+Rationale:
+- CALL fixtures: `executeViaEth` sets `warmDestination=true` (via `!isCreateKind`), matching fixture defaults used by `transition()`.
+- CREATE fixture: `expected.gas_used=0` skips gas assertion in `assertFixtureResult`.
+- `prague_call_return_word` gas (18) matched exactly — no warm-flag mismatch observed.
+
+## Concerns / Notes
+
+1. **`listAllFixtureFiles` vs root-only** — Test uses `listAllFixtureFiles` (includes `imported/` when present). Currently only 5 root fixtures exist; Task 4+ imported fixtures will auto-run here unless filtered.
+2. **EIP-7623 gas path** — `executeViaEth` deducts intrinsic gas before EVM; fixtures with non-zero `gas_used` may need tolerance on imported vectors (not needed for current 5).
+
+## Review Fix (scope creep in 5b65a82e2)
+
+**Issue:** Commit accidentally bundled CMake targets for `EthTxInputBuilderTest` and `OpStackTxInputBuilderTest` whose source files were not part of the commit (untracked working-tree leftovers). Those blocks broke `cmake` configure.
+
+**Fix:** Removed the two spurious CMake blocks; kept:
+- `ExecuteViaEthFixtureTest` target + ctest
+- `../eth/Eip7702.cpp` in `PragueStateTest` sources (linker fix)
+- `ExecuteViaEthFixtureTest.cpp` unchanged
+
+**Git:** Amended commit `f903542be` (was `5b65a82e2`; not pushed to any remote).
+
+## Next (Task 4)
+
+- Import additional state-test vectors into `fixtures/state/imported/`
+- Extend coverage for EIP-7702, access lists, etc.
