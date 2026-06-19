@@ -106,6 +106,25 @@ add_test(
     COMMAND ${WARM_ENTRY_TEST_BINARY_NAME}
 )
 
+set(EIP2929_ACCESS_HOST_TEST_BINARY_NAME Eip2929AccessHostTest)
+
+add_executable(${EIP2929_ACCESS_HOST_TEST_BINARY_NAME}
+    state/Eip2929AccessHostTest.cpp
+)
+
+target_include_directories(${EIP2929_ACCESS_HOST_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(${EIP2929_ACCESS_HOST_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME Eip2929AccessHost
+    COMMAND ${EIP2929_ACCESS_HOST_TEST_BINARY_NAME}
+)
+
 set(SSTORE_STATUS_TEST_BINARY_NAME SstoreStatusTest)
 
 add_executable(${SSTORE_STATUS_TEST_BINARY_NAME}
@@ -160,4 +179,37 @@ target_link_libraries(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
 add_test(
     NAME PragueState
     COMMAND ${PRAGUE_STATE_TEST_BINARY_NAME}
+)
+
+set(NESTED_CALL_HOST_TEST_BINARY_NAME NestedCallHostTest)
+
+add_executable(${NESTED_CALL_HOST_TEST_BINARY_NAME}
+    state/NestedCallHostTest.cpp
+    ../eth/state/State.cpp
+    ../eth/state/EthHost.cpp
+    ../eth/state/bloom_filter.cpp
+    ../eth/state/EthPrecompiles.cpp
+    ../eth/state/transition.cpp
+    ../eth/precompiled/EthBuiltinRegistry.cpp
+    ../eth/precompiled/PrecompiledContract.cpp
+    ../eth/precompiled/ModexpGas.cpp
+)
+
+target_include_directories(${NESTED_CALL_HOST_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${NESTED_CALL_HOST_TEST_BINARY_NAME} PRIVATE
+    evmone::evmone
+    bcos-task
+    bcos-framework
+    ledger
+    bcos-protocol
+    bcos-utilities
+)
+
+add_test(
+    NAME NestedCallHost
+    COMMAND ${NESTED_CALL_HOST_TEST_BINARY_NAME}
 )
