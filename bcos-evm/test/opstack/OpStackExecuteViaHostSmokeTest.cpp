@@ -56,7 +56,7 @@ OpStackExecuteViaHostInput makeBaseInput(state::test::InMemoryStateView& stateVi
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_CANCUN;
     input.txProps.warmDestination = true;
-    input.rollupCostData = RollupCostData{.cachedData = {0x01, 0x02}};
+    input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
     input.opTxExecutor.m_l1CostFunc = [](const RollupCostData&, uint64_t) { return u256(50); };
     input.opTxExecutor.m_l1FeeRecipient = addressFromLastByte(0xf1);
     return input;

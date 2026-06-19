@@ -2,6 +2,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/opstack/RollupCost.h"
 #include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>
@@ -13,13 +14,6 @@
 namespace bcos::evm
 {
 #define OP_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("OP_TX_EXECUTOR")
-
-// RollupCostData — caches per-transaction data for L1 cost computation.
-// Mirrors op-geth types.RollupCostData (core/types/rollup_cost.go).
-struct RollupCostData
-{
-    bytes cachedData;  // Serialized tx data for L1 cost function
-};
 
 struct OpStackTxExecutor
 {

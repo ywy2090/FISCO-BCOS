@@ -25,6 +25,7 @@ set(BCOS_EVM_BCOS_SOURCES
 
 set(BCOS_EVM_OP_SOURCES
     opstack/OpStackExecuteViaHost.cpp
+    opstack/RollupCost.cpp
 )
 
 add_library(bcos-evm-eth STATIC ${BCOS_EVM_ETH_SOURCES})

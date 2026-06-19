@@ -6,6 +6,7 @@
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
+#include "bcos-evm/opstack/RollupCost.h"
 #include <bcos-task/Task.h>
 #include <optional>
 

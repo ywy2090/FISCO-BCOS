@@ -1,0 +1,40 @@
+#pragma once
+
+#include <bcos-utilities/Common.h>
+#include <evmc/evmc.h>
+
+namespace bcos::evm
+{
+
+// Predeploy fee recipients (op-geth params/protocol_params.go)
+inline constexpr evmc_address OP_BASE_FEE_RECIPIENT = {
+    .bytes = {0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x19}};
+
+inline constexpr evmc_address OP_L1_FEE_RECIPIENT = {
+    .bytes = {0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x1a}};
+
+inline constexpr evmc_address OP_OPERATOR_FEE_RECIPIENT = {
+    .bytes = {0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x1b}};
+
+inline constexpr evmc_address OP_L1_BLOCK_PREDEPLOY = {
+    .bytes = {0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x15}};
+
+// L1Block storage slots (op-geth core/types/rollup_cost.go)
+inline constexpr u256 L1_BASE_FEE_SLOT{1};
+inline constexpr u256 L1_FEE_SCALARS_SLOT{3};
+inline constexpr u256 L1_BLOB_BASE_FEE_SLOT{7};
+inline constexpr u256 OPERATOR_FEE_PARAMS_SLOT{8};
+
+// Fjord L1 cost constants (op-geth core/types/rollup_cost.go)
+inline constexpr int64_t L1_COST_INTERCEPT = -42'585'600;
+inline constexpr int64_t L1_COST_FASTLZ_COEF = 836'500;
+inline constexpr int64_t MIN_TX_SIZE_SCALED = 100'000'000;
+inline constexpr int64_t FJORD_DIVISOR = 1'000'000'000'000;
+
+inline constexpr size_t ISTHMUS_L1_ATTRIBUTES_LEN = 176;
+
+}  // namespace bcos::evm

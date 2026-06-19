@@ -390,3 +390,23 @@ add_test(
     NAME OpStackExecuteViaHost
     COMMAND ${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
+
+set(ROLLUP_COST_TEST_BINARY_NAME RollupCostTest)
+
+add_executable(${ROLLUP_COST_TEST_BINARY_NAME}
+    opstack/RollupCostTest.cpp
+)
+
+target_include_directories(${ROLLUP_COST_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${ROLLUP_COST_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME RollupCost
+    COMMAND ${ROLLUP_COST_TEST_BINARY_NAME}
+)
