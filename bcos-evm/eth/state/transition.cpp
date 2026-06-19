@@ -17,10 +17,8 @@
  */
 
 #include "bcos-evm/eth/state/transition.hpp"
-#include "bcos-evm/eth/execution/warmTransactionEntry.h"
-#include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/state/EthPrecompiles.hpp"
-#include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
 
@@ -28,22 +26,6 @@ namespace bcos::evm::state
 {
 namespace
 {
-evmc_tx_context buildTxContext(const BlockInfo& block, const Transaction& tx) noexcept
-{
-    evmc_tx_context context{};
-    context.tx_gas_price = toEvmC(tx.gasPrice);
-    context.tx_origin = tx.from;
-    context.block_coinbase = block.coinbase;
-    context.block_number = block.number;
-    context.block_timestamp = block.timestamp;
-    context.block_gas_limit = block.gasLimit;
-    context.block_prev_randao = block.prevRandao;
-    context.chain_id = toEvmC(block.chainId);
-    context.block_base_fee = toEvmC(block.baseFee);
-    context.blob_base_fee = toEvmC(block.blobBaseFee);
-    return context;
-}
-
 evmc_message buildTopLevelMessage(
     const Transaction& tx, const TransactionProperties& tx_props) noexcept
 {
@@ -59,11 +41,6 @@ evmc_message buildTopLevelMessage(
     msg.value = toEvmC(tx.value);
     msg.create2_salt = {};
     msg.code_address = msg.recipient;
-    if (!tx.to.has_value())
-    {
-        msg.input_data = nullptr;
-        msg.input_size = 0;
-    }
     return msg;
 }
 
@@ -88,54 +65,21 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
     const TransactionProperties& tx_props, HostExtension* ext)
 {
     TransactionReceipt receipt{};
-    State state(state_view);
-
-    execution::warmTransactionEntry(state, rev, tx, block, tx_props);
-
-    if (tx.to.has_value())
-    {
-        evmc_message precompileMsg{};
-        precompileMsg.gas = tx.gasLimit;
-        precompileMsg.input_data = tx.data.data();
-        precompileMsg.input_size = tx.data.size();
-        if (auto precompiled = EthPrecompiles::tryDispatchInCall(*tx.to, precompileMsg, rev))
-        {
-            receipt.status = precompiled->status_code;
-            receipt.output = resultOutputToBytes(*precompiled);
-            receipt.gasUsed = calcGasUsed(tx.gasLimit, precompiled->gas_left);
-            return receipt;
-        }
-    }
-
-    auto const tx_context = buildTxContext(block, tx);
-    EthHost host(state, tx_context, rev, vm, block_hashes, ext);
     auto msg = buildTopLevelMessage(tx, tx_props);
+    auto executeOutput = executeMessage(ExecuteMessageInput{.stateView = &state_view,
+        .vm = &vm,
+        .message = msg,
+        .gasPrice = tx.gasPrice,
+        .blockInfo = block,
+        .blockHashes = block_hashes,
+        .revisionConfig = bcos::evm_standard::RevisionConfig{.revision = rev},
+        .txProps = tx_props,
+        .extension = ext});
 
-    bcos::bytes code;
-    if (tx.to.has_value())
-    {
-        code = state.get_code(*tx.to);
-    }
-    else
-    {
-        code = tx.data;
-    }
-
-    state.checkpoint();
-    auto const result = vm.execute(host, rev, msg, code.data(), code.size());
-    receipt.status = result.status_code;
-    receipt.output = resultOutputToBytes(result);
-    receipt.gasUsed = calcGasUsed(tx.gasLimit, result.gas_left);
-    receipt.gasRefund = std::max<int64_t>(0, result.gas_refund);
-
-    if (result.status_code == EVMC_SUCCESS)
-    {
-        state.commit();
-    }
-    else
-    {
-        state.revert();
-    }
+    receipt.status = executeOutput.result.status_code;
+    receipt.output = resultOutputToBytes(executeOutput.result);
+    receipt.gasUsed = calcGasUsed(tx.gasLimit, executeOutput.result.gas_left);
+    receipt.gasRefund = std::max<int64_t>(0, executeOutput.result.gas_refund);
 
     return receipt;
 }

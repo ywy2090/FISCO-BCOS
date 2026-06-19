@@ -19,6 +19,7 @@
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/execution/warmTransactionEntry.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <optional>
 #include <stdexcept>
@@ -71,6 +72,31 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
     return context;
 }
 
+bool isBuiltinPrecompileAddress(const evmc_address& address) noexcept
+{
+    bool lowerBytesZero = true;
+    for (size_t i = 0; i < 18; ++i)
+    {
+        if (address.bytes[i] != 0)
+        {
+            lowerBytesZero = false;
+            break;
+        }
+    }
+    if (!lowerBytesZero)
+    {
+        return false;
+    }
+
+    auto const high = address.bytes[18];
+    auto const low = address.bytes[19];
+    if (high == 0x00 && low >= 0x01 && low <= 0x11)
+    {
+        return true;
+    }
+    return high == 0x01 && low == 0x00;
+}
+
 evmc::Result makeSuccessResult(int64_t gasLeft)
 {
     evmc_result result{};
@@ -112,7 +138,8 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     execution::warmTransactionEntry(state, input.revisionConfig.revision, transaction,
         input.blockInfo, input.txProps, input.accessList, input.web3TypedTxKind, createCodeAddress);
 
-    auto const txContext = buildTxContext(input.blockInfo, input.message);
+    auto txContext = buildTxContext(input.blockInfo, input.message);
+    txContext.tx_gas_price = state::toEvmC(input.gasPrice);
     state::EthHost host(state, txContext, input.revisionConfig.revision, *input.vm,
         input.blockHashes, input.extension, input.fixStorageStatus);
 
@@ -123,7 +150,20 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     }
     else
     {
-        code = state.get_code(resolveCodeAddress(input.message));
+        auto const codeAddress = resolveCodeAddress(input.message);
+        code = state.get_code(codeAddress);
+        if (code.empty() && isBuiltinPrecompileAddress(codeAddress))
+        {
+            if (auto precompiled = state::EthPrecompiles::tryDispatchInCall(
+                    codeAddress, input.message, input.revisionConfig.revision))
+            {
+                output.result = std::move(*precompiled);
+                state.commit();
+                output.stateDiff = state.build_diff();
+                output.logs = host.take_logs();
+                return output;
+            }
+        }
     }
 
     if (code.empty() && !isCreateKind(input.message.kind))

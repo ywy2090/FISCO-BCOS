@@ -37,6 +37,7 @@ struct ExecuteMessageInput
     state::StateView const* stateView{nullptr};
     evmc::VM* vm{nullptr};
     evmc_message message{};
+    bcos::u256 gasPrice{0};
     state::BlockInfo blockInfo{};
     state::BlockHashes blockHashes{};
     bcos::evm_standard::RevisionConfig revisionConfig{};

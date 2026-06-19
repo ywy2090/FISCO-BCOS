@@ -23,15 +23,12 @@
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
-#include "bcos-executor/src/Common.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <fmt/compile.h>
 #include <fmt/format.h>
-#include <boost/throw_exception.hpp>
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <exception>
 #include <memory>
 #include <span>
@@ -41,23 +38,6 @@ namespace bcos::evm
 {
 namespace
 {
-struct NotFoundCodeError : public std::runtime_error
-{
-    NotFoundCodeError() : std::runtime_error("code not found") {}
-};
-
-bool hasNonZeroValue(const evmc_bytes32& value)
-{
-    for (auto byte : value.bytes)
-    {
-        if (byte != 0)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool isCreateKind(evmc_call_kind kind) noexcept
 {
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
@@ -69,11 +49,6 @@ EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl
     auto [status, ignored] = evmcStatusToErrorMessage(hashImpl, raw.status_code);
     (void)ignored;
     return EVMCResult(raw, status);
-}
-
-bool addressEqual(const evmc_address& lhs, const evmc_address& rhs) noexcept
-{
-    return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
 }
 
 std::vector<protocol::LogEntry> convertLogs(const std::vector<state::LogEntry>& logs)
@@ -93,39 +68,6 @@ std::vector<protocol::LogEntry> convertLogs(const std::vector<state::LogEntry>& 
             toHex<decltype(addressView), bcos::bytes>(addressView), std::move(topics), log.data);
     }
     return out;
-}
-
-void maybeTransferValue(state::State& state, const evmc_message& msg, bool fixDelegateCallTransfer)
-{
-    if (!hasNonZeroValue(msg.value))
-    {
-        return;
-    }
-
-    const bool shouldTransfer =
-        fixDelegateCallTransfer ?
-            ((msg.kind == EVMC_CALL && (msg.flags & EVMC_STATIC) == 0) || isCreateKind(msg.kind)) :
-            true;
-    if (!shouldTransfer)
-    {
-        return;
-    }
-
-    if (addressEqual(msg.code_address, msg.sender) || addressEqual(msg.recipient, msg.sender))
-    {
-        return;
-    }
-
-    auto const value = fromEvmC(msg.value);
-    auto const fromBalance = state.get_balance(msg.sender);
-    if (fromBalance < value)
-    {
-        BOOST_THROW_EXCEPTION(
-            protocol::NotEnoughCashError{} << errinfo_comment("Account balance is not enough!"));
-    }
-    auto const toBalance = state.get_balance(msg.recipient);
-    state.set_balance(msg.sender, fromBalance - value);
-    state.set_balance(msg.recipient, toBalance + value);
 }
 }  // namespace
 
@@ -238,17 +180,6 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             message.gas -= components.normalCost;
         }
 
-        if (input.revisionConfig.enable_balance_transfer)
-        {
-            maybeTransferValue(state, message, input.revisionConfig.fix_delegatecall_transfer);
-        }
-
-        if (message.gas < executor::BALANCE_TRANSFER_GAS)
-        {
-            BOOST_THROW_EXCEPTION(protocol::OutOfGas{});
-        }
-        message.gas -= executor::BALANCE_TRANSFER_GAS;
-
         if (input.web3Tx && input.revisionConfig.eth().eip7623)
         {
             auto const intrinsic =
@@ -274,33 +205,10 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         FiscoHostExtension extension(
             input.revisionConfig.enable_balance_transfer, std::move(deps), input.precompileCaller);
 
-        if (!isCreateKind(message.kind))
-        {
-            auto const code = state.get_code(message.code_address);
-            if (code.empty() && message.input_size > 0)
-            {
-                BOOST_THROW_EXCEPTION(NotFoundCodeError{});
-            }
-            if (code.empty())
-            {
-                output.evmcResult = EVMCResult(evmc_result{.status_code = EVMC_SUCCESS,
-                                                   .gas_left = message.gas,
-                                                   .gas_refund = 0,
-                                                   .output_data = nullptr,
-                                                   .output_size = 0,
-                                                   .release = nullptr,
-                                                   .create_address = {},
-                                                   .padding = {}},
-                    protocol::TransactionStatus::None);
-                state.commit();
-                output.executionContext.message = message;
-                co_return output;
-            }
-        }
-
         auto executeOutput = executeMessage(ExecuteMessageInput{.stateView = &state,
             .vm = input.vm,
             .message = message,
+            .gasPrice = input.gasPrice,
             .blockInfo = input.blockInfo,
             .blockHashes = input.blockHashes,
             .revisionConfig = input.revisionConfig.eth(),
@@ -340,24 +248,6 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         output.evmcResult = makeErrorEVMCResult(*input.hashImpl,
             protocol::TransactionStatus::NotEnoughCash, EVMC_INSUFFICIENT_BALANCE,
             fixErrorHandling ? 0 : message.gas, e.what(), fixErrorHandling);
-        if (state.has_checkpoint())
-        {
-            state.revert();
-        }
-    }
-    catch (NotFoundCodeError&)
-    {
-        if ((message.flags & EVMC_STATIC) != 0 || message.kind == EVMC_DELEGATECALL)
-        {
-            output.evmcResult = makeErrorEVMCResult(*input.hashImpl,
-                protocol::TransactionStatus::None, EVMC_SUCCESS, message.gas, "", false);
-        }
-        else
-        {
-            output.evmcResult =
-                makeErrorEVMCResult(*input.hashImpl, protocol::TransactionStatus::RevertInstruction,
-                    EVMC_REVERT, message.gas, "Call address error.", fixErrorHandling);
-        }
         if (state.has_checkpoint())
         {
             state.revert();
