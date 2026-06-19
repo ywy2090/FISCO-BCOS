@@ -46,8 +46,7 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Per-task review minors (PragueState CMake, nonce revert assertion, report duplicate)
 
 ## Next
-- Layer Refactor Step 1: complete (Task 8/9, 13/13 bcos-evm tests)
-- Layer Refactor Step 2 in progress
+- Layer Refactor Step 1–4: complete (Task 8/9 → Task 20)
 - Task 10: complete (f2bdf2e..805e6730b) — FiscoRevisionConfig split + ExecuteViaHost EthHost fix
 - Task 11: complete (805e6730..7ca7eac40) — eth::executeMessage extract
 - Task 12: complete (7ca7eac40..b9f47dca6) — slim ExecuteViaHost + thin transition; bcos-evm 14/14 + ExecuteViaHostCompat 7/7
@@ -71,6 +70,12 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Task 18: complete (3d868fe47..HEAD) — bcos-evm 三库拆分：`bcos-evm-eth`/`bcos-evm-bcos`/`bcos-evm-op`，并保留 `bcos-evm -> bcos-evm-bcos` 兼容别名；`OpStackExecuteViaHostSmokeTest` 改链 `bcos-evm-op`
   - `cmake -S . -B build-c3-3`：PASS
   - `cmake --build build-c3-3 --target bcos-evm-eth bcos-evm-bcos bcos-evm-op -j8`：PASS
-- Task 19: complete (HEAD) — 新增 `bcos-evm/include/bcos-evm/*.hpp` 公共 facade 头（executor/eth/fisco/op）；`bcos-evm/CMakeLists.txt` 增加 build/install include interface 与 install/export 规则
+- Task 19: complete (2871d799f..7da3139ee) — 公共 facade 头 executor/eth/fisco/op；CMake install/export
+  - `cmake --build build-c3-3 --target bcos-evm-eth bcos-evm-bcos bcos-evm-op -j8`：PASS
+- Task 20: complete (7da3139ee..HEAD) — 最终验收 + progress
+  - `ctest --test-dir build-c3-3/bcos-evm/test --output-on-failure`：15/15 PASS
+  - `ctest -R 'CompatExecuteViaHost|ExecuteViaHostCompat|FIB101|OpStackExecuteViaHost' --test-dir build-c3-3 --output-on-failure`：67/67 PASS
+  - `cmake --build build-c3-3 --target test-transaction-executor -j8`：PASS
+  - `cmake --build build-c3-3 --target test-execute-via-host-compat -j8`：PASS（修复聚合用例二进制陈旧）
   - `cmake --build build-c3-3 --target bcos-evm-eth bcos-evm-bcos bcos-evm-op -j8`：PASS
 - Optional: open PR / merge to base branch
