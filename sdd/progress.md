@@ -63,10 +63,12 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Task 16 Step 3: 验收已执行（build-c3-3）
   - `ctest -R OpStackExecuteViaHost`：1/1 PASS
   - `ctest --test-dir build-c3-3/bcos-evm/test`：15/15 PASS
-- Task 17: complete (base 466aceae7) — EthTxExecutor 切换到 executionContext+rollbackable storage；transition 保持 executeMessage 薄封装；warm 路径无重复（集中在 executeMessage/FiscoTransactionPrepare）
-- Task 17 Step 3: 验收已执行（build-c3-3）
+- Task 17: complete (466aceae7..3d868fe47) — EthTxExecutor 对齐 executeMessage 上下文；transition 薄封装；Step 3 gate 15/15 + 50/50 + OpStack 1/1（ExecuteViaHostCompat 聚合套件仍为历史残留）
   - `ctest --test-dir build-c3-3/bcos-evm/test`：15/15 PASS
   - `ctest -R CompatExecuteViaHost`：50/50 PASS
   - `ctest -R ExecuteViaHostCompat|FIB101`：16/17 PASS（FIB101 10/10 PASS；fail: `ExecuteViaHostCompat` 聚合套件）
   - `ctest -R OpStackExecuteViaHost`：1/1 PASS
+- Task 18: complete (3d868fe47..HEAD) — bcos-evm 三库拆分：`bcos-evm-eth`/`bcos-evm-bcos`/`bcos-evm-op`，并保留 `bcos-evm -> bcos-evm-bcos` 兼容别名；`OpStackExecuteViaHostSmokeTest` 改链 `bcos-evm-op`
+  - `cmake -S . -B build-c3-3`：PASS
+  - `cmake --build build-c3-3 --target bcos-evm-eth bcos-evm-bcos bcos-evm-op -j8`：PASS
 - Optional: open PR / merge to base branch

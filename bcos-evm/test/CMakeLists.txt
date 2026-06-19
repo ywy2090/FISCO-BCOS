@@ -349,7 +349,7 @@ target_include_directories(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PR
 )
 
 target_link_libraries(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
+    bcos-evm-op
 )
 
 add_test(
