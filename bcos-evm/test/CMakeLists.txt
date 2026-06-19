@@ -434,3 +434,23 @@ add_test(
     NAME OpStackFee
     COMMAND ${OPSTACK_FEE_TEST_BINARY_NAME}
 )
+
+set(OPSTACK_FLOOR_GAS_TEST_BINARY_NAME OpStackFloorGasTest)
+
+add_executable(${OPSTACK_FLOOR_GAS_TEST_BINARY_NAME}
+    opstack/OpStackFloorGasTest.cpp
+)
+
+target_include_directories(${OPSTACK_FLOOR_GAS_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${OPSTACK_FLOOR_GAS_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME OpStackFloorGas
+    COMMAND ${OPSTACK_FLOOR_GAS_TEST_BINARY_NAME}
+)

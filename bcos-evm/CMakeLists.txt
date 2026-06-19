@@ -27,6 +27,7 @@ set(BCOS_EVM_OP_SOURCES
     opstack/OpStackExecuteViaHost.cpp
     opstack/RollupCost.cpp
     opstack/OpStackFee.cpp
+    opstack/OpStackFloorGas.cpp
 )
 
 add_library(bcos-evm-eth STATIC ${BCOS_EVM_ETH_SOURCES})
