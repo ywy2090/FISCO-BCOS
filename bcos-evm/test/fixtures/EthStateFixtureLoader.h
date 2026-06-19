@@ -44,6 +44,8 @@ struct ExpectedResult
     evmc_status_code status = EVMC_SUCCESS;
     int64_t gasUsed = 0;
     int64_t gasUsedTolerance = 0;
+    int64_t gasUsedExecutor = 0;
+    int64_t gasUsedExecutorTolerance = 0;
     bcos::bytes output;
     size_t logs = 0;
 };
