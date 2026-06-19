@@ -54,7 +54,7 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Task 13: complete (b9f47dca6..996305dd4) — FiscoConstants.h; FiscoHostExtension/ExecuteViaHost/FiscoPolicy 常量解耦；存量 precompiled/ExecutiveWrapper 仍含 bcos-executor include（Task 14 范围）
 - Task 14: complete (996305dd4..62433c71d) — ExecutiveWrapper 上移 TE；删除 externalCaller stub；CompatHostShim 走 EthHost::call()；CompatExecuteViaHost 50/50 + ExecuteViaHostCompat|FIB101 11/11
 - Task 15: complete (62433c71d..7578112e8 + fix) — Step 2 验收；恢复 ExecuteViaHost FISCO 薄层（balance transfer/NotFoundCode/BALANCE_TRANSFER_GAS）；bcos-evm 14/14 + CompatExecuteViaHost 50/50 + FIB101 10/10
-- Task 16: complete (pending commit) — 新增 OpHostExtension + OpStackExecuteViaHost；OpStackTxExecutor 改为 State/evmc_message 记账；新增 OpStackExecuteViaHostSmokeTest（3 cases）
+- Task 16: complete (0a42f5bc8..466aceae7) — OpHostExtension + OpStackExecuteViaHost；OpStackTxExecutor State 记账；OpStackExecuteViaHostSmokeTest 3/3；bcos-evm 15/15
 - Task 15 Step 2: 验收已执行（build-c3-3）
   - `bcos-evm/test`：12/14 PASS（fail: WarmTransactionEntry, NestedCallHost）
   - `CompatExecuteViaHost`：50/50 PASS
@@ -63,4 +63,10 @@ Plan C tasks C0–C5 complete. C4-2 CompatHostContext migration complete. Accept
 - Task 16 Step 3: 验收已执行（build-c3-3）
   - `ctest -R OpStackExecuteViaHost`：1/1 PASS
   - `ctest --test-dir build-c3-3/bcos-evm/test`：15/15 PASS
+- Task 17: complete (base 466aceae7) — EthTxExecutor 切换到 executionContext+rollbackable storage；transition 保持 executeMessage 薄封装；warm 路径无重复（集中在 executeMessage/FiscoTransactionPrepare）
+- Task 17 Step 3: 验收已执行（build-c3-3）
+  - `ctest --test-dir build-c3-3/bcos-evm/test`：15/15 PASS
+  - `ctest -R CompatExecuteViaHost`：50/50 PASS
+  - `ctest -R ExecuteViaHostCompat|FIB101`：16/17 PASS（FIB101 10/10 PASS；fail: `ExecuteViaHostCompat` 聚合套件）
+  - `ctest -R OpStackExecuteViaHost`：1/1 PASS
 - Optional: open PR / merge to base branch

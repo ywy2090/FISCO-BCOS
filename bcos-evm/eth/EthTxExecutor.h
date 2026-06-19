@@ -1,10 +1,12 @@
 #pragma once
-#include <bcos-task/Task.h>
+#include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/vm/EthPolicy.h"
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/protocol/Transaction.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>
 #include <bcos-framework/protocol/TransactionReceiptFactory.h>
 #include <bcos-protocol/TransactionStatus.h>
+#include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <boost/algorithm/hex.hpp>
@@ -23,19 +25,21 @@ struct EthTxExecutor
     template <class Data>
     task::Task<bool> buyGas(Data& data)
     {
-        if (data.m_call) co_return true;
+        if (data.m_call)
+            co_return true;
 
         const auto gasPrice = protocol::effectiveGasPrice(data.m_transaction.get());
-        if (gasPrice == 0) co_return true;
-        if (data.m_gasLimit <= 0) co_return true;
+        if (gasPrice == 0)
+            co_return true;
+        if (data.m_gasLimit <= 0)
+            co_return true;
 
         const auto maxGasCost = u256(data.m_gasLimit) * gasPrice;
         const auto txValue = u256(data.m_transaction.get().value());
         const auto totalRequired = maxGasCost + txValue;
 
-        auto& msg = data.m_hostContext.message();
-        auto senderAccount =
-            getAccount(data.m_hostContext, msg.sender);
+        auto& msg = data.m_executionContext.message;
+        ledger::account::EVMAccount senderAccount(data.m_rollbackableStorage, msg.sender, false);
         auto senderBalance = co_await senderAccount.balance();
 
         if (senderBalance < totalRequired)
@@ -77,10 +81,12 @@ struct EthTxExecutor
     template <class Data>
     task::Task<void> refundGas(Data& data)
     {
-        if (data.m_call) co_return;
+        if (data.m_call)
+            co_return;
 
         const auto gasPrice = protocol::effectiveGasPrice(data.m_transaction.get());
-        if (gasPrice == 0) co_return;
+        if (gasPrice == 0)
+            co_return;
 
         auto& evmcResult = *data.m_evmcResult;
 
@@ -90,13 +96,12 @@ struct EthTxExecutor
             co_await data.m_rollbackableStorage.rollback(data.m_afterBuyGasSavepoint);
         }
 
-        const int64_t refundGasUnits =
-            std::max<int64_t>(0, data.m_gasLimit - data.m_gasUsed);
+        const int64_t refundGasUnits = std::max<int64_t>(0, data.m_gasLimit - data.m_gasUsed);
         if (refundGasUnits > 0)
         {
-            auto& msg = data.m_hostContext.message();
-            auto senderAccount =
-                getAccount(data.m_hostContext, msg.sender);
+            auto& msg = data.m_executionContext.message;
+            ledger::account::EVMAccount senderAccount(
+                data.m_rollbackableStorage, msg.sender, false);
             auto refund = u256(refundGasUnits) * gasPrice;
             auto balance = co_await senderAccount.balance();
             co_await senderAccount.setBalance(balance + refund);
@@ -107,7 +112,7 @@ struct EthTxExecutor
     task::Task<protocol::TransactionReceipt::Ptr> makeReceipt(Data& data)
     {
         auto& evmcResult = *data.m_evmcResult;
-        auto& msg = data.m_hostContext.message();
+        auto& msg = data.m_executionContext.message;
 
         std::string newContractAddress;
         if (msg.kind == EVMC_CREATE && evmcResult.status_code == EVMC_SUCCESS)
@@ -120,8 +125,8 @@ struct EthTxExecutor
 
         if (evmcResult.status_code != EVMC_SUCCESS)
         {
-            auto [outputData, outputSize, release] = fillErrorOutputInPlace(
-                *data.m_executor.get().m_hashImpl, evmcResult.status_code);
+            auto [outputData, outputSize, release] =
+                fillErrorOutputInPlace(*data.m_executor.get().m_hashImpl, evmcResult.status_code);
             if (release != nullptr)
             {
                 if (evmcResult.release != nullptr)
@@ -132,12 +137,11 @@ struct EthTxExecutor
             }
         }
 
-        co_return data.m_executor.get().m_receiptFactory.get().createReceipt2(
-            data.m_gasUsed, std::move(newContractAddress), data.m_hostContext.logs(),
+        co_return data.m_executor.get().m_receiptFactory.get().createReceipt2(data.m_gasUsed,
+            std::move(newContractAddress), data.m_executionContext.logs,
             static_cast<int32_t>(evmcResult.status),
-            {evmcResult.output_data, evmcResult.output_size},
-            data.m_blockHeader.get().number(), std::move(data.m_gasPriceStr),
-            bcos::protocol::TransactionVersion::V2_VERSION);
+            {evmcResult.output_data, evmcResult.output_size}, data.m_blockHeader.get().number(),
+            std::move(data.m_gasPriceStr), bcos::protocol::TransactionVersion::V2_VERSION);
     }
 };
 
