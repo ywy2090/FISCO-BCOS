@@ -147,7 +147,8 @@ flowchart LR
 | ID | 任务 | 当前状态 | 涉及文件 |
 |----|------|----------|----------|
 | T-08 | EIP-7702 `authorizations` 输入映射 | `fillWeb3Fields` 未填 `authorizations` / `authorizationListPresent` | `EthTxInputBuilder.h` |
-| T-09 | Eth 路径端到端验证 | 无 `execution_path=eth` 节点级 smoke / compat 测试 | `transaction-executor/tests/` |
+| T-09 | Eth 路径端到端验证 | ✅ Layer 1 `ExecuteViaEthFixtureTest`（20 fixtures） | `bcos-evm/test/ExecuteViaEthFixtureTest.cpp` |
+| T-09b | Eth executor 级 E2E | ✅ `EthTransactionExecutorFixture`（20 Phase1 + 6 Phase2 gas） | `transaction-executor/tests/TestEthTransactionExecutorFixture.cpp` |
 
 ---
 
@@ -176,7 +177,7 @@ flowchart LR
 | ID | 任务 | 当前状态 | 涉及文件 |
 |----|------|----------|----------|
 | T-16 | 修复 `EthTxGasSettlementExecutor` 失败用例 | 约 10/35 失败（`gasUsed` 42000 vs 21000 等） | `transaction-executor/tests/EthTxGasSettlementExecutorTest.cpp` |
-| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | 无专用 e2e | `transaction-executor/tests/` |
+| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ T-09b fixture e2e（20+6 gas）；Compat 规模迁移待续 | `transaction-executor/tests/TestEthTransactionExecutorFixture.cpp` |
 | T-18 | 新增 `OpStackTransactionExecutorImpl` compat 测试 | 仅 `bcos-evm/test/opstack/*` 库内单测 | `transaction-executor/tests/` |
 | T-19 | 三路径 Initializer 集成测试 | 验证 `execution_path` 切换后 scheduler/engine 正常出块 | `libinitializer/` 或集成测试 |
 | T-20 | `bcos-executor` compat filtered suite | 计划全局约束，全分支回归门禁 | `bcos-executor/test/` |
@@ -247,7 +248,8 @@ flowchart TD
 
 ### P1 — Eth
 - [x] T-08 Eth EIP-7702 authorizations 映射
-- [ ] T-09 Eth 路径端到端验证
+- [x] T-09 Eth 路径端到端验证（Layer 1）
+- [x] T-09b Eth executor 级 E2E（Phase 1 + Phase 2 gas）
 
 ### P1 — 公共
 - [ ] T-10 配置模板文档化
@@ -261,7 +263,7 @@ flowchart TD
 
 ### P2 — 测试
 - [ ] T-16 EthTxGasSettlementExecutor 失败修复
-- [ ] T-17 EthTransactionExecutorImpl compat 测试
+- [ ] T-17 EthTransactionExecutorImpl compat 测试（T-09b fixture e2e ✅；Compat 规模迁移待续）
 - [ ] T-18 OpStackTransactionExecutorImpl compat 测试
 - [ ] T-19 三路径 Initializer 集成测试
 - [ ] T-20 bcos-executor compat suite
@@ -286,4 +288,4 @@ flowchart TD
 |------|------|
 | 2026-06-18 | 初版：三路径集成剩余任务清单（基于 OpStack Isthmus SDD 完成 + Eth/OP 执行器骨架 + Initializer 接线） |
 | 2026-06-18 | 完成 T-22（State::sub_refund + EIP-3529 SSTORE 退款）、T-23（FISCO 分支才创建 PrecompiledManager）、T-25（txpool 改用 bcos::evm::gas） |
-| 2026-06-19 | 完成 T-08（Eth fillWeb3Fields EIP-7702 authorizations + Web3Eip7702Decoder 共享） |
+| 2026-06-19 | 完成 T-09b（EthTransactionExecutorFixture：20 Phase1 + 6 Phase2 gas）；T-09 Layer 1 勾选 |

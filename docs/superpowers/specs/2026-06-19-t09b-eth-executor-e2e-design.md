@@ -47,9 +47,9 @@ T-09b 目标：用 **同一批 20 个 fixture**，验证 executor 级全链路�
 ### 2.3 Done 标准
 
 **Phase 1（必做）：**
-- [ ] `ctest -R EthTransactionExecutorFixture` 全绿（20 cases）
-- [ ] 断言：`status` + `output` + `logs`（`gas_used` 全部跳过）
-- [ ] 复用 `EthStateFixtureLoader` + 现有 JSON，无重复语料
+- [x] `ctest -R EthTransactionExecutorFixture` 全绿（20 cases）
+- [x] 断言：`status` + `output` + `logs`（`gas_used` 全部跳过）
+- [x] 复用 `EthStateFixtureLoader` + 现有 JSON，无重复语料
 
 **Phase 2（迭代）：**
 - [x] 对 ≥6 个有明确 Layer 1 `gas_used` 的 fixture 增加 `expected.gas_used_executor` 断言
