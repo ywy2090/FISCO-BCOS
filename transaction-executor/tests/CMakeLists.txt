@@ -44,3 +44,29 @@ target_link_libraries(test-execute-via-host-compat
 )
 add_test(NAME ExecuteViaHostCompat WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     COMMAND test-execute-via-host-compat)
+
+add_executable(test-eth-transaction-executor-fixture
+    main.cpp
+    TestEthTransactionExecutorFixture.cpp
+)
+target_include_directories(test-eth-transaction-executor-fixture PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
+    ${PROJECT_SOURCE_DIR}
+)
+target_compile_definitions(test-eth-transaction-executor-fixture PRIVATE
+    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test/fixtures/state"
+)
+target_link_libraries(test-eth-transaction-executor-fixture PRIVATE
+    transaction-executor
+    protocol-tars
+    bcos-evm-eth
+    bcos-framework
+    ledger
+    executor
+    Boost::unit_test_framework
+)
+add_dependencies(test-eth-transaction-executor-fixture executor)
+add_test(NAME EthTransactionExecutorFixture
+    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    COMMAND test-eth-transaction-executor-fixture)
