@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
+#include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include <stdexcept>
 
 namespace bcos::evm
@@ -32,8 +33,15 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     txData.m_state = &state;
     txData.m_message = input.message;
     txData.m_gasPrice = input.gasPrice;
+    txData.m_gasTipCap = input.gasTipCap;
+    txData.m_gasFeeCap = input.gasFeeCap;
+    txData.m_hasGasFeeCap = input.hasGasFeeCap;
     txData.m_gasLimit = input.message.gas;
     txData.m_blockInfo = input.blockInfo;
+    txData.m_skipNonceChecks = input.skipNonceChecks;
+    txData.m_skipTransactionChecks = input.skipTransactionChecks;
+    txData.m_noBaseFee = input.noBaseFee;
+    txData.m_floorDataGas = input.floorDataGas;
     txData.m_rollupCostData = input.rollupCostData;
 
     auto buyGasOk = co_await input.opTxExecutor.buyGas(txData);
@@ -62,7 +70,13 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     settlementResult.status_code = output.evmcResult.status_code;
     settlementResult.gas_left = output.evmcResult.gas_left;
     txData.m_evmcResult.emplace(settlementResult, output.evmcResult.status);
-    txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit - output.evmcResult.gas_left);
+    auto const settlement =
+        postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
+            static_cast<uint64_t>(std::max<int64_t>(0, output.evmcResult.gas_left)),
+            state.get_refund(), txData.m_floorDataGas);
+    txData.m_gasRemaining = settlement.gasRemaining;
+    txData.m_maxUsedGas = settlement.maxUsedGas;
+    txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
 
     co_await input.opTxExecutor.refundGas(txData);
 

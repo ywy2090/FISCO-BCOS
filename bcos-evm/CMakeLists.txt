@@ -25,6 +25,7 @@ set(BCOS_EVM_BCOS_SOURCES
 
 set(BCOS_EVM_OP_SOURCES
     opstack/OpStackExecuteViaHost.cpp
+    opstack/OpStackTxExecutor.cpp
     opstack/RollupCost.cpp
     opstack/OpStackFee.cpp
     opstack/OpStackFloorGas.cpp

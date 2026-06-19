@@ -19,6 +19,9 @@ struct OpStackExecuteViaHostInput
     bcos::crypto::Hash const* hashImpl{nullptr};
     evmc_message message{};
     bcos::u256 gasPrice{0};
+    bcos::u256 gasTipCap{0};
+    bcos::u256 gasFeeCap{0};
+    bool hasGasFeeCap{false};
     state::BlockInfo blockInfo{};
     state::BlockHashes blockHashes{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
@@ -27,6 +30,10 @@ struct OpStackExecuteViaHostInput
     uint8_t web3TypedTxKind{0};
     bool call{false};
     bool isDepositTx{false};
+    bool skipNonceChecks{false};
+    bool skipTransactionChecks{false};
+    bool noBaseFee{false};
+    uint64_t floorDataGas{0};
     std::optional<RollupCostData> rollupCostData;
     OpStackTxExecutor opTxExecutor{};
 };

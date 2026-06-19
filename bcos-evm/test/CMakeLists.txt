@@ -488,3 +488,43 @@ add_test(
     NAME OpStackFloorGas
     COMMAND ${OPSTACK_FLOOR_GAS_TEST_BINARY_NAME}
 )
+
+set(CALC_REFUND_TEST_BINARY_NAME CalcRefundTest)
+
+add_executable(${CALC_REFUND_TEST_BINARY_NAME}
+    opstack/CalcRefundTest.cpp
+)
+
+target_include_directories(${CALC_REFUND_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${CALC_REFUND_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME CalcRefund
+    COMMAND ${CALC_REFUND_TEST_BINARY_NAME}
+)
+
+set(REFUND_ISTHMUS_TEST_BINARY_NAME RefundIsthmusTest)
+
+add_executable(${REFUND_ISTHMUS_TEST_BINARY_NAME}
+    opstack/RefundIsthmusTest.cpp
+)
+
+target_include_directories(${REFUND_ISTHMUS_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${REFUND_ISTHMUS_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME RefundIsthmus
+    COMMAND ${REFUND_ISTHMUS_TEST_BINARY_NAME}
+)
