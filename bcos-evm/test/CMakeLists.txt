@@ -246,3 +246,69 @@ add_test(
     NAME PrecompileInCall
     COMMAND ${PRECOMPILE_IN_CALL_TEST_BINARY_NAME}
 )
+
+set(BLOCK_HASH_HOST_TEST_BINARY_NAME BlockHashHostTest)
+
+add_executable(${BLOCK_HASH_HOST_TEST_BINARY_NAME}
+    state/BlockHashHostTest.cpp
+    ../eth/state/State.cpp
+    ../eth/state/EthHost.cpp
+    ../eth/state/bloom_filter.cpp
+    ../eth/state/EthPrecompiles.cpp
+    ../eth/state/transition.cpp
+    ../eth/precompiled/EthBuiltinRegistry.cpp
+    ../eth/precompiled/PrecompiledContract.cpp
+    ../eth/precompiled/ModexpGas.cpp
+)
+
+target_include_directories(${BLOCK_HASH_HOST_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${BLOCK_HASH_HOST_TEST_BINARY_NAME} PRIVATE
+    evmone::evmone
+    bcos-task
+    bcos-framework
+    ledger
+    bcos-protocol
+    bcos-utilities
+)
+
+add_test(
+    NAME BlockHashHost
+    COMMAND ${BLOCK_HASH_HOST_TEST_BINARY_NAME}
+)
+
+set(NESTED_REVERT_WARM_TEST_BINARY_NAME NestedRevertWarmTest)
+
+add_executable(${NESTED_REVERT_WARM_TEST_BINARY_NAME}
+    state/NestedRevertWarmTest.cpp
+    ../eth/state/State.cpp
+    ../eth/state/EthHost.cpp
+    ../eth/state/bloom_filter.cpp
+    ../eth/state/EthPrecompiles.cpp
+    ../eth/state/transition.cpp
+    ../eth/precompiled/EthBuiltinRegistry.cpp
+    ../eth/precompiled/PrecompiledContract.cpp
+    ../eth/precompiled/ModexpGas.cpp
+)
+
+target_include_directories(${NESTED_REVERT_WARM_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${NESTED_REVERT_WARM_TEST_BINARY_NAME} PRIVATE
+    evmone::evmone
+    bcos-task
+    bcos-framework
+    ledger
+    bcos-protocol
+    bcos-utilities
+)
+
+add_test(
+    NAME NestedRevertWarm
+    COMMAND ${NESTED_REVERT_WARM_TEST_BINARY_NAME}
+)
