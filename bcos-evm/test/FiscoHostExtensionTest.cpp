@@ -134,6 +134,48 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_returns_nullopt_for_below_0x1000)
     BOOST_CHECK(!called);
 }
 
+BOOST_AUTO_TEST_CASE(dynamic_precompile_marker_is_resolved_in_host_extension)
+{
+    MockStateView baseView;
+    state::State state(baseView);
+    auto markerContract = addressFromValue(0x2222);
+    auto expectedTarget = addressFromValue(0x1003);
+    auto markerCode = std::string("[PRECOMPILED],0000000000000000000000000000000000001003");
+    state.set_code(markerContract, bcos::bytes(markerCode.begin(), markerCode.end()), {});
+
+    bool called = false;
+    auto callback = [&called, expectedTarget](evmc_revision /*rev*/,
+                        const evmc_message& message) -> std::optional<evmc_result> {
+        called = true;
+        BOOST_CHECK_EQUAL(std::memcmp(message.code_address.bytes, expectedTarget.bytes,
+                              sizeof(expectedTarget.bytes)),
+            0);
+        BOOST_CHECK_EQUAL(std::memcmp(message.recipient.bytes, expectedTarget.bytes,
+                              sizeof(expectedTarget.bytes)),
+            0);
+        evmc_result result{};
+        result.status_code = EVMC_SUCCESS;
+        result.gas_left = message.gas;
+        return result;
+    };
+
+    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    deps.state = &state;
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, std::move(deps), callback);
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.gas = 50000;
+    msg.sender = addressFromValue(0x01);
+    msg.recipient = markerContract;
+    msg.code_address = markerContract;
+
+    auto result = ext.tryChainPrecompile(EVMC_CANCUN, msg);
+    BOOST_REQUIRE(result.has_value());
+    BOOST_CHECK(called);
+    BOOST_CHECK_EQUAL(result->status_code, EVMC_SUCCESS);
+}
+
 BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_rule)
 {
     MockStateView baseView;

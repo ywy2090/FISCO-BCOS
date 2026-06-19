@@ -85,6 +85,7 @@ public:
 
 private:
     static bool isFiscoPrecompileAddress(const evmc_address& address) noexcept;
+    static std::optional<evmc_address> parseDynamicPrecompileTarget(std::string_view code) noexcept;
     static bool isZeroAddress(const evmc_address& address) noexcept;
     static evmc_address createTarget(const evmc_message& message) noexcept;
     static std::string hexAddress(const evmc_address& address);

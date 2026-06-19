@@ -17,11 +17,41 @@
  */
 
 #include "bcos-evm/bcos/FiscoHostExtension.h"
+#include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
 #include <cstring>
+#include <vector>
 
 namespace bcos::evm
 {
+namespace
+{
+constexpr std::string_view PRECOMPILED_CODE_FIELD = "[PRECOMPILED]";
+
+bool startsWith(std::string_view input, std::string_view prefix) noexcept
+{
+    return input.size() >= prefix.size() &&
+           std::memcmp(input.data(), prefix.data(), prefix.size()) == 0;
+}
+
+std::vector<std::string_view> splitByComma(std::string_view input)
+{
+    std::vector<std::string_view> tokens;
+    size_t begin = 0;
+    while (begin <= input.size())
+    {
+        auto const end = input.find(',', begin);
+        if (end == std::string_view::npos)
+        {
+            tokens.push_back(input.substr(begin));
+            break;
+        }
+        tokens.push_back(input.substr(begin, end - begin));
+        begin = end + 1;
+    }
+    return tokens;
+}
+}  // namespace
 
 FiscoHostExtension::FiscoHostExtension(
     bool skipEvmNativeValueTransfer, FiscoPrecompileCaller precompileCaller)
@@ -70,12 +100,29 @@ std::optional<evmc_result> FiscoHostExtension::tryChainPrecompile(
     auto const target = std::memcmp(msg.code_address.bytes, zero.bytes, sizeof(zero.bytes)) != 0 ?
                             msg.code_address :
                             msg.recipient;
-    if (!isFiscoPrecompileAddress(target))
+    auto resolvedTarget = target;
+    if (m_state != nullptr)
+    {
+        auto const code = m_state->get_code(target);
+        if (!code.empty())
+        {
+            std::string_view codeView(reinterpret_cast<const char*>(code.data()), code.size());
+            if (auto dynamicTarget = parseDynamicPrecompileTarget(codeView))
+            {
+                resolvedTarget = *dynamicTarget;
+            }
+        }
+    }
+
+    if (!isFiscoPrecompileAddress(resolvedTarget))
     {
         return std::nullopt;
     }
 
-    return m_precompileCaller(rev, msg);
+    auto routedMessage = msg;
+    routedMessage.recipient = resolvedTarget;
+    routedMessage.code_address = resolvedTarget;
+    return m_precompileCaller(rev, routedMessage);
 }
 
 void FiscoHostExtension::prepareMessage(evmc_revision rev, const evmc_message& msg)
@@ -97,6 +144,28 @@ bool FiscoHostExtension::isZeroAddress(const evmc_address& address) noexcept
 {
     return std::all_of(
         std::begin(address.bytes), std::end(address.bytes), [](uint8_t byte) { return byte == 0; });
+}
+
+std::optional<evmc_address> FiscoHostExtension::parseDynamicPrecompileTarget(
+    std::string_view code) noexcept
+{
+    if (!startsWith(code, PRECOMPILED_CODE_FIELD))
+    {
+        return std::nullopt;
+    }
+
+    auto const tokens = splitByComma(code);
+    if (tokens.size() < 2)
+    {
+        return std::nullopt;
+    }
+
+    auto target = state::parseHexAddress(tokens[1]);
+    if (state::isZeroAddress(target))
+    {
+        return std::nullopt;
+    }
+    return target;
 }
 
 evmc_address FiscoHostExtension::createTarget(const evmc_message& message) noexcept

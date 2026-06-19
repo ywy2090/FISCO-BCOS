@@ -25,7 +25,6 @@
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <evmc/evmc.hpp>
 #include <optional>
-#include <string_view>
 #include <unordered_map>
 #include <utility>
 
@@ -75,7 +74,6 @@ private:
 private:
     static bool isCreateKind(evmc_call_kind kind) noexcept;
     static bool isBuiltinPrecompileAddress(const evmc_address& address) noexcept;
-    static std::optional<evmc_address> parseDynamicPrecompileTarget(std::string_view code) noexcept;
     static evmc::Result makeResult(
         evmc_status_code status, int64_t gasLeft, const bcos::bytes& output = {});
     static evmc_storage_status classifyStorageStatus(
