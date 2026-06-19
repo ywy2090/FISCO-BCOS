@@ -56,11 +56,13 @@ std::vector<std::string_view> splitByComma(std::string_view input)
 }
 }  // namespace
 
-EthHost::EthHost(State& state, evmc_tx_context txContext, evmc_revision revision,
-    HostExtension* extension, bool fixStorageStatus)
+EthHost::EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
+    BlockHashes blockHashes, HostExtension* extension, bool fixStorageStatus)
   : m_state(state),
     m_txContext(txContext),
     m_revision(revision),
+    m_vm(vm),
+    m_blockHashes(std::move(blockHashes)),
     m_extension(extension),
     m_fixStorageStatus(fixStorageStatus)
 {}
@@ -166,8 +168,11 @@ evmc_tx_context EthHost::get_tx_context() const noexcept
 
 EthHost::bytes32 EthHost::get_block_hash(int64_t number) const noexcept
 {
-    (void)number;
-    return {};
+    if (!m_blockHashes)
+    {
+        return {};
+    }
+    return m_blockHashes(number);
 }
 
 void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_size,

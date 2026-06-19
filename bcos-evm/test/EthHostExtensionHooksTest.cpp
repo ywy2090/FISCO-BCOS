@@ -18,6 +18,7 @@
 #include "bcos-evm/eth/policy/HostExtension.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::state::test
@@ -83,6 +84,11 @@ public:
 
     bool skipHostValueTransfer() override { return skipHostValueTransferResult; }
 };
+
+BlockHashes emptyBlockHashes()
+{
+    return [](int64_t) { return evmc_bytes32{}; };
+}
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(EthHostExtensionHooksTest)
@@ -94,7 +100,8 @@ BOOST_AUTO_TEST_CASE(selfdestruct_hook_blocks_when_extension_denies)
     MockExtension extension;
     extension.allowSelfdestructResult = false;
 
-    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+    evmc::VM vm{evmc_create_evmone()};
+    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
     auto result = host.selfdestruct(addressFromLastByte(0x01), addressFromLastByte(0x02));
 
     BOOST_CHECK(!result);
@@ -108,7 +115,8 @@ BOOST_AUTO_TEST_CASE(delegatecall_to_precompile_is_rejected_by_extension)
     MockExtension extension;
     extension.allowDelegateCallToPrecompileResult = false;
 
-    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+    evmc::VM vm{evmc_create_evmone()};
+    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
     evmc_message message{};
     message.kind = EVMC_DELEGATECALL;
     message.gas = 50000;
@@ -128,7 +136,8 @@ BOOST_AUTO_TEST_CASE(skip_value_transfer_hook_is_honored)
     MockExtension extension;
     extension.skipHostValueTransferResult = true;
 
-    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+    evmc::VM vm{evmc_create_evmone()};
+    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
     evmc_message message{};
     message.kind = EVMC_CALL;
     message.gas = 50000;

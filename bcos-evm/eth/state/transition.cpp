@@ -87,8 +87,6 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
     const BlockHashes& block_hashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
     const TransactionProperties& tx_props, HostExtension* ext)
 {
-    (void)block_hashes;  // TODO(C0-3): feed into EthHost::get_block_hash.
-
     TransactionReceipt receipt{};
     State state(state_view);
 
@@ -115,7 +113,7 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
     }
 
     auto const tx_context = buildTxContext(block, tx);
-    EthHost host(state, tx_context, rev, ext);
+    EthHost host(state, tx_context, rev, vm, block_hashes, ext);
     auto msg = buildTopLevelMessage(tx, tx_props);
 
     bcos::bytes code;

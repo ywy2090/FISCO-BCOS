@@ -18,6 +18,7 @@
 #include "bcos-evm/bcos/FiscoHostExtension.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 #include <string>
@@ -68,6 +69,11 @@ public:
         return std::nullopt;
     }
 };
+
+BlockHashes emptyBlockHashes()
+{
+    return [](int64_t) { return evmc_bytes32{}; };
+}
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(FiscoHostExtensionTest)
@@ -147,7 +153,8 @@ BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_ru
     };
 
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
-    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+    evmc::VM vm{evmc_create_evmone()};
+    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};
     createMsg.kind = EVMC_CREATE;
@@ -176,7 +183,8 @@ BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)
     deps.revisionFlags.createLevel = 1;
 
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
-    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+    evmc::VM vm{evmc_create_evmone()};
+    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};
     createMsg.kind = EVMC_CREATE;
@@ -212,7 +220,8 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
     };
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
-    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, &extension);
+    evmc::VM vm{evmc_create_evmone()};
+    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};
     createMsg.kind = EVMC_CREATE;

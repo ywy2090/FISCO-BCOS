@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/policy/HostExtension.h"
+#include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <evmc/evmc.hpp>
@@ -38,8 +39,8 @@ public:
     using uint256be = evmc::uint256be;
     using Result = evmc::Result;
 
-    EthHost(State& state, evmc_tx_context txContext, evmc_revision revision,
-        HostExtension* extension = nullptr, bool fixStorageStatus = true);
+    EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
+        BlockHashes blockHashes, HostExtension* extension = nullptr, bool fixStorageStatus = true);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -87,6 +88,8 @@ private:
     State& m_state;
     evmc_tx_context m_txContext{};
     evmc_revision m_revision{EVMC_CANCUN};
+    evmc::VM& m_vm;
+    BlockHashes m_blockHashes;
     HostExtension* m_extension{nullptr};
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>

@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "state/InMemoryStateView.h"
+#include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <vector>
 
@@ -22,6 +23,11 @@ evmc_bytes32 valueFromLastByte(uint8_t value)
     evmc_bytes32 out{};
     out.bytes[31] = value;
     return out;
+}
+
+BlockHashes emptyBlockHashes()
+{
+    return [](int64_t) { return evmc_bytes32{}; };
 }
 }  // namespace
 
@@ -70,7 +76,9 @@ BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
             view.insert_account(target, account);
 
             State state(view);
-            EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, nullptr, testCase.fixStorageStatus);
+            evmc::VM vm{evmc_create_evmone()};
+            EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), nullptr,
+                testCase.fixStorageStatus);
 
             auto const newValue = testCase.newIsZero ? zero : nonZero;
             auto const status = host.set_storage(target, key, newValue);
@@ -95,7 +103,8 @@ BOOST_AUTO_TEST_CASE(fix_on_uses_original_committed_value_for_status)
     view.insert_account(target, account);
 
     State state(view);
-    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, nullptr, true);
+    evmc::VM vm{evmc_create_evmone()};
+    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), nullptr, true);
 
     auto const firstStatus = host.set_storage(target, key, firstNonZero);
     auto const secondStatus = host.set_storage(target, key, secondNonZero);
