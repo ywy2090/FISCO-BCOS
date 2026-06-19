@@ -632,3 +632,43 @@ add_test(
     NAME L1BlockPredeploy
     COMMAND ${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME}
 )
+
+set(EMPTY_CODE_HOOK_TEST_BINARY_NAME EmptyCodeHookTest)
+
+add_executable(${EMPTY_CODE_HOOK_TEST_BINARY_NAME}
+    opstack/EmptyCodeHookTest.cpp
+)
+
+target_include_directories(${EMPTY_CODE_HOOK_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${EMPTY_CODE_HOOK_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME EmptyCodeHook
+    COMMAND ${EMPTY_CODE_HOOK_TEST_BINARY_NAME}
+)
+
+set(L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME L1AttributesDepositTest)
+
+add_executable(${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME}
+    opstack/L1AttributesDepositTest.cpp
+)
+
+target_include_directories(${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME L1AttributesDeposit
+    COMMAND ${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME}
+)

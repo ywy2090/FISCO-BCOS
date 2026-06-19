@@ -169,6 +169,26 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
 
     if (code.empty() && !isCreateKind(input.message.kind))
     {
+        state.checkpoint();
+        if (input.extension != nullptr)
+        {
+            if (auto result = input.extension->tryChainPrecompile(
+                    input.revisionConfig.revision, input.message))
+            {
+                output.result = evmc::Result(std::move(*result));
+                output.logs = host.take_logs();
+                if (output.result.status_code == EVMC_SUCCESS)
+                {
+                    state.commit();
+                    output.stateDiff = state.build_diff();
+                }
+                else
+                {
+                    state.revert();
+                }
+                return output;
+            }
+        }
         output.result = makeSuccessResult(input.message.gas);
         state.commit();
         output.stateDiff = state.build_diff();
