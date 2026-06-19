@@ -81,6 +81,10 @@ std::optional<EVMCResult> opStackPreCheck(
         {
             return makePreCheckError(protocol::TransactionStatus::Malformed);
         }
+        if (input.authorizationListPresent && input.authorizations.empty())
+        {
+            return makePreCheckError(protocol::TransactionStatus::Malformed);
+        }
     }
 
     return std::nullopt;

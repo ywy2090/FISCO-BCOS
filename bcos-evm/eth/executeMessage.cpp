@@ -152,6 +152,15 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     else
     {
         auto const codeAddress = resolveCodeAddress(input.message);
+        if (input.revisionConfig.eip7702 && input.authorizationListPresent &&
+            !input.authorizations.empty())
+        {
+            applyAuthorizations(state, input.authorizations, input.blockInfo.chainId);
+            if (!state::isZeroAddress(codeAddress))
+            {
+                warmDelegationTarget(state, codeAddress);
+            }
+        }
         code = state.get_code(codeAddress);
         if (code.empty() && isBuiltinPrecompileAddress(codeAddress))
         {

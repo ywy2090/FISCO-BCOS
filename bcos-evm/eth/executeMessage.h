@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/policy/HostExtension.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
@@ -43,6 +44,8 @@ struct ExecuteMessageInput
     bcos::evm_standard::RevisionConfig revisionConfig{};
     state::TransactionProperties txProps{};
     const Eip2930AccessList* accessList{nullptr};
+    bool authorizationListPresent{false};
+    std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
     state::HostExtension* extension{nullptr};
     bool fixStorageStatus{true};

@@ -2,10 +2,12 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
+#include "bcos-evm/opstack/OpStackReceiptMeta.h"
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
 #include "bcos-evm/opstack/RollupCost.h"
 #include <bcos-task/Task.h>
@@ -17,13 +19,6 @@ namespace bcos::evm
 {
 struct OpStackExecuteViaHostInput
 {
-    struct SetCodeAuthorization
-    {
-        std::optional<bcos::u256> chainId;
-        evmc_address address{};
-        uint64_t nonce{0};
-    };
-
     state::StateView const* stateView{nullptr};
     evmc::VM* vm{nullptr};
     bcos::crypto::Hash const* hashImpl{nullptr};
@@ -40,6 +35,7 @@ struct OpStackExecuteViaHostInput
     const Eip2930AccessList* accessList{nullptr};
     uint8_t web3TypedTxKind{0};
     std::optional<OpStackDepositTx> depositTx;
+    bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
     bool call{false};
     bool skipNonceChecks{false};
@@ -57,6 +53,7 @@ struct OpStackExecuteViaHostOutput
     state::StateDiff stateDiff;
     std::vector<LogEntry> logs;
     int64_t gasUsed{0};
+    OpStackReceiptMeta receiptMeta;
 };
 
 task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaHostInput input);

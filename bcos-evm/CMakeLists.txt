@@ -6,6 +6,7 @@ include(GNUInstallDirs)
 set(BCOS_EVM_ETH_SOURCES
     eth/vm/VMInstance.cpp
     eth/EVMCResult.cpp
+    eth/Eip7702.cpp
     eth/executeMessage.cpp
     eth/state/State.cpp
     eth/state/EthHost.cpp
