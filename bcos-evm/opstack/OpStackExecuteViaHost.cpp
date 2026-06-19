@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackFloorGas.h"
@@ -19,8 +20,33 @@ EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl
     return EVMCResult(raw, status);
 }
 
+constexpr uint64_t TX_AUTH_TUPLE_GAS = 12'500;
+
+uint64_t computeIntrinsicGasDebit(OpStackTxExecutor::OpStackTxExecutionData const& txData)
+{
+    auto const intrinsic =
+        gas::computeTxIntrinsicGas(txData.m_message, txData.m_accessList, txData.m_web3TypedTxKind);
+    auto const base = static_cast<uint64_t>(std::max<int64_t>(0, intrinsic.preExecutionDebit()));
+    auto const authTuples = txData.m_authTupleCount;
+    if (authTuples == 0)
+    {
+        return base;
+    }
+    return base + authTuples * TX_AUTH_TUPLE_GAS;
+}
+
 std::optional<EVMCResult> executeEntryChecks(OpStackTxExecutor::OpStackTxExecutionData& txData)
 {
+    auto const availableGas = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_message.gas));
+    auto const intrinsicGas = computeIntrinsicGasDebit(txData);
+    if (availableGas < intrinsicGas)
+    {
+        evmc_result failResult{};
+        failResult.status_code = EVMC_OUT_OF_GAS;
+        failResult.gas_left = 0;
+        return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+    }
+
     auto const value = state::fromEvmC(txData.m_message.value);
     if (!txData.m_skipTransactionChecks && value != 0 &&
         !canTransfer(*txData.m_state, txData.m_message.sender, value))
@@ -37,6 +63,7 @@ std::optional<EVMCResult> executeEntryChecks(OpStackTxExecutor::OpStackTxExecuti
     txData.m_floorDataGas = floorCheck.floorGas;
     if (floorCheck.ok)
     {
+        txData.m_message.gas -= static_cast<int64_t>(intrinsicGas);
         return std::nullopt;
     }
 
@@ -81,6 +108,9 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     txData.m_skipTransactionChecks = input.skipTransactionChecks;
     txData.m_noBaseFee = input.noBaseFee;
     txData.m_floorDataGas = input.floorDataGas;
+    txData.m_accessList = input.accessList;
+    txData.m_web3TypedTxKind = input.web3TypedTxKind;
+    txData.m_authTupleCount = static_cast<uint64_t>(input.authorizations.size());
     txData.m_rollupCostData = input.rollupCostData;
 
     if (auto preCheckError = opStackPreCheck(input, state); preCheckError.has_value())

@@ -697,6 +697,26 @@ add_test(
     COMMAND ${EIP7702_PRECHECK_TEST_BINARY_NAME}
 )
 
+set(EIP7702_DELEGATION_SENDER_TEST_BINARY_NAME Eip7702DelegationSenderTest)
+
+add_executable(${EIP7702_DELEGATION_SENDER_TEST_BINARY_NAME}
+    opstack/Eip7702DelegationSenderTest.cpp
+)
+
+target_include_directories(${EIP7702_DELEGATION_SENDER_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${EIP7702_DELEGATION_SENDER_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME Eip7702DelegationSender
+    COMMAND ${EIP7702_DELEGATION_SENDER_TEST_BINARY_NAME}
+)
+
 set(EIP7702_APPLY_AUTH_TEST_BINARY_NAME Eip7702ApplyAuthorizationTest)
 
 add_executable(${EIP7702_APPLY_AUTH_TEST_BINARY_NAME}
@@ -715,6 +735,26 @@ target_link_libraries(${EIP7702_APPLY_AUTH_TEST_BINARY_NAME} PRIVATE
 add_test(
     NAME Eip7702ApplyAuthorization
     COMMAND ${EIP7702_APPLY_AUTH_TEST_BINARY_NAME}
+)
+
+set(EIP7702_CLEAR_DELEGATION_TEST_BINARY_NAME Eip7702ClearDelegationTest)
+
+add_executable(${EIP7702_CLEAR_DELEGATION_TEST_BINARY_NAME}
+    opstack/Eip7702ClearDelegationTest.cpp
+)
+
+target_include_directories(${EIP7702_CLEAR_DELEGATION_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${EIP7702_CLEAR_DELEGATION_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME Eip7702ClearDelegation
+    COMMAND ${EIP7702_CLEAR_DELEGATION_TEST_BINARY_NAME}
 )
 
 set(CAN_TRANSFER_TEST_BINARY_NAME CanTransferTest)

@@ -1,7 +1,7 @@
-#define BOOST_TEST_MODULE Eip7702ApplyAuthorizationTest
+#define BOOST_TEST_MODULE Eip7702ClearDelegationTest
 
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/executeMessage.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -18,17 +18,18 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(valid_auth_installs_delegation_invalid_is_ignored_and_refund_added)
+BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
 {
     state::test::InMemoryStateView stateView;
-    auto const sender = addressFromLastByte(0x31);
-    auto const recipient = addressFromLastByte(0x32);
-    auto const delegationTarget = addressFromLastByte(0x42);
+    auto const sender = addressFromLastByte(0x61);
+    auto const recipient = addressFromLastByte(0x62);
+    auto const previousTarget = addressFromLastByte(0x63);
 
     state::Account senderAccount;
     senderAccount.nonce = 0;
     senderAccount.balance = 100;
-    stateView.insert_account(sender, senderAccount);
+    senderAccount.code = addressToDelegation(previousTarget);
+    stateView.insert_account(sender, std::move(senderAccount));
     stateView.insert_account(recipient, state::Account{});
 
     evmc_message message{};
@@ -48,21 +49,14 @@ BOOST_AUTO_TEST_CASE(valid_auth_installs_delegation_invalid_is_ignored_and_refun
     input.blockInfo.chainId = 1;
     input.authorizationListPresent = true;
     input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 0});
-    input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 99});
+        {.chainId = u256(1), .authority = sender, .address = evmc_address{}, .nonce = 0});
 
     auto output = executeMessage(input);
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);
     BOOST_REQUIRE(it != output.stateDiff.accounts.end());
-    auto const& installedCode = it->second.code;
-    BOOST_CHECK_EQUAL(installedCode.size(), size_t(23));
-    BOOST_CHECK_EQUAL(installedCode[0], 0xEF);
-    BOOST_CHECK_EQUAL(installedCode[1], 0x01);
-    BOOST_CHECK_EQUAL(installedCode[2], 0x00);
+    BOOST_CHECK(it->second.code.empty());
     BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(1));
 }
-
 }  // namespace bcos::evm::test

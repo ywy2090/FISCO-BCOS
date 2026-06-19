@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/OpStackPreCheck.h"
 
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-framework/executor/OpStackTxType.h"
@@ -60,6 +61,14 @@ std::optional<EVMCResult> opStackPreCheck(
 
     if (!input.skipTransactionChecks)
     {
+        auto const senderCode = state.get_code(input.message.sender);
+        if (!senderCode.empty() &&
+            !parseDelegationTarget(bcos::bytesConstRef{senderCode.data(), senderCode.size()})
+                 .has_value())
+        {
+            return makePreCheckError(protocol::TransactionStatus::Malformed);
+        }
+
         if (input.gasFeeCap < input.gasTipCap || input.gasFeeCap < input.blockInfo.baseFee)
         {
             return makePreCheckError(protocol::TransactionStatus::Malformed);

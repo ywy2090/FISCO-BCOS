@@ -1,4 +1,5 @@
 #pragma once
+#include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -49,6 +50,9 @@ struct OpStackTxExecutor
         bcos::u256 m_effectiveGasPrice{0};
         bcos::u256 m_baseFee{0};
         uint64_t m_floorDataGas{0};
+        const Eip2930AccessList* m_accessList{nullptr};
+        uint8_t m_web3TypedTxKind{0};
+        uint64_t m_authTupleCount{0};
         std::optional<RollupCostData> m_rollupCostData;
         std::optional<EVMCResult> m_evmcResult;
     };
