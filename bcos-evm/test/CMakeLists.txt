@@ -664,6 +664,10 @@ target_include_directories(${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME} PRIVATE
     ${PROJECT_SOURCE_DIR}
 )
 
+target_compile_definitions(${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME} PRIVATE
+    OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/opstack"
+)
+
 target_link_libraries(${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME} PRIVATE
     bcos-evm-op
 )
@@ -671,4 +675,168 @@ target_link_libraries(${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME} PRIVATE
 add_test(
     NAME L1AttributesDeposit
     COMMAND ${L1_ATTRIBUTES_DEPOSIT_TEST_BINARY_NAME}
+)
+
+set(EIP7702_PRECHECK_TEST_BINARY_NAME Eip7702PreCheckTest)
+
+add_executable(${EIP7702_PRECHECK_TEST_BINARY_NAME}
+    opstack/Eip7702PreCheckTest.cpp
+)
+
+target_include_directories(${EIP7702_PRECHECK_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${EIP7702_PRECHECK_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME Eip7702PreCheck
+    COMMAND ${EIP7702_PRECHECK_TEST_BINARY_NAME}
+)
+
+set(EIP7702_APPLY_AUTH_TEST_BINARY_NAME Eip7702ApplyAuthorizationTest)
+
+add_executable(${EIP7702_APPLY_AUTH_TEST_BINARY_NAME}
+    opstack/Eip7702ApplyAuthorizationTest.cpp
+)
+
+target_include_directories(${EIP7702_APPLY_AUTH_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${EIP7702_APPLY_AUTH_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME Eip7702ApplyAuthorization
+    COMMAND ${EIP7702_APPLY_AUTH_TEST_BINARY_NAME}
+)
+
+set(CAN_TRANSFER_TEST_BINARY_NAME CanTransferTest)
+
+add_executable(${CAN_TRANSFER_TEST_BINARY_NAME}
+    opstack/CanTransferTest.cpp
+)
+
+target_include_directories(${CAN_TRANSFER_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${CAN_TRANSFER_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME CanTransfer
+    COMMAND ${CAN_TRANSFER_TEST_BINARY_NAME}
+)
+
+set(ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME IsthmusPostExecutionPolicyTest)
+
+add_executable(${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME}
+    opstack/IsthmusPostExecutionPolicyTest.cpp
+)
+
+target_include_directories(${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME IsthmusPostExecutionPolicy
+    COMMAND ${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME}
+)
+
+set(L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME L1AttributesDepositFailureTest)
+
+add_executable(${L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME}
+    opstack/L1AttributesDepositFailureTest.cpp
+)
+
+target_include_directories(${L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_compile_definitions(${L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME} PRIVATE
+    OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/opstack"
+)
+
+target_link_libraries(${L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME L1AttributesDepositFailure
+    COMMAND ${L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME}
+)
+
+set(GAS_FEE_CAP_BALANCE_TEST_BINARY_NAME GasFeeCapBalanceTest)
+
+add_executable(${GAS_FEE_CAP_BALANCE_TEST_BINARY_NAME}
+    opstack/GasFeeCapBalanceTest.cpp
+)
+
+target_include_directories(${GAS_FEE_CAP_BALANCE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${GAS_FEE_CAP_BALANCE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME GasFeeCapBalance
+    COMMAND ${GAS_FEE_CAP_BALANCE_TEST_BINARY_NAME}
+)
+
+set(BLOB_GAS_BALANCE_TEST_BINARY_NAME BlobGasBalanceTest)
+
+add_executable(${BLOB_GAS_BALANCE_TEST_BINARY_NAME}
+    opstack/BlobGasBalanceTest.cpp
+)
+
+target_include_directories(${BLOB_GAS_BALANCE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${BLOB_GAS_BALANCE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME BlobGasBalance
+    COMMAND ${BLOB_GAS_BALANCE_TEST_BINARY_NAME}
+)
+
+set(L1BLOCK_GETTER_TEST_BINARY_NAME L1BlockGetterTest)
+
+add_executable(${L1BLOCK_GETTER_TEST_BINARY_NAME}
+    opstack/L1BlockGetterTest.cpp
+)
+
+target_include_directories(${L1BLOCK_GETTER_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${L1BLOCK_GETTER_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME L1BlockGetter
+    COMMAND ${L1BLOCK_GETTER_TEST_BINARY_NAME}
 )
