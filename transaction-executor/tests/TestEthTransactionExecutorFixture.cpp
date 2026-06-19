@@ -30,6 +30,7 @@
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-task/Wait.h>
 #include <boost/test/unit_test.hpp>
+#include <array>
 #include <intx/intx.hpp>
 
 namespace bcos::evm::test
@@ -107,6 +108,46 @@ BOOST_AUTO_TEST_CASE(all_fixtures_phase1)
                     localStorage, header, *tx, contextId++, ledgerConfig, false);
                 BOOST_REQUIRE(receipt);
                 assertExecutorFixtureResult(fixture, *receipt, AssertPhase::Phase1);
+            }());
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(gas_executor_phase2_subset)
+{
+    static std::array<std::string_view, 6> const kGasFixtures = {
+        "prague_call_return_word.json",
+        "imported/stExample_return42.json",
+        "imported/stRevert_revertBasic.json",
+        "imported/stRevert_revertDepth.json",
+        "imported/stCreate_initCode.json",
+        "imported/stCreate2_basic.json",
+    };
+
+    auto const root =
+#ifdef ETH_STATE_FIXTURES_DIR
+        std::filesystem::path(ETH_STATE_FIXTURES_DIR)
+#else
+        std::filesystem::path("fixtures/state")
+#endif
+        ;
+
+    for (auto const& relativePath : kGasFixtures)
+    {
+        auto const path = root / relativePath;
+        auto fixture = loadFixture(path);
+        BOOST_TEST_CONTEXT("fixture=" << fixture.name << " path=" << path.string())
+        {
+            task::syncWait([&, fixture]() -> task::Task<void> {
+                executor_v1::MutableStorage localStorage;
+                co_await seedPreState(localStorage, fixture, cryptoSuite->hashImpl());
+                auto tx = buildFixtureTransaction(fixture, transactionFactory);
+                auto header = makeBlockHeader(fixture);
+                auto ledgerConfig = makeLedgerConfig(fixture);
+                auto receipt = co_await executor.executeTransaction(
+                    localStorage, header, *tx, contextId++, ledgerConfig, false);
+                BOOST_REQUIRE(receipt);
+                assertExecutorFixtureResult(fixture, *receipt, AssertPhase::Phase2);
             }());
         }
     }

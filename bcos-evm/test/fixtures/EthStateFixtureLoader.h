@@ -166,6 +166,9 @@ inline FixtureCase loadFixture(std::filesystem::path const& path)
     fixture.expected.status = parseStatus(expectedTree.get<std::string>("status", "EVMC_SUCCESS"));
     fixture.expected.gasUsed = expectedTree.get<int64_t>("gas_used", 0);
     fixture.expected.gasUsedTolerance = expectedTree.get<int64_t>("gas_used_tolerance", 0);
+    fixture.expected.gasUsedExecutor = expectedTree.get<int64_t>("gas_used_executor", 0);
+    fixture.expected.gasUsedExecutorTolerance =
+        expectedTree.get<int64_t>("gas_used_executor_tolerance", 0);
     fixture.expected.output = parseBytes(expectedTree.get<std::string>("output", "0x"));
     fixture.expected.logs = expectedTree.get<size_t>("logs", 0);
 

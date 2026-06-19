@@ -34,6 +34,8 @@
   "expected": {
     "status": "EVMC_SUCCESS",
     "gas_used": 18,
+    "gas_used_executor": 18,
+    "gas_used_executor_tolerance": 0,
     "logs": 0,
     "output": "0x000000000000000000000000000000000000000000000000000000000000002a"
   }
