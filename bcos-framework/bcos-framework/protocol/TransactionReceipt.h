@@ -25,6 +25,7 @@
 #include <bcos-crypto/interfaces/crypto/CryptoSuite.h>
 #include <bcos-utilities/FixedBytes.h>
 #include <gsl/span>
+#include <optional>
 
 namespace bcos::protocol
 {
@@ -51,6 +52,12 @@ public:
     virtual protocol::BlockNumber blockNumber() const = 0;
     virtual std::string_view effectiveGasPrice() const = 0;
     virtual void setEffectiveGasPrice(std::string effectiveGasPrice) = 0;
+    virtual std::optional<std::string> l1Fee() const = 0;
+    virtual void setL1Fee(std::string l1Fee) = 0;
+    virtual std::optional<std::string> operatorFee() const = 0;
+    virtual void setOperatorFee(std::string operatorFee) = 0;
+    virtual std::optional<std::string> depositNonce() const = 0;
+    virtual void setDepositNonce(std::string depositNonce) = 0;
 
     // additional information on transaction execution, no need to be involved in the hash
     // calculation
@@ -70,12 +77,13 @@ public:
 
     friend std::ostream& operator<<(std::ostream& output, const TransactionReceipt& receipt)
     {
-        output << "TransactionReceipt{" << "hash=" << receipt.hash() << ", "
+        output << "TransactionReceipt{"
+               << "hash=" << receipt.hash() << ", "
                << "version=" << receipt.version() << ", "
                << "gasUsed=" << receipt.gasUsed() << ", "
                << "contractAddress=" << receipt.contractAddress() << ", "
-               << "status=" << receipt.status() << ", " << "output=" << toHex(receipt.output())
-               << ", "
+               << "status=" << receipt.status() << ", "
+               << "output=" << toHex(receipt.output()) << ", "
                << "logEntries=" << receipt.logEntries().size() << ", "
                << "blockNumber=" << receipt.blockNumber() << ", "
                << "effectiveGasPrice=" << receipt.effectiveGasPrice() << ", "
@@ -87,7 +95,7 @@ using Receipts = std::vector<TransactionReceipt::Ptr>;
 using ReceiptsPtr = std::shared_ptr<Receipts>;
 using ReceiptsConstPtr = std::shared_ptr<const Receipts>;
 using AnyTransactionReceipt =
-    AnyHolder<TransactionReceipt, 104>;  // 多平台TransactionReceiptImpl的最大尺寸 (Maximum size of
+    AnyHolder<TransactionReceipt, 176>;  // 多平台TransactionReceiptImpl的最大尺寸 (Maximum size of
                                          // TransactionReceiptImpl across platforms)
 
 }  // namespace bcos::protocol

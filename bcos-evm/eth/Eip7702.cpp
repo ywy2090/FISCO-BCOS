@@ -50,8 +50,8 @@ bcos::bytes addressToDelegation(evmc_address const& target)
     return code;
 }
 
-void applyAuthorizations(state::State& state, std::vector<SetCodeAuthorization> const& authorizations,
-    bcos::u256 const& txChainId)
+void applyAuthorizations(state::State& state,
+    std::vector<SetCodeAuthorization> const& authorizations, bcos::u256 const& txChainId)
 {
     for (auto const& authorization : authorizations)
     {

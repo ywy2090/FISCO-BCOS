@@ -128,3 +128,9 @@ inline int64_t finalizeEthereumGasUsed(
 
 }  // namespace gas
 }  // namespace bcos::evm
+
+namespace bcos::executor_v1::gas
+{
+using bcos::evm::gas::computeTxIntrinsicGas;
+using bcos::evm::gas::TxIntrinsicGas;
+}  // namespace bcos::executor_v1::gas

@@ -105,9 +105,9 @@ Plan 4 (C3 → C4 → C5)  生产路径回归 → 删旧 Host → TransactionExe
 - Create: `bcos-evm/test/state/StateHostSmokeTest.cpp`
 - Modify: `bcos-evm/CMakeLists.txt`（`if(TESTS) add_subdirectory(test)`）
 
-- [ ] **Step 1:** 建立 gtest target `test-bcos-evm-state`
-- [ ] **Step 2:** 失败测试 — 空账户 CALL → `EVMC_SUCCESS`（`transition()` + `InMemoryStateView`）
-- [ ] **Step 3:** 实现 `InMemoryStateView`；`ctest -R StateHostSmokeTest` PASS
+- [x] **Step 1:** 建立 gtest target `test-bcos-evm-state`
+- [x] **Step 2:** 失败测试 — 空账户 CALL → `EVMC_SUCCESS`（`transition()` + `InMemoryStateView`）
+- [x] **Step 3:** 实现 `InMemoryStateView`；`ctest -R StateHostSmokeTest` PASS
 
 **C0 验收：** `bcos-evm` 独立编译；§7.1 八扩展点逐条 checklist；无 `test/` 源码进生产构建。
 
@@ -124,9 +124,9 @@ Plan 4 (C3 → C4 → C5)  生产路径回归 → 删旧 Host → TransactionExe
 - Modify: `bcos-evm/eth/gas/EthTxGasSettlement.h`, `bcos-executor/src/Common.h`, `bcos-executor/src/CallParameters.h`（`using` 回兼）
 - Modify: `bcos-evm/eth/precompiled/ModexpGas.cpp`（删冗余 include；必要时 `#include "bcos-utilities/DataConvertUtility.h"`）
 
-- [ ] **Step 1:** 抽取 `Eip7623Components`/`calcEip7623Components`/`Eip2930AccessList` 到 `bcos-evm`
-- [ ] **Step 2:** executor 侧 `using` 别名，零调用点改动
-- [ ] **Step 3:** `rg '#include "bcos-executor' bcos-evm/eth` → 仅剩 `HostContext`/`eip2929`（待 C4）
+- [x] **Step 1:** 抽取 `Eip7623Components`/`calcEip7623Components`/`Eip2930AccessList` 到 `bcos-evm`
+- [x] **Step 2:** executor 侧 `using` 别名，零调用点改动
+- [x] **Step 3:** `rg '#include "bcos-executor' bcos-evm/eth` → 仅剩 `HostContext`/`eip2929`（待 C4）
 
 ### Task C1-1: FiscoStateView + StateDiffApplier + FiscoBlockInfo
 

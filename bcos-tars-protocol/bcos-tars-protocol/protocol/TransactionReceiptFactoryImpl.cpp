@@ -11,8 +11,21 @@ bcostars::protocol::TransactionReceiptFactoryImpl::createReceipt(
     bcos::protocol::TransactionReceipt& input) const
 {
     auto tarsInput = dynamic_cast<TransactionReceiptImpl&>(input);
-    return std::make_shared<TransactionReceiptImpl>(
+    auto receipt = std::make_shared<TransactionReceiptImpl>(
         [m_inner = std::move(tarsInput.inner())]() mutable { return &m_inner; });
+    if (auto l1Fee = input.l1Fee(); l1Fee.has_value())
+    {
+        receipt->setL1Fee(*l1Fee);
+    }
+    if (auto operatorFee = input.operatorFee(); operatorFee.has_value())
+    {
+        receipt->setOperatorFee(*operatorFee);
+    }
+    if (auto depositNonce = input.depositNonce(); depositNonce.has_value())
+    {
+        receipt->setDepositNonce(*depositNonce);
+    }
+    return receipt;
 }
 
 

@@ -1,7 +1,7 @@
 # Task 5 Report — Imported State Fixtures Batch 2 (T-09)
 
 **Status:** Done  
-**Commit:** (pending)  
+**Commit:** `21420cc92`  
 **Message:** `test(eth): add imported state fixtures batch 2 (5 cases)`
 
 ## Summary

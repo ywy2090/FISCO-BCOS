@@ -51,7 +51,7 @@ BlockHashes buildFiscoBlockHashes(Storage& storage, int64_t currentBlockNumber)
         {
             return {};
         }
-        return toEvmC(*hash);
+        return state::toEvmC(*hash);
     };
 }
 }  // namespace bcos::evm::state

@@ -19,9 +19,9 @@
  * @date 2021-05-11
  */
 #include "TxValidator.h"
+#include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/vm/VMInstance.h"
-#include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/bcos-framework/ledger/Ledger.h"
 #include "bcos-framework/ledger/EVMAccount.h"
@@ -300,10 +300,10 @@ int64_t web3Eip7623GasLimitMinimum(protocol::Transaction const& tx)
     msg.input_size = tx.input().size();
 
     auto const resolved = executor::resolveWeb3AccessList(tx);
-    executor::Eip2930AccessList const* accessListPtr =
+    bcos::evm::Eip2930AccessList const* accessListPtr =
         resolved.accessList ? resolved.accessList.get() : nullptr;
     auto const intrinsic =
-        executor_v1::gas::computeTxIntrinsicGas(msg, accessListPtr, resolved.web3TypedTxKind);
+        bcos::evm::gas::computeTxIntrinsicGas(msg, accessListPtr, resolved.web3TypedTxKind);
     return intrinsic.gasLimitMinimum();
 }
 }  // namespace

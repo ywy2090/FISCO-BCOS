@@ -18,8 +18,8 @@
  * @date 2025-09-23
  */
 
-#include "../bcos-transaction-executor/EVMCResult.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/Exceptions.h"
@@ -29,7 +29,7 @@
 #include <sstream>
 
 using namespace bcos;
-using namespace bcos::executor_v1;
+using namespace bcos::evm;
 using namespace bcos::protocol;
 
 class TestEVMCResultFixture

@@ -69,6 +69,8 @@
 #include <bcos-tars-protocol/protocol/ExecutionMessageImpl.h>
 #include <bcos-tool/NodeConfig.h>
 #include <bcos-tool/NodeTimeMaintenance.h>
+#include <bcos-transaction-executor/EthTransactionExecutorImpl.h>
+#include <bcos-transaction-executor/OpStackTransactionExecutorImpl.h>
 #include <bcos-transaction-executor/TransactionExecutorImpl.h>
 #include <bcos-transaction-executor/precompiled/PrecompiledManager.h>
 #include <bcos-transaction-scheduler/SchedulerParallelImpl.h>
@@ -270,9 +272,8 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
         std::make_shared<protocol::TransactionSubmitResultFactoryImpl>();
 
     // init the txpool
-    m_txpoolInitializer = std::make_shared<TxPoolInitializer>(
-        m_nodeConfig, m_protocolInitializer, m_frontServiceInitializer->front(), ledger,
-        *m_ioServicePool->getIOService());
+    m_txpoolInitializer = std::make_shared<TxPoolInitializer>(m_nodeConfig, m_protocolInitializer,
+        m_frontServiceInitializer->front(), ledger, *m_ioServicePool->getIOService());
     m_memPoolInitializer = MemPoolInitializer::build();
 
     std::shared_ptr<bcos::scheduler::TarsExecutorManager> executorManager;
@@ -288,40 +289,65 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
     // given time. If both paths need concurrent access, SchedulerParallelImpl::executeBlock
     // and TransactionExecutorImpl::executeTransaction must be audited for thread-safety
     // and guarded with a lock.
-    m_precompiledManager = std::make_shared<executor_v1::PrecompiledManager>(
-        m_protocolInitializer->cryptoSuite()->hashImpl());
-    auto transactionExecutor = std::make_shared<executor_v1::TransactionExecutorImpl>(
-        *m_protocolInitializer->blockFactory()->receiptFactory(),
-        m_protocolInitializer->cryptoSuite()->hashImpl(), *m_precompiledManager);
+    // Executor selection (all satisfy executor_v1::TransactionExecutor concept):
+    //   FISCO  → TransactionExecutorImpl  + executeViaHost      + FiscoTxExecutor
+    //   Eth    → EthTransactionExecutorImpl + executeViaEth       + EthTxExecutor
+    //   OP     → OpStackTransactionExecutorImpl + opStackExecuteViaHost (gas internal)
+    auto const& receiptFactory = *m_protocolInitializer->blockFactory()->receiptFactory();
+    auto hashImpl = m_protocolInitializer->cryptoSuite()->hashImpl();
 
-    if (baselineSchedulerConfig.parallel)
+    auto wireBaselineScheduler = [&]<class ExecutorT>(
+                                     std::shared_ptr<ExecutorT> transactionExecutor)
+        requires executor_v1::TransactionExecutor<ExecutorT, initializer::GlobalStateMutableStorage>
     {
-        auto parallelScheduler =
-            std::make_shared<scheduler_v1::SchedulerParallelImpl<GlobalStateMutableStorage>>();
-        parallelScheduler->m_grainSize = baselineSchedulerConfig.grainSize;
-        parallelScheduler->m_maxConcurrency = baselineSchedulerConfig.maxThread;
-        std::tie(m_baselineSchedulerHolder, m_setBaselineSchedulerBlockNumberNotifier) =
-            scheduler_v1::BaselineSchedulerInitializer::build(m_globalStateStorageInitializer,
-                m_protocolInitializer->blockFactory(), parallelScheduler,
-                m_txpoolInitializer->txpool(), transactionSubmitResultFactory, ledger,
-                transactionExecutor);
-        m_engineServiceInitializer =
-            EngineServiceInitializer::build(m_globalStateStorageInitializer,
-                m_protocolInitializer->blockFactory(), parallelScheduler,
-                transactionExecutor, m_memPoolInitializer->memPool());
-    }
-    else
+        if (baselineSchedulerConfig.parallel)
+        {
+            auto parallelScheduler =
+                std::make_shared<scheduler_v1::SchedulerParallelImpl<GlobalStateMutableStorage>>();
+            parallelScheduler->m_grainSize = baselineSchedulerConfig.grainSize;
+            parallelScheduler->m_maxConcurrency = baselineSchedulerConfig.maxThread;
+            std::tie(m_baselineSchedulerHolder, m_setBaselineSchedulerBlockNumberNotifier) =
+                scheduler_v1::BaselineSchedulerInitializer::build(m_globalStateStorageInitializer,
+                    m_protocolInitializer->blockFactory(), parallelScheduler,
+                    m_txpoolInitializer->txpool(), transactionSubmitResultFactory, ledger,
+                    transactionExecutor);
+            m_engineServiceInitializer = EngineServiceInitializer::build(
+                m_globalStateStorageInitializer, m_protocolInitializer->blockFactory(),
+                parallelScheduler, transactionExecutor, m_memPoolInitializer->memPool());
+        }
+        else
+        {
+            auto serialScheduler = std::make_shared<scheduler_v1::SchedulerSerialImpl>();
+            std::tie(m_baselineSchedulerHolder, m_setBaselineSchedulerBlockNumberNotifier) =
+                scheduler_v1::BaselineSchedulerInitializer::build(m_globalStateStorageInitializer,
+                    m_protocolInitializer->blockFactory(), serialScheduler,
+                    m_txpoolInitializer->txpool(), transactionSubmitResultFactory, ledger,
+                    transactionExecutor);
+            m_engineServiceInitializer = EngineServiceInitializer::build(
+                m_globalStateStorageInitializer, m_protocolInitializer->blockFactory(),
+                serialScheduler, transactionExecutor, m_memPoolInitializer->memPool());
+        }
+    };
+
+    switch (m_nodeConfig->executionPath())
     {
-        auto serialScheduler = std::make_shared<scheduler_v1::SchedulerSerialImpl>();
-        std::tie(m_baselineSchedulerHolder, m_setBaselineSchedulerBlockNumberNotifier) =
-            scheduler_v1::BaselineSchedulerInitializer::build(m_globalStateStorageInitializer,
-                m_protocolInitializer->blockFactory(), serialScheduler,
-                m_txpoolInitializer->txpool(), transactionSubmitResultFactory, ledger,
-                transactionExecutor);
-        m_engineServiceInitializer =
-            EngineServiceInitializer::build(m_globalStateStorageInitializer,
-                m_protocolInitializer->blockFactory(), serialScheduler,
-                transactionExecutor, m_memPoolInitializer->memPool());
+    case tool::ExecutionPath::Eth:
+        INITIALIZER_LOG(INFO) << "Using EthTransactionExecutorImpl (executeViaEth)";
+        wireBaselineScheduler(
+            std::make_shared<executor_v1::EthTransactionExecutorImpl>(receiptFactory, hashImpl));
+        break;
+    case tool::ExecutionPath::OpStack:
+        INITIALIZER_LOG(INFO) << "Using OpStackTransactionExecutorImpl (opStackExecuteViaHost)";
+        wireBaselineScheduler(std::make_shared<executor_v1::OpStackTransactionExecutorImpl>(
+            receiptFactory, hashImpl));
+        break;
+    case tool::ExecutionPath::Fisco:
+    default:
+        INITIALIZER_LOG(INFO) << "Using TransactionExecutorImpl (executeViaHost)";
+        m_precompiledManager = std::make_shared<evm::PrecompiledManager>(hashImpl);
+        wireBaselineScheduler(std::make_shared<executor_v1::TransactionExecutorImpl>(
+            receiptFactory, hashImpl, *m_precompiledManager));
+        break;
     }
 
     executorManager = std::make_shared<bcos::scheduler::TarsExecutorManager>(

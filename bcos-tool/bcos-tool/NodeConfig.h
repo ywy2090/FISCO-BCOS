@@ -36,6 +36,13 @@
 #define NodeConfig_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("NodeConfig")
 namespace bcos::tool
 {
+enum class ExecutionPath : uint8_t
+{
+    Fisco = 0,
+    Eth = 1,
+    OpStack = 2
+};
+
 class NodeConfig
 {
 public:
@@ -284,6 +291,7 @@ public:
     bool preStoreBackpressureEnabled() const;
     size_t preStoreMaxInflight() const;
     int executorVersion() const;
+    ExecutionPath executionPath() const;
 
 protected:
     virtual void loadChainConfig(boost::property_tree::ptree const& _pt, bool _enforceGroupId);
@@ -418,6 +426,7 @@ private:
 
     // executor config
     size_t m_vmCacheSize = 1024;
+    ExecutionPath m_executionPath = ExecutionPath::Fisco;
     BaselineSchedulerConfig m_baselineSchedulerConfig;
     TarsRPCConfig m_tarsRPCConfig;
 

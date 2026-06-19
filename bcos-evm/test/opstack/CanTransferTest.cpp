@@ -6,8 +6,8 @@
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
-#include <boost/test/included/unit_test.hpp>
 #include <evmone/evmone.h>
+#include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
@@ -67,7 +67,10 @@ BOOST_AUTO_TEST_CASE(value_transfer_rejected_when_sender_balance_insufficient)
     auto input = makeInput(stateView, vm, hash, sender, target);
     input.message.value.bytes[31] = 10;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
-    input.depositTx = OpStackDepositTx{.from = sender, .to = target, .mint = u256(0), .value = u256(10),
+    input.depositTx = OpStackDepositTx{.from = sender,
+        .to = target,
+        .mint = u256(0),
+        .value = u256(10),
         .gas = static_cast<uint64_t>(input.message.gas)};
     auto output = task::syncWait(opStackExecuteViaHost(input));
 

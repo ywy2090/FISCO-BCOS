@@ -20,10 +20,12 @@
 #pragma once
 
 #include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/execution/Eip2929PrecompileWarm.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <cstring>
+#include <optional>
 
 namespace bcos::evm::execution
 {
@@ -46,21 +48,34 @@ inline evmc_bytes32 toEvmcBytes32(const h256& value)
 
 inline void warmTransactionEntry(state::State& state, evmc_revision rev,
     const state::Transaction& tx, const state::BlockInfo& block,
-    const state::TransactionProperties& props, const Eip2930AccessList* accessList = nullptr)
+    const state::TransactionProperties& props, const Eip2930AccessList* accessList = nullptr,
+    uint8_t web3TypedTxKind = 0, std::optional<evmc_address> createCodeAddress = std::nullopt)
 {
-    (void)state.warm_up_address(tx.from);
+    (void)state.warm_up_address_no_journal(tx.from);
 
     if (props.warmDestination && tx.to.has_value())
     {
-        (void)state.warm_up_address(*tx.to);
+        (void)state.warm_up_address_no_journal(*tx.to);
     }
 
     if (props.warmCoinbase && rev >= EVMC_SHANGHAI)
     {
-        (void)state.warm_up_address(block.coinbase);
+        (void)state.warm_up_address_no_journal(block.coinbase);
     }
 
-    if (accessList == nullptr || accessList->empty())
+    if (createCodeAddress.has_value())
+    {
+        (void)state.warm_up_address_no_journal(*createCodeAddress);
+    }
+
+    if (rev >= EVMC_BERLIN)
+    {
+        forEachActivePrecompileAddress(rev, [&state](evmc_address const& precompile) {
+            (void)state.warm_up_address_no_journal(precompile);
+        });
+    }
+
+    if (web3TypedTxKind == 0 || accessList == nullptr || accessList->empty())
     {
         return;
     }
@@ -68,10 +83,10 @@ inline void warmTransactionEntry(state::State& state, evmc_revision rev,
     for (auto const& [account, keys] : *accessList)
     {
         auto const address = detail::toEvmcAddress(account);
-        (void)state.warm_up_address(address);
+        (void)state.warm_up_address_no_journal(address);
         for (auto const& key : keys)
         {
-            (void)state.warm_up_storage(address, detail::toEvmcBytes32(key));
+            (void)state.warm_up_storage_no_journal(address, detail::toEvmcBytes32(key));
         }
     }
 }

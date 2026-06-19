@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(rollbackablePreImageReadIsNotTracked)
     using Storage =
         memory_storage::MemoryStorage<int, int, memory_storage::Attribute(memory_storage::ORDERED)>;
     using RWSet = ReadWriteSetStorage<Storage>;
-    using Rollbackable = bcos::executor_v1::Rollbackable<RWSet>;
+    using Rollbackable = bcos::evm::Rollbackable<RWSet>;
 
     task::syncWait([]() -> task::Task<void> {
         Storage backend;
@@ -234,8 +234,9 @@ BOOST_AUTO_TEST_CASE(forwardRangeWriteSomePersists)
         // ranges::views::transform is a forward_range when the source is, so
         // this exercises the two-pass pattern (tracking loop + forwarding).
         std::vector<int> source{1, 2, 3};
-        auto keyValues =
-            source | ::ranges::views::transform([](int key) { return std::pair{key, key * 100}; });
+        auto keyValues = source | ::ranges::views::transform([](int key) {
+            return std::pair{key, key * 100};
+        });
 
         co_await storage2::writeSome(rwStorage, keyValues);
 

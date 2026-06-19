@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "../bcos-transaction-executor/vm/ExecuteFrame.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
@@ -201,7 +200,7 @@ inline bcos::ledger::Features makeFeaturesPragueEip2929()
     features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
     features.set(bcos::ledger::Features::Flag::feature_evm_cancun);
     features.set(bcos::ledger::Features::Flag::feature_evm_prague);
-    features.set(bcos::ledger::Features::Flag::feature_evm_warmset);
+    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
     return features;
 }
 
@@ -210,7 +209,7 @@ inline bcos::ledger::Features makeFeaturesCancunEip2929()
     bcos::ledger::Features features;
     features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
     features.set(bcos::ledger::Features::Flag::feature_evm_cancun);
-    features.set(bcos::ledger::Features::Flag::feature_evm_warmset);
+    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
     return features;
 }
 
@@ -219,7 +218,7 @@ inline bcos::ledger::Features makeFeaturesShanghaiEip2929()
 {
     bcos::ledger::Features features;
     features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
-    features.set(bcos::ledger::Features::Flag::feature_evm_warmset);
+    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
     return features;
 }
 

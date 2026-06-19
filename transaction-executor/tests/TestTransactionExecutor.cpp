@@ -21,6 +21,7 @@
 using namespace bcos;
 using namespace bcos::storage2;
 using namespace bcos::executor_v1;
+using namespace bcos::evm;
 
 class TestTransactionExecutorImplFixture
 {
@@ -33,15 +34,14 @@ public:
     bcostars::protocol::TransactionFactoryImpl transactionFactory{cryptoSuite};
     bcostars::protocol::TransactionReceiptFactoryImpl receiptFactory{cryptoSuite};
     PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
-    bcos::executor_v1::TransactionExecutorImpl executor{
-        receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
+    TransactionExecutorImpl<> executor{receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
 
-    static_assert(bcos::executor_v1::TransactionExecutor<bcos::executor_v1::TransactionExecutorImpl,
-        MutableStorage>);
+    static_assert(
+        bcos::executor_v1::TransactionExecutor<TransactionExecutorImpl<>, MutableStorage>);
 
     TestTransactionExecutorImplFixture()
     {
-        bcos::evm::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
+        executor::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
     }
 };
 
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(transientStorageContractTest)
 {
     task::syncWait([this]() mutable -> task::Task<void> {
         PrecompiledManager precompiledManager(cryptoSuite->hashImpl());
-        bcos::executor_v1::TransactionExecutorImpl executor(
+        bcos::evm::TransactionExecutorImpl<> executor(
             receiptFactory, cryptoSuite->hashImpl(), precompiledManager);
         bcostars::protocol::BlockHeaderImpl blockHeader(
             [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
@@ -293,7 +293,7 @@ BOOST_AUTO_TEST_CASE(revertLogsClearedWithFeature)
         std::vector<uint8_t> addr(20, 0);  // 20-byte address
         bcos::h256s topics{bcos::h256{}};
         bcos::bytes data{'a', 'b', 'c'};
-        execCtx.m_data->m_hostContext.logs().emplace_back(
+        execCtx.m_data->m_executionContext.logs.emplace_back(
             std::move(addr), std::move(topics), std::move(data));
 
         // Craft a revert result
@@ -307,7 +307,7 @@ BOOST_AUTO_TEST_CASE(revertLogsClearedWithFeature)
         execCtx.m_data->m_evmcResult->status = bcos::protocol::TransactionStatus::RevertInstruction;
 
         // Finish and verify logs cleared
-        auto receipt = co_await execCtx.template executeStep<2>();
+        auto receipt = co_await execCtx.template executeStep<bcos::evm::ExecutePhase::Finalize>();
         BOOST_CHECK_NE(receipt->status(), 0);
         BOOST_CHECK(receipt->logEntries().empty());
     }());
@@ -342,7 +342,7 @@ BOOST_AUTO_TEST_CASE(revertLogsRemainWithoutFeature)
         std::vector<uint8_t> addr(20, 1);  // non-zero 20-byte address
         bcos::h256s topics{bcos::h256{}};
         bcos::bytes data{'x', 'y', 'z'};
-        execCtx.m_data->m_hostContext.logs().emplace_back(
+        execCtx.m_data->m_executionContext.logs.emplace_back(
             std::move(addr), std::move(topics), std::move(data));
 
         // Craft a revert result
@@ -356,7 +356,7 @@ BOOST_AUTO_TEST_CASE(revertLogsRemainWithoutFeature)
         execCtx.m_data->m_evmcResult->status = bcos::protocol::TransactionStatus::RevertInstruction;
 
         // Finish and verify logs remain (bugfix is off)
-        auto receipt = co_await execCtx.template executeStep<2>();
+        auto receipt = co_await execCtx.template executeStep<bcos::evm::ExecutePhase::Finalize>();
         BOOST_CHECK_NE(receipt->status(), 0);
         BOOST_CHECK(!receipt->logEntries().empty());
     }());

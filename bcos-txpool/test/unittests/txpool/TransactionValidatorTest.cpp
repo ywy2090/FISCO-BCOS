@@ -287,8 +287,7 @@ BOOST_AUTO_TEST_CASE(testValidateEip7623GasFloor)
         msg.input_size = input.size();
         executor::Eip2930AccessList list{
             {eoaKey->address(cryptoSuite->hashImpl()), {h256(0x01), h256(0x02)}}};
-        auto const intrinsic =
-            executor_v1::gas::computeTxIntrinsicGas(msg, std::addressof(list), 1);
+        auto const intrinsic = bcos::evm::gas::computeTxIntrinsicGas(msg, std::addressof(list), 1);
         auto const minGas = intrinsic.gasLimitMinimum();
         BOOST_REQUIRE_GT(minGas, 21000);
 
@@ -321,8 +320,7 @@ BOOST_AUTO_TEST_CASE(testValidateEip7623GasFloor)
         msg.input_size = mixedCalldata.size();
         executor::Eip2930AccessList list{
             {eoaKey->address(cryptoSuite->hashImpl()), {h256(0x01), h256(0x02)}}};
-        auto const intrinsic =
-            executor_v1::gas::computeTxIntrinsicGas(msg, std::addressof(list), 1);
+        auto const intrinsic = bcos::evm::gas::computeTxIntrinsicGas(msg, std::addressof(list), 1);
         constexpr int64_t gethMinGas = 28200;
         BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimum(), gethMinGas);
 

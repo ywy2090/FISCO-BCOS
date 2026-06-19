@@ -40,6 +40,7 @@ bcos::evm::EVMCResult::EVMCResult(EVMCResult&& from) noexcept
 bcos::evm::EVMCResult& bcos::evm::EVMCResult::operator=(EVMCResult&& from) noexcept
 {
     evmc_result::operator=(from);
+    status = from.status;
     cleanEVMCResult(from);
     return *this;
 }
@@ -93,8 +94,7 @@ bcos::evm::fillErrorOutputInPlace(
     return {output, errorBytes.size(), release};
 }
 
-bcos::protocol::TransactionStatus bcos::evm::evmcStatusToTransactionStatus(
-    evmc_status_code status)
+bcos::protocol::TransactionStatus bcos::evm::evmcStatusToTransactionStatus(evmc_status_code status)
 {
     switch (status)
     {
@@ -118,8 +118,7 @@ bcos::protocol::TransactionStatus bcos::evm::evmcStatusToTransactionStatus(
     }
 }
 
-std::tuple<bcos::protocol::TransactionStatus, bcos::bytes>
-bcos::evm::evmcStatusToErrorMessage(
+std::tuple<bcos::protocol::TransactionStatus, bcos::bytes> bcos::evm::evmcStatusToErrorMessage(
     const bcos::crypto::Hash& hashImpl, evmc_status_code status)
 {
     using namespace std::string_literals;
@@ -141,13 +140,11 @@ bcos::evm::evmcStatusToErrorMessage(
             bcos::evm::writeErrInfoToOutput(hashImpl, "Execution stack overflow."s)};
     case EVMC_STACK_UNDERFLOW:
         return {bcos::protocol::TransactionStatus::StackUnderflow,
-            bcos::evm::writeErrInfoToOutput(
-                hashImpl, "Execution needs more items on EVM stack."s)};
+            bcos::evm::writeErrInfoToOutput(hashImpl, "Execution needs more items on EVM stack."s)};
     case EVMC_INVALID_INSTRUCTION:
     case EVMC_UNDEFINED_INSTRUCTION:
         return {bcos::protocol::TransactionStatus::BadInstruction,
-            bcos::evm::writeErrInfoToOutput(
-                hashImpl, "Execution invalid/undefined opcode."s)};
+            bcos::evm::writeErrInfoToOutput(hashImpl, "Execution invalid/undefined opcode."s)};
     case EVMC_BAD_JUMP_DESTINATION:
         return {bcos::protocol::TransactionStatus::BadJumpDestination,
             bcos::evm::writeErrInfoToOutput(

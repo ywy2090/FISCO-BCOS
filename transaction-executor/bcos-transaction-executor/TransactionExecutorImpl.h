@@ -144,10 +144,10 @@ public:
                 executor, storage, blockHeader, transaction, contextID, ledgerConfig, call))
         {}
 
-        template <ExecutePhase phase>
+        template <int phase>
         task::Task<protocol::TransactionReceipt::Ptr> executeStep()
         {
-            if constexpr (phase == ExecutePhase::Prepare)
+            if constexpr (phase == static_cast<int>(ExecutePhase::Prepare))
             {
                 bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
                     m_data->m_executionContext.revisionConfig.use_raw_address,
@@ -175,7 +175,7 @@ public:
                         .properties = {},
                         .accessList = m_data->m_web3AccessListResolved.accessList.get()});
             }
-            else if constexpr (phase == ExecutePhase::Execute)
+            else if constexpr (phase == static_cast<int>(ExecutePhase::Execute))
             {
                 auto updated = co_await updateNonce();
                 if (updated)
@@ -208,7 +208,7 @@ public:
                     }
                 }
             }
-            else if constexpr (phase == ExecutePhase::Finalize)
+            else if constexpr (phase == static_cast<int>(ExecutePhase::Finalize))
             {
                 co_return co_await m_data->m_executor.get().m_txExecutor.makeReceipt(*m_data);
             }
@@ -345,10 +345,15 @@ public:
         auto executeContext = co_await createExecuteContext(
             storage, blockHeader, transaction, contextID, ledgerConfig, call);
 
-        co_await executeContext.template executeStep<ExecutePhase::Prepare>();
-        co_await executeContext.template executeStep<ExecutePhase::Execute>();
-        co_return co_await executeContext.template executeStep<ExecutePhase::Finalize>();
+        co_await executeContext.template executeStep<0>();
+        co_await executeContext.template executeStep<1>();
+        co_return co_await executeContext.template executeStep<2>();
     }
 };
 
 }  // namespace bcos::evm
+
+namespace bcos::executor_v1
+{
+using TransactionExecutorImpl = bcos::evm::TransactionExecutorImpl<>;
+}  // namespace bcos::executor_v1

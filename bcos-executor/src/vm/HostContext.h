@@ -156,7 +156,8 @@ public:
 
     evmc_access_status accessAccount(const evmc_address& addr, evmc_revision rev)
     {
-        if (!eip2929Enabled(rev, m_executive->blockContext().features()))
+        if (!(rev >= EVMC_BERLIN && m_executive->blockContext().features().get(
+                                        ledger::Features::Flag::feature_evm_eip2929)))
         {
             return EVMC_ACCESS_COLD;
         }
@@ -167,7 +168,8 @@ public:
     evmc_access_status accessStorage(
         const evmc_address& addr, const evmc_bytes32& key, evmc_revision rev)
     {
-        if (!eip2929Enabled(rev, m_executive->blockContext().features()))
+        if (!(rev >= EVMC_BERLIN && m_executive->blockContext().features().get(
+                                        ledger::Features::Flag::feature_evm_eip2929)))
         {
             return EVMC_ACCESS_COLD;
         }

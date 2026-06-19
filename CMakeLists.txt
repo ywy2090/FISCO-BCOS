@@ -64,6 +64,7 @@ if(FULLNODE)
     find_package(paillier CONFIG REQUIRED)
     find_package(blst CONFIG REQUIRED)
 
+    add_subdirectory(bcos-evm)
     add_subdirectory(bcos-sealer)
     add_subdirectory(bcos-security)
     add_subdirectory(bcos-scheduler)
@@ -84,7 +85,6 @@ if(FULLNODE)
     add_subdirectory(libinitializer)
     add_subdirectory(fisco-bcos-air)
 
-    add_subdirectory(bcos-evm)
     add_subdirectory(transaction-executor)
     add_subdirectory(transaction-scheduler)
 

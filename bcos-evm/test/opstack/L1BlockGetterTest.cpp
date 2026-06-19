@@ -6,8 +6,8 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
-#include <boost/test/included/unit_test.hpp>
 #include <evmone/evmone.h>
+#include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {

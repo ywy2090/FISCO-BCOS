@@ -19,7 +19,7 @@ struct SetCodeAuthorization
 std::optional<evmc_address> parseDelegationTarget(bcos::bytesConstRef code);
 bcos::bytes addressToDelegation(evmc_address const& target);
 
-void applyAuthorizations(state::State& state, std::vector<SetCodeAuthorization> const& authorizations,
-    bcos::u256 const& txChainId);
+void applyAuthorizations(state::State& state,
+    std::vector<SetCodeAuthorization> const& authorizations, bcos::u256 const& txChainId);
 void warmDelegationTarget(state::State& state, evmc_address const& recipient);
 }  // namespace bcos::evm

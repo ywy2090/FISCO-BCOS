@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(read_account_from_storage)
 {
     auto hashImpl = std::make_shared<bcos::crypto::Keccak256>();
     executor_v1::MutableStorage storage;
-    Rollbackable<executor_v1::MutableStorage> rollbackableStorage(storage);
+    bcos::evm::Rollbackable<executor_v1::MutableStorage> rollbackableStorage(storage);
 
     auto const address = addressFromLastByte(0x11);
     ledger::account::EVMAccount account(rollbackableStorage, address, false);
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(apply_state_diff_to_storage)
 {
     auto hashImpl = std::make_shared<bcos::crypto::Keccak256>();
     executor_v1::MutableStorage storage;
-    Rollbackable<executor_v1::MutableStorage> rollbackableStorage(storage);
+    bcos::evm::Rollbackable<executor_v1::MutableStorage> rollbackableStorage(storage);
 
     auto const address = addressFromLastByte(0x22);
     auto const slot = bytes32FromLastByte(0x02);
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(apply_state_diff_to_storage)
 BOOST_AUTO_TEST_CASE(build_block_info_and_hash_reader)
 {
     executor_v1::MutableStorage storage;
-    Rollbackable<executor_v1::MutableStorage> rollbackableStorage(storage);
+    bcos::evm::Rollbackable<executor_v1::MutableStorage> rollbackableStorage(storage);
 
     bcostars::protocol::BlockHeaderImpl blockHeader;
     blockHeader.setNumber(100);

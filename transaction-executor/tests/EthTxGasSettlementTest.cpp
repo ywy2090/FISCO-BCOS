@@ -2,9 +2,9 @@
  * Unit tests for EIP-7623 TE gas settlement helpers (spec §6.1).
  */
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
-#include "bcos-evm/eth/vm/VMInstance.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
+#include "bcos-executor/src/vm/VMInstance.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
 #include <boost/test/unit_test.hpp>
@@ -12,7 +12,7 @@
 
 using namespace bcos;
 using namespace bcos::executor;
-using namespace bcos::executor_v1::gas;
+using namespace bcos::evm::gas;
 
 namespace
 {
@@ -50,8 +50,8 @@ BOOST_AUTO_TEST_CASE(Eip7623Components_mixed_calldata)
 BOOST_AUTO_TEST_CASE(EthGasSettlementEnabled_gateMatrix)
 {
     auto const features = pragueFeatures();
-    auto const revision = bcos::executor::toRevision(
-        features, static_cast<uint32_t>(protocol::BlockVersion::MAX_VERSION));
+    auto const revision =
+        toRevision(features, static_cast<uint32_t>(protocol::BlockVersion::MAX_VERSION));
 
     auto const eip7623Active = [](ledger::Features const& f, evmc_revision rev) {
         return rev >= EVMC_PRAGUE && f.get(ledger::Features::Flag::feature_evm_prague);

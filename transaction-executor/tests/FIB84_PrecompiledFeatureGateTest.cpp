@@ -20,7 +20,7 @@
 #include <bcos-crypto/hash/Keccak256.h>
 #include <boost/test/unit_test.hpp>
 
-using namespace bcos::executor_v1;
+using namespace bcos::evm;
 using namespace bcos::ledger;
 
 struct PrecompiledFeatureGateFixture

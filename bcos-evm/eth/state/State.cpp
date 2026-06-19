@@ -133,7 +133,10 @@ void State::revert()
             }
             break;
         case JournalType::WarmAddressInsert:
-            m_warmAccounts.erase(entry.address);
+            if (!m_pinnedWarmAccounts.contains(entry.address))
+            {
+                m_warmAccounts.erase(entry.address);
+            }
             break;
         case JournalType::WarmStorageInsert:
             m_warmStorage.erase({entry.address, entry.key});
@@ -243,6 +246,22 @@ bool State::warm_up_storage(const evmc_address& address, const evmc_bytes32& key
     return inserted;
 }
 
+bool State::warm_up_address_no_journal(const evmc_address& address)
+{
+    return m_warmAccounts.insert(address).second;
+}
+
+bool State::warm_up_storage_no_journal(const evmc_address& address, const evmc_bytes32& key)
+{
+    return m_warmStorage.insert({address, key}).second;
+}
+
+void State::pin_warm_create_address(const evmc_address& address)
+{
+    m_pinnedWarmAccounts.insert(address);
+    (void)warm_up_address_no_journal(address);
+}
+
 bool State::is_address_warm(const evmc_address& address) const
 {
     return m_warmAccounts.contains(address);
@@ -263,6 +282,11 @@ StateDiff State::build_diff() const
 void State::add_refund(uint64_t amount)
 {
     m_gasRefund += amount;
+}
+
+void State::sub_refund(uint64_t amount)
+{
+    m_gasRefund = (m_gasRefund >= amount) ? (m_gasRefund - amount) : 0;
 }
 
 uint64_t State::get_refund() const noexcept

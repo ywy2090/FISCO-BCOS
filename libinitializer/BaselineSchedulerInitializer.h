@@ -4,6 +4,7 @@
 #include "bcos-framework/ledger/LedgerInterface.h"
 #include "bcos-framework/protocol/BlockFactory.h"
 #include "bcos-framework/protocol/TransactionSubmitResultFactory.h"
+#include "bcos-framework/transaction-executor/TransactionExecutor.h"
 #include "bcos-framework/txpool/TxPoolInterface.h"
 #include "bcos-transaction-executor/TransactionExecutorImpl.h"
 #include "bcos-transaction-scheduler/BaselineScheduler.h"
@@ -14,7 +15,9 @@ namespace bcos::scheduler_v1
 class BaselineSchedulerInitializer
 {
 public:
-    template <class SchedulerType>
+    template <class SchedulerType, class ExecutorType>
+        requires executor_v1::TransactionExecutor<ExecutorType,
+            initializer::GlobalStateMutableStorage>
     static std::tuple<std::function<std::shared_ptr<scheduler::SchedulerInterface>()>,
         std::function<void(std::function<void(protocol::BlockNumber)>)>>
     build(std::shared_ptr<initializer::GlobalStateStorageInitializer> storageInitializer,
@@ -22,12 +25,12 @@ public:
         std::shared_ptr<SchedulerType> scheduler, std::shared_ptr<txpool::TxPoolInterface> txpool,
         std::shared_ptr<protocol::TransactionSubmitResultFactory> transactionSubmitResultFactory,
         std::shared_ptr<ledger::LedgerInterface> ledger,
-        std::shared_ptr<executor_v1::TransactionExecutorImpl> transactionExecutor)
+        std::shared_ptr<ExecutorType> transactionExecutor)
     {
         auto baselineScheduler = std::make_shared<BaselineScheduler<initializer::GlobalStateStorage,
-            executor_v1::TransactionExecutorImpl, SchedulerType, ledger::LedgerInterface>>(
-            storageInitializer->storage(), *scheduler, *transactionExecutor, *blockFactory, *ledger,
-            *txpool, *transactionSubmitResultFactory, *blockFactory->cryptoSuite()->hashImpl());
+            ExecutorType, SchedulerType, ledger::LedgerInterface>>(storageInitializer->storage(),
+            *scheduler, *transactionExecutor, *blockFactory, *ledger, *txpool,
+            *transactionSubmitResultFactory, *blockFactory->cryptoSuite()->hashImpl());
         baselineScheduler->registerTransactionNotifier(
             [txpool](bcos::protocol::BlockNumber blockNumber,
                 bcos::protocol::TransactionSubmitResultsPtr result,

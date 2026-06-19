@@ -75,12 +75,17 @@ public:
 
     [[nodiscard]] bool warm_up_address(const evmc_address& address);
     [[nodiscard]] bool warm_up_storage(const evmc_address& address, const evmc_bytes32& key);
+    [[nodiscard]] bool warm_up_address_no_journal(const evmc_address& address);
+    [[nodiscard]] bool warm_up_storage_no_journal(
+        const evmc_address& address, const evmc_bytes32& key);
+    void pin_warm_create_address(const evmc_address& address);
     [[nodiscard]] bool is_address_warm(const evmc_address& address) const;
     [[nodiscard]] bool is_storage_warm(const evmc_address& address, const evmc_bytes32& key) const;
 
     [[nodiscard]] StateDiff build_diff() const;
 
     void add_refund(uint64_t amount);
+    void sub_refund(uint64_t amount);
     [[nodiscard]] uint64_t get_refund() const noexcept;
     void clear_refund() noexcept;
 
@@ -117,6 +122,7 @@ private:
     StateView const* m_baseStateView;
     std::unordered_map<evmc_address, Account, AddressHash, AddressEqual> m_accounts;
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_warmAccounts;
+    std::unordered_set<evmc_address, AddressHash, AddressEqual> m_pinnedWarmAccounts;
     std::unordered_set<std::pair<evmc_address, evmc_bytes32>, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_warmStorage;

@@ -125,6 +125,30 @@ void bcostars::protocol::TransactionReceiptImpl::setEffectiveGasPrice(std::strin
 {
     m_inner()->data.effectiveGasPrice = std::move(effectiveGasPrice);
 }
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::l1Fee() const
+{
+    return m_l1Fee;
+}
+void bcostars::protocol::TransactionReceiptImpl::setL1Fee(std::string l1Fee)
+{
+    m_l1Fee = std::move(l1Fee);
+}
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::operatorFee() const
+{
+    return m_operatorFee;
+}
+void bcostars::protocol::TransactionReceiptImpl::setOperatorFee(std::string operatorFee)
+{
+    m_operatorFee = std::move(operatorFee);
+}
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::depositNonce() const
+{
+    return m_depositNonce;
+}
+void bcostars::protocol::TransactionReceiptImpl::setDepositNonce(std::string depositNonce)
+{
+    m_depositNonce = std::move(depositNonce);
+}
 const bcostars::TransactionReceipt& bcostars::protocol::TransactionReceiptImpl::inner() const
 {
     return *m_inner();

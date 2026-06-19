@@ -20,7 +20,7 @@ if(WITH_WASM)
             Boost::context evmone::evmone fbwasm wabt GroupSig Paillier blst)
 else()
     target_link_libraries(executor PUBLIC jsoncpp_static ledger codec tool bcos-crypto table wedprcrypto::fisco-bcos bcos-protocol
-            Boost::context evmone::evmone GroupSig Paillier blst)
+            Boost::context evmone::evmone GroupSig Paillier blst bcos-evm)
 endif()
 # Web3AccessListResolver decodes extraTransactionBytes via rpc::Web3Transaction RLP.
 # TODO: move typed-tx RLP decode to bcos-codec to drop executor -> rpc dependency.

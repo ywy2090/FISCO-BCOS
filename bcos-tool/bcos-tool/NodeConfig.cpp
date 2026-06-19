@@ -1304,8 +1304,28 @@ void NodeConfig::loadExecutorNormalConfig(boost::property_tree::ptree const& _co
 {
     bool enableDag = _configIni.get<bool>("executor.enable_dag", true);
     g_BCOSConfig.setEnableDAG(enableDag);
+
+    auto const path = _configIni.get<std::string>("executor.execution_path", "fisco");
+    if (path == "eth")
+    {
+        m_executionPath = ExecutionPath::Eth;
+    }
+    else if (path == "opstack" || path == "op")
+    {
+        m_executionPath = ExecutionPath::OpStack;
+    }
+    else
+    {
+        m_executionPath = ExecutionPath::Fisco;
+    }
+
     NodeConfig_LOG(INFO) << METRIC << LOG_DESC("loadExecutorNormalConfig: config.ini")
-                         << LOG_KV("enableDag", enableDag);
+                         << LOG_KV("enableDag", enableDag) << LOG_KV("executionPath", path);
+}
+
+ExecutionPath NodeConfig::executionPath() const
+{
+    return m_executionPath;
 }
 
 // Note: make sure the consensus param checker is consistent with the precompiled param checker

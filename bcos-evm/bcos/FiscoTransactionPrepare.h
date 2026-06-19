@@ -25,6 +25,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <evmc/evmc.h>
+#include <optional>
 
 namespace bcos::evm
 {
@@ -34,13 +35,15 @@ struct FiscoTransactionPrepareInput
     evmc_revision revision{EVMC_CANCUN};
     state::TransactionProperties properties{};
     const Eip2930AccessList* accessList{nullptr};
+    uint8_t web3TypedTxKind{0};
+    std::optional<evmc_address> createCodeAddress{};
 };
 
 inline void prepareTransaction(state::State& state, const state::Transaction& transaction,
     const state::BlockInfo& blockInfo, const FiscoTransactionPrepareInput& input = {})
 {
-    execution::warmTransactionEntry(
-        state, input.revision, transaction, blockInfo, input.properties, input.accessList);
+    execution::warmTransactionEntry(state, input.revision, transaction, blockInfo, input.properties,
+        input.accessList, input.web3TypedTxKind, input.createCodeAddress);
 }
 
 }  // namespace bcos::evm

@@ -31,6 +31,37 @@ namespace
 {
 // geth core/vm/operations_acl.go gasSStoreEIP3529 / params.SstoreClearsScheduleRefundEIP3529
 constexpr uint64_t kSstoreClearsScheduleRefundEip3529 = 4800;
+
+void applySstoreRefundEip3529(
+    State& state, const evmc_bytes32& current, const evmc_bytes32& original) noexcept
+{
+    auto const currentZero = isZeroBytes32(current);
+    auto const originalZero = isZeroBytes32(original);
+    if (Bytes32Equal{}(current, original))
+    {
+        if (!originalZero)
+        {
+            state.sub_refund(kSstoreClearsScheduleRefundEip3529);
+        }
+        return;
+    }
+    if (currentZero)
+    {
+        if (!originalZero)
+        {
+            state.add_refund(kSstoreClearsScheduleRefundEip3529);
+        }
+        return;
+    }
+    if (originalZero)
+    {
+        state.sub_refund(kSstoreClearsScheduleRefundEip3529 * 2);
+    }
+    else
+    {
+        state.sub_refund(kSstoreClearsScheduleRefundEip3529);
+    }
+}
 }  // namespace
 
 EthHost::EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
@@ -65,9 +96,16 @@ evmc_storage_status EthHost::set_storage(
         it->second = m_state.get_storage(addr, key);
     }
 
+    auto const& original = it->second;
+    auto const current = m_state.get_storage(addr, key);
+    if (m_fixStorageStatus)
+    {
+        applySstoreRefundEip3529(m_state, current, original);
+    }
+
     m_state.set_storage(addr, key, value);
-    auto const status = classifyStorageStatus(it->second, value, m_fixStorageStatus);
-    if (status == EVMC_STORAGE_DELETED)
+    auto const status = classifyStorageStatus(original, value, m_fixStorageStatus);
+    if (!m_fixStorageStatus && status == EVMC_STORAGE_DELETED)
     {
         m_state.add_refund(kSstoreClearsScheduleRefundEip3529);
     }

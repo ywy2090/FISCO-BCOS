@@ -36,6 +36,7 @@
 using namespace bcos;
 using namespace bcos::storage2;
 using namespace bcos::executor_v1;
+using namespace bcos::evm;
 
 class AuthCheckBugfixFixture
 {
@@ -48,12 +49,11 @@ public:
     bcostars::protocol::TransactionFactoryImpl transactionFactory{cryptoSuite};
     bcostars::protocol::TransactionReceiptFactoryImpl receiptFactory{cryptoSuite};
     PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
-    bcos::executor_v1::TransactionExecutorImpl executor{
-        receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
+    TransactionExecutorImpl<> executor{receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
 
     AuthCheckBugfixFixture()
     {
-        bcos::evm::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
+        executor::GlobalHashImpl::g_hashImpl = std::make_shared<bcos::crypto::Keccak256>();
     }
 };
 

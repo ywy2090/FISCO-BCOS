@@ -1,9 +1,19 @@
 file(GLOB_RECURSE SOURCES "*.cpp")
+# Legacy HostContext/ExecuteFrame harness — pending migration to executeViaHost (Plan C C4).
+list(REMOVE_ITEM SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/CompatHostContextTest.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/TestHostContext.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/FIB88_92_ErrorHandlingTest.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Web3AccessListResolverTest.cpp"
+)
 add_executable(test-transaction-executor ${SOURCES})
 
 find_package(Boost REQUIRED serialization unit_test_framework)
 
-target_link_libraries(test-transaction-executor transaction-executor executor ledger protocol-tars bcos-framework rpc evmone::evmone Boost::unit_test_framework)
+target_link_libraries(test-transaction-executor transaction-executor executor ledger protocol-tars bcos-framework rpc evmone::evmone bcos-evm Boost::unit_test_framework)
+target_include_directories(test-transaction-executor PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
+)
 # Ensure libexecutor.a is fully archived before linking (UNITY_BUILD static lib).
 add_dependencies(test-transaction-executor executor)
 set_source_files_properties("main.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
@@ -15,6 +25,7 @@ set_source_files_properties("Web3AccessListResolverTest.cpp" PROPERTIES SKIP_UNI
 set_source_files_properties("EthTxGasSettlementExecutorTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("Modexp7823TeTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("ExecuteViaHostCompatTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("CompatExecuteViaHostTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_target_properties(test-transaction-executor PROPERTIES UNITY_BUILD "ON")
 # add_test(NAME test-transaction-executor WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} COMMAND test-transaction-executor)
 config_test_cases("" "${SOURCES}" "test-transaction-executor" "" "")

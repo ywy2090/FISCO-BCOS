@@ -10,6 +10,15 @@ set(SYNC_PROTO_GENERATE_DIR ${SYNC_PROTO_GENERATE_BASE_DIR}/${SYNC_PROTO_SUB_DIR
 include(GenerateSources)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${MESSAGES_PROTOS} ${PROTO_PATH} "sync/protocol/proto" ${SYNC_PROTO_GENERATE_BASE_DIR} ${SYNC_PROTO_GENERATE_DIR})
 
+# UNITY_BUILD records absolute paths in unity_*.cxx; on case-insensitive macOS a
+# CMAKE_BINARY_DIR of .../BUILD vs on-disk .../build triggers -Wnonportable-include-path.
+set(_proto_srcs_rel "")
+foreach(_src IN LISTS PROTO_SRCS)
+    file(RELATIVE_PATH _rel "${CMAKE_CURRENT_BINARY_DIR}" "${_src}")
+    list(APPEND _proto_srcs_rel "${_rel}")
+endforeach()
+set(PROTO_SRCS ${_proto_srcs_rel})
+
 aux_source_directory(./txpool SRC_LIST)
 include_directories(./txpool)
 aux_source_directory(./txpool/storage SRC_LIST)

@@ -35,6 +35,7 @@
 #include <bcos-utilities/Common.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <bcos-utilities/FixedBytes.h>
+#include <optional>
 
 namespace bcostars::protocol
 {
@@ -65,6 +66,12 @@ public:
     bcos::protocol::BlockNumber blockNumber() const override;
     std::string_view effectiveGasPrice() const override;
     void setEffectiveGasPrice(std::string effectiveGasPrice) override;
+    std::optional<std::string> l1Fee() const override;
+    void setL1Fee(std::string l1Fee) override;
+    std::optional<std::string> operatorFee() const override;
+    void setOperatorFee(std::string operatorFee) override;
+    std::optional<std::string> depositNonce() const override;
+    void setDepositNonce(std::string depositNonce) override;
 
     std::string_view cumulativeGasUsed() const override;
     void setCumulativeGasUsed(std::string cumulativeGasUsed) override;
@@ -90,5 +97,12 @@ public:
 private:
     std::function<bcostars::TransactionReceipt*()> m_inner;
     mutable std::vector<bcos::protocol::LogEntry> m_logEntries;
+    std::optional<std::string> m_l1Fee;
+    std::optional<std::string> m_operatorFee;
+    std::optional<std::string> m_depositNonce;
 };
+
+static_assert(sizeof(TransactionReceiptImpl) <= 176,
+    "TransactionReceiptImpl exceeds AnyTransactionReceipt buffer (176 bytes); "
+    "update the size constant in bcos-framework/protocol/TransactionReceipt.h");
 }  // namespace bcostars::protocol

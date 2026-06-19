@@ -1,7 +1,7 @@
 # Task 6 Report — Imported State Fixtures Batch 3 (T-09)
 
 **Status:** Done  
-**Commit:** _(pending)_  
+**Commit:** `623e1fa78`  
 **Message:** `test(eth): add imported state fixtures batch 3 and complete fixture corpus`
 
 ## Summary

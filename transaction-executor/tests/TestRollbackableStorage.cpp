@@ -10,6 +10,7 @@
 using namespace bcos;
 using namespace bcos::storage2;
 using namespace bcos::executor_v1;
+using namespace bcos::evm;
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
