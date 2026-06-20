@@ -18,6 +18,7 @@
 
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/execution/warmTransactionEntry.h"
+#include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
@@ -72,31 +73,6 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
     return context;
 }
 
-bool isBuiltinPrecompileAddress(const evmc_address& address) noexcept
-{
-    bool lowerBytesZero = true;
-    for (size_t i = 0; i < 18; ++i)
-    {
-        if (address.bytes[i] != 0)
-        {
-            lowerBytesZero = false;
-            break;
-        }
-    }
-    if (!lowerBytesZero)
-    {
-        return false;
-    }
-
-    auto const high = address.bytes[18];
-    auto const low = address.bytes[19];
-    if (high == 0x00 && low >= 0x01 && low <= 0x11)
-    {
-        return true;
-    }
-    return high == 0x01 && low == 0x00;
-}
-
 evmc::Result makeSuccessResult(int64_t gasLeft)
 {
     evmc_result result{};
@@ -142,9 +118,8 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
 
     auto txContext = buildTxContext(input.blockInfo, input.message);
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);
-    state::EthHost host(state, txContext, input.revisionConfig.revision, *input.vm,
-        input.blockHashes, input.extension, input.fixStorageStatus,
-        input.revisionConfig.warm_access);
+    state::EthHost host(state, txContext, input.revisionConfig, *input.vm, input.blockHashes,
+        input.extension, input.fixStorageStatus);
     if (!isCreateKind(input.message.kind))
     {
         host.set_execution_address(resolveCodeAddress(input.message));
@@ -180,7 +155,8 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
             }
         }
         code = state.get_code(codeAddress);
-        if (code.empty() && isBuiltinPrecompileAddress(codeAddress))
+        if (code.empty() && precompiled::isActivePrecompile(
+                                input.revisionConfig.revision, input.revisionConfig, codeAddress))
         {
             if (auto precompiled = state::EthPrecompiles::tryDispatchInCall(
                     codeAddress, input.message, input.revisionConfig.revision))

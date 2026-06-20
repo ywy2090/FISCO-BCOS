@@ -75,7 +75,8 @@ BOOST_AUTO_TEST_CASE(blockhash_opcode_returns_lambda_hash)
     };
 
     evmc::VM vm{evmc_create_evmone()};
-    EthHost host(state, txContext, EVMC_CANCUN, vm, blockHashes, nullptr, false);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+    EthHost host(state, txContext, cfg, vm, blockHashes, nullptr, false);
 
     evmc_bytes32 expected{};
     expected.bytes[31] = 0xab;

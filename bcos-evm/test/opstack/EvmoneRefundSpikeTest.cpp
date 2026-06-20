@@ -135,7 +135,8 @@ RunOutcome runSstoreClear(bool prefillNonZero)
     txContext.block_gas_limit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
-    state::EthHost host(state, txContext, EVMC_PRAGUE, vm, emptyBlockHashes(), nullptr, true);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
+    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, true);
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;

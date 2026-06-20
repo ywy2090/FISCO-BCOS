@@ -196,7 +196,8 @@ BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_ru
 
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     evmc::VM vm{evmc_create_evmone()};
-    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+    state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};
     createMsg.kind = EVMC_CREATE;
@@ -226,7 +227,8 @@ BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)
 
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     evmc::VM vm{evmc_create_evmone()};
-    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+    state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};
     createMsg.kind = EVMC_CREATE;
@@ -263,7 +265,8 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc::VM vm{evmc_create_evmone()};
-    state::EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), &extension);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+    state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};
     createMsg.kind = EVMC_CREATE;

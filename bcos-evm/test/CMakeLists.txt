@@ -980,3 +980,19 @@ target_compile_definitions(Eip2537KernelTest PRIVATE
     ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
 target_link_libraries(Eip2537KernelTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip2537Kernel COMMAND Eip2537KernelTest)
+
+add_executable(EipPrecompileRevisionGateTest eth/EipPrecompileRevisionGateTest.cpp)
+target_include_directories(EipPrecompileRevisionGateTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_compile_definitions(EipPrecompileRevisionGateTest PRIVATE
+    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
+target_link_libraries(EipPrecompileRevisionGateTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME EipPrecompileRevisionGate COMMAND EipPrecompileRevisionGateTest)
+
+add_executable(BcosPrecompileRevisionGateTest bcos/BcosPrecompileRevisionGateTest.cpp)
+target_include_directories(BcosPrecompileRevisionGateTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_compile_definitions(BcosPrecompileRevisionGateTest PRIVATE
+    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
+target_link_libraries(BcosPrecompileRevisionGateTest PRIVATE bcos-evm bcos-task evmone::evmone)
+add_test(NAME BcosPrecompileRevisionGate COMMAND BcosPrecompileRevisionGateTest)

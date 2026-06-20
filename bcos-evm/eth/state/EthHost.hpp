@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/policy/HostExtension.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -38,9 +39,9 @@ public:
     using uint256be = evmc::uint256be;
     using Result = evmc::Result;
 
-    EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
-        BlockHashes blockHashes, HostExtension* extension = nullptr, bool fixStorageStatus = true,
-        bool warmAccess = true);
+    EthHost(State& state, evmc_tx_context txContext,
+        bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
+        HostExtension* extension = nullptr, bool fixStorageStatus = true);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -78,7 +79,7 @@ private:
 
 private:
     static bool isCreateKind(evmc_call_kind kind) noexcept;
-    static bool isBuiltinPrecompileAddress(const evmc_address& address) noexcept;
+    bool isActivePrecompileAddress(const evmc_address& address) const noexcept;
     static evmc::Result makeResult(
         evmc_status_code status, int64_t gasLeft, const bcos::bytes& output = {});
     static evmc_storage_status classifyStorageStatus(
@@ -92,7 +93,7 @@ private:
 private:
     State& m_state;
     evmc_tx_context m_txContext{};
-    evmc_revision m_revision{EVMC_CANCUN};
+    bcos::evm_standard::RevisionConfig m_revisionConfig{};
     evmc::VM& m_vm;
     BlockHashes m_blockHashes;
     HostExtension* m_extension{nullptr};
@@ -100,7 +101,6 @@ private:
         WarmStorageKeyEqual>
         m_storageOriginalValues;
     bool m_fixStorageStatus{true};
-    bool m_warmAccess{true};
     std::vector<LogEntry> m_logs;
     evmc_address m_executionAddress{};
 };

@@ -18,6 +18,7 @@
 
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
@@ -65,16 +66,16 @@ void applySstoreRefundEip3529(
 }
 }  // namespace
 
-EthHost::EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
-    BlockHashes blockHashes, HostExtension* extension, bool fixStorageStatus, bool warmAccess)
+EthHost::EthHost(State& state, evmc_tx_context txContext,
+    bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
+    HostExtension* extension, bool fixStorageStatus)
   : m_state(state),
     m_txContext(txContext),
-    m_revision(revision),
+    m_revisionConfig(revisionConfig),
     m_vm(vm),
     m_blockHashes(std::move(blockHashes)),
     m_extension(extension),
-    m_fixStorageStatus(fixStorageStatus),
-    m_warmAccess(warmAccess)
+    m_fixStorageStatus(fixStorageStatus)
 {}
 
 bool EthHost::account_exists(const address& addr) const noexcept
@@ -174,7 +175,8 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 
     if (m_extension != nullptr)
     {
-        if (auto precompiled = m_extension->tryChainPrecompile(m_revision, callMessage))
+        if (auto precompiled =
+                m_extension->tryChainPrecompile(m_revisionConfig.revision, callMessage))
         {
             return Result(*precompiled);
         }
@@ -188,8 +190,8 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 
     if (routed.hasPrecompileTarget)
     {
-        if (auto precompiled =
-                EthPrecompiles::tryDispatchInCall(routed.precompileTarget, callMessage, m_revision))
+        if (auto precompiled = EthPrecompiles::tryDispatchInCall(
+                routed.precompileTarget, callMessage, m_revisionConfig.revision))
         {
             return std::move(*precompiled);
         }
@@ -198,7 +200,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     if (m_extension != nullptr)
     {
         m_extension->setCallerAddress(callerAddress);
-        m_extension->prepareMessage(m_revision, callMessage);
+        m_extension->prepareMessage(m_revisionConfig.revision, callMessage);
     }
 
     if (!transferValue(callMessage))
@@ -221,7 +223,8 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 
     auto code = resolveExecutionCode(callMessage);
     m_state.checkpoint();
-    auto result = m_vm.execute(*this, m_revision, callMessage, code.data(), code.size());
+    auto result =
+        m_vm.execute(*this, m_revisionConfig.revision, callMessage, code.data(), code.size());
     if (result.status_code == EVMC_SUCCESS)
     {
         installCreatedContractCode(m_state, callMessage, result.raw());
@@ -309,7 +312,7 @@ void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_siz
 
 evmc_access_status EthHost::access_account(const address& addr) noexcept
 {
-    if (!m_warmAccess)
+    if (!m_revisionConfig.warm_access)
     {
         return EVMC_ACCESS_COLD;
     }
@@ -318,7 +321,7 @@ evmc_access_status EthHost::access_account(const address& addr) noexcept
 
 evmc_access_status EthHost::access_storage(const address& addr, const bytes32& key) noexcept
 {
-    if (!m_warmAccess)
+    if (!m_revisionConfig.warm_access)
     {
         return EVMC_ACCESS_COLD;
     }
@@ -357,29 +360,9 @@ bool EthHost::isCreateKind(evmc_call_kind kind) noexcept
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
 }
 
-bool EthHost::isBuiltinPrecompileAddress(const evmc_address& address) noexcept
+bool EthHost::isActivePrecompileAddress(const evmc_address& address) const noexcept
 {
-    bool lowerBytesZero = true;
-    for (size_t i = 0; i < 18; ++i)
-    {
-        if (address.bytes[i] != 0)
-        {
-            lowerBytesZero = false;
-            break;
-        }
-    }
-    if (!lowerBytesZero)
-    {
-        return false;
-    }
-
-    auto const high = address.bytes[18];
-    auto const low = address.bytes[19];
-    if (high == 0x00 && low >= 0x01 && low <= 0x11)
-    {
-        return true;
-    }
-    return high == 0x01 && low == 0x00;
+    return precompiled::isActivePrecompile(m_revisionConfig.revision, m_revisionConfig, address);
 }
 
 evmc::Result EthHost::makeResult(
@@ -433,7 +416,7 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         if (!isZeroAddress(routed.message.recipient))
         {
             routed.message.code_address = routed.message.recipient;
-            if (m_warmAccess)
+            if (m_revisionConfig.warm_access)
             {
                 m_state.pin_warm_create_address(routed.message.code_address);
             }
@@ -441,7 +424,7 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         else if (!isZeroAddress(routed.message.code_address))
         {
             routed.message.recipient = routed.message.code_address;
-            if (m_warmAccess)
+            if (m_revisionConfig.warm_access)
             {
                 m_state.pin_warm_create_address(routed.message.code_address);
             }
@@ -459,7 +442,7 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         }
     }
     auto const code = m_state.get_code(target);
-    if (!isZeroAddress(target) && isBuiltinPrecompileAddress(target) && code.empty())
+    if (!isZeroAddress(target) && isActivePrecompileAddress(target) && code.empty())
     {
         routed.precompileTarget = target;
         routed.hasPrecompileTarget = true;

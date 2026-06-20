@@ -69,7 +69,8 @@ BOOST_AUTO_TEST_CASE(runner_call_callee_returns_0x42)
     txContext.block_gas_limit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
-    EthHost host(state, txContext, EVMC_PRAGUE, vm, emptyBlockHashes(), nullptr, false);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;

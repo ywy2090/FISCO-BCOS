@@ -77,7 +77,8 @@ BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
 
             State state(view);
             evmc::VM vm{evmc_create_evmone()};
-            EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), nullptr,
+            bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+            EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr,
                 testCase.fixStorageStatus);
 
             auto const newValue = testCase.newIsZero ? zero : nonZero;
@@ -104,7 +105,8 @@ BOOST_AUTO_TEST_CASE(fix_on_uses_original_committed_value_for_status)
 
     State state(view);
     evmc::VM vm{evmc_create_evmone()};
-    EthHost host(state, evmc_tx_context{}, EVMC_CANCUN, vm, emptyBlockHashes(), nullptr, true);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+    EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr, true);
 
     auto const firstStatus = host.set_storage(target, key, firstNonZero);
     auto const secondStatus = host.set_storage(target, key, secondNonZero);

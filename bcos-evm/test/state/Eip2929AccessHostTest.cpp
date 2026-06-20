@@ -45,7 +45,8 @@ BOOST_AUTO_TEST_CASE(access_account_cold_then_warm)
     State state(view);
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
-    EthHost host(state, txContext, EVMC_PRAGUE, vm, emptyBlockHashes(), nullptr, false);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
     auto const addr = addressFromByte(0x11);
 
     BOOST_CHECK_EQUAL(host.access_account(addr), EVMC_ACCESS_COLD);
@@ -58,7 +59,8 @@ BOOST_AUTO_TEST_CASE(access_storage_cold_then_warm)
     State state(view);
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
-    EthHost host(state, txContext, EVMC_PRAGUE, vm, emptyBlockHashes(), nullptr, false);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
     auto const addr = addressFromByte(0x77);
     auto const key = bytes32FromByte(0x88);
 
@@ -73,7 +75,8 @@ BOOST_AUTO_TEST_CASE(journal_revert_rolls_back_child_warm_address)
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
     BlockHashes blockHashes = emptyBlockHashes();
-    EthHost host(state, txContext, EVMC_PRAGUE, vm, blockHashes, nullptr, false);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
+    EthHost host(state, txContext, cfg, vm, blockHashes, nullptr, false);
 
     auto const parentWarm = addressFromByte(0x75);
     auto const childCold = addressFromByte(0x74);
@@ -95,7 +98,8 @@ BOOST_AUTO_TEST_CASE(access_account_disabled_when_warm_access_off)
     State state(view);
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
-    EthHost host(state, txContext, EVMC_PRAGUE, vm, emptyBlockHashes(), nullptr, false, false);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = false};
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
     auto const addr = addressFromByte(0x22);
 
     BOOST_CHECK_EQUAL(host.access_account(addr), EVMC_ACCESS_COLD);
