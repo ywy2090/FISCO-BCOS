@@ -205,6 +205,7 @@ public:
 
             bcos::evm::prepareTransaction(*m_state, tx, blockInfo(),
                 bcos::evm::FiscoTransactionPrepareInput{.revision = m_revisionConfig.eth().revision,
+                    .warmAccess = m_revisionConfig.eth().warm_access,
                     .properties = props,
                     .accessList = listPtr,
                     .web3TypedTxKind = m_web3Kind,
@@ -259,8 +260,9 @@ public:
                 evmc_tx_context ctx{};
                 ctx.tx_origin = m_message.sender;
                 bool const fixStorageStatus = m_revisionConfig.fix_storage_status;
+                bool const warmAccess = m_revisionConfig.eth().warm_access;
                 m_host.emplace(*m_state, ctx, m_revisionConfig.eth().revision, m_fixture.evm(),
-                    bcos::evm::state::BlockHashes{}, nullptr, fixStorageStatus);
+                    bcos::evm::state::BlockHashes{}, nullptr, fixStorageStatus, warmAccess);
             }
             return *m_host;
         }

@@ -34,7 +34,7 @@ inline bool eip2929Enabled(evmc_revision revision, ledger::Features const& featu
     return revision >= EVMC_BERLIN && features.get(ledger::Features::Flag::feature_evm_eip2929);
 }
 
-/// True when warm access semantics apply in RevisionConfig (executeViaHost / FiscoPolicy path).
+/// True when warm access semantics apply in RevisionConfig (executeViaHost / bcos-evm kernel).
 inline bool eip2929Enabled(const bcos::evm_standard::RevisionConfig& rev) noexcept
 {
     return rev.warm_access;

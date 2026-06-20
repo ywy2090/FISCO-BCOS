@@ -120,16 +120,21 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
         ExpectedRevisionConfig expected;
     };
     std::vector<Row> const rows = {
-        {[&](ledger::Features& f) { f.set(Flag::feature_evm_cancun); }, {.revision = EVMC_CANCUN,
-                                                                            .warm_access = true,
-                                                                            .eip1153 = true,
-                                                                            .eip4844 = true,
-                                                                            .eip5656 = true,
-                                                                            .eip6780 = true,
-                                                                            .eip1559 = true}},
+        {[&](ledger::Features& f) {
+             f.set(Flag::feature_evm_cancun);
+             f.set(Flag::feature_evm_eip2929);
+         },
+            {.revision = EVMC_CANCUN,
+                .warm_access = true,
+                .eip1153 = true,
+                .eip4844 = true,
+                .eip5656 = true,
+                .eip6780 = true,
+                .eip1559 = true}},
         {[&](ledger::Features& f) {
              f.set(Flag::feature_evm_cancun);
              f.set(Flag::feature_evm_prague);
+             f.set(Flag::feature_evm_eip2929);
          },
             {.revision = EVMC_PRAGUE,
                 .warm_access = true,
@@ -146,6 +151,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
              f.set(Flag::feature_evm_cancun);
              f.set(Flag::feature_evm_prague);
              f.set(Flag::feature_evm_osaka);
+             f.set(Flag::feature_evm_eip2929);
          },
             {.revision = EVMC_OSAKA,
                 .warm_access = true,
@@ -161,7 +167,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip7702 = true,
                 .calldata_floor_per_token = 10}},
         {[&](ledger::Features& /*unused*/) {}, {.revision = EVMC_CANCUN,
-                                                   .warm_access = true,
+                                                   .warm_access = false,
                                                    .eip1153 = true,
                                                    .eip4844 = true,
                                                    .eip5656 = true,

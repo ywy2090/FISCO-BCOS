@@ -39,7 +39,8 @@ public:
     using Result = evmc::Result;
 
     EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
-        BlockHashes blockHashes, HostExtension* extension = nullptr, bool fixStorageStatus = true);
+        BlockHashes blockHashes, HostExtension* extension = nullptr, bool fixStorageStatus = true,
+        bool warmAccess = true);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -99,6 +100,7 @@ private:
         WarmStorageKeyEqual>
         m_storageOriginalValues;
     bool m_fixStorageStatus{true};
+    bool m_warmAccess{true};
     std::vector<LogEntry> m_logs;
     evmc_address m_executionAddress{};
 };

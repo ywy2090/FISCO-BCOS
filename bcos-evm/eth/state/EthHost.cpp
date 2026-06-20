@@ -66,14 +66,15 @@ void applySstoreRefundEip3529(
 }  // namespace
 
 EthHost::EthHost(State& state, evmc_tx_context txContext, evmc_revision revision, evmc::VM& vm,
-    BlockHashes blockHashes, HostExtension* extension, bool fixStorageStatus)
+    BlockHashes blockHashes, HostExtension* extension, bool fixStorageStatus, bool warmAccess)
   : m_state(state),
     m_txContext(txContext),
     m_revision(revision),
     m_vm(vm),
     m_blockHashes(std::move(blockHashes)),
     m_extension(extension),
-    m_fixStorageStatus(fixStorageStatus)
+    m_fixStorageStatus(fixStorageStatus),
+    m_warmAccess(warmAccess)
 {}
 
 bool EthHost::account_exists(const address& addr) const noexcept
@@ -308,11 +309,19 @@ void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_siz
 
 evmc_access_status EthHost::access_account(const address& addr) noexcept
 {
+    if (!m_warmAccess)
+    {
+        return EVMC_ACCESS_COLD;
+    }
     return m_state.warm_up_address(addr) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
 }
 
 evmc_access_status EthHost::access_storage(const address& addr, const bytes32& key) noexcept
 {
+    if (!m_warmAccess)
+    {
+        return EVMC_ACCESS_COLD;
+    }
     return m_state.warm_up_storage(addr, key) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
 }
 
@@ -424,12 +433,18 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         if (!isZeroAddress(routed.message.recipient))
         {
             routed.message.code_address = routed.message.recipient;
-            m_state.pin_warm_create_address(routed.message.code_address);
+            if (m_warmAccess)
+            {
+                m_state.pin_warm_create_address(routed.message.code_address);
+            }
         }
         else if (!isZeroAddress(routed.message.code_address))
         {
             routed.message.recipient = routed.message.code_address;
-            m_state.pin_warm_create_address(routed.message.code_address);
+            if (m_warmAccess)
+            {
+                m_state.pin_warm_create_address(routed.message.code_address);
+            }
         }
     }
 

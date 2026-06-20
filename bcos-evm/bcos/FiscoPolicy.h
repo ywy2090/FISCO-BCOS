@@ -54,7 +54,8 @@ public:
 
         ethCfg.revision = std::max(toFiscoRevision(m_features, header.version()), EVMC_CANCUN);
 
-        ethCfg.warm_access = ethCfg.revision >= EVMC_BERLIN;
+        ethCfg.warm_access =
+            ethCfg.revision >= EVMC_BERLIN && m_features.get(Flag::feature_evm_eip2929);
         ethCfg.eip1153 = ethCfg.revision >= EVMC_CANCUN;
         ethCfg.eip4844 = ethCfg.revision >= EVMC_CANCUN;
         ethCfg.eip5656 = ethCfg.revision >= EVMC_CANCUN;

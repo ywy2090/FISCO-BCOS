@@ -33,6 +33,7 @@ namespace bcos::evm
 struct FiscoTransactionPrepareInput
 {
     evmc_revision revision{EVMC_CANCUN};
+    bool warmAccess{true};
     state::TransactionProperties properties{};
     const Eip2930AccessList* accessList{nullptr};
     uint8_t web3TypedTxKind{0};
@@ -43,7 +44,7 @@ inline void prepareTransaction(state::State& state, const state::Transaction& tr
     const state::BlockInfo& blockInfo, const FiscoTransactionPrepareInput& input = {})
 {
     execution::warmTransactionEntry(state, input.revision, transaction, blockInfo, input.properties,
-        input.accessList, input.web3TypedTxKind, input.createCodeAddress);
+        input.warmAccess, input.accessList, input.web3TypedTxKind, input.createCodeAddress);
 }
 
 }  // namespace bcos::evm

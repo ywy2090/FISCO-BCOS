@@ -137,12 +137,14 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         createCodeAddress = input.message.code_address;
     }
     execution::warmTransactionEntry(state, input.revisionConfig.revision, transaction,
-        input.blockInfo, input.txProps, input.accessList, input.web3TypedTxKind, createCodeAddress);
+        input.blockInfo, input.txProps, input.revisionConfig.warm_access, input.accessList,
+        input.web3TypedTxKind, createCodeAddress);
 
     auto txContext = buildTxContext(input.blockInfo, input.message);
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);
     state::EthHost host(state, txContext, input.revisionConfig.revision, *input.vm,
-        input.blockHashes, input.extension, input.fixStorageStatus);
+        input.blockHashes, input.extension, input.fixStorageStatus,
+        input.revisionConfig.warm_access);
     if (!isCreateKind(input.message.kind))
     {
         host.set_execution_address(resolveCodeAddress(input.message));
@@ -172,7 +174,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
             !input.authorizations.empty())
         {
             applyAuthorizations(state, input.authorizations, input.blockInfo.chainId);
-            if (!state::isZeroAddress(codeAddress))
+            if (input.revisionConfig.warm_access && !state::isZeroAddress(codeAddress))
             {
                 warmDelegationTarget(state, codeAddress);
             }

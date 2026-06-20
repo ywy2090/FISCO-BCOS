@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_warmset_access_account)
     no2929.set(bcos::ledger::Features::Flag::feature_evm_cancun);
     auto host2 = makeHost(no2929);
     BOOST_CHECK_EQUAL(host2.accessAccount(addr), EVMC_ACCESS_COLD);
-    BOOST_CHECK_EQUAL(host2.accessAccount(addr), EVMC_ACCESS_WARM);
+    BOOST_CHECK_EQUAL(host2.accessAccount(addr), EVMC_ACCESS_COLD);
 }
 
 BOOST_AUTO_TEST_CASE(TE_FC_A_warmset_cold_warm_gas_extcodesize)
@@ -267,7 +267,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_warmset_flag_off_never_mutates_warm_set)
     addr.bytes[19] = 0x42;
     BOOST_CHECK(!access->containsAddress(addr));
     BOOST_CHECK_EQUAL(host.accessAccount(addr), EVMC_ACCESS_COLD);
-    BOOST_CHECK_EQUAL(host.accessAccount(addr), EVMC_ACCESS_WARM);
+    BOOST_CHECK_EQUAL(host.accessAccount(addr), EVMC_ACCESS_COLD);
     BOOST_CHECK(access->containsAddress(addr) == false);
 }
 
@@ -551,8 +551,8 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_warmset_initial_warm_feature_off_prepare_noop)
 
     evmc_address pre1{};
     pre1.bytes[19] = 0x01;
-    BOOST_CHECK_EQUAL(host.accessAccount(origin), EVMC_ACCESS_WARM);
-    BOOST_CHECK_EQUAL(host.accessAccount(pre1), EVMC_ACCESS_WARM);
+    BOOST_CHECK_EQUAL(host.accessAccount(origin), EVMC_ACCESS_COLD);
+    BOOST_CHECK_EQUAL(host.accessAccount(pre1), EVMC_ACCESS_COLD);
 }
 
 BOOST_AUTO_TEST_CASE(TE_FC_A_eip2930_prepare_warms_account_and_storage)

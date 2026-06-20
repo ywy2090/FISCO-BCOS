@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
     auto const block = execution::BlockInfoBuilder().coinbase(coinbase).build();
 
     TransactionProperties props;
-    execution::warmTransactionEntry(state, EVMC_SHANGHAI, tx, block, props);
+    execution::warmTransactionEntry(state, EVMC_SHANGHAI, tx, block, props, true);
 
     BOOST_CHECK(state.is_address_warm(tx.from));
     BOOST_REQUIRE(tx.to.has_value());
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
 
     TransactionProperties props;
     execution::warmTransactionEntry(
-        state, EVMC_SHANGHAI, tx, block, props, &accessList, /*web3TypedTxKind=*/1);
+        state, EVMC_SHANGHAI, tx, block, props, true, &accessList, /*web3TypedTxKind=*/1);
 
     auto const evmcAccessAddress = evmcAddressFromLastByte(0x21);
     BOOST_CHECK(state.is_address_warm(evmcAccessAddress));

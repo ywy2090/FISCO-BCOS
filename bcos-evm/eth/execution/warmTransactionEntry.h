@@ -48,9 +48,15 @@ inline evmc_bytes32 toEvmcBytes32(const h256& value)
 
 inline void warmTransactionEntry(state::State& state, evmc_revision rev,
     const state::Transaction& tx, const state::BlockInfo& block,
-    const state::TransactionProperties& props, const Eip2930AccessList* accessList = nullptr,
-    uint8_t web3TypedTxKind = 0, std::optional<evmc_address> createCodeAddress = std::nullopt)
+    const state::TransactionProperties& props, bool warmAccess,
+    const Eip2930AccessList* accessList = nullptr, uint8_t web3TypedTxKind = 0,
+    std::optional<evmc_address> createCodeAddress = std::nullopt)
 {
+    if (!warmAccess)
+    {
+        return;
+    }
+
     (void)state.warm_up_address_no_journal(tx.from);
 
     if (props.warmDestination && tx.to.has_value())

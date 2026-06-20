@@ -14,6 +14,7 @@ ledger::Features makeFeatures()
     f.set(Flag::feature_evm_cancun);
     f.set(Flag::feature_evm_prague);
     f.set(Flag::feature_evm_osaka);
+    f.set(Flag::feature_evm_eip2929);
     f.set(Flag::bugfix_v1_error_handling);
     f.set(Flag::bugfix_delegatecall_transfer);
     f.set(Flag::bugfix_auth_check);
@@ -72,7 +73,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOff)
     auto rev = policy.computeRevisionConfig(header);
     auto const& ethRev = rev.eth();
 
-    BOOST_CHECK(ethRev.warm_access);
+    BOOST_CHECK(!ethRev.warm_access);
     BOOST_CHECK(ethRev.eip1153);
     BOOST_CHECK(ethRev.eip4844);
     BOOST_CHECK(ethRev.eip5656);

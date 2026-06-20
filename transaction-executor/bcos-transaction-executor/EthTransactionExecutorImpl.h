@@ -147,6 +147,7 @@ public:
                 props.warmDestination = !isCreateKind(msg.kind);
                 execution::warmTransactionEntry(state,
                     m_data->m_executionContext.revisionConfig.revision, tx, blockInfo, props,
+                    m_data->m_executionContext.revisionConfig.warm_access,
                     m_data->m_web3AccessListResolved.accessList.get(),
                     m_data->m_web3AccessListResolved.web3TypedTxKind);
             }

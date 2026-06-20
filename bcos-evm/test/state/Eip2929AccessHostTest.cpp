@@ -89,5 +89,19 @@ BOOST_AUTO_TEST_CASE(journal_revert_rolls_back_child_warm_address)
     BOOST_CHECK(!state.is_address_warm(parentWarm));
 }
 
+BOOST_AUTO_TEST_CASE(access_account_disabled_when_warm_access_off)
+{
+    InMemoryStateView view;
+    State state(view);
+    evmc_tx_context txContext{};
+    evmc::VM vm{evmc_create_evmone()};
+    EthHost host(state, txContext, EVMC_PRAGUE, vm, emptyBlockHashes(), nullptr, false, false);
+    auto const addr = addressFromByte(0x22);
+
+    BOOST_CHECK_EQUAL(host.access_account(addr), EVMC_ACCESS_COLD);
+    BOOST_CHECK_EQUAL(host.access_account(addr), EVMC_ACCESS_COLD);
+    BOOST_CHECK(!state.is_address_warm(addr));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace bcos::evm::state::test
