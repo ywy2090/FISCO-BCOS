@@ -7,6 +7,7 @@
 
 #include "../../bcos-executor/test/unittest/evmone/compat/CompatTestFixture.h"
 #include "ExecuteViaHostEip2929Harness.h"
+#include "SelfdestructCompatBytecode.h"
 #include "bcos-evm/bcos/FiscoHostExtension.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/PrecompiledManager.h"
@@ -17,6 +18,7 @@
 #include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-task/Wait.h>
+#include <boost/algorithm/hex.hpp>
 #include <boost/test/unit_test.hpp>
 
 namespace bcos::test
@@ -230,6 +232,43 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_S_bls_without_prague_via_execute_via_host)
         BOOST_TEST_MESSAGE(
             "Fisco gate: executeViaHost dispatches BLS via EthPrecompiles when code is empty; "
             "PrecompiledManager gate applies only to >=0x1000 tryChainPrecompile path.");
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(TE_FC_E_SD_same_tx_create_destroy_eth_reference)
+{
+    namespace sd = bcos::evm::test::selfdestruct_compat;
+
+    Eip2929ExecuteViaHostFixture fixture;
+    auto features = CompatFeatureProfile::pragueEnabled();
+    fixture.ledgerConfig.setFeatures(features);
+    auto const pragueRev =
+        revisionConfigFrom(features, static_cast<uint32_t>(protocol::BlockVersion::MAX_VERSION));
+
+    evmc_address sender{};
+    sender.bytes[19] = 0x01;
+    fixture.fund(sender, bcos::u256(0x1000000));
+
+    bytes initCode;
+    boost::algorithm::unhex(sd::kSelfdestructInitCode, std::back_inserter(initCode));
+
+    Eip2929ExecuteViaHostFixture::CompatHostShim shim(
+        fixture, pragueRev, sender, evmc_address{}, EVMC_CREATE, nullptr, 0, 2'000'000);
+    shim.mutableMessage().input_data = initCode.data();
+    shim.mutableMessage().input_size = initCode.size();
+
+    task::syncWait([&]() -> task::Task<void> {
+        co_await shim.prepare();
+        auto const created = shim.mutableMessage().recipient;
+        auto result = co_await shim.execute();
+
+        BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
+
+        auto const post = fixture.stateView.get_account(created);
+        bool const destroyed = !post.has_value() || post->code.empty();
+        BOOST_CHECK_MESSAGE(destroyed,
+            "SD-C Eth reference: same-tx CREATE+init SELFDESTRUCT should destroy contract "
+            "(EIP-6780 exception); FISCO path retains code via allowSelfdestruct=false.");
     }());
 }
 
