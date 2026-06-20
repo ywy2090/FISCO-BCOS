@@ -177,7 +177,7 @@ flowchart LR
 | ID | 任务 | 当前状态 | 涉及文件 |
 |----|------|----------|----------|
 | T-16 | 修复 `EthTxGasSettlementExecutor` 失败用例 | ✅ 28/28（12 executor + 16 unit）全绿 | `EthTxGasSettlementExecutorTest.cpp`, `EthTxGasSettlementTest.cpp` |
-| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ Phase A 50 + Phase B 29 + Phase C 21 + Phase D 2（TransactionExecutorImpl executive smoke）；bcos-executor executive 级余量待续 | `transaction-executor/tests/CompatExecuteViaHost*.cpp`, `CompatTransactionExecutorPhaseDTest.cpp` |
+| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ Phase A 50 + Phase B 29 + Phase C 21 + Phase D 2 + Phase E 8（routing/revision/gate/SELFDESTRUCT）；bcos-executor executive 级余量待续 | `transaction-executor/tests/CompatExecuteViaHost*.cpp`, `CompatTransactionExecutorPhase*Test.cpp` |
 | T-18 | 新增 `OpStackTransactionExecutorImpl` compat 测试 | ✅ Phase 1+2 executor smoke 7/7（L1 fee / insufficient / revert / deposit mint + deposit fee skip / deposit failure mint / hard failure receipt meta） | `transaction-executor/tests/TestOpStackTransactionExecutorFixture.cpp` |
 | T-19 | 三路径 Initializer 集成测试 | 验证 `execution_path` 切换后 scheduler/engine 正常出块 | `libinitializer/` 或集成测试 |
 | T-20 | `bcos-executor` compat filtered suite | 计划全局约束，全分支回归门禁 | `bcos-executor/test/` |
@@ -263,7 +263,7 @@ flowchart TD
 
 ### P2 — 测试
 - [x] T-16 EthTxGasSettlementExecutor 失败修复（28/28 ctest 绿）
-- [x] T-17 EthTransactionExecutorImpl compat 测试（Phase A 50 + Phase B 29 + Phase C 21 + Phase D 2，含 TransactionExecutorImpl executive smoke）
+- [x] T-17 EthTransactionExecutorImpl compat 测试（Phase A–E；含 address routing / revision ladder / Fisco gate / SELFDESTRUCT executive）
 - [x] T-18 OpStackTransactionExecutorImpl compat 测试（Phase 1+2 executor smoke 7/7）
 - [ ] T-19 三路径 Initializer 集成测试
 - [ ] T-20 bcos-executor compat suite
@@ -291,4 +291,4 @@ flowchart TD
 | 2026-06-19 | 验收 T-16：`ctest -R EthTxGasSettlement` 28/28 绿（EIP-7623 floor 已在 44040952c 等提交修复） |
 | 2026-06-20 | 完成 T-21：嵌套 CREATE 执行地址跟踪 + 合约 nonce bump；`TransactionExecutorImpl` 23/23 绿 |
 | 2026-06-20 | 完成 T-17 Phase B（`CompatExecuteViaHostPhaseB` 29 cases）+ T-18 Phase 1（`OpStackTransactionExecutorFixture` 4/4 smoke） |
-| 2026-06-20 | 完成 T-17 Phase D（`CompatTransactionExecutorPhaseD` 2/2）+ T-18 Phase 2（OpStack executor 7/7，含 hard failure receipt-meta 文档桩） |
+| 2026-06-20 | 完成 T-17 Phase E（routing/revision/gate/SELFDESTRUCT 8 cases） |

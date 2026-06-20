@@ -1,5 +1,6 @@
 #pragma once
 #include <evmc/evmc.h>
+#include <cstddef>
 #include <cstdint>
 
 namespace bcos::evm_standard
@@ -30,12 +31,41 @@ struct RevisionConfig
     uint8_t calldata_floor_per_token = 10;
 };
 
+// Enumerate bool EIP/profile flags for profile tests and drift detection (design §5.6).
+#define REVISION_CONFIG_BOOL_FIELDS(X) \
+    X(warm_access)                     \
+    X(eip2537)                         \
+    X(eip7212)                         \
+    X(eip7623)                         \
+    X(eip7823)                         \
+    X(eip1153)                         \
+    X(eip4844)                         \
+    X(eip5656)                         \
+    X(eip6780)                         \
+    X(eip1559)                         \
+    X(eip3651)                         \
+    X(eip7702)                         \
+    X(prague_post_execution)
+
+inline constexpr std::size_t revisionConfigBoolFieldCount() noexcept
+{
+    std::size_t n = 0;
+#define REVISION_CONFIG_COUNT_FIELD(name) ++n;
+    REVISION_CONFIG_BOOL_FIELDS(REVISION_CONFIG_COUNT_FIELD)
+#undef REVISION_CONFIG_COUNT_FIELD
+    return n;
+}
+
+static_assert(revisionConfigBoolFieldCount() == 13,
+    "Keep REVISION_CONFIG_BOOL_FIELDS in sync with RevisionConfig bool bitfields");
+
 inline RevisionConfig makeIsthmusRevisionConfig()
 {
     RevisionConfig config;
     config.revision = EVMC_PRAGUE;
     config.eip7623 = true;
     config.eip7702 = true;
+    config.eip4844 = true;
     config.prague_post_execution = false;
     config.calldata_floor_per_token = 10;
     return config;
