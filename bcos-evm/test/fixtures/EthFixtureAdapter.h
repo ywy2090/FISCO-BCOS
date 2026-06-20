@@ -69,6 +69,8 @@ inline ExecuteViaEthInput buildExecuteViaEthInput(FixtureCase const& fixture,
     input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
     input.revisionConfig = makePragueRevisionConfig();
     input.gasPrice = fixture.tx.gasPrice;
+    input.authorizationListPresent = fixture.authorizationListPresent;
+    input.authorizations = fixture.authorizations;
 
     return input;
 }

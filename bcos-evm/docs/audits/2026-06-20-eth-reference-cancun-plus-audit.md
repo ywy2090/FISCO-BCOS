@@ -1,15 +1,18 @@
 # ETH Reference CANCUN+ EIP 合规审计报告
 
 **日期：** 2026-06-20  
-**分支/commit：** `worktree-feat-evm-refactor` @ `b91cf3c14`  
+**初审计 commit：** `b91cf3c14` → `e16b623e7`  
+**复审计 commit：** `f989f073f`（P0 修复后）  
 **geth：** v1.17.3 @ `117e067f0`  
 **Besu：** 26.6.0 @ `de8d3f0e20`  
 **范围：** `executeViaEth` → `executeMessage()` → `EthHost` / `State` / evmone；`EVMC_CANCUN`–`EVMC_OSAKA`（区块阈值 19,426,587 / 22,000,000 / 25,000,000，`EthPolicy.h`）  
 **审计清单：** `bcos-evm/docs/audits/_work/inventory.md`（22 行，含 4 条 profile-only）
 
+> **复审计（2026-06-20）：** 见 [`2026-06-20-eth-reference-cancun-plus-audit-reaudit.md`](2026-06-20-eth-reference-cancun-plus-audit-reaudit.md)。**合并判定 ⚠️ 有条件通过**（0×🔴，2×🟡：profile 文档化、fixture 断言深度）。下文 Part 0–4 保留**初审计快照**供对比。
+
 ---
 
-## Part 0 — 执行摘要
+## Part 0 — 执行摘要（初审计快照 @ `e16b623e7`）
 
 **结论：** ETH reference `executeViaEth` 路径在 CANCUN+ 分叉上**尚未达到 geth/Besu 合规基线**。Part 1 共 29 条矩阵行（inventory 22 行 + Task 1–7 展开的 kernel/orchestration 子行）；存在 **7 项 🔴 阻断**，合并判定 **❌ 不通过**。
 

@@ -1,15 +1,24 @@
 {
   "name": "stEIP7702_delegation",
-  "source": "hand-crafted/simplified from GeneralStateTests/stEIP7702/delegation (implementation code on delegatee)",
+  "source": "hand-crafted/EIP-7702 authorization apply + delegated CALL to delegatee implementation",
   "revision": "prague",
   "tx": {
     "from": "0x0000000000000000000000000000000000000001",
-    "to": "0x00000000000000000000000000000000000000bb",
-    "gas_limit": 100000,
+    "to": "0x00000000000000000000000000000000000000aa",
+    "gas_limit": 200000,
     "gas_price": "0x0",
     "value": "0x0",
     "nonce": 1,
-    "data": "0x"
+    "data": "0x",
+    "authorization_list_present": true,
+    "authorizations": [
+      {
+        "chain_id": "0x1",
+        "authority": "0x00000000000000000000000000000000000000aa",
+        "address": "0x00000000000000000000000000000000000000bb",
+        "nonce": 0
+      }
+    ]
   },
   "block": {
     "number": 1,
@@ -27,6 +36,12 @@
       "code": "0x"
     },
     {
+      "address": "0x00000000000000000000000000000000000000aa",
+      "balance": "0x0",
+      "nonce": 0,
+      "code": "0x"
+    },
+    {
       "address": "0x00000000000000000000000000000000000000bb",
       "balance": "0x0",
       "nonce": 0,
@@ -35,8 +50,15 @@
   ],
   "expected": {
     "status": "EVMC_SUCCESS",
-    "gas_used": 0,
+    "gas_used": 18,
+    "gas_used_tolerance": 0,
     "logs": 0,
-    "output": "0x000000000000000000000000000000000000000000000000000000000000002a"
+    "output": "0x000000000000000000000000000000000000000000000000000000000000002a",
+    "post": [
+      {
+        "address": "0x00000000000000000000000000000000000000aa",
+        "code_nonempty": true
+      }
+    ]
   }
 }

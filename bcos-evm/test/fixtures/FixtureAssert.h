@@ -43,7 +43,10 @@ inline void assertFixtureResult(
     {
         int64_t const actualGas = gasBefore - output.evmcResult.gas_left;
         int64_t const diff = std::abs(actualGas - fixture.expected.gasUsed);
-        BOOST_CHECK_LE(diff, fixture.expected.gasUsedTolerance);
+        BOOST_CHECK_MESSAGE(diff <= fixture.expected.gasUsedTolerance,
+            "gas mismatch actualGas=" << actualGas
+                                      << " expectedGasUsed=" << fixture.expected.gasUsed
+                                      << " tolerance=" << fixture.expected.gasUsedTolerance);
     }
 }
 

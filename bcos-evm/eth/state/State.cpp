@@ -284,7 +284,13 @@ bool State::is_storage_warm(const evmc_address& address, const evmc_bytes32& key
 StateDiff State::build_diff() const
 {
     StateDiff diff;
-    diff.accounts = m_accounts;
+    diff.accounts.reserve(m_accounts.size());
+    for (auto const& [address, account] : m_accounts)
+    {
+        Account persisted = account;
+        persisted.transientStorage.clear();
+        diff.accounts.emplace(address, std::move(persisted));
+    }
     return diff;
 }
 

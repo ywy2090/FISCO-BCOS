@@ -1,17 +1,23 @@
 {
-  "name": "prague_call_return_word",
+  "name": "stExample_return42_warmProps",
+  "source": "hand-crafted/smoke: return42 callee with tx_props warm_destination and warm_coinbase (not EIP-2930 access_list)",
   "revision": "prague",
+  "tx_props": {
+    "warm_destination": true,
+    "warm_coinbase": true
+  },
   "tx": {
     "from": "0x0000000000000000000000000000000000000001",
-    "to": "0x0000000000000000000000000000000000000033",
-    "gas_limit": 50000,
+    "to": "0x00000000000000000000000000000000000000aa",
+    "gas_limit": 100000,
     "gas_price": "0x0",
     "value": "0x0",
+    "nonce": 1,
     "data": "0x"
   },
   "block": {
-    "number": 2,
-    "timestamp": 2,
+    "number": 1,
+    "timestamp": 1,
     "gas_limit": 30000000,
     "coinbase": "0x00000000000000000000000000000000000000cb",
     "base_fee": "0x0",
@@ -25,7 +31,7 @@
       "code": "0x"
     },
     {
-      "address": "0x0000000000000000000000000000000000000033",
+      "address": "0x00000000000000000000000000000000000000aa",
       "balance": "0x0",
       "nonce": 0,
       "code": "0x602a60005260206000f3"
@@ -34,8 +40,7 @@
   "expected": {
     "status": "EVMC_SUCCESS",
     "gas_used": 18,
-    "gas_used_executor": 18,
-    "gas_used_executor_tolerance": 0,
+    "gas_used_tolerance": 0,
     "logs": 0,
     "output": "0x000000000000000000000000000000000000000000000000000000000000002a"
   }

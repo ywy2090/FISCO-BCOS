@@ -159,6 +159,12 @@ add_test(
     COMMAND ${EIP2929_ACCESS_HOST_TEST_BINARY_NAME}
 )
 
+add_executable(Eip2929OpcodeGasTest eth/Eip2929OpcodeGasTest.cpp)
+target_include_directories(Eip2929OpcodeGasTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip2929OpcodeGasTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip2929OpcodeGas COMMAND Eip2929OpcodeGasTest)
+
 set(SSTORE_STATUS_TEST_BINARY_NAME SstoreStatusTest)
 
 add_executable(${SSTORE_STATUS_TEST_BINARY_NAME}
@@ -1037,3 +1043,16 @@ target_compile_definitions(Bcos6780SelfdestructTest PRIVATE
 target_link_libraries(Bcos6780SelfdestructTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-crypto)
 add_test(NAME Bcos6780Selfdestruct COMMAND Bcos6780SelfdestructTest)
+
+add_executable(Eip7623PrecheckTest eth/Eip7623PrecheckTest.cpp)
+target_include_directories(Eip7623PrecheckTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip7623PrecheckTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-framework)
+add_test(NAME Eip7623Precheck COMMAND Eip7623PrecheckTest)
+
+add_executable(Eip1153TransientStorageTest eth/Eip1153TransientStorageTest.cpp)
+target_include_directories(Eip1153TransientStorageTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip1153TransientStorageTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip1153TransientStorage COMMAND Eip1153TransientStorageTest)

@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/execution/warmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
@@ -73,6 +74,19 @@ evmc_address resolveCodeAddress(const evmc_message& message) noexcept
         codeAddress = message.recipient;
     }
     return codeAddress;
+}
+
+bcos::bytes resolveExecutableCode(state::State& state, bcos::bytes code, bool eip7702Enabled)
+{
+    if (!eip7702Enabled || code.empty())
+    {
+        return code;
+    }
+    if (auto const delegate = parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
+    {
+        return state.get_code(*delegate);
+    }
+    return code;
 }
 
 state::Transaction toStateTransaction(const evmc_message& message)
@@ -186,6 +200,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
             }
         }
         code = state.get_code(codeAddress);
+        code = resolveExecutableCode(state, std::move(code), input.revisionConfig.eip7702);
         if (code.empty() && precompiled::isActivePrecompile(
                                 input.revisionConfig.revision, input.revisionConfig, codeAddress))
         {

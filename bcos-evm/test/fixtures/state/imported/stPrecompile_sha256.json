@@ -29,7 +29,8 @@
   ],
   "expected": {
     "status": "EVMC_SUCCESS",
-    "gas_used": 0,
+    "gas_used": 152,
+    "gas_used_tolerance": 0,
     "logs": 0,
     "output": "0x2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
   }

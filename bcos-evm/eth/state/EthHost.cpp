@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
@@ -530,7 +531,16 @@ bcos::bytes EthHost::resolveExecutionCode(const evmc_message& msg) const
         return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
     }
     auto const codeAddress = isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address;
-    return m_state.get_code(codeAddress);
+    auto code = m_state.get_code(codeAddress);
+    if (m_revisionConfig.eip7702)
+    {
+        if (auto const delegate =
+                parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
+        {
+            return m_state.get_code(*delegate);
+        }
+    }
+    return code;
 }
 
 bool EthHost::transferValue(const evmc_message& msg) noexcept

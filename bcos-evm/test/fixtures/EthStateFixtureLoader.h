@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/eth/state/transition.hpp"
@@ -67,6 +68,8 @@ struct FixtureCase
     state::Transaction tx;
     state::BlockInfo block;
     state::TransactionProperties txProps;
+    bool authorizationListPresent{false};
+    std::vector<SetCodeAuthorization> authorizations;
     std::vector<std::pair<evmc_address, state::Account>> preState;
     ExpectedResult expected;
 };
@@ -150,6 +153,23 @@ inline FixtureCase loadFixture(std::filesystem::path const& path)
     fixture.tx.value = parseU256(txTree.get<std::string>("value", "0x0"));
     fixture.tx.nonce = txTree.get<uint64_t>("nonce", 0);
     fixture.tx.data = parseBytes(txTree.get<std::string>("data", "0x"));
+    fixture.authorizationListPresent = txTree.get<bool>("authorization_list_present", false);
+    if (auto authList = txTree.get_child_optional("authorizations"); authList.has_value())
+    {
+        for (auto const& authNode : *authList)
+        {
+            auto const& authTree = authNode.second;
+            SetCodeAuthorization authorization;
+            if (auto chainId = authTree.get_optional<std::string>("chain_id"); chainId.has_value())
+            {
+                authorization.chainId = parseU256(*chainId);
+            }
+            authorization.authority = parseAddress(authTree.get<std::string>("authority"));
+            authorization.address = parseAddress(authTree.get<std::string>("address"));
+            authorization.nonce = authTree.get<uint64_t>("nonce", 0);
+            fixture.authorizations.push_back(std::move(authorization));
+        }
+    }
 
     fixture.txProps.warmCoinbase = tree.get<bool>("tx_props.warm_coinbase", true);
     fixture.txProps.warmDestination = tree.get<bool>("tx_props.warm_destination", true);

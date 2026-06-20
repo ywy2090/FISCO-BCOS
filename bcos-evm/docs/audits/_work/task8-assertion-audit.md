@@ -42,34 +42,30 @@
 
 ---
 
-## Fixture 子项审计（`ExecuteViaEthFixtureTest` 循环，21）
+## Fixture 子项审计（`ExecuteViaEthFixtureTest` 循环，16）
 
 断言体：`FixtureAssert.h` — status、output、logs；`gas_used==0` 时**跳过 gas 检查**。
 
 | Fixture | 判定 | 金标准 | 备注 |
 |---------|------|--------|------|
-| `stExample_return42.json` | ✅ | 手工 return-42 | status + output `0x2a`；`gas_used=18` 有断言 |
+| `stExample_return42.json` | ✅ | 手工 return-42 | status + output `0x2a`；`gas_used=18` |
 | `stRevert_revertBasic.json` | ✅ | revert 语义 | `gas_used=6` |
 | `stRevert_revertDepth.json` | ✅ | nested revert | `gas_used=2632` |
-| `stBLS_add.json` | ✅ | geth `blsG1Add.json[1]` | output 128B 一致；gas 未断言（0） |
-| `stCreate2_basic.json` | 🟡 | GeneralStateTests CREATE2 | 仅 `gas_used=32030`；无 created address |
-| `stCreate_initCode.json` | 🟡 | CREATE | output 32B code hash；无 post-state |
-| `stExample_gasPrice0.json` | 🟡 | smoke | return42 变体；gas 跳过 |
-| `stCall_emptyAccount.json` | 🟡 | empty account CALL | gas 跳过；无 balance 断言 |
-| `stPrecompile_sha256.json` | 🟡 | geth `sha256.json` | output 32B 有断言；gas 跳过 |
-| `stPrecompile_identity.json` | 🟡 | identity precompile | output 4B；gas 跳过 |
-| `stPrecompile_ecrecover.json` | 🟡 | geth `ecRecover.json` | `to=0x01` 但 expected output 空；未对照 JSON 向量 |
-| `stModExp_basic.json` | 🟡 | geth `modexp.json` | 106B 全零长度输入；output 空；gas 跳过 |
-| `stSelfDestruct_basic.json` | 🟡 | GeneralStateTests/stSelfDestruct | `gas_used=7603`；**无** 0xbb 余额/post-state（6780 🔴 实现缺口仍 PASS） |
-| `prague_selfdestruct.json` | 🟡 | 同上 duplicate | 与 imported 同 bytecode/gas |
-| `stEIP7702_delegation.json` | 🟡 | GeneralStateTests/stEIP7702 | **假覆盖**：plain CALL return42；无 auth list / delegation code |
-| `stEIP2930_accessList.json` | 🟡 | GeneralStateTests/stEIP2930 | **名实不符**：无 JSON access_list；仅 `tx_props` warm + return42 |
-| `prague_call_return_word.json` | 🟡 | smoke | gas 18；弱 |
-| `prague_call_revert.json` | 🟡 | smoke | gas 6 |
-| `prague_call_empty_account.json` | 🟡 | smoke | gas 跳过 |
-| `prague_create_empty_initcode.json` | 🟡 | smoke | gas 跳过 |
+| `stBLS_add.json` | ✅ | geth `blsG1Add.json[1]` | output 128B 一致；已补 gas |
+| `stCreate2_basic.json` | ✅ | GeneralStateTests CREATE2 | `gas_used` + post-state 断言均已补齐 |
+| `stCreate_initCode.json` | ✅ | CREATE | `gas_used` + post-state 断言均已补齐 |
+| `stExample_gasPrice0.json` | ✅ | smoke(return42/gasPrice=0) | `gas_used=18` 已落盘 |
+| `stCall_emptyAccount.json` | 🟡 | empty account CALL | 实测 gas 为 0；当前机制下 `gas_used=0` 仍为跳过 |
+| `stPrecompile_sha256.json` | ✅ | geth `sha256.json` | output + gas 均断言 |
+| `stPrecompile_identity.json` | ✅ | identity precompile | output + gas 均断言 |
+| `stPrecompile_ecrecover.json` | ✅ | geth `ecRecover.json` | expected output 已修正并补 gas |
+| `stModExp_basic.json` | ✅ | geth `modexp.json` | 具名向量 + output + gas |
+| `stSelfDestruct_basic.json` | ✅ | GeneralStateTests/stSelfDestruct | `gas_used=7603` + post-state（含 6780 语义） |
+| `stEIP7702_delegation.json` | ✅ | GeneralStateTests/stEIP7702 | auth + delegation E2E，含 gas |
+| `stExample_return42_warmProps.json` | 🟡 | 原 2930 smoke 重命名 | 仅 warm props smoke，非 type-1 access list E2E |
+| `prague_create_empty_initcode.json` | 🟡 | smoke | 空 initcode CREATE 状态为 `EVMC_SUCCESS`；实测 gas 为 0（仍跳过） |
 
-**Fixture 小计：** ✅ 4 | 🟡 16 | 🔴 0
+**Fixture 小计：** ✅ 13 | 🟡 3 | 🔴 0
 
 ---
 
@@ -77,11 +73,11 @@
 
 | Fixture | FB expected | geth/Besu 对照 | 判定 | 说明 |
 |---------|-------------|----------------|------|------|
-| `stBLS_add.json` | output 128B G1 sum | geth `core/vm/testdata/precompiles/blsG1Add.json` #1 `bls_g1add_(inf+g1=g1)` — **Expected 逐字节一致** | ✅ | Input 前缀一致；gas 未在 fixture 断言 |
-| `stEIP7702_delegation.json` | SUCCESS + output `0x2a` | GeneralStateTests/stEIP7702 需 type-4 tx + delegation code `0xEF0100‖addr` | 🟡 | FB pre[0xbb] 为 `PUSH32 42 RETURN` 字节码；无 authorization；`makePragueRevisionConfig` 无 `eip7702` |
-| `stSelfDestruct_basic.json` | SUCCESS, gas 7603, output ∅ | bytecode `PUSH20 0xbb SELFDESTRUCT` 与 Cancun/Prague 语义一致 | 🟡 | gas 7603 合理（2929 cold/warm）；**无 post-state**（0x12→0xbb 转账、6780 保留代码）— stub Host 仍 PASS |
-| `stModExp_basic.json` | SUCCESS, output ∅ | geth `modexp.json` 无完全匹配 106B 输入；零长度 modexp 边界 case | 🟡 | hand-crafted；`gas_used=0` 跳过 gas；output 空未独立验证 |
-| `stEIP2930_accessList.json` | SUCCESS + output `0x2a` | geth EIP-2930 需 tx accessList 字段影响 gas | 🟡 | JSON 无 `access_list`；loader 不支持；仅 preset `tx_props.warm_*` — 非 2930 E2E |
+| `stBLS_add.json` | output 128B G1 sum + gas | geth `core/vm/testdata/precompiles/blsG1Add.json` #1 `bls_g1add_(inf+g1=g1)` | ✅ | output 对齐；gas 已补 |
+| `stEIP7702_delegation.json` | SUCCESS + output `0x2a` + delegation | GeneralStateTests/stEIP7702 type-4 授权 + delegation code `0xEF0100‖addr` | ✅ | fixture 已含 authorization/delegation，且 gas 已断言 |
+| `stSelfDestruct_basic.json` | SUCCESS, gas 7603, output ∅ | Cancun/Prague 6780 语义（转账 + 代码保留） | ✅ | 已补 post-state 检查（含 code_nonempty 路径） |
+| `stModExp_basic.json` | SUCCESS + output + gas | geth `modexp.json` 具名向量 | ✅ | 向量、output、gas 均已落地 |
+| `stExample_return42_warmProps.json` | SUCCESS + output `0x2a` | 非 geth type-1 access list 向量 | 🟡 | 原 `stEIP2930_accessList` 重命名保留 smoke 属性 |
 
 ---
 
@@ -102,12 +98,12 @@
 | 类别 | ✅ | 🟡 | 🔴 | 合计 |
 |------|----|----|-----|------|
 | 显式单元用例 | 11 | 5 | 0 | 16 |
-| Fixture 子项 | 4 | 16 | 0 | 20 |
+| Fixture 子项 | 13 | 3 | 0 | 16 |
 | Spot-check（5 fixture） | 1 | 4 | 0 | 5 |
-| **Part 3 全表（含跨路径 5 行）** | **16** | **25** | **0** | **41** |
+| **Part 3 全表（含跨路径 5 行）** | **26** | **11** | **0** | **37** |
 
 ### 结论
 
 - **🔴 断言：0** — 未发现 literal 期望值与金标准**直接冲突**的用例；假覆盖均为 🟡（断言过弱或未测目标语义）。
-- **🟡 断言：25** — 主要风险：(1) fixture `gas_used=0` 跳过 gas；(2) 6780/7702/2930 名实不符 smoke；(3) FISCO/OPStack 路径重复或分裂；(4) 无 ETH reference 7623/7702 E2E。
-- **优先补测：** 真 7702 fixture + `eip7702=true` profile；6780 post-state；2930 带 access_list JSON；7623 `ExecuteViaEth` canonical 27216；预编译 gas 断言。
+- **🟡 断言：11** — 主要风险收敛为：(1) `gas_used=0` 跳过仍剩 2 个（`stCall_emptyAccount`、`prague_create_empty_initcode`）；(2) `stExample_return42_warmProps` 仍是 warm props smoke；(3) 跨路径层面仍有 7623/7702 的非 ETH reference 形态分裂。
+- **优先补测：** 若继续收敛 🟡，优先实现显式 `skip_gas_assert` 字段并保留 gas=0 literal；其次补一个真 type-1 access list fixture，替换 warm props smoke。
