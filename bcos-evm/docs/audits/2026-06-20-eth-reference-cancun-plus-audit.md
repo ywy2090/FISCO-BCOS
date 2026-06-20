@@ -32,8 +32,8 @@
 | EIP-7702 authorization apply | kernel | 🟡 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) §Set code | `Eip7702.cpp:53-96` `applyAuthorizations`；门控 `executeMessage.cpp:173-181` | `applyAuthorization` (`state_transition.go:743-767`) | Prague tx validation + apply | `Eip7702ApplyAuthorizationTest`（opstack，manual `eip7702=true`）；**无** ETH reference E2E | 逻辑与 geth 对齐；EthPolicy 未设 flag → reference 不可达；`EthHost` 无 delegation 解析（evmone PRAGUE 委托） |
 | EIP-7702 tx field propagation | tx input | ✅ | EIP-7702 type-4 tx | `Web3Eip7702Decoder.h` + `EthTxInputBuilder.h:34-44` → `ExecuteViaEth.cpp:112-113` | `SetCodeAuthorizations` on Message (`state_transition.go:222`) | Besu type-4 decode | `EthTxInputBuilderTest` PASS | 解码/recover authority ✅；无 builder→executeViaEth post-state E2E（profile 阻断） |
 | EIP-7702 revision enable (`eip7702`) | revision profile | 🔴 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) | **`EthPolicy.h` 未赋值**；default `false`；consumer `executeMessage.cpp:173` | `enable7702` in `newPragueInstructionSet` (`jump_table.go:111`) | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 PRAGUE/OSAKA 仍为 false | Task 1 🔴：matrix 声称 PRAGUE+ inherited；FiscoPolicy/makeIsthmus 设 true；reference apply 不可达 |
-| RevisionConfig `eip7212` | revision profile | 🟡 | [EIP-7212](https://eips.ethereum.org/EIPS/eip-7212) | `EthPolicy.h:38` OSAKA+ | Osaka rules `evm.go:153` `IsOsaka` | `OsakaGasCalculator`; `P256VerifyPrecompiledContract` | `RevisionConfigProfileTest` block 25,000,000+ | profile true 但 kernel 无 0x0100（inventory #16 unsupported） |
-| RevisionConfig `eip7823` | revision profile | 📋 | [EIP-7823](https://eips.ethereum.org/EIPS/eip-7823) | `EthPolicy.h:39` OSAKA+ | modexp bounds in `contracts.go` | `BigIntegerModularExponentiationPrecompiledContract` | `RevisionConfigProfileTest` | ADR-004 profile-only；`ModexpGas.h:30` 无 TE 调用点 |
+| RevisionConfig `eip7212` | revision profile | 🔴 | [EIP-7212](https://eips.ethereum.org/EIPS/eip-7212) | `EthPolicy.h:38` OSAKA+ → true | Osaka `PrecompiledContractsOsaka` + `p256Verify` (`contracts.go:171`) | `OsakaGasCalculator`; `P256VerifyPrecompiledContract` | `RevisionConfigProfileTest` block 25,000,000+ | Policy 启用但 TE 无 consumer；Host 仍认 0x0100 为 builtin（见 #16 🔴） |
+| RevisionConfig `eip7823` | revision profile | 🔴 | [EIP-7823](https://eips.ethereum.org/EIPS/eip-7823) | `EthPolicy.h:39` OSAKA+ → true | `bigModExp` `eip7823 && max(len)>1024` → error (`contracts.go:631-632`) | `BigIntegerModularExponentiationPrecompiledContract` upperBound=1024 | `RevisionConfigProfileTest` | ADR-004 profile-only；`validateModexpEip7823` 已实现但 TE `executeModexp` 未调用（见 Task 7） |
 | RevisionConfig `warm_access` | revision profile | 🟡 | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) | `EthPolicy.h:31` BERLIN+ → true | Berlin ACL via revision | `BerlinGasCalculator` | `RevisionConfigProfileTest` | ADR-004 profile-only；flag 传入 `executeMessage.cpp:140,147` 但语义门控为 revision |
 | RevisionConfig `eip1559` | revision profile | 📋 | [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) | EthPolicy 未赋值（default false） | London fee market via revision | `LondonGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；`bcos-evm/eth/` 无 consumer |
 | RevisionConfig `eip3651` | revision profile | 📋 | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | EthPolicy 未赋值（default false） | Shanghai coinbase warm via `txProps` | `ShanghaiGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；coinbase warm 走 `txProps` 非 flag |
@@ -46,6 +46,8 @@
 | EIP-7623 entry precheck | orchestration | 🟡 | [EIP-7623](https://eips.ethereum.org/EIPS/eip-7623) §Floor | `ExecuteViaEth.cpp:64-78`：`eip7623` 门控；`gas < normalCost` → OOG；扣减 normalCost | intrinsic 后 `gasLimit < FloorDataGas`（`state_transition.go:572-580`） | `PragueGasCalculator.transactionFloorCost`（准入在 validator） | `RevisionConfigProfileTest`（profile）；`Bcos7623PrecheckTest` 为 FISCO `executeViaHost` | **无 ETH reference 专项测试**；floor 准入在 txpool `gasLimitMinimum`；ExecuteViaEth 无 `web3Tx` 门控 |
 | EIP-7623 settlement / floor gas | orchestration | ✅ | EIP-7623 post-refund floor | `EthTxGasSettlement.h:110-127` `finalizeEthereumGasUsed`；snapshot `ExecuteViaEth.cpp:80-90`；TE `EthTransactionExecutorImpl.h:189-201` | refund 后 top-up 至 `floorDataGas`（`state_transition.go:650-660`） | `PragueGasCalculator.calculateGasRefund` | TE：`EthTxGasSettlementTest`、`EthTxGasSettlementExecutorTest`（27216 canonical）；**无** `bcos-evm/test/eth/*7623*` | helper `Eip7623.h` token=1/4 floorPerToken=10 与 geth/Besu 一致 |
 | chain precompile routing | host extension | ✅ | Host extension §5.3 | `EthHostExtension` 空；`HostExtension::tryChainPrecompile` 默认 nullopt；builtin 经 `EthPrecompiles::tryDispatchInCall` | geth `evm.precompile()` active-set lookup | Besu precompile registry | smoke：`ExecuteViaEthFixtureTest` 经 `executeViaEth` 路由 0x01 | ETH reference 无链级扩展；FISCO/OPStack 在范围外 |
+| EIP-7212 precompile (0x0100) | kernel | 🔴 | [EIP-7212](https://eips.ethereum.org/EIPS/eip-7212) §Precompile | TE：`EthPrecompiles` `toSuffix`/`dispatch` 仅 0x01–0x11；`EthBuiltinRegistry.cpp:491-518` 有 `p256verify` 但未 wired | `p256Verify` 6900 gas / 160B input (`contracts.go:1431-1454`) | `P256VerifyPrecompiledContract` | **无** TE 测试 | matrix unsupported ✅；`EthHost.cpp:382` 仍认 0x0100 → `tryDispatchInCall` 失败 → 空账户成功（非 geth 语义） |
+| EIP-7823 modexp input bounds | kernel | 🔴 | [EIP-7823](https://eips.ethereum.org/EIPS/eip-7823) §Bounds | `ModexpGas.cpp:170-194` `MODEXP_MAX=1024`；`shouldRejectModexpEip7823` 仅 FISCO `PrecompiledImpl.h:78`；TE `executeModexp` 无门控 | Osaka `bigModExp` len>1024 reject | Besu modexp `upperBound=1024` | `stModExp_basic.json` smoke only | OSAKA+ 仍可执行 oversized modexp；与 geth/Besu MUST 不符 |
 
 ---
 
@@ -199,6 +201,36 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 **现象：** `EthTxInputBuilder::fillWeb3Fields` 对 type `0x04` 解码 authorization list（chainId/address/nonce/authority）；`ExecuteViaEth.cpp:112-113` 传入 `executeMessage`。
 
 **测试：** `EthTxInputBuilderTest` PASS。
+
+---
+
+### Task 7 — Osaka 簇（EIP-7212 / EIP-7823）
+
+#### 🔴 EIP-7212 — profile 启用 + Host 误认，TE 无 dispatch
+
+**现象：** `EthPolicy.h:38` OSAKA+ 设 `eip7212=true`。`capability-matrix.md:59` 正确标 TE `unsupported`。完整实现在 `EthBuiltinRegistry.cpp:491-518`（6900 gas、`evmmax::secp256r1::verify`，与 geth `p256Verify` 一致），但 TE 路径 `EthPrecompiles.cpp:55-66` `toSuffix` 上限 `0x0011`，`dispatch` 无 `0x0100` case。
+
+**Host 分裂：** `EthHost::isBuiltinPrecompileAddress`（`EthHost.cpp:378-382`）将 `0x0100` 视为 builtin → `routeCall` / `executeMessage` 调用 `tryDispatchInCall` → 返回 `nullopt` → 嵌套 CALL 落回空 code；顶层直调走 `makeSuccessResult`。**静默成功**，非 geth 6900 gas + p256 输出语义。
+
+**geth 对照：** `PrecompiledContractsOsaka` 注册 `p256Verify`（`contracts.go:171`）；`RequiredGas` = 6900；160B 输入。
+
+**测试：** `bcos-evm/test/**` 无 `7212`/`p256`/`0x0100` 用例；`RevisionConfigProfileTest` 仅 profile 快照。
+
+**建议：** TE `EthPrecompiles` 接入 `0x0100`（或 OSAKA 前从 `isBuiltinPrecompileAddress` 移除）；增加 OSAKA p256verify fixture。
+
+#### 🔴 EIP-7823 — `ModexpGas` 验证已实现，TE modexp 未 wired
+
+**现象：** `EthPolicy.h:39` OSAKA+ 设 `eip7823=true`。`ModexpGas.cpp:170-194` 实现 `validateModexpEip7823`（各 field ≤1024，与 EIP MUST 一致）。`shouldRejectModexpEip7823` 仅在 FISCO `PrecompiledImpl.h:78-82`（`callBuiltinPrecompiled`）调用；TE `EthPrecompiles::executeModexp`（`EthPrecompiles.cpp:116-152`）**无**长度检查，直接 `evmone::crypto::modexp`。
+
+**geth 对照：** Osaka `bigModExp.Run`（`contracts.go:631-632`）：`eip7823 && max(baseLen,expLen,modLen) > 1024` → error。
+
+**Besu 对照：** `BigIntegerModularExponentiationPrecompiledContract.computePrecompile`（`:106-118`）各 length > 1024 → `PRECOMPILE_ERROR`。
+
+**ADR-004：** `eip7823` 仍标 profile-only until wired；helper 已就绪，TE consumer 缺失 → OSAKA modexp 行为与 reference 客户端分叉。
+
+**测试：** `stModExp_basic.json` 小输入 smoke；无 >1024 拒绝断言。
+
+**建议：** `EthPrecompiles::tryDispatchInCall` 或 `executeModexp` 入口调用 `shouldRejectModexpEip7823`（需传入 `RevisionConfig`）；增加 modexp len=1025 OSAKA 向量。
 
 ---
 
