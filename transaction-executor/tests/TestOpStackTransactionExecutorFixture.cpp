@@ -1,0 +1,302 @@
+/*
+ *  Copyright (C) 2024 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  @brief OpStackTransactionExecutorImpl executor-level smoke tests (T-18 Phase 1).
+ *  @file TestOpStackTransactionExecutorFixture.cpp
+ */
+
+#include "../bcos-transaction-executor/OpStackTransactionExecutorImpl.h"
+#include "TestMemoryStorage.h"
+#include "bcos-codec/rlp/RLPEncode.h"
+#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-framework/executor/OpStackTxType.h"
+#include "bcos-framework/ledger/EVMAccount.h"
+#include "bcos-framework/ledger/Features.h"
+#include "bcos-framework/protocol/Protocol.h"
+#include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
+#include "bcos-tars-protocol/protocol/TransactionFactoryImpl.h"
+#include "bcos-tars-protocol/protocol/TransactionImpl.h"
+#include "bcos-tars-protocol/protocol/TransactionReceiptFactoryImpl.h"
+#include <bcos-crypto/hash/Keccak256.h>
+#include <bcos-task/Wait.h>
+#include <boost/algorithm/hex.hpp>
+#include <boost/test/unit_test.hpp>
+#include <algorithm>
+#include <array>
+
+namespace bcos::evm::test
+{
+namespace
+{
+evmc_address addressFromLastByte(uint8_t value)
+{
+    evmc_address address{};
+    address.bytes[19] = value;
+    return address;
+}
+
+std::string addressToTableHex(evmc_address const& address)
+{
+    std::array<char, sizeof(address.bytes) * 2> hex{};
+    boost::algorithm::hex_lower(address.bytes, address.bytes + sizeof(address.bytes), hex.data());
+    return {hex.data(), hex.size()};
+}
+
+evmc_bytes32 packFeeScalars(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar)
+{
+    constexpr size_t scalarSectionStart = 32 - 12 - 4;
+    evmc_bytes32 out{};
+    out.bytes[scalarSectionStart] = static_cast<uint8_t>((baseFeeScalar >> 24) & 0xff);
+    out.bytes[scalarSectionStart + 1] = static_cast<uint8_t>((baseFeeScalar >> 16) & 0xff);
+    out.bytes[scalarSectionStart + 2] = static_cast<uint8_t>((baseFeeScalar >> 8) & 0xff);
+    out.bytes[scalarSectionStart + 3] = static_cast<uint8_t>(baseFeeScalar & 0xff);
+    out.bytes[scalarSectionStart + 4] = static_cast<uint8_t>((blobBaseFeeScalar >> 24) & 0xff);
+    out.bytes[scalarSectionStart + 5] = static_cast<uint8_t>((blobBaseFeeScalar >> 16) & 0xff);
+    out.bytes[scalarSectionStart + 6] = static_cast<uint8_t>((blobBaseFeeScalar >> 8) & 0xff);
+    out.bytes[scalarSectionStart + 7] = static_cast<uint8_t>(blobBaseFeeScalar & 0xff);
+    return out;
+}
+
+evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operatorFeeConstant)
+{
+    evmc_bytes32 out{};
+    out.bytes[20] = static_cast<uint8_t>((operatorFeeScalar >> 24) & 0xff);
+    out.bytes[21] = static_cast<uint8_t>((operatorFeeScalar >> 16) & 0xff);
+    out.bytes[22] = static_cast<uint8_t>((operatorFeeScalar >> 8) & 0xff);
+    out.bytes[23] = static_cast<uint8_t>(operatorFeeScalar & 0xff);
+    out.bytes[24] = static_cast<uint8_t>((operatorFeeConstant >> 56) & 0xff);
+    out.bytes[25] = static_cast<uint8_t>((operatorFeeConstant >> 48) & 0xff);
+    out.bytes[26] = static_cast<uint8_t>((operatorFeeConstant >> 40) & 0xff);
+    out.bytes[27] = static_cast<uint8_t>((operatorFeeConstant >> 32) & 0xff);
+    out.bytes[28] = static_cast<uint8_t>((operatorFeeConstant >> 24) & 0xff);
+    out.bytes[29] = static_cast<uint8_t>((operatorFeeConstant >> 16) & 0xff);
+    out.bytes[30] = static_cast<uint8_t>((operatorFeeConstant >> 8) & 0xff);
+    out.bytes[31] = static_cast<uint8_t>(operatorFeeConstant & 0xff);
+    return out;
+}
+
+task::Task<void> seedOpFeeParams(executor_v1::MutableStorage& storage)
+{
+    ledger::account::EVMAccount l1Block(storage, OP_L1_BLOCK_PREDEPLOY, false);
+    co_await l1Block.create();
+    co_await l1Block.setStorage(state::toEvmC(L1_BASE_FEE_SLOT), state::toEvmC(u256(31'250)));
+    co_await l1Block.setStorage(state::toEvmC(L1_BLOB_BASE_FEE_SLOT), state::toEvmC(u256(0)));
+    co_await l1Block.setStorage(state::toEvmC(L1_FEE_SCALARS_SLOT), packFeeScalars(1, 0));
+    co_await l1Block.setStorage(
+        state::toEvmC(OPERATOR_FEE_PARAMS_SLOT), packOperatorFeeParams(1'000'000, 5));
+}
+
+bytes compactU256(u256 value)
+{
+    auto encoded = toBigEndian(value);
+    auto it = std::find_if(encoded.begin(), encoded.end(), [](auto c) { return c != 0; });
+    if (it == encoded.end())
+    {
+        return {};
+    }
+    return bytes(it, encoded.end());
+}
+
+bytes buildDepositExtra(evmc_address const& from, evmc_address const& to, u256 mint)
+{
+    bytes payload;
+    h256 sourceHash{0x1234};
+    bytes sourceHashRaw(sourceHash.begin(), sourceHash.end());
+    bytes fromRaw(from.bytes, from.bytes + sizeof(from.bytes));
+    bytes toRaw(to.bytes, to.bytes + sizeof(to.bytes));
+    bytes mintData = compactU256(mint);
+    bytes valueData = compactU256(0);
+    codec::rlp::encode(payload, sourceHashRaw, fromRaw, toRaw, mintData, valueData,
+        uint64_t(50'000), bytes{0x00}, bytes{});
+
+    bytes extra;
+    extra.push_back(bcos::executor::DEPOSIT_TX_TYPE);
+    extra.insert(extra.end(), payload.begin(), payload.end());
+    return extra;
+}
+
+std::shared_ptr<bcostars::protocol::TransactionImpl> makeEip1559Tx(
+    bcostars::protocol::TransactionFactoryImpl& factory, evmc_address const& sender,
+    evmc_address const& recipient, int64_t gasLimit, std::string const& nonce = "0",
+    bcos::bytes const& input = {0x01, 0x02, 0x03})
+{
+    auto tx = factory.createTransaction(1, addressToTableHex(recipient), input, nonce, 0, "", "", 0,
+        std::string{}, "0x0", "0x0", gasLimit, "0x2", "0x1");
+    tx->forceSender(bytes(sender.bytes, sender.bytes + sizeof(sender.bytes)));
+    auto impl = std::dynamic_pointer_cast<bcostars::protocol::TransactionImpl>(tx);
+    BOOST_REQUIRE(impl);
+    impl->mutableInner().type =
+        static_cast<tars::Char>(bcos::protocol::TransactionType::Web3Transaction);
+    impl->mutableInner().web3TypedTxKind = 2;
+    return impl;
+}
+
+std::shared_ptr<bcostars::protocol::TransactionImpl> makeDepositTx(
+    bcostars::protocol::TransactionFactoryImpl& factory, evmc_address const& from,
+    evmc_address const& to, u256 mint)
+{
+    auto extra = buildDepositExtra(from, to, mint);
+    auto tx = factory.createTransaction(1, addressToTableHex(to), {}, "0", 0, "", "", 0,
+        std::string{}, "0x0", "0x0", 50'000, "0x2", "0x1");
+    tx->forceSender(bytes(from.bytes, from.bytes + sizeof(from.bytes)));
+    auto impl = std::dynamic_pointer_cast<bcostars::protocol::TransactionImpl>(tx);
+    BOOST_REQUIRE(impl);
+    impl->mutableInner().type =
+        static_cast<tars::Char>(bcos::protocol::TransactionType::Web3Transaction);
+    impl->mutableInner().web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    impl->mutableInner().extraTransactionBytes.assign(extra.begin(), extra.end());
+    return impl;
+}
+}  // namespace
+
+class OpStackExecutorFixtureHarness
+{
+public:
+    executor_v1::MutableStorage storage;
+    ledger::LedgerConfig ledgerConfig;
+    std::shared_ptr<crypto::CryptoSuite> cryptoSuite = std::make_shared<crypto::CryptoSuite>(
+        std::make_shared<crypto::Keccak256>(), nullptr, nullptr);
+    bcostars::protocol::TransactionFactoryImpl transactionFactory{cryptoSuite};
+    bcostars::protocol::TransactionReceiptFactoryImpl receiptFactory{cryptoSuite};
+    executor_v1::OpStackTransactionExecutorImpl executor{receiptFactory, cryptoSuite->hashImpl()};
+    int contextId = 0;
+
+    OpStackExecutorFixtureHarness()
+    {
+        executor::GlobalHashImpl::g_hashImpl = cryptoSuite->hashImpl();
+        ledger::Features features;
+        features.setGenesisFeatures(protocol::BlockVersion::MAX_VERSION);
+        features.set(ledger::Features::Flag::feature_evm_cancun);
+        features.set(ledger::Features::Flag::feature_balance);
+        features.set(ledger::Features::Flag::feature_balance_policy1);
+        ledgerConfig.setFeatures(features);
+        ledgerConfig.setGasLimit({30'000'000, 0});
+        ledgerConfig.setGasPrice({"0x1", 0});
+    }
+
+    bcostars::protocol::BlockHeaderImpl makeBlockHeader()
+    {
+        bcostars::protocol::BlockHeaderImpl header;
+        header.setVersion(static_cast<uint32_t>(protocol::BlockVersion::MAX_VERSION));
+        header.setNumber(1);
+        header.setTimestamp(12'345);
+        header.calculateHash(*cryptoSuite->hashImpl());
+        return header;
+    }
+
+    task::Task<void> seedSender(evmc_address const& sender, u256 balance, std::string nonce = "0")
+    {
+        ledger::account::EVMAccount account(storage, sender, false);
+        co_await account.create();
+        co_await account.setBalance(balance);
+        co_await account.setNonce(std::move(nonce));
+    }
+
+    task::Task<void> seedRevertTarget(evmc_address const& target)
+    {
+        ledger::account::EVMAccount account(storage, target, false);
+        co_await account.create();
+        bytes code{0x60, 0x00, 0x60, 0x00, 0xfd};
+        co_await account.setCode(code, "", crypto::HashType{});
+    }
+};
+
+BOOST_FIXTURE_TEST_SUITE(OpStackTransactionExecutorFixture, OpStackExecutorFixtureHarness)
+
+BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x01);
+        auto const target = addressFromLastByte(0x02);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 300'000, "0");
+
+        auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_REQUIRE(receipt->l1Fee().has_value());
+        BOOST_CHECK_NE(receipt->l1Fee().value(), "0x0");
+
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        BOOST_CHECK_GT(co_await l1Recipient.balance(), u256(0));
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(insufficient_balance_fails_before_execution)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x11);
+        auto const target = addressFromLastByte(0x12);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 100, "0");
+
+        auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(
+            receipt->status(), static_cast<int32_t>(protocol::TransactionStatus::NotEnoughCash));
+
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(revert_keeps_l1_fee)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x21);
+        auto const target = addressFromLastByte(0x22);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 300'000, "0");
+        co_await seedRevertTarget(target);
+
+        auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_NE(receipt->status(), 0);
+        BOOST_REQUIRE(receipt->l1Fee().has_value());
+        BOOST_CHECK_NE(receipt->l1Fee().value(), "0x0");
+
+        ledger::account::EVMAccount senderAccount(storage, sender, false);
+        BOOST_CHECK_GT(co_await senderAccount.balance(), u256(0));
+        BOOST_CHECK_LT(co_await senderAccount.balance(), u256(300'000));
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(deposit_mint_applied_without_fee_routing)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x31);
+        auto const target = addressFromLastByte(0x32);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 0, "0");
+
+        auto tx = makeDepositTx(transactionFactory, sender, target, u256(100));
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+
+        ledger::account::EVMAccount senderAccount(storage, sender, false);
+        BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(100));
+
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
+    }());
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+}  // namespace bcos::evm::test

@@ -5,6 +5,8 @@ list(REMOVE_ITEM SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/TestHostContext.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/FIB88_92_ErrorHandlingTest.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Web3AccessListResolverTest.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/TestEthTransactionExecutorFixture.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/TestOpStackTransactionExecutorFixture.cpp"
 )
 add_executable(test-transaction-executor ${SOURCES})
 
@@ -26,6 +28,8 @@ set_source_files_properties("EthTxGasSettlementExecutorTest.cpp" PROPERTIES SKIP
 set_source_files_properties("Modexp7823TeTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("ExecuteViaHostCompatTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("CompatExecuteViaHostTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("CompatExecuteViaHostPhaseBTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("TestOpStackTransactionExecutorFixture.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_target_properties(test-transaction-executor PROPERTIES UNITY_BUILD "ON")
 # add_test(NAME test-transaction-executor WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} COMMAND test-transaction-executor)
 config_test_cases("" "${SOURCES}" "test-transaction-executor" "" "")
@@ -70,3 +74,26 @@ add_dependencies(test-eth-transaction-executor-fixture executor)
 add_test(NAME EthTransactionExecutorFixture
     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     COMMAND test-eth-transaction-executor-fixture)
+
+add_executable(test-opstack-transaction-executor-fixture
+    main.cpp
+    TestOpStackTransactionExecutorFixture.cpp
+)
+target_include_directories(test-opstack-transaction-executor-fixture PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
+    ${PROJECT_SOURCE_DIR}
+)
+target_link_libraries(test-opstack-transaction-executor-fixture PRIVATE
+    transaction-executor
+    protocol-tars
+    bcos-evm
+    bcos-framework
+    ledger
+    executor
+    Boost::unit_test_framework
+)
+add_dependencies(test-opstack-transaction-executor-fixture executor)
+add_test(NAME OpStackTransactionExecutorFixture
+    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    COMMAND test-opstack-transaction-executor-fixture)

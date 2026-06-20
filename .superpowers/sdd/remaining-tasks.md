@@ -177,8 +177,8 @@ flowchart LR
 | ID | 任务 | 当前状态 | 涉及文件 |
 |----|------|----------|----------|
 | T-16 | 修复 `EthTxGasSettlementExecutor` 失败用例 | ✅ 28/28（12 executor + 16 unit）全绿 | `EthTxGasSettlementExecutorTest.cpp`, `EthTxGasSettlementTest.cpp` |
-| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ T-09b fixture e2e（20+6 gas）；Compat 规模迁移待续 | `transaction-executor/tests/TestEthTransactionExecutorFixture.cpp` |
-| T-18 | 新增 `OpStackTransactionExecutorImpl` compat 测试 | 仅 `bcos-evm/test/opstack/*` 库内单测 | `transaction-executor/tests/` |
+| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ Phase A 50 + Phase B 29（revision/feature/modexp/precompile/static）；bcos-executor compat 余量待续 | `transaction-executor/tests/CompatExecuteViaHostTest.cpp`, `CompatExecuteViaHostPhaseBTest.cpp` |
+| T-18 | 新增 `OpStackTransactionExecutorImpl` compat 测试 | ✅ Phase 1 executor smoke 4/4（L1 fee / insufficient / revert / deposit mint） | `transaction-executor/tests/TestOpStackTransactionExecutorFixture.cpp` |
 | T-19 | 三路径 Initializer 集成测试 | 验证 `execution_path` 切换后 scheduler/engine 正常出块 | `libinitializer/` 或集成测试 |
 | T-20 | `bcos-executor` compat filtered suite | 计划全局约束，全分支回归门禁 | `bcos-executor/test/` |
 | T-21 | 全量 `transaction-executor` ctest 绿灯 | ✅ `TransactionExecutorImpl` 23/23；含嵌套 CREATE nonce/地址修复 | `transaction-executor/tests/` |
@@ -263,8 +263,8 @@ flowchart TD
 
 ### P2 — 测试
 - [x] T-16 EthTxGasSettlementExecutor 失败修复（28/28 ctest 绿）
-- [ ] T-17 EthTransactionExecutorImpl compat 测试（T-09b fixture e2e ✅；Compat 规模迁移待续）
-- [ ] T-18 OpStackTransactionExecutorImpl compat 测试
+- [x] T-17 EthTransactionExecutorImpl compat 测试（Phase A 50 + Phase B 29 executeViaHost 迁移）
+- [x] T-18 OpStackTransactionExecutorImpl compat 测试（Phase 1 executor smoke 4/4）
 - [ ] T-19 三路径 Initializer 集成测试
 - [ ] T-20 bcos-executor compat suite
 - [x] T-21 transaction-executor 全量 ctest（TransactionExecutorImpl 23/23）
@@ -290,3 +290,4 @@ flowchart TD
 | 2026-06-18 | 完成 T-22（State::sub_refund + EIP-3529 SSTORE 退款）、T-23（FISCO 分支才创建 PrecompiledManager）、T-25（txpool 改用 bcos::evm::gas） |
 | 2026-06-19 | 验收 T-16：`ctest -R EthTxGasSettlement` 28/28 绿（EIP-7623 floor 已在 44040952c 等提交修复） |
 | 2026-06-20 | 完成 T-21：嵌套 CREATE 执行地址跟踪 + 合约 nonce bump；`TransactionExecutorImpl` 23/23 绿 |
+| 2026-06-20 | 完成 T-17 Phase B（`CompatExecuteViaHostPhaseB` 29 cases）+ T-18 Phase 1（`OpStackTransactionExecutorFixture` 4/4 smoke） |
