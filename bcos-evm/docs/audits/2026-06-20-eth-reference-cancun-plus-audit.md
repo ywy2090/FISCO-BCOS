@@ -43,6 +43,8 @@
 | EIP-2929 tx-entry coinbase warm | tx input | ✅ | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | `TransactionProperties::warmCoinbase{true}` 默认；`warmTransactionEntry.h:67-70` `rev>=SHANGHAI` | `Prepare` `rules.IsShanghai` coinbase warm (`statedb.go:1430-1432`) | `ShanghaiGasCalculator` | `WarmTransactionEntryTest` @ `EVMC_SHANGHAI` | orchestrator 未显式赋值；implicit-default（ADR-002） |
 | builtin precompiles 0x01–0x11 | kernel | 🟡 | Yellow Paper / EIP-4844 | `EthPrecompiles.cpp` `precompileGasCost`+`dispatch`；`EthHost::routeCall` | `contracts.go` `PrecompiledContractsCancun/Prague` | Prague precompile classes | `ExecuteViaEthFixtureTest`（`stPrecompile_ecrecover/sha256/identity` PASS） | 0x01–0x0a gas 与 geth 一致；0x0b–0x11 无 revision 门控；见 inventory #10 MSM 🔴 |
 | EIP-2537 precompiles (0x0b–0x11) | kernel | 🔴 | [EIP-2537](https://eips.ethereum.org/EIPS/eip-2537) §Gas | TE：`EthPrecompiles.cpp:449-462`（MSM 线性 gas）；`EthBuiltinRegistry.cpp:362-428` 128 项表正确但未 wired | `protocol_params.go` `Bls12381*DiscountTable` + `contracts.go` `bls12381G1/G2MultiExp` | Besu Prague BLS precompile gas | `Eip2537KernelTest` PASS（G1Add @0x0b）；`stBLS_add.json` | EthBuiltinRegistry 256/256 表项 ✅；TE 0x0c/0x0e 缺折扣 🔴；revision 门控 🟡 |
+| EIP-7623 entry precheck | orchestration | 🟡 | [EIP-7623](https://eips.ethereum.org/EIPS/eip-7623) §Floor | `ExecuteViaEth.cpp:64-78`：`eip7623` 门控；`gas < normalCost` → OOG；扣减 normalCost | intrinsic 后 `gasLimit < FloorDataGas`（`state_transition.go:572-580`） | `PragueGasCalculator.transactionFloorCost`（准入在 validator） | `RevisionConfigProfileTest`（profile）；`Bcos7623PrecheckTest` 为 FISCO `executeViaHost` | **无 ETH reference 专项测试**；floor 准入在 txpool `gasLimitMinimum`；ExecuteViaEth 无 `web3Tx` 门控 |
+| EIP-7623 settlement / floor gas | orchestration | ✅ | EIP-7623 post-refund floor | `EthTxGasSettlement.h:110-127` `finalizeEthereumGasUsed`；snapshot `ExecuteViaEth.cpp:80-90`；TE `EthTransactionExecutorImpl.h:189-201` | refund 后 top-up 至 `floorDataGas`（`state_transition.go:650-660`） | `PragueGasCalculator.calculateGasRefund` | TE：`EthTxGasSettlementTest`、`EthTxGasSettlementExecutorTest`（27216 canonical）；**无** `bcos-evm/test/eth/*7623*` | helper `Eip7623.h` token=1/4 floorPerToken=10 与 geth/Besu 一致 |
 | chain precompile routing | host extension | ✅ | Host extension §5.3 | `EthHostExtension` 空；`HostExtension::tryChainPrecompile` 默认 nullopt；builtin 经 `EthPrecompiles::tryDispatchInCall` | geth `evm.precompile()` active-set lookup | Besu precompile registry | smoke：`ExecuteViaEthFixtureTest` 经 `executeViaEth` 路由 0x01 | ETH reference 无链级扩展；FISCO/OPStack 在范围外 |
 
 ---
@@ -134,6 +136,34 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 ---
 
+### Task 5 — EIP-7623（precheck + settlement）
+
+#### ✅ Floor 公式与 settlement — `Eip7623.h` + `finalizeEthereumGasUsed`
+
+**公式：** 零字节 token=1 / normal=4；非零 token=4 / normal=16；`floor = tokens × 10`；`floorDataGas = 21000 + floor`。与 geth `TxTokenPerNonZeroByte`/`TxCostFloorPerToken` 及 Besu `PragueGasCalculator.TOTAL_COST_FLOOR_PER_TOKEN` 一致。
+
+**结算：** `finalizeEthereumGasUsed`（`EthTxGasSettlement.h:110-127`）在 EIP-3529 capped refund 后取 `max(used, 21000 + tokenCount × calldata_floor_per_token)`；access list 不计入 floor。对照 geth `state_transition.go:650-660` refund 后 top-up 及 Besu `calculateGasRefund`。
+
+**TE 覆盖：** `EthTxGasSettlementTest` / `EthTxGasSettlementExecutorTest` 含 mixed calldata floor-dominated receipt、EIP-2930 + 1 非零字节 → 27216（canonical case）。
+
+#### 🟡 Entry precheck — orchestration 层与 geth 分工不同
+
+**现象：** `ExecuteViaEth.cpp:64-78` 在 `eip7623` 下仅检查 `message.gas < normalCost` 并扣减 normalCost；**未**在 orchestration 复现 geth `ErrFloorDataGas`（`gasLimit < 21000 + floor`）。Floor 准入由 txpool `TxValidator::validateEip7623GasFloor` → `computeTxIntrinsicGas().gasLimitMinimum()` 承担（范围外）。
+
+**额外差异：** `ExecuteViaEth` precheck 无 `web3Tx` 门控（`ExecuteViaHost` 有；TE settlement 有 `Web3Transaction` 门控）。
+
+**影响：** 公式与 receipt floor 正确；direct `executeViaEth` 调用若绕过 txpool 可能缺少 floor 准入。正常 Web3 路径由 txpool + TE settlement 闭合。
+
+**建议：** 在 `bcos-evm/test/eth/` 增加 `ExecuteViaEth` 7623 precheck/settlement fixture；可选在 `ExecuteViaEth` 对齐 `web3Tx` 门控。
+
+#### 🟡 测试缺口 — 无 ETH reference 目录专项
+
+**现象：** `bcos-evm/test/eth/` 无 `*7623*` 测试；`Bcos7623PrecheckTest` 覆盖 FISCO `executeViaHost`。Helper/settlement 由 `transaction-executor/tests/` 间接验证。
+
+**建议：** 增加 `ExecuteViaEth` 层 OOG precheck 与 floor receipt 断言（可复用 canonical 27216 向量）。
+
+---
+
 ### Task 6 — EIP-7702（authorization / tx-input / revision）
 
 #### 🔴 revision enable — EthPolicy 未设 `eip7702`（交叉引用 Task 1）
@@ -194,6 +224,11 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 | 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
 |----------|------|----------|------------|------|
+| `RevisionConfigProfileTest` | PRAGUE `eip7623` / `calldata_floor_per_token=10` | ✅ | `EthPolicy.h` | profile-only |
+| `Bcos7623PrecheckTest` | calldata OOG precheck | 🟡 | `Eip7623.h` normalCost | FISCO `executeViaHost`；非 ETH reference |
+| `EthTxGasSettlementTest` | `finalizeEthereumGasUsed` / `gasLimitMinimum` | ✅ | geth `FloorDataGas` | TE 路径；非 `bcos-evm/test/eth/` |
+| `EthTxGasSettlementExecutorTest` | mixed calldata floor receipt; type2 27216 | ✅ | canonical-cases.md | TE e2e |
+| *(gap)* | `ExecuteViaEth` 7623 precheck/settlement | 🟡 | geth Prague | **无** `bcos-evm/test/eth/*7623*` |
 | `EthTxInputBuilderTest` | `fillWeb3Fields_maps_eip7702_authorizations` | ✅ | EIP-7702 type-4 RLP + ecrecover | 仅 input 层；不测 apply |
 | `Eip7702ApplyAuthorizationTest` | `valid_auth_installs_delegation_*` | 🟡 | geth applyAuthorization post-state | opstack 路径；manual `eip7702=true`；非 ETH reference baseline |
 | `ExecuteViaEthFixtureTest` | `stEIP7702_delegation` | 🟡 假覆盖 | GeneralStateTests/stEIP7702（未导入） | plain CALL smoke；无 auth list / delegation code |
