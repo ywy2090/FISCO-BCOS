@@ -22,7 +22,11 @@
 | RevisionConfig `eip1153` | revision profile | ✅ | [EIP-1153](https://eips.ethereum.org/EIPS/eip-1153) | `EthPolicy.h:32` CANCUN+ | `enable1153` in `newCancunInstructionSet` (`jump_table.go:119`) | `CancunGasCalculator` | `RevisionConfigProfileTest` block 19,426,587+ | evmone 经 `revision` 生效；flag 为 profile 快照 |
 | EIP-4844 revision profile (`eip4844`) | revision profile | ✅ | [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) | `EthPolicy.h:33` CANCUN+ | `enable4844` in `newCancunInstructionSet` (`jump_table.go:117`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | blob orchestration 另见 inventory #7（📋 unsupported） |
 | RevisionConfig `eip5656` | revision profile | ✅ | [EIP-5656](https://eips.ethereum.org/EIPS/eip-5656) | `EthPolicy.h:34` CANCUN+ | `enable5656` in `newCancunInstructionSet` (`jump_table.go:120`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | MCOPY 由 evmone revision 委托 |
-| RevisionConfig `eip6780` | revision profile | ✅ | [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) | `EthPolicy.h:35` CANCUN+ | `enable6780` in `newCancunInstructionSet` (`jump_table.go:121`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | SELFDESTRUCT 语义经 evmone revision |
+| RevisionConfig `eip6780` | revision profile | ✅ | [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) | `EthPolicy.h:35` CANCUN+ | `enable6780` in `newCancunInstructionSet` (`jump_table.go:121`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | profile flag only；kernel 见下行 🔴 |
+| EIP-1153 transient storage (TLOAD/TSTORE) | kernel | ✅ | [EIP-1153](https://eips.ethereum.org/EIPS/eip-1153) §Transient | `EthHost.cpp:328-347` + `State.cpp:225-229` Host 回调；`Account.hpp:38` | `enable1153` TLOAD/TSTORE (`eips.go:184-196`) | `CancunGasCalculator` | `RevisionConfigProfileTest`（profile）；**无** 1153 runtime fixture | opcode gas evmone-delegated；🟡 tx 末 transient 未在 `eth/State` purge |
+| EIP-4844 blob orchestration | orchestration | 📋 | [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) §Tx | matrix `unsupported`；`ExecuteViaEth.cpp` 无 blob precheck/gas | blob tx validation in `state_transition.go` | blob fee market | N/A（by design） | `executeMessage.cpp:71` 仅填 `blob_base_fee` 供 opcode；OPStack 另路径 |
+| EIP-5656 MCOPY | kernel | ✅ | [EIP-5656](https://eips.ethereum.org/EIPS/eip-5656) | revision → `VMInstance.cpp:23-24` → evmone `mcopy` | `enable5656` (`eips.go:252-260`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | evmone-delegated；`executeMessage.cpp:227-228` 传 `revision` |
+| EIP-6780 SELFDESTRUCT (kernel) | kernel | 🔴 | [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) | `EthHost.cpp:145-156` stub（return true；无 transfer/delete/IsNewContract） | `opSelfdestruct6780` + `IsNewContract` (`instructions.go:908-949`) | Cancun SELFDESTRUCT semantics | `stSelfDestruct_basic.json` PASS（仅 gas/status） | evmone 委托 Host 做状态变更；fixture 无 post-state |
 | RevisionConfig `eip2537` | revision profile | ✅ | [EIP-2537](https://eips.ethereum.org/EIPS/eip-2537) | `EthPolicy.h:36` PRAGUE+ | Prague precompiles via `evm.go:158` `IsPrague` | `PragueGasCalculator` | `RevisionConfigProfileTest` block 22,000,000+ | flag 仅 FISCO manager；TE 用 `revision` |
 | RevisionConfig `eip7623` | revision profile | ✅ | [EIP-7623](https://eips.ethereum.org/EIPS/eip-7623) | `EthPolicy.h:37-40` PRAGUE+; `calldata_floor_per_token=10` | Prague rules + floor gas in `state_transition.go` | `PragueGasCalculator` | `RevisionConfigProfileTest`; orchestration 见 Task 5 | consumed by `ExecuteViaEth.cpp:64` |
 | EIP-7702 revision enable (`eip7702`) | revision profile | 🔴 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) | **`EthPolicy.h` 未赋值**；default `false`；consumer `executeMessage.cpp:173` | `enable7702` in `newPragueInstructionSet` (`jump_table.go:111`) | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 PRAGUE/OSAKA 仍为 false | matrix 声称 PRAGUE+ inherited；FiscoPolicy/makeIsthmus 设 true；reference 7702 apply 不可达 |
@@ -43,6 +47,36 @@
 ## Part 2 — 偏离项详情
 
 （仅 🟡/🔴；Task 0 基线测试见下方）
+
+### Task 3 — Cancun 簇（6780 / 1153）
+
+#### 🔴 EIP-6780 — `EthHost::selfdestruct` 未实现 Cancun 语义
+
+**现象：** `EthHost::selfdestruct`（`EthHost.cpp:145-156`）忽略 `beneficiary`，不转移余额、不标记/清除账户，不区分 `IsNewContract`（同 tx 新建 vs 预存合约）。evmone `selfdestruct`（`instructions.hpp:981-1013`）在 gas 计费后完全依赖 Host 回调做状态变更。
+
+**geth 对照：** `opSelfdestruct6780`（`instructions.go:908-949`）：`newContract` → 删除 + 转账；`!newContract` → 仅转账、保留代码与 storage。
+
+**测试：** `stSelfDestruct_basic.json` / `ExecuteViaEthFixtureTest` PASS，但 `FixtureAssert.h` 只断言 status/output/gas/logs，不验证 0x12 余额是否转至 0xbb 或账户是否保留。
+
+**影响：** ETH reference 路径 SELFDESTRUCT 执行后链上状态与 geth/Besu 分叉；gas 路径仍可 PASS。
+
+**建议：** 在 `EthHost::selfdestruct` 实现 6780 规则（跟踪 tx 内 CREATE/CREATE2 地址集、`transfer()` 余额、条件 `set_code` 清空）；增加 post-state fixture。
+
+#### 🟡 EIP-1153 — 无 runtime 测试；transient 未 tx 末清除
+
+**现象：** Host TLOAD/TSTORE 回调已实现；`State::build_diff()` 可含 `transientStorage`。`bcos-evm/eth/` 无 tx 结束 purge。
+
+**影响：** 若上层持久化 diff 全字段，可能违反 1153「不跨 tx 持久」；当前无测试捕获。
+
+**建议：** `build_diff` 或 tx 末 strip `transientStorage`；增加 TSTORE/TLOAD fixture。
+
+#### 🟡 EIP-5656 / 6780 — 无 opcode 级测试
+
+**现象：** MCOPY 与 SELFDESTRUCT 均依赖 evmone + revision 传递；除 profile 测试外无 dedicated fixture。
+
+**建议：** 导入 Cancun state test 向量或最小 MCOPY/6780 手工 fixture。
+
+---
 
 ### Task 2 — EIP-2929 / Precompiles
 
