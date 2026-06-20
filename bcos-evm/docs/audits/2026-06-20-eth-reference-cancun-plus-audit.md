@@ -29,7 +29,9 @@
 | EIP-6780 SELFDESTRUCT (kernel) | kernel | 🔴 | [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) | `EthHost.cpp:145-156` stub（return true；无 transfer/delete/IsNewContract） | `opSelfdestruct6780` + `IsNewContract` (`instructions.go:908-949`) | Cancun SELFDESTRUCT semantics | `stSelfDestruct_basic.json` PASS（仅 gas/status） | evmone 委托 Host 做状态变更；fixture 无 post-state |
 | RevisionConfig `eip2537` | revision profile | ✅ | [EIP-2537](https://eips.ethereum.org/EIPS/eip-2537) | `EthPolicy.h:36` PRAGUE+ | Prague precompiles via `evm.go:158` `IsPrague` | `PragueGasCalculator` | `RevisionConfigProfileTest` block 22,000,000+ | flag 仅 FISCO manager；TE 用 `revision` |
 | RevisionConfig `eip7623` | revision profile | ✅ | [EIP-7623](https://eips.ethereum.org/EIPS/eip-7623) | `EthPolicy.h:37-40` PRAGUE+; `calldata_floor_per_token=10` | Prague rules + floor gas in `state_transition.go` | `PragueGasCalculator` | `RevisionConfigProfileTest`; orchestration 见 Task 5 | consumed by `ExecuteViaEth.cpp:64` |
-| EIP-7702 revision enable (`eip7702`) | revision profile | 🔴 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) | **`EthPolicy.h` 未赋值**；default `false`；consumer `executeMessage.cpp:173` | `enable7702` in `newPragueInstructionSet` (`jump_table.go:111`) | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 PRAGUE/OSAKA 仍为 false | matrix 声称 PRAGUE+ inherited；FiscoPolicy/makeIsthmus 设 true；reference 7702 apply 不可达 |
+| EIP-7702 authorization apply | kernel | 🟡 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) §Set code | `Eip7702.cpp:53-96` `applyAuthorizations`；门控 `executeMessage.cpp:173-181` | `applyAuthorization` (`state_transition.go:743-767`) | Prague tx validation + apply | `Eip7702ApplyAuthorizationTest`（opstack，manual `eip7702=true`）；**无** ETH reference E2E | 逻辑与 geth 对齐；EthPolicy 未设 flag → reference 不可达；`EthHost` 无 delegation 解析（evmone PRAGUE 委托） |
+| EIP-7702 tx field propagation | tx input | ✅ | EIP-7702 type-4 tx | `Web3Eip7702Decoder.h` + `EthTxInputBuilder.h:34-44` → `ExecuteViaEth.cpp:112-113` | `SetCodeAuthorizations` on Message (`state_transition.go:222`) | Besu type-4 decode | `EthTxInputBuilderTest` PASS | 解码/recover authority ✅；无 builder→executeViaEth post-state E2E（profile 阻断） |
+| EIP-7702 revision enable (`eip7702`) | revision profile | 🔴 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) | **`EthPolicy.h` 未赋值**；default `false`；consumer `executeMessage.cpp:173` | `enable7702` in `newPragueInstructionSet` (`jump_table.go:111`) | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 PRAGUE/OSAKA 仍为 false | Task 1 🔴：matrix 声称 PRAGUE+ inherited；FiscoPolicy/makeIsthmus 设 true；reference apply 不可达 |
 | RevisionConfig `eip7212` | revision profile | 🟡 | [EIP-7212](https://eips.ethereum.org/EIPS/eip-7212) | `EthPolicy.h:38` OSAKA+ | Osaka rules `evm.go:153` `IsOsaka` | `OsakaGasCalculator`; `P256VerifyPrecompiledContract` | `RevisionConfigProfileTest` block 25,000,000+ | profile true 但 kernel 无 0x0100（inventory #16 unsupported） |
 | RevisionConfig `eip7823` | revision profile | 📋 | [EIP-7823](https://eips.ethereum.org/EIPS/eip-7823) | `EthPolicy.h:39` OSAKA+ | modexp bounds in `contracts.go` | `BigIntegerModularExponentiationPrecompiledContract` | `RevisionConfigProfileTest` | ADR-004 profile-only；`ModexpGas.h:30` 无 TE 调用点 |
 | RevisionConfig `warm_access` | revision profile | 🟡 | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) | `EthPolicy.h:31` BERLIN+ → true | Berlin ACL via revision | `BerlinGasCalculator` | `RevisionConfigProfileTest` | ADR-004 profile-only；flag 传入 `executeMessage.cpp:140,147` 但语义门控为 revision |
@@ -132,6 +134,44 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 ---
 
+### Task 6 — EIP-7702（authorization / tx-input / revision）
+
+#### 🔴 revision enable — EthPolicy 未设 `eip7702`（交叉引用 Task 1）
+
+**现象：** `RevisionConfig.eip7702` 在 `executeMessage.cpp:173` 门控 `applyAuthorizations` + `warmDelegationTarget`。`EthPolicy::computeRevisionConfig`（`EthPolicy.h:27-41`）PRAGUE/OSAKA 区块从未赋值 → 恒为 `false`。
+
+**对照：** geth Prague 经 `newPragueInstructionSet` → `enable7702`；`FiscoPolicy.h:66` 在 `feature_evm_prague` 时设 true；`makeIsthmusRevisionConfig()` 设 true。
+
+**影响：** ETH reference `executeViaEth` 路径即使 `fillWeb3Fields` 传入 authorization list，也不会 apply delegation。Matrix 行「inherited (`EthPolicy` at PRAGUE+)」与实现不符。
+
+**测试：** `RevisionConfigProfileTest` ETH 行 PRAGUE/OSAKA 期望 `eip7702=false`（与 EthPolicy 一致，与 matrix 冲突）。
+
+**建议：** EthPolicy PRAGUE+ 设 `eip7702=true`，或更新 matrix + profile test 为 intentional off。
+
+#### 🟡 kernel `applyAuthorizations` — 已实现但 reference baseline 不可达
+
+**现象：** `Eip7702.cpp` 实现 chainId/nonce/code/refund/delegation 前缀规则，与 geth `validateAuthorization` + `applyAuthorization` 一致。`warmDelegationTarget` 在 `warm_access` 时预热 delegate target。
+
+**EthHost：** `resolveExecutionCode` 返回原始 code；delegation 执行语义由 evmone + `EVMC_PRAGUE` revision 委托（Host 无 `parseDelegationTarget` 于 call 路径）。
+
+**测试：** `Eip7702ApplyAuthorizationTest` / `Bcos7702ExecuteViaHostPropagationTest` 在 **手动** `eip7702=true` 下 PASS；无 `executeViaEth` + EthPolicy 集成测试。
+
+#### 🟡 `stEIP7702_delegation.json` — plain CALL smoke，非 7702 E2E
+
+**现象：** fixture `pre[0xbb]` 为普通 RETURN-42 字节码（非 `0xEF0100‖addr`）；tx 为 plain CALL，无 authorization list。`EthFixtureAdapter::makePragueRevisionConfig()` 不设 `eip7702`、不填 authorizations。
+
+**测试：** `ExecuteViaEthFixtureTest` PASS — 仅 smoke；`FixtureAssert.h` 不验 delegation post-state。与 `architecture-known-gaps.md` 记录一致。
+
+**建议：** 真 7702 fixture（auth list + delegation 安装 + 经 delegatee 执行）或 `ExecuteViaEth` auth apply 集成测试；`makePragueRevisionConfig` 同步 `eip7702=true`。
+
+#### ✅ tx field propagation
+
+**现象：** `EthTxInputBuilder::fillWeb3Fields` 对 type `0x04` 解码 authorization list（chainId/address/nonce/authority）；`ExecuteViaEth.cpp:112-113` 传入 `executeMessage`。
+
+**测试：** `EthTxInputBuilderTest` PASS。
+
+---
+
 ### Task 0 基线测试
 
 **构建：** PASS — `ExecuteViaEthFixtureTest`, `Eip2537KernelTest`, `RevisionConfigProfileTest`, `Eip2929AccessHostTest` 均已编译。
@@ -154,6 +194,10 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 | 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
 |----------|------|----------|------------|------|
+| `EthTxInputBuilderTest` | `fillWeb3Fields_maps_eip7702_authorizations` | ✅ | EIP-7702 type-4 RLP + ecrecover | 仅 input 层；不测 apply |
+| `Eip7702ApplyAuthorizationTest` | `valid_auth_installs_delegation_*` | 🟡 | geth applyAuthorization post-state | opstack 路径；manual `eip7702=true`；非 ETH reference baseline |
+| `ExecuteViaEthFixtureTest` | `stEIP7702_delegation` | 🟡 假覆盖 | GeneralStateTests/stEIP7702（未导入） | plain CALL smoke；无 auth list / delegation code |
+| `RevisionConfigProfileTest` | ETH PRAGUE/OSAKA | ✅（profile） | EthPolicy 快照 | 期望 `eip7702=false` — 与 matrix inherited 声明冲突 |
 
 ---
 
