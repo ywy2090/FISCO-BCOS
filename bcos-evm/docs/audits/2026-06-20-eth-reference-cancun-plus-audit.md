@@ -39,7 +39,8 @@
 | EIP-2929 runtime warm | kernel | ✅ | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) §Cold/warm | `EthHost.cpp:310-326` → `State::warm_up_*`；gas 无 FB 常量 | `operations_acl.go` + `ColdAccountAccessCostEIP2929=2600` 等 (`protocol_params.go:68-70`) | `BerlinGasCalculator` | `Eip2929AccessHostTest`（COLD/WARM 状态）；`StateJournalRevertTest` | gas 由 evmone 委托；FB 无 opcode 级 gas 断言 |
 | EIP-2929 tx-entry destination warm | tx input | ✅ | EIP-2929 tx access list | `ExecuteViaEth.cpp:58` `setWarmDestinationFromKind`；`warmTransactionEntry.h:62-65` | `statedb.Prepare` dst warm when non-create (`statedb.go:1417-1419`) | Berlin+ Prepare | `WarmTransactionEntryTest`; `TxFeaturePrepareTest` | CREATE/CREATE2 跳过 destination warm，与 geth 一致 |
 | EIP-2929 tx-entry coinbase warm | tx input | ✅ | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | `TransactionProperties::warmCoinbase{true}` 默认；`warmTransactionEntry.h:67-70` `rev>=SHANGHAI` | `Prepare` `rules.IsShanghai` coinbase warm (`statedb.go:1430-1432`) | `ShanghaiGasCalculator` | `WarmTransactionEntryTest` @ `EVMC_SHANGHAI` | orchestrator 未显式赋值；implicit-default（ADR-002） |
-| builtin precompiles 0x01–0x11 | kernel | 🟡 | Yellow Paper / EIP-2537/4844 | `EthPrecompiles.cpp` `precompileGasCost`+`dispatch`；`EthHost::routeCall` | `contracts.go` `PrecompiledContractsCancun/Prague` | Prague precompile classes | `ExecuteViaEthFixtureTest`（`stPrecompile_ecrecover/sha256/identity` PASS） | 0x01–0x0a gas 与 geth 一致；0x0b–0x11 无 revision 门控（CANCUN 下仍可 dispatch）；BLS MSM 折扣 → Task 4 |
+| builtin precompiles 0x01–0x11 | kernel | 🟡 | Yellow Paper / EIP-4844 | `EthPrecompiles.cpp` `precompileGasCost`+`dispatch`；`EthHost::routeCall` | `contracts.go` `PrecompiledContractsCancun/Prague` | Prague precompile classes | `ExecuteViaEthFixtureTest`（`stPrecompile_ecrecover/sha256/identity` PASS） | 0x01–0x0a gas 与 geth 一致；0x0b–0x11 无 revision 门控；见 inventory #10 MSM 🔴 |
+| EIP-2537 precompiles (0x0b–0x11) | kernel | 🔴 | [EIP-2537](https://eips.ethereum.org/EIPS/eip-2537) §Gas | TE：`EthPrecompiles.cpp:449-462`（MSM 线性 gas）；`EthBuiltinRegistry.cpp:362-428` 128 项表正确但未 wired | `protocol_params.go` `Bls12381*DiscountTable` + `contracts.go` `bls12381G1/G2MultiExp` | Besu Prague BLS precompile gas | `Eip2537KernelTest` PASS（G1Add @0x0b）；`stBLS_add.json` | EthBuiltinRegistry 256/256 表项 ✅；TE 0x0c/0x0e 缺折扣 🔴；revision 门控 🟡 |
 | chain precompile routing | host extension | ✅ | Host extension §5.3 | `EthHostExtension` 空；`HostExtension::tryChainPrecompile` 默认 nullopt；builtin 经 `EthPrecompiles::tryDispatchInCall` | geth `evm.precompile()` active-set lookup | Besu precompile registry | smoke：`ExecuteViaEthFixtureTest` 经 `executeViaEth` 路由 0x01 | ETH reference 无链级扩展；FISCO/OPStack 在范围外 |
 
 ---
@@ -47,6 +48,37 @@
 ## Part 2 — 偏离项详情
 
 （仅 🟡/🔴；Task 0 基线测试见下方）
+
+### Task 4 — EIP-2537（BLS12-381 / 128 项折扣表）
+
+#### ✅ EthBuiltinRegistry 静态折扣表 — 256/256 与 geth 一致
+
+**方法：** 自 `params/protocol_params.go` 导出 `Bls12381G1MultiExpDiscountTable` + `Bls12381G2MultiExpDiscountTable`（各 128 项）；自 `EthBuiltinRegistry.cpp` 导出 `bls12_g1msm` / `bls12_g2msm` 的 `DISCOUNTS[]`；`diff` 零差异（`_work/eip2537-*-discounts.txt`）。
+
+**用途：** FISCO `PrecompiledImpl` / `PrecompiledManager` 经 `builtinPricerBySuffix` 使用；**非** ETH reference TE 路径。
+
+#### 🔴 TE 路径 G1MSM/G2MSM gas 未应用折扣表
+
+**现象：** `executeMessage`（`executeMessage.cpp:185-186`）与 `EthHost::routeCall` 调用 `EthPrecompiles::tryDispatchInCall` → `precompileGasCost`（`EthPrecompiles.cpp:451-456`）：
+
+- `0x000c`：`12000 × k`（k = len/160）
+- `0x000e`：`22500 × k`（k = len/288）
+
+无 `discountTable[k-1]/1000` 因子。
+
+**geth 对照：** `bls12381G1MultiExp.RequiredGas` / `G2MultiExp`（`contracts.go:970-990`）使用 `params.Bls12381G{1,2}MultiExpDiscountTable`。
+
+**影响：** k≥2 时 TE 路径 MSM gas **高于** geth（例 k=2 G1MSM：FB 24000 vs geth 22776）。固定 gas 预编译（G1Add/G2Add/Pairing/Map）与 geth 一致。
+
+**测试：** `Eip2537KernelTest` / `stBLS_add.json` 仅覆盖 0x0b G1Add；**无** MSM gas 断言 → 缺口未捕获。
+
+**建议：** 在 `EthPrecompiles::precompileGasCost` 接入与 geth 相同的 128 项表（共享常量或委托 pricer）；增加 MSM gas 单元测试。
+
+#### 🟡 revision 门控（交叉引用 Task 2）
+
+CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrague` 注册。见 Task 2 Part 2。
+
+---
 
 ### Task 3 — Cancun 簇（6780 / 1153）
 
