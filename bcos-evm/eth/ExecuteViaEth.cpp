@@ -1,6 +1,7 @@
 #include "bcos-evm/eth/ExecuteViaEth.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/policy/EthHostExtension.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
@@ -12,11 +13,6 @@ namespace bcos::evm
 {
 namespace
 {
-bool isCreateKind(evmc_call_kind kind) noexcept
-{
-    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
-
 EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl)
 {
     auto raw = result.release_raw();
@@ -59,7 +55,7 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
 
     state::State state(*input.stateView);
     state::TransactionProperties txProps;
-    txProps.warmDestination = !isCreateKind(message.kind);
+    execution::setWarmDestinationFromKind(txProps, message.kind);
 
     state::EthHostExtension extension;
 

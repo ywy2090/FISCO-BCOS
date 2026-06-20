@@ -21,6 +21,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
@@ -209,7 +210,7 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
 
     state::State state(*input.stateView);
     state::TransactionProperties txProps;
-    txProps.warmDestination = !isCreateKind(message.kind);
+    execution::setWarmDestinationFromKind(txProps, message.kind);
 
     auto const fixErrorHandling = input.revisionConfig.fix_error_handling;
 
@@ -295,6 +296,8 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             .revisionConfig = input.revisionConfig.eth(),
             .txProps = txProps,
             .accessList = input.accessList.get(),
+            .authorizationListPresent = input.authorizationListPresent,
+            .authorizations = input.authorizations,
             .web3TypedTxKind = input.web3TypedTxKind,
             .extension = &extension,
             .fixStorageStatus = input.revisionConfig.fix_storage_status,

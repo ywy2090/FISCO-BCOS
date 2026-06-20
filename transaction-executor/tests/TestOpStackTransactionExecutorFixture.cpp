@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief OpStackTransactionExecutorImpl executor-level smoke tests (T-18 Phase 1).
+ *  @brief OpStackTransactionExecutorImpl executor-level smoke tests (T-18 Phase 1+2).
  *  @file TestOpStackTransactionExecutorFixture.cpp
  */
 
@@ -200,6 +200,14 @@ public:
         bytes code{0x60, 0x00, 0x60, 0x00, 0xfd};
         co_await account.setCode(code, "", crypto::HashType{});
     }
+
+    task::Task<void> seedInvalidTarget(evmc_address const& target)
+    {
+        ledger::account::EVMAccount account(storage, target, false);
+        co_await account.create();
+        bytes code{0xfe};
+        co_await account.setCode(code, "", crypto::HashType{});
+    }
 };
 
 BOOST_FIXTURE_TEST_SUITE(OpStackTransactionExecutorFixture, OpStackExecutorFixtureHarness)
@@ -292,6 +300,89 @@ BOOST_AUTO_TEST_CASE(deposit_mint_applied_without_fee_routing)
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(100));
+
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(deposit_skips_fee_routing_recipients)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x41);
+        auto const target = addressFromLastByte(0x42);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 0, "0");
+
+        auto tx = makeDepositTx(transactionFactory, sender, target, u256(50));
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+
+        ledger::account::EVMAccount baseRecipient(storage, OP_BASE_FEE_RECIPIENT, false);
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        ledger::account::EVMAccount operatorRecipient(storage, OP_OPERATOR_FEE_RECIPIENT, false);
+        BOOST_CHECK_EQUAL(co_await baseRecipient.balance(), u256(0));
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
+        BOOST_CHECK_EQUAL(co_await operatorRecipient.balance(), u256(0));
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(deposit_failure_reverts_but_keeps_mint)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x51);
+        auto const target = addressFromLastByte(0x52);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 0, "7");
+        co_await seedRevertTarget(target);
+
+        auto tx = makeDepositTx(transactionFactory, sender, target, u256(100));
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_NE(receipt->status(), 0);
+
+        ledger::account::EVMAccount senderAccount(storage, sender, false);
+        BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(100));
+        BOOST_CHECK_EQUAL((co_await senderAccount.nonce()).value(), "8");
+
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(hard_failure_status_propagates_without_state_commit)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        BOOST_TEST_MESSAGE(
+            "Executor commits stateDiff only on SUCCESS/REVERT; INVALID hard failures keep "
+            "storage unchanged while still reporting gas/L1 meta on the receipt.");
+
+        auto const sender = addressFromLastByte(0x61);
+        auto const target = addressFromLastByte(0x62);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 300'000, "0");
+        co_await seedInvalidTarget(target);
+
+        auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_NE(receipt->status(), 0);
+        BOOST_CHECK_GT(receipt->gasUsed(), 0);
+        BOOST_REQUIRE(receipt->l1Fee().has_value());
+        BOOST_CHECK_NE(receipt->l1Fee().value(), "0x0");
+
+        ledger::account::EVMAccount senderAccount(storage, sender, false);
+        BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(300'000));
 
         ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
         BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));

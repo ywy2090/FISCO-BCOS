@@ -30,6 +30,7 @@ set_source_files_properties("ExecuteViaHostCompatTest.cpp" PROPERTIES SKIP_UNITY
 set_source_files_properties("CompatExecuteViaHostTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("CompatExecuteViaHostPhaseBTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("CompatExecuteViaHostPhaseCTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("CompatTransactionExecutorPhaseDTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("TestOpStackTransactionExecutorFixture.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_target_properties(test-transaction-executor PROPERTIES UNITY_BUILD "ON")
 # add_test(NAME test-transaction-executor WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} COMMAND test-transaction-executor)
