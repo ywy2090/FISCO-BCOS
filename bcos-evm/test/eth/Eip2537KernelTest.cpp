@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE Eip2537KernelTest
 
 #include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
@@ -9,6 +10,17 @@
 namespace bcos::evm::test
 {
 using namespace fixtures;
+
+BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth)
+{
+    evmc_address addr{};
+    addr.bytes[19] = 0x0c;
+    bcos::bytes input(320, 0);
+    auto r = state::EthPrecompiles::dispatch(
+        addr, bcos::bytesConstRef(input.data(), input.size()), 500000, EVMC_PRAGUE);
+    BOOST_REQUIRE(r.has_value());
+    BOOST_CHECK_EQUAL(r->gasCost, 22776);
+}
 
 BOOST_AUTO_TEST_CASE(stBLS_add_precompile_0x0b_via_executeMessage)
 {

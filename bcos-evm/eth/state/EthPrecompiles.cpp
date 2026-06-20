@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
+#include "bcos-evm/eth/precompiled/BlsGas.h"
 #include "bcos-evm/eth/precompiled/ModexpGas.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <algorithm>
@@ -449,11 +450,17 @@ int64_t precompileGasCost(uint16_t suffix, bcos::bytesConstRef input, evmc_revis
     case 0x000b:
         return 375;
     case 0x000c:
-        return 12000 * static_cast<int64_t>(input.size() / 160);
+    {
+        auto const k = input.size() / 160;
+        return precompiled::blsG1MsmGas(k);
+    }
     case 0x000d:
         return 600;
     case 0x000e:
-        return 22500 * static_cast<int64_t>(input.size() / 288);
+    {
+        auto const k = input.size() / 288;
+        return precompiled::blsG2MsmGas(k);
+    }
     case 0x000f:
         return 37700 + 32600 * static_cast<int64_t>(input.size() / 384);
     case 0x0010:
