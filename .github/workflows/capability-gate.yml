@@ -1,0 +1,45 @@
+name: capability-gate
+
+on:
+  pull_request:
+    paths:
+      - 'bcos-evm/capability-matrix.md'
+      - 'bcos-evm/eth/**'
+      - 'bcos-evm/bcos/**'
+      - 'bcos-evm/opstack/**'
+      - 'bcos-evm/test/eth/RevisionConfigProfileTest.cpp'
+      - 'transaction-executor/bcos-transaction-executor/*TxInputBuilder*'
+      - 'transaction-executor/bcos-transaction-executor/*Policy*'
+      - 'transaction-executor/bcos-transaction-executor/*TransactionExecutorImpl*'
+
+jobs:
+  matrix-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint capability matrix tokens
+        run: bash bcos-evm/tools/ci/check-capability-matrix.sh
+      - name: Require matrix change when capability surfaces change
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          changed=$(git diff --name-only "$base" "$head" || true)
+          surfaces=$(echo "$changed" | rg -e '^bcos-evm/eth/' \
+            -e '^bcos-evm/bcos/(ExecuteViaHost|FiscoPolicy)' \
+            -e '^bcos-evm/opstack/OpStackExecuteViaHost' \
+            -e '^transaction-executor/bcos-transaction-executor/.*(TxInputBuilder|Policy|TransactionExecutorImpl)' \
+            || true)
+          if [[ -n "$surfaces" ]]; then
+            echo "$changed" | rg -q '^bcos-evm/capability-matrix\.md$' || {
+              echo "error: capability surface changed but capability-matrix.md was not updated" >&2
+              echo "$surfaces" >&2
+              exit 1
+            }
+          fi
+          if echo "$changed" | rg -q '^bcos-evm/eth/RevisionConfig\.h$'; then
+            echo "$changed" | rg -q '^bcos-evm/test/eth/RevisionConfigProfileTest\.cpp$' || {
+              echo "error: RevisionConfig.h changed but RevisionConfigProfileTest.cpp was not updated" >&2
+              exit 1
+            }
+          fi

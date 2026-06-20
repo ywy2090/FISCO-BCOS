@@ -890,3 +890,87 @@ target_compile_definitions(ExecuteViaEthFixtureTest PRIVATE
 target_link_libraries(ExecuteViaEthFixtureTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME ExecuteViaEthFixture COMMAND ExecuteViaEthFixtureTest)
+
+add_executable(OpStack7702ExecuteViaHostPropagationTest opstack/OpStack7702ExecuteViaHostPropagationTest.cpp)
+target_include_directories(OpStack7702ExecuteViaHostPropagationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStack7702ExecuteViaHostPropagationTest PRIVATE
+    bcos-evm-op bcos-task evmone::evmone)
+add_test(NAME OpStack7702ExecuteViaHostPropagation COMMAND OpStack7702ExecuteViaHostPropagationTest)
+
+function(add_te_input_builder_test NAME SOURCE)
+    add_executable(${NAME} ${SOURCE})
+    target_include_directories(${NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/transaction-executor)
+    target_link_libraries(${NAME} PRIVATE
+        bcos-evm bcos-evm-op executor protocol-tars bcos-crypto codec)
+    add_test(NAME ${NAME} COMMAND ${NAME})
+endfunction()
+
+add_te_input_builder_test(EthTxInputBuilderTest eth/EthTxInputBuilderTest.cpp)
+add_te_input_builder_test(FiscoTxInputBuilderTest eth/FiscoTxInputBuilderTest.cpp)
+add_te_input_builder_test(OpStackTxInputBuilderTest opstack/OpStackTxInputBuilderTest.cpp)
+
+add_executable(RevisionConfigProfileTest eth/RevisionConfigProfileTest.cpp)
+target_include_directories(RevisionConfigProfileTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(RevisionConfigProfileTest PRIVATE
+    bcos-evm bcos-evm-eth protocol-tars bcos-framework)
+add_test(NAME RevisionConfigProfile COMMAND RevisionConfigProfileTest)
+
+add_executable(TxFeaturePrepareTest eth/TxFeaturePrepareTest.cpp)
+target_include_directories(TxFeaturePrepareTest PRIVATE ${PROJECT_SOURCE_DIR})
+target_link_libraries(TxFeaturePrepareTest PRIVATE bcos-evm-eth)
+add_test(NAME TxFeaturePrepare COMMAND TxFeaturePrepareTest)
+
+add_executable(OpStackTxPropsTest opstack/OpStackTxPropsTest.cpp)
+target_include_directories(OpStackTxPropsTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/transaction-executor)
+target_link_libraries(OpStackTxPropsTest PRIVATE bcos-evm-op bcos-evm-eth)
+add_test(NAME OpStackTxProps COMMAND OpStackTxPropsTest)
+
+add_executable(Bcos21000GasDeviationTest bcos/Bcos21000GasDeviationTest.cpp)
+target_include_directories(Bcos21000GasDeviationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Bcos21000GasDeviationTest PRIVATE bcos-evm bcos-task evmone::evmone)
+add_test(NAME Bcos21000GasDeviation COMMAND Bcos21000GasDeviationTest)
+
+add_executable(Bcos7702ExecuteViaHostPropagationTest bcos/Bcos7702ExecuteViaHostPropagationTest.cpp)
+target_include_directories(Bcos7702ExecuteViaHostPropagationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Bcos7702ExecuteViaHostPropagationTest PRIVATE bcos-evm bcos-task evmone::evmone)
+add_test(NAME Bcos7702ExecuteViaHostPropagation COMMAND Bcos7702ExecuteViaHostPropagationTest)
+
+add_executable(Bcos7623PrecheckTest bcos/Bcos7623PrecheckTest.cpp)
+target_include_directories(Bcos7623PrecheckTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Bcos7623PrecheckTest PRIVATE
+    bcos-evm bcos-task evmone::evmone bcos-protocol)
+add_test(NAME Bcos7623Precheck COMMAND Bcos7623PrecheckTest)
+
+add_executable(BcosAuthOrchestratorHookTest bcos/BcosAuthOrchestratorHookTest.cpp)
+target_include_directories(BcosAuthOrchestratorHookTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(BcosAuthOrchestratorHookTest PRIVATE
+    bcos-evm bcos-task evmone::evmone bcos-protocol)
+add_test(NAME BcosAuthOrchestratorHook COMMAND BcosAuthOrchestratorHookTest)
+
+add_executable(ExecuteViaHostImportedFixtureTest bcos/ExecuteViaHostImportedFixtureTest.cpp)
+target_include_directories(ExecuteViaHostImportedFixtureTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_compile_definitions(ExecuteViaHostImportedFixtureTest PRIVATE
+    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
+target_link_libraries(ExecuteViaHostImportedFixtureTest PRIVATE
+    bcos-evm bcos-task evmone::evmone bcos-crypto)
+add_test(NAME ExecuteViaHostImportedFixture COMMAND ExecuteViaHostImportedFixtureTest)
+
+add_executable(Eip2537KernelTest eth/Eip2537KernelTest.cpp)
+target_include_directories(Eip2537KernelTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_compile_definitions(Eip2537KernelTest PRIVATE
+    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
+target_link_libraries(Eip2537KernelTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip2537Kernel COMMAND Eip2537KernelTest)

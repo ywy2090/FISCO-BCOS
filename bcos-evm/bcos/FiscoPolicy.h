@@ -2,6 +2,7 @@
 #include "AuthCheck.h"
 #include "FiscoConstants.h"
 #include "FiscoRevisionConfig.h"
+#include "PrecompiledManager.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/BlockHeader.h"
@@ -61,6 +62,7 @@ public:
         ethCfg.eip1559 = ethCfg.revision >= EVMC_LONDON;
         ethCfg.eip2537 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
         ethCfg.eip7623 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
+        ethCfg.eip7702 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
         ethCfg.eip7212 = ethCfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
         ethCfg.eip7823 = ethCfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
         ethCfg.calldata_floor_per_token = ethCfg.eip7623 ? 10 : 0;
@@ -110,7 +112,7 @@ public:
     template <class Storage>
     task::Task<std::optional<class bcos::evm::EVMCResult>> checkAuth(Storage& storage,
         const protocol::BlockHeader& blockHeader, const evmc_message& msg,
-        const evmc_address& origin, const class bcos::evm::PrecompiledManager& precompiledMgr,
+        const evmc_address& origin, const bcos::evm::PrecompiledManager& precompiledMgr,
         int64_t contextID, int64_t& seq, const crypto::Hash& hashImpl) const
     {
         if (!m_authCheckEnabled)

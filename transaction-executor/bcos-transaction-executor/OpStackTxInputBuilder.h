@@ -5,6 +5,7 @@
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
@@ -215,6 +216,11 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackExecuteViaHos
             input.depositTx = std::move(deposit);
         }
     }
+}
+
+inline void applyDefaultTxProps(OpStackExecuteViaHostInput& input)
+{
+    execution::setWarmDestinationFromKind(input.txProps, input.message.kind);
 }
 }  // namespace opstack_tx
 }  // namespace bcos::evm
