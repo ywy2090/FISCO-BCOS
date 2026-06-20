@@ -24,6 +24,7 @@
 #include "bcos-evm/bcos/FiscoRevisionConfig.h"
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -61,6 +62,8 @@ struct ExecuteViaHostInput
     bool web3Tx{false};
     uint8_t web3TypedTxKind{0};
     std::shared_ptr<const Eip2930AccessList> accessList;
+    bool authorizationListPresent{false};
+    std::vector<SetCodeAuthorization> authorizations;
 
     // Optional adapters for integration layering.
     std::function<std::optional<EVMCResult>(const evmc_message&)> authChecker;
