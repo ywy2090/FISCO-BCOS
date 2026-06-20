@@ -11,7 +11,55 @@
 
 ## Part 0 — 执行摘要
 
-（Task 9 填写）
+**结论：** ETH reference `executeViaEth` 路径在 CANCUN+ 分叉上**尚未达到 geth/Besu 合规基线**。Part 1 共 29 条矩阵行（inventory 22 行 + Task 1–7 展开的 kernel/orchestration 子行）；存在 **7 项 🔴 阻断**，合并判定 **❌ 不通过**。
+
+| 指标 | 值 |
+|------|-----|
+| 审计行数（Part 1） | 29 |
+| ✅ 一致 | 14 |
+| 🟡 警告 | 4 |
+| 🔴 阻断 | 7 |
+| 📋 设计选择 | 4 |
+| **合并判定** | **❌ 不通过**（任一 🔴 → 不通过） |
+
+**合并规则应用：** Part 1 含 7 条 🔴（kernel 语义 5 + revision profile 2），故不满足合并条件。无 🔴 时方可 ⚠️（有 🟡）或 ✅。
+
+### 已闭合能力（摘要）
+
+- **Revision profile / evmone-delegated：** Cancun opcode 标志（1153/5656/6780/4844 profile）、Prague `eip2537`/`eip7623` profile 赋值与 `RevisionConfigProfileTest` 一致。
+- **EIP-2929 / tx-entry warm：** `EthHost` cold/warm、`ExecuteViaEth` destination/coinbase warm 与 geth `Prepare` 对齐；测试 ✅。
+- **EIP-7623 settlement：** `Eip7623.h` + `finalizeEthereumGasUsed` 公式与 geth/Besu 一致；TE settlement 测试 ✅。
+- **EIP-7702 tx-input：** type-4 authorization 解码/recover ✅；apply 因 profile 🔴 不可达。
+- **EthBuiltinRegistry：** EIP-2537 128 项折扣表与 geth `protocol_params.go` 256/256 零差异 ✅（FISCO 路径；TE 未 wired）。
+
+### Top 5 阻断项
+
+| # | EIP / 能力 | 层级 | 根因 | 指针 |
+|---|-----------|------|------|------|
+| 1 | **EIP-7702 revision enable** | revision profile | `EthPolicy` PRAGUE/OSAKA 未设 `eip7702=true` → `applyAuthorizations` 永不执行 | `EthPolicy.h:27-41`；`executeMessage.cpp:173` |
+| 2 | **EIP-6780 SELFDESTRUCT** | kernel | `EthHost::selfdestruct` 为 stub；evmone 委托 Host 做状态变更但未实现 | `EthHost.cpp:145-156` |
+| 3 | **EIP-2537 MSM gas** | kernel | TE `precompileGasCost` 线性 `12000×k` / `22500×k`，未用 128 项折扣表 | `EthPrecompiles.cpp:449-462` |
+| 4 | **EIP-7212 (0x0100)** | kernel | TE 无 dispatch；Host 仍认 0x0100 为 builtin → 静默成功（非 6900 gas + verify） | `EthPrecompiles.cpp:55-66`；`EthHost.cpp:378-382` |
+| 5 | **EIP-7823 modexp bounds** | kernel | `validateModexpEip7823` 仅 FISCO 路径；TE `executeModexp` 无长度门控 | `ModexpGas.cpp:170-194`；`EthPrecompiles.cpp:116-152` |
+
+另 2 条 🔴 为 profile 层与 kernel 缺口交叉引用：`RevisionConfig eip7212` / `eip7823`（`EthPolicy` 已启用，TE consumer 缺失，见 Task 7）。
+
+### 测试断言（Part 3 摘要）
+
+- 显式 + fixture：**✅ 16 | 🟡 25 | 🔴 0**（41 行）。
+- **假覆盖风险：** `stEIP7702_delegation.json`、`stSelfDestruct_basic.json` 在 🔴 实现缺口下仍 PASS（无 post-state / 无 auth list）。
+- 基线构建/运行（Task 0）：所列二进制均 PASS；无测试失败掩盖 🔴。
+
+### Spec §8 Done 自检
+
+| 项 | 状态 |
+|----|------|
+| Part 0–4 齐全 | ✅ |
+| CANCUN+ matrix ETH 行均有 Part 1 条目 | ✅（29 行覆盖 inventory + 展开子行） |
+| 每条 🟡/🔴 有规范引用 + FB 文件指针 | ✅（Part 1 + Part 2） |
+| Part 3 覆盖 `test/eth/**`、state、fixtures | ✅ |
+| 报告头 branch/commit、geth/Besu tag | ✅ |
+| 合并判定明确 | ✅ **❌ 不通过** |
 
 ---
 
@@ -327,4 +375,43 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 ## Part 4 — 后续动作
 
-（Task 9 填写）
+按优先级排列；P0 对应 Part 1 全部 🔴，修复前 ETH reference CANCUN+ 路径不得视为合规。
+
+### P0 — 代码修复（🔴）
+
+| 优先级 | 动作 | 文件 / 符号 | 验收 |
+|--------|------|-------------|------|
+| P0-1 | PRAGUE+ 启用 `eip7702`（或 intentional off 则改 matrix + 测试） | `EthPolicy.h:27-41` | `RevisionConfigProfileTest` PRAGUE/OSAKA `eip7702=true`；`executeViaEth` auth apply 可达 |
+| P0-2 | 实现 Cancun SELFDESTRUCT 语义：`IsNewContract`、余额转移、条件删码 | `EthHost.cpp:145-156`；tx 内 CREATE 地址集跟踪 | geth `opSelfdestruct6780` 对照；post-state fixture |
+| P0-3 | TE MSM gas 接入 128 项折扣表（复用 `EthBuiltinRegistry` 或共享常量） | `EthPrecompiles.cpp:449-462` | k≥2 G1MSM/G2MSM gas 与 geth `contracts.go` 一致 |
+| P0-4 | OSAKA+ 接入 `0x0100` p256verify（6900 gas、`evmmax::secp256r1::verify`） | `EthPrecompiles.cpp` dispatch；`EthHost.cpp:378-382` active-set | 160B 输入向量；拒绝非 OSAKA revision 调用 |
+| P0-5 | TE modexp 入口调用 `shouldRejectModexpEip7823` / `validateModexpEip7823` | `EthPrecompiles.cpp:116-152`；传入 `RevisionConfig` | OSAKA+ len=1025 → 预编译失败（对齐 geth `bigModExp`） |
+| P0-6 | （可选同批）Prague 预编译 0x0b–0x11 revision 门控 | `EthHost.cpp:360-383`；`executeMessage.cpp:183-194` | CANCUN revision 下 call 0x0b 为 empty-account，非预编译 |
+
+### P1 — 补测 / 改断言（🟡）
+
+| 主题 | 动作 | 目标文件 |
+|------|------|----------|
+| 6780 / SELFDESTRUCT | 增加 post-state 断言（0x12→0xbb 余额、预存合约保留 code/storage） | `stSelfDestruct_basic.json` + `FixtureAssert.h` 或新 fixture |
+| 7702 E2E | 真 type-4 tx + auth list + delegation code + delegatee 执行 | `ExecuteViaEthFixtureTest`；`EthFixtureAdapter::makePragueRevisionConfig` |
+| 2537 MSM | MSM gas 单元测试（k=2,4,128 折扣边界） | `bcos-evm/test/eth/Eip2537KernelTest.cpp` 或新用例 |
+| 7623 orchestration | `ExecuteViaEth` precheck OOG + floor receipt（27216 canonical） | 新建 `bcos-evm/test/eth/*7623*` |
+| 1153 transient | tx 末 purge `transientStorage`；TLOAD/TLOAD fixture | `State.cpp` / `build_diff`；新 state test |
+| 2929 gas | cold/warm gas delta 与 2600/2100/100 常量对照 | state test 或 evmone 集成 |
+| 预编译 smoke | `stPrecompile_ecrecover` 对照 geth JSON；fixture gas 非零时启用 gas 断言 | `ExecuteViaEthFixtureTest` + `FixtureAssert.h` |
+| 7702 apply | ETH reference 集成测试（非 manual `eip7702=true`） | `bcos-evm/test/eth/` 新用例 |
+| 7212 / 7823 | OSAKA p256verify + modexp 1025 拒绝向量 | 新 fixture + kernel test |
+
+### P2 — capability matrix 建议更新
+
+| Matrix 行 | 当前 ETH 列 | 建议 | 触发条件 |
+|-----------|-------------|------|----------|
+| EIP-7702 revision enable | inherited (`EthPolicy` PRAGUE+) | 改为 **explicit off** 直至 P0-1，或 P0-1 后保持 inherited | P0-1 合并 |
+| EIP-7212 precompile | unsupported | 保持 unsupported 直至 P0-4；P0-4 后改为 **inherited** | P0-4 合并 |
+| RevisionConfig `eip7212` | （implicit profile） | ADR-004 注明 profile 启用 ≠ TE dispatch | 文档同步 |
+| RevisionConfig `eip7823` | feature-gated (profile-only) | P0-5 后改为 **inherited**（TE consumer wired） | P0-5 合并 |
+| EIP-2537 precompiles | inherited | 脚注：TE MSM 折扣待 P0-3；G1Add 等固定 gas 已一致 | P0-3 前 |
+| EIP-6780 | inherited (profile) + kernel | 拆分说明：profile ✅ / kernel 🔴 直至 P0-2 | P0-2 合并 |
+| builtin precompiles 0x01–0x11 | inherited | 脚注 CANCUN 下 0x0b–0x11 门控 🟡（P0-6） | P0-6 可选 |
+
+**复审计触发：** P0 全部关闭且 Part 1 无 🔴 后，重跑 Task 9 统计；合并判定可升为 ⚠️（若仍有 🟡）或 ✅。
