@@ -27,6 +27,7 @@
 #include <evmc/evmc.hpp>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 namespace bcos::evm::state
@@ -67,6 +68,8 @@ public:
     {
         m_executionAddress = address;
     }
+    void markCreatedInTx(evmc_address const& addr) noexcept;
+    [[nodiscard]] bool wasCreatedInTx(evmc_address const& addr) const noexcept;
     std::vector<LogEntry> take_logs();
 
 private:
@@ -89,6 +92,7 @@ private:
     bcos::bytes resolveExecutionCode(const evmc_message& msg) const;
     bool transferValue(const evmc_message& msg) noexcept;
     evmc_address resolveCallerAddress(const evmc_message& msg) const noexcept;
+    void destroyContractState(evmc_address const& addr) noexcept;
 
 private:
     State& m_state;
@@ -103,5 +107,6 @@ private:
     bool m_fixStorageStatus{true};
     std::vector<LogEntry> m_logs;
     evmc_address m_executionAddress{};
+    std::unordered_set<evmc_address, AddressHash, AddressEqual> m_createdInTx;
 };
 }  // namespace bcos::evm::state

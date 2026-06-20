@@ -4,6 +4,7 @@
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"
+#include "helpers/ApplyStateDiffToView.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -37,6 +38,11 @@ BOOST_AUTO_TEST_CASE(existing_prague_fixtures_via_execute_via_eth)
             int64_t const gasBefore = input.message.gas;
             auto output = task::syncWait(executeViaEth(std::move(input)));
             assertFixtureResult(fixture, output, gasBefore);
+            if (!fixture.expected.post.empty())
+            {
+                applyStateDiffToView(output.stateDiff, view);
+                assertFixturePostState(view, fixture);
+            }
         }
     }
 }

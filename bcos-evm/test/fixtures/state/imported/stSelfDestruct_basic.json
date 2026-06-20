@@ -43,6 +43,17 @@
     "status": "EVMC_SUCCESS",
     "gas_used": 7603,
     "logs": 0,
-    "output": "0x"
+    "output": "0x",
+    "post": [
+      {
+        "address": "0x0000000000000000000000000000000000000012",
+        "balance": "0x0",
+        "code_nonempty": true
+      },
+      {
+        "address": "0x00000000000000000000000000000000000000bb",
+        "balance": "0x10"
+      }
+    ]
   }
 }

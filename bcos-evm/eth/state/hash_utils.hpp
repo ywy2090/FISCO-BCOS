@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <evmone_precompiles/keccak.hpp>
 #include <string_view>
 
 namespace bcos::evm::state
@@ -131,5 +132,44 @@ inline evmc_address parseHexAddress(std::string_view value) noexcept
         address.bytes[index] = static_cast<uint8_t>((high << 4) | low);
     }
     return address;
+}
+
+inline void appendRlpUint64(bcos::bytes& out, uint64_t value)
+{
+    if (value == 0)
+    {
+        out.push_back(0x80);
+        return;
+    }
+    bcos::bytes encoded;
+    while (value > 0)
+    {
+        encoded.insert(encoded.begin(), static_cast<uint8_t>(value & 0xff));
+        value >>= 8;
+    }
+    if (encoded.size() == 1 && encoded[0] < 0x80)
+    {
+        out.push_back(encoded[0]);
+        return;
+    }
+    out.push_back(static_cast<uint8_t>(0x80 + encoded.size()));
+    out.insert(out.end(), encoded.begin(), encoded.end());
+}
+
+inline evmc_address predictLegacyCreateAddress(evmc_address const& sender, uint64_t nonce) noexcept
+{
+    bcos::bytes payload;
+    payload.push_back(0x94);
+    payload.insert(payload.end(), sender.bytes, sender.bytes + sizeof(sender.bytes));
+    appendRlpUint64(payload, nonce);
+
+    bcos::bytes rlp;
+    rlp.push_back(static_cast<uint8_t>(0xc0 + payload.size()));
+    rlp.insert(rlp.end(), payload.begin(), payload.end());
+
+    auto const hash = ethash::keccak256(rlp.data(), rlp.size());
+    evmc_address out{};
+    std::memcpy(out.bytes, hash.bytes + 12, sizeof(out.bytes));
+    return out;
 }
 }  // namespace bcos::evm::state

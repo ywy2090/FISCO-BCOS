@@ -21,6 +21,7 @@
 
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/state/StateView.hpp"
 #include <boost/test/unit_test.hpp>
 #include <cstdlib>
 
@@ -43,6 +44,31 @@ inline void assertFixtureResult(
         int64_t const actualGas = gasBefore - output.evmcResult.gas_left;
         int64_t const diff = std::abs(actualGas - fixture.expected.gasUsed);
         BOOST_CHECK_LE(diff, fixture.expected.gasUsedTolerance);
+    }
+}
+
+inline void assertFixturePostState(state::StateView const& stateView, FixtureCase const& fixture)
+{
+    for (auto const& expectedPost : fixture.expected.post)
+    {
+        BOOST_TEST_CONTEXT("post address=0x" << bcos::toHex(bcos::bytesConstRef(
+                               expectedPost.address.bytes, sizeof(expectedPost.address.bytes))))
+        {
+            if (expectedPost.balance.has_value())
+            {
+                BOOST_CHECK_EQUAL(
+                    stateView.get_balance(expectedPost.address), *expectedPost.balance);
+            }
+            auto const code = stateView.get_code(expectedPost.address);
+            if (expectedPost.codeEmpty.value_or(false))
+            {
+                BOOST_CHECK_MESSAGE(code.empty(), "expected empty code after selfdestruct");
+            }
+            if (expectedPost.codeNonempty.value_or(false))
+            {
+                BOOST_CHECK_MESSAGE(!code.empty(), "expected code retained under EIP-6780");
+            }
+        }
     }
 }
 

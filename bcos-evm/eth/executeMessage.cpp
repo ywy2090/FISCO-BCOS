@@ -34,6 +34,37 @@ bool isCreateKind(evmc_call_kind kind) noexcept
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
 }
 
+evmc_address resolveCreateAddress(const evmc_message& message, const evmc_result& result) noexcept
+{
+    auto createAddr = message.recipient;
+    if (state::isZeroAddress(createAddr))
+    {
+        createAddr = message.code_address;
+    }
+    if (state::isZeroAddress(createAddr))
+    {
+        createAddr = result.create_address;
+    }
+    return createAddr;
+}
+
+void markCreateAddressBeforeExecute(
+    state::EthHost& host, state::State& state, const evmc_message& message) noexcept
+{
+    if (!isCreateKind(message.kind))
+    {
+        return;
+    }
+
+    auto createAddr = resolveCreateAddress(message, {});
+    if (state::isZeroAddress(createAddr))
+    {
+        createAddr =
+            state::predictLegacyCreateAddress(message.sender, state.get_nonce(message.sender));
+    }
+    host.markCreatedInTx(createAddr);
+}
+
 evmc_address resolveCodeAddress(const evmc_message& message) noexcept
 {
     auto codeAddress = message.code_address;
@@ -200,6 +231,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     }
 
     state.checkpoint();
+    markCreateAddressBeforeExecute(host, state, input.message);
     output.result = input.vm->execute(
         host, input.revisionConfig.revision, input.message, code.data(), code.size());
     output.logs = host.take_logs();
@@ -207,6 +239,10 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     if (output.result.status_code == EVMC_SUCCESS)
     {
         installCreatedContractCode(state, input.message, output.result.raw());
+        if (isCreateKind(input.message.kind))
+        {
+            host.markCreatedInTx(resolveCreateAddress(input.message, output.result.raw()));
+        }
         if (input.fixNonceInit && isCreateKind(input.message.kind))
         {
             auto createAddr = input.message.recipient;

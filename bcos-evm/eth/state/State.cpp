@@ -222,6 +222,12 @@ void State::set_storage(
     mutable_account(address).storage[key] = value;
 }
 
+void State::clear_storage(const evmc_address& address)
+{
+    journal_account_once(address);
+    mutable_account(address).storage.clear();
+}
+
 void State::set_transient_storage(
     const evmc_address& address, const evmc_bytes32& key, const evmc_bytes32& value)
 {

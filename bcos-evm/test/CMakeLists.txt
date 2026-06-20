@@ -1028,3 +1028,12 @@ target_include_directories(Bcos2537MsmGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(Bcos2537MsmGasTest PRIVATE bcos-evm bcos-evm-eth evmone::evmone)
 add_test(NAME Bcos2537MsmGas COMMAND Bcos2537MsmGasTest)
+
+add_executable(Bcos6780SelfdestructTest bcos/Bcos6780SelfdestructTest.cpp)
+target_include_directories(Bcos6780SelfdestructTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_compile_definitions(Bcos6780SelfdestructTest PRIVATE
+    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
+target_link_libraries(Bcos6780SelfdestructTest PRIVATE
+    bcos-evm bcos-task evmone::evmone bcos-crypto)
+add_test(NAME Bcos6780Selfdestruct COMMAND Bcos6780SelfdestructTest)

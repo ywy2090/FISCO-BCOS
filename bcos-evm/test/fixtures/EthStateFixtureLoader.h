@@ -39,6 +39,14 @@ namespace bcos::evm::test::fixtures
 {
 namespace pt = boost::property_tree;
 
+struct ExpectedPostAccount
+{
+    evmc_address address{};
+    std::optional<bcos::u256> balance;
+    std::optional<bool> codeEmpty;
+    std::optional<bool> codeNonempty;
+};
+
 struct ExpectedResult
 {
     evmc_status_code status = EVMC_SUCCESS;
@@ -48,6 +56,7 @@ struct ExpectedResult
     int64_t gasUsedExecutorTolerance = 0;
     bcos::bytes output;
     size_t logs = 0;
+    std::vector<ExpectedPostAccount> post;
 };
 
 struct FixtureCase
@@ -171,6 +180,29 @@ inline FixtureCase loadFixture(std::filesystem::path const& path)
         expectedTree.get<int64_t>("gas_used_executor_tolerance", 0);
     fixture.expected.output = parseBytes(expectedTree.get<std::string>("output", "0x"));
     fixture.expected.logs = expectedTree.get<size_t>("logs", 0);
+
+    if (auto post = expectedTree.get_child_optional("post"); post.has_value())
+    {
+        for (auto const& postNode : *post)
+        {
+            auto const& postTree = postNode.second;
+            ExpectedPostAccount expectedPost;
+            expectedPost.address = parseAddress(postTree.get<std::string>("address"));
+            if (auto balance = postTree.get_optional<std::string>("balance"); balance.has_value())
+            {
+                expectedPost.balance = parseU256(*balance);
+            }
+            if (postTree.get_optional<bool>("code_empty").value_or(false))
+            {
+                expectedPost.codeEmpty = true;
+            }
+            if (postTree.get_optional<bool>("code_nonempty").value_or(false))
+            {
+                expectedPost.codeNonempty = true;
+            }
+            fixture.expected.post.push_back(std::move(expectedPost));
+        }
+    }
 
     return fixture;
 }

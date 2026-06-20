@@ -70,6 +70,7 @@ public:
     void set_code(const evmc_address& address, bcos::bytes code, evmc_bytes32 codeHash);
     void set_storage(
         const evmc_address& address, const evmc_bytes32& key, const evmc_bytes32& value);
+    void clear_storage(const evmc_address& address);
     void set_transient_storage(
         const evmc_address& address, const evmc_bytes32& key, const evmc_bytes32& value);
 

@@ -143,9 +143,27 @@ size_t EthHost::copy_code(const address& addr, size_t code_offset, uint8_t* buff
     return count;
 }
 
+void EthHost::markCreatedInTx(evmc_address const& addr) noexcept
+{
+    if (!isZeroAddress(addr))
+    {
+        m_createdInTx.insert(addr);
+    }
+}
+
+bool EthHost::wasCreatedInTx(evmc_address const& addr) const noexcept
+{
+    return m_createdInTx.contains(addr);
+}
+
+void EthHost::destroyContractState(evmc_address const& addr) noexcept
+{
+    m_state.set_code(addr, {}, {});
+    m_state.clear_storage(addr);
+}
+
 bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noexcept
 {
-    (void)beneficiary;
     if (m_extension != nullptr)
     {
         auto const account = m_state.find(addr).value_or(Account{});
@@ -154,6 +172,31 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
             return false;
         }
     }
+
+    auto const balance = m_state.get_balance(addr);
+    if (balance != 0)
+    {
+        if (std::memcmp(addr.bytes, beneficiary.bytes, sizeof(addr.bytes)) != 0)
+        {
+            bcos::evm::transfer(m_state, addr, beneficiary, balance);
+        }
+        else
+        {
+            m_state.set_balance(addr, 0);
+        }
+    }
+
+    if (m_revisionConfig.revision >= EVMC_CANCUN)
+    {
+        if (!wasCreatedInTx(addr))
+        {
+            return false;
+        }
+        destroyContractState(addr);
+        return true;
+    }
+
+    destroyContractState(addr);
     return true;
 }
 
@@ -223,6 +266,20 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 
     auto code = resolveExecutionCode(callMessage);
     m_state.checkpoint();
+    if (isCreateKind(callMessage.kind))
+    {
+        auto createAddr = callMessage.recipient;
+        if (isZeroAddress(createAddr))
+        {
+            createAddr = callMessage.code_address;
+        }
+        if (isZeroAddress(createAddr))
+        {
+            createAddr = predictLegacyCreateAddress(
+                callMessage.sender, m_state.get_nonce(callMessage.sender));
+        }
+        markCreatedInTx(createAddr);
+    }
     auto result =
         m_vm.execute(*this, m_revisionConfig.revision, callMessage, code.data(), code.size());
     if (result.status_code == EVMC_SUCCESS)
@@ -230,6 +287,16 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         installCreatedContractCode(m_state, callMessage, result.raw());
         if (isCreateKind(callMessage.kind))
         {
+            auto createAddr = callMessage.recipient;
+            if (isZeroAddress(createAddr))
+            {
+                createAddr = callMessage.code_address;
+            }
+            if (isZeroAddress(createAddr))
+            {
+                createAddr = result.raw().create_address;
+            }
+            markCreatedInTx(createAddr);
             auto& raw = const_cast<evmc_result&>(result.raw());
             if (state::isZeroAddress(raw.create_address))
             {
