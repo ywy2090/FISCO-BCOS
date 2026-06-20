@@ -20,24 +20,24 @@
 
 using namespace bcos;
 using namespace bcos::storage2;
-using namespace bcos::executor_v1;
 using namespace bcos::evm;
 
 class TestTransactionExecutorImplFixture
 {
 public:
-    MutableStorage storage;
+    executor_v1::MutableStorage storage;
     ledger::LedgerConfig ledgerConfig;
     std::shared_ptr<bcos::crypto::CryptoSuite> cryptoSuite =
         std::make_shared<bcos::crypto::CryptoSuite>(
             std::make_shared<bcos::crypto::Keccak256>(), nullptr, nullptr);
     bcostars::protocol::TransactionFactoryImpl transactionFactory{cryptoSuite};
     bcostars::protocol::TransactionReceiptFactoryImpl receiptFactory{cryptoSuite};
-    PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
-    TransactionExecutorImpl<> executor{receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
+    bcos::evm::PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
+    bcos::evm::TransactionExecutorImpl<> executor{
+        receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
 
-    static_assert(
-        bcos::executor_v1::TransactionExecutor<TransactionExecutorImpl<>, MutableStorage>);
+    static_assert(bcos::executor_v1::TransactionExecutor<bcos::evm::TransactionExecutorImpl<>,
+        executor_v1::MutableStorage>);
 
     TestTransactionExecutorImplFixture()
     {
@@ -307,7 +307,7 @@ BOOST_AUTO_TEST_CASE(revertLogsClearedWithFeature)
         execCtx.m_data->m_evmcResult->status = bcos::protocol::TransactionStatus::RevertInstruction;
 
         // Finish and verify logs cleared
-        auto receipt = co_await execCtx.template executeStep<bcos::evm::ExecutePhase::Finalize>();
+        auto receipt = co_await execCtx.template executeStep<2>();
         BOOST_CHECK_NE(receipt->status(), 0);
         BOOST_CHECK(receipt->logEntries().empty());
     }());
@@ -356,7 +356,7 @@ BOOST_AUTO_TEST_CASE(revertLogsRemainWithoutFeature)
         execCtx.m_data->m_evmcResult->status = bcos::protocol::TransactionStatus::RevertInstruction;
 
         // Finish and verify logs remain (bugfix is off)
-        auto receipt = co_await execCtx.template executeStep<bcos::evm::ExecutePhase::Finalize>();
+        auto receipt = co_await execCtx.template executeStep<2>();
         BOOST_CHECK_NE(receipt->status(), 0);
         BOOST_CHECK(!receipt->logEntries().empty());
     }());
@@ -391,7 +391,7 @@ BOOST_AUTO_TEST_CASE(web3Nonce)
 
         ledger::account::EVMAccount senderAccount(storage, senderAddress, false);
         auto nonce = co_await senderAccount.nonce();
-        BOOST_TEST(nonce.value() == "6");
+        BOOST_CHECK_EQUAL(nonce.value(), "6");
 
         ledger::account::EVMAccount helloworldAccount(storage, receipt->contractAddress(), false);
         auto contractNonce = co_await helloworldAccount.nonce();
@@ -682,11 +682,11 @@ BOOST_AUTO_TEST_CASE(buyGasChargesOnEvmFailure)
         bcos::bytes helloworldBytecodeBinary;
         boost::algorithm::unhex(helloworldBytecode, std::back_inserter(helloworldBytecodeBinary));
 
-        // gasLimit=50000 is too small for HelloWorld deploy (~149586 gas needed).
-        // Balance 100000 covers gasLimit * gasPrice = 50000, pre-check passes.
-        // EVM fails (likely OutOfGas). Whatever gasUsed is, final balance = initBalance - gasUsed.
+        // gasLimit=15000 is too small for HelloWorld deploy (~22546 gas needed).
+        // Balance 100000 covers gasLimit * gasPrice = 15000, pre-check passes.
+        // EVM fails (OutOfGas). Whatever gasUsed is, final balance = initBalance - gasUsed.
         auto transaction = transactionFactory.createTransaction(1, "", helloworldBytecodeBinary,
-            "0x5", 0, "", "", 0, std::string{}, "0x0", "0x1", 50000, "0x0", "0x0");
+            "0x5", 0, "", "", 0, std::string{}, "0x0", "0x1", 15000, "0x0", "0x0");
         evmc_address senderAddress = unhexAddress("e0e794ca86d198042b64285c5ce667aee747509b"sv);
         transaction->forceSender(
             bytes(senderAddress.bytes, senderAddress.bytes + sizeof(senderAddress.bytes)));
@@ -705,7 +705,7 @@ BOOST_AUTO_TEST_CASE(buyGasChargesOnEvmFailure)
         // No "confiscation" — balance doesn't drop below (initBalance - gasLimit)
         auto finalBalance = co_await senderAccount.balance();
         BOOST_CHECK_EQUAL(finalBalance, u256(initBalance) - u256(receipt->gasUsed()));
-        BOOST_CHECK_LE(receipt->gasUsed(), 50000);  // never exceeds gasLimit
+        BOOST_CHECK_LE(receipt->gasUsed(), 15000);  // never exceeds gasLimit
         // Nonce incremented
         BOOST_CHECK_EQUAL((co_await senderAccount.nonce()).value(), "6");
     }());

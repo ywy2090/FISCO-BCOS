@@ -143,6 +143,22 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);
     state::EthHost host(state, txContext, input.revisionConfig.revision, *input.vm,
         input.blockHashes, input.extension, input.fixStorageStatus);
+    if (!isCreateKind(input.message.kind))
+    {
+        host.set_execution_address(resolveCodeAddress(input.message));
+    }
+    else
+    {
+        auto createAddr = input.message.recipient;
+        if (state::isZeroAddress(createAddr))
+        {
+            createAddr = input.message.code_address;
+        }
+        if (!state::isZeroAddress(createAddr))
+        {
+            host.set_execution_address(createAddr);
+        }
+    }
 
     bcos::bytes code;
     if (isCreateKind(input.message.kind))
@@ -212,6 +228,23 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
 
     if (output.result.status_code == EVMC_SUCCESS)
     {
+        installCreatedContractCode(state, input.message, output.result.raw());
+        if (input.fixNonceInit && isCreateKind(input.message.kind))
+        {
+            auto createAddr = input.message.recipient;
+            if (state::isZeroAddress(createAddr))
+            {
+                createAddr = input.message.code_address;
+            }
+            if (state::isZeroAddress(createAddr))
+            {
+                createAddr = output.result.create_address;
+            }
+            if (!state::isZeroAddress(createAddr))
+            {
+                state.set_nonce(createAddr, 1);
+            }
+        }
         state.commit();
         output.stateDiff = state.build_diff();
     }

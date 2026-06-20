@@ -42,10 +42,17 @@ struct HostExtension
         return std::nullopt;
     }
 
-    virtual void prepareMessage(evmc_revision rev, const evmc_message& msg)
+    virtual void prepareMessage(evmc_revision rev, evmc_message& msg)
     {
         (void)rev;
         (void)msg;
+    }
+
+    virtual void setCallerAddress(const evmc_address& caller) { (void)caller; }
+
+    virtual void bumpContractCreateNonce(const evmc_address& contractAddress)
+    {
+        (void)contractAddress;
     }
 };
 }  // namespace bcos::evm::state

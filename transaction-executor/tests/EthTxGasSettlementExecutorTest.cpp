@@ -23,8 +23,7 @@
 using namespace bcos;
 using namespace bcos::storage2;
 using namespace bcos::executor_v1;
-using namespace bcos::evm;
-using bcos::ledger::account::EVMAccount;
+namespace evm_gas = bcos::evm::gas;
 
 namespace bcos::test
 {
@@ -178,8 +177,9 @@ public:
     std::shared_ptr<crypto::CryptoSuite> cryptoSuite = std::make_shared<crypto::CryptoSuite>(
         std::make_shared<crypto::Keccak256>(), nullptr, nullptr);
     bcostars::protocol::TransactionReceiptFactoryImpl receiptFactory{cryptoSuite};
-    PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
-    TransactionExecutorImpl<> executor{receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
+    bcos::evm::PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
+    bcos::evm::TransactionExecutorImpl<> executor{
+        receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
     bcostars::protocol::BlockHeaderImpl blockHeader;
     int contextId = 0;
 
@@ -196,7 +196,7 @@ public:
 
     task::Task<void> deployStopAt(evmc_address const& addr)
     {
-        EVMAccount<decltype(storage)> account(storage, addr, false);
+        ledger::account::EVMAccount<decltype(storage)> account(storage, addr, false);
         if (!co_await account.exists())
         {
             co_await account.create();
@@ -208,7 +208,7 @@ public:
 
     task::Task<void> deployBytecode(evmc_address const& addr, bcos::bytes const& code)
     {
-        EVMAccount<decltype(storage)> account(storage, addr, false);
+        ledger::account::EVMAccount<decltype(storage)> account(storage, addr, false);
         if (!co_await account.exists())
         {
             co_await account.create();
@@ -219,7 +219,7 @@ public:
 
     task::Task<void> fundSender(evmc_address const& sender, u256 balance = u256(1) << 96)
     {
-        EVMAccount<decltype(storage)> account(storage, sender, false);
+        ledger::account::EVMAccount<decltype(storage)> account(storage, sender, false);
         if (!co_await account.exists())
         {
             co_await account.create();
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(type2_emptyCall_receiptGasUsed_is21000)
 
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_EQUAL(receipt->status(), 0);
-        BOOST_CHECK_EQUAL(receipt->gasUsed(), u256(gas::TX_BASE_GAS));
+        BOOST_CHECK_EQUAL(receipt->gasUsed(), u256(evm_gas::TX_BASE_GAS));
     }());
 }
 
@@ -307,7 +307,7 @@ BOOST_AUTO_TEST_CASE(type2_estimateCall_matchesExecute_gasUsed)
         BOOST_CHECK_EQUAL(execReceipt->status(), 0);
         BOOST_CHECK_EQUAL(callReceipt->status(), 0);
         BOOST_CHECK_EQUAL(execReceipt->gasUsed(), callReceipt->gasUsed());
-        BOOST_CHECK_EQUAL(execReceipt->gasUsed(), u256(gas::TX_BASE_GAS));
+        BOOST_CHECK_EQUAL(execReceipt->gasUsed(), u256(evm_gas::TX_BASE_GAS));
     }());
 }
 
@@ -324,7 +324,7 @@ BOOST_AUTO_TEST_CASE(type2_mixedCalldata_estimateCall_matchesExecute_floorGasUse
         Address toAddr{};
         std::memcpy(toAddr.data(), target.bytes, sizeof(target.bytes));
         auto const data = mixedCalldata100();
-        constexpr int64_t expectedGasUsed = gas::TX_BASE_GAS + 2500;
+        constexpr int64_t expectedGasUsed = evm_gas::TX_BASE_GAS + 2500;
 
         auto tx =
             makeWeb3Type2Transaction(sender, toAddr, data, static_cast<uint64_t>(expectedGasUsed));
@@ -361,10 +361,10 @@ BOOST_AUTO_TEST_CASE(type2_mixedCalldata_floorDominatesReceiptGasUsed)
         msg.kind = EVMC_CALL;
         msg.input_data = data.data();
         msg.input_size = data.size();
-        auto const intrinsic = gas::computeTxIntrinsicGas(msg, nullptr, 2);
-        constexpr int64_t expectedGasUsed = gas::TX_BASE_GAS + 2500;
+        auto const intrinsic = evm_gas::computeTxIntrinsicGas(msg, nullptr, 2);
+        constexpr int64_t expectedGasUsed = evm_gas::TX_BASE_GAS + 2500;
         BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimum(), expectedGasUsed);
-        BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), gas::TX_BASE_GAS + 1000);
+        BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), evm_gas::TX_BASE_GAS + 1000);
 
         auto tx =
             makeWeb3Type2Transaction(sender, toAddr, data, static_cast<uint64_t>(expectedGasUsed));
@@ -395,8 +395,8 @@ BOOST_AUTO_TEST_CASE(type2_mixedCalldata_gasLimitAtFloor_executesSuccessfully)
         msg.kind = EVMC_CALL;
         msg.input_data = data.data();
         msg.input_size = data.size();
-        auto const intrinsic = gas::computeTxIntrinsicGas(msg, nullptr, 2);
-        constexpr int64_t expectedGasUsed = gas::TX_BASE_GAS + 2500;
+        auto const intrinsic = evm_gas::computeTxIntrinsicGas(msg, nullptr, 2);
+        constexpr int64_t expectedGasUsed = evm_gas::TX_BASE_GAS + 2500;
         BOOST_REQUIRE_EQUAL(intrinsic.gasLimitMinimum(), expectedGasUsed);
 
         auto tx =
@@ -434,8 +434,8 @@ BOOST_AUTO_TEST_CASE(type2_mixedCalldata_precheckOff_floorDominatesReceiptGasUse
         msg.kind = EVMC_CALL;
         msg.input_data = data.data();
         msg.input_size = data.size();
-        auto const intrinsic = gas::computeTxIntrinsicGas(msg, nullptr, 2);
-        constexpr int64_t expectedGasUsed = gas::TX_BASE_GAS + 2500;
+        auto const intrinsic = evm_gas::computeTxIntrinsicGas(msg, nullptr, 2);
+        constexpr int64_t expectedGasUsed = evm_gas::TX_BASE_GAS + 2500;
         BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimum(), expectedGasUsed);
 
         auto tx =
@@ -469,8 +469,8 @@ BOOST_AUTO_TEST_CASE(type2_valueTransfer_receiptGasUsed_not42000)
 
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_EQUAL(receipt->status(), 0);
-        BOOST_CHECK_EQUAL(receipt->gasUsed(), u256(gas::TX_BASE_GAS));
-        BOOST_CHECK_LT(receipt->gasUsed(), u256(2 * gas::TX_BASE_GAS));
+        BOOST_CHECK_EQUAL(receipt->gasUsed(), u256(evm_gas::TX_BASE_GAS));
+        BOOST_CHECK_LT(receipt->gasUsed(), u256(2 * evm_gas::TX_BASE_GAS));
     }());
 }
 
@@ -495,10 +495,10 @@ BOOST_AUTO_TEST_CASE(type2_accessList_floorDominatesReceiptGasUsed)
         msg.kind = EVMC_CALL;
         msg.input_data = data.data();
         msg.input_size = data.size();
-        auto const intrinsic = gas::computeTxIntrinsicGas(msg, std::addressof(list), 1);
+        auto const intrinsic = evm_gas::computeTxIntrinsicGas(msg, std::addressof(list), 1);
         constexpr int64_t accessListCost =
-            gas::ACCESS_LIST_ADDRESS_COST + 2 * gas::ACCESS_LIST_STORAGE_KEY_COST;
-        constexpr int64_t gethMinGasLimit = gas::TX_BASE_GAS + accessListCost + 16;
+            evm_gas::ACCESS_LIST_ADDRESS_COST + 2 * evm_gas::ACCESS_LIST_STORAGE_KEY_COST;
+        constexpr int64_t gethMinGasLimit = evm_gas::TX_BASE_GAS + accessListCost + 16;
         BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimum(), gethMinGasLimit);
         // geth receipt matches admission min for light calldata + access list (no floor top-up).
         constexpr int64_t expectedReceiptGasUsed = gethMinGasLimit;
@@ -527,9 +527,9 @@ BOOST_AUTO_TEST_CASE(type2_contractCreate_floorDominatesReceiptGasUsed)
         msg.kind = EVMC_CREATE;
         msg.input_data = initcode.data();
         msg.input_size = initcode.size();
-        auto const intrinsic = gas::computeTxIntrinsicGas(msg, nullptr, 2);
+        auto const intrinsic = evm_gas::computeTxIntrinsicGas(msg, nullptr, 2);
         auto const expectedGasUsed = intrinsic.gasLimitMinimum();
-        BOOST_REQUIRE_GT(expectedGasUsed, gas::TX_BASE_GAS + gas::CREATE_BASE_GAS);
+        BOOST_REQUIRE_GT(expectedGasUsed, evm_gas::TX_BASE_GAS + evm_gas::CREATE_BASE_GAS);
 
         auto tx = makeWeb3Type2CreateTransaction(
             sender, initcode, static_cast<uint64_t>(expectedGasUsed));
@@ -558,7 +558,7 @@ BOOST_AUTO_TEST_CASE(type2_mixedCalldata_postEvmOOG_receiptGasUsed_isGasLimit)
         Address toAddr{};
         std::memcpy(toAddr.data(), target.bytes, sizeof(target.bytes));
         auto const data = mixedCalldata100();
-        constexpr int64_t expectedGasUsed = gas::TX_BASE_GAS + 2500;
+        constexpr int64_t expectedGasUsed = evm_gas::TX_BASE_GAS + 2500;
 
         auto tx =
             makeWeb3Type2Transaction(sender, toAddr, data, static_cast<uint64_t>(expectedGasUsed));
@@ -596,7 +596,7 @@ BOOST_AUTO_TEST_CASE(prePrague_mixedCalldata_skips7623Floor)
         msg.kind = EVMC_CALL;
         msg.input_data = data.data();
         msg.input_size = data.size();
-        auto const intrinsic = gas::computeTxIntrinsicGas(msg, nullptr, 2);
+        auto const intrinsic = evm_gas::computeTxIntrinsicGas(msg, nullptr, 2);
 
         auto tx = makeWeb3Type2Transaction(sender, toAddr, data, 500'000);
         auto receipt = co_await executor.executeTransaction(
@@ -605,7 +605,7 @@ BOOST_AUTO_TEST_CASE(prePrague_mixedCalldata_skips7623Floor)
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_EQUAL(receipt->status(), 0);
         // Prague off: EIP-7623 floor is not applied; receipt stays at legacy base gas.
-        BOOST_CHECK_EQUAL(receipt->gasUsed(), u256(gas::TX_BASE_GAS));
+        BOOST_CHECK_EQUAL(receipt->gasUsed(), u256(evm_gas::TX_BASE_GAS));
         BOOST_CHECK_LT(receipt->gasUsed(), u256(intrinsic.gasLimitMinimum()));
     }());
 }

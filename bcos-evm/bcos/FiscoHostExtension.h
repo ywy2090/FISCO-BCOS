@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/policy/HostExtension.h"
@@ -62,6 +63,8 @@ public:
         int64_t blockNumber{0};
         int64_t contextID{0};
         int64_t* seq{nullptr};
+        bcos::crypto::Hash const* hashImpl{nullptr};
+        std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
         ExternalCaller externalCaller{};
         evmc_address origin{};
         RevisionFlags revisionFlags{};
@@ -81,7 +84,9 @@ public:
 
     std::optional<evmc_result> tryChainPrecompile(
         evmc_revision rev, const evmc_message& msg) override;
-    void prepareMessage(evmc_revision rev, const evmc_message& msg) override;
+    void prepareMessage(evmc_revision rev, evmc_message& msg) override;
+    void setCallerAddress(const evmc_address& caller) override;
+    void bumpContractCreateNonce(const evmc_address& contractAddress) override;
 
 private:
     static bool isFiscoPrecompileAddress(const evmc_address& address) noexcept;
@@ -89,6 +94,7 @@ private:
     static bool isZeroAddress(const evmc_address& address) noexcept;
     static evmc_address createTarget(const evmc_message& message) noexcept;
     static std::string hexAddress(const evmc_address& address);
+    void deriveNestedCreateAddress(evmc_message& message);
     void applyCreateNonceSemantics(const evmc_message& message);
     std::string resolveAuthTablePath(const evmc_message& message) const;
 
@@ -102,6 +108,9 @@ private:
     int64_t m_blockNumber{0};
     int64_t m_contextID{0};
     int64_t* m_seq{nullptr};
+    bcos::crypto::Hash const* m_hashImpl{nullptr};
+    std::function<void(const evmc_address&, uint64_t)> m_persistContractCreateNonce;
+    evmc_address m_callerAddress{};
     evmc_address m_origin{};
     RevisionFlags m_revisionFlags{};
     state::State* m_state{nullptr};

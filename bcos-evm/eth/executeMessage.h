@@ -49,6 +49,7 @@ struct ExecuteMessageInput
     uint8_t web3TypedTxKind{0};
     state::HostExtension* extension{nullptr};
     bool fixStorageStatus{true};
+    bool fixNonceInit{false};
 };
 
 struct ExecuteMessageOutput

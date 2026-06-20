@@ -61,6 +61,10 @@ public:
     bytes32 get_transient_storage(const address& addr, const bytes32& key) const noexcept final;
     void set_transient_storage(
         const address& addr, const bytes32& key, const bytes32& value) noexcept final;
+    void set_execution_address(const evmc_address& address) noexcept
+    {
+        m_executionAddress = address;
+    }
     std::vector<LogEntry> take_logs();
 
 private:
@@ -82,6 +86,7 @@ private:
     RoutedCall routeCall(const evmc_message& msg) noexcept;
     bcos::bytes resolveExecutionCode(const evmc_message& msg) const;
     bool transferValue(const evmc_message& msg) noexcept;
+    evmc_address resolveCallerAddress(const evmc_message& msg) const noexcept;
 
 private:
     State& m_state;
@@ -95,5 +100,6 @@ private:
         m_storageOriginalValues;
     bool m_fixStorageStatus{true};
     std::vector<LogEntry> m_logs;
+    evmc_address m_executionAddress{};
 };
 }  // namespace bcos::evm::state

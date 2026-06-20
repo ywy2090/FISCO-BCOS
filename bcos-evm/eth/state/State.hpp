@@ -130,4 +130,35 @@ private:
     std::vector<Checkpoint> m_checkpoints;
     uint64_t m_gasRefund{0};
 };
+
+inline void installCreatedContractCode(
+    State& state, const evmc_message& message, const evmc_result& result)
+{
+    if (result.status_code != EVMC_SUCCESS || result.output_size == 0 ||
+        result.output_data == nullptr)
+    {
+        return;
+    }
+    if (message.kind != EVMC_CREATE && message.kind != EVMC_CREATE2)
+    {
+        return;
+    }
+
+    auto createAddr = message.recipient;
+    if (isZeroAddress(createAddr))
+    {
+        createAddr = message.code_address;
+    }
+    if (isZeroAddress(createAddr))
+    {
+        createAddr = result.create_address;
+    }
+    if (isZeroAddress(createAddr))
+    {
+        return;
+    }
+
+    bcos::bytes code(result.output_data, result.output_data + result.output_size);
+    state.set_code(createAddr, std::move(code), {});
+}
 }  // namespace bcos::evm::state

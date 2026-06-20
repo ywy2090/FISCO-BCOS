@@ -56,12 +56,15 @@ struct ExecuteViaHostInput
     bcos::u256 gasPrice{0};
     int64_t contextID{0};
     int64_t seq{0};
+    int64_t* nestedSeq{nullptr};
+    evmc_address origin{};
     bool web3Tx{false};
     uint8_t web3TypedTxKind{0};
     std::shared_ptr<const Eip2930AccessList> accessList;
 
     // Optional adapters for integration layering.
     std::function<std::optional<EVMCResult>(const evmc_message&)> authChecker;
+    std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
     FiscoHostExtension::FiscoPrecompileCaller precompileCaller;
     FiscoHostExtension::CreateAuthTableInvoker createAuthTableInvoker;
     FiscoHostExtension::RecipientPathResolver recipientPathResolver;

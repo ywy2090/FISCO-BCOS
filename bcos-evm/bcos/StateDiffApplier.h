@@ -20,10 +20,16 @@ task::Task<void> applyStateDiff(Storage& storage, const StateDiff& diff, bool us
             co_await account.create();
         }
 
-        co_await account.setBalance(accountDiff.balance);
-        co_await account.setNonce(bcos::u256(accountDiff.nonce).str());
+        if (accountDiff.balanceDirty)
+        {
+            co_await account.setBalance(accountDiff.balance);
+        }
+        if (accountDiff.nonceDirty)
+        {
+            co_await account.setNonce(bcos::u256(accountDiff.nonce).str());
+        }
 
-        if (!accountDiff.code.empty())
+        if (accountDiff.codeDirty && !accountDiff.code.empty())
         {
             auto const codeHash =
                 hashImpl.hash(bytesConstRef(accountDiff.code.data(), accountDiff.code.size()));

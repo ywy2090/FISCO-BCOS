@@ -36,5 +36,8 @@ struct Account
     evmc_bytes32 codeHash{};
     StorageMap storage;
     StorageMap transientStorage;
+    bool balanceDirty{false};
+    bool nonceDirty{false};
+    bool codeDirty{false};
 };
 }  // namespace bcos::evm::state

@@ -13,6 +13,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
+#include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
@@ -275,7 +276,20 @@ public:
             input.gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
             input.contextID = m_data->m_contextID;
             input.seq = m_data->m_seq;
+            input.nestedSeq = std::addressof(m_data->m_seq);
+            input.origin = m_data->m_origin;
             input.web3Tx = m_data->m_transaction.get().type() != 0;
+            input.persistContractCreateNonce = [this](const evmc_address& addr, uint64_t newNonce) {
+                ledger::account::EVMAccount account(m_data->m_rollbackableStorage, addr,
+                    m_data->m_executionContext.revisionConfig.use_raw_address);
+                task::syncWait([](decltype(account) account, uint64_t nonce) -> task::Task<void> {
+                    if (!co_await account.exists())
+                    {
+                        co_await account.create();
+                    }
+                    co_await account.setNonce(bcos::u256(nonce).str());
+                }(std::move(account), newNonce));
+            };
             input.web3TypedTxKind = m_data->m_web3AccessListResolved.web3TypedTxKind;
             input.accessList = m_data->m_web3AccessListResolved.accessList;
 

@@ -62,16 +62,14 @@ evmc_bytes32 State::get_code_hash(const evmc_address& address) const
 
 evmc_bytes32 State::get_storage(const evmc_address& address, const evmc_bytes32& key) const
 {
-    auto const account = find(address);
-    if (!account.has_value())
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
     {
-        return {};
+        if (auto storageIt = it->second.storage.find(key); storageIt != it->second.storage.end())
+        {
+            return storageIt->second;
+        }
     }
-    if (auto it = account->storage.find(key); it != account->storage.end())
-    {
-        return it->second;
-    }
-    return {};
+    return m_baseStateView->get_storage(address, key);
 }
 
 bool State::has_checkpoint() const noexcept
@@ -195,13 +193,17 @@ void State::journal_account_once(const evmc_address& address)
 void State::set_balance(const evmc_address& address, const bcos::u256& balance)
 {
     journal_account_once(address);
-    mutable_account(address).balance = balance;
+    auto& account = mutable_account(address);
+    account.balance = balance;
+    account.balanceDirty = true;
 }
 
 void State::set_nonce(const evmc_address& address, uint64_t nonce)
 {
     journal_account_once(address);
-    mutable_account(address).nonce = nonce;
+    auto& account = mutable_account(address);
+    account.nonce = nonce;
+    account.nonceDirty = true;
 }
 
 void State::set_code(const evmc_address& address, bcos::bytes code, evmc_bytes32 codeHash)
@@ -210,6 +212,7 @@ void State::set_code(const evmc_address& address, bcos::bytes code, evmc_bytes32
     auto& account = mutable_account(address);
     account.code = std::move(code);
     account.codeHash = codeHash;
+    account.codeDirty = true;
 }
 
 void State::set_storage(

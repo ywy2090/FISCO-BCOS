@@ -13,7 +13,9 @@ class OpHostExtension final : public state::HostExtension
 public:
     explicit OpHostExtension(state::State* state = nullptr) : m_state(state) {}
 
-    void prepareMessage(evmc_revision /*rev*/, const evmc_message& /*msg*/) override {}
+    void prepareMessage(evmc_revision /*rev*/, evmc_message& /*msg*/) override {}
+    void setCallerAddress(const evmc_address& /*caller*/) override {}
+    void bumpContractCreateNonce(const evmc_address& /*contractAddress*/) override {}
 
     std::optional<evmc_result> tryChainPrecompile(
         evmc_revision /*rev*/, const evmc_message& msg) override

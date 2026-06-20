@@ -35,21 +35,20 @@
 
 using namespace bcos;
 using namespace bcos::storage2;
-using namespace bcos::executor_v1;
-using namespace bcos::evm;
 
 class AuthCheckBugfixFixture
 {
 public:
-    MutableStorage storage;
+    executor_v1::MutableStorage storage;
     ledger::LedgerConfig ledgerConfig;
     std::shared_ptr<bcos::crypto::CryptoSuite> cryptoSuite =
         std::make_shared<bcos::crypto::CryptoSuite>(
             std::make_shared<bcos::crypto::Keccak256>(), nullptr, nullptr);
     bcostars::protocol::TransactionFactoryImpl transactionFactory{cryptoSuite};
     bcostars::protocol::TransactionReceiptFactoryImpl receiptFactory{cryptoSuite};
-    PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
-    TransactionExecutorImpl<> executor{receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
+    bcos::evm::PrecompiledManager precompiledManager{cryptoSuite->hashImpl()};
+    bcos::evm::TransactionExecutorImpl<> executor{
+        receiptFactory, cryptoSuite->hashImpl(), precompiledManager};
 
     AuthCheckBugfixFixture()
     {

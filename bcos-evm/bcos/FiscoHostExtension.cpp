@@ -17,8 +17,13 @@
  */
 
 #include "bcos-evm/bcos/FiscoHostExtension.h"
+#include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-framework/ledger/Features.h"
+#include "bcos-utilities/DataConvertUtility.h"
+#include <fmt/compile.h>
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <vector>
 
@@ -73,6 +78,8 @@ FiscoHostExtension::FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHos
     m_origin = deps.origin;
     m_revisionFlags = deps.revisionFlags;
     m_state = deps.state;
+    m_hashImpl = deps.hashImpl;
+    m_persistContractCreateNonce = std::move(deps.persistContractCreateNonce);
     m_externalCaller = std::move(deps.externalCaller);
 
     if (deps.recipientPathResolver)
@@ -125,13 +132,77 @@ std::optional<evmc_result> FiscoHostExtension::tryChainPrecompile(
     return m_precompileCaller(rev, routedMessage);
 }
 
-void FiscoHostExtension::prepareMessage(evmc_revision rev, const evmc_message& msg)
+void FiscoHostExtension::deriveNestedCreateAddress(evmc_message& message)
+{
+    if (m_state == nullptr || m_hashImpl == nullptr)
+    {
+        return;
+    }
+
+    bool const contractSender =
+        std::memcmp(message.sender.bytes, m_origin.bytes, sizeof(message.sender.bytes)) != 0;
+    if (message.depth == 0 && !contractSender)
+    {
+        return;
+    }
+
+    if (message.kind == EVMC_CREATE2)
+    {
+        auto const deployer =
+            !state::isZeroAddress(m_callerAddress) ? m_callerAddress : message.sender;
+        std::array<bcos::byte, 1 + sizeof(deployer.bytes) + sizeof(message.create2_salt) +
+                                   bcos::crypto::HashType::SIZE>
+            buffer;
+        uint8_t* ptr = buffer.data();
+        *ptr++ = 0xff;
+        ptr = std::uninitialized_copy_n(deployer.bytes, sizeof(deployer.bytes), ptr);
+        auto salt = toBigEndian(state::fromEvmC(message.create2_salt));
+        ptr = std::uninitialized_copy(salt.begin(), salt.end(), ptr);
+        auto inputHash = m_hashImpl->hash(bytesConstRef(message.input_data, message.input_size));
+        ptr = std::uninitialized_copy(inputHash.begin(), inputHash.end(), ptr);
+        auto addressHash = m_hashImpl->hash(bytesConstRef(buffer.data(), buffer.size()));
+        std::copy_n(addressHash.begin() + 12, sizeof(message.code_address.bytes),
+            message.code_address.bytes);
+        message.recipient = message.code_address;
+        return;
+    }
+
+    if (message.kind != EVMC_CREATE)
+    {
+        return;
+    }
+
+    bool const useLegacyAddress =
+        m_revisionFlags.web3Tx ||
+        (m_ledgerConfig != nullptr &&
+            m_ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address));
+    if (useLegacyAddress)
+    {
+        auto const deployer =
+            !state::isZeroAddress(m_callerAddress) ? m_callerAddress : message.sender;
+        auto const nonce = m_state->get_nonce(deployer);
+        auto legacyAddr = newLegacyEVMAddress(bytesConstRef(deployer.bytes), nonce);
+        std::copy(legacyAddr.begin(), legacyAddr.end(), message.code_address.bytes);
+    }
+    else
+    {
+        int64_t callSeq = m_seq != nullptr ? (++*m_seq) : 0;
+        auto address = fmt::format(FMT_COMPILE("{}_{}_{}"), m_blockNumber, m_contextID, callSeq);
+        auto hash = m_hashImpl->hash(address);
+        std::copy_n(hash.data(), sizeof(message.code_address.bytes), message.code_address.bytes);
+    }
+    message.recipient = message.code_address;
+}
+
+void FiscoHostExtension::prepareMessage(evmc_revision rev, evmc_message& msg)
 {
     (void)rev;
     if (m_state == nullptr)
     {
         return;
     }
+
+    deriveNestedCreateAddress(msg);
 
     if (m_blockNumber != 0 && m_createAuthTableInvoker)
     {
@@ -173,16 +244,38 @@ evmc_address FiscoHostExtension::createTarget(const evmc_message& message) noexc
     return !isZeroAddress(message.code_address) ? message.code_address : message.recipient;
 }
 
+void FiscoHostExtension::setCallerAddress(const evmc_address& caller)
+{
+    m_callerAddress = caller;
+}
+
+void FiscoHostExtension::bumpContractCreateNonce(const evmc_address& contractAddress)
+{
+    if (m_state == nullptr || state::isZeroAddress(contractAddress))
+    {
+        return;
+    }
+
+    if (m_revisionFlags.web3Tx ||
+        (m_ledgerConfig != nullptr &&
+            m_ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address)))
+    {
+        auto current = m_state->get_nonce(contractAddress);
+        auto const newNonce = current + 1;
+        m_state->set_nonce(contractAddress, newNonce);
+
+        if (m_persistContractCreateNonce)
+        {
+            m_persistContractCreateNonce(contractAddress, newNonce);
+        }
+    }
+}
+
 void FiscoHostExtension::applyCreateNonceSemantics(const evmc_message& message)
 {
     if (m_state == nullptr)
     {
         return;
-    }
-    if (m_revisionFlags.web3Tx && m_revisionFlags.createLevel != 0)
-    {
-        auto current = m_state->get_nonce(message.sender);
-        m_state->set_nonce(message.sender, current + 1);
     }
 
     if (m_revisionFlags.fix_nonce_init)

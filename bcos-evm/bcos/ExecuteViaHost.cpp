@@ -277,7 +277,10 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         deps.revisionFlags.use_raw_address = input.revisionConfig.use_raw_address;
         deps.revisionFlags.fix_nonce_init = input.revisionConfig.fix_nonce_init;
         deps.revisionFlags.web3Tx = input.web3Tx;
-        deps.revisionFlags.createLevel = message.depth;
+        deps.hashImpl = input.hashImpl;
+        deps.seq = input.nestedSeq;
+        deps.origin = input.origin;
+        deps.persistContractCreateNonce = std::move(input.persistContractCreateNonce);
         deps.recipientPathResolver = std::move(input.recipientPathResolver);
         deps.createAuthTableInvoker = std::move(input.createAuthTableInvoker);
         FiscoHostExtension extension(
@@ -294,9 +297,17 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             .accessList = input.accessList.get(),
             .web3TypedTxKind = input.web3TypedTxKind,
             .extension = &extension,
-            .fixStorageStatus = input.revisionConfig.fix_storage_status});
+            .fixStorageStatus = input.revisionConfig.fix_storage_status,
+            .fixNonceInit = input.revisionConfig.fix_nonce_init});
 
         output.evmcResult = adoptResult(std::move(executeOutput.result), *input.hashImpl);
+        if ((message.kind == EVMC_CREATE || message.kind == EVMC_CREATE2) &&
+            output.evmcResult.status_code == EVMC_SUCCESS &&
+            std::memcmp(output.evmcResult.create_address.bytes, EMPTY_EVM_ADDRESS.bytes,
+                sizeof(output.evmcResult.create_address.bytes)) == 0)
+        {
+            output.evmcResult.create_address = message.recipient;
+        }
         output.executionContext.logs = convertLogs(executeOutput.logs);
         output.executionContext.message = message;
 

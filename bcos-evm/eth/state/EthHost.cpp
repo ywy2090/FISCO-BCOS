@@ -22,6 +22,7 @@
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <utility>
 #include <vector>
 
@@ -156,8 +157,19 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
 
 EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 {
+    struct ExecutionAddressGuard
+    {
+        evmc_address& address;
+        evmc_address saved;
+        explicit ExecutionAddressGuard(evmc_address& address_) : address(address_), saved(address_)
+        {}
+        ~ExecutionAddressGuard() { address = saved; }
+    };
+    ExecutionAddressGuard guard{m_executionAddress};
+
     auto routed = routeCall(msg);
     auto& callMessage = routed.message;
+    auto const callerAddress = resolveCallerAddress(callMessage);
 
     if (m_extension != nullptr)
     {
@@ -184,6 +196,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 
     if (m_extension != nullptr)
     {
+        m_extension->setCallerAddress(callerAddress);
         m_extension->prepareMessage(m_revision, callMessage);
     }
 
@@ -192,18 +205,74 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         return makeResult(EVMC_INSUFFICIENT_BALANCE, 0);
     }
 
+    if (isCreateKind(callMessage.kind))
+    {
+        auto createAddr = callMessage.recipient;
+        if (isZeroAddress(createAddr))
+        {
+            createAddr = callMessage.code_address;
+        }
+        if (!isZeroAddress(createAddr))
+        {
+            m_executionAddress = createAddr;
+        }
+    }
+
     auto code = resolveExecutionCode(callMessage);
     m_state.checkpoint();
     auto result = m_vm.execute(*this, m_revision, callMessage, code.data(), code.size());
     if (result.status_code == EVMC_SUCCESS)
     {
+        installCreatedContractCode(m_state, callMessage, result.raw());
+        if (isCreateKind(callMessage.kind))
+        {
+            auto& raw = const_cast<evmc_result&>(result.raw());
+            if (state::isZeroAddress(raw.create_address))
+            {
+                auto createAddr = callMessage.recipient;
+                if (state::isZeroAddress(createAddr))
+                {
+                    createAddr = callMessage.code_address;
+                }
+                if (!state::isZeroAddress(createAddr))
+                {
+                    raw.create_address = createAddr;
+                }
+            }
+        }
         m_state.commit();
+        if (isCreateKind(callMessage.kind) && m_extension != nullptr &&
+            !state::isZeroAddress(callerAddress) &&
+            std::memcmp(
+                callerAddress.bytes, m_txContext.tx_origin.bytes, sizeof(callerAddress.bytes)) != 0)
+        {
+            m_extension->bumpContractCreateNonce(callerAddress);
+        }
+        if (!isCreateKind(callMessage.kind))
+        {
+            auto const nextExecution = isZeroAddress(callMessage.code_address) ?
+                                           callMessage.recipient :
+                                           callMessage.code_address;
+            if (!isZeroAddress(nextExecution))
+            {
+                m_executionAddress = nextExecution;
+            }
+        }
     }
     else
     {
         m_state.revert();
     }
     return result;
+}
+
+evmc_address EthHost::resolveCallerAddress(const evmc_message& msg) const noexcept
+{
+    if (!state::isZeroAddress(m_executionAddress))
+    {
+        return m_executionAddress;
+    }
+    return msg.sender;
 }
 
 evmc_tx_context EthHost::get_tx_context() const noexcept
