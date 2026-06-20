@@ -24,10 +24,10 @@ BOOST_AUTO_TEST_SUITE(CompatSelfdestruct)
 BOOST_AUTO_TEST_CASE(FC_SD_eip6780_deviation_documented)
 {
     BOOST_TEST_MESSAGE(
-        "S0-D3: host selfdestruct returns false (no refund) for EIP-6780 safety. "
-        "Full EIP-6780 same-tx-create tracking is not yet implemented — Cancun+ may "
-        "differ from mainnet on pre-existing contract SELFDESTRUCT. "
-        "Move to transaction-executor integration tests when harness supports EVM execution.");
+        "S0-D3: FISCO allowSelfdestruct=false — SELFDESTRUCT blocked at EthHost hook. "
+        "Real harness: transaction-executor/tests/ CompatTransactionExecutorPhaseE "
+        "(SD-B/SD-C) + CompatExecuteViaHostPhaseE (SD-C Eth reference). SD-A pre-Cancun "
+        "baseline still deferred.");
     BOOST_CHECK(true);
 }
 
@@ -43,9 +43,9 @@ BOOST_AUTO_TEST_CASE(FC_SD_A_pre_cancun_legacy_baseline_todo)
 BOOST_AUTO_TEST_CASE(FC_SD_B_cancun_existing_contract_should_not_delete_todo)
 {
     BOOST_TEST_MESSAGE(
-        "SD-B TODO: Cancun+ existing contract path (deploy in tx1, SELFDESTRUCT in tx2). "
-        "Primary detector for EIP-6780 divergence on pre-existing contracts. "
-        "Requires full executor stack — move to transaction-executor integration tests.");
+        "SD-B (legacy stub): real harness at TE_FC_E_SD_existing_contract_keeps_code in "
+        "transaction-executor/tests/CompatTransactionExecutorPhaseETest.cpp — pre-existing "
+        "contract CALL SELFDESTRUCT retains code on FISCO (allowSelfdestruct=false).");
     BOOST_CHECK(true);
 }
 
