@@ -177,7 +177,7 @@ flowchart LR
 | ID | 任务 | 当前状态 | 涉及文件 |
 |----|------|----------|----------|
 | T-16 | 修复 `EthTxGasSettlementExecutor` 失败用例 | ✅ 28/28（12 executor + 16 unit）全绿 | `EthTxGasSettlementExecutorTest.cpp`, `EthTxGasSettlementTest.cpp` |
-| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ Phase A 50 + Phase B 29（revision/feature/modexp/precompile/static）；bcos-executor compat 余量待续 | `transaction-executor/tests/CompatExecuteViaHostTest.cpp`, `CompatExecuteViaHostPhaseBTest.cpp` |
+| T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ Phase A 50 + Phase B 29 + Phase C 21；bcos-executor executive 级余量待续 | `transaction-executor/tests/CompatExecuteViaHost*.cpp` |
 | T-18 | 新增 `OpStackTransactionExecutorImpl` compat 测试 | ✅ Phase 1 executor smoke 4/4（L1 fee / insufficient / revert / deposit mint） | `transaction-executor/tests/TestOpStackTransactionExecutorFixture.cpp` |
 | T-19 | 三路径 Initializer 集成测试 | 验证 `execution_path` 切换后 scheduler/engine 正常出块 | `libinitializer/` 或集成测试 |
 | T-20 | `bcos-executor` compat filtered suite | 计划全局约束，全分支回归门禁 | `bcos-executor/test/` |
@@ -263,7 +263,7 @@ flowchart TD
 
 ### P2 — 测试
 - [x] T-16 EthTxGasSettlementExecutor 失败修复（28/28 ctest 绿）
-- [x] T-17 EthTransactionExecutorImpl compat 测试（Phase A 50 + Phase B 29 executeViaHost 迁移）
+- [x] T-17 EthTransactionExecutorImpl compat 测试（Phase A 50 + Phase B 29 + Phase C 21 executeViaHost 迁移）
 - [x] T-18 OpStackTransactionExecutorImpl compat 测试（Phase 1 executor smoke 4/4）
 - [ ] T-19 三路径 Initializer 集成测试
 - [ ] T-20 bcos-executor compat suite
