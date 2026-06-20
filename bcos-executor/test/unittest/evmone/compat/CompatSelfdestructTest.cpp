@@ -52,9 +52,10 @@ BOOST_AUTO_TEST_CASE(FC_SD_B_cancun_existing_contract_should_not_delete_todo)
 BOOST_AUTO_TEST_CASE(FC_SD_C_cancun_same_tx_create_then_selfdestruct_todo)
 {
     BOOST_TEST_MESSAGE(
-        "SD-C TODO: Cancun+ same-tx CREATE->SELFDESTRUCT exception branch. "
-        "Pair with SD-B to validate conditional semantics (B keep / C destroy). "
-        "Requires full executor stack — move to transaction-executor integration tests.");
+        "SD-C TODO (legacy stub): real harness lives in transaction-executor/tests/ — "
+        "TE_FC_E_SD_same_tx_create_destroy_fisco (FISCO retains) and "
+        "TE_FC_E_SD_same_tx_create_destroy_eth_reference (Eth destroys). "
+        "Pair with SD-B TE_FC_E_SD_existing_contract_keeps_code for EIP-6780 matrix.");
     BOOST_CHECK(true);
 }
 
