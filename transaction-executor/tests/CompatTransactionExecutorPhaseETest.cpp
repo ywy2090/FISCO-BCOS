@@ -6,6 +6,7 @@
  */
 
 #include "../bcos-transaction-executor/TransactionExecutorImpl.h"
+#include "SelfdestructCompatBytecode.h"
 #include "TestMemoryStorage.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-executor/src/Common.h"
@@ -22,12 +23,7 @@
 
 namespace bcos::evm::test
 {
-namespace
-{
-constexpr std::string_view kSelfdestructTargetHex = "0000000000000000000000000000000000000012";
-constexpr std::string_view kSelfdestructBeneficiaryHex = "00000000000000000000000000000000000000bb";
-constexpr std::string_view kSelfdestructRuntimeCode = "73000000000000000000000000000000000000bbff";
-}  // namespace
+namespace sd = selfdestruct_compat;
 
 class CompatTransactionExecutorPhaseEFixture
 {
@@ -73,12 +69,12 @@ public:
 
     task::Task<void> seedSelfdestructContract()
     {
-        auto const target = unhexAddress(std::string(kSelfdestructTargetHex));
+        auto const target = unhexAddress(std::string(sd::kSelfdestructTargetHex));
         ledger::account::EVMAccount account(storage, target, false);
         co_await account.create();
         co_await account.setBalance(u256(0x10));
         bytes code;
-        boost::algorithm::unhex(kSelfdestructRuntimeCode, std::back_inserter(code));
+        boost::algorithm::unhex(sd::kSelfdestructRuntimeCode, std::back_inserter(code));
         co_await account.setCode(code, "", crypto::HashType{});
     }
 };
@@ -91,7 +87,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_SD_existing_contract_keeps_code)
         co_await seedSender(u256(0x1000000));
         co_await seedSelfdestructContract();
 
-        auto const targetHex = std::string(kSelfdestructTargetHex);
+        auto const targetHex = std::string(sd::kSelfdestructTargetHex);
         auto callTx = transactionFactory.createTransaction(0, targetHex, {}, {}, 0, "", "", 0);
         callTx->forceSender(bytes(sender.bytes, sender.bytes + sizeof(sender.bytes)));
 
@@ -107,7 +103,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_SD_existing_contract_keeps_code)
         BOOST_REQUIRE(code.has_value());
         BOOST_CHECK(!code->get().empty());
 
-        auto const beneficiary = unhexAddress(std::string(kSelfdestructBeneficiaryHex));
+        auto const beneficiary = unhexAddress(std::string(sd::kBeneficiaryHex));
         ledger::account::EVMAccount beneficiaryAccount(storage, beneficiary, false);
         BOOST_CHECK(!co_await beneficiaryAccount.exists());
     }());
@@ -121,11 +117,38 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_SD_fisco_hook_documented)
     BOOST_CHECK(true);
 }
 
-BOOST_AUTO_TEST_CASE(TE_FC_E_SD_same_tx_create_destroy_todo)
+BOOST_AUTO_TEST_CASE(TE_FC_E_SD_same_tx_create_destroy_fisco)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        co_await seedSender(u256(0x1000000));
+
+        bytes initCode;
+        boost::algorithm::unhex(sd::kSelfdestructInitCode, std::back_inserter(initCode));
+        auto deployTx = transactionFactory.createTransaction(0, "", initCode, {}, 0, "", "", 0);
+        deployTx->forceSender(bytes(sender.bytes, sender.bytes + sizeof(sender.bytes)));
+
+        auto receipt = co_await executor.executeTransaction(
+            storage, makeBlockHeader(), *deployTx, contextID++, ledgerConfig, false);
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_REQUIRE(!receipt->contractAddress().empty());
+
+        auto const deployed = unhexAddress(receipt->contractAddress());
+        ledger::account::EVMAccount deployedAccount(storage, deployed, false);
+        BOOST_REQUIRE(co_await deployedAccount.exists());
+
+        auto const beneficiary = unhexAddress(std::string(sd::kBeneficiaryHex));
+        ledger::account::EVMAccount beneficiaryAccount(storage, beneficiary, false);
+        BOOST_CHECK(!co_await beneficiaryAccount.exists());
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(TE_FC_E_SD_pair_b_keep_c_destroy_documented)
 {
     BOOST_TEST_MESSAGE(
-        "SD-C TODO: same-tx CREATE->SELFDESTRUCT exception branch needs dedicated bytecode "
-        "harness.");
+        "SD-B/C matrix: pre-existing runtime SELFDESTRUCT keeps code on FISCO (SD-B); "
+        "same-tx CREATE init SELFDESTRUCT keeps code on FISCO (SD-C fisco) but destroys on "
+        "Eth reference (SD-C eth) per EIP-6780.");
     BOOST_CHECK(true);
 }
 
