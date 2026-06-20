@@ -26,10 +26,60 @@
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/FixedBytes.h"
 #include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <unordered_map>
 
 namespace bcos::executor
 {
 using PrecompiledContract = evm::PrecompiledContract;
+using PrecompiledExecutor = evm::PrecompiledExecutor;
+using PrecompiledPricer = evm::PrecompiledPricer;
+
+/// Legacy name-based lookup for executor unit tests (forwards to bcos-evm EthBuiltinRegistry).
+struct PrecompiledRegistrar
+{
+    static uint16_t suffixFromName(std::string_view name)
+    {
+        static const std::unordered_map<std::string, uint16_t> table = {
+            {"ecrecover", 0x0001},
+            {"sha256", 0x0002},
+            {"ripemd160", 0x0003},
+            {"identity", 0x0004},
+            {"modexp", 0x0005},
+            {"ecadd", 0x0006},
+            {"ecmul", 0x0007},
+            {"alt_bn128_pairing_product", 0x0008},
+            {"blake2_compression", 0x0009},
+            {"point_evaluation", 0x000a},
+            {"bls12_g1add", 0x000b},
+            {"bls12_g1msm", 0x000c},
+            {"bls12_g2add", 0x000d},
+            {"bls12_g2msm", 0x000e},
+            {"bls12_pairing_check", 0x000f},
+            {"bls12_map_fp_to_g1", 0x0010},
+            {"bls12_map_fp2_to_g2", 0x0011},
+            {"p256verify", 0x0100},
+        };
+        auto const it = table.find(std::string(name));
+        if (it == table.end())
+        {
+            throw std::invalid_argument("Unknown precompiled name: " + std::string(name));
+        }
+        return it->second;
+    }
+
+    static evm::PrecompiledPricer const& pricer(std::string_view name)
+    {
+        return evm::builtinPricerBySuffix(suffixFromName(name));
+    }
+
+    static evm::PrecompiledExecutor const& executor(std::string_view name)
+    {
+        return evm::builtinExecutorBySuffix(suffixFromName(name));
+    }
+};
 }  // namespace bcos::executor
 
 namespace bcos

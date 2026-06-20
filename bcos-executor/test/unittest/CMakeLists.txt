@@ -22,3 +22,8 @@ set_source_files_properties("main.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 # Unity batches pull range-v3 and libc++ std::ranges into the same TU on newer SDKs.
 set_target_properties(${TEST_BINARY_NAME} PROPERTIES UNITY_BUILD "OFF")
 config_test_cases("" "${SOURCES}" ${TEST_BINARY_NAME} "${EXCLUDE_SUITES}" "")
+
+# T-20: bcos-executor compat filtered regression gate (FC-* HostContext/executor smoke).
+add_test(NAME CompatFilteredSuite
+    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    COMMAND ${TEST_BINARY_NAME} --run_test=Compat --report_level=detailed)

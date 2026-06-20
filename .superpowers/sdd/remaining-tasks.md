@@ -180,7 +180,7 @@ flowchart LR
 | T-17 | 新增 `EthTransactionExecutorImpl` compat 测试 | ✅ Phase A–E + SD-C dual-path harness（10 Phase E cases）；legacy `CompatSelfdestruct` SD-A 仍 stub | `transaction-executor/tests/CompatExecuteViaHost*.cpp`, `CompatTransactionExecutorPhase*Test.cpp` |
 | T-18 | 新增 `OpStackTransactionExecutorImpl` compat 测试 | ✅ Phase 1+2 executor smoke 7/7（L1 fee / insufficient / revert / deposit mint + deposit fee skip / deposit failure mint / hard failure receipt meta） | `transaction-executor/tests/TestOpStackTransactionExecutorFixture.cpp` |
 | T-19 | 三路径 Initializer 集成测试 | 验证 `execution_path` 切换后 scheduler/engine 正常出块 | `libinitializer/` 或集成测试 |
-| T-20 | `bcos-executor` compat filtered suite | 计划全局约束，全分支回归门禁 | `bcos-executor/test/` |
+| T-20 | `bcos-executor` compat filtered suite | ✅ 76/76 `--run_test=Compat` + ctest `CompatFilteredSuite`；TE filtered 123/123 | `bcos-executor/test/unittest/evmone/compat/` |
 | T-21 | 全量 `transaction-executor` ctest 绿灯 | ✅ `TransactionExecutorImpl` 23/23；含嵌套 CREATE nonce/地址修复 | `transaction-executor/tests/` |
 
 ---
@@ -266,7 +266,7 @@ flowchart TD
 - [x] T-17 EthTransactionExecutorImpl compat 测试（Phase A–E + SD-C dual-path；SD-A pre-Cancun 仍 deferred）
 - [x] T-18 OpStackTransactionExecutorImpl compat 测试（Phase 1+2 executor smoke 7/7）
 - [ ] T-19 三路径 Initializer 集成测试
-- [ ] T-20 bcos-executor compat suite
+- [x] T-20 bcos-executor compat suite（76/76 Compat + ctest CompatFilteredSuite；TE filtered 123/123）
 - [x] T-21 transaction-executor 全量 ctest（TransactionExecutorImpl 23/23）
 
 ### P2 — 技术债
@@ -291,4 +291,4 @@ flowchart TD
 | 2026-06-19 | 验收 T-16：`ctest -R EthTxGasSettlement` 28/28 绿（EIP-7623 floor 已在 44040952c 等提交修复） |
 | 2026-06-20 | 完成 T-21：嵌套 CREATE 执行地址跟踪 + 合约 nonce bump；`TransactionExecutorImpl` 23/23 绿 |
 | 2026-06-20 | 完成 T-17 Phase B（`CompatExecuteViaHostPhaseB` 29 cases）+ T-18 Phase 1（`OpStackTransactionExecutorFixture` 4/4 smoke） |
-| 2026-06-20 | 完成 T-17 SD-C：同 tx CREATE→SELFDESTRUCT 双路径 harness（FISCO retains / Eth destroys）；`ExecuteViaHostInput` EIP-7702 字段对齐 |
+| 2026-06-20 | 完成 T-20：`PrecompiledRegistrar` 测试 shim + `CompatFilteredSuite` ctest（76/76）；TE filtered 123/123 |
