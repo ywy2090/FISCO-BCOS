@@ -191,7 +191,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     if (routed.hasPrecompileTarget)
     {
         if (auto precompiled = EthPrecompiles::tryDispatchInCall(
-                routed.precompileTarget, callMessage, m_revisionConfig.revision))
+                routed.precompileTarget, callMessage, m_revisionConfig.revision, m_revisionConfig))
         {
             return std::move(*precompiled);
         }

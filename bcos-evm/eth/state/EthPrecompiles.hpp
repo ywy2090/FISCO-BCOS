@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/RevisionConfig.h"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <evmc/evmc.hpp>
@@ -39,9 +40,11 @@ public:
     static bool isAddressInRange(const evmc_address& address) noexcept;
 
     static std::optional<EthPrecompileResult> dispatch(const evmc_address& address,
-        bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision);
+        bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision,
+        bcos::evm_standard::RevisionConfig const& cfg);
 
-    static std::optional<evmc::Result> tryDispatchInCall(
-        const evmc_address& address, const evmc_message& msg, evmc_revision revision);
+    static std::optional<evmc::Result> tryDispatchInCall(const evmc_address& address,
+        const evmc_message& msg, evmc_revision revision,
+        bcos::evm_standard::RevisionConfig const& cfg);
 };
 }  // namespace bcos::evm::state

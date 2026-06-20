@@ -478,8 +478,9 @@ bool EthPrecompiles::isAddressInRange(const evmc_address& address) noexcept
     return toSuffix(address).has_value();
 }
 
-std::optional<EthPrecompileResult> EthPrecompiles::dispatch(
-    const evmc_address& address, bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision)
+std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& address,
+    bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision,
+    bcos::evm_standard::RevisionConfig const& cfg)
 {
     auto const suffix = toSuffix(address);
     if (!suffix.has_value())
@@ -521,7 +522,14 @@ std::optional<EthPrecompileResult> EthPrecompiles::dispatch(
         executed = {true, input.toBytes()};
         break;
     case 0x0005:
-        executed = executeModexp(input);
+        if (bcos::evm::shouldRejectModexpEip7823(address, input, cfg, revision))
+        {
+            executed = {false, {}};
+        }
+        else
+        {
+            executed = executeModexp(input);
+        }
         break;
     case 0x0006:
         executed = executeBnAdd(input);
@@ -568,11 +576,11 @@ std::optional<EthPrecompileResult> EthPrecompiles::dispatch(
     return result;
 }
 
-std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(
-    const evmc_address& address, const evmc_message& msg, evmc_revision revision)
+std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(const evmc_address& address,
+    const evmc_message& msg, evmc_revision revision, bcos::evm_standard::RevisionConfig const& cfg)
 {
     bcos::bytesConstRef input(msg.input_data, msg.input_size);
-    auto dispatched = dispatch(address, input, msg.gas, revision);
+    auto dispatched = dispatch(address, input, msg.gas, revision, cfg);
     if (!dispatched.has_value())
     {
         return std::nullopt;

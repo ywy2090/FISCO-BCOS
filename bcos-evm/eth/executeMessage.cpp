@@ -158,8 +158,8 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         if (code.empty() && precompiled::isActivePrecompile(
                                 input.revisionConfig.revision, input.revisionConfig, codeAddress))
         {
-            if (auto precompiled = state::EthPrecompiles::tryDispatchInCall(
-                    codeAddress, input.message, input.revisionConfig.revision))
+            if (auto precompiled = state::EthPrecompiles::tryDispatchInCall(codeAddress,
+                    input.message, input.revisionConfig.revision, input.revisionConfig))
             {
                 output.result = std::move(*precompiled);
                 state.commit();

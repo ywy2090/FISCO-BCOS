@@ -997,6 +997,19 @@ target_compile_definitions(BcosPrecompileRevisionGateTest PRIVATE
 target_link_libraries(BcosPrecompileRevisionGateTest PRIVATE bcos-evm bcos-task evmone::evmone)
 add_test(NAME BcosPrecompileRevisionGate COMMAND BcosPrecompileRevisionGateTest)
 
+add_executable(Eip7823ModexpRejectTest eth/Eip7823ModexpRejectTest.cpp)
+target_include_directories(Eip7823ModexpRejectTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip7823ModexpRejectTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip7823ModexpReject COMMAND Eip7823ModexpRejectTest)
+
+add_executable(Bcos7823ModexpRejectTest bcos/Bcos7823ModexpRejectTest.cpp)
+target_include_directories(Bcos7823ModexpRejectTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Bcos7823ModexpRejectTest PRIVATE
+    bcos-evm bcos-evm-eth evmone::evmone bcos-framework protocol-tars)
+add_test(NAME Bcos7823ModexpReject COMMAND Bcos7823ModexpRejectTest)
+
 add_executable(Bcos2537MsmGasTest bcos/Bcos2537MsmGasTest.cpp)
 target_include_directories(Bcos2537MsmGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

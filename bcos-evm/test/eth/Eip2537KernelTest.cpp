@@ -16,8 +16,9 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth)
     evmc_address addr{};
     addr.bytes[19] = 0x0c;
     bcos::bytes input(320, 0);
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
     auto r = state::EthPrecompiles::dispatch(
-        addr, bcos::bytesConstRef(input.data(), input.size()), 500000, EVMC_PRAGUE);
+        addr, bcos::bytesConstRef(input.data(), input.size()), 500000, EVMC_PRAGUE, cfg);
     BOOST_REQUIRE(r.has_value());
     BOOST_CHECK_EQUAL(r->gasCost, 22776);
 }
