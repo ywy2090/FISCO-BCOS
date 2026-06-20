@@ -254,17 +254,74 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 ## Part 3 — 测试断言审计
 
+**Task 8 明细：** `_work/test-inventory.md`、`_work/task8-assertion-audit.md`  
+**汇总：** 断言 ✅ 16 | 🟡 25 | 🔴 0（41 行含跨路径引用）
+
+### 显式单元用例（16）
+
 | 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
 |----------|------|----------|------------|------|
-| `RevisionConfigProfileTest` | PRAGUE `eip7623` / `calldata_floor_per_token=10` | ✅ | `EthPolicy.h` | profile-only |
-| `Bcos7623PrecheckTest` | calldata OOG precheck | 🟡 | `Eip7623.h` normalCost | FISCO `executeViaHost`；非 ETH reference |
-| `EthTxGasSettlementTest` | `finalizeEthereumGasUsed` / `gasLimitMinimum` | ✅ | geth `FloorDataGas` | TE 路径；非 `bcos-evm/test/eth/` |
-| `EthTxGasSettlementExecutorTest` | mixed calldata floor receipt; type2 27216 | ✅ | canonical-cases.md | TE e2e |
-| *(gap)* | `ExecuteViaEth` 7623 precheck/settlement | 🟡 | geth Prague | **无** `bcos-evm/test/eth/*7623*` |
-| `EthTxInputBuilderTest` | `fillWeb3Fields_maps_eip7702_authorizations` | ✅ | EIP-7702 type-4 RLP + ecrecover | 仅 input 层；不测 apply |
-| `Eip7702ApplyAuthorizationTest` | `valid_auth_installs_delegation_*` | 🟡 | geth applyAuthorization post-state | opstack 路径；manual `eip7702=true`；非 ETH reference baseline |
-| `ExecuteViaEthFixtureTest` | `stEIP7702_delegation` | 🟡 假覆盖 | GeneralStateTests/stEIP7702（未导入） | plain CALL smoke；无 auth list / delegation code |
-| `RevisionConfigProfileTest` | ETH PRAGUE/OSAKA | ✅（profile） | EthPolicy 快照 | 期望 `eip7702=false` — 与 matrix inherited 声明冲突 |
+| `RevisionConfigProfileTest.cpp` | `revision_config_bool_field_macro_count` | ✅ | `RevisionConfig.h` 宏 | 13 个 bool 字段 |
+| `RevisionConfigProfileTest.cpp` | `eth_policy_full_fork_snapshots` | ✅ | `EthPolicy.h` | 5 分叉全字段；PRAGUE `eip7623`+`calldata_floor_per_token=10` |
+| `RevisionConfigProfileTest.cpp` | `fisco_policy_feature_gate_snapshots` | 🟡 | `FiscoPolicy.h` | FISCO 路径；PRAGUE `eip7702=true` 与 EthPolicy 分裂 |
+| `RevisionConfigProfileTest.cpp` | `isthmus_helper_sparse_profile_all_fields` | 🟡 | `makeIsthmusRevisionConfig()` | OPStack helper |
+| `EthTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | ✅ | EIP-7702 type-4 RLP | 仅 input 层 |
+| `FiscoTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | 🟡 | 同上 | FISCO builder 重复 |
+| `Eip2537KernelTest.cpp` | `stBLS_add_precompile_0x0b_via_executeMessage` | ✅ | geth `blsG1Add.json` #1 | output 128B 一致 |
+| `TxFeaturePrepareTest.cpp` | `setWarmDestinationFromKind_matches_create_vs_call` | ✅ | geth Prepare CREATE skip | helper |
+| `Eip2929AccessHostTest.cpp` | `access_account_cold_then_warm` | ✅ | EIP-2929 | 生产 EthHost |
+| `Eip2929AccessHostTest.cpp` | `access_storage_cold_then_warm` | ✅ | EIP-2929 | 生产 EthHost |
+| `Eip2929AccessHostTest.cpp` | `journal_revert_rolls_back_child_warm_address` | ✅ | journal revert | 含否定断言 |
+| `Eip2929AccessHostTest.cpp` | `access_account_disabled_when_warm_access_off` | ✅ | flag OFF | 否定路径 |
+| `WarmTransactionEntryTest.cpp` | `warms_sender_to_and_coinbase_for_call_transaction` | ✅ | geth Prepare + EIP-3651 | SHANGHAI coinbase |
+| `WarmTransactionEntryTest.cpp` | `warms_access_list_address_and_storage_keys` | ✅ | EIP-2930 W2 | type-1 + 2 keys |
+| `WarmTransactionEntryTest.cpp` | `builds_block_info_with_expected_fields` | 🟡 | BlockInfoBuilder | smoke |
+| `ExecuteViaEthFixtureTest.cpp` | `existing_prague_fixtures_via_execute_via_eth` | — | 见 fixture 子表 | 驱动 21 JSON |
+
+### Fixture 子项（`ExecuteViaEthFixtureTest` 循环）
+
+| Fixture | 断言状态 | 金标准 | 备注 |
+|---------|----------|--------|------|
+| `stExample_return42.json` | ✅ | return-42 | gas=18 |
+| `stRevert_revertBasic.json` | ✅ | revert | gas=6 |
+| `stRevert_revertDepth.json` | ✅ | nested revert | gas=2632 |
+| `stBLS_add.json` | ✅ | geth `blsG1Add.json` | gas 跳过 |
+| `stCreate2_basic.json` | 🟡 | CREATE2 | 无 created address |
+| `stCreate_initCode.json` | 🟡 | CREATE | 无 post-state |
+| `stExample_gasPrice0.json` | 🟡 | smoke | gas 跳过 |
+| `stCall_emptyAccount.json` | 🟡 | empty account | gas 跳过 |
+| `stPrecompile_sha256.json` | 🟡 | sha256 precompile | gas 跳过 |
+| `stPrecompile_identity.json` | 🟡 | identity | gas 跳过 |
+| `stPrecompile_ecrecover.json` | 🟡 | ecrecover | output 空未对照 JSON |
+| `stModExp_basic.json` | 🟡 | modexp | gas 跳过 |
+| `stSelfDestruct_basic.json` | 🟡 | stSelfDestruct | gas=7603；无 post-state |
+| `prague_selfdestruct.json` | 🟡 | 同上 | duplicate |
+| `stEIP7702_delegation.json` | 🟡 | stEIP7702 | **假覆盖**：plain CALL smoke |
+| `stEIP2930_accessList.json` | 🟡 | stEIP2930 | 无 access_list JSON |
+| `prague_call_return_word.json` | 🟡 | smoke | |
+| `prague_call_revert.json` | 🟡 | smoke | |
+| `prague_call_empty_account.json` | 🟡 | smoke | |
+| `prague_create_empty_initcode.json` | 🟡 | smoke | |
+
+### Spot-check：5 imported fixture vs geth 金标准
+
+| Fixture | 断言状态 | 对照结果 |
+|---------|----------|----------|
+| `stBLS_add.json` | ✅ | geth `blsG1Add.json` `bls_g1add_(inf+g1=g1)` Expected 逐字节一致 |
+| `stEIP7702_delegation.json` | 🟡 | 非 7702 tx；pre 无 delegation code |
+| `stSelfDestruct_basic.json` | 🟡 | gas 合理；无 6780 post-state 断言 |
+| `stModExp_basic.json` | 🟡 | 无 geth 完全匹配向量；gas 跳过 |
+| `stEIP2930_accessList.json` | 🟡 | 无 access_list 字段；preset warm flags only |
+
+### 跨路径引用（范围外枚举，Part 1 关联）
+
+| 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
+|----------|------|----------|------------|------|
+| `Bcos7623PrecheckTest` | calldata OOG precheck | 🟡 | `Eip7623.h` | FISCO `executeViaHost` |
+| `EthTxGasSettlementTest` | `finalizeEthereumGasUsed` / `gasLimitMinimum` | ✅ | geth `FloorDataGas` | TE 路径 |
+| `EthTxGasSettlementExecutorTest` | mixed calldata; type2 **27216** | ✅ | canonical-cases.md | TE e2e |
+| *(gap)* | `ExecuteViaEth` 7623 | 🟡 | geth Prague | 无 `test/eth/*7623*` |
+| `Eip7702ApplyAuthorizationTest` | `valid_auth_installs_delegation_*` | 🟡 | geth applyAuthorization | opstack；manual flag |
 
 ---
 
