@@ -31,6 +31,7 @@
 #include <evmone_precompiles/modexp.hpp>
 #include <evmone_precompiles/ripemd160.hpp>
 #include <evmone_precompiles/secp256k1.hpp>
+#include <evmone_precompiles/secp256r1.hpp>
 #include <evmone_precompiles/sha256.hpp>
 #include <intx/intx.hpp>
 #include <limits>
@@ -65,6 +66,11 @@ std::optional<uint16_t> toSuffix(const evmc_address& address) noexcept
         return std::nullopt;
     }
     return suffix;
+}
+
+bool isP256Address(const evmc_address& address) noexcept
+{
+    return isHigh18BytesZero(address) && address.bytes[18] == 0x01 && address.bytes[19] == 0x00;
 }
 
 int64_t safeBigintToI64(const bcos::bigint& value) noexcept
@@ -419,6 +425,29 @@ std::pair<bool, bcos::bytes> executeBlsMapFp2ToG2(bcos::bytesConstRef input)
     return {true, bcos::bytes(out.begin(), out.end())};
 }
 
+std::pair<bool, bcos::bytes> executeP256Verify(bcos::bytesConstRef input)
+{
+    static constexpr size_t INPUT_SIZE = 160;
+    if (input.size() != INPUT_SIZE)
+    {
+        return {true, {}};
+    }
+    auto const* d = input.data();
+    ethash::hash256 h{};
+    std::memcpy(h.bytes, d, 32);
+    auto const r = intx::be::unsafe::load<intx::uint256>(d + 32);
+    auto const s = intx::be::unsafe::load<intx::uint256>(d + 64);
+    auto const qx = intx::be::unsafe::load<intx::uint256>(d + 96);
+    auto const qy = intx::be::unsafe::load<intx::uint256>(d + 128);
+    if (!evmmax::secp256r1::verify(h, r, s, qx, qy))
+    {
+        return {true, {}};
+    }
+    bcos::bytes output(32, 0);
+    output[31] = 1;
+    return {true, std::move(output)};
+}
+
 int64_t precompileGasCost(uint16_t suffix, bcos::bytesConstRef input, evmc_revision revision)
 {
     switch (suffix)
@@ -475,13 +504,28 @@ int64_t precompileGasCost(uint16_t suffix, bcos::bytesConstRef input, evmc_revis
 
 bool EthPrecompiles::isAddressInRange(const evmc_address& address) noexcept
 {
-    return toSuffix(address).has_value();
+    return toSuffix(address).has_value() || isP256Address(address);
 }
 
 std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& address,
     bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision,
     bcos::evm_standard::RevisionConfig const& cfg)
 {
+    if (isP256Address(address))
+    {
+        EthPrecompileResult result;
+        result.gasCost = 6900;
+        if (msgGas < result.gasCost)
+        {
+            result.status = EVMC_OUT_OF_GAS;
+            return result;
+        }
+        auto executed = executeP256Verify(input);
+        result.status = executed.first ? EVMC_SUCCESS : EVMC_PRECOMPILE_FAILURE;
+        result.output = std::move(executed.second);
+        return result;
+    }
+
     auto const suffix = toSuffix(address);
     if (!suffix.has_value())
     {

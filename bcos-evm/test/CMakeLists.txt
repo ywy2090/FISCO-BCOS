@@ -1010,6 +1010,19 @@ target_link_libraries(Bcos7823ModexpRejectTest PRIVATE
     bcos-evm bcos-evm-eth evmone::evmone bcos-framework protocol-tars)
 add_test(NAME Bcos7823ModexpReject COMMAND Bcos7823ModexpRejectTest)
 
+add_executable(Eip7212KernelTest eth/Eip7212KernelTest.cpp)
+target_include_directories(Eip7212KernelTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip7212KernelTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip7212Kernel COMMAND Eip7212KernelTest)
+
+add_executable(Bcos7212ExecuteViaHostTest bcos/Bcos7212ExecuteViaHostTest.cpp)
+target_include_directories(Bcos7212ExecuteViaHostTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Bcos7212ExecuteViaHostTest PRIVATE
+    bcos-evm bcos-evm-eth evmone::evmone bcos-framework protocol-tars)
+add_test(NAME Bcos7212ExecuteViaHost COMMAND Bcos7212ExecuteViaHostTest)
+
 add_executable(Bcos2537MsmGasTest bcos/Bcos2537MsmGasTest.cpp)
 target_include_directories(Bcos2537MsmGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
