@@ -87,6 +87,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip4844 = true,
                          .eip5656 = true,
                          .eip6780 = true,
+                         .eip7702 = true,
                          .calldata_floor_per_token = 10}},
         {25'000'000, {.revision = EVMC_OSAKA,
                          .warm_access = true,
@@ -98,6 +99,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip4844 = true,
                          .eip5656 = true,
                          .eip6780 = true,
+                         .eip7702 = true,
                          .calldata_floor_per_token = 10}},
     };
     for (auto const& row : rows)

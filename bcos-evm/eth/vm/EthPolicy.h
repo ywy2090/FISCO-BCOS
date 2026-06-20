@@ -35,6 +35,7 @@ struct EthPolicy
         cfg.eip6780 = cfg.revision >= EVMC_CANCUN;
         cfg.eip2537 = cfg.revision >= EVMC_PRAGUE;
         cfg.eip7623 = cfg.revision >= EVMC_PRAGUE;
+        cfg.eip7702 = cfg.revision >= EVMC_PRAGUE;
         cfg.eip7212 = cfg.revision >= EVMC_OSAKA;
         cfg.eip7823 = cfg.revision >= EVMC_OSAKA;
         cfg.calldata_floor_per_token = cfg.eip7623 ? 10 : 0;

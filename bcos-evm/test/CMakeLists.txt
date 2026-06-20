@@ -920,6 +920,12 @@ target_link_libraries(RevisionConfigProfileTest PRIVATE
     bcos-evm bcos-evm-eth protocol-tars bcos-framework)
 add_test(NAME RevisionConfigProfile COMMAND RevisionConfigProfileTest)
 
+add_executable(Eip7702ApplyAuthorizationEthTest eth/Eip7702ApplyAuthorizationEthTest.cpp)
+target_include_directories(Eip7702ApplyAuthorizationEthTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip7702ApplyAuthorizationEthTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip7702ApplyAuthorizationEth COMMAND Eip7702ApplyAuthorizationEthTest)
+
 add_executable(TxFeaturePrepareTest eth/TxFeaturePrepareTest.cpp)
 target_include_directories(TxFeaturePrepareTest PRIVATE ${PROJECT_SOURCE_DIR})
 target_link_libraries(TxFeaturePrepareTest PRIVATE bcos-evm-eth)

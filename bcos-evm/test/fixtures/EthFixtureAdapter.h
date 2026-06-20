@@ -38,6 +38,7 @@ inline bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
     cfg.eip6780 = true;
     cfg.eip2537 = true;
     cfg.eip7623 = true;
+    cfg.eip7702 = true;
     cfg.calldata_floor_per_token = 10;
     return cfg;
 }
