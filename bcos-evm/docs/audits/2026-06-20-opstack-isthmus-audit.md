@@ -1,7 +1,7 @@
 # OPStack TE Baseline（Isthmus）规范合规审计报告
 
-**日期：** 2026-06-20（初审计）；**复审计：** 2026-06-21 @ `54e17a62c`  
-**分支/commit：** `worktree-feat-evm-refactor` / `54e17a62c`（初审计 `f989f073f`；remediation OP-01～15 已合入）  
+**日期：** 2026-06-20（初审计）；**复审计：** 2026-06-21 @ `54e17a62c`；**Wave 2 sign-off：** 2026-06-21（本地 CTest PASS，远程 CI 待首跑）  
+**分支/commit：** `worktree-feat-evm-refactor` / Wave 2 本地 HEAD（Remediation OP-01～15 + FIX-01～07/09～11 @ `54e17a62c` 基线）  
 **op-geth：** v1.101702.2 @ `e8800cffe`  
 **geth：** v1.17.3  
 **Besu：** tag 26.6.0  
@@ -22,18 +22,19 @@
 |------|--------|--------|
 | 初审计 | `f989f073f` | ❌ 不通过（≥8 🔴） |
 | Remediation | OP-01～15 | P0 全闭合 |
-| **复审计** | **`54e17a62c`** | **⚠️ 有条件通过** |
+| 复审计 | `54e17a62c` | ⚠️ 有条件通过 |
+| **Wave 2 sign-off** | **2026-06-21 本地** | **✅ 通过**（远程 CI 待首跑） |
 
-### 可裁决行统计（深审 + inherited smoke，不含纯 ⚪）— 复审计 @ `54e17a62c`
+### 可裁决行统计（深审 + inherited smoke，不含纯 ⚪）— Wave 2 sign-off @ 2026-06-21
 
-| 指标 | 初审计 | 复审计 |
-|------|--------|--------|
-| 审计行数（可裁决） | ~30 | ~33（含 S1–S3 + warm_access 行） |
-| ✅ 一致 | ~18 | **~26** |
-| 🟡 警告 | ~10 | **~7** |
-| 🔴 阻断 | **≥8** | **0** |
-| 📋 设计选择 | 若干 | 若干（matrix deviation 已文档化） |
-| **主判定** | **❌ 不通过** | **⚠️ 有条件通过** |
+| 指标 | 初审计 | 复审计 | Wave 2 |
+|------|--------|--------|--------|
+| 审计行数（可裁决） | ~30 | ~33 | ~33 |
+| ✅ 一致 | ~18 | **~26** | **~30** |
+| 🟡 警告 | ~10 | **~7** | **~3**（非阻断残余） |
+| 🔴 阻断 | **≥8** | **0** | **0** |
+| 📋 设计选择 | 若干 | 若干 | 若干 |
+| **主判定** | **❌ 不通过** | **⚠️ 有条件通过** | **✅ 通过** |
 
 ### 待决行统计
 
@@ -54,19 +55,25 @@
 
 **继承 ETH 内核 🔴 → ✅：** EIP-2537 MSM 折扣表（`BlsGas.h`）；EIP-6780 `selfdestruct`（`EthHost.cpp:190-197`）；`OpStack67802537KernelSmokeTest`
 
-### 测试断言审计（Part 3 摘要）— 复审计
+### 测试断言审计（Part 3 摘要）— Wave 2 sign-off
 
-| 指标 | 初审计 | 复审计 |
-|------|--------|--------|
-| 测试文件 | 29 | **30**（+ `OpStack67802537KernelSmokeTest`） |
-| 用例 | 65 | **86** |
-| ✅ / 🟡 / 🔴 断言 | 49 / 15 / **1** | **74 / 12 / 0** |
+| 指标 | 初审计 | 复审计 | Wave 2 |
+|------|--------|--------|--------|
+| 测试文件 | 29 | **30** | **30** |
+| 用例 | 65 | **86** | **96** |
+| ✅ / 🟡 / 🔴 断言 | 49 / 15 / **1** | **74 / 12 / 0** | **88 / 8 / 0** |
 
-### 复审计放行条件（⚠️ → ✅）
+### 放行条件 — Wave 2 闭合状态
 
-1. HEAD 重建并跑通 opstack + `TestOpStackTransactionExecutorFixture` 全量 CTest  
-2. 协议层 `TransactionReceipt` 暴露 `operatorFeeScalar` / `operatorFeeConstant`（编排层 meta 已有）  
-3. （可选）4844 full executor E2E；Fjord Solidity parity 精确向量 105484
+1. HEAD 重建并跑通 opstack + `TestOpStackTransactionExecutorFixture` 全量 CTest — **✅ 本地 PASS（2026-06-21 darwin arm64）；`capability-gate` `opstack-ctest` job（ADR-010）已入分支 workflow，GitHub 远程 CI 待首跑**
+2. 协议层 `TransactionReceipt` 暴露 `operatorFeeScalar` / `operatorFeeConstant` — **✅ FIX-01（ADR-008，TE sidecar + fixture 断言；RPC/tars 仍 out of scope）**
+3. Fjord Solidity parity 精确向量 105484/2463 — **✅ FIX-04（ADR-012，`FIX04_FjordL1CostSolidityParity_matchesOpGeth`）**
+4. signed RLP → L1 fee TE E2E — **✅ FIX-05（ADR-012，`FIX05_signed_rlp_rollup_execute_e2e`）**
+5. L1 attributes system deposit TE E2E（`depositNonce`/nonce） — **✅ FIX-06（ADR-011，`l1_attributes_deposit_via_te`）**
+6. TE revert/hard-fail operator fee 断言 — **✅ FIX-07（`revert_keeps_l1_fee_and_operator_fee` + `hard_failure` operator literal）**
+7. 4844 full executor E2E — **已取消 FIX-08（ADR-009）**；4844 preCheck 形状 — **✅ FIX-09（6 用例）**
+8. 7702 fixture 文档 + existence refund — **✅ FIX-10/11（ADR-013）**
+9. inherited Isthmus profile 文档 — **✅ FIX-12（矩阵脚注 + task8 闭合）**
 
 ---
 
@@ -96,19 +103,21 @@
 
 ---
 
-## Part 2 — 偏离项详情（🟡 精选，复审计无 🔴）
+## Part 2 — 偏离项详情（Wave 2 全部 CLOSED，无 🔴）
 
-详见各 `task*.md` Part 2。初审计 🔴 均已闭合；**仍开放 🟡：**
+详见各 `task*.md` Part 2。初审计 🔴 均已闭合；**Wave 2 前开放 🟡 均已 CLOSED：**
 
-| ID | 现象 | 严重度 | Task |
-|----|------|--------|------|
-| D3-2 | `OpStackReceiptMeta` 有 scalar/constant；`makeReceipt` 仅 `setOperatorFee` | 🟡 协议层 | 6 |
-| D2-1 | 无 `TestFjordL1CostSolidityParity` 精确向量（105484/2463） | 🟡 测试 | 2 |
-| D2-2 | signed RLP → L1 fee 无 TE E2E 精确链 | 🟡 测试 | 2 |
-| D7-1 | 4844 preCheck 缺 hash 版本 / blob CREATE；无 full executor E2E | 🟡 测试 | 7 |
-| D5-4 | L1 attributes deposit 未断言 `depositNonce`/nonce | 🟡 测试 | 5 |
-| D1-1 | TE fixture revert/hard-fail 未断言 operator fee | 🟡 测试 | 1/3 |
-| D8-1 | inherited #14/#18/#20 profile flag 稀疏（evmone-delegated） | 🟡 文档 | 8 |
+| ID | 现象 | 严重度 | Task | Wave 2 | 状态 |
+|----|------|--------|------|--------|------|
+| D3-2 | `OpStackReceiptMeta` scalar/constant；`makeReceipt` 暴露 sidecar | 🟡→✅ | 6 | FIX-01 | **CLOSED**（ADR-008；RPC/tars out of scope） |
+| D2-1 | 无 Fjord Solidity parity 精确向量（105484/2463） | 🟡→✅ | 2 | FIX-04 | **CLOSED**（ADR-012） |
+| D2-2 | signed RLP → L1 fee 无 TE E2E 精确链 | 🟡→✅ | 2 | FIX-05 | **CLOSED**（ADR-012） |
+| D7-1 | 4844 preCheck 缺形状校验；full executor E2E | 🟡→✅ | 7 | FIX-08/09 | **CLOSED**（FIX-08 取消 ADR-009；FIX-09 preCheck 6 用例） |
+| D5-4 | L1 attributes deposit 未断言 `depositNonce`/nonce | 🟡→✅ | 5 | FIX-06 | **CLOSED**（ADR-011 TE E2E） |
+| D1-1 | TE fixture revert/hard-fail 未断言 operator fee | 🟡→✅ | 1/3 | FIX-07 | **CLOSED** |
+| D8-1 | inherited #14/#18/#20 profile flag 稀疏 | 🟡→✅ | 8 | FIX-12 | **CLOSED**（ADR-004 文档化；非 wiring 缺口） |
+
+**非阻断残余 🟡（不升格阻断）：** `OpStackExecuteViaHostSmokeTest` operator 仍 `>0`（4 用例）；Inv#14 无 OP 0x01–0x0a 专项 precompile fixture。见 `task10-assertions.md` 汇总。
 
 **Out of scope（⚪，非阻断）：** GPO `0x4200…000F`、`setFeature`、`proxyAdmin*`、Bedrock/Jovian setter、`setIsthmus()` 升级迁移、`L1GasUsed` deprecated receipt 字段
 
@@ -116,13 +125,16 @@
 
 ## Part 3 — 测试断言审计
 
-完整 86 行表见 `_work/task10-assertions.md` 与 `_work/test-inventory-opstack.md`。
+完整 96 行表见 `_work/task10-assertions.md` 与 `_work/test-inventory-opstack.md`。
 
-**复审计要点：**
-- `DepositNoFeeRoutingTest` — REVERT `gasUsed=21'000` ✅（初审计 🔴 已修正）
-- 手动 `m_isIsthmus=true` — 仅 3 处（`RefundIsthmusTest`、`OpStackSettlementTest`×2），直连 `OpStackTxExecutor` 单元测，**非** wiring 缺口
-- `TestOpStackTransactionExecutorFixture::operator_fee_recipient_gets_fee_on_success` — TE operator fee E2E ✅
-- `L1AttributesDepositTest` — L1/operator literal + recipient balance ✅
+**Wave 2 sign-off 要点：**
+- `DepositNoFeeRoutingTest` — REVERT `gasUsed=21'000` ✅
+- `TestOpStackTransactionExecutorFixture::revert_keeps_l1_fee_and_operator_fee` — TE revert operator fee literal + recipient balance ✅（FIX-07）
+- `TestOpStackTransactionExecutorFixture::FIX05_signed_rlp_rollup_execute_e2e` — signed RLP → L1 fee TE E2E ✅（FIX-05）
+- `TestOpStackTransactionExecutorFixture::l1_attributes_deposit_via_te` — `depositNonce` + depositor nonce ✅（FIX-06）
+- `OpStackFeeTest::FIX04_FjordL1CostSolidityParity_matchesOpGeth` — 105484/2463 ✅（FIX-04）
+- `BlobGasBalanceTest` + `DepositTxPreCheckTest` — 4844 preCheck 形状 6 用例 ✅（FIX-09）
+- `operator_fee_recipient_gets_fee_on_success` — `operatorFeeScalar`/`operatorFeeConstant` sidecar ✅（FIX-01）
 
 ---
 
@@ -140,13 +152,17 @@
 | OP-08 | 2537/6780 内核 | ✅ |
 | OP-09 | 2929 warm_access + applyDefaultTxProps | ✅ |
 
-### P1 补测 / 协议 parity（🟡）
+### P1 补测 / 协议 parity（🟡）— Wave 2 闭合
 
-- 协议 `TransactionReceipt` 暴露 `operatorFeeScalar` / `operatorFeeConstant`
-- `TestFjordL1CostSolidityParity` 精确向量；signed RLP → L1 fee TE E2E
-- type-0x03 blob full executor E2E；4844 preCheck 形状校验补全
-- L1 attributes deposit `depositNonce`/nonce 断言；TE revert operator fee 断言
-- HEAD 重建 + 全量 opstack CTest CI gate
+| 项 | FIX | 状态 |
+|----|-----|------|
+| 协议 `TransactionReceipt` 暴露 `operatorFeeScalar` / `operatorFeeConstant` | FIX-01 | ✅ TE sidecar（RPC/tars out of scope） |
+| `TestFjordL1CostSolidityParity` 精确向量；signed RLP → L1 fee TE E2E | FIX-04/05 | ✅ |
+| type-0x03 blob full executor E2E | FIX-08 | **已取消**（ADR-009） |
+| 4844 preCheck 形状校验补全 | FIX-09 | ✅ 6 用例 |
+| L1 attributes deposit `depositNonce`/nonce 断言；TE revert operator fee 断言 | FIX-06/07 | ✅ |
+| HEAD 重建 + 全量 opstack CTest CI gate | FIX-02/03 | ✅ 本地 PASS；workflow 已入分支，**远程 CI 待首跑** |
+| inherited Isthmus profile 文档 sign-off | FIX-12～15 | ✅ |
 
 ### Matrix — 已合入（OP-10）
 
@@ -157,6 +173,40 @@
 - inherited 行已引用 `2026-06-20-eth-reference-cancun-plus-audit.md`；无 `blocked: ETH audit pending`
 - 2537/6780 OP 行随 ETH P0 闭合 → OP smoke ✅
 
+### 放行证据 / Wave 2 完成记录（2026-06-21）
+
+**日期 / 平台：** 2026-06-21 · darwin arm64（本地）  
+**主判定：** **✅ 通过**（Wave 2 FIX-01～07/09～15 全部闭合；**远程 GitHub CI 待首跑**）
+
+#### R3 — HEAD CTest 验证记录（FIX-03，Wave 2 全量）
+
+| 项 | 命令 / 范围 | 结果 |
+|----|-------------|------|
+| bcos-evm opstack 过滤 ctest | `ctest -R 'OpStack\|L1Block\|Deposit\|Blob\|7702\|RefundIsthmus\|L1Attributes'`（`build/bcos-evm/test`） | **23/23 PASS** |
+| transaction-executor TE fixture | `ctest -R OpStackTransactionExecutorFixture`（`build/transaction-executor/tests`） | **1/1 PASS**（13 BOOST 用例） |
+| capability matrix lint | `bash bcos-evm/tools/ci/check-capability-matrix.sh` | **OK** |
+| CI gate | `.github/workflows/capability-gate.yml` → `opstack-ctest` job（ADR-010） | **workflow 已入分支；GitHub 远程 CI 待首跑** |
+
+#### Wave 2 全量闭合项（FIX-01～15）
+
+| FIX | Task | 内容 | ADR / 证据 |
+|-----|------|------|------------|
+| FIX-01 | 1 | `TransactionReceipt` sidecar 暴露 `operatorFeeScalar` / `operatorFeeConstant` | ADR-008；闭合 D3-2 |
+| FIX-02 | 2 | `capability-gate.yml` 增补 `opstack-ctest` | ADR-010 |
+| FIX-03 | 3 | 本节 R3 HEAD CTest 验证记录 | — |
+| FIX-04 | 4 | `FIX04_FjordL1CostSolidityParity_matchesOpGeth`（105484/2463） | ADR-012；闭合 D2-1 |
+| FIX-05 | 5 | `FIX05_signed_rlp_rollup_execute_e2e` TE E2E | ADR-012；闭合 D2-2 |
+| FIX-06 | 6 | `l1_attributes_deposit_via_te`（`depositNonce`/nonce） | ADR-011；闭合 D5-4 |
+| FIX-07 | 7 | `revert_keeps_l1_fee_and_operator_fee` + hard-fail operator literal | 闭合 D1-1 |
+| FIX-08 | 8 | **已取消** blob type-0x03 full TE E2E | ADR-009 |
+| FIX-09 | 9 | `BlobGasBalanceTest` + `DepositTxPreCheckTest` 4844 preCheck 6 用例 | ADR-009；闭合 D7-1（preCheck 范围） |
+| FIX-10 | 10 | `stEIP7702_delegation.json` hand-crafted smoke 文档 | ADR-013 |
+| FIX-11 | 11 | 7702 authority existence refund 专用用例 | ADR-013 |
+| FIX-12 | 12 | inherited Isthmus profile 矩阵脚注 + task8 闭合 | ADR-004 |
+| FIX-13 | 12 | 本报告主判定 ⚠️→✅、Part 2 CLOSED | — |
+| FIX-14 | 12 | `task10-assertions.md` + `test-inventory-opstack.md` 同步 | — |
+| FIX-15 | 12 | `inheritance-work-tracker.md` #6 `[x]`（CI 待首跑） | ADR-010 |
+
 ---
 
-**审计状态：** 初版 + 复审计完成（Subagent-Driven Task 0–11 @ `54e17a62c`）。Part 1 全表见 `_work/task*.md`。
+**审计状态：** 初版 + 复审计 + **Wave 2 sign-off 完成**（2026-06-21）。主判定 **✅ 通过**（本地 CTest PASS + workflow 已入分支；GitHub 远程 CI 待首跑）。Part 1 全表见 `_work/task*.md`。

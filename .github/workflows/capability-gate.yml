@@ -8,9 +8,7 @@ on:
       - 'bcos-evm/bcos/**'
       - 'bcos-evm/opstack/**'
       - 'bcos-evm/test/eth/RevisionConfigProfileTest.cpp'
-      - 'transaction-executor/bcos-transaction-executor/*TxInputBuilder*'
-      - 'transaction-executor/bcos-transaction-executor/*Policy*'
-      - 'transaction-executor/bcos-transaction-executor/*TransactionExecutorImpl*'
+      - 'transaction-executor/**'
 
 jobs:
   matrix-lint:
@@ -43,3 +41,57 @@ jobs:
               exit 1
             }
           fi
+
+  opstack-ctest:
+    needs: matrix-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize vcpkg submodule
+        run: git submodule update --init --recursive -- vcpkg
+      - name: Compute vcpkg revision
+        id: vcpkg-revision
+        run: echo "revision=$(git -C vcpkg rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 3.28.3
+          ninjaVersion: 1.12.1
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/build/vcpkg_installed
+          key: vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'ports/**') }}-${{ steps.vcpkg-revision.outputs.revision }}-ubuntu-latest-x64-cache-key-v4
+      - name: Install linux dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends \
+              wget python3-dev python3-pip git curl zip unzip tar \
+              clang make build-essential libssl-dev zlib1g-dev ca-certificates mold autoconf \
+              flex bison patch pkg-config uuid-runtime automake gcc-14 g++-14
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2024-02-25
+          override: true
+      - name: Configure and build opstack tests
+        run: |
+          CC=gcc-14 CXX=g++-14 cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DTESTS=ON \
+            -DCOVERAGE=OFF \
+            -DWITH_LIGHTNODE=ON \
+            -DWITH_CPPSDK=ON \
+            -DWITH_TIKV=OFF \
+            -DWITH_WASM=OFF \
+            -DWITH_TARS_SERVICES=OFF \
+            -DTOOL=OFF \
+            -DLINKER=mold \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-release \
+            .
+          cmake --build build --target test-opstack-transaction-executor-fixture -j$(nproc)
+          cmake --build build/bcos-evm/test -j$(nproc)
+      - name: Run opstack CTest
+        run: |
+          ctest -R 'OpStack|L1Block|Deposit|Blob|7702|RefundIsthmus|L1Attributes' \
+            --test-dir build/bcos-evm/test -C Debug --output-on-failure
+          ctest -R OpStackTransactionExecutorFixture \
+            --test-dir build/transaction-executor/tests -C Debug --output-on-failure

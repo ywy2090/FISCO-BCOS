@@ -263,6 +263,16 @@ public:
                 receipt->setOperatorFee(
                     "0x" + m_data->m_receiptMeta.operatorFee->str(0, std::ios_base::hex));
             }
+            if (m_data->m_receiptMeta.operatorFeeScalar.has_value())
+            {
+                receipt->setOperatorFeeScalar(
+                    "0x" + m_data->m_receiptMeta.operatorFeeScalar->str(0, std::ios_base::hex));
+            }
+            if (m_data->m_receiptMeta.operatorFeeConstant.has_value())
+            {
+                receipt->setOperatorFeeConstant(
+                    "0x" + m_data->m_receiptMeta.operatorFeeConstant->str(0, std::ios_base::hex));
+            }
             if (m_data->m_receiptMeta.depositNonce.has_value())
             {
                 auto const nonce = bcos::u256(*m_data->m_receiptMeta.depositNonce);

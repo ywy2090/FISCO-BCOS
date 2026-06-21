@@ -107,3 +107,7 @@
 - **🔴 断言：0** — 未发现 literal 期望值与金标准**直接冲突**的用例；假覆盖均为 🟡（断言过弱或未测目标语义）。
 - **🟡 断言：11** — 主要风险收敛为：(1) `gas_used=0` 跳过仍剩 2 个（`stCall_emptyAccount`、`prague_create_empty_initcode`）；(2) `stExample_return42_warmProps` 仍是 warm props smoke；(3) 跨路径层面仍有 7623/7702 的非 ETH reference 形态分裂。
 - **优先补测：** 若继续收敛 🟡，优先实现显式 `skip_gas_assert` 字段并保留 gas=0 literal；其次补一个真 type-1 access list fixture，替换 warm props smoke。
+
+### Wave 2 FIX-12 交叉引用（2026-06-21）
+
+OPStack inherited Isthmus profile 文档 sign-off 见 `_work/task8-inherited-smoke.md` §Wave 2 FIX-12。本文件（ETH reference 横向断言）无新增 🔴；OP 侧 Part 2 🟡 闭合见 `2026-06-20-opstack-isthmus-audit.md` FIX-13。

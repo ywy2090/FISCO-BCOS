@@ -15,7 +15,7 @@ Legend: `[x]` done · `[~]` partial · `[ ]` open
 - [x] **3** ADR-004 RevisionConfig 消费 vs profile-only
 - [x] **4** ADR-005 编排域边界
 - [x] **5** PR 审查 checklist（`bcos-evm/docs/inheritance-pr-review-checklist.md`）
-- [~] **6** `capability-gate` workflow + `check-capability-matrix.sh`（已实现 + RevisionConfig→ProfileTest gate；需合入主分支 — Appendix A）
+- [x] **6** `capability-gate` workflow + `check-capability-matrix.sh`（矩阵 lint + RevisionConfig→ProfileTest gate + **full opstack CTest** per ADR-010；workflow 已入分支，本地 PASS，**远程 CI 待首跑**）
 
 ## P1 — Phase 2 前置
 
@@ -58,4 +58,4 @@ Legend: `[x]` done · `[~]` partial · `[ ]` open
 
 ---
 
-**Last updated:** 2026-06-20 (inheritance remaining plan Tasks 0–7)
+**Last updated:** 2026-06-21 (FIX-15 Wave 2 sign-off — capability-gate workflow in branch; remote CI first run pending)

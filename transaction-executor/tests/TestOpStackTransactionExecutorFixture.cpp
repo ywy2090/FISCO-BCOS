@@ -27,6 +27,7 @@
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <array>
+#include <fstream>
 #include <string>
 
 namespace bcos::evm::test
@@ -141,7 +142,16 @@ bytes compactU256(u256 value)
     return bytes(it, encoded.end());
 }
 
-bytes buildDepositExtra(evmc_address const& from, evmc_address const& to, u256 mint)
+bytes loadOpStackFixture(std::string_view name)
+{
+    auto const path = std::string(OPSTACK_FIXTURES_DIR) + "/" + std::string(name);
+    std::ifstream input(path, std::ios::binary);
+    BOOST_REQUIRE_MESSAGE(input.is_open(), "missing fixture: " << path);
+    return {std::istreambuf_iterator<char>(input), {}};
+}
+
+bytes buildDepositExtra(evmc_address const& from, evmc_address const& to, u256 mint,
+    bytes const& calldata = {}, uint64_t gas = 50'000)
 {
     bytes payload;
     h256 sourceHash{0x1234};
@@ -150,8 +160,8 @@ bytes buildDepositExtra(evmc_address const& from, evmc_address const& to, u256 m
     bytes toRaw(to.bytes, to.bytes + sizeof(to.bytes));
     bytes mintData = compactU256(mint);
     bytes valueData = compactU256(0);
-    codec::rlp::encode(payload, sourceHashRaw, fromRaw, toRaw, mintData, valueData,
-        uint64_t(50'000), bytes{0x00}, bytes{});
+    codec::rlp::encode(
+        payload, sourceHashRaw, fromRaw, toRaw, mintData, valueData, gas, bytes{0x00}, calldata);
 
     bytes extra;
     extra.push_back(bcos::executor::DEPOSIT_TX_TYPE);
@@ -205,11 +215,11 @@ std::shared_ptr<bcostars::protocol::TransactionImpl> makeAttachedSignedEip1559Tx
 
 std::shared_ptr<bcostars::protocol::TransactionImpl> makeDepositTx(
     bcostars::protocol::TransactionFactoryImpl& factory, evmc_address const& from,
-    evmc_address const& to, u256 mint)
+    evmc_address const& to, u256 mint, bytes const& calldata = {}, int64_t gasLimit = 50'000)
 {
-    auto extra = buildDepositExtra(from, to, mint);
-    auto tx = factory.createTransaction(1, addressToTableHex(to), {}, "0", 0, "", "", 0,
-        std::string{}, "0x0", "0x0", 50'000, "0x2", "0x1");
+    auto extra = buildDepositExtra(from, to, mint, calldata, static_cast<uint64_t>(gasLimit));
+    auto tx = factory.createTransaction(1, addressToTableHex(to), calldata, "0", 0, "", "", 0,
+        std::string{}, "0x0", "0x0", gasLimit, "0x2", "0x1");
     tx->forceSender(bytes(from.bytes, from.bytes + sizeof(from.bytes)));
     auto impl = std::dynamic_pointer_cast<bcostars::protocol::TransactionImpl>(tx);
     BOOST_REQUIRE(impl);
@@ -283,6 +293,9 @@ public:
 
 BOOST_FIXTURE_TEST_SUITE(OpStackTransactionExecutorFixture, OpStackExecutorFixtureHarness)
 
+// Unsigned tx (buildRollupCostData falls back to tx.input(), not signed RLP). Keeps
+// fee-routing smoke coverage; FIX-05 / R4 / D2-2 signed-RLP TE E2E closure is in
+// FIX05_signed_rlp_rollup_execute_e2e below.
 BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
 {
     task::syncWait([this]() -> task::Task<void> {
@@ -325,7 +338,9 @@ BOOST_AUTO_TEST_CASE(signed_rlp_rollup_matches_l1_cost_formula)
     BOOST_CHECK_GT(signedL1, u256(0));
 }
 
-BOOST_AUTO_TEST_CASE(signed_rlp_rollup_execute_e2e)
+// ADR-012 FIX-05 / Task 5: TE E2E — signed RLP → buildRollupCostData → l1CostFjord
+// → receipt.l1Fee literal + OP_L1_FEE_RECIPIENT balance delta (R4 / D2-2 closure).
+BOOST_AUTO_TEST_CASE(FIX05_signed_rlp_rollup_execute_e2e)
 {
     task::syncWait([this]() -> task::Task<void> {
         auto const sender = addressFromLastByte(0x05);
@@ -339,8 +354,11 @@ BOOST_AUTO_TEST_CASE(signed_rlp_rollup_execute_e2e)
         auto const unsignedRollup = newRollupCostData(bcos::ref(w3.encodeForSign()));
         auto const rollup = opstack_tx::buildRollupCostData(*tx);
         BOOST_REQUIRE(rollup.has_value());
+        BOOST_CHECK_GT(rollup->fastLzSize, 0U);
         BOOST_CHECK_NE(unsignedRollup.fastLzSize, rollup->fastLzSize);
-        auto const expectedL1 = l1CostFjord(*rollup, seededFeeParams());
+
+        auto const feeParams = seededFeeParams();
+        auto const expectedL1 = l1CostFjord(*rollup, feeParams);
         BOOST_CHECK_GT(expectedL1, u256(0));
 
         ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
@@ -375,6 +393,14 @@ BOOST_AUTO_TEST_CASE(operator_fee_recipient_gets_fee_on_success)
         BOOST_CHECK_EQUAL(receipt->status(), 0);
         BOOST_REQUIRE(receipt->operatorFee().has_value());
         BOOST_CHECK_NE(receipt->operatorFee().value(), "0x0");
+
+        auto const feeParams = seededFeeParams();
+        BOOST_REQUIRE(receipt->operatorFeeScalar().has_value());
+        BOOST_CHECK_EQUAL(
+            parseHexU256(receipt->operatorFeeScalar().value()), feeParams.operatorFeeScalar);
+        BOOST_REQUIRE(receipt->operatorFeeConstant().has_value());
+        BOOST_CHECK_EQUAL(
+            parseHexU256(receipt->operatorFeeConstant().value()), feeParams.operatorFeeConstant);
 
         ledger::account::EVMAccount operatorRecipient(storage, OP_OPERATOR_FEE_RECIPIENT, false);
         BOOST_CHECK_GT(co_await operatorRecipient.balance(), u256(0));
@@ -430,10 +456,46 @@ BOOST_AUTO_TEST_CASE(revert_keeps_l1_fee_and_operator_fee)
             operatorCostIsthmus(static_cast<uint64_t>(receipt->gasUsed()), feeParams);
         BOOST_REQUIRE(receipt->operatorFee().has_value());
         BOOST_CHECK_EQUAL(parseHexU256(receipt->operatorFee().value()), expectedOperator);
+        BOOST_REQUIRE(receipt->operatorFeeScalar().has_value());
+        BOOST_CHECK_EQUAL(
+            parseHexU256(receipt->operatorFeeScalar().value()), feeParams.operatorFeeScalar);
+        BOOST_REQUIRE(receipt->operatorFeeConstant().has_value());
+        BOOST_CHECK_EQUAL(
+            parseHexU256(receipt->operatorFeeConstant().value()), feeParams.operatorFeeConstant);
+
+        ledger::account::EVMAccount operatorRecipient(storage, OP_OPERATOR_FEE_RECIPIENT, false);
+        BOOST_CHECK_EQUAL(co_await operatorRecipient.balance(), expectedOperator);
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_GT(co_await senderAccount.balance(), u256(0));
         BOOST_CHECK_LT(co_await senderAccount.balance(), u256(300'000));
+    }());
+}
+
+// ADR-011 FIX-06 / D5-4: TE E2E — isthmus L1 attributes system deposit through
+// OpStackTransactionExecutorImpl::executeTransaction (not executeViaHost-only).
+BOOST_AUTO_TEST_CASE(l1_attributes_deposit_via_te)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(OP_DEPOSITOR_ACCOUNT, 0, "0");
+
+        auto const calldata = loadOpStackFixture("isthmus_l1_attributes.bin");
+        BOOST_REQUIRE_EQUAL(calldata.size(), ISTHMUS_L1_ATTRIBUTES_LEN);
+        auto tx = makeDepositTx(transactionFactory, OP_DEPOSITOR_ACCOUNT, OP_L1_BLOCK_PREDEPLOY,
+            u256(0), calldata, 500'000);
+
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_REQUIRE(receipt->depositNonce().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(0));
+
+        ledger::account::EVMAccount depositor(storage, OP_DEPOSITOR_ACCOUNT, false);
+        BOOST_CHECK_EQUAL((co_await depositor.nonce()).value(), "1");
     }());
 }
 

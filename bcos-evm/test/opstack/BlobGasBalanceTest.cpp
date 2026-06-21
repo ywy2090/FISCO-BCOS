@@ -64,15 +64,9 @@ u256 balanceFromDiff(
     }
     return it->second.balance;
 }
-}  // namespace
 
-BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
+OpStackExecuteViaHostInput makeBlobPreCheckInput(evmc_address sender)
 {
-    state::test::InMemoryStateView stateView;
-    auto const sender = addressFromLastByte(0x91);
-    stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
-    state::State state(stateView);
-
     OpStackExecuteViaHostInput input;
     input.message.kind = EVMC_CALL;
     input.message.gas = 100'000;
@@ -85,11 +79,58 @@ BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
     input.revisionConfig.eip4844 = true;
     input.blockInfo.baseFee = 1;
     input.blockInfo.blobBaseFee = 100;
+    return input;
+}
+}  // namespace
+
+BOOST_AUTO_TEST_CASE(blob_hashes_without_blob_gas_fee_cap_is_rejected)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x90);
+    stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
+    state::State state(stateView);
+
+    auto input = makeBlobPreCheckInput(sender);
+    input.blobVersionedHashes.push_back(h256(1));
+    // blobGasFeeCap left at default 0 — orchestration treats as under blobBaseFee (op-geth
+    // ErrInsufficientFunds).
+
+    auto error = opStackPreCheck(input, state);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
+}
+
+BOOST_AUTO_TEST_CASE(blob_hashes_rejected_when_eip4844_disabled)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x8f);
+    stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
+    state::State state(stateView);
+
+    auto input = makeBlobPreCheckInput(sender);
+    input.revisionConfig.eip4844 = false;
+    input.blobVersionedHashes.push_back(h256(1));
+    input.blobGasFeeCap = 200;
+
+    auto error = opStackPreCheck(input, state);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+}
+
+BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x91);
+    stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
+    state::State state(stateView);
+
+    auto input = makeBlobPreCheckInput(sender);
     input.blobVersionedHashes.push_back(h256(1));
     input.blobGasFeeCap = 99;
 
     auto error = opStackPreCheck(input, state);
     BOOST_REQUIRE(error.has_value());
+    // op-geth preCheck: maxFeePerBlobGas < blobBaseFee → ErrInsufficientFunds
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
 

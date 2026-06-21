@@ -88,6 +88,9 @@ target_include_directories(test-opstack-transaction-executor-fixture PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
     ${PROJECT_SOURCE_DIR}
 )
+target_compile_definitions(test-opstack-transaction-executor-fixture PRIVATE
+    OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test/fixtures/opstack"
+)
 target_link_libraries(test-opstack-transaction-executor-fixture PRIVATE
     transaction-executor
     protocol-tars

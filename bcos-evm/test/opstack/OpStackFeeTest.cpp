@@ -104,6 +104,18 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     out.bytes[31] = static_cast<uint8_t>(operatorFeeConstant & 0xff);
     return out;
 }
+
+// Mirrors op-geth NewL1CostFuncFjord second return (rollup_cost.go:623-624 calldataGasUsed).
+u256 fjordCalldataGasUsed(RollupCostData const& data)
+{
+    s256 estimatedSize =
+        s256(L1_COST_INTERCEPT) + s256(L1_COST_FASTLZ_COEF) * s256(data.fastLzSize);
+    if (estimatedSize < s256(MIN_TX_SIZE_SCALED))
+    {
+        estimatedSize = s256(MIN_TX_SIZE_SCALED);
+    }
+    return u256(estimatedSize) * u256(16) / u256(1'000'000);
+}
 }  // namespace
 
 BOOST_AUTO_TEST_CASE(FjordL1_emptyTx_matches3203000)
@@ -182,24 +194,35 @@ BOOST_AUTO_TEST_CASE(FjordL1_contractCallShape_fastLz202_matchesFormula)
     BOOST_CHECK_EQUAL(l1CostFjord(data, params), u256(4'048'188));
 }
 
-BOOST_AUTO_TEST_CASE(FjordL1_SolidityParity_matchesOpGeth105484)
+// FIX-04 (ADR-012 Task 4): Fjord L1 fee + calldataGasUsed parity with op-geth Solidity reference.
+// Pin: ethereum-optimism/op-geth @ e8800cffe
+//   core/types/rollup_cost_test.go TestFjordL1CostSolidityParity (L102-117)
+//   core/types/rollup_cost.go NewL1CostFuncFjord (L607-627)
+// Single literal vector in that test: fastLz=235 → fee=105484, calldataGasUsed=2463.
+BOOST_AUTO_TEST_CASE(FIX04_FjordL1CostSolidityParity_matchesOpGeth)
 {
-    // op-geth rollup_cost_test.go TestFjordL1CostSolidityParity
     OpStackFeeParams const params{
-        .l1BaseFee = u256(2'000'000),
-        .l1BlobBaseFee = u256(3'000'000),
-        .l1BaseFeeScalar = 20,
-        .l1BlobBaseFeeScalar = 15,
+        .l1BaseFee = u256(2'000'000),      // big.NewInt(2*1e6)
+        .l1BlobBaseFee = u256(3'000'000),  // big.NewInt(3*1e6)
+        .l1BaseFeeScalar = 20,             // big.NewInt(20)
+        .l1BlobBaseFeeScalar = 15,         // big.NewInt(15)
     };
     RollupCostData data{};
-    data.fastLzSize = 235;
+    data.fastLzSize = 235;  // RollupCostData{FastLzSize: 235}
 
-    auto const cost = l1CostFjord(data, params);
-    BOOST_CHECK_EQUAL(cost, u256(105'484));
-
-    s256 const estimatedSize =
+    // estimatedSizeScaled = intercept + fastlzCoef*235 = 153_991_900 (above min 100_000_000)
+    s256 const estimatedSizeScaled =
         s256(L1_COST_INTERCEPT) + s256(L1_COST_FASTLZ_COEF) * s256(data.fastLzSize);
-    BOOST_CHECK_EQUAL(u256(estimatedSize) * u256(16) / u256(1'000'000), u256(2'463));
+    BOOST_CHECK_EQUAL(estimatedSizeScaled, s256(153'991'900));
+
+    auto const l1Fee = l1CostFjord(data, params);
+    BOOST_CHECK_MESSAGE(l1Fee == u256(105'484), "Fjord L1 fee (c0) must match op-geth 105484");
+    BOOST_CHECK_EQUAL(l1Fee, u256(105'484));
+
+    auto const calldataGasUsed = fjordCalldataGasUsed(data);
+    BOOST_CHECK_MESSAGE(
+        calldataGasUsed == u256(2'463), "calldataGasUsed (g0) must match op-geth 2463");
+    BOOST_CHECK_EQUAL(calldataGasUsed, u256(2'463));
 }
 
 }  // namespace bcos::evm::test

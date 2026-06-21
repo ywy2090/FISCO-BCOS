@@ -14,11 +14,11 @@
 | Fjord L1 cost 常量 | orchestration | 增补（L1 data fee） | explicit | 深审 | ✅ | `fjord/exec-engine.md` intercept/fastlzCoef/minTxSize | `OpStackConstants.h:37-40` | `rollup_cost.go:92-96` | 间接（`OpStackFeeTest` 公式链） | — |
 | FastLZ 压缩长度估算 (`flzCompressLen`) | orchestration | 增补 | explicit | 深审 | ✅ | `fjord/exec-engine.md` FastLZ 实现 MUST | `RollupCost.cpp:12-105` | `rollup_cost.go:667-743` | `RollupCostTest` 5 向量 | — |
 | RollupCostData 构建 (`newRollupCostData`) | orchestration | 增补 | explicit | 深审 | ✅ | spec: 对 tx payload 计 zero/one + FastLZ | `RollupCost.cpp:113-128` | `rollup_cost.go:137-147` | `RollupCostTest::NewRollupCostData_countsBytesAndFastLz` | zeroes/ones 在 Fjord 公式中未消费（与 op-geth 一致） |
-| Fjord L1 fee 公式 (`l1CostFjord`) | orchestration | 增补 | explicit | 深审 | ✅ | `fjord/exec-engine.md` pseudocode L25-28 | `OpStackFee.cpp:36-56` | `rollup_cost.go:607-627` | `OpStackFeeTest::FjordL1_emptyTx_matches3203000` + min-bound 向量 | 🟡 无 Solidity parity 105484/2463 |
+| Fjord L1 fee 公式 (`l1CostFjord`) | orchestration | 增补 | explicit | 深审 | ✅ | `fjord/exec-engine.md` pseudocode L25-28 | `OpStackFee.cpp:36-56` | `rollup_cost.go:607-627` | `OpStackFeeTest::FjordL1_emptyTx_matches3203000` + min-bound 向量 + **FIX-04** `FIX04_FjordL1CostSolidityParity_matchesOpGeth`（fee=105484, calldataGasUsed=2463 @ op-geth `e8800cffe`） | — |
 | 空 RollupCostData 不收费 | orchestration | 增补 | explicit | 深审 | ✅ | deposit / 无 payload 场景 | `OpStackFee.cpp:38-41` `isEmpty()` | `rollup_cost.go:196-198` 返回 nil | `OpStackFeeTest::FjordL1_emptyRollupCostData_returnsZero` | — |
 | L1Block fee scalar 读取 | orchestration | 增补 | explicit | 深审 | ✅ | Ecotone scalars slot layout | `OpStackFee.cpp:70-94` `kScalarSectionStart=16` | `rollup_cost.go:649-654` `scalarSectionStart` | `OpStackFeeTest::LoadOpStackFeeParams_unpacksSlots` | — |
-| RollupCost tx 字节源 (E2E) | executor-integration | 增补 S3 交叉 | explicit | 深审 | ✅ | spec: **RLP-encoded signed tx** | `OpStackTxInputBuilder.h:110-128` `encodeWeb3SignedMarshalBinary`；`Web3SignedTxEncoder.h:140+` | `transaction.go:405-409` `MarshalBinary()` | `OpStackTxInputBuilderTest::buildRollupCostData_uses_signed_web3_rlp_not_encodeForSign` | 🟡 TE E2E 未断言 fastLz 链 |
-| Fjord L1 公式 E2E 接线 | orchestration | 增补 | explicit | 深审 | ✅ | Isthmus 使用 Fjord 路径 | `OpStackExecuteViaHost.cpp:87-90`；`OpStackTransactionExecutorImpl.h:207` | `NewL1CostFunc` Fjord 分支 | `TestOpStackTransactionExecutorFixture::l1_fee_recipient_gets_fee_on_success` | 🟡 smoke 仍注入 synthetic `{ones:2, fastLzSize:3}` |
+| RollupCost tx 字节源 (E2E) | executor-integration | 增补 S3 交叉 | explicit | 深审 | ✅ | spec: **RLP-encoded signed tx** | `OpStackTxInputBuilder.h:110-128` `encodeWeb3SignedMarshalBinary`；`Web3SignedTxEncoder.h:140+` | `transaction.go:405-409` `MarshalBinary()` | `OpStackTxInputBuilderTest::buildRollupCostData_uses_signed_web3_rlp_not_encodeForSign` | — |
+| Fjord L1 公式 E2E 接线 | orchestration | 增补 | explicit | 深审 | ✅ | Isthmus 使用 Fjord 路径 | `OpStackExecuteViaHost.cpp:87-90`；`OpStackTransactionExecutorImpl.h:207` | `NewL1CostFunc` Fjord 分支 | `TestOpStackTransactionExecutorFixture::FIX05_signed_rlp_rollup_execute_e2e` | — |
 
 ---
 
@@ -46,10 +46,10 @@
 | 缺口 | op-geth 对照 | 严重度 | 54e17a62c |
 |------|--------------|--------|-----------|
 | ~~无 minimum-bounds 阶梯~~ | `rollup_cost_test.go:67-99` | — | ✅ `OpStackFeeTest::FjordL1_minimumBounds_*` |
-| 无 `TestFjordL1CostSolidityParity` 等价 | `rollup_cost_test.go:102-117`（fee=105484, gas=2463） | 🟡 | 仍缺 |
+| ~~无 `TestFjordL1CostSolidityParity` 等价~~ | `rollup_cost_test.go:102-117` @ `e8800cffe`（fee=105484, gas=2463） | — | ✅ **FIX-04** `OpStackFeeTest::FIX04_FjordL1CostSolidityParity_matchesOpGeth` |
 | contract-call tx L1 cost | `TestFlzCompressLen` fastLz=202 | 🟡 | ✅ 压缩长度 + `FjordL1_contractCallShape_fastLz202_matchesFormula`（fee=4_048_188） |
 | `OpStackExecuteViaHostSmokeTest` synthetic rollupCostData | 未验证真实 serialized tx → fee | 🟡 | 仍用 `{ones:2, fastLzSize:3}` |
-| TE E2E 未断言 `buildRollupCostData` → L1 fee 字面 | `TestOpStackTransactionExecutorFixture::l1_fee_recipient_gets_fee_on_success` 仅 `!= 0x0` | 🟡 | 仍缺精确 fastLz→fee 链 |
+| ~~TE E2E 未断言 `buildRollupCostData` → L1 fee 字面~~ | `TestOpStackTransactionExecutorFixture::FIX05_signed_rlp_rollup_execute_e2e` | — | ✅ **FIX-05** signed RLP → fastLz → `l1CostFjord` → receipt + recipient delta |
 
 ---
 
@@ -80,6 +80,7 @@ FB `l1CostFjord` 仅返回 fee；`OpStackReceiptMeta` 只有 `l1Fee` 字段。�
 | `FjordL1_minimumBounds_clampsBelowMinTxSize` | fastLz 100/150/170 → 3_203_000 | `rollup_cost_test.go:67-99` | ✅ **新增 OP-11** |
 | `FjordL1_minimumBounds_fastLz171_exceedsMinFee` | fastLz=171 > min fee | 同上 | ✅ **新增 OP-11** |
 | `FjordL1_contractCallShape_fastLz202_matchesFormula` | fastLz=202 → 4_048_188 | 公式回归 | ✅ **新增 OP-11** |
+| `FIX04_FjordL1CostSolidityParity_matchesOpGeth` | fastLz=235 → fee=105484, calldataGasUsed=2463, estimatedSizeScaled=153_991_900 | `rollup_cost_test.go:102-117` @ `e8800cffe` `TestFjordL1CostSolidityParity` | ✅ **FIX-04 ADR-012 Task 4** |
 
 **Out of scope（同文件）：** `IsthmusOperator_*` → Task 3。
 
@@ -89,6 +90,13 @@ FB `l1CostFjord` 仅返回 fee；`OpStackReceiptMeta` 只有 `l1Fee` 字段。�
 |------|------|------|
 | `buildRollupCostData_uses_signed_web3_rlp_not_encodeForSign` | builder == golden signed RLP；≠ unsigned | ✅ **新增 OP-02** |
 | `buildRollupCostData_deposit_uses_extra_bytes_unchanged` | deposit extra 直通 | ✅ |
+
+### `TestOpStackTransactionExecutorFixture.cpp`（Task 2 TE E2E）
+
+| 用例 | 断言 | 判定 |
+|------|------|------|
+| `FIX05_signed_rlp_rollup_execute_e2e` | signed RLP `buildRollupCostData` ≠ unsigned `encodeForSign`；`l1CostFjord` 字面 → `receipt.l1Fee` + `OP_L1_FEE_RECIPIENT` balance delta | ✅ **FIX-05 ADR-012 Task 5** |
+| `l1_fee_recipient_gets_fee_on_success` | unsigned `tx.input()` fallback fee-routing smoke（superseded for R4/D2-2 by FIX-05 case） | ✅ smoke |
 
 ### 常量逐项对照
 
@@ -121,4 +129,4 @@ ctest --test-dir build/bcos-evm/test -R 'RollupCost|OpStackFee|OpStackTxInputBui
 
 **Task 2 状态：** **PASS** — OP-02 闭合；公式/常量/FastLZ/字节源与 op-geth 对齐。
 
-**剩余 🟡：** Solidity parity 向量（105484/2463）；`L1GasUsed` receipt 字段；smoke/TE E2E 精确 fastLz→fee 字面链。
+**剩余 🟡：** `L1GasUsed` receipt 字段；`OpStackExecuteViaHostSmokeTest` synthetic rollup smoke。

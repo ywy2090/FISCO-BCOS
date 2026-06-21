@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     applyStateDiffToView(depositOutput.stateDiff, stateView);
     auto const depositorAfter = stateView.get_account(OP_DEPOSITOR_ACCOUNT);
     BOOST_REQUIRE(depositorAfter.has_value());
-    BOOST_CHECK_EQUAL(depositorAfter->nonce, 1);
+    BOOST_REQUIRE_EQUAL(depositorAfter->nonce, 1);
 
     evmc_message userMessage{};
     userMessage.kind = EVMC_CALL;

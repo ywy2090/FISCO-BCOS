@@ -110,3 +110,15 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
 - **OP-08 / OP-09：** **DONE** — `OpStack67802537KernelSmokeTest` + warm_access/applyDefaultTxProps 生产接线 ✅。
 
 **Task 8 状态：** **DONE** — inherited smoke 已交叉引用 ETH 复审计；2537/6780/2929 OP 路径验证闭合。
+
+---
+
+## Wave 2 FIX-12 收尾（2026-06-21）
+
+| 项 | 状态 | 说明 |
+|----|------|------|
+| FIX-12 capability-matrix footnote | **✅ CLOSED** | `capability-matrix.md` §Wave 2 — inherited Isthmus profile footnote；矩阵 billing/orchestration 行无变更 |
+| D8-1 profile flag 稀疏（#18/#20） | **✅ 文档闭合** | ADR-004 profile-only + evmone `revision=EVMC_PRAGUE` 委托已入矩阵脚注；非 wiring 缺口 |
+| Inv#14 预编译 fixture 深度 | **🟡 残余** | 无 OP 0x01–0x0a 专项 fixture；内核 inherited ✅，测试深度非 Wave 2 阻断 |
+
+**交叉引用：** `task8-assertion-audit.md` Part 3 全表不变；本 Task 仅 inherited profile 文档 sign-off。

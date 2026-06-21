@@ -21,6 +21,14 @@ bcostars::protocol::TransactionReceiptFactoryImpl::createReceipt(
     {
         receipt->setOperatorFee(*operatorFee);
     }
+    if (auto operatorFeeScalar = input.operatorFeeScalar(); operatorFeeScalar.has_value())
+    {
+        receipt->setOperatorFeeScalar(*operatorFeeScalar);
+    }
+    if (auto operatorFeeConstant = input.operatorFeeConstant(); operatorFeeConstant.has_value())
+    {
+        receipt->setOperatorFeeConstant(*operatorFeeConstant);
+    }
     if (auto depositNonce = input.depositNonce(); depositNonce.has_value())
     {
         receipt->setDepositNonce(*depositNonce);

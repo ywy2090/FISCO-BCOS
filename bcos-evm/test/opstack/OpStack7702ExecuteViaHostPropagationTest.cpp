@@ -3,10 +3,13 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -227,6 +230,151 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_charges_7702_intrinsic_25000_per_tupl
 
     auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
+}
+
+BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_refunds_existence_cost_when_authority_already_exists)
+{
+    constexpr uint64_t kExistenceRefund = PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST;
+    BOOST_CHECK_EQUAL(kExistenceRefund, 12'500u);
+
+    auto const authority = addressFromLastByte(0x53);
+    auto const delegationTarget = addressFromLastByte(0x55);
+    std::vector<SetCodeAuthorization> const auths = {
+        {.chainId = u256(1), .authority = authority, .address = delegationTarget, .nonce = 0}};
+
+    {
+        state::test::InMemoryStateView seededView;
+        state::Account authorityAccount;
+        authorityAccount.nonce = 0;
+        seededView.insert_account(authority, authorityAccount);
+        state::State seededState(seededView);
+        applyAuthorizations(seededState, auths, u256(1));
+        BOOST_CHECK_EQUAL(seededState.get_refund(), kExistenceRefund);
+    }
+    {
+        state::test::InMemoryStateView freshView;
+        state::State freshState(freshView);
+        applyAuthorizations(freshState, auths, u256(1));
+        BOOST_CHECK_EQUAL(freshState.get_refund(), 0u);
+    }
+
+    static bcos::bytes const kReturn42Code = {
+        0x60, 0x2a, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3};
+
+    auto const runOpStackCase = [&](bool preSeedAuthority) {
+        state::test::InMemoryStateView stateView;
+        auto const sender = addressFromLastByte(0x51);
+        auto const recipient = addressFromLastByte(0x52);
+        auto const authorityAddr = addressFromLastByte(0x53);
+        auto const delegationTargetAddr = addressFromLastByte(0x55);
+        setOpFeeParams(stateView);
+
+        state::Account senderAccount;
+        senderAccount.nonce = 0;
+        senderAccount.balance = 10'000'000;
+        stateView.insert_account(sender, senderAccount);
+
+        state::Account recipientAccount;
+        recipientAccount.code = kReturn42Code;
+        stateView.insert_account(recipient, std::move(recipientAccount));
+
+        if (preSeedAuthority)
+        {
+            state::Account authorityAccount;
+            authorityAccount.nonce = 0;
+            stateView.insert_account(authorityAddr, authorityAccount);
+        }
+
+        evmc::VM vm{evmc_create_evmone()};
+        FakeHash hash;
+
+        auto input = make7702Input(sender, recipient, delegationTargetAddr, 200'000, 1);
+        input.authorizations.clear();
+        input.authorizations.push_back({.chainId = u256(1),
+            .authority = authorityAddr,
+            .address = delegationTargetAddr,
+            .nonce = 0});
+        input.stateView = &stateView;
+        input.vm = &vm;
+        input.hashImpl = &hash;
+
+        auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+        BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+        auto const authIt = output.stateDiff.accounts.find(authorityAddr);
+        BOOST_REQUIRE(authIt != output.stateDiff.accounts.end());
+        BOOST_CHECK_EQUAL(authIt->second.code.size(), size_t(23));
+    };
+
+    auto const runExecuteMessageRefund = [&](bool preSeedAuthority) {
+        state::test::InMemoryStateView stateView;
+        auto const sender = addressFromLastByte(0x61);
+        auto const recipient = addressFromLastByte(0x62);
+        auto const authorityAddr = addressFromLastByte(0x63);
+        auto const delegationTargetAddr = addressFromLastByte(0x65);
+
+        stateView.insert_account(sender, state::Account{.balance = 1'000'000});
+
+        state::Account recipientAccount;
+        recipientAccount.code = kReturn42Code;
+        stateView.insert_account(recipient, std::move(recipientAccount));
+
+        if (preSeedAuthority)
+        {
+            state::Account authorityAccount;
+            authorityAccount.nonce = 0;
+            stateView.insert_account(authorityAddr, authorityAccount);
+        }
+
+        evmc_message message{};
+        message.kind = EVMC_CALL;
+        auto const gasLimit = int64_t(300'000);
+        message.gas = gasLimit;
+        message.sender = sender;
+        message.recipient = recipient;
+        message.code_address = recipient;
+
+        evmc::VM vm{evmc_create_evmone()};
+        state::State state(stateView);
+        OpHostExtension extension(&state);
+
+        ExecuteMessageInput input;
+        input.stateView = &state;
+        input.vm = &vm;
+        input.message = message;
+        input.blockInfo.number = 1;
+        input.blockInfo.chainId = 1;
+        input.blockInfo.gasLimit = 30'000'000;
+        input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+        input.authorizationListPresent = true;
+        input.authorizations.push_back({.chainId = u256(1),
+            .authority = authorityAddr,
+            .address = delegationTargetAddr,
+            .nonce = 0});
+        input.extension = &extension;
+
+        auto const intrinsicGas = static_cast<int64_t>(
+            gas::TX_BASE_GAS + gas::calcAuthTupleIntrinsicGas(input.authorizations.size()));
+        input.message.gas -= intrinsicGas;
+
+        auto output = executeMessage(std::move(input));
+        BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
+        BOOST_CHECK_EQUAL(state.get_refund(), preSeedAuthority ? kExistenceRefund : 0u);
+    };
+
+    runOpStackCase(true);
+    runOpStackCase(false);
+    runExecuteMessageRefund(true);
+    runExecuteMessageRefund(false);
+
+    // postExecuteGasSettlement with peakGasUsed / 5 >= 12500: existence credit lowers gasUsed by
+    // 12500.
+    constexpr uint64_t kSettlementGasLimit = 80'000;
+    constexpr uint64_t kSettlementGasLeft = 10'000;
+    auto const cappedExisting =
+        postExecuteGasSettlement(kSettlementGasLimit, kSettlementGasLeft, kExistenceRefund, 0);
+    auto const cappedFresh =
+        postExecuteGasSettlement(kSettlementGasLimit, kSettlementGasLeft, 0, 0);
+    BOOST_CHECK_EQUAL(cappedFresh.gasUsed - cappedExisting.gasUsed, kExistenceRefund);
 }
 
 }  // namespace bcos::evm::test

@@ -70,6 +70,10 @@ public:
     void setL1Fee(std::string l1Fee) override;
     std::optional<std::string> operatorFee() const override;
     void setOperatorFee(std::string operatorFee) override;
+    std::optional<std::string> operatorFeeScalar() const override;
+    void setOperatorFeeScalar(std::string operatorFeeScalar) override;
+    std::optional<std::string> operatorFeeConstant() const override;
+    void setOperatorFeeConstant(std::string operatorFeeConstant) override;
     std::optional<std::string> depositNonce() const override;
     void setDepositNonce(std::string depositNonce) override;
 
@@ -99,10 +103,12 @@ private:
     mutable std::vector<bcos::protocol::LogEntry> m_logEntries;
     std::optional<std::string> m_l1Fee;
     std::optional<std::string> m_operatorFee;
+    std::optional<std::string> m_operatorFeeScalar;
+    std::optional<std::string> m_operatorFeeConstant;
     std::optional<std::string> m_depositNonce;
 };
 
-static_assert(sizeof(TransactionReceiptImpl) <= 176,
-    "TransactionReceiptImpl exceeds AnyTransactionReceipt buffer (176 bytes); "
+static_assert(sizeof(TransactionReceiptImpl) <= 240,
+    "TransactionReceiptImpl exceeds AnyTransactionReceipt buffer (240 bytes); "
     "update the size constant in bcos-framework/protocol/TransactionReceipt.h");
 }  // namespace bcostars::protocol

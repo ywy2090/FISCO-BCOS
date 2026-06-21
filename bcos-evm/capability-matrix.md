@@ -86,6 +86,10 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 
 RevisionConfig consumption rules: ADR-004. Orchestration domains: ADR-005. Add new Isthmus-only EIPs as separate rows when implemented (ADR-003).
 
+### Wave 2 — inherited Isthmus profile footnote (FIX-12)
+
+`makeIsthmusRevisionConfig()` is a **sparse** profile helper: it sets `warm_access`, `eip7702`, `eip4844`, `eip7623`, and `EVMC_PRAGUE`, but leaves several RevisionConfig bool fields at struct default `false` (notably `eip1153`, `eip6780`, `prague_post_execution`). Per ADR-004, those unset fields are **profile-only** on the TE baseline path — runtime behavior for Cancun/Prague opcodes on Isthmus is delegated to `revision=EVMC_PRAGUE` via evmone, not to the sparse flag snapshot. Matrix rows for `RevisionConfig eip1153` / `eip6780` / `prague_post_execution` remain unchanged; inherited kernel rows (`EIP-6780 SELFDESTRUCT`, builtin precompiles) are satisfied by shared `eth/` kernel + revision, with OP smoke in `OpStack67802537KernelSmokeTest` and `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields`. No billing/orchestration row changes in Wave 2.
+
 ## Change rules
 
 1. The engineer changing EIP behavior **owns** the matrix update in the same PR.

@@ -141,6 +141,23 @@ void bcostars::protocol::TransactionReceiptImpl::setOperatorFee(std::string oper
 {
     m_operatorFee = std::move(operatorFee);
 }
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::operatorFeeScalar() const
+{
+    return m_operatorFeeScalar;
+}
+void bcostars::protocol::TransactionReceiptImpl::setOperatorFeeScalar(std::string operatorFeeScalar)
+{
+    m_operatorFeeScalar = std::move(operatorFeeScalar);
+}
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::operatorFeeConstant() const
+{
+    return m_operatorFeeConstant;
+}
+void bcostars::protocol::TransactionReceiptImpl::setOperatorFeeConstant(
+    std::string operatorFeeConstant)
+{
+    m_operatorFeeConstant = std::move(operatorFeeConstant);
+}
 std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::depositNonce() const
 {
     return m_depositNonce;

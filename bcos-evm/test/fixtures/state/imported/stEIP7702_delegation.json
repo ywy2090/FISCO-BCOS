@@ -1,6 +1,6 @@
 {
   "name": "stEIP7702_delegation",
-  "source": "hand-crafted/EIP-7702 authorization apply + delegated CALL to delegatee implementation",
+  "source": "hand-crafted smoke only — NOT GeneralStateTests/stEIP7702; NOT EIP-7702 compliance evidence (authorization apply + delegated CALL smoke)",
   "revision": "prague",
   "tx": {
     "from": "0x0000000000000000000000000000000000000001",

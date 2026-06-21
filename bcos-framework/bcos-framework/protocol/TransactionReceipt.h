@@ -56,6 +56,10 @@ public:
     virtual void setL1Fee(std::string l1Fee) = 0;
     virtual std::optional<std::string> operatorFee() const = 0;
     virtual void setOperatorFee(std::string operatorFee) = 0;
+    virtual std::optional<std::string> operatorFeeScalar() const = 0;
+    virtual void setOperatorFeeScalar(std::string operatorFeeScalar) = 0;
+    virtual std::optional<std::string> operatorFeeConstant() const = 0;
+    virtual void setOperatorFeeConstant(std::string operatorFeeConstant) = 0;
     virtual std::optional<std::string> depositNonce() const = 0;
     virtual void setDepositNonce(std::string depositNonce) = 0;
 
@@ -95,7 +99,7 @@ using Receipts = std::vector<TransactionReceipt::Ptr>;
 using ReceiptsPtr = std::shared_ptr<Receipts>;
 using ReceiptsConstPtr = std::shared_ptr<const Receipts>;
 using AnyTransactionReceipt =
-    AnyHolder<TransactionReceipt, 176>;  // 多平台TransactionReceiptImpl的最大尺寸 (Maximum size of
+    AnyHolder<TransactionReceipt, 240>;  // 多平台TransactionReceiptImpl的最大尺寸 (Maximum size of
                                          // TransactionReceiptImpl across platforms)
 
 }  // namespace bcos::protocol
