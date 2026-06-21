@@ -44,6 +44,7 @@ struct OpStackExecuteViaHostInput
     uint64_t floorDataGas{0};
     std::optional<RollupCostData> rollupCostData;
     std::function<bool(uint64_t)> gasPoolSubGasHook;
+    std::function<void(uint64_t gasRemaining, uint64_t gasUsed)> gasPoolReturnGasHook;
     OpStackTxExecutor opTxExecutor{};
 };
 

@@ -120,7 +120,9 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fee_cap_under_base_fee)
     auto input = makeInput(sender);
     input.nonce = 1;
     input.revisionConfig.eip4844 = true;
-    input.blobVersionedHashes.push_back(bcos::h256(1));
+    h256 validHash{};
+    validHash[0] = 0x01;
+    input.blobVersionedHashes.push_back(validHash);
     input.blobGasFeeCap = 2;
 
     auto error = opStackPreCheck(input, state);

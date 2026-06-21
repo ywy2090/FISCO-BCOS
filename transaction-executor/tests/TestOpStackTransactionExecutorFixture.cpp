@@ -621,6 +621,39 @@ BOOST_AUTO_TEST_CASE(hard_failure_status_propagates_without_state_commit)
     }());
 }
 
+BOOST_AUTO_TEST_CASE(second_transaction_rejected_when_block_gas_exhausted)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender1 = addressFromLastByte(0x91);
+        auto const sender2 = addressFromLastByte(0x92);
+        auto const target1 = addressFromLastByte(0xa1);
+        auto const target2 = addressFromLastByte(0xa2);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender1, 1'000'000, "0");
+        co_await seedSender(sender2, 1'000'000, "0");
+
+        // 220k block pool: tx1 reserves 200k, returns unused gas, leaving ~199k — below tx2's 200k
+        // cap.
+        executor.beginBlock(220'000);
+        auto header = makeBlockHeader();
+
+        auto tx1 = makeEip1559Tx(transactionFactory, sender1, target1, 200'000);
+        auto receipt1 = co_await executor.executeTransaction(
+            storage, header, *tx1, contextId++, ledgerConfig, false);
+        BOOST_REQUIRE(receipt1);
+        BOOST_CHECK_EQUAL(receipt1->status(), 0);
+
+        auto tx2 = makeEip1559Tx(transactionFactory, sender2, target2, 200'000);
+        auto receipt2 = co_await executor.executeTransaction(
+            storage, header, *tx2, contextId++, ledgerConfig, false);
+        BOOST_REQUIRE(receipt2);
+        BOOST_CHECK_EQUAL(
+            receipt2->status(), static_cast<int32_t>(protocol::TransactionStatus::OutOfGasLimit));
+
+        executor.endBlock();
+    }());
+}
+
 BOOST_AUTO_TEST_CASE(executor_input_build_applies_warm_destination_for_call)
 {
     auto const sender = addressFromLastByte(0x71);

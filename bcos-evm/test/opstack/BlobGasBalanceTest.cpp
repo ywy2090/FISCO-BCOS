@@ -65,6 +65,14 @@ u256 balanceFromDiff(
     return it->second.balance;
 }
 
+h256 makeVersionedHash()
+{
+    h256 hash{};
+    hash[0] = 0x01;
+    hash[31] = 0x42;
+    return hash;
+}
+
 OpStackExecuteViaHostInput makeBlobPreCheckInput(evmc_address sender)
 {
     OpStackExecuteViaHostInput input;
@@ -91,7 +99,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_without_blob_gas_fee_cap_is_rejected)
     state::State state(stateView);
 
     auto input = makeBlobPreCheckInput(sender);
-    input.blobVersionedHashes.push_back(h256(1));
+    input.blobVersionedHashes.push_back(makeVersionedHash());
     // blobGasFeeCap left at default 0 — orchestration treats as under blobBaseFee (op-geth
     // ErrInsufficientFunds).
 
@@ -109,7 +117,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_rejected_when_eip4844_disabled)
 
     auto input = makeBlobPreCheckInput(sender);
     input.revisionConfig.eip4844 = false;
-    input.blobVersionedHashes.push_back(h256(1));
+    input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 200;
 
     auto error = opStackPreCheck(input, state);
@@ -125,7 +133,7 @@ BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
     state::State state(stateView);
 
     auto input = makeBlobPreCheckInput(sender);
-    input.blobVersionedHashes.push_back(h256(1));
+    input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 99;
 
     auto error = opStackPreCheck(input, state);
@@ -153,7 +161,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     txData.m_blockInfo.baseFee = 1;
     txData.m_blockInfo.blobBaseFee = 10;
     txData.m_blobGasFeeCap = 20;
-    txData.m_blobVersionedHashes.push_back(h256(1));
+    txData.m_blobVersionedHashes.push_back(makeVersionedHash());
 
     auto const executionGasCost = u256(1'000) * u256(2);
     auto const blobGasCost = u256(OP_BLOB_GAS_PER_BLOB) * u256(10);
@@ -181,7 +189,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     txData.m_blockInfo.baseFee = 1;
     txData.m_blockInfo.blobBaseFee = 10;
     txData.m_blobGasFeeCap = 20;
-    txData.m_blobVersionedHashes.push_back(h256(1));
+    txData.m_blobVersionedHashes.push_back(makeVersionedHash());
 
     auto const balanceBefore = state.get_balance(sender);
     BOOST_REQUIRE(!task::syncWait(executor.buyGas(txData)));
@@ -225,7 +233,7 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_deducts_blob_fee_on_success)
         if (withBlobVersionedHashes)
         {
             input.blobGasFeeCap = 20;
-            input.blobVersionedHashes.push_back(h256(1));
+            input.blobVersionedHashes.push_back(makeVersionedHash());
         }
 
         auto const output = task::syncWait(opStackExecuteViaHost(input));

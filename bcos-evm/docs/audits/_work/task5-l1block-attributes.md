@@ -268,3 +268,16 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 **Task 5 状态：** **DONE**（OP-14 IL1Block + OP-12 literal fee E2E ✅；D5-5 专用测试 🟡 非阻断）
 
 **P1 动作：** 补 `L1AttributesDeposit*` nonce / `gasUsed` / `depositNonce` 断言（可选，Task 4 已覆盖 generic deposit 语义）。
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`）
+
+| 项 | Wave 3 |
+|----|--------|
+| 地址/slot/176B/setter/getter | ✅ 与 op-geth/Solidity 一致 |
+| L1 attributes TE E2E | ✅ FIX-06 |
+| 失败 deposit nonce/gas | ✅ **更正**：`L1AttributesDepositFailureTest:79-88` 已断言 |
+| native dispatch deviation | 🟡 已知 |
+
+**Wave 3 Task 5 判定：** ✅ DONE 无回归。

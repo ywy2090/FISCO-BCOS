@@ -1,7 +1,8 @@
 # OPStack TE Baseline（Isthmus）规范合规审计报告
 
-**日期：** 2026-06-20（初审计）；**复审计：** 2026-06-21 @ `54e17a62c`；**Wave 2 sign-off：** 2026-06-21（本地 CTest PASS，远程 CI 待首跑）  
-**分支/commit：** `worktree-feat-evm-refactor` / Wave 2 本地 HEAD（Remediation OP-01～15 + FIX-01～07/09～11 @ `54e17a62c` 基线）  
+**日期：** 2026-06-20（初审计）；**复审计：** 2026-06-21 @ `54e17a62c`；**Wave 2 sign-off：** 2026-06-21；**Wave 3 严格 op-geth 复审计：** 2026-06-21 @ `52dda0921`  
+**分支/commit：** `worktree-feat-evm-refactor` / HEAD `52dda0921`（Wave 3 复审计基线）  
+**Wave 3 详细报告：** `bcos-evm/docs/audits/2026-06-21-opstack-isthmus-reaudit-wave3.md`  
 **op-geth：** v1.101702.2 @ `e8800cffe`  
 **geth：** v1.17.3  
 **Besu：** tag 26.6.0  
@@ -24,17 +25,29 @@
 | Remediation | OP-01～15 | P0 全闭合 |
 | 复审计 | `54e17a62c` | ⚠️ 有条件通过 |
 | **Wave 2 sign-off** | **2026-06-21 本地** | **✅ 通过**（远程 CI 待首跑） |
+| **Wave 3 严格 op-geth 复审计** | **`52dda0921`** | **⚠️ 有条件通过**（3×🔴 4844 preCheck；Wave 2 P0 无回归） |
 
-### 可裁决行统计（深审 + inherited smoke，不含纯 ⚪）— Wave 2 sign-off @ 2026-06-21
+### 可裁决行统计（深审 + inherited smoke，不含纯 ⚪）
 
-| 指标 | 初审计 | 复审计 | Wave 2 |
-|------|--------|--------|--------|
-| 审计行数（可裁决） | ~30 | ~33 | ~33 |
-| ✅ 一致 | ~18 | **~26** | **~30** |
-| 🟡 警告 | ~10 | **~7** | **~3**（非阻断残余） |
-| 🔴 阻断 | **≥8** | **0** | **0** |
-| 📋 设计选择 | 若干 | 若干 | 若干 |
-| **主判定** | **❌ 不通过** | **⚠️ 有条件通过** | **✅ 通过** |
+| 指标 | 初审计 | 复审计 | Wave 2 | Wave 3 |
+|------|--------|--------|--------|--------|
+| 审计行数（可裁决） | ~30 | ~33 | ~33 | **~36** |
+| ✅ 一致 | ~18 | **~26** | **~30** | **~31** |
+| 🟡 警告 | ~10 | **~7** | **~3** | **~8** |
+| 🔴 阻断 | **≥8** | **0** | **0** | **3**（4844 preCheck） |
+| 📋 设计选择 | 若干 | 若干 | 若干 | 若干 |
+| **主判定** | **❌ 不通过** | **⚠️ 有条件通过** | **✅ 通过** | **⚠️ 有条件通过** |
+
+### Wave 3 新增发现（严格 op-geth @ `52dda0921`）
+
+| ID | 严重度 | 摘要 |
+|----|--------|------|
+| R3-4844-1/2/3 | 🔴 | `OpStackPreCheck` 缺 blob CREATE 拒绝、空 hash 拒绝、KZG version 校验（`state_transition.go:421-433`） |
+| R3-DEP-1 | 🟡 | CREATE deposit 成功 nonce 时序未测；可能双重 bump |
+| R3-ORCH-1/2/3 | 🟡 | baseFee 读 `gasPrice()`、blobBaseFee 读 L1Block slot、L1 cost 硬编码 Fjord |
+| R3-7623-1 | 🟡 | 非 deposit entry 失败仍 settlement+refundGas |
+
+**Wave 2 闭合项再验证：** OP-01～09、FIX-01～07/09～12 均 ✅ 无回归；CTest 23/23 + TE 13/13 PASS @ `52dda0921`。
 
 ### 待决行统计
 
@@ -117,7 +130,9 @@
 | D1-1 | TE fixture revert/hard-fail 未断言 operator fee | 🟡→✅ | 1/3 | FIX-07 | **CLOSED** |
 | D8-1 | inherited #14/#18/#20 profile flag 稀疏 | 🟡→✅ | 8 | FIX-12 | **CLOSED**（ADR-004 文档化；非 wiring 缺口） |
 
-**非阻断残余 🟡（不升格阻断）：** `OpStackExecuteViaHostSmokeTest` operator 仍 `>0`（4 用例）；Inv#14 无 OP 0x01–0x0a 专项 precompile fixture。见 `task10-assertions.md` 汇总。
+**Wave 3 开放 🔴：** R3-4844-1/2/3 — EIP-4844 preCheck 与 op-geth 三处形状校验不一致（见 Wave 3 报告 Part 4 P0）。
+
+**非阻断残余 🟡：** `OpStackExecuteViaHostSmokeTest` operator 仍 `>0`；Inv#14 无 OP 0x01–0x0a precompile fixture；R3-DEP-1 CREATE deposit nonce；R3-ORCH-1/2/3 orchestration 精度。见 `2026-06-21-opstack-isthmus-reaudit-wave3.md`。
 
 **Out of scope（⚪，非阻断）：** GPO `0x4200…000F`、`setFeature`、`proxyAdmin*`、Bedrock/Jovian setter、`setIsthmus()` 升级迁移、`L1GasUsed` deprecated receipt 字段
 
@@ -209,4 +224,15 @@
 
 ---
 
-**审计状态：** 初版 + 复审计 + **Wave 2 sign-off 完成**（2026-06-21）。主判定 **✅ 通过**（本地 CTest PASS + workflow 已入分支；GitHub 远程 CI 待首跑）。Part 1 全表见 `_work/task*.md`。
+### Wave 3 CTest 验证（@ `52dda0921`）
+
+| 项 | 结果 |
+|----|------|
+| bcos-evm opstack 过滤 ctest | **23/23 PASS** |
+| TE `OpStackTransactionExecutorFixture` | **1/1 PASS**（13 用例） |
+
+---
+
+**审计状态：** 初版 + 复审计 + Wave 2 sign-off + **Wave 3 严格 op-geth 复审计**（2026-06-21 @ `52dda0921`）。  
+**当前主判定：** **⚠️ 有条件通过** — Wave 2 P0 无回归；新增 3×🔴 4844 preCheck 缺口待 P0 闭合。  
+**完整 Wave 3 产出：** `2026-06-21-opstack-isthmus-reaudit-wave3.md`。Part 1 域表见 `_work/task*.md` Wave 3 附录。

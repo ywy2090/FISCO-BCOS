@@ -78,6 +78,15 @@
 
 ---
 
+## Wave 3 复审计（@ `52dda0921`）
+
+- CTest：**23/23 PASS**（bcos-evm opstack 过滤）
+- TE fixture：**13/13 PASS**
+- **新增 🔴：** 4844 preCheck 3 项（见 `task7-7702-4844.md` Wave 3）
+- 完整报告：`../2026-06-21-opstack-isthmus-reaudit-wave3.md`
+
+---
+
 ## 范围外（交叉引用）
 
 | 文件 | 说明 |

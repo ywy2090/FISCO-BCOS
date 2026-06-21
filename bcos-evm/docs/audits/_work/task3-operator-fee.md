@@ -181,3 +181,16 @@ ctest --test-dir build/bcos-evm/test -R 'RefundIsthmus|OpStackSettlement|OpStack
 **剩余 🟡：** 协议 `TransactionReceipt` 缺 scalar/constant；E2E literal 精确值；revert/hard-failure operator fee 断言；scalar=0/constant>0 边界。
 
 **可裁决计数：** ✅ 5 · 🟡 3 · 🔴 0
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`）
+
+| 项 | op-geth | FB | Wave 3 |
+|----|---------|-----|--------|
+| 公式 buy/refund/vault | `state_transition.go:294-845` | `OpStackTxExecutor.cpp` | ✅ |
+| receipt scalar/constant | `receipt_opstack.go:44-47` | `makeReceipt` `:266-275` | ✅ **闭合 D3-2** |
+| Jovian operator ×100 | `rollup_cost.go:271-286` | 未实现 | 🟡 **R3-T3-1** Isthmus 外 |
+| FIX-07 revert operator | — | TE fixture | ✅ |
+
+**Wave 3 Task 3 判定：** ✅ PASS；🟡 literal E2E 仍弱。

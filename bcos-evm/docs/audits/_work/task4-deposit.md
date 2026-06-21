@@ -204,3 +204,16 @@ ctest --test-dir build/bcos-evm/test -R 'DepositMint|DepositNoFee' --output-on-f
 **剩余 🟡：** TE fixture 未断言 deposit 失败 actual gasUsed / 成功 depositNonce；entry 失败无 TE 独立用例（编排层已覆盖）。
 
 **可裁决计数：** ✅ 6 · 🟡 1 · 🔴 0
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`）
+
+| 场景 | op-geth | FB | Wave 3 |
+|------|---------|-----|--------|
+| CALL deposit 成功 nonce | Call 前 bump `:601-602` | 执行后 bump `:175-176` | ✅ `DepositMintTest` 3→4 |
+| CREATE deposit 成功 nonce | `evm.Create` 内 +1 `:530` | 执行后无条件 +1 `:175-176` | 🟡 **R3-DEP-1** — 缺 CREATE 用例 |
+| REVERT / entry 失败 | Regolith+ | 编排层 | ✅ 无回归 |
+| system tx 错误码 | `ErrSystemTxNotSupported` | `Malformed` | 🟡 语义等价 |
+
+**Wave 3 Task 4 判定：** ✅ CALL 路径 PASS；🟡 CREATE nonce 待测。

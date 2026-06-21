@@ -67,6 +67,35 @@ std::optional<EVMCResult> executeEntryChecks(OpStackTxExecutor::OpStackTxExecuti
     failResult.gas_left = 0;
     return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
 }
+
+struct GasPoolReturnGuard
+{
+    std::function<void(uint64_t, uint64_t)>* hook{};
+    uint64_t gasRemaining{0};
+    uint64_t gasUsed{0};
+    bool armed{false};
+
+    ~GasPoolReturnGuard()
+    {
+        if (armed && hook && *hook)
+        {
+            (*hook)(gasRemaining, gasUsed);
+        }
+    }
+};
+
+void returnDepositPoolGas(OpStackExecuteViaHostInput const& input,
+    OpStackTxExecutor::OpStackTxExecutionData const& txData)
+{
+    if (!input.gasPoolReturnGasHook)
+    {
+        return;
+    }
+    auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
+    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
+    auto const gasRemaining = gasLimit > gasUsed ? gasLimit - gasUsed : 0;
+    input.gasPoolReturnGasHook(gasRemaining, gasUsed);
+}
 }  // namespace
 
 task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaHostInput input)
@@ -141,6 +170,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
             output.gasUsed = txData.m_gasUsed;
             output.stateDiff = state.build_diff();
+            returnDepositPoolGas(input, txData);
             co_return output;
         }
 
@@ -190,8 +220,24 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         }
 
         output.stateDiff = state.build_diff();
+        returnDepositPoolGas(input, txData);
         co_return output;
     }
+
+    if (input.gasPoolSubGasHook)
+    {
+        auto const gasLimitForPool = static_cast<uint64_t>(std::max<int64_t>(0, input.message.gas));
+        if (!input.gasPoolSubGasHook(gasLimitForPool))
+        {
+            evmc_result failResult{};
+            failResult.status_code = EVMC_OUT_OF_GAS;
+            failResult.gas_left = 0;
+            output.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+            co_return output;
+        }
+    }
+
+    GasPoolReturnGuard guard{&input.gasPoolReturnGasHook};
 
     auto buyGasOk = co_await input.opTxExecutor.buyGas(txData);
     if (!buyGasOk)
@@ -199,6 +245,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         output.evmcResult = std::move(*txData.m_evmcResult);
         co_return output;
     }
+
+    guard.armed = true;
 
     if (auto entryError = executeEntryChecks(txData); entryError.has_value())
     {
@@ -258,6 +306,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         }
     }
     output.stateDiff = state.build_diff();
+    guard.gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasRemaining));
+    guard.gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
     co_return output;
 }
 }  // namespace bcos::evm

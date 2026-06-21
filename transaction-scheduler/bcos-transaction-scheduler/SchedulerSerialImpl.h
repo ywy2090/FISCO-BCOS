@@ -36,6 +36,11 @@ public:
         std::vector<typename TransactionExecutor::template ExecuteContext<Storage>> contexts;
         contexts.reserve(count);
 
+        if constexpr (requires { executor.beginBlock(0); })
+        {
+            executor.beginBlock(static_cast<int64_t>(std::get<0>(ledgerConfig.gasLimit())));
+        }
+
         auto chunks = ::ranges::views::iota(0, count) |
                       ::ranges::views::chunk(std::max<size_t>(
                           (size_t)(count / tbb::this_task_arena::max_concurrency()),
@@ -117,6 +122,10 @@ public:
         });
 
         GC::collect(std::move(contexts));
+        if constexpr (requires { executor.endBlock(); })
+        {
+            executor.endBlock();
+        }
         co_return receipts;
     }
 };

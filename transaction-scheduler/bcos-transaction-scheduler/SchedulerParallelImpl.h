@@ -335,6 +335,12 @@ public:
 
         std::vector<ExecutionContext> contexts;
         contexts.reserve(transactionCount);
+
+        if constexpr (requires { executor.beginBlock(0); })
+        {
+            executor.beginBlock(static_cast<int64_t>(std::get<0>(ledgerConfig.gasLimit())));
+        }
+
         for (auto index : ranges::views::iota(0LU, transactionCount))
         {
             contexts.emplace_back(
@@ -349,6 +355,10 @@ public:
             PARALLEL_SCHEDULER_LOG(INFO) << "Parallel execute block retry count: " << retryCount;
         });
 
+        if constexpr (requires { executor.endBlock(); })
+        {
+            executor.endBlock();
+        }
         co_return receipts;
     }
 };

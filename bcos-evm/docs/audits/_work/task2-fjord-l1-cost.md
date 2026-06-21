@@ -130,3 +130,16 @@ ctest --test-dir build/bcos-evm/test -R 'RollupCost|OpStackFee|OpStackTxInputBui
 **Task 2 状态：** **PASS** — OP-02 闭合；公式/常量/FastLZ/字节源与 op-geth 对齐。
 
 **剩余 🟡：** `L1GasUsed` receipt 字段；`OpStackExecuteViaHostSmokeTest` synthetic rollup smoke。
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`）
+
+| 项 | op-geth | FB | Wave 3 |
+|----|---------|-----|--------|
+| 公式/常量/FastLZ | `rollup_cost.go` | `RollupCost.cpp` / `OpStackFee.cpp` | ✅ 再验证 |
+| FIX-04/05 向量 | `rollup_cost_test.go:102-117` | TE E2E | ✅ |
+| deposit rollup 字节 | `transaction.go:399-400` 空 struct | `buildRollupCostData` deposit 分支计 extra | 🟡 **R3-T2-1**（无 fee 影响） |
+| FastLZ 注释行号 | — | `RollupCost.cpp:11` 引用 `:760-836` 应为 `:667-743` | 🟡 文档 |
+
+**Wave 3 Task 2 判定：** ✅ PASS 无回归。

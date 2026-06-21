@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/opstack/Eip4844.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include <evmc/evmc.h>
@@ -74,16 +75,21 @@ std::optional<EVMCResult> opStackPreCheck(
             return makePreCheckError(protocol::TransactionStatus::Malformed);
         }
 
-        if (!input.blobVersionedHashes.empty())
+        if (hasBlobTxIntent(input))
         {
             if (!input.revisionConfig.eip4844)
-            {
                 return makePreCheckError(protocol::TransactionStatus::Malformed);
+            if (isCreateKind(input.message.kind))
+                return makePreCheckError(protocol::TransactionStatus::Malformed);
+            if (input.blobVersionedHashes.empty())
+                return makePreCheckError(protocol::TransactionStatus::Malformed);
+            for (auto const& hash : input.blobVersionedHashes)
+            {
+                if (!isValidVersionedHash(hash))
+                    return makePreCheckError(protocol::TransactionStatus::Malformed);
             }
             if (input.blobGasFeeCap < input.blockInfo.blobBaseFee)
-            {
                 return makePreCheckError(protocol::TransactionStatus::InsufficientFunds);
-            }
         }
 
         if (!input.authorizations.empty() && isCreateKind(input.message.kind))

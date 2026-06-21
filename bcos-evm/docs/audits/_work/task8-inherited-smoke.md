@@ -122,3 +122,15 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
 | Inv#14 预编译 fixture 深度 | **🟡 残余** | 无 OP 0x01–0x0a 专项 fixture；内核 inherited ✅，测试深度非 Wave 2 阻断 |
 
 **交叉引用：** `task8-assertion-audit.md` Part 3 全表不变；本 Task 仅 inherited profile 文档 sign-off。
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`）
+
+| Inv# | 能力 | Wave 3 |
+|------|------|--------|
+| 2537/6780/2929 | kernel smoke | ✅ 无回归 |
+| 7212/7823 | Isthmus unsupported | ⚪ 仍预期 |
+| profile 稀疏 | ADR-004 | ✅ 文档仍有效 |
+
+**Wave 3 Task 8 判定：** ✅ PASS。

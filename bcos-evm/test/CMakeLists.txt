@@ -452,6 +452,46 @@ add_test(
     COMMAND ${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME}
 )
 
+set(OPSTACK_PRECHECK_4844_TEST_BINARY_NAME OpStackPreCheck4844Test)
+
+add_executable(${OPSTACK_PRECHECK_4844_TEST_BINARY_NAME}
+    opstack/OpStackPreCheck4844Test.cpp
+)
+
+target_include_directories(${OPSTACK_PRECHECK_4844_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${OPSTACK_PRECHECK_4844_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME OpStackPreCheck4844
+    COMMAND ${OPSTACK_PRECHECK_4844_TEST_BINARY_NAME}
+)
+
+set(BLOCK_GAS_POOL_TEST_BINARY_NAME BlockGasPoolTest)
+
+add_executable(${BLOCK_GAS_POOL_TEST_BINARY_NAME}
+    opstack/BlockGasPoolTest.cpp
+)
+
+target_include_directories(${BLOCK_GAS_POOL_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${BLOCK_GAS_POOL_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME BlockGasPool
+    COMMAND ${BLOCK_GAS_POOL_TEST_BINARY_NAME}
+)
+
 set(DEPOSIT_MINT_TEST_BINARY_NAME DepositMintTest)
 
 add_executable(${DEPOSIT_MINT_TEST_BINARY_NAME}

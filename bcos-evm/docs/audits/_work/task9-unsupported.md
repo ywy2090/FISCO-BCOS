@@ -192,3 +192,9 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 ## 后续动作（非阻断）
 
 1. **P2（可选）：** OP Isthmus 否定性测试——CALL 0x0100 失败、超大 modexp 在 `eip7823=false` 时不拒绝（记录 baseline）。
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`）
+
+**判定：** ✅ DONE — 无 Wave 3 状态变更；7212/7823/BCOS 钩子仍隔离。

@@ -78,6 +78,13 @@ public:
 
     std::reference_wrapper<protocol::TransactionReceiptFactory const> m_receiptFactory;
     crypto::Hash::Ptr m_hashImpl;
+    std::shared_ptr<opstack_tx::BlockGasPool> m_blockGasPool;
+
+    void beginBlock(int64_t blockGasLimit) noexcept
+    {
+        m_blockGasPool = std::make_shared<opstack_tx::BlockGasPool>(blockGasLimit);
+    }
+    void endBlock() noexcept { m_blockGasPool.reset(); }
 
     static int64_t computeEffectiveGasLimit(
         protocol::Transaction const& tx, int64_t blockGasLimit) noexcept
@@ -132,8 +139,10 @@ public:
                              evmc_address{}),
                 m_nonce(hex2u(transaction.nonce()).convert_to<uint64_t>()),
                 m_vm(evmc_create_evmone()),
-                m_blockGasPool(std::make_shared<opstack_tx::BlockGasPool>(
-                    static_cast<int64_t>(std::get<0>(ledgerConfig.gasLimit()))))
+                m_blockGasPool(executor.m_blockGasPool ?
+                                   executor.m_blockGasPool :
+                                   std::make_shared<opstack_tx::BlockGasPool>(
+                                       static_cast<int64_t>(std::get<0>(ledgerConfig.gasLimit()))))
             {}
         };
         std::unique_ptr<Data> m_data;
@@ -207,6 +216,11 @@ public:
             input.rollupCostData = opstack_tx::buildRollupCostData(m_data->m_transaction.get());
             input.gasPoolSubGasHook = [pool = m_data->m_blockGasPool](
                                           uint64_t gas) { return !pool || pool->tryConsume(gas); };
+            input.gasPoolReturnGasHook = [pool = m_data->m_blockGasPool](
+                                             uint64_t remaining, uint64_t used) {
+                if (pool)
+                    pool->returnGas(remaining, used);
+            };
             input.opTxExecutor.m_isIsthmus =
                 true;  // Isthmus executor always activates operator fee
 

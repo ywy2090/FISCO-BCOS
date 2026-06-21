@@ -262,3 +262,17 @@ Isthmus spec 未强制全部字段；RPC 兼容性缺口。
 **Part 3 测试断言：** 🟡 — 单元 + operator fee literal E2E ✅；缺 floor receipt E2E + protocol scalar 字段。
 
 **P1 补测：** data-heavy tx → `gasUsed == floorDataGas` receipt；`makeReceipt` 暴露 scalar/constant；可选 `DepositReceiptVersion`。
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`）
+
+| 项 | op-geth | FB | Wave 3 |
+|----|---------|-----|--------|
+| FloorDataGas 公式 | `:120-133` | `OpStackFloorGas.cpp` | ✅ |
+| post-exec floor bump | `:650-661` | `OpStackGasSettlement.h` | ✅ |
+| 非 deposit entry 失败 | 早返回无 refund | 仍 settlement+refundGas `:203-245` | 🟡 **R3-7623-1** |
+| TE entry 失败 state | — | 不 `applyStateDiff` 但 receipt 带 gasUsed | 🟡 **NEW** |
+| protocol receipt scalar | deriveOPStackFields | `makeReceipt` 已映射 | ✅ 闭合 |
+
+**Wave 3 Task 6 判定：** ✅ 公式 PASS；🟡 entry 失败语义 + floor E2E。

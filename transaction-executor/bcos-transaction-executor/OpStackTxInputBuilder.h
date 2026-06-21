@@ -49,8 +49,27 @@ public:
         }
     }
 
+    void returnGas(uint64_t gasRemaining, uint64_t gasUsed) noexcept
+    {
+        auto returned = static_cast<int64_t>(std::min<uint64_t>(
+            gasRemaining, static_cast<uint64_t>(std::numeric_limits<int64_t>::max())));
+        m_remaining.fetch_add(returned, std::memory_order_acq_rel);
+        m_cumulativeUsed.fetch_add(gasUsed, std::memory_order_relaxed);
+    }
+
+    [[nodiscard]] int64_t remaining() const noexcept
+    {
+        return m_remaining.load(std::memory_order_relaxed);
+    }
+
+    [[nodiscard]] uint64_t cumulativeUsed() const noexcept
+    {
+        return m_cumulativeUsed.load(std::memory_order_relaxed);
+    }
+
 private:
     std::atomic<int64_t> m_remaining;
+    std::atomic<uint64_t> m_cumulativeUsed{0};
 };
 
 inline bcos::u256 parseU256Field(std::string_view field)

@@ -106,3 +106,17 @@
 | TE operator fee E2E | FAIL 🟡 | PASS ✅（弱 literal） |
 
 **Task 1 状态：** DONE — P0 接线项已独立验证闭合；剩余 🟡 为测试强度，不构成 S3 wiring 阻断。
+
+---
+
+## Wave 3 复审计附录（@ `52dda0921`，严格 op-geth `e8800cffe`）
+
+| # | 项 | op-geth | FB | Wave 3 |
+|---|-----|---------|-----|--------|
+| W3-1 | 生产接入 | miner/worker | `libinitializer/Initializer.cpp:339-342` `ExecutionPath::OpStack` | ✅ 确认非仅测试 |
+| W3-2 | baseFee 来源 | `evm.Context.BaseFee` | `resolveOpStackBaseFee` → `ledgerConfig.gasPrice()` `:96-100` | 🟡 **R3-ORCH-1** |
+| W3-3 | blobBaseFee 来源 | `evm.Context.BlobBaseFee` | L1Block slot 7 `:103-108` | 🟡 **R3-ORCH-2** |
+| W3-4 | L1 cost fork | `NewL1CostFunc` 多分支 | 固定 `l1CostFjord` `:88-89` | 🟡 **R3-ORCH-3** |
+| W3-5 | Wave 2 OP-01/09 | — | 再验证 ✅ | 无回归 |
+
+**Wave 3 Task 1 判定：** ✅ wiring 仍 PASS；🟡 orchestration 数据源精度待 P1。
