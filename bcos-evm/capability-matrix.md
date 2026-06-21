@@ -1,7 +1,7 @@
 # ETH Kernel Capability Matrix
 
 **Status:** Normative (Phase 1 audit complete — 2026-06-20; Phase 2–3 partial on `feat-evm-refactor`)  
-**ADRs:** ADR-001–006 under `bcos-evm/docs/adr/`
+**ADRs:** ADR-001–014 under `bcos-evm/docs/adr/`
 
 Row granularity rules: see ADR-003 (one row = one independently testable sub-capability on one layer; no rollup rows).
 
@@ -63,9 +63,12 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 | chain precompile routing | host extension | inherited (`tryChainPrecompile` default nullopt) | deviation (FISCO precedence; empty-code CALL semantics differ) | deviation (`OpHostExtension` L1Block predeploy: full `IL1Block` getter/setter Isthmus surface; no GPO `0x4200…000F`, `setFeature`, `proxyAdmin*`) | `FiscoHostExtensionTest`, `L1BlockPredeployTest`, `L1BlockGetterTest` |
 | OPStack deposit tx | orchestration | unsupported | unsupported | explicit (OPStack-only orchestration) | `DepositTxPreCheckTest`, `DepositMintTest`, `DepositCreateNonceTest` |
 | L1 attributes system deposit | orchestration | unsupported | unsupported | explicit (Isthmus deposit → `setL1BlockValuesIsthmus` on L1Block predeploy) | `L1AttributesDepositTest`, `L1AttributesDepositFailureTest` |
-| OPStack operator fee (Isthmus) | orchestration | unsupported | unsupported | explicit (`operatorCostIsthmus` + `refundIsthmusOperatorCost`; `m_isIsthmus` profile gate) | `RefundIsthmusTest`, `OpStackExecuteViaHostSmokeTest` |
-| Isthmus executor integration | orchestration | unsupported | unsupported | explicit (`isIsthmusOrchestrationProfile` → `OpStackTransactionExecutorImpl` / `opStackExecuteViaHost`) | `OpStackTxPropsTest`, `OpStackExecuteViaHostSmokeTest`, `OpStack67802537KernelSmokeTest` |
-| Rollup L1 cost tx bytes (Fjord) | tx input | unsupported | unsupported | explicit (`OpStackTxInputBuilder` signed RLP → `RollupCostData` for `l1CostFjord`) | `OpStackFeeTest`, `OpStackTxInputBuilderTest` |
+| OPStack operator fee (Isthmus) | orchestration | unsupported | unsupported | explicit (`operatorCostIsthmus` + `refundIsthmusOperatorCost`; `OpStackForkSchedule` + `wireOperatorCostFuncWithState`) | `RefundIsthmusTest`, `OpStackExecuteViaHostSmokeTest` |
+| Isthmus executor integration | orchestration | unsupported | unsupported | explicit (`isIsthmusOrchestrationProfile` → `OpStackTransactionExecutorImpl` / `opStackExecuteViaHost`) | `OpStackTxPropsTest`, `OpStackExecuteViaHostSmokeTest`, `OpStackBlockHeaderExtensionTest`, TE fixture |
+| Rollup L1 cost tx bytes | tx input | unsupported | unsupported | explicit (`buildRollupCostData` signed RLP) | `OpStackTxInputBuilderTest`, FIX-05 |
+| Rollup L1 cost fork selection | orchestration | unsupported | unsupported | explicit (`wireL1CostFuncWithState` / `selectL1CostFunc`) | `OpStackForkScheduleTest`, `OpStackFeeTest` FIX-04 |
+| L1 pre-Fjord unsupported | orchestration | unsupported | unsupported | deviation (throw) | `OpStackExecuteViaHostSmokeTest` pre_fjord |
+| OPStack operator fee fork gate | orchestration | unsupported | unsupported | explicit (`wireOperatorCostFuncWithState` / `selectOperatorCostFunc`) | `OpStackFeeTest`, `RefundIsthmusTest` |
 | RevisionConfig `warm_access` | revision profile | feature-gated (profile-only; runtime uses `rev>=BERLIN`, ADR-004) | feature-gated (same) | feature-gated (same) | `RevisionConfigProfileTest` |
 | RevisionConfig `eip1153` | revision profile | inherited (via `EthPolicy` at CANCUN+) | inherited (via `FiscoPolicy` at CANCUN+) | inherited (via Isthmus `revision`) | `RevisionConfigProfileTest` |
 | RevisionConfig `eip5656` | revision profile | inherited (via revision) | inherited (via revision) | inherited (via revision) | `RevisionConfigProfileTest` |
