@@ -153,4 +153,33 @@ BOOST_AUTO_TEST_CASE(LoadOpStackFeeParams_unpacksSlots)
     BOOST_CHECK_EQUAL(params.operatorFeeConstant, u256("1256417826609331460"));
 }
 
+BOOST_AUTO_TEST_CASE(FjordL1_minimumBounds_clampsBelowMinTxSize)
+{
+    auto const params = makeTestParams();
+    constexpr u256 kMinFee = u256(3'203'000);
+    for (auto const fastLz : {100u, 150u, 170u})
+    {
+        RollupCostData data{};
+        data.fastLzSize = fastLz;
+        BOOST_CHECK_EQUAL(l1CostFjord(data, params), kMinFee);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(FjordL1_minimumBounds_fastLz171_exceedsMinFee)
+{
+    auto const params = makeTestParams();
+    RollupCostData data{};
+    data.fastLzSize = 171;
+    BOOST_CHECK_GT(l1CostFjord(data, params), u256(3'203'000));
+}
+
+BOOST_AUTO_TEST_CASE(FjordL1_contractCallShape_fastLz202_matchesFormula)
+{
+    auto const params = makeTestParams();
+    RollupCostData data{};
+    data.fastLzSize = 202;
+    data.ones = 100;
+    BOOST_CHECK_EQUAL(l1CostFjord(data, params), u256(4'048'188));
+}
+
 }  // namespace bcos::evm::test

@@ -203,9 +203,12 @@ public:
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
             opstack_tx::fillGasCaps(m_data->m_transaction.get(), input);
             opstack_tx::fillWeb3Fields(m_data->m_transaction.get(), input);
+            opstack_tx::applyDefaultTxProps(input);
             input.rollupCostData = opstack_tx::buildRollupCostData(m_data->m_transaction.get());
             input.gasPoolSubGasHook = [pool = m_data->m_blockGasPool](
                                           uint64_t gas) { return !pool || pool->tryConsume(gas); };
+            input.opTxExecutor.m_isIsthmus =
+                true;  // Isthmus executor always activates operator fee
 
             co_return co_await opStackExecuteViaHost(std::move(input));
         }

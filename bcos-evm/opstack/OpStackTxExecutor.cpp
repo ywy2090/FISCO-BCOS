@@ -64,12 +64,22 @@ task::Task<bool> OpStackTxExecutor::buyGas(OpStackTxExecutionData& data)
         mgval += data.m_operatorCostLimit;
     }
 
+    u256 blobGasUsed{0};
+    u256 blobBalanceCheck{0};
+    if (!data.m_blobVersionedHashes.empty())
+    {
+        blobGasUsed = u256(data.m_blobVersionedHashes.size()) * OP_BLOB_GAS_PER_BLOB;
+        auto const blobCost = blobGasUsed * data.m_blockInfo.blobBaseFee;
+        mgval += blobCost;
+        blobBalanceCheck = blobGasUsed * data.m_blobGasFeeCap;
+    }
+
     auto const txValue = state::fromEvmC(data.m_message.value);
     auto balanceCheck = mgval + txValue;
     if (data.m_hasGasFeeCap)
     {
-        balanceCheck =
-            gasLimit * gasFeeCap + data.m_l1CostCharged + data.m_operatorCostLimit + txValue;
+        balanceCheck = gasLimit * gasFeeCap + data.m_l1CostCharged + data.m_operatorCostLimit +
+                       blobBalanceCheck + txValue;
     }
 
     auto const senderBalance = data.m_state->get_balance(data.m_message.sender);

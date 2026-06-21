@@ -6,8 +6,6 @@ namespace bcos::evm
 {
 namespace
 {
-constexpr uint64_t TX_AUTH_TUPLE_GAS = 12'500;
-constexpr uint64_t CALL_NEW_ACCOUNT_GAS = 25'000;
 constexpr uint8_t DELEGATION_PREFIX_0 = 0xEF;
 constexpr uint8_t DELEGATION_PREFIX_1 = 0x01;
 constexpr uint8_t DELEGATION_PREFIX_2 = 0x00;
@@ -80,7 +78,7 @@ void applyAuthorizations(state::State& state,
         (void)state.warm_up_address(authority);
         if (state.get_account(authority).has_value())
         {
-            state.add_refund(CALL_NEW_ACCOUNT_GAS - TX_AUTH_TUPLE_GAS);
+            state.add_refund(PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST);
         }
 
         state.set_nonce(authority, authorization.nonce + 1);

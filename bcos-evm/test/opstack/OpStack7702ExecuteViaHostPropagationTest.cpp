@@ -1,7 +1,9 @@
 #define BOOST_TEST_MODULE OpStack7702ExecuteViaHostPropagationTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
@@ -71,6 +73,38 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
         packOperatorFeeParams(1'000'000, 5);
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
+
+OpStackExecuteViaHostInput make7702Input(evmc_address sender, evmc_address recipient,
+    evmc_address delegationTarget, uint64_t gasLimit, uint64_t authTupleCount)
+{
+    OpStackExecuteViaHostInput input;
+    input.message.kind = EVMC_CALL;
+    input.message.gas = static_cast<int64_t>(gasLimit);
+    input.message.sender = sender;
+    input.message.recipient = recipient;
+    input.message.code_address = recipient;
+    input.gasTipCap = 1;
+    input.gasFeeCap = 2;
+    input.blockInfo.number = 1;
+    input.blockInfo.timestamp = 12345;
+    input.blockInfo.gasLimit = 30'000'000;
+    input.blockInfo.baseFee = 1;
+    input.blockInfo.chainId = 1;
+    input.blockInfo.coinbase = addressFromLastByte(0x99);
+    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.txProps.warmDestination = true;
+    input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
+    input.opTxExecutor.m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
+    input.skipTransactionChecks = true;
+    input.skipNonceChecks = true;
+    input.authorizationListPresent = true;
+    for (uint64_t i = 0; i < authTupleCount; ++i)
+    {
+        input.authorizations.push_back(
+            {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = i});
+    }
+    return input;
+}
 }  // namespace
 
 BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_propagates_authorizations_to_executeMessage)
@@ -113,7 +147,6 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_propagates_authorizations_to_executeM
     input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
     input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
-    input.opTxExecutor.m_isIsthmus = true;
     input.opTxExecutor.m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
     input.skipTransactionChecks = true;
     input.skipNonceChecks = true;
@@ -132,6 +165,68 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_propagates_authorizations_to_executeM
     BOOST_CHECK_EQUAL(installedCode[1], 0x01);
     BOOST_CHECK_EQUAL(installedCode[2], 0x00);
     BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(1));
+}
+
+BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_rejects_7702_intrinsic_below_25000_per_tuple)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x33);
+    auto const recipient = addressFromLastByte(0x34);
+    auto const delegationTarget = addressFromLastByte(0x43);
+    setOpFeeParams(stateView);
+
+    state::Account senderAccount;
+    senderAccount.nonce = 0;
+    senderAccount.balance = 1'000'000;
+    stateView.insert_account(sender, senderAccount);
+    stateView.insert_account(recipient, state::Account{});
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+
+    auto const intrinsicGas =
+        static_cast<uint64_t>(gas::TX_BASE_GAS + gas::calcAuthTupleIntrinsicGas(1));
+    BOOST_CHECK_EQUAL(intrinsicGas, gas::TX_BASE_GAS + PER_EMPTY_ACCOUNT_COST);
+
+    auto input = make7702Input(sender, recipient, delegationTarget, intrinsicGas - 1, 1);
+    input.stateView = &stateView;
+    input.vm = &vm;
+    input.hashImpl = &hash;
+
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
+}
+
+BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_charges_7702_intrinsic_25000_per_tuple)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x35);
+    auto const recipient = addressFromLastByte(0x36);
+    auto const delegationTarget = addressFromLastByte(0x44);
+    setOpFeeParams(stateView);
+
+    state::Account senderAccount;
+    senderAccount.nonce = 0;
+    senderAccount.balance = 1'000'000;
+    stateView.insert_account(sender, senderAccount);
+    stateView.insert_account(recipient, state::Account{});
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+
+    auto const authTupleCount = uint64_t(2);
+    auto const intrinsicGas =
+        static_cast<uint64_t>(gas::TX_BASE_GAS + gas::calcAuthTupleIntrinsicGas(authTupleCount));
+    BOOST_CHECK_EQUAL(intrinsicGas, gas::TX_BASE_GAS + authTupleCount * PER_EMPTY_ACCOUNT_COST);
+
+    auto input =
+        make7702Input(sender, recipient, delegationTarget, intrinsicGas - 1, authTupleCount);
+    input.stateView = &stateView;
+    input.vm = &vm;
+    input.hashImpl = &hash;
+
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
 }  // namespace bcos::evm::test

@@ -36,6 +36,17 @@ u256 balanceFromDiff(const state::StateDiff& diff, const evmc_address& address)
     return it->second.balance;
 }
 
+uint64_t nonceFromDiff(
+    const state::StateDiff& diff, const evmc_address& address, uint64_t fallbackNonce)
+{
+    auto const it = diff.accounts.find(address);
+    if (it == diff.accounts.end())
+    {
+        return fallbackNonce;
+    }
+    return it->second.nonce;
+}
+
 OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
 {
@@ -65,7 +76,6 @@ OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stat
         .mint = u256(100),
         .value = 0,
         .gas = static_cast<uint64_t>(message.gas)};
-    input.opTxExecutor.m_isIsthmus = true;
     return input;
 }
 }  // namespace
@@ -77,6 +87,7 @@ BOOST_AUTO_TEST_CASE(deposit_mint_is_applied_before_execution)
     auto const target = addressFromLastByte(0x32);
 
     state::Account senderAccount;
+    senderAccount.nonce = 3;
     senderAccount.balance = 0;
     stateView.insert_account(sender, senderAccount);
 
@@ -87,6 +98,9 @@ BOOST_AUTO_TEST_CASE(deposit_mint_is_applied_before_execution)
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), u256(100));
+    BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), 4);
+    BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 3);
 }
 }  // namespace bcos::evm::test
 

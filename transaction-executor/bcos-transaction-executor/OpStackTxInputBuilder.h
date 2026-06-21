@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Web3Eip7702Decoder.h"
+#include "Web3SignedTxEncoder.h"
 #include "bcos-codec/rlp/RLPDecode.h"
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
@@ -111,6 +112,17 @@ inline std::optional<RollupCostData> buildRollupCostData(protocol::Transaction c
     auto const extra = tx.extraTransactionBytes();
     if (!extra.empty())
     {
+        if (static_cast<uint8_t>(extra[0]) == bcos::executor::DEPOSIT_TX_TYPE)
+        {
+            return newRollupCostData(extra);
+        }
+        if (tx.type() == static_cast<uint8_t>(bcos::protocol::TransactionType::Web3Transaction))
+        {
+            if (auto signedBytes = encodeWeb3SignedMarshalBinary(tx); !signedBytes.empty())
+            {
+                return newRollupCostData(bcos::ref(signedBytes));
+            }
+        }
         return newRollupCostData(extra);
     }
     return newRollupCostData(tx.input());
@@ -196,6 +208,21 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackExecuteViaHos
         {
             input.authorizationListPresent = true;
             input.authorizations = std::move(*decodedAuthorizations);
+        }
+    }
+    auto const web3Kind = input.web3TypedTxKind != 0 ?
+                              input.web3TypedTxKind :
+                              (tx.extraTransactionBytes().empty() ?
+                                      uint8_t{0} :
+                                      static_cast<uint8_t>(tx.extraTransactionBytes()[0]));
+    if (web3Kind == 0x03)
+    {
+        input.web3TypedTxKind = web3Kind;
+        if (auto decodedBlobFields = web3_tx::decodeEip4844BlobFields(tx.extraTransactionBytes());
+            decodedBlobFields.has_value())
+        {
+            input.blobGasFeeCap = decodedBlobFields->maxFeePerBlobGas;
+            input.blobVersionedHashes = std::move(decodedBlobFields->blobVersionedHashes);
         }
     }
     if (input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE)

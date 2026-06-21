@@ -46,6 +46,7 @@ inline void assertIsthmusHelperProfile(bcos::evm_standard::RevisionConfig const&
 {
     ExpectedRevisionConfig expected{};
     expected.revision = EVMC_PRAGUE;
+    expected.warm_access = true;
     expected.eip7623 = true;
     expected.eip7702 = true;
     expected.eip4844 = true;

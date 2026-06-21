@@ -76,7 +76,6 @@ OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stat
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx =
         OpStackDepositTx{.from = sender, .to = recipient, .mint = u256(100), .value = 0, .gas = 50'000};
-    input.opTxExecutor.m_isIsthmus = true;
     return input;
 }
 }  // namespace
@@ -125,12 +124,41 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_execution_but_keeps_mint_and_bumps_
     auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
-    BOOST_CHECK_EQUAL(output.gasUsed, 50'000);
+    BOOST_CHECK_EQUAL(output.gasUsed, 21'000);
+    BOOST_CHECK_LT(output.gasUsed, 50'000);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), u256(100));
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), 8);
+    BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 7);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, OP_BASE_FEE_RECIPIENT), u256(0));
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, OP_L1_FEE_RECIPIENT), u256(0));
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, OP_OPERATOR_FEE_RECIPIENT), u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(deposit_entry_failure_bumps_nonce_and_uses_gas_limit)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x61);
+    auto const target = addressFromLastByte(0x62);
+
+    state::Account senderAccount;
+    senderAccount.nonce = 5;
+    senderAccount.balance = 0;
+    stateView.insert_account(sender, senderAccount);
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    auto input = makeDepositInput(stateView, vm, hash, sender, target);
+    input.message.gas = 20'999;
+    input.depositTx->gas = 20'999;
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
+    BOOST_CHECK_EQUAL(output.gasUsed, 20'999);
+    BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), u256(100));
+    BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), 6);
+    BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 5);
 }
 }  // namespace bcos::evm::test
 

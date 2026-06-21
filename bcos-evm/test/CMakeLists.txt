@@ -904,6 +904,13 @@ target_link_libraries(OpStack7702ExecuteViaHostPropagationTest PRIVATE
     bcos-evm-op bcos-task evmone::evmone)
 add_test(NAME OpStack7702ExecuteViaHostPropagation COMMAND OpStack7702ExecuteViaHostPropagationTest)
 
+add_executable(OpStack67802537KernelSmokeTest opstack/OpStack67802537KernelSmokeTest.cpp)
+target_include_directories(OpStack67802537KernelSmokeTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStack67802537KernelSmokeTest PRIVATE
+    bcos-evm-op bcos-task evmone::evmone)
+add_test(NAME OpStack67802537KernelSmoke COMMAND OpStack67802537KernelSmokeTest)
+
 function(add_te_input_builder_test NAME SOURCE)
     add_executable(${NAME} ${SOURCE})
     target_include_directories(${NAME} PRIVATE
@@ -918,6 +925,8 @@ endfunction()
 add_te_input_builder_test(EthTxInputBuilderTest eth/EthTxInputBuilderTest.cpp)
 add_te_input_builder_test(FiscoTxInputBuilderTest eth/FiscoTxInputBuilderTest.cpp)
 add_te_input_builder_test(OpStackTxInputBuilderTest opstack/OpStackTxInputBuilderTest.cpp)
+target_include_directories(OpStackTxInputBuilderTest PRIVATE ${CMAKE_SOURCE_DIR}/bcos-rpc)
+target_link_libraries(OpStackTxInputBuilderTest PRIVATE rpc)
 
 add_executable(RevisionConfigProfileTest eth/RevisionConfigProfileTest.cpp)
 target_include_directories(RevisionConfigProfileTest PRIVATE

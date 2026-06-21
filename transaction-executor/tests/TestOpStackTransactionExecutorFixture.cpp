@@ -6,6 +6,7 @@
  */
 
 #include "../bcos-transaction-executor/OpStackTransactionExecutorImpl.h"
+#include "../bcos-transaction-executor/OpStackTxInputBuilder.h"
 #include "TestMemoryStorage.h"
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
@@ -235,6 +236,29 @@ BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
     }());
 }
 
+BOOST_AUTO_TEST_CASE(operator_fee_recipient_gets_fee_on_success)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x03);
+        auto const target = addressFromLastByte(0x04);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 300'000, "0");
+
+        auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_REQUIRE(receipt->operatorFee().has_value());
+        BOOST_CHECK_NE(receipt->operatorFee().value(), "0x0");
+
+        ledger::account::EVMAccount operatorRecipient(storage, OP_OPERATOR_FEE_RECIPIENT, false);
+        BOOST_CHECK_GT(co_await operatorRecipient.balance(), u256(0));
+    }());
+}
+
 BOOST_AUTO_TEST_CASE(insufficient_balance_fails_before_execution)
 {
     task::syncWait([this]() -> task::Task<void> {
@@ -387,6 +411,42 @@ BOOST_AUTO_TEST_CASE(hard_failure_status_propagates_without_state_commit)
         ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
         BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
     }());
+}
+
+BOOST_AUTO_TEST_CASE(executor_input_build_applies_warm_destination_for_call)
+{
+    auto const sender = addressFromLastByte(0x71);
+    auto const target = addressFromLastByte(0x72);
+    auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
+    auto header = makeBlockHeader();
+
+    evmc_message message = newEVMCMessage(header.number(), *tx, 50'000, sender);
+    OpStackExecuteViaHostInput input;
+    input.message = message;
+    opstack_tx::fillWeb3Fields(*tx, input);
+    opstack_tx::applyDefaultTxProps(input);
+
+    BOOST_CHECK_EQUAL(input.message.kind, EVMC_CALL);
+    BOOST_CHECK(input.txProps.warmDestination);
+}
+
+BOOST_AUTO_TEST_CASE(executor_input_build_clears_warm_destination_for_create)
+{
+    auto const sender = addressFromLastByte(0x81);
+    auto tx = makeEip1559Tx(transactionFactory, sender, sender, 50'000, "0", {});
+    auto header = makeBlockHeader();
+
+    evmc_message message = newEVMCMessage(header.number(), *tx, 50'000, sender);
+    message.kind = EVMC_CREATE;
+    message.recipient = evmc_address{};
+
+    OpStackExecuteViaHostInput input;
+    input.message = message;
+    opstack_tx::fillWeb3Fields(*tx, input);
+    opstack_tx::applyDefaultTxProps(input);
+
+    BOOST_CHECK_EQUAL(input.message.kind, EVMC_CREATE);
+    BOOST_CHECK(!input.txProps.warmDestination);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

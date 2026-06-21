@@ -8,6 +8,11 @@
 
 namespace bcos::evm
 {
+/// EIP-7702: charged per authorization during apply when authority already exists.
+constexpr uint64_t PER_AUTH_BASE_COST = 12'500;
+/// EIP-7702: worst-case intrinsic gas per authorization tuple (PER_EMPTY_ACCOUNT_COST).
+constexpr uint64_t PER_EMPTY_ACCOUNT_COST = 25'000;
+
 struct SetCodeAuthorization
 {
     std::optional<bcos::u256> chainId;

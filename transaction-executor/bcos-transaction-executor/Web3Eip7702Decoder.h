@@ -155,4 +155,47 @@ inline std::optional<std::vector<SetCodeAuthorization>> decodeEip7702Authorizati
 
     return out;
 }
+
+struct Eip4844BlobFields
+{
+    bcos::u256 maxFeePerBlobGas;
+    std::vector<bcos::h256> blobVersionedHashes;
+};
+
+/// Decode EIP-4844 (type 0x03) blob fee cap and versioned hashes from typed-tx envelope bytes.
+inline std::optional<Eip4844BlobFields> decodeEip4844BlobFields(bcos::bytesConstRef extra)
+{
+    if (extra.empty() || static_cast<uint8_t>(extra[0]) != 0x03)
+    {
+        return std::nullopt;
+    }
+
+    bcos::bytes copy(extra.begin(), extra.end());
+    bcos::bytesRef payload(copy.data() + 1, copy.size() - 1);
+    auto [txError, txHeader] = bcos::codec::rlp::decodeHeader(payload);
+    if (txError != nullptr || !txHeader.isList)
+    {
+        return std::nullopt;
+    }
+    auto txItems = payload.getCroppedData(0, txHeader.payloadLength);
+
+    // Skip: chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data,
+    // accessList
+    for (size_t i = 0; i < 9; ++i)
+    {
+        if (!skipRlpItem(txItems))
+        {
+            return std::nullopt;
+        }
+    }
+
+    Eip4844BlobFields fields;
+    if (auto error = bcos::codec::rlp::decodeItems(
+            txItems, fields.maxFeePerBlobGas, fields.blobVersionedHashes);
+        error != nullptr)
+    {
+        return std::nullopt;
+    }
+    return fields;
+}
 }  // namespace bcos::evm::web3_tx

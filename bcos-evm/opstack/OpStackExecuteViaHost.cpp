@@ -1,4 +1,5 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
@@ -20,19 +21,13 @@ EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl
     return EVMCResult(raw, status);
 }
 
-constexpr uint64_t TX_AUTH_TUPLE_GAS = 12'500;
-
 uint64_t computeIntrinsicGasDebit(OpStackTxExecutor::OpStackTxExecutionData const& txData)
 {
     auto const intrinsic =
         gas::computeTxIntrinsicGas(txData.m_message, txData.m_accessList, txData.m_web3TypedTxKind);
     auto const base = static_cast<uint64_t>(std::max<int64_t>(0, intrinsic.preExecutionDebit()));
-    auto const authTuples = txData.m_authTupleCount;
-    if (authTuples == 0)
-    {
-        return base;
-    }
-    return base + authTuples * TX_AUTH_TUPLE_GAS;
+    return base + static_cast<uint64_t>(std::max<int64_t>(
+                      0, gas::calcAuthTupleIntrinsicGas(txData.m_authTupleCount)));
 }
 
 std::optional<EVMCResult> executeEntryChecks(OpStackTxExecutor::OpStackTxExecutionData& txData)
@@ -81,6 +76,11 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         throw std::invalid_argument("opStackExecuteViaHost requires stateView/vm/hashImpl");
     }
 
+    if (bcos::evm_standard::isIsthmusOrchestrationProfile(input.revisionConfig))
+    {
+        input.opTxExecutor.m_isIsthmus = true;
+    }
+
     OpStackExecuteViaHostOutput output;
     state::State state(*input.stateView);
     OpHostExtension extension(&state);
@@ -111,6 +111,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     txData.m_accessList = input.accessList;
     txData.m_web3TypedTxKind = input.web3TypedTxKind;
     txData.m_authTupleCount = static_cast<uint64_t>(input.authorizations.size());
+    txData.m_blobGasFeeCap = input.blobGasFeeCap;
+    txData.m_blobVersionedHashes = input.blobVersionedHashes;
     txData.m_rollupCostData = input.rollupCostData;
 
     if (auto preCheckError = opStackPreCheck(input, state); preCheckError.has_value())
@@ -134,6 +136,10 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         {
             output.evmcResult = std::move(*entryError);
             state.revert();
+            auto const nonce = state.get_nonce(input.message.sender);
+            state.set_nonce(input.message.sender, nonce + 1);
+            txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
+            output.gasUsed = txData.m_gasUsed;
             output.stateDiff = state.build_diff();
             co_return output;
         }
@@ -166,14 +172,20 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             txData.m_maxUsedGas = settlement.maxUsedGas;
             txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
             output.gasUsed = txData.m_gasUsed;
+            auto const nonce = state.get_nonce(input.message.sender);
+            state.set_nonce(input.message.sender, nonce + 1);
             state.commit();
         }
         else
         {
+            auto const settlement = postExecuteGasSettlement(
+                static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
+                static_cast<uint64_t>(std::max<int64_t>(0, output.evmcResult.gas_left)),
+                state.get_refund(), txData.m_floorDataGas);
             state.revert();
             auto const nonce = state.get_nonce(input.message.sender);
             state.set_nonce(input.message.sender, nonce + 1);
-            txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
+            txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
             output.gasUsed = txData.m_gasUsed;
         }
 
@@ -239,6 +251,11 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
         output.receiptMeta.operatorFee =
             input.opTxExecutor.m_operatorCostFunc(gasUsed, txData.m_blockInfo.timestamp);
+        if (feeParams.operatorFeeScalar != 0 || feeParams.operatorFeeConstant != 0)
+        {
+            output.receiptMeta.operatorFeeScalar = feeParams.operatorFeeScalar;
+            output.receiptMeta.operatorFeeConstant = feeParams.operatorFeeConstant;
+        }
     }
     output.stateDiff = state.build_diff();
     co_return output;

@@ -53,6 +53,8 @@ struct OpStackTxExecutor
         const Eip2930AccessList* m_accessList{nullptr};
         uint8_t m_web3TypedTxKind{0};
         uint64_t m_authTupleCount{0};
+        bcos::u256 m_blobGasFeeCap{0};
+        std::vector<bcos::h256> m_blobVersionedHashes;
         std::optional<RollupCostData> m_rollupCostData;
         std::optional<EVMCResult> m_evmcResult;
     };

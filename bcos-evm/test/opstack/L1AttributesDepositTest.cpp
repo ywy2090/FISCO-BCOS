@@ -3,6 +3,8 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "state/InMemoryStateView.h"
@@ -91,14 +93,35 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     userInput.blockInfo.baseFee = 1;
     userInput.gasTipCap = 1;
     userInput.gasFeeCap = 2;
+    userInput.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
     userInput.txProps.warmDestination = true;
-    userInput.opTxExecutor.m_isIsthmus = true;
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
 
     auto userOutput = task::syncWait(opStackExecuteViaHost(userInput));
     BOOST_REQUIRE_EQUAL(userOutput.evmcResult.status_code, EVMC_SUCCESS);
-    auto const it = userOutput.stateDiff.accounts.find(OP_L1_FEE_RECIPIENT);
-    BOOST_REQUIRE(it != userOutput.stateDiff.accounts.end());
-    BOOST_CHECK_GT(it->second.balance, u256(0));
+
+    state::State feeState(stateView);
+    auto const feeParams = loadOpStackFeeParams(feeState);
+    RollupCostData const rollup{.ones = 8, .fastLzSize = 64};
+    auto const expectedL1 = l1CostFjord(rollup, feeParams);
+    auto const expectedOperator = operatorCostIsthmus(
+        static_cast<uint64_t>(std::max<int64_t>(0, userOutput.gasUsed)), feeParams);
+
+    BOOST_REQUIRE(userOutput.receiptMeta.l1Fee.has_value());
+    BOOST_CHECK_EQUAL(*userOutput.receiptMeta.l1Fee, expectedL1);
+    BOOST_REQUIRE(userOutput.receiptMeta.operatorFee.has_value());
+    BOOST_CHECK_EQUAL(*userOutput.receiptMeta.operatorFee, expectedOperator);
+    BOOST_REQUIRE(userOutput.receiptMeta.operatorFeeScalar.has_value());
+    BOOST_CHECK_EQUAL(*userOutput.receiptMeta.operatorFeeScalar, feeParams.operatorFeeScalar);
+    BOOST_REQUIRE(userOutput.receiptMeta.operatorFeeConstant.has_value());
+    BOOST_CHECK_EQUAL(
+        *userOutput.receiptMeta.operatorFeeConstant, feeParams.operatorFeeConstant);
+
+    auto const l1It = userOutput.stateDiff.accounts.find(OP_L1_FEE_RECIPIENT);
+    BOOST_REQUIRE(l1It != userOutput.stateDiff.accounts.end());
+    BOOST_CHECK_EQUAL(l1It->second.balance, expectedL1);
+    auto const opIt = userOutput.stateDiff.accounts.find(OP_OPERATOR_FEE_RECIPIENT);
+    BOOST_REQUIRE(opIt != userOutput.stateDiff.accounts.end());
+    BOOST_CHECK_EQUAL(opIt->second.balance, expectedOperator);
 }
 }  // namespace bcos::evm::test

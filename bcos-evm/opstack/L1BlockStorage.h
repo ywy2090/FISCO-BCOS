@@ -1,8 +1,10 @@
 #pragma once
 
+#include "bcos-evm/eth/state/State.hpp"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <optional>
+#include <string_view>
 
 namespace bcos::evm
 {
@@ -23,11 +25,23 @@ struct IsthmusL1Attributes
 
 std::optional<IsthmusL1Attributes> parseIsthmusL1Attributes(bytesConstRef calldata);
 
-evmc_bytes32 packL1FeeScalars(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar);
+evmc_bytes32 packL1NumberTimestamp(uint64_t timestamp, uint64_t number);
+evmc_bytes32 packL1FeeScalarsSlot(
+    uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar, uint64_t sequenceNumber);
 evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operatorFeeConstant);
 
+u256 unpackNumber(evmc_bytes32 const& packed);
+u256 unpackTimestamp(evmc_bytes32 const& packed);
+u256 unpackSequenceNumber(evmc_bytes32 const& packed);
 u256 unpackBaseFeeScalar(evmc_bytes32 const& packed);
 u256 unpackBlobBaseFeeScalar(evmc_bytes32 const& packed);
 u256 unpackOperatorFeeScalar(evmc_bytes32 const& packed);
 u256 unpackOperatorFeeConstant(evmc_bytes32 const& packed);
+u256 unpackDaFootprintGasScalar(evmc_bytes32 const& packed);
+
+bytes encodeAbiString(std::string_view value);
+bytes encodeAbiAddress(evmc_address const& address);
+bytes encodeGasPayingToken();
+
+bool readFeatureEnabled(state::State& state, evmc_bytes32 const& key);
 }  // namespace bcos::evm

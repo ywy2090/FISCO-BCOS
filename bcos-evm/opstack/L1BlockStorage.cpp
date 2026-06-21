@@ -1,7 +1,10 @@
 #include "bcos-evm/opstack/L1BlockStorage.h"
 
+#include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include <algorithm>
+#include <cstring>
+#include <evmone_precompiles/keccak.hpp>
 
 namespace bcos::evm
 {
@@ -31,6 +34,14 @@ evmc_bytes32 readBytes32(bytesConstRef calldata, size_t offset)
     std::copy(calldata.data() + offset, calldata.data() + offset + 32, out.bytes);
     return out;
 }
+
+void writeU64BigEndian(uint8_t* dest, uint64_t value)
+{
+    for (size_t i = 0; i < 8; ++i)
+    {
+        dest[i] = static_cast<uint8_t>((value >> (56 - i * 8)) & 0xff);
+    }
+}
 }  // namespace
 
 std::optional<IsthmusL1Attributes> parseIsthmusL1Attributes(bytesConstRef calldata)
@@ -55,7 +66,16 @@ std::optional<IsthmusL1Attributes> parseIsthmusL1Attributes(bytesConstRef callda
     return parsed;
 }
 
-evmc_bytes32 packL1FeeScalars(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar)
+evmc_bytes32 packL1NumberTimestamp(uint64_t timestamp, uint64_t number)
+{
+    evmc_bytes32 out{};
+    writeU64BigEndian(out.bytes + 16, timestamp);
+    writeU64BigEndian(out.bytes + 24, number);
+    return out;
+}
+
+evmc_bytes32 packL1FeeScalarsSlot(
+    uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar, uint64_t sequenceNumber)
 {
     evmc_bytes32 out{};
     constexpr size_t kOffset = 16;
@@ -67,6 +87,7 @@ evmc_bytes32 packL1FeeScalars(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar
     out.bytes[kOffset + 5] = static_cast<uint8_t>((blobBaseFeeScalar >> 16) & 0xff);
     out.bytes[kOffset + 6] = static_cast<uint8_t>((blobBaseFeeScalar >> 8) & 0xff);
     out.bytes[kOffset + 7] = static_cast<uint8_t>(blobBaseFeeScalar & 0xff);
+    writeU64BigEndian(out.bytes + 24, sequenceNumber);
     return out;
 }
 
@@ -86,6 +107,31 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     out.bytes[30] = static_cast<uint8_t>((operatorFeeConstant >> 8) & 0xff);
     out.bytes[31] = static_cast<uint8_t>(operatorFeeConstant & 0xff);
     return out;
+}
+
+u256 unpackNumber(evmc_bytes32 const& packed)
+{
+    u256 value = 0;
+    for (size_t i = 24; i < 32; ++i)
+    {
+        value = (value << 8) | (u256)packed.bytes[i];
+    }
+    return value;
+}
+
+u256 unpackTimestamp(evmc_bytes32 const& packed)
+{
+    u256 value = 0;
+    for (size_t i = 16; i < 24; ++i)
+    {
+        value = (value << 8) | (u256)packed.bytes[i];
+    }
+    return value;
+}
+
+u256 unpackSequenceNumber(evmc_bytes32 const& packed)
+{
+    return unpackNumber(packed);
 }
 
 u256 unpackBaseFeeScalar(evmc_bytes32 const& packed)
@@ -114,5 +160,59 @@ u256 unpackOperatorFeeConstant(evmc_bytes32 const& packed)
         value = (value << 8) | (u256)packed.bytes[i];
     }
     return value;
+}
+
+u256 unpackDaFootprintGasScalar(evmc_bytes32 const& packed)
+{
+    return ((u256)packed.bytes[18] << 8) | (u256)packed.bytes[19];
+}
+
+bytes encodeAbiString(std::string_view value)
+{
+    bytes out(64, 0);
+    out[31] = 32;
+    auto const length = value.size();
+    out[63] = static_cast<uint8_t>(length & 0xff);
+    if (length >= 256)
+    {
+        out[62] = static_cast<uint8_t>((length >> 8) & 0xff);
+        out[61] = static_cast<uint8_t>((length >> 16) & 0xff);
+        out[60] = static_cast<uint8_t>((length >> 24) & 0xff);
+    }
+    bytes data(length);
+    std::copy(value.begin(), value.end(), data.begin());
+    auto const padding = (32 - (length % 32)) % 32;
+    data.resize(length + padding, 0);
+    out.insert(out.end(), data.begin(), data.end());
+    return out;
+}
+
+bytes encodeAbiAddress(evmc_address const& address)
+{
+    bytes out(32, 0);
+    std::copy(address.bytes, address.bytes + sizeof(address.bytes), out.begin() + 12);
+    return out;
+}
+
+bytes encodeGasPayingToken()
+{
+    bytes out(64, 0);
+    constexpr uint8_t ether[20] = {0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee,
+        0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee};
+    std::copy(std::begin(ether), std::end(ether), out.begin() + 12);
+    out[63] = 18;
+    return out;
+}
+
+bool readFeatureEnabled(state::State& state, evmc_bytes32 const& key)
+{
+    uint8_t buf[64];
+    std::memcpy(buf, key.bytes, 32);
+    std::memset(buf + 32, 0, 31);
+    buf[63] = 9;
+    auto const hash = ethash::keccak256(buf, 64);
+    evmc_bytes32 slot{};
+    std::memcpy(slot.bytes, hash.bytes, 32);
+    return !state::isZeroBytes32(state.get_storage(OP_L1_BLOCK_PREDEPLOY, slot));
 }
 }  // namespace bcos::evm

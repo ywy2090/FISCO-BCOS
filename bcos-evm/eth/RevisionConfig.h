@@ -63,12 +63,18 @@ inline RevisionConfig makeIsthmusRevisionConfig()
 {
     RevisionConfig config;
     config.revision = EVMC_PRAGUE;
+    config.warm_access = config.revision >= EVMC_BERLIN;
     config.eip7623 = true;
     config.eip7702 = true;
     config.eip4844 = true;
     config.prague_post_execution = false;
     config.calldata_floor_per_token = 10;
     return config;
+}
+
+inline bool isIsthmusOrchestrationProfile(RevisionConfig const& config)
+{
+    return config.revision >= EVMC_PRAGUE && config.eip7623 && config.eip7702 && config.eip4844;
 }
 
 }  // namespace bcos::evm_standard

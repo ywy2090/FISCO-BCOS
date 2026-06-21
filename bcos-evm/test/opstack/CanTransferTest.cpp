@@ -47,8 +47,10 @@ OpStackExecuteViaHostInput makeInput(state::test::InMemoryStateView& stateView, 
     input.gasFeeCap = 1;
     input.revisionConfig.eip1559 = true;
     input.revisionConfig.eip7623 = true;
+    input.revisionConfig.eip7702 = true;
+    input.revisionConfig.eip4844 = true;
+    input.revisionConfig.revision = EVMC_PRAGUE;
     input.txProps.warmDestination = true;
-    input.opTxExecutor.m_isIsthmus = true;
     input.rollupCostData = RollupCostData{};
     return input;
 }

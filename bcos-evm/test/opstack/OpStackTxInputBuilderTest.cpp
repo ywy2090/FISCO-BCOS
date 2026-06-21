@@ -1,12 +1,15 @@
 #define BOOST_TEST_MODULE OpStackTxInputBuilderTest
 
 #include "../../../transaction-executor/bcos-transaction-executor/OpStackTxInputBuilder.h"
+#include "bcos-evm/opstack/RollupCost.h"
 #include <bcos-codec/rlp/Common.h>
 #include <bcos-codec/rlp/RLPEncode.h>
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
 #include <bcos-crypto/signature/secp256k1/Secp256k1KeyPair.h>
+#include <bcos-rpc/web3jsonrpc/model/Web3Transaction.h>
 #include <bcos-tars-protocol/protocol/TransactionImpl.h>
+#include <boost/algorithm/hex.hpp>
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
 
@@ -144,6 +147,59 @@ BOOST_AUTO_TEST_CASE(decodes_eip7702_authorization_from_extra_bytes)
     BOOST_CHECK_EQUAL(input.authorizations[0].nonce, 7);
     BOOST_CHECK_EQUAL(input.authorizations[0].address.bytes[19], 0x66);
     BOOST_CHECK(!state::isZeroAddress(input.authorizations[0].authority));
+}
+
+std::shared_ptr<bcostars::protocol::TransactionImpl> makeSignedWeb3Tx(bcos::rpc::Web3Transaction w3)
+{
+    auto tarsHolder = std::make_shared<bcostars::Transaction>(w3.takeToTarsTransaction());
+    auto const signBytes = w3.encodeForSign();
+    tarsHolder->extraTransactionBytes.assign(signBytes.begin(), signBytes.end());
+    auto const txHash = w3.hashForSign();
+    tarsHolder->extraTransactionHash.assign(txHash.begin(), txHash.end());
+    return std::make_shared<bcostars::protocol::TransactionImpl>(
+        [tarsHolder]() { return tarsHolder.get(); });
+}
+
+BOOST_AUTO_TEST_CASE(buildRollupCostData_uses_signed_web3_rlp_not_encodeForSign)
+{
+    bcos::rpc::Web3Transaction w3;
+    w3.type = bcos::rpc::TransactionType::EIP1559;
+    w3.chainId = 10;
+    w3.nonce = 42;
+    w3.maxPriorityFeePerGas = 1'000'000'000;
+    w3.maxFeePerGas = 2'000'000'000;
+    w3.gasLimit = 21000;
+    w3.to = bcos::Address("0x095ea7b32908fc5a31e5a3f3a21f4d1771440d0");
+    w3.value = 0;
+    w3.data = {0xde, 0xad, 0xbe, 0xef};
+    w3.signatureR = bcos::bytes(32, 0x11);
+    w3.signatureS = bcos::bytes(32, 0x22);
+    w3.signatureV = 1;
+
+    auto const unsignedBytes = w3.encodeForSign();
+    bcos::bytes signedBytes;
+    bcos::codec::rlp::encode(signedBytes, w3);
+    auto tx = makeSignedWeb3Tx(std::move(w3));
+
+    auto const fromUnsigned = newRollupCostData(bcos::ref(unsignedBytes));
+    auto const fromSignedGolden = newRollupCostData(bcos::ref(signedBytes));
+    auto const fromBuilder = opstack_tx::buildRollupCostData(*tx);
+
+    BOOST_REQUIRE(fromBuilder.has_value());
+    BOOST_CHECK_NE(fromUnsigned.fastLzSize, fromSignedGolden.fastLzSize);
+    BOOST_CHECK_EQUAL(fromBuilder->fastLzSize, fromSignedGolden.fastLzSize);
+    BOOST_CHECK_EQUAL(fromBuilder->ones, fromSignedGolden.ones);
+    BOOST_CHECK_EQUAL(fromBuilder->zeroes, fromSignedGolden.zeroes);
+}
+
+BOOST_AUTO_TEST_CASE(buildRollupCostData_deposit_uses_extra_bytes_unchanged)
+{
+    auto depositExtra = buildDepositExtra();
+    auto tx = makeWeb3Tx(depositExtra, bcos::executor::DEPOSIT_TX_TYPE);
+    auto const direct = newRollupCostData(bcos::ref(depositExtra));
+    auto const fromBuilder = opstack_tx::buildRollupCostData(tx);
+    BOOST_REQUIRE(fromBuilder.has_value());
+    BOOST_CHECK_EQUAL(fromBuilder->fastLzSize, direct.fastLzSize);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

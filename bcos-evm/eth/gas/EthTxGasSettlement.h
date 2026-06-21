@@ -7,6 +7,7 @@
 #pragma once
 
 #include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include <evmc/evmc.h>
 #include <algorithm>
@@ -67,6 +68,11 @@ inline int64_t calcAccessListCost(Eip2930AccessList const* accessList) noexcept
         cost += static_cast<int64_t>(entry.second.size()) * ACCESS_LIST_STORAGE_KEY_COST;
     }
     return cost;
+}
+
+inline int64_t calcAuthTupleIntrinsicGas(uint64_t authTupleCount) noexcept
+{
+    return static_cast<int64_t>(authTupleCount) * static_cast<int64_t>(PER_EMPTY_ACCOUNT_COST);
 }
 
 inline int64_t calcCreateIntrinsic(evmc_message const& message) noexcept

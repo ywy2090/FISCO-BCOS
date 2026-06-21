@@ -3,11 +3,13 @@
 #include "bcos-evm/opstack/L1BlockPredeploy.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/opstack/L1BlockSelectors.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "state/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
 #include <fstream>
+#include <string>
 
 namespace bcos::evm::test
 {
@@ -41,20 +43,36 @@ bytes selectorInput(uint32_t selector)
         static_cast<uint8_t>(selector & 0xff)};
 }
 
-u256 callGetter(state::State& state, uint32_t selector)
+bytes hexToBytes(std::string_view hex)
+{
+    bytes out;
+    for (size_t i = 0; i < hex.size(); i += 2)
+    {
+        auto const byte = std::stoi(std::string(hex.substr(i, 2)), nullptr, 16);
+        out.push_back(static_cast<uint8_t>(byte));
+    }
+    return out;
+}
+
+bytes callGetterOutput(state::State& state, uint32_t selector)
 {
     auto payload = selectorInput(selector);
     auto result = L1BlockPredeploy::dispatch(state, makeCall(payload, OP_DEPOSITOR_ACCOUNT));
     BOOST_REQUIRE(result.has_value());
     BOOST_REQUIRE_EQUAL(result->status_code, EVMC_SUCCESS);
-    BOOST_REQUIRE_EQUAL(result->output_size, 32);
-    evmc_bytes32 output{};
-    std::copy(result->output_data, result->output_data + result->output_size, output.bytes);
+    bytes out(result->output_data, result->output_data + result->output_size);
     if (result->release != nullptr)
     {
         result->release(&result.value());
     }
-    return state::fromEvmC(output);
+    return out;
+}
+
+void checkGetterHex(state::State& state, uint32_t selector, std::string_view expectedHex)
+{
+    auto const out = callGetterOutput(state, selector);
+    auto const expected = hexToBytes(expectedHex);
+    BOOST_CHECK_EQUAL_COLLECTIONS(out.begin(), out.end(), expected.begin(), expected.end());
 }
 }  // namespace
 
@@ -68,11 +86,22 @@ BOOST_AUTO_TEST_CASE(setter_unpacks_isthmus_fixture_into_slots)
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK_EQUAL(result->status_code, EVMC_SUCCESS);
 
+    auto const numberTs =
+        state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_NUMBER_TIMESTAMP_SLOT));
+    for (size_t i = 0; i < 8; ++i)
+    {
+        BOOST_CHECK_EQUAL(numberTs.bytes[16 + i], static_cast<uint8_t>(0x11 + i));
+        BOOST_CHECK_EQUAL(numberTs.bytes[24 + i], static_cast<uint8_t>(0x21 + i));
+    }
+
     auto const baseFee = state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BASE_FEE_SLOT));
+    auto const hash = state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_HASH_SLOT));
     auto const blobBaseFee =
         state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BLOB_BASE_FEE_SLOT));
     auto const feeScalars =
         state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_FEE_SCALARS_SLOT));
+    auto const batcherHash =
+        state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BATCHER_HASH_SLOT));
     auto const operatorFee =
         state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT));
 
@@ -87,7 +116,27 @@ BOOST_AUTO_TEST_CASE(setter_unpacks_isthmus_fixture_into_slots)
     BOOST_CHECK_EQUAL(feeScalars.bytes[21], 0x66);
     BOOST_CHECK_EQUAL(feeScalars.bytes[22], 0x77);
     BOOST_CHECK_EQUAL(feeScalars.bytes[23], 0x88);
+    for (size_t i = 0; i < 8; ++i)
+    {
+        BOOST_CHECK_EQUAL(feeScalars.bytes[24 + i], static_cast<uint8_t>(0x01 + i));
+    }
 
+    auto const expectedHash =
+        hexToBytes("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20");
+    for (size_t i = 0; i < 32; ++i)
+    {
+        BOOST_CHECK_EQUAL(hash.bytes[i], expectedHash[i]);
+    }
+
+    auto const expectedBatcher =
+        hexToBytes("2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40");
+    for (size_t i = 0; i < 32; ++i)
+    {
+        BOOST_CHECK_EQUAL(batcherHash.bytes[i], expectedBatcher[i]);
+    }
+
+    BOOST_CHECK_EQUAL(operatorFee.bytes[18], 0x00);
+    BOOST_CHECK_EQUAL(operatorFee.bytes[19], 0x00);
     BOOST_CHECK_EQUAL(operatorFee.bytes[20], 0xa1);
     BOOST_CHECK_EQUAL(operatorFee.bytes[21], 0xb2);
     BOOST_CHECK_EQUAL(operatorFee.bytes[22], 0xc3);
@@ -127,12 +176,87 @@ BOOST_AUTO_TEST_CASE(getters_return_slot_values_after_setter)
     BOOST_REQUIRE(writeResult.has_value());
     BOOST_REQUIRE_EQUAL(writeResult->status_code, EVMC_SUCCESS);
 
-    BOOST_CHECK_EQUAL(callGetter(state, 0x519b4bd3), u256(0x0123456789abcdefULL));
-    BOOST_CHECK_EQUAL(callGetter(state, 0xc5985918), u256(0x11223344));
-    BOOST_CHECK_EQUAL(callGetter(state, 0x68d5dca6), u256(0x55667788));
-    BOOST_CHECK_EQUAL(callGetter(state, 0x84189161), u256(0x0fedcba987654321ULL));
-    BOOST_CHECK_EQUAL(callGetter(state, 0x4d5d9a2a), u256(0xa1b2c3d4));
-    BOOST_CHECK_EQUAL(callGetter(state, 0x16d3bc7f), u256(0x0102030405060708ULL));
+    checkGetterHex(state, l1block::kNumber,
+        "0000000000000000000000000000000000000000000000002122232425262728");
+    checkGetterHex(state, l1block::kTimestamp,
+        "0000000000000000000000000000000000000000000000001112131415161718");
+    checkGetterHex(state, l1block::kSequenceNumber,
+        "0000000000000000000000000000000000000000000000000102030405060708");
+    checkGetterHex(state, l1block::kBasefee,
+        "0000000000000000000000000000000000000000000000000123456789abcdef");
+    checkGetterHex(state, l1block::kL1BaseFee,
+        "0000000000000000000000000000000000000000000000000123456789abcdef");
+    checkGetterHex(state, l1block::kBlobBaseFee,
+        "0000000000000000000000000000000000000000000000000fedcba987654321");
+    checkGetterHex(state, l1block::kL1BlobBaseFee,
+        "0000000000000000000000000000000000000000000000000fedcba987654321");
+    checkGetterHex(state, l1block::kBaseFeeScalar,
+        "0000000000000000000000000000000000000000000000000000000011223344");
+    checkGetterHex(state, l1block::kBlobBaseFeeScalar,
+        "0000000000000000000000000000000000000000000000000000000055667788");
+    checkGetterHex(
+        state, l1block::kHash, "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20");
+    checkGetterHex(state, l1block::kBatcherHash,
+        "2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40");
+    checkGetterHex(state, l1block::kL1FeeOverhead,
+        "0000000000000000000000000000000000000000000000000000000000000000");
+    checkGetterHex(state, l1block::kL1FeeScalar,
+        "0000000000000000000000000000000000000000000000000000000000000000");
+    checkGetterHex(state, l1block::kOperatorFeeScalar,
+        "00000000000000000000000000000000000000000000000000000000a1b2c3d4");
+    checkGetterHex(state, l1block::kOperatorFeeConstant,
+        "0000000000000000000000000000000000000000000000000102030405060708");
+    checkGetterHex(state, l1block::kDaFootprintGasScalar,
+        "0000000000000000000000000000000000000000000000000000000000000000");
+}
+
+BOOST_AUTO_TEST_CASE(pure_getters_match_l1block_constants)
+{
+    state::test::InMemoryStateView baseState;
+    state::State state(baseState);
+
+    checkGetterHex(state, l1block::kDepositorAccount,
+        "000000000000000000000000deaddeaddeaddeaddeaddeaddeaddeaddead0001");
+    checkGetterHex(state, l1block::kIsCustomGasToken,
+        "0000000000000000000000000000000000000000000000000000000000000000");
+    checkGetterHex(state, l1block::kGasPayingToken,
+        "000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000000000000000000000"
+        "00000000000000000000000000000000000012");
+    checkGetterHex(state, l1block::kGasPayingTokenName,
+        "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000"
+        "000000000000000000000000000000000000054574686572000000000000000000000000000000000000000000"
+        "000000000000");
+    checkGetterHex(state, l1block::kGasPayingTokenSymbol,
+        "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000"
+        "000000000000000000000000000000000000034554480000000000000000000000000000000000000000000000"
+        "000000000000");
+    checkGetterHex(state, l1block::kVersion,
+        "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000"
+        "00000000000000000000000000000000000005312e392e30000000000000000000000000000000000000000000"
+        "000000000000");
+}
+
+BOOST_AUTO_TEST_CASE(isFeatureEnabled_returns_false_by_default)
+{
+    state::test::InMemoryStateView baseState;
+    state::State state(baseState);
+
+    bytes input = selectorInput(l1block::kIsFeatureEnabled);
+    evmc_bytes32 key{};
+    key.bytes[31] = 0x42;
+    input.insert(input.end(), key.bytes, key.bytes + 32);
+
+    auto result = L1BlockPredeploy::dispatch(state, makeCall(input, OP_DEPOSITOR_ACCOUNT));
+    BOOST_REQUIRE(result.has_value());
+    BOOST_REQUIRE_EQUAL(result->status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(result->output_size, size_t(32));
+    evmc_bytes32 raw{};
+    std::copy(result->output_data, result->output_data + 32, raw.bytes);
+    if (result->release != nullptr)
+    {
+        result->release(&result.value());
+    }
+    BOOST_CHECK(state::isZeroBytes32(raw));
 }
 
 }  // namespace bcos::evm::test

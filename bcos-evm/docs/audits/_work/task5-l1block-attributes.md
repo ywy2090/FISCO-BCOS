@@ -45,13 +45,13 @@ Scalar section offset：`kScalarSectionStart = 32 - 12 - 4 = 16`（`OpStackFee.c
 | 0–3 | selector `setL1BlockValuesIsthmus()` | — | 由 `L1BlockPredeploy` 读取，不参与 parse |
 | 4–7 | baseFeeScalar | uint32 | `readU32(4)` ✅ |
 | 8–11 | blobBaseFeeScalar | uint32 | `readU32(8)` ✅ |
-| 12–19 | sequenceNumber | uint64 | `readU64(12)` ✅ 解析但未写入 state |
-| 20–27 | l1BlockTimestamp | uint64 | `readU64(20)` ✅ 解析但未写入 |
-| 28–35 | l1BlockNumber | uint64 | `readU64(28)` ✅ 解析但未写入 |
+| 12–19 | sequenceNumber | uint64 | `readU64(12)` → slot 4 (packed with scalars) ✅ |
+| 20–27 | l1BlockTimestamp | uint64 | `readU64(20)` → slot 0 (packed with number) ✅ |
+| 28–35 | l1BlockNumber | uint64 | `readU64(28)` → slot 0 (packed with timestamp) ✅ |
 | 36–67 | basefee | uint256 | `readBytes32(36)` → slot 1 ✅ |
 | 68–99 | blobBaseFee | uint256 | `readBytes32(68)` → slot 7 ✅ |
-| 100–131 | l1BlockHash | bytes32 | `readBytes32(100)` ✅ 解析但未写入 |
-| 132–163 | batcherHash | bytes32 | `readBytes32(132)` ✅ 解析但未写入 |
+| 100–131 | l1BlockHash | bytes32 | `readBytes32(100)` → slot 2 ✅ |
+| 132–163 | batcherHash | bytes32 | `readBytes32(132)` → slot 5 ✅ |
 | 164–167 | operatorFeeScalar | uint32 | `readU32(164)` → slot 8 ✅ |
 | 168–175 | operatorFeeConstant | uint64 | `readU64(168)` → slot 8 ✅ |
 
@@ -191,7 +191,7 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 
 | 能力 | 层级 | 清单来源 | Matrix 状态 | 深度 | 状态 | Spec 依据 | FB 实现 | op-geth 对照 | FB 测试 | 缺口 |
 |------|------|----------|-------------|------|------|-----------|---------|--------------|---------|------|
-| chain precompile routing (L1Block) | host extension | matrix:15 | deviation | 深审 | 🟡 **DONE_WITH_CONCERNS** | `l1-block.md` 全量接口；`predeploys.md` | `OpHostExtension.h:20–32` → `L1BlockPredeploy.cpp` | 地址/slot/fee 面一致；**非完整 Solidity 仿真**；getter ABI 偏离 | `L1BlockPredeployTest`, `L1BlockGetterTest` | `basefee()`/`blobBaseFee()` 等链上 getter；metadata slot |
+| chain precompile routing (L1Block) | host extension | matrix:15 | deviation | 深审 | 🟢 **DONE** (OP-14) | `l1-block.md` 全量 `IL1Block` getter + Isthmus setter | `OpHostExtension` → `L1BlockPredeploy.cpp` | 地址/slot 一致；metadata + fee oracle；legacy `l1BaseFee`/`l1BlobBaseFee` alias | `L1BlockPredeployTest`, `L1BlockGetterTest` | GPO `0x4200…000F`；`setFeature`/`proxyAdmin*`；Bedrock/Jovian setter |
 | L1 attributes system deposit | orchestration | **增补 S2** | 待 matrix 合入 | 深审 | 🟡 **DONE_WITH_CONCERNS** | `isthmus/l1-attributes.md` | `parseIsthmusL1Attributes` + deposit → `applySetterIsthmus` | `extractL1GasParamsPostIsthmus` fee 字段一致 | `L1AttributesDepositTest`, `L1AttributesDepositFailureTest`, `isthmus_l1_attributes.bin` | deposit nonce/gas（Task 4）；operator fee 数值未断言 |
 
 **Matrix patch 建议（S2）：**
@@ -206,26 +206,19 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 
 ## Part 2 — 偏离项详情
 
-### D5-1 🟡 L1Block 非完整合约仿真（metadata storage 未写入）
+### D5-1 ✅ CLOSED (OP-14) — L1Block metadata storage 写入
 
-- **现象：** `applySetterIsthmus` 仅写 slot 1/3/7/8；不更新 `number`、`timestamp`、`hash`、`sequenceNumber`、`batcherHash`（`L1Block.sol` Ecotone 段）。
-- **规范：** `l1-block.md` `setL1BlockValuesEcotone/Isthmus` MUST 更新全套 L1 上下文。
-- **金标准：** `L1Block.sol:155–193`；op-geth 链上 storage 布局。
-- **TE 影响：** L1/operator **fee 计算不依赖** metadata（op-geth `extractL1GasParamsPostIsthmus` 亦只读 fee 字段）→ orchestration **可接受**。
-- **兼容性影响：** 依赖 `L1Block.number()` / `hash()` 等的 L2 合约在 FB TE 路径读到 stale/zero → 🟡。
-- **修复建议（若需链上 ABI  parity）：** 扩展 `applySetterIsthmus` 写入 Ecotone metadata slot；或文档化 TE 仅保证 fee oracle storage。
+- **修复：** `applySetterIsthmus` 现写入 slot 0（number+timestamp）、2（hash）、4/5/6（fee scalars + batcherHash + legacy overhead/scalar）、9（`isFeatureEnabled` mapping base）及 fee slots 1/3/7/8。
+- **TE 影响：** L2 合约 `number()`/`hash()` 等 getter 在 TE 路径可读；fee orchestration 仍只依赖 slot 1/3/7/8（未改 `OpStackFee.cpp`）。
 
-### D5-2 🟡 Getter selector 与链上 `IL1Block` 不一致
+### D5-2 ✅ CLOSED (OP-14) — Getter selector 与链上 `IL1Block` 对齐
 
-- **现象：** FB 在 `0x4200…0015` 实现 `l1BaseFee()`（`0x519b4bd3`）、`l1BlobBaseFee()`（`0x84189161`）；链上 L1Block 公开 `basefee()`（`0x5cf24969`）、`blobBaseFee()`（`0xf8206140`）。
-- **金标准：** `IL1Block.sol`；cast sig 对照。
-- **TE 影响：** fee orchestration 无影响（direct storage read）。
-- **修复建议：** 增补 `basefee()` / `blobBaseFee()` dispatch（可保留 legacy alias）；或 alias 到同一 slot 读。
+- **修复：** `basefee()`（`0x5cf24969`）与 `blobBaseFee()`（`0xf8206140`）dispatch 到 slot 1/7；保留 `l1BaseFee()`/`l1BlobBaseFee()` legacy alias。
 
-### D5-3 🟡 大量 L1Block 只读 API 未实现
+### D5-3 ✅ CLOSED (OP-14) — L1Block 只读 API
 
-- **缺失：** `number()`, `timestamp()`, `hash()`, `sequenceNumber()`, `batcherHash()`, `DEPOSITOR_ACCOUNT()`, `gasPayingToken*()`, `isCustomGasToken()`, `version()`, Ecotone 前 legacy getter 等。
-- **严重度：** 🟡（TE baseline 当前无 consumer；derivation/batcher 验证不在 bcos-evm 范围）。
+- **实现：** `number`, `timestamp`, `hash`, `sequenceNumber`, `batcherHash`, scalar getters, `DEPOSITOR_ACCOUNT`, `gasPayingToken*`, `isCustomGasToken`, `version`, `isFeatureEnabled`。
+- **仍 out of scope：** GPO predeploy、`setFeature`, `proxyAdmin*`, Ecotone 前 legacy setter、`setIsthmus()` 升级迁移。
 
 ### D5-4 🟡 L1 attributes deposit E2E 断言不完整
 
@@ -243,10 +236,10 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 
 | 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
 |----------|------|----------|------------|------|
-| `L1BlockPredeployTest.cpp` | `setter_unpacks_isthmus_fixture_into_slots` | ✅ 有效 | `isthmus/l1-attributes.md` slot 1/3/7/8 + fixture | 字节级对齐 |
+| `L1BlockPredeployTest.cpp` | `setter_unpacks_isthmus_fixture_into_slots` | ✅ 有效 | fixture + §4.3.2 metadata slots | slot 0/1/2/3/4/5/6/7/8 字节级 |
 | `L1BlockPredeployTest.cpp` | `setter_rejects_non_depositor_sender` | ✅ 有效 | `NotDepositor()` / i01-001 | REVERT + slot 0 |
-| `L1BlockPredeployTest.cpp` | `getters_return_slot_values_after_setter` | 🟡 部分 | FB 自定义 getter ABI | 未测链上 `basefee()` selector |
-| `L1BlockGetterTest.cpp` | `op_host_extension_dispatches_l1block_getter` | ✅ 有效 | HostExtension 路由 | E2E `l1BaseFee()` @ predeploy |
+| `L1BlockPredeployTest.cpp` | `getters_return_slot_values_after_setter` | ✅ 有效 | §5.3.1 ABI hex 金标准 | 全量 getter hex |
+| `L1BlockGetterTest.cpp` | E2E getter dispatch | ✅ 有效 | `opStackExecuteViaHost` 路由 | `l1BaseFee`, `basefee`, `number` |
 | `L1AttributesDepositTest.cpp` | `l1_attributes_deposit_updates_l1block_and_affects_following_user_tx` | 🟡 部分 | fee 联动 smoke | balance>0 非数值 parity；无 operator fee 断言 |
 | `L1AttributesDepositFailureTest.cpp` | `failed_l1_attributes_deposit_does_not_commit_slot_changes` | ✅ 有效 | REVERT 不 commit slot | 未断言 nonce/gasUsed |
 
@@ -266,11 +259,12 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 | Depositor 鉴权 + NotDepositor | 一致 | ✅ |
 | L1 attributes → Fjord L1 fee 联动 | smoke 有效 | ✅ |
 | 失败 deposit 不 commit slot | 一致 | ✅ |
-| **Metadata slot 写入** | FB 省略 | 🟡 |
-| **L1Block getter ABI** | FB 用 GPO 命名，缺 `basefee()` 等 | 🟡 |
+| **Metadata slot 写入** | OP-14 闭合 | ✅ |
+| **L1Block getter ABI** | OP-14 闭合 | ✅ |
 | **deposit nonce / gasUsed** | Task 4 🔴 继承 | 🔴 |
 | **`setIsthmus()` 升级迁移** | 未实现 | ⚪ TE 范围外 |
+| **GPO / setFeature / proxyAdmin** | OP-14 out of scope | ⚪ |
 
-**Task 5 状态：** **DONE_WITH_CONCERNS**（fee orchestration 核心对齐 ✅；deviation 面 🟡×4；deposit 交叉 🔴×1）
+**Task 5 状态：** **DONE**（L1Block IL1Block call-surface OP-14 闭合 ✅；deposit 交叉 🔴×1 仍开放）
 
-**P1 动作：** D5-2 增补 `basefee()`/`blobBaseFee()` getter；D5-4 加强 E2E fee 数值断言；D5-5 随 Task 4 P0 修复 deposit nonce/gas。
+**P1 动作：** D5-4 加强 E2E fee 数值断言；D5-5 随 Task 4 P0 修复 deposit nonce/gas。
