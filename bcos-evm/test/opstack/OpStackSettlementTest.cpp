@@ -30,7 +30,6 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
 
     state::State state(stateView);
     OpStackTxExecutor executor;
-    executor.m_isIsthmus = true;
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(100); };
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 10); };
 
@@ -72,7 +71,6 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
 
     state::State state(stateView);
     OpStackTxExecutor executor;
-    executor.m_isIsthmus = true;
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(60); };
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 50); };
 

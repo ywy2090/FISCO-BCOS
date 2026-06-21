@@ -27,7 +27,6 @@ BOOST_AUTO_TEST_CASE(RefundIsthmus_refundsLimitMinusUsedCost)
 
     state::State state(stateView);
     OpStackTxExecutor executor;
-    executor.m_isIsthmus = true;
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 1000); };
 
     OpStackTxExecutor::OpStackTxExecutionData txData;

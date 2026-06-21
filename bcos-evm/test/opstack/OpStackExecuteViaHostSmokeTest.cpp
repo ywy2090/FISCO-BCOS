@@ -5,6 +5,8 @@
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
+#include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -221,5 +223,100 @@ BOOST_AUTO_TEST_CASE(hard_failure_still_refunds_unused_gas_and_routes_fees)
     BOOST_CHECK(output.evmcResult.status_code != EVMC_SUCCESS);
     BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, sender), u256(0));
     BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, l1FeeRecipient), u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(pre_fjord_schedule_throws_on_user_tx)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x41);
+    auto const target = addressFromLastByte(0x42);
+    setOpFeeParams(stateView);
+
+    state::Account senderAccount;
+    senderAccount.balance = 300'000;
+    stateView.insert_account(sender, senderAccount);
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    auto input = makeBaseInput(stateView, vm, hash, sender, target);
+    input.forkSchedule = OpStackForkSchedule{.fjordTime = 100, .isthmusTime = 0};
+    input.blockInfo.timestamp = 50;
+
+    BOOST_CHECK_THROW(
+        task::syncWait(opStackExecuteViaHost(std::move(input))), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(deposit_pre_fjord_schedule_no_throw)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x51);
+    auto const target = addressFromLastByte(0x52);
+
+    state::Account senderAccount;
+    senderAccount.balance = 0;
+    stateView.insert_account(sender, senderAccount);
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    auto input = makeBaseInput(stateView, vm, hash, sender, target);
+    input.revisionConfig.revision = EVMC_CANCUN;
+    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.depositTx = OpStackDepositTx{
+        .from = sender, .to = target, .mint = u256(100), .value = 0, .gas = 50'000};
+    input.forkSchedule = OpStackForkSchedule{.fjordTime = 100, .isthmusTime = 0};
+    input.blockInfo.timestamp = 50;
+
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+}
+
+BOOST_AUTO_TEST_CASE(host_pre_isthmus_operator_recipient_zero)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x61);
+    auto const target = addressFromLastByte(0x62);
+    auto const operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
+    setOpFeeParams(stateView);
+
+    state::Account senderAccount;
+    senderAccount.balance = 300'000;
+    stateView.insert_account(sender, senderAccount);
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    auto input = makeBaseInput(stateView, vm, hash, sender, target);
+    input.forkSchedule = OpStackForkSchedule{.fjordTime = 0, .isthmusTime = 100};
+    input.blockInfo.timestamp = 50;
+
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, operatorFeeRecipient), u256(0));
+    BOOST_CHECK(
+        !output.receiptMeta.operatorFee.has_value() || *output.receiptMeta.operatorFee == u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(orthogonality_non_isthmus_revision_with_isthmus_fork_schedule)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x71);
+    auto const target = addressFromLastByte(0x72);
+    auto const operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
+    setOpFeeParams(stateView);
+
+    state::Account senderAccount;
+    senderAccount.balance = 300'000;
+    stateView.insert_account(sender, senderAccount);
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    auto input = makeBaseInput(stateView, vm, hash, sender, target);
+    input.revisionConfig.revision = EVMC_CANCUN;
+    input.forkSchedule = makeIsthmusPlusForkSchedule();
+
+    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, operatorFeeRecipient), u256(0));
 }
 }  // namespace bcos::evm::test

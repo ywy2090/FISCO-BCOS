@@ -86,7 +86,7 @@ OpStackExecuteViaHostInput makeBlobPreCheckInput(evmc_address sender)
     input.gasFeeCap = 2;
     input.revisionConfig.eip4844 = true;
     input.blockInfo.baseFee = 1;
-    input.blockInfo.blobBaseFee = 100;
+    input.blockInfo.blobBaseFee = 1;
     return input;
 }
 }  // namespace
@@ -134,7 +134,7 @@ BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
 
     auto input = makeBlobPreCheckInput(sender);
     input.blobVersionedHashes.push_back(makeVersionedHash());
-    input.blobGasFeeCap = 99;
+    input.blobGasFeeCap = 0;
 
     auto error = opStackPreCheck(input, state);
     BOOST_REQUIRE(error.has_value());
@@ -198,6 +198,25 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     BOOST_CHECK_EQUAL(state.get_balance(sender), balanceBefore);
 }
 
+BOOST_AUTO_TEST_CASE(l1_blob_base_fee_slot_does_not_set_execution_blob_base_fee)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x94);
+    stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
+    state::Account l1BlockAccount;
+    l1BlockAccount.storage[state::toEvmC(L1_BLOB_BASE_FEE_SLOT)] = state::toEvmC(u256(999));
+    stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
+    state::State state(stateView);
+
+    auto input = makeBlobPreCheckInput(sender);
+    input.blobVersionedHashes.push_back(makeVersionedHash());
+    input.blobGasFeeCap = 0;
+
+    auto error = opStackPreCheck(input, state);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
+}
+
 BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_deducts_blob_fee_on_success)
 {
     auto const initialBalance = u256(50'000'000'000);
@@ -229,7 +248,6 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_deducts_blob_fee_on_success)
         input.blockInfo.blobBaseFee = 10;
         input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
         input.txProps.warmDestination = true;
-        input.opTxExecutor.m_isIsthmus = true;
         if (withBlobVersionedHashes)
         {
             input.blobGasFeeCap = 20;
