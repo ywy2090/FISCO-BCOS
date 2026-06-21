@@ -7,6 +7,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/LogEntry.h"
@@ -171,7 +172,7 @@ public:
                 m_data->m_effectiveGasPrice = resolveEffectiveGasPrice(
                     opstack_tx::parseU256Field(m_data->m_transaction.get().maxPriorityFeePerGas()),
                     opstack_tx::parseU256Field(m_data->m_transaction.get().maxFeePerGas()),
-                    opstack_tx::resolveOpStackBaseFee(m_data->m_ledgerConfig.get()));
+                    opstack_tx::resolveOpStackBaseFee(m_data->m_blockHeader.get()));
 
                 if (m_data->m_evmcResult->status_code == EVMC_SUCCESS ||
                     m_data->m_evmcResult->status_code == EVMC_REVERT)
@@ -204,10 +205,8 @@ public:
             input.nonce = m_data->m_nonce;
             input.call = m_data->m_call;
             input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
-            auto const baseFee = opstack_tx::resolveOpStackBaseFee(m_data->m_ledgerConfig.get());
-            auto const blobBaseFee = opstack_tx::resolveOpStackBlobBaseFee(stateView);
             input.blockInfo = opstack_tx::buildOpStackBlockInfo(
-                m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get(), baseFee, blobBaseFee);
+                m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get());
             input.blockHashes = state::buildFiscoBlockHashes(
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
             opstack_tx::fillGasCaps(m_data->m_transaction.get(), input);
@@ -221,8 +220,7 @@ public:
                 if (pool)
                     pool->returnGas(remaining, used);
             };
-            input.opTxExecutor.m_isIsthmus =
-                true;  // Isthmus executor always activates operator fee
+            input.forkSchedule = bcos::evm::makeIsthmusPlusForkSchedule();
 
             co_return co_await opStackExecuteViaHost(std::move(input));
         }
