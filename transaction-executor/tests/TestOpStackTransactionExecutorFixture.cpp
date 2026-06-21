@@ -10,6 +10,7 @@
 #include "TestMemoryStorage.h"
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/RollupCost.h"
 #include "bcos-framework/executor/OpStackTxType.h"
@@ -256,12 +257,14 @@ public:
         ledgerConfig.setGasPrice({"0x1", 0});
     }
 
-    bcostars::protocol::BlockHeaderImpl makeBlockHeader()
+    bcostars::protocol::BlockHeaderImpl makeBlockHeader(bcos::u256 baseFee = 1)
     {
         bcostars::protocol::BlockHeaderImpl header;
         header.setVersion(static_cast<uint32_t>(protocol::BlockVersion::MAX_VERSION));
         header.setNumber(1);
         header.setTimestamp(12'345);
+        evmc_address coinbase{};
+        header.setExtraData(encodeOpStackHeaderExtra(coinbase, baseFee, 0));
         header.calculateHash(*cryptoSuite->hashImpl());
         return header;
     }

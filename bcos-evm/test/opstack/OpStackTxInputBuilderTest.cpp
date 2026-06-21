@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE OpStackTxInputBuilderTest
 
 #include "../../../transaction-executor/bcos-transaction-executor/OpStackTxInputBuilder.h"
+#include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/RollupCost.h"
 #include <bcos-codec/rlp/Common.h>
 #include <bcos-codec/rlp/RLPEncode.h>
@@ -8,6 +9,7 @@
 #include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
 #include <bcos-crypto/signature/secp256k1/Secp256k1KeyPair.h>
 #include <bcos-rpc/web3jsonrpc/model/Web3Transaction.h>
+#include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <bcos-tars-protocol/protocol/TransactionImpl.h>
 #include <boost/algorithm/hex.hpp>
 #include <boost/test/included/unit_test.hpp>
@@ -251,6 +253,23 @@ BOOST_AUTO_TEST_CASE(decodes_eip4844_blob_fields_from_extra_bytes)
     BOOST_CHECK_EQUAL(input.blobGasFeeCap, u256(30));
     BOOST_REQUIRE_EQUAL(input.blobVersionedHashes.size(), 1U);
     BOOST_CHECK_EQUAL(input.blobVersionedHashes[0], h256(0xabcd));
+}
+
+BOOST_AUTO_TEST_CASE(resolve_fees_from_opf1_header)
+{
+    bcostars::protocol::BlockHeaderImpl header;
+    evmc_address coinbase{};
+    header.setExtraData(encodeOpStackHeaderExtra(coinbase, u256(5), 0));
+    BOOST_CHECK_EQUAL(opstack_tx::resolveOpStackBaseFee(header), u256(5));
+    BOOST_CHECK_EQUAL(opstack_tx::resolveOpStackBlobBaseFee(header), OP_MIN_BLOB_GAS_PRICE);
+}
+
+BOOST_AUTO_TEST_CASE(resolve_fees_throw_without_opf1_header)
+{
+    bcostars::protocol::BlockHeaderImpl header;
+    header.setExtraData(bytes(20, 0x00));
+    BOOST_CHECK_THROW(opstack_tx::resolveOpStackBaseFee(header), std::invalid_argument);
+    BOOST_CHECK_THROW(opstack_tx::resolveOpStackBlobBaseFee(header), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

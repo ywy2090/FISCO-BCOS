@@ -8,6 +8,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/opstack/RollupCost.h"
@@ -102,28 +103,24 @@ inline void fillGasCaps(protocol::Transaction const& tx, OpStackExecuteViaHostIn
     }
 }
 
-inline state::BlockInfo buildOpStackBlockInfo(protocol::BlockHeader const& blockHeader,
-    ledger::LedgerConfig const& ledgerConfig, bcos::u256 baseFeePerGas = {},
-    bcos::u256 blobBaseFee = {})
+inline state::BlockInfo buildOpStackBlockInfo(
+    protocol::BlockHeader const& blockHeader, ledger::LedgerConfig const& ledgerConfig)
 {
     auto blockInfo = state::buildFiscoBlockInfo(blockHeader, ledgerConfig);
-    blockInfo.baseFee = baseFeePerGas;
-    blockInfo.blobBaseFee = blobBaseFee;
+    auto const fees = requireOpStackHeaderFees(blockHeader);
+    blockInfo.baseFee = fees.baseFee;
+    blockInfo.blobBaseFee = calcOpStackBlobBaseFee(fees.excessBlobGas);
     return blockInfo;
 }
 
-inline bcos::u256 resolveOpStackBaseFee(ledger::LedgerConfig const& ledgerConfig)
+inline bcos::u256 resolveOpStackBaseFee(protocol::BlockHeader const& blockHeader)
 {
-    // TODO(opstack-t11): switch to block-header baseFee when engine exposes it.
-    auto const& [gasPrice, _] = ledgerConfig.gasPrice();
-    return parseU256Field(gasPrice);
+    return resolveOpStackBaseFeeFromHeader(blockHeader);
 }
 
-inline bcos::u256 resolveOpStackBlobBaseFee(state::StateView const& stateView)
+inline bcos::u256 resolveOpStackBlobBaseFee(protocol::BlockHeader const& blockHeader)
 {
-    auto const slot =
-        stateView.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BLOB_BASE_FEE_SLOT));
-    return state::fromEvmC(slot);
+    return resolveOpStackBlobBaseFeeFromHeader(blockHeader);
 }
 
 inline std::optional<RollupCostData> buildRollupCostData(protocol::Transaction const& tx)
