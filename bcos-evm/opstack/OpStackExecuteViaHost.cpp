@@ -105,11 +105,6 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         throw std::invalid_argument("opStackExecuteViaHost requires stateView/vm/hashImpl");
     }
 
-    if (bcos::evm_standard::isIsthmusOrchestrationProfile(input.revisionConfig))
-    {
-        input.opTxExecutor.m_isIsthmus = true;
-    }
-
     OpStackExecuteViaHostOutput output;
     state::State state(*input.stateView);
     OpHostExtension extension(&state);

@@ -25,7 +25,6 @@ struct OpStackTxExecutor
     evmc_address m_baseFeeRecipient = OP_BASE_FEE_RECIPIENT;
     evmc_address m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
     evmc_address m_operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
-    bool m_isIsthmus = false;  // Operator fee active from Isthmus fork
 
     struct OpStackTxExecutionData
     {
