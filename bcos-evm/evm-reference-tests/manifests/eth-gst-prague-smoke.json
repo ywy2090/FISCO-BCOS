@@ -1,0 +1,60 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.gst.prague.smoke.self_balance",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stSelfBalance/selfBalance.json",
+      "variantKey": "GeneralStateTests/stSelfBalance/selfBalance.json::selfBalance-fork_[Cancun-Prague]-d0g0v0",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.gst.prague.smoke.self_balance_update",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stSelfBalance/selfBalanceUpdate.json",
+      "variantKey": "GeneralStateTests/stSelfBalance/selfBalanceUpdate.json::selfBalanceUpdate-fork_[Cancun-Prague]-d0g0v0",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.gst.prague.smoke.yul_example",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stExample/yulExample.json",
+      "variantKey": "GeneralStateTests/stExample/yulExample.json::yulExample-fork_[Cancun-Prague]-d0g0v0",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.gst.prague.smoke.create2_precompiles",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stCreate2/create2callPrecompiles.json",
+      "variantKey": "GeneralStateTests/stCreate2/create2callPrecompiles.json::create2callPrecompiles-fork_[Cancun-Prague]-d[0-7]g0v0",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.gst.prague.smoke.add11",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stExample/add11.json",
+      "variantKey": "GeneralStateTests/stExample/add11.json::add11-fork_[Cancun-Prague]-d0g0v0",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional"]
+    }
+  ]
+}

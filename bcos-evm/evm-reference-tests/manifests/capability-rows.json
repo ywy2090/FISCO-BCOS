@@ -1,0 +1,7 @@
+{
+  "rows": [
+    "eip2929-runtime-warm",
+    "eip6780-selfdestruct-kernel",
+    "builtin-precompiles-kernel"
+  ]
+}
