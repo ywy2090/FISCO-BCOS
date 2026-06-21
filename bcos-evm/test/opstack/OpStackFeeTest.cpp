@@ -182,4 +182,24 @@ BOOST_AUTO_TEST_CASE(FjordL1_contractCallShape_fastLz202_matchesFormula)
     BOOST_CHECK_EQUAL(l1CostFjord(data, params), u256(4'048'188));
 }
 
+BOOST_AUTO_TEST_CASE(FjordL1_SolidityParity_matchesOpGeth105484)
+{
+    // op-geth rollup_cost_test.go TestFjordL1CostSolidityParity
+    OpStackFeeParams const params{
+        .l1BaseFee = u256(2'000'000),
+        .l1BlobBaseFee = u256(3'000'000),
+        .l1BaseFeeScalar = 20,
+        .l1BlobBaseFeeScalar = 15,
+    };
+    RollupCostData data{};
+    data.fastLzSize = 235;
+
+    auto const cost = l1CostFjord(data, params);
+    BOOST_CHECK_EQUAL(cost, u256(105'484));
+
+    s256 const estimatedSize =
+        s256(L1_COST_INTERCEPT) + s256(L1_COST_FASTLZ_COEF) * s256(data.fastLzSize);
+    BOOST_CHECK_EQUAL(u256(estimatedSize) * u256(16) / u256(1'000'000), u256(2'463));
+}
+
 }  // namespace bcos::evm::test

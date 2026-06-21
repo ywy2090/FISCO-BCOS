@@ -1,6 +1,7 @@
 # Task 6 — Floor Gas (EIP-7623) + Settlement + Receipt Meta 审计笔记
 
-**日期：** 2026-06-20  
+**Commit：** `54e17a62c` (`feat(opstack): align L1Block IL1Block surface and close Isthmus remediation`)  
+**日期：** 2026-06-21（re-audit @ 54e17a62c）  
 **范围：** inventory #8–9、#26；`OpStackFloorGas.*`、`OpStackGasSettlement.h`、`OpStackReceiptMeta.h`、`OpStackExecuteViaHost.cpp`、`OpStackTransactionExecutorImpl::makeReceipt`  
 **参考：** op-geth v1.101702.2 @ `e8800cffe` — `core/state_transition.go`（`FloorDataGas`、Prague precheck/settlement、OP fee routing）；`core/types/receipt_opstack.go`（receipt 派生）  
 **交叉引用：** ETH audit `_work/task5-eip7623.md`（共享公式）；Task 1 `_work/task1-executor-wiring.md`（`m_isIsthmus` 接线）；Task 4 `_work/task4-deposit.md`（deposit 失败 gasUsed 与 floor 交叉）
@@ -94,7 +95,7 @@ if peakGasUsed < floorDataGas { peakGasUsed = floorDataGas }
 |------|-----------------|------------|
 | 普通 tx | EVM 后 `:225-231` → `refundGas` | `executeEntryChecks` 写入 `m_floorDataGas` |
 | deposit 成功 | `:161-168` | 同上 |
-| deposit 失败 | 跳过 settlement；`gasUsed = gasLimit` | floor 不参与 🔴（Task 4） |
+| deposit 失败 | settlement + actual `gasUsed`（`:181-188`）+ nonce bump | floor 参与 settlement ✅；entry 失败仍 `gasLimit` 🟡 |
 | entry 失败 | 无 settlement | — |
 
 **架构 deviation（matrix 标注原因）：** OP 路径使用独立 `OpStackFloorGas` + `OpStackGasSettlement`，**不**走 ETH reference 的 `EthTxGasSettlement.h::finalizeEthereumGasUsed`。行为与 geth 对齐；差异为 orchestration 分层（intentional `deviation` token）。
@@ -122,30 +123,31 @@ op-geth 同样在 refund 后、fee routing 前应用 floor top-up，再用最终
 
 ### FB 结构 — `OpStackReceiptMeta.h`
 
-| 字段 | 填充位置 | 写入 receipt |
-|------|----------|--------------|
-| `l1Fee` | `opStackExecuteViaHost.cpp:236`（`m_l1CostCharged`） | `makeReceipt`:254-257 `setL1Fee` |
-| `operatorFee` | `:237-242` `operatorCostIsthmus(gasUsed, …)` | `makeReceipt`:258-262 `setOperatorFee` |
-| `depositNonce` | deposit 分支 `:124` mint 前 nonce | `makeReceipt`:263-267 `setDepositNonce` |
+| 字段 | 填充位置 | 写入 protocol receipt |
+|------|----------|----------------------|
+| `l1Fee` | `opStackExecuteViaHost.cpp:248`（`m_l1CostCharged`） | `makeReceipt`:257-259 `setL1Fee` ✅ |
+| `operatorFee` | `:249-253` `operatorCostIsthmus(gasUsed, …)` | `makeReceipt`:261-264 `setOperatorFee` ✅ |
+| `operatorFeeScalar` | `:254-257` 来自 `loadOpStackFeeParams` | **未写入** protocol receipt 🔴/🟡 |
+| `operatorFeeConstant` | 同上 | **未写入** protocol receipt 🔴/🟡 |
+| `depositNonce` | deposit 分支 `:126` mint 前 nonce | `makeReceipt`:266-269 `setDepositNonce` ✅ |
 
 ### op-geth 对照
 
-| 字段 | op-geth | FB | 判定 |
-|------|---------|-----|------|
+| 字段 | op-geth | FB (54e17a62c) | 判定 |
+|------|---------|----------------|------|
 | `GasUsed` | `result.UsedGas`（含 floor top-up） | `output.gasUsed` → `createReceipt*` | ✅ 同源 settlement |
 | `L1Fee` | block 级 `deriveOPStackFields`（`receipt_opstack.go:40`） | 执行时 `l1CostCharged` | ✅ 值应对齐（同 Fjord 公式） |
-| `OperatorFeeScalar/Constant` | `deriveOPStackFields:44-47` | **未暴露**；仅存 computed `operatorFee` | 🟡 JSON-RPC parity 缺口 |
+| `OperatorFeeScalar/Constant` | `deriveOPStackFields:44-47` | **`OpStackReceiptMeta` 已填充**；`makeReceipt` 仅 `setOperatorFee` 金额 | 🟡 编排 meta ✅ / protocol receipt JSON-RPC parity 缺口 |
 | `L1GasPrice/BlobBaseFee/Scalars` | deriveOPStackFields | 未实现 | 🟡 低优先级（RPC 展示） |
 | `DepositNonce` | Regolith+ deposit | ✅ | ✅ |
 | `DepositReceiptVersion` | Canyon+ 固定 `1` | **未实现** | 🟡 Isthmus 应设 Canyon 版 |
 
-**🔴 生产接线（Task 1 交叉）：** `OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()` 未设 `input.opTxExecutor.m_isIsthmus = true`。导致：
+**✅ 生产接线（OP-01，Task 1 交叉）：** 54e17a62c 已闭合：
 
-- `buyGas` 不预扣 operator fee
-- `opStackExecuteViaHost.cpp:237` 不填 `receiptMeta.operatorFee`
-- `makeReceipt` 无 `operatorFee` 字段
-
-测试路径手动 `m_isIsthmus=true`；executor E2E 未断言 operator fee receipt。
+- `OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()` 显式 `m_isIsthmus = true`（`:210-211`）
+- `opStackExecuteViaHost()` 二次保障 `isIsthmusOrchestrationProfile` → `m_isIsthmus`（`:79-82`）
+- `buyGas` / `refundIsthmusOperatorCost` / `receiptMeta.operatorFee` 生产路径可达 ✅
+- `L1AttributesDepositTest` / `OpStackExecuteViaHostSmokeTest` 断言 operator fee meta 与 recipient balance ✅
 
 ---
 
@@ -155,25 +157,30 @@ op-geth 同样在 refund 后、fee routing 前应用 floor top-up，再用最终
 |------|------|----------|-------------|------|------|-----------|---------|--------------|---------|------|
 | EIP-7623 entry precheck | orchestration | matrix #8 | explicit | 深审 | ✅ | EIP-7623 §Specification | `OpStackFloorGas.cpp` + `executeEntryChecks` | `FloorDataGas` + `GasLimit` check | `OpStackFloorGasTest` | 无 E2E orchestration 用例；错误码非 `ErrFloorDataGas` |
 | EIP-7623 settlement / floor gas | orchestration | matrix #9 | deviation | 深审 | ✅ | EIP-7623 post-refund floor | `OpStackGasSettlement.h` | Prague `:650-661` | `CalcRefundTest` | 无 E2E receipt floor 断言；与 `Eip7623.h` 未共享 |
-| OPStack receipt metadata | orchestration | matrix #26 | explicit | 深审 | 🟡 | Isthmus operator fee + OP receipt | `OpStackReceiptMeta` + `makeReceipt` | `receipt_opstack.go` | `OpStackSettlementTest` smoke | operatorFee 生产未接线；缺 scalar/constant；缺 `DepositReceiptVersion` |
+| OPStack receipt metadata | orchestration | matrix #26 | explicit | 深审 | 🟡 **DONE_WITH_CONCERNS** | Isthmus operator fee + OP receipt | `OpStackReceiptMeta` + `makeReceipt` | `receipt_opstack.go` | `L1AttributesDepositTest`, `OpStackSettlementTest`, `TestOpStackTransactionExecutorFixture` | protocol receipt 缺 scalar/constant；缺 `DepositReceiptVersion`；floor receipt E2E 缺 |
 
 ---
 
 ## Part 2 — 偏离项详情
 
-### 🟡 Receipt operator fee 表示法
+### 🟡 Receipt operator fee 表示法（OP-13 部分闭合）
 
-**位置：** `OpStackReceiptMeta.h`；`OpStackTransactionExecutorImpl.h:258-262`
+**位置：** `OpStackReceiptMeta.h`；`OpStackExecuteViaHost.cpp:249-257`；`OpStackTransactionExecutorImpl.h:261-264`
 
-**FB：** 存 `operatorFee` = `operatorCostIsthmus(gasUsed)`（wei 金额）。
+**54e17a62c：**
+
+- **编排 meta：** 存 `operatorFee`（spent wei）+ 条件填充 `operatorFeeScalar` / `operatorFeeConstant`（L1Block slot 8 快照）✅
+- **protocol receipt：** `makeReceipt` 仅 `setOperatorFee` 金额；**无** `setOperatorFeeScalar` / `setOperatorFeeConstant` API 调用 🟡
 
 **op-geth：** receipt 存 `OperatorFeeScalar` + `OperatorFeeConstant`；客户端自行计算。无 `operatorFee` 金额字段。
 
-**影响：** JSON-RPC 字段名/结构不完全 parity；链上余额路由仍正确（若 `m_isIsthmus` 已设）。
+**影响：** 链上余额路由正确 ✅；JSON-RPC 字段名/结构仍不完全 parity（meta 有标量、protocol receipt 无）。
 
 ---
 
-### 🟡 未共享 `Eip7623.h` helper
+### ✅ CLOSED (OP-01) — `m_isIsthmus` 生产接线
+
+**54e17a62c：** 见 Step 5 与 `task1-executor-wiring.md`。operator fee buy/refund/receipt 生产路径已可达。
 
 **位置：** `OpStackFloorGas.cpp` vs `eth/gas/Eip7623.h`
 
@@ -189,15 +196,7 @@ op-geth 同样在 refund 后、fee routing 前应用 floor top-up，再用最终
 
 ---
 
-### 🔴 `m_isIsthmus` 生产未接线（Task 1）
-
-**位置：** `OpStackTransactionExecutorImpl.h:210` vs 测试手动设置
-
-**影响：** operator fee buy/refund/receipt 在生产 executor 路径失效。见 Task 1。
-
----
-
-### 🟡 低优先级 receipt 字段
+### 🟡 未共享 `Eip7623.h` helper
 
 | 字段 | op-geth | FB |
 |------|---------|-----|
@@ -234,20 +233,21 @@ Isthmus spec 未强制全部字段；RPC 兼容性缺口。
 
 | 用例 | 断言 | 判定 |
 |------|------|------|
-| `Settlement_routesCoinbaseBaseFeeL1AndOperator` | 四方余额 + buy/refund 链 | ✅ fee routing（手动 `m_isIsthmus`） |
+| `Settlement_routesCoinbaseBaseFeeL1AndOperator` | 四方余额 + buy/refund 链 | ✅ fee routing（`isIsthmusOrchestrationProfile` 自动启用） |
 | `HardFailure_stillRefundsUnusedGas` | OOG 后仍路由 L1/operator/coinbase | ✅；**floor=0** 🟡 |
 
 **缺口：** 未断言 `receiptMeta`；未覆盖 floor bump 后 operator fee 按抬高 `gasUsed` 计费。
 
-### `OpStackExecuteViaHostSmokeTest.cpp` / `TestOpStackTransactionExecutorFixture.cpp`
+### `L1AttributesDepositTest.cpp` / `OpStackExecuteViaHostSmokeTest.cpp` / `TestOpStackTransactionExecutorFixture.cpp`
 
 | 覆盖 | 判定 |
 |------|------|
-| `receiptMeta.l1Fee` on success | ✅ smoke |
-| `receipt.l1Fee()` on revert E2E | ✅ fixture |
+| `receiptMeta.l1Fee` on success | ✅ literal（`L1AttributesDepositTest`） |
+| `receiptMeta.operatorFee` + scalar/constant | ✅ literal（`L1AttributesDepositTest` OP-12） |
+| `receipt.l1Fee()` / `operatorFee()` on TE E2E | ✅ fixture smoke |
 | floor gas receipt | ❌ 无 |
-| `operatorFee` receipt E2E | ❌ 无（且生产 `m_isIsthmus` 未设） |
-| `depositNonce` on receipt | 🟡 fixture 未断言 |
+| floor bump → operator fee 按抬高 `gasUsed` | ❌ 无 |
+| `depositNonce` on receipt | ✅ `DepositNoFeeRoutingTest` |
 
 ---
 
@@ -256,10 +256,9 @@ Isthmus spec 未强制全部字段；RPC 兼容性缺口。
 | Inventory | 能力 | 状态 | 说明 |
 |-----------|------|------|------|
 | #8 | entry precheck | ✅ | 公式 + gasLimit 准入与 op-geth 一致；Orchestration 恒启用（Isthmus OK） |
-| #9 | settlement / floor gas | ✅ | `postExecuteGasSettlement` 与 geth Prague 同族；独立 helper 为 intentional deviation |
-| #26 | receipt metadata | 🟡 | l1Fee/depositNonce ✅；operatorFee 生产失效 + 字段 parity 缺口 |
+| #9 | settlement / floor gas | ✅ | `postExecuteGasSettlement` 与 geth Prague 同族；deposit REVERT 亦 settlement |
+| #26 | receipt metadata | 🟡 | l1Fee/operatorFee/depositNonce ✅；meta scalar/constant ✅；protocol receipt scalar 缺口 |
 
-**Part 3 测试断言：** 🟡 — 单元测试充分；缺 OP orchestration E2E floor receipt + operator fee receipt。
+**Part 3 测试断言：** 🟡 — 单元 + operator fee literal E2E ✅；缺 floor receipt E2E + protocol scalar 字段。
 
-**P0（跨 Task）：** 修复 `m_isIsthmus` 生产接线（Task 1）。  
-**P1 补测：** data-heavy tx → `gasUsed == floorDataGas` receipt；operator fee receipt E2E；可选 `DepositReceiptVersion`。
+**P1 补测：** data-heavy tx → `gasUsed == floorDataGas` receipt；`makeReceipt` 暴露 scalar/constant；可选 `DepositReceiptVersion`。

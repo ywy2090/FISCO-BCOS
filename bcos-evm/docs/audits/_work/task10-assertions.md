@@ -1,10 +1,11 @@
 # Task 10 — OPStack Isthmus 测试断言审计
 
-**日期：** 2026-06-20  
+**初审计日期：** 2026-06-20  
+**复审计 commit：** `54e17a62c`（2026-06-21）  
 **Skill：** `fisco-evm-test-coverage/references/assertion-audit.md`  
 **清单：** `_work/test-inventory-opstack.md`  
-**金标准：** op-geth v1.101702.2 @ `e8800cffe`（`rollup_cost.go`、`state_transition.go`、`deposit_tx.go`）；optimism-specs `689a96f` Isthmus/deposit 章节  
-**交叉引用：** Task 1 wiring、Task 3 operator fee、Task 4 deposit、Task 8 ETH reference 断言等级
+**金标准：** op-geth v1.101702.2 @ `e8800cffe`；optimism-specs `689a96f` Isthmus/deposit 章节  
+**交叉引用：** Task 1 wiring、Task 4 deposit、Task 8 ETH reference、OP-01–OP-15 remediation
 
 ---
 
@@ -13,123 +14,138 @@
 | 符号 | 含义 |
 |------|------|
 | ✅ | 期望值与 op-geth / optimism specs / FB 单元向量一致；路径有效 |
-| 🟡 | 方向对但偏弱：smoke、`>0` 代替 literal、缺 post-state/gas/nonce、手动 `m_isIsthmus`、生产 wiring 未覆盖 |
-| 🔴 | 期望值编码实现偏离（断言 gasLimit 而 op-geth 要 actual gas）；或断言与金标准直接冲突 |
+| 🟡 | 方向对但偏弱：smoke、`>0` 代替 literal、缺 post-state/gas/nonce、生产 E2E 覆盖不全 |
+| 🔴 | 期望值编码实现偏离；或断言与金标准直接冲突 |
 
 ---
 
-## 重点发现（Task 10 高亮）
+## 重点发现（复审计 @ `54e17a62c`）
 
-### 1. 手动 `m_isIsthmus = true`（8 文件，生产未接线）
+### 1. 手动 `m_isIsthmus = true` — **已清理至 3 处（有意保留）**
 
-| 文件 | 行 | 用例 |
+| 文件 | 行 | 说明 |
 |------|-----|------|
-| `CanTransferTest.cpp` | `:51` | 两例 |
-| `DepositMintTest.cpp` | `:68` | `deposit_mint_*` |
-| `DepositNoFeeRoutingTest.cpp` | `:79` | 两例 |
-| `L1AttributesDepositTest.cpp` | `:95` | user tx 段 |
-| `OpStack7702ExecuteViaHostPropagationTest.cpp` | `:116` | 7702 传播 |
-| `OpStackExecuteViaHostSmokeTest.cpp` | `:109` | 四例 smoke |
-| `OpStackSettlementTest.cpp` | `:33`, `:75` | settlement 两例 |
-| `RefundIsthmusTest.cpp` | `:30` | operator refund |
+| `OpStackSettlementTest.cpp` | `:33`, `:75` | 直接测 `OpStackTxExecutor::buyGas/refundGas`，非 `opStackExecuteViaHost` |
+| `RefundIsthmusTest.cpp` | `:30` | 直接测 `refundIsthmusOperatorCost` 单元 |
 
-**影响：** operator fee buy/refund/route/receipt 在 `OpStackTransactionExecutorImpl` E2E 路径默认 **不启用**（Task 1 S3 / Task 3 D3-1）。单元测试正确但 **不证明生产 Isthmus 合规**。
+**初审计 stale：**「8 文件手动 `m_isIsthmus`」— OP-01/OP-15 后 smoke/E2E 改经 `makeIsthmusRevisionConfig` + `isIsthmusOrchestrationProfile` 自动启用；**生产** `OpStackTransactionExecutorImpl.h:210-211` 亦硬编码 `m_isIsthmus=true`。
 
-### 2. `DepositNoFeeRoutingTest` — gasLimit 断言 🔴
+### 2. `DepositNoFeeRoutingTest` — gasLimit 断言 **已修正 ✅**
 
-`deposit_failure_reverts_execution_but_keeps_mint_and_bumps_nonce`（`:128`）：
+`deposit_failure_reverts_execution_but_keeps_mint_and_bumps_nonce`（`:127-128`）：
 
 ```cpp
-BOOST_CHECK_EQUAL(output.gasUsed, 50'000);  // == message.gas / depositTx.gas
+BOOST_CHECK_EQUAL(output.gasUsed, 21'000);
+BOOST_CHECK_LT(output.gasUsed, 50'000);
 ```
 
-- **FB 行为：** 所有非 SUCCESS deposit 设 `gasUsed = gasLimit`（`OpStackExecuteViaHost.cpp:176–177`）。
-- **op-geth Isthmus/Regolith+：** EVM `REVERT`（`PUSH1 0 PUSH1 0 REVERT`）→ **实际 metered gas**（`state_transition.go:681–688`）。
-- **判定：** 🔴 — 测试将偏离编码为期望；mint/nonce 断言 ✅，gas 断言与金标准冲突（Task 4 D4-2/D4-4）。
+- **OP-04 闭合：** REVERT → actual metered gas（非 gasLimit）。
+- **新增** `deposit_entry_failure_bumps_nonce_and_uses_gas_limit` — entry OOG → gasLimit（OP-05）。
 
-### 3. 缺失 E2E operator fee（`TestOpStackTransactionExecutorFixture.cpp`）
+**初审计 stale：** 🔴 `gasUsed=50'000` — **已删除**。
 
-7 个 executor E2E 用例 **均无**：
+### 3. Operator fee E2E — **已补测 ✅**
 
-- `receipt->operatorFee()` 或等价 metadata 断言
-- `OP_OPERATOR_FEE_RECIPIENT` 余额 literal / `>0`
-- Isthmus worst-case buyGas balance check（含 operator limit）
+`TestOpStackTransactionExecutorFixture::operator_fee_recipient_gets_fee_on_success` — `receipt->operatorFee()` + `OP_OPERATOR_FEE_RECIPIENT` balance `>0`。
 
-`l1_fee_recipient_gets_fee_on_success` 仅断言 `l1Fee != 0x0` 与 L1 recipient `>0`。对比 `OpStackExecuteViaHostSmokeTest` 在同场景下对 operator 有 `BOOST_CHECK_GT` + `receiptMeta.operatorFee`（仍 🟡，因手动 flag + 无 literal）。
+`L1AttributesDepositTest` — L1/operator **literal** vs `l1CostFjord` / `operatorCostIsthmus` 公式。
 
-**缺口：** 修复 Task 1 wiring 后需补 **生产路径** operator fee E2E（buy → execute → refund → vault → receipt）。
+**残余 🟡：** `OpStackExecuteViaHostSmokeTest` operator 仍 `>0`（L1=50 literal ✅）。
 
 ---
 
-## Part 3 — 全表断言审计（65 用例）
+## Part 3 — 全表断言审计（76 opstack + 10 TE = **86 用例**）
+
+> 初审计 65 用例；remediation 新增 21 用例（OP-02/04/05/06/08/11/12/14 等）。完整清单见 `test-inventory-opstack.md`。
 
 | 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
 |----------|------|----------|------------|------|
 | `BlobGasBalanceTest.cpp` | `blob_gas_fee_cap_under_blob_base_fee_is_rejected` | ✅ | EIP-4844 blob gas price check | `InsufficientFunds` |
-| `CalcRefundTest.cpp` | `Settlement_capBinds` | ✅ | EIP-3529 cap + settlement 算术 | 字面量 gasUsed/refund |
-| `CalcRefundTest.cpp` | `Settlement_floorDataGasBumpsGasUsed` | ✅ | EIP-7623 floor | gasUsed=700 @ floor |
-| `CalcRefundTest.cpp` | `EvmoneParity_noDoubleCount` | ✅ | evmone gas_left 语义 | 防 double-count |
-| `CanTransferTest.cpp` | `value_transfer_rejected_when_sender_balance_insufficient` | ✅ | deposit value 转账 | `InsufficientFunds`；**手动 `m_isIsthmus`** |
-| `CanTransferTest.cpp` | `transfer_to_predeploy_allowed_if_funded` | 🟡 | predeploy 可接收 value | 仅否定性 status；无 SUCCESS/balance |
-| `DepositMintTest.cpp` | `deposit_mint_is_applied_before_execution` | 🟡 | `deposits.md` mint 保留 | balance=100 ✅；无 nonce/gasUsed/depositNonce；**手动 flag** |
-| `DepositNoFeeRoutingTest.cpp` | `deposit_skips_fee_routing_recipients` | ✅ | deposit 无 fee 路由 | 四 recipient=0；**手动 flag** |
-| `DepositNoFeeRoutingTest.cpp` | **`deposit_failure_reverts_execution_but_keeps_mint_and_bumps_nonce`** | **🔴** | Regolith+ REVERT → **actual gas** | mint/nonce ✅；**`gasUsed=gasLimit` 与 op-geth 🔴** |
-| `DepositTxPreCheckTest.cpp` | `system_deposit_is_rejected` | ✅ | `preCheck():354–356` | system → Malformed |
-| `DepositTxPreCheckTest.cpp` | `deposit_skips_nonce_and_fee_checks_but_still_subtracts_gas_pool` | ✅ | deposit 跳过 nonce/fee | gas pool hook |
-| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_nonce_mismatch` | ✅ | nonce check | 对照 |
-| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_invalid_eip1559_caps` | ✅ | tip≤feeCap | 对照 |
-| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_blob_fee_cap_under_base_fee` | ✅ | blob cap | 对照 |
-| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_auth_list_on_create` | ✅ | 7702 on CREATE | 对照 |
-| `Eip7702ApplyAuthorizationTest.cpp` | `valid_auth_installs_delegation_invalid_is_ignored_and_refund_added` | ✅ | EIP-7702 delegation code | `0xEF0100‖addr`；nonce+1 |
-| `Eip7702ClearDelegationTest.cpp` | `auth_with_zero_target_clears_existing_delegation_code` | ✅ | EIP-7702 clear | code 空；nonce+1 |
-| `Eip7702DelegationSenderTest.cpp` | `sender_with_delegation_code_passes_precheck` | ✅ | 7702 sender 形态 | 无 error |
-| `Eip7702DelegationSenderTest.cpp` | `sender_with_non_delegation_code_is_rejected` | ✅ | 非 delegation code | Malformed |
-| `Eip7702PreCheckTest.cpp` | `rejects_authorization_list_on_create` | ✅ | CREATE+auth | Malformed |
-| `Eip7702PreCheckTest.cpp` | `rejects_explicit_empty_authorization_list` | ✅ | 空 auth list | Malformed |
-| `EmptyCodeHookTest.cpp` | `top_level_call_hits_chain_precompile_hook_on_empty_code` | 🟡 | L1Block hook | 仅 REVERT；未断言 hook 命中或 slot |
-| `EvmoneRefundSpikeTest.cpp` | `SstoreClear_recordsGasLeftAndRefund` | ✅ | EIP-3529 SSTORE clear refund | refund=4800；DEFERRED_REFUND |
-| `GasFeeCapBalanceTest.cpp` | `gas_fee_cap_balance_check_rejects_insufficient_sender` | ✅ | buyGas balance | NotEnoughCash；无 Isthmus operator 叠加 |
-| `IsthmusPostExecutionPolicyTest.cpp` | `isthmus_revision_config_disables_prague_post_execution` | ✅ | `makeIsthmusRevisionConfig()` | profile 字面量 |
-| `L1AttributesDepositFailureTest.cpp` | `failed_l1_attributes_deposit_does_not_commit_slot_changes` | ✅ | setter REVERT 不 commit | 无 slot diff；未断言 nonce/gasUsed |
-| `L1AttributesDepositTest.cpp` | `l1_attributes_deposit_updates_l1block_and_affects_following_user_tx` | 🟡 | L1Block + Fjord L1 fee E2E | L1 recipient `>0` only；**手动 `m_isIsthmus`**；无 operator |
-| `L1BlockGetterTest.cpp` | `op_host_extension_dispatches_l1block_getter` | ✅ | L1Block getter | output=123456 |
-| `L1BlockPredeployTest.cpp` | `setter_unpacks_isthmus_fixture_into_slots` | ✅ | `isthmus_l1_attributes.bin` | slot 字节 vs fixture |
-| `L1BlockPredeployTest.cpp` | `setter_rejects_non_depositor_sender` | ✅ | depositor ACL | REVERT + slot 零 |
-| `L1BlockPredeployTest.cpp` | `getters_return_slot_values_after_setter` | ✅ | getter selectors | 5× literal u256 |
-| `OpStack7702ExecuteViaHostPropagationTest.cpp` | `opStackExecuteViaHost_propagates_authorizations_to_executeMessage` | 🟡 | 7702 via opstack 编排 | delegation ✅；**手动 `m_isIsthmus`**；无 fee 路径 |
-| `OpStackExecuteViaHostSmokeTest.cpp` | `l1_fee_recipient_gets_fee_on_success` | 🟡 | buyGas + fee routing | L1=50 ✅；operator/base/coinbase `>0`；**手动 flag** |
-| `OpStackExecuteViaHostSmokeTest.cpp` | `insufficient_balance_fails_before_execution` | 🟡 | balance pre-check | 无 operator worst-case 断言 |
-| `OpStackExecuteViaHostSmokeTest.cpp` | `revert_refunds_unused_gas_and_keeps_l1_fee` | 🟡 | revert + L1 fee | L1=50 ✅；sender 范围断言弱 |
-| `OpStackExecuteViaHostSmokeTest.cpp` | `hard_failure_still_refunds_unused_gas_and_routes_fees` | 🟡 | hard fail settlement | 仅 `>0`；无 literal |
-| `OpStackFeeTest.cpp` | `FjordL1_emptyTx_matches3203000` | ✅ | `rollup_cost_test.go` Fjord | 3'203'000 |
-| `OpStackFeeTest.cpp` | `IsthmusOperator_gas1618_matchesFixture` | ✅ | `rollup_cost_test.go:35` | 1256417826611659930 |
-| `OpStackFeeTest.cpp` | `FjordL1_emptyRollupCostData_returnsZero` | ✅ | 空 rollup | L1=0 |
-| `OpStackFeeTest.cpp` | `IsthmusOperator_zeroParams_returnsZero` | ✅ | 零 operator 参数 | operator=0 |
-| `OpStackFeeTest.cpp` | `LoadOpStackFeeParams_unpacksSlots` | ✅ | `ExtractOperatorFeeParams` | slot 8 子域 |
-| `OpStackFloorGasTest.cpp` | `FloorDataGas_emptyCalldata_is21000` | ✅ | EIP-7623 / op-geth floor | 21000 |
-| `OpStackFloorGasTest.cpp` | `FloorDataGas_zeroBytesOnly` | ✅ | floor token 计数 | 100×10 |
-| `OpStackFloorGasTest.cpp` | `FloorDataGas_nonZeroBytesOnly` | ✅ | 4× token | 100×40 |
-| `OpStackFloorGasTest.cpp` | `FloorDataGas_mixedZeroAndNonZero` | ✅ | mixed tokens | 250×10 |
-| `OpStackFloorGasTest.cpp` | `FloorDataGas_singleZeroByte` | ✅ | 边界 | 21010 |
-| `OpStackFloorGasTest.cpp` | `FloorDataGas_singleNonZeroByte` | ✅ | 边界 | 21040 |
-| `OpStackFloorGasTest.cpp` | `FloorDataGas_overflow_returnsError` | ✅ | uint64 overflow | GasUintOverflow |
-| `OpStackFloorGasTest.cpp` | `ExecuteEntryFloorCheck_gasLimitBelowFloor_rejects` | ✅ | entry floor check | BelowFloor |
-| `OpStackFloorGasTest.cpp` | `ExecuteEntryFloorCheck_gasLimitAtFloor_accepts` | ✅ | entry floor check | ok @ floor |
-| `OpStackSettlementTest.cpp` | `Settlement_routesCoinbaseBaseFeeL1AndOperator` | ✅ | buyGas+refundGas 全路由 | sender=16690 等字面量；**手动 flag** |
-| `OpStackSettlementTest.cpp` | `HardFailure_stillRefundsUnusedGas` | ✅ | OOG hard fail 仍 settlement | operator=430 等；**手动 flag** |
-| `OpStackTxInputBuilderTest.cpp` | `decodes_deposit_extra_transaction_bytes` | ✅ | deposit RLP | 字段 literal |
-| `OpStackTxInputBuilderTest.cpp` | `decodes_eip7702_authorization_from_extra_bytes` | ✅ | type-4 RLP | auth 字段 |
-| `OpStackTxPropsTest.cpp` | `applyDefaultTxProps_sets_warm_destination_from_kind` | ✅ | EIP-2929 tx-entry | CALL warm / CREATE not |
-| `RefundIsthmusTest.cpp` | `RefundIsthmus_refundsLimitMinusUsedCost` | ✅ | `refundIsthmusOperatorCost` | +1118；**手动 flag** |
-| `RollupCostTest.cpp` | `FlzCompressLen_matchesOpGethVectors` | ✅ | op-geth FLZ | 0/21/31/202 |
-| `RollupCostTest.cpp` | `NewRollupCostData_countsBytesAndFastLz` | ✅ | empty tx rollup | ones=30, fastLz=31 |
-| `TestOpStackTransactionExecutorFixture.cpp` | `l1_fee_recipient_gets_fee_on_success` | 🟡 | TE E2E L1 fee | l1Fee≠0；**无 operator E2E** |
-| `TestOpStackTransactionExecutorFixture.cpp` | `insufficient_balance_fails_before_execution` | 🟡 | TE balance fail | 无 operator 叠加断言 |
+| `BlobGasBalanceTest.cpp` | `buy_gas_deducts_blob_base_fee_times_blob_gas` | ✅ | blob buyGas 扣款 | OP-06 |
+| `BlobGasBalanceTest.cpp` | `buy_gas_rejects_insufficient_balance_for_blob_cost` | ✅ | blob balance check | OP-06 |
+| `CalcRefundTest.cpp` | `Settlement_capBinds` | ✅ | EIP-3529 cap + settlement | 字面量 |
+| `CalcRefundTest.cpp` | `Settlement_floorDataGasBumpsGasUsed` | ✅ | EIP-7623 floor | gasUsed=700 |
+| `CalcRefundTest.cpp` | `EvmoneParity_noDoubleCount` | ✅ | evmone gas_left | 防 double-count |
+| `CanTransferTest.cpp` | `value_transfer_rejected_when_sender_balance_insufficient` | ✅ | deposit value 转账 | `InsufficientFunds` |
+| `CanTransferTest.cpp` | `transfer_to_predeploy_allowed_if_funded` | 🟡 | predeploy 可接收 value | 仅否定性 status |
+| `DepositMintTest.cpp` | `deposit_mint_is_applied_before_execution` | ✅ | mint + nonce + depositNonce | OP-03 |
+| `DepositNoFeeRoutingTest.cpp` | `deposit_skips_fee_routing_recipients` | ✅ | deposit 无 fee 路由 | 四 recipient=0 |
+| `DepositNoFeeRoutingTest.cpp` | `deposit_failure_reverts_execution_but_keeps_mint_and_bumps_nonce` | ✅ | Regolith+ REVERT → **actual gas** | **原 🔴 已修正**；gasUsed=21000 |
+| `DepositNoFeeRoutingTest.cpp` | `deposit_entry_failure_bumps_nonce_and_uses_gas_limit` | ✅ | entry OOG → gasLimit | OP-05 |
+| `DepositTxPreCheckTest.cpp` | `system_deposit_is_rejected` | ✅ | system → Malformed | |
+| `DepositTxPreCheckTest.cpp` | `deposit_skips_nonce_and_fee_checks_but_still_subtracts_gas_pool` | ✅ | deposit 跳过 nonce/fee | |
+| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_nonce_mismatch` | ✅ | nonce check | |
+| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_invalid_eip1559_caps` | ✅ | tip≤feeCap | |
+| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_blob_fee_cap_under_base_fee` | ✅ | blob cap | |
+| `DepositTxPreCheckTest.cpp` | `non_deposit_rejects_auth_list_on_create` | ✅ | 7702 on CREATE | |
+| `Eip7702ApplyAuthorizationTest.cpp` | `valid_auth_installs_delegation_invalid_is_ignored_and_refund_added` | ✅ | EIP-7702 delegation | |
+| `Eip7702ClearDelegationTest.cpp` | `auth_with_zero_target_clears_existing_delegation_code` | ✅ | EIP-7702 clear | |
+| `Eip7702DelegationSenderTest.cpp` | `sender_with_delegation_code_passes_precheck` | ✅ | 7702 sender 形态 | |
+| `Eip7702DelegationSenderTest.cpp` | `sender_with_non_delegation_code_is_rejected` | ✅ | 非 delegation code | |
+| `Eip7702PreCheckTest.cpp` | `rejects_authorization_list_on_create` | ✅ | CREATE+auth | |
+| `Eip7702PreCheckTest.cpp` | `rejects_explicit_empty_authorization_list` | ✅ | 空 auth list | |
+| `EmptyCodeHookTest.cpp` | `top_level_call_hits_chain_precompile_hook_on_empty_code` | 🟡 | L1Block hook | 仅 REVERT |
+| `EvmoneRefundSpikeTest.cpp` | `SstoreClear_recordsGasLeftAndRefund` | ✅ | EIP-3529 SSTORE clear | |
+| `GasFeeCapBalanceTest.cpp` | `gas_fee_cap_balance_check_rejects_insufficient_sender` | ✅ | buyGas balance | |
+| `IsthmusPostExecutionPolicyTest.cpp` | `isthmus_revision_config_disables_prague_post_execution` | ✅ | profile 字面量 | |
+| `L1AttributesDepositFailureTest.cpp` | `failed_l1_attributes_deposit_does_not_commit_slot_changes` | ✅ | REVERT 不 commit | |
+| `L1AttributesDepositTest.cpp` | `l1_attributes_deposit_updates_l1block_and_affects_following_user_tx` | ✅ | L1Block + Fjord/operator literal | OP-12 |
+| `L1BlockGetterTest.cpp` | `op_host_extension_dispatches_l1block_getter` | ✅ | L1Block getter | |
+| `L1BlockGetterTest.cpp` | `op_host_extension_dispatches_basefee_getter` | ✅ | legacy alias | OP-14 |
+| `L1BlockGetterTest.cpp` | `op_host_extension_dispatches_number_getter` | ✅ | block number getter | OP-14 |
+| `L1BlockPredeployTest.cpp` | `setter_unpacks_isthmus_fixture_into_slots` | ✅ | fixture slot 字节 | |
+| `L1BlockPredeployTest.cpp` | `setter_rejects_non_depositor_sender` | ✅ | depositor ACL | |
+| `L1BlockPredeployTest.cpp` | `getters_return_slot_values_after_setter` | ✅ | 5× getter literal | |
+| `L1BlockPredeployTest.cpp` | `pure_getters_match_l1block_constants` | ✅ | IL1Block view/pure | OP-14 |
+| `L1BlockPredeployTest.cpp` | `isFeatureEnabled_returns_false_by_default` | ✅ | feature map | OP-14 |
+| `OpStack67802537KernelSmokeTest.cpp` | `opStackExecuteViaHost_g1msm_k2_gas_matches_geth_isthmus` | ✅ | geth MSM k=2 → 22776 | OP-08 |
+| `OpStack67802537KernelSmokeTest.cpp` | `opStackExecuteViaHost_created_in_tx_selfdestruct_clears_code_isthmus` | ✅ | EIP-6780 same-tx | OP-08 |
+| `OpStack7702ExecuteViaHostPropagationTest.cpp` | `opStackExecuteViaHost_propagates_authorizations_to_executeMessage` | ✅ | 7702 via opstack | |
+| `OpStack7702ExecuteViaHostPropagationTest.cpp` | `opStackExecuteViaHost_rejects_7702_intrinsic_below_25000_per_tuple` | ✅ | intrinsic floor | OP-07 |
+| `OpStack7702ExecuteViaHostPropagationTest.cpp` | `opStackExecuteViaHost_charges_7702_intrinsic_25000_per_tuple` | ✅ | 25000×n debit | OP-07 |
+| `OpStackExecuteViaHostSmokeTest.cpp` | `l1_fee_recipient_gets_fee_on_success` | 🟡 | L1=50 literal ✅；operator `>0` | auto Isthmus profile |
+| `OpStackExecuteViaHostSmokeTest.cpp` | `insufficient_balance_fails_before_execution` | 🟡 | balance pre-check | 无 operator worst-case literal |
+| `OpStackExecuteViaHostSmokeTest.cpp` | `revert_refunds_unused_gas_and_keeps_l1_fee` | 🟡 | revert + L1=50 | 无 operator literal |
+| `OpStackExecuteViaHostSmokeTest.cpp` | `hard_failure_still_refunds_unused_gas_and_routes_fees` | 🟡 | hard fail | 仅 `>0` |
+| `OpStackFeeTest.cpp` | `FjordL1_emptyTx_matches3203000` | ✅ | op-geth Fjord | |
+| `OpStackFeeTest.cpp` | `IsthmusOperator_gas1618_matchesFixture` | ✅ | rollup_cost_test.go | |
+| `OpStackFeeTest.cpp` | `FjordL1_emptyRollupCostData_returnsZero` | ✅ | 空 rollup | |
+| `OpStackFeeTest.cpp` | `IsthmusOperator_zeroParams_returnsZero` | ✅ | 零 operator | |
+| `OpStackFeeTest.cpp` | `LoadOpStackFeeParams_unpacksSlots` | ✅ | slot 8 子域 | |
+| `OpStackFeeTest.cpp` | `FjordL1_minimumBounds_clampsBelowMinTxSize` | ✅ | min fee bound | OP-11 |
+| `OpStackFeeTest.cpp` | `FjordL1_minimumBounds_fastLz171_exceedsMinFee` | ✅ | min bound edge | OP-11 |
+| `OpStackFeeTest.cpp` | `FjordL1_contractCallShape_fastLz202_matchesFormula` | ✅ | op-geth vector | OP-11 |
+| `OpStackFloorGasTest.cpp` | `FloorDataGas_emptyCalldata_is21000` | ✅ | EIP-7623 floor | |
+| `OpStackFloorGasTest.cpp` | `FloorDataGas_zeroBytesOnly` | ✅ | floor token | |
+| `OpStackFloorGasTest.cpp` | `FloorDataGas_nonZeroBytesOnly` | ✅ | 4× token | |
+| `OpStackFloorGasTest.cpp` | `FloorDataGas_mixedZeroAndNonZero` | ✅ | mixed | |
+| `OpStackFloorGasTest.cpp` | `FloorDataGas_singleZeroByte` | ✅ | 边界 | |
+| `OpStackFloorGasTest.cpp` | `FloorDataGas_singleNonZeroByte` | ✅ | 边界 | |
+| `OpStackFloorGasTest.cpp` | `FloorDataGas_overflow_returnsError` | ✅ | overflow | |
+| `OpStackFloorGasTest.cpp` | `ExecuteEntryFloorCheck_gasLimitBelowFloor_rejects` | ✅ | below floor | |
+| `OpStackFloorGasTest.cpp` | `ExecuteEntryFloorCheck_gasLimitAtFloor_accepts` | ✅ | at floor | |
+| `OpStackSettlementTest.cpp` | `Settlement_routesCoinbaseBaseFeeL1AndOperator` | ✅ | 全路由字面量 | 直接 `m_isIsthmus` 单元测 |
+| `OpStackSettlementTest.cpp` | `HardFailure_stillRefundsUnusedGas` | ✅ | OOG settlement | 同上 |
+| `OpStackTxInputBuilderTest.cpp` | `decodes_deposit_extra_transaction_bytes` | ✅ | deposit RLP | |
+| `OpStackTxInputBuilderTest.cpp` | `decodes_eip7702_authorization_from_extra_bytes` | ✅ | type-4 RLP | |
+| `OpStackTxInputBuilderTest.cpp` | `buildRollupCostData_uses_signed_web3_rlp_not_encodeForSign` | ✅ | signed tx bytes | OP-02 |
+| `OpStackTxInputBuilderTest.cpp` | `buildRollupCostData_deposit_uses_extra_bytes_unchanged` | ✅ | deposit rollup | OP-02 |
+| `OpStackTxPropsTest.cpp` | `applyDefaultTxProps_sets_warm_destination_from_kind` | ✅ | EIP-2929 tx-entry | |
+| `OpStackTxPropsTest.cpp` | `executor_build_order_clears_warm_destination_for_create` | ✅ | CREATE 不 warm | OP-09 |
+| `OpStackTxPropsTest.cpp` | `isthmus_revision_profile_enables_warm_access` | ✅ | `warm_access=true` | OP-09 |
+| `RefundIsthmusTest.cpp` | `RefundIsthmus_refundsLimitMinusUsedCost` | ✅ | operator refund 算术 | 直接单元测 |
+| `RollupCostTest.cpp` | `FlzCompressLen_matchesOpGethVectors` | ✅ | op-geth FLZ | |
+| `RollupCostTest.cpp` | `NewRollupCostData_countsBytesAndFastLz` | ✅ | empty tx rollup | |
+| `TestOpStackTransactionExecutorFixture.cpp` | `l1_fee_recipient_gets_fee_on_success` | 🟡 | TE E2E L1 | l1Fee≠0；无 L1 literal |
+| `TestOpStackTransactionExecutorFixture.cpp` | `operator_fee_recipient_gets_fee_on_success` | ✅ | TE operator E2E | OP-01 |
+| `TestOpStackTransactionExecutorFixture.cpp` | `insufficient_balance_fails_before_execution` | 🟡 | TE balance fail | |
 | `TestOpStackTransactionExecutorFixture.cpp` | `revert_keeps_l1_fee` | 🟡 | TE revert + L1 | 无 operator |
 | `TestOpStackTransactionExecutorFixture.cpp` | `deposit_mint_applied_without_fee_routing` | 🟡 | TE deposit mint | 无 nonce/gasUsed |
-| `TestOpStackTransactionExecutorFixture.cpp` | `deposit_skips_fee_routing_recipients` | ✅ | deposit 无 fee | 三 recipient=0 |
-| `TestOpStackTransactionExecutorFixture.cpp` | `deposit_failure_reverts_but_keeps_mint` | 🟡 | TE deposit fail | mint/nonce ✅；**未断言 gasUsed**（未编码 🔴，但也未验证 actual gas） |
-| `TestOpStackTransactionExecutorFixture.cpp` | `hard_failure_status_propagates_without_state_commit` | 🟡 | TE INVALID 不 commit | 文档化 FB 行为；l1Fee on receipt 但 storage 未 commit |
+| `TestOpStackTransactionExecutorFixture.cpp` | `deposit_skips_fee_routing_recipients` | ✅ | deposit 无 fee | |
+| `TestOpStackTransactionExecutorFixture.cpp` | `deposit_failure_reverts_but_keeps_mint` | 🟡 | TE deposit fail | mint/nonce ✅；未断言 gasUsed |
+| `TestOpStackTransactionExecutorFixture.cpp` | `hard_failure_status_propagates_without_state_commit` | 🟡 | TE INVALID 不 commit | 文档化 FB 行为 |
+| `TestOpStackTransactionExecutorFixture.cpp` | `executor_input_build_applies_warm_destination_for_call` | ✅ | OP-09 E2E | |
+| `TestOpStackTransactionExecutorFixture.cpp` | `executor_input_build_clears_warm_destination_for_create` | ✅ | OP-09 E2E | |
 
 ---
 
@@ -137,35 +153,44 @@ BOOST_CHECK_EQUAL(output.gasUsed, 50'000);  // == message.gas / depositTx.gas
 
 | 域 | ✅ | 🟡 | 🔴 | 小计 |
 |----|----|----|-----|------|
-| Fee / L1 / operator 单元 | 7 | 0 | 0 | 7 |
-| Settlement / refund 编排 | 3 | 0 | 0 | 3 |
+| Fee / L1 / operator 单元 | 10 | 0 | 0 | 10 |
+| Settlement / refund 编排 | 6 | 0 | 0 | 6 |
 | Floor gas (7623) | 9 | 0 | 0 | 9 |
 | Rollup / FLZ | 2 | 0 | 0 | 2 |
-| Deposit | 7 | 2 | 1 | 10 |
-| L1Block / attributes | 5 | 1 | 0 | 6 |
-| Precheck / balance / blob | 8 | 1 | 0 | 9 |
-| 7702 (inherited) | 6 | 1 | 0 | 7 |
-| Smoke / E2E (`ExecuteViaHost` + TE) | 1 | 10 | 0 | 11 |
-| Misc (CalcRefund, evmone, props, hook) | 5 | 1 | 0 | 6 |
-| **合计** | **49** | **15** | **1** | **65** |
+| Deposit | 11 | 2 | 0 | 13 |
+| L1Block / attributes | 10 | 1 | 0 | 11 |
+| Kernel inherited (6780/2537/7702) | 5 | 0 | 0 | 5 |
+| Precheck / balance / blob | 10 | 1 | 0 | 11 |
+| Smoke / E2E (`ExecuteViaHost` + TE) | 4 | 10 | 0 | 14 |
+| Misc (CalcRefund, evmone, props, hook) | 7 | 0 | 0 | 7 |
+| **合计** | **74** | **12** | **0** | **86** |
 
 ---
 
 ## 汇总
 
-| 指标 | 值 |
-|------|-----|
-| 测试文件数 | **29** |
-| 用例总数 | **65** |
-| ✅ 断言 | **49** |
-| 🟡 断言 | **15** |
-| 🔴 断言 | **1** |
+| 指标 | 初审计 (65) | 复审计 @ `54e17a62c` (86) |
+|------|-------------|---------------------------|
+| 测试文件数 | 29 | **29**（opstack 28 + TE fixture 1） |
+| 用例总数 | 65 | **86** (+21 remediation) |
+| ✅ 断言 | 49 | **74** |
+| 🟡 断言 | 15 | **12** |
+| 🔴 断言 | 1 | **0** |
+
+### Stale 修正摘要
+
+| 初审计项 | 复审计 @ `54e17a62c` |
+|----------|----------------------|
+| `DepositNoFeeRoutingTest` `gasUsed=gasLimit` 🔴 | ✅ actual gas 21000 + entry-failure 用例 |
+| 8 文件手动 `m_isIsthmus` | **3 处**有意单元测；生产/ smoke 自动 Isthmus |
+| TE 缺 operator fee E2E | ✅ `operator_fee_recipient_gets_fee_on_success` |
+| `L1AttributesDepositTest` L1 `>0` only | ✅ literal vs formula + receipt meta |
 
 ### 结论
 
-- **🔴 1 例：** `DepositNoFeeRoutingTest::deposit_failure_*` 的 `gasUsed=gasLimit` 断言与 op-geth Isthmus/Regolith+ REVERT 语义冲突；测试固化实现偏离。
-- **🟡 15 例：** 主要风险：(1) **8 文件手动 `m_isIsthmus`**，生产 wiring 未测；(2) **TE fixture 7 例缺 operator fee E2E**；(3) smoke 用 `>0` 代替 op-geth literal；(4) deposit 成功/失败缺 nonce、depositNonce、actual gas 断言。
-- **优先补测（P1）：** Task 1 接线后 TE operator fee E2E（vault + receipt literal）；deposit REVERT actual gas vs op-geth 向量；移除/修正 🔴 gasLimit 断言；成功 deposit nonce+1。
+- **🔴 0 例** — OP-04 修正 deposit REVERT gas 断言。
+- **🟡 12 例** — 主要为 smoke `>0` 代替 operator literal（4）、TE E2E 弱断言（6）、predeploy/hook 浅覆盖（2）。
+- **Task 10 状态：** **DONE**
 
 ---
 

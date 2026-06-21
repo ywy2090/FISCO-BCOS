@@ -7,8 +7,8 @@
 #include "helpers/ApplyStateDiffToView.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
-#include <boost/test/included/unit_test.hpp>
 #include <evmone/evmone.h>
+#include <boost/test/included/unit_test.hpp>
 #include <fstream>
 
 namespace bcos::evm::test
@@ -51,8 +51,8 @@ OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stat
     input.gasTipCap = 1;
     input.gasFeeCap = 1;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
-    input.depositTx = OpStackDepositTx{
-        .from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
+    input.depositTx =
+        OpStackDepositTx{.from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
     return input;
 }
 }  // namespace
@@ -64,7 +64,8 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
     FakeHash hash;
 
     auto valid = loadFixture("isthmus_l1_attributes.bin");
-    auto okOutput = task::syncWait(opStackExecuteViaHost(makeDepositInput(stateView, vm, hash, valid)));
+    auto okOutput =
+        task::syncWait(opStackExecuteViaHost(makeDepositInput(stateView, vm, hash, valid)));
     BOOST_REQUIRE_EQUAL(okOutput.evmcResult.status_code, EVMC_SUCCESS);
     applyStateDiffToView(okOutput.stateDiff, stateView);
 
@@ -72,10 +73,18 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
     BOOST_REQUIRE(before.has_value());
 
     bytes invalid = {0x09, 0x89, 0x99, 0xbe};
-    auto failOutput = task::syncWait(opStackExecuteViaHost(makeDepositInput(stateView, vm, hash, invalid)));
+    auto failOutput =
+        task::syncWait(opStackExecuteViaHost(makeDepositInput(stateView, vm, hash, invalid)));
     BOOST_REQUIRE_EQUAL(failOutput.evmcResult.status_code, EVMC_REVERT);
+    BOOST_REQUIRE(failOutput.receiptMeta.depositNonce.has_value());
+    BOOST_CHECK_EQUAL(*failOutput.receiptMeta.depositNonce, 1);
+    BOOST_CHECK_GT(failOutput.gasUsed, 0);
+    BOOST_CHECK_LT(failOutput.gasUsed, 500'000);
 
     auto const it = failOutput.stateDiff.accounts.find(OP_L1_BLOCK_PREDEPLOY);
     BOOST_CHECK(it == failOutput.stateDiff.accounts.end());
+    auto const depositorIt = failOutput.stateDiff.accounts.find(OP_DEPOSITOR_ACCOUNT);
+    BOOST_REQUIRE(depositorIt != failOutput.stateDiff.accounts.end());
+    BOOST_CHECK_EQUAL(depositorIt->second.nonce, 2);
 }
 }  // namespace bcos::evm::test

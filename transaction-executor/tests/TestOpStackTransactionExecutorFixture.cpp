@@ -10,11 +10,13 @@
 #include "TestMemoryStorage.h"
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
-#include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackFee.h"
+#include "bcos-evm/opstack/RollupCost.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
+#include "bcos-rpc/web3jsonrpc/model/Web3Transaction.h"
 #include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
 #include "bcos-tars-protocol/protocol/TransactionFactoryImpl.h"
 #include "bcos-tars-protocol/protocol/TransactionImpl.h"
@@ -25,11 +27,14 @@
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <array>
+#include <string>
 
 namespace bcos::evm::test
 {
 namespace
 {
+// Builds 0x000…00{value}. For executeTransaction CALL targets use value >= 0x12:
+// 0x01..0x11 map to active Ethereum precompiles (EthPrecompiles 0x01..0x11).
 evmc_address addressFromLastByte(uint8_t value)
 {
     evmc_address address{};
@@ -88,6 +93,43 @@ task::Task<void> seedOpFeeParams(executor_v1::MutableStorage& storage)
         state::toEvmC(OPERATOR_FEE_PARAMS_SLOT), packOperatorFeeParams(1'000'000, 5));
 }
 
+OpStackFeeParams seededFeeParams()
+{
+    return OpStackFeeParams{
+        .l1BaseFee = u256(31'250),
+        .l1BlobBaseFee = u256(0),
+        .l1BaseFeeScalar = 1,
+        .l1BlobBaseFeeScalar = 0,
+        .operatorFeeScalar = 1'000'000,
+        .operatorFeeConstant = u256(5),
+    };
+}
+
+u256 parseHexU256(std::string const& hex)
+{
+    auto value = hex;
+    if (value.starts_with("0x") || value.starts_with("0X"))
+    {
+        value = value.substr(2);
+    }
+    if (value.empty())
+    {
+        return 0;
+    }
+    return u256("0x" + value);
+}
+
+void attachSignedWeb3RollupPayload(
+    bcostars::protocol::TransactionImpl& tx, bcos::rpc::Web3Transaction const& w3)
+{
+    auto const signBytes = w3.encodeForSign();
+    auto& inner = tx.mutableInner();
+    inner.extraTransactionBytes.assign(signBytes.begin(), signBytes.end());
+    inner.signature.assign(w3.signatureR.begin(), w3.signatureR.end());
+    inner.signature.insert(inner.signature.end(), w3.signatureS.begin(), w3.signatureS.end());
+    inner.signature.push_back(static_cast<tars::Char>(w3.signatureV));
+}
+
 bytes compactU256(u256 value)
 {
     auto encoded = toBigEndian(value);
@@ -131,6 +173,34 @@ std::shared_ptr<bcostars::protocol::TransactionImpl> makeEip1559Tx(
         static_cast<tars::Char>(bcos::protocol::TransactionType::Web3Transaction);
     impl->mutableInner().web3TypedTxKind = 2;
     return impl;
+}
+
+bcos::rpc::Web3Transaction makeSignedEip1559Web3(
+    evmc_address target, bcos::bytes const& data = {0xde, 0xad, 0xbe, 0xef})
+{
+    bcos::rpc::Web3Transaction w3;
+    w3.type = bcos::rpc::TransactionType::EIP1559;
+    w3.chainId = 1;
+    w3.nonce = 0;
+    w3.maxPriorityFeePerGas = 1;
+    w3.maxFeePerGas = 2;
+    w3.gasLimit = 50'000;
+    w3.to = bcos::Address(addressToTableHex(target));
+    w3.value = 0;
+    w3.data = data;
+    w3.signatureR = bcos::bytes(32, 0x11);
+    w3.signatureS = bcos::bytes(32, 0x22);
+    w3.signatureV = 1;
+    return w3;
+}
+
+std::shared_ptr<bcostars::protocol::TransactionImpl> makeAttachedSignedEip1559Tx(
+    bcostars::protocol::TransactionFactoryImpl& factory, evmc_address sender, evmc_address target,
+    bcos::rpc::Web3Transaction const& w3)
+{
+    auto tx = makeEip1559Tx(factory, sender, target, 50'000, "0", w3.data);
+    attachSignedWeb3RollupPayload(*tx, w3);
+    return tx;
 }
 
 std::shared_ptr<bcostars::protocol::TransactionImpl> makeDepositTx(
@@ -229,10 +299,62 @@ BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_EQUAL(receipt->status(), 0);
         BOOST_REQUIRE(receipt->l1Fee().has_value());
-        BOOST_CHECK_NE(receipt->l1Fee().value(), "0x0");
+        auto const rollup = opstack_tx::buildRollupCostData(*tx);
+        BOOST_REQUIRE(rollup.has_value());
+        auto const expectedL1 = l1CostFjord(*rollup, seededFeeParams());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->l1Fee().value()), expectedL1);
 
         ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
-        BOOST_CHECK_GT(co_await l1Recipient.balance(), u256(0));
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), expectedL1);
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(signed_rlp_rollup_matches_l1_cost_formula)
+{
+    auto const sender = addressFromLastByte(0x05);
+    auto const target = addressFromLastByte(0x20);
+    auto const w3 = makeSignedEip1559Web3(target);
+    auto tx = makeAttachedSignedEip1559Tx(transactionFactory, sender, target, w3);
+
+    auto const unsignedRollup = newRollupCostData(bcos::ref(w3.encodeForSign()));
+    auto const rollup = opstack_tx::buildRollupCostData(*tx);
+    BOOST_REQUIRE(rollup.has_value());
+    BOOST_CHECK_NE(unsignedRollup.fastLzSize, rollup->fastLzSize);
+
+    auto const signedL1 = l1CostFjord(*rollup, seededFeeParams());
+    BOOST_CHECK_GT(signedL1, u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(signed_rlp_rollup_execute_e2e)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x05);
+        auto const target = addressFromLastByte(0x20);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 500'000'000, "0");
+
+        auto const w3 = makeSignedEip1559Web3(target);
+        auto tx = makeAttachedSignedEip1559Tx(transactionFactory, sender, target, w3);
+
+        auto const unsignedRollup = newRollupCostData(bcos::ref(w3.encodeForSign()));
+        auto const rollup = opstack_tx::buildRollupCostData(*tx);
+        BOOST_REQUIRE(rollup.has_value());
+        BOOST_CHECK_NE(unsignedRollup.fastLzSize, rollup->fastLzSize);
+        auto const expectedL1 = l1CostFjord(*rollup, seededFeeParams());
+        BOOST_CHECK_GT(expectedL1, u256(0));
+
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        auto const l1BalBefore = co_await l1Recipient.balance();
+
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, false);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_REQUIRE(receipt->l1Fee().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->l1Fee().value()), expectedL1);
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), l1BalBefore + expectedL1);
     }());
 }
 
@@ -281,7 +403,7 @@ BOOST_AUTO_TEST_CASE(insufficient_balance_fails_before_execution)
     }());
 }
 
-BOOST_AUTO_TEST_CASE(revert_keeps_l1_fee)
+BOOST_AUTO_TEST_CASE(revert_keeps_l1_fee_and_operator_fee)
 {
     task::syncWait([this]() -> task::Task<void> {
         auto const sender = addressFromLastByte(0x21);
@@ -297,8 +419,17 @@ BOOST_AUTO_TEST_CASE(revert_keeps_l1_fee)
 
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_NE(receipt->status(), 0);
+        auto const rollup = opstack_tx::buildRollupCostData(*tx);
+        BOOST_REQUIRE(rollup.has_value());
+        auto const expectedL1 = l1CostFjord(*rollup, seededFeeParams());
         BOOST_REQUIRE(receipt->l1Fee().has_value());
-        BOOST_CHECK_NE(receipt->l1Fee().value(), "0x0");
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->l1Fee().value()), expectedL1);
+
+        auto const feeParams = seededFeeParams();
+        auto const expectedOperator =
+            operatorCostIsthmus(static_cast<uint64_t>(receipt->gasUsed()), feeParams);
+        BOOST_REQUIRE(receipt->operatorFee().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->operatorFee().value()), expectedOperator);
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_GT(co_await senderAccount.balance(), u256(0));
@@ -312,7 +443,7 @@ BOOST_AUTO_TEST_CASE(deposit_mint_applied_without_fee_routing)
         auto const sender = addressFromLastByte(0x31);
         auto const target = addressFromLastByte(0x32);
         co_await seedOpFeeParams(storage);
-        co_await seedSender(sender, 0, "0");
+        co_await seedSender(sender, 0, "3");
 
         auto tx = makeDepositTx(transactionFactory, sender, target, u256(100));
         auto header = makeBlockHeader();
@@ -321,9 +452,12 @@ BOOST_AUTO_TEST_CASE(deposit_mint_applied_without_fee_routing)
 
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_EQUAL(receipt->status(), 0);
+        BOOST_REQUIRE(receipt->depositNonce().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(3));
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(100));
+        BOOST_CHECK_EQUAL((co_await senderAccount.nonce()).value(), "4");
 
         ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
         BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
@@ -371,6 +505,10 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_but_keeps_mint)
 
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_NE(receipt->status(), 0);
+        BOOST_CHECK_EQUAL(receipt->gasUsed(), 21'000);
+        BOOST_CHECK_LT(receipt->gasUsed(), 50'000);
+        BOOST_REQUIRE(receipt->depositNonce().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(7));
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(100));
@@ -402,8 +540,16 @@ BOOST_AUTO_TEST_CASE(hard_failure_status_propagates_without_state_commit)
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_NE(receipt->status(), 0);
         BOOST_CHECK_GT(receipt->gasUsed(), 0);
+        auto const rollup = opstack_tx::buildRollupCostData(*tx);
+        BOOST_REQUIRE(rollup.has_value());
+        auto const expectedL1 = l1CostFjord(*rollup, seededFeeParams());
         BOOST_REQUIRE(receipt->l1Fee().has_value());
-        BOOST_CHECK_NE(receipt->l1Fee().value(), "0x0");
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->l1Fee().value()), expectedL1);
+
+        auto const expectedOperator =
+            operatorCostIsthmus(static_cast<uint64_t>(receipt->gasUsed()), seededFeeParams());
+        BOOST_REQUIRE(receipt->operatorFee().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->operatorFee().value()), expectedOperator);
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(300'000));

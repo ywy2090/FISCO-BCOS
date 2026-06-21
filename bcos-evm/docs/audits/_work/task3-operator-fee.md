@@ -1,6 +1,7 @@
 # Task 3 — OPStack Operator Fee (Isthmus) 审计笔记
 
-**日期：** 2026-06-20  
+**日期：** 2026-06-21（复审计 @ `54e17a62c`）  
+**初审计：** 2026-06-20 @ `f989f073f` — 🔴 `m_isIsthmus` 生产未接线  
 **范围：** 增补 S1 `OPStack operator fee (Isthmus)`；`OpStackFee.*`、`OpStackTxExecutor.*`、`opStackExecuteViaHost` fee 路径  
 **参考：** op-geth `e8800cffe` — `core/types/rollup_cost.go`（`NewOperatorCostFunc`、`newOperatorCostFuncIsthmus`、`ExtractOperatorFeeParams`）、`core/state_transition.go`（`buyGas`、`refundIsthmusOperatorCost`、fee routing）  
 **Specs：** ethereum-optimism-specs `689a96f` — `specs/protocol/isthmus/exec-engine.md` §Operator Fee  
@@ -20,7 +21,7 @@
 | Deposit tx **不**收 operator fee、无 refund | §Deposit Operator Fees | `!st.msg.IsDepositTx` 分支（`:713+`） |
 | 参数来源：L1Block slot 8 或 L1 attributes | §Configuring Operator Fee Parameters | `OperatorFeeParamsSlot`；`ExtractOperatorFeeParams` `[20:24]`/`[24:32]` |
 | Isthmus 激活前 operator fee = 0 | §Overview / timestamp activation | `NewOperatorCostFunc` → `!IsOptimismIsthmus` 返回零函数（`:223-226`） |
-| Receipt 扩展：scalar/constant 非零时写入 receipt | §Receipts | op-geth receipt 类型扩展（FB 仅写 spent `operatorFee` 金额） |
+| Receipt 扩展：scalar/constant 非零时写入 receipt | §Receipts | op-geth receipt 类型扩展 |
 
 **Isthmus 审计锚点：** operator fee 自 Isthmus 起生效；Fjord L1 fee 与之独立叠加（Task 2）。Jovian operator-fee-fix 公式 **不在** Isthmus 审计范围。
 
@@ -32,7 +33,7 @@
 
 | 项 | FB | op-geth | 一致 |
 |----|----|---------|------|
-| Isthmus 公式 | `operatorCostIsthmus:65-67` | `newOperatorCostFuncIsthmus` | ✅ |
+| Isthmus 公式 | `operatorCostIsthmus:58-67` | `newOperatorCostFuncIsthmus` | ✅ |
 | 双零短路 | scalar==0 && constant==0 → 0（`:60-63`） | 空 slot → 零函数（`:229-232`） | ✅ |
 | Slot 8 读取 | `[20:24]` scalar, `[24:32]` constant（`:91-92`） | `ExtractOperatorFeeParams`（`:656-659`） | ✅ |
 | 空 slot 跳过 | `isZeroBytes32` 早退（`:86-89`） | `operatorFeeParams == {}` | ✅ |
@@ -59,34 +60,33 @@ gas=1618, scalar=1439103868, constant=1256417826609331460
 | fee routing | `m_operatorCostFunc(gasUsed)` → `m_operatorFeeRecipient`（`:137-141`） | `:731-732` | ✅ |
 | actual gas 输入 | `postExecuteGasSettlement` → `txData.m_gasUsed`（含 EIP-3529 refund + floor） | `st.gasUsed()` | ✅ 语义对齐 |
 
-### 编排接线（`OpStackExecuteViaHost.cpp`）
+### 编排接线（`OpStackExecuteViaHost.cpp` + TE）
 
-| 项 | 行为 | 备注 |
-|----|------|------|
-| `loadOpStackFeeParams` + `m_operatorCostFunc` | 始终绑定（`:87-93`） | 函数存在 |
-| buyGas / refund 门控 | **`m_isIsthmus && m_operatorCostFunc`**（`OpStackTxExecutor.cpp:60,95,137`） | 依赖调用方设 flag |
-| receipt `operatorFee` | 仅 `m_isIsthmus` 时写入 spent fee（`:237-242`） | 同门控 |
+| 项 | 行为 | 54e17a62c |
+|----|------|-----------|
+| `loadOpStackFeeParams` + `m_operatorCostFunc` | 始终绑定（`:87-93`） | ✅ |
+| **`m_isIsthmus` 生产接线** | `OpStackTransactionExecutorImpl.h:210-211` 显式 `true`；`opStackExecuteViaHost:79-82` `isIsthmusOrchestrationProfile` 二次保障 | ✅ **OP-01 闭合** |
+| buyGas / refund 门控 | `m_isIsthmus && m_operatorCostFunc`（`OpStackTxExecutor.cpp:60,105,147`） | ✅ 生产可达 |
+| receipt `operatorFee` | `m_isIsthmus` 时写入 spent fee（`:249-253`） | ✅ |
+| receipt `operatorFeeScalar/Constant` | fee params 非零时写入 meta（`:254-258`） | ✅ **OP-13 编排 meta** |
+| `makeReceipt` 协议层 | 仅 `setOperatorFee`（`:261-264`）；**未** `setOperatorFeeScalar/Constant` | 🟡 known gap |
 
 ---
 
-## Step 3: 🔴 Task 1 交叉引用 — `m_isIsthmus` 生产未接线
+## Step 3: ✅ Task 1 交叉引用 — `m_isIsthmus` 生产已接线（OP-01）
 
-**Task 1 结论（S3）：** `OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()`（`:197-210`）**未**设置 `input.opTxExecutor.m_isIsthmus = true`。
+**初审计（f989f073f）：** `opStackExecuteViaHostTx()` 未设 `m_isIsthmus` → operator fee 端到端失效。
 
-**对本 Task 的影响：**
+**54e17a62c 验证：**
 
 | 路径 | 单元/隔离测试 | 生产 E2E |
 |------|--------------|----------|
-| `buyGas` operator 预扣 | 测试手动 `m_isIsthmus=true` | **永不执行** |
-| `refundIsthmusOperatorCost` | 同上 | **永不执行** |
-| OperatorFeeVault 路由 | `OpStackSettlementTest` 手动设 flag | **永不执行** |
-| receipt `operatorFee` | smoke 未断言 | **永不写入** |
+| `buyGas` operator 预扣 | `OpStackSettlementTest` | ✅ `TestOpStackTransactionExecutorFixture::operator_fee_recipient_gets_fee_on_success` |
+| `refundIsthmusOperatorCost` | `RefundIsthmusTest` | ✅ 经 settlement 链间接验证 |
+| OperatorFeeVault 路由 | `OpStackSettlementTest` | ✅ TE fixture `OP_OPERATOR_FEE_RECIPIENT balance > 0` |
+| receipt `operatorFee` | `OpStackExecuteViaHostSmokeTest` | ✅ TE `receipt->operatorFee() != 0x0` |
 
-`opStackExecuteViaHost` 虽绑定 `m_operatorCostFunc`，但 **所有扣费/退还/路由** 均二次门控 `m_isIsthmus`。生产 Isthmus 链 operator fee **端到端失效** — 与 op-geth `IsOptimismIsthmus` 行为 🔴 偏离。
-
-**修复建议（与 Task 1 一致）：** 在 `opStackExecuteViaHostTx()` 增加 `input.opTxExecutor.m_isIsthmus = true`（或 timestamp/fork helper）。
-
-**严重度：** 🔴 — 阻塞 Isthmus operator fee 合规；公式/单元正确但 orchestration 未激活。
+**对照 op-geth：** Isthmus 激活时 operator fee 计入 balance check 与 settlement — 生产路径现已可达 ✅。
 
 ---
 
@@ -94,38 +94,35 @@ gas=1618, scalar=1439103868, constant=1256417826609331460
 
 | 能力 | 层级 | 清单来源 | Matrix 状态 | 审计深度 | 状态 | Spec 依据 | FB 实现 | op-geth 对照 | FB 测试 | 缺口 |
 |------|------|----------|-------------|----------|------|-----------|---------|--------------|---------|------|
-| OPStack operator fee (Isthmus) | orchestration | 增补 S1 | 待 matrix 合入 | 深审 | 🔴 **BLOCKED_ON_WIRING** | `isthmus/exec-engine.md` §Operator Fee | `OpStackFee.cpp` 公式 ✅；`OpStackTxExecutor.cpp` buy/refund/route ✅；**`m_isIsthmus` 生产 false** | Isthmus 必须扣/退/路由；`NewOperatorCostFunc` + `state_transition` | `OpStackFeeTest`, `RefundIsthmusTest`, `OpStackSettlementTest` | **Task 1：`m_isIsthmus` 未设**；receipt scalar/constant；E2E 缺测 |
-
-**Matrix patch 建议：** 新增行 `OPStack operator fee (Isthmus) | orchestration | explicit | OpStackFeeTest, RefundIsthmusTest, OpStackSettlementTest`。
+| OPStack operator fee (Isthmus) | orchestration | 增补 S1 | explicit | 深审 | ✅ | `isthmus/exec-engine.md` §Operator Fee | `OpStackFee.cpp` 公式 ✅；`OpStackTxExecutor.cpp` buy/refund/route ✅；**`m_isIsthmus` 生产 true** | Isthmus 必须扣/退/路由 | `OpStackFeeTest`, `RefundIsthmusTest`, `OpStackSettlementTest`, `TestOpStackTransactionExecutorFixture::operator_fee_recipient_gets_fee_on_success` | 🟡 协议 receipt 缺 scalar/constant；literal/revert 弱断言 |
 
 ---
 
 ## Part 2 — 偏离项详情
 
-### D3-1 🔴 生产路径 `m_isIsthmus` 未设 → operator fee 全链路失效
+### ✅ D3-1 生产路径 `m_isIsthmus` 已设（OP-01 闭合）
 
-- **现象：** `OpStackTransactionExecutorImpl.h:197-210` 未设 `m_isIsthmus`；默认 `false`（`OpStackTxExecutor.h:28`）。
-- **影响：** buyGas 不预扣、不校验 balance；refund 不退 operator 差额；OperatorFeeVault 无入账；receipt 无 `operatorFee`。
-- **规范：** specs §EVM Fee Semantics MUST #1–#4。
-- **金标准：** op-geth `IsOptimismIsthmus` + `OperatorCostFunc` 非 nil。
-- **修复：** 见 Task 1 S3；本 Task 不重复实现。
-- **交叉引用：** `task1-executor-wiring.md` Part 2。
+- **54e17a62c：** `OpStackTransactionExecutorImpl.h:210-211` + `OpStackExecuteViaHost.cpp:79-82`。
+- **交叉引用：** `task1-executor-wiring.md` Part 2 ✅。
 
-### D3-2 🟡 Receipt 未写入 `operatorFeeScalar` / `operatorFeeConstant`
+### D3-2 🟡 Receipt scalar/constant — 编排 meta ✅，协议层仍缺
 
-- **现象：** `OpStackReceiptMeta` 仅 `operatorFee`（spent）；`makeReceipt` 只 `setOperatorFee`（`OpStackTransactionExecutorImpl.h:258-261`）。specs §Receipts 要求非零参数时 receipt 含 scalar/constant 字段。
-- **金标准：** optimism specs + op-geth receipt 扩展。
-- **严重度：** 🟡 — spent fee 路由正确时仍缺 metadata parity；依赖 D3-1 修复后验证。
+- **54e17a62c 改进：** `OpStackReceiptMeta` 新增 `operatorFeeScalar`/`operatorFeeConstant`；`opStackExecuteViaHost:254-258` 在 params 非零时写入；`L1AttributesDepositTest` 断言 meta scalar ✅。
+- **仍缺：** `OpStackTransactionExecutorImpl::makeReceipt` 仅 `setOperatorFee`，未映射 scalar/constant 至 `protocol::TransactionReceipt`（OP-13 标注为协议层 known gap）。
+- **严重度：** 🟡 — spent fee 路由正确；metadata parity 在编排层已部分闭合。
 
-### D3-3 🟡 测试覆盖缺口 — 生产 wiring / E2E / deposit 隔离
+### D3-3 🟡 测试覆盖缺口 — 非 wiring 阻断
 
-| 缺口 | 说明 |
-|------|------|
-| 无生产路径断言 | 所有 opstack fee 测试手动 `m_isIsthmus=true` |
-| 无 `opStackExecuteViaHost` E2E | 未用 `loadOpStackFeeParams` + 真实 L1Block slot 8 跑完整 buy→execute→refund |
-| operator 域内无 deposit 对照 | deposit 豁免在 `DepositNoFeeRoutingTest`（Task 4），本 Task 测试未覆盖 |
-| 无 insufficient balance（含 operator） | buyGas 失败路径未单测 |
-| scalar=0、constant>0 边界 | 仅 `IsthmusOperator_zeroParams` |
+| 缺口 | 54e17a62c |
+|------|-----------|
+| ~~无生产路径断言~~ | ✅ TE `operator_fee_recipient_gets_fee_on_success` |
+| ~~无 `opStackExecuteViaHost` E2E~~ | ✅ `OpStackExecuteViaHostSmokeTest::l1_fee_recipient_gets_fee_on_success` 断言 `receiptMeta.operatorFee > 0` |
+| operator 域内 deposit 对照 | ✅ Task 4 `DepositNoFeeRoutingTest` |
+| insufficient balance（含 operator） | ✅ `OpStackExecuteViaHostSmokeTest::insufficient_balance_fails_before_execution` + TE fixture |
+| scalar=0、constant>0 边界 | 🟡 仍仅 `IsthmusOperator_zeroParams` |
+| **Literal 精确值** | 🟡 TE/smoke 用 `!= 0x0` / `> 0`，未对照 op-geth 1618 向量 E2E |
+| **Revert / hard-failure operator fee** | 🟡 TE `revert_keeps_l1_fee` / `hard_failure_*` 未断言 operator |
+| **Receipt meta scalar 在 smoke** | 🟡 `OpStackExecuteViaHostSmokeTest` 未断言 `operatorFeeScalar`（`L1AttributesDepositTest` 有） |
 
 ---
 
@@ -133,53 +130,54 @@ gas=1618, scalar=1439103868, constant=1256417826609331460
 
 | 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
 |----------|------|----------|------------|------|
-| `OpStackFeeTest.cpp` | `IsthmusOperator_gas1618_matchesFixture` | ✅ 有效 | `rollup_cost_test.go:35` `ithmusOperatorFee` | 公式字面一致 |
+| `OpStackFeeTest.cpp` | `IsthmusOperator_gas1618_matchesFixture` | ✅ 有效 | `rollup_cost_test.go:35` | 公式字面一致 |
 | `OpStackFeeTest.cpp` | `IsthmusOperator_zeroParams_returnsZero` | ✅ 有效 | 空参数 → 0 | 双零短路 |
 | `OpStackFeeTest.cpp` | `LoadOpStackFeeParams_unpacksSlots` | ✅ 有效 | `ExtractOperatorFeeParams` | operator slot 8 子域 |
-| `RefundIsthmusTest.cpp` | `RefundIsthmus_refundsLimitMinusUsedCost` | ✅ 有效 | `refundIsthmusOperatorCost` 公式 | limit=2618, used=1500 → refund 1118；**手动 `m_isIsthmus`** |
-| `OpStackSettlementTest.cpp` | `Settlement_routesCoinbaseBaseFeeL1AndOperator` | ✅ 有效 | buyGas + refundGas 全路由 | sender/coinbase/base/L1/operator 余额链正确；**手动 `m_isIsthmus`** |
-| `OpStackSettlementTest.cpp` | `HardFailure_stillRefundsUnusedGas` | ✅ 有效 | 失败仍 settlement + fee 路由 | OOG 后 operator vault=430；**手动 `m_isIsthmus`** |
-| `TestOpStackTransactionExecutorFixture.cpp` | smoke | 🟡 部分 | E2E operator fee | 未断言 operator 扣费/收据（Task 1） |
-| `OpStackExecuteViaHostSmokeTest.cpp` | 各用例 | 🟡 部分 | E2E | 手动 flag；无 operator fee 数值断言 |
-
-### 断言验算（`Settlement_routesCoinbaseBaseFeeL1AndOperator`）
-
-```
-effectiveGasPrice = min(5+2, 10) = 7
-buyGas debit = 1000×7 + 100(L1) + (1000+10)(op limit) = 8110
-refund: sender +600×7 +600(op refund); coinbase +400×5; base +400×2; L1 +100; operator vault +410
-→ sender=16690 ✅（与 BOOST_CHECK 一致）
-```
+| `RefundIsthmusTest.cpp` | `RefundIsthmus_refundsLimitMinusUsedCost` | ✅ 有效 | `refundIsthmusOperatorCost` 公式 | 直连 `OpStackTxExecutor` 单元测 |
+| `OpStackSettlementTest.cpp` | `Settlement_routesCoinbaseBaseFeeL1AndOperator` | ✅ 有效 | buyGas + refundGas 全路由 | 手动 `m_isIsthmus`（合理：直连 executor） |
+| `OpStackSettlementTest.cpp` | `HardFailure_stillRefundsUnusedGas` | ✅ 有效 | 失败仍 settlement + fee 路由 | 同上 |
+| `TestOpStackTransactionExecutorFixture.cpp` | `operator_fee_recipient_gets_fee_on_success` | ✅ 有效 | TE E2E operator fee | **新增 OP-01 验收** |
+| `OpStackExecuteViaHostSmokeTest.cpp` | `l1_fee_recipient_gets_fee_on_success` | ✅ 有效 | 编排 smoke operator + L1 | `makeIsthmusRevisionConfig` 自动 `m_isIsthmus` |
+| `L1AttributesDepositTest.cpp` | user tx after L1 attrs | ✅ 有效 | meta scalar/constant | OP-13 编排层 |
 
 ### 失败路径覆盖结论
 
 | 断言项 | 有测试 | 与 op-geth 一致（`m_isIsthmus=true`） |
 |--------|--------|--------------------------------------|
 | 公式 unit | ✅ | ✅ |
-| worst-case buyGas | ✅ Settlement buyGas | ✅ |
+| worst-case buyGas | ✅ Settlement + TE E2E | ✅ |
 | limit−used refund | ✅ RefundIsthmus | ✅ |
-| spent → vault | ✅ Settlement + HardFailure | ✅ |
-| deposit 豁免 | ❌ 本 Task 文件 | ✅（Task 4） |
-| 生产 `m_isIsthmus` | ❌ | 🔴 未接线 |
-| receipt spent fee E2E | ❌ | 🔴（门控） |
-| receipt scalar/constant | ❌ | 🟡 未实现 |
+| spent → vault | ✅ Settlement + TE E2E | ✅ |
+| deposit 豁免 | ✅ Task 4 | ✅ |
+| 生产 `m_isIsthmus` | ✅ | ✅ |
+| receipt spent fee E2E | ✅ | ✅ |
+| receipt scalar/constant meta | ✅ L1AttributesDepositTest | ✅ |
+| receipt scalar/constant 协议层 | ❌ | 🟡 known gap |
+| revert operator fee 保留 | 🟡 弱 | 🟡 未断言 |
+
+### 测试执行（54e17a62c）
+
+```bash
+ctest --test-dir build/bcos-evm/test -R 'RefundIsthmus|OpStackSettlement|OpStackFee' --output-on-failure
+# 3/3 passed (2026-06-21)
+```
 
 ---
 
 ## 汇总
 
-| 子域 | vs op-geth (Isthmus) | 严重度 |
-|------|----------------------|--------|
-| 公式 `operatorCostIsthmus` | 一致 | ✅ |
-| L1Block slot 8 参数解码 | 一致 | ✅ |
-| buyGas / balance check / refund / vault 路由 | 逻辑一致 | ✅（隔离测试） |
-| **`m_isIsthmus` 生产接线** | FB 默认 false；geth Isthmus 必启用 | 🔴 |
-| Deposit 豁免 | 一致 | ✅ |
-| Receipt metadata | 仅 spent fee；缺 scalar/constant | 🟡 |
-| 测试 | 单元+编排正确；无 E2E wiring | 🟡 |
+| 子域 | vs op-geth (Isthmus) | 初审计 | 54e17a62c |
+|------|----------------------|--------|-----------|
+| 公式 `operatorCostIsthmus` | 一致 | ✅ | ✅ |
+| L1Block slot 8 参数解码 | 一致 | ✅ | ✅ |
+| buyGas / balance check / refund / vault 路由 | 逻辑一致 | ✅（隔离） | ✅（生产 E2E） |
+| **`m_isIsthmus` 生产接线** | FB 默认 false | 🔴 | ✅ |
+| Deposit 豁免 | 一致 | ✅ | ✅ |
+| Receipt metadata | 仅 spent fee | 🟡 | 🟡 meta 有 scalar/constant；协议层仍缺 |
+| 测试 | 单元+编排；无 E2E wiring | 🟡 | 🟡 literal/revert 弱断言 |
 
-**Task 3 状态：** **BLOCKED_ON_WIRING** — 内核/编排实现 ✅，生产 E2E 🔴（Task 1 S3）
+**Task 3 状态：** **PASS** — OP-01 闭合；内核/编排/生产 E2E ✅。
 
-**P0 修复顺序：** D3-1（`m_isIsthmus` 接线，Task 1）→ E2E operator fee 断言 → D3-2 receipt 扩展 → D3-3 补测
+**剩余 🟡：** 协议 `TransactionReceipt` 缺 scalar/constant；E2E literal 精确值；revert/hard-failure operator fee 断言；scalar=0/constant>0 边界。
 
-**可裁决计数（本 Task 域）：** ✅ 4 · 🟡 3 · 🔴 1
+**可裁决计数：** ✅ 5 · 🟡 3 · 🔴 0

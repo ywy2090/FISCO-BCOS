@@ -128,6 +128,26 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fee_cap_under_base_fee)
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
 
+BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fields_when_eip4844_disabled)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x07);
+    state::Account account;
+    account.nonce = 1;
+    stateView.insert_account(sender, account);
+
+    state::State state(stateView);
+    auto input = makeInput(sender);
+    input.nonce = 1;
+    input.revisionConfig.eip4844 = false;
+    input.blobVersionedHashes.push_back(bcos::h256(1));
+    input.blobGasFeeCap = 100;
+
+    auto error = opStackPreCheck(input, state);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+}
+
 BOOST_AUTO_TEST_CASE(non_deposit_rejects_auth_list_on_create)
 {
     state::test::InMemoryStateView stateView;

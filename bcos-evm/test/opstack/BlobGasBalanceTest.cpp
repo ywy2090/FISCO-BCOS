@@ -1,22 +1,68 @@
 #define BOOST_TEST_MODULE BlobGasBalanceTest
 
+#include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/opstack/OpStackPreCheck.h"
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
+#include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
 namespace
 {
+class FakeHash final : public crypto::Hash
+{
+public:
+    crypto::HashType hash(bytesConstRef /*unused*/) const override { return crypto::HashType{}; }
+    bcos::crypto::hasher::AnyHasher hasher() const override { return {}; }
+};
+
 evmc_address addressFromLastByte(uint8_t value)
 {
     evmc_address address{};
     address.bytes[19] = value;
     return address;
+}
+
+evmc_bytes32 packFeeScalars(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar)
+{
+    constexpr size_t scalarSectionStart = 32 - 12 - 4;
+    evmc_bytes32 out{};
+    out.bytes[scalarSectionStart] = static_cast<uint8_t>((baseFeeScalar >> 24) & 0xff);
+    out.bytes[scalarSectionStart + 1] = static_cast<uint8_t>((baseFeeScalar >> 16) & 0xff);
+    out.bytes[scalarSectionStart + 2] = static_cast<uint8_t>((baseFeeScalar >> 8) & 0xff);
+    out.bytes[scalarSectionStart + 3] = static_cast<uint8_t>(baseFeeScalar & 0xff);
+    out.bytes[scalarSectionStart + 4] = static_cast<uint8_t>((blobBaseFeeScalar >> 24) & 0xff);
+    out.bytes[scalarSectionStart + 5] = static_cast<uint8_t>((blobBaseFeeScalar >> 16) & 0xff);
+    out.bytes[scalarSectionStart + 6] = static_cast<uint8_t>((blobBaseFeeScalar >> 8) & 0xff);
+    out.bytes[scalarSectionStart + 7] = static_cast<uint8_t>(blobBaseFeeScalar & 0xff);
+    return out;
+}
+
+void setOpFeeParams(state::test::InMemoryStateView& stateView)
+{
+    state::Account l1BlockAccount;
+    l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
+    l1BlockAccount.storage[state::toEvmC(L1_BLOB_BASE_FEE_SLOT)] = state::toEvmC(u256(0));
+    l1BlockAccount.storage[state::toEvmC(L1_FEE_SCALARS_SLOT)] = packFeeScalars(1, 0);
+    stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
+}
+
+u256 balanceFromDiff(
+    state::StateDiff const& diff, evmc_address const& address, u256 fallbackBalance)
+{
+    auto const it = diff.accounts.find(address);
+    if (it == diff.accounts.end())
+    {
+        return fallbackBalance;
+    }
+    return it->second.balance;
 }
 }  // namespace
 
@@ -101,5 +147,54 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     BOOST_REQUIRE(txData.m_evmcResult.has_value());
     BOOST_CHECK_EQUAL(txData.m_evmcResult->status_code, EVMC_INSUFFICIENT_BALANCE);
     BOOST_CHECK_EQUAL(state.get_balance(sender), balanceBefore);
+}
+
+BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_deducts_blob_fee_on_success)
+{
+    auto const initialBalance = u256(50'000'000'000);
+    auto runCase = [&](bool withBlobVersionedHashes) -> u256 {
+        state::test::InMemoryStateView stateView;
+        auto const sender = addressFromLastByte(0x95);
+        auto const target = addressFromLastByte(0x96);
+        setOpFeeParams(stateView);
+        stateView.insert_account(sender, state::Account{.balance = initialBalance, .nonce = 0});
+        stateView.insert_account(target, state::Account{});
+
+        evmc::VM vm{evmc_create_evmone()};
+        FakeHash hash;
+
+        OpStackExecuteViaHostInput input;
+        input.stateView = &stateView;
+        input.vm = &vm;
+        input.hashImpl = &hash;
+        input.message.kind = EVMC_CALL;
+        input.message.gas = 100'000;
+        input.message.sender = sender;
+        input.message.recipient = target;
+        input.message.code_address = target;
+        input.nonce = 0;
+        input.gasTipCap = 1;
+        input.gasFeeCap = 2;
+        input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+        input.blockInfo.baseFee = 1;
+        input.blockInfo.blobBaseFee = 10;
+        input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
+        input.txProps.warmDestination = true;
+        input.opTxExecutor.m_isIsthmus = true;
+        if (withBlobVersionedHashes)
+        {
+            input.blobGasFeeCap = 20;
+            input.blobVersionedHashes.push_back(h256(1));
+        }
+
+        auto const output = task::syncWait(opStackExecuteViaHost(input));
+        BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+        return balanceFromDiff(output.stateDiff, sender, initialBalance);
+    };
+
+    auto const withoutBlobBalance = runCase(false);
+    auto const withBlobBalance = runCase(true);
+    auto const blobCost = u256(OP_BLOB_GAS_PER_BLOB) * u256(10);
+    BOOST_CHECK_EQUAL(withoutBlobBalance - withBlobBalance, blobCost);
 }
 }  // namespace bcos::evm::test

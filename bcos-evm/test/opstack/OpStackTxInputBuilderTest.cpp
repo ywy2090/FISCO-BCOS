@@ -114,6 +114,45 @@ bytes buildEip7702Extra()
     extra.insert(extra.end(), txPayload.begin(), txPayload.end());
     return extra;
 }
+
+bytes buildEip4844Extra()
+{
+    h256 blobHash{0xabcd};
+    bytes blobHashRaw(blobHash.begin(), blobHash.end());
+
+    bytes txItems;
+    codec::rlp::encode(txItems, u256(10));     // chainId
+    codec::rlp::encode(txItems, uint64_t(0));  // nonce
+    codec::rlp::encode(txItems, uint64_t(1));  // maxPriorityFeePerGas
+    codec::rlp::encode(txItems, uint64_t(2));  // maxFeePerGas
+    codec::rlp::encode(txItems, uint64_t(50'000));
+    evmc_address to{};
+    to.bytes[19] = 0x55;
+    bytes toRaw(to.bytes, to.bytes + sizeof(to.bytes));
+    codec::rlp::encode(txItems, toRaw);
+    codec::rlp::encode(txItems, uint64_t(0));  // value
+    codec::rlp::encode(txItems, bytes{0x01, 0x02, 0x03});
+    txItems.push_back(codec::rlp::LIST_HEAD_BASE);  // empty access list
+    codec::rlp::encode(txItems, u256(30));          // maxFeePerBlobGas
+
+    bytes blobListPayload;
+    codec::rlp::encode(blobListPayload, blobHashRaw);
+    bytes blobListEncoded;
+    codec::rlp::encodeHeader(blobListEncoded,
+        {.isList = true, .payloadLength = static_cast<uint64_t>(blobListPayload.size())});
+    blobListEncoded.insert(blobListEncoded.end(), blobListPayload.begin(), blobListPayload.end());
+    txItems.insert(txItems.end(), blobListEncoded.begin(), blobListEncoded.end());
+
+    bytes txPayload;
+    codec::rlp::encodeHeader(
+        txPayload, {.isList = true, .payloadLength = static_cast<uint64_t>(txItems.size())});
+    txPayload.insert(txPayload.end(), txItems.begin(), txItems.end());
+
+    bytes extra;
+    extra.push_back(0x03);
+    extra.insert(extra.end(), txPayload.begin(), txPayload.end());
+    return extra;
+}
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(OpStackTxInputBuilderTest)
@@ -200,6 +239,18 @@ BOOST_AUTO_TEST_CASE(buildRollupCostData_deposit_uses_extra_bytes_unchanged)
     auto const fromBuilder = opstack_tx::buildRollupCostData(tx);
     BOOST_REQUIRE(fromBuilder.has_value());
     BOOST_CHECK_EQUAL(fromBuilder->fastLzSize, direct.fastLzSize);
+}
+
+BOOST_AUTO_TEST_CASE(decodes_eip4844_blob_fields_from_extra_bytes)
+{
+    auto tx = makeWeb3Tx(buildEip4844Extra(), 0x03);
+    OpStackExecuteViaHostInput input;
+    opstack_tx::fillWeb3Fields(tx, input);
+
+    BOOST_CHECK_EQUAL(input.web3TypedTxKind, 0x03);
+    BOOST_CHECK_EQUAL(input.blobGasFeeCap, u256(30));
+    BOOST_REQUIRE_EQUAL(input.blobVersionedHashes.size(), 1U);
+    BOOST_CHECK_EQUAL(input.blobVersionedHashes[0], h256(0xabcd));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -95,6 +95,7 @@ target_link_libraries(test-opstack-transaction-executor-fixture PRIVATE
     bcos-framework
     ledger
     executor
+    rpc
     Boost::unit_test_framework
 )
 add_dependencies(test-opstack-transaction-executor-fixture executor)

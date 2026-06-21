@@ -1,6 +1,7 @@
 # Task 5 — L1Block Predeploy + L1 Attributes Deposit 审计笔记（增补 S2）
 
-**日期：** 2026-06-20  
+**Commit：** `54e17a62c` (`feat(opstack): align L1Block IL1Block surface and close Isthmus remediation`)  
+**日期：** 2026-06-21（re-audit @ 54e17a62c）  
 **范围：** matrix 行 `chain precompile routing (L1Block)`（deviation）；增补 S2 `L1 attributes system deposit`  
 **参考：** op-geth `e8800cffe` — `params/protocol_params.go`, `core/types/rollup_cost.go`；optimism `L1Block.sol` @ contracts-bedrock  
 **Specs：** optimism/specs `689a96f` — `protocol/isthmus/l1-attributes.md`, `protocol/isthmus/predeploys.md`, `experimental/contracts/L2/l1-block.md`
@@ -89,34 +90,31 @@ deposit/user CALL → executeMessage → OpHostExtension::tryChainPrecompile
 |------|----|-------------------------|------|
 | 仅 Depositor 可写 | `memcmp(sender, OP_DEPOSITOR_ACCOUNT)`；否则 REVERT + `NotDepositor()` selector `0x3cc50b45` | `setL1BlockValuesEcotone/Isthmus` assembly 同等检查 | ✅ |
 | calldata ≥ 176 | `parseIsthmusL1Attributes` 不足则 REVERT | Solidity calldataload 越界 revert | ✅ |
-| fee slot 写入 | 4 slot（见 Step 1） | Isthmus 经 Ecotone 写 basefee/blob/scalars + operator slot | ✅（fee 面） |
-| metadata 写入 | **未写** number/timestamp/hash/sequenceNumber/batcherHash | `L1Block.sol:157–170` sstore 全套 Ecotone 字段 | 🟡 deviation |
+| fee slot 写入 | slot 1/3/7/8 + metadata slots | Isthmus 经 Ecotone 写 basefee/blob/scalars + operator slot | ✅ |
+| metadata 写入 | slot 0/2/4/5（number+timestamp、hash、scalars+sequenceNumber、batcherHash） | `L1Block.sol:157–170` sstore 全套 Ecotone 字段 | ✅ OP-14 |
 | gas 消耗 | 返回 `msg.gas`（不 meter SSTORE） | 真实 EVM gas | 🟡 TE 简化（可接受） |
 
-### Getter dispatch（`L1BlockPredeploy.cpp:89–117`）
+### Getter dispatch（`L1BlockPredeploy.cpp:93–170` + `L1BlockSelectors.h`）
 
 | FB selector | 名称 | 返回值 |
 |-------------|------|--------|
-| `0x519b4bd3` | `l1BaseFee()` | slot 1 |
+| `0x8381f58a` | `number()` | slot 0 [24:32) |
+| `0xb80777ea` | `timestamp()` | slot 0 [16:24) |
+| `0x5cf24969` | `basefee()` | slot 1 |
+| `0x519b4bd3` | `l1BaseFee()`（legacy alias） | slot 1 |
+| `0xf8206140` | `blobBaseFee()` | slot 7 |
+| `0x84189161` | `l1BlobBaseFee()`（legacy alias） | slot 7 |
+| `0x09bd5a60` | `hash()` | slot 2 |
+| `0x64ca23ef` | `sequenceNumber()` | slot 3 [24:32) |
 | `0xc5985918` | `baseFeeScalar()` | slot 3 [16:20) |
 | `0x68d5dca6` | `blobBaseFeeScalar()` | slot 3 [20:24) |
-| `0x84189161` | `l1BlobBaseFee()` | slot 7 |
+| `0xe81b2c6d` | `batcherHash()` | slot 5 |
 | `0x4d5d9a2a` | `operatorFeeScalar()` | slot 8 [20:24) |
 | `0x16d3bc7f` | `operatorFeeConstant()` | slot 8 [24:32) |
+| `0xe591b282` … | `DEPOSITOR_ACCOUNT()` / `gasPayingToken*()` / `version()` / `isFeatureEnabled()` | 常量或 mapping |
 
-**🟡 Getter ABI 偏离链上 `IL1Block`：**
-
-| 链上 L1Block（`IL1Block.sol`） | selector | FB 是否实现 |
-|-------------------------------|----------|-------------|
-| `basefee()` | `0x5cf24969` | ❌ |
-| `blobBaseFee()` | `0xf8206140` | ❌ |
-| `number()` / `timestamp()` / `hash()` / `sequenceNumber()` / `batcherHash()` | 各链上 selector | ❌ |
-| `DEPOSITOR_ACCOUNT()` / `gasPayingToken*()` / `version()` 等 | — | ❌ |
-
-FB 实现的 `l1BaseFee()` / `l1BlobBaseFee()` 命名与 selector 对应 **GasPriceOracle**（`0x4200…000F`），而非 L1Block 地址上的 `basefee()` / `blobBaseFee()`。
-
-**TE 影响：** `loadOpStackFeeParams` / `l1CostFjord` / `operatorCostIsthmus` 直接读 storage，**不受** getter ABI 影响 ✅  
-**兼容性影响：** 用户合约若 `CALL` L1Block.`basefee()` 将在 FB 路径 REVERT（unknown selector）→ 🟡
+**54e17a62c 判定：** OP-14 闭合 — IL1Block Isthmus call-surface 与链上 selector 对齐；legacy `l1BaseFee`/`l1BlobBaseFee` 保留 ✅  
+**仍 out of scope：** GPO `0x4200…000F`、`setFeature`、`proxyAdmin*`、Bedrock/Jovian legacy setter、`setIsthmus()` 升级迁移 ⚪
 
 ### Packing helpers（`L1BlockStorage.cpp:58–89`）
 
@@ -138,10 +136,10 @@ FB 实现的 `l1BaseFee()` / `l1BlobBaseFee()` 命名与 selector 对应 **GasPr
 2. opStackExecuteViaHost → OpHostExtension → L1BlockPredeploy::applySetterIsthmus
 3. applyStateDiffToView — slot 1/3/7/8 持久化
 4. 后续 user tx + rollupCostData + m_isIsthmus=true
-5. 断言 OP_L1_FEE_RECIPIENT balance > 0
+5. 断言 `receiptMeta.l1Fee` / `operatorFee` / `operatorFeeScalar` / `operatorFeeConstant` 与 `l1CostFjord` / `operatorCostIsthmus` 字面一致；recipient balance 对齐
 ```
 
-证明：attributes deposit 更新的 L1Block fee slots 被 `loadOpStackFeeParams`（`OpStackExecuteViaHost.cpp:87`）消费，Fjord L1 fee 路由生效 ✅
+证明：attributes deposit 更新的 L1Block fee slots 被 `loadOpStackFeeParams`（`OpStackExecuteViaHost.cpp:87`）消费，Fjord L1 + Isthmus operator fee 路由与 receipt meta 数值 parity ✅（OP-12）
 
 ### 与 specs 行为对照
 
@@ -156,11 +154,11 @@ FB 实现的 `l1BaseFee()` / `l1BlobBaseFee()` 命名与 selector 对应 **GasPr
 
 L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）：
 
-| 项 | 对 L1 attributes 的影响 | Task 4 结论 |
-|----|-------------------------|-------------|
-| 成功 sender nonce +1 | attributes deposit 成功后 nonce 可能未递增 | 🔴 D4-1 |
-| 失败 REVERT gasUsed | 无效 calldata REVERT 时 gasUsed=gasLimit | 🔴 D4-2（若走 EVM REVERT 路径） |
-| entry 失败 | intrinsic/floor 失败时无 nonce bump | 🔴 D4-3 |
+| 项 | 对 L1 attributes 的影响 | Task 4 结论 (54e17a62c) |
+|----|-------------------------|-------------------------|
+| 成功 sender nonce +1 | attributes deposit 成功应 +1 | ✅ 实现（`:175-176`）；L1 测试未断言 🟡 |
+| 失败 REVERT gasUsed | 无效 calldata REVERT 时 actual gas | ✅ settlement（`:181-188`）；L1 测试未断言 🟡 |
+| entry 失败 | intrinsic/floor 失败 nonce bump + gasLimit | ✅ `DepositNoFeeRoutingTest::deposit_entry_failure_*` |
 
 本 Task 测试 **未覆盖** deposit nonce / gasUsed（见 Part 3）。
 
@@ -182,8 +180,8 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 |------|------|-----|
 | calldata 过短 | REVERT，storage 不变 | ✅ |
 | 非 Depositor caller | `NotDepositor()` REVERT | ✅ `L1BlockPredeployTest::setter_rejects_non_depositor_sender` |
-| 失败 deposit nonce | +1（Regolith+） | 未测；Task 4 🔴 |
-| 失败 deposit gasUsed | Regolith+ 实际 gas（EVM REVERT） | 未测；Task 4 🔴 |
+| 失败 deposit nonce | +1（Regolith+） | 未在本 Task 测；Task 4 已在 `DepositNoFeeRoutingTest` 覆盖 generic deposit 🟡 |
+| 失败 deposit gasUsed | Regolith+ 实际 gas（EVM REVERT） | L1 attributes REVERT 未断言 gasUsed；Task 4 generic deposit 已改为 actual gas（`:181-188` settlement）🟡 |
 
 ---
 
@@ -192,7 +190,7 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 | 能力 | 层级 | 清单来源 | Matrix 状态 | 深度 | 状态 | Spec 依据 | FB 实现 | op-geth 对照 | FB 测试 | 缺口 |
 |------|------|----------|-------------|------|------|-----------|---------|--------------|---------|------|
 | chain precompile routing (L1Block) | host extension | matrix:15 | deviation | 深审 | 🟢 **DONE** (OP-14) | `l1-block.md` 全量 `IL1Block` getter + Isthmus setter | `OpHostExtension` → `L1BlockPredeploy.cpp` | 地址/slot 一致；metadata + fee oracle；legacy `l1BaseFee`/`l1BlobBaseFee` alias | `L1BlockPredeployTest`, `L1BlockGetterTest` | GPO `0x4200…000F`；`setFeature`/`proxyAdmin*`；Bedrock/Jovian setter |
-| L1 attributes system deposit | orchestration | **增补 S2** | 待 matrix 合入 | 深审 | 🟡 **DONE_WITH_CONCERNS** | `isthmus/l1-attributes.md` | `parseIsthmusL1Attributes` + deposit → `applySetterIsthmus` | `extractL1GasParamsPostIsthmus` fee 字段一致 | `L1AttributesDepositTest`, `L1AttributesDepositFailureTest`, `isthmus_l1_attributes.bin` | deposit nonce/gas（Task 4）；operator fee 数值未断言 |
+| L1 attributes system deposit | orchestration | **增补 S2** | 待 matrix 合入 | 深审 | ✅ **DONE** (OP-12) | `isthmus/l1-attributes.md` | `parseIsthmusL1Attributes` + deposit → `applySetterIsthmus` | `extractL1GasParamsPostIsthmus` fee 字段一致 | `L1AttributesDepositTest`, `L1AttributesDepositFailureTest`, `isthmus_l1_attributes.bin` | L1 attributes 失败路径未断言 nonce/gasUsed |
 
 **Matrix patch 建议（S2）：**
 
@@ -220,15 +218,16 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 - **实现：** `number`, `timestamp`, `hash`, `sequenceNumber`, `batcherHash`, scalar getters, `DEPOSITOR_ACCOUNT`, `gasPayingToken*`, `isCustomGasToken`, `version`, `isFeatureEnabled`。
 - **仍 out of scope：** GPO predeploy、`setFeature`, `proxyAdmin*`, Ecotone 前 legacy setter、`setIsthmus()` 升级迁移。
 
-### D5-4 🟡 L1 attributes deposit E2E 断言不完整
+### D5-4 ✅ CLOSED (OP-12) — L1 attributes deposit E2E literal fee 断言
 
-- **现象：** `L1AttributesDepositTest` 仅断言 L1 fee recipient balance > 0，未断言具体 `l1Fee` 数值、operator fee、或 slot 与 fixture 一致（后者由 `L1BlockPredeployTest` 覆盖）。
-- **修复建议：** 扩展 E2E：对 `output.receiptMeta` / 精确 fee 与 op-geth 向量对照。
+- **修复（54e17a62c）：** `L1AttributesDepositTest` 现断言 `receiptMeta.l1Fee` / `operatorFee` / `operatorFeeScalar` / `operatorFeeConstant` 与 `l1CostFjord` / `operatorCostIsthmus` 公式一致，且 `OP_L1_FEE_RECIPIENT` / `OP_OPERATOR_FEE_RECIPIENT` balance 对齐。
+- **编排：** `isIsthmusOrchestrationProfile` 自动设 `m_isIsthmus`（`OpStackExecuteViaHost.cpp:79-82`），无需测试手填。
 
-### D5-5 🔴（交叉 Task 4）deposit nonce / gasUsed 语义
+### D5-5 🟡（交叉 Task 4）L1 attributes deposit nonce / gasUsed 测试缺口
 
-- **现象：** L1 attributes deposit 继承 Task 4 D4-1/D4-2 问题。
-- **修复：** 见 `task4-deposit.md` P0 顺序；补 `L1AttributesDepositTest` nonce / `depositNonce` 断言。
+- **实现：** 54e17a62c deposit REVERT 路径已用 `postExecuteGasSettlement` 产出 actual `gasUsed`（`:181-188`）；成功路径 nonce+1（`:175-176`）。
+- **缺口：** `L1AttributesDepositFailureTest` / `L1AttributesDepositTest` 仍未断言 depositor nonce、`depositNonce`、`gasUsed`（generic deposit 已在 `DepositNoFeeRoutingTest` 覆盖）。
+- **修复建议：** 扩展 L1 attributes 专用用例或引用 Task 4 通用 deposit 测试矩阵。
 
 ---
 
@@ -240,8 +239,9 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 | `L1BlockPredeployTest.cpp` | `setter_rejects_non_depositor_sender` | ✅ 有效 | `NotDepositor()` / i01-001 | REVERT + slot 0 |
 | `L1BlockPredeployTest.cpp` | `getters_return_slot_values_after_setter` | ✅ 有效 | §5.3.1 ABI hex 金标准 | 全量 getter hex |
 | `L1BlockGetterTest.cpp` | E2E getter dispatch | ✅ 有效 | `opStackExecuteViaHost` 路由 | `l1BaseFee`, `basefee`, `number` |
-| `L1AttributesDepositTest.cpp` | `l1_attributes_deposit_updates_l1block_and_affects_following_user_tx` | 🟡 部分 | fee 联动 smoke | balance>0 非数值 parity；无 operator fee 断言 |
-| `L1AttributesDepositFailureTest.cpp` | `failed_l1_attributes_deposit_does_not_commit_slot_changes` | ✅ 有效 | REVERT 不 commit slot | 未断言 nonce/gasUsed |
+| `L1AttributesDepositTest.cpp` | `l1_attributes_deposit_updates_l1block_and_affects_following_user_tx` | ✅ 有效 | OP-12 literal fee | l1Fee/operatorFee/scalar/constant + recipient balance |
+| `L1AttributesDepositFailureTest.cpp` | `failed_l1_attributes_deposit_does_not_commit_slot_changes` | ✅ 有效 | REVERT 不 commit slot | 未断言 nonce/gasUsed/depositNonce |
+| `L1BlockPredeployTest.cpp` | `pure_getters_match_l1block_constants` / `isFeatureEnabled_returns_false_by_default` | ✅ 有效 | IL1Block 常量 getter | OP-14 增补 |
 
 **Fixture：** `isthmus_l1_attributes.bin` — 176B，selector + 全字段填充；与 spec offset 表一致 ✅
 
@@ -257,14 +257,14 @@ L1 attributes 走同一 `opStackExecuteViaHost` deposit 分支（`:122–181`）
 | calldata parse 字段顺序 | 一致 | ✅ |
 | Setter fee slot 写入 + packing | 一致 | ✅ |
 | Depositor 鉴权 + NotDepositor | 一致 | ✅ |
-| L1 attributes → Fjord L1 fee 联动 | smoke 有效 | ✅ |
+| L1 attributes → Fjord L1 + operator fee 联动 | literal parity | ✅ OP-12 |
 | 失败 deposit 不 commit slot | 一致 | ✅ |
 | **Metadata slot 写入** | OP-14 闭合 | ✅ |
 | **L1Block getter ABI** | OP-14 闭合 | ✅ |
-| **deposit nonce / gasUsed** | Task 4 🔴 继承 | 🔴 |
+| **L1 attributes deposit nonce/gas 测试** | 实现 OK；专用测试缺口 | 🟡 |
 | **`setIsthmus()` 升级迁移** | 未实现 | ⚪ TE 范围外 |
 | **GPO / setFeature / proxyAdmin** | OP-14 out of scope | ⚪ |
 
-**Task 5 状态：** **DONE**（L1Block IL1Block call-surface OP-14 闭合 ✅；deposit 交叉 🔴×1 仍开放）
+**Task 5 状态：** **DONE**（OP-14 IL1Block + OP-12 literal fee E2E ✅；D5-5 专用测试 🟡 非阻断）
 
-**P1 动作：** D5-4 加强 E2E fee 数值断言；D5-5 随 Task 4 P0 修复 deposit nonce/gas。
+**P1 动作：** 补 `L1AttributesDeposit*` nonce / `gasUsed` / `depositNonce` 断言（可选，Task 4 已覆盖 generic deposit 语义）。
