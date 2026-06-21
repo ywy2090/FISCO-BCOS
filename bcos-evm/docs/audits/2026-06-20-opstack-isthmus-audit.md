@@ -44,7 +44,7 @@
 |----|--------|------|
 | R3-4844-1/2/3 | 🔴 | `OpStackPreCheck` 缺 blob CREATE 拒绝、空 hash 拒绝、KZG version 校验（`state_transition.go:421-433`） |
 | R3-DEP-1 | ~~🟡~~ **CLOSED** | CREATE deposit nonce — `DepositCreateNonceTest` |
-| R3-ORCH-1/2/3 | 🟡 | baseFee 读 `gasPrice()`、blobBaseFee 读 L1Block slot、L1 cost 硬编码 Fjord |
+| R3-ORCH-1/2 | ~~🟡~~ **CLOSED** | header OPF1 baseFee / blobBaseFee |
 | R3-7623-1 | 🟡 | 非 deposit entry 失败仍 settlement+refundGas |
 
 **Wave 2 闭合项再验证：** OP-01～09、FIX-01～07/09～12 均 ✅ 无回归；CTest 23/23 + TE 13/13 PASS @ `52dda0921`。
@@ -132,7 +132,7 @@
 
 **Wave 3 开放 🔴：** R3-4844-1/2/3 — EIP-4844 preCheck 与 op-geth 三处形状校验不一致（见 Wave 3 报告 Part 4 P0）。
 
-**非阻断残余 🟡：** `OpStackExecuteViaHostSmokeTest` operator 仍 `>0`；Inv#14 无 OP 0x01–0x0a precompile fixture；R3-DEP-1 CREATE deposit nonce；R3-ORCH-1/2/3 orchestration 精度。见 `2026-06-21-opstack-isthmus-reaudit-wave3.md`。
+**非阻断残余 🟡：** Inv#14 无 OP 0x01–0x0a precompile fixture；sealer OPF1 生产写路径 follow-up。见 `2026-06-21-opstack-isthmus-reaudit-wave3.md`。
 
 **Out of scope（⚪，非阻断）：** GPO `0x4200…000F`、`setFeature`、`proxyAdmin*`、Bedrock/Jovian setter、`setIsthmus()` 升级迁移、`L1GasUsed` deprecated receipt 字段
 

@@ -39,9 +39,9 @@
 | **R3-4844-3** | Task 7 | ~~🔴~~ **CLOSED** | versioned hash 版本字节 `0x01` | `state_transition.go:430-433` | `Eip4844.h` + `:86-89`; `rejects_invalid_versioned_hash_prefix` |
 | **R3-POOL-1** | Task 1/7 | ~~🔴~~ **CLOSED** | 块级 `BlockGasPool`；普通 L2 hook 占/还 pool | `buyGas` `gp.SubGas` | TE `beginBlock`/`endBlock`; `BlockGasPoolTest`, TE `second_transaction_rejected_when_block_gas_exhausted` |
 | **R3-DEP-1** | Task 4 | ~~🟡~~ **CLOSED** | CREATE deposit 成功路径 sender nonce：编排层单次 +1（内核 CREATE 不 bump sender）；`DepositCreateNonceTest` 3→4 | `evm.go:530` vs `innerExecute:598-599` | `OpStackExecuteViaHost.cpp:205-206`; `DepositCreateNonceTest` |
-| **R3-ORCH-1** | Task 1 | 🟡 | `resolveOpStackBaseFee` 仍读 `ledgerConfig.gasPrice()`，非 block header `baseFee` | `evm.Context.BaseFee` | `OpStackTxInputBuilder.h:96-100` TODO |
-| **R3-ORCH-2** | Task 1 | 🟡 | Blob balance check 的 `blobBaseFee` 来自 L1Block slot 7，非 `evm.Context.BlobBaseFee` | `state_transition.go:312-321` | `OpStackTxInputBuilder.h:103-108` |
-| **R3-ORCH-3** | Task 1/2 | 🟡 | L1 cost 硬编码 `l1CostFjord`；无 op-geth 多 fork 选择与首 Ecotone 块 Bedrock 回退 | `rollup_cost.go:157-192` | `OpStackExecuteViaHost.cpp:88-89` |
+| **R3-ORCH-1** | Task 1 | ~~🟡~~ **CLOSED** | `resolveOpStackBaseFee(header)` 读 OPF1 extraData；无 Legacy fallback | `evm.Context.BaseFee` | `OpStackBlockHeaderExtension.h`; `OpStackTxInputBuilder.h` |
+| **R3-ORCH-2** | Task 1 | ~~🟡~~ **CLOSED** | `blobBaseFee` 来自 `calcOpStackBlobBaseFee(excess=0)=1`；**不再读 L1Block slot 7** | `evm.Context.BlobBaseFee` | `OpStackBlockHeaderExtension.h`; `BlobGasBalanceTest` 解耦 |
+| **R3-ORCH-3** | Task 1/2 | ~~🟡~~ **CLOSED** | `OpStackForkSchedule` + per-block cache factories；Bedrock/Ecotone intentional unsupported（ADR-014） | `rollup_cost.go:157-192` | `OpStackFee.*`, ADR-014 |
 | **R3-7623-1** | Task 6 | 🟡 | 非 deposit entry 失败仍执行 settlement + refundGas；TE 层 entry 失败不 `applyStateDiff` 但 receipt 可能带 settlement `gasUsed` | geth entry 失败早返回 | `OpStackExecuteViaHost.cpp:203-245` |
 | **R3-T2-1** | Task 2 | 🟡 | deposit `buildRollupCostData` 对 extra 计 rollup 字节；op-geth 对 deposit 类型返回空 struct | `transaction.go:399-400` | `OpStackTxInputBuilder.h:115-117`（无 fee 影响） |
 | **R3-T3-1** | Task 3 | 🟡 | 无 Jovian `operator-fee-fix`（×100）；Isthmus 范围外 | `rollup_cost.go:271-286` | 未实现 |
@@ -67,9 +67,9 @@
 |---|------|---------|-----|------|
 | 1 | Isthmus profile + TE→host 链路 | `IsOptimismIsthmus` | `makeIsthmusRevisionConfig` + `opStackExecuteViaHostTx` | ✅ |
 | 2 | Operator fee wiring | `OperatorCostFunc` @ buy/refund | `m_isIsthmus` + `operatorCostIsthmus` | ✅ |
-| 3 | L1 cost wiring | `L1CostFunc` fork 分支 | 固定 `l1CostFjord` | 🟡 R3-ORCH-3 |
-| 4 | baseFee 来源 | header / EVM context | `ledgerConfig.gasPrice()` | 🟡 R3-ORCH-1 |
-| 5 | blobBaseFee 来源 | `evm.Context.BlobBaseFee` | L1Block slot 7 | 🟡 R3-ORCH-2 |
+| 3 | L1 cost wiring | `L1CostFunc` fork 分支 | `wireL1CostFuncWithState` + Isthmus+ preset | ✅ **CLOSED R3-ORCH-3** |
+| 4 | baseFee 来源 | header / EVM context | OPF1 extraData | ✅ **CLOSED R3-ORCH-1** |
+| 5 | blobBaseFee 来源 | `evm.Context.BlobBaseFee` | OPF1 + calcOpStackBlobBaseFee | ✅ **CLOSED R3-ORCH-2** |
 | 6 | 生产 scheduler 接入 | miner/worker | `libinitializer` `ExecutionPath::OpStack` | ✅ **Wave 3 确认** |
 
 ### Task 2 — Fjord L1 Cost
@@ -166,8 +166,8 @@
 | ~~R3-4844-1/2/3~~ | ~~🔴~~ **CLOSED** | 4844 preCheck 三项 op-geth 形状校验 | `OpStackPreCheck4844Test` |
 | ~~R3-POOL-1~~ | ~~🔴~~ **CLOSED** | 块级 gas pool 占/还 | `BlockGasPoolTest`, TE fixture |
 | ~~R3-DEP-1~~ | ~~🟡~~ **CLOSED** | CREATE deposit nonce 时序 | `DepositCreateNonceTest`（零 prod 改动） |
-| R3-ORCH-1/2 | 🟡 | baseFee / blobBaseFee 数据源 | 关闭 `TODO(opstack-t11)` |
-| R3-ORCH-3 | 🟡 | Fjord-only L1 cost | Isthmus TE 可文档化；多 fork 另开 ADR |
+| ~~R3-ORCH-1/2~~ | ~~🟡~~ **CLOSED** | header OPF1 fee 扩展 | `OpStackBlockHeaderExtensionTest`; TE fixture OPF1 header |
+| ~~R3-ORCH-3~~ | ~~🟡~~ **CLOSED** | fork schedule + ADR-014 | `OpStackForkScheduleTest`, `OpStackFeeTest`, smoke E2E |
 | R3-7623-1 | 🟡 | entry 失败仍 refundGas | 对齐 geth 早返回或文档化 TE receipt 语义 |
 | R3-T2-1 | 🟡 | deposit rollup 字节 | 可选 `isDepositTx → empty RollupCostData` |
 

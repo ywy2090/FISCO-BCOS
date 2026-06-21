@@ -114,9 +114,9 @@
 | # | 项 | op-geth | FB | Wave 3 |
 |---|-----|---------|-----|--------|
 | W3-1 | 生产接入 | miner/worker | `libinitializer/Initializer.cpp:339-342` `ExecutionPath::OpStack` | ✅ 确认非仅测试 |
-| W3-2 | baseFee 来源 | `evm.Context.BaseFee` | `resolveOpStackBaseFee` → `ledgerConfig.gasPrice()` `:96-100` | 🟡 **R3-ORCH-1** |
-| W3-3 | blobBaseFee 来源 | `evm.Context.BlobBaseFee` | L1Block slot 7 `:103-108` | 🟡 **R3-ORCH-2** |
-| W3-4 | L1 cost fork | `NewL1CostFunc` 多分支 | 固定 `l1CostFjord` `:88-89` | 🟡 **R3-ORCH-3** |
+| W3-2 | baseFee 来源 | `evm.Context.BaseFee` | OPF1 extraData | ✅ **CLOSED R3-ORCH-1** |
+| W3-3 | blobBaseFee 来源 | `evm.Context.BlobBaseFee` | calcOpStackBlobBaseFee(0)=1 | ✅ **CLOSED R3-ORCH-2** |
+| W3-4 | L1 cost fork | `NewL1CostFunc` 多分支 | `wireL1CostFuncWithState` + ADR-014 | ✅ **CLOSED R3-ORCH-3** |
 | W3-5 | Wave 2 OP-01/09 | — | 再验证 ✅ | 无回归 |
 
-**Wave 3 Task 1 判定：** ✅ wiring 仍 PASS；🟡 orchestration 数据源精度待 P1。
+**Wave 3 Task 1 判定：** ✅ wiring PASS；✅ R3-ORCH-1/2/3 CLOSED；🟡 sealer OPF1 生产写路径 follow-up。
