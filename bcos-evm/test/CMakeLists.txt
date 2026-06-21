@@ -532,6 +532,28 @@ add_test(
     COMMAND ${DEPOSIT_CREATE_NONCE_TEST_BINARY_NAME}
 )
 
+set(OPSTACK_BLOCK_HEADER_EXTENSION_TEST_BINARY_NAME OpStackBlockHeaderExtensionTest)
+
+add_executable(${OPSTACK_BLOCK_HEADER_EXTENSION_TEST_BINARY_NAME}
+    opstack/OpStackBlockHeaderExtensionTest.cpp
+)
+
+target_include_directories(${OPSTACK_BLOCK_HEADER_EXTENSION_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/bcos-tars-protocol
+)
+
+target_link_libraries(${OPSTACK_BLOCK_HEADER_EXTENSION_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+    protocol-tars
+)
+
+add_test(
+    NAME OpStackBlockHeaderExtension
+    COMMAND ${OPSTACK_BLOCK_HEADER_EXTENSION_TEST_BINARY_NAME}
+)
+
 set(DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME DepositNoFeeRoutingTest)
 
 add_executable(${DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME}
@@ -595,6 +617,12 @@ add_test(
     NAME OpStackFee
     COMMAND ${OPSTACK_FEE_TEST_BINARY_NAME}
 )
+
+set(OPSTACK_FORK_SCHEDULE_TEST_BINARY_NAME OpStackForkScheduleTest)
+add_executable(${OPSTACK_FORK_SCHEDULE_TEST_BINARY_NAME} opstack/OpStackForkScheduleTest.cpp)
+target_include_directories(${OPSTACK_FORK_SCHEDULE_TEST_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(${OPSTACK_FORK_SCHEDULE_TEST_BINARY_NAME} PRIVATE bcos-evm-op)
+add_test(NAME OpStackForkSchedule COMMAND ${OPSTACK_FORK_SCHEDULE_TEST_BINARY_NAME})
 
 set(OPSTACK_FLOOR_GAS_TEST_BINARY_NAME OpStackFloorGasTest)
 
