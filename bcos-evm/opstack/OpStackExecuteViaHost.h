@@ -7,6 +7,7 @@
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/OpStackReceiptMeta.h"
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
 #include "bcos-evm/opstack/RollupCost.h"
@@ -43,6 +44,7 @@ struct OpStackExecuteViaHostInput
     bool noBaseFee{false};
     uint64_t floorDataGas{0};
     std::optional<RollupCostData> rollupCostData;
+    OpStackForkSchedule forkSchedule = makeIsthmusPlusForkSchedule();
     std::function<bool(uint64_t)> gasPoolSubGasHook;
     std::function<void(uint64_t gasRemaining, uint64_t gasUsed)> gasPoolReturnGasHook;
     OpStackTxExecutor opTxExecutor{};

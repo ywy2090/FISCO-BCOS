@@ -57,7 +57,7 @@ task::Task<bool> OpStackTxExecutor::buyGas(OpStackTxExecutionData& data)
     }
 
     data.m_operatorCostLimit = 0;
-    if (m_isIsthmus && m_operatorCostFunc)
+    if (m_operatorCostFunc)
     {
         data.m_operatorCostLimit =
             m_operatorCostFunc(static_cast<uint64_t>(data.m_gasLimit), blockTime);
@@ -102,7 +102,7 @@ task::Task<bool> OpStackTxExecutor::buyGas(OpStackTxExecutionData& data)
 
 task::Task<void> OpStackTxExecutor::refundIsthmusOperatorCost(OpStackTxExecutionData& data)
 {
-    if (!m_isIsthmus || data.m_state == nullptr || !m_operatorCostFunc)
+    if (data.m_state == nullptr || !m_operatorCostFunc)
     {
         co_return;
     }
@@ -144,7 +144,7 @@ task::Task<void> OpStackTxExecutor::refundGas(OpStackTxExecutionData& data)
     addBalance(state, m_l1FeeRecipient, data.m_l1CostCharged);
 
     co_await refundIsthmusOperatorCost(data);
-    if (m_isIsthmus && m_operatorCostFunc)
+    if (m_operatorCostFunc)
     {
         auto const operatorFee = m_operatorCostFunc(gasUsed, data.m_blockInfo.timestamp);
         addBalance(state, m_operatorFeeRecipient, operatorFee);

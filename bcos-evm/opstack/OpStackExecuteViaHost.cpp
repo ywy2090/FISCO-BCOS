@@ -114,12 +114,9 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     state::State state(*input.stateView);
     OpHostExtension extension(&state);
     auto const feeParams = loadOpStackFeeParams(state);
-    input.opTxExecutor.m_l1CostFunc = [feeParams](RollupCostData const& data, uint64_t) {
-        return l1CostFjord(data, feeParams);
-    };
-    input.opTxExecutor.m_operatorCostFunc = [feeParams](uint64_t gas, uint64_t) {
-        return operatorCostIsthmus(gas, feeParams);
-    };
+    input.opTxExecutor.m_l1CostFunc = wireL1CostFuncWithState(input.forkSchedule, state);
+    input.opTxExecutor.m_operatorCostFunc =
+        wireOperatorCostFuncWithState(input.forkSchedule, state);
 
     OpStackTxExecutor::OpStackTxExecutionData txData;
     txData.m_call = input.call;
@@ -294,7 +291,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
 
     output.gasUsed = txData.m_gasUsed;
     output.receiptMeta.l1Fee = txData.m_l1CostCharged;
-    if (input.opTxExecutor.m_isIsthmus && input.opTxExecutor.m_operatorCostFunc)
+    if (isOpStackIsthmus(input.forkSchedule, txData.m_blockInfo.timestamp) &&
+        input.opTxExecutor.m_operatorCostFunc)
     {
         auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
         output.receiptMeta.operatorFee =
