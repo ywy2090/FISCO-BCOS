@@ -2,6 +2,10 @@
 
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
+#include <limits>
+#include <memory>
+#include <stdexcept>
 
 namespace bcos::evm
 {
@@ -30,6 +34,75 @@ u256 readBigEndianU64(evmc_bytes32 const& slot, size_t offset)
 evmc_bytes32 slotKey(u256 slot)
 {
     return state::toEvmC(slot);
+}
+
+using FeeParamsResolver = std::function<OpStackFeeParams(uint64_t blockTime)>;
+
+struct L1CostCache
+{
+    uint64_t forBlock = std::numeric_limits<uint64_t>::max();
+    bool fjordActive = false;
+    OpStackFeeParams params{};
+};
+
+struct OperatorCostCache
+{
+    uint64_t forBlock = std::numeric_limits<uint64_t>::max();
+    bool isthmusActive = false;
+    OpStackFeeParams params{};
+};
+
+L1CostFunc makeCachedL1CostFunc(OpStackForkSchedule schedule, FeeParamsResolver resolveParams)
+{
+    auto cache = std::make_shared<L1CostCache>();
+    return [schedule = std::move(schedule), resolveParams = std::move(resolveParams), cache](
+               RollupCostData const& data, uint64_t blockTime) -> u256 {
+        if (data.isEmpty())
+        {
+            return 0;
+        }
+
+        if (cache->forBlock != blockTime)
+        {
+            cache->forBlock = blockTime;
+            cache->fjordActive = isOpStackFjord(schedule, blockTime);
+            cache->params = resolveParams(blockTime);
+        }
+
+        if (!cache->fjordActive)
+        {
+            throw std::invalid_argument("OpStack: pre-Fjord L1 cost unsupported");
+        }
+
+        return l1CostFjord(data, cache->params);
+    };
+}
+
+OperatorCostFunc makeCachedOperatorCostFunc(
+    OpStackForkSchedule schedule, FeeParamsResolver resolveParams)
+{
+    auto cache = std::make_shared<OperatorCostCache>();
+    return [schedule = std::move(schedule), resolveParams = std::move(resolveParams), cache](
+               uint64_t gas, uint64_t blockTime) -> u256 {
+        if (cache->forBlock != blockTime)
+        {
+            cache->forBlock = blockTime;
+            cache->isthmusActive = isOpStackIsthmus(schedule, blockTime);
+            cache->params = resolveParams(blockTime);
+        }
+
+        if (!cache->isthmusActive)
+        {
+            return 0;
+        }
+
+        if (cache->params.operatorFeeScalar == 0 && cache->params.operatorFeeConstant == 0)
+        {
+            return 0;
+        }
+
+        return operatorCostIsthmus(gas, cache->params);
+    };
 }
 }  // namespace
 
@@ -91,6 +164,31 @@ OpStackFeeParams loadOpStackFeeParams(state::StateView const& state)
     params.operatorFeeScalar = readBigEndianU32(operatorFeeParams, 20);
     params.operatorFeeConstant = readBigEndianU64(operatorFeeParams, 24);
     return params;
+}
+
+L1CostFunc selectL1CostFunc(OpStackForkSchedule const& schedule, OpStackFeeParams const& params)
+{
+    return makeCachedL1CostFunc(schedule, [params](uint64_t) { return params; });
+}
+
+OperatorCostFunc selectOperatorCostFunc(
+    OpStackForkSchedule const& schedule, OpStackFeeParams const& params)
+{
+    return makeCachedOperatorCostFunc(schedule, [params](uint64_t) { return params; });
+}
+
+L1CostFunc wireL1CostFuncWithState(
+    OpStackForkSchedule const& schedule, state::StateView const& state)
+{
+    return makeCachedL1CostFunc(
+        schedule, [&state](uint64_t) { return loadOpStackFeeParams(state); });
+}
+
+OperatorCostFunc wireOperatorCostFuncWithState(
+    OpStackForkSchedule const& schedule, state::StateView const& state)
+{
+    return makeCachedOperatorCostFunc(
+        schedule, [&state](uint64_t) { return loadOpStackFeeParams(state); });
 }
 
 }  // namespace bcos::evm

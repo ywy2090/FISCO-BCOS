@@ -4,11 +4,13 @@
 #include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/RollupCost.h"
 #include <boost/algorithm/hex.hpp>
 #include <boost/test/included/unit_test.hpp>
 #include <fstream>
 #include <optional>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
@@ -27,6 +29,16 @@ OpStackFeeParams makeTestParams()
         .l1BlobBaseFeeScalar = 3,
         .operatorFeeScalar = 1'439'103'868,
         .operatorFeeConstant = u256("1256417826609331460"),
+    };
+}
+
+OpStackFeeParams makeFix04Params()
+{
+    return OpStackFeeParams{
+        .l1BaseFee = u256(2'000'000),
+        .l1BlobBaseFee = u256(3'000'000),
+        .l1BaseFeeScalar = 20,
+        .l1BlobBaseFeeScalar = 15,
     };
 }
 
@@ -103,6 +115,17 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     out.bytes[30] = static_cast<uint8_t>((operatorFeeConstant >> 8) & 0xff);
     out.bytes[31] = static_cast<uint8_t>(operatorFeeConstant & 0xff);
     return out;
+}
+
+MockStateView makeTestParamsState()
+{
+    MockStateView state;
+    state.setSlot(L1_BASE_FEE_SLOT, state::toEvmC(u256(1000) * u256(1'000'000)));
+    state.setSlot(L1_BLOB_BASE_FEE_SLOT, state::toEvmC(u256(10) * u256(1'000'000)));
+    state.setSlot(L1_FEE_SCALARS_SLOT, packFeeScalars(2, 3));
+    state.setSlot(OPERATOR_FEE_PARAMS_SLOT,
+        packOperatorFeeParams(1'439'103'868, 1'256'417'826'609'331'460ULL));
+    return state;
 }
 
 // Mirrors op-geth NewL1CostFuncFjord second return (rollup_cost.go:623-624 calldataGasUsed).
@@ -223,6 +246,96 @@ BOOST_AUTO_TEST_CASE(FIX04_FjordL1CostSolidityParity_matchesOpGeth)
     BOOST_CHECK_MESSAGE(
         calldataGasUsed == u256(2'463), "calldataGasUsed (g0) must match op-geth 2463");
     BOOST_CHECK_EQUAL(calldataGasUsed, u256(2'463));
+}
+
+BOOST_AUTO_TEST_CASE(FIX04_via_selectL1CostFunc_matchesOpGeth105484)
+{
+    auto const schedule = makeIsthmusPlusForkSchedule();
+    auto const l1Cost = selectL1CostFunc(schedule, makeFix04Params());
+    RollupCostData data{};
+    data.fastLzSize = 235;
+
+    auto const fee = l1Cost(data, 1);
+    BOOST_CHECK_EQUAL(fee, u256(105'484));
+    BOOST_CHECK_EQUAL(fjordCalldataGasUsed(data), u256(2'463));
+}
+
+BOOST_AUTO_TEST_CASE(selectL1_nulloptFjord_invokeThrows)
+{
+    OpStackForkSchedule const schedule{.fjordTime = std::nullopt, .isthmusTime = std::nullopt};
+    auto const l1Cost = selectL1CostFunc(schedule, makeTestParams());
+    RollupCostData data{};
+    data.fastLzSize = 235;
+
+    BOOST_CHECK_THROW(l1Cost(data, 100), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(cached_l1_reselects_on_block_time_change)
+{
+    OpStackForkSchedule const schedule{.fjordTime = 100, .isthmusTime = std::nullopt};
+    auto const l1b = selectL1CostFunc(schedule, makeFix04Params());
+    RollupCostData data{};
+    data.fastLzSize = 235;
+
+    BOOST_CHECK_NO_THROW(l1b(data, 100));
+    BOOST_CHECK_THROW(l1b(data, 50), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(selectOperator_IsthmusPlus_gas1618_matchesFixture)
+{
+    auto const schedule = makeIsthmusPlusForkSchedule();
+    auto const operatorCost = selectOperatorCostFunc(schedule, makeTestParams());
+    BOOST_CHECK_EQUAL(operatorCost(1618, 1), u256("1256417826611659930"));
+}
+
+BOOST_AUTO_TEST_CASE(selectOperator_preIsthmus_returnsZero)
+{
+    OpStackForkSchedule const schedule{.fjordTime = 0, .isthmusTime = 100};
+    auto const operatorCost = selectOperatorCostFunc(schedule, makeTestParams());
+    BOOST_CHECK_EQUAL(operatorCost(1618, 50), u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(selectL1_preFjord_invokeThrows)
+{
+    OpStackForkSchedule const schedule{.fjordTime = 100, .isthmusTime = std::nullopt};
+    auto const l1Cost = selectL1CostFunc(schedule, makeFix04Params());
+    RollupCostData data{};
+    data.fastLzSize = 235;
+
+    BOOST_CHECK_THROW(l1Cost(data, 50), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(selectL1_emptyRollup_returnsZero)
+{
+    auto const schedule = makeIsthmusPlusForkSchedule();
+    auto const l1Cost = selectL1CostFunc(schedule, makeTestParams());
+    RollupCostData const empty{};
+    BOOST_CHECK_EQUAL(l1Cost(empty, 1), u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(wireL1_matches_select_on_isthmus_plus)
+{
+    auto const schedule = makeIsthmusPlusForkSchedule();
+    auto const params = makeTestParams();
+    auto const state = makeTestParamsState();
+    RollupCostData data{};
+    data.fastLzSize = 202;
+    data.ones = 100;
+
+    auto const selected = selectL1CostFunc(schedule, params);
+    auto const wired = wireL1CostFuncWithState(schedule, state);
+    BOOST_CHECK_EQUAL(wired(data, 1), selected(data, 1));
+}
+
+BOOST_AUTO_TEST_CASE(wireOperator_matches_select_on_isthmus_plus)
+{
+    auto const schedule = makeIsthmusPlusForkSchedule();
+    auto const params = makeTestParams();
+    auto const state = makeTestParamsState();
+
+    auto const selected = selectOperatorCostFunc(schedule, params);
+    auto const wired = wireOperatorCostFuncWithState(schedule, state);
+    BOOST_CHECK_EQUAL(wired(1618, 1), selected(1618, 1));
 }
 
 }  // namespace bcos::evm::test
