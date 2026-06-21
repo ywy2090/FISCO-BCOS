@@ -512,6 +512,26 @@ add_test(
     COMMAND ${DEPOSIT_MINT_TEST_BINARY_NAME}
 )
 
+set(DEPOSIT_CREATE_NONCE_TEST_BINARY_NAME DepositCreateNonceTest)
+
+add_executable(${DEPOSIT_CREATE_NONCE_TEST_BINARY_NAME}
+    opstack/DepositCreateNonceTest.cpp
+)
+
+target_include_directories(${DEPOSIT_CREATE_NONCE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${DEPOSIT_CREATE_NONCE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME DepositCreateNonce
+    COMMAND ${DEPOSIT_CREATE_NONCE_TEST_BINARY_NAME}
+)
+
 set(DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME DepositNoFeeRoutingTest)
 
 add_executable(${DEPOSIT_NO_FEE_ROUTING_TEST_BINARY_NAME}

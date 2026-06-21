@@ -18,7 +18,7 @@
 | Wave 2 sign-off | `54e17a62c` | ✅ 通过 |
 | **Wave 3 严格 op-geth 复审计** | **`52dda0921`** | **⚠️ 有条件通过**（Wave 3 P0 **CLOSED** @ P0 Task 9） |
 
-**理由：** Wave 2 闭合的 P0 项（operator wiring、signed RLP L1 cost、deposit nonce/gas、7702 intrinsic、2537/6780 内核）经独立源码对照仍成立；CTest 23/23 + TE fixture 13/13 PASS。**Wave 3 P0（R3-4844-1/2/3、R3-POOL-1）已于 P0 Task 9 闭合**（`OpStackPreCheck4844Test`、`BlockGasPoolTest`、TE `second_transaction_rejected_when_block_gas_exhausted`）。剩余 🟡 为 orchestration 精度（baseFee 来源、CREATE deposit nonce 未测、entry 失败 receipt 语义）。无新增 P0 公式/路由回归。
+**理由：** Wave 2 闭合的 P0 项（operator wiring、signed RLP L1 cost、deposit nonce/gas、7702 intrinsic、2537/6780 内核）经独立源码对照仍成立；CTest 23/23 + TE fixture 13/13 PASS。**Wave 3 P0（R3-4844-1/2/3、R3-POOL-1）已于 P0 Task 9 闭合**。**R3-DEP-1（CREATE deposit nonce）已闭合** @ `DepositCreateNonceTest`。剩余 🟡 为 orchestration 精度（baseFee 来源、entry 失败 receipt 语义）。无新增 P0 公式/路由回归。
 
 ### 可裁决行统计（Wave 3 @ `52dda0921`）
 
@@ -38,7 +38,7 @@
 | **R3-4844-2** | Task 7 | ~~🔴~~ **CLOSED** | type 0x03 / blob intent 拒绝空 hash 列表 | `state_transition.go:424-425` | `OpStackPreCheck.cpp:84-85`; `rejects_type03_with_empty_hashes` |
 | **R3-4844-3** | Task 7 | ~~🔴~~ **CLOSED** | versioned hash 版本字节 `0x01` | `state_transition.go:430-433` | `Eip4844.h` + `:86-89`; `rejects_invalid_versioned_hash_prefix` |
 | **R3-POOL-1** | Task 1/7 | ~~🔴~~ **CLOSED** | 块级 `BlockGasPool`；普通 L2 hook 占/还 pool | `buyGas` `gp.SubGas` | TE `beginBlock`/`endBlock`; `BlockGasPoolTest`, TE `second_transaction_rejected_when_block_gas_exhausted` |
-| **R3-DEP-1** | Task 4 | 🟡 | CREATE deposit 成功路径 sender nonce：op-geth 仅在 `evm.Create` 内 +1；FB 成功后在 `OpStackExecuteViaHost.cpp:175-176` 无条件 +1 — **需 CREATE deposit 用例确认是否双重 bump** | `evm.go:530` vs `innerExecute:598-599` | `OpStackExecuteViaHost.cpp:175-176` |
+| **R3-DEP-1** | Task 4 | ~~🟡~~ **CLOSED** | CREATE deposit 成功路径 sender nonce：编排层单次 +1（内核 CREATE 不 bump sender）；`DepositCreateNonceTest` 3→4 | `evm.go:530` vs `innerExecute:598-599` | `OpStackExecuteViaHost.cpp:205-206`; `DepositCreateNonceTest` |
 | **R3-ORCH-1** | Task 1 | 🟡 | `resolveOpStackBaseFee` 仍读 `ledgerConfig.gasPrice()`，非 block header `baseFee` | `evm.Context.BaseFee` | `OpStackTxInputBuilder.h:96-100` TODO |
 | **R3-ORCH-2** | Task 1 | 🟡 | Blob balance check 的 `blobBaseFee` 来自 L1Block slot 7，非 `evm.Context.BlobBaseFee` | `state_transition.go:312-321` | `OpStackTxInputBuilder.h:103-108` |
 | **R3-ORCH-3** | Task 1/2 | 🟡 | L1 cost 硬编码 `l1CostFjord`；无 op-geth 多 fork 选择与首 Ecotone 块 Bedrock 回退 | `rollup_cost.go:157-192` | `OpStackExecuteViaHost.cpp:88-89` |
@@ -52,7 +52,7 @@
 |-----------|------------|------|
 | OP-01 `m_isIsthmus` | ✅ 仍闭合 | `OpStackTransactionExecutorImpl.h:210-211`；`libinitializer/Initializer.cpp:339-342` 生产接入 |
 | OP-02 signed RLP | ✅ 仍闭合 | `OpStackTxInputBuilder.h:110-128`；`FIX05_signed_rlp_rollup_execute_e2e` |
-| OP-03～05 deposit | ✅ CALL 路径闭合；🟡 CREATE 见 R3-DEP-1 | `DepositMintTest` nonce 3→4 |
+| OP-03～05 deposit | ✅ CALL + CREATE 路径闭合 | `DepositMintTest` / `DepositCreateNonceTest` nonce 3→4 |
 | OP-06 blob buyGas | ✅ 仍闭合 | `OpStackTxExecutor.cpp:67-75` |
 | OP-07 7702 intrinsic | ✅ 仍闭合 | `calcAuthTupleIntrinsicGas` = 25000×n |
 | FIX-01～07/09～12 | ✅ 仍闭合 | CTest + TE fixture PASS |
@@ -104,7 +104,7 @@
 | 4 | REVERT nonce+1 + actual gas | Call 前 bump | revert 后 bump | ✅ CALL |
 | 5 | entry 失败 gasLimit + nonce+1 | `execute:486-510` | `:135-144` | ✅ |
 | 6 | depositNonce 捕获 | EVM 前 | mint 前 `:126` | ✅ |
-| 7 | CREATE 成功 nonce | `evm.Create` 内 +1 | 成功后无条件 +1 | 🟡 R3-DEP-1 |
+| 7 | CREATE 成功 nonce | `evm.Create` 内 +1 | 编排层成功后 +1（无双重 bump） | ✅ **CLOSED R3-DEP-1** |
 
 ### Task 5 — L1Block + L1 Attributes
 
@@ -165,7 +165,7 @@
 |----|--------|------|------|
 | ~~R3-4844-1/2/3~~ | ~~🔴~~ **CLOSED** | 4844 preCheck 三项 op-geth 形状校验 | `OpStackPreCheck4844Test` |
 | ~~R3-POOL-1~~ | ~~🔴~~ **CLOSED** | 块级 gas pool 占/还 | `BlockGasPoolTest`, TE fixture |
-| R3-DEP-1 | 🟡 | CREATE deposit nonce 时序 | 增 `DepositCreateNonceTest`；若双重 bump 则按 kind 分支 |
+| ~~R3-DEP-1~~ | ~~🟡~~ **CLOSED** | CREATE deposit nonce 时序 | `DepositCreateNonceTest`（零 prod 改动） |
 | R3-ORCH-1/2 | 🟡 | baseFee / blobBaseFee 数据源 | 关闭 `TODO(opstack-t11)` |
 | R3-ORCH-3 | 🟡 | Fjord-only L1 cost | Isthmus TE 可文档化；多 fork 另开 ADR |
 | R3-7623-1 | 🟡 | entry 失败仍 refundGas | 对齐 geth 早返回或文档化 TE receipt 语义 |

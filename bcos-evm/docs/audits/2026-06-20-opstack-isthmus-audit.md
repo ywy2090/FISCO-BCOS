@@ -43,7 +43,7 @@
 | ID | 严重度 | 摘要 |
 |----|--------|------|
 | R3-4844-1/2/3 | 🔴 | `OpStackPreCheck` 缺 blob CREATE 拒绝、空 hash 拒绝、KZG version 校验（`state_transition.go:421-433`） |
-| R3-DEP-1 | 🟡 | CREATE deposit 成功 nonce 时序未测；可能双重 bump |
+| R3-DEP-1 | ~~🟡~~ **CLOSED** | CREATE deposit nonce — `DepositCreateNonceTest` |
 | R3-ORCH-1/2/3 | 🟡 | baseFee 读 `gasPrice()`、blobBaseFee 读 L1Block slot、L1 cost 硬编码 Fjord |
 | R3-7623-1 | 🟡 | 非 deposit entry 失败仍 settlement+refundGas |
 
