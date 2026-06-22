@@ -155,8 +155,7 @@ public:
                 execution::warmTransactionEntry(state,
                     m_data->m_executionContext.revisionConfig.revision, tx, m_data->m_blockInfo,
                     props, m_data->m_executionContext.revisionConfig.warm_access,
-                    m_data->m_web3AccessListResolved.accessList.get(),
-                    m_data->m_web3AccessListResolved.web3TypedTxKind);
+                    m_data->m_web3AccessListResolved.accessList.get(), m_data->m_web3TypedTxKind);
             }
             else if constexpr (phase == static_cast<int>(EthExecutePhase::Execute))
             {
@@ -247,6 +246,11 @@ public:
             input.hasExplicitFeeCaps = m_data->m_hasExplicitFeeCaps;
             input.blockInfo = m_data->m_blockInfo;
             eth_tx::fillWeb3Fields(m_data->m_transaction.get(), input);
+            if (input.web3TypedTxKind == 0)
+            {
+                input.web3TypedTxKind = m_data->m_web3TypedTxKind;
+            }
+            input.hasExplicitFeeCaps = m_data->m_hasExplicitFeeCaps;
 
             auto output = co_await executeViaEth(std::move(input));
             m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;

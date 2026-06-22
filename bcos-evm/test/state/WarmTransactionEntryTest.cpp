@@ -112,6 +112,27 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
     BOOST_CHECK(state.is_storage_warm(evmcAccessAddress, toEvmcBytes32(keyB)));
 }
 
+BOOST_AUTO_TEST_CASE(warms_access_list_when_legacy_kind_zero)
+{
+    InMemoryStateView view;
+    State state(view);
+
+    Transaction tx;
+    tx.from = evmcAddressFromLastByte(0x31);
+    tx.to = evmcAddressFromLastByte(0x32);
+
+    auto const block = execution::BlockInfoBuilder().build();
+    auto const accessAddress = bcosAddressFromLastByte(0x41);
+    Eip2930AccessList accessList{{accessAddress, {}}};
+
+    TransactionProperties props;
+    execution::warmTransactionEntry(
+        state, EVMC_SHANGHAI, tx, block, props, true, &accessList, /*web3TypedTxKind=*/0);
+
+    auto const evmcAccessAddress = evmcAddressFromLastByte(0x41);
+    BOOST_CHECK(state.is_address_warm(evmcAccessAddress));
+}
+
 BOOST_AUTO_TEST_CASE(builds_block_info_with_expected_fields)
 {
     auto const coinbase = evmcAddressFromLastByte(0x44);

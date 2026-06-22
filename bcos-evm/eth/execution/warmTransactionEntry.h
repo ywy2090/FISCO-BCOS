@@ -52,6 +52,7 @@ inline void warmTransactionEntry(state::State& state, evmc_revision rev,
     const Eip2930AccessList* accessList = nullptr, uint8_t web3TypedTxKind = 0,
     std::optional<evmc_address> createCodeAddress = std::nullopt)
 {
+    static_cast<void>(web3TypedTxKind);
     if (!warmAccess)
     {
         return;
@@ -81,7 +82,7 @@ inline void warmTransactionEntry(state::State& state, evmc_revision rev,
         });
     }
 
-    if (web3TypedTxKind == 0 || accessList == nullptr || accessList->empty())
+    if (accessList == nullptr || accessList->empty())
     {
         return;
     }
