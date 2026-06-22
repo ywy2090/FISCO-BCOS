@@ -7,6 +7,7 @@
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
+#include "bcos-utilities/Common.h"
 
 namespace bcos::evm::eth_tx
 {
@@ -15,6 +16,28 @@ inline state::BlockInfo buildEthBlockInfo(
 {
     return state::buildFiscoBlockInfo(
         blockHeader, ledgerConfig, [](int64_t timestamp) { return timestamp / 1000; });
+}
+
+inline void fillTransactionGasFields(protocol::Transaction const& tx, auto& data)
+{
+    data.m_blockInfo = buildEthBlockInfo(data.m_blockHeader.get(), data.m_ledgerConfig.get());
+
+    data.m_gasTipCap = 0;
+    data.m_gasFeeCap = 0;
+    data.m_hasExplicitFeeCaps = false;
+    if (auto tip = tx.maxPriorityFeePerGas(); !tip.empty())
+        data.m_gasTipCap = u256(tip);
+    if (auto fee = tx.maxFeePerGas(); !fee.empty())
+    {
+        data.m_gasFeeCap = u256(fee);
+        data.m_hasExplicitFeeCaps = true;
+    }
+    data.m_gasPriceLegacy = u256(tx.gasPrice());
+
+    auto const resolved = executor::resolveWeb3AccessList(tx);
+    data.m_web3TypedTxKind = resolved.web3TypedTxKind;
+    if (data.m_web3TypedTxKind == 0 && !tx.extraTransactionBytes().empty())
+        data.m_web3TypedTxKind = static_cast<uint8_t>(tx.extraTransactionBytes()[0]);
 }
 
 inline void fillWeb3Fields(protocol::Transaction const& tx, ExecuteViaEthInput& input)

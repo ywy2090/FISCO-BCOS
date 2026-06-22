@@ -81,6 +81,12 @@ public:
             evmc_address m_origin{};
             u256 m_nonce;
             executor::Web3AccessListResolved m_web3AccessListResolved;
+            bcos::u256 m_gasTipCap{0}, m_gasFeeCap{0}, m_gasPriceLegacy{0}, m_effectiveGasPrice{0};
+            bool m_hasExplicitFeeCaps{false};
+            uint8_t m_web3TypedTxKind{0};
+            state::BlockInfo m_blockInfo{};
+            bool m_topLevelIncludedTxVmError{false};
+            bool m_gasFieldsFilled{false};
             evmc::VM m_vm;
             bcos::evm_standard::EthPolicy m_policy;
             EthExecutionContext m_executionContext;
@@ -125,11 +131,12 @@ public:
         {
             if constexpr (phase == static_cast<int>(EthExecutePhase::Prepare))
             {
+                eth_tx::fillTransactionGasFields(m_data->m_transaction.get(), *m_data);
+                m_data->m_gasFieldsFilled = true;
+
                 state::FiscoStateView stateView(
                     m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
                 state::State state(stateView);
-                auto const blockInfo = eth_tx::buildEthBlockInfo(
-                    m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get());
 
                 state::Transaction tx;
                 auto const& msg = m_data->m_executionContext.message;
@@ -140,19 +147,24 @@ public:
                 }
                 tx.data.assign(msg.input_data, msg.input_data + msg.input_size);
                 tx.value = fromEvmC(msg.value);
-                tx.gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
+                tx.gasPrice = m_data->m_gasPriceLegacy;
                 tx.gasLimit = msg.gas;
 
                 state::TransactionProperties props;
                 props.warmDestination = !isCreateKind(msg.kind);
                 execution::warmTransactionEntry(state,
-                    m_data->m_executionContext.revisionConfig.revision, tx, blockInfo, props,
-                    m_data->m_executionContext.revisionConfig.warm_access,
+                    m_data->m_executionContext.revisionConfig.revision, tx, m_data->m_blockInfo,
+                    props, m_data->m_executionContext.revisionConfig.warm_access,
                     m_data->m_web3AccessListResolved.accessList.get(),
                     m_data->m_web3AccessListResolved.web3TypedTxKind);
             }
             else if constexpr (phase == static_cast<int>(EthExecutePhase::Execute))
             {
+                if (!m_data->m_gasFieldsFilled)
+                {
+                    eth_tx::fillTransactionGasFields(m_data->m_transaction.get(), *m_data);
+                }
+
                 if (!m_data->m_call)
                 {
                     if (!co_await m_data->m_executor.get().m_txExecutor.buyGas(*m_data))
@@ -216,15 +228,19 @@ public:
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
             input.message = m_data->m_executionContext.message;
-            input.blockInfo = eth_tx::buildEthBlockInfo(
-                m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get());
             input.blockHashes = state::buildFiscoBlockHashes(
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
             input.revisionConfig = m_data->m_executionContext.revisionConfig;
-            input.gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
+            input.gasPrice = m_data->m_gasPriceLegacy;
+            input.gasTipCap = m_data->m_gasTipCap;
+            input.gasFeeCap = m_data->m_gasFeeCap;
+            input.hasExplicitFeeCaps = m_data->m_hasExplicitFeeCaps;
+            input.blockInfo = m_data->m_blockInfo;
             eth_tx::fillWeb3Fields(m_data->m_transaction.get(), input);
 
-            co_return co_await executeViaEth(std::move(input));
+            auto output = co_await executeViaEth(std::move(input));
+            m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
+            co_return output;
         }
 
     private:
