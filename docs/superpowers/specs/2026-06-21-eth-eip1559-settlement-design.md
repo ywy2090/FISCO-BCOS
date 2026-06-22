@@ -1,8 +1,8 @@
 # ETH Reference / TE — EIP-1559 费用市场结算对齐 — 设计规格
 
 **日期：** 2026-06-21  
-**版本：** v1.1（grilling 修订）  
-**状态：** 待评审  
+**版本：** v1.2（二次审查修订）  
+**状态：** 已批准 → writing-plans  
 **范围决策：** **方案 B** — shared `eth/gas` 公式 + TE orchestration + EEST adapter 对齐；**不**改 `bcos-framework::effectiveGasPrice()`（方案 C 留后续）  
 **前置：** ADR-005（orchestration 边界）、ADR-015（7702/7623 settlement）、`2026-06-21-eth-eest-7702-session-handoff.md`  
 **参考实现：** `OpStackTxExecutor::{buyGas,refundGas}`、`ExecuteViaEthAdapter::applyGstTransactionSettlement`
@@ -33,7 +33,7 @@
 | **EEST stateRoot** | **低～中** — adapter 结算 **已** 用 `min(tip+base,feeCap)` | 不应期望 537 fail 桶因 1559 单独大幅下降；收益在「读 gasprice 的 fixture」子集 |
 | **EEST smoke** | **零退化** | 13/13 阻断 |
 
-**验收锚点：** Step 5 必须跑 smoke；Step 5b 跑 **1559 GASPRICE probe manifest**（见 §7.4），记录 pass/fail 与 probe 前 baseline 对比，即使 delta 为 0 也写入 README footnote。
+**验收锚点：** Step 6 必须跑 smoke；Step 6b 跑 **1559 GASPRICE probe manifest**（见 §7.4），记录 pass/fail 与 probe 前 baseline 对比，即使 delta 为 0 也写入 README footnote。
 
 ---
 
@@ -193,12 +193,19 @@ bool isEip1559GasCapsTx(uint8_t web3TypedTxKind, bool hasExplicitFeeCapsFromTx) 
 
 **时机：** `ethExecuteViaEthPreCheck` 之后、intrinsic gas 之前。
 
+**`ExecuteViaEthInput` 新增字段：**
+
 ```cpp
-bool const hasFeeCaps = /* TE: from Data; adapter: tmpl maxFee/maxPriority present */;
+bool hasExplicitFeeCaps{false};  // TE: from Data::m_hasExplicitFeeCaps; adapter: tmpl maxFee/maxPriority present
+```
+
+**Normalization 逻辑：**
+
+```cpp
 auto const caps = gas::normalizeGasCaps(
     input.gasPrice, input.gasTipCap, input.gasFeeCap,
-    input.web3TypedTxKind, hasFeeCaps);
-if (gas::isEip1559GasCapsTx(input.web3TypedTxKind, hasFeeCaps))
+    input.web3TypedTxKind, input.hasExplicitFeeCaps);
+if (gas::isEip1559GasCapsTx(input.web3TypedTxKind, input.hasExplicitFeeCaps))
 {
     input.gasPrice = gas::resolveEffectiveGasPrice(
         caps.gasTipCap, caps.gasFeeCap, input.blockInfo.baseFee);
@@ -212,35 +219,54 @@ if (gas::isEip1559GasCapsTx(input.web3TypedTxKind, hasFeeCaps))
 
 ### 5.2 `EthTxInputBuilder` + `EthTransactionExecutorImpl`
 
-**`fillWeb3Fields`：**
+#### 5.2.1 执行时序（阻断）
+
+当前 TE 顺序：
+
+```
+Prepare → Execute: buyGas → executeViaEthTx → settleGasUsed → refundGas
+```
+
+**`buyGas` 在 `executeViaEthTx` / `fillWeb3Fields` 之前。** 因此 caps、baseFee、blockInfo **不能**只在 `fillWeb3Fields` 里填充。
+
+**Prepare 阶段（或 Execute 开头、buyGas 之前）必须完成：**
+
+1. `m_blockInfo = eth_tx::buildEthBlockInfo(m_blockHeader, m_ledgerConfig)` → 缓存至 `Data::m_blockInfo`
+2. 从 `m_transaction` 解析并缓存：
+   - `m_gasTipCap` / `m_gasFeeCap`（`maxPriorityFeePerGas()` / `maxFeePerGas()` 非空时）
+   - `m_hasExplicitFeeCaps = !tx.maxFeePerGas().empty()`
+   - `m_web3TypedTxKind`（复用 `resolveWeb3AccessList` 或 `fillWeb3Fields` 同源逻辑）
+3. Legacy：`m_gasPriceLegacy = u256(tx.gasPrice())`（供 normalize 与 execute input）
+
+**`fillWeb3Fields`（executeViaEthTx 内，buyGas 之后）：** 仅把 **已缓存** 的 caps/kind 写入 `ExecuteViaEthInput`；不再调用 `protocol::effectiveGasPrice()`。
 
 ```cpp
-input.gasTipCap = 0;
-input.gasFeeCap = 0;
-if (auto tip = tx.maxPriorityFeePerGas(); !tip.empty())
-    input.gasTipCap = u256(tip);
-if (auto fee = tx.maxFeePerGas(); !fee.empty())
-    input.gasFeeCap = u256(fee);
-// Do NOT zero input.gasPrice here; buyGas uses caps when isEip1559GasCapsTx
+input.gasTipCap = data.m_gasTipCap;
+input.gasFeeCap = data.m_gasFeeCap;
+input.hasExplicitFeeCaps = data.m_hasExplicitFeeCaps;
+input.gasPrice = data.m_gasPriceLegacy;  // legacy gasPrice; ExecuteViaEth normalizes 1559
+eth_tx::fillWeb3Fields(m_data->m_transaction.get(), input);  // accessList / 7702 auth only
 ```
 
 **`ExecuteContext::Data` 新增：**
 
-- `m_gasTipCap`, `m_gasFeeCap`, `m_hasExplicitFeeCaps`（`!maxFeePerGas().empty()`）
+- `m_gasTipCap`, `m_gasFeeCap`, `m_hasExplicitFeeCaps`, `m_web3TypedTxKind`
+- `m_gasPriceLegacy`（legacy tx 的 `gasPrice`；1559 时仍保留原始字段供 normalize）
 - `m_effectiveGasPrice`（buyGas 计算后缓存）
-- `m_blockInfo` 或 `m_coinbase` + `m_baseFee`（refund 用）
+- `m_blockInfo`（Prepare 缓存；refund coinbase/baseFee 用）
+- `m_topLevelIncludedTxVmError`（`executeViaEthTx` 输出；供 `settleGasUsedFromEvmResult`）
 
 **删除 / 替换：**
 
 - Prepare 阶段 `tx.gasPrice = protocol::effectiveGasPrice(...)` → **删除**（warm 不需要 gasPrice）
-- `executeViaEthTx` 中 `input.gasPrice = protocol::effectiveGasPrice(...)` → 改传 caps；legacy 仍设 `input.gasPrice` 自 tx.gasPrice()
+- `executeViaEthTx` 中 `input.gasPrice = protocol::effectiveGasPrice(...)` → 改传 `m_gasPriceLegacy` + caps
 
 ### 5.3 `EthTxExecutor` — buyGas / refundGas / penalty
 
 #### buyGas（成功路径）
 
-1. `caps = normalizeGasCaps(..., web3TypedTxKind, m_hasExplicitFeeCaps)`
-2. `effective = resolveEffectiveGasPrice(caps, baseFee)` → 存 `m_effectiveGasPrice`
+1. `caps = normalizeGasCaps(m_gasPriceLegacy, m_gasTipCap, m_gasFeeCap, m_web3TypedTxKind, m_hasExplicitFeeCaps)`
+2. `effective = resolveEffectiveGasPrice(caps.gasTipCap, caps.gasFeeCap, m_blockInfo.baseFee)` → 存 `m_effectiveGasPrice`
 3. `balanceCheck = maxBalanceGasDebit(gasLimit, caps) + txValue`
 4. 预扣 `gasLimit * effective`
 5. `m_gasPriceStr = hex(effective)`
@@ -272,7 +298,8 @@ if (auto fee = tx.maxFeePerGas(); !fee.empty())
    co_await coinbaseAccount.setBalance(bal + tipCredit);
    ```
 5. **不** credit base fee（burn）
-6. EVM hard fail（非 REVERT）：rollback 至 `m_afterBuyGasSavepoint` 后仍执行 1–4（gas 已预扣，与现语义一致）
+6. **REVERT：** **不** rollback 至 `m_afterBuyGasSavepoint`；仍执行 1–4（gas 已预扣，sender 付 tip，与现 `EthTxExecutor` 一致）
+7. **EVM hard fail**（`EVMC_*` 且非 `EVMC_REVERT`）：rollback 至 `m_afterBuyGasSavepoint` 后仍执行 1–4
 
 #### makeReceipt
 
@@ -281,9 +308,11 @@ if (auto fee = tx.maxFeePerGas(); !fee.empty())
 ### 5.4 `ExecuteViaEthAdapter` — 去重（行为不变）
 
 1. 删除 `effectiveGasPriceForSettlement`。
-2. 使用 `isEip1559GasCapsTx(resolveWeb3TypedTxKind(tmpl), tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0)`。
-3. `applyGstTransactionSettlement` 逻辑 **不变**；`finalGasUsed` 仍来自现有 7623/ADR-015 分支（§5.6 左列）。
-4. 依赖 `ExecuteViaEth` 内 normalization 修正 `GASPRICE`（adapter 不必重复设 `input.gasPrice`）。
+2. 使用 `gas::isEip1559GasCapsTx(resolveWeb3TypedTxKind(tmpl), tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0)`（与 §4.2 **唯一判据** 一致；type-4 由 `resolveWeb3TypedTxKind` 返回 `0x04`）。
+3. `effectiveGasPrice = gas::resolveEffectiveGasPrice(input.gasTipCap, input.gasFeeCap, testCase.env.baseFee)`（1559）；legacy 用 `tx.gasPrice`。
+4. `applyGstTransactionSettlement` 逻辑 **不变**；`finalGasUsed` 仍来自现有 7623/ADR-015 分支（§5.6 右列）。
+5. 设置 `input.hasExplicitFeeCaps = tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0`。
+6. 依赖 `ExecuteViaEth` 内 normalization 修正 `GASPRICE`（adapter 不必重复设 `input.gasPrice`）。
 
 ### 5.5 `EthFixtureAdapter`
 
@@ -297,8 +326,18 @@ Legacy：`gasTipCap = gasFeeCap = gasPrice`，`web3TypedTxKind = 0`，`hasExplic
 |------|--------------------------------|---------------------|
 | Prague+ 成功 + `eip7623` | `finalizeEthereumGasUsed(snapshot, floorToken)` | 同左 |
 | Included top-level vmerr + `eip7623` | **`settleIncludedTopLevelTransactionGas(...)`**（**新增 TE 分支**，对齐 adapter） | 已有 |
-| 成功、无 7623 | `gasLimit - evmGasLeft` | `TX_BASE_GAS + ...` 或等价 |
+| 成功、无 7623 | `gasLimit - evmGasLeft` | `TX_BASE_GAS + result.gasUsed`（**仅 GST**；TE **不加** `TX_BASE_GAS`） |
 | Precheck reject | 无 settlement | 无 settlement |
+
+> **TE vs GST 无 7623 行：** adapter 的 `TX_BASE_GAS + result.gasUsed` 是 GST legacy 近似（见 `ExecuteViaEthAdapter.cpp`）；TE 生产路径用 `gasLimit - evmGasLeft`，**禁止**把 adapter 公式抄进 TE。
+
+**信号传递（TE vmerr 分支）：**
+
+```cpp
+// executeViaEthTx 返回后：
+m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
+// settleGasUsedFromEvmResult 读取 m_topLevelIncludedTxVmError
+```
 
 **1559 规则：**
 
@@ -337,7 +376,7 @@ Legacy：`gasTipCap = gasFeeCap = gasPrice`，`web3TypedTxKind = 0`，`hasExplic
 | `buy_gas_debits_effective_times_limit` | sender Δ = −limit×effective |
 | `refund_returns_unused_at_effective` | sender 加回 remaining×effective |
 | `coinbase_receives_tip_only` | coinbase Δ = used×(eff−base) |
-| `burn_identity` | sender 净支出 − coinbase 入账 = used×baseFee |
+| `burn_identity` | **refundGas 完成后** sender 净支出 − coinbase 入账 = used×baseFee |
 | `insufficient_balance_fee_cap_check` | balance < limit×feeCap → reject |
 | `insufficient_balance_penalty_uses_effective` | penalty = min(bal, 21000×effective) |
 | `7623_final_gas_used_drives_tip` | bump floor 后 tip 按 finalGasUsed |
@@ -349,7 +388,7 @@ Legacy：`gasTipCap = gasFeeCap = gasPrice`，`web3TypedTxKind = 0`，`hasExplic
 |------|------|
 | `shared_formula_matches_legacy_local` | 删 duplicate 前后 effective/tip 一致 |
 
-### 7.4 EEST 回归（Step 5 阻断 + 5b 探针）
+### 7.4 EEST 回归（Step 6 阻断 + 6b 探针）
 
 | 套件 | 期望 |
 |------|------|
@@ -411,7 +450,7 @@ ADR-016 与 TE 代码 **同 PR**。
 ## 11. 验收标准
 
 1. `resolveEffectiveGasPrice` / `tipPerGas` 与 OpStack 实现 **u256 一致**。
-2. TE：1559 tx coinbase 收 tip；`sender_net - coinbase_net = finalGasUsed × baseFee`。
+2. TE：1559 tx coinbase 收 tip；**refundGas 完成后** `sender_net - coinbase_net = finalGasUsed × baseFee`。
 3. TE：insufficient balance 用 feeCap 检查、effective 罚扣。
 4. `executeMessage`：`tx_gas_price == effective`（1559）；legacy 不变。
 5. TE：`settleGasUsedFromEvmResult` 含 **included vmerr** 路径；1559 refund 用 **finalGasUsed**。
@@ -430,4 +469,4 @@ ADR-016 与 TE 代码 **同 PR**。
 
 ---
 
-*Spec v1.1 — grilling 修订完成；评审通过后进入 writing-plans。*
+*Spec v1.2 — 二次审查修订完成；implementation plan: `docs/superpowers/plans/2026-06-21-eth-eip1559-settlement.md`。*
