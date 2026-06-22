@@ -2,6 +2,8 @@
 
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/Web3TypedTxKind.h"
+#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/gas/Eip4844.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
@@ -97,38 +99,6 @@ std::vector<SetCodeAuthorization> materializeAuthorizations(
     return authorizations;
 }
 
-uint8_t resolveWeb3TypedTxKind(GstTransactionTemplate const& transaction)
-{
-    if (transaction.authorizationListKeyPresent || !transaction.authorizationList.empty())
-    {
-        return 0x04;
-    }
-    if (!transaction.blobVersionedHashes.empty())
-    {
-        return 0x03;
-    }
-    if (transaction.maxFeePerGas != 0 || transaction.maxPriorityFeePerGas != 0)
-    {
-        return 0x02;
-    }
-    if (!transaction.accessLists.empty())
-    {
-        return 0x01;
-    }
-    return 0;
-}
-
-bcos::u256 effectiveGasPriceForSettlement(bcos::u256 gasPrice, bcos::u256 gasTipCap,
-    bcos::u256 gasFeeCap, bcos::u256 baseFee, bool eip1559Tx) noexcept
-{
-    if (!eip1559Tx)
-    {
-        return gasPrice;
-    }
-    auto const tipPlusBase = baseFee + gasTipCap;
-    return gasFeeCap < tipPlusBase ? gasFeeCap : tipPlusBase;
-}
-
 void applyGstTransactionSettlement(state::StateDiff& stateDiff,
     std::vector<std::pair<evmc_address, state::Account>> const& preState, evmc_message const& msg,
     evmc_address const& coinbase, bcos::u256 effectiveGasPrice, bcos::u256 baseFee, int64_t gasUsed,
@@ -173,8 +143,7 @@ void applyGstTransactionSettlement(state::StateDiff& stateDiff,
         sender.balance = sender.balance > totalCost ? sender.balance - totalCost : 0;
     }
 
-    bcos::u256 const tipPerGas =
-        effectiveGasPrice > baseFee ? effectiveGasPrice - baseFee : bcos::u256{0};
+    bcos::u256 const tipPerGas = gas::tipPerGas(effectiveGasPrice, baseFee);
     bcos::u256 const coinbaseCredit = tipPerGas * static_cast<bcos::u256>(gasUsed);
     if (coinbaseCredit != 0)
     {
@@ -237,7 +206,13 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
         input.gasTipCap = tx.gasPrice;
         input.gasFeeCap = tx.gasPrice;
     }
-    input.web3TypedTxKind = resolveWeb3TypedTxKind(testCase.transaction);
+    input.web3TypedTxKind =
+        inferWeb3TypedTxKindFromFields(testCase.transaction.authorizationListKeyPresent,
+            !testCase.transaction.authorizationList.empty(),
+            !testCase.transaction.blobVersionedHashes.empty(),
+            tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0,
+            !testCase.transaction.accessLists.empty());
+    input.hasExplicitFeeCaps = tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0;
     input.accessList = accessList.empty() ? nullptr : &accessList;
     input.authorizationListPresent = testCase.transaction.authorizationListKeyPresent;
     input.authorizations = authorizations;
@@ -304,9 +279,11 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
 
     if (result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty())
     {
-        auto const eip1559Tx = tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0;
-        auto const effectiveGasPrice = effectiveGasPriceForSettlement(
-            tx.gasPrice, input.gasTipCap, input.gasFeeCap, testCase.env.baseFee, eip1559Tx);
+        auto const effectiveGasPrice =
+            gas::isEip1559GasCapsTx(input.web3TypedTxKind, input.hasExplicitFeeCaps) ?
+                gas::resolveEffectiveGasPrice(
+                    input.gasTipCap, input.gasFeeCap, testCase.env.baseFee) :
+                tx.gasPrice;
         bcos::u256 blobFee{0};
         if (m_profile.revision.eip4844 && !testCase.transaction.blobVersionedHashes.empty())
         {
