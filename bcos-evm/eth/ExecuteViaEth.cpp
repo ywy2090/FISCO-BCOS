@@ -119,7 +119,7 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
                 input.authorizationListPresent ?
                     gas::calcAuthTupleIntrinsicGas(input.authorizations.size()) :
                     0;
-            if (input.message.gas < intrinsic.gasLimitMinimum() + authCost)
+            if (input.message.gas < intrinsic.gasLimitMinimumWithAuth(authCost))
             {
                 evmc_result failResult{};
                 failResult.status_code = EVMC_OUT_OF_GAS;

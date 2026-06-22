@@ -42,6 +42,15 @@ struct TxIntrinsicGas
         int64_t const floorTotal = txBase + floorReserve;
         return std::max(intrinsic, floorTotal);
     }
+
+    /// EIP-7623 + EIP-7702: auth intrinsic is part of the intrinsic side of the minimum, not
+    /// additive.
+    int64_t gasLimitMinimumWithAuth(int64_t authCost) const
+    {
+        int64_t const intrinsic = preExecutionDebit() + authCost;
+        int64_t const floorTotal = txBase + floorReserve;
+        return std::max(intrinsic, floorTotal);
+    }
 };
 
 struct TxGasSettlementContext

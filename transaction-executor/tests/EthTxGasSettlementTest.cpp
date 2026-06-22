@@ -156,6 +156,27 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_gasLimitMinimum_gethAligned_dataHeavy
     BOOST_CHECK_NE(intrinsic.gasLimitMinimum(), TX_BASE_GAS + accessListCost + 2500);
 }
 
+BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_gasLimitMinimumWithAuth_floorDominates)
+{
+    // EEST gas_refunds_from_data_floor: 1053 non-zero bytes, one auth tuple, gasLimit=75590.
+    bcos::bytes calldata(1053, 0x01);
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.input_data = calldata.data();
+    msg.input_size = calldata.size();
+    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 4);
+    auto const authCost = calcAuthTupleIntrinsicGas(1);
+
+    constexpr int64_t floorTotal = TX_BASE_GAS + 42120;
+    constexpr int64_t intrinsicWithAuth = TX_BASE_GAS + 16848 + authCost;
+    BOOST_CHECK_EQUAL(intrinsic.floorReserve, 42120);
+    BOOST_CHECK_EQUAL(intrinsicWithAuth, 62848);
+    BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimumWithAuth(authCost), floorTotal);
+    BOOST_CHECK_LT(
+        intrinsic.gasLimitMinimumWithAuth(authCost), intrinsic.gasLimitMinimum() + authCost);
+    BOOST_CHECK_GE(75590, intrinsic.gasLimitMinimumWithAuth(authCost));
+}
+
 BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_createIntrinsic_words)
 {
     bytes initcode(33);
