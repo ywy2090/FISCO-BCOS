@@ -82,6 +82,13 @@ void applySstoreRefundEip3529(State& state, const evmc_bytes32& current,
         }
     }
 }
+
+// CALL/STATICCALL: recipient is the authority. DELEGATECALL/CALLCODE: recipient is the caller
+// context and evmone puts the resolved delegate in code_address.
+bool isDirectDelegated7702(evmc_message const& msg) noexcept
+{
+    return (msg.flags & EVMC_DELEGATED) != 0 && msg.kind == EVMC_CALL;
+}
 }  // namespace
 
 EthHost::EthHost(State& state, evmc_tx_context txContext,
@@ -522,6 +529,12 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
 
     auto target = isZeroAddress(routed.message.code_address) ? routed.message.recipient :
                                                                routed.message.code_address;
+    // EIP-7702: CALL/STATICCALL pass the authority as recipient; DELEGATECALL/CALLCODE keep the
+    // resolved delegate in code_address. Delegation to a precompile runs empty code.
+    if (isDirectDelegated7702(msg))
+    {
+        target = routed.message.recipient;
+    }
     if (!isZeroAddress(target))
     {
         routed.message.code_address = target;
@@ -531,7 +544,8 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         }
     }
     auto const code = m_state.get_code(target);
-    if (!isZeroAddress(target) && isActivePrecompileAddress(target) && code.empty())
+    if ((msg.flags & EVMC_DELEGATED) == 0 && !isZeroAddress(target) &&
+        isActivePrecompileAddress(target) && code.empty())
     {
         routed.precompileTarget = target;
         routed.hasPrecompileTarget = true;
@@ -551,7 +565,21 @@ bcos::bytes EthHost::resolveExecutionCode(const evmc_message& msg) const
         }
         return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
     }
-    auto const codeAddress = isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address;
+    if ((msg.flags & EVMC_DELEGATED) != 0)
+    {
+        if (msg.kind == EVMC_DELEGATECALL || msg.kind == EVMC_CALLCODE)
+        {
+            if (isActivePrecompileAddress(msg.code_address))
+            {
+                return {};
+            }
+            return m_state.get_code(msg.code_address);
+        }
+    }
+    auto const codeAddress =
+        isDirectDelegated7702(msg) ?
+            msg.recipient :
+            (isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address);
     auto code = m_state.get_code(codeAddress);
     if (m_revisionConfig.eip7702)
     {
