@@ -36,6 +36,7 @@ struct ExecuteViaEthInput
     bcos::u256 gasTipCap{0};
     bcos::u256 gasFeeCap{0};
     uint8_t web3TypedTxKind{0};
+    bool hasExplicitFeeCaps{false};
     const Eip2930AccessList* accessList{nullptr};
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;

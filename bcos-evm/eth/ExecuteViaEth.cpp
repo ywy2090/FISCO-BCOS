@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
+#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/policy/EthHostExtension.h"
@@ -96,6 +97,14 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
         {
             output.evmcResult = std::move(*preCheckError);
             co_return output;
+        }
+
+        auto const caps = gas::normalizeGasCaps(input.gasPrice, input.gasTipCap, input.gasFeeCap,
+            input.web3TypedTxKind, input.hasExplicitFeeCaps);
+        if (caps.isEip1559Caps)
+        {
+            input.gasPrice = gas::resolveEffectiveGasPrice(
+                caps.gasTipCap, caps.gasFeeCap, input.blockInfo.baseFee);
         }
 
         if (input.revisionConfig.eip7623)

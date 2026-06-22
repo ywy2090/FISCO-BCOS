@@ -998,6 +998,13 @@ target_include_directories(EthEip1559GasTest PRIVATE
 target_link_libraries(EthEip1559GasTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME EthEip1559Gas COMMAND EthEip1559GasTest)
 
+add_executable(EthExecuteViaEth1559GasPriceTest eth/EthExecuteViaEth1559GasPriceTest.cpp)
+target_include_directories(EthExecuteViaEth1559GasPriceTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EthExecuteViaEth1559GasPriceTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
+add_test(NAME EthExecuteViaEth1559GasPrice COMMAND EthExecuteViaEth1559GasPriceTest)
+
 add_executable(OpStack7702ExecuteViaHostPropagationTest opstack/OpStack7702ExecuteViaHostPropagationTest.cpp)
 target_include_directories(OpStack7702ExecuteViaHostPropagationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
