@@ -202,20 +202,30 @@ public:
         {
             auto& evmcResult = *m_data->m_evmcResult;
             auto const& snapshot = m_data->m_executionContext.gasSettlementSnapshot;
-            if (snapshot.gasLimit > 0 &&
-                m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction &&
-                m_data->m_executionContext.revisionConfig.eip7623)
+            auto const isWeb3 =
+                m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction;
+            auto const eip7623 = m_data->m_executionContext.revisionConfig.eip7623;
+
+            if (m_data->m_topLevelIncludedTxVmError && eip7623)
+            {
+                m_data->m_gasUsed = gas::settleIncludedTopLevelTransactionGas(m_data->m_gasLimit,
+                    evmcResult.gas_left, snapshot.evmGasRefund,
+                    m_data->m_executionContext.revisionConfig.calldata_floor_per_token,
+                    snapshot.calldata);
+                return;
+            }
+
+            if (snapshot.gasLimit > 0 && isWeb3 && eip7623)
             {
                 auto ctx = snapshot;
                 ctx.evmGasLeft = evmcResult.gas_left;
                 ctx.evmGasRefund = evmcResult.gas_refund;
                 m_data->m_gasUsed = gas::finalizeEthereumGasUsed(
                     ctx, m_data->m_executionContext.revisionConfig.calldata_floor_per_token);
+                return;
             }
-            else
-            {
-                m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
-            }
+
+            m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
         }
 
         task::Task<ExecuteViaEthOutput> executeViaEthTx()
