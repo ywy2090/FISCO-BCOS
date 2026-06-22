@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/gas/Eip4844.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -112,8 +113,7 @@ state::BlockInfo parseEnv(pt::ptree const& envTree)
 
     if (auto const excessBlobGas = envTree.get_optional<std::string>("currentExcessBlobGas"))
     {
-        static_cast<void>(excessBlobGas);
-        // blob base fee derived later by runner; env stores excess only in GST.
+        env.blobBaseFee = gas::calcBlobBaseFee(parseUint64(*excessBlobGas));
     }
 
     return env;
@@ -247,6 +247,20 @@ GstTransactionTemplate parseTransactionTemplate(pt::ptree const& txTree)
         txTree.get_child_optional("authorizationList").has_value();
     transaction.authorizationList = parseAuthorizationList(txTree);
     transaction.accessLists = parseAccessLists(txTree);
+
+    if (auto const maxBlobFee = txTree.get_optional<std::string>("maxFeePerBlobGas"))
+    {
+        transaction.maxFeePerBlobGas = parseQuantity(*maxBlobFee);
+    }
+    if (auto const blobHashes = txTree.get_child_optional("blobVersionedHashes"))
+    {
+        for (auto const& [key, hashNode] : *blobHashes)
+        {
+            static_cast<void>(key);
+            transaction.blobVersionedHashes.emplace_back(
+                state::fromEvmC(parseBytes32(hashNode.get_value<std::string>())));
+        }
+    }
 
     return transaction;
 }

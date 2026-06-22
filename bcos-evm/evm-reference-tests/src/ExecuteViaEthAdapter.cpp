@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/gas/Eip4844.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/evm-reference-tests/GstStateHash.h"
@@ -102,9 +103,17 @@ uint8_t resolveWeb3TypedTxKind(GstTransactionTemplate const& transaction)
     {
         return 0x04;
     }
+    if (!transaction.blobVersionedHashes.empty())
+    {
+        return 0x03;
+    }
     if (transaction.maxFeePerGas != 0 || transaction.maxPriorityFeePerGas != 0)
     {
         return 0x02;
+    }
+    if (!transaction.accessLists.empty())
+    {
+        return 0x01;
     }
     return 0;
 }
@@ -122,7 +131,8 @@ bcos::u256 effectiveGasPriceForSettlement(bcos::u256 gasPrice, bcos::u256 gasTip
 
 void applyGstTransactionSettlement(state::StateDiff& stateDiff,
     std::vector<std::pair<evmc_address, state::Account>> const& preState, evmc_message const& msg,
-    evmc_address const& coinbase, bcos::u256 effectiveGasPrice, bcos::u256 baseFee, int64_t gasUsed)
+    evmc_address const& coinbase, bcos::u256 effectiveGasPrice, bcos::u256 baseFee, int64_t gasUsed,
+    bcos::u256 blobFee = 0)
 {
     auto resolveAccount = [&](evmc_address const& address) -> state::Account& {
         if (auto it = stateDiff.accounts.find(address); it != stateDiff.accounts.end())
@@ -157,9 +167,10 @@ void applyGstTransactionSettlement(state::StateDiff& stateDiff,
     }
 
     bcos::u256 const gasCost = effectiveGasPrice * static_cast<bcos::u256>(gasUsed);
-    if (gasCost != 0)
+    bcos::u256 const totalCost = gasCost + blobFee;
+    if (totalCost != 0)
     {
-        sender.balance = sender.balance > gasCost ? sender.balance - gasCost : 0;
+        sender.balance = sender.balance > totalCost ? sender.balance - totalCost : 0;
     }
 
     bcos::u256 const tipPerGas =
@@ -296,8 +307,14 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
         auto const eip1559Tx = tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0;
         auto const effectiveGasPrice = effectiveGasPriceForSettlement(
             tx.gasPrice, input.gasTipCap, input.gasFeeCap, testCase.env.baseFee, eip1559Tx);
+        bcos::u256 blobFee{0};
+        if (m_profile.revision.eip4844 && !testCase.transaction.blobVersionedHashes.empty())
+        {
+            blobFee = static_cast<bcos::u256>(testCase.transaction.blobVersionedHashes.size()) *
+                      static_cast<bcos::u256>(gas::BLOB_GAS_PER_BLOB) * testCase.env.blobBaseFee;
+        }
         applyGstTransactionSettlement(result.stateDiff, testCase.preState, msg,
-            testCase.env.coinbase, effectiveGasPrice, testCase.env.baseFee, finalGasUsed);
+            testCase.env.coinbase, effectiveGasPrice, testCase.env.baseFee, finalGasUsed, blobFee);
     }
 
     auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty();

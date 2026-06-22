@@ -96,7 +96,7 @@ inline TxIntrinsicGas computeTxIntrinsicGas(
     intrinsic.normalCalldata = components.normalCost;
     intrinsic.floorReserve = components.floorCost;
 
-    if (web3TypedTxKind != 0 && accessList != nullptr)
+    if (accessList != nullptr && !accessList->empty())
     {
         intrinsic.accessListCost = calcAccessListCost(accessList);
     }
