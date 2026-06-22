@@ -60,4 +60,13 @@ ctest -L 'evm-reference-tests-smoke' --test-dir build-ref -C Debug --output-on-f
 ctest -L 'evm-reference-tests-full' --test-dir build-ref -C Debug --output-on-failure
 ```
 
+### Full-run baseline (2026-06-21, `build-ref`, EEST pin)
+
+| Manifest | Executed | Pass | Fail | Notes |
+|----------|----------|------|------|-------|
+| `eth-eest-tx-full.json` | 106 | 106 | 0 | 7702 `transaction_tests` — strict auth scalar encoding fix |
+| `eth-eest-state-full.json` | 1056 | 519 | 537 | 7623 230/483; 7823 0/21; 7702 289/552 (+12 precheck) |
+
+State full dominant gaps: `stateRoot` mismatch (~458), included success paths with wrong status (~67). Precheck gaps (`SENDER_NOT_EOA`, empty auth list, type-4 CREATE, fee cap) closed in W1–W4. Smoke + self_sponsored `stateRoot` remain the PR gate; full state sweep stays nightly-only until parity closes.
+
 PR CI (`capability-gate`) fetches EEST and runs smoke via `ctest -L evm-reference-tests-smoke`.

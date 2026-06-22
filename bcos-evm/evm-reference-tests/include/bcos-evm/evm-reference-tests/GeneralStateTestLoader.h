@@ -41,6 +41,7 @@ struct GstTransactionTemplate
     bcos::u256 maxPriorityFeePerGas{0};
     uint64_t nonce{0};
     std::vector<GstAuthorizationEntry> authorizationList;
+    bool authorizationListKeyPresent{false};
     std::vector<std::vector<GstAccessListEntry>> accessLists;
 };
 

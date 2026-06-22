@@ -243,6 +243,8 @@ GstTransactionTemplate parseTransactionTemplate(pt::ptree const& txTree)
         transaction.sender = state::parseHexAddress(*sender);
     }
 
+    transaction.authorizationListKeyPresent =
+        txTree.get_child_optional("authorizationList").has_value();
     transaction.authorizationList = parseAuthorizationList(txTree);
     transaction.accessLists = parseAccessLists(txTree);
 

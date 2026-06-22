@@ -1,5 +1,6 @@
 #include "bcos-evm/eth/ExecuteViaEth.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/ExecuteViaEthPreCheck.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
@@ -91,6 +92,12 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
 
     try
     {
+        if (auto preCheckError = ethExecuteViaEthPreCheck(input, state))
+        {
+            output.evmcResult = std::move(*preCheckError);
+            co_return output;
+        }
+
         if (input.revisionConfig.eip7623)
         {
             auto const components =

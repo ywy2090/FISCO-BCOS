@@ -33,6 +33,8 @@ struct ExecuteViaEthInput
     state::BlockHashes blockHashes{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     bcos::u256 gasPrice{0};
+    bcos::u256 gasTipCap{0};
+    bcos::u256 gasFeeCap{0};
     uint8_t web3TypedTxKind{0};
     const Eip2930AccessList* accessList{nullptr};
     bool authorizationListPresent{false};

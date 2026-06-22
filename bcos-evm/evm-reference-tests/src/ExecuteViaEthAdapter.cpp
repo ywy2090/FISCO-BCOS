@@ -98,7 +98,7 @@ std::vector<SetCodeAuthorization> materializeAuthorizations(
 
 uint8_t resolveWeb3TypedTxKind(GstTransactionTemplate const& transaction)
 {
-    if (!transaction.authorizationList.empty())
+    if (transaction.authorizationListKeyPresent || !transaction.authorizationList.empty())
     {
         return 0x04;
     }
@@ -195,9 +195,20 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
     input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
     input.revisionConfig = m_profile.revision;
     input.gasPrice = tx.gasPrice;
+    auto const& tmpl = testCase.transaction;
+    if (tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0)
+    {
+        input.gasTipCap = tmpl.maxPriorityFeePerGas;
+        input.gasFeeCap = tmpl.maxFeePerGas;
+    }
+    else
+    {
+        input.gasTipCap = tx.gasPrice;
+        input.gasFeeCap = tx.gasPrice;
+    }
     input.web3TypedTxKind = resolveWeb3TypedTxKind(testCase.transaction);
     input.accessList = accessList.empty() ? nullptr : &accessList;
-    input.authorizationListPresent = !authorizations.empty();
+    input.authorizationListPresent = testCase.transaction.authorizationListKeyPresent;
     input.authorizations = authorizations;
 
     evmc_message msg{};

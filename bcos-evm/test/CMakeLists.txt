@@ -1155,6 +1155,13 @@ target_link_libraries(Eip7623PrecheckTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-framework)
 add_test(NAME Eip7623Precheck COMMAND Eip7623PrecheckTest)
 
+add_executable(EthExecuteViaEthPreCheckTest eth/EthExecuteViaEthPreCheckTest.cpp)
+target_include_directories(EthExecuteViaEthPreCheckTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EthExecuteViaEthPreCheckTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-framework)
+add_test(NAME EthExecuteViaEthPreCheck COMMAND EthExecuteViaEthPreCheckTest)
+
 add_executable(Eip1153TransientStorageTest eth/Eip1153TransientStorageTest.cpp)
 target_include_directories(Eip1153TransientStorageTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

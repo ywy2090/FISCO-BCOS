@@ -11,7 +11,6 @@ namespace
 {
 
 using bcos::codec::rlp::decodeHeader;
-using bcos::codec::rlp::decodeItems;
 
 bool consumeRlpItem(bcos::bytesRef& payload)
 {
@@ -50,6 +49,15 @@ bool decodeStrictUint64(bcos::bytesRef& payload, uint64_t& value)
         value = 0;
         return true;
     }
+    if (item.size() == 1 && item[0] <= 0x7f)
+    {
+        value = item[0];
+        return true;
+    }
+    if (item[0] == 0)
+    {
+        return false;
+    }
     if (item.size() > 8)
     {
         return false;
@@ -65,6 +73,50 @@ bool decodeStrictUint64(bcos::bytesRef& payload, uint64_t& value)
     }
     value = static_cast<uint64_t>(quantity);
     return true;
+}
+
+bool decodeStrictScalarBytes(bcos::bytesRef& payload, bcos::bytes& out, size_t maxLen)
+{
+    auto [error, header] = decodeHeader(payload);
+    if (error != nullptr || header.isList)
+    {
+        return false;
+    }
+    if (payload.size() < header.payloadLength)
+    {
+        return false;
+    }
+    auto item = payload.getCroppedData(0, header.payloadLength);
+    payload = payload.getCroppedData(header.payloadLength);
+    if (item.empty())
+    {
+        out.clear();
+        return true;
+    }
+    if (item.size() == 1 && item[0] <= 0x7f)
+    {
+        out.assign(item.begin(), item.end());
+        return true;
+    }
+    if (item[0] == 0)
+    {
+        return false;
+    }
+    if (item.size() > maxLen)
+    {
+        return false;
+    }
+    out = item.toBytes();
+    return true;
+}
+
+bool decodeStrictAddress(bcos::bytesRef& payload, bcos::bytes& out)
+{
+    if (!decodeStrictScalarBytes(payload, out, sizeof(evmc_address)))
+    {
+        return false;
+    }
+    return out.size() == sizeof(evmc_address);
 }
 
 bool validateAuthorizationList(bcos::bytesRef& payload)
@@ -105,13 +157,14 @@ bool validateAuthorizationList(bcos::bytesRef& payload)
         uint64_t yParity = 0;
         bcos::bytes r;
         bcos::bytes s;
-        if (auto decodeError = decodeItems(entry, chainIdRaw, addressRaw, nonce, yParity, r, s);
-            decodeError != nullptr)
+        if (!decodeStrictScalarBytes(entry, chainIdRaw, 32) ||
+            !decodeStrictAddress(entry, addressRaw) || !decodeStrictUint64(entry, nonce) ||
+            !decodeStrictUint64(entry, yParity) || !decodeStrictScalarBytes(entry, r, 32) ||
+            !decodeStrictScalarBytes(entry, s, 32))
         {
             return false;
         }
-        if (!entry.empty() || addressRaw.size() != sizeof(evmc_address) || r.size() > 32 ||
-            s.size() > 32 || yParity > 1)
+        if (!entry.empty() || r.size() > 32 || s.size() > 32 || yParity > 1)
         {
             return false;
         }
