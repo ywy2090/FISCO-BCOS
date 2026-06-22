@@ -14,8 +14,10 @@ namespace bcos::evm::eth_tx
 inline state::BlockInfo buildEthBlockInfo(
     protocol::BlockHeader const& blockHeader, ledger::LedgerConfig const& ledgerConfig)
 {
-    return state::buildFiscoBlockInfo(
+    auto blockInfo = state::buildFiscoBlockInfo(
         blockHeader, ledgerConfig, [](int64_t timestamp) { return timestamp / 1000; });
+    blockInfo.baseFee = u256(std::get<0>(ledgerConfig.gasPrice()));
+    return blockInfo;
 }
 
 inline void fillTransactionGasFields(protocol::Transaction const& tx, auto& data)

@@ -1,5 +1,6 @@
 #pragma once
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/vm/EthPolicy.h"
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/protocol/Transaction.h>
@@ -28,15 +29,18 @@ struct EthTxExecutor
         if (data.m_call)
             co_return true;
 
-        const auto gasPrice = protocol::effectiveGasPrice(data.m_transaction.get());
-        if (gasPrice == 0)
+        const auto caps = gas::normalizeGasCaps(data.m_gasPriceLegacy, data.m_gasTipCap,
+            data.m_gasFeeCap, data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps);
+        data.m_effectiveGasPrice =
+            gas::resolveEffectiveGasPrice(caps.gasTipCap, caps.gasFeeCap, data.m_blockInfo.baseFee);
+        if (data.m_effectiveGasPrice == 0)
             co_return true;
         if (data.m_gasLimit <= 0)
             co_return true;
 
-        const auto maxGasCost = u256(data.m_gasLimit) * gasPrice;
+        const auto maxGasCost = u256(data.m_gasLimit) * data.m_effectiveGasPrice;
         const auto txValue = u256(data.m_transaction.get().value());
-        const auto totalRequired = maxGasCost + txValue;
+        const auto totalRequired = gas::maxBalanceGasDebit(data.m_gasLimit, caps) + txValue;
 
         auto& msg = data.m_executionContext.message;
         ledger::account::EVMAccount senderAccount(data.m_rollbackableStorage, msg.sender, false);
@@ -51,7 +55,7 @@ struct EthTxExecutor
 
             // Charge minimum penalty = intrinsic_gas * gasPrice, capped at balance.
             constexpr static int64_t INTRINSIC_GAS = 21000;
-            const auto intrinsicCost = u256(INTRINSIC_GAS) * gasPrice;
+            const auto intrinsicCost = u256(INTRINSIC_GAS) * data.m_effectiveGasPrice;
             const auto penalty = std::min(senderBalance, intrinsicCost);
             if (penalty > 0)
             {
@@ -67,14 +71,14 @@ struct EthTxExecutor
             failResult.create_address = {};
             data.m_evmcResult.emplace(
                 EVMCResult(failResult, protocol::TransactionStatus::NotEnoughCash));
-            data.m_gasUsed = (penalty / gasPrice).template convert_to<int64_t>();
-            data.m_gasPriceStr = "0x" + gasPrice.str(256, std::ios_base::hex);
+            data.m_gasUsed = (penalty / data.m_effectiveGasPrice).template convert_to<int64_t>();
+            data.m_gasPriceStr = "0x" + data.m_effectiveGasPrice.str(256, std::ios_base::hex);
             co_return false;
         }
 
         co_await senderAccount.setBalance(senderBalance - maxGasCost);
         data.m_afterBuyGasSavepoint = data.m_rollbackableStorage.current();
-        data.m_gasPriceStr = "0x" + gasPrice.str(256, std::ios_base::hex);
+        data.m_gasPriceStr = "0x" + data.m_effectiveGasPrice.str(256, std::ios_base::hex);
         co_return true;
     }
 
@@ -84,8 +88,7 @@ struct EthTxExecutor
         if (data.m_call)
             co_return;
 
-        const auto gasPrice = protocol::effectiveGasPrice(data.m_transaction.get());
-        if (gasPrice == 0)
+        if (data.m_effectiveGasPrice == 0)
             co_return;
 
         auto& evmcResult = *data.m_evmcResult;
@@ -102,9 +105,22 @@ struct EthTxExecutor
             auto& msg = data.m_executionContext.message;
             ledger::account::EVMAccount senderAccount(
                 data.m_rollbackableStorage, msg.sender, false);
-            auto refund = u256(refundGasUnits) * gasPrice;
+            auto refund = u256(refundGasUnits) * data.m_effectiveGasPrice;
             auto balance = co_await senderAccount.balance();
             co_await senderAccount.setBalance(balance + refund);
+        }
+
+        auto const tipPerGas = gas::tipPerGas(data.m_effectiveGasPrice, data.m_blockInfo.baseFee);
+        if (data.m_gasUsed > 0 && tipPerGas > 0)
+        {
+            ledger::account::EVMAccount coinbaseAccount(
+                data.m_rollbackableStorage, data.m_blockInfo.coinbase, false);
+            if (!co_await coinbaseAccount.exists())
+            {
+                co_await coinbaseAccount.create();
+            }
+            auto balance = co_await coinbaseAccount.balance();
+            co_await coinbaseAccount.setBalance(balance + u256(data.m_gasUsed) * tipPerGas);
         }
     }
 

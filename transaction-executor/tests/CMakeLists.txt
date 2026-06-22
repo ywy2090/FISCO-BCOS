@@ -5,6 +5,7 @@ list(REMOVE_ITEM SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/TestHostContext.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/FIB88_92_ErrorHandlingTest.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Web3AccessListResolverTest.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/EthTxExecutor1559Test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/TestEthTransactionExecutorFixture.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/TestOpStackTransactionExecutorFixture.cpp"
 )
@@ -25,6 +26,7 @@ set_source_files_properties("EthTxGasSettlementTest.cpp" PROPERTIES SKIP_UNITY_B
 set_source_files_properties("Task0EvmoneRefundSemanticsTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("Web3AccessListResolverTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("EthTxGasSettlementExecutorTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("EthTxExecutor1559Test.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("Modexp7823TeTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("ExecuteViaHostCompatTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("CompatExecuteViaHostTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
@@ -105,3 +107,26 @@ add_dependencies(test-opstack-transaction-executor-fixture executor)
 add_test(NAME OpStackTransactionExecutorFixture
     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     COMMAND test-opstack-transaction-executor-fixture)
+
+add_executable(EthTxExecutor1559Test
+    main.cpp
+    EthTxExecutor1559Test.cpp
+)
+target_include_directories(EthTxExecutor1559Test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
+)
+target_link_libraries(EthTxExecutor1559Test PRIVATE
+    transaction-executor
+    executor
+    ledger
+    protocol-tars
+    bcos-framework
+    rpc
+    evmone::evmone
+    bcos-evm
+    Boost::unit_test_framework
+)
+add_dependencies(EthTxExecutor1559Test executor)
+add_test(NAME EthTxExecutor1559
+    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    COMMAND EthTxExecutor1559Test -t EthTxExecutor1559)
