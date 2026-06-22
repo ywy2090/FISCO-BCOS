@@ -9,8 +9,13 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException"
+      ]
     },
     {
       "evidenceId": "eth.eest.osaka.state.eip7823",
@@ -19,8 +24,13 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.invalid_chain_id",
@@ -30,8 +40,13 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.account_warming",
@@ -40,8 +55,13 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.return",
@@ -51,8 +71,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.return_value1",
@@ -62,8 +88,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.stop",
@@ -73,8 +105,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.stop_value1",
@@ -84,8 +122,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.invalid",
@@ -95,8 +139,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.invalid_value1",
@@ -106,8 +156,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.revert",
@@ -117,8 +173,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.revert_value1",
@@ -128,8 +190,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.out_of_gas",
@@ -139,8 +207,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.self_sponsored.out_of_gas_value1",
@@ -150,8 +224,14 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
     },
     {
       "evidenceId": "eth.eest.prague.state.eip7702.invalid_auth_signature",
@@ -160,8 +240,13 @@
       "forkProfileId": "eth-osaka",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional", "expectException"]
+      "capabilityRowIds": [
+        "eip2929-runtime-warm"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException"
+      ]
     }
   ]
 }

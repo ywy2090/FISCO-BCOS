@@ -32,37 +32,54 @@ namespace bcos::evm::state
 {
 namespace
 {
-// geth core/vm/operations_acl.go gasSStoreEIP3529 / params.SstoreClearsScheduleRefundEIP3529
+// geth core/vm/operations_acl.go gasSStoreEIP3529 / params.*
 constexpr uint64_t kSstoreClearsScheduleRefundEip3529 = 4800;
+constexpr uint64_t kSstoreSetGasEip2200 = 20000;
+constexpr uint64_t kSstoreResetGasEip2200 = 5000;
+constexpr uint64_t kColdSloadCostEip2929 = 2100;
+constexpr uint64_t kWarmStorageReadCostEip2929 = 100;
 
-void applySstoreRefundEip3529(
-    State& state, const evmc_bytes32& current, const evmc_bytes32& original) noexcept
+void applySstoreRefundEip3529(State& state, const evmc_bytes32& current,
+    const evmc_bytes32& original, const evmc_bytes32& value) noexcept
 {
-    auto const currentZero = isZeroBytes32(current);
-    auto const originalZero = isZeroBytes32(original);
-    if (Bytes32Equal{}(current, original))
+    if (Bytes32Equal{}(current, value))
     {
-        if (!originalZero)
-        {
-            state.sub_refund(kSstoreClearsScheduleRefundEip3529);
-        }
         return;
     }
-    if (currentZero)
+    if (Bytes32Equal{}(original, current))
     {
-        if (!originalZero)
+        if (isZeroBytes32(original))
+        {
+            return;
+        }
+        if (isZeroBytes32(value))
         {
             state.add_refund(kSstoreClearsScheduleRefundEip3529);
         }
         return;
     }
-    if (originalZero)
+    if (!isZeroBytes32(original))
     {
-        state.sub_refund(kSstoreClearsScheduleRefundEip3529 * 2);
+        if (isZeroBytes32(current))
+        {
+            state.sub_refund(kSstoreClearsScheduleRefundEip3529);
+        }
+        else if (isZeroBytes32(value))
+        {
+            state.add_refund(kSstoreClearsScheduleRefundEip3529);
+        }
     }
-    else
+    if (Bytes32Equal{}(original, value))
     {
-        state.sub_refund(kSstoreClearsScheduleRefundEip3529);
+        if (isZeroBytes32(original))
+        {
+            state.add_refund(kSstoreSetGasEip2200 - kWarmStorageReadCostEip2929);
+        }
+        else
+        {
+            state.add_refund(
+                (kSstoreResetGasEip2200 - kColdSloadCostEip2929) - kWarmStorageReadCostEip2929);
+        }
     }
 }
 }  // namespace
@@ -102,9 +119,13 @@ evmc_storage_status EthHost::set_storage(
 
     auto const& original = it->second;
     auto const current = m_state.get_storage(addr, key);
+    if (Bytes32Equal{}(current, value))
+    {
+        return classifyStorageStatus(original, value, m_fixStorageStatus);
+    }
     if (m_fixStorageStatus)
     {
-        applySstoreRefundEip3529(m_state, current, original);
+        applySstoreRefundEip3529(m_state, current, original, value);
     }
 
     m_state.set_storage(addr, key, value);

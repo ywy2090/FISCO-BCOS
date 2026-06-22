@@ -985,6 +985,13 @@ target_link_libraries(ExecuteViaEthFixtureTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME ExecuteViaEthFixture COMMAND ExecuteViaEthFixtureTest)
 
+add_executable(EthIncludedTxVmerrTest eth/EthIncludedTxVmerrTest.cpp)
+target_include_directories(EthIncludedTxVmerrTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EthIncludedTxVmerrTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
+add_test(NAME EthIncludedTxVmerr COMMAND EthIncludedTxVmerrTest)
+
 add_executable(OpStack7702ExecuteViaHostPropagationTest opstack/OpStack7702ExecuteViaHostPropagationTest.cpp)
 target_include_directories(OpStack7702ExecuteViaHostPropagationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
