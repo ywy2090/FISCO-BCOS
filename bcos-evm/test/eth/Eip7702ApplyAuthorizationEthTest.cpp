@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
     input.revisionConfig.eip7702 = true;
     input.authorizationListPresent = true;
     input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 0});
+        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
 
     auto output = executeMessage(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
     BOOST_CHECK_EQUAL(installedCode[0], 0xEF);
     BOOST_CHECK_EQUAL(installedCode[1], 0x01);
     BOOST_CHECK_EQUAL(installedCode[2], 0x00);
-    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(1));
+    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
 }
 
 }  // namespace bcos::evm::test

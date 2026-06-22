@@ -45,6 +45,7 @@ struct ExecuteViaEthOutput
     state::StateDiff stateDiff;
     std::vector<state::LogEntry> logs;
     EthExecutionContext executionContext;
+    bool topLevelIncludedTxVmError{false};
 };
 
 task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input);

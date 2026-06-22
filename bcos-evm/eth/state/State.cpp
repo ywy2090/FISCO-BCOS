@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/hash_utils.hpp"
 
 namespace bcos::evm::state
 {
@@ -218,6 +219,12 @@ void State::set_code(const evmc_address& address, bcos::bytes code, evmc_bytes32
 void State::set_storage(
     const evmc_address& address, const evmc_bytes32& key, const evmc_bytes32& value)
 {
+    auto const prior = get_storage(address, key);
+    if (Bytes32Equal{}(prior, value))
+    {
+        return;
+    }
+
     journal_account_once(address);
     mutable_account(address).storage[key] = value;
 }

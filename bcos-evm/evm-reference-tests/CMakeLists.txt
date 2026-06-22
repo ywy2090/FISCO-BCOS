@@ -9,6 +9,7 @@ add_library(bcos-evm-reference-tests-core STATIC
     src/GstStateHash.cpp
     src/EestStateTestLoader.cpp
     src/EestTransactionTestLoader.cpp
+    src/Eip7702StrictTxValidator.cpp
 )
 
 target_include_directories(bcos-evm-reference-tests-core PUBLIC
@@ -23,6 +24,8 @@ target_compile_definitions(bcos-evm-reference-tests-core PUBLIC
 target_link_libraries(bcos-evm-reference-tests-core PUBLIC
     bcos-utilities
     bcos-evm-eth
+    bcos-crypto
+    codec
     evmone::evmone
 )
 
@@ -53,6 +56,7 @@ add_reference_test(GstStateHashTest runners/GstStateHashTest.cpp)
 add_reference_test(ManifestLoaderTest runners/ManifestLoaderTest.cpp)
 add_reference_test(GeneralStateTestLoaderTest runners/GeneralStateTestLoaderTest.cpp)
 add_reference_test(ForkProfileRegistryTest runners/ForkProfileRegistryTest.cpp)
+add_reference_test(Eip7702StrictTxValidatorTest runners/Eip7702StrictTxValidatorTest.cpp)
 add_reference_test(StateTestMatcherTest runners/StateTestMatcherTest.cpp)
 add_reference_test(StateTestAssertTest runners/StateTestAssertTest.cpp)
 
@@ -112,37 +116,61 @@ target_link_libraries(EthExecutionSpecStateTests PRIVATE bcos-evm-reference-test
 target_compile_definitions(EthExecutionSpecStateTests PRIVATE
     EVM_REFERENCE_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
 )
+set(EEST_FIXTURES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest/fixtures/state_tests)
+set(EEST_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/manifests)
+set(EEST_ASSETS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest)
+
 add_test(NAME EthExecutionSpecStateTests COMMAND EthExecutionSpecStateTests
-    --manifest ${CMAKE_CURRENT_SOURCE_DIR}/manifests/eth-eest-state-smoke.json
-    --eest-root ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest
-    --expectations ${CMAKE_CURRENT_SOURCE_DIR}/manifests/expectations.json
-    --limit 5
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-state-smoke.json
+    --eest-root ${EEST_ASSETS_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/expectations.json
 )
 set_tests_properties(EthExecutionSpecStateTests PROPERTIES
-    LABELS "evm-reference-tests;evm-reference-tests-full;eth-kernel"
-    DISABLED TRUE
+    LABELS "evm-reference-tests;evm-reference-tests-smoke;eth-kernel;eest"
 )
+if(NOT EXISTS "${EEST_FIXTURES_ROOT}")
+    set_tests_properties(EthExecutionSpecStateTests PROPERTIES DISABLED TRUE)
+endif()
+
+add_test(NAME EthExecutionSpecStateTestsFull COMMAND EthExecutionSpecStateTests
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-state-full.json
+    --eest-root ${EEST_ASSETS_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/expectations.json
+)
+set_tests_properties(EthExecutionSpecStateTestsFull PROPERTIES
+    LABELS "evm-reference-tests;evm-reference-tests-full;eth-kernel;eest"
+)
+if(NOT EXISTS "${EEST_FIXTURES_ROOT}")
+    set_tests_properties(EthExecutionSpecStateTestsFull PROPERTIES DISABLED TRUE)
+endif()
 
 add_executable(EthExecutionSpecTransactionTests runners/EthExecutionSpecTransactionTests.cpp)
-target_include_directories(EthExecutionSpecTransactionTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/transaction-executor
-)
-target_link_libraries(EthExecutionSpecTransactionTests PRIVATE
-    bcos-evm-reference-tests-core
-    bcos-crypto
-    codec
-)
+target_link_libraries(EthExecutionSpecTransactionTests PRIVATE bcos-evm-reference-tests-core)
 target_compile_definitions(EthExecutionSpecTransactionTests PRIVATE
     EVM_REFERENCE_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
 )
+set(EEST_TX_FIXTURES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest/fixtures/transaction_tests)
 add_test(NAME EthExecutionSpecTransactionTests COMMAND EthExecutionSpecTransactionTests
-    --manifest ${CMAKE_CURRENT_SOURCE_DIR}/manifests/eth-eest-tx-smoke.json
-    --eest-root ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-tx-smoke.json
+    --eest-root ${EEST_ASSETS_ROOT}
 )
 set_tests_properties(EthExecutionSpecTransactionTests PROPERTIES
-    LABELS "evm-reference-tests;evm-reference-tests-full;eth-kernel"
-    DISABLED TRUE
+    LABELS "evm-reference-tests;evm-reference-tests-smoke;eth-kernel;eest"
 )
+if(NOT EXISTS "${EEST_TX_FIXTURES_ROOT}")
+    set_tests_properties(EthExecutionSpecTransactionTests PROPERTIES DISABLED TRUE)
+endif()
+
+add_test(NAME EthExecutionSpecTransactionTestsFull COMMAND EthExecutionSpecTransactionTests
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-tx-full.json
+    --eest-root ${EEST_ASSETS_ROOT}
+)
+set_tests_properties(EthExecutionSpecTransactionTestsFull PROPERTIES
+    LABELS "evm-reference-tests;evm-reference-tests-full;eth-kernel;eest"
+)
+if(NOT EXISTS "${EEST_TX_FIXTURES_ROOT}")
+    set_tests_properties(EthExecutionSpecTransactionTestsFull PROPERTIES DISABLED TRUE)
+endif()
 
 add_test(
     NAME ManifestLint

@@ -226,6 +226,11 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         if (input.revisionConfig.eip7702 && input.authorizationListPresent &&
             !input.authorizations.empty())
         {
+            if (!state::isZeroAddress(input.message.sender))
+            {
+                auto const senderNonce = state.get_nonce(input.message.sender);
+                state.set_nonce(input.message.sender, senderNonce + 1);
+            }
             applyAuthorizations(state, input.authorizations, input.blockInfo.chainId);
             if (input.revisionConfig.warm_access && !state::isZeroAddress(codeAddress))
             {
@@ -339,6 +344,8 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     else
     {
         state.revert();
+        output.gasRefund = static_cast<int64_t>(state.get_refund());
+        output.stateDiff = state.build_diff();
     }
 
     return output;

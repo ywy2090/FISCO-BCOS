@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "probe.self_sponsored.revert",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx/test_self_sponsored_set_code.json",
+      "variantKey": "tests/prague/eip7702_set_code_tx/test_set_code_txs.py::test_self_sponsored_set_code[fork_Osaka-state_test-revert-tx_value_0]",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional", "stateRoot"]
+    }
+  ]
+}

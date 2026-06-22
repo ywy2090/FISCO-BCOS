@@ -15,6 +15,20 @@
 namespace bcos::evm::reference_tests
 {
 
+struct GstAuthorizationEntry
+{
+    bcos::u256 chainId;
+    evmc_address address{};
+    evmc_address authority{};
+    uint64_t nonce{0};
+};
+
+struct GstAccessListEntry
+{
+    evmc_address address{};
+    std::vector<evmc_bytes32> storageKeys;
+};
+
 struct GstTransactionTemplate
 {
     std::optional<evmc_address> sender;
@@ -26,6 +40,8 @@ struct GstTransactionTemplate
     bcos::u256 maxFeePerGas{0};
     bcos::u256 maxPriorityFeePerGas{0};
     uint64_t nonce{0};
+    std::vector<GstAuthorizationEntry> authorizationList;
+    std::vector<std::vector<GstAccessListEntry>> accessLists;
 };
 
 struct StateTestCase
@@ -48,6 +64,7 @@ std::vector<StateTestCase> loadGeneralStateTestFile(std::filesystem::path const&
 StateTestCase loadGeneralStateTest(std::filesystem::path const& jsonPath,
     std::optional<std::string_view> variantKey = std::nullopt);
 std::vector<StateSubtest> listSubtests(StateTestCase const& test, std::string_view fork);
+std::vector<StateSubtest> tryListSubtests(StateTestCase const& test, std::string_view fork);
 ExpectedPostState selectExpected(StateTestCase const& test, StateSubtest const& subtest);
 
 }  // namespace bcos::evm::reference_tests

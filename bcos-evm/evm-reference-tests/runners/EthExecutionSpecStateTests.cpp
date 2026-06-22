@@ -131,13 +131,9 @@ bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatch
 
         for (auto const& testCase : cases)
         {
-            std::vector<StateSubtest> subtests;
-            try
-            {
-                subtests =
-                    listSubtests(testCase, entry.postFork.value_or(profile->upstreamForkName));
-            }
-            catch (std::exception const&)
+            auto const subtests =
+                tryListSubtests(testCase, entry.postFork.value_or(profile->upstreamForkName));
+            if (subtests.empty())
             {
                 continue;
             }

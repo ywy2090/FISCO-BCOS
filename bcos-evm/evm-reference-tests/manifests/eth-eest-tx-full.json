@@ -4,7 +4,7 @@
     {
       "evidenceId": "eth.eest.prague.tx.eip7702",
       "sourceSuite": "eest",
-      "casePath": "fixtures/transaction_tests/prague/eip7702_set_code_tx/test_invalid_tx_invalid_rlp_encoding.json",
+      "casePath": "fixtures/transaction_tests/prague/eip7702_set_code_tx",
       "forkProfileId": "eth-prague",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",

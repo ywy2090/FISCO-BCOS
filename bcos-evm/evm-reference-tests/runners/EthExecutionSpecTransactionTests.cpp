@@ -1,9 +1,8 @@
 #include "bcos-evm/evm-reference-tests/EestStateTestLoader.h"
 #include "bcos-evm/evm-reference-tests/EestTransactionTestLoader.h"
+#include "bcos-evm/evm-reference-tests/Eip7702StrictTxValidator.h"
 #include "bcos-evm/evm-reference-tests/ForkProfileRegistry.h"
 #include "bcos-evm/evm-reference-tests/ManifestLoader.h"
-
-#include "transaction-executor/bcos-transaction-executor/Web3Eip7702Decoder.h"
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -56,9 +55,27 @@ std::vector<std::filesystem::path> resolveTxCasePaths(
     auto const target = eestRoot / entry.casePath;
     if (std::filesystem::is_directory(target))
     {
-        return listEestTransactionTestFiles(eestRoot, "7702");
+        return listEestTransactionTestFiles(eestRoot, entry.casePath);
     }
     return {target};
+}
+
+std::optional<std::string> resolveTransactionResultFork(
+    TransactionTestCase const& testCase, ForkProfile const& profile)
+{
+    if (testCase.resultByFork.contains(profile.upstreamForkName))
+    {
+        return profile.upstreamForkName;
+    }
+    if (testCase.resultByFork.contains("Osaka"))
+    {
+        return "Osaka";
+    }
+    if (testCase.resultByFork.contains("Prague"))
+    {
+        return "Prague";
+    }
+    return std::nullopt;
 }
 
 bool validate7702Tx(TransactionTestCase const& testCase, std::string const& fork, int& failures)
@@ -82,11 +99,11 @@ bool validate7702Tx(TransactionTestCase const& testCase, std::string const& fork
         return true;
     }
 
-    auto const decoded = bcos::evm::web3_tx::decodeEip7702Authorizations(
+    bool const valid = validateStrictEip7702TypedTx(
         bcos::bytesConstRef{testCase.txbytes.data(), testCase.txbytes.size()});
     if (expectInvalid)
     {
-        if (decoded.has_value())
+        if (valid)
         {
             std::cerr << "FAIL " << testCase.name << ": expected decode failure for fork " << fork
                       << '\n';
@@ -95,7 +112,7 @@ bool validate7702Tx(TransactionTestCase const& testCase, std::string const& fork
         return true;
     }
 
-    if (!decoded.has_value() || decoded->empty())
+    if (!valid)
     {
         std::cerr << "FAIL " << testCase.name
                   << ": expected decodable EIP-7702 authorization list\n";
@@ -159,7 +176,13 @@ int main(int argc, char** argv)
                         continue;
                     }
 
-                    if (!validate7702Tx(testCase, profile->upstreamForkName, failures))
+                    auto const resultFork = resolveTransactionResultFork(testCase, *profile);
+                    if (!resultFork.has_value())
+                    {
+                        continue;
+                    }
+
+                    if (!validate7702Tx(testCase, *resultFork, failures))
                     {
                         continue;
                     }

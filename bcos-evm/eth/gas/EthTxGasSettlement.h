@@ -50,6 +50,7 @@ struct TxGasSettlementContext
     int64_t gasBeforeEvm = 0;
     gas::Eip7623Components calldata{};
     int64_t fixedIntrinsic = 0;
+    int64_t authIntrinsic = 0;
     int64_t createTerm = 0;
     int64_t evmGasLeft = 0;
     int64_t evmGasRefund = 0;
@@ -122,14 +123,34 @@ inline int64_t finalizeEthereumGasUsed(
     int64_t const createExtra =
         (ctx.createTerm > 0 && executionBurn < ctx.createTerm) ? ctx.createTerm - executionBurn : 0;
     // Snapshot is taken after normal calldata pre-debit and 21000 base; executionBurn is EVM-only.
-    int64_t const gasUsedBeforeRefund =
-        ctx.fixedIntrinsic + ctx.calldata.normalCost + executionBurn + createExtra;
+    int64_t const gasUsedBeforeRefund = ctx.fixedIntrinsic + ctx.calldata.normalCost +
+                                        ctx.authIntrinsic + executionBurn + createExtra;
     int64_t const effectiveRefund = effectiveRefundEip3529(ctx.evmGasRefund, gasUsedBeforeRefund);
     // geth (Prague+): after refund, top up only when total used is below FloorDataGas
     // (21000 + tokens * calldata_floor_per_token; access list excluded from floor).
     int64_t const gasUsedAfterRefund = gasUsedBeforeRefund - effectiveRefund;
     int64_t const floorDataGas = TX_BASE_GAS + ctx.calldata.tokenCount * calldataFloorPerToken;
     return std::max(gasUsedAfterRefund, floorDataGas);
+}
+
+/// geth state_transition peakGasUsed/refund settlement for included top-level txs whose EVM
+/// execution returned a vmerr (INVALID/REVERT/OOG/etc.) after preCheck succeeded.
+inline int64_t settleIncludedTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft,
+    int64_t stateRefund, uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
+{
+    int64_t const gasLeft =
+        std::min(std::max<int64_t>(0, evmGasLeft), std::max<int64_t>(0, gasLimit));
+    int64_t const peakGasUsed = std::max<int64_t>(0, gasLimit) - gasLeft;
+    int64_t const effectiveRefund = effectiveRefundEip3529(stateRefund, peakGasUsed);
+    int64_t const gasRemaining =
+        std::min(std::max<int64_t>(0, gasLimit), gasLeft + effectiveRefund);
+    int64_t gasUsed = std::max<int64_t>(0, gasLimit) - gasRemaining;
+    int64_t const floorDataGas = TX_BASE_GAS + calldata.tokenCount * calldataFloorPerToken;
+    if (floorDataGas > 0 && gasUsed < floorDataGas)
+    {
+        gasUsed = std::min(floorDataGas, std::max<int64_t>(0, gasLimit));
+    }
+    return gasUsed;
 }
 
 }  // namespace gas

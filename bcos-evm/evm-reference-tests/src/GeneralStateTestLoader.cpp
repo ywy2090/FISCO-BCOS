@@ -1,5 +1,7 @@
 #include "bcos-evm/evm-reference-tests/GeneralStateTestLoader.h"
 
+#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -142,6 +144,64 @@ std::vector<std::pair<evmc_address, state::Account>> parsePreState(pt::ptree con
     return preState;
 }
 
+std::vector<GstAuthorizationEntry> parseAuthorizationList(pt::ptree const& txTree)
+{
+    std::vector<GstAuthorizationEntry> authorizations;
+    auto const authNode = txTree.get_child_optional("authorizationList");
+    if (!authNode.has_value())
+    {
+        return authorizations;
+    }
+
+    for (auto const& [key, entryNode] : *authNode)
+    {
+        static_cast<void>(key);
+        GstAuthorizationEntry entry;
+        entry.chainId = parseQuantity(entryNode.get<std::string>("chainId", "0x0"));
+        entry.address = state::parseHexAddress(entryNode.get<std::string>("address"));
+        entry.nonce = parseUint64(entryNode.get<std::string>("nonce", "0x0"));
+        if (auto const signer = entryNode.get_optional<std::string>("signer"))
+        {
+            entry.authority = state::parseHexAddress(*signer);
+        }
+        authorizations.push_back(std::move(entry));
+    }
+    return authorizations;
+}
+
+std::vector<std::vector<GstAccessListEntry>> parseAccessLists(pt::ptree const& txTree)
+{
+    std::vector<std::vector<GstAccessListEntry>> accessLists;
+    auto const listsNode = txTree.get_child_optional("accessLists");
+    if (!listsNode.has_value())
+    {
+        return accessLists;
+    }
+
+    for (auto const& [listKey, listNode] : *listsNode)
+    {
+        static_cast<void>(listKey);
+        std::vector<GstAccessListEntry> entries;
+        for (auto const& [entryKey, entryNode] : listNode)
+        {
+            static_cast<void>(entryKey);
+            GstAccessListEntry entry;
+            entry.address = state::parseHexAddress(entryNode.get<std::string>("address"));
+            if (auto const storage = entryNode.get_child_optional("storageKeys"))
+            {
+                for (auto const& [slotKey, slotNode] : *storage)
+                {
+                    static_cast<void>(slotKey);
+                    entry.storageKeys.push_back(parseBytes32(slotNode.get_value<std::string>()));
+                }
+            }
+            entries.push_back(std::move(entry));
+        }
+        accessLists.push_back(std::move(entries));
+    }
+    return accessLists;
+}
+
 GstTransactionTemplate parseTransactionTemplate(pt::ptree const& txTree)
 {
     GstTransactionTemplate transaction;
@@ -182,6 +242,9 @@ GstTransactionTemplate parseTransactionTemplate(pt::ptree const& txTree)
     {
         transaction.sender = state::parseHexAddress(*sender);
     }
+
+    transaction.authorizationList = parseAuthorizationList(txTree);
+    transaction.accessLists = parseAccessLists(txTree);
 
     return transaction;
 }
@@ -473,6 +536,17 @@ StateTestCase loadGeneralStateTest(
 
 std::vector<StateSubtest> listSubtests(StateTestCase const& test, std::string_view fork)
 {
+    auto subtests = tryListSubtests(test, fork);
+    if (subtests.empty())
+    {
+        throwLoaderError(
+            "No GST subtests for fork '" + std::string(fork) + "' in " + test.sourcePath.string());
+    }
+    return subtests;
+}
+
+std::vector<StateSubtest> tryListSubtests(StateTestCase const& test, std::string_view fork)
+{
     std::vector<StateSubtest> subtests;
     for (auto const& [forkName, posts] : test.postByFork)
     {
@@ -489,11 +563,6 @@ std::vector<StateSubtest> listSubtests(StateTestCase const& test, std::string_vi
             subtest.valueIndex = post.valueIndex;
             subtests.push_back(subtest);
         }
-    }
-    if (subtests.empty())
-    {
-        throwLoaderError(
-            "No GST subtests for fork '" + std::string(fork) + "' in " + test.sourcePath.string());
     }
     return subtests;
 }

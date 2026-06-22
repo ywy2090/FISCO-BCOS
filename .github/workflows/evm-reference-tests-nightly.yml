@@ -56,14 +56,14 @@ jobs:
           build/bcos-evm/evm-reference-tests/EthGSTFull \
             --ethereum-tests-root bcos-evm/evm-reference-tests/assets/ethereum-tests \
             --expectations bcos-evm/evm-reference-tests/manifests/expectations.json
-      - name: Run EEST state subset
+      - name: Run EEST state full sweep
         run: |
           build/bcos-evm/evm-reference-tests/EthExecutionSpecStateTests \
-            --manifest bcos-evm/evm-reference-tests/manifests/eth-eest-state-smoke.json \
+            --manifest bcos-evm/evm-reference-tests/manifests/eth-eest-state-full.json \
             --eest-root bcos-evm/evm-reference-tests/assets/eest \
             --expectations bcos-evm/evm-reference-tests/manifests/expectations.json
-      - name: Run EEST transaction subset
+      - name: Run EEST transaction full sweep
         run: |
           build/bcos-evm/evm-reference-tests/EthExecutionSpecTransactionTests \
-            --manifest bcos-evm/evm-reference-tests/manifests/eth-eest-tx-smoke.json \
+            --manifest bcos-evm/evm-reference-tests/manifests/eth-eest-tx-full.json \
             --eest-root bcos-evm/evm-reference-tests/assets/eest

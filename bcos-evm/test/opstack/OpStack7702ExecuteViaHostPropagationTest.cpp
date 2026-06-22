@@ -104,7 +104,7 @@ OpStackExecuteViaHostInput make7702Input(evmc_address sender, evmc_address recip
     for (uint64_t i = 0; i < authTupleCount; ++i)
     {
         input.authorizations.push_back(
-            {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = i});
+            {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = i + 1});
     }
     return input;
 }
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_propagates_authorizations_to_executeM
     input.skipNonceChecks = true;
     input.authorizationListPresent = true;
     input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 0});
+        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
 
     auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_propagates_authorizations_to_executeM
     BOOST_CHECK_EQUAL(installedCode[0], 0xEF);
     BOOST_CHECK_EQUAL(installedCode[1], 0x01);
     BOOST_CHECK_EQUAL(installedCode[2], 0x00);
-    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(1));
+    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
 }
 
 BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_rejects_7702_intrinsic_below_25000_per_tuple)

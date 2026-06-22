@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(valid_auth_installs_delegation_invalid_is_ignored_and_refun
     input.blockInfo.chainId = 1;
     input.authorizationListPresent = true;
     input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 0});
+        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
     input.authorizations.push_back(
         {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 99});
 
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(valid_auth_installs_delegation_invalid_is_ignored_and_refun
     BOOST_CHECK_EQUAL(installedCode[0], 0xEF);
     BOOST_CHECK_EQUAL(installedCode[1], 0x01);
     BOOST_CHECK_EQUAL(installedCode[2], 0x00);
-    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(1));
+    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
 }
 
 }  // namespace bcos::evm::test

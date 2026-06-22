@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
     input.blockInfo.chainId = 1;
     input.authorizationListPresent = true;
     input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = evmc_address{}, .nonce = 0});
+        {.chainId = u256(1), .authority = sender, .address = evmc_address{}, .nonce = 1});
 
     auto output = executeMessage(input);
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
@@ -57,6 +57,6 @@ BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
     auto const it = output.stateDiff.accounts.find(sender);
     BOOST_REQUIRE(it != output.stateDiff.accounts.end());
     BOOST_CHECK(it->second.code.empty());
-    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(1));
+    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
 }
 }  // namespace bcos::evm::test

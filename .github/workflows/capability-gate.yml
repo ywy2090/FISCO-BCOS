@@ -108,6 +108,8 @@ jobs:
         run: git submodule update --init --recursive -- vcpkg
       - name: Initialize ethereum/tests submodule
         run: git submodule update --init --depth 1 bcos-evm/evm-reference-tests/assets/ethereum-tests
+      - name: Fetch EEST fixtures
+        run: bash bcos-evm/evm-reference-tests/tools/fetch_eest_assets.sh
       - uses: lukka/get-cmake@latest
         with:
           cmakeVersion: 3.28.3
@@ -145,7 +147,7 @@ jobs:
             -DLINKER=mold \
             -DVCPKG_TARGET_TRIPLET=x64-linux-release \
             .
-          cmake --build build --target EthGSTSmoke ManifestLint -j$(nproc)
+          cmake --build build --target EthGSTSmoke EthExecutionSpecStateTests EthExecutionSpecTransactionTests ManifestLint -j$(nproc)
       - name: Run evm-reference smoke tests
         run: |
           ctest -L evm-reference-tests-smoke --test-dir build -C Debug --output-on-failure

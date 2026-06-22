@@ -1,7 +1,9 @@
 #include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
+#include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/policy/EthHostExtension.h"
 #include "bcos-evm/eth/state/hash_utils.hpp"
@@ -19,6 +21,34 @@ EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl
     auto [status, ignored] = evmcStatusToErrorMessage(hashImpl, raw.status_code);
     (void)ignored;
     return EVMCResult(raw, status);
+}
+
+// Top-level vmerr after preCheck: included transaction (geth state_transition.go). See ADR-015.
+bool isTopLevelIncludedTxVmError(evmc_status_code status, int32_t depth) noexcept
+{
+    if (depth != 0)
+    {
+        return false;
+    }
+    switch (status)
+    {
+    case EVMC_SUCCESS:
+    case EVMC_INSUFFICIENT_BALANCE:
+    case EVMC_INTERNAL_ERROR:
+        return false;
+    default:
+        return true;
+    }
+}
+
+void normalizeTopLevelIncludedTxResult(EVMCResult& result, int32_t depth) noexcept
+{
+    if (!isTopLevelIncludedTxVmError(result.status_code, depth))
+    {
+        return;
+    }
+    result.status_code = EVMC_SUCCESS;
+    result.status = protocol::TransactionStatus::None;
 }
 
 std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& logs)
@@ -65,7 +95,24 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
         {
             auto const components =
                 gas::calcEip7623Components(bytesConstRef(message.input_data, message.input_size));
-            if (message.gas < components.normalCost)
+            auto const calldataGas =
+                gas::calcEip7623CalldataGas(bytesConstRef(message.input_data, message.input_size));
+            auto const intrinsic =
+                gas::computeTxIntrinsicGas(message, input.accessList, input.web3TypedTxKind);
+            int64_t const authCost =
+                input.authorizationListPresent ?
+                    gas::calcAuthTupleIntrinsicGas(input.authorizations.size()) :
+                    0;
+            if (input.message.gas < intrinsic.gasLimitMinimum() + authCost)
+            {
+                evmc_result failResult{};
+                failResult.status_code = EVMC_OUT_OF_GAS;
+                failResult.gas_left = 0;
+                output.evmcResult =
+                    EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+                co_return output;
+            }
+            if (message.gas < calldataGas)
             {
                 evmc_result failResult{};
                 failResult.status_code = EVMC_OUT_OF_GAS;
@@ -75,17 +122,40 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
                 co_return output;
             }
             message.gas -= components.normalCost;
+            if (authCost > 0)
+            {
+                message.gas -= authCost;
+            }
+        }
+        else if (input.authorizationListPresent && !input.authorizations.empty())
+        {
+            int64_t const authCost = gas::calcAuthTupleIntrinsicGas(input.authorizations.size());
+            if (message.gas < authCost)
+            {
+                evmc_result failResult{};
+                failResult.status_code = EVMC_OUT_OF_GAS;
+                failResult.gas_left = 0;
+                output.evmcResult =
+                    EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+                co_return output;
+            }
+            message.gas -= authCost;
         }
 
         if (input.revisionConfig.eip7623)
         {
             auto const intrinsic =
                 gas::computeTxIntrinsicGas(message, input.accessList, input.web3TypedTxKind);
+            int64_t const authCost =
+                input.authorizationListPresent ?
+                    gas::calcAuthTupleIntrinsicGas(input.authorizations.size()) :
+                    0;
             output.executionContext.gasSettlementSnapshot.gasLimit = input.message.gas;
             output.executionContext.gasSettlementSnapshot.gasBeforeEvm = message.gas;
             output.executionContext.gasSettlementSnapshot.calldata =
                 gas::calcEip7623Components(bytesConstRef(message.input_data, message.input_size));
             output.executionContext.gasSettlementSnapshot.fixedIntrinsic = intrinsic.fixedCost();
+            output.executionContext.gasSettlementSnapshot.authIntrinsic = authCost;
             output.executionContext.gasSettlementSnapshot.createTerm = intrinsic.createIntrinsic;
         }
 
@@ -119,12 +189,16 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
         output.logs = executeOutput.logs;
         output.executionContext.logs = convertLogs(executeOutput.logs);
         output.executionContext.message = message;
+        output.stateDiff = std::move(executeOutput.stateDiff);
 
-        if (output.evmcResult.status_code == EVMC_SUCCESS)
+        if (input.revisionConfig.eip7623)
         {
-            output.stateDiff = std::move(executeOutput.stateDiff);
             output.executionContext.gasSettlementSnapshot.evmGasRefund = executeOutput.gasRefund;
         }
+
+        output.topLevelIncludedTxVmError =
+            isTopLevelIncludedTxVmError(output.evmcResult.status_code, input.message.depth);
+        normalizeTopLevelIncludedTxResult(output.evmcResult, input.message.depth);
     }
     catch (protocol::OutOfGas&)
     {

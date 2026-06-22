@@ -40,3 +40,24 @@ export EEST_ROOT=/path/to/assets/eest  # optional override
 ```
 
 Pin release URL and sha256 in `assets/upstream-pins.json`. Nightly CI uses `.github/workflows/evm-reference-tests-nightly.yml`.
+
+### Manifests
+
+| Manifest | Scope | CTest label |
+|----------|-------|-------------|
+| `eth-eest-state-smoke.json` | Curated EEST state vectors (7623/7823/7702 warming + full self-sponsored 10 variants + invalid auth) | `evm-reference-tests-smoke` |
+| `eth-eest-tx-smoke.json` | Curated 7702 tx RLP validation | `evm-reference-tests-smoke` |
+| `eth-eest-state-full.json` | Full Prague 7623 + Osaka 7823 + Prague 7702 state dirs | `evm-reference-tests-full` |
+| `eth-eest-tx-full.json` | Full Prague 7702 transaction_tests dir | `evm-reference-tests-full` |
+
+Smoke manifests use curated fixture paths so PR CI stays green; nightly runs the full manifests.
+
+```bash
+# Smoke (requires fetch_eest_assets.sh once)
+ctest -L 'evm-reference-tests-smoke' --test-dir build-ref -C Debug --output-on-failure
+
+# Full EEST sweep (local / nightly; may fail until parity gaps close)
+ctest -L 'evm-reference-tests-full' --test-dir build-ref -C Debug --output-on-failure
+```
+
+PR CI (`capability-gate`) fetches EEST and runs smoke via `ctest -L evm-reference-tests-smoke`.

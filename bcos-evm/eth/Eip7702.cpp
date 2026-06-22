@@ -63,6 +63,9 @@ void applyAuthorizations(state::State& state,
         {
             continue;
         }
+
+        (void)state.warm_up_address(authority);
+
         if (state.get_nonce(authority) != authorization.nonce)
         {
             continue;
@@ -75,7 +78,6 @@ void applyAuthorizations(state::State& state,
             continue;
         }
 
-        (void)state.warm_up_address(authority);
         if (state.get_account(authority).has_value())
         {
             state.add_refund(PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST);

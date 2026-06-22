@@ -371,6 +371,10 @@ evmc_bytes32 hashStorageTrie(state::StorageMap const& storage)
     entries.reserve(storage.size());
     for (auto const& [slot, value] : storage)
     {
+        if (state::isZeroBytes32(value))
+        {
+            continue;
+        }
         bcos::bytes slotKey(slot.bytes, slot.bytes + sizeof(slot.bytes));
         auto const hashedKey = keccak256(slotKey);
         bcos::bytes valueBytes(value.bytes, value.bytes + sizeof(value.bytes));
@@ -485,7 +489,14 @@ GstPostStateView buildPostStateView(
             merged.codeHash = account.codeHash;
             for (auto const& [slot, value] : account.storage)
             {
-                merged.storage[slot] = value;
+                if (state::isZeroBytes32(value))
+                {
+                    merged.storage.erase(slot);
+                }
+                else
+                {
+                    merged.storage[slot] = value;
+                }
             }
         }
     }
