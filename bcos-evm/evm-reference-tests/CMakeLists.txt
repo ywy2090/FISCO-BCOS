@@ -144,6 +144,18 @@ if(NOT EXISTS "${EEST_FIXTURES_ROOT}")
     set_tests_properties(EthExecutionSpecStateTestsFull PROPERTIES DISABLED TRUE)
 endif()
 
+add_test(NAME EthExecutionSpec1559GaspriceProbe COMMAND EthExecutionSpecStateTests
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-1559-gasprice-probe.json
+    --eest-root ${EEST_ASSETS_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/expectations.json
+)
+set_tests_properties(EthExecutionSpec1559GaspriceProbe PROPERTIES
+    LABELS "evm-reference-tests;evm-reference-tests-smoke;eth-kernel;eest;1559-gasprice"
+)
+if(NOT EXISTS "${EEST_FIXTURES_ROOT}")
+    set_tests_properties(EthExecutionSpec1559GaspriceProbe PROPERTIES DISABLED TRUE)
+endif()
+
 add_executable(EthExecutionSpecTransactionTests runners/EthExecutionSpecTransactionTests.cpp)
 target_link_libraries(EthExecutionSpecTransactionTests PRIVATE bcos-evm-reference-tests-core)
 target_compile_definitions(EthExecutionSpecTransactionTests PRIVATE

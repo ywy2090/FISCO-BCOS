@@ -1,7 +1,7 @@
 # ETH Kernel Capability Matrix
 
 **Status:** Normative (Phase 1 audit complete — 2026-06-20; Phase 2–3 partial on `feat-evm-refactor`)  
-**ADRs:** ADR-001–015 under `bcos-evm/docs/adr/`
+**ADRs:** ADR-001–016 under `bcos-evm/docs/adr/`
 
 Row granularity rules: see ADR-003 (one row = one independently testable sub-capability on one layer; no rollup rows).
 
@@ -51,6 +51,7 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 | EIP-7702 authorization apply | kernel | inherited (`EthPolicy` sets `eip7702` at PRAGUE+; `applyAuthorizations` reachable) | inherited (kernel-capable; baseline-reachable when profile + tx rows satisfied) | inherited (baseline-reachable on Isthmus profile) | `Eip7702ApplyAuthorizationEthTest`, `Eip7702ApplyAuthorizationTest` |
 | EIP-7702 tx field propagation | tx input | inherited (`EthTxInputBuilder`) | feature-gated (fields via `FiscoTxInputBuilder`; requires `feature_evm_prague` + Web3 `0x04`, ADR-006) | inherited (`OpStackTxInputBuilder`) | `EthTxInputBuilderTest`, `FiscoTxInputBuilderTest`, `Bcos7702ExecuteViaHostPropagationTest`, `OpStack7702ExecuteViaHostPropagationTest`, `OpStackTxInputBuilderTest` |
 | EIP-7702 revision enable | revision profile | inherited (`EthPolicy` at PRAGUE+) | feature-gated (`FiscoPolicy` when `feature_evm_prague` + PRAGUE, ADR-006) | inherited (`makeIsthmusRevisionConfig`) | `RevisionConfigProfileTest` |
+| EIP-1559 effective gas + tip settlement (ETH TE) | orchestration | explicit (`EthTxExecutor` + `Eip1559.h`; ADR-016) | unsupported | unsupported (OpStack uses own resolver; dedup deferred) | `EthEip1559GasTest`, `EthExecuteViaEth1559GasPriceTest`, EEST `eth-eest-1559-gasprice-probe.json` |
 | EIP-7702 precheck + intrinsic gas | orchestration | explicit (`ExecuteViaEth.cpp`: auth intrinsic debit + snapshot; ADR-015) | unsupported | explicit (`OpStackPreCheck` + auth intrinsic) | `Eip7702PreCheckTest`, `OpStack7702ExecuteViaHostPropagationTest`, EEST `self_sponsored_set_code` smoke |
 | EIP-7623 entry precheck | orchestration | explicit (`ExecuteViaEth.cpp` when `eip7623`) | feature-gated (`web3Tx` + `eip7623` + `feature_evm_prague`) | explicit (OPStack precheck path) | `Bcos7623PrecheckTest` |
 | EIP-7623 settlement / floor gas | orchestration | explicit (`finalizeEthereumGasUsed`; included-tx vmerr via `settleIncludedTopLevelTransactionGas`, ADR-015) | feature-gated (same gates as entry) | deviation (`OpStackFloorGas` + `postExecuteGasSettlement`) | `OpStackFloorGasTest`, `OpStackSettlementTest`, EEST `self_sponsored_set_code` smoke |
@@ -87,7 +88,7 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 
 ## Phase 1 audit notes
 
-RevisionConfig consumption rules: ADR-004. Orchestration domains: ADR-005. ETH reference 7702 gas + included-tx vmerr: ADR-015. Add new Isthmus-only EIPs as separate rows when implemented (ADR-003).
+RevisionConfig consumption rules: ADR-004. Orchestration domains: ADR-005. ETH reference 7702 gas + included-tx vmerr: ADR-015. ETH TE EIP-1559 settlement: ADR-016. Add new Isthmus-only EIPs as separate rows when implemented (ADR-003).
 
 ### Wave 2 — inherited Isthmus profile footnote (FIX-12)
 

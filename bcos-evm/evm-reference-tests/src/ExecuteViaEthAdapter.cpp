@@ -230,6 +230,10 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
     input.message = msg;
 
     int64_t const gasBefore = msg.gas;
+    auto const web3TypedTxKind = input.web3TypedTxKind;
+    auto const hasExplicitFeeCaps = input.hasExplicitFeeCaps;
+    auto const gasTipCap = input.gasTipCap;
+    auto const gasFeeCap = input.gasFeeCap;
     auto output = co_await executeViaEth(std::move(input));
 
     ExecutionResult result;
@@ -280,9 +284,8 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
     if (result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty())
     {
         auto const effectiveGasPrice =
-            gas::isEip1559GasCapsTx(input.web3TypedTxKind, input.hasExplicitFeeCaps) ?
-                gas::resolveEffectiveGasPrice(
-                    input.gasTipCap, input.gasFeeCap, testCase.env.baseFee) :
+            gas::isEip1559GasCapsTx(web3TypedTxKind, hasExplicitFeeCaps) ?
+                gas::resolveEffectiveGasPrice(gasTipCap, gasFeeCap, testCase.env.baseFee) :
                 tx.gasPrice;
         bcos::u256 blobFee{0};
         if (m_profile.revision.eip4844 && !testCase.transaction.blobVersionedHashes.empty())

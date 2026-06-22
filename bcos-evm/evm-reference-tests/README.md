@@ -47,6 +47,7 @@ Pin release URL and sha256 in `assets/upstream-pins.json`. Nightly CI uses `.git
 |----------|-------|-------------|
 | `eth-eest-state-smoke.json` | Curated EEST state vectors (7623/7823/7702 warming + full self-sponsored 10 variants + invalid auth) | `evm-reference-tests-smoke` |
 | `eth-eest-tx-smoke.json` | Curated 7702 tx RLP validation | `evm-reference-tests-smoke` |
+| `eth-eest-1559-gasprice-probe.json` | EIP-1559 `GASPRICE`/`BASEFEE` state probe (`stExample/eip1559`) | `evm-reference-tests-smoke`, `1559-gasprice` |
 | `eth-eest-state-full.json` | Full Prague 7623 + Osaka 7823 + Prague 7702 state dirs | `evm-reference-tests-full` |
 | `eth-eest-tx-full.json` | Full Prague 7702 transaction_tests dir | `evm-reference-tests-full` |
 
@@ -70,3 +71,15 @@ ctest -L 'evm-reference-tests-full' --test-dir build-ref -C Debug --output-on-fa
 State full dominant gaps: `stateRoot` mismatch (~458), included success paths with wrong status (~67). Precheck gaps (`SENDER_NOT_EOA`, empty auth list, type-4 CREATE, fee cap) closed in W1–W4. Smoke + self_sponsored `stateRoot` remain the PR gate; full state sweep stays nightly-only until parity closes.
 
 PR CI (`capability-gate`) fetches EEST and runs smoke via `ctest -L evm-reference-tests-smoke`.
+
+### EIP-1559 GASPRICE probe baseline (2026-06-22, `build-ref`, EEST pin)
+
+| Manifest | Executed | Pass | Fail | Notes |
+|----------|----------|------|------|-------|
+| `eth-eest-1559-gasprice-probe.json` | 1 | 1 | 0 | `stExample/eip1559` Cancun — transitional pass; `stateRoot` not gated (access-list intrinsic gap on non-7623 GST path, spec §1.1) |
+
+Per spec v1.2 §1.1, **zero delta vs pre-1559-fix baseline is acceptable** for EEST stateRoot on this probe: adapter settlement already used `min(tip+base,feeCap)`; the PR's primary delta is TE `buyGas`/`refundGas` and reference `GASPRICE` normalization (ADR-016). Run locally:
+
+```bash
+ctest -R 1559-gasprice -V --test-dir build-ref -C Debug --output-on-failure
+```

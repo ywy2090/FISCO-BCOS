@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.london.state.eip1559.gasprice",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stExample/eip1559.json",
+      "variantKey": "tests/static/state_tests/stExample/eip1559Filler.yml::eip1559[fork_Cancun-state_test-]",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1559-settlement"],
+      "assertLevels": ["transitional"]
+    }
+  ]
+}
