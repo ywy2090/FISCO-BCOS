@@ -58,6 +58,11 @@
               "type": "string",
               "enum": ["transitional", "expectException", "stateRoot", "logsHash"]
             }
+          },
+          "postFork": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional GST post fork key when upstream JSON lacks post for forkProfileId (e.g. Osaka smoke uses Prague post until submodule pin includes Osaka)."
           }
         },
         "additionalProperties": false

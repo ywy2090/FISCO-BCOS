@@ -99,6 +99,14 @@ ManifestEntry parseManifestEntry(pt::ptree const& node)
     entry.evidenceKind = parseEvidenceKind(requireString(node, "evidenceKind"));
     entry.capabilityRowIds = parseStringArray(node, "capabilityRowIds");
     entry.assertLevels = parseStringArray(node, "assertLevels");
+    if (auto const postFork = node.get_optional<std::string>("postFork"))
+    {
+        if (postFork->empty())
+        {
+            throwManifestError("Manifest field 'postFork' must not be empty when present");
+        }
+        entry.postFork = *postFork;
+    }
     return entry;
 }
 

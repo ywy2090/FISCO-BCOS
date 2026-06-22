@@ -20,6 +20,9 @@ struct ExecutionResult
     int64_t gasUsed{0};
     bcos::bytes output;
     state::StateDiff stateDiff;
+    std::vector<state::LogEntry> logs;
+    std::optional<evmc_bytes32> stateRoot;
+    std::optional<evmc_bytes32> logsHash;
     std::optional<std::string> rejectionReason;
 };
 

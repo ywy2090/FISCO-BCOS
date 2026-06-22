@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.gst.osaka.smoke.self_balance",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stSelfBalance/selfBalance.json",
+      "variantKey": "GeneralStateTests/stSelfBalance/selfBalance.json::selfBalance-fork_[Cancun-Prague]-d0g0v0",
+      "forkProfileId": "eth-osaka",
+      "postFork": "Prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["expectException", "stateRoot", "logsHash"]
+    },
+    {
+      "evidenceId": "eth.gst.osaka.smoke.add11",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stExample/add11.json",
+      "variantKey": "GeneralStateTests/stExample/add11.json::add11-fork_[Cancun-Prague]-d0g0v0",
+      "forkProfileId": "eth-osaka",
+      "postFork": "Prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["expectException", "stateRoot", "logsHash"]
+    },
+    {
+      "evidenceId": "eth.gst.osaka.smoke.yul_example",
+      "sourceSuite": "ethereum-tests",
+      "casePath": "GeneralStateTests/stExample/yulExample.json",
+      "variantKey": "GeneralStateTests/stExample/yulExample.json::yulExample-fork_[Cancun-Prague]-d0g0v0",
+      "forkProfileId": "eth-osaka",
+      "postFork": "Prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional"]
+    }
+  ]
+}

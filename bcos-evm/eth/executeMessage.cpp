@@ -18,6 +18,7 @@
 
 #include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/execution/warmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
@@ -126,6 +127,38 @@ evmc::Result makeSuccessResult(int64_t gasLeft)
     return evmc::Result(result);
 }
 
+evmc::Result makeInsufficientBalanceResult() noexcept
+{
+    evmc_result result{};
+    result.status_code = EVMC_INSUFFICIENT_BALANCE;
+    result.gas_left = 0;
+    return evmc::Result(result);
+}
+
+bool applyTopLevelValueTransfer(state::State& state, ExecuteMessageInput const& input) noexcept
+{
+    if (input.message.depth != 0 || isCreateKind(input.message.kind))
+    {
+        return true;
+    }
+    if (input.extension != nullptr && input.extension->skipHostValueTransfer())
+    {
+        return true;
+    }
+    auto const value = state::fromEvmC(input.message.value);
+    if (value == 0)
+    {
+        return true;
+    }
+    auto const recipient = resolveCodeAddress(input.message);
+    if (!canTransfer(state, input.message.sender, value))
+    {
+        return false;
+    }
+    transfer(state, input.message.sender, recipient, value);
+    return true;
+}
+
 state::State& resolveState(
     state::StateView const& stateView, std::optional<state::State>& stateCopy)
 {
@@ -207,7 +240,16 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
             if (auto precompiled = state::EthPrecompiles::tryDispatchInCall(codeAddress,
                     input.message, input.revisionConfig.revision, input.revisionConfig))
             {
+                state.checkpoint();
+                if (!applyTopLevelValueTransfer(state, input))
+                {
+                    state.revert();
+                    output.result = makeInsufficientBalanceResult();
+                    output.logs = host.take_logs();
+                    return output;
+                }
                 output.result = std::move(*precompiled);
+                output.gasRefund = static_cast<int64_t>(state.get_refund());
                 state.commit();
                 output.stateDiff = state.build_diff();
                 output.logs = host.take_logs();
@@ -219,6 +261,13 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     if (code.empty() && !isCreateKind(input.message.kind))
     {
         state.checkpoint();
+        if (!applyTopLevelValueTransfer(state, input))
+        {
+            state.revert();
+            output.result = makeInsufficientBalanceResult();
+            output.logs = host.take_logs();
+            return output;
+        }
         if (input.extension != nullptr)
         {
             if (auto result = input.extension->tryChainPrecompile(
@@ -228,6 +277,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
                 output.logs = host.take_logs();
                 if (output.result.status_code == EVMC_SUCCESS)
                 {
+                    output.gasRefund = static_cast<int64_t>(state.get_refund());
                     state.commit();
                     output.stateDiff = state.build_diff();
                 }
@@ -239,6 +289,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
             }
         }
         output.result = makeSuccessResult(input.message.gas);
+        output.gasRefund = static_cast<int64_t>(state.get_refund());
         state.commit();
         output.stateDiff = state.build_diff();
         output.logs = host.take_logs();
@@ -246,6 +297,13 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     }
 
     state.checkpoint();
+    if (!applyTopLevelValueTransfer(state, input))
+    {
+        state.revert();
+        output.result = makeInsufficientBalanceResult();
+        output.logs = host.take_logs();
+        return output;
+    }
     markCreateAddressBeforeExecute(host, state, input.message);
     output.result = input.vm->execute(
         host, input.revisionConfig.revision, input.message, code.data(), code.size());
@@ -274,6 +332,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
                 state.set_nonce(createAddr, 1);
             }
         }
+        output.gasRefund = static_cast<int64_t>(state.get_refund());
         state.commit();
         output.stateDiff = state.build_diff();
     }

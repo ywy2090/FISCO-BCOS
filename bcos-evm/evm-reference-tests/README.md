@@ -29,3 +29,14 @@ When unset, runners resolve the default tree at `assets/ethereum-tests` (see imp
 ## Fork extension
 
 Add fork profiles in `ForkProfileRegistry` (see implementation plan Part A Task 5).
+
+Osaka smoke (`eth-gst-osaka-smoke.json`) executes at `EVMC_OSAKA` while using `postFork: Prague` expectations until `ethereum/tests` submodule pins include Osaka post entries. EEST fixtures (`assets/eest`) provide Osaka-native vectors for nightly runs (Task 15).
+
+## EEST assets (Task 15+)
+
+```bash
+bash bcos-evm/evm-reference-tests/tools/fetch_eest_assets.sh
+export EEST_ROOT=/path/to/assets/eest  # optional override
+```
+
+Pin release URL and sha256 in `assets/upstream-pins.json`. Nightly CI uses `.github/workflows/evm-reference-tests-nightly.yml`.

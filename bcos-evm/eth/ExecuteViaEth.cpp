@@ -116,13 +116,14 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
             .fixStorageStatus = true});
 
         output.evmcResult = adoptResult(std::move(executeOutput.result), *input.hashImpl);
+        output.logs = executeOutput.logs;
         output.executionContext.logs = convertLogs(executeOutput.logs);
         output.executionContext.message = message;
 
-        if (output.evmcResult.status_code == EVMC_SUCCESS ||
-            output.evmcResult.status_code == EVMC_REVERT)
+        if (output.evmcResult.status_code == EVMC_SUCCESS)
         {
             output.stateDiff = std::move(executeOutput.stateDiff);
+            output.executionContext.gasSettlementSnapshot.evmGasRefund = executeOutput.gasRefund;
         }
     }
     catch (protocol::OutOfGas&)

@@ -25,8 +25,10 @@ BOOST_AUTO_TEST_CASE(loads_prague_smoke_manifest)
     BOOST_CHECK(entries.front().evidenceKind == EvidenceKind::ReferenceParity);
     BOOST_CHECK(entries.front().path == ExecutionPath::Reference);
     BOOST_CHECK_EQUAL(entries.front().forkProfileId, "eth-prague");
-    BOOST_CHECK_EQUAL(entries.front().assertLevels.size(), 1u);
-    BOOST_CHECK_EQUAL(entries.front().assertLevels.front(), "transitional");
+    BOOST_CHECK_EQUAL(entries.front().assertLevels.size(), 3u);
+    BOOST_CHECK_EQUAL(entries.front().assertLevels[0], "expectException");
+    BOOST_CHECK_EQUAL(entries.front().assertLevels[1], "stateRoot");
+    BOOST_CHECK_EQUAL(entries.front().assertLevels[2], "logsHash");
 }
 
 BOOST_AUTO_TEST_CASE(rejects_missing_required_field)

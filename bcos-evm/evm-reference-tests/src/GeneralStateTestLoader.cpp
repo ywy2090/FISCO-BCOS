@@ -57,7 +57,10 @@ evmc_bytes32 parseBytes32(std::string const& value)
     {
         throwLoaderError("Invalid bytes32 literal: " + value);
     }
-    std::memcpy(out.bytes, bytes.data(), bytes.size());
+    if (!bytes.empty())
+    {
+        std::memcpy(out.bytes + sizeof(out.bytes) - bytes.size(), bytes.data(), bytes.size());
+    }
     return out;
 }
 

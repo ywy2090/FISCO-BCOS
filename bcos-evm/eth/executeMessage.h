@@ -57,6 +57,7 @@ struct ExecuteMessageOutput
     evmc::Result result{evmc_result{}};
     state::StateDiff stateDiff;
     std::vector<LogEntry> logs;
+    int64_t gasRefund{0};
 };
 
 ExecuteMessageOutput executeMessage(ExecuteMessageInput input);

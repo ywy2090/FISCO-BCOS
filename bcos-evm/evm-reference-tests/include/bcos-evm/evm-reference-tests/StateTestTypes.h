@@ -43,6 +43,8 @@ struct ManifestEntry
     EvidenceKind evidenceKind{};
     std::vector<std::string> capabilityRowIds;
     std::vector<std::string> assertLevels;
+    /// When upstream GST JSON lacks post for profile fork (e.g. Osaka), use this fork's post.
+    std::optional<std::string> postFork;
 };
 
 }  // namespace bcos::evm::reference_tests

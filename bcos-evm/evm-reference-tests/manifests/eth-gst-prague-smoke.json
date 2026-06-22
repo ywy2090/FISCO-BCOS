@@ -10,7 +10,7 @@
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
       "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional"]
+      "assertLevels": ["expectException", "stateRoot", "logsHash"]
     },
     {
       "evidenceId": "eth.gst.prague.smoke.self_balance_update",
@@ -54,7 +54,7 @@
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
       "capabilityRowIds": ["eip2929-runtime-warm"],
-      "assertLevels": ["transitional"]
+      "assertLevels": ["expectException", "stateRoot", "logsHash"]
     }
   ]
 }

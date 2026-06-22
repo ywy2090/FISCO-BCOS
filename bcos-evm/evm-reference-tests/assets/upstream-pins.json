@@ -15,6 +15,6 @@
   "eest": {
     "release": "v5.1.0",
     "url": "https://github.com/ethereum/execution-spec-tests/releases/download/v5.1.0/fixtures_develop.tar.gz",
-    "sha256": "<fill-in-part-b-task-15>"
+    "sha256": "a3192784375acec7eaec492799d5c5d0c47a2909a3cc40178898e4ecd20cc416"
   }
 }

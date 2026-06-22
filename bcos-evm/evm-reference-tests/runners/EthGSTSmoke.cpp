@@ -109,7 +109,8 @@ int main(int argc, char** argv)
             auto const testCase = loadGeneralStateTest(
                 gstPath, entry.variantKey ? std::optional<std::string_view>{*entry.variantKey} :
                                             std::nullopt);
-            auto const subtests = listSubtests(testCase, profile->upstreamForkName);
+            auto const subtests =
+                listSubtests(testCase, entry.postFork.value_or(profile->upstreamForkName));
 
             for (auto const& subtest : subtests)
             {

@@ -7,6 +7,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-task/Task.h"
 #include <evmc/evmc.hpp>
 #include <functional>
@@ -42,6 +43,7 @@ struct ExecuteViaEthOutput
 {
     EVMCResult evmcResult{evmc_result{}};
     state::StateDiff stateDiff;
+    std::vector<state::LogEntry> logs;
     EthExecutionContext executionContext;
 };
 

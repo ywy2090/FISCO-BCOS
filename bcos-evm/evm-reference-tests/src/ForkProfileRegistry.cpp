@@ -61,6 +61,14 @@ std::vector<std::string> activatedEipsFor(bcos::evm_standard::RevisionConfig con
     {
         eips.emplace_back("EIP-7702");
     }
+    if (revision.eip7212)
+    {
+        eips.emplace_back("EIP-7212");
+    }
+    if (revision.eip7823)
+    {
+        eips.emplace_back("EIP-7823");
+    }
     return eips;
 }
 
@@ -100,6 +108,20 @@ ForkProfile makePragueProfile()
     return profile;
 }
 
+ForkProfile makeOsakaProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_OSAKA);
+    ForkProfile profile;
+    profile.profileId = "eth-osaka";
+    profile.canonicalName = "Ethereum Osaka";
+    profile.aliases = {"Osaka"};
+    profile.upstreamForkName = "Osaka";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
 bool matchesForkName(ForkProfile const& profile, std::string_view fork)
 {
     if (profile.upstreamForkName == fork)
@@ -116,6 +138,7 @@ ForkProfileRegistry::ForkProfileRegistry()
 {
     m_profiles.push_back(makeCancunProfile());
     m_profiles.push_back(makePragueProfile());
+    m_profiles.push_back(makeOsakaProfile());
 }
 
 ForkProfileRegistry const& ForkProfileRegistry::instance()
