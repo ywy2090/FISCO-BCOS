@@ -1,7 +1,7 @@
 # ETH Kernel Capability Matrix
 
 **Status:** Normative (Phase 1 audit complete — 2026-06-20; Phase 2–3 partial on `feat-evm-refactor`)  
-**ADRs:** ADR-001–018 under `bcos-evm/docs/adr/`
+**ADRs:** ADR-001–019 under `bcos-evm/docs/adr/`
 
 Row granularity rules: see ADR-003 (one row = one independently testable sub-capability on one layer; no rollup rows).
 
@@ -13,9 +13,11 @@ This file is the **single authoritative capability matrix** for the `bcos-evm` i
 
 | Column | Execution path | Role |
 | --- | --- | --- |
-| ETH (reference) | `executeViaEth` / `EthTransactionExecutorImpl` | Wiring audit and kernel-input contract tests; **not** BCOS/OPStack production inheritance proof |
-| BCOS (TE baseline) | `TransactionExecutorImpl` → `executeViaHost` → `executeMessage` | FISCO production inheritance contract |
-| OPStack (TE baseline) | `OpStackTransactionExecutorImpl` → `opStackExecuteViaHost` → `executeMessage` | OPStack production inheritance contract |
+| ETH (reference) | `executeViaEth` → **`runOrchestration`** → `executeMessage` | Wiring audit and kernel-input contract tests; **not** BCOS/OPStack production inheritance proof |
+| BCOS (TE baseline) | `TransactionExecutorImpl` → `executeViaHost` → **`runOrchestration`** → `executeMessage` | FISCO production inheritance contract |
+| OPStack (TE baseline) | `OpStackTransactionExecutorImpl` → `opStackExecuteViaHost` → **`runOrchestration`** → `executeMessage` | OPStack production inheritance contract |
+
+**Orchestration pipeline (ADR-019):** All three `executeVia*` entry points converge on sync `runOrchestration` in `eth/orchestration/`. Chain-specific precheck, intrinsic policy, fee routing (`buyGas`/`refundGas`), deposit state machine, and final `stateDiff`/`logs` mapping remain in thin wrappers per ADR-005.
 
 Legacy `bcos-executor` / DAG / `HostContext` is **out of scope** unless a future ADR brings it in.
 
@@ -89,7 +91,7 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 
 ## Phase 1 audit notes
 
-RevisionConfig consumption rules: ADR-004. Orchestration domains: ADR-005. ETH reference 7702 gas + included-tx vmerr: ADR-015. ETH TE EIP-1559 settlement: ADR-016. Add new Isthmus-only EIPs as separate rows when implemented (ADR-003).
+RevisionConfig consumption rules: ADR-004. Orchestration domains: ADR-005. Shared orchestration pipeline: ADR-019 (`runOrchestration`). ETH reference 7702 gas + included-tx vmerr: ADR-015. ETH TE EIP-1559 settlement: ADR-016. Add new Isthmus-only EIPs as separate rows when implemented (ADR-003).
 
 ### Wave 2 — Isthmus profile footnote (FIX-12, updated ADR-018)
 
