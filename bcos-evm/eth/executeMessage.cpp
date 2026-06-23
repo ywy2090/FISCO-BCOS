@@ -20,10 +20,9 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/execution/warmTransactionEntry.h"
-#include "bcos-evm/eth/precompiled/PrecompileActive.h"
+#include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <optional>
 #include <stdexcept>
@@ -101,14 +100,6 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
     context.block_base_fee = state::toEvmC(block.baseFee);
     context.blob_base_fee = state::toEvmC(block.blobBaseFee);
     return context;
-}
-
-evmc::Result makeSuccessResult(int64_t gasLeft)
-{
-    evmc_result result{};
-    result.status_code = EVMC_SUCCESS;
-    result.gas_left = gasLeft;
-    return evmc::Result(result);
 }
 
 evmc::Result makeInsufficientBalanceResult() noexcept
@@ -211,66 +202,20 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         }
         code = state.get_code(codeAddress);
         code = resolveExecutableCode(state, std::move(code), input.revisionConfig.eip7702);
-        if (code.empty() && precompiled::isActivePrecompile(
-                                input.revisionConfig.revision, input.revisionConfig, codeAddress))
+        if (code.empty())
         {
-            if (auto precompiled = state::EthPrecompiles::tryDispatchInCall(codeAddress,
-                    input.message, input.revisionConfig.revision, input.revisionConfig))
+            bool const skipVt = input.extension && input.extension->skipHostValueTransfer();
+            auto routed = precompiled::dispatchPrecompile(
+                {state, input.revisionConfig, input.extension, input.message, codeAddress, skipVt});
+            if (routed.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
             {
-                state.checkpoint();
-                if (!applyTopLevelValueTransfer(state, input))
-                {
-                    state.revert();
-                    output.result = makeInsufficientBalanceResult();
-                    output.logs = host.take_logs();
-                    return output;
-                }
-                output.result = std::move(*precompiled);
-                output.gasRefund = static_cast<int64_t>(state.get_refund());
-                state.commit();
+                output.result = std::move(routed.result);
+                output.gasRefund = routed.gasRefund;
                 output.stateDiff = state.build_diff();
                 output.logs = host.take_logs();
                 return output;
             }
         }
-    }
-
-    if (code.empty() && !isCreateKind(input.message.kind))
-    {
-        state.checkpoint();
-        if (!applyTopLevelValueTransfer(state, input))
-        {
-            state.revert();
-            output.result = makeInsufficientBalanceResult();
-            output.logs = host.take_logs();
-            return output;
-        }
-        if (input.extension != nullptr)
-        {
-            if (auto result = input.extension->tryChainPrecompile(
-                    input.revisionConfig.revision, input.message))
-            {
-                output.result = evmc::Result(std::move(*result));
-                output.logs = host.take_logs();
-                if (output.result.status_code == EVMC_SUCCESS)
-                {
-                    output.gasRefund = static_cast<int64_t>(state.get_refund());
-                    state.commit();
-                    output.stateDiff = state.build_diff();
-                }
-                else
-                {
-                    state.revert();
-                }
-                return output;
-            }
-        }
-        output.result = makeSuccessResult(input.message.gas);
-        output.gasRefund = static_cast<int64_t>(state.get_refund());
-        state.commit();
-        output.stateDiff = state.build_diff();
-        output.logs = host.take_logs();
-        return output;
     }
 
     state.checkpoint();
