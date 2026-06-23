@@ -261,8 +261,9 @@ public:
                 ctx.tx_origin = m_message.sender;
                 bool const fixStorageStatus = m_revisionConfig.fix_storage_status;
                 bool const warmAccess = m_revisionConfig.eth().warm_access;
-                m_host.emplace(*m_state, ctx, m_revisionConfig.eth().revision, m_fixture.evm(),
-                    bcos::evm::state::BlockHashes{}, nullptr, fixStorageStatus, warmAccess);
+                static_cast<void>(warmAccess);
+                m_host.emplace(*m_state, ctx, m_revisionConfig.eth(), m_fixture.evm(),
+                    bcos::evm::state::BlockHashes{}, nullptr, fixStorageStatus);
             }
             return *m_host;
         }

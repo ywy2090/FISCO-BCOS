@@ -305,11 +305,18 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         host, input.revisionConfig.revision, input.message, code.data(), code.size());
     output.logs = host.take_logs();
 
-    if (output.result.status_code == EVMC_SUCCESS && isCreateKind(input.message.kind) &&
-        !state::applyCreateCodeDepositGas(
-            const_cast<evmc_result&>(output.result.raw()), input.revisionConfig.revision))
+    if (output.result.status_code == EVMC_SUCCESS && isCreateKind(input.message.kind))
     {
-        output.result = evmc::Result(output.result.raw());
+        auto raw = output.result.release_raw();
+        if (!state::applyCreateCodeDepositGas(raw, input.revisionConfig.revision) &&
+            raw.release != nullptr)
+        {
+            raw.release(&raw);
+            raw.release = nullptr;
+            raw.output_data = nullptr;
+            raw.output_size = 0;
+        }
+        output.result = evmc::Result(raw);
     }
     if (output.result.status_code == EVMC_SUCCESS)
     {

@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_gasLimitMinimumWithAuth_floorDominate
     auto const authCost = calcAuthTupleIntrinsicGas(1);
 
     constexpr int64_t floorTotal = TX_BASE_GAS + 42120;
-    constexpr int64_t intrinsicWithAuth = TX_BASE_GAS + 16848 + authCost;
+    int64_t const intrinsicWithAuth = TX_BASE_GAS + 16848 + authCost;
     BOOST_CHECK_EQUAL(intrinsic.floorReserve, 42120);
     BOOST_CHECK_EQUAL(intrinsicWithAuth, 62848);
     BOOST_CHECK_EQUAL(intrinsic.gasLimitMinimumWithAuth(authCost), floorTotal);
@@ -303,8 +303,9 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_create_noDoubleCount)
     // 10-byte all-nonzero initcode: tokenCount = 10 * 4 = 40
     ctx.calldata.tokenCount = 40;
     ctx.createTerm = intrinsic.createIntrinsic;
-    ctx.gasBeforeEvm = 50'000;
-    // evmone debited full CREATE intrinsic from the execution gas pool.
+    ctx.gasBeforeEvm =
+        intrinsic.gasLimitMinimum() - intrinsic.fixedCost() - intrinsic.normalCalldata;
+    // evmone debited CREATE surcharge from the post-intrinsic gas pool.
     ctx.evmGasLeft = ctx.gasBeforeEvm - intrinsic.createIntrinsic;
     ctx.evmGasRefund = 0;
 

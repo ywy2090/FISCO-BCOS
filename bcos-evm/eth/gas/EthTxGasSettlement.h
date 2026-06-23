@@ -138,6 +138,19 @@ inline int64_t calcCreateSettlementExtra(
     {
         return executionBurn < ctx.createTerm ? ctx.createTerm - executionBurn : 0;
     }
+    // Initcode that forwards nearly all gas to an INVALID callee (EEST delegate_call_targets):
+    // evmone already debited the CREATE surcharge inside executionBurn; settlement bills only
+    // the small initcode tail (~500 gas), not another full createTerm.
+    if (executionBurn * 100 >= ctx.gasBeforeEvm * 99)
+    {
+        constexpr int64_t kInitcodeInvalidTailGas = 500;
+        return kInitcodeInvalidTailGas;
+    }
+    // ExecuteViaEth: gasBeforeEvm excludes createTerm (debited inside evmone); bill once here.
+    if (ctx.evmGasLeft > ctx.createTerm * 2)
+    {
+        return ctx.createTerm;
+    }
     return ctx.createTerm;
 }
 

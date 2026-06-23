@@ -317,11 +317,25 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     auto code = resolveExecutionCode(callMessage);
     auto result =
         m_vm.execute(*this, m_revisionConfig.revision, callMessage, code.data(), code.size());
-    if (result.status_code == EVMC_SUCCESS && isCreateKind(callMessage.kind) &&
-        !state::applyCreateCodeDepositGas(
-            const_cast<evmc_result&>(result.raw()), m_revisionConfig.revision))
+    if (result.status_code == EVMC_SUCCESS && isCreateKind(callMessage.kind))
     {
-        result = makeResult(result.status_code, result.gas_left);
+        auto raw = result.release_raw();
+        if (!state::applyCreateCodeDepositGas(raw, m_revisionConfig.revision) &&
+            raw.release != nullptr)
+        {
+            raw.release(&raw);
+            raw.release = nullptr;
+            raw.output_data = nullptr;
+            raw.output_size = 0;
+        }
+        if (raw.status_code == EVMC_SUCCESS)
+        {
+            result = evmc::Result(raw);
+        }
+        else
+        {
+            result = makeResult(raw.status_code, raw.gas_left);
+        }
     }
     if (result.status_code == EVMC_SUCCESS)
     {
