@@ -190,94 +190,31 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_createIntrinsic_words)
     BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), TX_BASE_GAS + 132 + CREATE_BASE_GAS + 4);
 }
 
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_cases)
+BOOST_AUTO_TEST_CASE(SettleTopLevelTransactionGas_peakGasUsed_without_refund)
 {
-    TxGasSettlementContext ctx;
-    ctx.fixedIntrinsic = TX_BASE_GAS;
-    ctx.calldata.normalCost = 800;
-    ctx.calldata.floorCost = 1000;
-    ctx.calldata.tokenCount = 100;
-    ctx.createTerm = 0;
-
-    ctx.gasBeforeEvm = 100000;
-    ctx.evmGasRefund = 0;
-
-    constexpr uint8_t calldataFloorPerToken = 10;
-
-    // gasBeforeEvm is post-normal-debit; executionBurn is EVM-only.
-    ctx.evmGasLeft = 100000 - 500;
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, calldataFloorPerToken), 22300);
-
-    ctx.evmGasLeft = 100000 - 200;
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, calldataFloorPerToken), 22000);
-
-    ctx.evmGasLeft = 100000 - 50;
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, calldataFloorPerToken), 22000);
+    auto const calldata = calcEip7623Components({});
+    BOOST_CHECK_EQUAL(settleTopLevelTransactionGas(100'000, 99'500, 0, 0), 500);
 }
 
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_floorDominatesLowExecution)
+BOOST_AUTO_TEST_CASE(SettleTopLevelTransactionGas_floorDominatesLowExecution)
 {
     auto const mixed = mixedCalldata100();
     auto const components = calcEip7623Components(ref(mixed));
-
-    TxGasSettlementContext ctx;
-    ctx.fixedIntrinsic = TX_BASE_GAS;
-    ctx.calldata = components;
-    ctx.gasBeforeEvm = 100000;
-    ctx.evmGasLeft = 100000 - 50;
-    ctx.evmGasRefund = 0;
-
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), TX_BASE_GAS + components.floorCost);
+    int64_t const floorDataGas = TX_BASE_GAS + components.tokenCount * 10;
+    BOOST_CHECK_EQUAL(
+        settleTopLevelTransactionGas(100'000, 99'950, 0, 10, components), floorDataGas);
 }
 
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_task0SstoreClear_vector)
+BOOST_AUTO_TEST_CASE(SettleTopLevelTransactionGas_sstoreClearRefund)
 {
-    // Task0 SSTORE clear: gas_before=1M, gas_left=997094, gas_refund=4800, executionBurn=2906.
-    TxGasSettlementContext ctx;
-    ctx.fixedIntrinsic = TX_BASE_GAS;
-    ctx.calldata = {};
-    ctx.gasBeforeEvm = 1'000'000;
-    ctx.evmGasLeft = 997'094;
-    ctx.evmGasRefund = 4800;
-
-    BOOST_CHECK_EQUAL(ctx.gasBeforeEvm - ctx.evmGasLeft, 2906);
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), TX_BASE_GAS);
+    int64_t const gasUsed = settleTopLevelTransactionGas(1'000'000, 997'094, 4800, 0);
+    BOOST_CHECK_EQUAL(gasUsed, 2'325);
 }
 
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_highIntrinsicRefundSubjectTo3529Cap)
+BOOST_AUTO_TEST_CASE(SettleTopLevelTransactionGas_highRefundSubjectTo3529Cap)
 {
-    TxGasSettlementContext ctx;
-    ctx.fixedIntrinsic = TX_BASE_GAS + ACCESS_LIST_ADDRESS_COST + 2 * ACCESS_LIST_STORAGE_KEY_COST;
-    ctx.calldata.normalCost = 0;
-    ctx.calldata.floorCost = 0;
-    ctx.gasBeforeEvm = 400'000;
-    ctx.evmGasLeft = 399'000;
-    ctx.evmGasRefund = 50'000;
-
-    int64_t const executionBurn = ctx.gasBeforeEvm - ctx.evmGasLeft;
-    int64_t const createExtra = calcCreateSettlementExtra(ctx, executionBurn);
-    int64_t const gasUsedBeforeRefund =
-        ctx.fixedIntrinsic + ctx.calldata.normalCost + executionBurn + createExtra;
-    int64_t const cap = effectiveRefundEip3529(ctx.evmGasRefund, gasUsedBeforeRefund);
-    BOOST_CHECK_EQUAL(cap, gasUsedBeforeRefund / 5);
-    // geth: intrinsic + execution - capped refund; floorDataGas = 21000 when floorCost = 0.
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), gasUsedBeforeRefund - cap);
-}
-
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_gethAligned_accessListLightCalldata)
-{
-    constexpr int64_t accessListCost = ACCESS_LIST_ADDRESS_COST + 2 * ACCESS_LIST_STORAGE_KEY_COST;
-    TxGasSettlementContext ctx;
-    ctx.fixedIntrinsic = TX_BASE_GAS + accessListCost;
-    ctx.calldata.normalCost = 16;
-    ctx.calldata.floorCost = 40;
-    ctx.calldata.tokenCount = 4;
-    ctx.gasBeforeEvm = 100'000;
-    ctx.evmGasLeft = 100'000;
-    ctx.evmGasRefund = 0;
-
-    // Minimal execution (16 burn): receipt = intrinsic + normal calldata, not floor uplift.
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), TX_BASE_GAS + accessListCost + 16);
+    int64_t const gasUsed = settleTopLevelTransactionGas(400'000, 399'000, 50'000, 0);
+    BOOST_CHECK_EQUAL(gasUsed, 800);
 }
 
 BOOST_AUTO_TEST_CASE(EffectiveRefundEip3529_cap)
@@ -287,69 +224,7 @@ BOOST_AUTO_TEST_CASE(EffectiveRefundEip3529_cap)
     BOOST_CHECK_EQUAL(effectiveRefundEip3529(100, 0), 0);
 }
 
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_create_noDoubleCount)
-{
-    bytes initcode(10, 0x42);
-    evmc_message msg{};
-    msg.kind = EVMC_CREATE;
-    msg.input_data = initcode.data();
-    msg.input_size = initcode.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 2);
-
-    TxGasSettlementContext ctx;
-    ctx.fixedIntrinsic = intrinsic.fixedCost();
-    ctx.calldata.normalCost = intrinsic.normalCalldata;
-    ctx.calldata.floorCost = intrinsic.floorReserve;
-    // 10-byte all-nonzero initcode: tokenCount = 10 * 4 = 40
-    ctx.calldata.tokenCount = 40;
-    ctx.createTerm = intrinsic.createIntrinsic;
-    ctx.gasBeforeEvm =
-        intrinsic.gasLimitMinimum() - intrinsic.fixedCost() - intrinsic.normalCalldata;
-    // evmone debited CREATE surcharge from the post-intrinsic gas pool.
-    ctx.evmGasLeft = ctx.gasBeforeEvm - intrinsic.createIntrinsic;
-    ctx.evmGasRefund = 0;
-
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), intrinsic.gasLimitMinimum());
-
-    // When executionBurn already includes createTerm, adding createTerm again must not inflate.
-    ctx.gasBeforeEvm =
-        intrinsic.gasLimitMinimum() - intrinsic.fixedCost() - intrinsic.normalCalldata;
-    constexpr int64_t extraOpcodeGas = 38;
-    ctx.evmGasLeft = ctx.gasBeforeEvm - intrinsic.createIntrinsic - extraOpcodeGas;
-    BOOST_CHECK_EQUAL(
-        finalizeEthereumGasUsed(ctx, 10), intrinsic.gasLimitMinimum() + extraOpcodeGas);
-}
-
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_create_executeViaEthSnapshot_eestDelegateInitcode)
-{
-    // EEST call_from_initcode_True / target_account_type_EOA: geth bills 100472 gas.
-    bytes initcode = bcos::fromHex(
-        "600060006000600073eefcbf33fcf3d33024026cc92f002bf519c950ed5af460025561201560015560006000f"
-        "3");
-    evmc_message msg{};
-    msg.kind = EVMC_CREATE;
-    msg.input_data = initcode.data();
-    msg.input_size = initcode.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0);
-
-    constexpr int64_t gasLimit = 0x3d0900;
-    constexpr int64_t executionBurn = 46832;
-    TxGasSettlementContext ctx;
-    ctx.gasLimit = gasLimit;
-    ctx.fixedIntrinsic = intrinsic.fixedCost();
-    ctx.calldata.normalCost = intrinsic.normalCalldata;
-    ctx.calldata.floorCost = intrinsic.floorReserve;
-    ctx.calldata.tokenCount = calcEip7623Components(ref(initcode)).tokenCount;
-    ctx.createTerm = intrinsic.createIntrinsic;
-    ctx.gasBeforeEvm = gasLimit - intrinsic.fixedCost() - intrinsic.normalCalldata;
-    ctx.evmGasLeft = ctx.gasBeforeEvm - executionBurn;
-    ctx.evmGasRefund = 0;
-
-    BOOST_CHECK_EQUAL(intrinsic.createIntrinsic, CREATE_BASE_GAS + INITCODE_WORD_GAS * 2);
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), 100472);
-}
-
-BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_postEvmOOG_chargesFullGasLimit)
+BOOST_AUTO_TEST_CASE(SettleTopLevelTransactionGas_postEvmOOG_chargesFullGasLimit)
 {
     auto const mixed = mixedCalldata100();
     auto const components = calcEip7623Components(ref(mixed));
@@ -361,15 +236,7 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_postEvmOOG_chargesFullGasLimit)
     auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 2);
     auto const gasLimit = intrinsic.gasLimitMinimum();
 
-    TxGasSettlementContext ctx;
-    ctx.gasLimit = gasLimit;
-    ctx.fixedIntrinsic = intrinsic.fixedCost();
-    ctx.calldata = components;
-    ctx.gasBeforeEvm = gasLimit - intrinsic.fixedCost() - intrinsic.normalCalldata;
-    ctx.evmGasLeft = 0;
-    ctx.evmGasRefund = 0;
-
-    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), gasLimit);
+    BOOST_CHECK_EQUAL(settleTopLevelTransactionGas(gasLimit, 0, 0, 10, components), gasLimit);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

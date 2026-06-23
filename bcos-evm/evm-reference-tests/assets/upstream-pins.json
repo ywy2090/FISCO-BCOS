@@ -8,9 +8,11 @@
     "tag": "v1.101702.2"
   },
   "ethereum_tests": {
-    "submodule_path": "bcos-evm/evm-reference-tests/assets/ethereum-tests",
     "repo": "https://github.com/ethereum/tests",
-    "commit": "c67e485ff8b5be9abc8ad15345ec21aa22e290d9"
+    "commit": "c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
+    "tarball": "fixtures_general_state_tests.tgz",
+    "url": "https://github.com/ethereum/tests/raw/c67e485ff8b5be9abc8ad15345ec21aa22e290d9/fixtures_general_state_tests.tgz",
+    "sha256": "82bc3cb1c23f48b2b8a2b3d9cb5d9b96ddf6c31683f75368173bee3b25a24274"
   },
   "eest": {
     "release": "v5.1.0",

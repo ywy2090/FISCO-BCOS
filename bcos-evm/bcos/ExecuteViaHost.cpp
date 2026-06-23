@@ -229,26 +229,36 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         {
             auto const components =
                 gas::calcEip7623Components(bytesConstRef(message.input_data, message.input_size));
-            if (message.gas < components.normalCost)
+            auto const calldataGas =
+                gas::calcEip7623CalldataGas(bytesConstRef(message.input_data, message.input_size));
+            auto const intrinsic =
+                gas::computeTxIntrinsicGas(message, input.accessList.get(), input.web3TypedTxKind);
+            int64_t const authCost =
+                input.authorizationListPresent ?
+                    gas::calcAuthTupleIntrinsicGas(input.authorizations.size()) :
+                    0;
+            if (input.message.gas < intrinsic.gasLimitMinimumWithAuth(authCost))
+            {
+                output.evmcResult =
+                    makeErrorEVMCResult(*input.hashImpl, protocol::TransactionStatus::OutOfGas,
+                        EVMC_OUT_OF_GAS, fixErrorHandling ? 0 : message.gas,
+                        "EIP-7623 gas limit minimum", fixErrorHandling);
+                co_return output;
+            }
+            if (message.gas < calldataGas)
             {
                 output.evmcResult = makeErrorEVMCResult(*input.hashImpl,
                     protocol::TransactionStatus::OutOfGas, EVMC_OUT_OF_GAS,
                     fixErrorHandling ? 0 : message.gas, "EIP-7623 calldata OOG", fixErrorHandling);
                 co_return output;
             }
-            message.gas -= components.normalCost;
-        }
-
-        if (input.web3Tx && input.revisionConfig.eth().eip7623)
-        {
-            auto const intrinsic =
-                gas::computeTxIntrinsicGas(message, input.accessList.get(), input.web3TypedTxKind);
+            message.gas -= intrinsic.preExecutionDebit();
+            if (authCost > 0)
+            {
+                message.gas -= authCost;
+            }
             output.executionContext.gasSettlementSnapshot.gasLimit = input.message.gas;
-            output.executionContext.gasSettlementSnapshot.gasBeforeEvm = message.gas;
-            output.executionContext.gasSettlementSnapshot.calldata =
-                gas::calcEip7623Components(bytesConstRef(message.input_data, message.input_size));
-            output.executionContext.gasSettlementSnapshot.fixedIntrinsic = intrinsic.fixedCost();
-            output.executionContext.gasSettlementSnapshot.createTerm = intrinsic.createIntrinsic;
+            output.executionContext.gasSettlementSnapshot.calldata = components;
         }
 
         if (input.revisionConfig.enable_balance_transfer)
@@ -256,11 +266,14 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
             maybeTransferValue(state, message, input.revisionConfig.fix_delegatecall_transfer);
         }
 
-        if (message.gas < BALANCE_TRANSFER_GAS)
+        if (!(input.web3Tx && input.revisionConfig.eth().eip7623))
         {
-            BOOST_THROW_EXCEPTION(protocol::OutOfGas{});
+            if (message.gas < BALANCE_TRANSFER_GAS)
+            {
+                BOOST_THROW_EXCEPTION(protocol::OutOfGas{});
+            }
+            message.gas -= BALANCE_TRANSFER_GAS;
         }
-        message.gas -= BALANCE_TRANSFER_GAS;
 
         if (!isCreateKind(message.kind))
         {
@@ -313,6 +326,11 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         }
         output.executionContext.logs = convertLogs(executeOutput.logs);
         output.executionContext.message = message;
+
+        if (input.web3Tx && input.revisionConfig.eth().eip7623)
+        {
+            output.executionContext.gasSettlementSnapshot.evmGasRefund = executeOutput.gasRefund;
+        }
 
         if (output.evmcResult.status_code == EVMC_SUCCESS)
         {

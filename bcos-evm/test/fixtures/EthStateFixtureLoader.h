@@ -55,6 +55,7 @@ struct ExpectedResult
     int64_t gasUsedTolerance = 0;
     int64_t gasUsedExecutor = 0;
     int64_t gasUsedExecutorTolerance = 0;
+    int64_t settledGasUsed = 0;
     bcos::bytes output;
     size_t logs = 0;
     std::vector<ExpectedPostAccount> post;
@@ -198,6 +199,7 @@ inline FixtureCase loadFixture(std::filesystem::path const& path)
     fixture.expected.gasUsedExecutor = expectedTree.get<int64_t>("gas_used_executor", 0);
     fixture.expected.gasUsedExecutorTolerance =
         expectedTree.get<int64_t>("gas_used_executor_tolerance", 0);
+    fixture.expected.settledGasUsed = expectedTree.get<int64_t>("settled_gas_used", 0);
     fixture.expected.output = parseBytes(expectedTree.get<std::string>("output", "0x"));
     fixture.expected.logs = expectedTree.get<size_t>("logs", 0);
 
@@ -270,6 +272,26 @@ inline std::vector<std::filesystem::path> listAllFixtureFiles(std::filesystem::p
         }
     }
 
+    std::sort(paths.begin(), paths.end());
+    return paths;
+}
+
+inline std::vector<std::filesystem::path> listCreateSettlementFixtureFiles(
+    std::filesystem::path const& rootDir)
+{
+    std::vector<std::filesystem::path> paths;
+    auto const dir = rootDir / "create_settlement";
+    if (!std::filesystem::exists(dir))
+    {
+        return paths;
+    }
+    for (auto const& entry : std::filesystem::directory_iterator(dir))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ".json")
+        {
+            paths.push_back(entry.path());
+        }
+    }
     std::sort(paths.begin(), paths.end());
     return paths;
 }

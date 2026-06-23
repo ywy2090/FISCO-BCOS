@@ -495,7 +495,9 @@ bool forkMatches(std::string_view candidate, std::string_view requested)
 
 std::filesystem::path moduleAssetsRoot()
 {
-#ifdef EVM_REFERENCE_TESTS_SOURCE_DIR
+#ifdef EVM_REFERENCE_TESTS_ETHEREUM_TESTS_ROOT
+    return std::filesystem::path(EVM_REFERENCE_TESTS_ETHEREUM_TESTS_ROOT);
+#elif defined(EVM_REFERENCE_TESTS_SOURCE_DIR)
     return std::filesystem::path(EVM_REFERENCE_TESTS_SOURCE_DIR) / "assets" / "ethereum-tests";
 #else
     return std::filesystem::path("bcos-evm/evm-reference-tests/assets/ethereum-tests");

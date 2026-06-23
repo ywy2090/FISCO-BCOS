@@ -11,7 +11,9 @@ namespace
 
 std::filesystem::path moduleAssetsRoot()
 {
-#ifdef EVM_REFERENCE_TESTS_SOURCE_DIR
+#ifdef EVM_REFERENCE_TESTS_EEST_ROOT
+    return std::filesystem::path(EVM_REFERENCE_TESTS_EEST_ROOT);
+#elif defined(EVM_REFERENCE_TESTS_SOURCE_DIR)
     return std::filesystem::path(EVM_REFERENCE_TESTS_SOURCE_DIR) / "assets" / "eest";
 #else
     return std::filesystem::path("bcos-evm/evm-reference-tests/assets/eest");

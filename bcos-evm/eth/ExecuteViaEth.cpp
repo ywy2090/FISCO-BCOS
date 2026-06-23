@@ -137,13 +137,11 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
                     EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
                 co_return output;
             }
-            message.gas -= components.normalCost;
+            message.gas -= intrinsic.preExecutionDebit();
             if (authCost > 0)
             {
                 message.gas -= authCost;
             }
-            // Align EVM gas pool with geth IntrinsicGas (21000 + access list before Call).
-            message.gas -= intrinsic.fixedCost();
         }
         else if (input.authorizationListPresent && !input.authorizations.empty())
         {
@@ -162,19 +160,9 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
 
         if (input.revisionConfig.eip7623)
         {
-            auto const intrinsic =
-                gas::computeTxIntrinsicGas(message, input.accessList, input.web3TypedTxKind);
-            int64_t const authCost =
-                input.authorizationListPresent ?
-                    gas::calcAuthTupleIntrinsicGas(input.authorizations.size()) :
-                    0;
             output.executionContext.gasSettlementSnapshot.gasLimit = input.message.gas;
-            output.executionContext.gasSettlementSnapshot.gasBeforeEvm = message.gas;
             output.executionContext.gasSettlementSnapshot.calldata =
                 gas::calcEip7623Components(bytesConstRef(message.input_data, message.input_size));
-            output.executionContext.gasSettlementSnapshot.fixedIntrinsic = intrinsic.fixedCost();
-            output.executionContext.gasSettlementSnapshot.authIntrinsic = authCost;
-            output.executionContext.gasSettlementSnapshot.createTerm = intrinsic.createIntrinsic;
         }
 
         auto const txValue = state::fromEvmC(message.value);

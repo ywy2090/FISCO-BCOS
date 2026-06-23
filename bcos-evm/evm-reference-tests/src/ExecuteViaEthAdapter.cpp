@@ -251,27 +251,18 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
     result.logs = std::move(output.logs);
 
     int64_t finalGasUsed = result.gasUsed;
-    if (output.topLevelIncludedTxVmError && m_profile.revision.eip7623)
+    if (m_profile.revision.eip7623)
     {
         auto const& snap = output.executionContext.gasSettlementSnapshot;
-        finalGasUsed =
-            gas::settleIncludedTopLevelTransactionGas(gasBefore, output.evmcResult.gas_left,
+        if (snap.gasLimit > 0)
+        {
+            finalGasUsed = gas::settleTopLevelTransactionGas(gasBefore, output.evmcResult.gas_left,
                 snap.evmGasRefund, m_profile.revision.calldata_floor_per_token, snap.calldata);
-    }
-    else if (result.status == EVMC_SUCCESS && m_profile.revision.eip7623)
-    {
-        auto const& snap = output.executionContext.gasSettlementSnapshot;
-        gas::TxGasSettlementContext ctx;
-        ctx.gasLimit = gasBefore;
-        ctx.gasBeforeEvm = snap.gasBeforeEvm;
-        ctx.calldata = snap.calldata;
-        ctx.fixedIntrinsic = snap.fixedIntrinsic;
-        ctx.authIntrinsic = snap.authIntrinsic;
-        ctx.createTerm = snap.createTerm;
-        ctx.evmGasLeft = output.evmcResult.gas_left;
-        ctx.evmGasRefund = snap.evmGasRefund;
-        finalGasUsed =
-            gas::finalizeEthereumGasUsed(ctx, m_profile.revision.calldata_floor_per_token);
+        }
+        else if (result.status == EVMC_SUCCESS)
+        {
+            finalGasUsed = gas::TX_BASE_GAS + result.gasUsed;
+        }
     }
     else if (result.status == EVMC_SUCCESS)
     {
@@ -309,27 +300,16 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
     if (std::getenv("EEST_PROBE") != nullptr)
     {
         auto const& snap = output.executionContext.gasSettlementSnapshot;
-        int64_t const executionBurn = snap.gasBeforeEvm - output.evmcResult.gas_left;
-        int64_t const createExtra = gas::calcCreateSettlementExtra(snap, executionBurn);
-        int64_t const gasUsedBeforeRefund = snap.fixedIntrinsic + snap.calldata.normalCost +
-                                            snap.authIntrinsic + executionBurn + createExtra;
-        int64_t const effectiveRefund =
-            gas::effectiveRefundEip3529(snap.evmGasRefund, gasUsedBeforeRefund);
         int64_t const floorDataGas =
-            gas::TX_BASE_GAS +
-            snap.calldata.tokenCount * m_profile.revision.calldata_floor_per_token;
+            gas::calcFloorDataGas(m_profile.revision.calldata_floor_per_token, snap.calldata);
         std::cerr << "=== EEST_PROBE ===\n"
                   << "status=" << static_cast<int>(result.status) << " gasUsed=" << result.gasUsed
                   << " gasPrice=" << tx.gasPrice.str(0, std::ios::hex) << " gasCost="
                   << (tx.gasPrice * static_cast<bcos::u256>(result.gasUsed)).str(0, std::ios::hex)
-                  << " evmGasRefund=" << snap.evmGasRefund
-                  << " authIntrinsic=" << snap.authIntrinsic
-                  << " gasBeforeEvm=" << snap.gasBeforeEvm
+                  << " hostRefund=" << snap.evmGasRefund
+                  << " evmoneRefund=" << output.evmcResult.gas_refund
                   << " evmGasLeft=" << output.evmcResult.gas_left
-                  << " executionBurn=" << executionBurn << " createExtra=" << createExtra
-                  << " gasUsedBeforeRefund=" << gasUsedBeforeRefund
-                  << " effectiveRefund=" << effectiveRefund << " floorDataGas=" << floorDataGas
-                  << "\nstateRoot=0x"
+                  << " floorDataGas=" << floorDataGas << "\nstateRoot=0x"
                   << bcos::toHex(bcos::bytes(result.stateRoot->bytes,
                          result.stateRoot->bytes + sizeof(result.stateRoot->bytes)))
                   << "\n";

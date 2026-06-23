@@ -1,8 +1,8 @@
 /*
- * Ethereum transaction gas settlement (EIP-7623 + intrinsic gas), transaction-executor only.
+ * Ethereum transaction gas settlement (EIP-7623 + intrinsic gas).
  *
- * Task-0-FROZEN: Branch A. executionBurn = gasBeforeEvm - gas_left.
- * effectiveRefund = min(gas_refund, gasUsedBeforeRefund / 5).
+ * Lean model (geth/op-geth aligned): full intrinsic pre-debit before EVM, then
+ *   gasUsed = gasLimit - min(gasLimit, gasLeft + cappedRefund), EIP-7623 floor uplift.
  */
 #pragma once
 
@@ -53,17 +53,15 @@ struct TxIntrinsicGas
     }
 };
 
-struct TxGasSettlementContext
+/// Post-execution inputs for Lean settlement (full intrinsic already debited from message.gas).
+struct TxGasSettlementSnapshot
 {
     int64_t gasLimit = 0;
-    int64_t gasBeforeEvm = 0;
-    gas::Eip7623Components calldata{};
-    int64_t fixedIntrinsic = 0;
-    int64_t authIntrinsic = 0;
-    int64_t createTerm = 0;
-    int64_t evmGasLeft = 0;
+    Eip7623Components calldata{};
     int64_t evmGasRefund = 0;
 };
+
+using TxGasSettlementContext = TxGasSettlementSnapshot;
 
 inline int64_t calcAccessListCost(Eip2930AccessList const* accessList) noexcept
 {
@@ -99,6 +97,7 @@ inline int64_t calcCreateIntrinsic(evmc_message const& message) noexcept
 inline TxIntrinsicGas computeTxIntrinsicGas(
     evmc_message const& message, Eip2930AccessList const* accessList, uint8_t web3TypedTxKind)
 {
+    (void)web3TypedTxKind;
     TxIntrinsicGas intrinsic;
     auto const components =
         gas::calcEip7623Components(bcos::bytesConstRef(message.input_data, message.input_size));
@@ -123,57 +122,16 @@ inline int64_t effectiveRefundEip3529(int64_t evmGasRefund, int64_t gasUsedBefor
     return std::min(evmGasRefund, gasUsedBeforeRefund / 5);
 }
 
-/// CREATE settlement: ExecuteViaEth debits 21000 + normal calldata before EVM, not createTerm.
-/// geth IntrinsicGas uses TxGasContractCreation (53000) which includes the 32000 create surcharge.
-/// When gasBeforeEvm is the full post-partial-intrinsic pool, add createTerm; unit-test pools sized
-/// to createTerm-only keep legacy createExtra top-up when executionBurn < createTerm.
-inline int64_t calcCreateSettlementExtra(
-    TxGasSettlementContext const& ctx, int64_t executionBurn) noexcept
+inline int64_t calcFloorDataGas(
+    uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
 {
-    if (ctx.createTerm <= 0)
-    {
-        return 0;
-    }
-    if (ctx.gasBeforeEvm <= ctx.createTerm)
-    {
-        return executionBurn < ctx.createTerm ? ctx.createTerm - executionBurn : 0;
-    }
-    // Initcode that forwards nearly all gas to an INVALID callee (EEST delegate_call_targets):
-    // evmone already debited the CREATE surcharge inside executionBurn; settlement bills only
-    // the small initcode tail (~500 gas), not another full createTerm.
-    if (executionBurn * 100 >= ctx.gasBeforeEvm * 99)
-    {
-        constexpr int64_t kInitcodeInvalidTailGas = 500;
-        return kInitcodeInvalidTailGas;
-    }
-    // ExecuteViaEth: gasBeforeEvm excludes createTerm (debited inside evmone); bill once here.
-    if (ctx.evmGasLeft > ctx.createTerm * 2)
-    {
-        return ctx.createTerm;
-    }
-    return ctx.createTerm;
+    return TX_BASE_GAS + calldata.tokenCount * calldataFloorPerToken;
 }
 
-inline int64_t finalizeEthereumGasUsed(
-    TxGasSettlementContext const& ctx, uint8_t calldataFloorPerToken) noexcept
-{
-    int64_t const executionBurn = ctx.gasBeforeEvm - ctx.evmGasLeft;
-    int64_t const createExtra = calcCreateSettlementExtra(ctx, executionBurn);
-    // Snapshot is taken after normal calldata pre-debit and 21000 base; executionBurn is EVM-only.
-    int64_t const gasUsedBeforeRefund = ctx.fixedIntrinsic + ctx.calldata.normalCost +
-                                        ctx.authIntrinsic + executionBurn + createExtra;
-    int64_t const effectiveRefund = effectiveRefundEip3529(ctx.evmGasRefund, gasUsedBeforeRefund);
-    // geth (Prague+): after refund, top up only when total used is below FloorDataGas
-    // (21000 + tokens * calldata_floor_per_token; access list excluded from floor).
-    int64_t const gasUsedAfterRefund = gasUsedBeforeRefund - effectiveRefund;
-    int64_t const floorDataGas = TX_BASE_GAS + ctx.calldata.tokenCount * calldataFloorPerToken;
-    return std::max(gasUsedAfterRefund, floorDataGas);
-}
-
-/// geth state_transition peakGasUsed/refund settlement for included top-level txs whose EVM
-/// execution returned a vmerr (INVALID/REVERT/OOG/etc.) after preCheck succeeded.
-inline int64_t settleIncludedTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft,
-    int64_t stateRefund, uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
+/// geth state_transition settlement: peakGasUsed from gasLimit/gasLeft, EIP-3529 refund cap,
+/// EIP-7623 floor uplift. Authoritative refund counter is host state.get_refund().
+inline int64_t settleTopLevelTransactionGas(
+    int64_t gasLimit, int64_t evmGasLeft, int64_t stateRefund, int64_t floorDataGas) noexcept
 {
     int64_t const gasLeft =
         std::min(std::max<int64_t>(0, evmGasLeft), std::max<int64_t>(0, gasLimit));
@@ -182,12 +140,25 @@ inline int64_t settleIncludedTopLevelTransactionGas(int64_t gasLimit, int64_t ev
     int64_t const gasRemaining =
         std::min(std::max<int64_t>(0, gasLimit), gasLeft + effectiveRefund);
     int64_t gasUsed = std::max<int64_t>(0, gasLimit) - gasRemaining;
-    int64_t const floorDataGas = TX_BASE_GAS + calldata.tokenCount * calldataFloorPerToken;
     if (floorDataGas > 0 && gasUsed < floorDataGas)
     {
         gasUsed = std::min(floorDataGas, std::max<int64_t>(0, gasLimit));
     }
     return gasUsed;
+}
+
+inline int64_t settleTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft,
+    int64_t stateRefund, uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
+{
+    return settleTopLevelTransactionGas(
+        gasLimit, evmGasLeft, stateRefund, calcFloorDataGas(calldataFloorPerToken, calldata));
+}
+
+inline int64_t settleIncludedTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft,
+    int64_t stateRefund, uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
+{
+    return settleTopLevelTransactionGas(
+        gasLimit, evmGasLeft, stateRefund, calldataFloorPerToken, calldata);
 }
 
 }  // namespace gas

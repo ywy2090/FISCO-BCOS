@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(executeViaEth_top_level_invalid_is_included_with_success_st
 
     BOOST_CHECK(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
-    BOOST_CHECK(output.executionContext.gasSettlementSnapshot.evmGasLeft >= 0);
+    BOOST_CHECK_GT(output.executionContext.gasSettlementSnapshot.gasLimit, 0);
 }
 
 BOOST_AUTO_TEST_CASE(executeViaEth_nested_invalid_is_not_included_tx_vmerr)

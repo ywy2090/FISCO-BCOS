@@ -247,11 +247,10 @@ public:
                 m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction &&
                 m_data->m_executionContext.revisionConfig.eth().eip7623)
             {
-                auto ctx = snapshot;
-                ctx.evmGasLeft = evmcResult.gas_left;
-                ctx.evmGasRefund = evmcResult.gas_refund;
-                m_data->m_gasUsed = gas::finalizeEthereumGasUsed(
-                    ctx, m_data->m_executionContext.revisionConfig.eth().calldata_floor_per_token);
+                m_data->m_gasUsed = gas::settleTopLevelTransactionGas(m_data->m_gasLimit,
+                    evmcResult.gas_left, snapshot.evmGasRefund,
+                    m_data->m_executionContext.revisionConfig.eth().calldata_floor_per_token,
+                    snapshot.calldata);
             }
             else
             {

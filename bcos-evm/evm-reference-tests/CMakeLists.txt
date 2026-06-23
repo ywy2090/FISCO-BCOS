@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.28)
 
+option(BCOS_EVM_REFERENCE_TESTS_FETCH_ASSETS
+    "Download pinned reference test assets via FetchContent at configure time"
+    ON)
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchReferenceAssets.cmake")
+
 add_library(bcos-evm-reference-tests-core STATIC
     src/ManifestLoader.cpp
     src/GeneralStateTestLoader.cpp
@@ -19,6 +25,8 @@ target_include_directories(bcos-evm-reference-tests-core PUBLIC
 
 target_compile_definitions(bcos-evm-reference-tests-core PUBLIC
     EVM_REFERENCE_TESTS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    EVM_REFERENCE_TESTS_ETHEREUM_TESTS_ROOT="${EVM_REF_ETHEREUM_TESTS_ROOT}"
+    EVM_REFERENCE_TESTS_EEST_ROOT="${EVM_REF_EEST_ROOT}"
 )
 
 target_link_libraries(bcos-evm-reference-tests-core PUBLIC
@@ -74,7 +82,7 @@ target_compile_definitions(EthGSTSmoke PRIVATE
 )
 add_test(NAME EthGSTSmoke COMMAND EthGSTSmoke
     --manifest ${CMAKE_CURRENT_SOURCE_DIR}/manifests/eth-gst-prague-smoke.json
-    --ethereum-tests-root ${CMAKE_CURRENT_SOURCE_DIR}/assets/ethereum-tests
+    --ethereum-tests-root ${EVM_REF_ETHEREUM_TESTS_ROOT}
     --expectations ${CMAKE_CURRENT_SOURCE_DIR}/manifests/expectations.json
 )
 set_tests_properties(EthGSTSmoke PROPERTIES
@@ -88,7 +96,7 @@ target_compile_definitions(EthGSTOsakaSmoke PRIVATE
 )
 add_test(NAME EthGSTOsakaSmoke COMMAND EthGSTOsakaSmoke
     --manifest ${CMAKE_CURRENT_SOURCE_DIR}/manifests/eth-gst-osaka-smoke.json
-    --ethereum-tests-root ${CMAKE_CURRENT_SOURCE_DIR}/assets/ethereum-tests
+    --ethereum-tests-root ${EVM_REF_ETHEREUM_TESTS_ROOT}
     --expectations ${CMAKE_CURRENT_SOURCE_DIR}/manifests/expectations.json
 )
 set_tests_properties(EthGSTOsakaSmoke PROPERTIES
@@ -101,7 +109,7 @@ target_compile_definitions(EthGSTFull PRIVATE
     EVM_REFERENCE_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
 )
 add_test(NAME EthGSTFull COMMAND EthGSTFull
-    --ethereum-tests-root ${CMAKE_CURRENT_SOURCE_DIR}/assets/ethereum-tests
+    --ethereum-tests-root ${EVM_REF_ETHEREUM_TESTS_ROOT}
     --expectations ${CMAKE_CURRENT_SOURCE_DIR}/manifests/expectations.json
     --fork-profiles eth-prague,eth-osaka
     --case-prefix GeneralStateTests/stExample
@@ -111,78 +119,60 @@ set_tests_properties(EthGSTFull PROPERTIES
     LABELS "evm-reference-tests;evm-reference-tests-full;eth-kernel"
 )
 
+set(EEST_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/manifests)
+
 add_executable(EthExecutionSpecStateTests runners/EthExecutionSpecStateTests.cpp)
 target_link_libraries(EthExecutionSpecStateTests PRIVATE bcos-evm-reference-tests-eth)
 target_compile_definitions(EthExecutionSpecStateTests PRIVATE
     EVM_REFERENCE_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
 )
-set(EEST_FIXTURES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest/fixtures/state_tests)
-set(EEST_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/manifests)
-set(EEST_ASSETS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest)
-
 add_test(NAME EthExecutionSpecStateTests COMMAND EthExecutionSpecStateTests
     --manifest ${EEST_MANIFEST_DIR}/eth-eest-state-smoke.json
-    --eest-root ${EEST_ASSETS_ROOT}
+    --eest-root ${EVM_REF_EEST_ROOT}
     --expectations ${EEST_MANIFEST_DIR}/expectations.json
 )
 set_tests_properties(EthExecutionSpecStateTests PROPERTIES
     LABELS "evm-reference-tests;evm-reference-tests-smoke;eth-kernel;eest"
 )
-if(NOT EXISTS "${EEST_FIXTURES_ROOT}")
-    set_tests_properties(EthExecutionSpecStateTests PROPERTIES DISABLED TRUE)
-endif()
 
 add_test(NAME EthExecutionSpecStateTestsFull COMMAND EthExecutionSpecStateTests
     --manifest ${EEST_MANIFEST_DIR}/eth-eest-state-full.json
-    --eest-root ${EEST_ASSETS_ROOT}
+    --eest-root ${EVM_REF_EEST_ROOT}
     --expectations ${EEST_MANIFEST_DIR}/expectations.json
 )
 set_tests_properties(EthExecutionSpecStateTestsFull PROPERTIES
     LABELS "evm-reference-tests;evm-reference-tests-full;eth-kernel;eest"
 )
-if(NOT EXISTS "${EEST_FIXTURES_ROOT}")
-    set_tests_properties(EthExecutionSpecStateTestsFull PROPERTIES DISABLED TRUE)
-endif()
 
 add_test(NAME EthExecutionSpec1559GaspriceProbe COMMAND EthExecutionSpecStateTests
     --manifest ${EEST_MANIFEST_DIR}/eth-eest-1559-gasprice-probe.json
-    --eest-root ${EEST_ASSETS_ROOT}
+    --eest-root ${EVM_REF_EEST_ROOT}
     --expectations ${EEST_MANIFEST_DIR}/expectations.json
 )
 set_tests_properties(EthExecutionSpec1559GaspriceProbe PROPERTIES
     LABELS "evm-reference-tests;evm-reference-tests-smoke;eth-kernel;eest;1559-gasprice"
 )
-if(NOT EXISTS "${EEST_FIXTURES_ROOT}")
-    set_tests_properties(EthExecutionSpec1559GaspriceProbe PROPERTIES DISABLED TRUE)
-endif()
 
 add_executable(EthExecutionSpecTransactionTests runners/EthExecutionSpecTransactionTests.cpp)
 target_link_libraries(EthExecutionSpecTransactionTests PRIVATE bcos-evm-reference-tests-core)
 target_compile_definitions(EthExecutionSpecTransactionTests PRIVATE
     EVM_REFERENCE_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
 )
-set(EEST_TX_FIXTURES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/assets/eest/fixtures/transaction_tests)
 add_test(NAME EthExecutionSpecTransactionTests COMMAND EthExecutionSpecTransactionTests
     --manifest ${EEST_MANIFEST_DIR}/eth-eest-tx-smoke.json
-    --eest-root ${EEST_ASSETS_ROOT}
+    --eest-root ${EVM_REF_EEST_ROOT}
 )
 set_tests_properties(EthExecutionSpecTransactionTests PROPERTIES
     LABELS "evm-reference-tests;evm-reference-tests-smoke;eth-kernel;eest"
 )
-if(NOT EXISTS "${EEST_TX_FIXTURES_ROOT}")
-    set_tests_properties(EthExecutionSpecTransactionTests PROPERTIES DISABLED TRUE)
-endif()
 
 add_test(NAME EthExecutionSpecTransactionTestsFull COMMAND EthExecutionSpecTransactionTests
     --manifest ${EEST_MANIFEST_DIR}/eth-eest-tx-full.json
-    --eest-root ${EEST_ASSETS_ROOT}
+    --eest-root ${EVM_REF_EEST_ROOT}
 )
 set_tests_properties(EthExecutionSpecTransactionTestsFull PROPERTIES
     LABELS "evm-reference-tests;evm-reference-tests-full;eth-kernel;eest"
 )
-if(NOT EXISTS "${EEST_TX_FIXTURES_ROOT}")
-    set_tests_properties(EthExecutionSpecTransactionTestsFull PROPERTIES DISABLED TRUE)
-endif()
 
 add_test(
     NAME ManifestLint

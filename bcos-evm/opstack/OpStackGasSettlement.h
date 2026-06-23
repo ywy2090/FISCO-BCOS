@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include <algorithm>
 #include <cstdint>
 
@@ -23,26 +24,11 @@ inline GasSettlement postExecuteGasSettlement(
     auto const peakGasUsed = gasLimit - settlement.gasLeft;
     settlement.refund = std::min(stateRefund, peakGasUsed / 5);
 
-    settlement.gasRemaining = settlement.gasLeft + settlement.refund;
-    if (settlement.gasRemaining > gasLimit)
-    {
-        settlement.gasRemaining = gasLimit;
-    }
-
-    settlement.gasUsed = gasLimit - settlement.gasRemaining;
-    settlement.maxUsedGas = peakGasUsed;
-
-    if (floorDataGas > 0 && settlement.gasUsed < floorDataGas)
-    {
-        auto const floorUsed = std::min(floorDataGas, gasLimit);
-        settlement.gasUsed = floorUsed;
-        settlement.gasRemaining = gasLimit - floorUsed;
-        settlement.maxUsedGas = std::max(settlement.maxUsedGas, floorUsed);
-    }
-    else
-    {
-        settlement.maxUsedGas = std::max(settlement.maxUsedGas, floorDataGas);
-    }
+    settlement.gasUsed = gas::settleTopLevelTransactionGas(static_cast<int64_t>(gasLimit),
+        static_cast<int64_t>(gasLeft), static_cast<int64_t>(stateRefund),
+        static_cast<int64_t>(floorDataGas));
+    settlement.gasRemaining = gasLimit - settlement.gasUsed;
+    settlement.maxUsedGas = std::max(peakGasUsed, settlement.gasUsed);
 
     return settlement;
 }

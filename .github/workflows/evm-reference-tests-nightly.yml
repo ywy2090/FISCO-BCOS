@@ -14,10 +14,6 @@ jobs:
           submodules: recursive
       - name: Initialize vcpkg submodule
         run: git submodule update --init --recursive -- vcpkg
-      - name: Initialize ethereum/tests submodule
-        run: git submodule update --init --depth 1 bcos-evm/evm-reference-tests/assets/ethereum-tests
-      - name: Fetch EEST fixtures
-        run: bash bcos-evm/evm-reference-tests/tools/fetch_eest_assets.sh
       - uses: lukka/get-cmake@latest
         with:
           cmakeVersion: 3.28.3

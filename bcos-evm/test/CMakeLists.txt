@@ -1209,6 +1209,26 @@ target_include_directories(Eip1153TransientStorageTest PRIVATE
 target_link_libraries(Eip1153TransientStorageTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip1153TransientStorage COMMAND Eip1153TransientStorageTest)
 
+set(PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME PrecompileRouterPrecedenceTest)
+
+add_executable(${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME}
+    eth/PrecompileRouterPrecedenceTest.cpp
+)
+
+target_include_directories(${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
+)
+
+add_test(
+    NAME PrecompileRouterPrecedence
+    COMMAND ${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME}
+)
+
 set(PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME PrecompileRouterCharacterizationTest)
 
 add_executable(${PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME}

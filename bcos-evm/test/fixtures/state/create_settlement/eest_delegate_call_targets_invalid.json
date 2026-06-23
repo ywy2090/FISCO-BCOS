@@ -1,0 +1,39 @@
+{
+  "name": "eest_delegate_call_targets_INVALID",
+  "source": "eest/state_tests/prague/eip7702_set_code_tx/test_delegate_call_targets.json::call_from_initcode_True-delegate_False-target_account_type_LEGACY_CONTRACT_INVALID",
+  "revision": "prague",
+  "tx": {
+    "from": "0xe3899ba06f7e94c50c4c1b259ff77eba43a02c53",
+    "gas_limit": 4000000,
+    "gas_price": "0x0",
+    "value": "0x0",
+    "nonce": 0,
+    "data": "0x6000600060006000738fc97e1e2f3f5756884e4d0257b79ca0f6250e105af460025561201560015560006000f3"
+  },
+  "block": {
+    "number": 1,
+    "timestamp": 1000,
+    "gas_limit": 90000000,
+    "coinbase": "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
+    "base_fee": "0x0",
+    "chain_id": "0x1"
+  },
+  "pre": [
+    {
+      "address": "0xe3899ba06f7e94c50c4c1b259ff77eba43a02c53",
+      "balance": "0x3635c9adc5dea00000",
+      "nonce": 0,
+      "code": "0x"
+    },
+    {
+      "address": "0x8fc97e1e2f3f5756884e4d0257b79ca0f6250e10",
+      "balance": "0x0",
+      "nonce": 1,
+      "code": "0xfe"
+    }
+  ],
+  "expected": {
+    "status": "EVMC_SUCCESS",
+    "settled_gas_used": 3962695
+  }
+}

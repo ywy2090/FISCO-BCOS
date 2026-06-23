@@ -1,6 +1,3 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/microsoft/vcpkg
-[submodule "bcos-evm/evm-reference-tests/assets/ethereum-tests"]
-	path = bcos-evm/evm-reference-tests/assets/ethereum-tests
-	url = https://github.com/ethereum/tests

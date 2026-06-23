@@ -1,0 +1,33 @@
+{
+  "name": "stCreate_initCode_settled",
+  "source": "hand-crafted/GeneralStateTests/stCreate + eip7623 web3 settlement",
+  "revision": "prague",
+  "tx": {
+    "from": "0x0000000000000000000000000000000000000001",
+    "gas_limit": 100000,
+    "gas_price": "0x0",
+    "value": "0x0",
+    "nonce": 1,
+    "data": "0x602a60005260206000f3"
+  },
+  "block": {
+    "number": 1,
+    "timestamp": 1,
+    "gas_limit": 30000000,
+    "coinbase": "0x00000000000000000000000000000000000000cb",
+    "base_fee": "0x0",
+    "chain_id": "0x1"
+  },
+  "pre": [
+    {
+      "address": "0x0000000000000000000000000000000000000001",
+      "balance": "0x3635c9adc5dea00000",
+      "nonce": 1,
+      "code": "0x"
+    }
+  ],
+  "expected": {
+    "status": "EVMC_SUCCESS",
+    "settled_gas_used": 59556
+  }
+}
