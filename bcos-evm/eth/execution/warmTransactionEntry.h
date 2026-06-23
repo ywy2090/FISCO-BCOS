@@ -52,7 +52,6 @@ inline void warmTransactionEntry(state::State& state, evmc_revision rev,
     const Eip2930AccessList* accessList = nullptr, uint8_t web3TypedTxKind = 0,
     std::optional<evmc_address> createCodeAddress = std::nullopt)
 {
-    static_cast<void>(web3TypedTxKind);
     if (!warmAccess)
     {
         return;
@@ -83,6 +82,13 @@ inline void warmTransactionEntry(state::State& state, evmc_revision rev,
     }
 
     if (accessList == nullptr || accessList->empty())
+    {
+        return;
+    }
+
+    // Legacy Web3 txs (kind 0) must not apply EIP-2930 access-list warming even if a list is
+    // attached to CallParameters (TE compat: TE_FC_A_eip2930_legacy_kind_ignores_access_list).
+    if (web3TypedTxKind == 0)
     {
         return;
     }

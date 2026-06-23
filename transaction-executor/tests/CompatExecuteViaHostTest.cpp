@@ -1623,6 +1623,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_A_warmset_checkpoint_off_nested_call)
     features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
     features.set(bcos::ledger::Features::Flag::feature_evm_cancun);
     features.set(bcos::ledger::Features::Flag::feature_evm_prague);
+    features.set(bcos::ledger::Features::Flag::feature_evm_eip2929);
 
     evmc_address origin{};
     origin.bytes[19] = 0x71;

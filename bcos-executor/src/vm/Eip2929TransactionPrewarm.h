@@ -61,7 +61,7 @@ void warmEip2929AtTransactionEntry(
         (void)state.warmUpAddressNoJournal(*input.createCodeAddress);
     }
 
-    if (input.accessList != nullptr && !input.accessList->empty())
+    if (input.accessList != nullptr && !input.accessList->empty() && input.web3TypedTxKind != 0)
     {
         state.warmUpAccessList(*input.accessList, std::forward<AddrConverter>(toAddr));
     }
@@ -69,10 +69,10 @@ void warmEip2929AtTransactionEntry(
 
 /// Warm only EIP-2930/1559/4844 access-list entries (W2).
 template <typename AddrConverter>
-void warmEip2930AccessListOnly(Eip2929AccessState& state, uint8_t /*web3TypedTxKind*/,
+void warmEip2930AccessListOnly(Eip2929AccessState& state, uint8_t web3TypedTxKind,
     Eip2930AccessList const& accessList, AddrConverter&& toAddr)
 {
-    if (accessList.empty())
+    if (accessList.empty() || web3TypedTxKind == 0)
     {
         return;
     }

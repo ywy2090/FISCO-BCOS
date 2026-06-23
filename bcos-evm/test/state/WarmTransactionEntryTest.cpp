@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
     BOOST_CHECK(state.is_storage_warm(evmcAccessAddress, toEvmcBytes32(keyB)));
 }
 
-BOOST_AUTO_TEST_CASE(warms_access_list_when_legacy_kind_zero)
+BOOST_AUTO_TEST_CASE(legacy_kind_zero_ignores_access_list)
 {
     InMemoryStateView view;
     State state(view);
@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(warms_access_list_when_legacy_kind_zero)
         state, EVMC_SHANGHAI, tx, block, props, true, &accessList, /*web3TypedTxKind=*/0);
 
     auto const evmcAccessAddress = evmcAddressFromLastByte(0x41);
-    BOOST_CHECK(state.is_address_warm(evmcAccessAddress));
+    BOOST_CHECK(!state.is_address_warm(evmcAccessAddress));
 }
 
 BOOST_AUTO_TEST_CASE(builds_block_info_with_expected_fields)
