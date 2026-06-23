@@ -1,7 +1,7 @@
 # ETH Kernel Capability Matrix
 
 **Status:** Normative (Phase 1 audit complete — 2026-06-20; Phase 2–3 partial on `feat-evm-refactor`)  
-**ADRs:** ADR-001–016 under `bcos-evm/docs/adr/`
+**ADRs:** ADR-001–017 under `bcos-evm/docs/adr/`
 
 Row granularity rules: see ADR-003 (one row = one independently testable sub-capability on one layer; no rollup rows).
 
@@ -62,6 +62,7 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 | EIP-4844 blob orchestration | orchestration | unsupported (no blob precheck on reference path) | unsupported (no blob tx on BCOS TE) | explicit (`OpStackPreCheck` blob fields) | `BlobGasBalanceTest`, `OpStackPreCheck4844Test`, `BlockGasPoolTest`, `TestOpStackTransactionExecutorFixture::second_transaction_rejected_when_block_gas_exhausted` |
 | builtin precompiles (0x01–0x11) | kernel | inherited (`PrecompileActive.h`: 0x01–0x0a always; 0x0b–0x11 at PRAGUE+) | inherited (same revision gate via shared kernel) | inherited (same revision gate via shared kernel) | `stPrecompile_*` fixtures, `ExecuteViaHostImportedFixtureTest`, `EipPrecompileRevisionGateTest`, `BcosPrecompileRevisionGateTest`, `PrecompileRouterEquivalenceTest` |
 | chain precompile routing | host extension | inherited (`tryChainPrecompile` default nullopt) | deviation (FISCO precedence; empty-code CALL semantics differ) | deviation (`OpHostExtension` L1Block predeploy: full `IL1Block` getter/setter Isthmus surface; no GPO `0x4200…000F`, `setFeature`, `proxyAdmin*`) | `FiscoHostExtensionTest`, `L1BlockPredeployTest`, `L1BlockGetterTest`, `PrecompileRouterPrecedenceTest` |
+| FISCO chain precompile dispatch via Port | orchestration | unsupported | explicit (`ExecuteViaHost` injects `ChainPrecompilePort` / `AuthPort` and dispatches in TE adapters) | unsupported | `CompatExecuteViaHost*` |
 | OPStack deposit tx | orchestration | unsupported | unsupported | explicit (OPStack-only orchestration) | `DepositTxPreCheckTest`, `DepositMintTest`, `DepositCreateNonceTest` |
 | L1 attributes system deposit | orchestration | unsupported | unsupported | explicit (Isthmus deposit → `setL1BlockValuesIsthmus` on L1Block predeploy) | `L1AttributesDepositTest`, `L1AttributesDepositFailureTest` |
 | OPStack operator fee (Isthmus) | orchestration | unsupported | unsupported | explicit (`operatorCostIsthmus` + `refundIsthmusOperatorCost`; `OpStackForkSchedule` + `wireOperatorCostFuncWithState`) | `RefundIsthmusTest`, `OpStackExecuteViaHostSmokeTest` |
