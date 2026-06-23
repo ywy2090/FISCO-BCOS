@@ -1,4 +1,4 @@
-#include "bcos-evm/bcos/PrecompiledEntry.h"
+#include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledEntry.h"
 #include "bcos-executor/src/vm/Precompiled.h"
 
 bcos::evm::Precompiled::Precompiled(decltype(m_precompiled) precompiled)
