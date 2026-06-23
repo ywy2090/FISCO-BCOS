@@ -3,6 +3,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-protocol/TransactionStatus.h"
+#include "bcos/adapters/InMemoryAuthAdapter.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -49,12 +50,13 @@ BOOST_AUTO_TEST_CASE(auth_checker_hook_short_circuits_before_executeMessage)
     input.hashImpl = &hash;
     input.message = message;
     input.revisionConfig.enable_auth_check = true;
-    input.authChecker = [](evmc_message const&) -> std::optional<EVMCResult> {
+    InMemoryAuthAdapter authPort([](evmc_message const&) -> std::optional<EVMCResult> {
         evmc_result fail{};
         fail.status_code = EVMC_REJECTED;
         fail.gas_left = 0;
         return EVMCResult(fail, protocol::TransactionStatus::PermissionDenied);
-    };
+    });
+    input.authPort = &authPort;
 
     auto output = task::syncWait(executeViaHost(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REJECTED);

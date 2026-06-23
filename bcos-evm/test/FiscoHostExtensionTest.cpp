@@ -18,6 +18,8 @@
 #include "bcos-evm/bcos/FiscoHostExtension.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos/adapters/InMemoryAuthAdapter.h"
+#include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -80,7 +82,7 @@ BOOST_AUTO_TEST_SUITE(FiscoHostExtensionTest)
 
 BOOST_AUTO_TEST_CASE(default_policy_matches_fisco_rules)
 {
-    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true);
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, {});
 
     BOOST_CHECK(!ext.allowSelfdestruct(state::Account{}));
     BOOST_CHECK(!ext.allowDelegateCallToPrecompile());
@@ -98,7 +100,10 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_uses_callback_for_0x1000_plus)
         result.gas_left = message.gas - 123;
         return result;
     };
-    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, {}, callback);
+    InMemoryChainPrecompileAdapter chainPrecompilePort(callback);
+    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    deps.chainPrecompilePort = &chainPrecompilePort;
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -122,7 +127,10 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_returns_nullopt_for_below_0x1000)
         called = true;
         return evmc_result{};
     };
-    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, {}, callback);
+    InMemoryChainPrecompileAdapter chainPrecompilePort(callback);
+    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    deps.chainPrecompilePort = &chainPrecompilePort;
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -158,10 +166,12 @@ BOOST_AUTO_TEST_CASE(dynamic_precompile_marker_is_resolved_in_host_extension)
         result.gas_left = message.gas;
         return result;
     };
+    InMemoryChainPrecompileAdapter chainPrecompilePort(callback);
 
     FiscoHostExtension::FiscoHostExtensionDeps deps;
     deps.state = &state;
-    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, std::move(deps), callback);
+    deps.chainPrecompilePort = &chainPrecompilePort;
+    FiscoHostExtension ext(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -188,11 +198,12 @@ BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_ru
     deps.blockNumber = 1;
     deps.revisionFlags.fix_auth_check = true;
     deps.revisionFlags.use_raw_address = true;
-    deps.createAuthTableInvoker = [&createAuthTableCalled, &capturedAuthTablePath](
-                                      const evmc_message& /*msg*/, std::string_view tablePath) {
+    InMemoryAuthAdapter authPort({}, [&createAuthTableCalled, &capturedAuthTablePath](
+                                         const evmc_message& /*msg*/, std::string_view tablePath) {
         createAuthTableCalled = true;
         capturedAuthTablePath = std::string(tablePath);
-    };
+    });
+    deps.authPort = &authPort;
 
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     evmc::VM vm{evmc_create_evmone()};
@@ -257,11 +268,12 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
     deps.state = &state;
     deps.blockNumber = 1;
     deps.revisionFlags.fix_nonce_init = true;
-    deps.createAuthTableInvoker = [&state, &createAuthTableCalled, markerKey, markerValue](
-                                      const evmc_message& msg, std::string_view /*tablePath*/) {
+    InMemoryAuthAdapter authPort({}, [&state, &createAuthTableCalled, markerKey, markerValue](
+                                         const evmc_message& msg, std::string_view /*tablePath*/) {
         createAuthTableCalled = true;
         state.set_storage(msg.code_address, markerKey, markerValue);
-    };
+    });
+    deps.authPort = &authPort;
     FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc::VM vm{evmc_create_evmone()};
