@@ -10,6 +10,7 @@
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/test/bcos/adapters/InMemoryAuthAdapter.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -98,12 +99,13 @@ BOOST_AUTO_TEST_CASE(auth_fail_path_returns_checker_result)
         bcos::crypto::Keccak256 hashImpl;
         evmc::VM vm{evmc_create_evmone()};
         auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
-        input.authChecker = [&hashImpl](
-                                const evmc_message&) -> std::optional<bcos::evm::EVMCResult> {
-            return bcos::evm::makeErrorEVMCResult(hashImpl,
-                bcos::protocol::TransactionStatus::RevertInstruction, EVMC_REVERT, 0, "auth denied",
-                true);
-        };
+        bcos::evm::test::InMemoryAuthAdapter authAdapter{
+            [&hashImpl](const evmc_message&) -> std::optional<bcos::evm::EVMCResult> {
+                return bcos::evm::makeErrorEVMCResult(hashImpl,
+                    bcos::protocol::TransactionStatus::RevertInstruction, EVMC_REVERT, 0,
+                    "auth denied", true);
+            }};
+        input.authPort = &authAdapter;
         return bcos::task::syncWait(bcos::evm::executeViaHost(std::move(input)));
     };
 

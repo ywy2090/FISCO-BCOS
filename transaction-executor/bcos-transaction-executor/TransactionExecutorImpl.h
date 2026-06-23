@@ -1,14 +1,18 @@
 #pragma once
 
 #include "RollbackableStorage.h"
-#include "bcos-evm/bcos/AuthCheck.h"
+#include "adapters/AuthCheck.h"
+#include "adapters/ExecutorAuthAdapter.h"
+#include "adapters/ExecutorPrecompileAdapter.h"
+#include "adapters/ExecutorSessionContext.h"
+#include "adapters/PrecompiledImpl.h"
+#include "adapters/PrecompiledManager.h"
 #include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxExecutor.h"
-#include "bcos-evm/bcos/PrecompiledImpl.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
@@ -21,7 +25,6 @@
 #include "bcos-task/Wait.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Exceptions.h"
-#include "precompiled/PrecompiledManager.h"
 #include <evmc/evmc.h>
 #include <evmone/evmone.h>
 #include <boost/algorithm/hex.hpp>
@@ -297,42 +300,17 @@ public:
                 *m_data->m_executor.get().m_hashImpl);
             input.stateView = std::addressof(stateView);
 
-            input.authChecker = [this](const evmc_message& msg) -> std::optional<EVMCResult> {
-                return checkAuth(m_data->m_rollbackableStorage, m_data->m_blockHeader.get(), msg,
-                    m_data->m_origin, m_data->m_executor.get().m_precompiledManager.get(),
-                    m_data->m_contextID, m_data->m_seq, *m_data->m_executor.get().m_hashImpl,
-                    m_data->m_executionContext.revisionConfig.fix_auth_check);
-            };
-            input.precompileCaller = [this](evmc_revision rev,
-                                         const evmc_message& msg) -> std::optional<evmc_result> {
-                auto const* precompiled =
-                    m_data->m_executor.get().m_precompiledManager.get().getPrecompiled(
-                        msg.recipient, m_data->m_executionContext.revisionConfig,
-                        m_data->m_ledgerConfig.get().features());
-                if (precompiled == nullptr)
-                {
-                    return std::nullopt;
-                }
+            transaction_executor::ExecutorSessionContext sessionCtx{m_data->m_rollbackableStorage,
+                m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get(), m_data->m_origin,
+                m_data->m_contextID, m_data->m_seq, m_data->m_executionContext.revisionConfig,
+                *m_data->m_executor.get().m_hashImpl,
+                m_data->m_executor.get().m_precompiledManager.get()};
 
-                auto result = callPrecompiled(*precompiled, m_data->m_rollbackableStorage,
-                    m_data->m_blockHeader.get(), msg, m_data->m_origin, noOpExternalCaller(),
-                    m_data->m_executor.get().m_precompiledManager.get(), m_data->m_contextID,
-                    m_data->m_seq, m_data->m_executionContext.revisionConfig.enable_auth_check,
-                    m_data->m_executionContext.revisionConfig.eth(), rev,
-                    m_data->m_executionContext.revisionConfig.fix_error_handling);
-                evmc_result raw = result;
-                result.output_data = nullptr;
-                result.output_size = 0;
-                result.release = nullptr;
-                return raw;
-            };
-            input.createAuthTableInvoker = [this](const evmc_message& msg,
-                                               std::string_view tableName) {
-                task::syncWait(createAuthTable(m_data->m_rollbackableStorage,
-                    m_data->m_blockHeader.get(), msg, m_data->m_origin, tableName,
-                    noOpExternalCaller(), m_data->m_executor.get().m_precompiledManager.get(),
-                    m_data->m_contextID, m_data->m_seq, m_data->m_ledgerConfig.get()));
-            };
+            transaction_executor::ExecutorAuthAdapter authAdapter{sessionCtx};
+            transaction_executor::ExecutorPrecompileAdapter precompileAdapter{sessionCtx};
+
+            input.authPort = &authAdapter;
+            input.chainPrecompilePort = &precompileAdapter;
 
             co_return co_await executeViaHost(std::move(input));
         }
