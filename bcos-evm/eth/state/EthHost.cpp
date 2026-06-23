@@ -20,8 +20,8 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
+#include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/CreateExecution.h"
-#include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
 #include <array>
@@ -265,27 +265,22 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     auto& callMessage = routed.message;
     auto const callerAddress = resolveCallerAddress(callMessage);
 
-    if (m_extension != nullptr)
-    {
-        if (auto precompiled =
-                m_extension->tryChainPrecompile(m_revisionConfig.revision, callMessage))
-        {
-            return Result(*precompiled);
-        }
-    }
-
     if (callMessage.kind == EVMC_DELEGATECALL && routed.hasPrecompileTarget &&
         m_extension != nullptr && !m_extension->allowDelegateCallToPrecompile())
     {
         return makeResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas);
     }
 
-    if (routed.hasPrecompileTarget)
+    if (!isCreateKind(callMessage.kind))
     {
-        if (auto precompiled = EthPrecompiles::tryDispatchInCall(
-                routed.precompileTarget, callMessage, m_revisionConfig.revision, m_revisionConfig))
+        bool const skipVt = m_extension != nullptr && m_extension->skipHostValueTransfer();
+        auto const target = isZeroAddress(callMessage.code_address) ? callMessage.recipient :
+                                                                      callMessage.code_address;
+        auto out = precompiled::dispatchPrecompile(
+            {m_state, m_revisionConfig, m_extension, callMessage, target, skipVt});
+        if (out.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
         {
-            return std::move(*precompiled);
+            return Result(std::move(out.result));
         }
     }
 

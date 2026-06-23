@@ -69,10 +69,10 @@ constexpr evmc_status_code kC5Depth0Status = EVMC_SUCCESS;
 constexpr int64_t kC5Depth0GasLeft = 499'982;
 constexpr uint64_t kC5Depth0RecipientBalance = 100;
 
-// BASELINE(pre-router): C5 CALL + value → identity 0x04 — depth=1
+// BASELINE(router): C5 CALL + value → identity 0x04 — depth=1
 constexpr evmc_status_code kC5Depth1Status = EVMC_SUCCESS;
 constexpr int64_t kC5Depth1GasLeft = 499'982;
-constexpr uint64_t kC5Depth1RecipientBalance = 0;
+constexpr uint64_t kC5Depth1RecipientBalance = 100;
 
 // BASELINE(pre-router): C6 BLS 0x0b at CANCUN (inactive) — depth=0
 constexpr evmc_status_code kC6Depth0Status = EVMC_SUCCESS;

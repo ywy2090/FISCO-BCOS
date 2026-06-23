@@ -247,6 +247,7 @@ set(NESTED_CALL_HOST_TEST_BINARY_NAME NestedCallHostTest)
 add_executable(${NESTED_CALL_HOST_TEST_BINARY_NAME}
     state/NestedCallHostTest.cpp
     ../eth/executeMessage.cpp
+    ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -255,6 +256,7 @@ add_executable(${NESTED_CALL_HOST_TEST_BINARY_NAME}
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
+    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${NESTED_CALL_HOST_TEST_BINARY_NAME} PRIVATE
@@ -281,6 +283,7 @@ set(PRECOMPILE_IN_CALL_TEST_BINARY_NAME PrecompileInCallTest)
 add_executable(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME}
     state/PrecompileInCallTest.cpp
     ../eth/executeMessage.cpp
+    ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -289,6 +292,7 @@ add_executable(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME}
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
+    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME} PRIVATE
