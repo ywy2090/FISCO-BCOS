@@ -251,7 +251,8 @@ void FiscoHostExtension::setCallerAddress(const evmc_address& caller)
 
 void FiscoHostExtension::bumpContractCreateNonce(const evmc_address& contractAddress)
 {
-    if (m_state == nullptr || state::isZeroAddress(contractAddress))
+    if (m_state == nullptr || state::isZeroAddress(contractAddress) ||
+        !m_persistContractCreateNonce)
     {
         return;
     }
@@ -260,14 +261,7 @@ void FiscoHostExtension::bumpContractCreateNonce(const evmc_address& contractAdd
         (m_ledgerConfig != nullptr &&
             m_ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address)))
     {
-        auto current = m_state->get_nonce(contractAddress);
-        auto const newNonce = current + 1;
-        m_state->set_nonce(contractAddress, newNonce);
-
-        if (m_persistContractCreateNonce)
-        {
-            m_persistContractCreateNonce(contractAddress, newNonce);
-        }
+        m_persistContractCreateNonce(contractAddress, m_state->get_nonce(contractAddress));
     }
 }
 

@@ -255,8 +255,7 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_highIntrinsicRefundSubjectTo3529Cap
     ctx.evmGasRefund = 50'000;
 
     int64_t const executionBurn = ctx.gasBeforeEvm - ctx.evmGasLeft;
-    int64_t const createExtra =
-        (ctx.createTerm > 0 && executionBurn < ctx.createTerm) ? ctx.createTerm - executionBurn : 0;
+    int64_t const createExtra = calcCreateSettlementExtra(ctx, executionBurn);
     int64_t const gasUsedBeforeRefund =
         ctx.fixedIntrinsic + ctx.calldata.normalCost + executionBurn + createExtra;
     int64_t const cap = effectiveRefundEip3529(ctx.evmGasRefund, gasUsedBeforeRefund);
@@ -318,6 +317,35 @@ BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_create_noDoubleCount)
     ctx.evmGasLeft = ctx.gasBeforeEvm - intrinsic.createIntrinsic - extraOpcodeGas;
     BOOST_CHECK_EQUAL(
         finalizeEthereumGasUsed(ctx, 10), intrinsic.gasLimitMinimum() + extraOpcodeGas);
+}
+
+BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_create_executeViaEthSnapshot_eestDelegateInitcode)
+{
+    // EEST call_from_initcode_True / target_account_type_EOA: geth bills 100472 gas.
+    bytes initcode = bcos::fromHex(
+        "600060006000600073eefcbf33fcf3d33024026cc92f002bf519c950ed5af460025561201560015560006000f"
+        "3");
+    evmc_message msg{};
+    msg.kind = EVMC_CREATE;
+    msg.input_data = initcode.data();
+    msg.input_size = initcode.size();
+    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0);
+
+    constexpr int64_t gasLimit = 0x3d0900;
+    constexpr int64_t executionBurn = 46832;
+    TxGasSettlementContext ctx;
+    ctx.gasLimit = gasLimit;
+    ctx.fixedIntrinsic = intrinsic.fixedCost();
+    ctx.calldata.normalCost = intrinsic.normalCalldata;
+    ctx.calldata.floorCost = intrinsic.floorReserve;
+    ctx.calldata.tokenCount = calcEip7623Components(ref(initcode)).tokenCount;
+    ctx.createTerm = intrinsic.createIntrinsic;
+    ctx.gasBeforeEvm = gasLimit - intrinsic.fixedCost() - intrinsic.normalCalldata;
+    ctx.evmGasLeft = ctx.gasBeforeEvm - executionBurn;
+    ctx.evmGasRefund = 0;
+
+    BOOST_CHECK_EQUAL(intrinsic.createIntrinsic, CREATE_BASE_GAS + INITCODE_WORD_GAS * 2);
+    BOOST_CHECK_EQUAL(finalizeEthereumGasUsed(ctx, 10), 100472);
 }
 
 BOOST_AUTO_TEST_CASE(FinalizeEthereumGasUsed_postEvmOOG_chargesFullGasLimit)

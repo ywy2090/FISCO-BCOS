@@ -123,14 +123,29 @@ inline int64_t effectiveRefundEip3529(int64_t evmGasRefund, int64_t gasUsedBefor
     return std::min(evmGasRefund, gasUsedBeforeRefund / 5);
 }
 
+/// CREATE settlement: ExecuteViaEth debits 21000 + normal calldata before EVM, not createTerm.
+/// geth IntrinsicGas uses TxGasContractCreation (53000) which includes the 32000 create surcharge.
+/// When gasBeforeEvm is the full post-partial-intrinsic pool, add createTerm; unit-test pools sized
+/// to createTerm-only keep legacy createExtra top-up when executionBurn < createTerm.
+inline int64_t calcCreateSettlementExtra(
+    TxGasSettlementContext const& ctx, int64_t executionBurn) noexcept
+{
+    if (ctx.createTerm <= 0)
+    {
+        return 0;
+    }
+    if (ctx.gasBeforeEvm <= ctx.createTerm)
+    {
+        return executionBurn < ctx.createTerm ? ctx.createTerm - executionBurn : 0;
+    }
+    return ctx.createTerm;
+}
+
 inline int64_t finalizeEthereumGasUsed(
     TxGasSettlementContext const& ctx, uint8_t calldataFloorPerToken) noexcept
 {
     int64_t const executionBurn = ctx.gasBeforeEvm - ctx.evmGasLeft;
-    // CREATE intrinsic is debited inside evmone from gasBeforeEvm when execution runs; when
-    // executionBurn already covers createTerm, do not add it again (avoids double-count).
-    int64_t const createExtra =
-        (ctx.createTerm > 0 && executionBurn < ctx.createTerm) ? ctx.createTerm - executionBurn : 0;
+    int64_t const createExtra = calcCreateSettlementExtra(ctx, executionBurn);
     // Snapshot is taken after normal calldata pre-debit and 21000 base; executionBurn is EVM-only.
     int64_t const gasUsedBeforeRefund = ctx.fixedIntrinsic + ctx.calldata.normalCost +
                                         ctx.authIntrinsic + executionBurn + createExtra;

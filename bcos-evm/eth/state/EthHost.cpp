@@ -20,6 +20,7 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
+#include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
 #include <algorithm>
@@ -128,7 +129,8 @@ evmc_storage_status EthHost::set_storage(
     auto const current = m_state.get_storage(addr, key);
     if (Bytes32Equal{}(current, value))
     {
-        return classifyStorageStatus(original, value, m_fixStorageStatus);
+        // Unchanged slot: evmone keeps ASSIGNED (100 gas) even when original was zero.
+        return EVMC_STORAGE_ASSIGNED;
     }
     if (m_fixStorageStatus)
     {
@@ -136,7 +138,7 @@ evmc_storage_status EthHost::set_storage(
     }
 
     m_state.set_storage(addr, key, value);
-    auto const status = classifyStorageStatus(original, value, m_fixStorageStatus);
+    auto const status = classifyStorageStatus(original, current, value, m_fixStorageStatus);
     if (!m_fixStorageStatus && status == EVMC_STORAGE_DELETED)
     {
         m_state.add_refund(kSstoreClearsScheduleRefundEip3529);
@@ -203,9 +205,31 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     }
 
     auto const balance = m_state.get_balance(addr);
+    auto const selfBeneficiary =
+        std::memcmp(addr.bytes, beneficiary.bytes, sizeof(addr.bytes)) == 0;
+
+    if (m_revisionConfig.revision >= EVMC_CANCUN && !wasCreatedInTx(addr))
+    {
+        // EIP-6780: pre-existing accounts are not destroyable; move balance only.
+        // evmone: acc.balance = 0; beneficiary += balance (net unchanged when self-beneficiary).
+        if (balance != 0)
+        {
+            m_state.set_balance(addr, 0);
+            if (selfBeneficiary)
+            {
+                m_state.set_balance(addr, balance);
+            }
+            else
+            {
+                m_state.set_balance(beneficiary, m_state.get_balance(beneficiary) + balance);
+            }
+        }
+        return false;
+    }
+
     if (balance != 0)
     {
-        if (std::memcmp(addr.bytes, beneficiary.bytes, sizeof(addr.bytes)) != 0)
+        if (!selfBeneficiary)
         {
             bcos::evm::transfer(m_state, addr, beneficiary, balance);
         }
@@ -217,11 +241,7 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
 
     if (m_revisionConfig.revision >= EVMC_CANCUN)
     {
-        if (!wasCreatedInTx(addr))
-        {
-            return false;
-        }
-        destroyContractState(addr);
+        m_state.mark_self_destructed(addr);
         return true;
     }
 
@@ -275,79 +295,48 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         m_extension->prepareMessage(m_revisionConfig.revision, callMessage);
     }
 
-    if (!transferValue(callMessage))
-    {
-        return makeResult(EVMC_INSUFFICIENT_BALANCE, 0);
-    }
-
     if (isCreateKind(callMessage.kind))
     {
-        auto createAddr = callMessage.recipient;
-        if (isZeroAddress(createAddr))
-        {
-            createAddr = callMessage.code_address;
-        }
-        if (!isZeroAddress(createAddr))
-        {
-            m_executionAddress = createAddr;
-        }
+        state::bindCreateMessageForInit(*this, callMessage,
+            bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), m_state);
     }
 
-    auto code = resolveExecutionCode(callMessage);
     m_state.checkpoint();
     if (isCreateKind(callMessage.kind))
     {
-        auto createAddr = callMessage.recipient;
-        if (isZeroAddress(createAddr))
-        {
-            createAddr = callMessage.code_address;
-        }
-        if (isZeroAddress(createAddr))
-        {
-            createAddr = predictLegacyCreateAddress(
-                callMessage.sender, m_state.get_nonce(callMessage.sender));
-        }
-        markCreatedInTx(createAddr);
+        state::initializeCreateTargetAccount(m_state, callMessage.recipient,
+            m_revisionConfig.revision, m_revisionConfig.warm_access);
     }
+
+    if (!transferValue(callMessage))
+    {
+        m_state.revert();
+        return makeResult(EVMC_INSUFFICIENT_BALANCE, 0);
+    }
+
+    auto code = resolveExecutionCode(callMessage);
     auto result =
         m_vm.execute(*this, m_revisionConfig.revision, callMessage, code.data(), code.size());
+    if (result.status_code == EVMC_SUCCESS && isCreateKind(callMessage.kind) &&
+        !state::applyCreateCodeDepositGas(
+            const_cast<evmc_result&>(result.raw()), m_revisionConfig.revision))
+    {
+        result = makeResult(result.status_code, result.gas_left);
+    }
     if (result.status_code == EVMC_SUCCESS)
     {
         installCreatedContractCode(m_state, callMessage, result.raw());
         if (isCreateKind(callMessage.kind))
         {
             auto createAddr = callMessage.recipient;
-            if (isZeroAddress(createAddr))
-            {
-                createAddr = callMessage.code_address;
-            }
-            if (isZeroAddress(createAddr))
-            {
-                createAddr = result.raw().create_address;
-            }
             markCreatedInTx(createAddr);
             auto& raw = const_cast<evmc_result&>(result.raw());
             if (state::isZeroAddress(raw.create_address))
             {
-                auto createAddr = callMessage.recipient;
-                if (state::isZeroAddress(createAddr))
-                {
-                    createAddr = callMessage.code_address;
-                }
-                if (!state::isZeroAddress(createAddr))
-                {
-                    raw.create_address = createAddr;
-                }
+                raw.create_address = createAddr;
             }
         }
         m_state.commit();
-        if (isCreateKind(callMessage.kind) && m_extension != nullptr &&
-            !state::isZeroAddress(callerAddress) &&
-            std::memcmp(
-                callerAddress.bytes, m_txContext.tx_origin.bytes, sizeof(callerAddress.bytes)) != 0)
-        {
-            m_extension->bumpContractCreateNonce(callerAddress);
-        }
         if (!isCreateKind(callMessage.kind))
         {
             auto const nextExecution = isZeroAddress(callMessage.code_address) ?
@@ -362,6 +351,16 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     else
     {
         m_state.revert();
+    }
+    if (isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender))
+    {
+        m_state.set_nonce(callMessage.sender, m_state.get_nonce(callMessage.sender) + 1);
+        if (m_extension != nullptr &&
+            std::memcmp(callMessage.sender.bytes, m_txContext.tx_origin.bytes,
+                sizeof(callMessage.sender.bytes)) != 0)
+        {
+            m_extension->bumpContractCreateNonce(callMessage.sender);
+        }
     }
     return result;
 }
@@ -481,25 +480,63 @@ evmc::Result EthHost::makeResult(
     return evmc::Result(result);
 }
 
-evmc_storage_status EthHost::classifyStorageStatus(
-    const evmc_bytes32& oldValue, const evmc_bytes32& newValue, bool fixStorageStatus) noexcept
+evmc_storage_status EthHost::classifyStorageStatus(const evmc_bytes32& oldValue,
+    const evmc_bytes32& currentValue, const evmc_bytes32& newValue, bool fixStorageStatus) noexcept
 {
-    auto const newZero = isZeroBytes32(newValue);
     if (!fixStorageStatus)
     {
-        return newZero ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
+        return isZeroBytes32(newValue) ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
     }
 
-    auto const oldZero = isZeroBytes32(oldValue);
-    if (newZero)
+    // evmone test/state/host.cpp set_storage (EIP-2200 / EIP-3529 status mapping).
+    auto const dirty = !Bytes32Equal{}(oldValue, currentValue);
+    auto const restored = Bytes32Equal{}(oldValue, newValue);
+    auto const currentIsZero = isZeroBytes32(currentValue);
+    auto const valueIsZero = isZeroBytes32(newValue);
+
+    auto status = EVMC_STORAGE_ASSIGNED;
+    if (!dirty && !restored)
     {
-        return oldZero ? EVMC_STORAGE_ASSIGNED : EVMC_STORAGE_DELETED;
+        if (currentIsZero)
+        {
+            status = EVMC_STORAGE_ADDED;
+        }
+        else if (valueIsZero)
+        {
+            status = EVMC_STORAGE_DELETED;
+        }
+        else
+        {
+            status = EVMC_STORAGE_MODIFIED;
+        }
     }
-    if (oldZero)
+    else if (dirty && !restored)
     {
-        return EVMC_STORAGE_ADDED;
+        if (currentIsZero && !valueIsZero)
+        {
+            status = EVMC_STORAGE_DELETED_ADDED;
+        }
+        else if (!currentIsZero && valueIsZero)
+        {
+            status = EVMC_STORAGE_MODIFIED_DELETED;
+        }
     }
-    return EVMC_STORAGE_MODIFIED;
+    else if (dirty && restored)
+    {
+        if (currentIsZero)
+        {
+            status = EVMC_STORAGE_DELETED_RESTORED;
+        }
+        else if (valueIsZero)
+        {
+            status = EVMC_STORAGE_ADDED_DELETED;
+        }
+        else
+        {
+            status = EVMC_STORAGE_MODIFIED_RESTORED;
+        }
+    }
+    return status;
 }
 
 EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
@@ -573,7 +610,16 @@ bcos::bytes EthHost::resolveExecutionCode(const evmc_message& msg) const
             {
                 return {};
             }
-            return m_state.get_code(msg.code_address);
+            auto code = m_state.get_code(msg.code_address);
+            if (m_revisionConfig.eip7702)
+            {
+                if (auto const delegate =
+                        parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
+                {
+                    return m_state.get_code(*delegate);
+                }
+            }
+            return code;
         }
     }
     auto const codeAddress =

@@ -39,5 +39,6 @@ struct Account
     bool balanceDirty{false};
     bool nonceDirty{false};
     bool codeDirty{false};
+    bool selfDestructed{false};
 };
 }  // namespace bcos::evm::state

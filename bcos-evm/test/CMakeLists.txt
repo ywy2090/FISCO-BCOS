@@ -378,6 +378,28 @@ add_test(
     COMMAND ${NESTED_REVERT_WARM_TEST_BINARY_NAME}
 )
 
+set(CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME CreateWarmPinRevertTest)
+
+add_executable(${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME}
+    state/CreateWarmPinRevertTest.cpp
+    ../eth/state/State.cpp
+)
+
+target_include_directories(${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME} PRIVATE
+    evmone::evmone
+    bcos-utilities
+)
+
+add_test(
+    NAME CreateWarmPinRevert
+    COMMAND ${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME}
+)
+
 set(EVMONE_REFUND_SPIKE_TEST_BINARY_NAME EvmoneRefundSpikeTest)
 
 add_executable(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}

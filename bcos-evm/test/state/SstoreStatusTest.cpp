@@ -44,16 +44,16 @@ BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
     };
 
     std::vector<Case> const cases = {
-        // fix_storage_status = ON (4-state)
+        // fix_storage_status = ON (4-state); same-value writes return ASSIGNED.
         {true, true, true, EVMC_STORAGE_ASSIGNED},
         {true, false, true, EVMC_STORAGE_DELETED},
         {true, true, false, EVMC_STORAGE_ADDED},
-        {true, false, false, EVMC_STORAGE_MODIFIED},
+        {true, false, false, EVMC_STORAGE_ASSIGNED},
         // fix_storage_status = OFF (2-state)
-        {false, true, true, EVMC_STORAGE_DELETED},
+        {false, true, true, EVMC_STORAGE_ASSIGNED},
         {false, false, true, EVMC_STORAGE_DELETED},
         {false, true, false, EVMC_STORAGE_MODIFIED},
-        {false, false, false, EVMC_STORAGE_MODIFIED},
+        {false, false, false, EVMC_STORAGE_ASSIGNED},
     };
 
     auto const target = addressFromLastByte(0x33);
@@ -90,6 +90,27 @@ BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
     }
 }
 
+BOOST_AUTO_TEST_CASE(noop_sstore_returns_assigned_when_current_equals_value)
+{
+    auto const target = addressFromLastByte(0x55);
+    auto const key = valueFromLastByte(0x03);
+    auto const one = valueFromLastByte(0x01);
+
+    InMemoryStateView view;
+    Account account;
+    view.insert_account(target, account);
+
+    State state(view);
+    evmc::VM vm{evmc_create_evmone()};
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .warm_access = true};
+    EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr, true);
+
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(host.set_storage(target, key, one)), static_cast<int>(EVMC_STORAGE_ADDED));
+    BOOST_CHECK_EQUAL(static_cast<int>(host.set_storage(target, key, one)),
+        static_cast<int>(EVMC_STORAGE_ASSIGNED));
+}
+
 BOOST_AUTO_TEST_CASE(fix_on_uses_original_committed_value_for_status)
 {
     auto const target = addressFromLastByte(0x44);
@@ -112,7 +133,7 @@ BOOST_AUTO_TEST_CASE(fix_on_uses_original_committed_value_for_status)
     auto const secondStatus = host.set_storage(target, key, secondNonZero);
 
     BOOST_CHECK_EQUAL(static_cast<int>(firstStatus), static_cast<int>(EVMC_STORAGE_ADDED));
-    BOOST_CHECK_EQUAL(static_cast<int>(secondStatus), static_cast<int>(EVMC_STORAGE_ADDED));
+    BOOST_CHECK_EQUAL(static_cast<int>(secondStatus), static_cast<int>(EVMC_STORAGE_ASSIGNED));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

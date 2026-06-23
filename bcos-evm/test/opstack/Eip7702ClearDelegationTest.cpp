@@ -58,5 +58,6 @@ BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
     BOOST_REQUIRE(it != output.stateDiff.accounts.end());
     BOOST_CHECK(it->second.code.empty());
     BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
+    BOOST_CHECK(state::Bytes32Equal{}(it->second.codeHash, state::emptyCodeHash()));
 }
 }  // namespace bcos::evm::test

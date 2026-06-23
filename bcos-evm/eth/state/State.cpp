@@ -58,7 +58,19 @@ bcos::bytes State::get_code(const evmc_address& address) const
 evmc_bytes32 State::get_code_hash(const evmc_address& address) const
 {
     auto const account = find(address);
-    return account.has_value() ? account->codeHash : evmc_bytes32{};
+    if (!account.has_value())
+    {
+        return {};
+    }
+    if (account->code.empty())
+    {
+        return emptyCodeHash();
+    }
+    if (!isZeroBytes32(account->codeHash))
+    {
+        return account->codeHash;
+    }
+    return keccak256Code(bcos::bytesConstRef{account->code.data(), account->code.size()});
 }
 
 evmc_bytes32 State::get_storage(const evmc_address& address, const evmc_bytes32& key) const
@@ -140,6 +152,13 @@ void State::revert()
         case JournalType::WarmStorageInsert:
             m_warmStorage.erase({entry.address, entry.key});
             break;
+        case JournalType::CreateWarmPinInsert:
+            m_pinnedWarmAccounts.erase(entry.address);
+            if (entry.pinInsertedWarm)
+            {
+                m_warmAccounts.erase(entry.address);
+            }
+            break;
         }
     }
 
@@ -173,6 +192,15 @@ void State::push_journal_warm_address(const evmc_address& address)
 void State::push_journal_warm_storage(const evmc_address& address, const evmc_bytes32& key)
 {
     m_journal.push_back(JournalEntry{JournalType::WarmStorageInsert, address, key, std::nullopt});
+}
+
+void State::push_journal_create_warm_pin(const evmc_address& address, bool insertedWarm)
+{
+    JournalEntry entry{};
+    entry.type = JournalType::CreateWarmPinInsert;
+    entry.address = address;
+    entry.pinInsertedWarm = insertedWarm;
+    m_journal.push_back(std::move(entry));
 }
 
 void State::journal_account_once(const evmc_address& address)
@@ -274,8 +302,12 @@ bool State::warm_up_storage_no_journal(const evmc_address& address, const evmc_b
 
 void State::pin_warm_create_address(const evmc_address& address)
 {
+    bool const insertedWarm = m_warmAccounts.insert(address).second;
     m_pinnedWarmAccounts.insert(address);
-    (void)warm_up_address_no_journal(address);
+    if (has_checkpoint())
+    {
+        push_journal_create_warm_pin(address, insertedWarm);
+    }
 }
 
 bool State::is_address_warm(const evmc_address& address) const
@@ -299,6 +331,35 @@ StateDiff State::build_diff() const
         diff.accounts.emplace(address, std::move(persisted));
     }
     return diff;
+}
+
+void State::mark_self_destructed(const evmc_address& address)
+{
+    journal_account_once(address);
+    mutable_account(address).selfDestructed = true;
+}
+
+bool State::has_self_destructed(const evmc_address& address) const
+{
+    auto const account = find(address);
+    return account.has_value() && account->selfDestructed;
+}
+
+void State::finalize_self_destructs()
+{
+    for (auto& [address, account] : m_accounts)
+    {
+        if (!account.selfDestructed)
+        {
+            continue;
+        }
+        account.code.clear();
+        account.codeHash = {};
+        account.storage.clear();
+        account.balance = 0;
+        account.nonce = 0;
+        account.selfDestructed = false;
+    }
 }
 
 void State::add_refund(uint64_t amount)

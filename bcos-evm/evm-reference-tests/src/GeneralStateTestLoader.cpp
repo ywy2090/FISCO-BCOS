@@ -160,6 +160,22 @@ std::vector<GstAuthorizationEntry> parseAuthorizationList(pt::ptree const& txTre
         entry.chainId = parseQuantity(entryNode.get<std::string>("chainId", "0x0"));
         entry.address = state::parseHexAddress(entryNode.get<std::string>("address"));
         entry.nonce = parseUint64(entryNode.get<std::string>("nonce", "0x0"));
+        if (auto const yParity = entryNode.get_optional<std::string>("yParity"))
+        {
+            entry.yParity = parseUint64(*yParity);
+        }
+        else if (auto const v = entryNode.get_optional<std::string>("v"))
+        {
+            entry.yParity = parseUint64(*v);
+        }
+        if (auto const r = entryNode.get_optional<std::string>("r"))
+        {
+            entry.signatureR = parseHexBytes(*r);
+        }
+        if (auto const s = entryNode.get_optional<std::string>("s"))
+        {
+            entry.signatureS = parseHexBytes(*s);
+        }
         if (auto const signer = entryNode.get_optional<std::string>("signer"))
         {
             entry.authority = state::parseHexAddress(*signer);
@@ -342,6 +358,13 @@ StateTestCase parseStateTestBody(
     testCase.name = variantKey;
     testCase.sourcePath = sourcePath;
     testCase.env = parseEnv(body.get_child("env"));
+    if (auto const config = body.get_child_optional("config"))
+    {
+        if (auto const chainId = config->get_optional<std::string>("chainid"))
+        {
+            testCase.env.chainId = parseQuantity(*chainId);
+        }
+    }
     testCase.preState = parsePreState(body.get_child("pre"));
     testCase.transaction = parseTransactionTemplate(body.get_child("transaction"));
     testCase.tx = materializeTransaction(testCase.transaction);

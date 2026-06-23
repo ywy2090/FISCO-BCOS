@@ -67,6 +67,8 @@ target_link_libraries(bcos-evm-eth PUBLIC
     ledger
     bcos-protocol
     bcos-utilities
+    bcos-crypto
+    codec
 )
 
 target_link_libraries(bcos-evm-bcos PUBLIC

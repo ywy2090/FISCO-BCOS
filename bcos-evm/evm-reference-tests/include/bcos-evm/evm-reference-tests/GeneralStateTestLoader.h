@@ -21,6 +21,9 @@ struct GstAuthorizationEntry
     evmc_address address{};
     evmc_address authority{};
     uint64_t nonce{0};
+    std::optional<uint64_t> yParity;
+    bcos::bytes signatureR;
+    bcos::bytes signatureS;
 };
 
 struct GstAccessListEntry

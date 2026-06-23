@@ -94,6 +94,9 @@ std::vector<SetCodeAuthorization> materializeAuthorizations(
         authorization.address = entry.address;
         authorization.authority = entry.authority;
         authorization.nonce = entry.nonce;
+        authorization.yParity = entry.yParity;
+        authorization.signatureR = entry.signatureR;
+        authorization.signatureS = entry.signatureS;
         authorizations.push_back(std::move(authorization));
     }
     return authorizations;
@@ -305,13 +308,28 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
 
     if (std::getenv("EEST_PROBE") != nullptr)
     {
+        auto const& snap = output.executionContext.gasSettlementSnapshot;
+        int64_t const executionBurn = snap.gasBeforeEvm - output.evmcResult.gas_left;
+        int64_t const createExtra = gas::calcCreateSettlementExtra(snap, executionBurn);
+        int64_t const gasUsedBeforeRefund = snap.fixedIntrinsic + snap.calldata.normalCost +
+                                            snap.authIntrinsic + executionBurn + createExtra;
+        int64_t const effectiveRefund =
+            gas::effectiveRefundEip3529(snap.evmGasRefund, gasUsedBeforeRefund);
+        int64_t const floorDataGas =
+            gas::TX_BASE_GAS +
+            snap.calldata.tokenCount * m_profile.revision.calldata_floor_per_token;
         std::cerr << "=== EEST_PROBE ===\n"
                   << "status=" << static_cast<int>(result.status) << " gasUsed=" << result.gasUsed
                   << " gasPrice=" << tx.gasPrice.str(0, std::ios::hex) << " gasCost="
                   << (tx.gasPrice * static_cast<bcos::u256>(result.gasUsed)).str(0, std::ios::hex)
-                  << " evmGasRefund=" << output.executionContext.gasSettlementSnapshot.evmGasRefund
-                  << " authIntrinsic="
-                  << output.executionContext.gasSettlementSnapshot.authIntrinsic << "\nstateRoot=0x"
+                  << " evmGasRefund=" << snap.evmGasRefund
+                  << " authIntrinsic=" << snap.authIntrinsic
+                  << " gasBeforeEvm=" << snap.gasBeforeEvm
+                  << " evmGasLeft=" << output.evmcResult.gas_left
+                  << " executionBurn=" << executionBurn << " createExtra=" << createExtra
+                  << " gasUsedBeforeRefund=" << gasUsedBeforeRefund
+                  << " effectiveRefund=" << effectiveRefund << " floorDataGas=" << floorDataGas
+                  << "\nstateRoot=0x"
                   << bcos::toHex(bcos::bytes(result.stateRoot->bytes,
                          result.stateRoot->bytes + sizeof(result.stateRoot->bytes)))
                   << "\n";
@@ -336,6 +354,21 @@ task::Task<ExecutionResult> ExecuteViaEthAdapter::execute(
             }
         }
         std::cerr << "stateDiff accounts=" << result.stateDiff.accounts.size() << "\n";
+        for (auto const& [address, account] : postState.accounts)
+        {
+            std::cerr << "account 0x"
+                      << bcos::toHex(
+                             bcos::bytes(address.bytes, address.bytes + sizeof(address.bytes)))
+                      << " nonce=" << account.nonce << " balance=0x"
+                      << account.balance.str(0, std::ios::hex) << " code=0x"
+                      << bcos::toHex(account.code) << "\n";
+            for (auto const& [slot, value] : account.storage)
+            {
+                std::cerr << "  storage[0x" << bcos::toHex(bcos::bytes(slot.bytes, slot.bytes + 32))
+                          << "]=0x" << bcos::toHex(bcos::bytes(value.bytes, value.bytes + 32))
+                          << "\n";
+            }
+        }
     }
 
     co_return result;

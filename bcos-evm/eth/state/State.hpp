@@ -85,6 +85,10 @@ public:
 
     [[nodiscard]] StateDiff build_diff() const;
 
+    void mark_self_destructed(const evmc_address& address);
+    [[nodiscard]] bool has_self_destructed(const evmc_address& address) const;
+    void finalize_self_destructs();
+
     void add_refund(uint64_t amount);
     void sub_refund(uint64_t amount);
     [[nodiscard]] uint64_t get_refund() const noexcept;
@@ -95,7 +99,8 @@ private:
     {
         AccountSnapshot,
         WarmAddressInsert,
-        WarmStorageInsert
+        WarmStorageInsert,
+        CreateWarmPinInsert,
     };
 
     struct JournalEntry
@@ -104,6 +109,8 @@ private:
         evmc_address address{};
         evmc_bytes32 key{};
         std::optional<Account> previousAccount;
+        /// True when pin_warm_create_address inserted into m_warmAccounts.
+        bool pinInsertedWarm{false};
     };
 
     struct Checkpoint
@@ -118,6 +125,7 @@ private:
     void push_journal_account(const evmc_address& address, std::optional<Account> previous);
     void push_journal_warm_address(const evmc_address& address);
     void push_journal_warm_storage(const evmc_address& address, const evmc_bytes32& key);
+    void push_journal_create_warm_pin(const evmc_address& address, bool insertedWarm);
 
 private:
     StateView const* m_baseStateView;

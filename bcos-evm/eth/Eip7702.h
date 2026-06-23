@@ -19,7 +19,17 @@ struct SetCodeAuthorization
     evmc_address authority{};
     evmc_address address{};
     uint64_t nonce{0};
+    /// When present, authority is recovered from the signature at apply time.
+    std::optional<uint64_t> yParity;
+    bcos::bytes signatureR;
+    bcos::bytes signatureS;
 };
+
+bool validateAuthorizationSignatureValues(
+    uint64_t yParity, bcos::bytesConstRef r, bcos::bytesConstRef s) noexcept;
+std::optional<evmc_address> recoverAuthorizationAuthority(bcos::u256 const& chainId,
+    evmc_address const& address, uint64_t nonce, uint64_t yParity, bcos::bytesConstRef r,
+    bcos::bytesConstRef s) noexcept;
 
 std::optional<evmc_address> parseDelegationTarget(bcos::bytesConstRef code);
 bcos::bytes addressToDelegation(evmc_address const& target);

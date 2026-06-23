@@ -66,6 +66,9 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
     BOOST_CHECK_EQUAL(installedCode[1], 0x01);
     BOOST_CHECK_EQUAL(installedCode[2], 0x00);
     BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
+    auto const expectedHash =
+        state::keccak256Code(bcos::bytesConstRef{installedCode.data(), installedCode.size()});
+    BOOST_CHECK(state::Bytes32Equal{}(it->second.codeHash, expectedHash));
 }
 
 }  // namespace bcos::evm::test

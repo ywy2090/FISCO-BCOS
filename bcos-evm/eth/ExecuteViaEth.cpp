@@ -142,6 +142,8 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
             {
                 message.gas -= authCost;
             }
+            // Align EVM gas pool with geth IntrinsicGas (21000 + access list before Call).
+            message.gas -= intrinsic.fixedCost();
         }
         else if (input.authorizationListPresent && !input.authorizations.empty())
         {

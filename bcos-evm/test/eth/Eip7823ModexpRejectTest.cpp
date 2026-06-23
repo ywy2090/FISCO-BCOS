@@ -17,6 +17,13 @@ evmc_address modexpAddress()
     return addr;
 }
 
+evmc_address blake2fAddress()
+{
+    evmc_address addr{};
+    addr.bytes[19] = 0x09;
+    return addr;
+}
+
 evmc_address senderAddress()
 {
     evmc_address addr{};
@@ -92,6 +99,24 @@ BOOST_AUTO_TEST_CASE(prague_modexp_field_1025_not_rejected)
         modexp, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_PRAGUE, cfg);
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK_EQUAL(result->status, EVMC_SUCCESS);
+}
+
+BOOST_AUTO_TEST_CASE(precompile_failure_exhausts_call_gas)
+{
+    auto const blake2f = blake2fAddress();
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
+
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 100'000;
+    message.code_address = blake2f;
+    message.input_data = nullptr;
+    message.input_size = 0;
+
+    auto result = state::EthPrecompiles::tryDispatchInCall(blake2f, message, EVMC_PRAGUE, cfg);
+    BOOST_REQUIRE(result.has_value());
+    BOOST_CHECK_EQUAL(result->status_code, EVMC_PRECOMPILE_FAILURE);
+    BOOST_CHECK_EQUAL(result->gas_left, 0);
 }
 
 }  // namespace bcos::evm::test

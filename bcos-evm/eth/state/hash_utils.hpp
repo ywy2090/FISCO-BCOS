@@ -75,6 +75,56 @@ inline bool isZeroBytes32(const evmc_bytes32& value) noexcept
         std::begin(value.bytes), std::end(value.bytes), [](uint8_t item) { return item == 0; });
 }
 
+inline evmc_bytes32 emptyCodeHash() noexcept
+{
+    evmc_bytes32 out{};
+    out.bytes[0] = 0xc5;
+    out.bytes[1] = 0xd2;
+    out.bytes[2] = 0x46;
+    out.bytes[3] = 0x01;
+    out.bytes[4] = 0x86;
+    out.bytes[5] = 0xf7;
+    out.bytes[6] = 0x23;
+    out.bytes[7] = 0x3c;
+    out.bytes[8] = 0x92;
+    out.bytes[9] = 0x7e;
+    out.bytes[10] = 0x7d;
+    out.bytes[11] = 0xb2;
+    out.bytes[12] = 0xdc;
+    out.bytes[13] = 0xc7;
+    out.bytes[14] = 0x03;
+    out.bytes[15] = 0xc0;
+    out.bytes[16] = 0xe5;
+    out.bytes[17] = 0x00;
+    out.bytes[18] = 0xb6;
+    out.bytes[19] = 0x53;
+    out.bytes[20] = 0xca;
+    out.bytes[21] = 0x82;
+    out.bytes[22] = 0x27;
+    out.bytes[23] = 0x3b;
+    out.bytes[24] = 0x7b;
+    out.bytes[25] = 0xfa;
+    out.bytes[26] = 0xd8;
+    out.bytes[27] = 0x04;
+    out.bytes[28] = 0x5d;
+    out.bytes[29] = 0x85;
+    out.bytes[30] = 0xa4;
+    out.bytes[31] = 0x70;
+    return out;
+}
+
+inline evmc_bytes32 keccak256Code(bcos::bytesConstRef code)
+{
+    if (code.empty())
+    {
+        return emptyCodeHash();
+    }
+    auto const hash = ethash::keccak256(code.data(), code.size());
+    evmc_bytes32 out{};
+    std::memcpy(out.bytes, hash.bytes, sizeof(out.bytes));
+    return out;
+}
+
 inline bcos::u256 fromEvmC(const evmc_bytes32& value)
 {
     return fromBigEndian<bcos::u256>(value.bytes);

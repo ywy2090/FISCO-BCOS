@@ -21,6 +21,7 @@
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/execution/warmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
+#include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/hash_utils.hpp"
@@ -48,23 +49,6 @@ evmc_address resolveCreateAddress(const evmc_message& message, const evmc_result
         createAddr = result.create_address;
     }
     return createAddr;
-}
-
-void markCreateAddressBeforeExecute(
-    state::EthHost& host, state::State& state, const evmc_message& message) noexcept
-{
-    if (!isCreateKind(message.kind))
-    {
-        return;
-    }
-
-    auto createAddr = resolveCreateAddress(message, {});
-    if (state::isZeroAddress(createAddr))
-    {
-        createAddr =
-            state::predictLegacyCreateAddress(message.sender, state.get_nonce(message.sender));
-    }
-    host.markCreatedInTx(createAddr);
 }
 
 evmc_address resolveCodeAddress(const evmc_message& message) noexcept
@@ -202,18 +186,6 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     {
         host.set_execution_address(resolveCodeAddress(input.message));
     }
-    else
-    {
-        auto createAddr = input.message.recipient;
-        if (state::isZeroAddress(createAddr))
-        {
-            createAddr = input.message.code_address;
-        }
-        if (!state::isZeroAddress(createAddr))
-        {
-            host.set_execution_address(createAddr);
-        }
-    }
 
     bcos::bytes code;
     if (isCreateKind(input.message.kind))
@@ -309,17 +281,47 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         output.logs = host.take_logs();
         return output;
     }
-    markCreateAddressBeforeExecute(host, state, input.message);
+    if (isCreateKind(input.message.kind))
+    {
+        auto const initCode =
+            bcos::bytesConstRef(input.message.input_data, input.message.input_size);
+        state::bindCreateMessageForInit(host, input.message, initCode, state);
+        auto const endowment = state::fromEvmC(input.message.value);
+        if (endowment != 0)
+        {
+            if (!canTransfer(state, input.message.sender, endowment))
+            {
+                state.revert();
+                output.result = makeInsufficientBalanceResult();
+                output.logs = host.take_logs();
+                return output;
+            }
+            transfer(state, input.message.sender, input.message.recipient, endowment);
+        }
+        state::initializeCreateTargetAccount(state, input.message.recipient,
+            input.revisionConfig.revision, input.revisionConfig.warm_access);
+    }
     output.result = input.vm->execute(
         host, input.revisionConfig.revision, input.message, code.data(), code.size());
     output.logs = host.take_logs();
 
+    if (output.result.status_code == EVMC_SUCCESS && isCreateKind(input.message.kind) &&
+        !state::applyCreateCodeDepositGas(
+            const_cast<evmc_result&>(output.result.raw()), input.revisionConfig.revision))
+    {
+        output.result = evmc::Result(output.result.raw());
+    }
     if (output.result.status_code == EVMC_SUCCESS)
     {
         installCreatedContractCode(state, input.message, output.result.raw());
         if (isCreateKind(input.message.kind))
         {
             host.markCreatedInTx(resolveCreateAddress(input.message, output.result.raw()));
+            auto& raw = const_cast<evmc_result&>(output.result.raw());
+            if (state::isZeroAddress(raw.create_address))
+            {
+                raw.create_address = input.message.recipient;
+            }
         }
         if (input.fixNonceInit && isCreateKind(input.message.kind))
         {
@@ -339,6 +341,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         }
         output.gasRefund = static_cast<int64_t>(state.get_refund());
         state.commit();
+        state.finalize_self_destructs();
         output.stateDiff = state.build_diff();
     }
     else
