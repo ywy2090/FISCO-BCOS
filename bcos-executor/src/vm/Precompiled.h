@@ -20,11 +20,11 @@
  */
 
 #pragma once
-#include "bcos-evm/bcos/Precompiled.h"
 #include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompiledContract.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/FixedBytes.h"
+#include "transaction-executor/bcos-transaction-executor/adapters/Precompiled.h"
 #include <cstdint>
 #include <stdexcept>
 #include <string>

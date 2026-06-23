@@ -1,12 +1,12 @@
 #pragma once
-#include "AuthCheck.h"
 #include "FiscoConstants.h"
 #include "FiscoRevisionConfig.h"
-#include "PrecompiledManager.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-utilities/DataConvertUtility.h"
+#include "transaction-executor/bcos-transaction-executor/adapters/AuthCheck.h"
+#include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include <evmc/evmc.h>
 #include <evmc/helpers.h>
 #include <fmt/compile.h>

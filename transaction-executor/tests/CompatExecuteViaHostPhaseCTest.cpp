@@ -6,11 +6,11 @@
  */
 
 #include "../../bcos-executor/test/unittest/evmone/compat/CompatTestFixture.h"
-#include "bcos-evm/bcos/PrecompiledImpl.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
+#include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledImpl.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <boost/test/unit_test.hpp>
 #include <cstring>

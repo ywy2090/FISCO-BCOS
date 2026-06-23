@@ -10,12 +10,12 @@
 #include "SelfdestructCompatBytecode.h"
 #include "bcos-evm/bcos/FiscoHostExtension.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/bcos/PrecompiledManager.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
+#include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-task/Wait.h>
 #include <boost/algorithm/hex.hpp>
