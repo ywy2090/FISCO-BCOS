@@ -15,6 +15,7 @@
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
+#include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-task/Wait.h>
@@ -110,7 +111,10 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_P_address_routing_prefix_overlap)
         }
         return std::nullopt;
     };
-    bcos::evm::FiscoHostExtension extension(true, callback);
+    bcos::evm::test::InMemoryChainPrecompileAdapter port(std::move(callback));
+    bcos::evm::FiscoHostExtension::FiscoHostExtensionDeps deps;
+    deps.chainPrecompilePort = &port;
+    bcos::evm::FiscoHostExtension extension(true, std::move(deps));
 
     evmc_message blsMsg{};
     blsMsg.kind = EVMC_CALL;

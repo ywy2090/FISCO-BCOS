@@ -16,7 +16,7 @@
  * @brief Unit tests for audit fixes FIB-88 through FIB-92 in ExecuteFrame::execute()
  */
 
-#include "../bcos-transaction-executor/precompiled/PrecompiledManager.h"
+#include "../bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include "../bcos-transaction-executor/vm/ExecuteFrame.h"
 #include "TestBytecode.h"
 #include "TestMemoryStorage.h"

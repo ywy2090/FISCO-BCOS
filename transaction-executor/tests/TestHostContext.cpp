@@ -1,4 +1,4 @@
-#include "../bcos-transaction-executor/precompiled/PrecompiledManager.h"
+#include "../bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include "../bcos-transaction-executor/vm/ExecuteFrame.h"
 #include "TestBytecode.h"
 #include "TestMemoryStorage.h"

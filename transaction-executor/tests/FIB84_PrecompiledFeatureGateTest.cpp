@@ -16,7 +16,7 @@
  * @brief Unit tests for FIB-84: feature-aware precompiled lookup
  */
 
-#include "../bcos-transaction-executor/precompiled/PrecompiledManager.h"
+#include "../bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <boost/test/unit_test.hpp>
 

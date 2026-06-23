@@ -237,6 +237,7 @@ add_executable(${PRAGUE_STATE_TEST_BINARY_NAME}
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
+    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
@@ -339,6 +340,7 @@ set(BLOCK_HASH_HOST_TEST_BINARY_NAME BlockHashHostTest)
 add_executable(${BLOCK_HASH_HOST_TEST_BINARY_NAME}
     state/BlockHashHostTest.cpp
     ../eth/executeMessage.cpp
+    ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -347,6 +349,7 @@ add_executable(${BLOCK_HASH_HOST_TEST_BINARY_NAME}
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
+    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${BLOCK_HASH_HOST_TEST_BINARY_NAME} PRIVATE
@@ -373,6 +376,7 @@ set(NESTED_REVERT_WARM_TEST_BINARY_NAME NestedRevertWarmTest)
 add_executable(${NESTED_REVERT_WARM_TEST_BINARY_NAME}
     state/NestedRevertWarmTest.cpp
     ../eth/executeMessage.cpp
+    ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -381,6 +385,7 @@ add_executable(${NESTED_REVERT_WARM_TEST_BINARY_NAME}
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
+    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${NESTED_REVERT_WARM_TEST_BINARY_NAME} PRIVATE
@@ -429,6 +434,7 @@ set(EVMONE_REFUND_SPIKE_TEST_BINARY_NAME EvmoneRefundSpikeTest)
 add_executable(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
     opstack/EvmoneRefundSpikeTest.cpp
     ../eth/executeMessage.cpp
+    ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
     ../eth/state/bloom_filter.cpp
@@ -437,6 +443,7 @@ add_executable(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
+    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME} PRIVATE
