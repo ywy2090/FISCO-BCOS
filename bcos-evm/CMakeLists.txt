@@ -18,6 +18,7 @@ set(BCOS_EVM_ETH_SOURCES
     eth/precompiled/EthBuiltinRegistry.cpp
     eth/precompiled/PrecompiledContract.cpp
     eth/precompiled/ModexpGas.cpp
+    eth/precompiled/PrecompileRouter.cpp
 )
 
 set(BCOS_EVM_BCOS_SOURCES
