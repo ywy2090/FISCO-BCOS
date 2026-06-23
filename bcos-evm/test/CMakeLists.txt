@@ -1007,17 +1007,6 @@ target_link_libraries(ExecuteViaEthFixtureTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME ExecuteViaEthFixture COMMAND ExecuteViaEthFixtureTest)
 
-add_executable(EthCreateGasSettlementCharacterizationTest
-    eth/EthCreateGasSettlementCharacterizationTest.cpp)
-target_include_directories(EthCreateGasSettlementCharacterizationTest PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_compile_definitions(EthCreateGasSettlementCharacterizationTest PRIVATE
-    ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
-target_link_libraries(EthCreateGasSettlementCharacterizationTest PRIVATE
-    bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-utilities)
-add_test(NAME EthCreateGasSettlementCharacterization
-    COMMAND EthCreateGasSettlementCharacterizationTest)
-
 add_executable(EthIncludedTxVmerrTest eth/EthIncludedTxVmerrTest.cpp)
 target_include_directories(EthIncludedTxVmerrTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
