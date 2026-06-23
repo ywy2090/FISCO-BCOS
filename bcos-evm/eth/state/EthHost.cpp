@@ -208,7 +208,7 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     auto const selfBeneficiary =
         std::memcmp(addr.bytes, beneficiary.bytes, sizeof(addr.bytes)) == 0;
 
-    if (m_revisionConfig.revision >= EVMC_CANCUN && !wasCreatedInTx(addr))
+    if (m_revisionConfig.eip6780 && !wasCreatedInTx(addr))
     {
         // EIP-6780: pre-existing accounts are not destroyable; move balance only.
         // evmone: acc.balance = 0; beneficiary += balance (net unchanged when self-beneficiary).
@@ -239,7 +239,7 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
         }
     }
 
-    if (m_revisionConfig.revision >= EVMC_CANCUN)
+    if (m_revisionConfig.eip6780)
     {
         m_state.mark_self_destructed(addr);
         return true;

@@ -38,12 +38,12 @@ inline bool isP256Precompile(evmc_address const& addr) noexcept
     return isHigh18BytesZero(addr) && addr.bytes[18] == 0x01 && addr.bytes[19] == 0x00;
 }
 
-inline bool isActivePrecompile(evmc_revision revision,
+inline bool isActivePrecompile(evmc_revision /*revision*/,
     bcos::evm_standard::RevisionConfig const& cfg, evmc_address const& addr) noexcept
 {
     if (isP256Precompile(addr))
     {
-        return revision >= EVMC_OSAKA && cfg.eip7212;
+        return cfg.eip7212;
     }
     if (!isLowPrecompile(addr))
     {
@@ -56,7 +56,7 @@ inline bool isActivePrecompile(evmc_revision revision,
     }
     if (suffix >= 0x0b && suffix <= 0x11)
     {
-        return revision >= EVMC_PRAGUE;
+        return cfg.eip2537;
     }
     return false;
 }

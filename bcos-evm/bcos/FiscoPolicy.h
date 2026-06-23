@@ -84,21 +84,9 @@ public:
         FiscoRevisionConfig cfg;
         auto& ethCfg = cfg.eth();
 
-        ethCfg.revision = std::max(toFiscoRevision(m_features, header.version()), EVMC_CANCUN);
-
-        ethCfg.warm_access =
-            ethCfg.revision >= EVMC_BERLIN && m_features.get(Flag::feature_evm_eip2929);
-        ethCfg.eip1153 = ethCfg.revision >= EVMC_CANCUN;
-        ethCfg.eip4844 = ethCfg.revision >= EVMC_CANCUN;
-        ethCfg.eip5656 = ethCfg.revision >= EVMC_CANCUN;
-        ethCfg.eip6780 = ethCfg.revision >= EVMC_CANCUN;
-        ethCfg.eip1559 = ethCfg.revision >= EVMC_LONDON;
-        ethCfg.eip2537 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
-        ethCfg.eip7623 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
-        ethCfg.eip7702 = ethCfg.revision >= EVMC_PRAGUE && m_features.get(Flag::feature_evm_prague);
-        ethCfg.eip7212 = ethCfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
-        ethCfg.eip7823 = ethCfg.revision >= EVMC_OSAKA && m_features.get(Flag::feature_evm_osaka);
-        ethCfg.calldata_floor_per_token = ethCfg.eip7623 ? 10 : 0;
+        ethCfg = bcos::evm_standard::revisionConfigFromRevision(
+            std::max(toFiscoRevision(m_features, header.version()), EVMC_CANCUN));
+        applyFiscoFeatureGates(ethCfg, m_features);
 
         cfg.fix_storage_status = m_features.get(Flag::bugfix_evm_storage_status);
         cfg.fix_error_handling = m_features.get(Flag::bugfix_v1_error_handling);

@@ -47,9 +47,15 @@ inline void assertIsthmusHelperProfile(bcos::evm_standard::RevisionConfig const&
     ExpectedRevisionConfig expected{};
     expected.revision = EVMC_PRAGUE;
     expected.warm_access = true;
+    expected.eip2537 = true;
     expected.eip7623 = true;
     expected.eip7702 = true;
+    expected.eip1153 = true;
     expected.eip4844 = true;
+    expected.eip5656 = true;
+    expected.eip6780 = true;
+    expected.eip1559 = true;
+    expected.eip3651 = true;
     expected.prague_post_execution = false;
     expected.calldata_floor_per_token = 10;
     assertRevisionConfigMatches(actual, expected);
@@ -238,7 +244,8 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip4844 = true,
                 .eip5656 = true,
                 .eip6780 = true,
-                .eip1559 = true}},
+                .eip1559 = true,
+                .eip3651 = true}},
         {[&](ledger::Features& f) {
              f.set(Flag::feature_evm_cancun);
              f.set(Flag::feature_evm_prague);
@@ -253,6 +260,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip5656 = true,
                 .eip6780 = true,
                 .eip1559 = true,
+                .eip3651 = true,
                 .eip7702 = true,
                 .calldata_floor_per_token = 10}},
         {[&](ledger::Features& f) {
@@ -272,6 +280,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip5656 = true,
                 .eip6780 = true,
                 .eip1559 = true,
+                .eip3651 = true,
                 .eip7702 = true,
                 .calldata_floor_per_token = 10}},
         {[&](ledger::Features& /*unused*/) {}, {.revision = EVMC_CANCUN,
@@ -280,7 +289,8 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                                                    .eip4844 = true,
                                                    .eip5656 = true,
                                                    .eip6780 = true,
-                                                   .eip1559 = true}},
+                                                   .eip1559 = true,
+                                                   .eip3651 = true}},
     };
     for (auto const& row : rows)
     {
@@ -292,7 +302,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
     }
 }
 
-BOOST_AUTO_TEST_CASE(isthmus_helper_sparse_profile_all_fields)
+BOOST_AUTO_TEST_CASE(isthmus_helper_dense_profile_all_fields)
 {
     assertIsthmusHelperProfile(makeIsthmusRevisionConfig());
 }

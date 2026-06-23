@@ -30,11 +30,11 @@
 | `eip7702` | consumed | `executeMessage` authorization apply gate |
 | `eip7623` | consumed | orchestration precheck/settlement + `calldata_floor_per_token` |
 | `calldata_floor_per_token` | consumed | EIP-7623 helpers when `eip7623` |
-| `eip1153`, `eip5656`, `eip6780` | consumed | evmone via `revision` (policy sets by threshold) |
+| `eip1153`, `eip5656`, `eip6780` | consumed | evmone via `revision`; `eip6780` also read in `EthHost::selfdestruct` via `cfg.eip6780` (ADR-018) |
 | `eip4844` | consumed | OPStack blob precheck (orchestration); evmone via revision |
-| `eip2537`, `eip7212` | partial | `EthPrecompiles` uses `revision`; flags gate FISCO `PrecompiledManager` only |
-| `warm_access` | profile-only | Runtime uses `rev >= BERLIN`, not flag |
-| `eip1559`, `eip3651`, `prague_post_execution` | profile-only | No TE reader in bcos-evm today |
+| `eip2537`, `eip7212` | consumed | `PrecompileActive.h` reads `cfg.eip2537` / `cfg.eip7212`; FISCO `PrecompiledManager` also feature-gated |
+| `warm_access` | profile-only | Runtime uses `rev >= BERLIN` for evmone; FISCO masks via `applyFiscoFeatureGates` |
+| `eip1559`, `eip3651`, `prague_post_execution` | profile-only | Assigned by `revisionConfigFromRevision` (ADR-018); no TE reader in bcos-evm today. `prague_post_execution` stays struct-default `false`. |
 | `eip7823` | profile-only until wired | Policy sets at OSAKA; verify consumer before marking consumed |
 
 ### 3. Profile builder contract (Phase 3)

@@ -105,15 +105,9 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
 
 inline RevisionConfig makeIsthmusRevisionConfig()
 {
-    RevisionConfig config;
-    config.revision = EVMC_PRAGUE;
-    config.warm_access = config.revision >= EVMC_BERLIN;
-    config.eip7623 = true;
-    config.eip7702 = true;
-    config.eip4844 = true;
-    config.prague_post_execution = false;
-    config.calldata_floor_per_token = 10;
-    return config;
+    // OP-Stack Isthmus runs on the canonical Prague gate set; prague_post_execution
+    // has no production consumer and stays false via struct default (future-removal candidate).
+    return revisionConfigFromRevision(EVMC_PRAGUE);
 }
 
 inline bool isIsthmusOrchestrationProfile(RevisionConfig const& config)

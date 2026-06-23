@@ -1,7 +1,7 @@
 # ETH Kernel Capability Matrix
 
 **Status:** Normative (Phase 1 audit complete — 2026-06-20; Phase 2–3 partial on `feat-evm-refactor`)  
-**ADRs:** ADR-001–017 under `bcos-evm/docs/adr/`
+**ADRs:** ADR-001–018 under `bcos-evm/docs/adr/`
 
 Row granularity rules: see ADR-003 (one row = one independently testable sub-capability on one layer; no rollup rows).
 
@@ -56,11 +56,11 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 | EIP-7623 entry precheck | orchestration | explicit (`ExecuteViaEth.cpp` when `eip7623`) | feature-gated (`web3Tx` + `eip7623` + `feature_evm_prague`) | explicit (OPStack precheck path) | `Bcos7623PrecheckTest` |
 | EIP-7623 settlement / floor gas | orchestration | explicit (`finalizeEthereumGasUsed`; included-tx vmerr via `settleIncludedTopLevelTransactionGas`, ADR-015) | feature-gated (same gates as entry) | deviation (`OpStackFloorGas` + `postExecuteGasSettlement`) | `OpStackFloorGasTest`, `OpStackSettlementTest`, EEST `self_sponsored_set_code` smoke |
 | BCOS fixed 21000 gas debit | orchestration | unsupported (no equivalent on reference path) | deviation (`BALANCE_TRANSFER_GAS` in `ExecuteViaHost.cpp:259-263`) | unsupported (OP path does not debit) | `Bcos21000GasDeviationTest` |
-| EIP-2537 precompiles (0x0b–0x11) | kernel | inherited (via `isActivePrecompile` + `BlsGas.h` MSM discount table) | feature-gated (kernel by revision; FISCO manager also needs `feature_evm_prague`) | inherited (via revision) | `Eip2537KernelTest`, `Bcos2537MsmGasTest` |
-| EIP-7212 precompile (0x0100) | kernel | inherited (TE dispatch via `EthPrecompiles`; gated OSAKA+ + `eip7212`) | feature-gated (kernel by revision at OSAKA+; FISCO manager needs `feature_evm_osaka`) | unsupported (Isthmus profile is PRAGUE; 0x0100 inactive) | `Eip7212KernelTest`, `Bcos7212ExecuteViaHostTest` |
+| EIP-2537 precompiles (0x0b–0x11) | kernel | inherited (via `isActivePrecompile` + `cfg.eip2537`; `BlsGas.h` MSM discount table) | feature-gated (kernel via `cfg.eip2537`; FISCO manager also needs `feature_evm_prague`) | inherited (via `cfg.eip2537`) | `Eip2537KernelTest`, `Bcos2537MsmGasTest` |
+| EIP-7212 precompile (0x0100) | kernel | inherited (TE dispatch via `EthPrecompiles`; gated by `cfg.eip7212`) | feature-gated (kernel via `cfg.eip7212` at OSAKA+; FISCO manager needs `feature_evm_osaka`) | unsupported (Isthmus profile is PRAGUE; 0x0100 inactive) | `Eip7212KernelTest`, `Bcos7212ExecuteViaHostTest` |
 | EIP-4844 revision profile | revision profile | inherited (`EthPolicy` at CANCUN+) | inherited (`FiscoPolicy` at CANCUN+) | inherited (`makeIsthmusRevisionConfig`) | `RevisionConfigProfileTest` |
 | EIP-4844 blob orchestration | orchestration | unsupported (no blob precheck on reference path) | unsupported (no blob tx on BCOS TE) | explicit (`OpStackPreCheck` blob fields) | `BlobGasBalanceTest`, `OpStackPreCheck4844Test`, `BlockGasPoolTest`, `TestOpStackTransactionExecutorFixture::second_transaction_rejected_when_block_gas_exhausted` |
-| builtin precompiles (0x01–0x11) | kernel | inherited (`PrecompileActive.h`: 0x01–0x0a always; 0x0b–0x11 at PRAGUE+) | inherited (same revision gate via shared kernel) | inherited (same revision gate via shared kernel) | `stPrecompile_*` fixtures, `ExecuteViaHostImportedFixtureTest`, `EipPrecompileRevisionGateTest`, `BcosPrecompileRevisionGateTest`, `PrecompileRouterEquivalenceTest` |
+| builtin precompiles (0x01–0x11) | kernel | inherited (`PrecompileActive.h`: 0x01–0x0a always; 0x0b–0x11 when `cfg.eip2537`) | inherited (same gate via shared kernel) | inherited (same gate via shared kernel) | `stPrecompile_*` fixtures, `ExecuteViaHostImportedFixtureTest`, `EipPrecompileRevisionGateTest`, `BcosPrecompileRevisionGateTest`, `PrecompileRouterEquivalenceTest` |
 | chain precompile routing | host extension | inherited (`tryChainPrecompile` default nullopt) | deviation (FISCO precedence; empty-code CALL semantics differ) | deviation (`OpHostExtension` L1Block predeploy: full `IL1Block` getter/setter Isthmus surface; no GPO `0x4200…000F`, `setFeature`, `proxyAdmin*`) | `FiscoHostExtensionTest`, `L1BlockPredeployTest`, `L1BlockGetterTest`, `PrecompileRouterPrecedenceTest` |
 | FISCO chain precompile dispatch via Port | orchestration | unsupported | explicit (`ExecuteViaHost` injects `ChainPrecompilePort` / `AuthPort` and dispatches in TE adapters) | unsupported | `CompatExecuteViaHost*` |
 | OPStack deposit tx | orchestration | unsupported | unsupported | explicit (OPStack-only orchestration) | `DepositTxPreCheckTest`, `DepositMintTest`, `DepositCreateNonceTest` |
@@ -71,14 +71,14 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 | Rollup L1 cost fork selection | orchestration | unsupported | unsupported | explicit (`wireL1CostFuncWithState` / `selectL1CostFunc`) | `OpStackForkScheduleTest`, `OpStackFeeTest` FIX-04 |
 | L1 pre-Fjord unsupported | orchestration | unsupported | unsupported | deviation (throw) | `OpStackExecuteViaHostSmokeTest` pre_fjord |
 | OPStack operator fee fork gate | orchestration | unsupported | unsupported | explicit (`wireOperatorCostFuncWithState` / `selectOperatorCostFunc`) | `OpStackFeeTest`, `RefundIsthmusTest` |
-| RevisionConfig `warm_access` | revision profile | feature-gated (profile-only; runtime uses `rev>=BERLIN`, ADR-004) | feature-gated (same) | feature-gated (same) | `RevisionConfigProfileTest` |
-| RevisionConfig `eip1153` | revision profile | inherited (via `EthPolicy` at CANCUN+) | inherited (via `FiscoPolicy` at CANCUN+) | inherited (via Isthmus `revision`) | `RevisionConfigProfileTest` |
-| RevisionConfig `eip5656` | revision profile | inherited (via revision) | inherited (via revision) | inherited (via revision) | `RevisionConfigProfileTest` |
-| RevisionConfig `eip6780` | revision profile | inherited (via `EthPolicy` at CANCUN+; kernel consumer in `EthHost::selfdestruct`) | inherited (via `FiscoPolicy` at CANCUN+) | inherited (via Isthmus `revision`) | `RevisionConfigProfileTest` |
-| EIP-6780 SELFDESTRUCT (kernel) | kernel | inherited (`EthHost::selfdestruct` + same-tx CREATE tracking) | inherited (via shared `executeMessage` kernel) | inherited (via shared kernel) | `ExecuteViaEthFixtureTest` (`stSelfDestruct_basic`), `Bcos6780SelfdestructTest` |
-| RevisionConfig `eip1559` | revision profile | feature-gated (profile-only; no TE consumer, ADR-004) | feature-gated (profile-only; assigned in `FiscoPolicy` at LONDON+) | feature-gated (profile-only) | `RevisionConfigProfileTest` |
-| RevisionConfig `eip3651` | revision profile | feature-gated (profile-only; coinbase warm uses `txProps`, ADR-004) | feature-gated (same) | feature-gated (same) | `RevisionConfigProfileTest` |
-| RevisionConfig `prague_post_execution` | revision profile | feature-gated (profile-only) | feature-gated (profile-only) | unsupported (`makeIsthmusRevisionConfig` sets false) | `RevisionConfigProfileTest` |
+| RevisionConfig `warm_access` | revision profile | feature-gated (profile-only; runtime uses `rev>=BERLIN`, ADR-004) | feature-gated (via `revisionConfigFromRevision` + `applyFiscoFeatureGates`, ADR-018) | feature-gated (via `revisionConfigFromRevision`, ADR-018) | `RevisionConfigProfileTest` |
+| RevisionConfig `eip1153` | revision profile | inherited (via `revisionConfigFromRevision` at CANCUN+, ADR-018) | inherited (via `revisionConfigFromRevision` at CANCUN+, ADR-018) | inherited (via `makeIsthmusRevisionConfig` = `derive(PRAGUE)`, ADR-018) | `RevisionConfigProfileTest` |
+| RevisionConfig `eip5656` | revision profile | inherited (via `revisionConfigFromRevision`, ADR-018) | inherited (via `revisionConfigFromRevision`, ADR-018) | inherited (via `derive(PRAGUE)`, ADR-018) | `RevisionConfigProfileTest` |
+| RevisionConfig `eip6780` | revision profile | inherited (via `revisionConfigFromRevision` at CANCUN+; kernel reads `cfg.eip6780` in `EthHost::selfdestruct`, ADR-018) | inherited (via `revisionConfigFromRevision` at CANCUN+) | inherited (via `derive(PRAGUE)`, ADR-018) | `RevisionConfigProfileTest` |
+| EIP-6780 SELFDESTRUCT (kernel) | kernel | inherited (`EthHost::selfdestruct` reads `cfg.eip6780` + same-tx CREATE tracking) | inherited (via shared `executeMessage` kernel) | inherited (via shared kernel) | `ExecuteViaEthFixtureTest` (`stSelfDestruct_basic`), `Bcos6780SelfdestructTest` |
+| RevisionConfig `eip1559` | revision profile | feature-gated (profile-only; assigned by `revisionConfigFromRevision` at LONDON+, ADR-004/018) | feature-gated (profile-only; via `derive` at CANCUN floor+, ADR-004/018) | feature-gated (profile-only; via `derive(PRAGUE)`, ADR-004/018) | `RevisionConfigProfileTest` |
+| RevisionConfig `eip3651` | revision profile | feature-gated (profile-only; assigned by `derive` at SHANGHAI+, ADR-004/018) | feature-gated (profile-only; via `derive` at CANCUN floor+, ADR-004/018) | feature-gated (profile-only; via `derive(PRAGUE)`, ADR-004/018) | `RevisionConfigProfileTest` |
+| RevisionConfig `prague_post_execution` | revision profile | feature-gated (profile-only; struct default false) | feature-gated (profile-only) | feature-gated (profile-only; struct default false, no overlay) | `RevisionConfigProfileTest` |
 | RevisionConfig `eip7823` | revision profile | inherited (via `EthPolicy` at OSAKA+; TE consumer in `EthPrecompiles` modexp dispatch) | feature-gated (`feature_evm_osaka`; TE consumer active when flag ON) | feature-gated (not set on Isthmus helper) | `RevisionConfigProfileTest`, `Eip7823ModexpRejectTest`, `Bcos7823ModexpRejectTest` |
 | BCOS auth check | orchestration | unsupported | explicit (`ExecuteViaHost` + `authChecker` callback) | unsupported | `BcosAuthOrchestratorHookTest` (hook-only; not AuthCheck integration) |
 | BCOS value transfer | orchestration | unsupported | explicit (`maybeTransferValue` when `enable_balance_transfer`) | unsupported | — |
@@ -91,9 +91,9 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 
 RevisionConfig consumption rules: ADR-004. Orchestration domains: ADR-005. ETH reference 7702 gas + included-tx vmerr: ADR-015. ETH TE EIP-1559 settlement: ADR-016. Add new Isthmus-only EIPs as separate rows when implemented (ADR-003).
 
-### Wave 2 — inherited Isthmus profile footnote (FIX-12)
+### Wave 2 — Isthmus profile footnote (FIX-12, updated ADR-018)
 
-`makeIsthmusRevisionConfig()` is a **sparse** profile helper: it sets `warm_access`, `eip7702`, `eip4844`, `eip7623`, and `EVMC_PRAGUE`, but leaves several RevisionConfig bool fields at struct default `false` (notably `eip1153`, `eip6780`, `prague_post_execution`). Per ADR-004, those unset fields are **profile-only** on the TE baseline path — runtime behavior for Cancun/Prague opcodes on Isthmus is delegated to `revision=EVMC_PRAGUE` via evmone, not to the sparse flag snapshot. Matrix rows for `RevisionConfig eip1153` / `eip6780` / `prague_post_execution` remain unchanged; inherited kernel rows (`EIP-6780 SELFDESTRUCT`, builtin precompiles) are satisfied by shared `eth/` kernel + revision, with OP smoke in `OpStack67802537KernelSmokeTest` and `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields`. No billing/orchestration row changes in Wave 2.
+`makeIsthmusRevisionConfig()` now returns `revisionConfigFromRevision(EVMC_PRAGUE)` — a **dense** canonical Prague profile (same gate set as Eth/Fisco at Prague). `prague_post_execution` stays `false` via struct default (no overlay). Runtime behavior on Isthmus is unchanged: profile-only densification; kernel rows (`EIP-6780 SELFDESTRUCT`, builtin precompiles) read `cfg` bools set by `derive`. Smoke: `OpStack67802537KernelSmokeTest`, `RevisionConfigProfileTest::isthmus_helper_dense_profile_all_fields`.
 
 ## Change rules
 

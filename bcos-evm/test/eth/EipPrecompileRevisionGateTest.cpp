@@ -32,9 +32,16 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_cancun_rejects_prague_bls)
 
 BOOST_AUTO_TEST_CASE(isActivePrecompile_prague_accepts_bls)
 {
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
     auto const addr = precompileAddress(0x0b);
     BOOST_CHECK(precompiled::isActivePrecompile(EVMC_PRAGUE, cfg, addr));
+}
+
+BOOST_AUTO_TEST_CASE(isActivePrecompile_reads_eip2537_bool_not_revision)
+{
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = false};
+    auto const addr = precompileAddress(0x0b);
+    BOOST_CHECK(!precompiled::isActivePrecompile(EVMC_PRAGUE, cfg, addr));
 }
 
 BOOST_AUTO_TEST_CASE(isActivePrecompile_cancun_accepts_legacy_precompile)
