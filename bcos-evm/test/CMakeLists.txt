@@ -48,6 +48,26 @@ add_test(
     COMMAND ${HOOKS_TEST_BINARY_NAME}
 )
 
+set(CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME ChainPrecompilePortTest)
+
+add_executable(${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME}
+    bcos/ChainPrecompilePortTest.cpp
+)
+
+target_include_directories(${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME ChainPrecompilePort
+    COMMAND ${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME}
+)
+
 set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoHostExtensionTest)
 
 add_executable(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
