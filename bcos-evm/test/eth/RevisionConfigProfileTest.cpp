@@ -124,6 +124,43 @@ BOOST_AUTO_TEST_CASE(gated_field_count_is_six)
     BOOST_CHECK_EQUAL(revisionConfigGatedFieldCount(), 6U);
 }
 
+BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
+{
+    using Flag = ledger::Features::Flag;
+    // All flags OFF: every A-class field masked to false, B-class untouched.
+    {
+        auto cfg = revisionConfigFromRevision(EVMC_OSAKA);
+        ledger::Features features;
+        bcos::chain_policy::applyFiscoFeatureGates(cfg, features);
+        BOOST_CHECK(!cfg.warm_access);
+        BOOST_CHECK(!cfg.eip2537);
+        BOOST_CHECK(!cfg.eip7212);
+        BOOST_CHECK(!cfg.eip7623);
+        BOOST_CHECK(!cfg.eip7823);
+        BOOST_CHECK(!cfg.eip7702);
+        // B-class survive.
+        BOOST_CHECK(cfg.eip1153);
+        BOOST_CHECK(cfg.eip4844);
+        BOOST_CHECK(cfg.eip6780);
+        BOOST_CHECK(cfg.eip1559);
+        BOOST_CHECK(cfg.eip3651);
+    }
+    // Prague flag ON: prague-group A-class survive, osaka-group still masked.
+    {
+        auto cfg = revisionConfigFromRevision(EVMC_OSAKA);
+        ledger::Features features;
+        features.set(Flag::feature_evm_eip2929);
+        features.set(Flag::feature_evm_prague);
+        bcos::chain_policy::applyFiscoFeatureGates(cfg, features);
+        BOOST_CHECK(cfg.warm_access);
+        BOOST_CHECK(cfg.eip2537);
+        BOOST_CHECK(cfg.eip7623);
+        BOOST_CHECK(cfg.eip7702);
+        BOOST_CHECK(!cfg.eip7212);
+        BOOST_CHECK(!cfg.eip7823);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
 {
     EthPolicy policy;

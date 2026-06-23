@@ -36,6 +36,38 @@ inline evmc_revision toFiscoRevision(const ledger::Features& features, uint32_t 
 }
 }  // namespace
 
+// FISCO field -> feature flag map. X-macro keeps mask code and the completeness
+// assert in one place. Flag identity stays in the FISCO layer (never in eth/).
+#define FISCO_GATED_FLAG_MAP(X)         \
+    X(warm_access, feature_evm_eip2929) \
+    X(eip2537, feature_evm_prague)      \
+    X(eip7623, feature_evm_prague)      \
+    X(eip7702, feature_evm_prague)      \
+    X(eip7212, feature_evm_osaka)       \
+    X(eip7823, feature_evm_osaka)
+
+inline constexpr std::size_t fiscoGatedFlagMapCount() noexcept
+{
+    std::size_t n = 0;
+#define FISCO_GATE_COUNT(field, flag) ++n;
+    FISCO_GATED_FLAG_MAP(FISCO_GATE_COUNT)
+#undef FISCO_GATE_COUNT
+    return n;
+}
+
+// Completeness: every A-class kernel field has exactly one FISCO flag mapping.
+static_assert(fiscoGatedFlagMapCount() == bcos::evm_standard::revisionConfigGatedFieldCount(),
+    "FISCO_GATED_FLAG_MAP must cover every REVISION_CONFIG_GATED_FIELDS entry");
+
+inline void applyFiscoFeatureGates(
+    bcos::evm_standard::RevisionConfig& cfg, const ledger::Features& features)
+{
+    using Flag = ledger::Features::Flag;
+#define FISCO_APPLY_GATE(field, flag) cfg.field = cfg.field && features.get(Flag::flag);
+    FISCO_GATED_FLAG_MAP(FISCO_APPLY_GATE)
+#undef FISCO_APPLY_GATE
+}
+
 class FiscoPolicy
 {
 public:
