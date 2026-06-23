@@ -21,6 +21,8 @@
 
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/orchestration/normalizeIncludedTxVmerr.h"
 #include "bcos-evm/eth/state/StateView.hpp"
 #include <boost/test/unit_test.hpp>
 #include <cstdlib>
@@ -31,20 +33,42 @@ namespace bcos::evm::test::fixtures
 inline void assertFixtureResult(
     FixtureCase const& fixture, ExecuteViaEthOutput const& output, int64_t gasBefore)
 {
+    (void)gasBefore;
+    evmc_status_code expectedStatus = fixture.expected.status;
+    if (isTopLevelIncludedTxVmError(expectedStatus, output.executionContext.message.depth))
+    {
+        expectedStatus = EVMC_SUCCESS;
+    }
     BOOST_CHECK_EQUAL(
-        static_cast<int>(output.evmcResult.status_code), static_cast<int>(fixture.expected.status));
+        static_cast<int>(output.evmcResult.status_code), static_cast<int>(expectedStatus));
     bcos::bytes actual(output.evmcResult.output_data,
         output.evmcResult.output_data + output.evmcResult.output_size);
     BOOST_CHECK_MESSAGE(sameBytes(actual, fixture.expected.output),
         "output mismatch actual=0x" << bcos::toHex(actual) << " expected=0x"
                                     << bcos::toHex(fixture.expected.output));
     BOOST_CHECK_EQUAL(output.executionContext.logs.size(), fixture.expected.logs);
-    if (fixture.expected.gasUsed != 0)
+    auto const& message = output.executionContext.message;
+    auto const& revision = output.executionContext.revisionConfig;
+    int64_t const actualExecutorGas = message.gas - output.evmcResult.gas_left;
+    int64_t reportedGas = actualExecutorGas;
+    if (revision.eip7623)
     {
-        int64_t const actualGas = gasBefore - output.evmcResult.gas_left;
-        int64_t const diff = std::abs(actualGas - fixture.expected.gasUsed);
+        auto const input = bcos::bytesConstRef(message.input_data, message.input_size);
+        reportedGas += gas::calcEip7623Components(input).normalCost;
+    }
+    if (fixture.expected.gasUsedExecutor != 0)
+    {
+        int64_t const diff = std::abs(actualExecutorGas - fixture.expected.gasUsedExecutor);
+        BOOST_CHECK_MESSAGE(diff <= fixture.expected.gasUsedExecutorTolerance,
+            "executor gas mismatch actualGas=" << actualExecutorGas << " expectedGasUsedExecutor="
+                                               << fixture.expected.gasUsedExecutor << " tolerance="
+                                               << fixture.expected.gasUsedExecutorTolerance);
+    }
+    else if (fixture.expected.gasUsed != 0)
+    {
+        int64_t const diff = std::abs(reportedGas - fixture.expected.gasUsed);
         BOOST_CHECK_MESSAGE(diff <= fixture.expected.gasUsedTolerance,
-            "gas mismatch actualGas=" << actualGas
+            "gas mismatch actualGas=" << reportedGas
                                       << " expectedGasUsed=" << fixture.expected.gasUsed
                                       << " tolerance=" << fixture.expected.gasUsedTolerance);
     }
