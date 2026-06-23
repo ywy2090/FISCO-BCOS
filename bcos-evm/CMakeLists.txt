@@ -30,6 +30,7 @@ set(BCOS_EVM_BCOS_SOURCES
 set(BCOS_EVM_OP_SOURCES
     opstack/OpStackExecuteViaHost.cpp
     opstack/OpStackPreCheck.cpp
+    opstack/OpStackPreDebitEntry.cpp
     opstack/OpStackTxExecutor.cpp
     opstack/RollupCost.cpp
     opstack/OpStackFee.cpp

@@ -485,6 +485,31 @@ add_test(
     COMMAND ${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 
+add_executable(OpStackIntrinsicGasSyncTest
+    opstack/OpStackIntrinsicGasSyncTest.cpp
+    ../opstack/OpStackExecuteViaHost.cpp
+    ../opstack/OpStackPreCheck.cpp
+    ../opstack/OpStackTxExecutor.cpp
+    ../opstack/RollupCost.cpp
+    ../opstack/OpStackFee.cpp
+    ../opstack/OpStackFloorGas.cpp
+    ../opstack/L1BlockStorage.cpp
+    ../opstack/L1BlockPredeploy.cpp
+    ../opstack/OpStackPreDebitEntry.cpp)
+target_compile_definitions(OpStackIntrinsicGasSyncTest PRIVATE BCOS_EVM_TESTING)
+target_include_directories(OpStackIntrinsicGasSyncTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackIntrinsicGasSyncTest PRIVATE
+    bcos-evm-eth bcos-task evmone::evmone bcos-framework ledger
+    bcos-protocol bcos-utilities bcos-crypto codec)
+add_test(NAME OpStackIntrinsicGasSync COMMAND OpStackIntrinsicGasSyncTest)
+
+add_executable(OpStackPreDebitOrderTest opstack/OpStackPreDebitOrderTest.cpp)
+target_include_directories(OpStackPreDebitOrderTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackPreDebitOrderTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackPreDebitOrder COMMAND OpStackPreDebitOrderTest)
+
 set(DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME DepositTxPreCheckTest)
 
 add_executable(${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME}

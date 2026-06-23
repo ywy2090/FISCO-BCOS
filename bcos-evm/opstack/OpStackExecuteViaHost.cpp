@@ -1,39 +1,54 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/Transfer.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/orchestration/adoptEvmcResult.h"
+#include "bcos-evm/eth/orchestration/debitIntrinsicGas.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
+#include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
 #include "bcos-evm/opstack/OpStackFee.h"
-#include "bcos-evm/opstack/OpStackFloorGas.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackPreCheck.h"
+#include "bcos-evm/opstack/OpStackPreDebitEntry.h"
 #include <stdexcept>
 
 namespace bcos::evm
 {
 namespace
 {
-EVMCResult adoptResult(evmc::Result&& result, const bcos::crypto::Hash& hashImpl)
+ExecuteMessageOutput callExecuteMessage(ExecuteMessageInput input)
 {
-    auto raw = result.release_raw();
-    auto [status, ignored] = evmcStatusToErrorMessage(hashImpl, raw.status_code);
-    (void)ignored;
-    return EVMCResult(raw, status);
+#ifdef BCOS_EVM_TESTING
+    if (auto output = opstack::test::maybeCallExecuteMessageSpy(input); output.has_value())
+    {
+        return std::move(*output);
+    }
+#endif
+    return executeMessage(std::move(input));
 }
 
-uint64_t computeIntrinsicGasDebit(OpStackTxExecutor::OpStackTxExecutionData const& txData)
+uint64_t computeIntrinsicGasDebit(evmc_message const& message, Eip2930AccessList const* accessList,
+    uint8_t web3TypedTxKind, uint64_t authTupleCount)
 {
-    auto const intrinsic =
-        gas::computeTxIntrinsicGas(txData.m_message, txData.m_accessList, txData.m_web3TypedTxKind);
+    auto const intrinsic = gas::computeTxIntrinsicGas(message, accessList, web3TypedTxKind);
     auto const base = static_cast<uint64_t>(std::max<int64_t>(0, intrinsic.preExecutionDebit()));
-    return base + static_cast<uint64_t>(std::max<int64_t>(
-                      0, gas::calcAuthTupleIntrinsicGas(txData.m_authTupleCount)));
+    return base + static_cast<uint64_t>(
+                      std::max<int64_t>(0, gas::calcAuthTupleIntrinsicGas(authTupleCount)));
 }
 
-std::optional<EVMCResult> executeEntryChecks(OpStackTxExecutor::OpStackTxExecutionData& txData)
+IntrinsicGasPolicy makeOpStackIntrinsicPolicy(
+    OpStackTxExecutor::OpStackTxExecutionData const& txData)
 {
-    auto const availableGas = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_message.gas));
-    auto const intrinsicGas = computeIntrinsicGasDebit(txData);
+    return IntrinsicGasPolicy{.mode = IntrinsicDebitMode::OpStackEntry,
+        .authTupleCount = txData.m_authTupleCount,
+        .accessList = txData.m_accessList,
+        .web3TypedTxKind = txData.m_web3TypedTxKind};
+}
+
+std::optional<EVMCResult> runOpStackEntryChecks(
+    evmc_message& message, OpStackTxExecutor::OpStackTxExecutionData& txData)
+{
+    auto const intrinsicGas = computeIntrinsicGasDebit(
+        message, txData.m_accessList, txData.m_web3TypedTxKind, txData.m_authTupleCount);
+    auto const availableGas = static_cast<uint64_t>(std::max<int64_t>(0, message.gas));
     if (availableGas < intrinsicGas)
     {
         evmc_result failResult{};
@@ -42,30 +57,29 @@ std::optional<EVMCResult> executeEntryChecks(OpStackTxExecutor::OpStackTxExecuti
         return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     }
 
-    auto const value = state::fromEvmC(txData.m_message.value);
-    if (!txData.m_skipTransactionChecks && value != 0 &&
-        !canTransfer(*txData.m_state, txData.m_message.sender, value))
+    bcos::bytesConstRef inputData{message.input_data, message.input_size};
+    auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
+    if (auto preDebitError = opStackPreDebitEntry({.message = message,
+            .state = *txData.m_state,
+            .gasLimit = gasLimit,
+            .skipTransactionChecks = txData.m_skipTransactionChecks,
+            .inputData = inputData,
+            .floorDataGasOut = txData.m_floorDataGas});
+        preDebitError.has_value())
+    {
+        return preDebitError;
+    }
+
+    auto const debitOutcome = debitIntrinsicGas(message, makeOpStackIntrinsicPolicy(txData));
+    if (!debitOutcome.ok)
     {
         evmc_result failResult{};
-        failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
+        failResult.status_code = EVMC_OUT_OF_GAS;
         failResult.gas_left = 0;
-        return EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
+        return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     }
 
-    bcos::bytesConstRef inputData{txData.m_message.input_data, txData.m_message.input_size};
-    auto const floorCheck = executeEntryFloorDataGasCheck(
-        static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)), inputData);
-    txData.m_floorDataGas = floorCheck.floorGas;
-    if (floorCheck.ok)
-    {
-        txData.m_message.gas -= static_cast<int64_t>(intrinsicGas);
-        return std::nullopt;
-    }
-
-    evmc_result failResult{};
-    failResult.status_code = EVMC_OUT_OF_GAS;
-    failResult.gas_left = 0;
-    return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+    return std::nullopt;
 }
 
 struct GasPoolReturnGuard
@@ -153,7 +167,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         }
 
         state.checkpoint();
-        if (auto entryError = executeEntryChecks(txData); entryError.has_value())
+        evmc_message message = input.message;
+        if (auto entryError = runOpStackEntryChecks(message, txData); entryError.has_value())
         {
             output.evmcResult = std::move(*entryError);
             state.revert();
@@ -166,9 +181,9 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             co_return output;
         }
 
-        auto executeOutput = executeMessage(ExecuteMessageInput{.stateView = &state,
+        auto executeOutput = callExecuteMessage(ExecuteMessageInput{.stateView = &state,
             .vm = input.vm,
-            .message = input.message,
+            .message = message,
             .gasPrice = 0,
             .blockInfo = input.blockInfo,
             .blockHashes = input.blockHashes,
@@ -181,7 +196,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             .extension = &extension,
             .fixStorageStatus = true});
 
-        output.evmcResult = adoptResult(std::move(executeOutput.result), *input.hashImpl);
+        output.evmcResult = adoptEvmcResult(std::move(executeOutput.result), *input.hashImpl);
         output.logs = std::move(executeOutput.logs);
 
         if (output.evmcResult.status_code == EVMC_SUCCESS)
@@ -240,16 +255,17 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
 
     guard.armed = true;
 
-    if (auto entryError = executeEntryChecks(txData); entryError.has_value())
+    evmc_message message = input.message;
+    if (auto entryError = runOpStackEntryChecks(message, txData); entryError.has_value())
     {
         txData.m_evmcResult = std::move(*entryError);
     }
 
     if (!txData.m_evmcResult.has_value())
     {
-        auto executeOutput = executeMessage(ExecuteMessageInput{.stateView = &state,
+        auto executeOutput = callExecuteMessage(ExecuteMessageInput{.stateView = &state,
             .vm = input.vm,
-            .message = input.message,
+            .message = message,
             .gasPrice = txData.m_effectiveGasPrice,
             .blockInfo = input.blockInfo,
             .blockHashes = input.blockHashes,
@@ -262,7 +278,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             .extension = &extension,
             .fixStorageStatus = true});
 
-        output.evmcResult = adoptResult(std::move(executeOutput.result), *input.hashImpl);
+        output.evmcResult = adoptEvmcResult(std::move(executeOutput.result), *input.hashImpl);
         output.logs = std::move(executeOutput.logs);
         evmc_result settlementResult{};
         settlementResult.status_code = output.evmcResult.status_code;
