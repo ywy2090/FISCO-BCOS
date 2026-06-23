@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "probe.gas.cost.one",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx/test_gas_cost.json",
+      "variantKey": "tests/prague/eip7702_set_code_tx/test_gas.py::test_gas_cost[fork_Osaka-state_test-first_valid_then_many_duplicate_authorizations]",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["stateRoot"]
+    }
+  ]
+}

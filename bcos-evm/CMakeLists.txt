@@ -85,12 +85,12 @@ install(TARGETS bcos-evm-eth bcos-evm-bcos bcos-evm-op EXPORT fiscobcosTargets
 install(DIRECTORY "include/bcos-evm" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 
-option(BCOS_EVM_REFERENCE_TESTS "Build EVM reference test runners" OFF)
+option(BCOS_EVM_SPECS_TESTS "Build EVM reference test runners" OFF)
 
 if(TESTS)
     include(CTest)
     add_subdirectory(test)
-    if(BCOS_EVM_REFERENCE_TESTS)
-        add_subdirectory(evm-reference-tests)
+    if(BCOS_EVM_SPECS_TESTS)
+        add_subdirectory(specs-tests)
     endif()
 endif()

@@ -392,7 +392,7 @@ m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
 
 | 套件 | 期望 |
 |------|------|
-| `ctest -L evm-reference-tests-smoke` | 13/13 |
+| `ctest -L specs-tests-smoke` | 13/13 |
 | `EthExecuteViaEthPreCheckTest` / `EthIncludedTxVmerrTest` | 不退化 |
 | **`eth-eest-1559-gasprice-probe.json`**（新建） | 含读取 `GASPRICE` 的 state fixture（legacy + type-2）；记录 pass/fail；**允许 0 delta**，但必须跑并文档化 |
 
@@ -410,7 +410,7 @@ m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
 |------|------|
 | `bcos-evm/docs/adr/016-eth-eip1559-settlement.md` | 公式、burn、finalGasUsed、ADR-005/015 交叉 |
 | `capability-matrix.md` | 新行 **EIP-1559 effective gas + tip settlement (ETH TE)** — `explicit` |
-| `evm-reference-tests/README.md` | 1559 probe baseline（含「0 delta 预期」说明） |
+| `specs-tests/README.md` | 1559 probe baseline（含「0 delta 预期」说明） |
 
 ADR-016 与 TE 代码 **同 PR**。
 
@@ -464,7 +464,7 @@ ADR-016 与 TE 代码 **同 PR**。
 
 - geth `core/state_transition.go` — `buyGas`, `refundGas`, `EffectiveGasTip`, `gasUsed` after floor
 - `bcos-evm/opstack/OpStackTxExecutor.cpp`
-- `bcos-evm/evm-reference-tests/src/ExecuteViaEthAdapter.cpp`
+- `bcos-evm/specs-tests/src/ExecuteViaEthAdapter.cpp`
 - ADR-005, ADR-004, ADR-015
 
 ---

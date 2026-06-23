@@ -7,7 +7,7 @@ on:
       - 'bcos-evm/eth/**'
       - 'bcos-evm/bcos/**'
       - 'bcos-evm/opstack/**'
-      - 'bcos-evm/evm-reference-tests/**'
+      - 'bcos-evm/specs-tests/**'
       - 'bcos-evm/test/eth/RevisionConfigProfileTest.cpp'
       - 'transaction-executor/**'
 
@@ -111,7 +111,7 @@ jobs:
           ctest -R OpStackTransactionExecutorFixture \
             --test-dir build/transaction-executor/tests -C Debug --output-on-failure
 
-  evm-reference-smoke:
+  specs-tests-smoke:
     needs: matrix-lint
     runs-on: ubuntu-latest
     steps:
@@ -140,12 +140,12 @@ jobs:
         with:
           toolchain: nightly-2024-02-25
           override: true
-      - name: Configure and build evm-reference smoke
+      - name: Configure and build specs-tests smoke
         run: |
           CC=gcc-14 CXX=g++-14 cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DTESTS=ON \
-            -DBCOS_EVM_REFERENCE_TESTS=ON \
+            -DBCOS_EVM_SPECS_TESTS=ON \
             -DFULLNODE=ON \
             -DCOVERAGE=OFF \
             -DWITH_LIGHTNODE=ON \
@@ -158,6 +158,6 @@ jobs:
             -DVCPKG_TARGET_TRIPLET=x64-linux-release \
             .
           cmake --build build --target EthGSTSmoke EthExecutionSpecStateTests EthExecutionSpecTransactionTests ManifestLint -j$(nproc)
-      - name: Run evm-reference smoke tests
+      - name: Run specs-tests smoke tests
         run: |
-          ctest -L evm-reference-tests-smoke --test-dir build -C Debug --output-on-failure
+          ctest -L specs-tests-smoke --test-dir build -C Debug --output-on-failure

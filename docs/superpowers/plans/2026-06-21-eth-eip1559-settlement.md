@@ -6,7 +6,7 @@
 
 **Architecture:** 新增 header-only `eth/gas/Eip1559.h` 作为唯一公式源；Prepare 阶段在 buyGas 前缓存 caps/blockInfo；`EthTxExecutor` 负责余额 orchestration；`ExecuteViaEth` 仅 normalize gasPrice；adapter 删 duplicate 函数。
 
-**Tech Stack:** C++17、Boost.Test、bcos-evm-eth、transaction-executor、evm-reference-tests、CMake/CTest
+**Tech Stack:** C++17、Boost.Test、bcos-evm-eth、transaction-executor、specs-tests、CMake/CTest
 
 **Design spec:** `docs/superpowers/specs/2026-06-21-eth-eip1559-settlement-design.md` (v1.2)
 
@@ -33,7 +33,7 @@
 | `transaction-executor/.../EthTransactionExecutorImpl.h` | Prepare 缓存 caps/blockInfo；vmerr settle；`m_topLevelIncludedTxVmError` |
 | `transaction-executor/.../EthTxInputBuilder.h` | `fillTransactionGasFields`（Prepare 用） |
 | `bcos-evm/eth/EthTxExecutor.h` | buyGas/refundGas/penalty/coinbase |
-| `bcos-evm/evm-reference-tests/src/ExecuteViaEthAdapter.cpp` | 删 `effectiveGasPriceForSettlement`，用 `Eip1559.h` |
+| `bcos-evm/specs-tests/src/ExecuteViaEthAdapter.cpp` | 删 `effectiveGasPriceForSettlement`，用 `Eip1559.h` |
 | `bcos-evm/test/eth/EthEip1559GasTest.cpp` | 公式单元测试 |
 | `transaction-executor/tests/EthTxExecutor1559Test.cpp` | TE buy/refund/coinbase 集成测试 |
 | `bcos-evm/docs/adr/016-eth-eip1559-settlement.md` | ADR |
@@ -766,7 +766,7 @@ EOF
 ### Task 6: GST adapter 去重
 
 **Files:**
-- Modify: `bcos-evm/evm-reference-tests/src/ExecuteViaEthAdapter.cpp:112-121,294-301`
+- Modify: `bcos-evm/specs-tests/src/ExecuteViaEthAdapter.cpp:112-121,294-301`
 
 **Interfaces:**
 - Consumes: `gas::resolveEffectiveGasPrice`, `gas::isEip1559GasCapsTx`
@@ -798,7 +798,7 @@ auto const effectiveGasPrice = is1559 ?
 
 - [ ] **Step 3: 运行 smoke**
 
-Run: `cd build-ref && ctest -L evm-reference-tests-smoke -V`  
+Run: `cd build-ref && ctest -L specs-tests-smoke -V`  
 Expected: 13/13 PASS
 
 - [ ] **Step 4: 回归 precheck / vmerr**
@@ -809,7 +809,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add bcos-evm/evm-reference-tests/src/ExecuteViaEthAdapter.cpp \
+rtk git add bcos-evm/specs-tests/src/ExecuteViaEthAdapter.cpp \
   bcos-evm/test/eth/EthAdapter1559FormulaTest.cpp bcos-evm/test/CMakeLists.txt
 rtk git commit -m "$(cat <<'EOF'
 refactor(eest): dedupe EIP-1559 settlement formula to Eip1559.h
@@ -825,8 +825,8 @@ EOF
 ### Task 7: 1559 GASPRICE probe manifest + 文档
 
 **Files:**
-- Create: `bcos-evm/evm-reference-tests/manifests/eth-eest-1559-gasprice-probe.json`
-- Modify: `bcos-evm/evm-reference-tests/README.md`（或等价文档）
+- Create: `bcos-evm/specs-tests/manifests/eth-eest-1559-gasprice-probe.json`
+- Modify: `bcos-evm/specs-tests/README.md`（或等价文档）
 - Modify: `bcos-evm/capability-matrix.md`
 - Create: `bcos-evm/docs/adr/016-eth-eip1559-settlement.md`
 
@@ -878,7 +878,7 @@ cd build-ref && ctest -R eth-eest-1559-gasprice-probe -V 2>&1 | tee /tmp/1559-pr
 
 Run:
 ```bash
-cd build-ref && ctest -L evm-reference-tests-smoke -V
+cd build-ref && ctest -L specs-tests-smoke -V
 cd build-bcos-evm-check && ctest -R 'EthEip1559|EthExecuteViaEth1559|EthTxExecutor1559|EthIncludedTxVmerr|EthExecuteViaEthPreCheck' -V
 ```
 Expected: 全部 PASS
@@ -886,8 +886,8 @@ Expected: 全部 PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add bcos-evm/evm-reference-tests/manifests/eth-eest-1559-gasprice-probe.json \
-  bcos-evm/evm-reference-tests/README.md bcos-evm/capability-matrix.md \
+rtk git add bcos-evm/specs-tests/manifests/eth-eest-1559-gasprice-probe.json \
+  bcos-evm/specs-tests/README.md bcos-evm/capability-matrix.md \
   bcos-evm/docs/adr/016-eth-eip1559-settlement.md
 rtk git commit -m "$(cat <<'EOF'
 docs(eth): ADR-016 EIP-1559 settlement and 1559 GASPRICE probe manifest
