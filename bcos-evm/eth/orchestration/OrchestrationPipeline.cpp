@@ -47,6 +47,14 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
         }
 
         hooks.preKernel(ctx);
+        if (ctx.earlyExit)
+        {
+            if (ctx.exitKind == OrchestrationExitKind::None)
+            {
+                ctx.exitKind = OrchestrationExitKind::PreDebitRejected;
+            }
+            return;
+        }
 
         auto executeInput = buildExecuteMessageInput(ctx);
         hooks.tuneKernelInput(executeInput);

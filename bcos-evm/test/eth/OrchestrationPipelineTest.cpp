@@ -94,6 +94,36 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_hook)
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
+BOOST_AUTO_TEST_CASE(pre_kernel_early_exit_skips_kernel_execution)
+{
+    state::test::InMemoryStateView stateView;
+    auto ctx = makeContext(stateView);
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
+
+    int tuneKernelCalls = 0;
+    OrchestrationHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.preKernel = [](OrchestrationContext& c) {
+        evmc_result failResult{};
+        failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
+        failResult.gas_left = 0;
+        c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
+        c.earlyExit = true;
+        c.exitKind = OrchestrationExitKind::PreDebitRejected;
+    };
+    hooks.tuneKernelInput = [&](ExecuteMessageInput&) { ++tuneKernelCalls; };
+
+    runOrchestration(ctx, hooks);
+
+    BOOST_CHECK(ctx.earlyExit);
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(ctx.exitKind), static_cast<int>(OrchestrationExitKind::PreDebitRejected));
+    BOOST_CHECK_EQUAL(tuneKernelCalls, 0);
+}
+
 BOOST_AUTO_TEST_CASE(pre_kernel_exception_maps_without_kernel_revert)
 {
     state::test::InMemoryStateView stateView;

@@ -1,85 +1,31 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
-#include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/orchestration/adoptEvmcResult.h"
-#include "bcos-evm/eth/orchestration/debitIntrinsicGas.h"
+#include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
-#include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackPreCheck.h"
 #include "bcos-evm/opstack/OpStackPreDebitEntry.h"
+#include <algorithm>
 #include <stdexcept>
 
 namespace bcos::evm
 {
 namespace
 {
-ExecuteMessageOutput callExecuteMessage(ExecuteMessageInput input)
+EVMCResult makeOutOfGasLimitResult()
 {
-#ifdef BCOS_EVM_TESTING
-    if (auto output = opstack::test::maybeCallExecuteMessageSpy(input); output.has_value())
-    {
-        return std::move(*output);
-    }
-#endif
-    return executeMessage(std::move(input));
+    evmc_result failResult{};
+    failResult.status_code = EVMC_OUT_OF_GAS;
+    failResult.gas_left = 0;
+    return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
 }
 
-uint64_t computeIntrinsicGasDebit(evmc_message const& message, Eip2930AccessList const* accessList,
-    uint8_t web3TypedTxKind, uint64_t authTupleCount)
+EVMCResult makeInternalErrorResult()
 {
-    auto const intrinsic = gas::computeTxIntrinsicGas(message, accessList, web3TypedTxKind);
-    auto const base = static_cast<uint64_t>(std::max<int64_t>(0, intrinsic.preExecutionDebit()));
-    return base + static_cast<uint64_t>(
-                      std::max<int64_t>(0, gas::calcAuthTupleIntrinsicGas(authTupleCount)));
-}
-
-IntrinsicGasPolicy makeOpStackIntrinsicPolicy(
-    OpStackTxExecutor::OpStackTxExecutionData const& txData)
-{
-    return IntrinsicGasPolicy{.mode = IntrinsicDebitMode::OpStackEntry,
-        .authTupleCount = txData.m_authTupleCount,
-        .accessList = txData.m_accessList,
-        .web3TypedTxKind = txData.m_web3TypedTxKind};
-}
-
-std::optional<EVMCResult> runOpStackEntryChecks(
-    evmc_message& message, OpStackTxExecutor::OpStackTxExecutionData& txData)
-{
-    auto const intrinsicGas = computeIntrinsicGasDebit(
-        message, txData.m_accessList, txData.m_web3TypedTxKind, txData.m_authTupleCount);
-    auto const availableGas = static_cast<uint64_t>(std::max<int64_t>(0, message.gas));
-    if (availableGas < intrinsicGas)
-    {
-        evmc_result failResult{};
-        failResult.status_code = EVMC_OUT_OF_GAS;
-        failResult.gas_left = 0;
-        return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
-    }
-
-    bcos::bytesConstRef inputData{message.input_data, message.input_size};
-    auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
-    if (auto preDebitError = opStackPreDebitEntry({.message = message,
-            .state = *txData.m_state,
-            .gasLimit = gasLimit,
-            .skipTransactionChecks = txData.m_skipTransactionChecks,
-            .inputData = inputData,
-            .floorDataGasOut = txData.m_floorDataGas});
-        preDebitError.has_value())
-    {
-        return preDebitError;
-    }
-
-    auto const debitOutcome = debitIntrinsicGas(message, makeOpStackIntrinsicPolicy(txData));
-    if (!debitOutcome.ok)
-    {
-        evmc_result failResult{};
-        failResult.status_code = EVMC_OUT_OF_GAS;
-        failResult.gas_left = 0;
-        return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
-    }
-
-    return std::nullopt;
+    evmc_result failResult{};
+    failResult.status_code = EVMC_INTERNAL_ERROR;
+    failResult.gas_left = 0;
+    return EVMCResult(failResult, protocol::TransactionStatus::Unknown);
 }
 
 struct GasPoolReturnGuard
@@ -120,17 +66,29 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     }
 
     OpStackExecuteViaHostOutput output;
-    state::State state(*input.stateView);
-    OpHostExtension extension(&state);
-    auto const feeParams = loadOpStackFeeParams(state);
-    input.opTxExecutor.m_l1CostFunc = wireL1CostFuncWithState(input.forkSchedule, state);
+    OrchestrationContext ctx{*input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
+    ctx.txProps = input.txProps;
+    ctx.inputs.vm = input.vm;
+    ctx.inputs.hashImpl = input.hashImpl;
+    ctx.inputs.blockInfo = input.blockInfo;
+    ctx.inputs.blockHashes = input.blockHashes;
+    ctx.inputs.accessList = input.accessList;
+    ctx.inputs.authorizationListPresent = input.authorizationListPresent;
+    ctx.inputs.authorizations = input.authorizations;
+    ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
+
+    OpHostExtension opHostExtension(&ctx.state);
+    ctx.extension = &opHostExtension;
+
+    auto const feeParams = loadOpStackFeeParams(ctx.state);
+    input.opTxExecutor.m_l1CostFunc = wireL1CostFuncWithState(input.forkSchedule, ctx.state);
     input.opTxExecutor.m_operatorCostFunc =
-        wireOperatorCostFuncWithState(input.forkSchedule, state);
+        wireOperatorCostFuncWithState(input.forkSchedule, ctx.state);
 
     OpStackTxExecutor::OpStackTxExecutionData txData;
     txData.m_call = input.call;
     txData.m_isDepositTx = isDepositTx(input);
-    txData.m_state = &state;
+    txData.m_state = &ctx.state;
     txData.m_message = input.message;
     txData.m_gasTipCap = input.gasTipCap;
     txData.m_gasFeeCap = input.gasFeeCap;
@@ -150,7 +108,52 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     txData.m_blobVersionedHashes = input.blobVersionedHashes;
     txData.m_rollupCostData = input.rollupCostData;
 
-    if (auto preCheckError = opStackPreCheck(input, state); preCheckError.has_value())
+    auto applySettlement = [&](EVMCResult const& result) {
+        auto const settlement =
+            postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
+                static_cast<uint64_t>(std::max<int64_t>(0, result.gas_left)),
+                ctx.state.get_refund(), txData.m_floorDataGas);
+        txData.m_gasRemaining = settlement.gasRemaining;
+        txData.m_maxUsedGas = settlement.maxUsedGas;
+        txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
+    };
+
+    auto buildHooks = [&]() {
+        OrchestrationHooks hooks;
+        hooks.preDebitEntry = [&](OrchestrationContext& orchestrationCtx) {
+            auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
+            bcos::bytesConstRef inputData{
+                orchestrationCtx.message.input_data, orchestrationCtx.message.input_size};
+            if (auto preDebitError = opStackPreDebitEntry({.message = orchestrationCtx.message,
+                    .state = orchestrationCtx.state,
+                    .gasLimit = gasLimit,
+                    .skipTransactionChecks = txData.m_skipTransactionChecks,
+                    .inputData = inputData,
+                    .floorDataGasOut = txData.m_floorDataGas});
+                preDebitError.has_value())
+            {
+                orchestrationCtx.evmcResult = std::move(*preDebitError);
+                orchestrationCtx.earlyExit = true;
+            }
+        };
+        hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+        hooks.intrinsicPolicy.authTupleCount = txData.m_authTupleCount;
+        hooks.intrinsicPolicy.accessList = txData.m_accessList;
+        hooks.intrinsicPolicy.web3TypedTxKind = txData.m_web3TypedTxKind;
+        hooks.mapIntrinsicFailure = [](OrchestrationContext& orchestrationCtx,
+                                        IntrinsicDebitFailure) {
+            orchestrationCtx.evmcResult = makeOutOfGasLimitResult();
+        };
+        hooks.postSettle = [&](OrchestrationContext& orchestrationCtx) {
+            applySettlement(orchestrationCtx.evmcResult);
+        };
+        hooks.mapException = [](OrchestrationContext& orchestrationCtx, std::exception_ptr) {
+            orchestrationCtx.evmcResult = makeInternalErrorResult();
+        };
+        return hooks;
+    };
+
+    if (auto preCheckError = opStackPreCheck(input, ctx.state); preCheckError.has_value())
     {
         output.evmcResult = std::move(*preCheckError);
         co_return output;
@@ -158,75 +161,45 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
 
     if (txData.m_isDepositTx)
     {
-        output.receiptMeta.depositNonce = state.get_nonce(input.message.sender);
+        output.receiptMeta.depositNonce = ctx.state.get_nonce(input.message.sender);
         if (input.depositTx.has_value() && input.depositTx->mint.has_value() &&
             *input.depositTx->mint > 0)
         {
-            state.set_balance(input.message.sender,
-                state.get_balance(input.message.sender) + *input.depositTx->mint);
+            ctx.state.set_balance(input.message.sender,
+                ctx.state.get_balance(input.message.sender) + *input.depositTx->mint);
         }
 
-        state.checkpoint();
-        evmc_message message = input.message;
-        if (auto entryError = runOpStackEntryChecks(message, txData); entryError.has_value())
+        ctx.state.checkpoint();
+
+        auto hooks = buildHooks();
+        runOrchestration(ctx, hooks);
+
+        output.evmcResult = std::move(ctx.evmcResult);
+        output.logs = std::move(ctx.kernelOutput.logs);
+
+        if (ctx.exitKind == OrchestrationExitKind::KernelCompleted &&
+            output.evmcResult.status_code == EVMC_SUCCESS)
         {
-            output.evmcResult = std::move(*entryError);
-            state.revert();
-            auto const nonce = state.get_nonce(input.message.sender);
-            state.set_nonce(input.message.sender, nonce + 1);
-            txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
-            output.gasUsed = txData.m_gasUsed;
-            output.stateDiff = state.build_diff();
-            returnDepositPoolGas(input, txData);
-            co_return output;
-        }
-
-        auto executeOutput = callExecuteMessage(ExecuteMessageInput{.stateView = &state,
-            .vm = input.vm,
-            .message = message,
-            .gasPrice = 0,
-            .blockInfo = input.blockInfo,
-            .blockHashes = input.blockHashes,
-            .revisionConfig = input.revisionConfig,
-            .txProps = input.txProps,
-            .accessList = input.accessList,
-            .authorizationListPresent = input.authorizationListPresent,
-            .authorizations = input.authorizations,
-            .web3TypedTxKind = input.web3TypedTxKind,
-            .extension = &extension,
-            .fixStorageStatus = true});
-
-        output.evmcResult = adoptEvmcResult(std::move(executeOutput.result), *input.hashImpl);
-        output.logs = std::move(executeOutput.logs);
-
-        if (output.evmcResult.status_code == EVMC_SUCCESS)
-        {
-            auto const settlement = postExecuteGasSettlement(
-                static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
-                static_cast<uint64_t>(std::max<int64_t>(0, output.evmcResult.gas_left)),
-                state.get_refund(), txData.m_floorDataGas);
-            txData.m_gasRemaining = settlement.gasRemaining;
-            txData.m_maxUsedGas = settlement.maxUsedGas;
-            txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
-            output.gasUsed = txData.m_gasUsed;
-            auto const nonce = state.get_nonce(input.message.sender);
-            state.set_nonce(input.message.sender, nonce + 1);
-            state.commit();
+            auto const nonce = ctx.state.get_nonce(input.message.sender);
+            ctx.state.set_nonce(input.message.sender, nonce + 1);
+            ctx.state.commit();
         }
         else
         {
-            auto const settlement = postExecuteGasSettlement(
-                static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
-                static_cast<uint64_t>(std::max<int64_t>(0, output.evmcResult.gas_left)),
-                state.get_refund(), txData.m_floorDataGas);
-            state.revert();
-            auto const nonce = state.get_nonce(input.message.sender);
-            state.set_nonce(input.message.sender, nonce + 1);
-            txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
-            output.gasUsed = txData.m_gasUsed;
+            if (ctx.state.has_checkpoint())
+            {
+                ctx.state.revert();
+            }
+            auto const nonce = ctx.state.get_nonce(input.message.sender);
+            ctx.state.set_nonce(input.message.sender, nonce + 1);
+            if (ctx.exitKind != OrchestrationExitKind::KernelCompleted)
+            {
+                txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
+            }
         }
 
-        output.stateDiff = state.build_diff();
+        output.gasUsed = txData.m_gasUsed;
+        output.stateDiff = ctx.state.build_diff();
         returnDepositPoolGas(input, txData);
         co_return output;
     }
@@ -236,10 +209,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         auto const gasLimitForPool = static_cast<uint64_t>(std::max<int64_t>(0, input.message.gas));
         if (!input.gasPoolSubGasHook(gasLimitForPool))
         {
-            evmc_result failResult{};
-            failResult.status_code = EVMC_OUT_OF_GAS;
-            failResult.gas_left = 0;
-            output.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+            output.evmcResult = makeOutOfGasLimitResult();
             co_return output;
         }
     }
@@ -254,49 +224,17 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     }
 
     guard.armed = true;
+    ctx.gasPrice = txData.m_effectiveGasPrice;
 
-    evmc_message message = input.message;
-    if (auto entryError = runOpStackEntryChecks(message, txData); entryError.has_value())
+    auto hooks = buildHooks();
+    runOrchestration(ctx, hooks);
+
+    output.evmcResult = std::move(ctx.evmcResult);
+    output.logs = std::move(ctx.kernelOutput.logs);
+    if (ctx.exitKind != OrchestrationExitKind::KernelCompleted)
     {
-        txData.m_evmcResult = std::move(*entryError);
+        applySettlement(output.evmcResult);
     }
-
-    if (!txData.m_evmcResult.has_value())
-    {
-        auto executeOutput = callExecuteMessage(ExecuteMessageInput{.stateView = &state,
-            .vm = input.vm,
-            .message = message,
-            .gasPrice = txData.m_effectiveGasPrice,
-            .blockInfo = input.blockInfo,
-            .blockHashes = input.blockHashes,
-            .revisionConfig = input.revisionConfig,
-            .txProps = input.txProps,
-            .accessList = input.accessList,
-            .authorizationListPresent = input.authorizationListPresent,
-            .authorizations = input.authorizations,
-            .web3TypedTxKind = input.web3TypedTxKind,
-            .extension = &extension,
-            .fixStorageStatus = true});
-
-        output.evmcResult = adoptEvmcResult(std::move(executeOutput.result), *input.hashImpl);
-        output.logs = std::move(executeOutput.logs);
-        evmc_result settlementResult{};
-        settlementResult.status_code = output.evmcResult.status_code;
-        settlementResult.gas_left = output.evmcResult.gas_left;
-        txData.m_evmcResult.emplace(settlementResult, output.evmcResult.status);
-    }
-    else
-    {
-        output.evmcResult = std::move(*txData.m_evmcResult);
-    }
-
-    auto const settlement =
-        postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
-            static_cast<uint64_t>(std::max<int64_t>(0, txData.m_evmcResult->gas_left)),
-            state.get_refund(), txData.m_floorDataGas);
-    txData.m_gasRemaining = settlement.gasRemaining;
-    txData.m_maxUsedGas = settlement.maxUsedGas;
-    txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
 
     co_await input.opTxExecutor.refundGas(txData);
 
@@ -314,7 +252,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
             output.receiptMeta.operatorFeeConstant = feeParams.operatorFeeConstant;
         }
     }
-    output.stateDiff = state.build_diff();
+    output.stateDiff = ctx.state.build_diff();
     guard.gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasRemaining));
     guard.gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
     co_return output;
