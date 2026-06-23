@@ -129,8 +129,6 @@ inline DebitIntrinsicGasOutcome debitIntrinsicGas(
         return outcome;
     }
     }
-
-    return outcome;
 }
 
 }  // namespace bcos::evm

@@ -33,10 +33,10 @@ BOOST_AUTO_TEST_CASE(auth_only_mode_debits_auth_cost)
     BOOST_CHECK_EQUAL(message.gas, 100'000 - gas::calcAuthTupleIntrinsicGas(1));
 }
 
-BOOST_AUTO_TEST_CASE(eip7623_mode_reports_structured_calldata_failure)
+BOOST_AUTO_TEST_CASE(eip7623_mode_reports_structured_gas_limit_minimum_failure)
 {
     bcos::bytes calldata{0x01};
-    auto const calldataGas = gas::calcEip7623CalldataGas(bcos::bytesConstRef(calldata));
+    auto const calldataGas = gas::calcEip7623CalldataGas(bcos::bytesConstRef(&calldata));
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(eip7623_mode_reports_structured_calldata_failure)
     auto const out = debitIntrinsicGas(message, {.mode = IntrinsicDebitMode::Eip7623});
     BOOST_REQUIRE(!out.ok);
     BOOST_CHECK_EQUAL(static_cast<int>(out.failure),
-        static_cast<int>(IntrinsicDebitFailure::CalldataOutOfGas));
+        static_cast<int>(IntrinsicDebitFailure::GasLimitMinimum));
     BOOST_CHECK_EQUAL(message.gas, calldataGas - 1);
 }
 
