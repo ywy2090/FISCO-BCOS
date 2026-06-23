@@ -1253,3 +1253,45 @@ add_test(
     NAME PrecompileRouterCharacterization
     COMMAND ${PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME}
 )
+
+set(PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME PrecompileRouterEquivalenceTest)
+
+add_executable(${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME}
+    eth/PrecompileRouterEquivalenceTest.cpp
+)
+
+target_include_directories(${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+    bcos-evm-op
+)
+
+add_test(
+    NAME PrecompileRouterEquivalence
+    COMMAND ${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME}
+)
+
+set(PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME PrecompileRouterEnvelopeTest)
+
+add_executable(${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME}
+    eth/PrecompileRouterEnvelopeTest.cpp
+)
+
+target_include_directories(${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+    bcos-evm-op
+)
+
+add_test(
+    NAME PrecompileRouterEnvelope
+    COMMAND ${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME}
+)
