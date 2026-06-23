@@ -1089,6 +1089,13 @@ target_link_libraries(EthExecuteViaEth1559GasPriceTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME EthExecuteViaEth1559GasPrice COMMAND EthExecuteViaEth1559GasPriceTest)
 
+add_executable(OrchestrationPipelineTest eth/OrchestrationPipelineTest.cpp)
+target_include_directories(OrchestrationPipelineTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OrchestrationPipelineTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
+add_test(NAME OrchestrationPipeline COMMAND OrchestrationPipelineTest)
+
 add_executable(OpStack7702ExecuteViaHostPropagationTest opstack/OpStack7702ExecuteViaHostPropagationTest.cpp)
 target_include_directories(OpStack7702ExecuteViaHostPropagationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

@@ -9,6 +9,7 @@ set(BCOS_EVM_ETH_SOURCES
     eth/Eip7702.cpp
     eth/ExecuteViaEth.cpp
     eth/ExecuteViaEthPreCheck.cpp
+    eth/orchestration/OrchestrationPipeline.cpp
     eth/executeMessage.cpp
     eth/state/State.cpp
     eth/state/EthHost.cpp
