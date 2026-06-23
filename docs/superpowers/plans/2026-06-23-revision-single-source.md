@@ -16,7 +16,23 @@
 - `prague_post_execution` has no production consumer and stays `false` via struct default (no explicit overlay).
 - The single source covers "EIP gating given a revision" only. `evmcRevisionFromBlockNumber` (Eth) and `toFiscoRevision` (FISCO) — the blockNum/features -> revision translation — stay in their policies and are out of scope for `derive`.
 - Keep `REVISION_CONFIG_BOOL_FIELDS` count assert in sync (currently 13 fields).
-- Build via the repo's standard CMake/CTest flow. Run the single test target after each task.
+
+### Build & Test Conventions (verified against this worktree)
+
+- The CMake build directory is the **repo-root** `build/` (NOT `bcos-evm/build`). Run all commands from the repo root.
+- The CMake **executable target** is named `<Name>Test`; the **ctest registered name** drops the `Test` suffix. Build the target, run the ctest name.
+- Build one target: `cmake --build build --target <Name>Test 2>&1 | rtk err`
+- Run one test: `ctest --test-dir build -R "^<Name>$" --output-on-failure 2>&1 | rtk err`
+- Relevant name map (target -> ctest):
+  - `RevisionConfigProfileTest` -> `RevisionConfigProfile`
+  - `EipPrecompileRevisionGateTest` -> `EipPrecompileRevisionGate`
+  - `BcosPrecompileRevisionGateTest` -> `BcosPrecompileRevisionGate`
+  - `Eip2537KernelTest` -> `Eip2537Kernel`; `Bcos2537MsmGasTest` -> `Bcos2537MsmGas`
+  - `Bcos6780SelfdestructTest` -> `Bcos6780Selfdestruct`; `Bcos7212ExecuteViaHostTest` -> `Bcos7212ExecuteViaHost`
+  - `OpStack67802537KernelSmokeTest` -> `OpStack67802537KernelSmoke`
+- `RevisionConfigProfileTest` links `bcos-evm bcos-evm-eth protocol-tars bcos-framework`; it includes `bcos-evm/bcos/FiscoPolicy.h`, so Task 2's additions are exercised here.
+- `ForkProfileRegistry` (Task 3) lives in the `specs-tests` subproject, which is a **separate** build tree and is not part of repo-root `build/`. Verify it by compiling `bcos-evm/specs-tests/src/ForkProfileRegistry.cpp` in that subproject if available; otherwise rely on the `RevisionConfigProfile` equivalence assertions (the registry just forwards to `derive`).
+- The per-task `Run:` lines below follow these conventions; if a literal command mentions `cd bcos-evm` or a `test-` prefix, treat it as a typo and use the convention above.
 
 ---
 
@@ -100,7 +116,7 @@ BOOST_AUTO_TEST_CASE(gated_field_count_is_six)
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest 2>&1 | rtk err`
 Expected: compile FAIL — `revisionConfigFromRevision`/`revisionConfigGatedFieldCount` not declared.
 
 - [ ] **Step 3: Write minimal implementation** — in `bcos-evm/eth/RevisionConfig.h`, add after the `REVISION_CONFIG_BOOL_FIELDS` block (before `makeIsthmusRevisionConfig`):
@@ -153,7 +169,7 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest && ctest --test-dir build -R RevisionConfigProfileTest --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -220,7 +236,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest 2>&1 | rtk err`
 Expected: compile FAIL — `applyFiscoFeatureGates` not declared.
 
 - [ ] **Step 3: Write minimal implementation** — in `bcos-evm/bcos/FiscoPolicy.h`, inside `namespace bcos::chain_policy` and after the anonymous-namespace `toFiscoRevision` block, add:
@@ -263,7 +279,7 @@ Note: `FiscoPolicy.h` already includes `bcos-framework/ledger/Features.h` and (t
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest && ctest --test-dir build -R RevisionConfigProfileTest --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -332,7 +348,7 @@ rtk git commit -m "feat(evm): add FISCO feature-gate mask with compile-time comp
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest && ctest --test-dir build -R RevisionConfigProfileTest --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
 Expected: FAIL on `eth_policy_full_fork_snapshots` — `eip1559`/`eip3651` mismatch (EthPolicy still leaves them false).
 
 - [ ] **Step 3: Re-point EthPolicy to `derive`** — replace the body of `EthPolicy::computeRevisionConfig` (`bcos-evm/eth/vm/EthPolicy.h:27-43`):
@@ -355,8 +371,8 @@ bcos::evm_standard::RevisionConfig makeReferenceRevisionConfig(evmc_revision rev
 
 - [ ] **Step 5: Run both affected targets to verify pass**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest && ctest --test-dir build -R "RevisionConfigProfileTest|ForkProfileRegistry" --output-on-failure 2>&1 | rtk err`
-Expected: PASS (ForkProfileRegistry `activatedEipsFor` output is unchanged — `eip1559`/`eip3651` are not in its EIP list).
+Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
+Expected: PASS. (ForkProfileRegistry lives in the `specs-tests` subproject — see Build & Test Conventions; its `activatedEipsFor` output is unchanged because `eip1559`/`eip3651` are not in its EIP list. Compile-check it in that subproject if available.)
 
 - [ ] **Step 6: Commit**
 
@@ -445,7 +461,7 @@ row 4:
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest && ctest --test-dir build -R RevisionConfigProfileTest --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
 Expected: FAIL on `fisco_policy_feature_gate_snapshots` — `eip3651` mismatch (FiscoPolicy still leaves it false).
 
 - [ ] **Step 3: Re-point FiscoPolicy** — in `FiscoPolicy::computeRevisionConfig` (`bcos-evm/bcos/FiscoPolicy.h:49-87`), replace the per-field EIP block (the lines setting `ethCfg.warm_access` through `ethCfg.calldata_floor_per_token`, i.e. lines 57-69) with:
@@ -460,7 +476,7 @@ Delete the now-redundant `ethCfg.revision = std::max(...)` assignment at line 55
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest && ctest --test-dir build -R RevisionConfigProfileTest --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -515,7 +531,7 @@ BOOST_AUTO_TEST_CASE(isthmus_helper_dense_profile_all_fields)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd bcos-evm && cmake --build build --target test-RevisionConfigProfileTest && ctest --test-dir build -R RevisionConfigProfileTest --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
 Expected: FAIL — Isthmus profile still sparse (`eip1153`/`eip2537`/... false).
 
 - [ ] **Step 3: Re-point makeIsthmus** — replace `makeIsthmusRevisionConfig` (`bcos-evm/eth/RevisionConfig.h:62-73`):
@@ -531,7 +547,7 @@ inline RevisionConfig makeIsthmusRevisionConfig()
 
 - [ ] **Step 4: Run the Isthmus consumers to verify runtime inertness**
 
-Run: `cd bcos-evm && cmake --build build && ctest --test-dir build -R "RevisionConfigProfileTest|Isthmus|OpStack" --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build && ctest --test-dir build -R "^(RevisionConfigProfile|IsthmusPostExecutionPolicy|RefundIsthmus|OpStack67802537KernelSmoke|OpStackSettlement)$" --output-on-failure 2>&1 | rtk err`
 Expected: PASS — densified fields are profile-only; OP-Stack Isthmus orchestration tests unchanged.
 
 - [ ] **Step 5: Commit**
@@ -576,7 +592,7 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_reads_eip2537_bool_not_revision)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd bcos-evm && cmake --build build --target test-EipPrecompileRevisionGateTest && ctest --test-dir build -R EipPrecompileRevisionGateTest --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build --target EipPrecompileRevisionGateTest && ctest --test-dir build -R "^EipPrecompileRevisionGate$" --output-on-failure 2>&1 | rtk err`
 Expected: FAIL on `isActivePrecompile_reads_eip2537_bool_not_revision` — current code returns `true` for 0x0b at PRAGUE regardless of `cfg.eip2537`.
 
 - [ ] **Step 3: Unify `isActivePrecompile`** — replace the body (`bcos-evm/eth/precompiled/PrecompileActive.h:41-62`):
@@ -612,7 +628,7 @@ inline bool isActivePrecompile(evmc_revision /*revision*/,
 
 - [ ] **Step 5: Run the full seam + regression set to verify pass**
 
-Run: `cd bcos-evm && cmake --build build && ctest --test-dir build -R "EipPrecompileRevisionGateTest|BcosPrecompileRevisionGateTest|Bcos6780Selfdestruct|Bcos2537MsmGas|Eip2537Kernel|Bcos7212ExecuteViaHost" --output-on-failure 2>&1 | rtk err`
+Run: `cmake --build build && ctest --test-dir build -R "^(EipPrecompileRevisionGate|BcosPrecompileRevisionGate|Bcos6780Selfdestruct|Bcos2537MsmGas|Eip2537Kernel|Bcos7212ExecuteViaHost)$" --output-on-failure 2>&1 | rtk err`
 Expected: PASS — precompile gate tests + EIP-6780 selfdestruct + EIP-2537/7212 regressions all green (equivalence preserved).
 
 - [ ] **Step 6: Commit**
