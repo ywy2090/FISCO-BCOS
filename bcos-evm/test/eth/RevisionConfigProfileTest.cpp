@@ -63,6 +63,67 @@ BOOST_AUTO_TEST_CASE(revision_config_bool_field_macro_count)
     BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 13U);
 }
 
+BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
+{
+    struct Row
+    {
+        evmc_revision revision;
+        ExpectedRevisionConfig expected;
+    };
+    std::vector<Row> const rows = {
+        {EVMC_LONDON, {.revision = EVMC_LONDON, .warm_access = true, .eip1559 = true}},
+        {EVMC_PARIS, {.revision = EVMC_PARIS, .warm_access = true, .eip1559 = true}},
+        {EVMC_SHANGHAI,
+            {.revision = EVMC_SHANGHAI, .warm_access = true, .eip1559 = true, .eip3651 = true}},
+        {EVMC_CANCUN, {.revision = EVMC_CANCUN,
+                          .warm_access = true,
+                          .eip1153 = true,
+                          .eip4844 = true,
+                          .eip5656 = true,
+                          .eip6780 = true,
+                          .eip1559 = true,
+                          .eip3651 = true}},
+        {EVMC_PRAGUE, {.revision = EVMC_PRAGUE,
+                          .warm_access = true,
+                          .eip2537 = true,
+                          .eip7623 = true,
+                          .eip1153 = true,
+                          .eip4844 = true,
+                          .eip5656 = true,
+                          .eip6780 = true,
+                          .eip1559 = true,
+                          .eip3651 = true,
+                          .eip7702 = true,
+                          .calldata_floor_per_token = 10}},
+        {EVMC_OSAKA, {.revision = EVMC_OSAKA,
+                         .warm_access = true,
+                         .eip2537 = true,
+                         .eip7212 = true,
+                         .eip7623 = true,
+                         .eip7823 = true,
+                         .eip1153 = true,
+                         .eip4844 = true,
+                         .eip5656 = true,
+                         .eip6780 = true,
+                         .eip1559 = true,
+                         .eip3651 = true,
+                         .eip7702 = true,
+                         .calldata_floor_per_token = 10}},
+    };
+    for (auto const& row : rows)
+    {
+        BOOST_TEST_CONTEXT("revision=" << row.revision)
+        {
+            assertRevisionConfigMatches(revisionConfigFromRevision(row.revision), row.expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(gated_field_count_is_six)
+{
+    BOOST_CHECK_EQUAL(revisionConfigGatedFieldCount(), 6U);
+}
+
 BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
 {
     EthPolicy policy;

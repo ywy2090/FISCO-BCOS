@@ -59,6 +59,50 @@ inline constexpr std::size_t revisionConfigBoolFieldCount() noexcept
 static_assert(revisionConfigBoolFieldCount() == 13,
     "Keep REVISION_CONFIG_BOOL_FIELDS in sync with RevisionConfig bool bitfields");
 
+// A-class feature-gated fields (FISCO requires an explicit flag ON for each).
+#define REVISION_CONFIG_GATED_FIELDS(X) \
+    X(warm_access)                      \
+    X(eip2537)                          \
+    X(eip7212)                          \
+    X(eip7623)                          \
+    X(eip7823)                          \
+    X(eip7702)
+
+inline constexpr std::size_t revisionConfigGatedFieldCount() noexcept
+{
+    std::size_t n = 0;
+#define REVISION_CONFIG_GATED_COUNT(name) ++n;
+    REVISION_CONFIG_GATED_FIELDS(REVISION_CONFIG_GATED_COUNT)
+#undef REVISION_CONFIG_GATED_COUNT
+    return n;
+}
+
+static_assert(revisionConfigGatedFieldCount() == 6,
+    "Keep REVISION_CONFIG_GATED_FIELDS in sync with the A-class field set");
+
+// Single source of truth: EIP gating for a given revision. Canonical (maximal) config.
+// Chains translate blockNum/features -> revision elsewhere (EthPolicy/FiscoPolicy), then
+// optionally mask A-class fields. Never read `revision >= EVMC_xxx` for a gated EIP outside here.
+inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
+{
+    RevisionConfig cfg;
+    cfg.revision = revision;
+    cfg.warm_access = revision >= EVMC_BERLIN;
+    cfg.eip1559 = revision >= EVMC_LONDON;
+    cfg.eip3651 = revision >= EVMC_SHANGHAI;
+    cfg.eip1153 = revision >= EVMC_CANCUN;
+    cfg.eip4844 = revision >= EVMC_CANCUN;
+    cfg.eip5656 = revision >= EVMC_CANCUN;
+    cfg.eip6780 = revision >= EVMC_CANCUN;
+    cfg.eip2537 = revision >= EVMC_PRAGUE;
+    cfg.eip7623 = revision >= EVMC_PRAGUE;
+    cfg.eip7702 = revision >= EVMC_PRAGUE;
+    cfg.eip7212 = revision >= EVMC_OSAKA;
+    cfg.eip7823 = revision >= EVMC_OSAKA;
+    cfg.calldata_floor_per_token = cfg.eip7623 ? 10 : 0;
+    return cfg;
+}
+
 inline RevisionConfig makeIsthmusRevisionConfig()
 {
     RevisionConfig config;
