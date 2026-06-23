@@ -22,6 +22,8 @@
 #include "bcos-evm/bcos/FiscoExecutionContext.h"
 #include "bcos-evm/bcos/FiscoHostExtension.h"
 #include "bcos-evm/bcos/FiscoRevisionConfig.h"
+#include "bcos-evm/bcos/ports/AuthPort.h"
+#include "bcos-evm/bcos/ports/ChainPrecompilePort.h"
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/Eip7702.h"
@@ -66,10 +68,9 @@ struct ExecuteViaHostInput
     std::vector<SetCodeAuthorization> authorizations;
 
     // Optional adapters for integration layering.
-    std::function<std::optional<EVMCResult>(const evmc_message&)> authChecker;
+    AuthPort const* authPort{nullptr};
+    ChainPrecompilePort const* chainPrecompilePort{nullptr};
     std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
-    FiscoHostExtension::FiscoPrecompileCaller precompileCaller;
-    FiscoHostExtension::CreateAuthTableInvoker createAuthTableInvoker;
     FiscoHostExtension::RecipientPathResolver recipientPathResolver;
 };
 

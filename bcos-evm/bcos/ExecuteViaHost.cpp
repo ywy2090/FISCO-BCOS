@@ -216,9 +216,10 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
 
     try
     {
-        if (input.revisionConfig.enable_auth_check && input.authChecker)
+        if (input.revisionConfig.enable_auth_check && input.authPort != nullptr)
         {
-            if (auto authResult = input.authChecker(message); authResult.has_value())
+            if (auto authResult = const_cast<AuthPort*>(input.authPort)->checkAuth(message);
+                authResult.has_value())
             {
                 output.evmcResult = std::move(*authResult);
                 co_return output;
@@ -296,9 +297,9 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         deps.origin = input.origin;
         deps.persistContractCreateNonce = std::move(input.persistContractCreateNonce);
         deps.recipientPathResolver = std::move(input.recipientPathResolver);
-        deps.createAuthTableInvoker = std::move(input.createAuthTableInvoker);
-        FiscoHostExtension extension(
-            input.revisionConfig.enable_balance_transfer, std::move(deps), input.precompileCaller);
+        deps.authPort = input.authPort;
+        deps.chainPrecompilePort = input.chainPrecompilePort;
+        FiscoHostExtension extension(input.revisionConfig.enable_balance_transfer, std::move(deps));
 
         auto executeOutput = executeMessage(ExecuteMessageInput{.stateView = &state,
             .vm = input.vm,

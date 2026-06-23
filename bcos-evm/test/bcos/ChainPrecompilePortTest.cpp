@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE ChainPrecompilePortTest
 
 #include "bcos-evm/bcos/FiscoHostExtension.h"
-#include "bcos/test/bcos/adapters/InMemoryChainPrecompileAdapter.h"
+#include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 

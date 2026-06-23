@@ -21,6 +21,8 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
+#include "bcos-evm/bcos/ports/AuthPort.h"
+#include "bcos-evm/bcos/ports/ChainPrecompilePort.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/policy/HostExtension.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -34,8 +36,6 @@
 
 namespace bcos::evm
 {
-class PrecompiledManager;
-
 class FiscoHostExtension final : public state::HostExtension
 {
 public:
@@ -48,35 +48,27 @@ public:
         int64_t createLevel{0};
     };
 
-    using ExternalCaller = std::function<EVMCResult(const evmc_message&)>;
-    using FiscoPrecompileCaller =
-        std::function<std::optional<evmc_result>(evmc_revision, const evmc_message&)>;
     using RecipientPathResolver = std::function<std::string(const evmc_message&)>;
-    using CreateAuthTableInvoker = std::function<void(const evmc_message&, std::string_view)>;
 
     struct FiscoHostExtensionDeps
     {
         void* storageRef{nullptr};
         protocol::BlockHeader const* blockHeader{nullptr};
         ledger::LedgerConfig const* ledgerConfig{nullptr};
-        PrecompiledManager const* precompiledManager{nullptr};
         int64_t blockNumber{0};
         int64_t contextID{0};
         int64_t* seq{nullptr};
         bcos::crypto::Hash const* hashImpl{nullptr};
         std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
-        ExternalCaller externalCaller{};
         evmc_address origin{};
         RevisionFlags revisionFlags{};
         state::State* state{nullptr};
         RecipientPathResolver recipientPathResolver{};
-        CreateAuthTableInvoker createAuthTableInvoker{};
+        AuthPort const* authPort{nullptr};
+        ChainPrecompilePort const* chainPrecompilePort{nullptr};
     };
 
-    explicit FiscoHostExtension(
-        bool skipEvmNativeValueTransfer, FiscoPrecompileCaller precompileCaller = {});
-    FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHostExtensionDeps deps,
-        FiscoPrecompileCaller precompileCaller = {});
+    explicit FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHostExtensionDeps deps);
 
     bool allowSelfdestruct(const state::Account& /*unused*/) override { return false; }
     bool allowDelegateCallToPrecompile() override { return false; }
@@ -100,11 +92,9 @@ private:
 
 private:
     bool m_skipEvmNativeValueTransfer{false};
-    FiscoPrecompileCaller m_precompileCaller;
     void* m_storageRef{nullptr};
     protocol::BlockHeader const* m_blockHeader{nullptr};
     ledger::LedgerConfig const* m_ledgerConfig{nullptr};
-    PrecompiledManager const* m_precompiledManager{nullptr};
     int64_t m_blockNumber{0};
     int64_t m_contextID{0};
     int64_t* m_seq{nullptr};
@@ -114,9 +104,9 @@ private:
     evmc_address m_origin{};
     RevisionFlags m_revisionFlags{};
     state::State* m_state{nullptr};
-    ExternalCaller m_externalCaller;
     RecipientPathResolver m_recipientPathResolver;
-    CreateAuthTableInvoker m_createAuthTableInvoker;
+    AuthPort const* m_authPort{nullptr};
+    ChainPrecompilePort const* m_chainPrecompilePort{nullptr};
 };
 
 }  // namespace bcos::evm

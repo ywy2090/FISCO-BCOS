@@ -58,20 +58,12 @@ std::vector<std::string_view> splitByComma(std::string_view input)
 }
 }  // namespace
 
-FiscoHostExtension::FiscoHostExtension(
-    bool skipEvmNativeValueTransfer, FiscoPrecompileCaller precompileCaller)
-  : m_skipEvmNativeValueTransfer(skipEvmNativeValueTransfer),
-    m_precompileCaller(std::move(precompileCaller))
-{}
-
-FiscoHostExtension::FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHostExtensionDeps deps,
-    FiscoPrecompileCaller precompileCaller)
-  : FiscoHostExtension(skipEvmNativeValueTransfer, std::move(precompileCaller))
+FiscoHostExtension::FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHostExtensionDeps deps)
+  : m_skipEvmNativeValueTransfer(skipEvmNativeValueTransfer)
 {
     m_storageRef = deps.storageRef;
     m_blockHeader = deps.blockHeader;
     m_ledgerConfig = deps.ledgerConfig;
-    m_precompiledManager = deps.precompiledManager;
     m_blockNumber = deps.blockNumber;
     m_contextID = deps.contextID;
     m_seq = deps.seq;
@@ -80,7 +72,8 @@ FiscoHostExtension::FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHos
     m_state = deps.state;
     m_hashImpl = deps.hashImpl;
     m_persistContractCreateNonce = std::move(deps.persistContractCreateNonce);
-    m_externalCaller = std::move(deps.externalCaller);
+    m_authPort = deps.authPort;
+    m_chainPrecompilePort = deps.chainPrecompilePort;
 
     if (deps.recipientPathResolver)
     {
@@ -92,13 +85,12 @@ FiscoHostExtension::FiscoHostExtension(bool skipEvmNativeValueTransfer, FiscoHos
             return std::string(USER_APPS_PREFIX) + hexAddress(message.recipient);
         };
     }
-    m_createAuthTableInvoker = std::move(deps.createAuthTableInvoker);
 }
 
 std::optional<evmc_result> FiscoHostExtension::tryChainPrecompile(
     evmc_revision rev, const evmc_message& msg)
 {
-    if (!m_precompileCaller)
+    if (m_chainPrecompilePort == nullptr)
     {
         return std::nullopt;
     }
@@ -129,7 +121,7 @@ std::optional<evmc_result> FiscoHostExtension::tryChainPrecompile(
     auto routedMessage = msg;
     routedMessage.recipient = resolvedTarget;
     routedMessage.code_address = resolvedTarget;
-    return m_precompileCaller(rev, routedMessage);
+    return const_cast<ChainPrecompilePort*>(m_chainPrecompilePort)->dispatch(rev, routedMessage);
 }
 
 void FiscoHostExtension::deriveNestedCreateAddress(evmc_message& message)
@@ -204,9 +196,9 @@ void FiscoHostExtension::prepareMessage(evmc_revision rev, evmc_message& msg)
 
     deriveNestedCreateAddress(msg);
 
-    if (m_blockNumber != 0 && m_createAuthTableInvoker)
+    if (m_blockNumber != 0 && m_authPort != nullptr)
     {
-        m_createAuthTableInvoker(msg, resolveAuthTablePath(msg));
+        const_cast<AuthPort*>(m_authPort)->createAuthTable(msg, resolveAuthTablePath(msg));
     }
     applyCreateNonceSemantics(msg);
 }
