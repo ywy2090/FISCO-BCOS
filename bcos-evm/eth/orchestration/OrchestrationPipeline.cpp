@@ -59,7 +59,14 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
         auto executeInput = buildExecuteMessageInput(ctx);
         hooks.tuneKernelInput(executeInput);
 
-        ctx.kernelOutput = executeMessage(std::move(executeInput));
+        if (hooks.executeMessageOverride)
+        {
+            ctx.kernelOutput = hooks.executeMessageOverride(std::move(executeInput));
+        }
+        else
+        {
+            ctx.kernelOutput = executeMessage(std::move(executeInput));
+        }
         ctx.evmcResult = adoptEvmcResult(std::move(ctx.kernelOutput.result), *ctx.inputs.hashImpl);
 
         captureSettlementSnapshot(ctx, ctx.kernelOutput);

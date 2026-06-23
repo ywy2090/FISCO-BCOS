@@ -5,6 +5,9 @@
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackPreCheck.h"
 #include "bcos-evm/opstack/OpStackPreDebitEntry.h"
+#ifdef BCOS_EVM_TESTING
+#include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
+#endif
 #include <algorithm>
 #include <stdexcept>
 
@@ -150,6 +153,16 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         hooks.mapException = [](OrchestrationContext& orchestrationCtx, std::exception_ptr) {
             orchestrationCtx.evmcResult = makeInternalErrorResult();
         };
+#ifdef BCOS_EVM_TESTING
+        hooks.executeMessageOverride = [](ExecuteMessageInput&& execInput) -> ExecuteMessageOutput {
+            if (auto spyOutput = opstack::test::maybeCallExecuteMessageSpy(execInput);
+                spyOutput.has_value())
+            {
+                return std::move(*spyOutput);
+            }
+            return executeMessage(std::move(execInput));
+        };
+#endif
         return hooks;
     };
 

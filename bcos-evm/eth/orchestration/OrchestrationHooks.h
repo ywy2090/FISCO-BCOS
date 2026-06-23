@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/orchestration/OrchestrationContext.h"
 #include <exception>
 #include <functional>
@@ -22,6 +23,8 @@ struct OrchestrationHooks
         [](OrchestrationContext&, IntrinsicDebitFailure) {};
     std::function<void(OrchestrationContext&, std::exception_ptr)> mapException =
         [](OrchestrationContext&, std::exception_ptr) {};
+    // Test-only seam: when set, pipeline calls this instead of executeMessage (OpStack spy tests).
+    std::function<ExecuteMessageOutput(ExecuteMessageInput&&)> executeMessageOverride;
 };
 
 }  // namespace bcos::evm
