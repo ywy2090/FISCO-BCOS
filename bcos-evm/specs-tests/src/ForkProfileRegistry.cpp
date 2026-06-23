@@ -1,4 +1,5 @@
 #include "bcos-evm/specs-tests/ForkProfileRegistry.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 
 #include <algorithm>
 
@@ -9,21 +10,7 @@ namespace
 
 bcos::evm_standard::RevisionConfig makeReferenceRevisionConfig(evmc_revision revision)
 {
-    // Keep aligned with EthPolicy::computeRevisionConfig for reference-path GST runs.
-    bcos::evm_standard::RevisionConfig cfg;
-    cfg.revision = revision;
-    cfg.warm_access = revision >= EVMC_BERLIN;
-    cfg.eip1153 = revision >= EVMC_CANCUN;
-    cfg.eip4844 = revision >= EVMC_CANCUN;
-    cfg.eip5656 = revision >= EVMC_CANCUN;
-    cfg.eip6780 = revision >= EVMC_CANCUN;
-    cfg.eip2537 = revision >= EVMC_PRAGUE;
-    cfg.eip7623 = revision >= EVMC_PRAGUE;
-    cfg.eip7702 = revision >= EVMC_PRAGUE;
-    cfg.eip7212 = revision >= EVMC_OSAKA;
-    cfg.eip7823 = revision >= EVMC_OSAKA;
-    cfg.calldata_floor_per_token = cfg.eip7623 ? 10 : 0;
-    return cfg;
+    return bcos::evm_standard::revisionConfigFromRevision(revision);
 }
 
 std::vector<std::string> activatedEipsFor(bcos::evm_standard::RevisionConfig const& revision)

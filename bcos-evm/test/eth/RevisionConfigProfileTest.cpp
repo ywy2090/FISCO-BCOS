@@ -170,14 +170,17 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
         ExpectedRevisionConfig expected;
     };
     std::vector<Row> const rows = {
-        {15'537'394, {.revision = EVMC_PARIS, .warm_access = true}},
-        {17'034'870, {.revision = EVMC_SHANGHAI, .warm_access = true}},
+        {15'537'394, {.revision = EVMC_PARIS, .warm_access = true, .eip1559 = true}},
+        {17'034'870,
+            {.revision = EVMC_SHANGHAI, .warm_access = true, .eip1559 = true, .eip3651 = true}},
         {19'426'587, {.revision = EVMC_CANCUN,
                          .warm_access = true,
                          .eip1153 = true,
                          .eip4844 = true,
                          .eip5656 = true,
-                         .eip6780 = true}},
+                         .eip6780 = true,
+                         .eip1559 = true,
+                         .eip3651 = true}},
         {22'000'000, {.revision = EVMC_PRAGUE,
                          .warm_access = true,
                          .eip2537 = true,
@@ -186,6 +189,8 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip4844 = true,
                          .eip5656 = true,
                          .eip6780 = true,
+                         .eip1559 = true,
+                         .eip3651 = true,
                          .eip7702 = true,
                          .calldata_floor_per_token = 10}},
         {25'000'000, {.revision = EVMC_OSAKA,
@@ -198,6 +203,8 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip4844 = true,
                          .eip5656 = true,
                          .eip6780 = true,
+                         .eip1559 = true,
+                         .eip3651 = true,
                          .eip7702 = true,
                          .calldata_floor_per_token = 10}},
     };
