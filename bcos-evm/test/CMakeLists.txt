@@ -1322,3 +1322,9 @@ add_test(
     NAME PrecompileRouterEnvelope
     COMMAND ${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME}
 )
+
+add_executable(DebitIntrinsicGasTest eth/DebitIntrinsicGasTest.cpp)
+target_include_directories(DebitIntrinsicGasTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(DebitIntrinsicGasTest PRIVATE bcos-evm-eth)
+add_test(NAME DebitIntrinsicGas COMMAND DebitIntrinsicGasTest)
