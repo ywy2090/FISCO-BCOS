@@ -4,6 +4,7 @@
 #include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/OpStackOrchestrationInternals.h"
 #include "bcos-evm/opstack/OpStackPreCheck.h"
 #include "bcos-evm/opstack/OpStackPreDebitEntry.h"
 #ifdef BCOS_EVM_TESTING
@@ -16,22 +17,6 @@ namespace bcos::evm
 {
 namespace
 {
-EVMCResult makeOutOfGasLimitResult()
-{
-    evmc_result failResult{};
-    failResult.status_code = EVMC_OUT_OF_GAS;
-    failResult.gas_left = 0;
-    return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
-}
-
-EVMCResult makeInternalErrorResult()
-{
-    evmc_result failResult{};
-    failResult.status_code = EVMC_INTERNAL_ERROR;
-    failResult.gas_left = 0;
-    return EVMCResult(failResult, protocol::TransactionStatus::Unknown);
-}
-
 struct GasPoolReturnGuard
 {
     std::function<void(uint64_t, uint64_t)>* hook{};
