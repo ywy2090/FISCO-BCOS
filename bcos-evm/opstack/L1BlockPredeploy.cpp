@@ -81,6 +81,74 @@ evmc_result applySetterIsthmus(state::State& state, evmc_message const& msg, byt
 }
 }  // namespace
 
+std::optional<evmc_result> L1BlockPredeploy::dispatchGetter(
+    state::State& state, uint32_t selector, int64_t gas)
+{
+    switch (selector)
+    {
+    case l1block::kNumber:
+        return successWithU256(gas, unpackNumber(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_NUMBER_TIMESTAMP_SLOT))));
+    case l1block::kTimestamp:
+        return successWithU256(gas, unpackTimestamp(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_NUMBER_TIMESTAMP_SLOT))));
+    case l1block::kBasefee:
+    case l1block::kL1BaseFee:
+        return successWithU256(gas, state::fromEvmC(state.get_storage(
+                                        OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BASE_FEE_SLOT))));
+    case l1block::kHash:
+        return successWithU256(gas,
+            state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_HASH_SLOT))));
+    case l1block::kSequenceNumber:
+        return successWithU256(gas, unpackSequenceNumber(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_FEE_SCALARS_SLOT))));
+    case l1block::kBlobBaseFeeScalar:
+        return successWithU256(gas, unpackBlobBaseFeeScalar(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_FEE_SCALARS_SLOT))));
+    case l1block::kBaseFeeScalar:
+        return successWithU256(gas, unpackBaseFeeScalar(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_FEE_SCALARS_SLOT))));
+    case l1block::kBatcherHash:
+        return successWithU256(gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_BATCHER_HASH_SLOT))));
+    case l1block::kL1FeeOverhead:
+        return successWithU256(gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_FEE_OVERHEAD_SLOT))));
+    case l1block::kL1FeeScalar:
+        return successWithU256(gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_FEE_SCALAR_LEGACY_SLOT))));
+    case l1block::kBlobBaseFee:
+    case l1block::kL1BlobBaseFee:
+        return successWithU256(gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(L1_BLOB_BASE_FEE_SLOT))));
+    case l1block::kOperatorFeeScalar:
+        return successWithU256(gas, unpackOperatorFeeScalar(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
+                                        state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
+    case l1block::kOperatorFeeConstant:
+        return successWithU256(gas,
+            unpackOperatorFeeConstant(
+                state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
+    case l1block::kDaFootprintGasScalar:
+        return successWithU256(gas,
+            unpackDaFootprintGasScalar(
+                state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
+    case l1block::kDepositorAccount:
+        return successWithBytes(gas, encodeAbiAddress(OP_DEPOSITOR_ACCOUNT));
+    case l1block::kIsCustomGasToken:
+        return successWithU256(gas, 0);
+    case l1block::kGasPayingToken:
+        return successWithBytes(gas, encodeGasPayingToken());
+    case l1block::kGasPayingTokenName:
+        return successWithBytes(gas, encodeAbiString("Ether"));
+    case l1block::kGasPayingTokenSymbol:
+        return successWithBytes(gas, encodeAbiString("ETH"));
+    case l1block::kVersion:
+        return successWithBytes(gas, encodeAbiString("1.9.0"));
+    default:
+        return std::nullopt;
+    }
+}
+
 std::optional<evmc_result> L1BlockPredeploy::dispatch(state::State& state, evmc_message const& msg)
 {
     bytesConstRef input{msg.input_data, msg.input_size};
@@ -90,69 +158,13 @@ std::optional<evmc_result> L1BlockPredeploy::dispatch(state::State& state, evmc_
     }
 
     auto const selector = readSelector(input);
+    if (auto getter = dispatchGetter(state, selector, msg.gas))
+    {
+        return getter;
+    }
+
     switch (selector)
     {
-    case l1block::kNumber:
-        return successWithU256(msg.gas, unpackNumber(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_NUMBER_TIMESTAMP_SLOT))));
-    case l1block::kTimestamp:
-        return successWithU256(msg.gas, unpackTimestamp(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_NUMBER_TIMESTAMP_SLOT))));
-    case l1block::kBasefee:
-    case l1block::kL1BaseFee:
-        return successWithU256(msg.gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_BASE_FEE_SLOT))));
-    case l1block::kHash:
-        return successWithU256(msg.gas,
-            state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_HASH_SLOT))));
-    case l1block::kSequenceNumber:
-        return successWithU256(msg.gas,
-            unpackSequenceNumber(
-                state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_FEE_SCALARS_SLOT))));
-    case l1block::kBlobBaseFeeScalar:
-        return successWithU256(msg.gas,
-            unpackBlobBaseFeeScalar(
-                state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_FEE_SCALARS_SLOT))));
-    case l1block::kBaseFeeScalar:
-        return successWithU256(msg.gas, unpackBaseFeeScalar(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_FEE_SCALARS_SLOT))));
-    case l1block::kBatcherHash:
-        return successWithU256(msg.gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_BATCHER_HASH_SLOT))));
-    case l1block::kL1FeeOverhead:
-        return successWithU256(msg.gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_FEE_OVERHEAD_SLOT))));
-    case l1block::kL1FeeScalar:
-        return successWithU256(msg.gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_FEE_SCALAR_LEGACY_SLOT))));
-    case l1block::kBlobBaseFee:
-    case l1block::kL1BlobBaseFee:
-        return successWithU256(msg.gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
-                                            state::toEvmC(L1_BLOB_BASE_FEE_SLOT))));
-    case l1block::kOperatorFeeScalar:
-        return successWithU256(msg.gas,
-            unpackOperatorFeeScalar(
-                state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
-    case l1block::kOperatorFeeConstant:
-        return successWithU256(msg.gas,
-            unpackOperatorFeeConstant(
-                state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
-    case l1block::kDaFootprintGasScalar:
-        return successWithU256(msg.gas,
-            unpackDaFootprintGasScalar(
-                state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
-    case l1block::kDepositorAccount:
-        return successWithBytes(msg.gas, encodeAbiAddress(OP_DEPOSITOR_ACCOUNT));
-    case l1block::kIsCustomGasToken:
-        return successWithU256(msg.gas, 0);
-    case l1block::kGasPayingToken:
-        return successWithBytes(msg.gas, encodeGasPayingToken());
-    case l1block::kGasPayingTokenName:
-        return successWithBytes(msg.gas, encodeAbiString("Ether"));
-    case l1block::kGasPayingTokenSymbol:
-        return successWithBytes(msg.gas, encodeAbiString("ETH"));
-    case l1block::kVersion:
-        return successWithBytes(msg.gas, encodeAbiString("1.9.0"));
     case l1block::kIsFeatureEnabled:
     {
         if (input.size() < 36)

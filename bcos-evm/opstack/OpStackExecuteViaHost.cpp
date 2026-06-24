@@ -84,7 +84,7 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
 
-    OpHostExtension opHostExtension(&ctx.state);
+    OpHostExtension opHostExtension(&ctx.state, input.blockInfo.baseFee);
     ctx.extension = &opHostExtension;
 
     auto const feeParams = loadOpStackFeeParams(ctx.state);

@@ -823,6 +823,26 @@ add_test(
     COMMAND ${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME}
 )
 
+set(GPO_PREDEPLOY_TEST_BINARY_NAME GasPriceOraclePredeployTest)
+
+add_executable(${GPO_PREDEPLOY_TEST_BINARY_NAME}
+    opstack/GasPriceOraclePredeployTest.cpp
+)
+
+target_include_directories(${GPO_PREDEPLOY_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${GPO_PREDEPLOY_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME GasPriceOraclePredeploy
+    COMMAND ${GPO_PREDEPLOY_TEST_BINARY_NAME}
+)
+
 set(EMPTY_CODE_HOOK_TEST_BINARY_NAME EmptyCodeHookTest)
 
 add_executable(${EMPTY_CODE_HOOK_TEST_BINARY_NAME}
