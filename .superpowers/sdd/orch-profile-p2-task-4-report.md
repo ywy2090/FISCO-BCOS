@@ -1,6 +1,7 @@
 # Task 4 Report: Slim OpStackExecuteViaHost.cpp
 
 **Status:** DONE  
+**Commit:** `f6ed18976`  
 **Depends on:** Task 3 (`8250c6d23`)
 
 ---
