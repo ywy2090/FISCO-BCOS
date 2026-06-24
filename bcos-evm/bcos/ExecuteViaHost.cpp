@@ -20,6 +20,7 @@
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoOrchestrationInternals.h"
+#include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
@@ -167,38 +168,11 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
     FiscoHostExtension extension(input.revisionConfig.enable_balance_transfer, std::move(deps));
     ctx.extension = &extension;
 
-    OrchestrationHooks hooks;
-    hooks.prepareMessage = [&input](OrchestrationContext& orchestrationCtx) {
-        orchestrationCtx.message = deriveMessage(FiscoTxAdapterInput{.web3Tx = input.web3Tx,
-            .message = orchestrationCtx.message,
-            .blockNumber = input.blockInfo.number,
-            .contextID = input.contextID,
-            .seq = input.seq,
-            .nonce = input.nonce,
-            .hashImpl = input.hashImpl});
-    };
+    FiscoOrchestrationProfile::Session session{
+        input, output, extension, fixErrorHandling, eip7623Enabled};
+    auto hooks = FiscoOrchestrationProfile::buildHooks(session);
 
-    hooks.preExecute = [&input](OrchestrationContext& orchestrationCtx) {
-        if (input.revisionConfig.enable_auth_check && input.authPort != nullptr)
-        {
-            if (auto authResult =
-                    const_cast<AuthPort*>(input.authPort)->checkAuth(orchestrationCtx.message);
-                authResult.has_value())
-            {
-                orchestrationCtx.evmcResult = std::move(*authResult);
-                orchestrationCtx.earlyExit = true;
-                orchestrationCtx.exitKind = OrchestrationExitKind::PreExecuteRejected;
-            }
-        }
-    };
-
-    hooks.intrinsicPolicy.mode =
-        eip7623Enabled ? IntrinsicDebitMode::Eip7623 : IntrinsicDebitMode::None;
-    hooks.intrinsicPolicy.authorizationListPresent = input.authorizationListPresent;
-    hooks.intrinsicPolicy.authTupleCount = input.authorizations.size();
-    hooks.intrinsicPolicy.accessList = input.accessList.get();
-    hooks.intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
-
+    // TODO: OrchestrationErrorPolicy (candidate 4) — mapIntrinsicFailure / mapException
     hooks.mapIntrinsicFailure = [fixErrorHandling, hashImpl = input.hashImpl](
                                     OrchestrationContext& orchestrationCtx,
                                     IntrinsicDebitFailure failure) {
@@ -220,58 +194,6 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         orchestrationCtx.evmcResult =
             makeErrorEVMCResult(*hashImpl, protocol::TransactionStatus::OutOfGas, EVMC_OUT_OF_GAS,
                 fixErrorHandling ? 0 : orchestrationCtx.message.gas, reason, fixErrorHandling);
-    };
-
-    hooks.preKernel = [&input, eip7623Enabled](OrchestrationContext& orchestrationCtx) {
-        if (input.revisionConfig.enable_balance_transfer)
-        {
-            maybeTransferValue(orchestrationCtx.state, orchestrationCtx.message,
-                input.revisionConfig.fix_delegatecall_transfer);
-        }
-
-        if (!eip7623Enabled)
-        {
-            if (orchestrationCtx.message.gas < BALANCE_TRANSFER_GAS)
-            {
-                BOOST_THROW_EXCEPTION(protocol::OutOfGas{});
-            }
-            orchestrationCtx.message.gas -= BALANCE_TRANSFER_GAS;
-        }
-
-        if (!isCreateKind(orchestrationCtx.message.kind))
-        {
-            auto const code =
-                orchestrationCtx.state.get_code(orchestrationCtx.message.code_address);
-            if (code.empty() && orchestrationCtx.message.input_size > 0)
-            {
-                BOOST_THROW_EXCEPTION(NotFoundCodeError{});
-            }
-        }
-    };
-
-    hooks.tuneKernelInput = [&input](ExecuteMessageInput& executeInput) {
-        executeInput.fixStorageStatus = input.revisionConfig.fix_storage_status;
-        executeInput.fixNonceInit = input.revisionConfig.fix_nonce_init;
-        executeInput.revisionConfig = input.revisionConfig.eth();
-    };
-
-    hooks.postAdopt = [](OrchestrationContext& orchestrationCtx) {
-        if ((orchestrationCtx.message.kind == EVMC_CREATE ||
-                orchestrationCtx.message.kind == EVMC_CREATE2) &&
-            orchestrationCtx.evmcResult.status_code == EVMC_SUCCESS &&
-            std::memcmp(orchestrationCtx.evmcResult.create_address.bytes, EMPTY_EVM_ADDRESS.bytes,
-                sizeof(orchestrationCtx.evmcResult.create_address.bytes)) == 0)
-        {
-            orchestrationCtx.evmcResult.create_address = orchestrationCtx.message.recipient;
-        }
-    };
-
-    hooks.postSettle = [fixRevertLogs = input.revisionConfig.fix_revert_logs](
-                           OrchestrationContext& orchestrationCtx) {
-        if (fixRevertLogs && orchestrationCtx.evmcResult.status_code != EVMC_SUCCESS)
-        {
-            orchestrationCtx.kernelOutput.logs.clear();
-        }
     };
 
     hooks.mapException = [fixErrorHandling, hashImpl = input.hashImpl](
