@@ -42,7 +42,7 @@ Osaka smoke (`eth-gst-osaka-smoke.json`) executes at `EVMC_OSAKA` while using `p
 | Manifest | Scope | CTest label |
 |----------|-------|-------------|
 | `eth-eest-state-smoke.json` | Curated EEST state vectors (7623/7823/7702 warming + full self-sponsored 10 variants + invalid auth) | `specs-tests-smoke` |
-| `eth-eest-tx-smoke.json` | Curated 7702 tx RLP validation | `specs-tests-smoke` |
+| `eth-eest-tx-smoke.json` | Curated 7702 tx validation (RLP + empty auth + invalid chain id/nonce/signature) | `specs-tests-smoke` |
 | `eth-eest-1559-gasprice-probe.json` | EIP-1559 `GASPRICE`/`BASEFEE` state probe (`stExample/eip1559`) | `specs-tests-smoke`, `1559-gasprice` |
 | `eth-eest-state-full.json` | Full Prague 7623 + Osaka 7823 + Prague 7702 state dirs | `specs-tests-full` |
 | `eth-eest-tx-full.json` | Full Prague 7702 transaction_tests dir | `specs-tests-full` |

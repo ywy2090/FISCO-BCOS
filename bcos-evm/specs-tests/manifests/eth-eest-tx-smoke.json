@@ -2,13 +2,53 @@
   "manifestVersion": 1,
   "entries": [
     {
-      "evidenceId": "eth.eest.prague.tx.eip7702",
+      "evidenceId": "eth.eest.prague.tx.eip7702.invalid_rlp",
       "sourceSuite": "eest",
       "casePath": "fixtures/transaction_tests/prague/eip7702_set_code_tx/test_invalid_tx_invalid_rlp_encoding.json",
       "forkProfileId": "eth-prague",
       "path": "Reference",
       "evidenceKind": "ReferenceParity",
-      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.tx.eip7702.empty_auth_list",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/transaction_tests/prague/eip7702_set_code_tx/test_empty_authorization_list.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.tx.eip7702.invalid_auth_chain_id",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/transaction_tests/prague/eip7702_set_code_tx/test_invalid_tx_invalid_auth_chain_id.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.tx.eip7702.invalid_nonce",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/transaction_tests/prague/eip7702_set_code_tx/test_invalid_tx_invalid_nonce.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.tx.eip7702.invalid_auth_signature",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/transaction_tests/prague/eip7702_set_code_tx/test_invalid_auth_signature.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
       "assertLevels": ["transitional"]
     }
   ]
