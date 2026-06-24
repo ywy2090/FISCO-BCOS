@@ -522,15 +522,16 @@ BOOST_AUTO_TEST_CASE(type2_contractCreate_floorDominatesReceiptGasUsed)
         sender.bytes[19] = 0xf3;
         co_await fundSender(sender);
 
-        // Minimal initcode: deploy runtime bytecode 0x00 (STOP).
-        bcos::bytes const initcode{0x60, 0x00, 0x60, 0x00, 0x52, 0x60, 0x01, 0x60, 0x00, 0xf3};
+        // Empty initcode: at EIP-7623 admission minimum, intrinsic equals gasLimit leaving no EVM
+        // budget.
+        bcos::bytes const initcode{};
         evmc_message msg{};
         msg.kind = EVMC_CREATE;
         msg.input_data = initcode.data();
         msg.input_size = initcode.size();
         auto const intrinsic = evm_gas::computeTxIntrinsicGas(msg, nullptr, 2);
         auto const expectedGasUsed = intrinsic.gasLimitMinimum();
-        BOOST_REQUIRE_GT(expectedGasUsed, evm_gas::TX_BASE_GAS + evm_gas::CREATE_BASE_GAS);
+        BOOST_CHECK_EQUAL(expectedGasUsed, evm_gas::TX_BASE_GAS + evm_gas::CREATE_BASE_GAS);
 
         auto tx = makeWeb3Type2CreateTransaction(
             sender, initcode, static_cast<uint64_t>(expectedGasUsed));

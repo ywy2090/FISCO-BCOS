@@ -20,7 +20,8 @@
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/storage2/MemoryStorage.h"
 #include "bcos-framework/transaction-executor/StateKey.h"
@@ -53,6 +54,32 @@ inline task::Task<void> seedPreState(executor_v1::MutableStorage& storage,
                 hashImpl->hash(bcos::bytesConstRef(account.code.data(), account.code.size()));
             co_await evmAccount.setCode(account.code, account.abi, codeHash);
         }
+    }
+
+    // Executor E2E builds protocol transactions without unsigned EIP-7702 tuples.
+    // Pre-apply delegation so delegated CALL smoke matches kernel fixture adapters.
+    for (auto const& authorization : fixture.authorizations)
+    {
+        if (!fixture.authorizationListPresent || authorization.yParity.has_value() ||
+            !authorization.signatureR.empty() || !authorization.signatureS.empty())
+        {
+            continue;
+        }
+        if (state::isZeroAddress(authorization.authority) ||
+            state::isZeroAddress(authorization.address))
+        {
+            continue;
+        }
+
+        auto const delegation = addressToDelegation(authorization.address);
+        ledger::account::EVMAccount authorityAccount(storage, authorization.authority, false);
+        if (!co_await authorityAccount.exists())
+        {
+            co_await authorityAccount.create();
+        }
+        auto const codeHash =
+            hashImpl->hash(bcos::bytesConstRef(delegation.data(), delegation.size()));
+        co_await authorityAccount.setCode(delegation, {}, codeHash);
     }
 }
 

@@ -74,7 +74,22 @@ public:
     {
         bcostars::protocol::BlockHeaderImpl header;
         header.setVersion(static_cast<uint32_t>(protocol::BlockVersion::MAX_VERSION));
-        header.setNumber(fixture.block.number);
+        int64_t blockNumber = fixture.block.number;
+        if (fixture.revision == "prague")
+        {
+            bool const needsGatedEips =
+                fixture.authorizationListPresent ||
+                (fixture.tx.to.has_value() && fixture.tx.to->bytes[19] == 0x0b);
+            if (needsGatedEips)
+            {
+                blockNumber = 22'000'000;
+            }
+        }
+        else if (fixture.revision == "cancun")
+        {
+            blockNumber = std::max(blockNumber, int64_t{19'426'587});
+        }
+        header.setNumber(blockNumber);
         header.setTimestamp(fixture.block.timestamp);
         header.calculateHash(*cryptoSuite->hashImpl());
         return header;
