@@ -16,7 +16,7 @@ namespace bcos::evm::test
 namespace
 {
 using bcos::evm::gas::calcEip7623Components;
-using bcos::evm::gas::settleIncludedTopLevelTransactionGas;
+using bcos::evm::gas::settleTopLevelTransactionGas;
 
 evmc_address addressFromLastByte(uint8_t value)
 {
@@ -43,27 +43,25 @@ bcos::evm_standard::RevisionConfig osakaReferenceConfig()
 
 BOOST_AUTO_TEST_SUITE(EthIncludedTxVmerrTest)
 
-BOOST_AUTO_TEST_CASE(settleIncludedTopLevelTransactionGas_peakGasUsed_without_refund)
+BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_peakGasUsed_without_refund)
 {
     auto const calldata = calcEip7623Components({});
-    int64_t const gasUsed =
-        settleIncludedTopLevelTransactionGas(10'000'000, 125'000, 0, 10, calldata);
+    int64_t const gasUsed = settleTopLevelTransactionGas(10'000'000, 125'000, 0, 10, calldata);
     BOOST_CHECK_EQUAL(gasUsed, 9'875'000);
 }
 
-BOOST_AUTO_TEST_CASE(settleIncludedTopLevelTransactionGas_eest_invalid_vector)
+BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_eest_invalid_vector)
 {
     // EEST self_sponsored invalid tx_value_0: gasLimit=10_000_000, gasUsed=9_987_500 (geth).
     auto const calldata = calcEip7623Components({});
-    int64_t const gasUsed =
-        settleIncludedTopLevelTransactionGas(10'000'000, 12'500, 0, 10, calldata);
+    int64_t const gasUsed = settleTopLevelTransactionGas(10'000'000, 12'500, 0, 10, calldata);
     BOOST_CHECK_EQUAL(gasUsed, 9'987'500);
 }
 
-BOOST_AUTO_TEST_CASE(settleIncludedTopLevelTransactionGas_applies_eip7623_floor)
+BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_applies_eip7623_floor)
 {
     auto const calldata = calcEip7623Components({});
-    int64_t const gasUsed = settleIncludedTopLevelTransactionGas(50'000, 49'000, 0, 10, calldata);
+    int64_t const gasUsed = settleTopLevelTransactionGas(50'000, 49'000, 0, 10, calldata);
     BOOST_CHECK_EQUAL(gasUsed, 21'000);
 }
 

@@ -110,9 +110,4 @@ inline RevisionConfig makeIsthmusRevisionConfig()
     return revisionConfigFromRevision(EVMC_PRAGUE);
 }
 
-inline bool isIsthmusOrchestrationProfile(RevisionConfig const& config)
-{
-    return config.revision >= EVMC_PRAGUE && config.eip7623 && config.eip7702 && config.eip4844;
-}
-
 }  // namespace bcos::evm_standard

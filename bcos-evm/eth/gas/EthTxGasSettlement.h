@@ -154,13 +154,6 @@ inline int64_t settleTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft
         gasLimit, evmGasLeft, stateRefund, calcFloorDataGas(calldataFloorPerToken, calldata));
 }
 
-inline int64_t settleIncludedTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft,
-    int64_t stateRefund, uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
-{
-    return settleTopLevelTransactionGas(
-        gasLimit, evmGasLeft, stateRefund, calldataFloorPerToken, calldata);
-}
-
 }  // namespace gas
 }  // namespace bcos::evm
 

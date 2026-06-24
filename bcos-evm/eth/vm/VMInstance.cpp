@@ -2,16 +2,15 @@
 #include <evmone/evmone.h>
 #include <evmone/vm.hpp>
 
-bcos::evm::VMInstance::VMInstance(
-    std::shared_ptr<EvmoneCodeAnalysis const> analysis) noexcept
+bcos::evm::VMInstance::VMInstance(std::shared_ptr<EvmoneCodeAnalysis const> analysis) noexcept
   : m_analysis(std::move(analysis))
 {
     assert(m_analysis != nullptr);
 }
 
-bcos::evm::EVMCResult bcos::evm::VMInstance::execute(
-    const struct evmc_host_interface* host, struct evmc_host_context* context, evmc_revision rev,
-    const evmc_message* msg, const uint8_t* code, size_t codeSize)
+bcos::evm::EVMCResult bcos::evm::VMInstance::execute(const struct evmc_host_interface* host,
+    struct evmc_host_context* context, evmc_revision rev, const evmc_message* msg,
+    const uint8_t* code, size_t codeSize)
 {
     (void)code;  // execute uses pre-analyzed m_analysis
     (void)codeSize;
@@ -23,8 +22,6 @@ bcos::evm::EVMCResult bcos::evm::VMInstance::execute(
     return EVMCResult(evmone::baseline::execute(
         *static_cast<evmone::VM*>(t_vm.get_raw_pointer()), *host, context, rev, *msg, *m_analysis));
 }
-
-void bcos::evm::VMInstance::enableDebugOutput() {}
 
 std::strong_ordering operator<=>(const evmc_address& lhs, const evmc_address& rhs) noexcept
 {

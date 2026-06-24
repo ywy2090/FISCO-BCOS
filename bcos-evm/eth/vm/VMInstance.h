@@ -49,8 +49,6 @@ public:
     EVMCResult execute(const struct evmc_host_interface* host, struct evmc_host_context* context,
         evmc_revision rev, const evmc_message* msg, const uint8_t* code, size_t codeSize);
 
-    void enableDebugOutput();
-
 private:
     std::shared_ptr<EvmoneCodeAnalysis const> m_analysis;
 };
