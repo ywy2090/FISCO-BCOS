@@ -185,9 +185,8 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
                        << LOG_KV("code", trace::evmcAddress(input.message.code_address));
     }
 
-    execution::warmTransactionEntry(state, input.revisionConfig.revision, transaction,
-        input.blockInfo, input.txProps, input.revisionConfig.warm_access, input.accessList,
-        input.web3TypedTxKind, createCodeAddress);
+    execution::warmTransactionEntry(state, input.revisionConfig, transaction, input.blockInfo,
+        input.txProps, input.accessList, input.web3TypedTxKind, createCodeAddress);
 
     auto txContext = buildTxContext(input.blockInfo, input.message);
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);

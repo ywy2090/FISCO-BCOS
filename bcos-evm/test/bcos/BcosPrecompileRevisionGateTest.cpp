@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_cancun_rejects_prague_bls)
 {
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN};
     auto const blsAddr = precompileAddress(0x0b);
-    BOOST_CHECK(!precompiled::isActivePrecompile(EVMC_CANCUN, cfg, blsAddr));
+    BOOST_CHECK(!precompiled::isActivePrecompile(cfg, blsAddr));
 }
 
 BOOST_AUTO_TEST_CASE(fiscoExecute_cancun_call_0x0b_not_precompile_dispatch)

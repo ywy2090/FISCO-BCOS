@@ -20,7 +20,8 @@
 #pragma once
 
 #include "bcos-evm/eth/AccessList.h"
-#include "bcos-evm/eth/execution/Eip2929PrecompileWarm.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -46,13 +47,12 @@ inline evmc_bytes32 toEvmcBytes32(const h256& value)
 }
 }  // namespace detail
 
-inline void warmTransactionEntry(state::State& state, evmc_revision rev,
+inline void warmTransactionEntry(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
     const state::Transaction& tx, const state::BlockInfo& block,
-    const state::TransactionProperties& props, bool warmAccess,
-    const Eip2930AccessList* accessList = nullptr, uint8_t web3TypedTxKind = 0,
-    std::optional<evmc_address> createCodeAddress = std::nullopt)
+    const state::TransactionProperties& props, const Eip2930AccessList* accessList = nullptr,
+    uint8_t web3TypedTxKind = 0, std::optional<evmc_address> createCodeAddress = std::nullopt)
 {
-    if (!warmAccess)
+    if (!cfg.warm_access)
     {
         return;
     }
@@ -64,7 +64,7 @@ inline void warmTransactionEntry(state::State& state, evmc_revision rev,
         (void)state.warm_up_address_no_journal(*tx.to);
     }
 
-    if (props.warmCoinbase && rev >= EVMC_SHANGHAI)
+    if (props.warmCoinbase && cfg.revision >= EVMC_SHANGHAI)
     {
         (void)state.warm_up_address_no_journal(block.coinbase);
     }
@@ -74,9 +74,9 @@ inline void warmTransactionEntry(state::State& state, evmc_revision rev,
         (void)state.warm_up_address_no_journal(*createCodeAddress);
     }
 
-    if (rev >= EVMC_BERLIN)
+    if (cfg.revision >= EVMC_BERLIN)
     {
-        forEachActivePrecompileAddress(rev, [&state](evmc_address const& precompile) {
+        precompiled::forEachActivePrecompile(cfg, [&state](evmc_address const& precompile) {
             (void)state.warm_up_address_no_journal(precompile);
         });
     }

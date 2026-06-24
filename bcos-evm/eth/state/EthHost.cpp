@@ -499,7 +499,7 @@ bool EthHost::isCreateKind(evmc_call_kind kind) noexcept
 
 bool EthHost::isActivePrecompileAddress(const evmc_address& address) const noexcept
 {
-    return precompiled::isActivePrecompile(m_revisionConfig.revision, m_revisionConfig, address);
+    return precompiled::isActivePrecompile(m_revisionConfig, address);
 }
 
 evmc::Result EthHost::makeResult(

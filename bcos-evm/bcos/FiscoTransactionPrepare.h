@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -32,8 +33,7 @@ namespace bcos::evm
 
 struct FiscoTransactionPrepareInput
 {
-    evmc_revision revision{EVMC_CANCUN};
-    bool warmAccess{true};
+    bcos::evm_standard::RevisionConfig revisionConfig{};
     state::TransactionProperties properties{};
     const Eip2930AccessList* accessList{nullptr};
     uint8_t web3TypedTxKind{0};
@@ -43,8 +43,8 @@ struct FiscoTransactionPrepareInput
 inline void prepareTransaction(state::State& state, const state::Transaction& transaction,
     const state::BlockInfo& blockInfo, const FiscoTransactionPrepareInput& input = {})
 {
-    execution::warmTransactionEntry(state, input.revision, transaction, blockInfo, input.properties,
-        input.warmAccess, input.accessList, input.web3TypedTxKind, input.createCodeAddress);
+    execution::warmTransactionEntry(state, input.revisionConfig, transaction, blockInfo,
+        input.properties, input.accessList, input.web3TypedTxKind, input.createCodeAddress);
 }
 
 }  // namespace bcos::evm

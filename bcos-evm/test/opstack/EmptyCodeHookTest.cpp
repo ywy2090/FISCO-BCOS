@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
 {
     state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
-    OpVmHostPolicy extension(&state);
+    OpStackVmHostPolicy extension(&state);
     evmc::VM vm{evmc_create_evmone()};
 
     state::Account senderAccount;

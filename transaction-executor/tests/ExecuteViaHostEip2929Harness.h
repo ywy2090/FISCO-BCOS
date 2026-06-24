@@ -204,8 +204,7 @@ public:
             }
 
             bcos::evm::prepareTransaction(*m_state, tx, blockInfo(),
-                bcos::evm::FiscoTransactionPrepareInput{.revision = m_revisionConfig.eth().revision,
-                    .warmAccess = m_revisionConfig.eth().warm_access,
+                bcos::evm::FiscoTransactionPrepareInput{.revisionConfig = m_revisionConfig.eth(),
                     .properties = props,
                     .accessList = listPtr,
                     .web3TypedTxKind = m_web3Kind,

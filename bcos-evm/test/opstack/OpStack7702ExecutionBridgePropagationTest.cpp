@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
 
         evmc::VM vm{evmc_create_evmone()};
         state::State state(stateView);
-        OpVmHostPolicy extension(&state);
+        OpStackVmHostPolicy extension(&state);
 
         ExecuteMessageInput input;
         input.stateView = &state;

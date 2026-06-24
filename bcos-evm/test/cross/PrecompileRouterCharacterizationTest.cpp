@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
 
     state::test::InMemoryEvmStateReader baseState;
     state::State state0(baseState);
-    OpVmHostPolicy extension0(&state0);
+    OpStackVmHostPolicy extension0(&state0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
 
     evmc_message message{};
@@ -267,7 +267,7 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
 
     state::test::InMemoryEvmStateReader baseState1;
     state::State state1(baseState1);
-    OpVmHostPolicy extension1(&state1);
+    OpStackVmHostPolicy extension1(&state1);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     Depth1HostFixture fixture(state1, &extension1);
 
@@ -382,7 +382,9 @@ BOOST_AUTO_TEST_CASE(c6_revision_gate_bls_inactive_at_cancun)
     // C6: BLS precompile 0x0b inactive at CANCUN — revision gate baseline
     auto const sender = addressFromLastByte(0x01);
     auto const bls = precompileAddress(0x0b);
-    BOOST_CHECK(!precompiled::isActivePrecompile(EVMC_CANCUN, {}, bls));
+    bcos::evm_standard::RevisionConfig cancunCfg{};
+    cancunCfg.revision = EVMC_CANCUN;
+    BOOST_CHECK(!precompiled::isActivePrecompile(cancunCfg, bls));
 
     state::test::InMemoryEvmStateReader view;
     state::Account senderAccount;

@@ -12,7 +12,7 @@ target_include_directories(${HOOKS_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${HOOKS_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
+    bcos-evm-eth evmone::evmone
 )
 
 add_test(
@@ -32,7 +32,7 @@ target_include_directories(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
+    bcos-evm-eth evmone::evmone
 )
 
 add_test(
@@ -89,12 +89,6 @@ target_link_libraries(EthPipelineHookBinderTest PRIVATE
     bcos-evm-eth bcos-protocol)
 add_test(NAME EthPipelineHookBinder COMMAND EthPipelineHookBinderTest)
 add_te_input_builder_test(EthTxInputBuilderTest eth/EthTxInputBuilderTest.cpp)
-add_executable(RevisionConfigProfileTest eth/RevisionConfigProfileTest.cpp)
-target_include_directories(RevisionConfigProfileTest PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(RevisionConfigProfileTest PRIVATE
-    bcos-evm bcos-evm-eth protocol-tars bcos-framework)
-add_test(NAME RevisionConfigProfile COMMAND RevisionConfigProfileTest)
 add_executable(Eip7702ApplyAuthorizationEthTest eth/Eip7702ApplyAuthorizationEthTest.cpp)
 target_include_directories(Eip7702ApplyAuthorizationEthTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -166,48 +160,6 @@ add_test(
     COMMAND ${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME}
 )
 
-set(PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME PrecompileRouterCharacterizationTest)
-
-add_executable(${PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME}
-    eth/PrecompileRouterCharacterizationTest.cpp
-)
-
-target_include_directories(${PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}
-)
-
-target_link_libraries(${PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
-    bcos-evm-op
-)
-
-add_test(
-    NAME PrecompileRouterCharacterization
-    COMMAND ${PRECOMPILE_ROUTER_CHAR_TEST_BINARY_NAME}
-)
-
-set(PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME PrecompileRouterEquivalenceTest)
-
-add_executable(${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME}
-    eth/PrecompileRouterEquivalenceTest.cpp
-)
-
-target_include_directories(${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}
-)
-
-target_link_libraries(${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
-    bcos-evm-op
-)
-
-add_test(
-    NAME PrecompileRouterEquivalence
-    COMMAND ${PRECOMPILE_ROUTER_EQUIVALENCE_TEST_BINARY_NAME}
-)
-
 set(PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME PrecompileRouterEnvelopeTest)
 
 add_executable(${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME}
@@ -220,8 +172,7 @@ target_include_directories(${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME} PRIVAT
 )
 
 target_link_libraries(${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
-    bcos-evm-op
+    bcos-evm-eth evmone::evmone
 )
 
 add_test(

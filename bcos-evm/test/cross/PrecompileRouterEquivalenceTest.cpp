@@ -171,13 +171,13 @@ BOOST_AUTO_TEST_CASE(c2_chain_hook_depth0_equals_depth1)
 
     state::test::InMemoryEvmStateReader view0;
     state::State state0(view0);
-    OpVmHostPolicy extension0(&state0);
+    OpStackVmHostPolicy extension0(&state0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     auto depth0 = runDepth0(state0, message, &extension0);
 
     state::test::InMemoryEvmStateReader view1;
     state::State state1(view1);
-    OpVmHostPolicy extension1(&state1);
+    OpStackVmHostPolicy extension1(&state1);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     auto depth1 = runDepth1(state1, message, &extension1);
 

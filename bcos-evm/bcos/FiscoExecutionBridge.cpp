@@ -19,6 +19,7 @@
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
+#include "bcos-evm/bcos/FiscoOrchestrationErrorPolicy.h"
 #include "bcos-evm/bcos/FiscoPipelineHookBinder.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
@@ -172,77 +173,9 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
         input, output, extension, fixErrorHandling, eip7623Enabled};
     auto hooks = FiscoPipelineHookBinder::buildHooks(session);
 
-    // TODO: OrchestrationErrorPolicy (candidate 4) — txHandleIntrinsicGasFailure /
-    // txHandlePipelineException
-    hooks.txHandleIntrinsicGasFailure = [fixErrorHandling, hashImpl = input.hashImpl](
-                                            TxPipelineContext& orchestrationCtx,
-                                            IntrinsicDebitFailure failure) {
-        std::string reason = "EIP-7623 intrinsic OOG";
-        switch (failure)
-        {
-        case IntrinsicDebitFailure::GasLimitMinimum:
-            reason = "EIP-7623 gas limit minimum";
-            break;
-        case IntrinsicDebitFailure::CalldataOutOfGas:
-            reason = "EIP-7623 calldata OOG";
-            break;
-        case IntrinsicDebitFailure::AuthTupleOutOfGas:
-            reason = "EIP-7702 auth tuple OOG";
-            break;
-        default:
-            break;
-        }
-        orchestrationCtx.evmcResult =
-            makeErrorEVMCResult(*hashImpl, protocol::TransactionStatus::OutOfGas, EVMC_OUT_OF_GAS,
-                fixErrorHandling ? 0 : orchestrationCtx.message.gas, reason, fixErrorHandling);
-    };
-
-    hooks.txHandlePipelineException = [fixErrorHandling, hashImpl = input.hashImpl](
-                                          TxPipelineContext& c, std::exception_ptr exceptionPtr) {
-        try
-        {
-            std::rethrow_exception(exceptionPtr);
-        }
-        catch (protocol::OutOfGas& e)
-        {
-            c.evmcResult = makeErrorEVMCResult(*hashImpl, protocol::TransactionStatus::OutOfGas,
-                EVMC_OUT_OF_GAS, 0, e.what(), fixErrorHandling);
-        }
-        catch (protocol::NotEnoughCashError& e)
-        {
-            c.evmcResult = makeErrorEVMCResult(*hashImpl,
-                protocol::TransactionStatus::NotEnoughCash, EVMC_INSUFFICIENT_BALANCE,
-                fixErrorHandling ? 0 : c.message.gas, e.what(), fixErrorHandling);
-        }
-        catch (NotFoundCodeError&)
-        {
-            if ((c.message.flags & EVMC_STATIC) != 0 || c.message.kind == EVMC_DELEGATECALL)
-            {
-                c.evmcResult = makeErrorEVMCResult(*hashImpl, protocol::TransactionStatus::None,
-                    EVMC_SUCCESS, c.message.gas, "", false);
-            }
-            else
-            {
-                c.evmcResult =
-                    makeErrorEVMCResult(*hashImpl, protocol::TransactionStatus::RevertInstruction,
-                        EVMC_REVERT, c.message.gas, "Call address error.", fixErrorHandling);
-            }
-        }
-        catch (std::exception&)
-        {
-            c.evmcResult = makeErrorEVMCResult(*hashImpl,
-                fixErrorHandling ? protocol::TransactionStatus::Unknown :
-                                   protocol::TransactionStatus::OutOfGas,
-                EVMC_INTERNAL_ERROR, fixErrorHandling ? 0 : c.message.gas, "", fixErrorHandling);
-        }
-
-        if (c.state.has_checkpoint())
-        {
-            c.state.revert();
-        }
-    };
-
-    runTxPipeline(ctx, hooks);
+    FiscoOrchestrationErrorPolicy errorPolicy{
+        .hashImpl = input.hashImpl, .fixErrorHandling = fixErrorHandling};
+    runTxPipeline(ctx, hooks, errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
@@ -264,13 +197,6 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     else if (input.revisionConfig.fix_revert_logs)
     {
         output.executionContext.logs.clear();
-    }
-
-    if (output.evmcResult.gas_left < 0)
-    {
-        output.evmcResult =
-            makeErrorEVMCResult(*input.hashImpl, protocol::TransactionStatus::OutOfGas,
-                EVMC_OUT_OF_GAS, fixErrorHandling ? 0 : ctx.message.gas, "", fixErrorHandling);
     }
 
     co_return output;

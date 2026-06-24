@@ -60,7 +60,7 @@ add_test(
     COMMAND ${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 
-add_te_input_builder_test(FiscoTxInputBuilderTest eth/FiscoTxInputBuilderTest.cpp)
+add_te_input_builder_test(FiscoTxInputBuilderTest bcos/FiscoTxInputBuilderTest.cpp)
 add_executable(Bcos21000GasDeviationTest bcos/Bcos21000GasDeviationTest.cpp)
 target_include_directories(Bcos21000GasDeviationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

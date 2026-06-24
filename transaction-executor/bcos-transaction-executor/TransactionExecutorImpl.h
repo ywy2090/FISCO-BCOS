@@ -175,7 +175,7 @@ public:
                 tx.gasLimit = msg.gas;
                 prepareTransaction(state, tx, blockInfo,
                     FiscoTransactionPrepareInput{
-                        .revision = m_data->m_executionContext.revisionConfig.eth().revision,
+                        .revisionConfig = m_data->m_executionContext.revisionConfig.eth(),
                         .properties = {},
                         .accessList = m_data->m_web3AccessListResolved.accessList.get()});
             }

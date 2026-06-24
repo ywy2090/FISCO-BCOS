@@ -9,8 +9,16 @@
 namespace bcos::evm
 {
 
-void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
+void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
+    OrchestrationErrorPolicy const& errorPolicy)
 {
+    struct PipelineCompleteGuard
+    {
+        TxPipelineContext& ctx;
+        OrchestrationErrorPolicy const& errorPolicy;
+        ~PipelineCompleteGuard() { errorPolicy.onPipelineComplete(ctx); }
+    } completeGuard{ctx, errorPolicy};
+
     if (ctx.inputs.vm == nullptr || ctx.inputs.hashImpl == nullptr)
     {
         throw std::invalid_argument("runTxPipeline requires vm/hashImpl");
@@ -65,7 +73,7 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
                            << LOG_KV("failure", trace::intrinsicDebitFailure(debitOutcome.failure))
                            << LOG_KV("gasBefore", gasBeforeDebit)
                            << LOG_KV("gasLeft", debitOutcome.gasLeftOnFailure);
-            hooks.txHandleIntrinsicGasFailure(ctx, debitOutcome.failure);
+            errorPolicy.onIntrinsicGasFailure(ctx, debitOutcome.failure);
             return;
         }
         if (debitOutcome.debitAmount > 0)
@@ -124,7 +132,7 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
         ctx.exitKind = TxPipelineExitKind::ExceptionHandled;
         EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline exception")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind));
-        hooks.txHandlePipelineException(ctx, std::current_exception());
+        errorPolicy.onPipelineException(ctx, std::current_exception());
         EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline mapped")
                        << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                        << LOG_KV("gasLeft", ctx.evmcResult.gas_left);

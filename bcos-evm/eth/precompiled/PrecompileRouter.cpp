@@ -83,7 +83,7 @@ PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
         }
     }
 
-    if (emptyCode && isActivePrecompile(input.revision.revision, input.revision, input.target))
+    if (emptyCode && isActivePrecompile(input.revision, input.target))
     {
         if (auto result = state::EthPrecompiles::tryDispatchInCall(
                 input.target, input.message, input.revision.revision, input.revision))
