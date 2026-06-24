@@ -184,3 +184,9 @@ target_include_directories(DebitIntrinsicGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(DebitIntrinsicGasTest PRIVATE bcos-evm-eth)
 add_test(NAME DebitIntrinsicGas COMMAND DebitIntrinsicGasTest)
+
+add_executable(RouteMessageTest eth/RouteMessageTest.cpp)
+target_include_directories(RouteMessageTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(RouteMessageTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME RouteMessage COMMAND RouteMessageTest)
