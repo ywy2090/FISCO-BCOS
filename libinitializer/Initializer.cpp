@@ -72,7 +72,7 @@
 #include <bcos-transaction-executor/EthTransactionExecutorImpl.h>
 #include <bcos-transaction-executor/OpStackTransactionExecutorImpl.h>
 #include <bcos-transaction-executor/TransactionExecutorImpl.h>
-#include <bcos-transaction-executor/precompiled/PrecompiledManager.h>
+#include <bcos-transaction-executor/adapters/PrecompiledManager.h>
 #include <bcos-transaction-scheduler/SchedulerParallelImpl.h>
 #include <bcos-transaction-scheduler/SchedulerSerialImpl.h>
 #include <rocksdb/slice.h>

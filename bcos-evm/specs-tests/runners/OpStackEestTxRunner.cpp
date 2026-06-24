@@ -5,7 +5,7 @@
 /// Usage: opstack-eest-tx-test --fixtures <dir> [--limit N]
 
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>

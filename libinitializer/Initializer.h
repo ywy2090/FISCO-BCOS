@@ -25,7 +25,7 @@
 #include "TxPoolInitializer.h"
 #include "bcos-framework/protocol/ProtocolTypeDef.h"
 #include "bcos-tool/NodeConfig.h"
-#include "bcos-transaction-executor/precompiled/PrecompiledManager.h"
+#include "bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include "libinitializer/MultiVersionScheduler.h"
 #ifdef TOOLS
 #include "tools/archive-tool/ArchiveService.h"

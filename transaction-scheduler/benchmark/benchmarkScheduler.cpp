@@ -13,7 +13,7 @@
 #include "bcos-tars-protocol/protocol/TransactionReceiptFactoryImpl.h"
 #include "bcos-task/Wait.h"
 #include "bcos-transaction-executor/TransactionExecutorImpl.h"
-#include "bcos-transaction-executor/precompiled/PrecompiledManager.h"
+#include "bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include "bcos-transaction-scheduler/SchedulerParallelImpl.h"
 #include "bcos-transaction-scheduler/SchedulerSerialImpl.h"
 #include "transaction-executor/tests/TestBytecode.h"
@@ -53,7 +53,7 @@ struct Fixture
     MultiLayerStorageType m_multiLayerStorage;
     bcos::bytes m_helloworldBytecodeBinary;
 
-    PrecompiledManager m_precompiledManager;
+    bcos::evm::PrecompiledManager m_precompiledManager;
     TransactionExecutorImpl m_executor;
     std::variant<std::monostate, SchedulerSerialImpl, SchedulerParallelImpl<MutableStorage>>
         m_scheduler;

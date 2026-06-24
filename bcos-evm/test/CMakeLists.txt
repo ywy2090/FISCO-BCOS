@@ -512,6 +512,7 @@ add_executable(OpStackIntrinsicGasSyncTest
     ../opstack/OpStackFloorGas.cpp
     ../opstack/L1BlockStorage.cpp
     ../opstack/L1BlockPredeploy.cpp
+    ../opstack/GasPriceOraclePredeploy.cpp
     ../opstack/OpStackPreDebitEntry.cpp)
 target_compile_definitions(OpStackIntrinsicGasSyncTest PRIVATE BCOS_EVM_TESTING)
 target_include_directories(OpStackIntrinsicGasSyncTest PRIVATE
