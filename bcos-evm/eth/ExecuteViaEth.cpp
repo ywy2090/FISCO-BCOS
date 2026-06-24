@@ -1,9 +1,5 @@
 #include "bcos-evm/eth/ExecuteViaEth.h"
-#include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/ExecuteViaEthPreCheck.h"
-#include "bcos-evm/eth/Transfer.h"
-#include "bcos-evm/eth/gas/Eip1559.h"
-#include "bcos-evm/eth/orchestration/NormalizeIncludedTxVmerr.h"
+#include "bcos-evm/eth/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
 #include "bcos-evm/eth/policy/EthHostExtension.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -65,66 +61,15 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
     state::EthHostExtension ethExtension;
     ctx.extension = &ethExtension;
 
-    OrchestrationHooks hooks;
-    hooks.preExecute = [&input](OrchestrationContext& orchestrationCtx) {
-        if (auto preCheckError = ethExecuteViaEthPreCheck(input, orchestrationCtx.state))
-        {
-            orchestrationCtx.evmcResult = std::move(*preCheckError);
-            orchestrationCtx.earlyExit = true;
-            return;
-        }
-
-        auto const caps = gas::normalizeGasCaps(input.gasPrice, input.gasTipCap, input.gasFeeCap,
-            input.web3TypedTxKind, input.hasExplicitFeeCaps);
-        if (caps.isEip1559Caps)
-        {
-            orchestrationCtx.gasPrice = gas::resolveEffectiveGasPrice(
-                caps.gasTipCap, caps.gasFeeCap, input.blockInfo.baseFee);
-        }
-    };
-
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    if (input.revisionConfig.eip7623)
-    {
-        hooks.intrinsicPolicy.mode = IntrinsicDebitMode::Eip7623;
-    }
-    else if (input.authorizationListPresent && !input.authorizations.empty())
-    {
-        hooks.intrinsicPolicy.mode = IntrinsicDebitMode::AuthOnly;
-    }
-    hooks.intrinsicPolicy.authorizationListPresent = input.authorizationListPresent;
-    hooks.intrinsicPolicy.authTupleCount = input.authorizations.size();
-    hooks.intrinsicPolicy.accessList = input.accessList;
-    hooks.intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
-
+    EthOrchestrationProfile::Session session{input, output};
+    auto hooks = EthOrchestrationProfile::buildHooks(session);
+    // TODO: OrchestrationErrorPolicy (candidate 4)
     hooks.mapIntrinsicFailure = [](OrchestrationContext& orchestrationCtx, IntrinsicDebitFailure) {
         evmc_result failResult{};
         failResult.status_code = EVMC_OUT_OF_GAS;
         failResult.gas_left = 0;
         orchestrationCtx.evmcResult =
             EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
-    };
-
-    hooks.preKernel = [](OrchestrationContext& orchestrationCtx) {
-        auto const txValue = state::fromEvmC(orchestrationCtx.message.value);
-        if (txValue != 0 &&
-            !canTransfer(orchestrationCtx.state, orchestrationCtx.message.sender, txValue))
-        {
-            evmc_result failResult{};
-            failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
-            failResult.gas_left = 0;
-            orchestrationCtx.evmcResult =
-                EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
-            orchestrationCtx.earlyExit = true;
-        }
-    };
-
-    hooks.postAdopt = [&output, &input](OrchestrationContext& orchestrationCtx) {
-        normalizeSetCodeTransactionVmerr(
-            orchestrationCtx.evmcResult, input.message.depth, input.authorizationListPresent);
-        output.topLevelIncludedTxVmError = isTopLevelIncludedTxVmError(
-            orchestrationCtx.evmcResult.status_code, input.message.depth);
-        normalizeIncludedTxVmerr(orchestrationCtx.evmcResult, input.message.depth);
     };
 
     hooks.mapException = [](OrchestrationContext& orchestrationCtx,
