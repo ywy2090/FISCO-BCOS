@@ -170,6 +170,69 @@ set_tests_properties(EthExecutionSpec1559GaspriceProbe PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest;1559-gasprice"
 )
 
+add_test(NAME EthExecutionSpecNonceTests COMMAND EthExecutionSpecStateTests
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-nonce-smoke.json
+    --eest-root ${EVM_REF_EEST_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/expectations.json
+)
+set_tests_properties(EthExecutionSpecNonceTests PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest;nonce"
+)
+
+add_test(NAME EthExecutionSpec7702CoreSmoke COMMAND EthExecutionSpecStateTests
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-7702-core-smoke.json
+    --eest-root ${EVM_REF_EEST_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/expectations.json
+)
+set_tests_properties(EthExecutionSpec7702CoreSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest;7702"
+)
+
+add_test(NAME EthExecutionSpec6780Smoke COMMAND EthExecutionSpecStateTests
+    --manifest ${EEST_MANIFEST_DIR}/eth-eest-6780-smoke.json
+    --eest-root ${EVM_REF_EEST_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/expectations.json
+)
+set_tests_properties(EthExecutionSpec6780Smoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest;6780"
+)
+
+# --- EEST probe manifests (nightly; stateRoot parity radar) ---
+set(_evm_eest_probe_manifests
+    eth-eest-probe-revert.json
+    eth-eest-probe-return.json
+    eth-eest-probe-oog.json
+    eth-eest-probe-invalid.json
+    eth-eest-precompile-probe-full.json
+    probe-gas-cost-one.json
+    eth-eest-precompile-probe.json
+    eth-eest-opcode-probe.json
+)
+set(_evm_eest_probe_ctest_names
+    EthExecutionSpecProbeRevert
+    EthExecutionSpecProbeReturn
+    EthExecutionSpecProbeOog
+    EthExecutionSpecProbeInvalid
+    EthExecutionSpecPrecompileProbeFull
+    EthExecutionSpecProbeGasCostOne
+    EthExecutionSpecPrecompileProbe
+    EthExecutionSpecOpcodeProbe
+)
+list(LENGTH _evm_eest_probe_manifests _evm_eest_probe_count)
+math(EXPR _evm_eest_probe_last "${_evm_eest_probe_count} - 1")
+foreach(i RANGE ${_evm_eest_probe_last})
+    list(GET _evm_eest_probe_manifests ${i} _probe_manifest)
+    list(GET _evm_eest_probe_ctest_names ${i} _probe_ctest)
+    add_test(NAME ${_probe_ctest} COMMAND EthExecutionSpecStateTests
+        --manifest ${EEST_MANIFEST_DIR}/${_probe_manifest}
+        --eest-root ${EVM_REF_EEST_ROOT}
+        --expectations ${EEST_MANIFEST_DIR}/expectations.json
+    )
+    set_tests_properties(${_probe_ctest} PROPERTIES
+        LABELS "specs-tests;specs-tests-full;eth-kernel;eest;probe"
+    )
+endforeach()
+
 add_executable(EthExecutionSpecTransactionTests runners/EthExecutionSpecTransactionTests.cpp)
 target_link_libraries(EthExecutionSpecTransactionTests PRIVATE bcos-evm-specs-tests-core)
 target_compile_definitions(EthExecutionSpecTransactionTests PRIVATE

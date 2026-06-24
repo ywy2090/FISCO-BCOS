@@ -15,8 +15,8 @@
     "sha256": "82bc3cb1c23f48b2b8a2b3d9cb5d9b96ddf6c31683f75368173bee3b25a24274"
   },
   "eest": {
-    "release": "v5.1.0",
-    "url": "https://github.com/ethereum/execution-spec-tests/releases/download/v5.1.0/fixtures_develop.tar.gz",
-    "sha256": "a3192784375acec7eaec492799d5c5d0c47a2909a3cc40178898e4ecd20cc416"
+    "release": "v5.4.0",
+    "url": "https://github.com/ethereum/execution-spec-tests/releases/download/v5.4.0/fixtures_develop.tar.gz",
+    "sha256": "3e2b02d49fe903eda4fd8caca5cbf0d139c470e97e1de9a85299b1b034f97099"
   }
 }

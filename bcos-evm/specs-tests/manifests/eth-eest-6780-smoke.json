@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.cancun.eip6780.not_created_revert",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct/test_selfdestruct_not_created_in_same_tx_with_revert.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.eip6780.created_revert",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct/test_selfdestruct_created_in_same_tx_with_revert.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.eip6780.initcode_create_tx",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct/test_self_destructing_initcode_create_tx.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

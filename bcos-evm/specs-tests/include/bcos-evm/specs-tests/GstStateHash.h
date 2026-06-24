@@ -20,7 +20,7 @@ GstPostStateView buildPostStateView(
     std::vector<std::pair<evmc_address, state::Account>> const& preState,
     state::StateDiff const& stateDiff, bool applyDiff, evmc_address const& coinbase, bool eip158);
 
-evmc_bytes32 computeStateRoot(GstPostEvmStateReader const& postState);
+evmc_bytes32 computeStateRoot(GstPostStateView const& postState);
 evmc_bytes32 computeLogsHash(std::vector<state::LogEntry> const& logs);
 
 }  // namespace bcos::evm::reference_tests

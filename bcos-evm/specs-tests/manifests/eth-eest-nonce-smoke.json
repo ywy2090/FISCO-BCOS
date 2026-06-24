@@ -1,0 +1,55 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.static.revert.precompiled_touch_nonce",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stRevertTest/RevertPrecompiledTouch_nonce.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.revert.precompiled_touch_noncestorage",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stRevertTest/RevertPrecompiledTouch_noncestorage.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.create.transaction_high_nonce",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stCreateTest/CreateTransactionHighNonce.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.create.high_nonce",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stCreateTest/CREATE_HighNonce.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.state.eip7702.nonce_validity",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx/test_nonce_validity.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

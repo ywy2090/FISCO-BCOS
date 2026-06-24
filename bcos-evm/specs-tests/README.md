@@ -43,9 +43,14 @@ Osaka smoke (`eth-gst-osaka-smoke.json`) executes at `EVMC_OSAKA` while using `p
 |----------|-------|-------------|
 | `eth-eest-state-smoke.json` | Curated EEST state vectors (7623/7823/7702 warming + full self-sponsored 10 variants + invalid auth) | `specs-tests-smoke` |
 | `eth-eest-tx-smoke.json` | Curated 7702 tx validation (RLP + empty auth + invalid chain id/nonce/signature) | `specs-tests-smoke` |
+| `eth-eest-7702-core-smoke.json` | 7702 core state (eip7702, empty auth, create, delegation, pointer, nonce overflow) | `specs-tests-smoke`, `7702` |
+| `eth-eest-6780-smoke.json` | Cancun EIP-6780 same-tx SELFDESTRUCT (3 vectors; transitional only — stateRoot parity pending) | `specs-tests-smoke`, `6780` |
 | `eth-eest-1559-gasprice-probe.json` | EIP-1559 `GASPRICE`/`BASEFEE` state probe (`stExample/eip1559`) | `specs-tests-smoke`, `1559-gasprice` |
+| `eth-eest-nonce-smoke.json` | Nonce semantics: REVERT precompile touch, CREATE high nonce, 7702 nonce validity | `specs-tests-smoke`, `nonce` |
 | `eth-eest-state-full.json` | Full Prague 7623 + Osaka 7823 + Prague 7702 state dirs | `specs-tests-full` |
 | `eth-eest-tx-full.json` | Full Prague 7702 transaction_tests dir | `specs-tests-full` |
+
+**Probe manifests (nightly):** `eth-eest-probe-*.json`, `eth-eest-precompile-probe*.json`, `probe-gas-cost-one.json` — 7702 behavior/gas slices with `stateRoot` assertions; label `specs-tests-full`, `probe`.
 
 Smoke manifests use curated fixture paths so PR CI stays green; nightly runs the full manifests.
 

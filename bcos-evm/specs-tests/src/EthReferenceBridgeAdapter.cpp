@@ -125,19 +125,6 @@ void applyGstTransactionSettlement(state::StateDiff& stateDiff,
     };
 
     auto& sender = resolveAccount(msg.sender);
-    uint64_t preNonce = 0;
-    for (auto const& [preAddress, preAccount] : preState)
-    {
-        if (state::AddressEqual{}(preAddress, msg.sender))
-        {
-            preNonce = preAccount.nonce;
-            break;
-        }
-    }
-    if (sender.nonce <= preNonce)
-    {
-        sender.nonce = preNonce + 1;
-    }
 
     bcos::u256 const gasCost = effectiveGasPrice * static_cast<bcos::u256>(gasUsed);
     bcos::u256 const totalCost = gasCost + blobFee;
@@ -219,6 +206,7 @@ task::Task<ExecutionResult> EthReferenceBridgeAdapter::execute(
     input.accessList = accessList.empty() ? nullptr : &accessList;
     input.authorizationListPresent = testCase.transaction.authorizationListKeyPresent;
     input.authorizations = authorizations;
+    input.txNonce = tx.nonce;
 
     evmc_message msg{};
     msg.kind = tx.to.has_value() ? EVMC_CALL : EVMC_CREATE;
