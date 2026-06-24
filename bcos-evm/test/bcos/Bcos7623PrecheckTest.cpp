@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos7623PrecheckTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "state/InMemoryStateView.h"
@@ -28,7 +28,7 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(executeViaHost_web3Tx_eip7623_oog_when_gas_below_normal_cost)
+BOOST_AUTO_TEST_CASE(fiscoExecute_web3Tx_eip7623_oog_when_gas_below_normal_cost)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(executeViaHost_web3Tx_eip7623_oog_when_gas_below_normal_cos
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    ExecuteViaHostInput input;
+    FiscoExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -59,13 +59,13 @@ BOOST_AUTO_TEST_CASE(executeViaHost_web3Tx_eip7623_oog_when_gas_below_normal_cos
     input.revisionConfig.eth().revision = EVMC_PRAGUE;
     input.revisionConfig.eth().eip7623 = true;
 
-    auto output = task::syncWait(executeViaHost(std::move(input)));
+    auto output = task::syncWait(fiscoExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(static_cast<int>(output.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::OutOfGas));
 }
 
-BOOST_AUTO_TEST_CASE(executeViaHost_web3Tx_eip7623_skips_precheck_when_normal_cost_zero)
+BOOST_AUTO_TEST_CASE(fiscoExecute_web3Tx_eip7623_skips_precheck_when_normal_cost_zero)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x03);
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(executeViaHost_web3Tx_eip7623_skips_precheck_when_normal_co
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    ExecuteViaHostInput input;
+    FiscoExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(executeViaHost_web3Tx_eip7623_skips_precheck_when_normal_co
     input.revisionConfig.eth().revision = EVMC_PRAGUE;
     input.revisionConfig.eth().eip7623 = true;
 
-    auto output = task::syncWait(executeViaHost(std::move(input)));
+    auto output = task::syncWait(fiscoExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 }
 

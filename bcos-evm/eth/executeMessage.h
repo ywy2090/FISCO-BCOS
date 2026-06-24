@@ -22,7 +22,7 @@
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/policy/HostExtension.h"
+#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -48,7 +48,7 @@ struct ExecuteMessageInput
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
-    state::HostExtension* extension{nullptr};
+    state::VmHostPolicy* extension{nullptr};
     bool fixStorageStatus{true};
     bool fixNonceInit{false};
     std::optional<bcos::h256> txHash;

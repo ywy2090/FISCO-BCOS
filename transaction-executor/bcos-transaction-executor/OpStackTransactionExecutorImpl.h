@@ -6,9 +6,9 @@
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
-#include "bcos-evm/opstack/OpStackTxExecutor.h"
+#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-framework/protocol/Transaction.h"
@@ -62,12 +62,12 @@ inline std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& 
 }
 }  // namespace opstack_executor_detail
 
-/// Isthmus OP-Stack transaction executor — integrates `opStackExecuteViaHost` with
+/// Isthmus OP-Stack transaction executor — integrates `opStackExecute` with
 /// baseline scheduler / Engine API via the executor_v1::TransactionExecutor concept.
 ///
 /// Compared to TransactionExecutorImpl:
-/// - No FISCO auth/precompile hooks (L1Block native dispatch via OpHostExtension).
-/// - Gas buy/refund/settlement is internal to opStackExecuteViaHost.
+/// - No FISCO auth/precompile hooks (L1Block native dispatch via OpStackVmHostPolicy).
+/// - Gas buy/refund/settlement is internal to opStackExecute.
 /// - Uses gasTipCap/gasFeeCap (EIP-1559) instead of legacy gasPrice.
 class OpStackTransactionExecutorImpl
 {
@@ -160,11 +160,11 @@ public:
         {
             if constexpr (phase == static_cast<int>(OpStackExecutePhase::Prepare))
             {
-                // OP path has no separate prepare; preCheck/warm live in opStackExecuteViaHost.
+                // OP path has no separate prepare; preCheck/warm live in opStackExecute.
             }
             else if constexpr (phase == static_cast<int>(OpStackExecutePhase::Execute))
             {
-                auto output = co_await opStackExecuteViaHostTx();
+                auto output = co_await opStackExecuteTx();
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
                 m_data->m_gasUsed = output.gasUsed;
                 m_data->m_receiptMeta = output.receiptMeta;
@@ -189,7 +189,7 @@ public:
             co_return {};
         }
 
-        task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHostTx()
+        task::Task<OpStackExecutionResult> opStackExecuteTx()
         {
             evmc_message message = newEVMCMessage(m_data->m_blockHeader.get().number(),
                 m_data->m_transaction.get(), m_data->m_gasLimit, m_data->m_origin);
@@ -197,7 +197,7 @@ public:
             state::FiscoStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
-            OpStackExecuteViaHostInput input;
+            OpStackExecutionRequest input;
             input.stateView = std::addressof(stateView);
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
@@ -223,7 +223,7 @@ public:
             input.forkSchedule = bcos::evm::makeIsthmusPlusForkSchedule();
             input.txHash = m_data->m_transaction.get().hash();
 
-            co_return co_await opStackExecuteViaHost(std::move(input));
+            co_return co_await opStackExecute(std::move(input));
         }
 
         task::Task<protocol::TransactionReceipt::Ptr> makeReceipt()

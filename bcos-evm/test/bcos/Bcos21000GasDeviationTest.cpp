@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos21000GasDeviationTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(balance_transfer_gas_constant_documents_deviation)
     BOOST_CHECK_EQUAL(BALANCE_TRANSFER_GAS, 21'000);
 }
 
-BOOST_AUTO_TEST_CASE(executeViaHost_debits_balance_transfer_gas_before_evm)
+BOOST_AUTO_TEST_CASE(fiscoExecute_debits_balance_transfer_gas_before_evm)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(executeViaHost_debits_balance_transfer_gas_before_evm)
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    ExecuteViaHostInput input;
+    FiscoExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(executeViaHost_debits_balance_transfer_gas_before_evm)
     input.blockInfo = blockInfo;
     input.revisionConfig.eth().revision = EVMC_CANCUN;
 
-    auto output = task::syncWait(executeViaHost(std::move(input)));
+    auto output = task::syncWait(fiscoExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(output.executionContext.message.gas, initialGas - BALANCE_TRANSFER_GAS);
 }

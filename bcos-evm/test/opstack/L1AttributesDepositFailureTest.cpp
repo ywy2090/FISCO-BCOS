@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "state/InMemoryStateView.h"
@@ -30,7 +30,7 @@ bytes loadFixture(std::string_view name)
     return {std::istreambuf_iterator<char>(input), {}};
 }
 
-OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     crypto::Hash const& hash, bytes const& calldata)
 {
     evmc_message message{};
@@ -42,7 +42,7 @@ OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stat
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
 
     auto valid = loadFixture("isthmus_l1_attributes.bin");
     auto okOutput =
-        task::syncWait(opStackExecuteViaHost(makeDepositInput(stateView, vm, hash, valid)));
+        task::syncWait(opStackExecute(makeDepositInput(stateView, vm, hash, valid)));
     BOOST_REQUIRE_EQUAL(okOutput.evmcResult.status_code, EVMC_SUCCESS);
     applyStateDiffToView(okOutput.stateDiff, stateView);
 
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
 
     bytes invalid = {0x09, 0x89, 0x99, 0xbe};
     auto failOutput =
-        task::syncWait(opStackExecuteViaHost(makeDepositInput(stateView, vm, hash, invalid)));
+        task::syncWait(opStackExecute(makeDepositInput(stateView, vm, hash, invalid)));
     BOOST_REQUIRE_EQUAL(failOutput.evmcResult.status_code, EVMC_REVERT);
     BOOST_REQUIRE(failOutput.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*failOutput.receiptMeta.depositNonce, 1);

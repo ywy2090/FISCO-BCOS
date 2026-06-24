@@ -5,7 +5,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -75,7 +75,7 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecuteViaHostInput makeExecuteInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackExecutionRequest makeExecuteInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
 {
     evmc_message message{};
@@ -85,7 +85,7 @@ OpStackExecuteViaHostInput makeExecuteInput(state::test::InMemoryStateView& stat
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE(opstack_execute_subgas_and_return_on_success)
         pool.returnGas(gasRemaining, gasUsed);
     };
 
-    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    auto output = task::syncWait(opStackExecute(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_GT(pool.cumulativeUsed(), 0u);

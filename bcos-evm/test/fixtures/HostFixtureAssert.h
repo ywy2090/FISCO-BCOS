@@ -2,7 +2,7 @@
 
 #include "EthStateFixtureLoader.h"
 #include "FiscoFixtureAdapter.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include <boost/test/unit_test.hpp>
 
@@ -10,7 +10,7 @@ namespace bcos::evm::test::fixtures
 {
 
 inline void assertHostFixtureResult(
-    FixtureCase const& fixture, ExecuteViaHostOutput const& output, int64_t gasBefore)
+    FixtureCase const& fixture, FiscoExecutionResult const& output, int64_t gasBefore)
 {
     (void)gasBefore;
     BOOST_CHECK_EQUAL(

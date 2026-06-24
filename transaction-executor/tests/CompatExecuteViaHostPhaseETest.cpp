@@ -8,8 +8,8 @@
 #include "../../bcos-executor/test/unittest/evmone/compat/CompatTestFixture.h"
 #include "ExecuteViaHostEip2929Harness.h"
 #include "SelfdestructCompatBytecode.h"
-#include "bcos-evm/bcos/FiscoHostExtension.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
+#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/Features.h"
@@ -112,9 +112,9 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_P_address_routing_prefix_overlap)
         return std::nullopt;
     };
     bcos::evm::test::InMemoryChainPrecompileAdapter port(std::move(callback));
-    bcos::evm::FiscoHostExtension::FiscoHostExtensionDeps deps;
+    bcos::evm::FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
     deps.chainPrecompilePort = &port;
-    bcos::evm::FiscoHostExtension extension(true, std::move(deps));
+    bcos::evm::FiscoVmHostPolicy extension(true, std::move(deps));
 
     evmc_message blsMsg{};
     blsMsg.kind = EVMC_CALL;
@@ -234,7 +234,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_S_bls_without_prague_via_execute_via_host)
         auto result = co_await shim.execute();
         BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
         BOOST_TEST_MESSAGE(
-            "Fisco gate: executeViaHost dispatches BLS via EthPrecompiles when code is empty; "
+            "Fisco gate: fiscoExecute dispatches BLS via EthPrecompiles when code is empty; "
             "PrecompiledManager gate applies only to >=0x1000 tryChainPrecompile path.");
     }());
 }

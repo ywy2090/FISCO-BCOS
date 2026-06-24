@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE BcosPrecompileRevisionGateTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_cancun_rejects_prague_bls)
     BOOST_CHECK(!precompiled::isActivePrecompile(EVMC_CANCUN, cfg, blsAddr));
 }
 
-BOOST_AUTO_TEST_CASE(executeViaHost_cancun_call_0x0b_not_precompile_dispatch)
+BOOST_AUTO_TEST_CASE(fiscoExecute_cancun_call_0x0b_not_precompile_dispatch)
 {
     state::test::InMemoryStateView view;
     auto const sender = precompileAddress(0x01);
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(executeViaHost_cancun_call_0x0b_not_precompile_dispatch)
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    ExecuteViaHostInput input;
+    FiscoExecutionRequest input;
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(executeViaHost_cancun_call_0x0b_not_precompile_dispatch)
     input.blockInfo = blockInfo;
     input.revisionConfig.eth().revision = EVMC_CANCUN;
 
-    auto output = task::syncWait(executeViaHost(std::move(input)));
+    auto output = task::syncWait(fiscoExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, initialGas - BALANCE_TRANSFER_GAS);
     BOOST_CHECK_EQUAL(output.evmcResult.output_size, size_t(0));

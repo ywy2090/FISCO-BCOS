@@ -1,16 +1,13 @@
 #pragma once
 
-#include "bcos-evm/eth/EVMCResult.h"
-#include <optional>
+#include "bcos-evm/eth/EthReferenceBridge.h"
+#include "bcos-evm/eth/EthTxPrecheck.h"
 
 namespace bcos::evm
 {
-struct ExecuteViaEthInput;
-namespace state
+[[deprecated("use ethTxPrecheck")]] inline std::optional<EVMCResult> ethTxPrecheck(
+    EthReferenceRequest const& input, state::State& state)
 {
-class State;
+    return ethTxPrecheck(input, state);
 }
-
-std::optional<EVMCResult> ethExecuteViaEthPreCheck(
-    ExecuteViaEthInput const& input, state::State& state);
 }  // namespace bcos::evm

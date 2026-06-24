@@ -20,7 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/policy/HostExtension.h"
+#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -42,7 +42,7 @@ public:
 
     EthHost(State& state, evmc_tx_context txContext,
         bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-        HostExtension* extension = nullptr, bool fixStorageStatus = true);
+        VmHostPolicy* extension = nullptr, bool fixStorageStatus = true);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -101,7 +101,7 @@ private:
     bcos::evm_standard::RevisionConfig m_revisionConfig{};
     evmc::VM& m_vm;
     BlockHashes m_blockHashes;
-    HostExtension* m_extension{nullptr};
+    VmHostPolicy* m_extension{nullptr};
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_storageOriginalValues;

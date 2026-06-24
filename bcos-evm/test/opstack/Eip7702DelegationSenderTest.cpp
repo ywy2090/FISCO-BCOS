@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE Eip7702DelegationSenderTest
 
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
-#include "bcos-evm/opstack/OpStackPreCheck.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "state/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
@@ -17,9 +17,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-OpStackExecuteViaHostInput makeInput(evmc_address sender)
+OpStackExecutionRequest makeInput(evmc_address sender)
 {
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message.kind = EVMC_CALL;
     input.message.sender = sender;
     input.message.gas = 80'000;
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(sender_with_delegation_code_passes_precheck)
     state::State state(stateView);
     auto input = makeInput(sender);
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_CHECK(!error.has_value());
 }
 
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(sender_with_non_delegation_code_is_rejected)
     state::State state(stateView);
     auto input = makeInput(sender);
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }

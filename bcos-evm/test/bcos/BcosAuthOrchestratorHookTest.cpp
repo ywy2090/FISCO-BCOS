@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE BcosAuthOrchestratorHookTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos/adapters/InMemoryAuthAdapter.h"
 #include "state/InMemoryStateView.h"
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(auth_checker_hook_short_circuits_before_executeMessage)
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    ExecuteViaHostInput input;
+    FiscoExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(auth_checker_hook_short_circuits_before_executeMessage)
     });
     input.authPort = &authPort;
 
-    auto output = task::syncWait(executeViaHost(std::move(input)));
+    auto output = task::syncWait(fiscoExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REJECTED);
     BOOST_CHECK(output.stateDiff.accounts.find(target) == output.stateDiff.accounts.end());
 }

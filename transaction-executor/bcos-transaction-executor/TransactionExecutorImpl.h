@@ -7,12 +7,12 @@
 #include "adapters/ExecutorSessionContext.h"
 #include "adapters/PrecompiledImpl.h"
 #include "adapters/PrecompiledManager.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"
-#include "bcos-evm/bcos/FiscoTxExecutor.h"
+#include "bcos-evm/bcos/FiscoTxFeeLedger.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
@@ -50,7 +50,7 @@ enum class ExecutePhase : uint8_t
 evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin);
 
-template <class TxExec = FiscoTxExecutor>
+template <class TxExec = FiscoTxFeeLedger>
 class TransactionExecutorImpl
 {
 public:
@@ -190,7 +190,7 @@ public:
                     if (!co_await m_data->m_executor.get().m_txExecutor.buyGas(*m_data))
                         co_return {};
                 }
-                auto output = co_await executeViaHostTx();
+                auto output = co_await fiscoExecuteTx();
                 m_data->m_executionContext = std::move(output.executionContext);
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
                 if (m_data->m_evmcResult->status_code == EVMC_SUCCESS)
@@ -261,9 +261,9 @@ public:
             }
         }
 
-        task::Task<ExecuteViaHostOutput> executeViaHostTx()
+        task::Task<FiscoExecutionResult> fiscoExecuteTx()
         {
-            ExecuteViaHostInput input;
+            FiscoExecutionRequest input;
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
             input.message = m_data->m_executionContext.message;
@@ -313,7 +313,7 @@ public:
             input.authPort = &authAdapter;
             input.chainPrecompilePort = &precompileAdapter;
 
-            co_return co_await executeViaHost(std::move(input));
+            co_return co_await fiscoExecute(std::move(input));
         }
     };
 

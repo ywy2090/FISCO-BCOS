@@ -13,14 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Shared assertions for executeViaEth fixture validation.
+ * @brief Shared assertions for ethReferenceExecute fixture validation.
  * @file FixtureAssert.h
  */
 
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/orchestration/NormalizeIncludedTxVmerr.h"
 #include "bcos-evm/eth/state/StateView.hpp"
@@ -31,7 +31,7 @@ namespace bcos::evm::test::fixtures
 {
 
 inline void assertFixtureResult(
-    FixtureCase const& fixture, ExecuteViaEthOutput const& output, int64_t gasBefore)
+    FixtureCase const& fixture, EthReferenceResult const& output, int64_t gasBefore)
 {
     (void)gasBefore;
     evmc_status_code expectedStatus = fixture.expected.status;

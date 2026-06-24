@@ -5,7 +5,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
         return ExecuteMessageOutput{.result = evmc::Result{raw}};
     });
 
-    auto output = task::syncWait(opStackExecuteViaHost(input));
+    auto output = task::syncWait(opStackExecute(input));
     opstack::test::clearExecuteMessageSpy();
 
     auto const intrinsic =

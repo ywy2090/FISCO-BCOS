@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -27,7 +27,7 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-OpStackExecuteViaHostInput makeInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackExecutionRequest makeInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     crypto::Hash const& hash, evmc_address sender, evmc_address recipient)
 {
     evmc_message message{};
@@ -37,7 +37,7 @@ OpStackExecuteViaHostInput makeInput(state::test::InMemoryStateView& stateView, 
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(value_transfer_rejected_when_sender_balance_insufficient)
         .mint = u256(0),
         .value = u256(10),
         .gas = static_cast<uint64_t>(input.message.gas)};
-    auto output = task::syncWait(opStackExecuteViaHost(input));
+    auto output = task::syncWait(opStackExecute(input));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status, protocol::TransactionStatus::InsufficientFunds);
 }
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(transfer_to_predeploy_allowed_if_funded)
     FakeHash hash;
     auto input = makeInput(stateView, vm, hash, sender, OP_L1_BLOCK_PREDEPLOY);
     input.message.value.bytes[31] = 1;
-    auto output = task::syncWait(opStackExecuteViaHost(input));
+    auto output = task::syncWait(opStackExecute(input));
 
     BOOST_CHECK(output.evmcResult.status != protocol::TransactionStatus::NotEnoughCash);
     BOOST_CHECK(output.evmcResult.status != protocol::TransactionStatus::InsufficientFunds);

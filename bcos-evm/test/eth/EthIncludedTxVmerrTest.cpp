@@ -1,10 +1,10 @@
 /*
- * ADR-015: included top-level vmerr settlement and executeViaEth normalization.
+ * ADR-015: included top-level vmerr settlement and ethReferenceExecute normalization.
  */
 #define BOOST_TEST_MODULE EthIncludedTxVmerrTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_applies_eip7623_floor)
     BOOST_CHECK_EQUAL(gasUsed, 21'000);
 }
 
-BOOST_AUTO_TEST_CASE(executeViaEth_top_level_invalid_is_included_with_success_status)
+BOOST_AUTO_TEST_CASE(ethReferenceExecute_top_level_invalid_is_included_with_success_status)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(executeViaEth_top_level_invalid_is_included_with_success_st
     blockInfo.number = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    ExecuteViaEthInput input{};
+    EthReferenceRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -102,14 +102,14 @@ BOOST_AUTO_TEST_CASE(executeViaEth_top_level_invalid_is_included_with_success_st
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(executeViaEth(std::move(input)));
+    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
 
     BOOST_CHECK(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_GT(output.executionContext.gasSettlementSnapshot.gasLimit, 0);
 }
 
-BOOST_AUTO_TEST_CASE(executeViaEth_nested_invalid_is_not_included_tx_vmerr)
+BOOST_AUTO_TEST_CASE(ethReferenceExecute_nested_invalid_is_not_included_tx_vmerr)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(executeViaEth_nested_invalid_is_not_included_tx_vmerr)
     blockInfo.number = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    ExecuteViaEthInput input{};
+    EthReferenceRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(executeViaEth_nested_invalid_is_not_included_tx_vmerr)
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(executeViaEth(std::move(input)));
+    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
 
     BOOST_CHECK(!output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);

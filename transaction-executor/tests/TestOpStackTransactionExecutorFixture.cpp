@@ -476,7 +476,7 @@ BOOST_AUTO_TEST_CASE(revert_keeps_l1_fee_and_operator_fee)
 }
 
 // ADR-011 FIX-06 / D5-4: TE E2E — isthmus L1 attributes system deposit through
-// OpStackTransactionExecutorImpl::executeTransaction (not executeViaHost-only).
+// OpStackTransactionExecutorImpl::executeTransaction (not fiscoExecute-only).
 BOOST_AUTO_TEST_CASE(l1_attributes_deposit_via_te)
 {
     task::syncWait([this]() -> task::Task<void> {
@@ -665,7 +665,7 @@ BOOST_AUTO_TEST_CASE(executor_input_build_applies_warm_destination_for_call)
     auto header = makeBlockHeader();
 
     evmc_message message = newEVMCMessage(header.number(), *tx, 50'000, sender);
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message = message;
     opstack_tx::fillWeb3Fields(*tx, input);
     opstack_tx::applyDefaultTxProps(input);
@@ -684,7 +684,7 @@ BOOST_AUTO_TEST_CASE(executor_input_build_clears_warm_destination_for_create)
     message.kind = EVMC_CREATE;
     message.recipient = evmc_address{};
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message = message;
     opstack_tx::fillWeb3Fields(*tx, input);
     opstack_tx::applyDefaultTxProps(input);

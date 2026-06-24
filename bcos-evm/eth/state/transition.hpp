@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/policy/HostExtension.h"
+#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -32,5 +32,5 @@ namespace bcos::evm::state
 {
 TransactionReceipt transition(const StateView& state_view, const BlockInfo& block,
     const BlockHashes& block_hashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
-    const TransactionProperties& tx_props, HostExtension* ext = nullptr);
+    const TransactionProperties& tx_props, VmHostPolicy* ext = nullptr);
 }  // namespace bcos::evm::state

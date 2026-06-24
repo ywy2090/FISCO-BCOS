@@ -1,23 +1,15 @@
 #pragma once
 
-#include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/state/State.hpp"
-#include <bcos-utilities/Common.h>
-#include <evmc/evmc.h>
-#include <cstdint>
-#include <optional>
+#include "bcos-evm/opstack/OpStackFloorGasPrecheck.h"
 
 namespace bcos::evm
 {
-struct OpStackPreDebitEntryInput
-{
-    evmc_message const& message;
-    state::State& state;
-    uint64_t gasLimit;
-    bool skipTransactionChecks;
-    bcos::bytesConstRef inputData;
-    uint64_t& floorDataGasOut;
-};
+using OpStackFloorGasPrecheckInput [[deprecated("use OpStackFloorGasPrecheckInput")]] =
+    OpStackFloorGasPrecheckInput;
 
-std::optional<EVMCResult> opStackPreDebitEntry(OpStackPreDebitEntryInput const& input);
+[[deprecated("use opStackFloorGasPrecheck")]] inline std::optional<EVMCResult> opStackFloorGasPrecheck(
+    OpStackFloorGasPrecheckInput const& input)
+{
+    return opStackFloorGasPrecheck(input);
+}
 }  // namespace bcos::evm

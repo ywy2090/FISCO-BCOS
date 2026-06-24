@@ -7,7 +7,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/policy/HostExtension.h"
+#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.hpp>
 
@@ -25,7 +25,7 @@ struct PrecompileRouterInput
 {
     state::State& state;
     bcos::evm_standard::RevisionConfig const& revision;
-    state::HostExtension* extension;
+    state::VmHostPolicy* extension;
     evmc_message const& message;
     evmc_address target;
     bool skipValueTransfer;

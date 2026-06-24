@@ -3,46 +3,9 @@ cmake_minimum_required(VERSION 3.28)
 find_package(evmone CONFIG REQUIRED)
 include(GNUInstallDirs)
 
-set(BCOS_EVM_ETH_SOURCES
-    eth/vm/VMInstance.cpp
-    eth/EVMCResult.cpp
-    eth/Eip7702.cpp
-    eth/ExecuteViaEth.cpp
-    eth/EthOrchestrationProfile.cpp
-    eth/ExecuteViaEthPreCheck.cpp
-    eth/orchestration/OrchestrationPipeline.cpp
-    eth/ExecuteMessage.cpp
-    eth/state/State.cpp
-    eth/state/EthHost.cpp
-    eth/state/BloomFilter.cpp
-    eth/state/EthPrecompiles.cpp
-    eth/state/Transition.cpp
-    eth/precompiled/EthBuiltinRegistry.cpp
-    eth/precompiled/PrecompiledContract.cpp
-    eth/precompiled/ModexpGas.cpp
-    eth/precompiled/PrecompileRouter.cpp
-)
-
-set(BCOS_EVM_BCOS_SOURCES
-    bcos/ExecuteViaHost.cpp
-    bcos/FiscoHostExtension.cpp
-    bcos/FiscoOrchestrationProfile.cpp
-    bcos/FiscoStateView.cpp
-)
-
-set(BCOS_EVM_OP_SOURCES
-    opstack/OpStackExecuteViaHost.cpp
-    opstack/OpStackOrchestrationProfile.cpp
-    opstack/OpStackPreCheck.cpp
-    opstack/OpStackPreDebitEntry.cpp
-    opstack/OpStackTxExecutor.cpp
-    opstack/RollupCost.cpp
-    opstack/OpStackFee.cpp
-    opstack/OpStackFloorGas.cpp
-    opstack/L1BlockStorage.cpp
-    opstack/L1BlockPredeploy.cpp
-    opstack/GasPriceOraclePredeploy.cpp
-)
+file(GLOB_RECURSE BCOS_EVM_ETH_SOURCES CONFIGURE_DEPENDS eth/*.cpp)
+file(GLOB BCOS_EVM_BCOS_SOURCES CONFIGURE_DEPENDS bcos/*.cpp)
+file(GLOB BCOS_EVM_OP_SOURCES CONFIGURE_DEPENDS opstack/*.cpp)
 
 add_library(bcos-evm-eth STATIC ${BCOS_EVM_ETH_SOURCES})
 add_library(bcos-evm-bcos STATIC ${BCOS_EVM_BCOS_SOURCES})

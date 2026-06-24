@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Shared JSON fixture loader for eth state / executeViaEth tests.
+ * @brief Shared JSON fixture loader for eth state / ethReferenceExecute tests.
  * @file EthStateFixtureLoader.h
  */
 

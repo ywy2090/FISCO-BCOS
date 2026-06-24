@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief TE forward-compat tests migrated from CompatHostContextTest (executeViaHost path).
+ *  @brief TE forward-compat tests migrated from CompatHostContextTest (fiscoExecute path).
  *  @file CompatExecuteViaHostTest.cpp
  */
 

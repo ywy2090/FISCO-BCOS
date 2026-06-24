@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7702PreCheckTest
 
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
-#include "bcos-evm/opstack/OpStackPreCheck.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "state/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
@@ -16,9 +16,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-OpStackExecuteViaHostInput makeInput(evmc_address sender)
+OpStackExecutionRequest makeInput(evmc_address sender)
 {
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message.kind = EVMC_CALL;
     input.message.sender = sender;
     input.message.gas = 50'000;
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(rejects_authorization_list_on_create)
     input.message.kind = EVMC_CREATE;
     input.authorizations.push_back({});
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
     input.authorizationListPresent = true;
     input.authorizations.clear();
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }

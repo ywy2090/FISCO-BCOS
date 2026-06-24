@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE DepositCreateNonceTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -43,7 +43,7 @@ bcos::bytes minimalCreateInitCode()
     return {0x60, 0x00, 0x60, 0x00, 0xf3};
 }
 
-OpStackExecuteViaHostInput makeCreateDepositInput(state::test::InMemoryStateView& stateView,
+OpStackExecutionRequest makeCreateDepositInput(state::test::InMemoryStateView& stateView,
     evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender, bcos::bytes const& initCode)
 {
     evmc_message message{};
@@ -55,7 +55,7 @@ OpStackExecuteViaHostInput makeCreateDepositInput(state::test::InMemoryStateView
     message.input_data = initCode.data();
     message.input_size = initCode.size();
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_bumps_sender_nonce_exactly_once)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeCreateDepositInput(stateView, vm, hash, sender, initCode);
-    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    auto output = task::syncWait(opStackExecute(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(

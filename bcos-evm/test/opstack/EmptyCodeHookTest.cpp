@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE EmptyCodeHookTest
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
 {
     state::test::InMemoryStateView baseState;
     state::State state(baseState);
-    OpHostExtension extension(&state);
+    OpVmHostPolicy extension(&state);
     evmc::VM vm{evmc_create_evmone()};
 
     state::Account senderAccount;

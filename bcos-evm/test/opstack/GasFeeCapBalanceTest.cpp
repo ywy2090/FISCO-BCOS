@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE GasFeeCapBalanceTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(gas_fee_cap_balance_check_rejects_insufficient_sender)
     message.recipient = target;
     message.code_address = target;
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(gas_fee_cap_balance_check_rejects_insufficient_sender)
     input.blockInfo.baseFee = 1;
     input.txProps.warmDestination = true;
 
-    auto output = task::syncWait(opStackExecuteViaHost(input));
+    auto output = task::syncWait(opStackExecute(input));
     BOOST_CHECK_EQUAL(output.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
 }
 }  // namespace bcos::evm::test

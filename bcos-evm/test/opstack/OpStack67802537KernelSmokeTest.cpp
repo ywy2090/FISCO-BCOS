@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -73,7 +73,7 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecuteViaHostInput makeIsthmusBaseInput(
+OpStackExecutionRequest makeIsthmusBaseInput(
     state::test::InMemoryStateView& stateView, evmc::VM& vm, const crypto::Hash& hash)
 {
     auto const sender = addressFromLastByte(0x01);
@@ -82,7 +82,7 @@ OpStackExecuteViaHostInput makeIsthmusBaseInput(
     stateView.insert_account(sender, senderAccount);
     setOpFeeParams(stateView);
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -104,7 +104,7 @@ OpStackExecuteViaHostInput makeIsthmusBaseInput(
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_g1msm_k2_gas_matches_geth_isthmus)
+BOOST_AUTO_TEST_CASE(opStackExecute_g1msm_k2_gas_matches_geth_isthmus)
 {
     state::test::InMemoryStateView stateView;
     evmc::VM vm{evmc_create_evmone()};
@@ -122,12 +122,12 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_g1msm_k2_gas_matches_geth_isthmus)
     input.message.input_data = msmInput.data();
     input.message.input_size = msmInput.size();
 
-    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    auto output = task::syncWait(opStackExecute(std::move(input)));
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(txGas - output.evmcResult.gas_left, 45056);
 }
 
-BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_created_in_tx_selfdestruct_clears_code_isthmus)
+BOOST_AUTO_TEST_CASE(opStackExecute_created_in_tx_selfdestruct_clears_code_isthmus)
 {
     state::test::InMemoryStateView stateView;
     evmc::VM vm{evmc_create_evmone()};
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_created_in_tx_selfdestruct_clears_cod
     input.message.value = {};
 
     auto const predictedAddr = state::predictLegacyCreateAddress(sender, 0);
-    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    auto output = task::syncWait(opStackExecute(std::move(input)));
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 
     applyStateDiffToView(output.stateDiff, stateView);

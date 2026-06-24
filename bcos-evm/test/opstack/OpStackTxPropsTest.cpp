@@ -10,7 +10,7 @@ BOOST_AUTO_TEST_SUITE(OpStackTxPropsTest)
 
 BOOST_AUTO_TEST_CASE(applyDefaultTxProps_sets_warm_destination_from_kind)
 {
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message.kind = EVMC_CALL;
     opstack_tx::applyDefaultTxProps(input);
     BOOST_CHECK(input.txProps.warmDestination);
@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(applyDefaultTxProps_sets_warm_destination_from_kind)
 
 BOOST_AUTO_TEST_CASE(executor_build_order_clears_warm_destination_for_create)
 {
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message.kind = EVMC_CREATE;
     BOOST_CHECK(input.txProps.warmDestination);
 

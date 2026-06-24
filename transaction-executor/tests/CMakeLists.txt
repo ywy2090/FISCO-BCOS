@@ -5,7 +5,7 @@ list(REMOVE_ITEM SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/TestHostContext.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/FIB88_92_ErrorHandlingTest.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Web3AccessListResolverTest.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/EthTxExecutor1559Test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/EthTxFeeLedger1559Test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/TestEthTransactionExecutorFixture.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/TestOpStackTransactionExecutorFixture.cpp"
 )
@@ -26,7 +26,7 @@ set_source_files_properties("EthTxGasSettlementTest.cpp" PROPERTIES SKIP_UNITY_B
 set_source_files_properties("Task0EvmoneRefundSemanticsTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("Web3AccessListResolverTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("EthTxGasSettlementExecutorTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
-set_source_files_properties("EthTxExecutor1559Test.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties("EthTxFeeLedger1559Test.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("Modexp7823TeTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("ExecuteViaHostCompatTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties("CompatExecuteViaHostTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
@@ -108,14 +108,14 @@ add_test(NAME OpStackTransactionExecutorFixture
     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     COMMAND test-opstack-transaction-executor-fixture)
 
-add_executable(EthTxExecutor1559Test
+add_executable(EthTxFeeLedger1559Test
     main.cpp
-    EthTxExecutor1559Test.cpp
+    EthTxFeeLedger1559Test.cpp
 )
-target_include_directories(EthTxExecutor1559Test PRIVATE
+target_include_directories(EthTxFeeLedger1559Test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
 )
-target_link_libraries(EthTxExecutor1559Test PRIVATE
+target_link_libraries(EthTxFeeLedger1559Test PRIVATE
     transaction-executor
     executor
     ledger
@@ -126,7 +126,7 @@ target_link_libraries(EthTxExecutor1559Test PRIVATE
     bcos-evm
     Boost::unit_test_framework
 )
-add_dependencies(EthTxExecutor1559Test executor)
-add_test(NAME EthTxExecutor1559
+add_dependencies(EthTxFeeLedger1559Test executor)
+add_test(NAME EthTxFeeLedger1559
     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-    COMMAND EthTxExecutor1559Test -t EthTxExecutor1559)
+    COMMAND EthTxFeeLedger1559Test -t EthTxFeeLedger1559)

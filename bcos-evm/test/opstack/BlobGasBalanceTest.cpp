@@ -4,9 +4,9 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
-#include "bcos-evm/opstack/OpStackPreCheck.h"
-#include "bcos-evm/opstack/OpStackTxExecutor.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -73,9 +73,9 @@ h256 makeVersionedHash()
     return hash;
 }
 
-OpStackExecuteViaHostInput makeBlobPreCheckInput(evmc_address sender)
+OpStackExecutionRequest makeBlobPreCheckInput(evmc_address sender)
 {
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message.kind = EVMC_CALL;
     input.message.gas = 100'000;
     input.message.sender = sender;
@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_without_blob_gas_fee_cap_is_rejected)
     // blobGasFeeCap left at default 0 — orchestration treats as under blobBaseFee (op-geth
     // ErrInsufficientFunds).
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_rejected_when_eip4844_disabled)
     input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 200;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
     input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 0;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     // op-geth preCheck: maxFeePerBlobGas < blobBaseFee → ErrInsufficientFunds
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
@@ -150,8 +150,8 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     stateView.insert_account(sender, state::Account{.balance = initialBalance, .nonce = 0});
     state::State state(stateView);
 
-    OpStackTxExecutor executor;
-    OpStackTxExecutor::OpStackTxExecutionData txData;
+    OpStackTxFeeLedger executor;
+    OpStackTxFeeLedger::OpStackTxExecutionData txData;
     txData.m_state = &state;
     txData.m_message.sender = sender;
     txData.m_gasTipCap = 1;
@@ -178,8 +178,8 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     stateView.insert_account(sender, state::Account{.balance = u256(1'500'000), .nonce = 0});
     state::State state(stateView);
 
-    OpStackTxExecutor executor;
-    OpStackTxExecutor::OpStackTxExecutionData txData;
+    OpStackTxFeeLedger executor;
+    OpStackTxFeeLedger::OpStackTxExecutionData txData;
     txData.m_state = &state;
     txData.m_message.sender = sender;
     txData.m_gasTipCap = 1;
@@ -212,12 +212,12 @@ BOOST_AUTO_TEST_CASE(l1_blob_base_fee_slot_does_not_set_execution_blob_base_fee)
     input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 0;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
 
-BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_deducts_blob_fee_on_success)
+BOOST_AUTO_TEST_CASE(opStackExecute_deducts_blob_fee_on_success)
 {
     auto const initialBalance = u256(50'000'000'000);
     auto runCase = [&](bool withBlobVersionedHashes) -> u256 {
@@ -231,7 +231,7 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_deducts_blob_fee_on_success)
         evmc::VM vm{evmc_create_evmone()};
         FakeHash hash;
 
-        OpStackExecuteViaHostInput input;
+        OpStackExecutionRequest input;
         input.stateView = &stateView;
         input.vm = &vm;
         input.hashImpl = &hash;
@@ -254,7 +254,7 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_deducts_blob_fee_on_success)
             input.blobVersionedHashes.push_back(makeVersionedHash());
         }
 
-        auto const output = task::syncWait(opStackExecuteViaHost(input));
+        auto const output = task::syncWait(opStackExecute(input));
         BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
         return balanceFromDiff(output.stateDiff, sender, initialBalance);
     };

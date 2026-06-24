@@ -1,4 +1,4 @@
-#include "bcos-evm/specs-tests/ExecuteViaEthAdapter.h"
+#include "bcos-evm/specs-tests/EthReferenceBridgeAdapter.h"
 #include "bcos-evm/specs-tests/ForkProfileRegistry.h"
 #include "bcos-evm/specs-tests/GeneralStateTestLoader.h"
 #include "bcos-evm/specs-tests/ManifestLoader.h"
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
                 continue;
             }
 
-            ExecuteViaEthAdapter adapter(*profile, hashImpl, vm);
+            EthReferenceBridgeAdapter adapter(*profile, hashImpl, vm);
             auto const gstPath = options.ethereumTestsRoot / entry.casePath;
             auto const testCase = loadGeneralStateTest(
                 gstPath, entry.variantKey ? std::optional<std::string_view>{*entry.variantKey} :

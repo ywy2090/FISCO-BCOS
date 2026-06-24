@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7623PrecheckTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -36,7 +36,7 @@ bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(executeViaEth_eip7623_oog_when_gas_below_normal_cost)
+BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_oog_when_gas_below_normal_cost)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(executeViaEth_eip7623_oog_when_gas_below_normal_cost)
 
     evmc::VM vm{evmc_create_evmone()};
     crypto::Keccak256 hashImpl;
-    ExecuteViaEthInput input;
+    EthReferenceRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -68,11 +68,11 @@ BOOST_AUTO_TEST_CASE(executeViaEth_eip7623_oog_when_gas_below_normal_cost)
     input.blockInfo.chainId = 1;
     input.blockInfo.gasLimit = 30'000'000;
 
-    auto output = task::syncWait(executeViaEth(std::move(input)));
+    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(executeViaEth_eip7623_skips_precheck_when_normal_cost_zero)
+BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_skips_precheck_when_normal_cost_zero)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x03);
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(executeViaEth_eip7623_skips_precheck_when_normal_cost_zero)
 
     evmc::VM vm{evmc_create_evmone()};
     crypto::Keccak256 hashImpl;
-    ExecuteViaEthInput input;
+    EthReferenceRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(executeViaEth_eip7623_skips_precheck_when_normal_cost_zero)
     input.blockInfo.chainId = 1;
     input.blockInfo.gasLimit = 30'000'000;
 
-    auto output = task::syncWait(executeViaEth(std::move(input)));
+    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 }
 

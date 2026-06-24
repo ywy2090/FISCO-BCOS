@@ -1,4 +1,4 @@
-#include "bcos-evm/specs-tests/ExecuteViaEthAdapter.h"
+#include "bcos-evm/specs-tests/EthReferenceBridgeAdapter.h"
 #include "bcos-evm/specs-tests/ForkProfileRegistry.h"
 #include "bcos-evm/specs-tests/GeneralStateTestLoader.h"
 #include "bcos-evm/specs-tests/StateTestAssert.h"
@@ -116,7 +116,7 @@ ManifestEntry makeSyntheticEntry(std::string const& evidenceId, ForkProfile cons
     return entry;
 }
 
-bool runSubtest(ForkProfile const& profile, ExecuteViaEthAdapter& adapter,
+bool runSubtest(ForkProfile const& profile, EthReferenceBridgeAdapter& adapter,
     StateTestCase const& testCase, StateSubtest const& subtest, ManifestEntry const& entry,
     int& failures)
 {
@@ -210,7 +210,7 @@ int main(int argc, char** argv)
                     continue;
                 }
 
-                ExecuteViaEthAdapter adapter(*profile, hashImpl, vm);
+                EthReferenceBridgeAdapter adapter(*profile, hashImpl, vm);
                 auto const entry = makeSyntheticEntry(caseId + "@" + profileId, *profile);
 
                 for (auto const& testCase : cases)

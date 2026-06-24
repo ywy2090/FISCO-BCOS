@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE ChainPrecompilePortTest
 
-#include "bcos-evm/bcos/FiscoHostExtension.h"
+#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -22,9 +22,9 @@ evmc_address fiscoPrecompileAddress(uint16_t suffix)
 
 BOOST_AUTO_TEST_CASE(null_port_returns_before_routing)
 {
-    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
     deps.chainPrecompilePort = nullptr;
-    FiscoHostExtension extension(true, std::move(deps));
+    FiscoVmHostPolicy extension(true, std::move(deps));
 
     evmc_message msg{};
     msg.recipient = fiscoPrecompileAddress(0x1003);
@@ -47,9 +47,9 @@ BOOST_AUTO_TEST_CASE(port_dispatch_invoked_for_fisco_address)
             return raw;
         });
 
-    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
     deps.chainPrecompilePort = &port;
-    FiscoHostExtension extension(true, std::move(deps));
+    FiscoVmHostPolicy extension(true, std::move(deps));
 
     evmc_message msg{};
     msg.gas = 50'000;

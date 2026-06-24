@@ -18,7 +18,7 @@ evmc_address precompileAddress(uint8_t lowByte)
 }
 }  // namespace
 
-// executeViaHost delegates to executeMessage for kernel precompiles; assert MSM gas on that path.
+// fiscoExecute delegates to executeMessage for kernel precompiles; assert MSM gas on that path.
 BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
 {
     state::test::InMemoryStateView view;

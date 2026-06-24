@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackPreCheck4844Test
 
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
-#include "bcos-evm/opstack/OpStackPreCheck.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "state/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
@@ -24,9 +24,9 @@ h256 makeVersionedHash(uint8_t versionByte)
     return hash;
 }
 
-OpStackExecuteViaHostInput makeInput(const evmc_address& sender)
+OpStackExecutionRequest makeInput(const evmc_address& sender)
 {
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message.kind = EVMC_CALL;
     input.message.sender = sender;
     input.message.gas = 30'000;
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(rejects_blob_create)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 10;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(rejects_type03_with_empty_hashes)
     input.web3TypedTxKind = 0x03;
     input.blobGasFeeCap = 10;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(rejects_invalid_versioned_hash_prefix)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x02));
     input.blobGasFeeCap = 10;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(rejects_blob_when_eip4844_disabled)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 10;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(rejects_low_blob_fee_cap)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 2;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(accepts_valid_blob_precheck)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 10;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_CHECK(!error.has_value());
 }
 }  // namespace bcos::evm::test

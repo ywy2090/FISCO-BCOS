@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/Account.hpp"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/specs-tests/TestStateView.h"
 #include <bcos-crypto/interfaces/crypto/Hash.h>
 #include <bcos-task/Task.h>
@@ -26,7 +26,7 @@ struct AddressLess
 
 /// Holds a single EEST fixture translated to OPStack execution input plus expected post-state.
 /// The fixture owns the TestStateView; the caller must keep the fixture alive during execution
-/// since OpStackExecuteViaHostInput.stateView points into this fixture.
+/// since OpStackExecutionRequest.stateView points into this fixture.
 struct OpStackEestFixture
 {
     std::string name;
@@ -35,7 +35,7 @@ struct OpStackEestFixture
     /// Owned access list storage — input.accessList points here, so the fixture must
     /// outlive the OPStack execution call.
     bcos::evm::Eip2930AccessList storedAccessList;
-    bcos::evm::OpStackExecuteViaHostInput input;
+    bcos::evm::OpStackExecutionRequest input;
     /// Expected post-state: address → Account (nonce, balance, code, storage).
     std::map<evmc_address, bcos::evm::state::Account, AddressLess> expectedPost;
     bool expectSuccess{true};

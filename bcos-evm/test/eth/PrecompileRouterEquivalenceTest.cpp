@@ -8,8 +8,8 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -68,7 +68,7 @@ evmc_address balanceTarget(evmc_message const& msg)
 }
 
 ExecuteMessageInput makeBaseInput(
-    state::StateView* view, evmc_message const& message, state::HostExtension* extension = nullptr)
+    state::StateView* view, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
@@ -85,7 +85,7 @@ ExecuteMessageInput makeBaseInput(
 }
 
 CallOutcome runDepth0(
-    state::State& state, evmc_message const& message, state::HostExtension* extension = nullptr)
+    state::State& state, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
 {
     auto output = executeMessage(makeBaseInput(&state, message, extension));
     return {.status = output.result.status_code,
@@ -100,7 +100,7 @@ struct Depth1HostFixture
     bcos::evm_standard::RevisionConfig cfg{};
     std::optional<state::EthHost> host;
 
-    Depth1HostFixture(state::State& state, state::HostExtension* extension)
+    Depth1HostFixture(state::State& state, state::VmHostPolicy* extension)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = EVMC_PRAGUE, .warm_access = true};
@@ -111,7 +111,7 @@ struct Depth1HostFixture
 };
 
 CallOutcome runDepth1(
-    state::State& state, evmc_message message, state::HostExtension* extension = nullptr)
+    state::State& state, evmc_message message, state::VmHostPolicy* extension = nullptr)
 {
     Depth1HostFixture fixture(state, extension);
     message.depth = 1;
@@ -171,13 +171,13 @@ BOOST_AUTO_TEST_CASE(c2_chain_hook_depth0_equals_depth1)
 
     state::test::InMemoryStateView view0;
     state::State state0(view0);
-    OpHostExtension extension0(&state0);
+    OpVmHostPolicy extension0(&state0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     auto depth0 = runDepth0(state0, message, &extension0);
 
     state::test::InMemoryStateView view1;
     state::State state1(view1);
-    OpHostExtension extension1(&state1);
+    OpVmHostPolicy extension1(&state1);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     auto depth1 = runDepth1(state1, message, &extension1);
 

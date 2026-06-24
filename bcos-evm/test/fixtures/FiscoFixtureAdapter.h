@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include <boost/test/unit_test.hpp>
 
@@ -36,10 +36,10 @@ inline bcos::evm_standard::RevisionConfig revisionConfigFromFixtureRevision(
     return cfg;
 }
 
-inline ExecuteViaHostInput buildExecuteViaHostInput(FixtureCase const& fixture,
+inline FiscoExecutionRequest buildFiscoExecutionRequest(FixtureCase const& fixture,
     state::StateView const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
 {
-    ExecuteViaHostInput input;
+    FiscoExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;

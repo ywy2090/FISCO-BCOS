@@ -290,9 +290,9 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
     // and TransactionExecutorImpl::executeTransaction must be audited for thread-safety
     // and guarded with a lock.
     // Executor selection (all satisfy executor_v1::TransactionExecutor concept):
-    //   FISCO  → TransactionExecutorImpl  + executeViaHost      + FiscoTxExecutor
-    //   Eth    → EthTransactionExecutorImpl + executeViaEth       + EthTxExecutor
-    //   OP     → OpStackTransactionExecutorImpl + opStackExecuteViaHost (gas internal)
+    //   FISCO  → TransactionExecutorImpl  + fiscoExecute      + FiscoTxFeeLedger
+    //   Eth    → EthTransactionExecutorImpl + ethReferenceExecute       + EthTxFeeLedger
+    //   OP     → OpStackTransactionExecutorImpl + opStackExecute (gas internal)
     auto const& receiptFactory = *m_protocolInitializer->blockFactory()->receiptFactory();
     auto hashImpl = m_protocolInitializer->cryptoSuite()->hashImpl();
 
@@ -332,18 +332,18 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
     switch (m_nodeConfig->executionPath())
     {
     case tool::ExecutionPath::Eth:
-        INITIALIZER_LOG(INFO) << "Using EthTransactionExecutorImpl (executeViaEth)";
+        INITIALIZER_LOG(INFO) << "Using EthTransactionExecutorImpl (ethReferenceExecute)";
         wireBaselineScheduler(
             std::make_shared<executor_v1::EthTransactionExecutorImpl>(receiptFactory, hashImpl));
         break;
     case tool::ExecutionPath::OpStack:
-        INITIALIZER_LOG(INFO) << "Using OpStackTransactionExecutorImpl (opStackExecuteViaHost)";
+        INITIALIZER_LOG(INFO) << "Using OpStackTransactionExecutorImpl (opStackExecute)";
         wireBaselineScheduler(std::make_shared<executor_v1::OpStackTransactionExecutorImpl>(
             receiptFactory, hashImpl));
         break;
     case tool::ExecutionPath::Fisco:
     default:
-        INITIALIZER_LOG(INFO) << "Using TransactionExecutorImpl (executeViaHost)";
+        INITIALIZER_LOG(INFO) << "Using TransactionExecutorImpl (fiscoExecute)";
         m_precompiledManager = std::make_shared<evm::PrecompiledManager>(hashImpl);
         wireBaselineScheduler(std::make_shared<executor_v1::TransactionExecutorImpl>(
             receiptFactory, hashImpl, *m_precompiledManager));

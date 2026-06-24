@@ -1,18 +1,13 @@
 #pragma once
 
-#include "bcos-evm/eth/EVMCResult.h"
-#include <optional>
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 
 namespace bcos::evm
 {
-struct OpStackExecuteViaHostInput;
-namespace state
+[[deprecated("use opStackTxPrecheck")]] inline std::optional<EVMCResult> opStackTxPrecheck(
+    OpStackExecutionRequest const& input, state::State& state)
 {
-class State;
+    return opStackTxPrecheck(input, state);
 }
-
-bool isDepositTx(OpStackExecuteViaHostInput const& input) noexcept;
-
-std::optional<EVMCResult> opStackPreCheck(
-    OpStackExecuteViaHostInput const& input, state::State& state);
 }  // namespace bcos::evm

@@ -3,7 +3,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -45,7 +45,7 @@ void runGetter(state::test::InMemoryStateView& stateView, bytes const& input, u2
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    OpStackExecuteViaHostInput opInput;
+    OpStackExecutionRequest opInput;
     opInput.stateView = &stateView;
     opInput.vm = &vm;
     opInput.hashImpl = &hash;
@@ -55,7 +55,7 @@ void runGetter(state::test::InMemoryStateView& stateView, bytes const& input, u2
     opInput.blockInfo.baseFee = 1;
     opInput.txProps.warmDestination = true;
 
-    auto output = task::syncWait(opStackExecuteViaHost(opInput));
+    auto output = task::syncWait(opStackExecute(opInput));
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(output.evmcResult.output_size, size_t(32));
     evmc_bytes32 raw{};

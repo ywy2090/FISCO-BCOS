@@ -16,7 +16,7 @@
  * @brief End-to-end characterization net for CREATE gas settlement.
  *
  * Pins the *settled* gasUsed produced by the real production path
- * (executeViaEth on real evmone -> settleTopLevelTransactionGas) against geth/EEST
+ * (ethReferenceExecute on real evmone -> settleTopLevelTransactionGas) against geth/EEST
  * goldens, so the Lean settlement model (full intrinsic pre-debit incl. createTerm +
  * host-refund single source) preserves observable gasUsed.
  * counter (state.get_refund(), surfaced as snapshot.evmGasRefund) must equal the
@@ -26,7 +26,7 @@
  */
 #define BOOST_TEST_MODULE EthCreateGasSettlementCharacterizationTest
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -71,7 +71,7 @@ evmc_bytes32 makeBytes32(uint8_t lastByte)
 }
 
 // Mirrors EthTransactionExecutorImpl::settleGasUsedFromEvmResult for the
-// web3 + eip7623 Lean path: full intrinsic pre-debit in executeViaEth, then
+// web3 + eip7623 Lean path: full intrinsic pre-debit in ethReferenceExecute, then
 // settleTopLevelTransactionGas with host refund from snapshot.
 CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipient,
     bytes const& data, int64_t gasLimit,
@@ -85,7 +85,7 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
         view.insert_account(addr, account);
     }
 
-    ExecuteViaEthInput input;
+    EthReferenceRequest input;
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -118,7 +118,7 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
     input.gasFeeCap = 0;
     input.web3TypedTxKind = kWeb3TypedTxKind;
 
-    auto output = task::syncWait(executeViaEth(std::move(input)));
+    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
 
     auto const& snap = output.executionContext.gasSettlementSnapshot;
     CreateCharacterization result;

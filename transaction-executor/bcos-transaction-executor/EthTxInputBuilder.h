@@ -2,7 +2,7 @@
 
 #include "Web3Eip7702Decoder.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
-#include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
@@ -48,7 +48,7 @@ inline void fillTransactionGasFields(protocol::Transaction const& tx, auto& data
     }
 }
 
-inline void fillWeb3Fields(protocol::Transaction const& tx, ExecuteViaEthInput& input)
+inline void fillWeb3Fields(protocol::Transaction const& tx, EthReferenceRequest& input)
 {
     auto const resolved = executor::resolveWeb3AccessList(tx);
     input.web3TypedTxKind = resolved.web3TypedTxKind;

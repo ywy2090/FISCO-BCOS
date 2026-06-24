@@ -10,7 +10,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/RollupCost.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/executor/OpStackTxType.h"
@@ -89,7 +89,7 @@ inline bcos::u256 parseU256Field(std::string_view field)
     }
 }
 
-inline void fillGasCaps(protocol::Transaction const& tx, OpStackExecuteViaHostInput& input)
+inline void fillGasCaps(protocol::Transaction const& tx, OpStackExecutionRequest& input)
 {
     input.gasTipCap = parseU256Field(tx.maxPriorityFeePerGas());
     input.gasFeeCap = parseU256Field(tx.maxFeePerGas());
@@ -208,7 +208,7 @@ inline std::optional<OpStackDepositTx> decodeOpStackDepositTx(bcos::bytesConstRe
     return deposit;
 }
 
-inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackExecuteViaHostInput& input)
+inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackExecutionRequest& input)
 {
     auto const resolved = executor::resolveWeb3AccessList(tx);
     input.web3TypedTxKind = resolved.web3TypedTxKind;
@@ -261,7 +261,7 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackExecuteViaHos
     }
 }
 
-inline void applyDefaultTxProps(OpStackExecuteViaHostInput& input)
+inline void applyDefaultTxProps(OpStackExecutionRequest& input)
 {
     execution::setWarmDestinationFromKind(input.txProps, input.message.kind);
 }

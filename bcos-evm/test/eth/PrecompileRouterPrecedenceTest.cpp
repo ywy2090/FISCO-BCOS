@@ -23,7 +23,7 @@ evmc_address precompileAddress(uint8_t lowByte)
     return addr;
 }
 
-class ChainFirstExtension : public state::HostExtension
+class ChainFirstExtension : public state::VmHostPolicy
 {
 public:
     std::optional<evmc_result> tryChainPrecompile(

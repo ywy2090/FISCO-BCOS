@@ -3,7 +3,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     depositMessage.input_data = calldata.data();
     depositMessage.input_size = calldata.size();
 
-    OpStackExecuteViaHostInput depositInput;
+    OpStackExecutionRequest depositInput;
     depositInput.stateView = &stateView;
     depositInput.vm = &vm;
     depositInput.hashImpl = &hash;
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     depositInput.depositTx =
         OpStackDepositTx{.from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
 
-    auto depositOutput = task::syncWait(opStackExecuteViaHost(depositInput));
+    auto depositOutput = task::syncWait(opStackExecute(depositInput));
     BOOST_REQUIRE_EQUAL(depositOutput.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE(depositOutput.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*depositOutput.receiptMeta.depositNonce, 0);
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     userMessage.recipient = target;
     userMessage.code_address = target;
 
-    OpStackExecuteViaHostInput userInput;
+    OpStackExecutionRequest userInput;
     userInput.stateView = &stateView;
     userInput.vm = &vm;
     userInput.hashImpl = &hash;
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     userInput.txProps.warmDestination = true;
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
 
-    auto userOutput = task::syncWait(opStackExecuteViaHost(userInput));
+    auto userOutput = task::syncWait(opStackExecute(userInput));
     BOOST_REQUIRE_EQUAL(userOutput.evmcResult.status_code, EVMC_SUCCESS);
 
     state::State feeState(stateView);

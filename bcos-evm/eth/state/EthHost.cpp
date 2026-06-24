@@ -109,7 +109,7 @@ evmc_address resolve7702CodeAddress(evmc_message const& msg) noexcept
 
 EthHost::EthHost(State& state, evmc_tx_context txContext,
     bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-    HostExtension* extension, bool fixStorageStatus)
+    VmHostPolicy* extension, bool fixStorageStatus)
   : m_state(state),
     m_txContext(txContext),
     m_revisionConfig(revisionConfig),

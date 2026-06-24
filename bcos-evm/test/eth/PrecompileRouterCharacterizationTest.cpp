@@ -18,13 +18,13 @@
  */
 #define BOOST_TEST_MODULE PrecompileRouterCharacterizationTest
 
-#include "bcos-evm/bcos/FiscoHostExtension.h"
+#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
@@ -177,7 +177,7 @@ struct Depth1HostFixture
     std::optional<state::EthHost> host;
 
     Depth1HostFixture(
-        state::State& state, state::HostExtension* extension, evmc_revision revision = EVMC_PRAGUE)
+        state::State& state, state::VmHostPolicy* extension, evmc_revision revision = EVMC_PRAGUE)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = revision, .warm_access = true};
@@ -188,7 +188,7 @@ struct Depth1HostFixture
 };
 
 ExecuteMessageInput makeBaseInput(
-    state::StateView* view, evmc_message const& message, state::HostExtension* extension = nullptr)
+    state::StateView* view, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
 
     state::test::InMemoryStateView baseState;
     state::State state0(baseState);
-    OpHostExtension extension0(&state0);
+    OpVmHostPolicy extension0(&state0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
 
     evmc_message message{};
@@ -267,7 +267,7 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
 
     state::test::InMemoryStateView baseState1;
     state::State state1(baseState1);
-    OpHostExtension extension1(&state1);
+    OpVmHostPolicy extension1(&state1);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     Depth1HostFixture fixture(state1, &extension1);
 
@@ -314,14 +314,14 @@ BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_and_depth1)
 
 BOOST_AUTO_TEST_CASE(c4_delegatecall_to_precompile_blocked_at_depth1)
 {
-    // C4: DELEGATECALL → precompile with allowDelegateCallToPrecompile=false (FiscoHostExtension)
+    // C4: DELEGATECALL → precompile with allowDelegateCallToPrecompile=false (FiscoVmHostPolicy)
     auto const caller = addressFromLastByte(0x01);
     auto const identity = precompileAddress(0x04);
 
     state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(caller, 1'000'000);
-    FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, {});
+    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, {});
     Depth1HostFixture fixture(state, &extension);
 
     evmc_message msg{};
@@ -447,11 +447,11 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
     markerAccount.code = bcos::bytes(markerCode.begin(), markerCode.end());
     view.insert_account(markerContract, markerAccount);
 
-    FiscoHostExtension::FiscoHostExtensionDeps deps;
+    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
     deps.state = nullptr;
     InMemoryChainPrecompileAdapter extensionChainPort(callback);
     deps.chainPrecompilePort = &extensionChainPort;
-    FiscoHostExtension extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -466,7 +466,7 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
         state::test::InMemoryStateView depth0View;
         depth0View.insert_account(sender, senderAccount);
         depth0View.insert_account(markerContract, markerAccount);
-        FiscoHostExtension::FiscoHostExtensionDeps depth0Deps;
+        FiscoVmHostPolicy::FiscoVmHostPolicyDeps depth0Deps;
         state::State depth0State(depth0View);
         depth0Deps.state = &depth0State;
         InMemoryChainPrecompileAdapter depth0ChainPort(
@@ -477,7 +477,7 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
                 return std::optional<evmc_result>{result};
             });
         depth0Deps.chainPrecompilePort = &depth0ChainPort;
-        FiscoHostExtension depth0Ext(/*skipEvmNativeValueTransfer*/ true, std::move(depth0Deps));
+        FiscoVmHostPolicy depth0Ext(/*skipEvmNativeValueTransfer*/ true, std::move(depth0Deps));
         depth0Outcome = runDepth0EmptyCall(makeBaseInput(&depth0State, message, &depth0Ext));
         BOOST_CHECK(!callbackInvoked);
         BOOST_CHECK_EQUAL(depth0Outcome.status, kC7Depth0Status);
@@ -490,11 +490,11 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
     state::State state(view1);
     state.set_balance(sender, senderAccount.balance);
     state.set_code(markerContract, markerAccount.code, {});
-    FiscoHostExtension::FiscoHostExtensionDeps depth1Deps;
+    FiscoVmHostPolicy::FiscoVmHostPolicyDeps depth1Deps;
     depth1Deps.state = &state;
     InMemoryChainPrecompileAdapter depth1ChainPort(callback);
     depth1Deps.chainPrecompilePort = &depth1ChainPort;
-    FiscoHostExtension depth1Ext(/*skipEvmNativeValueTransfer*/ true, std::move(depth1Deps));
+    FiscoVmHostPolicy depth1Ext(/*skipEvmNativeValueTransfer*/ true, std::move(depth1Deps));
     Depth1HostFixture fixture(state, &depth1Ext);
 
     evmc_message depth1Msg = message;

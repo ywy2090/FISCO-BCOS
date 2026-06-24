@@ -6,8 +6,8 @@
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/EthExecutionContext.h"
-#include "bcos-evm/eth/EthTxExecutor.h"
-#include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/EthReferenceBridge.h"
+#include "bcos-evm/eth/EthTxFeeLedger.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -37,8 +37,9 @@ enum class EthExecutePhase : uint8_t
 evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin);
 
-/// Pure-ethereum transaction executor — geth-aligned gas + executeViaEth, no FISCO extensions.
-template <class TxExec = EthTxExecutor>
+/// Pure-ethereum transaction executor — geth-aligned gas + ethReferenceExecute, no FISCO
+/// extensions.
+template <class TxExec = EthTxFeeLedger>
 class EthTransactionExecutorImpl
 {
 public:
@@ -172,7 +173,7 @@ public:
                     }
                 }
 
-                auto output = co_await executeViaEthTx();
+                auto output = co_await ethReferenceExecuteTx();
                 m_data->m_executionContext = std::move(output.executionContext);
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
 
@@ -217,12 +218,12 @@ public:
             m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
         }
 
-        task::Task<ExecuteViaEthOutput> executeViaEthTx()
+        task::Task<EthReferenceResult> ethReferenceExecuteTx()
         {
             state::FiscoStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
-            ExecuteViaEthInput input;
+            EthReferenceRequest input;
             input.stateView = std::addressof(stateView);
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
@@ -243,7 +244,7 @@ public:
             input.hasExplicitFeeCaps = m_data->m_hasExplicitFeeCaps;
             input.txHash = m_data->m_transaction.get().hash();
 
-            auto output = co_await executeViaEth(std::move(input));
+            auto output = co_await ethReferenceExecute(std::move(input));
             m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
             co_return output;
         }

@@ -162,7 +162,7 @@ BOOST_AUTO_TEST_SUITE(OpStackTxInputBuilderTest)
 BOOST_AUTO_TEST_CASE(decodes_deposit_extra_transaction_bytes)
 {
     auto tx = makeWeb3Tx(buildDepositExtra(), bcos::executor::DEPOSIT_TX_TYPE);
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     opstack_tx::fillWeb3Fields(tx, input);
 
     BOOST_REQUIRE(input.depositTx.has_value());
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE(decodes_deposit_extra_transaction_bytes)
 BOOST_AUTO_TEST_CASE(decodes_eip7702_authorization_from_extra_bytes)
 {
     auto tx = makeWeb3Tx(buildEip7702Extra(), 0x04);
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     opstack_tx::fillWeb3Fields(tx, input);
 
     BOOST_CHECK(input.authorizationListPresent);
@@ -246,7 +246,7 @@ BOOST_AUTO_TEST_CASE(buildRollupCostData_deposit_uses_extra_bytes_unchanged)
 BOOST_AUTO_TEST_CASE(decodes_eip4844_blob_fields_from_extra_bytes)
 {
     auto tx = makeWeb3Tx(buildEip4844Extra(), 0x03);
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     opstack_tx::fillWeb3Fields(tx, input);
 
     BOOST_CHECK_EQUAL(input.web3TypedTxKind, 0x03);

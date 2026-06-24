@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE DepositTxPreCheckTest
 
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
-#include "bcos-evm/opstack/OpStackPreCheck.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -17,9 +17,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-OpStackExecuteViaHostInput makeInput(const evmc_address& sender)
+OpStackExecutionRequest makeInput(const evmc_address& sender)
 {
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.message.kind = EVMC_CALL;
     input.message.sender = sender;
     input.message.gas = 30'000;
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(system_deposit_is_rejected)
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(deposit_skips_nonce_and_fee_checks_but_still_subtracts_gas_
         return gas == static_cast<uint64_t>(input.message.gas);
     };
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_CHECK(!error.has_value());
     BOOST_CHECK(hookCalled);
 }
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_nonce_mismatch)
     auto input = makeInput(sender);
     input.nonce = 7;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::NonceCheckFail);
 }
@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_invalid_eip1559_caps)
     input.gasTipCap = 3;
     input.gasFeeCap = 2;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fee_cap_under_base_fee)
     input.blobVersionedHashes.push_back(validHash);
     input.blobGasFeeCap = 2;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fields_when_eip4844_disabled)
     input.blobVersionedHashes.push_back(bcos::h256(1));
     input.blobGasFeeCap = 100;
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_auth_list_on_create)
     input.nonce = 0;
     input.authorizations.push_back({});
 
-    auto error = opStackPreCheck(input, state);
+    auto error = opStackTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }

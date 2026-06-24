@@ -6,7 +6,7 @@
 #include "OpStackEestAdapter.h"
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -349,8 +349,8 @@ void runFixtures(fs::path const& fixturesDir, bool smokeOnly, size_t limit,
                 }
 
                 // Execute
-                auto output = bcos::task::syncWait(
-                    bcos::evm::opStackExecuteViaHost(std::move(fixture.input)));
+                auto output =
+                    bcos::task::syncWait(bcos::evm::opStackExecute(std::move(fixture.input)));
 
                 ++executed;
                 bool ok = true;

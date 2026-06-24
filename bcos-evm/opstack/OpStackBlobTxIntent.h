@@ -1,10 +1,10 @@
 #pragma once
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include <bcos-utilities/FixedBytes.h>
 
 namespace bcos::evm
 {
-inline bool hasBlobTxIntent(OpStackExecuteViaHostInput const& input) noexcept
+inline bool hasBlobTxIntent(OpStackExecutionRequest const& input) noexcept
 {
     return input.web3TypedTxKind == 0x03 || !input.blobVersionedHashes.empty();
 }

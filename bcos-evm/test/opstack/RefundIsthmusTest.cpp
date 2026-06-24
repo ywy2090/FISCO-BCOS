@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE RefundIsthmusTest
 
-#include "bcos-evm/opstack/OpStackTxExecutor.h"
+#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
@@ -26,10 +26,10 @@ BOOST_AUTO_TEST_CASE(RefundIsthmus_refundsLimitMinusUsedCost)
     stateView.insert_account(sender, senderAccount);
 
     state::State state(stateView);
-    OpStackTxExecutor executor;
+    OpStackTxFeeLedger executor;
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 1000); };
 
-    OpStackTxExecutor::OpStackTxExecutionData txData;
+    OpStackTxFeeLedger::OpStackTxExecutionData txData;
     txData.m_state = &state;
     txData.m_message.sender = sender;
     txData.m_gasLimit = 1'618;

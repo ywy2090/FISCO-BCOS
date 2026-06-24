@@ -38,10 +38,10 @@ add_test(
     COMMAND ${STATE_REFUND_TEST_BINARY_NAME}
 )
 
-set(HOOKS_TEST_BINARY_NAME EthHostExtensionHooksTest)
+set(HOOKS_TEST_BINARY_NAME EthVmHostPolicyHooksTest)
 
 add_executable(${HOOKS_TEST_BINARY_NAME}
-    eth/EthHostExtensionHooksTest.cpp
+    eth/EthVmHostPolicyHooksTest.cpp
 )
 
 target_include_directories(${HOOKS_TEST_BINARY_NAME} PRIVATE
@@ -54,7 +54,7 @@ target_link_libraries(${HOOKS_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME EthHostExtensionHooks
+    NAME EthVmHostPolicyHooks
     COMMAND ${HOOKS_TEST_BINARY_NAME}
 )
 
@@ -78,10 +78,10 @@ add_test(
     COMMAND ${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME}
 )
 
-set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoHostExtensionTest)
+set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoVmHostPolicyTest)
 
 add_executable(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
-    bcos/FiscoHostExtensionTest.cpp
+    bcos/FiscoVmHostPolicyTest.cpp
 )
 
 target_include_directories(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME} PRIVATE
@@ -94,14 +94,14 @@ target_link_libraries(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME FiscoHostExtension
+    NAME FiscoVmHostPolicy
     COMMAND ${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
 )
 
-set(EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME ExecuteViaHostSmokeTest)
+set(EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME FiscoExecutionBridgeSmokeTest)
 
 add_executable(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
-    bcos/ExecuteViaHostSmokeTest.cpp
+    bcos/FiscoExecutionBridgeSmokeTest.cpp
 )
 
 target_include_directories(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
@@ -114,7 +114,7 @@ target_link_libraries(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME ExecuteViaHostSmoke
+    NAME FiscoExecutionBridgeSmoke
     COMMAND ${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 
@@ -482,10 +482,10 @@ add_test(
     COMMAND ${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
 )
 
-set(OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME OpStackExecuteViaHostSmokeTest)
+set(OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME OpStackExecutionBridgeSmokeTest)
 
 add_executable(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
-    opstack/OpStackExecuteViaHostSmokeTest.cpp
+    opstack/OpStackExecutionBridgeSmokeTest.cpp
 )
 
 target_include_directories(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
@@ -498,23 +498,23 @@ target_link_libraries(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME OpStackExecuteViaHost
+    NAME OpStackExecutionBridgeSmoke
     COMMAND ${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 
 add_executable(OpStackIntrinsicGasSyncTest
     opstack/OpStackIntrinsicGasSyncTest.cpp
-    ../opstack/OpStackExecuteViaHost.cpp
-    ../opstack/OpStackOrchestrationProfile.cpp
-    ../opstack/OpStackPreCheck.cpp
-    ../opstack/OpStackTxExecutor.cpp
+    ../opstack/OpStackExecutionBridge.cpp
+    ../opstack/OpStackPipelineHookBinder.cpp
+    ../opstack/OpStackTxPrecheck.cpp
+    ../opstack/OpStackTxFeeLedger.cpp
     ../opstack/RollupCost.cpp
     ../opstack/OpStackFee.cpp
     ../opstack/OpStackFloorGas.cpp
     ../opstack/L1BlockStorage.cpp
     ../opstack/L1BlockPredeploy.cpp
     ../opstack/GasPriceOraclePredeploy.cpp
-    ../opstack/OpStackPreDebitEntry.cpp)
+    ../opstack/OpStackFloorGasPrecheck.cpp)
 target_compile_definitions(OpStackIntrinsicGasSyncTest PRIVATE BCOS_EVM_TESTING)
 target_include_directories(OpStackIntrinsicGasSyncTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -523,17 +523,17 @@ target_link_libraries(OpStackIntrinsicGasSyncTest PRIVATE
     bcos-protocol bcos-utilities bcos-crypto codec)
 add_test(NAME OpStackIntrinsicGasSync COMMAND OpStackIntrinsicGasSyncTest)
 
-add_executable(OpStackPreDebitOrderTest opstack/OpStackPreDebitOrderTest.cpp)
-target_include_directories(OpStackPreDebitOrderTest PRIVATE
+add_executable(OpStackFloorGasPrecheckOrderTest opstack/OpStackFloorGasPrecheckOrderTest.cpp)
+target_include_directories(OpStackFloorGasPrecheckOrderTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStackPreDebitOrderTest PRIVATE bcos-evm-op)
-add_test(NAME OpStackPreDebitOrder COMMAND OpStackPreDebitOrderTest)
+target_link_libraries(OpStackFloorGasPrecheckOrderTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackPreDebitOrder COMMAND OpStackFloorGasPrecheckOrderTest)
 
-add_executable(OpStackOrchestrationProfileTest opstack/OpStackOrchestrationProfileTest.cpp)
-target_include_directories(OpStackOrchestrationProfileTest PRIVATE
+add_executable(OpStackPipelineHookBinderTest opstack/OpStackPipelineHookBinderTest.cpp)
+target_include_directories(OpStackPipelineHookBinderTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStackOrchestrationProfileTest PRIVATE bcos-evm-op)
-add_test(NAME OpStackOrchestrationProfile COMMAND OpStackOrchestrationProfileTest)
+target_link_libraries(OpStackPipelineHookBinderTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackPipelineHookBinder COMMAND OpStackPipelineHookBinderTest)
 
 set(DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME DepositTxPreCheckTest)
 
@@ -1099,14 +1099,14 @@ add_test(
     COMMAND ${L1BLOCK_GETTER_TEST_BINARY_NAME}
 )
 
-add_executable(ExecuteViaEthFixtureTest eth/ExecuteViaEthFixtureTest.cpp)
-target_include_directories(ExecuteViaEthFixtureTest PRIVATE
+add_executable(EthReferenceBridgeFixtureTest eth/EthReferenceBridgeFixtureTest.cpp)
+target_include_directories(EthReferenceBridgeFixtureTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_compile_definitions(ExecuteViaEthFixtureTest PRIVATE
+target_compile_definitions(EthReferenceBridgeFixtureTest PRIVATE
     ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
-target_link_libraries(ExecuteViaEthFixtureTest PRIVATE
+target_link_libraries(EthReferenceBridgeFixtureTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME ExecuteViaEthFixture COMMAND ExecuteViaEthFixtureTest)
+add_test(NAME EthReferenceBridgeFixture COMMAND EthReferenceBridgeFixtureTest)
 
 add_executable(EthIncludedTxVmerrTest eth/EthIncludedTxVmerrTest.cpp)
 target_include_directories(EthIncludedTxVmerrTest PRIVATE
@@ -1127,12 +1127,12 @@ target_include_directories(Web3TypedTxKindTest PRIVATE
 target_link_libraries(Web3TypedTxKindTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME Web3TypedTxKind COMMAND Web3TypedTxKindTest)
 
-add_executable(EthExecuteViaEth1559GasPriceTest eth/EthExecuteViaEth1559GasPriceTest.cpp)
-target_include_directories(EthExecuteViaEth1559GasPriceTest PRIVATE
+add_executable(EthReferenceBridge1559GasPriceTest eth/EthReferenceBridge1559GasPriceTest.cpp)
+target_include_directories(EthReferenceBridge1559GasPriceTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(EthExecuteViaEth1559GasPriceTest PRIVATE
+target_link_libraries(EthReferenceBridge1559GasPriceTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME EthExecuteViaEth1559GasPrice COMMAND EthExecuteViaEth1559GasPriceTest)
+add_test(NAME EthReferenceBridge1559GasPrice COMMAND EthReferenceBridge1559GasPriceTest)
 
 add_executable(OrchestrationPipelineTest eth/OrchestrationPipelineTest.cpp)
 target_include_directories(OrchestrationPipelineTest PRIVATE
@@ -1141,19 +1141,19 @@ target_link_libraries(OrchestrationPipelineTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME OrchestrationPipeline COMMAND OrchestrationPipelineTest)
 
-add_executable(EthOrchestrationProfileTest eth/EthOrchestrationProfileTest.cpp)
-target_include_directories(EthOrchestrationProfileTest PRIVATE
+add_executable(EthPipelineHookBinderTest eth/EthPipelineHookBinderTest.cpp)
+target_include_directories(EthPipelineHookBinderTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(EthOrchestrationProfileTest PRIVATE
+target_link_libraries(EthPipelineHookBinderTest PRIVATE
     bcos-evm-eth bcos-protocol)
-add_test(NAME EthOrchestrationProfile COMMAND EthOrchestrationProfileTest)
+add_test(NAME EthPipelineHookBinder COMMAND EthPipelineHookBinderTest)
 
-add_executable(OpStack7702ExecuteViaHostPropagationTest opstack/OpStack7702ExecuteViaHostPropagationTest.cpp)
-target_include_directories(OpStack7702ExecuteViaHostPropagationTest PRIVATE
+add_executable(OpStack7702ExecutionBridgePropagationTest opstack/OpStack7702ExecutionBridgePropagationTest.cpp)
+target_include_directories(OpStack7702ExecutionBridgePropagationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStack7702ExecuteViaHostPropagationTest PRIVATE
+target_link_libraries(OpStack7702ExecutionBridgePropagationTest PRIVATE
     bcos-evm-op bcos-task evmone::evmone)
-add_test(NAME OpStack7702ExecuteViaHostPropagation COMMAND OpStack7702ExecuteViaHostPropagationTest)
+add_test(NAME OpStack7702ExecutionBridgePropagation COMMAND OpStack7702ExecutionBridgePropagationTest)
 
 add_executable(OpStack67802537KernelSmokeTest opstack/OpStack67802537KernelSmokeTest.cpp)
 target_include_directories(OpStack67802537KernelSmokeTest PRIVATE
@@ -1210,11 +1210,11 @@ target_include_directories(Bcos21000GasDeviationTest PRIVATE
 target_link_libraries(Bcos21000GasDeviationTest PRIVATE bcos-evm bcos-task evmone::evmone)
 add_test(NAME Bcos21000GasDeviation COMMAND Bcos21000GasDeviationTest)
 
-add_executable(Bcos7702ExecuteViaHostPropagationTest bcos/Bcos7702ExecuteViaHostPropagationTest.cpp)
-target_include_directories(Bcos7702ExecuteViaHostPropagationTest PRIVATE
+add_executable(Bcos7702FiscoExecutionBridgePropagationTest bcos/Bcos7702FiscoExecutionBridgePropagationTest.cpp)
+target_include_directories(Bcos7702FiscoExecutionBridgePropagationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(Bcos7702ExecuteViaHostPropagationTest PRIVATE bcos-evm bcos-task evmone::evmone)
-add_test(NAME Bcos7702ExecuteViaHostPropagation COMMAND Bcos7702ExecuteViaHostPropagationTest)
+target_link_libraries(Bcos7702FiscoExecutionBridgePropagationTest PRIVATE bcos-evm bcos-task evmone::evmone)
+add_test(NAME Bcos7702FiscoExecutionBridgePropagation COMMAND Bcos7702FiscoExecutionBridgePropagationTest)
 
 add_executable(Bcos7623PrecheckTest bcos/Bcos7623PrecheckTest.cpp)
 target_include_directories(Bcos7623PrecheckTest PRIVATE
@@ -1230,21 +1230,21 @@ target_link_libraries(BcosAuthOrchestratorHookTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-protocol)
 add_test(NAME BcosAuthOrchestratorHook COMMAND BcosAuthOrchestratorHookTest)
 
-add_executable(FiscoOrchestrationProfileTest bcos/FiscoOrchestrationProfileTest.cpp)
-target_include_directories(FiscoOrchestrationProfileTest PRIVATE
+add_executable(FiscoPipelineHookBinderTest bcos/FiscoPipelineHookBinderTest.cpp)
+target_include_directories(FiscoPipelineHookBinderTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(FiscoOrchestrationProfileTest PRIVATE
+target_link_libraries(FiscoPipelineHookBinderTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-protocol)
-add_test(NAME FiscoOrchestrationProfile COMMAND FiscoOrchestrationProfileTest)
+add_test(NAME FiscoPipelineHookBinder COMMAND FiscoPipelineHookBinderTest)
 
-add_executable(ExecuteViaHostImportedFixtureTest bcos/ExecuteViaHostImportedFixtureTest.cpp)
-target_include_directories(ExecuteViaHostImportedFixtureTest PRIVATE
+add_executable(FiscoExecutionBridgeImportedFixtureTest bcos/FiscoExecutionBridgeImportedFixtureTest.cpp)
+target_include_directories(FiscoExecutionBridgeImportedFixtureTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_compile_definitions(ExecuteViaHostImportedFixtureTest PRIVATE
+target_compile_definitions(FiscoExecutionBridgeImportedFixtureTest PRIVATE
     ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
-target_link_libraries(ExecuteViaHostImportedFixtureTest PRIVATE
+target_link_libraries(FiscoExecutionBridgeImportedFixtureTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-crypto)
-add_test(NAME ExecuteViaHostImportedFixture COMMAND ExecuteViaHostImportedFixtureTest)
+add_test(NAME FiscoExecutionBridgeImportedFixture COMMAND FiscoExecutionBridgeImportedFixtureTest)
 
 add_executable(Eip2537KernelTest eth/Eip2537KernelTest.cpp)
 target_include_directories(Eip2537KernelTest PRIVATE
@@ -1289,12 +1289,12 @@ target_include_directories(Eip7212KernelTest PRIVATE
 target_link_libraries(Eip7212KernelTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip7212Kernel COMMAND Eip7212KernelTest)
 
-add_executable(Bcos7212ExecuteViaHostTest bcos/Bcos7212ExecuteViaHostTest.cpp)
-target_include_directories(Bcos7212ExecuteViaHostTest PRIVATE
+add_executable(Bcos7212FiscoExecutionBridgeTest bcos/Bcos7212FiscoExecutionBridgeTest.cpp)
+target_include_directories(Bcos7212FiscoExecutionBridgeTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(Bcos7212ExecuteViaHostTest PRIVATE
+target_link_libraries(Bcos7212FiscoExecutionBridgeTest PRIVATE
     bcos-evm bcos-evm-eth evmone::evmone bcos-framework protocol-tars)
-add_test(NAME Bcos7212ExecuteViaHost COMMAND Bcos7212ExecuteViaHostTest)
+add_test(NAME Bcos7212FiscoExecutionBridge COMMAND Bcos7212FiscoExecutionBridgeTest)
 
 add_executable(Bcos2537MsmGasTest bcos/Bcos2537MsmGasTest.cpp)
 target_include_directories(Bcos2537MsmGasTest PRIVATE
@@ -1318,12 +1318,12 @@ target_link_libraries(Eip7623PrecheckTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-framework)
 add_test(NAME Eip7623Precheck COMMAND Eip7623PrecheckTest)
 
-add_executable(EthExecuteViaEthPreCheckTest eth/EthExecuteViaEthPreCheckTest.cpp)
-target_include_directories(EthExecuteViaEthPreCheckTest PRIVATE
+add_executable(EthTxPrecheckTest eth/EthTxPrecheckTest.cpp)
+target_include_directories(EthTxPrecheckTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(EthExecuteViaEthPreCheckTest PRIVATE
+target_link_libraries(EthTxPrecheckTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-framework)
-add_test(NAME EthExecuteViaEthPreCheck COMMAND EthExecuteViaEthPreCheckTest)
+add_test(NAME EthTxPrecheck COMMAND EthTxPrecheckTest)
 
 add_executable(Eip1153TransientStorageTest eth/Eip1153TransientStorageTest.cpp)
 target_include_directories(Eip1153TransientStorageTest PRIVATE

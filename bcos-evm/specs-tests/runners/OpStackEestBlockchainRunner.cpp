@@ -7,7 +7,7 @@
 #include "OpStackEestAdapter.h"
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -174,7 +174,7 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
                         msg.input_data = data.data();
                         msg.input_size = data.size();
 
-                        bcos::evm::OpStackExecuteViaHostInput input;
+                        bcos::evm::OpStackExecutionRequest input;
                         input.stateView = &stateViewForTx;
                         input.vm = &vm;
                         input.hashImpl = &hashImpl;
@@ -187,8 +187,8 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
                         input.revisionConfig = revisionConfig;
                         input.forkSchedule = bcos::evm::makeIsthmusPlusForkSchedule();
 
-                        auto output = bcos::task::syncWait(
-                            bcos::evm::opStackExecuteViaHost(std::move(input)));
+                        auto output =
+                            bcos::task::syncWait(bcos::evm::opStackExecute(std::move(input)));
 
                         // Blockchain tests expect cumulative gas
                         // For now, just check that execution didn't crash

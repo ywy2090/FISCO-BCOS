@@ -13,14 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Maps EthStateFixtureLoader cases to ExecuteViaEthInput.
+ * @brief Maps EthStateFixtureLoader cases to EthReferenceRequest.
  * @file EthFixtureAdapter.h
  */
 
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/eth/ExecuteViaEth.h"
+#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
@@ -43,10 +43,10 @@ inline bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
     return cfg;
 }
 
-inline ExecuteViaEthInput buildExecuteViaEthInput(FixtureCase const& fixture,
+inline EthReferenceRequest buildEthReferenceRequest(FixtureCase const& fixture,
     state::StateView const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
 {
-    ExecuteViaEthInput input;
+    EthReferenceRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;

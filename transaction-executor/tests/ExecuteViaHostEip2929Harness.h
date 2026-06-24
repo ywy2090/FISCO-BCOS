@@ -1,14 +1,14 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief executeViaHost harness for EIP-2929 compat tests (replaces ExecuteFrame).
+ *  @brief fiscoExecute harness for EIP-2929 compat tests (replaces ExecuteFrame).
  */
 
 #pragma once
 
 #include "../../bcos-evm/test/state/InMemoryStateView.h"
 #include "Eip2929TestHelpers.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
@@ -107,7 +107,7 @@ public:
         blockInfo.number = blockHeader.number();
         blockInfo.gasLimit = 30'000'000;
 
-        bcos::evm::ExecuteViaHostInput input;
+        bcos::evm::FiscoExecutionRequest input;
         input.stateView = &stateView;
         input.vm = &vm();
         input.hashImpl = hashImpl.get();
@@ -115,7 +115,7 @@ public:
         input.blockInfo = blockInfo;
         input.revisionConfig = revisionConfig;
 
-        auto output = bcos::task::syncWait(bcos::evm::executeViaHost(std::move(input)));
+        auto output = bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
         if (output.evmcResult.status_code != EVMC_SUCCESS)
         {
             return -1;

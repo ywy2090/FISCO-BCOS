@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Web3Eip7702Decoder.h"
-#include "bcos-evm/bcos/ExecuteViaHost.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/protocol/Transaction.h"
 
 namespace bcos::evm::fisco_tx
 {
-inline void fillWeb3Fields(protocol::Transaction const& tx, ExecuteViaHostInput& input)
+inline void fillWeb3Fields(protocol::Transaction const& tx, FiscoExecutionRequest& input)
 {
     auto const resolved = executor::resolveWeb3AccessList(tx);
     input.web3TypedTxKind = resolved.web3TypedTxKind;

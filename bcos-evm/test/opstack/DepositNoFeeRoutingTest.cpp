@@ -3,7 +3,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecuteViaHost.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -49,7 +49,7 @@ uint64_t nonceFromDiff(
     return it->second.nonce;
 }
 
-OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
 {
     evmc_message message{};
@@ -59,7 +59,7 @@ OpStackExecuteViaHostInput makeDepositInput(state::test::InMemoryStateView& stat
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecuteViaHostInput input;
+    OpStackExecutionRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(deposit_skips_fee_routing_recipients)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeDepositInput(stateView, vm, hash, sender, target);
-    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    auto output = task::syncWait(opStackExecute(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, OP_BASE_FEE_RECIPIENT), u256(0));
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_execution_but_keeps_mint_and_bumps_
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeDepositInput(stateView, vm, hash, sender, target);
-    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    auto output = task::syncWait(opStackExecute(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
     BOOST_CHECK_EQUAL(output.gasUsed, 21'006);
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(deposit_entry_failure_bumps_nonce_and_uses_gas_limit)
     auto input = makeDepositInput(stateView, vm, hash, sender, target);
     input.message.gas = 20'999;
     input.depositTx->gas = 20'999;
-    auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
+    auto output = task::syncWait(opStackExecute(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, 20'999);

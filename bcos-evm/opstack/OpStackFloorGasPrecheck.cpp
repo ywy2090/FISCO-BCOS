@@ -1,0 +1,32 @@
+#include "bcos-evm/opstack/OpStackFloorGasPrecheck.h"
+
+#include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/opstack/OpStackFloorGas.h"
+
+namespace bcos::evm
+{
+std::optional<EVMCResult> opStackFloorGasPrecheck(OpStackFloorGasPrecheckInput const& input)
+{
+    auto const value = state::fromEvmC(input.message.value);
+    if (!input.skipTransactionChecks && value != 0 &&
+        !canTransfer(input.state, input.message.sender, value))
+    {
+        evmc_result failResult{};
+        failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
+        failResult.gas_left = 0;
+        return EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
+    }
+
+    auto const floorCheck = executeEntryFloorDataGasCheck(input.gasLimit, input.inputData);
+    input.floorDataGasOut = floorCheck.floorGas;
+    if (floorCheck.ok)
+    {
+        return std::nullopt;
+    }
+
+    evmc_result failResult{};
+    failResult.status_code = EVMC_OUT_OF_GAS;
+    failResult.gas_left = 0;
+    return EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+}
+}  // namespace bcos::evm

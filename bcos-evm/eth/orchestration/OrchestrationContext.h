@@ -8,7 +8,7 @@
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/policy/HostExtension.h"
+#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>
@@ -79,7 +79,7 @@ public:
     int64_t originalGasLimit{0};
     state::State state;
     bcos::u256 gasPrice{0};
-    state::HostExtension* extension{nullptr};
+    state::VmHostPolicy* extension{nullptr};
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};
