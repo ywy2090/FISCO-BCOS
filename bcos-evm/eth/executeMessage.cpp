@@ -209,6 +209,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         if (input.revisionConfig.eip7702 && input.authorizationListPresent &&
             !input.authorizations.empty())
         {
+            state.checkpoint();
             if (!state::isZeroAddress(input.message.sender))
             {
                 auto const senderNonce = state.get_nonce(input.message.sender);
@@ -219,6 +220,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
             {
                 warmDelegationTarget(state, codeAddress);
             }
+            state.commit();
         }
         code = state.get_code(codeAddress);
         code = resolveExecutableCode(state, std::move(code), input.revisionConfig.eip7702);

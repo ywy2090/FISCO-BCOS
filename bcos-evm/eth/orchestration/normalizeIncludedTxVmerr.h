@@ -34,4 +34,17 @@ inline void normalizeIncludedTxVmerr(EVMCResult& result, int32_t depth) noexcept
     result.status = protocol::TransactionStatus::None;
 }
 
+// EIP-7702: delegation indicators persist when execution reverts; the transaction is still
+// included with success status (state root reflects applied authorizations).
+inline void normalizeSetCodeTransactionVmerr(
+    EVMCResult& result, int32_t depth, bool authorizationListPresent) noexcept
+{
+    if (depth != 0 || !authorizationListPresent || result.status_code != EVMC_REVERT)
+    {
+        return;
+    }
+    result.status_code = EVMC_SUCCESS;
+    result.status = protocol::TransactionStatus::None;
+}
+
 }  // namespace bcos::evm

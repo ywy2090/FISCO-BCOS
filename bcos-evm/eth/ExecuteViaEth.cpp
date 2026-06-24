@@ -120,6 +120,8 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
     };
 
     hooks.postAdopt = [&output, &input](OrchestrationContext& orchestrationCtx) {
+        normalizeSetCodeTransactionVmerr(
+            orchestrationCtx.evmcResult, input.message.depth, input.authorizationListPresent);
         output.topLevelIncludedTxVmError = isTopLevelIncludedTxVmError(
             orchestrationCtx.evmcResult.status_code, input.message.depth);
         normalizeIncludedTxVmerr(orchestrationCtx.evmcResult, input.message.depth);
