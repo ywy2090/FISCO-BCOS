@@ -24,7 +24,7 @@
 | 目录 | 文件 | 职责 |
 | --- | --- | --- |
 | 根 | `OpStackTxPrecheck.*` | nonce、1559、blob、7702 |
-| `fee/` | `OpStackFloorGasPrecheck.*` | ③½ `preDebitEntry` 余额/floor 检查 |
+| `fee/` | `OpStackFloorGasPrecheck.*` | ③½ `txCheckGasAffordable` 余额/floor 检查 |
 | `fee/` | `OpStackFee.*`、`RollupCost.*`、`OpStackFloorGas.*`、`OpStackGasSettlement.h` | L1 fee、rollup、settlement |
 | `l1/` | `L1Block*`、`GasPriceOracle*` | L1 属性与预部署 |
 

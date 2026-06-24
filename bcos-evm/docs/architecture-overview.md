@@ -134,17 +134,17 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
 
 ```text
 ① validate(vm, hashImpl)     — try/catch 外
-② hooks.prepareMessage(ctx)
-③ hooks.preExecute(ctx)      → earlyExit?
-③½ hooks.preDebitEntry(ctx) → earlyExit?   （OpStack floor/balance）
+② hooks.txSetupMessage(ctx)
+③ hooks.txCheckTransactionRules(ctx)      → earlyExit?
+③½ hooks.txCheckGasAffordable(ctx)       → earlyExit?   （OpStack floor/balance）
 ④ debitIntrinsicGas(ctx.message, intrinsicPolicy) → earlyExit?
-⑤ hooks.preKernel(ctx)
-⑥ buildExecuteMessageInput(ctx) + hooks.tuneKernelInput
+⑤ hooks.txCheckBalanceAndValue(ctx)
+⑥ buildExecuteMessageInput(ctx) + hooks.txTuneExecutionInput
 ⑦ executeMessage(input)      — input.message == ctx.message
 ⑧ adoptEvmcResult(...)
 ⑨ captureSettlementSnapshot    — Eip7623 mode only
-⑩ hooks.postAdopt(ctx)
-⑪ hooks.postSettle(ctx)
+⑩ hooks.txPatchExecutionResult(ctx)
+⑪ hooks.txFinalizeGasSettlement(ctx)
 ```
 
 OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `stateDiff` 映射仍在 wrapper 外圈（ADR-019 Q7/Q18/Q19）。详见 ADR-019 与 [review-pack.md §2](review-pack.md#2-执行流全景adr-019)。
@@ -222,12 +222,12 @@ struct VmHostPolicy {
 
 | Hook | Eth | Fisco | OpStack |
 | --- | --- | --- | --- |
-| `preExecute` | 1559 caps、precheck | auth check | — |
-| `preDebitEntry` | — | — | floor/balance（`OpStackFloorGasPrecheck`） |
-| `preKernel` | `canTransfer` | 21000 gas、value xfer | — |
-| `postAdopt` | included-tx vmerr | CREATE address 修补 | — |
-| `postSettle` | — | revert logs | `postExecuteGasSettlement` |
-| `mapIntrinsicFailure` / `mapException` | 链特有错误映射 | Fisco `fixErrorHandling` | internal error |
+| `txCheckTransactionRules` | 1559 caps、precheck | auth check | — |
+| `txCheckGasAffordable` | — | — | floor/balance（`OpStackFloorGasPrecheck`） |
+| `txCheckBalanceAndValue` | `canTransfer` | 21000 gas、value xfer | — |
+| `txPatchExecutionResult` | included-tx vmerr | CREATE address 修补 | — |
+| `txFinalizeGasSettlement` | — | revert logs | `postExecuteGasSettlement` |
+| `txHandleIntrinsicGasFailure` / `txHandlePipelineException` | 链特有错误映射 | Fisco `fixErrorHandling` | internal error |
 
 与 `VmHostPolicy` 的分界：hooks 在 `executeMessage` **之前/之后**的管线步骤运行；`VmHostPolicy` 在 evmone 调用树**内部**运行。
 

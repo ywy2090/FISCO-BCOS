@@ -25,11 +25,11 @@ namespace bcos::evm
 enum class TxPipelineExitKind
 {
     None,
-    PreExecuteRejected,
-    PreDebitRejected,
+    RulesRejected,
+    GasAffordRejected,
     IntrinsicRejected,
-    KernelCompleted,
-    ExceptionMapped
+    Completed,
+    ExceptionHandled
 };
 
 struct TxPipelineInputs

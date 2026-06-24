@@ -52,7 +52,7 @@ TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& sessio
     auto& txData = session.txData;
     TxPipelineHooks hooks;
 
-    hooks.preDebitEntry = [&txData](TxPipelineContext& orchestrationCtx) {
+    hooks.txCheckGasAffordable = [&txData](TxPipelineContext& orchestrationCtx) {
         auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
         bcos::bytesConstRef inputData{
             orchestrationCtx.message.input_data, orchestrationCtx.message.input_size};
@@ -74,12 +74,12 @@ TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& sessio
     hooks.intrinsicPolicy.accessList = txData.m_accessList;
     hooks.intrinsicPolicy.web3TypedTxKind = txData.m_web3TypedTxKind;
 
-    hooks.postSettle = [&session](TxPipelineContext& orchestrationCtx) {
+    hooks.txFinalizeGasSettlement = [&session](TxPipelineContext& orchestrationCtx) {
         applySettlement(session, orchestrationCtx.evmcResult);
     };
 
 #ifdef BCOS_EVM_TESTING
-    hooks.executeMessageOverride = [](ExecuteMessageInput&& execInput) -> ExecuteMessageOutput {
+    hooks.txRunEvmExecutionOverride = [](ExecuteMessageInput&& execInput) -> ExecuteMessageOutput {
         if (auto spyOutput = opstack::test::maybeCallExecuteMessageSpy(execInput);
             spyOutput.has_value())
         {

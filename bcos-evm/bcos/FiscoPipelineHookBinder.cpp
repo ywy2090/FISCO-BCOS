@@ -34,7 +34,7 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
     auto& input = session.input;
     TxPipelineHooks hooks;
 
-    hooks.prepareMessage = [&input](TxPipelineContext& orchestrationCtx) {
+    hooks.txSetupMessage = [&input](TxPipelineContext& orchestrationCtx) {
         orchestrationCtx.message = deriveMessage(FiscoTxAdapterInput{.web3Tx = input.web3Tx,
             .message = orchestrationCtx.message,
             .blockNumber = input.blockInfo.number,
@@ -44,7 +44,7 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
             .hashImpl = input.hashImpl});
     };
 
-    hooks.preExecute = [&input](TxPipelineContext& orchestrationCtx) {
+    hooks.txCheckTransactionRules = [&input](TxPipelineContext& orchestrationCtx) {
         if (input.revisionConfig.enable_auth_check && input.authPort != nullptr)
         {
             if (auto authResult =
@@ -53,7 +53,7 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
             {
                 orchestrationCtx.evmcResult = std::move(*authResult);
                 orchestrationCtx.earlyExit = true;
-                orchestrationCtx.exitKind = TxPipelineExitKind::PreExecuteRejected;
+                orchestrationCtx.exitKind = TxPipelineExitKind::RulesRejected;
             }
         }
     };
@@ -65,8 +65,8 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
     hooks.intrinsicPolicy.accessList = input.accessList.get();
     hooks.intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
 
-    hooks.preKernel = [&input, eip7623Enabled = session.eip7623Enabled](
-                          TxPipelineContext& orchestrationCtx) {
+    hooks.txCheckBalanceAndValue = [&input, eip7623Enabled = session.eip7623Enabled](
+                                       TxPipelineContext& orchestrationCtx) {
         if (input.revisionConfig.enable_balance_transfer)
         {
             maybeTransferValue(orchestrationCtx.state, orchestrationCtx.message,
@@ -91,13 +91,13 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
         }
     };
 
-    hooks.tuneKernelInput = [&input](ExecuteMessageInput& executeInput) {
+    hooks.txTuneExecutionInput = [&input](ExecuteMessageInput& executeInput) {
         executeInput.fixStorageStatus = input.revisionConfig.fix_storage_status;
         executeInput.fixNonceInit = input.revisionConfig.fix_nonce_init;
         executeInput.revisionConfig = input.revisionConfig.eth();
     };
 
-    hooks.postAdopt = [](TxPipelineContext& orchestrationCtx) {
+    hooks.txPatchExecutionResult = [](TxPipelineContext& orchestrationCtx) {
         if ((orchestrationCtx.message.kind == EVMC_CREATE ||
                 orchestrationCtx.message.kind == EVMC_CREATE2) &&
             orchestrationCtx.evmcResult.status_code == EVMC_SUCCESS &&
@@ -108,8 +108,8 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
         }
     };
 
-    hooks.postSettle = [fixRevertLogs = input.revisionConfig.fix_revert_logs](
-                           TxPipelineContext& orchestrationCtx) {
+    hooks.txFinalizeGasSettlement = [fixRevertLogs = input.revisionConfig.fix_revert_logs](
+                                        TxPipelineContext& orchestrationCtx) {
         if (fixRevertLogs && orchestrationCtx.evmcResult.status_code != EVMC_SUCCESS)
         {
             orchestrationCtx.kernelOutput.logs.clear();

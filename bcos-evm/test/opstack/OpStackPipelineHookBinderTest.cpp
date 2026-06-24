@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 
     OpStackPipelineHookBinder::HookBindingContext session{input, txData};
     auto hooks = OpStackPipelineHookBinder::buildHooks(session);
-    hooks.preDebitEntry(ctx);
+    hooks.txCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(post_settle_updates_tx_data_gas)
 
     OpStackPipelineHookBinder::HookBindingContext session{input, txData};
     auto hooks = OpStackPipelineHookBinder::buildHooks(session);
-    hooks.postSettle(ctx);
+    hooks.txFinalizeGasSettlement(ctx);
 
     auto const stateRefund =
         input.revisionConfig.eip1559 ?

@@ -12,19 +12,19 @@ struct TxPipelineHooks
 {
     IntrinsicGasPolicy intrinsicPolicy{};
 
-    std::function<void(TxPipelineContext&)> prepareMessage = [](TxPipelineContext&) {};
-    std::function<void(TxPipelineContext&)> preExecute = [](TxPipelineContext&) {};
-    std::function<void(TxPipelineContext&)> preDebitEntry = [](TxPipelineContext&) {};
-    std::function<void(TxPipelineContext&)> preKernel = [](TxPipelineContext&) {};
-    std::function<void(ExecuteMessageInput&)> tuneKernelInput = [](ExecuteMessageInput&) {};
-    std::function<void(TxPipelineContext&)> postAdopt = [](TxPipelineContext&) {};
-    std::function<void(TxPipelineContext&)> postSettle = [](TxPipelineContext&) {};
-    std::function<void(TxPipelineContext&, IntrinsicDebitFailure)> mapIntrinsicFailure =
+    std::function<void(TxPipelineContext&)> txSetupMessage = [](TxPipelineContext&) {};
+    std::function<void(TxPipelineContext&)> txCheckTransactionRules = [](TxPipelineContext&) {};
+    std::function<void(TxPipelineContext&)> txCheckGasAffordable = [](TxPipelineContext&) {};
+    std::function<void(TxPipelineContext&)> txCheckBalanceAndValue = [](TxPipelineContext&) {};
+    std::function<void(ExecuteMessageInput&)> txTuneExecutionInput = [](ExecuteMessageInput&) {};
+    std::function<void(TxPipelineContext&)> txPatchExecutionResult = [](TxPipelineContext&) {};
+    std::function<void(TxPipelineContext&)> txFinalizeGasSettlement = [](TxPipelineContext&) {};
+    std::function<void(TxPipelineContext&, IntrinsicDebitFailure)> txHandleIntrinsicGasFailure =
         [](TxPipelineContext&, IntrinsicDebitFailure) {};
-    std::function<void(TxPipelineContext&, std::exception_ptr)> mapException =
+    std::function<void(TxPipelineContext&, std::exception_ptr)> txHandlePipelineException =
         [](TxPipelineContext&, std::exception_ptr) {};
     // Test-only seam: when set, pipeline calls this instead of executeMessage (OpStack spy tests).
-    std::function<ExecuteMessageOutput(ExecuteMessageInput&&)> executeMessageOverride;
+    std::function<ExecuteMessageOutput(ExecuteMessageInput&&)> txRunEvmExecutionOverride;
 };
 
 }  // namespace bcos::evm

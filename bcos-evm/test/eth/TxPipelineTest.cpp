@@ -27,7 +27,7 @@ static_assert(!std::is_default_constructible_v<TxPipelineContext>);
 static_assert(!std::is_copy_constructible_v<TxPipelineContext>);
 static_assert(!std::is_move_constructible_v<TxPipelineContext>);
 
-BOOST_AUTO_TEST_CASE(pre_execute_early_exit_skips_later_hooks)
+BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
 {
     state::test::InMemoryEvmStateReader stateView;
     auto ctx = makeContext(stateView);
@@ -36,28 +36,28 @@ BOOST_AUTO_TEST_CASE(pre_execute_early_exit_skips_later_hooks)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    int preDebitCalls = 0;
-    int preKernelCalls = 0;
-    int tuneKernelCalls = 0;
+    int checkGasAffordableCalls = 0;
+    int checkBalanceAndValueCalls = 0;
+    int tuneExecutionInputCalls = 0;
     TxPipelineHooks hooks;
-    hooks.preExecute = [](TxPipelineContext& c) {
+    hooks.txCheckTransactionRules = [](TxPipelineContext& c) {
         c.earlyExit = true;
         evmc_result failResult{};
         failResult.status_code = EVMC_REJECTED;
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
     };
-    hooks.preDebitEntry = [&](TxPipelineContext&) { ++preDebitCalls; };
-    hooks.preKernel = [&](TxPipelineContext&) { ++preKernelCalls; };
-    hooks.tuneKernelInput = [&](ExecuteMessageInput&) { ++tuneKernelCalls; };
+    hooks.txCheckGasAffordable = [&](TxPipelineContext&) { ++checkGasAffordableCalls; };
+    hooks.txCheckBalanceAndValue = [&](TxPipelineContext&) { ++checkBalanceAndValueCalls; };
+    hooks.txTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
     runTxPipeline(ctx, hooks);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
-        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::PreExecuteRejected));
-    BOOST_CHECK_EQUAL(preDebitCalls, 0);
-    BOOST_CHECK_EQUAL(preKernelCalls, 0);
-    BOOST_CHECK_EQUAL(tuneKernelCalls, 0);
+        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::RulesRejected));
+    BOOST_CHECK_EQUAL(checkGasAffordableCalls, 0);
+    BOOST_CHECK_EQUAL(checkBalanceAndValueCalls, 0);
+    BOOST_CHECK_EQUAL(tuneExecutionInputCalls, 0);
 }
 
 BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_hook)
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_hook)
     hooks.intrinsicPolicy.authorizationListPresent = true;
     hooks.intrinsicPolicy.authTupleCount = 2;
     ctx.message.gas = 1;
-    hooks.mapIntrinsicFailure = [&](TxPipelineContext& c, IntrinsicDebitFailure failure) {
+    hooks.txHandleIntrinsicGasFailure = [&](TxPipelineContext& c, IntrinsicDebitFailure failure) {
         mapped = true;
         BOOST_CHECK_EQUAL(
             static_cast<int>(failure), static_cast<int>(IntrinsicDebitFailure::AuthTupleOutOfGas));
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_hook)
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(pre_kernel_early_exit_skips_kernel_execution)
+BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_execution)
 {
     state::test::InMemoryEvmStateReader stateView;
     auto ctx = makeContext(stateView);
@@ -103,28 +103,28 @@ BOOST_AUTO_TEST_CASE(pre_kernel_early_exit_skips_kernel_execution)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    int tuneKernelCalls = 0;
+    int tuneExecutionInputCalls = 0;
     TxPipelineHooks hooks;
     hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    hooks.preKernel = [](TxPipelineContext& c) {
+    hooks.txCheckBalanceAndValue = [](TxPipelineContext& c) {
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
         failResult.gas_left = 0;
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
         c.earlyExit = true;
-        c.exitKind = TxPipelineExitKind::PreDebitRejected;
+        c.exitKind = TxPipelineExitKind::GasAffordRejected;
     };
-    hooks.tuneKernelInput = [&](ExecuteMessageInput&) { ++tuneKernelCalls; };
+    hooks.txTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
     runTxPipeline(ctx, hooks);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
-        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::PreDebitRejected));
-    BOOST_CHECK_EQUAL(tuneKernelCalls, 0);
+        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::GasAffordRejected));
+    BOOST_CHECK_EQUAL(tuneExecutionInputCalls, 0);
 }
 
-BOOST_AUTO_TEST_CASE(pre_kernel_exception_maps_without_kernel_revert)
+BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_revert)
 {
     state::test::InMemoryEvmStateReader stateView;
     auto ctx = makeContext(stateView);
@@ -137,8 +137,8 @@ BOOST_AUTO_TEST_CASE(pre_kernel_exception_maps_without_kernel_revert)
     ctx.state.checkpoint();
     TxPipelineHooks hooks;
     hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    hooks.preKernel = [](TxPipelineContext&) { throw std::runtime_error("boom"); };
-    hooks.mapException = [&](TxPipelineContext& c, std::exception_ptr ex) {
+    hooks.txCheckBalanceAndValue = [](TxPipelineContext&) { throw std::runtime_error("boom"); };
+    hooks.txHandlePipelineException = [&](TxPipelineContext& c, std::exception_ptr ex) {
         mapCalled = true;
         BOOST_REQUIRE(ex != nullptr);
         try
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(pre_kernel_exception_maps_without_kernel_revert)
 
     BOOST_CHECK(mapCalled);
     BOOST_CHECK_EQUAL(
-        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::ExceptionMapped));
+        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::ExceptionHandled));
     BOOST_CHECK(ctx.state.has_checkpoint());
 }
 

@@ -77,11 +77,11 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
 
     FiscoPipelineHookBinder::HookBindingContext session{input, output, extension, false, false};
     auto hooks = FiscoPipelineHookBinder::buildHooks(session);
-    hooks.preExecute(ctx);
+    hooks.txCheckTransactionRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
-        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::PreExecuteRejected));
+        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::RulesRejected));
 }
 
 BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
 
     FiscoPipelineHookBinder::HookBindingContext session{input, output, extension, false, false};
     auto hooks = FiscoPipelineHookBinder::buildHooks(session);
-    hooks.prepareMessage(ctx);
+    hooks.txSetupMessage(ctx);
 
     BOOST_CHECK(ctx.message.kind == EVMC_CREATE);
     BOOST_CHECK(std::memcmp(ctx.message.recipient.bytes, ctx.message.code_address.bytes,

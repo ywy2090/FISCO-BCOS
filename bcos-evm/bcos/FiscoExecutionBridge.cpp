@@ -172,10 +172,11 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
         input, output, extension, fixErrorHandling, eip7623Enabled};
     auto hooks = FiscoPipelineHookBinder::buildHooks(session);
 
-    // TODO: OrchestrationErrorPolicy (candidate 4) — mapIntrinsicFailure / mapException
-    hooks.mapIntrinsicFailure = [fixErrorHandling, hashImpl = input.hashImpl](
-                                    TxPipelineContext& orchestrationCtx,
-                                    IntrinsicDebitFailure failure) {
+    // TODO: OrchestrationErrorPolicy (candidate 4) — txHandleIntrinsicGasFailure /
+    // txHandlePipelineException
+    hooks.txHandleIntrinsicGasFailure = [fixErrorHandling, hashImpl = input.hashImpl](
+                                            TxPipelineContext& orchestrationCtx,
+                                            IntrinsicDebitFailure failure) {
         std::string reason = "EIP-7623 intrinsic OOG";
         switch (failure)
         {
@@ -196,8 +197,8 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
                 fixErrorHandling ? 0 : orchestrationCtx.message.gas, reason, fixErrorHandling);
     };
 
-    hooks.mapException = [fixErrorHandling, hashImpl = input.hashImpl](
-                             TxPipelineContext& c, std::exception_ptr exceptionPtr) {
+    hooks.txHandlePipelineException = [fixErrorHandling, hashImpl = input.hashImpl](
+                                          TxPipelineContext& c, std::exception_ptr exceptionPtr) {
         try
         {
             std::rethrow_exception(exceptionPtr);

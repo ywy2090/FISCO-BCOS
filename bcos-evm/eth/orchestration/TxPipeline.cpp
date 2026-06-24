@@ -31,24 +31,24 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
 
     try
     {
-        hooks.prepareMessage(ctx);
-        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "prepareMessage")
+        hooks.txSetupMessage(ctx);
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "txSetupMessage")
                        << LOG_KV("gas", ctx.message.gas);
 
-        hooks.preExecute(ctx);
+        hooks.txCheckTransactionRules(ctx);
         if (ctx.earlyExit)
         {
-            ctx.exitKind = TxPipelineExitKind::PreExecuteRejected;
+            ctx.exitKind = TxPipelineExitKind::RulesRejected;
             EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                            << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code));
             return;
         }
 
-        hooks.preDebitEntry(ctx);
+        hooks.txCheckGasAffordable(ctx);
         if (ctx.earlyExit)
         {
-            ctx.exitKind = TxPipelineExitKind::PreDebitRejected;
+            ctx.exitKind = TxPipelineExitKind::GasAffordRejected;
             EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                            << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code));
@@ -65,7 +65,7 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
                            << LOG_KV("failure", trace::intrinsicDebitFailure(debitOutcome.failure))
                            << LOG_KV("gasBefore", gasBeforeDebit)
                            << LOG_KV("gasLeft", debitOutcome.gasLeftOnFailure);
-            hooks.mapIntrinsicFailure(ctx, debitOutcome.failure);
+            hooks.txHandleIntrinsicGasFailure(ctx, debitOutcome.failure);
             return;
         }
         if (debitOutcome.debitAmount > 0)
@@ -76,12 +76,12 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
                            << LOG_KV("gasAfter", ctx.message.gas);
         }
 
-        hooks.preKernel(ctx);
+        hooks.txCheckBalanceAndValue(ctx);
         if (ctx.earlyExit)
         {
             if (ctx.exitKind == TxPipelineExitKind::None)
             {
-                ctx.exitKind = TxPipelineExitKind::PreDebitRejected;
+                ctx.exitKind = TxPipelineExitKind::GasAffordRejected;
             }
             EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -90,15 +90,15 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
             return;
         }
 
-        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "executeMessage")
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "txRunEvmExecution")
                        << LOG_KV("gas", ctx.message.gas);
 
         auto executeInput = buildExecuteMessageInput(ctx);
-        hooks.tuneKernelInput(executeInput);
+        hooks.txTuneExecutionInput(executeInput);
 
-        if (hooks.executeMessageOverride)
+        if (hooks.txRunEvmExecutionOverride)
         {
-            ctx.kernelOutput = hooks.executeMessageOverride(std::move(executeInput));
+            ctx.kernelOutput = hooks.txRunEvmExecutionOverride(std::move(executeInput));
         }
         else
         {
@@ -108,9 +108,9 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
 
         captureSettlementSnapshot(ctx, ctx.kernelOutput);
 
-        hooks.postAdopt(ctx);
-        hooks.postSettle(ctx);
-        ctx.exitKind = TxPipelineExitKind::KernelCompleted;
+        hooks.txPatchExecutionResult(ctx);
+        hooks.txFinalizeGasSettlement(ctx);
+        ctx.exitKind = TxPipelineExitKind::Completed;
 
         EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline done")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -121,10 +121,10 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
     }
     catch (...)
     {
-        ctx.exitKind = TxPipelineExitKind::ExceptionMapped;
+        ctx.exitKind = TxPipelineExitKind::ExceptionHandled;
         EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline exception")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind));
-        hooks.mapException(ctx, std::current_exception());
+        hooks.txHandlePipelineException(ctx, std::current_exception());
         EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline mapped")
                        << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                        << LOG_KV("gasLeft", ctx.evmcResult.gas_left);

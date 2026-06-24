@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
 
     EthPipelineHookBinder::HookBindingContext session{input, output};
     auto hooks = EthPipelineHookBinder::buildHooks(session);
-    hooks.preExecute(ctx);
+    hooks.txCheckTransactionRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(post_adopt_sets_included_tx_vmerr_flag)
 
     EthPipelineHookBinder::HookBindingContext session{input, output};
     auto hooks = EthPipelineHookBinder::buildHooks(session);
-    hooks.postAdopt(ctx);
+    hooks.txPatchExecutionResult(ctx);
 
     BOOST_CHECK(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);

@@ -218,16 +218,16 @@ inline std::string_view exitKind(TxPipelineExitKind kind) noexcept
     {
     case TxPipelineExitKind::None:
         return "none";
-    case TxPipelineExitKind::PreExecuteRejected:
-        return "pre_execute_rejected";
-    case TxPipelineExitKind::PreDebitRejected:
-        return "pre_debit_rejected";
+    case TxPipelineExitKind::RulesRejected:
+        return "rules_rejected";
+    case TxPipelineExitKind::GasAffordRejected:
+        return "gas_afford_rejected";
     case TxPipelineExitKind::IntrinsicRejected:
         return "intrinsic_rejected";
-    case TxPipelineExitKind::KernelCompleted:
-        return "kernel_completed";
-    case TxPipelineExitKind::ExceptionMapped:
-        return "exception_mapped";
+    case TxPipelineExitKind::Completed:
+        return "completed";
+    case TxPipelineExitKind::ExceptionHandled:
+        return "exception_handled";
     default:
         return "unknown";
     }

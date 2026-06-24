@@ -64,7 +64,8 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     EthPipelineHookBinder::HookBindingContext session{input, output};
     auto hooks = EthPipelineHookBinder::buildHooks(session);
     // TODO: OrchestrationErrorPolicy (candidate 4)
-    hooks.mapIntrinsicFailure = [](TxPipelineContext& orchestrationCtx, IntrinsicDebitFailure) {
+    hooks.txHandleIntrinsicGasFailure = [](TxPipelineContext& orchestrationCtx,
+                                            IntrinsicDebitFailure) {
         evmc_result failResult{};
         failResult.status_code = EVMC_OUT_OF_GAS;
         failResult.gas_left = 0;
@@ -72,7 +73,8 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
             EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     };
 
-    hooks.mapException = [](TxPipelineContext& orchestrationCtx, std::exception_ptr exceptionPtr) {
+    hooks.txHandlePipelineException = [](TxPipelineContext& orchestrationCtx,
+                                          std::exception_ptr exceptionPtr) {
         try
         {
             std::rethrow_exception(exceptionPtr);
