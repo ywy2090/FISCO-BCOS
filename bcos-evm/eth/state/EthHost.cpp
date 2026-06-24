@@ -22,7 +22,8 @@
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/CreateExecution.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/trace/EvmTrace.h"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -89,6 +90,20 @@ void applySstoreRefundEip3529(State& state, const evmc_bytes32& current,
 bool isDirectDelegated7702(evmc_message const& msg) noexcept
 {
     return (msg.flags & EVMC_DELEGATED) != 0 && msg.kind == EVMC_CALL;
+}
+
+bool isDelegated7702Message(evmc_message const& msg) noexcept
+{
+    return (msg.flags & EVMC_DELEGATED) != 0;
+}
+
+evmc_address resolve7702CodeAddress(evmc_message const& msg) noexcept
+{
+    if (isDirectDelegated7702(msg))
+    {
+        return msg.recipient;
+    }
+    return isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address;
 }
 }  // namespace
 
@@ -251,6 +266,14 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
 
 EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 {
+    if (msg.depth > 0)
+    {
+        EVM_LOG(TRACE) << LOG_DESC("EthHost::call") << LOG_KV("kind", trace::callKind(msg.kind))
+                       << LOG_KV("depth", msg.depth) << LOG_KV("gas", msg.gas)
+                       << LOG_KV("sender", trace::evmcAddress(msg.sender))
+                       << LOG_KV("target", trace::evmcAddress(msg.recipient));
+    }
+
     struct ExecutionAddressGuard
     {
         evmc_address& address;
@@ -271,7 +294,8 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         return makeResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas);
     }
 
-    if (!isCreateKind(callMessage.kind))
+    if (!isCreateKind(callMessage.kind) &&
+        !(isDelegated7702Message(msg) && callMessage.kind != EVMC_CALL))
     {
         bool const skipVt = m_extension != nullptr && m_extension->skipHostValueTransfer();
         auto const target = isZeroAddress(callMessage.code_address) ? callMessage.recipient :
@@ -360,6 +384,12 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     else
     {
         m_state.revert();
+    }
+    if (msg.depth > 0)
+    {
+        EVM_LOG(TRACE) << LOG_DESC("EthHost::call done") << LOG_KV("depth", msg.depth)
+                       << LOG_KV("status", trace::evmcStatus(result.status_code))
+                       << LOG_KV("gasLeft", result.gas_left);
     }
     if (isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender))
     {
@@ -590,8 +620,8 @@ EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
         }
     }
     auto const code = m_state.get_code(target);
-    if ((msg.flags & EVMC_DELEGATED) == 0 && !isZeroAddress(target) &&
-        isActivePrecompileAddress(target) && code.empty())
+    if (!isZeroAddress(target) && isActivePrecompileAddress(target) && code.empty() &&
+        !(isDelegated7702Message(msg) && msg.kind != EVMC_CALL))
     {
         routed.precompileTarget = target;
         routed.hasPrecompileTarget = true;
@@ -611,30 +641,14 @@ bcos::bytes EthHost::resolveExecutionCode(const evmc_message& msg) const
         }
         return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
     }
-    if ((msg.flags & EVMC_DELEGATED) != 0)
+
+    auto const codeAddress = resolve7702CodeAddress(msg);
+    if (!isZeroAddress(codeAddress) && isActivePrecompileAddress(codeAddress) &&
+        m_state.get_code(codeAddress).empty())
     {
-        if (msg.kind == EVMC_DELEGATECALL || msg.kind == EVMC_CALLCODE)
-        {
-            if (isActivePrecompileAddress(msg.code_address))
-            {
-                return {};
-            }
-            auto code = m_state.get_code(msg.code_address);
-            if (m_revisionConfig.eip7702)
-            {
-                if (auto const delegate =
-                        parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
-                {
-                    return m_state.get_code(*delegate);
-                }
-            }
-            return code;
-        }
+        return {};
     }
-    auto const codeAddress =
-        isDirectDelegated7702(msg) ?
-            msg.recipient :
-            (isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address);
+
     auto code = m_state.get_code(codeAddress);
     if (m_revisionConfig.eip7702)
     {
