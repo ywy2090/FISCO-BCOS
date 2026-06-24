@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackPreDebitEntry.h"
 #ifdef BCOS_EVM_TESTING
@@ -26,10 +27,7 @@
 
 namespace bcos::evm
 {
-namespace
-{
-void applyOpStackSettlement(
-    OpStackOrchestrationProfile::Session const& session, EVMCResult const& result)
+void OpStackOrchestrationProfile::applySettlement(Session const& session, EVMCResult const& result)
 {
     auto& txData = session.txData;
     // Use evmone's gas_refund directly — the State journal's refund counter
@@ -47,7 +45,6 @@ void applyOpStackSettlement(
     txData.m_maxUsedGas = settlement.maxUsedGas;
     txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
 }
-}  // namespace
 
 OrchestrationHooks OpStackOrchestrationProfile::buildHooks(Session& session)
 {
@@ -77,7 +74,7 @@ OrchestrationHooks OpStackOrchestrationProfile::buildHooks(Session& session)
     hooks.intrinsicPolicy.web3TypedTxKind = txData.m_web3TypedTxKind;
 
     hooks.postSettle = [&session](OrchestrationContext& orchestrationCtx) {
-        applyOpStackSettlement(session, orchestrationCtx.evmcResult);
+        applySettlement(session, orchestrationCtx.evmcResult);
     };
 
 #ifdef BCOS_EVM_TESTING

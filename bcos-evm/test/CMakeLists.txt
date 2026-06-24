@@ -505,6 +505,7 @@ add_test(
 add_executable(OpStackIntrinsicGasSyncTest
     opstack/OpStackIntrinsicGasSyncTest.cpp
     ../opstack/OpStackExecuteViaHost.cpp
+    ../opstack/OpStackOrchestrationProfile.cpp
     ../opstack/OpStackPreCheck.cpp
     ../opstack/OpStackTxExecutor.cpp
     ../opstack/RollupCost.cpp

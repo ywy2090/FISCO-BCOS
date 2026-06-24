@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/orchestration/OrchestrationHooks.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
@@ -34,6 +35,7 @@ struct OpStackOrchestrationProfile
     };
 
     static OrchestrationHooks buildHooks(Session& session);
+    static void applySettlement(Session const& session, EVMCResult const& result);
 };
 
 }  // namespace bcos::evm
