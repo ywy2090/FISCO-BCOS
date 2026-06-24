@@ -1,0 +1,79 @@
+{
+  "_comment": "OPStack EEST adapter skip list. Documents known divergences from standard Ethereum execution.",
+  "_policy": "Skip entries that fail due to OPStack fee model or execution path differences. File issues for true OPStack bugs.",
+
+  "_gap_catalog": {
+    "G1": "Fee model divergence — baseFee routed to OP_BASE_FEE_RECIPIENT instead of burned. EEST expects standard Ethereum fee semantics.",
+    "G2": "Nonce tracking — OPStack path does not write sender nonce increment to stateDiff. Nonce is managed externally by the transaction pool.",
+    "G3": "L1Block predeploy storage — EEST fixtures don't include OP_L1_BLOCK_PREDEPLOY, so post-state accounts differ when contract reads L1Block.",
+    "G4": "Precompile behavior difference — OPStack precompile routing differs from evmone built-in precompiles.",
+    "G5": "Gas schedule difference — OPStack intrinsic gas calculation differs from standard Ethereum for certain tx types.",
+    "G6": "Selfdestruct semantics — EIP-6780 selfdestruct behavior may differ between OPStack and standard Ethereum execution paths.",
+    "G7": "Transient storage — EIP-1153 transient storage opcodes may have different behavior in OPStack execution context.",
+    "G8": "Authorization cost — EIP-7702 authorization processing costs may differ in OPStack path."
+  },
+
+  "entries": {
+    "eip2930_access_list": {
+      "reason": "Fee model divergence: baseFee goes to OP_BASE_FEE_RECIPIENT instead of being burned. Sender balance differs by baseFee*gasUsed.",
+      "gaps": ["G1"],
+      "date": "2026-06-24"
+    },
+    "eip1559": {
+      "reason": "Fee model divergence: baseFee + tip routing differs from EIP-1559 standard. OPStack routes baseFee to OP_BASE_FEE_RECIPIENT.",
+      "gaps": ["G1"],
+      "date": "2026-06-24"
+    },
+    "eip2929_gas": {
+      "reason": "Gas schedule + fee model divergence. OPStack warm/cold gas costs and fee routing differ from standard Ethereum.",
+      "gaps": ["G1", "G5"],
+      "date": "2026-06-24"
+    },
+    "eip4844_blobs": {
+      "reason": "Blob fee routing divergence. OPStack handles blob fees differently (separate L1 blob fee path).",
+      "gaps": ["G1", "G5"],
+      "date": "2026-06-24"
+    },
+    "eip7702_set_code": {
+      "reason": "Authorization processing + fee model divergence. Nonce and fee routing differences.",
+      "gaps": ["G1", "G2", "G8"],
+      "date": "2026-06-24"
+    },
+    "eip1153_tstore": {
+      "reason": "Transient storage semantics may differ in OPStack execution context.",
+      "gaps": ["G7"],
+      "date": "2026-06-24"
+    },
+    "eip6780_selfdestruct": {
+      "reason": "Selfdestruct semantics differ between EIP-6780 standard and OPStack execution.",
+      "gaps": ["G6"],
+      "date": "2026-06-24"
+    },
+    "eip2537_bls": {
+      "reason": "BLS precompile behavior difference between evmone and OPStack routing.",
+      "gaps": ["G4"],
+      "date": "2026-06-24"
+    },
+    "eip7623_calldata": {
+      "reason": "Calldata floor gas + fee model divergence. OPStack intrinsic gas calculation differs.",
+      "gaps": ["G1", "G5"],
+      "date": "2026-06-24"
+    },
+    "eip7823_modexp": {
+      "reason": "Modexp precompile behavior + fee model divergence.",
+      "gaps": ["G1", "G4"],
+      "date": "2026-06-24"
+    }
+  },
+
+  "_non_ipc_patterns": {
+    "nonce_mismatch": {
+      "description": "OPStack path does not write nonce to stateDiff. Nonce is managed by tx pool. Skip nonce assertions for known-divergent fixtures.",
+      "gap": "G2"
+    },
+    "balance_mismatch_nonzero_l1": {
+      "description": "Balance differences where L1 fee scalars are non-zero or base fee routing differs. Skip balance assertions for coinbase/OP_BASE_FEE_RECIPIENT/OP_L1_FEE_RECIPIENT.",
+      "gap": "G1"
+    }
+  }
+}
