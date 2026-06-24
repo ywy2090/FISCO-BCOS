@@ -196,3 +196,9 @@ target_include_directories(FrameValueTransferTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(FrameValueTransferTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME FrameValueTransfer COMMAND FrameValueTransferTest)
+
+add_executable(ExecutionFrameTest eth/ExecutionFrameTest.cpp)
+target_include_directories(ExecutionFrameTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(ExecutionFrameTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME ExecutionFrame COMMAND ExecutionFrameTest)
