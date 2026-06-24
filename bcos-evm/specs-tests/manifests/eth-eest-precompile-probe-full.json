@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.probe.7702.precompile.file",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx/test_set_code_to_precompile.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional", "stateRoot", "logsHash"]
+    }
+  ]
+}

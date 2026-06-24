@@ -5,10 +5,11 @@
  */
 
 #include "PrecompileRouter.h"
+#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::precompiled
 {
@@ -34,6 +35,13 @@ void finalizeEnvelope(state::State& state, PrecompileRouterOutput& output)
         state.revert();
     }
 }
+
+bool is7702DelegationDesignator(
+    bcos::evm_standard::RevisionConfig const& revision, bcos::bytes const& code)
+{
+    return revision.eip7702 &&
+           parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}).has_value();
+}
 }  // namespace
 
 PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
@@ -42,19 +50,26 @@ PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
     auto const code = input.state.get_code(input.target);
     bool const emptyCode = code.empty();
 
-    if (!state::isZeroBytes32(input.message.value) && !input.skipValueTransfer)
+    // EIP-7702 delegation designator: execute via resolveExecutionCode (empty delegate code).
+    if (!emptyCode && is7702DelegationDesignator(input.revision, code))
+    {
+        return output;
+    }
+
+    input.state.checkpoint();
+
+    if (emptyCode && !state::isZeroBytes32(input.message.value) && !input.skipValueTransfer)
     {
         auto const value = state::fromEvmC(input.message.value);
         if (!canTransfer(input.state, input.message.sender, value))
         {
             output.outcome = PrecompileDispatchOutcome::Dispatched;
             output.result = makeInsufficientBalanceResult();
+            input.state.revert();
             return output;
         }
         transfer(input.state, input.message.sender, input.target, value);
     }
-
-    input.state.checkpoint();
 
     if (input.extension != nullptr)
     {

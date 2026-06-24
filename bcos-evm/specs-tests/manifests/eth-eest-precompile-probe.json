@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.probe.7702.precompile.call",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx/test_set_code_to_precompile.json",
+      "variantKey": "tests/prague/eip7702_set_code_tx/test_set_code_txs.py::test_set_code_to_precompile[fork_Osaka-precompile_0x0000000000000000000000000000000000000001-call_opcode_CALL-evm_code_type_LEGACY-state_test]",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional", "stateRoot", "logsHash"]
+    },
+    {
+      "evidenceId": "eth.eest.probe.7702.precompile.delegatecall",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx/test_set_code_to_precompile.json",
+      "variantKey": "tests/prague/eip7702_set_code_tx/test_set_code_txs.py::test_set_code_to_precompile[fork_Osaka-precompile_0x0000000000000000000000000000000000000001-call_opcode_DELEGATECALL-evm_code_type_LEGACY-state_test]",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional", "stateRoot", "logsHash"]
+    }
+  ]
+}
