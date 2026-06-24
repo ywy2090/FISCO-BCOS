@@ -68,6 +68,7 @@ public:
     {
         m_executionAddress = address;
     }
+    evmc_address& execution_address_ref() noexcept { return m_executionAddress; }
     void markCreatedInTx(evmc_address const& addr) noexcept;
     [[nodiscard]] bool wasCreatedInTx(evmc_address const& addr) const noexcept;
     std::vector<LogEntry> take_logs();
