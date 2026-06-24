@@ -48,6 +48,23 @@ target_link_libraries(bcos-evm-specs-tests-eth PUBLIC
     bcos-task
 )
 
+add_library(bcos-evm-specs-tests-opstack STATIC
+    runners/OpStackEestAdapter.cpp
+)
+
+target_include_directories(bcos-evm-specs-tests-opstack PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../..>
+)
+
+target_link_libraries(bcos-evm-specs-tests-opstack PUBLIC
+    bcos-evm-specs-tests-core
+    bcos-evm-op
+    bcos-evm-eth
+    bcos-crypto
+    bcos-task
+)
+
 function(add_reference_test target source)
     add_executable(${target} ${source})
     target_link_libraries(${target} PRIVATE bcos-evm-specs-tests-core)
@@ -182,4 +199,93 @@ add_test(
 )
 set_tests_properties(ManifestLint PROPERTIES
     LABELS "specs-tests;specs-tests-smoke"
+)
+
+# --- OPStack EEST State Runner ---
+
+add_executable(OpStackEestStateTest
+    runners/OpStackEestStateRunner.cpp
+    runners/OpStackEestAdapter.cpp
+)
+target_link_libraries(OpStackEestStateTest PRIVATE
+    bcos-evm-specs-tests-core
+    bcos-evm-op
+    bcos-evm-eth
+    bcos-crypto
+    bcos-task
+)
+target_compile_definitions(OpStackEestStateTest PRIVATE
+    SPECS_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
+)
+
+# Smoke test: runs a curated subset of EEST state tests through OPStack path
+add_test(NAME OpStackEestStateSmoke COMMAND OpStackEestStateTest
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/state_tests
+    --smoke
+    --limit 50
+)
+set_tests_properties(OpStackEestStateSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;opstack;eest"
+)
+
+# Full test: runs all compatible EEST state tests through OPStack path (nightly)
+add_test(NAME OpStackEestStateFull COMMAND OpStackEestStateTest
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/state_tests
+    --skip-list ${CMAKE_CURRENT_SOURCE_DIR}/opstack-skip-list.json
+)
+set_tests_properties(OpStackEestStateFull PROPERTIES
+    LABELS "specs-tests;specs-tests-full;opstack;eest;nightly"
+)
+
+# --- OPStack EEST Blockchain Runner ---
+
+add_executable(OpStackEestBlockchainTest
+    runners/OpStackEestBlockchainRunner.cpp
+    runners/OpStackEestAdapter.cpp
+)
+target_link_libraries(OpStackEestBlockchainTest PRIVATE
+    bcos-evm-specs-tests-core
+    bcos-evm-op
+    bcos-evm-eth
+    bcos-crypto
+    bcos-task
+)
+add_test(NAME OpStackEestBlockchainSmoke COMMAND OpStackEestBlockchainTest
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests
+    --limit 10
+)
+set_tests_properties(OpStackEestBlockchainSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;opstack;eest"
+)
+
+add_test(NAME OpStackEestBlockchainFull COMMAND OpStackEestBlockchainTest
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests
+)
+set_tests_properties(OpStackEestBlockchainFull PROPERTIES
+    LABELS "specs-tests;specs-tests-full;opstack;eest;nightly"
+)
+
+# --- OPStack EEST Transaction Runner ---
+
+add_executable(OpStackEestTxTest
+    runners/OpStackEestTxRunner.cpp
+)
+target_link_libraries(OpStackEestTxTest PRIVATE
+    bcos-evm-specs-tests-core
+    bcos-evm-eth
+    bcos-utilities
+)
+add_test(NAME OpStackEestTxSmoke COMMAND OpStackEestTxTest
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/transaction_tests
+    --limit 10
+)
+set_tests_properties(OpStackEestTxSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;opstack;eest"
+)
+
+add_test(NAME OpStackEestTxFull COMMAND OpStackEestTxTest
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/transaction_tests
+)
+set_tests_properties(OpStackEestTxFull PROPERTIES
+    LABELS "specs-tests;specs-tests-full;opstack;eest;nightly"
 )

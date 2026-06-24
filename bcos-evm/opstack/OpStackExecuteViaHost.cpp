@@ -118,10 +118,18 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     trace::logMessageContext(input.message);
 
     auto applySettlement = [&](EVMCResult const& result) {
+        // Use evmone's gas_refund directly — the State journal's refund counter
+        // (ctx.state.get_refund()) can diverge from evmone's internal refund tracking
+        // for complex contracts with many SSTORE operations.
+        // EIP-3529 refund only applies London+ (eip1559 flag in RevisionConfig).
+        auto const stateRefund =
+            input.revisionConfig.eip1559 ?
+                static_cast<uint64_t>(std::max<int64_t>(0, result.gas_refund)) :
+                uint64_t{0};
         auto const settlement =
             postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
-                static_cast<uint64_t>(std::max<int64_t>(0, result.gas_left)),
-                ctx.state.get_refund(), txData.m_floorDataGas);
+                static_cast<uint64_t>(std::max<int64_t>(0, result.gas_left)), stateRefund,
+                txData.m_floorDataGas);
         txData.m_gasRemaining = settlement.gasRemaining;
         txData.m_maxUsedGas = settlement.maxUsedGas;
         txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
@@ -262,7 +270,19 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
                    << LOG_KV("l1Fee", txData.m_l1CostCharged);
     if (ctx.exitKind != OrchestrationExitKind::KernelCompleted)
     {
-        applySettlement(output.evmcResult);
+        if (ctx.exitKind == OrchestrationExitKind::IntrinsicRejected ||
+            ctx.exitKind == OrchestrationExitKind::PreDebitRejected)
+        {
+            // EVM never ran (intrinsic or floor-gas rejection): refund the full buyGas
+            // pre-deduction so the sender is not charged for a tx that should be rejected
+            // with only a nonce bump (no balance change).
+            txData.m_gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
+            txData.m_gasUsed = 0;
+        }
+        else
+        {
+            applySettlement(output.evmcResult);
+        }
     }
 
     co_await input.opTxExecutor.refundGas(txData);
