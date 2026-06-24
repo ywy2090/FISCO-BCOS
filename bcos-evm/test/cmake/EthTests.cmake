@@ -190,3 +190,9 @@ target_include_directories(RouteMessageTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(RouteMessageTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME RouteMessage COMMAND RouteMessageTest)
+
+add_executable(FrameValueTransferTest eth/FrameValueTransferTest.cpp)
+target_include_directories(FrameValueTransferTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(FrameValueTransferTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME FrameValueTransfer COMMAND FrameValueTransferTest)
