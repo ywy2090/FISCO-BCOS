@@ -74,26 +74,10 @@ public:
     std::vector<LogEntry> take_logs();
 
 private:
-    struct RoutedCall
-    {
-        evmc_message message{};
-        evmc_address precompileTarget{};
-        bool hasPrecompileTarget{false};
-    };
-
-private:
-    static bool isCreateKind(evmc_call_kind kind) noexcept;
-    bool isActivePrecompileAddress(const evmc_address& address) const noexcept;
-    static evmc::Result makeResult(
-        evmc_status_code status, int64_t gasLeft, const bcos::bytes& output = {});
     static evmc_storage_status classifyStorageStatus(const evmc_bytes32& oldValue,
         const evmc_bytes32& currentValue, const evmc_bytes32& newValue,
         bool fixStorageStatus) noexcept;
 
-    RoutedCall routeCall(const evmc_message& msg) noexcept;
-    bcos::bytes resolveExecutionCode(const evmc_message& msg) const;
-    bool transferValue(const evmc_message& msg) noexcept;
-    evmc_address resolveCallerAddress(const evmc_message& msg) const noexcept;
     void destroyContractState(evmc_address const& addr) noexcept;
 
 private:

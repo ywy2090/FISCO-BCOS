@@ -17,11 +17,8 @@
  */
 
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
-#include "bcos-evm/eth/precompiled/PrecompileActive.h"
-#include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "bcos-evm/eth/state/CreateExecution.h"
+#include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <algorithm>
@@ -85,26 +82,6 @@ void applySstoreRefundEip3529(State& state, const evmc_bytes32& current,
     }
 }
 
-// CALL/STATICCALL: recipient is the authority. DELEGATECALL/CALLCODE: recipient is the caller
-// context and evmone puts the resolved delegate in code_address.
-bool isDirectDelegated7702(evmc_message const& msg) noexcept
-{
-    return (msg.flags & EVMC_DELEGATED) != 0 && msg.kind == EVMC_CALL;
-}
-
-bool isDelegated7702Message(evmc_message const& msg) noexcept
-{
-    return (msg.flags & EVMC_DELEGATED) != 0;
-}
-
-evmc_address resolve7702CodeAddress(evmc_message const& msg) noexcept
-{
-    if (isDirectDelegated7702(msg))
-    {
-        return msg.recipient;
-    }
-    return isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address;
-}
 }  // namespace
 
 EthHost::EthHost(State& state, evmc_tx_context txContext,
@@ -284,136 +261,10 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     };
     ExecutionAddressGuard guard{m_executionAddress};
 
-    auto routed = routeCall(msg);
-    auto& callMessage = routed.message;
-    auto const callerAddress = resolveCallerAddress(callMessage);
-
-    if (callMessage.kind == EVMC_DELEGATECALL && routed.hasPrecompileTarget &&
-        m_extension != nullptr && !m_extension->allowDelegateCallToPrecompile())
-    {
-        return makeResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas);
-    }
-
-    if (!isCreateKind(callMessage.kind) &&
-        !(isDelegated7702Message(msg) && callMessage.kind != EVMC_CALL))
-    {
-        bool const skipVt = m_extension != nullptr && m_extension->skipHostValueTransfer();
-        auto const target = isZeroAddress(callMessage.code_address) ? callMessage.recipient :
-                                                                      callMessage.code_address;
-        auto out = precompiled::dispatchPrecompile(
-            {m_state, m_revisionConfig, m_extension, callMessage, target, skipVt});
-        if (out.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
-        {
-            return Result(std::move(out.result));
-        }
-    }
-
-    if (m_extension != nullptr)
-    {
-        m_extension->setCallerAddress(callerAddress);
-        m_extension->prepareMessage(m_revisionConfig.revision, callMessage);
-    }
-
-    if (isCreateKind(callMessage.kind))
-    {
-        state::bindCreateMessageForInit(*this, callMessage,
-            bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), m_state);
-    }
-
-    m_state.checkpoint();
-    if (isCreateKind(callMessage.kind))
-    {
-        state::initializeCreateTargetAccount(m_state, callMessage.recipient,
-            m_revisionConfig.revision, m_revisionConfig.warm_access);
-    }
-
-    if (!transferValue(callMessage))
-    {
-        m_state.revert();
-        return makeResult(EVMC_INSUFFICIENT_BALANCE, 0);
-    }
-
-    auto code = resolveExecutionCode(callMessage);
-    auto result =
-        m_vm.execute(*this, m_revisionConfig.revision, callMessage, code.data(), code.size());
-    if (result.status_code == EVMC_SUCCESS && isCreateKind(callMessage.kind))
-    {
-        auto raw = result.release_raw();
-        if (!state::applyCreateCodeDepositGas(raw, m_revisionConfig.revision) &&
-            raw.release != nullptr)
-        {
-            raw.release(&raw);
-            raw.release = nullptr;
-            raw.output_data = nullptr;
-            raw.output_size = 0;
-        }
-        if (raw.status_code == EVMC_SUCCESS)
-        {
-            result = evmc::Result(raw);
-        }
-        else
-        {
-            result = makeResult(raw.status_code, raw.gas_left);
-        }
-    }
-    if (result.status_code == EVMC_SUCCESS)
-    {
-        installCreatedContractCode(m_state, callMessage, result.raw());
-        if (isCreateKind(callMessage.kind))
-        {
-            auto createAddr = callMessage.recipient;
-            markCreatedInTx(createAddr);
-            auto& raw = const_cast<evmc_result&>(result.raw());
-            if (state::isZeroAddress(raw.create_address))
-            {
-                raw.create_address = createAddr;
-            }
-        }
-        m_state.commit();
-        if (!isCreateKind(callMessage.kind))
-        {
-            auto const nextExecution = isZeroAddress(callMessage.code_address) ?
-                                           callMessage.recipient :
-                                           callMessage.code_address;
-            if (!isZeroAddress(nextExecution))
-            {
-                m_executionAddress = nextExecution;
-            }
-        }
-    }
-    else
-    {
-        m_state.revert();
-    }
-    if (msg.depth > 0)
-    {
-        EVM_LOG(TRACE) << LOG_DESC("EthHost::call done") << LOG_KV("depth", msg.depth)
-                       << LOG_KV("status", trace::evmcStatus(result.status_code))
-                       << LOG_KV("gasLeft", result.gas_left);
-    }
-    // Nested CREATE bumps the caller nonce; top-level tx sender nonce is settled in
-    // executeMessage after the outer checkpoint commit/revert.
-    if (isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender) &&
-        msg.depth > 0)
-    {
-        m_state.set_nonce(callMessage.sender, m_state.get_nonce(callMessage.sender) + 1);
-        if (m_extension != nullptr &&
-            std::memcmp(callMessage.sender.bytes, m_txContext.tx_origin.bytes,
-                sizeof(callMessage.sender.bytes)) != 0)
-        {
-            m_extension->bumpContractCreateNonce(callMessage.sender);
-        }
-    }
-    return result;
-}
-
-evmc_address EthHost::resolveCallerAddress(const evmc_message& msg) const noexcept
-{
-    if (!state::isZeroAddress(m_executionAddress))
-    {
-        return m_executionAddress;
-    }
-    return msg.sender;
+    execution::FrameContext frameCtx{
+        m_state, m_vm, m_revisionConfig, m_extension, m_txContext.tx_origin, m_executionAddress};
+    auto fr = execution::runExecutionFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
+    return Result(std::move(fr.result));
 }
 
 evmc_tx_context EthHost::get_tx_context() const noexcept
@@ -492,36 +343,6 @@ std::vector<LogEntry> EthHost::take_logs()
     return std::exchange(m_logs, {});
 }
 
-bool EthHost::isCreateKind(evmc_call_kind kind) noexcept
-{
-    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
-
-bool EthHost::isActivePrecompileAddress(const evmc_address& address) const noexcept
-{
-    return precompiled::isActivePrecompile(m_revisionConfig, address);
-}
-
-evmc::Result EthHost::makeResult(
-    evmc_status_code status, int64_t gasLeft, const bcos::bytes& output)
-{
-    evmc_result result{};
-    result.status_code = status;
-    result.gas_left = gasLeft;
-    result.gas_refund = 0;
-    result.create_address = {};
-
-    if (!output.empty())
-    {
-        auto* data = new uint8_t[output.size()];
-        std::copy(output.begin(), output.end(), data);
-        result.output_data = data;
-        result.output_size = output.size();
-        result.release = [](const evmc_result* value) { delete[] value->output_data; };
-    }
-    return evmc::Result(result);
-}
-
 evmc_storage_status EthHost::classifyStorageStatus(const evmc_bytes32& oldValue,
     const evmc_bytes32& currentValue, const evmc_bytes32& newValue, bool fixStorageStatus) noexcept
 {
@@ -579,108 +400,5 @@ evmc_storage_status EthHost::classifyStorageStatus(const evmc_bytes32& oldValue,
         }
     }
     return status;
-}
-
-EthHost::RoutedCall EthHost::routeCall(const evmc_message& msg) noexcept
-{
-    RoutedCall routed{};
-    routed.message = msg;
-
-    if (isCreateKind(msg.kind))
-    {
-        if (!isZeroAddress(routed.message.recipient))
-        {
-            routed.message.code_address = routed.message.recipient;
-            if (m_revisionConfig.warm_access)
-            {
-                m_state.pin_warm_create_address(routed.message.code_address);
-            }
-        }
-        else if (!isZeroAddress(routed.message.code_address))
-        {
-            routed.message.recipient = routed.message.code_address;
-            if (m_revisionConfig.warm_access)
-            {
-                m_state.pin_warm_create_address(routed.message.code_address);
-            }
-        }
-    }
-
-    auto target = isZeroAddress(routed.message.code_address) ? routed.message.recipient :
-                                                               routed.message.code_address;
-    // EIP-7702: CALL/STATICCALL pass the authority as recipient; DELEGATECALL/CALLCODE keep the
-    // resolved delegate in code_address. Delegation to a precompile runs empty code.
-    if (isDirectDelegated7702(msg))
-    {
-        target = routed.message.recipient;
-    }
-    if (!isZeroAddress(target))
-    {
-        routed.message.code_address = target;
-        if (isZeroAddress(routed.message.recipient))
-        {
-            routed.message.recipient = target;
-        }
-    }
-    auto const code = m_state.get_code(target);
-    if (!isZeroAddress(target) && isActivePrecompileAddress(target) && code.empty() &&
-        !(isDelegated7702Message(msg) && msg.kind != EVMC_CALL))
-    {
-        routed.precompileTarget = target;
-        routed.hasPrecompileTarget = true;
-        return routed;
-    }
-
-    return routed;
-}
-
-bcos::bytes EthHost::resolveExecutionCode(const evmc_message& msg) const
-{
-    if (isCreateKind(msg.kind))
-    {
-        if (msg.input_data == nullptr || msg.input_size == 0)
-        {
-            return {};
-        }
-        return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
-    }
-
-    auto const codeAddress = resolve7702CodeAddress(msg);
-    if (!isZeroAddress(codeAddress) && isActivePrecompileAddress(codeAddress) &&
-        m_state.get_code(codeAddress).empty())
-    {
-        return {};
-    }
-
-    auto code = m_state.get_code(codeAddress);
-    if (m_revisionConfig.eip7702)
-    {
-        if (auto const delegate =
-                parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
-        {
-            return m_state.get_code(*delegate);
-        }
-    }
-    return code;
-}
-
-bool EthHost::transferValue(const evmc_message& msg) noexcept
-{
-    if (isZeroBytes32(msg.value))
-    {
-        return true;
-    }
-    if (m_extension != nullptr && m_extension->skipHostValueTransfer())
-    {
-        return true;
-    }
-
-    auto const value = fromEvmC(msg.value);
-    if (!canTransfer(m_state, msg.sender, value))
-    {
-        return false;
-    }
-    transfer(m_state, msg.sender, msg.recipient, value);
-    return true;
 }
 }  // namespace bcos::evm::state

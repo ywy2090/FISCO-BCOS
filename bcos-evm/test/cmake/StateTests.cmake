@@ -134,17 +134,6 @@ set(PRAGUE_STATE_TEST_BINARY_NAME PragueStateTest)
 
 add_executable(${PRAGUE_STATE_TEST_BINARY_NAME}
     state/PragueStateTest.cpp
-    ../eth/ExecuteMessage.cpp
-    ../eth/Eip7702.cpp
-    ../eth/state/State.cpp
-    ../eth/state/EthHost.cpp
-    ../eth/state/BloomFilter.cpp
-    ../eth/state/EthPrecompiles.cpp
-    ../eth/state/Transition.cpp
-    ../eth/precompiled/EthBuiltinRegistry.cpp
-    ../eth/precompiled/PrecompiledContract.cpp
-    ../eth/precompiled/ModexpGas.cpp
-    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
@@ -157,6 +146,7 @@ target_compile_definitions(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
     evmone::evmone
     bcos-task
     bcos-framework
@@ -174,17 +164,6 @@ set(NESTED_CALL_HOST_TEST_BINARY_NAME NestedCallHostTest)
 
 add_executable(${NESTED_CALL_HOST_TEST_BINARY_NAME}
     state/NestedCallHostTest.cpp
-    ../eth/ExecuteMessage.cpp
-    ../eth/Eip7702.cpp
-    ../eth/state/State.cpp
-    ../eth/state/EthHost.cpp
-    ../eth/state/BloomFilter.cpp
-    ../eth/state/EthPrecompiles.cpp
-    ../eth/state/Transition.cpp
-    ../eth/precompiled/EthBuiltinRegistry.cpp
-    ../eth/precompiled/PrecompiledContract.cpp
-    ../eth/precompiled/ModexpGas.cpp
-    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${NESTED_CALL_HOST_TEST_BINARY_NAME} PRIVATE
@@ -193,6 +172,7 @@ target_include_directories(${NESTED_CALL_HOST_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${NESTED_CALL_HOST_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
     evmone::evmone
     bcos-task
     bcos-framework
@@ -210,17 +190,6 @@ set(PRECOMPILE_IN_CALL_TEST_BINARY_NAME PrecompileInCallTest)
 
 add_executable(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME}
     state/PrecompileInCallTest.cpp
-    ../eth/ExecuteMessage.cpp
-    ../eth/Eip7702.cpp
-    ../eth/state/State.cpp
-    ../eth/state/EthHost.cpp
-    ../eth/state/BloomFilter.cpp
-    ../eth/state/EthPrecompiles.cpp
-    ../eth/state/Transition.cpp
-    ../eth/precompiled/EthBuiltinRegistry.cpp
-    ../eth/precompiled/PrecompiledContract.cpp
-    ../eth/precompiled/ModexpGas.cpp
-    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME} PRIVATE
@@ -229,6 +198,7 @@ target_include_directories(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
     evmone::evmone
     bcos-task
     bcos-framework
@@ -246,17 +216,6 @@ set(BLOCK_HASH_HOST_TEST_BINARY_NAME BlockHashHostTest)
 
 add_executable(${BLOCK_HASH_HOST_TEST_BINARY_NAME}
     state/BlockHashHostTest.cpp
-    ../eth/ExecuteMessage.cpp
-    ../eth/Eip7702.cpp
-    ../eth/state/State.cpp
-    ../eth/state/EthHost.cpp
-    ../eth/state/BloomFilter.cpp
-    ../eth/state/EthPrecompiles.cpp
-    ../eth/state/Transition.cpp
-    ../eth/precompiled/EthBuiltinRegistry.cpp
-    ../eth/precompiled/PrecompiledContract.cpp
-    ../eth/precompiled/ModexpGas.cpp
-    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${BLOCK_HASH_HOST_TEST_BINARY_NAME} PRIVATE
@@ -265,6 +224,7 @@ target_include_directories(${BLOCK_HASH_HOST_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${BLOCK_HASH_HOST_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
     evmone::evmone
     bcos-task
     bcos-framework
@@ -282,17 +242,6 @@ set(NESTED_REVERT_WARM_TEST_BINARY_NAME NestedRevertWarmTest)
 
 add_executable(${NESTED_REVERT_WARM_TEST_BINARY_NAME}
     state/NestedRevertWarmTest.cpp
-    ../eth/ExecuteMessage.cpp
-    ../eth/Eip7702.cpp
-    ../eth/state/State.cpp
-    ../eth/state/EthHost.cpp
-    ../eth/state/BloomFilter.cpp
-    ../eth/state/EthPrecompiles.cpp
-    ../eth/state/Transition.cpp
-    ../eth/precompiled/EthBuiltinRegistry.cpp
-    ../eth/precompiled/PrecompiledContract.cpp
-    ../eth/precompiled/ModexpGas.cpp
-    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${NESTED_REVERT_WARM_TEST_BINARY_NAME} PRIVATE
@@ -301,6 +250,7 @@ target_include_directories(${NESTED_REVERT_WARM_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${NESTED_REVERT_WARM_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
     evmone::evmone
     bcos-task
     bcos-framework
@@ -340,17 +290,6 @@ set(EVMONE_REFUND_SPIKE_TEST_BINARY_NAME EvmoneRefundSpikeTest)
 
 add_executable(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
     opstack/EvmoneRefundSpikeTest.cpp
-    ../eth/ExecuteMessage.cpp
-    ../eth/Eip7702.cpp
-    ../eth/state/State.cpp
-    ../eth/state/EthHost.cpp
-    ../eth/state/BloomFilter.cpp
-    ../eth/state/EthPrecompiles.cpp
-    ../eth/state/Transition.cpp
-    ../eth/precompiled/EthBuiltinRegistry.cpp
-    ../eth/precompiled/PrecompiledContract.cpp
-    ../eth/precompiled/ModexpGas.cpp
-    ../eth/precompiled/PrecompileRouter.cpp
 )
 
 target_include_directories(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME} PRIVATE
@@ -359,6 +298,7 @@ target_include_directories(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
     evmone::evmone
     bcos-task
     bcos-framework

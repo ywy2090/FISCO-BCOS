@@ -1,55 +1,61 @@
-# Task 5 Report — Imported State Fixtures Batch 2 (T-09)
+# Task 5 Report — ExecutionFrame Nested Production Path
 
-**Status:** Done  
-**Commit:** `21420cc92`  
-**Message:** `test(eth): add imported state fixtures batch 2 (5 cases)`
+**Base:** dec56b4a5  
+**Status:** ✅ Complete  
+**Date:** 2026-06-24
 
 ## Summary
 
-Added 5 hand-crafted minimal Prague state-test vectors under `fixtures/state/imported/` covering CREATE, CREATE2, MODEXP, BLS G1ADD, and SELFDESTRUCT. `ExecuteViaEthFixtureTest` now exercises **15** fixtures (5 root + 10 imported).
+Implemented full `runExecutionFrame(Nested)` pipeline in `ExecutionFrame.cpp`, delegating `EthHost::call` to it. Removed duplicated routing/transfer/caller helpers from `EthHost`. Fixed six vendored-`EthHost.cpp` state test targets to link `bcos-evm-eth`.
 
-## Files Created
+## Changes
 
-| File | Scenario | Source |
-|------|----------|--------|
-| `stCreate_initCode.json` | CREATE with init code returning runtime `0x2a` | `hand-crafted/from GeneralStateTests/stCreate` |
-| `stCreate2_basic.json` | Factory contract runs CREATE2 with empty runtime code | `hand-crafted/from GeneralStateTests/stCreate2` |
-| `stModExp_basic.json` | Direct call to MODEXP `0x05` with zero mod length | `hand-crafted/from GeneralStateTests/stModExp` |
-| `stBLS_add.json` | BLS12 G1ADD: infinity + generator → generator | `hand-crafted/from execution-spec-tests/eip2537_bls12_g1add/inf_plus_generator` |
-| `stSelfDestruct_basic.json` | Contract `SELFDESTRUCT`s to beneficiary | `hand-crafted/from GeneralStateTests/stSelfDestruct` |
+| File | Change |
+|------|--------|
+| `bcos-evm/eth/execution/ExecutionFrame.cpp` | Full RR6 nested pipeline: route → DELEGATECALL guard → precompile → caller/prepare → CREATE bind → checkpoint → init → transfer → VM → finalize (incl. §4.1 CREATE nonce bump) |
+| `bcos-evm/eth/state/EthHost.cpp` | Thin `call()` delegating to `runExecutionFrame(Nested)`; deleted `routeCall`, `resolveExecutionCode`, `transferValue`, `resolveCallerAddress` |
+| `bcos-evm/eth/state/EthHost.hpp` | Removed `RoutedCall` and moved helper declarations |
+| `bcos-evm/test/cmake/StateTests.cmake` | 6 targets now link `bcos-evm-eth` instead of vendoring eth sources |
 
-## Expected Values
+## RR6 Order (verified)
 
-| Fixture | status | output | gas_used |
-|---------|--------|--------|----------|
-| `stCreate_initCode` | EVMC_SUCCESS | 32-byte word `0x…002a` | 154 |
-| `stCreate2_basic` | EVMC_SUCCESS | `0x` | 0 (skipped) |
-| `stModExp_basic` | EVMC_SUCCESS | `0x` | 0 (skipped) |
-| `stBLS_add` | EVMC_SUCCESS | 128-byte G1 generator encoding | 0 (skipped) |
-| `stSelfDestruct_basic` | EVMC_SUCCESS | `0x` | 7603 |
+1. `routeMessage(Nested)`
+2. DELEGATECALL→precompile guard
+3. `dispatchPrecompile` (early return + `precompileHit`/`gasRefund`)
+4. `resolveCallerAddress` + `setCallerAddress` + `prepareMessage`
+5. `bindCreateMessageForInit` (CREATE)
+6. `checkpoint`
+7. `initializeCreateTargetAccount` (CREATE)
+8. `transferFrameValue(Nested)`
+9. `resolveExecutionCode` + `vm.execute`
+10. Finalize: code deposit, install code, `markCreatedInTx`, commit/revert, execution address update, nested CREATE nonce bump
 
-## Verification
+## Global Constraints
 
-```bash
-cmake --build build --target ExecuteViaEthFixtureTest -j$(sysctl -n hw.ncpu)
-./build/bcos-evm/test/ExecuteViaEthFixtureTest
-# *** No errors detected
+- ✅ `eth/execution/` has no bcos/opstack includes
+- ✅ `executeMessage.cpp` unchanged by this task
+- ✅ Live `dispatchPrecompile` call sites: `ExecutionFrame.cpp` (nested/EthHost path) + `ExecuteMessage.cpp` (top-level, pre-existing)
+
+## Test Results
+
+```
+ctest -R "^PrecompileRouterEnvelope$"           → 1/1 PASS
+ctest -R "^PrecompileRouter"                    → 4/4 PASS
+ctest -R "^PrecompileRouterCharacterization$|^PrecompileRouterEquivalence$" → 2/2 PASS
+cmake --build build --target NestedCallHostTest PragueStateTest → PASS
+
+Additional state targets (cmake fix verification):
+  PragueState, NestedCallHost, PrecompileInCall, BlockHashHost, NestedRevertWarm, EvmoneRefundSpike → 6/6 PASS
 ```
 
-| Metric | Value |
-|--------|-------|
-| Test binary | `ExecuteViaEthFixtureTest` |
-| Fixtures exercised | **15** (5 root + 10 imported) |
-| Result | **PASS** |
+## Concerns / Follow-ups
 
-## Notes
+1. **TopLevel stub:** `runExecutionFrame` returns `EVMC_INTERNAL_ERROR` for non-Nested scope; Task 6+ should implement TopLevel before wiring `executeMessage`.
+2. **gasRefund (RR4):** `EthHost::call` intentionally ignores `fr.gasRefund`; nested precompile refund propagation remains a later orchestration concern.
+3. **Pre-existing dirty tree:** Many unrelated modified/untracked files remain outside this commit scope.
 
-- All imported fixtures include required `source` field.
-- `stModExp_basic` uses zero mod length (96-byte header-only input) to avoid a top-level MODEXP gas-estimation edge case with non-zero length headers; still validates `0x05` precompile dispatch on Prague path.
-- `stBLS_add` uses the official `inf_plus_generator` vector from execution-spec-tests (256-byte input, 128-byte output).
-- `stCreate2_basic` factory bytecode includes explicit zero endowment before CREATE2 (4 stack items).
+## Commit
 
-## Next (Task 6)
-
-- Optional batch 3: up to 5 more imported vectors to reach 15 imported / 20 total
-- Optional `tools/convert_eth_state_fixture.py` skeleton
+```
+feat(bcos-evm): Delegate EthHost::call to runExecutionFrame(Nested)
+```
