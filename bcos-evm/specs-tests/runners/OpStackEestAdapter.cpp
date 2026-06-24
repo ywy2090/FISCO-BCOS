@@ -367,11 +367,15 @@ OpStackEestFixture adaptStateFixture(pt::ptree const& fixtureJson, std::string c
     auto blobVersionedHashes = parseBlobVersionedHashes(txTree);
     bool const authorizationListKeyPresent =
         txTree.get_child_optional("authorizationList").has_value();
+    bool const accessListsKeyPresent = txTree.get_child_optional("accessLists").has_value();
+    bool const hasExplicitFeeCaps =
+        txTree.get_optional<std::string>("maxFeePerGas").has_value() ||
+        txTree.get_optional<std::string>("maxPriorityFeePerGas").has_value();
 
     // Infer typed tx kind
     uint8_t web3TypedTxKind = bcos::evm::inferWeb3TypedTxKindFromFields(authorizationListKeyPresent,
-        !authorizations.empty(), !blobVersionedHashes.empty(), gasFeeCap != 0 || gasTipCap != 0,
-        !accessList.empty());
+        !authorizations.empty(), !blobVersionedHashes.empty(), hasExplicitFeeCaps,
+        !accessList.empty() || accessListsKeyPresent);
 
     // Build evmc_message
     evmc_message msg{};

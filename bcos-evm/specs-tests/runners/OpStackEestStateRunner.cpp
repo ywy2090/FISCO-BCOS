@@ -5,6 +5,7 @@
 
 #include "OpStackEestAdapter.h"
 
+#include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -346,6 +347,25 @@ void runFixtures(fs::path const& fixturesDir, bool smokeOnly, size_t limit,
                             break;
                         }
                     }
+                }
+
+                // Reject typed txs on forks that do not support them (EEST parity).
+                if (!bcos::evm::isTypedTxKindSupportedByRevision(
+                        fixture.input.web3TypedTxKind, fixture.input.revisionConfig))
+                {
+                    ++executed;
+                    if (fixture.expectSuccess)
+                    {
+                        std::cerr << "FAIL [" << fixture.name << "]: typed tx unsupported on fork "
+                                  << forkName << '\n';
+                        ++failed;
+                    }
+                    else
+                    {
+                        std::cout << "PASS [" << fixture.name << "] (typed tx rejected)\n";
+                        ++passed;
+                    }
+                    continue;
                 }
 
                 // Execute

@@ -177,11 +177,15 @@ public:
                 m_data->m_executionContext = std::move(output.executionContext);
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
 
-                if (m_data->m_evmcResult->status_code == EVMC_SUCCESS)
+                if (m_data->m_evmcResult->status_code == EVMC_SUCCESS ||
+                    m_data->m_evmcResult->status_code == EVMC_REVERT)
                 {
-                    co_await state::applyStateDiff(m_data->m_rollbackableStorage, output.stateDiff,
-                        false, *m_data->m_executor.get().m_hashImpl,
-                        m_data->m_transaction.get().abi());
+                    if (!output.stateDiff.accounts.empty())
+                    {
+                        co_await state::applyStateDiff(m_data->m_rollbackableStorage,
+                            output.stateDiff, false, *m_data->m_executor.get().m_hashImpl,
+                            m_data->m_transaction.get().abi());
+                    }
                 }
 
                 settleGasUsedFromEvmResult();
@@ -242,6 +246,7 @@ public:
                 input.web3TypedTxKind = m_data->m_web3TypedTxKind;
             }
             input.hasExplicitFeeCaps = m_data->m_hasExplicitFeeCaps;
+            input.txNonce = m_data->m_nonce.convert_to<uint64_t>();
             input.txHash = m_data->m_transaction.get().hash();
 
             auto output = co_await ethReferenceExecute(std::move(input));

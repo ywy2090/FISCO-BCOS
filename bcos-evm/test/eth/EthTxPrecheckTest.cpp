@@ -5,6 +5,7 @@
 #include "bcos-evm/eth/EthReferenceBridge.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
+#include <limits>
 
 namespace bcos::evm::test
 {
@@ -122,5 +123,19 @@ BOOST_AUTO_TEST_CASE(rejects_max_fee_below_base_fee)
     auto error = ethTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+}
+
+BOOST_AUTO_TEST_CASE(rejects_tx_nonce_at_uint64_max)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto const sender = addressFromLastByte(0x16);
+    state::State state(stateView);
+
+    auto input = makeInput(sender);
+    input.txNonce = std::numeric_limits<uint64_t>::max();
+
+    auto error = ethTxPrecheck(input, state);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::NonceCheckFail);
 }
 }  // namespace bcos::evm::test

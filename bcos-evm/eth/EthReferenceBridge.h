@@ -41,6 +41,7 @@ struct EthReferenceRequest
     const Eip2930AccessList* accessList{nullptr};
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
+    uint64_t txNonce{0};
     std::optional<bcos::h256> txHash;
 };
 

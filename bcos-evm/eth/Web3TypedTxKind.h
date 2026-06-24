@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "bcos-evm/eth/RevisionConfig.h"
+#include <evmc/evmc.h>
 #include <cstdint>
 
 namespace bcos::evm
@@ -47,6 +49,27 @@ inline uint8_t inferWeb3TypedTxKindFromFields(bool authorizationListKeyPresent,
         return 0x01;
     }
     return 0;
+}
+
+/// Reject EIP-2718 typed txs on forks that do not support them (geth/Besu parity).
+inline bool isTypedTxKindSupportedByRevision(
+    uint8_t web3TypedTxKind, bcos::evm_standard::RevisionConfig const& revision) noexcept
+{
+    switch (web3TypedTxKind)
+    {
+    case 0x00:
+        return true;
+    case 0x01:
+        return revision.revision >= EVMC_BERLIN;
+    case 0x02:
+        return revision.eip1559;
+    case 0x03:
+        return revision.eip4844;
+    case 0x04:
+        return revision.eip7702;
+    default:
+        return false;
+    }
 }
 
 }  // namespace bcos::evm

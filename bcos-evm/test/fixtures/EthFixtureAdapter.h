@@ -73,6 +73,7 @@ inline EthReferenceRequest buildEthReferenceRequest(FixtureCase const& fixture,
     input.gasFeeCap = fixture.tx.gasPrice;
     input.authorizationListPresent = fixture.authorizationListPresent;
     input.authorizations = fixture.authorizations;
+    input.txNonce = fixture.tx.nonce;
 
     return input;
 }

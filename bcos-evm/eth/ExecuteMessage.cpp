@@ -318,6 +318,16 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
                 state.set_nonce(createAddr, 1);
             }
         }
+        if (input.message.depth == 0 && !state::isZeroAddress(input.message.sender))
+        {
+            bool const authPrebumped =
+                !isCreateKind(input.message.kind) && input.revisionConfig.eip7702 &&
+                input.authorizationListPresent && !input.authorizations.empty();
+            if (!authPrebumped)
+            {
+                state.set_nonce(input.message.sender, state.get_nonce(input.message.sender) + 1);
+            }
+        }
         output.gasRefund = static_cast<int64_t>(state.get_refund());
         state.commit();
         state.finalize_self_destructs();

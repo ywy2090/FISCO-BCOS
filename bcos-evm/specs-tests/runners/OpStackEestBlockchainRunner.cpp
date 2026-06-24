@@ -119,8 +119,14 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
 
             try
             {
-                // Parse env
-                auto envTree = fixtureNode.get_child("env");
+                if (!fixtureNode.get_child_optional("env"))
+                {
+                    std::cerr << "SKIP " << variantKey
+                              << " (blockchain fixture lacks state-test env section)\n";
+                    ++skipped;
+                    continue;
+                }
+
                 auto fixture =
                     bcos::eest::opstack::adaptStateFixture(fixtureNode, forkName, vm, hashImpl);
                 fixture.name = variantKey;

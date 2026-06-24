@@ -391,7 +391,10 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
                        << LOG_KV("status", trace::evmcStatus(result.status_code))
                        << LOG_KV("gasLeft", result.gas_left);
     }
-    if (isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender))
+    // Nested CREATE bumps the caller nonce; top-level tx sender nonce is settled in
+    // executeMessage after the outer checkpoint commit/revert.
+    if (isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender) &&
+        msg.depth > 0)
     {
         m_state.set_nonce(callMessage.sender, m_state.get_nonce(callMessage.sender) + 1);
         if (m_extension != nullptr &&

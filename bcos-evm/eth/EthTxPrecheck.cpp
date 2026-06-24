@@ -2,8 +2,10 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/EthReferenceBridge.h"
+#include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.h>
+#include <limits>
 
 namespace bcos::evm
 {
@@ -26,6 +28,12 @@ std::optional<EVMCResult> makePreCheckError(
 
 std::optional<EVMCResult> ethTxPrecheck(EthReferenceRequest const& input, state::State& state)
 {
+    // EIP-2681: account nonce cannot exceed uint64 max; reject txs that cannot be incremented.
+    if (input.txNonce == std::numeric_limits<uint64_t>::max())
+    {
+        return makePreCheckError(protocol::TransactionStatus::NonceCheckFail);
+    }
+
     auto const senderCode = state.get_code(input.message.sender);
     if (!senderCode.empty() &&
         !parseDelegationTarget(bcos::bytesConstRef{senderCode.data(), senderCode.size()})
@@ -50,6 +58,11 @@ std::optional<EVMCResult> ethTxPrecheck(EthReferenceRequest const& input, state:
     }
 
     if (input.web3TypedTxKind == 0x04 && isCreateKind(input.message.kind))
+    {
+        return makePreCheckError(protocol::TransactionStatus::Malformed);
+    }
+
+    if (!isTypedTxKindSupportedByRevision(input.web3TypedTxKind, input.revisionConfig))
     {
         return makePreCheckError(protocol::TransactionStatus::Malformed);
     }
