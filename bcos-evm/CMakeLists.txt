@@ -25,6 +25,7 @@ set(BCOS_EVM_ETH_SOURCES
 set(BCOS_EVM_BCOS_SOURCES
     bcos/ExecuteViaHost.cpp
     bcos/FiscoHostExtension.cpp
+    bcos/FiscoOrchestrationProfile.cpp
     bcos/FiscoStateView.cpp
 )
 

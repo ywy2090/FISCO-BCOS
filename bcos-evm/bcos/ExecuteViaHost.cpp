@@ -19,6 +19,7 @@
 #include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
+#include "bcos-evm/bcos/FiscoOrchestrationInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
@@ -40,71 +41,6 @@ namespace bcos::evm
 {
 namespace
 {
-struct NotFoundCodeError : public std::runtime_error
-{
-    NotFoundCodeError() : std::runtime_error("code not found") {}
-};
-
-bool hasNonZeroValue(const evmc_bytes32& value)
-{
-    for (auto byte : value.bytes)
-    {
-        if (byte != 0)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool isCreateKind(evmc_call_kind kind) noexcept
-{
-    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
-
-bool addressEqual(const evmc_address& lhs, const evmc_address& rhs) noexcept
-{
-    return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
-}
-
-void maybeTransferValue(state::State& state, const evmc_message& msg, bool fixDelegateCallTransfer)
-{
-    if (!hasNonZeroValue(msg.value))
-    {
-        return;
-    }
-
-    // CREATE/CREATE2 endowment is applied by the EVM kernel; pre-transfer would double-count.
-    if (isCreateKind(msg.kind))
-    {
-        return;
-    }
-
-    bool const shouldTransfer = fixDelegateCallTransfer ?
-                                    ((msg.kind == EVMC_CALL && (msg.flags & EVMC_STATIC) == 0)) :
-                                    true;
-    if (!shouldTransfer)
-    {
-        return;
-    }
-
-    if (addressEqual(msg.code_address, msg.sender) || addressEqual(msg.recipient, msg.sender))
-    {
-        return;
-    }
-
-    auto const value = state::fromEvmC(msg.value);
-    auto const fromBalance = state.get_balance(msg.sender);
-    if (fromBalance < value)
-    {
-        BOOST_THROW_EXCEPTION(
-            protocol::NotEnoughCashError{} << errinfo_comment("Account balance is not enough!"));
-    }
-    auto const toBalance = state.get_balance(msg.recipient);
-    state.set_balance(msg.sender, fromBalance - value);
-    state.set_balance(msg.recipient, toBalance + value);
-}
-
 std::vector<protocol::LogEntry> convertLogs(const std::vector<state::LogEntry>& logs)
 {
     std::vector<protocol::LogEntry> out;
