@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -20,7 +20,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x31);
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);

@@ -48,7 +48,7 @@ namespace bcos::evm
 
 struct FiscoExecutionRequest
 {
-    state::StateView const* stateView{nullptr};
+    state::EvmStateReader const* stateView{nullptr};
     evmc::VM* vm{nullptr};
     bcos::crypto::Hash const* hashImpl{nullptr};
 

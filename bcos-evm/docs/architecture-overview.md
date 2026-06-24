@@ -2,7 +2,7 @@
 
 **用途：** 供评审者快速理解 `bcos-evm` 的分层契约、扩展机制与治理纪律。
 **配套文档：** 外部入口 [review-pack.md](review-pack.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–019`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`。
-**校验：** 2026-06-24（与 `runOrchestration` 三路径收敛、ADR-018 dense Isthmus 对齐）
+**校验：** 2026-06-24（与 `runTxPipeline` 三路径收敛、ADR-018 dense Isthmus 对齐）
 
 ---
 
@@ -36,28 +36,28 @@ add_library(bcos-evm ALIAS bcos-evm-bcos)
 ```mermaid
 graph TD
     subgraph kernel["bcos-evm-eth（共享内核）"]
-        RO["runOrchestration()"]
+        RO["runTxPipeline()"]
         EM["executeMessage()"]
-        HE["HostExtension（基类=标准以太坊语义）"]
+        VHP["VmHostPolicy（基类=标准以太坊语义）"]
         RC["RevisionConfig（EIP 开关位域）"]
     end
     subgraph bcos["bcos-evm-bcos（FISCO）"]
-        EVH["executeViaHost()"]
-        FHE["FiscoHostExtension"]
+        FEB["fiscoExecute()"]
+        FVP["FiscoVmHostPolicy"]
         FP["FiscoPolicy"]
         PORTS["AuthPort / ChainPrecompilePort（纯虚接口）"]
     end
     subgraph op["bcos-evm-op（OP Stack）"]
-        OEVH["opStackExecuteViaHost()"]
-        OHE["OpHostExtension"]
+        OEB["opStackExecute()"]
+        OVP["OpStackVmHostPolicy"]
     end
-    ETH["executeViaEth()"] --> RO
-    EVH --> RO
-    OEVH --> RO
+    ETH["ethReferenceExecute()"] --> RO
+    FEB --> RO
+    OEB --> RO
     RO --> EM
-    FHE -.implements.-> HE
-    OHE -.implements.-> HE
-    EVH -. 注入 .-> PORTS
+    FVP -.implements.-> VHP
+    OVP -.implements.-> VHP
+    FEB -. 注入 .-> PORTS
     bcos --> kernel
     op --> kernel
 ```
@@ -68,8 +68,8 @@ graph TD
             ┌──────────────────────────┐   ┌──────────────────────────┐
             │   bcos-evm-bcos (FISCO)   │   │   bcos-evm-op (OP Stack)  │
             │  ──────────────────────   │   │  ──────────────────────   │
-            │  executeViaHost()         │   │  opStackExecuteViaHost()  │
-            │  FiscoHostExtension       │   │  OpHostExtension          │
+            │  fiscoExecute()           │   │  opStackExecute()         │
+            │  FiscoVmHostPolicy        │   │  OpStackVmHostPolicy      │
             │  FiscoPolicy              │   │  (Isthmus profile)        │
             │  AuthPort /               │   │                           │
             │  ChainPrecompilePort      │   │                           │
@@ -79,12 +79,12 @@ graph TD
             ┌───────────────────────────────────────────────────────────┐
             │                  bcos-evm-eth （共享内核）                   │
             │  ───────────────────────────────────────────────────────   │
-            │   runOrchestration()      共享编排管线（ADR-019）            │
+            │   runTxPipeline()      共享编排管线（ADR-019）            │
             │   executeMessage()        纯函数式 EVM 执行核心              │
-            │   HostExtension           扩展点基类 = 标准以太坊默认语义     │
+            │   VmHostPolicy            扩展点基类 = 标准以太坊默认语义     │
             │   RevisionConfig          EIP 开关位域（13 个 bool + 参数）   │
             │   PrecompileRouter        内核精编译路由                     │
-            │   EthPolicy / ExecuteViaEth   以太坊参考路径（接线审计）       │
+            │   EthPolicy / EthReferenceBridge   以太坊参考路径（接线审计）  │
             └───────────────────────────────────────────────────────────┘
                          │
                          ▼  仅依赖
@@ -101,36 +101,36 @@ graph TD
 
 ## 3. 执行流：三入口 → 共享编排 → 内核
 
-自 ADR-019 起，三个 `executeVia*` 入口均为薄 wrapper：映射输入 → 填充 `OrchestrationHooks` → 调用 `runOrchestration` → 映射输出。共享步骤（intrinsic debit、`buildExecuteMessageInput`、`adoptEvmcResult`、settlement snapshot）在 `eth/orchestration/` 单点 enforcement。
+自 ADR-019 起，三个执行桥入口均为薄 wrapper：映射输入 → 填充 `TxPipelineHooks` → 调用 `runTxPipeline` → 映射输出。共享步骤（intrinsic debit、`BuildExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot）在 `eth/orchestration/` 单点 enforcement。
 
-内核 `executeMessage` 是纯函数式 EVM 执行核心，仅通过 `HostExtension*` 注入链行为：
+内核 `executeMessage` 是纯函数式 EVM 执行核心，仅通过 `VmHostPolicy*` 注入链行为：
 
 ```cpp
 // eth/ExecuteMessage.h
 struct ExecuteMessageInput {
-    state::StateView const* stateView;
+    state::EvmStateReader const* stateView;
     evmc::VM* vm;
     evmc_message message;
     bcos::evm_standard::RevisionConfig revisionConfig;
-    state::HostExtension* extension;   // 内核内唯一的链行为注入点
+    state::VmHostPolicy* extension;   // 内核内唯一的链行为注入点
     // ...
 };
 ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
 ```
 
-**编排不变量：** `OrchestrationContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `debitIntrinsicGas` 修改它，步骤 ⑦ `executeMessage` 使用同一引用（源码：`OrchestrationPipeline.cpp:40–68`；三路径均 call `runOrchestration`：`ExecuteViaEth.cpp:151`、`ExecuteViaHost.cpp:375`、`OpStackExecuteViaHost.cpp`）。
+**编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `debitIntrinsicGas` 修改它，步骤 ⑦ `executeMessage` 使用同一引用（源码：`TxPipeline.cpp`；三路径均 call `runTxPipeline`：`EthReferenceBridge.cpp`、`FiscoExecutionBridge.cpp`、`OpStackExecutionBridge.cpp`）。
 
 三个编排入口签名风格一致，但各自携带链特有字段：
 
 | 入口 | 文件 | 链特有输入 | 能力矩阵列语义 |
 | --- | --- | --- | --- |
-| `executeViaEth` | `eth/ExecuteViaEth.h` | 无（标准以太坊） | ETH = **接线审计 / 契约测试**（非生产继承证明） |
-| `executeViaHost` | `bcos/ExecuteViaHost.h` | `AuthPort* / ChainPrecompilePort* / persistContractCreateNonce` | BCOS = **FISCO 生产继承契约** |
-| `opStackExecuteViaHost` | `opstack/OpStackExecuteViaHost.h` | deposit tx、blob、rollup cost、fork schedule | OPStack = **OP 生产继承契约** |
+| `ethReferenceExecute` | `eth/EthReferenceBridge.h` | 无（标准以太坊） | ETH = **接线审计 / 契约测试**（非生产继承证明） |
+| `fiscoExecute` | `bcos/FiscoExecutionBridge.h` | `AuthPort* / ChainPrecompilePort* / persistContractCreateNonce` | BCOS = **FISCO 生产继承契约** |
+| `opStackExecute` | `opstack/OpStackExecutionBridge.h` | deposit tx、blob、rollup cost、fork schedule | OPStack = **OP 生产继承契约** |
 
 > 评审提醒：ETH 列测试通过 **不等于** BCOS/OP 通过。矩阵中标 `inherited` 且 baseline-reachable 的行必须有 TE 路径测试。
 
-### 3.1 固定编排管线（`runOrchestration`，ADR-019）
+### 3.1 固定编排管线（`runTxPipeline`，ADR-019）
 
 ```text
 ① validate(vm, hashImpl)     — try/catch 外
@@ -154,7 +154,7 @@ OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `s
 ```text
    ETH 参考路径        FISCO 生产路径            OP Stack 生产路径
   ──────────────     ─────────────────        ───────────────────
-  executeViaEth      executeViaHost           opStackExecuteViaHost
+  ethReferenceExecute  fiscoExecute             opStackExecute
        │                  │                          │
        │             wrapper 外圈：auth、           wrapper 外圈：
        │             value xfer、21000 gas          buyGas/refund、deposit、
@@ -162,7 +162,7 @@ OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `s
        └───────┬──────────┴────────────┬─────────────┘
                ▼                        ▼
         ┌──────────────────────────────────────────────┐
-        │         runOrchestration(ctx, hooks)           │
+        │         runTxPipeline(ctx, hooks)           │
         │         ctx.message = intrinsic 唯一 owner     │
         └──────────────────────┬───────────────────────┘
                                ▼
@@ -178,10 +178,10 @@ OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `s
         │     └─ bumpContractCreateNonce() ── CREATE     │
         │                   │                            │
         │                   ▼                            │
-        │        HostExtension*（多态派发）               │
+        │        VmHostPolicy*（多态派发）                │
         │   ┌───────────────┼────────────────┐          │
         │   ▼               ▼                ▼          │
-        │ 默认基类     FiscoHostExtension  OpHostExtension │
+        │ 默认基类     FiscoVmHostPolicy  OpStackVmHostPolicy │
         │ (标准以太坊)   (FISCO 语义)      (L1Block 预部署) │
         └──────────────────────────────────────────────┘
                │
@@ -194,11 +194,11 @@ OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `s
 
 ## 4. 两种扩展机制（核心设计）
 
-### 4.1 `HostExtension` —— 内核**内部**的回调钩子
+### 4.1 `VmHostPolicy` —— 内核**内部**的回调钩子
 
 ```cpp
-// eth/policy/HostExtension.h
-struct HostExtension {
+// eth/policy/VmHostPolicy.h
+struct VmHostPolicy {
     virtual bool allowSelfdestruct(const Account&)        { return true; }   // 默认=标准以太坊
     virtual bool allowDelegateCallToPrecompile()          { return true; }
     virtual bool skipHostValueTransfer()                  { return false; }
@@ -210,26 +210,26 @@ struct HostExtension {
 ```
 
 - **默认实现 = 标准以太坊语义**，链层只覆写差异。
-- `FiscoHostExtension`：禁 selfdestruct、禁 delegatecall-to-precompile、CREATE nonce 持久化、FISCO precompile 优先级。
-- `OpHostExtension`：只覆写 `tryChainPrecompile`，挂载 L1Block 预部署。
-- 这些钩子在**内核调用树内部**触发（ADR-005 §3：HostExtension 在 kernel 内运行；Orchestrator / `runOrchestration` 在 `executeMessage` 之前运行）。
+- `FiscoVmHostPolicy`：禁 selfdestruct、禁 delegatecall-to-precompile、CREATE nonce 持久化、FISCO precompile 优先级。
+- `OpStackVmHostPolicy`：只覆写 `tryChainPrecompile`，挂载 L1Block 预部署。
+- 这些钩子在**内核调用树内部**触发（ADR-005 §3：`VmHostPolicy` 在 kernel 内运行；Orchestrator / `runTxPipeline` 在 `executeMessage` 之前运行）。
 
-### 4.3 `OrchestrationHooks` —— 编排管线注入（ADR-019）
+### 4.3 `TxPipelineHooks` —— 编排管线注入（ADR-019）
 
-文件：`eth/orchestration/OrchestrationHooks.h`
+文件：`eth/orchestration/TxPipelineHooks.h`
 
-链特有编排行为通过 hook 回调注入 `runOrchestration`，**不得**在 `eth/orchestration/` 内 `#include bcos/` 或 `opstack/`。典型 hook：
+链特有编排行为通过 hook 回调注入 `runTxPipeline`，**不得**在 `eth/orchestration/` 内 `#include bcos/` 或 `opstack/`。典型 hook：
 
 | Hook | Eth | Fisco | OpStack |
 | --- | --- | --- | --- |
 | `preExecute` | 1559 caps、precheck | auth check | — |
-| `preDebitEntry` | — | — | floor/balance（`OpStackPreDebitEntry`） |
+| `preDebitEntry` | — | — | floor/balance（`OpStackFloorGasPrecheck`） |
 | `preKernel` | `canTransfer` | 21000 gas、value xfer | — |
 | `postAdopt` | included-tx vmerr | CREATE address 修补 | — |
 | `postSettle` | — | revert logs | `postExecuteGasSettlement` |
 | `mapIntrinsicFailure` / `mapException` | 链特有错误映射 | Fisco `fixErrorHandling` | internal error |
 
-与 `HostExtension` 的分界：hooks 在 `executeMessage` **之前/之后**的管线步骤运行；`HostExtension` 在 evmone 调用树**内部**运行。
+与 `VmHostPolicy` 的分界：hooks 在 `executeMessage` **之前/之后**的管线步骤运行；`VmHostPolicy` 在 evmone 调用树**内部**运行。
 
 ### 4.2 `Port` —— 编排层对 `bcos-executor` 的依赖倒置（ADR-017，本次重构新增）
 
@@ -332,19 +332,20 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | --- | --- |
 | 外部 review 入口 | `docs/review-pack.md` |
 | 库划分 / 依赖 | `bcos-evm/CMakeLists.txt` |
-| 共享编排管线 | `eth/orchestration/OrchestrationPipeline.cpp` |
-| 编排上下文 / 钩子 | `eth/orchestration/OrchestrationContext.h`、`OrchestrationHooks.h` |
+| 共享编排管线 | `eth/orchestration/TxPipeline.cpp` |
+| 编排上下文 / 钩子 | `eth/orchestration/TxPipelineContext.h`、`TxPipelineHooks.h` |
 | 内核入口 | `eth/ExecuteMessage.h` / `.cpp` |
-| 内核扩展点基类 | `eth/policy/HostExtension.h` |
+| 内核扩展点基类 | `eth/policy/VmHostPolicy.h` |
 | EIP 开关 / 单一 derive | `eth/RevisionConfig.h`（`revisionConfigFromRevision`） |
 | ETH 参考 Policy | `eth/vm/EthPolicy.h` |
-| FISCO 编排入口 | `bcos/ExecuteViaHost.h` |
-| FISCO 扩展实现 | `bcos/FiscoHostExtension.h` |
+| FISCO 编排入口 | `bcos/FiscoExecutionBridge.h` |
+| FISCO 扩展实现 | `bcos/FiscoVmHostPolicy.h` |
+| FISCO 钩子绑定 | `bcos/FiscoPipelineHookBinder.h` |
 | FISCO Policy（derive + 掩码） | `bcos/FiscoPolicy.h` |
 | 依赖倒置端口 | `bcos/ports/AuthPort.h`、`bcos/ports/ChainPrecompilePort.h` |
-| OP 编排入口 | `opstack/OpStackExecuteViaHost.h` |
-| OP pre-debit | `opstack/OpStackPreDebitEntry.cpp` |
-| OP 扩展实现 | `opstack/OpHostExtension.h` |
+| OP 编排入口 | `opstack/OpStackExecutionBridge.h` |
+| OP pre-debit | `opstack/OpStackFloorGasPrecheck.cpp` |
+| OP 扩展实现 | `opstack/OpStackVmHostPolicy.h` |
 | 能力契约 | `capability-matrix.md` |
 | 决策记录 | `docs/adr/001–019` |
 | 技术债台账 | `docs/architecture-known-gaps.md` |

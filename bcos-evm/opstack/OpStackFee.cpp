@@ -140,7 +140,7 @@ u256 operatorCostIsthmus(uint64_t gas, OpStackFeeParams const& params)
     return fee;
 }
 
-OpStackFeeParams loadOpStackFeeParams(state::StateView const& state)
+OpStackFeeParams loadOpStackFeeParams(state::EvmStateReader const& state)
 {
     OpStackFeeParams params{};
 
@@ -178,14 +178,14 @@ OperatorCostFunc selectOperatorCostFunc(
 }
 
 L1CostFunc wireL1CostFuncWithState(
-    OpStackForkSchedule const& schedule, state::StateView const& state)
+    OpStackForkSchedule const& schedule, state::EvmStateReader const& state)
 {
     return makeCachedL1CostFunc(
         schedule, [&state](uint64_t) { return loadOpStackFeeParams(state); });
 }
 
 OperatorCostFunc wireOperatorCostFuncWithState(
-    OpStackForkSchedule const& schedule, state::StateView const& state)
+    OpStackForkSchedule const& schedule, state::EvmStateReader const& state)
 {
     return makeCachedOperatorCostFunc(
         schedule, [&state](uint64_t) { return loadOpStackFeeParams(state); });

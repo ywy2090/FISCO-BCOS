@@ -8,9 +8,9 @@
 #include "adapters/PrecompiledImpl.h"
 #include "adapters/PrecompiledManager.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
+#include "bcos-evm/bcos/FiscoEvmStateReader.h"
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxFeeLedger.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
@@ -153,7 +153,7 @@ public:
         {
             if constexpr (phase == static_cast<int>(ExecutePhase::Prepare))
             {
-                bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
+                bcos::evm::state::FiscoEvmStateReader stateView(m_data->m_rollbackableStorage,
                     m_data->m_executionContext.revisionConfig.use_raw_address,
                     *m_data->m_executor.get().m_hashImpl);
                 bcos::evm::state::State state(stateView);
@@ -296,7 +296,7 @@ public:
             input.accessList = m_data->m_web3AccessListResolved.accessList;
             input.txHash = m_data->m_transaction.get().hash();
 
-            bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
+            bcos::evm::state::FiscoEvmStateReader stateView(m_data->m_rollbackableStorage,
                 m_data->m_executionContext.revisionConfig.use_raw_address,
                 *m_data->m_executor.get().m_hashImpl);
             input.stateView = std::addressof(stateView);

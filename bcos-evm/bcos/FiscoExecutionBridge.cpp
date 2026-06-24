@@ -23,7 +23,7 @@
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
-#include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
+#include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -138,7 +138,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     auto const fixErrorHandling = input.revisionConfig.fix_error_handling;
     auto const eip7623Enabled = input.web3Tx && input.revisionConfig.eth().eip7623;
 
-    OrchestrationContext ctx{
+    TxPipelineContext ctx{
         *input.stateView, input.message, input.revisionConfig.eth(), input.gasPrice};
     ctx.inputs.vm = input.vm;
     ctx.inputs.hashImpl = input.hashImpl;
@@ -174,7 +174,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
 
     // TODO: OrchestrationErrorPolicy (candidate 4) — mapIntrinsicFailure / mapException
     hooks.mapIntrinsicFailure = [fixErrorHandling, hashImpl = input.hashImpl](
-                                    OrchestrationContext& orchestrationCtx,
+                                    TxPipelineContext& orchestrationCtx,
                                     IntrinsicDebitFailure failure) {
         std::string reason = "EIP-7623 intrinsic OOG";
         switch (failure)
@@ -197,7 +197,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     };
 
     hooks.mapException = [fixErrorHandling, hashImpl = input.hashImpl](
-                             OrchestrationContext& c, std::exception_ptr exceptionPtr) {
+                             TxPipelineContext& c, std::exception_ptr exceptionPtr) {
         try
         {
             std::rethrow_exception(exceptionPtr);
@@ -241,7 +241,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
         }
     };
 
-    runOrchestration(ctx, hooks);
+    runTxPipeline(ctx, hooks);
 
     EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))

@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -19,7 +19,7 @@ bytes setterSelector()
 
 BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
     OpVmHostPolicy extension(&state);
     evmc::VM vm{evmc_create_evmone()};

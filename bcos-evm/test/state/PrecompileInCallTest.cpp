@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_SUITE(PrecompileInCallTest)
 
 BOOST_AUTO_TEST_CASE(contract_call_identity_precompile_returns_input)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
 
     auto const caller = addressFromByte(0x01);
     auto const sender = addressFromByte(0xaa);

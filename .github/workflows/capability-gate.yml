@@ -22,6 +22,8 @@ jobs:
         run: bash bcos-evm/tools/ci/check-revision-single-source.sh
       - name: Filename convention gate
         run: bash bcos-evm/tools/ci/check-filename-convention.sh
+      - name: Eth layer boundary gate
+        run: bash bcos-evm/tools/ci/check-eth-layer-boundary.sh
       - name: Compile boundary — bcos-evm zero bcos-executor includes
         run: |
           set -euo pipefail

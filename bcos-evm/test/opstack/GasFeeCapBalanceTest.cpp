@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -28,7 +28,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(gas_fee_cap_balance_check_rejects_insufficient_sender)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x81);
     auto const target = addressFromLastByte(0x82);
     stateView.insert_account(sender, state::Account{.balance = u256(10), .nonce = 0});

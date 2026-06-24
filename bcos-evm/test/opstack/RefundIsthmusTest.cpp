@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE RefundIsthmusTest
 
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -19,7 +19,7 @@ evmc_address fromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(RefundIsthmus_refundsLimitMinusUsedCost)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = fromLastByte(0x01);
     state::Account senderAccount;
     senderAccount.balance = 10;

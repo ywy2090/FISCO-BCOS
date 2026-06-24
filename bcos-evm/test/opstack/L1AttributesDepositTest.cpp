@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -42,7 +42,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following_user_tx)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const user = addressFromLastByte(0x71);
     auto const target = addressFromLastByte(0x72);
     stateView.insert_account(OP_DEPOSITOR_ACCOUNT, state::Account{.nonce = 0});

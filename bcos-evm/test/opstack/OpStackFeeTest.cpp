@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE OpStackFeeTest
 
 #include "bcos-evm/opstack/OpStackFee.h"
+#include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/RollupCost.h"
@@ -55,7 +55,7 @@ bytesConstRef toRef(bytes const& data)
     return {data.data(), data.size()};
 }
 
-class MockStateView : public state::StateView
+class MockStateView : public state::EvmStateReader
 {
 public:
     void setSlot(u256 slot, evmc_bytes32 value) { m_slots[slot] = value; }

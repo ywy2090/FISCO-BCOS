@@ -9,11 +9,11 @@
 
 ## 1. 已完成：三链编排收敛
 
-三条 `executeVia*` 均已迁入 `runOrchestration`（ADR-019，见 `.superpowers/sdd/orch-progress.md` Task 1A–4 complete）。
+三条 `executeVia*` 均已迁入 `runTxPipeline`（ADR-019，见 `.superpowers/sdd/orch-progress.md` Task 1A–4 complete）。
 
 | 项 | 状态 |
 | --- | --- |
-| `runOrchestration` 固定 12 步管线 | ✅ |
+| `runTxPipeline` 固定 12 步管线 | ✅ |
 | `debitIntrinsicGas` / `adoptEvmcResult` / `buildExecuteMessageInput` 单点 | ✅ |
 | OpStack intrinsic 与 `ctx.message` 同步 | ✅ 结构性修复 |
 | 三份 `adoptResult` 匿名副本 | ✅ 合并为 `AdoptEvmcResult.h` |
@@ -31,14 +31,14 @@
 | EIP-7623 intrinsic 预扣 | `message.gas -=` | `message.gas -=` | `txData.m_message.gas -=` |
 | 传入 `executeMessage` 的 message | 已扣减 | 已扣减 | **`input.message`（未扣减）** |
 
-**OpStack 正确性缺陷：** `executeEntryChecks` 在 `txData.m_message` 上扣 intrinsic，但 `executeMessage` 传入 `input.message`——进内核的 gas 与扣减对象分裂。修复方式：`OrchestrationContext::message` 作为唯一可变 message owner；回归测试 `test/opstack/OpStackIntrinsicGasSyncTest.cpp`。
+**OpStack 正确性缺陷：** `executeEntryChecks` 在 `txData.m_message` 上扣 intrinsic，但 `executeMessage` 传入 `input.message`——进内核的 gas 与扣减对象分裂。修复方式：`TxPipelineContext::message` 作为唯一可变 message owner；回归测试 `test/opstack/OpStackIntrinsicGasSyncTest.cpp`。
 
 **收敛后形态：**
 
 ```text
-executeViaEth    ──hooks──► runOrchestration ──► executeMessage
-executeViaHost   ──hooks──► runOrchestration ──► executeMessage
-opStackExecute   ──hooks──► runOrchestration ──► executeMessage
+executeViaEth    ──hooks──► runTxPipeline ──► executeMessage
+executeViaHost   ──hooks──► runTxPipeline ──► executeMessage
+opStackExecute   ──hooks──► runTxPipeline ──► executeMessage
                               ↑ ctx.message 唯一所有权
 ```
 
@@ -138,7 +138,7 @@ P2  Speculative
 
 **问题（无 locality）：** 管线共享 gas 数学，但错误语义仍分散在三个 wrapper 的 `mapException` / `postAdopt` / `postSettle` lambda（各 ~100–180 行）。Eth 有 included-tx vmerr；Fisco 有 `fixErrorHandling` 矩阵；OpStack 用 `postExecuteGasSettlement`。理解「同一 `EVMC_REVERT` 在三链含义」需读三份 cpp。
 
-**方案:** 引入 `OrchestrationErrorPolicy` interface；Eth / Fisco / Op 各一个 adapter；`runOrchestration` 只调用 policy 方法。内核修复（候选 3）自动惠及三链。
+**方案:** 引入 `OrchestrationErrorPolicy` interface；Eth / Fisco / Op 各一个 adapter；`runTxPipeline` 只调用 policy 方法。内核修复（候选 3）自动惠及三链。
 
 **收益:**
 
@@ -185,7 +185,7 @@ P2  Speculative
 
 **问题:** intrinsic 已统一到 `ctx.message`，但外圈仍维护 20+ 字段的 `OpStackTxExecutionData` 影子帧（`m_gasLimit` 来自原始 input、`m_message` 仍拷贝）。`applySettlement` / `refundGas` / receipt meta 读 `txData` 而非 `ctx`——下一类 drift 会出在 settlement 环。ADR-019 Q14「移除 dual-track message」在 `txData.m_message` 上未完全落地。
 
-**方案:** `OpStackSettlementContext` adapter 从 `OrchestrationContext` 只读投影 gas/settlement 字段；buyGas/refund 环只 mutates `ctx` + 少量 fee 侧车；补 normal 路径 `buyGas→runOrchestration→refundGas→build_diff` 集成测试。
+**方案:** `OpStackSettlementContext` adapter 从 `TxPipelineContext` 只读投影 gas/settlement 字段；buyGas/refund 环只 mutates `ctx` + 少量 fee 侧车；补 normal 路径 `buyGas→runTxPipeline→refundGas→build_diff` 集成测试。
 
 **ADR:** ADR-019 Q7/Q19 明确 fee 必须在 wrapper——不冲突。
 
@@ -195,11 +195,11 @@ P2  Speculative
 
 **强度:** Speculative → Worth exploring（在 P0 之后）· **类别:** in-process
 
-**文件:** `eth/orchestration/OrchestrationHooks.h` · `eth/ExecuteViaEth.cpp` · `bcos/ExecuteViaHost.cpp` · `test/eth/OrchestrationPipelineTest.cpp`
+**文件:** `eth/orchestration/TxPipelineHooks.h` · `eth/ExecuteViaEth.cpp` · `bcos/ExecuteViaHost.cpp` · `test/eth/TxPipelineTest.cpp`
 
-**问题:** `runOrchestration` 已是深 module，但链差异仍通过 10 个 default-noop `std::function` 注入；每个 wrapper 内联完整策略，无 `EthOrchestrationProfile` / `FiscoOrchestrationProfile` 具名 implementation。新增 hook 需改 3 个 cpp + 默认值 + 测试矩阵。
+**问题:** `runTxPipeline` 已是深 module，但链差异仍通过 10 个 default-noop `std::function` 注入；每个 wrapper 内联完整策略，无 `EthOrchestrationProfile` / `FiscoOrchestrationProfile` 具名 implementation。新增 hook 需改 3 个 cpp + 默认值 + 测试矩阵。
 
-**方案:** 链侧提供 named profile struct；wrapper 仅 `runOrchestration(ctx, EthProfile::hooks(input))`；或与候选 4（ErrorPolicy）合并。
+**方案:** 链侧提供 named profile struct；wrapper 仅 `runTxPipeline(ctx, EthProfile::hooks(input))`；或与候选 4（ErrorPolicy）合并。
 
 **备注:** `eth-layer-design-review.md` §3.6 仍写「仅 Eth 用 pipeline」——文档 stale，应更新。
 
@@ -209,7 +209,7 @@ P2  Speculative
 
 | 生产路径 | 现有测试 | 缺口 |
 | --- | --- | --- |
-| `runOrchestration` 步序 | `OrchestrationPipelineTest.cpp` | 无链 profile 快照 |
+| `runTxPipeline` 步序 | `TxPipelineTest.cpp` | 无链 profile 快照 |
 | `executeViaHost` 编排 hook | `BcosAuthOrchestratorHookTest`, smoke | 无 full Fisco orchestration matrix |
 | OpStack normal 外圈 | `OpStackExecuteViaHostSmokeTest` | earlyExit × refundGas × gas pool 组合少 |
 | PrecompileRouter | 多个 Router 测试 | envelope 顺序 bug 测试可能固化错误行为 |

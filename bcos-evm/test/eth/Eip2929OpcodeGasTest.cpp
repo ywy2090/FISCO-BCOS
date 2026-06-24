@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip2929OpcodeGasTest
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <evmone/instructions_traits.hpp>
@@ -45,7 +45,7 @@ int64_t gasUsed(int64_t gasLimit, evmc::Result const& result)
     return gasLimit - result.gas_left;
 }
 
-ExecuteMessageOutput runContractCode(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+ExecuteMessageOutput runContractCode(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
     evmc_address const& sender, evmc_address const& contract, bcos::bytes const& code,
     int64_t gasLimit = 500'000)
 {
@@ -114,7 +114,7 @@ bcos::bytes sloadOnceSlotZeroCode()
 
 BOOST_AUTO_TEST_CASE(balance_cold_access_charges_geth_literal_2600)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const contract = addressFromLastByte(0x22);
     auto const target = addressFromLastByte(0x33);
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(balance_cold_access_charges_geth_literal_2600)
 
 BOOST_AUTO_TEST_CASE(balance_second_access_charges_warm_increment_100)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const contract = addressFromLastByte(0x22);
     auto const target = addressFromLastByte(0x33);
@@ -150,7 +150,7 @@ BOOST_AUTO_TEST_CASE(balance_second_access_charges_warm_increment_100)
 
 BOOST_AUTO_TEST_CASE(sload_cold_storage_charges_geth_literal_2100)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const contract = addressFromLastByte(0x44);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(sload_cold_storage_charges_geth_literal_2100)
 
 BOOST_AUTO_TEST_CASE(sload_second_access_charges_warm_increment_100)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const contract = addressFromLastByte(0x55);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(sload_second_access_charges_warm_increment_100)
 
 BOOST_AUTO_TEST_CASE(balance_always_cold_when_warm_access_disabled)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const contract = addressFromLastByte(0x66);
     auto const target = addressFromLastByte(0x77);

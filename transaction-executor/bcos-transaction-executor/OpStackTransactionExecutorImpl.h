@@ -2,7 +2,7 @@
 
 #include "OpStackTxInputBuilder.h"
 #include "RollbackableStorage.h"
-#include "bcos-evm/bcos/FiscoStateView.h"
+#include "bcos-evm/bcos/FiscoEvmStateReader.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -194,7 +194,7 @@ public:
             evmc_message message = newEVMCMessage(m_data->m_blockHeader.get().number(),
                 m_data->m_transaction.get(), m_data->m_gasLimit, m_data->m_origin);
 
-            state::FiscoStateView stateView(
+            state::FiscoEvmStateReader stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
             OpStackExecutionRequest input;

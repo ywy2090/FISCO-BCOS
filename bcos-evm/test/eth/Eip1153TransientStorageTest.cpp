@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "helpers/ApplyStateDiffToView.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -34,7 +34,7 @@ bcos::evm_standard::RevisionConfig makeCancunRevisionConfig()
     return cfg;
 }
 
-ExecuteMessageInput makeCallInput(state::StateView const& stateView, evmc::VM& vm,
+ExecuteMessageInput makeCallInput(state::EvmStateReader const& stateView, evmc::VM& vm,
     evmc_address sender, evmc_address target, bcos::bytes const& code, int64_t gas = 200'000)
 {
     state::BlockInfo blockInfo;
@@ -61,7 +61,7 @@ ExecuteMessageInput makeCallInput(state::StateView const& stateView, evmc::VM& v
 
 BOOST_AUTO_TEST_CASE(tstore_tload_returns_value_within_transaction)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x11);
     auto const contract = addressFromLastByte(0x22);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(tstore_tload_returns_value_within_transaction)
 
 BOOST_AUTO_TEST_CASE(transient_storage_does_not_persist_across_transactions)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x31);
     auto const contract = addressFromLastByte(0x32);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(transient_storage_does_not_persist_across_transactions)
 
 BOOST_AUTO_TEST_CASE(transient_storage_reverts_with_call_frame)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const contract = addressFromLastByte(0x42);
     // TSTORE slot 0 = 42, then REVERT with empty returndata

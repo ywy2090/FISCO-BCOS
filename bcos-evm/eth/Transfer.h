@@ -5,7 +5,7 @@
 namespace bcos::evm
 {
 inline bool canTransfer(
-    state::StateView const& state, evmc_address const& from, bcos::u256 const& value)
+    state::EvmStateReader const& state, evmc_address const& from, bcos::u256 const& value)
 {
     return state.get_balance(from) >= value;
 }

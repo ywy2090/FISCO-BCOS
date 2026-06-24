@@ -18,13 +18,13 @@ Chain-specific behavior spans nonce management, auth checks, value transfer, blo
 
 | Domain | Primary layer | BCOS location | OPStack location | Kernel (`eth`) |
 | --- | --- | --- | --- | --- |
-| **Nonce** (tx + CREATE) | orchestration + host extension | `TransactionExecutorImpl`, `FiscoHostExtension::bumpContractCreateNonce` | `OpStackPreCheck`, deposit rules | no tx nonce in kernel |
-| **Auth check** | orchestration | `ExecuteViaHost` + `AuthCheck` before `executeMessage` | N/A (OP auth model differs) | never |
-| **Value transfer** | orchestration + host extension | `ExecuteViaHost::maybeTransferValue`, `skipHostValueTransfer` | deposit mint + fee routing | `Transfer.h` helpers only |
-| **Blob gas (EIP-4844)** | revision profile + orchestration | `feature-gated` until Web3 blob tx on BCOS | `OpStackPreCheck` + `eip4844` | no blob tx in kernel |
+| **Nonce** (tx + CREATE) | orchestration + VmHostPolicy | `TransactionExecutorImpl`, `FiscoVmHostPolicy::bumpContractCreateNonce` | `OpStackTxPrecheck`, deposit rules | no tx nonce in kernel |
+| **Auth check** | orchestration | `FiscoExecutionBridge` + `AuthCheck` before `executeMessage` | N/A (OP auth model differs) | never |
+| **Value transfer** | orchestration + VmHostPolicy | `FiscoExecutionBridge::maybeTransferValue`, `skipHostValueTransfer` | deposit mint + fee routing | `Transfer.h` helpers only |
+| **Blob gas (EIP-4844)** | revision profile + orchestration | `feature-gated` until Web3 blob tx on BCOS | `OpStackTxPrecheck` + `eip4844` | no blob tx in kernel |
 | **Receipt metadata** | orchestration | FISCO receipt fields via executor | `OpStackReceiptMeta` | logs in `ExecuteMessageOutput` only |
-| **Deposit / L1 fee** | orchestration | unsupported | `OpStackExecuteViaHost`, fee modules | never |
-| **Gas settlement / refund** | orchestration | `ExecuteViaHost` + TE settlement | `postExecuteGasSettlement`, floor gas | shared helpers in `eth/gas/` |
+| **Deposit / L1 fee** | orchestration | unsupported | `OpStackExecutionBridge`, fee modules | never |
+| **Gas settlement / refund** | orchestration | `FiscoExecutionBridge` + TE settlement | `postExecuteGasSettlement`, floor gas | shared helpers in `eth/gas/` |
 
 ### 2. Rules
 
@@ -33,20 +33,20 @@ Chain-specific behavior spans nonce management, auth checks, value transfer, blo
 3. **`deviation`** requires a positive test on that chain (ADR-002).  
 4. Shared math/helpers live in `eth/gas/` or neutral headers; **policy** stays in orchestrators.
 
-### 3. HostExtension vs orchestrator
+### 3. VmHostPolicy vs orchestrator
 
-| Concern | HostExtension hook | Orchestrator |
+| Concern | VmHostPolicy hook | Orchestrator |
 | --- | --- | --- |
 | Skip value transfer inside CALL | `skipHostValueTransfer` | pre-tx value move |
 | CREATE nonce bump side effect | `bumpContractCreateNonce` | tx nonce validation |
 | Chain precompile | `tryChainPrecompile` | address routing policy |
 | Auth table / caller rewrite | `prepareMessage`, `setCallerAddress` | `authChecker` callback |
 
-Orchestrator runs **before** `executeMessage`; HostExtension runs **inside** kernel call tree.
+Orchestrator runs **before** `executeMessage`; VmHostPolicy runs **inside** kernel call tree.
 
 ### 4. Shared orchestration pipeline (`eth/orchestration/`, ADR-019)
 
-Since ADR-019, portable orchestration steps (validate, intrinsic debit, `ExecuteMessageInput` build, `adoptEvmcResult`, EIP-7623 settlement snapshot) live in `eth/orchestration/` as sync `runOrchestration`. Three `executeVia*` wrappers supply chain hooks only.
+Since ADR-019, portable orchestration steps (validate, intrinsic debit, `ExecuteMessageInput` build, `adoptEvmcResult`, EIP-7623 settlement snapshot) live in `eth/orchestration/` as sync `runTxPipeline`. Three execution-bridge wrappers (`ethReferenceExecute`, `fiscoExecute`, `opStackExecute`) supply chain hooks only.
 
 **Still wrapper-out (not in fixed pipeline steps):**
 

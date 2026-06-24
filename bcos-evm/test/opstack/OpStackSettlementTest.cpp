@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -20,7 +20,7 @@ evmc_address fromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = fromLastByte(0x01);
     auto const coinbase = fromLastByte(0x02);
 
@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
 
 BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = fromLastByte(0x11);
     auto const coinbase = fromLastByte(0x12);
 

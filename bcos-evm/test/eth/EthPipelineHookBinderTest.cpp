@@ -2,9 +2,9 @@
 
 #include "bcos-evm/eth/EthPipelineHookBinder.h"
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/orchestration/OrchestrationContext.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
 
 BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
 
     evmc_message message{};
     message.gas = 50'000;
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     input.blockInfo.baseFee = 1;
 
     EthReferenceResult output;
-    OrchestrationContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     EthPipelineHookBinder::HookBindingContext session{input, output};
     auto hooks = EthPipelineHookBinder::buildHooks(session);
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
 
 BOOST_AUTO_TEST_CASE(post_adopt_sets_included_tx_vmerr_flag)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
 
     evmc_message message{};
     message.depth = 0;
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(post_adopt_sets_included_tx_vmerr_flag)
     input.message = message;
 
     EthReferenceResult output;
-    OrchestrationContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_INVALID_INSTRUCTION;

@@ -5,7 +5,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/L1BlockSelectors.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
 #include <fstream>
@@ -78,7 +78,7 @@ void checkGetterHex(state::State& state, uint32_t selector, std::string_view exp
 
 BOOST_AUTO_TEST_CASE(setter_unpacks_isthmus_fixture_into_slots)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
     auto const calldata = loadFixture("isthmus_l1_attributes.bin");
 
@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(setter_unpacks_isthmus_fixture_into_slots)
 
 BOOST_AUTO_TEST_CASE(setter_rejects_non_depositor_sender)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
     auto const calldata = loadFixture("isthmus_l1_attributes.bin");
     evmc_address sender{};
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(setter_rejects_non_depositor_sender)
 
 BOOST_AUTO_TEST_CASE(getters_return_slot_values_after_setter)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
     auto const calldata = loadFixture("isthmus_l1_attributes.bin");
 
@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE(getters_return_slot_values_after_setter)
 
 BOOST_AUTO_TEST_CASE(pure_getters_match_l1block_constants)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
 
     checkGetterHex(state, l1block::kDepositorAccount,
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(pure_getters_match_l1block_constants)
 
 BOOST_AUTO_TEST_CASE(isFeatureEnabled_returns_false_by_default)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
 
     bytes input = selectorInput(l1block::kIsFeatureEnabled);

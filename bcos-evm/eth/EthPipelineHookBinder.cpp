@@ -27,13 +27,13 @@
 namespace bcos::evm
 {
 
-OrchestrationHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session)
+TxPipelineHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session)
 {
     auto& input = session.input;
     auto& output = session.output;
-    OrchestrationHooks hooks;
+    TxPipelineHooks hooks;
 
-    hooks.preExecute = [&input](OrchestrationContext& orchestrationCtx) {
+    hooks.preExecute = [&input](TxPipelineContext& orchestrationCtx) {
         if (auto preCheckError = ethTxPrecheck(input, orchestrationCtx.state))
         {
             orchestrationCtx.evmcResult = std::move(*preCheckError);
@@ -64,7 +64,7 @@ OrchestrationHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session
     hooks.intrinsicPolicy.accessList = input.accessList;
     hooks.intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
 
-    hooks.preKernel = [](OrchestrationContext& orchestrationCtx) {
+    hooks.preKernel = [](TxPipelineContext& orchestrationCtx) {
         auto const txValue = state::fromEvmC(orchestrationCtx.message.value);
         if (txValue != 0 &&
             !canTransfer(orchestrationCtx.state, orchestrationCtx.message.sender, txValue))
@@ -78,7 +78,7 @@ OrchestrationHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session
         }
     };
 
-    hooks.postAdopt = [&output, &input](OrchestrationContext& orchestrationCtx) {
+    hooks.postAdopt = [&output, &input](TxPipelineContext& orchestrationCtx) {
         normalizeSetCodeTransactionVmerr(
             orchestrationCtx.evmcResult, input.message.depth, input.authorizationListPresent);
         output.topLevelIncludedTxVmError = isTopLevelIncludedTxVmError(

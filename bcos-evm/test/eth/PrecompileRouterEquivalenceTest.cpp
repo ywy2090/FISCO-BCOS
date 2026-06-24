@@ -10,7 +10,7 @@
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
@@ -67,8 +67,8 @@ evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-ExecuteMessageInput makeBaseInput(
-    state::StateView* view, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
+ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message const& message,
+    state::VmHostPolicy* extension = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
@@ -143,12 +143,12 @@ BOOST_AUTO_TEST_CASE(c1_identity_depth0_equals_depth1)
     message.input_data = inputBytes.data();
     message.input_size = inputBytes.size();
 
-    state::test::InMemoryStateView view0;
+    state::test::InMemoryEvmStateReader view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryStateView view1;
+    state::test::InMemoryEvmStateReader view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);
@@ -169,13 +169,13 @@ BOOST_AUTO_TEST_CASE(c2_chain_hook_depth0_equals_depth1)
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    state::test::InMemoryStateView view0;
+    state::test::InMemoryEvmStateReader view0;
     state::State state0(view0);
     OpVmHostPolicy extension0(&state0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     auto depth0 = runDepth0(state0, message, &extension0);
 
-    state::test::InMemoryStateView view1;
+    state::test::InMemoryEvmStateReader view1;
     state::State state1(view1);
     OpVmHostPolicy extension1(&state1);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
@@ -196,12 +196,12 @@ BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_equals_depth1)
     message.recipient = target;
     message.code_address = target;
 
-    state::test::InMemoryStateView view0;
+    state::test::InMemoryEvmStateReader view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryStateView view1;
+    state::test::InMemoryEvmStateReader view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);
@@ -226,12 +226,12 @@ BOOST_AUTO_TEST_CASE(c5_value_transfer_depth0_equals_depth1)
     message.input_data = inputBytes.data();
     message.input_size = inputBytes.size();
 
-    state::test::InMemoryStateView view0;
+    state::test::InMemoryEvmStateReader view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryStateView view1;
+    state::test::InMemoryEvmStateReader view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);

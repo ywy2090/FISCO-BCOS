@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_dispatch)
 
 BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_executeMessage)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = senderAddress();
     auto const p256 = p256Address();
 

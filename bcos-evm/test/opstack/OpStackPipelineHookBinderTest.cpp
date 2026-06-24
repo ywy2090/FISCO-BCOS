@@ -3,11 +3,11 @@
 #include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/orchestration/OrchestrationContext.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackFloorGas.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
 
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     bytes data(100, 0xff);
     auto const floor = floorDataGas(toRef(data));
 
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x71);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
 
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     txData.m_skipTransactionChecks = false;
     txData.m_gasLimit = static_cast<int64_t>(floor - 1);
 
-    OrchestrationContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     OpStackPipelineHookBinder::HookBindingContext session{input, txData};
     auto hooks = OpStackPipelineHookBinder::buildHooks(session);
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 
 BOOST_AUTO_TEST_CASE(post_settle_updates_tx_data_gas)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     evmc_message message{};
     message.gas = 100'000;
 
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(post_settle_updates_tx_data_gas)
     txData.m_floorDataGas = 0;
     txData.m_gasUsed = 0;
 
-    OrchestrationContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;

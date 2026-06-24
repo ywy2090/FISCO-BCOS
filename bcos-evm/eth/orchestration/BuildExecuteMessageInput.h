@@ -1,12 +1,12 @@
 #pragma once
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/orchestration/OrchestrationContext.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 
 namespace bcos::evm
 {
 
-inline ExecuteMessageInput buildExecuteMessageInput(OrchestrationContext& ctx)
+inline ExecuteMessageInput buildExecuteMessageInput(TxPipelineContext& ctx)
 {
     ExecuteMessageInput input;
     input.stateView = &ctx.state;

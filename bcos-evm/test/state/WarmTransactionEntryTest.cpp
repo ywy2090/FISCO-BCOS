@@ -18,7 +18,7 @@
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_SUITE(WarmTransactionEntryTest)
 
 BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     State state(view);
 
     Transaction tx;
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
 
 BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     State state(view);
 
     Transaction tx;
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
 
 BOOST_AUTO_TEST_CASE(legacy_kind_zero_ignores_access_list)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     State state(view);
 
     Transaction tx;

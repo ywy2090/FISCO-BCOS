@@ -3,7 +3,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -38,7 +38,7 @@ bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
 
 BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_oog_when_gas_below_normal_cost)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000});
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_oog_when_gas_below_normal_cost)
 
 BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_skips_precheck_when_normal_cost_zero)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x03);
     auto const target = addressFromLastByte(0x04);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000});

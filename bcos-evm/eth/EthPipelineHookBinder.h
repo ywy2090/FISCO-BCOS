@@ -19,7 +19,7 @@
 #pragma once
 
 #include "bcos-evm/eth/EthReferenceBridge.h"
-#include "bcos-evm/eth/orchestration/OrchestrationHooks.h"
+#include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
 
 namespace bcos::evm
 {
@@ -32,7 +32,7 @@ struct EthPipelineHookBinder
         EthReferenceResult& output;
     };
 
-    static OrchestrationHooks buildHooks(HookBindingContext& session);
+    static TxPipelineHooks buildHooks(HookBindingContext& session);
 };
 
 }  // namespace bcos::evm

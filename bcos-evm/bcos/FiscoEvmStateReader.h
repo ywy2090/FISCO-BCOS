@@ -1,8 +1,8 @@
 #pragma once
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-task/Wait.h"
 #include <functional>
@@ -10,11 +10,11 @@
 
 namespace bcos::evm::state
 {
-class FiscoStateView : public StateView
+class FiscoEvmStateReader : public EvmStateReader
 {
 public:
     template <class Storage>
-    FiscoStateView(Storage& storage, bool useBinaryAddress, const bcos::crypto::Hash& hashImpl)
+    FiscoEvmStateReader(Storage& storage, bool useBinaryAddress, const bcos::crypto::Hash& hashImpl)
       : m_storageRead([&storage, useBinaryAddress](
                           const evmc_address& address, const evmc_bytes32& key) -> evmc_bytes32 {
             ledger::account::EVMAccount account(storage, address, useBinaryAddress);

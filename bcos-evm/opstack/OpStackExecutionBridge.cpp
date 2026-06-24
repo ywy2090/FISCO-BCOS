@@ -1,5 +1,5 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
+#include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
@@ -54,7 +54,7 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
         trace::makeTraceContext("opstack", input.blockInfo.number, input.txHash));
 
     OpStackExecutionResult output;
-    OrchestrationContext ctx{*input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
+    TxPipelineContext ctx{*input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
     ctx.txProps = input.txProps;
     ctx.inputs.vm = input.vm;
     ctx.inputs.hashImpl = input.hashImpl;
@@ -119,13 +119,13 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
         OpStackPipelineHookBinder::HookBindingContext session{input, txData};
         auto hooks = OpStackPipelineHookBinder::buildHooks(session);
         // TODO: OrchestrationErrorPolicy (candidate 4)
-        hooks.mapIntrinsicFailure = [](OrchestrationContext& c, IntrinsicDebitFailure) {
+        hooks.mapIntrinsicFailure = [](TxPipelineContext& c, IntrinsicDebitFailure) {
             c.evmcResult = makeOutOfGasLimitResult();
         };
-        hooks.mapException = [](OrchestrationContext& c, std::exception_ptr) {
+        hooks.mapException = [](TxPipelineContext& c, std::exception_ptr) {
             c.evmcResult = makeInternalErrorResult();
         };
-        runOrchestration(ctx, hooks);
+        runTxPipeline(ctx, hooks);
 
         output.evmcResult = std::move(ctx.evmcResult);
         EVM_LOG(DEBUG) << LOG_DESC("opStackExecute deposit done")
@@ -135,7 +135,7 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
 
         output.logs = std::move(ctx.kernelOutput.logs);
 
-        if (ctx.exitKind == OrchestrationExitKind::KernelCompleted &&
+        if (ctx.exitKind == TxPipelineExitKind::KernelCompleted &&
             output.evmcResult.status_code == EVMC_SUCCESS)
         {
             auto const nonce = ctx.state.get_nonce(input.message.sender);
@@ -150,7 +150,7 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
             }
             auto const nonce = ctx.state.get_nonce(input.message.sender);
             ctx.state.set_nonce(input.message.sender, nonce + 1);
-            if (ctx.exitKind != OrchestrationExitKind::KernelCompleted)
+            if (ctx.exitKind != TxPipelineExitKind::KernelCompleted)
             {
                 txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
             }
@@ -187,13 +187,13 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
     OpStackPipelineHookBinder::HookBindingContext session{input, txData};
     auto hooks = OpStackPipelineHookBinder::buildHooks(session);
     // TODO: OrchestrationErrorPolicy (candidate 4)
-    hooks.mapIntrinsicFailure = [](OrchestrationContext& c, IntrinsicDebitFailure) {
+    hooks.mapIntrinsicFailure = [](TxPipelineContext& c, IntrinsicDebitFailure) {
         c.evmcResult = makeOutOfGasLimitResult();
     };
-    hooks.mapException = [](OrchestrationContext& c, std::exception_ptr) {
+    hooks.mapException = [](TxPipelineContext& c, std::exception_ptr) {
         c.evmcResult = makeInternalErrorResult();
     };
-    runOrchestration(ctx, hooks);
+    runTxPipeline(ctx, hooks);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
@@ -202,10 +202,10 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
                    << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
                    << LOG_KV("gasUsed", txData.m_gasUsed)
                    << LOG_KV("l1Fee", txData.m_l1CostCharged);
-    if (ctx.exitKind != OrchestrationExitKind::KernelCompleted)
+    if (ctx.exitKind != TxPipelineExitKind::KernelCompleted)
     {
-        if (ctx.exitKind == OrchestrationExitKind::IntrinsicRejected ||
-            ctx.exitKind == OrchestrationExitKind::PreDebitRejected)
+        if (ctx.exitKind == TxPipelineExitKind::IntrinsicRejected ||
+            ctx.exitKind == TxPipelineExitKind::PreDebitRejected)
         {
             // EVM never ran (intrinsic or floor-gas rejection): refund the full buyGas
             // pre-deduction so the sender is not charged for a tx that should be rejected

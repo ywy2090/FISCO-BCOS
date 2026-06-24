@@ -47,12 +47,12 @@ void OpStackPipelineHookBinder::applySettlement(
     txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
 }
 
-OrchestrationHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& session)
+TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& session)
 {
     auto& txData = session.txData;
-    OrchestrationHooks hooks;
+    TxPipelineHooks hooks;
 
-    hooks.preDebitEntry = [&txData](OrchestrationContext& orchestrationCtx) {
+    hooks.preDebitEntry = [&txData](TxPipelineContext& orchestrationCtx) {
         auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
         bcos::bytesConstRef inputData{
             orchestrationCtx.message.input_data, orchestrationCtx.message.input_size};
@@ -74,7 +74,7 @@ OrchestrationHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& ses
     hooks.intrinsicPolicy.accessList = txData.m_accessList;
     hooks.intrinsicPolicy.web3TypedTxKind = txData.m_web3TypedTxKind;
 
-    hooks.postSettle = [&session](OrchestrationContext& orchestrationCtx) {
+    hooks.postSettle = [&session](TxPipelineContext& orchestrationCtx) {
         applySettlement(session, orchestrationCtx.evmcResult);
     };
 

@@ -5,9 +5,9 @@
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/orchestration/OrchestrationContext.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -31,7 +31,7 @@ public:
 
 BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     evmc_message message{};
     message.gas = 100'000;
 
@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
 
 BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
     deps.state = nullptr;
     FiscoVmHostPolicy extension(false, std::move(deps));
 
-    OrchestrationContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
+    TxPipelineContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
@@ -80,13 +80,13 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
     hooks.preExecute(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
-    BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),
-        static_cast<int>(OrchestrationExitKind::PreExecuteRejected));
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::PreExecuteRejected));
 }
 
 BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     crypto::Keccak256 hashImpl;
 
     evmc_message message{};
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
     deps.state = nullptr;
     FiscoVmHostPolicy extension(false, std::move(deps));
 
-    OrchestrationContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
+    TxPipelineContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
 
     FiscoPipelineHookBinder::HookBindingContext session{input, output, extension, false, false};
     auto hooks = FiscoPipelineHookBinder::buildHooks(session);

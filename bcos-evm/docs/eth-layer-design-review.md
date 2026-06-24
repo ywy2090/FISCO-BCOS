@@ -28,7 +28,7 @@ opstack/ ──►  eth/
 | 3 | `eth/vm/` | EVM lifecycle (policy, factory, instance) | `EthPolicy`, `VMFactory`, `VMInstance` | `test/eth/` |
 | 4 | `eth/precompiled/` | Precompile dispatch and gas | `PrecompileRouter`, `EthBuiltinRegistry`, `BlsGas`, `ModexpGas` | `test/eth/` |
 | 5 | `eth/gas/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
-| 6 | `eth/orchestration/` | Hook-based pre/post kernel pipeline | `OrchestrationPipeline`, `OrchestrationContext`, `OrchestrationHooks`, `debitIntrinsicGas` | `test/eth/` |
+| 6 | `eth/orchestration/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `debitIntrinsicGas` | `test/eth/` |
 | 7 | `eth/execution/` | Warm-up and feature preparation | `warmTransactionEntry`, `TxFeaturePrepare`, `BlockInfoBuilder`, `Eip2929PrecompileWarm` | `test/eth/` |
 | 8 | `eth/` (root) | Entry points, types, cross-cutting | `executeMessage`, `executeViaEth`, `RevisionConfig`, `Eip7702`, `EVMCResult` | `test/eth/`, `test/` (root) |
 
@@ -38,7 +38,7 @@ opstack/ ──►  eth/
 
 ### 3.1 `eth/state/` — Copy-on-write state engine
 
-**Files:** `State.hpp` / `.cpp`, `StateView.hpp`, `EthHost.hpp` / `.cpp`, `Account.hpp`, `StateDiff.hpp`, `BlockInfo.hpp`, `Transaction.hpp`, `EthPrecompiles.hpp` / `.cpp`, `CreateExecution.h`, `Transition.hpp` / `.cpp`, `BloomFilter.hpp` / `.cpp`, `HashUtils.hpp`, `Errors.hpp`
+**Files:** `State.hpp` / `.cpp`, `EvmStateReader.hpp`, `EthHost.hpp` / `.cpp`, `Account.hpp`, `StateDiff.hpp`, `BlockInfo.hpp`, `Transaction.hpp`, `EthPrecompiles.hpp` / `.cpp`, `CreateExecution.h`, `Transition.hpp` / `.cpp`, `BloomFilter.hpp` / `.cpp`, `HashUtils.hpp`, `Errors.hpp`
 
 **Design:**
 
@@ -165,20 +165,20 @@ PrecompileRouter (top-level dispatch)
 
 ### 3.6 `eth/orchestration/` — Shared orchestration pipeline (ADR-019)
 
-**Files:** `OrchestrationPipeline.h` / `.cpp`, `OrchestrationContext.h`, `OrchestrationHooks.h`, `DebitIntrinsicGas.h`, `AdoptEvmcResult.h`, `BuildExecuteMessageInput.h`, `CaptureSettlementSnapshot.h`, `NormalizeIncludedTxVmerr.h`
+**Files:** `TxPipeline.h` / `.cpp`, `TxPipelineContext.h`, `TxPipelineHooks.h`, `DebitIntrinsicGas.h`, `AdoptEvmcResult.h`, `BuildExecuteMessageInput.h`, `CaptureSettlementSnapshot.h`, `NormalizeIncludedTxVmerr.h`
 
 **Design:**
 
-All three execution paths call `runOrchestration` (verified in source):
+All three execution paths call `runTxPipeline` (verified in source):
 
 - `eth/ExecuteViaEth.cpp` — Eth reference path
 - `bcos/ExecuteViaHost.cpp` — FISCO production path
 - `opstack/OpStackExecuteViaHost.cpp` — OP Stack production path
 
-Wrappers map input → fill `OrchestrationHooks` → call pipeline → map output. Async fee routing (`buyGas`/`refundGas`), deposit state machine, and final `stateDiff`/`logs` mapping stay in wrapper code outside the pipeline (ADR-019 Q7/Q18/Q19).
+Wrappers map input → fill `TxPipelineHooks` → call pipeline → map output. Async fee routing (`buyGas`/`refundGas`), deposit state machine, and final `stateDiff`/`logs` mapping stay in wrapper code outside the pipeline (ADR-019 Q7/Q18/Q19).
 
 ```
-runOrchestration(ctx, hooks):
+runTxPipeline(ctx, hooks):
     0. validate(vm, hashImpl)     — outside try/catch
     1. hooks.prepareMessage(ctx)
     2. hooks.preExecute(ctx)        ← early exit → PreExecuteRejected
@@ -195,14 +195,14 @@ runOrchestration(ctx, hooks):
     hooks.mapException(ctx, eptr)   ← kernel does NOT revert state
 ```
 
-`OrchestrationContext` is non-copyable/non-movable, owns `state::State` and the sole mutable `evmc_message`. `extension` is a borrow pointer set by the wrapper before `runOrchestration`. `OrchestrationHooks` is a struct of `std::function` callbacks with no-op defaults.
+`TxPipelineContext` is non-copyable/non-movable, owns `state::State` and the sole mutable `evmc_message`. `extension` is a borrow pointer set by the wrapper before `runTxPipeline`. `TxPipelineHooks` is a struct of `std::function` callbacks with no-op defaults.
 
 **Seam discipline:** `eth/orchestration/` must not `#include bcos/` or `opstack/`. Chain behaviour enters only through hooks or wrapper translation units (e.g. `OpStackPreDebitEntry` called from `preDebitEntry` lambda in `OpStackExecuteViaHost.cpp`).
 
 **Points a reviewer should check:**
-1. New shared orchestration steps belong in `runOrchestration` or a portable header under `eth/orchestration/`, not duplicated in three wrappers.
-2. New hooks must have sensible no-op defaults in `OrchestrationHooks`.
-3. `earlyExit` / `OrchestrationExitKind` must be set after `preExecute`, `preDebitEntry`, intrinsic failure, and `preKernel`.
+1. New shared orchestration steps belong in `runTxPipeline` or a portable header under `eth/orchestration/`, not duplicated in three wrappers.
+2. New hooks must have sensible no-op defaults in `TxPipelineHooks`.
+3. `earlyExit` / `TxPipelineExitKind` must be set after `preExecute`, `preDebitEntry`, intrinsic failure, and `preKernel`.
 4. Intrinsic failure uses `DebitIntrinsicGasOutcome` + `mapIntrinsicFailure`; do not construct chain-final `EVMCResult` inside `debitIntrinsicGas`.
 5. Exception path: each chain's `mapException` owns checkpoint revert policy (Eth/Fisco revert when checkpoint exists; OpStack maps to internal error).
 
@@ -234,9 +234,9 @@ runOrchestration(ctx, hooks):
 
 **`executeMessage()`** — the kernel entry point. Takes `ExecuteMessageInput` (stateView, vm, message, revisionConfig, extension, blockInfo, blockHashes, gasPrice, accessList, authorizationList, txProps, fix flags) and returns `ExecuteMessageOutput` (result, stateDiff, logs, gasRefund). This is a pure function — no global state, no side effects outside the State copy.
 
-**`executeViaEth()`** — Eth reference path wrapper. Fills `OrchestrationHooks` for 1559 caps, precheck, intrinsic modes, `canTransfer`, included-tx vmerr, then calls `runOrchestration`.
+**`executeViaEth()`** — Eth reference path wrapper. Fills `TxPipelineHooks` for 1559 caps, precheck, intrinsic modes, `canTransfer`, included-tx vmerr, then calls `runTxPipeline`.
 
-**`executeViaHost()` / `opStackExecuteViaHost()`** — production wrappers in `bcos/` and `opstack/`; both call the same `runOrchestration` with chain-specific hooks. See `ExecuteViaHost.cpp` and `OpStackExecuteViaHost.cpp`.
+**`executeViaHost()` / `opStackExecuteViaHost()`** — production wrappers in `bcos/` and `opstack/`; both call the same `runTxPipeline` with chain-specific hooks. See `ExecuteViaHost.cpp` and `OpStackExecuteViaHost.cpp`.
 
 **`RevisionConfig.h`** — the EIP switch bitfield. Key design elements:
 - Three categories: A-class (6 feature-gated fields), B-class (revision-derived), C-class (fork parameters).
@@ -264,9 +264,9 @@ runOrchestration(ctx, hooks):
 | 4 | Each A-class field in `RevisionConfig` has a corresponding FISCO feature flag | `FISCO_GATED_FLAG_MAP` x-macro in `FiscoPolicy.h` |
 | 5 | Gas functions are pure (no state, no side effects) | Code review |
 | 6 | `StateView::get_account()` is the only method a new chain MUST implement | Interface design |
-| 7 | `OrchestrationHooks` defaults are no-ops | Default `std::function` initialization |
+| 7 | `TxPipelineHooks` defaults are no-ops | Default `std::function` initialization |
 | 8 | Capability matrix must be updated in the same PR as kernel/hook changes | CI gate (`capability-gate.yml`) |
-| 9 | `runOrchestration` is the only fixed orchestration pipeline; wrappers supply hooks only | ADR-019; three `executeVia*` call sites |
+| 9 | `runTxPipeline` is the only fixed orchestration pipeline; wrappers supply hooks only | ADR-019; three `executeVia*` call sites |
 | 10 | `eth/orchestration/` must not include `bcos/` or `opstack/` headers | ADR-005 §4, ADR-019 |
 
 ---
@@ -276,7 +276,7 @@ runOrchestration(ctx, hooks):
 ```
 eth/        bcos/                        opstack/
 ─────       ──────                       ────────
-State       FiscoStateView (adapter)     OpStackBlockHeaderExtension
+State       FiscoEvmStateReader (adapter)     OpStackBlockHeaderExtension
 StateView   FiscoHostExtension           OpHostExtension
 EthHost     FiscoPolicy                  OpStackFee
 HostExt.    FiscoRevisionConfig          OpStackForkSchedule
@@ -318,7 +318,7 @@ Eip7702     FiscoTransactionPrepare       OpStackReceiptMeta
 | `EthHost` | `test/eth/EthHostExtensionHooksTest.cpp` | Hook coverage good. Error paths in `call()` are exercised indirectly. |
 | `precompiled/` | `test/eth/PrecompileRouter*` (4 files), `test/eth/Eip2537KernelTest.cpp`, `test/eth/Eip7212KernelTest.cpp`, `test/eth/EipPrecompileRevisionGateTest.cpp` | Thorough. Precedence ordering, revision gating, and equivalence all covered. |
 | `gas/` | `test/eth/Eip7623PrecheckTest.cpp` | Gas functions are pure and well-tested. |
-| `orchestration/` | `test/eth/OrchestrationPipelineTest.cpp`, `test/eth/DebitIntrinsicGasTest.cpp`, `test/opstack/OpStackIntrinsicGasSyncTest.cpp` | Pipeline step order covered; OpStack message-gas sync via test spy seam |
+| `orchestration/` | `test/eth/TxPipelineTest.cpp`, `test/eth/DebitIntrinsicGasTest.cpp`, `test/opstack/OpStackIntrinsicGasSyncTest.cpp` | Pipeline step order covered; OpStack message-gas sync via test spy seam |
 | `executeMessage` | `test/ExecuteMessageSmokeTest.cpp` | Smoke only. Edge cases in the main flow body tested via spec tests. |
 | `executeViaEth` | `test/eth/EthExecuteViaEth*.cpp` | Good coverage through spec test fixtures. |
 | `RevisionConfig` | `test/eth/RevisionConfigProfileTest.cpp` | Comprehensive profile test covering all fields. |
@@ -336,7 +336,7 @@ When reviewing a PR that changes these files, check the corresponding items:
 | `ExecuteMessage.cpp` | `ExecuteViaHost.cpp` (does BCOS path need changes?), `OpStackExecuteViaHost.cpp` (does OP path need changes?) |
 | `EthHost.cpp` | All HostExtension implementations, precompile router tests |
 | `PrecompileRouter.cpp` | `PrecompileRouterPrecedenceTest`, `PrecompileRouterEquivalenceTest`, capability matrix |
-| `OrchestrationPipeline.cpp` | All three wrappers (`ExecuteViaEth.cpp`, `ExecuteViaHost.cpp`, `OpStackExecuteViaHost.cpp`), `OrchestrationPipelineTest.cpp`, capability matrix |
+| `TxPipeline.cpp` | All three wrappers (`ExecuteViaEth.cpp`, `ExecuteViaHost.cpp`, `OpStackExecuteViaHost.cpp`), `TxPipelineTest.cpp`, capability matrix |
 | `EthTxGasSettlement.h` | Gas tests, capability matrix |
 | `Eip7702.cpp` | BCOS and OP Stack 7702 tests, capability matrix |
 
@@ -348,9 +348,9 @@ When reviewing a PR that changes these files, check the corresponding items:
 |-----|-------|---------------|
 | ADR-001 | TE baseline vs reference path | `executeViaEth` is reference-only; not production inheritance proof |
 | ADR-004 | RevisionConfig field consumption | `warm_access`, `eip1559`, `eip3651`, `prague_post_execution` are profile-only |
-| ADR-005 | Orchestration domain boundaries | HostExtension runs in kernel; orchestrator / `runOrchestration` runs before `executeMessage` |
+| ADR-005 | Orchestration domain boundaries | HostExtension runs in kernel; orchestrator / `runTxPipeline` runs before `executeMessage` |
 | ADR-015 | ETH reference 7702 gas + included-tx vmerr | `normalizeIncludedTxVmerr` in orchestration |
 | ADR-016 | ETH TE EIP-1559 settlement | `Eip1559.h`, `EthTxExecutor` |
 | ADR-017 | FISCO precompile port | Port interfaces in `bcos/ports/`; kernel `PrecompileRouter` orthogonal |
 | ADR-018 | Revision gating single-source | `revisionConfigFromRevision()` is the canonical source; consumers read `cfg` bools |
-| ADR-019 | Orchestration pipeline | `runOrchestration` fixed 12-step pipeline; all three `executeVia*` are thin wrappers |
+| ADR-019 | Orchestration pipeline | `runTxPipeline` fixed 12-step pipeline; all three `executeVia*` are thin wrappers |

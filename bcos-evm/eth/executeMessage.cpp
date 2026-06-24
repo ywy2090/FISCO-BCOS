@@ -136,7 +136,7 @@ bool applyTopLevelValueTransfer(state::State& state, ExecuteMessageInput const& 
 }
 
 state::State& resolveState(
-    state::StateView const& stateView, std::optional<state::State>& stateCopy)
+    state::EvmStateReader const& stateView, std::optional<state::State>& stateCopy)
 {
     if (auto* statePtr = dynamic_cast<state::State const*>(&stateView); statePtr != nullptr)
     {

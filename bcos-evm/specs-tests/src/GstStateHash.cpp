@@ -414,7 +414,7 @@ bool isEmptyAccount(state::Account const& account)
     return account.nonce == 0 && account.balance == 0 && account.code.empty();
 }
 
-evmc_bytes32 computeStateRootImpl(GstPostStateView const& postState)
+evmc_bytes32 computeStateRootImpl(GstPostEvmStateReader const& postState)
 {
     std::vector<TrieEntry> entries;
     entries.reserve(postState.accounts.size());
@@ -527,7 +527,7 @@ GstPostStateView buildPostStateView(
     return view;
 }
 
-evmc_bytes32 computeStateRoot(GstPostStateView const& postState)
+evmc_bytes32 computeStateRoot(GstPostEvmStateReader const& postState)
 {
     return computeStateRootImpl(postState);
 }

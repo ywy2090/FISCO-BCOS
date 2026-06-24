@@ -20,7 +20,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <string_view>
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_SUITE(SstoreRefundTest)
 
 BOOST_AUTO_TEST_CASE(EthHost_sstoreClear_accumulates4800)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     auto const contract = addressFromLastByte(0x01);
     auto const sender = addressFromLastByte(0xaa);
     auto const slotKey = evmc_bytes32{};

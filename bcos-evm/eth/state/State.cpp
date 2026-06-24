@@ -21,7 +21,7 @@
 
 namespace bcos::evm::state
 {
-State::State(StateView const& baseStateView) : m_baseStateView(&baseStateView) {}
+State::State(EvmStateReader const& baseEvmStateReader) : m_baseStateView(&baseEvmStateReader) {}
 
 std::optional<Account> State::find(const evmc_address& address) const
 {

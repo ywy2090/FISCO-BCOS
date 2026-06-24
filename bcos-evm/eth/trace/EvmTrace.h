@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/orchestration/OrchestrationContext.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -212,21 +212,21 @@ inline std::string_view evmcStatus(evmc_status_code status) noexcept
     }
 }
 
-inline std::string_view exitKind(OrchestrationExitKind kind) noexcept
+inline std::string_view exitKind(TxPipelineExitKind kind) noexcept
 {
     switch (kind)
     {
-    case OrchestrationExitKind::None:
+    case TxPipelineExitKind::None:
         return "none";
-    case OrchestrationExitKind::PreExecuteRejected:
+    case TxPipelineExitKind::PreExecuteRejected:
         return "pre_execute_rejected";
-    case OrchestrationExitKind::PreDebitRejected:
+    case TxPipelineExitKind::PreDebitRejected:
         return "pre_debit_rejected";
-    case OrchestrationExitKind::IntrinsicRejected:
+    case TxPipelineExitKind::IntrinsicRejected:
         return "intrinsic_rejected";
-    case OrchestrationExitKind::KernelCompleted:
+    case TxPipelineExitKind::KernelCompleted:
         return "kernel_completed";
-    case OrchestrationExitKind::ExceptionMapped:
+    case TxPipelineExitKind::ExceptionMapped:
         return "exception_mapped";
     default:
         return "unknown";

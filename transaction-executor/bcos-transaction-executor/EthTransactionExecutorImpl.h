@@ -2,7 +2,7 @@
 
 #include "EthTxInputBuilder.h"
 #include "RollbackableStorage.h"
-#include "bcos-evm/bcos/FiscoStateView.h"
+#include "bcos-evm/bcos/FiscoEvmStateReader.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/EthExecutionContext.h"
@@ -135,7 +135,7 @@ public:
                 eth_tx::fillTransactionGasFields(m_data->m_transaction.get(), *m_data);
                 m_data->m_gasFieldsFilled = true;
 
-                state::FiscoStateView stateView(
+                state::FiscoEvmStateReader stateView(
                     m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
                 state::State state(stateView);
 
@@ -220,7 +220,7 @@ public:
 
         task::Task<EthReferenceResult> ethReferenceExecuteTx()
         {
-            state::FiscoStateView stateView(
+            state::FiscoEvmStateReader stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
             EthReferenceRequest input;

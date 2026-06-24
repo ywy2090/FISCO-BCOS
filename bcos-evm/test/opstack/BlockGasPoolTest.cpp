@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -64,7 +64,7 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryStateView& stateView)
+void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -75,8 +75,9 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecutionRequest makeExecuteInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
-    const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
+OpStackExecutionRequest makeExecuteInput(state::test::InMemoryEvmStateReader& stateView,
+    evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
+    const evmc_address& recipient)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -123,7 +124,7 @@ BOOST_AUTO_TEST_CASE(second_tx_fails_when_pool_exhausted)
 
 BOOST_AUTO_TEST_CASE(opstack_execute_subgas_and_return_on_success)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const target = addressFromLastByte(0x42);
     setOpFeeParams(stateView);

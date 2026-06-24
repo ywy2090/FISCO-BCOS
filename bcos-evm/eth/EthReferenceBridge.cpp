@@ -1,6 +1,6 @@
 #include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/EthPipelineHookBinder.h"
-#include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
+#include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
@@ -46,7 +46,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     output.executionContext.message = input.message;
     output.executionContext.revisionConfig = input.revisionConfig;
 
-    OrchestrationContext ctx{*input.stateView, input.message, input.revisionConfig, input.gasPrice};
+    TxPipelineContext ctx{*input.stateView, input.message, input.revisionConfig, input.gasPrice};
     ctx.inputs.vm = input.vm;
     ctx.inputs.hashImpl = input.hashImpl;
     ctx.inputs.blockInfo = input.blockInfo;
@@ -64,7 +64,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     EthPipelineHookBinder::HookBindingContext session{input, output};
     auto hooks = EthPipelineHookBinder::buildHooks(session);
     // TODO: OrchestrationErrorPolicy (candidate 4)
-    hooks.mapIntrinsicFailure = [](OrchestrationContext& orchestrationCtx, IntrinsicDebitFailure) {
+    hooks.mapIntrinsicFailure = [](TxPipelineContext& orchestrationCtx, IntrinsicDebitFailure) {
         evmc_result failResult{};
         failResult.status_code = EVMC_OUT_OF_GAS;
         failResult.gas_left = 0;
@@ -72,8 +72,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
             EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     };
 
-    hooks.mapException = [](OrchestrationContext& orchestrationCtx,
-                             std::exception_ptr exceptionPtr) {
+    hooks.mapException = [](TxPipelineContext& orchestrationCtx, std::exception_ptr exceptionPtr) {
         try
         {
             std::rethrow_exception(exceptionPtr);
@@ -101,7 +100,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
         }
     };
 
-    runOrchestration(ctx, hooks);
+    runTxPipeline(ctx, hooks);
 
     EVM_LOG(DEBUG) << LOG_DESC("ethReferenceExecute done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))

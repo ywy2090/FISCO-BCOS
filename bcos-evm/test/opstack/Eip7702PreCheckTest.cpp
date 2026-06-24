@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackTxPrecheck.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -32,7 +32,7 @@ OpStackExecutionRequest makeInput(evmc_address sender)
 
 BOOST_AUTO_TEST_CASE(rejects_authorization_list_on_create)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x10);
     state::State state(stateView);
 
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(rejects_authorization_list_on_create)
 
 BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x11);
     state::State state(stateView);
 

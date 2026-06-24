@@ -39,7 +39,7 @@ evmc_bytes32 valueFromLastByte(uint8_t value)
     return out;
 }
 
-class MockStateView : public StateView
+class MockStateView : public EvmStateReader
 {
 public:
     std::optional<Account> get_account(const evmc_address& address) const override

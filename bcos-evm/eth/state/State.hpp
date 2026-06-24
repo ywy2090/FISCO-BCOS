@@ -19,8 +19,8 @@
 
 #pragma once
 
+#include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
-#include "bcos-evm/eth/state/StateView.hpp"
 #include <optional>
 #include <unordered_set>
 #include <vector>
@@ -46,10 +46,10 @@ struct WarmStorageKeyEqual
     }
 };
 
-class State : public StateView
+class State : public EvmStateReader
 {
 public:
-    explicit State(StateView const& baseStateView);
+    explicit State(EvmStateReader const& baseEvmStateReader);
 
     [[nodiscard]] std::optional<Account> get_account(const evmc_address& address) const override;
     [[nodiscard]] bcos::u256 get_balance(const evmc_address& address) const override;
@@ -128,7 +128,7 @@ private:
     void push_journal_create_warm_pin(const evmc_address& address, bool insertedWarm);
 
 private:
-    StateView const* m_baseStateView;
+    EvmStateReader const* m_baseStateView;
     std::unordered_map<evmc_address, Account, AddressHash, AddressEqual> m_accounts;
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_warmAccounts;
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_pinnedWarmAccounts;

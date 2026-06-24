@@ -19,7 +19,7 @@
 #pragma once
 
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/orchestration/OrchestrationHooks.h"
+#include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 
@@ -34,7 +34,7 @@ struct OpStackPipelineHookBinder
         OpStackTxFeeLedger::OpStackTxExecutionData& txData;
     };
 
-    static OrchestrationHooks buildHooks(HookBindingContext& session);
+    static TxPipelineHooks buildHooks(HookBindingContext& session);
     static void applySettlement(HookBindingContext const& session, EVMCResult const& result);
 };
 

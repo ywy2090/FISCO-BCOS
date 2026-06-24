@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -20,7 +20,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x61);
     auto const recipient = addressFromLastByte(0x62);
     auto const previousTarget = addressFromLastByte(0x63);

@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE(stBLS_add_precompile_0x0b_via_executeMessage)
     auto const path = std::filesystem::path("fixtures/state/imported/stBLS_add.json");
 #endif
     auto fixture = loadFixture(path);
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     for (auto const& [addr, acct] : fixture.preState)
         view.insert_account(addr, acct);
 

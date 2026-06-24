@@ -36,7 +36,7 @@ using LogEntry = state::LogEntry;
 
 struct ExecuteMessageInput
 {
-    state::StateView const* stateView{nullptr};
+    state::EvmStateReader const* stateView{nullptr};
     evmc::VM* vm{nullptr};
     evmc_message message{};
     bcos::u256 gasPrice{0};

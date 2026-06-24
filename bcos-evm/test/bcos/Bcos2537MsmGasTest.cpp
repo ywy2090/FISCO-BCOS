@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -21,7 +21,7 @@ evmc_address precompileAddress(uint8_t lowByte)
 // fiscoExecute delegates to executeMessage for kernel precompiles; assert MSM gas on that path.
 BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
 {
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     auto const sender = precompileAddress(0x01);
     auto const g1MsmAddr = precompileAddress(0x0c);
 
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
 
 BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_isthmus_profile)
 {
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     auto const sender = precompileAddress(0x01);
     auto const g1MsmAddr = precompileAddress(0x0c);
 

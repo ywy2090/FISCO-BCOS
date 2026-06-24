@@ -22,7 +22,7 @@ namespace bcos::evm::state::test
 {
 namespace
 {
-class EmptyStateView : public StateView
+class EmptyStateView : public EvmStateReader
 {
 public:
     std::optional<Account> get_account(const evmc_address&) const override { return std::nullopt; }

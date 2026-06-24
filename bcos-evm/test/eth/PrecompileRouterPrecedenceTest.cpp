@@ -7,7 +7,7 @@
 #define BOOST_TEST_MODULE PrecompileRouterPrecedenceTest
 
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <optional>
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(chain_precompile_wins_over_active_builtin_with_empty_code)
     auto const identity = precompileAddress(0x04);
     std::array<uint8_t, 4> identityInput{0xde, 0xad, 0xbe, 0xef};
 
-    state::test::InMemoryStateView baseView;
+    state::test::InMemoryEvmStateReader baseView;
     state::State state(baseView);
     state.set_balance(sender, 1'000'000);
 

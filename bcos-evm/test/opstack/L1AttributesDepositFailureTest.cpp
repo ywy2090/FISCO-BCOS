@@ -5,7 +5,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -30,7 +30,7 @@ bytes loadFixture(std::string_view name)
     return {std::istreambuf_iterator<char>(input), {}};
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
     crypto::Hash const& hash, bytes const& calldata)
 {
     evmc_message message{};
@@ -59,7 +59,7 @@ OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateVi
 
 BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
 

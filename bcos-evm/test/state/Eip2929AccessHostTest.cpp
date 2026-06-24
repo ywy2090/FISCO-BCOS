@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_SUITE(Eip2929AccessHostTest)
 
 BOOST_AUTO_TEST_CASE(access_account_cold_then_warm)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     State state(view);
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(access_account_cold_then_warm)
 
 BOOST_AUTO_TEST_CASE(access_storage_cold_then_warm)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     State state(view);
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(access_storage_cold_then_warm)
 
 BOOST_AUTO_TEST_CASE(journal_revert_rolls_back_child_warm_address)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     State state(view);
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(journal_revert_rolls_back_child_warm_address)
 
 BOOST_AUTO_TEST_CASE(access_account_disabled_when_warm_access_off)
 {
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
     State state(view);
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};

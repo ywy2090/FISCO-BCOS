@@ -20,7 +20,7 @@
 
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/orchestration/OrchestrationHooks.h"
+#include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
 
 namespace bcos::evm
 {
@@ -36,7 +36,7 @@ struct FiscoPipelineHookBinder
         bool eip7623Enabled{false};
     };
 
-    static OrchestrationHooks buildHooks(HookBindingContext& session);
+    static TxPipelineHooks buildHooks(HookBindingContext& session);
 };
 
 }  // namespace bcos::evm

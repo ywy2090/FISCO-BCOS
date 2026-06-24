@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -63,7 +63,7 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryStateView& stateView)
+void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -84,7 +84,7 @@ u256 balanceFromDiff(const state::StateDiff& diff, const evmc_address& address)
     return it->second.balance;
 }
 
-OpStackExecutionRequest makeBaseInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackExecutionRequest makeBaseInput(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
     const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
 {
     evmc_message message{};
@@ -116,7 +116,7 @@ OpStackExecutionRequest makeBaseInput(state::test::InMemoryStateView& stateView,
 
 BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
     auto const l1FeeRecipient = OP_L1_FEE_RECIPIENT;
@@ -150,7 +150,7 @@ BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
 
 BOOST_AUTO_TEST_CASE(insufficient_balance_fails_before_execution)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x11);
     auto const target = addressFromLastByte(0x12);
     auto const l1FeeRecipient = OP_L1_FEE_RECIPIENT;
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(insufficient_balance_fails_before_execution)
 
 BOOST_AUTO_TEST_CASE(revert_refunds_unused_gas_and_keeps_l1_fee)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x21);
     auto const target = addressFromLastByte(0x22);
     auto const l1FeeRecipient = OP_L1_FEE_RECIPIENT;
@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE(revert_refunds_unused_gas_and_keeps_l1_fee)
 
 BOOST_AUTO_TEST_CASE(hard_failure_still_refunds_unused_gas_and_routes_fees)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x31);
     auto const target = addressFromLastByte(0x32);
     auto const l1FeeRecipient = OP_L1_FEE_RECIPIENT;
@@ -227,7 +227,7 @@ BOOST_AUTO_TEST_CASE(hard_failure_still_refunds_unused_gas_and_routes_fees)
 
 BOOST_AUTO_TEST_CASE(pre_fjord_schedule_throws_on_user_tx)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const target = addressFromLastByte(0x42);
     setOpFeeParams(stateView);
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(pre_fjord_schedule_throws_on_user_tx)
 
 BOOST_AUTO_TEST_CASE(deposit_pre_fjord_schedule_no_throw)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x51);
     auto const target = addressFromLastByte(0x52);
 
@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(deposit_pre_fjord_schedule_no_throw)
 
 BOOST_AUTO_TEST_CASE(host_pre_isthmus_operator_recipient_zero)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x61);
     auto const target = addressFromLastByte(0x62);
     auto const operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
@@ -297,7 +297,7 @@ BOOST_AUTO_TEST_CASE(host_pre_isthmus_operator_recipient_zero)
 
 BOOST_AUTO_TEST_CASE(orthogonality_non_isthmus_revision_with_isthmus_fork_schedule)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x71);
     auto const target = addressFromLastByte(0x72);
     auto const operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;

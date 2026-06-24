@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "../../bcos-evm/test/state/InMemoryStateView.h"
+#include "../../bcos-evm/test/state/InMemoryEvmStateReader.h"
 #include "Eip2929TestHelpers.h"
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
@@ -31,10 +31,10 @@ namespace bcos::test
 class Eip2929ExecuteViaHostFixture
 {
 public:
-    using InMemoryStateView = bcos::evm::state::test::InMemoryStateView;
+    using InMemoryEvmStateReader = bcos::evm::state::test::InMemoryEvmStateReader;
 
     std::shared_ptr<bcos::crypto::Keccak256> hashImpl = std::make_shared<bcos::crypto::Keccak256>();
-    InMemoryStateView stateView;
+    InMemoryEvmStateReader stateView;
     bcostars::protocol::BlockHeaderImpl blockHeader{
         [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); }};
     bcos::ledger::LedgerConfig ledgerConfig;

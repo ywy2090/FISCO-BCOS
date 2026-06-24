@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -27,7 +27,8 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-void runGetter(state::test::InMemoryStateView& stateView, bytes const& input, u256 const& expected)
+void runGetter(
+    state::test::InMemoryEvmStateReader& stateView, bytes const& input, u256 const& expected)
 {
     auto const sender = addressFromLastByte(0xa1);
     state::Account senderAccount;
@@ -66,7 +67,7 @@ void runGetter(state::test::InMemoryStateView& stateView, bytes const& input, u2
 
 BOOST_AUTO_TEST_CASE(op_host_extension_dispatches_l1block_getter)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     state::Account l1Block;
     l1Block.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(123456));
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1Block));
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE(op_host_extension_dispatches_l1block_getter)
 
 BOOST_AUTO_TEST_CASE(op_host_extension_dispatches_basefee_getter)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     state::Account l1Block;
     l1Block.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(123456));
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1Block));
@@ -88,7 +89,7 @@ BOOST_AUTO_TEST_CASE(op_host_extension_dispatches_basefee_getter)
 
 BOOST_AUTO_TEST_CASE(op_host_extension_dispatches_number_getter)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     state::Account l1Block;
     evmc_bytes32 numberTs{};
     for (size_t i = 0; i < 8; ++i)

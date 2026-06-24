@@ -6,7 +6,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_top_level_invalid_is_included_with_succ
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_nested_invalid_is_not_included_tx_vmerr
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     auto const sender = addressFromLastByte(0x01);
     auto const callee = addressFromLastByte(0x02);
     auto const caller = addressFromLastByte(0x03);

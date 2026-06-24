@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/specs-tests/TestStateView.h"
+#include "bcos-evm/specs-tests/TestEvmStateReader.h"
 #include <bcos-crypto/interfaces/crypto/Hash.h>
 #include <bcos-task/Task.h>
 #include <evmc/evmc.h>
@@ -25,13 +25,13 @@ struct AddressLess
 };
 
 /// Holds a single EEST fixture translated to OPStack execution input plus expected post-state.
-/// The fixture owns the TestStateView; the caller must keep the fixture alive during execution
+/// The fixture owns the TestEvmStateReader; the caller must keep the fixture alive during execution
 /// since OpStackExecutionRequest.stateView points into this fixture.
 struct OpStackEestFixture
 {
     std::string name;
     std::string forkName;
-    bcos::evm::reference_tests::TestStateView stateView;
+    bcos::evm::reference_tests::TestEvmStateReader stateView;
     /// Owned access list storage — input.accessList points here, so the fixture must
     /// outlive the OPStack execution call.
     bcos::evm::Eip2930AccessList storedAccessList;

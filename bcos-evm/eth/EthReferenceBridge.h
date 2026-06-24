@@ -25,7 +25,7 @@ namespace bcos::evm
 /// Pure-ethereum orchestration: executeMessage + EthVmHostPolicy, no FISCO auth/precompile hooks.
 struct EthReferenceRequest
 {
-    state::StateView const* stateView{nullptr};
+    state::EvmStateReader const* stateView{nullptr};
     evmc::VM* vm{nullptr};
     bcos::crypto::Hash const* hashImpl{nullptr};
 

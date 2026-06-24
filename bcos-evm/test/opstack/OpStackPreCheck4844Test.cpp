@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackTxPrecheck.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -38,7 +38,7 @@ OpStackExecutionRequest makeInput(const evmc_address& sender)
 }
 
 void setupAccountWithNonce(
-    state::test::InMemoryStateView& stateView, const evmc_address& sender, uint64_t nonce)
+    state::test::InMemoryEvmStateReader& stateView, const evmc_address& sender, uint64_t nonce)
 {
     state::Account account;
     account.nonce = nonce;
@@ -48,7 +48,7 @@ void setupAccountWithNonce(
 
 BOOST_AUTO_TEST_CASE(rejects_blob_create)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     setupAccountWithNonce(stateView, sender, 1);
 
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(rejects_blob_create)
 
 BOOST_AUTO_TEST_CASE(rejects_type03_with_empty_hashes)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x02);
     setupAccountWithNonce(stateView, sender, 1);
 
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(rejects_type03_with_empty_hashes)
 
 BOOST_AUTO_TEST_CASE(rejects_invalid_versioned_hash_prefix)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x03);
     setupAccountWithNonce(stateView, sender, 1);
 
@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(rejects_invalid_versioned_hash_prefix)
 
 BOOST_AUTO_TEST_CASE(rejects_blob_when_eip4844_disabled)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x04);
     setupAccountWithNonce(stateView, sender, 1);
 
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(rejects_blob_when_eip4844_disabled)
 
 BOOST_AUTO_TEST_CASE(rejects_low_blob_fee_cap)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x05);
     setupAccountWithNonce(stateView, sender, 1);
 
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(rejects_low_blob_fee_cap)
 
 BOOST_AUTO_TEST_CASE(accepts_valid_blob_precheck)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x06);
     setupAccountWithNonce(stateView, sender, 1);
 

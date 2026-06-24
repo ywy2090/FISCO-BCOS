@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
@@ -61,7 +61,7 @@ evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-ExecuteMessageInput makeBaseInput(state::StateView* view, evmc_message const& message)
+ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message const& message)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
@@ -136,12 +136,12 @@ BOOST_AUTO_TEST_CASE(c5_insufficient_balance_both_depths)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryStateView view0;
+    state::test::InMemoryEvmStateReader view0;
     state::State state0(view0);
     state0.set_balance(sender, 99);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryStateView view1;
+    state::test::InMemoryEvmStateReader view1;
     state::State state1(view1);
     state1.set_balance(sender, 99);
     auto depth1 = runDepth1(state1, message);
@@ -161,12 +161,12 @@ BOOST_AUTO_TEST_CASE(successful_value_transfer_balances_match_depth0_and_depth1)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryStateView view0;
+    state::test::InMemoryEvmStateReader view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryStateView view1;
+    state::test::InMemoryEvmStateReader view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);

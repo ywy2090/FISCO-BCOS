@@ -92,9 +92,9 @@ bcos::evm::state::BlockInfo parseEnv(pt::ptree const& envTree)
     return blockInfo;
 }
 
-/// Parse the "pre" section and insert into TestStateView.
+/// Parse the "pre" section and insert into TestEvmStateReader.
 void parseAndInsertPreState(
-    pt::ptree const& preTree, bcos::evm::reference_tests::TestStateView& stateView)
+    pt::ptree const& preTree, bcos::evm::reference_tests::TestEvmStateReader& stateView)
 {
     for (auto const& [addressHex, accountNode] : preTree)
     {
@@ -122,7 +122,7 @@ void parseAndInsertPreState(
 
 /// Insert the L1Block predeploy with zero L1/operator fee scalars.
 void insertL1BlockPredeploy(bcos::evm::state::BlockInfo const& blockInfo,
-    bcos::evm::reference_tests::TestStateView& stateView)
+    bcos::evm::reference_tests::TestEvmStateReader& stateView)
 {
     using bcos::evm::L1_BASE_FEE_SLOT;
     using bcos::evm::L1_BLOB_BASE_FEE_SLOT;
@@ -279,7 +279,7 @@ OpStackEestFixture adaptStateFixture(pt::ptree const& fixtureJson, std::string c
         }
     }
 
-    // 2. Parse pre → TestStateView
+    // 2. Parse pre → TestEvmStateReader
     parseAndInsertPreState(fixtureJson.get_child("pre"), fixture.stateView);
 
     // 3. Insert L1Block predeploy with zero fees

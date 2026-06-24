@@ -1,4 +1,4 @@
-# ADR-019: Orchestration Pipeline (`runOrchestration`)
+# ADR-019: Orchestration Pipeline (`runTxPipeline`)
 
 **Status:** Accepted  
 **Date:** 2026-06-23  
@@ -8,7 +8,7 @@
 
 ## Context
 
-Three chain orchestrators (`executeViaEth`, `executeViaHost`, `opStackExecuteViaHost`) duplicated the same transaction-level EVM execution pipeline: null validation, `State` construction, `ExecuteMessageInput` assembly, intrinsic gas debit, `adoptResult`, and settlement snapshot capture. The duplication was a shallow module (interface ≈ implementation) with no single enforcement of the invariant that `executeMessage` receives the same `evmc_message` after intrinsic debit.
+Three chain orchestrators (`ethReferenceExecute`, `fiscoExecute`, `opStackExecute`) duplicated the same transaction-level EVM execution pipeline: null validation, `State` construction, `ExecuteMessageInput` assembly, intrinsic gas debit, `adoptResult`, and settlement snapshot capture. The duplication was a shallow module (interface ≈ implementation) with no single enforcement of the invariant that `executeMessage` receives the same `evmc_message` after intrinsic debit.
 
 **Observed defect (OpStack):** `executeEntryChecks` debited `txData.m_message.gas` but `executeMessage` received `input.message` (undebted). Eth/Fisco already passed a local debited `message`.
 
@@ -19,16 +19,16 @@ Three chain orchestrators (`executeViaEth`, `executeViaHost`, `opStackExecuteVia
 | Q1 | Converge three paths **and** fix OpStack gas sync in the same PR |
 | Q2 | Kernel covers through settlement snapshot (adopt + snapshot) |
 | Q3 | Shared gas math in kernel; fee routing stays in hooks/wrapper |
-| Q4 | `OrchestrationPipeline` + sync `OrchestrationHooks` |
+| Q4 | `TxPipeline` + sync `TxPipelineHooks` |
 | Q5 | `debitIntrinsicGas` is portable intrinsic only; OpStack floor/balance in `preDebitEntry` |
 | Q6 | State machine / RAII outside kernel; kernel catch is not a revert owner |
-| Q7 | `buyGas`/`refundGas` in wrapper; `runOrchestration` is sync `void` |
+| Q7 | `buyGas`/`refundGas` in wrapper; `runTxPipeline` is sync `void` |
 | Q8 | Explicit `IntrinsicDebitMode` |
 | Q9 | Structured intrinsic failure → `mapIntrinsicFailure` |
-| Q10 | `OrchestrationContext` construction-valid, no default constructor |
+| Q10 | `TxPipelineContext` construction-valid, no default constructor |
 | Q11 | `mapException(std::exception_ptr)`; chain rethrow/catch in own `.cpp` |
 | Q12 | `try/catch` covers steps ②–⑪; step ① validate outside catch |
-| Q13 | `OrchestrationExitKind` for early-exit; no automatic post-settle |
+| Q13 | `TxPipelineExitKind` for early-exit; no automatic post-settle |
 | Q14 | `ctx.state` is sole `State` owner; OpStack `txData.m_state = &ctx.state` |
 | Q15 | No `buildExtension`; wrapper pre-constructs `HostExtension`, stores borrow in `ctx.extension`; ctx non-copyable/non-movable |
 | Q16 | `gasPrice` is constructor param; Eth `preExecute` / OpStack `buyGas` may overwrite |
@@ -43,17 +43,17 @@ Three chain orchestrators (`executeViaEth`, `executeViaHost`, `opStackExecuteVia
 
 ### 1. Shared deep module: `eth/orchestration/`
 
-Introduce synchronous `runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks)` as the **only** fixed orchestration pipeline. Three `executeVia*` entry points become thin wrappers: map input → fill hooks → call pipeline → map output.
+Introduce synchronous `runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)` as the **only** fixed orchestration pipeline. Three execution-bridge entry points become thin wrappers: map input → fill hooks → call pipeline → map output.
 
-**Seam discipline (extends ADR-005):** `eth/orchestration/` and all portable orchestration headers under `eth/` **must not** `#include` `bcos/` or `opstack/` headers. Chain-specific behavior enters only through `OrchestrationHooks` or wrapper code outside the kernel.
+**Seam discipline (extends ADR-005):** `eth/orchestration/` and all portable orchestration headers under `eth/` **must not** `#include` `bcos/` or `opstack/` headers. Chain-specific behavior enters only through `TxPipelineHooks` or wrapper code outside the kernel.
 
 **File layout:**
 
 ```text
 bcos-evm/eth/orchestration/
-  OrchestrationContext.h
-  OrchestrationHooks.h
-  OrchestrationPipeline.h / .cpp
+  TxPipelineContext.h
+  TxPipelineHooks.h
+  TxPipeline.h / .cpp
   AdoptEvmcResult.h
   DebitIntrinsicGas.h
   BuildExecuteMessageInput.h
@@ -101,10 +101,10 @@ Steps ②–⑪ are inside `try/catch`. On exception: `exitKind = ExceptionMappe
 | Fisco | ⑤ `preKernel` (21000, xfer) after debit | ④ kernel (conditional 7623) |
 | OpStack | ③½ `preDebitEntry` before debit | ④ kernel (subtract only) |
 
-### 4. `OrchestrationExitKind`
+### 4. `TxPipelineExitKind`
 
 ```cpp
-enum class OrchestrationExitKind {
+enum class TxPipelineExitKind {
     None,
     PreExecuteRejected,   // ③
     PreDebitRejected,     // ③½
@@ -118,7 +118,7 @@ Early exits at ③/③½/④ set `ctx.earlyExit = true` and the corresponding `e
 
 ### 5. Wrapper-out async fee and state machine (ADR-005 preserved)
 
-These remain **outside** `runOrchestration`:
+These remain **outside** `runTxPipeline`:
 
 | Responsibility | Chain | Location |
 | --- | --- | --- |
@@ -135,11 +135,11 @@ These remain **outside** `runOrchestration`:
 
 **Output mapping (Q18):** Kernel does not produce final `stateDiff`/`logs`. OpStack **must** call `ctx.state.build_diff()` as the tail step after all wrapper-side balance changes (buyGas/refundGas/mint/nonce), never `kernelOutput.stateDiff`.
 
-### 6. `OrchestrationContext` ownership
+### 6. `TxPipelineContext` ownership
 
 - Constructed with `StateView`, initial `evmc_message`, `RevisionConfig`, `gasPrice`.
 - Explicit `= delete` copy/move; sole owner of `state::State` and mutable `evmc_message`.
-- `extension` is a borrow pointer set by wrapper before `runOrchestration` (no `buildExtension` hook).
+- `extension` is a borrow pointer set by wrapper before `runTxPipeline` (no `buildExtension` hook).
 - `originalGasLimit` captured at construction for settlement/snapshot.
 
 ### 7. Test-only OpStack spy seam
@@ -148,7 +148,7 @@ These remain **outside** `runOrchestration`:
 
 `OpStackIntrinsicGasSyncTest` compiles OpStack sources with `BCOS_EVM_TESTING` and does **not** link ordinary `bcos-evm-op`, avoiding production library pollution.
 
-OpStack balance/floor logic lives in `opstack/OpStackPreDebitEntry.*` and enters the pipeline via `preDebitEntry` hook only.
+OpStack balance/floor logic lives in `opstack/OpStackFloorGasPrecheck.*` and enters the pipeline via `preDebitEntry` hook only.
 
 ---
 
@@ -156,7 +156,7 @@ OpStack balance/floor logic lives in `opstack/OpStackPreDebitEntry.*` and enters
 
 - Three anonymous `adoptResult` copies replaced by single `adoptEvmcResult`.
 - `ExecuteMessageInput` 13-field assembly is single-point via `buildExecuteMessageInput`.
-- `capability-matrix.md` TE baseline column semantics note orchestration via `runOrchestration`.
+- `capability-matrix.md` TE baseline column semantics note orchestration via `runTxPipeline`.
 - ADR-005 §4 documents the `eth/orchestration/` boundary and wrapper-out fee/state-machine rule.
 - Eth/Fisco behavioral equivalence expected; OpStack intrinsic path documents expected gas delta (fix).
 - New orchestration behavior must extend hooks or wrapper code, not add chain includes under `eth/`.
@@ -165,10 +165,10 @@ OpStack balance/floor logic lives in `opstack/OpStackPreDebitEntry.*` and enters
 
 ## Compliance checklist
 
-- [ ] New orchestration step added only inside `runOrchestration` or documented hook phase.
+- [ ] New orchestration step added only inside `runTxPipeline` or documented hook phase.
 - [ ] No `bcos/` or `opstack/` includes under `eth/orchestration/`.
 - [ ] Intrinsic failure uses structured outcome + `mapIntrinsicFailure`, not inline `EVMCResult` in kernel.
-- [ ] Exception path uses `mapException(std::exception_ptr)`; Fisco rethrow/catch stays in `ExecuteViaHost.cpp`.
+- [ ] Exception path uses `mapException(std::exception_ptr)`; Fisco rethrow/catch stays in `FiscoExecutionBridge.cpp`.
 - [ ] OpStack fee/state machine changes stay in wrapper, not pipeline steps.
 - [ ] `capability-matrix.md` updated when orchestration capability surfaces change.
 - [ ] OpStack tests use spy seam for message-gas sync when asserting intrinsic debit propagation.

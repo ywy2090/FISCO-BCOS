@@ -8,7 +8,7 @@
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/specs-tests/GstStateHash.h"
-#include "bcos-evm/specs-tests/TestStateView.h"
+#include "bcos-evm/specs-tests/TestEvmStateReader.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-task/Wait.h>
 #include <cstdlib>
@@ -180,7 +180,7 @@ bool EthReferenceBridgeAdapter::supports(
 task::Task<ExecutionResult> EthReferenceBridgeAdapter::execute(
     StateTestCase const& testCase, StateSubtest const& subtest)
 {
-    TestStateView view;
+    TestEvmStateReader view;
     for (auto const& [address, account] : testCase.preState)
     {
         view.insertAccount(address, account);

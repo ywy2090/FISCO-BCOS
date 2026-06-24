@@ -10,7 +10,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -66,7 +66,7 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryStateView& stateView)
+void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -112,7 +112,7 @@ OpStackExecutionRequest make7702Input(evmc_address sender, evmc_address recipien
 
 BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_executeMessage)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x31);
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_executeMessage)
 
 BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x33);
     auto const recipient = addressFromLastByte(0x34);
     auto const delegationTarget = addressFromLastByte(0x43);
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple
 
 BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x35);
     auto const recipient = addressFromLastByte(0x36);
     auto const delegationTarget = addressFromLastByte(0x44);
@@ -243,7 +243,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         {.chainId = u256(1), .authority = authority, .address = delegationTarget, .nonce = 0}};
 
     {
-        state::test::InMemoryStateView seededView;
+        state::test::InMemoryEvmStateReader seededView;
         state::Account authorityAccount;
         authorityAccount.nonce = 0;
         seededView.insert_account(authority, authorityAccount);
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         BOOST_CHECK_EQUAL(seededState.get_refund(), kExistenceRefund);
     }
     {
-        state::test::InMemoryStateView freshView;
+        state::test::InMemoryEvmStateReader freshView;
         state::State freshState(freshView);
         applyAuthorizations(freshState, auths, u256(1));
         BOOST_CHECK_EQUAL(freshState.get_refund(), 0u);
@@ -262,7 +262,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         0x60, 0x2a, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3};
 
     auto const runOpStackCase = [&](bool preSeedAuthority) {
-        state::test::InMemoryStateView stateView;
+        state::test::InMemoryEvmStateReader stateView;
         auto const sender = addressFromLastByte(0x51);
         auto const recipient = addressFromLastByte(0x52);
         auto const authorityAddr = addressFromLastByte(0x53);
@@ -306,7 +306,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
     };
 
     auto const runExecuteMessageRefund = [&](bool preSeedAuthority) {
-        state::test::InMemoryStateView stateView;
+        state::test::InMemoryEvmStateReader stateView;
         auto const sender = addressFromLastByte(0x61);
         auto const recipient = addressFromLastByte(0x62);
         auto const authorityAddr = addressFromLastByte(0x63);

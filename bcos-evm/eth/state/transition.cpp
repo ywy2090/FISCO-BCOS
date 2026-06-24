@@ -60,7 +60,7 @@ int64_t calcGasUsed(int64_t gas_limit, int64_t gas_left) noexcept
 }
 }  // namespace
 
-TransactionReceipt transition(const StateView& state_view, const BlockInfo& block,
+TransactionReceipt transition(const EvmStateReader& state_view, const BlockInfo& block,
     const BlockHashes& block_hashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
     const TransactionProperties& tx_props, VmHostPolicy* ext)
 {

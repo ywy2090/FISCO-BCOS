@@ -1,4 +1,4 @@
-#include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
+#include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/orchestration/AdoptEvmcResult.h"
 #include "bcos-evm/eth/orchestration/BuildExecuteMessageInput.h"
@@ -9,18 +9,18 @@
 namespace bcos::evm
 {
 
-void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks)
+void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)
 {
     if (ctx.inputs.vm == nullptr || ctx.inputs.hashImpl == nullptr)
     {
-        throw std::invalid_argument("runOrchestration requires vm/hashImpl");
+        throw std::invalid_argument("runTxPipeline requires vm/hashImpl");
     }
 
     ctx.earlyExit = false;
-    ctx.exitKind = OrchestrationExitKind::None;
+    ctx.exitKind = TxPipelineExitKind::None;
     ctx.intrinsicDebitMode = hooks.intrinsicPolicy.mode;
 
-    EVM_LOG(DEBUG) << LOG_DESC("runOrchestration begin")
+    EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline begin")
                    << LOG_KV("kind", trace::callKind(ctx.message.kind))
                    << LOG_KV("depth", ctx.message.depth) << LOG_KV("gas", ctx.message.gas)
                    << LOG_KV("originalGas", ctx.originalGasLimit)
@@ -32,14 +32,14 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
     try
     {
         hooks.prepareMessage(ctx);
-        EVM_LOG(TRACE) << LOG_DESC("runOrchestration step") << LOG_KV("step", "prepareMessage")
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "prepareMessage")
                        << LOG_KV("gas", ctx.message.gas);
 
         hooks.preExecute(ctx);
         if (ctx.earlyExit)
         {
-            ctx.exitKind = OrchestrationExitKind::PreExecuteRejected;
-            EVM_LOG(DEBUG) << LOG_DESC("runOrchestration early-exit")
+            ctx.exitKind = TxPipelineExitKind::PreExecuteRejected;
+            EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                            << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code));
             return;
@@ -48,8 +48,8 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
         hooks.preDebitEntry(ctx);
         if (ctx.earlyExit)
         {
-            ctx.exitKind = OrchestrationExitKind::PreDebitRejected;
-            EVM_LOG(DEBUG) << LOG_DESC("runOrchestration early-exit")
+            ctx.exitKind = TxPipelineExitKind::PreDebitRejected;
+            EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                            << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code));
             return;
@@ -60,8 +60,8 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
         if (!debitOutcome.ok)
         {
             ctx.earlyExit = true;
-            ctx.exitKind = OrchestrationExitKind::IntrinsicRejected;
-            EVM_LOG(DEBUG) << LOG_DESC("runOrchestration intrinsic rejected")
+            ctx.exitKind = TxPipelineExitKind::IntrinsicRejected;
+            EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline intrinsic rejected")
                            << LOG_KV("failure", trace::intrinsicDebitFailure(debitOutcome.failure))
                            << LOG_KV("gasBefore", gasBeforeDebit)
                            << LOG_KV("gasLeft", debitOutcome.gasLeftOnFailure);
@@ -70,7 +70,7 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
         }
         if (debitOutcome.debitAmount > 0)
         {
-            EVM_LOG(TRACE) << LOG_DESC("runOrchestration intrinsic debit")
+            EVM_LOG(TRACE) << LOG_DESC("runTxPipeline intrinsic debit")
                            << LOG_KV("debit", debitOutcome.debitAmount)
                            << LOG_KV("gasBefore", gasBeforeDebit)
                            << LOG_KV("gasAfter", ctx.message.gas);
@@ -79,18 +79,18 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
         hooks.preKernel(ctx);
         if (ctx.earlyExit)
         {
-            if (ctx.exitKind == OrchestrationExitKind::None)
+            if (ctx.exitKind == TxPipelineExitKind::None)
             {
-                ctx.exitKind = OrchestrationExitKind::PreDebitRejected;
+                ctx.exitKind = TxPipelineExitKind::PreDebitRejected;
             }
-            EVM_LOG(DEBUG) << LOG_DESC("runOrchestration early-exit")
+            EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                            << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                            << LOG_KV("gas", ctx.message.gas);
             return;
         }
 
-        EVM_LOG(TRACE) << LOG_DESC("runOrchestration step") << LOG_KV("step", "executeMessage")
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "executeMessage")
                        << LOG_KV("gas", ctx.message.gas);
 
         auto executeInput = buildExecuteMessageInput(ctx);
@@ -110,9 +110,9 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
 
         hooks.postAdopt(ctx);
         hooks.postSettle(ctx);
-        ctx.exitKind = OrchestrationExitKind::KernelCompleted;
+        ctx.exitKind = TxPipelineExitKind::KernelCompleted;
 
-        EVM_LOG(DEBUG) << LOG_DESC("runOrchestration done")
+        EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline done")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                        << LOG_KV("gasLeft", ctx.evmcResult.gas_left)
@@ -121,11 +121,11 @@ void runOrchestration(OrchestrationContext& ctx, OrchestrationHooks const& hooks
     }
     catch (...)
     {
-        ctx.exitKind = OrchestrationExitKind::ExceptionMapped;
-        EVM_LOG(DEBUG) << LOG_DESC("runOrchestration exception")
+        ctx.exitKind = TxPipelineExitKind::ExceptionMapped;
+        EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline exception")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind));
         hooks.mapException(ctx, std::current_exception());
-        EVM_LOG(DEBUG) << LOG_DESC("runOrchestration mapped")
+        EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline mapped")
                        << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                        << LOG_KV("gasLeft", ctx.evmcResult.gas_left);
     }

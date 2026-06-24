@@ -8,8 +8,8 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/eth/state/Account.hpp"
+#include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/test/bcos/adapters/InMemoryAuthAdapter.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include <bcos-task/Wait.h>
@@ -22,7 +22,7 @@ namespace bcos::test
 {
 namespace
 {
-class InMemoryStateView : public bcos::evm::state::StateView
+class InMemoryEvmStateReader : public bcos::evm::state::EvmStateReader
 {
 public:
     void insertAccount(const evmc_address& address, bcos::evm::state::Account account = {})
@@ -52,8 +52,8 @@ evmc_address addressFromByte(uint8_t value)
     return address;
 }
 
-bcos::evm::FiscoExecutionRequest makeBaseInput(InMemoryStateView const& stateView, evmc::VM& vm,
-    bcos::crypto::Hash const& hashImpl, evmc_message message,
+bcos::evm::FiscoExecutionRequest makeBaseInput(InMemoryEvmStateReader const& stateView,
+    evmc::VM& vm, bcos::crypto::Hash const& hashImpl, evmc_message message,
     bcos::chain_policy::FiscoRevisionConfig revisionConfig)
 {
     bcos::evm::state::BlockInfo blockInfo;
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(auth_fail_path_returns_checker_result)
     auto const target = addressFromByte(0x22);
 
     auto runCase = [&](bool fixErrorHandling) {
-        InMemoryStateView stateView;
+        InMemoryEvmStateReader stateView;
         bcos::evm::state::Account senderAccount;
         senderAccount.balance = 1'000'000;
         stateView.insertAccount(sender, senderAccount);
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(revert_logs_fix_gate_controls_revert_logs_visibility)
     calleeAccount.code = {0x60, 0x00, 0x60, 0x00, 0xa0, 0x60, 0x00, 0x60, 0x00, 0xfd};
 
     auto runCase = [&](bool fixRevertLogs) {
-        InMemoryStateView stateView;
+        InMemoryEvmStateReader stateView;
         stateView.insertAccount(sender, senderAccount);
         stateView.insertAccount(target, calleeAccount);
 
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(revert_logs_fix_gate_controls_revert_logs_visibility)
 
 BOOST_AUTO_TEST_CASE(empty_account_call_via_execute_via_host_returns_success)
 {
-    InMemoryStateView stateView;
+    InMemoryEvmStateReader stateView;
     auto const sender = addressFromByte(0x41);
     auto const target = addressFromByte(0x42);
 
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(fib88_insufficient_balance_consumes_all_gas)
     auto const sender = addressFromByte(0xaa);
     auto const recipient = addressFromByte(0xbb);
 
-    InMemoryStateView stateView;
+    InMemoryEvmStateReader stateView;
     bcos::evm::state::Account senderAccount;
     senderAccount.balance = 100;
     stateView.insertAccount(sender, senderAccount);
@@ -231,7 +231,7 @@ BOOST_AUTO_TEST_CASE(fib88_not_found_code_revert_preserves_gas)
     auto const target = addressFromByte(0xde);
     bcos::bytes dummyInput{0x01, 0x02, 0x03, 0x04};
 
-    InMemoryStateView stateView;
+    InMemoryEvmStateReader stateView;
     evmc_message message{};
     message.kind = EVMC_CALL;
     message.gas = 500'000;
@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(fib88_not_found_code_static_call_returns_success)
     auto const target = addressFromByte(0xad);
     bcos::bytes dummyInput{0x01, 0x02, 0x03, 0x04};
 
-    InMemoryStateView stateView;
+    InMemoryEvmStateReader stateView;
     evmc_message message{};
     message.kind = EVMC_CALL;
     message.flags = EVMC_STATIC;

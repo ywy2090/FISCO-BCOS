@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Cold-state read abstraction consumed by execution State.
- * @file StateView.hpp
+ * @file EvmStateReader.hpp
  */
 
 #pragma once
@@ -24,10 +24,10 @@
 
 namespace bcos::evm::state
 {
-class StateView
+class EvmStateReader
 {
 public:
-    virtual ~StateView() = default;
+    virtual ~EvmStateReader() = default;
 
     virtual std::optional<Account> get_account(const evmc_address& address) const = 0;
 

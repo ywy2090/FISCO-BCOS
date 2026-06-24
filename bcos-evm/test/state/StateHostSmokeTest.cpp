@@ -16,7 +16,7 @@
 
 #define BOOST_TEST_MODULE StateHostSmokeTest
 #include "bcos-evm/eth/state/Transition.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_SUITE(StateHostSmokeTest)
 
 BOOST_AUTO_TEST_CASE(empty_account_call_returns_success)
 {
-    InMemoryStateView stateView;
+    InMemoryEvmStateReader stateView;
 
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);

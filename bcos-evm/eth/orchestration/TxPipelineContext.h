@@ -22,7 +22,7 @@ class Hash;
 namespace bcos::evm
 {
 
-enum class OrchestrationExitKind
+enum class TxPipelineExitKind
 {
     None,
     PreExecuteRejected,
@@ -32,7 +32,7 @@ enum class OrchestrationExitKind
     ExceptionMapped
 };
 
-struct OrchestrationInputs
+struct TxPipelineInputs
 {
     evmc::VM* vm{nullptr};
     bcos::crypto::Hash const* hashImpl{nullptr};
@@ -44,10 +44,10 @@ struct OrchestrationInputs
     uint8_t web3TypedTxKind{0};
 };
 
-class OrchestrationContext
+class TxPipelineContext
 {
 public:
-    OrchestrationContext(state::StateView const& stateView, evmc_message inputMessage,
+    TxPipelineContext(state::EvmStateReader const& stateView, evmc_message inputMessage,
         bcos::evm_standard::RevisionConfig inputRevisionConfig, intx::uint256 inputGasPrice)
       : message(inputMessage),
         originalGasLimit(inputMessage.gas),
@@ -58,7 +58,7 @@ public:
         execution::setWarmDestinationFromKind(txProps, message.kind);
     }
 
-    OrchestrationContext(state::StateView const& stateView, evmc_message inputMessage,
+    TxPipelineContext(state::EvmStateReader const& stateView, evmc_message inputMessage,
         bcos::evm_standard::RevisionConfig inputRevisionConfig, bcos::u256 inputGasPrice)
       : message(inputMessage),
         originalGasLimit(inputMessage.gas),
@@ -69,12 +69,12 @@ public:
         execution::setWarmDestinationFromKind(txProps, message.kind);
     }
 
-    OrchestrationContext(OrchestrationContext const&) = delete;
-    OrchestrationContext& operator=(OrchestrationContext const&) = delete;
-    OrchestrationContext(OrchestrationContext&&) = delete;
-    OrchestrationContext& operator=(OrchestrationContext&&) = delete;
+    TxPipelineContext(TxPipelineContext const&) = delete;
+    TxPipelineContext& operator=(TxPipelineContext const&) = delete;
+    TxPipelineContext(TxPipelineContext&&) = delete;
+    TxPipelineContext& operator=(TxPipelineContext&&) = delete;
 
-    OrchestrationInputs inputs;
+    TxPipelineInputs inputs;
     evmc_message message{};
     int64_t originalGasLimit{0};
     state::State state;
@@ -86,7 +86,7 @@ public:
     ExecuteMessageOutput kernelOutput{};
     EVMCResult evmcResult{evmc_result{}};
     bool earlyExit{false};
-    OrchestrationExitKind exitKind{OrchestrationExitKind::None};
+    TxPipelineExitKind exitKind{TxPipelineExitKind::None};
     IntrinsicDebitMode intrinsicDebitMode{IntrinsicDebitMode::None};
 
 private:

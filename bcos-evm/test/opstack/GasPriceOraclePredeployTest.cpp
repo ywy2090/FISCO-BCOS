@@ -5,7 +5,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/GasPriceOracleSelectors.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -50,7 +50,7 @@ void releaseResult(evmc_result const& result)
 
 BOOST_AUTO_TEST_CASE(proxy_getter_reads_l1block_slot)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
 
     state::Account l1Block;
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(proxy_getter_reads_l1block_slot)
 
 BOOST_AUTO_TEST_CASE(base_fee_returns_injected_l2_base_fee)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
 
     auto result = GasPriceOraclePredeploy::dispatch(
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(base_fee_returns_injected_l2_base_fee)
 
 BOOST_AUTO_TEST_CASE(decimals_and_fork_flags_match_isthmus_profile)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
 
     auto decimals =
@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(decimals_and_fork_flags_match_isthmus_profile)
 
 BOOST_AUTO_TEST_CASE(legacy_overhead_and_scalar_revert_after_ecotone)
 {
-    state::test::InMemoryStateView baseState;
+    state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
 
     auto overhead =

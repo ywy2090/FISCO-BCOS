@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(blockhash_opcode_returns_lambda_hash)
     constexpr int64_t kCurrentBlock = 100;
     constexpr int64_t kQueryBlock = 99;
 
-    InMemoryStateView view;
+    InMemoryEvmStateReader view;
 
     auto const contract = addressFromByte(0x01);
     auto const sender = addressFromByte(0xaa);

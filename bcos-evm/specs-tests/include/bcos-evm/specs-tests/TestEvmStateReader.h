@@ -1,14 +1,14 @@
 #pragma once
 
 #include "bcos-evm/eth/state/Account.hpp"
+#include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/eth/state/StateView.hpp"
 #include <unordered_map>
 
 namespace bcos::evm::reference_tests
 {
 
-class TestStateView : public state::StateView
+class TestEvmStateReader : public state::EvmStateReader
 {
 public:
     void insertAccount(evmc_address const& address, state::Account account = {})

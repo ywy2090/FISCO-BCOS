@@ -37,7 +37,7 @@ inline bcos::evm_standard::RevisionConfig revisionConfigFromFixtureRevision(
 }
 
 inline FiscoExecutionRequest buildFiscoExecutionRequest(FixtureCase const& fixture,
-    state::StateView const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
+    state::EvmStateReader const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
 {
     FiscoExecutionRequest input;
     input.stateView = &stateView;

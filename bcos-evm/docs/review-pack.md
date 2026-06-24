@@ -4,7 +4,7 @@
 **分支基准：** `feat-evm-refactor`（2026-06-24 校验）  
 **深度参考：** [architecture-overview.md](architecture-overview.md) · [eth-layer-design-review.md](eth-layer-design-review.md) · [capability-matrix.md](../capability-matrix.md)
 
-**校验：** 2026-06-24（与 `runOrchestration` 三路径收敛、ADR-018 dense Isthmus 对齐；companion 文档已同步）
+**校验：** 2026-06-24（与 `runTxPipeline` 三路径收敛、ADR-018 dense Isthmus 对齐；companion 文档已同步）
 
 ---
 
@@ -19,8 +19,8 @@
 | 原则 | 含义 |  enforcement |
 | --- | --- | --- |
 | **单向依赖** | `eth/` 永不 include `bcos/` 或 `opstack/` | ADR-005 Rule 1；CI grep `bcos/Fisco` under `eth/` |
-| **注入扩展** | 链差异通过 `HostExtension` / `Port` / `OrchestrationHooks` 注入 | 无反向渗透进内核 |
-| **深 module** | 共享编排收敛到 `runOrchestration`；内核收敛到 `executeMessage` | ADR-019 |
+| **注入扩展** | 链差异通过 `HostExtension` / `Port` / `TxPipelineHooks` 注入 | 无反向渗透进内核 |
+| **深 module** | 共享编排收敛到 `runTxPipeline`；内核收敛到 `executeMessage` | ADR-019 |
 | **治理固化** | 能力矩阵 + ADR + CI 强制对账 | `capability-gate.yml` |
 
 ### 1.3 三层库结构
@@ -43,7 +43,7 @@ add_library(bcos-evm ALIAS bcos-evm-bcos)
 ```mermaid
 graph TD
     subgraph kernel["bcos-evm-eth"]
-        RO["runOrchestration()"]
+        RO["runTxPipeline()"]
         EM["executeMessage()"]
         HE["HostExtension"]
         RC["RevisionConfig"]
@@ -73,7 +73,7 @@ graph TD
 
 ### 2.1 三入口 → 共享管线 → 内核
 
-自 ADR-019 起，三条路径**均已**迁入同步 `runOrchestration`；wrapper 只负责映射输入、填充 hooks、映射输出。
+自 ADR-019 起，三条路径**均已**迁入同步 `runTxPipeline`；wrapper 只负责映射输入、填充 hooks、映射输出。
 
 | 入口 | 文件 | 列语义（能力矩阵） |
 | --- | --- | --- |
@@ -82,11 +82,11 @@ graph TD
 | `opStackExecuteViaHost` | `opstack/OpStackExecuteViaHost.cpp` | OPStack = **OP 生产继承契约** |
 
 ```text
-executeViaEth      ──hooks──► runOrchestration ──► executeMessage
-executeViaHost     ──hooks──► runOrchestration ──► executeMessage
-opStackExecuteViaHost ─hooks──► runOrchestration ──► executeMessage
+executeViaEth      ──hooks──► runTxPipeline ──► executeMessage
+executeViaHost     ──hooks──► runTxPipeline ──► executeMessage
+opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
                                     ↑
-                         OrchestrationContext::message
+                         TxPipelineContext::message
                          （intrinsic 扣减的唯一可变 owner）
 ```
 
@@ -94,7 +94,7 @@ opStackExecuteViaHost ─hooks──► runOrchestration ──► executeMessag
 
 ### 2.2 固定 12 步管线
 
-实现：`eth/orchestration/OrchestrationPipeline.cpp`
+实现：`eth/orchestration/TxPipeline.cpp`
 
 ```text
 ① validate(vm, hashImpl)     — 在 try/catch 外；抛 std::invalid_argument
@@ -113,7 +113,7 @@ opStackExecuteViaHost ─hooks──► runOrchestration ──► executeMessag
 
 步骤 ②–⑪ 在 `try/catch` 内；异常走 `hooks.mapException`，内核**不**负责 state revert。
 
-### 2.3 OrchestrationContext 所有权
+### 2.3 TxPipelineContext 所有权
 
 - 构造参数：`StateView`、初始 `evmc_message`、`RevisionConfig`、`gasPrice`
 - 显式 `= delete` copy/move；**唯一** `state::State` 与可变 `evmc_message` owner
@@ -188,9 +188,9 @@ opStackExecuteViaHost ─hooks──► runOrchestration ──► executeMessag
 
 **已知张力：** `FiscoPolicy.h` 仍 `#include transaction-executor/.../AuthCheck.h` 与 `PrecompiledManager.h`（在 `bcos/` 层，不违反 eth/ 边界，但与 Port 全生命周期目标不一致 — 见 §7）。
 
-### 3.3 OrchestrationHooks — 管线步骤注入
+### 3.3 TxPipelineHooks — 管线步骤注入
 
-文件：`eth/orchestration/OrchestrationHooks.h`
+文件：`eth/orchestration/TxPipelineHooks.h`
 
 | Hook | 典型用途 |
 | --- | --- |
@@ -285,7 +285,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | 016 | ETH EIP-1559 settlement |
 | 017 | FISCO Precompile Port |
 | 018 | Revision 单一推导源 |
-| 019 | `runOrchestration` 共享编排管线 |
+| 019 | `runTxPipeline` 共享编排管线 |
 
 完整正文：`bcos-evm/docs/adr/`
 
@@ -313,7 +313,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | G1 | `eth/` 是否新增 `bcos/` 或 `opstack/` include？ | 零 include |
 | G2 | 是否改了 `RevisionConfig.h` / `executeMessage.*` / `HostExtension.h`？ | 同 PR 更新矩阵 + 对应测试 |
 | G3 | 新 EIP 行为是否三列都有矩阵行？ | 每列有 token + 理由 |
-| G4 | 编排逻辑是否在 wrapper 里 duplicate pipeline 步骤？ | 共享步骤必须在 `runOrchestration` 内 |
+| G4 | 编排逻辑是否在 wrapper 里 duplicate pipeline 步骤？ | 共享步骤必须在 `runTxPipeline` 内 |
 | G5 | `executeMessage` 收到的 `message.gas` 是否已扣 intrinsic？ | 仅 `ctx.message` 为 owner |
 
 ### 6.2 按改动域
@@ -398,8 +398,8 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | 关注点 | 文件 |
 | --- | --- |
 | 库划分 | `bcos-evm/CMakeLists.txt` |
-| 共享编排管线 | `eth/orchestration/OrchestrationPipeline.cpp` |
-| 编排上下文 / 钩子 | `eth/orchestration/OrchestrationContext.h`、`OrchestrationHooks.h` |
+| 共享编排管线 | `eth/orchestration/TxPipeline.cpp` |
+| 编排上下文 / 钩子 | `eth/orchestration/TxPipelineContext.h`、`TxPipelineHooks.h` |
 | intrinsic 扣减 | `eth/orchestration/DebitIntrinsicGas.h` |
 | 内核入口 | `eth/ExecuteMessage.h` / `.cpp` |
 | 内核扩展点 | `eth/policy/HostExtension.h` |

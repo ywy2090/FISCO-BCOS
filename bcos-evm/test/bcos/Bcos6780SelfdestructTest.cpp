@@ -6,7 +6,7 @@
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -24,7 +24,7 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 
 ExecuteMessageInput buildExecuteMessageInput(
-    FixtureCase const& fixture, state::StateView const& stateView, evmc::VM& vm)
+    FixtureCase const& fixture, state::EvmStateReader const& stateView, evmc::VM& vm)
 {
     ExecuteMessageInput input;
     input.stateView = &stateView;
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(imported_selfdestruct_fixture_via_execute_message)
 #endif
         ;
     auto fixture = loadFixture(path);
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     for (auto const& [addr, acct] : fixture.preState)
     {
         view.insert_account(addr, acct);
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(imported_selfdestruct_fixture_via_execute_message)
 
 BOOST_AUTO_TEST_CASE(created_in_tx_selfdestruct_clears_code_via_execute_message)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const beneficiary = addressFromLastByte(0xbb);
 

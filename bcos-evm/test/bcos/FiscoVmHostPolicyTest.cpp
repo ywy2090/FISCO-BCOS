@@ -57,7 +57,7 @@ std::string addressToHex(const evmc_address& address)
     return out;
 }
 
-class MockStateView : public state::StateView
+class MockStateView : public state::EvmStateReader
 {
 public:
     std::optional<state::Account> get_account(const evmc_address& address) const override

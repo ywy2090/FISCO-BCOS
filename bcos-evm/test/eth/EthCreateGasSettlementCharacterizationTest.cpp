@@ -33,7 +33,7 @@
 #include "bcos-utilities/DataConvertUtility.h"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -79,7 +79,7 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     for (auto const& [addr, account] : preState)
     {
         view.insert_account(addr, account);

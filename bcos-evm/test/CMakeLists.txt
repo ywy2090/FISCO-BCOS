@@ -1134,12 +1134,12 @@ target_link_libraries(EthReferenceBridge1559GasPriceTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME EthReferenceBridge1559GasPrice COMMAND EthReferenceBridge1559GasPriceTest)
 
-add_executable(OrchestrationPipelineTest eth/OrchestrationPipelineTest.cpp)
-target_include_directories(OrchestrationPipelineTest PRIVATE
+add_executable(TxPipelineTest eth/TxPipelineTest.cpp)
+target_include_directories(TxPipelineTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OrchestrationPipelineTest PRIVATE
+target_link_libraries(TxPipelineTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME OrchestrationPipeline COMMAND OrchestrationPipelineTest)
+add_test(NAME TxPipeline COMMAND TxPipelineTest)
 
 add_executable(EthPipelineHookBinderTest eth/EthPipelineHookBinderTest.cpp)
 target_include_directories(EthPipelineHookBinderTest PRIVATE

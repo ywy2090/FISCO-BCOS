@@ -6,7 +6,7 @@
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -62,7 +62,7 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryStateView& stateView)
+void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -74,7 +74,7 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
 }
 
 OpStackExecutionRequest makeIsthmusBaseInput(
-    state::test::InMemoryStateView& stateView, evmc::VM& vm, const crypto::Hash& hash)
+    state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm, const crypto::Hash& hash)
 {
     auto const sender = addressFromLastByte(0x01);
     state::Account senderAccount;
@@ -106,7 +106,7 @@ OpStackExecutionRequest makeIsthmusBaseInput(
 
 BOOST_AUTO_TEST_CASE(opStackExecute_g1msm_k2_gas_matches_geth_isthmus)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeIsthmusBaseInput(stateView, vm, hash);
@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_g1msm_k2_gas_matches_geth_isthmus)
 
 BOOST_AUTO_TEST_CASE(opStackExecute_created_in_tx_selfdestruct_clears_code_isthmus)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeIsthmusBaseInput(stateView, vm, hash);

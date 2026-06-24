@@ -14,9 +14,9 @@ Fields such as `warm_access`, `eip3651`, `eip1559`, `prague_post_execution` are 
 
 **Status:** Documented in ADR-004 + matrix rows. **Fix options:** wire consumers, delete fields, or keep as profile documentation only.
 
-## 38 — HostExtension CMake / include audit
+## 38 — VmHostPolicy CMake / include audit
 
-`bcos-evm/eth` must not include BCOS/OP headers. Chain hooks live in `FiscoHostExtension` / `OpHostExtension` implementing `state::HostExtension`.
+`bcos-evm/eth` must not include BCOS/OP headers. Chain hooks live in `FiscoVmHostPolicy` / `OpStackVmHostPolicy` implementing `state::VmHostPolicy`.
 
 **Status:** Audit complete for current tree — no BCOS/OP includes under `bcos-evm/eth`. Re-run when adding hooks.
 

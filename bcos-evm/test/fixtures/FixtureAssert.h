@@ -23,7 +23,7 @@
 #include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/orchestration/NormalizeIncludedTxVmerr.h"
-#include "bcos-evm/eth/state/StateView.hpp"
+#include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include <boost/test/unit_test.hpp>
 #include <cstdlib>
 
@@ -74,7 +74,8 @@ inline void assertFixtureResult(
     }
 }
 
-inline void assertFixturePostState(state::StateView const& stateView, FixtureCase const& fixture)
+inline void assertFixturePostState(
+    state::EvmStateReader const& stateView, FixtureCase const& fixture)
 {
     for (auto const& expectedPost : fixture.expected.post)
     {

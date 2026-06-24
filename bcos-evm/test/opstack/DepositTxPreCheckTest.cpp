@@ -3,7 +3,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -33,7 +33,7 @@ OpStackExecutionRequest makeInput(const evmc_address& sender)
 
 BOOST_AUTO_TEST_CASE(system_deposit_is_rejected)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     state::State state(stateView);
     auto input = makeInput(sender);
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(system_deposit_is_rejected)
 
 BOOST_AUTO_TEST_CASE(deposit_skips_nonce_and_fee_checks_but_still_subtracts_gas_pool)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x02);
     state::Account account;
     account.nonce = 99;
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(deposit_skips_nonce_and_fee_checks_but_still_subtracts_gas_
 
 BOOST_AUTO_TEST_CASE(non_deposit_rejects_nonce_mismatch)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x03);
     state::Account account;
     account.nonce = 5;
@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_nonce_mismatch)
 
 BOOST_AUTO_TEST_CASE(non_deposit_rejects_invalid_eip1559_caps)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x04);
     state::Account account;
     account.nonce = 1;
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_invalid_eip1559_caps)
 
 BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fee_cap_under_base_fee)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x05);
     state::Account account;
     account.nonce = 1;
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fee_cap_under_base_fee)
 
 BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fields_when_eip4844_disabled)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x07);
     state::Account account;
     account.nonce = 1;
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(non_deposit_rejects_blob_fields_when_eip4844_disabled)
 
 BOOST_AUTO_TEST_CASE(non_deposit_rejects_auth_list_on_create)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x06);
     state::Account account;
     account.nonce = 0;

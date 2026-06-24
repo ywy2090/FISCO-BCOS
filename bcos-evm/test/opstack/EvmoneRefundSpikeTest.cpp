@@ -21,7 +21,7 @@
 
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
@@ -115,7 +115,7 @@ struct RunOutcome
 
 RunOutcome runSstoreClear(bool prefillNonZero)
 {
-    state::test::InMemoryStateView view;
+    state::test::InMemoryEvmStateReader view;
     auto const contract = addressFromLastByte(0x01);
     auto const sender = addressFromLastByte(0xaa);
     auto const slotKey = evmc_bytes32{};

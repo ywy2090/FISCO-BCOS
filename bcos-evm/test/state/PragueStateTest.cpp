@@ -2,7 +2,7 @@
 #include "bcos-evm/eth/state/Transition.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <filesystem>
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(prague_minimal_vectors_gate)
 
         BOOST_TEST_CONTEXT("fixture=" << fixture.name)
         {
-            InMemoryStateView view;
+            InMemoryEvmStateReader view;
             for (auto const& [address, account] : fixture.preState)
             {
                 view.insert_account(address, account);

@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/EthTxPrecheck.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/EthReferenceBridge.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -32,7 +32,7 @@ EthReferenceRequest makeInput(evmc_address sender)
 
 BOOST_AUTO_TEST_CASE(rejects_sender_with_non_delegation_code)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x10);
 
     state::Account senderAccount;
@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(rejects_sender_with_non_delegation_code)
 
 BOOST_AUTO_TEST_CASE(allows_sender_with_delegation_code)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x11);
     auto const target = addressFromLastByte(0x22);
 
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(allows_sender_with_delegation_code)
 
 BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x12);
     state::State state(stateView);
 
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
 
 BOOST_AUTO_TEST_CASE(rejects_type4_contract_creation)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x13);
     state::State state(stateView);
 
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(rejects_type4_contract_creation)
 
 BOOST_AUTO_TEST_CASE(rejects_priority_fee_above_max_fee)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x14);
     state::State state(stateView);
 
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(rejects_priority_fee_above_max_fee)
 
 BOOST_AUTO_TEST_CASE(rejects_max_fee_below_base_fee)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x15);
     state::State state(stateView);
 

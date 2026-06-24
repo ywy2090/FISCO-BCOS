@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "state/InMemoryStateView.h"
+#include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -33,7 +33,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
 {
-    state::test::InMemoryStateView stateView;
+    state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const recipient = addressFromLastByte(0x02);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
