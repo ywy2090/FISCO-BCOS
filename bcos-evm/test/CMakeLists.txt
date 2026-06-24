@@ -528,6 +528,12 @@ target_include_directories(OpStackPreDebitOrderTest PRIVATE
 target_link_libraries(OpStackPreDebitOrderTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackPreDebitOrder COMMAND OpStackPreDebitOrderTest)
 
+add_executable(OpStackOrchestrationProfileTest opstack/OpStackOrchestrationProfileTest.cpp)
+target_include_directories(OpStackOrchestrationProfileTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackOrchestrationProfileTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackOrchestrationProfile COMMAND OpStackOrchestrationProfileTest)
+
 set(DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME DepositTxPreCheckTest)
 
 add_executable(${DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME}
