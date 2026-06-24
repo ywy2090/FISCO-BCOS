@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE RollupCostTest
 
-#include "bcos-evm/opstack/RollupCost.h"
+#include "bcos-evm/opstack/fee/RollupCost.h"
 #include <boost/algorithm/hex.hpp>
 #include <boost/test/included/unit_test.hpp>
 

@@ -1,4 +1,4 @@
-#include "OpStackEestAdapter.h"
+#include "bcos-evm/specs-tests/OpStackEestAdapter.h"
 
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"

@@ -2,7 +2,17 @@
 
 EVM reference vector runners for geth / op-geth parity evidence.
 
-## Build
+## Layout
+
+| Directory | Role |
+|-----------|------|
+| `src/` | Library code (loaders, matchers, adapters) |
+| `include/bcos-evm/specs-tests/` | Public headers |
+| `runners/` | CTest entrypoints only (GST/EEST smoke & full runners) |
+| `test/` | Unit tests for loaders, matchers, adapters |
+| `manifests/` | JSON manifest fixtures |
+| `assets/` | Upstream pin metadata |
+
 
 Reference tests are opt-in and do not affect default builds:
 

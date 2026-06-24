@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackFee.h"
+#include "bcos-evm/opstack/fee/OpStackFee.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "state/InMemoryEvmStateReader.h"

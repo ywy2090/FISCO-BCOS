@@ -12,6 +12,7 @@
 | 目录 | 职责 |
 | --- | --- |
 | `orchestration/` | `runTxPipeline` 共享管线步骤（ADR-019） |
+| `reference/` | ETH 参考链编排（bridge、hooks、precheck、fee ledger） |
 | `execution/` | 交易入口预热、BlockInfo、EIP-2929 warm |
 | `gas/` | 1559/4844/7623 等纯 gas 数学 |
 | `policy/` | `VmHostPolicy` / `EthVmHostPolicy` |
@@ -20,17 +21,24 @@
 | `vm/` | evmone 实例封装 |
 | `trace/` | EVM 追踪 |
 
-## 根目录文件（为何放这里）
+## 根目录文件（内核）
 
 | 文件 | 角色 |
 | --- | --- |
 | `ExecuteMessage.*` | 内核执行入口 `executeMessage()` |
 | `RevisionConfig.h` | EIP 开关位域 |
-| `EthReferenceBridge.*` | ETH 参考链执行桥 `ethReferenceExecute()` |
-| `EthPipelineHookBinder.*` | ETH 参考路径钩子绑定 |
-| `EthTxPrecheck.*` | ETH 参考路径交易预检 |
-| `EthTxFeeLedger.h` | ETH 费用账本（`buyGas`/`refundGas` 等） |
 | `Eip7702.*` | EIP-7702 单点实现 |
+| `EVMCResult.*` | EVMC 结果封装 |
+| `EthExecutionContext.h` | 参考路径执行上下文（TE 消费） |
+
+## `reference/` — ETH 参考路径
+
+| 文件 | 角色 |
+| --- | --- |
+| `EthReferenceBridge.*` | 入口 `ethReferenceExecute()` |
+| `EthPipelineHookBinder.*` | 填充 `TxPipelineHooks` |
+| `EthTxPrecheck.*` | 参考路径交易预检 |
+| `EthTxFeeLedger.h` | `buyGas` / `refundGas` 等 |
 
 ## 执行流
 

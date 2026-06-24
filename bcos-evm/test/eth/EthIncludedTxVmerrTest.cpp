@@ -4,8 +4,8 @@
 #define BOOST_TEST_MODULE EthIncludedTxVmerrTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>

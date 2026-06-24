@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE ExecuteViaEthFixtureTest
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"

@@ -1,11 +1,11 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
-#include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
+#include "bcos-evm/opstack/fee/OpStackFee.h"
 #include <algorithm>
 #include <stdexcept>
 

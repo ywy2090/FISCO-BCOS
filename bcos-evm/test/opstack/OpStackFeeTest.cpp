@@ -1,11 +1,11 @@
 #define BOOST_TEST_MODULE OpStackFeeTest
 
-#include "bcos-evm/opstack/OpStackFee.h"
+#include "bcos-evm/opstack/fee/OpStackFee.h"
 #include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
-#include "bcos-evm/opstack/RollupCost.h"
+#include "bcos-evm/opstack/fee/RollupCost.h"
 #include <boost/algorithm/hex.hpp>
 #include <boost/test/included/unit_test.hpp>
 #include <fstream>

@@ -11,7 +11,7 @@
 #include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/RollupCost.h"
+#include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "bcos-framework/ledger/LedgerConfig.h"

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackPreDebitOrderTest
 
-#include "bcos-evm/opstack/OpStackFloorGas.h"
-#include "bcos-evm/opstack/OpStackFloorGasPrecheck.h"
+#include "bcos-evm/opstack/fee/OpStackFloorGas.h"
+#include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 

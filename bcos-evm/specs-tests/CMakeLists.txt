@@ -49,7 +49,7 @@ target_link_libraries(bcos-evm-specs-tests-eth PUBLIC
 )
 
 add_library(bcos-evm-specs-tests-opstack STATIC
-    runners/OpStackEestAdapter.cpp
+    src/OpStackEestAdapter.cpp
 )
 
 target_include_directories(bcos-evm-specs-tests-opstack PUBLIC
@@ -77,15 +77,15 @@ function(add_reference_test target source)
     )
 endfunction()
 
-add_reference_test(GstStateHashTest runners/GstStateHashTest.cpp)
-add_reference_test(ManifestLoaderTest runners/ManifestLoaderTest.cpp)
-add_reference_test(GeneralStateTestLoaderTest runners/GeneralStateTestLoaderTest.cpp)
-add_reference_test(ForkProfileRegistryTest runners/ForkProfileRegistryTest.cpp)
-add_reference_test(Eip7702StrictTxValidatorTest runners/Eip7702StrictTxValidatorTest.cpp)
-add_reference_test(StateTestMatcherTest runners/StateTestMatcherTest.cpp)
-add_reference_test(StateTestAssertTest runners/StateTestAssertTest.cpp)
+add_reference_test(GstStateHashTest test/GstStateHashTest.cpp)
+add_reference_test(ManifestLoaderTest test/ManifestLoaderTest.cpp)
+add_reference_test(GeneralStateTestLoaderTest test/GeneralStateTestLoaderTest.cpp)
+add_reference_test(ForkProfileRegistryTest test/ForkProfileRegistryTest.cpp)
+add_reference_test(Eip7702StrictTxValidatorTest test/Eip7702StrictTxValidatorTest.cpp)
+add_reference_test(StateTestMatcherTest test/StateTestMatcherTest.cpp)
+add_reference_test(StateTestAssertTest test/StateTestAssertTest.cpp)
 
-add_executable(EthReferenceBridgeAdapterTest runners/EthReferenceBridgeAdapterTest.cpp)
+add_executable(EthReferenceBridgeAdapterTest test/EthReferenceBridgeAdapterTest.cpp)
 target_link_libraries(EthReferenceBridgeAdapterTest PRIVATE bcos-evm-specs-tests-eth)
 add_test(NAME EthReferenceBridgeAdapterTest COMMAND EthReferenceBridgeAdapterTest)
 set_tests_properties(EthReferenceBridgeAdapterTest PROPERTIES
@@ -266,16 +266,10 @@ set_tests_properties(ManifestLint PROPERTIES
 
 # --- OPStack EEST State Runner ---
 
-add_executable(OpStackEestStateTest
-    runners/OpStackEestStateRunner.cpp
-    runners/OpStackEestAdapter.cpp
-)
+add_executable(OpStackEestStateTest runners/OpStackEestStateRunner.cpp)
 target_link_libraries(OpStackEestStateTest PRIVATE
+    bcos-evm-specs-tests-opstack
     bcos-evm-specs-tests-core
-    bcos-evm-op
-    bcos-evm-eth
-    bcos-crypto
-    bcos-task
 )
 target_compile_definitions(OpStackEestStateTest PRIVATE
     SPECS_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
@@ -302,16 +296,10 @@ set_tests_properties(OpStackEestStateFull PROPERTIES
 
 # --- OPStack EEST Blockchain Runner ---
 
-add_executable(OpStackEestBlockchainTest
-    runners/OpStackEestBlockchainRunner.cpp
-    runners/OpStackEestAdapter.cpp
-)
+add_executable(OpStackEestBlockchainTest runners/OpStackEestBlockchainRunner.cpp)
 target_link_libraries(OpStackEestBlockchainTest PRIVATE
+    bcos-evm-specs-tests-opstack
     bcos-evm-specs-tests-core
-    bcos-evm-op
-    bcos-evm-eth
-    bcos-crypto
-    bcos-task
 )
 add_test(NAME OpStackEestBlockchainSmoke COMMAND OpStackEestBlockchainTest
     --fixtures ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests

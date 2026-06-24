@@ -26,9 +26,9 @@
  */
 #define BOOST_TEST_MODULE EthCreateGasSettlementCharacterizationTest
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include "fixtures/EthFixtureAdapter.h"

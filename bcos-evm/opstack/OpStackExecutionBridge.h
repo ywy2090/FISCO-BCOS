@@ -10,7 +10,7 @@
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/OpStackReceiptMeta.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
-#include "bcos-evm/opstack/RollupCost.h"
+#include "bcos-evm/opstack/fee/RollupCost.h"
 #include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>
 #include <functional>

@@ -4,7 +4,7 @@
 /// Blockchain tests process a sequence of transactions per block.
 /// Usage: opstack-eest-blockchain-test --fixtures <dir> [--limit N]
 
-#include "OpStackEestAdapter.h"
+#include "bcos-evm/specs-tests/OpStackEestAdapter.h"
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"

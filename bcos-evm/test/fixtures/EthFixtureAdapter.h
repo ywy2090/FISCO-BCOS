@@ -20,8 +20,8 @@
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/eth/EthReferenceBridge.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::test::fixtures

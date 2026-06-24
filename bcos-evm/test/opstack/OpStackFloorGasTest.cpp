@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackFloorGasTest
 
-#include "bcos-evm/opstack/OpStackFloorGas.h"
+#include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include <boost/test/included/unit_test.hpp>
 #include <limits>
 

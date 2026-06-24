@@ -8,8 +8,8 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
+#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>

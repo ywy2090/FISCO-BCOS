@@ -2,7 +2,15 @@
 
 本目录编译为静态库 **`bcos-evm-op`**，依赖 `bcos-evm-eth`。
 
-## 四件套
+## 目录
+
+| 路径 | 职责 |
+| --- | --- |
+| 根目录 | 四件套（Bridge / HookBinder / VmHostPolicy / TxFeeLedger）、TxPrecheck、常量 |
+| `fee/` | L1 fee、rollup cost、floor gas、gas settlement |
+| `l1/` | L1Block 与 GasPriceOracle 预部署 |
+
+## 四件套（根目录）
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
@@ -11,14 +19,14 @@
 | VM 策略 | `OpStackVmHostPolicy.h` | L1Block 预部署等 |
 | 费用账本 | `OpStackTxFeeLedger.*` | `buyGas` / `refundGas` 等 |
 
-## 领域模块
+## 子目录模块
 
-| 模块 | 文件 | 职责 |
+| 目录 | 文件 | 职责 |
 | --- | --- | --- |
-| 交易预检 | `OpStackTxPrecheck.*` | nonce、1559、blob、7702 |
-| Floor gas | `OpStackFloorGasPrecheck.*` | ③½ `preDebitEntry` 余额/floor 检查 |
-| 费用 | `OpStackFee.*`、`RollupCost.*`、`OpStackFloorGas.*` | L1 fee、rollup、settlement |
-| L1 | `L1Block*`、`GasPriceOracle*` | L1 属性与预部署 |
+| 根 | `OpStackTxPrecheck.*` | nonce、1559、blob、7702 |
+| `fee/` | `OpStackFloorGasPrecheck.*` | ③½ `preDebitEntry` 余额/floor 检查 |
+| `fee/` | `OpStackFee.*`、`RollupCost.*`、`OpStackFloorGas.*`、`OpStackGasSettlement.h` | L1 fee、rollup、settlement |
+| `l1/` | `L1Block*`、`GasPriceOracle*` | L1 属性与预部署 |
 
 ## 执行流
 

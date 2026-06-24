@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE EthPipelineHookBinderTest
 
-#include "bcos-evm/eth/EthPipelineHookBinder.h"
+#include "bcos-evm/eth/reference/EthPipelineHookBinder.h"
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"

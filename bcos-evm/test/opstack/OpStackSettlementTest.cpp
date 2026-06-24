@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackSettlementTest
 
-#include "bcos-evm/opstack/OpStackGasSettlement.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>

@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/RollupCost.h"
+#include "bcos-evm/opstack/fee/RollupCost.h"
 #include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>

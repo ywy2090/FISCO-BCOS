@@ -3,7 +3,7 @@
 /// Loads EEST state test fixtures and executes them through the OPStack path.
 /// Usage: opstack-eest-state-test --fixtures <dir> [--smoke] [--limit N]
 
-#include "OpStackEestAdapter.h"
+#include "bcos-evm/specs-tests/OpStackEestAdapter.h"
 
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

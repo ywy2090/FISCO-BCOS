@@ -4,7 +4,7 @@
 #define BOOST_TEST_MODULE EthExecuteViaEth1559GasPriceTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>

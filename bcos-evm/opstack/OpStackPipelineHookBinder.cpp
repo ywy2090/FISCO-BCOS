@@ -18,8 +18,8 @@
 
 #include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/opstack/OpStackFloorGasPrecheck.h"
-#include "bcos-evm/opstack/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
+#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #ifdef BCOS_EVM_TESTING
 #include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
 #endif
