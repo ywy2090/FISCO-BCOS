@@ -8,6 +8,7 @@ set(BCOS_EVM_ETH_SOURCES
     eth/EVMCResult.cpp
     eth/Eip7702.cpp
     eth/ExecuteViaEth.cpp
+    eth/EthOrchestrationProfile.cpp
     eth/ExecuteViaEthPreCheck.cpp
     eth/orchestration/OrchestrationPipeline.cpp
     eth/ExecuteMessage.cpp
