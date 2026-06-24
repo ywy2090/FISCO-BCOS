@@ -539,6 +539,14 @@ void ensureGeneralStateTestsExtracted(std::filesystem::path const& ethereumTests
     }
 }
 
+std::string generalStateTestCaseId(
+    std::filesystem::path const& ethereumTestsRoot, std::filesystem::path const& jsonPath)
+{
+    auto const gstRoot = ethereumTestsRoot / "GeneralStateTests";
+    auto const relativeToGst = std::filesystem::relative(jsonPath, gstRoot);
+    return (std::filesystem::path("GeneralStateTests") / relativeToGst).generic_string();
+}
+
 std::vector<std::string> listGeneralStateTestVariantKeys(std::filesystem::path const& jsonPath)
 {
     auto const tree = readJsonTree(jsonPath);

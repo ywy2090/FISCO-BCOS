@@ -64,6 +64,8 @@ struct StateTestCase
 
 std::filesystem::path resolveEthereumTestsRoot();
 void ensureGeneralStateTestsExtracted(std::filesystem::path const& ethereumTestsRoot);
+std::string generalStateTestCaseId(
+    std::filesystem::path const& ethereumTestsRoot, std::filesystem::path const& jsonPath);
 
 std::vector<std::string> listGeneralStateTestVariantKeys(std::filesystem::path const& jsonPath);
 std::vector<StateTestCase> loadGeneralStateTestFile(std::filesystem::path const& jsonPath);

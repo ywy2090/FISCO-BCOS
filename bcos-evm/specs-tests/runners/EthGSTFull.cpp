@@ -177,9 +177,7 @@ int main(int argc, char** argv)
                 break;
             }
 
-            auto const relative =
-                std::filesystem::relative(jsonPath.path(), options.ethereumTestsRoot);
-            auto const caseId = relative.generic_string();
+            auto const caseId = generalStateTestCaseId(options.ethereumTestsRoot, jsonPath.path());
             if (options.casePathPrefix.has_value() &&
                 caseId.find(*options.casePathPrefix) == std::string::npos)
             {
