@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE EmptyCodeHookTest
 
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "state/InMemoryStateView.h"

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos2537MsmGasTest
 
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/executeMessage.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

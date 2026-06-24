@@ -501,7 +501,7 @@ updateNonce
 | `host.hpp/.cpp`（`state::Host`） | `EthHost`（含 FISCO 扩展点） | **不再是"打 patch"，而是自有 Host**，FISCO 钩子作为一等接口（取代 §7.1 白名单） |
 | `state_view.hpp` / `state_diff.hpp` | `StateView` / `StateDiff` | 接口照搬语义，`FiscoStateView` 实现之 |
 | `account.hpp` / `transaction.hpp` / `block.hpp` | 对应结构 | 重写；FISCO 字段（ABI 等）一并纳入 |
-| `bloom_filter.{hpp,cpp}` / `errors.hpp` | 同名组件 | 算法照搬（纯函数，可逐行参考） |
+| `bloom_filter.{hpp,cpp}` / `Errors.hpp` | 同名组件 | 算法照搬（纯函数，可逐行参考） |
 | `precompiles*.{hpp,cpp}` | `EthPrecompiles` 分发器（**P-A**） | 见 §18.2：**crypto 原语复用 evmone 生产库**，仅 dispatch/gas 自研 |
 | `system_contracts` / `requests` / `ethash_difficulty` / `block.cpp` 终结算 | 仅 eth 向量需要 | FISCO `executeViaHost` 不触发；按需最小实现 |
 

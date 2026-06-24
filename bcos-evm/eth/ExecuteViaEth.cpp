@@ -3,10 +3,11 @@
 #include "bcos-evm/eth/ExecuteViaEthPreCheck.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/orchestration/NormalizeIncludedTxVmerr.h"
 #include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
-#include "bcos-evm/eth/orchestration/normalizeIncludedTxVmerr.h"
 #include "bcos-evm/eth/policy/EthHostExtension.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <span>
 #include <stdexcept>
@@ -42,6 +43,9 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
         throw std::invalid_argument("executeViaEth requires stateView/vm/hashImpl");
     }
 
+    trace::EvmTraceScope traceScope(
+        trace::makeTraceContext("eth", input.blockInfo.number, input.txHash));
+
     ExecuteViaEthOutput output;
     output.executionContext.message = input.message;
     output.executionContext.revisionConfig = input.revisionConfig;
@@ -55,6 +59,8 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
     ctx.inputs.authorizationListPresent = input.authorizationListPresent;
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
+
+    trace::logMessageContext(input.message);
 
     state::EthHostExtension ethExtension;
     ctx.extension = &ethExtension;
@@ -149,6 +155,12 @@ task::Task<ExecuteViaEthOutput> executeViaEth(ExecuteViaEthInput input)
     };
 
     runOrchestration(ctx, hooks);
+
+    EVM_LOG(DEBUG) << LOG_DESC("executeViaEth done")
+                   << LOG_KV("exit", trace::exitKind(ctx.exitKind))
+                   << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
+                   << LOG_KV("gasLeft", ctx.evmcResult.gas_left)
+                   << LOG_KV("includedTxVmError", output.topLevelIncludedTxVmError);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);

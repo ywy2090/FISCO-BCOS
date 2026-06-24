@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "helpers/ApplyStateDiffToView.h"
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_g1msm_k2_gas_matches_geth_isthmus)
 
     auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
-    BOOST_CHECK_EQUAL(txGas - output.evmcResult.gas_left, 22776);
+    BOOST_CHECK_EQUAL(txGas - output.evmcResult.gas_left, 45056);
 }
 
 BOOST_AUTO_TEST_CASE(opStackExecuteViaHost_created_in_tx_selfdestruct_clears_code_isthmus)

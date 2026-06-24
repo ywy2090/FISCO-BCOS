@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE FiscoTxInputBuilderTest
 
 #include "../../../transaction-executor/bcos-transaction-executor/FiscoTxInputBuilder.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <bcos-codec/rlp/Common.h>
 #include <bcos-codec/rlp/RLPEncode.h>
 #include <bcos-crypto/hash/Keccak256.h>

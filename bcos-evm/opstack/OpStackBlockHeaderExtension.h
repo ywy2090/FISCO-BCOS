@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include <bcos-utilities/Common.h>
 #include <cstring>

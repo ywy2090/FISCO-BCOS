@@ -54,11 +54,11 @@ bcos-evm/eth/orchestration/
   OrchestrationContext.h
   OrchestrationHooks.h
   OrchestrationPipeline.h / .cpp
-  adoptEvmcResult.h
-  debitIntrinsicGas.h
-  buildExecuteMessageInput.h
-  captureSettlementSnapshot.h
-  normalizeIncludedTxVmerr.h   // Eth ADR-015; called from Eth postAdopt hook
+  AdoptEvmcResult.h
+  DebitIntrinsicGas.h
+  BuildExecuteMessageInput.h
+  CaptureSettlementSnapshot.h
+  NormalizeIncludedTxVmerr.h   // Eth ADR-015; called from Eth postAdopt hook
 ```
 
 ### 2. Fixed 12-step pipeline (kernel)

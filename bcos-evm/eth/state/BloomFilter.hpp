@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Minimal bloom filter for transition receipt skeleton.
- * @file bloom_filter.hpp
+ * @file BloomFilter.hpp
  */
 
 #pragma once
@@ -33,8 +33,6 @@ public:
 
     void add(const evmc_bytes32& value) noexcept;
     void merge(const BloomFilter& other) noexcept;
-
-    [[nodiscard]] const std::array<uint8_t, BLOOM_BYTES>& bytes() const noexcept { return m_bits; }
 
 private:
     std::array<uint8_t, BLOOM_BYTES> m_bits{};

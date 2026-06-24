@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <string>
 #include <unordered_map>
 

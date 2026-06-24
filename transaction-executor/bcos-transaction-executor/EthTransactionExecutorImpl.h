@@ -8,9 +8,9 @@
 #include "bcos-evm/eth/EthExecutionContext.h"
 #include "bcos-evm/eth/EthTxExecutor.h"
 #include "bcos-evm/eth/ExecuteViaEth.h"
-#include "bcos-evm/eth/execution/warmTransactionEntry.h"
+#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/vm/EthPolicy.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
@@ -241,6 +241,7 @@ public:
                 input.web3TypedTxKind = m_data->m_web3TypedTxKind;
             }
             input.hasExplicitFeeCaps = m_data->m_hasExplicitFeeCaps;
+            input.txHash = m_data->m_transaction.get().hash();
 
             auto output = co_await executeViaEth(std::move(input));
             m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;

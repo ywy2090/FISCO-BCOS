@@ -5,7 +5,7 @@
 
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/ExecuteViaEth.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>

@@ -47,6 +47,7 @@ void setPragueFeatures(ledger::LedgerConfig& ledgerConfig)
     features.set(ledger::Features::Flag::feature_evm_eip2929);
     features.set(ledger::Features::Flag::feature_balance);
     features.set(ledger::Features::Flag::feature_balance_policy1);
+    features.set(ledger::Features::Flag::bugfix_gas_payment_balance_precheck);
     ledgerConfig.setFeatures(features);
 }
 

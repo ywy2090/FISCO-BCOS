@@ -17,7 +17,7 @@
  */
 
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::state
 {

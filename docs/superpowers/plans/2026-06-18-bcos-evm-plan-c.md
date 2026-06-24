@@ -68,14 +68,14 @@ Plan 4 (C3 → C4 → C5)  生产路径回归 → 删旧 Host → TransactionExe
 
 ### Task C0-2b: `EthHost` evmc 回调 + 8 扩展点
 
-**Files:** `bcos-evm/eth/state/EthHost.hpp/.cpp`, `hash_utils.hpp`
+**Files:** `bcos-evm/eth/state/EthHost.hpp/.cpp`, `HashUtils.hpp`
 
 - [ ] **Step 1:** 实现 evmc Host 回调 + §7.1 扩展点 1–8（Hook#7 内建；Hook#8 调 `FiscoHostExtension`，C3 注入）
 - [ ] **Step 2:** 单测 — selfdestruct/DELEGATECALL-precompile/skipValueTransfer 钩子
 
 ### Task C0-2c: `EthPrecompiles` + `transition()` 骨架
 
-**Files:** `EthPrecompiles.hpp/.cpp`, `transition.hpp/.cpp`, `Transaction.hpp`, `BlockInfo.hpp`, `bloom_filter.*`, `errors.hpp`
+**Files:** `EthPrecompiles.hpp/.cpp`, `Transition.hpp/.cpp`, `Transaction.hpp`, `BlockInfo.hpp`, `bloom_filter.*`, `Errors.hpp`
 
 - [ ] **Step 1:** `EthPrecompiles` 0x01–0x11（调用 `evmone_precompiles/*.hpp` 头 API，非虚构 namespace）
 - [ ] **Step 2:** `transition()` 骨架（eth 向量，标准 SSTORE 语义；FISCO 4态在 C1-2）

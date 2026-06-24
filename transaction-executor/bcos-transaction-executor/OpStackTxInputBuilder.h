@@ -7,7 +7,7 @@
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"

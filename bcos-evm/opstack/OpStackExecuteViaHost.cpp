@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
+#include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/OpStackGasSettlement.h"
@@ -68,6 +69,9 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         throw std::invalid_argument("opStackExecuteViaHost requires stateView/vm/hashImpl");
     }
 
+    trace::EvmTraceScope traceScope(
+        trace::makeTraceContext("opstack", input.blockInfo.number, input.txHash));
+
     OpStackExecuteViaHostOutput output;
     OrchestrationContext ctx{*input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
     ctx.txProps = input.txProps;
@@ -110,6 +114,8 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
     txData.m_blobGasFeeCap = input.blobGasFeeCap;
     txData.m_blobVersionedHashes = input.blobVersionedHashes;
     txData.m_rollupCostData = input.rollupCostData;
+
+    trace::logMessageContext(input.message);
 
     auto applySettlement = [&](EVMCResult const& result) {
         auto const settlement =
@@ -188,6 +194,11 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
         runOrchestration(ctx, hooks);
 
         output.evmcResult = std::move(ctx.evmcResult);
+        EVM_LOG(DEBUG) << LOG_DESC("opStackExecuteViaHost deposit done")
+                       << LOG_KV("exit", trace::exitKind(ctx.exitKind))
+                       << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
+                       << LOG_KV("gasUsed", txData.m_gasUsed);
+
         output.logs = std::move(ctx.kernelOutput.logs);
 
         if (ctx.exitKind == OrchestrationExitKind::KernelCompleted &&
@@ -244,6 +255,11 @@ task::Task<OpStackExecuteViaHostOutput> opStackExecuteViaHost(OpStackExecuteViaH
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
+    EVM_LOG(DEBUG) << LOG_DESC("opStackExecuteViaHost done")
+                   << LOG_KV("exit", trace::exitKind(ctx.exitKind))
+                   << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
+                   << LOG_KV("gasUsed", txData.m_gasUsed)
+                   << LOG_KV("l1Fee", txData.m_l1CostCharged);
     if (ctx.exitKind != OrchestrationExitKind::KernelCompleted)
     {
         applySettlement(output.evmcResult);

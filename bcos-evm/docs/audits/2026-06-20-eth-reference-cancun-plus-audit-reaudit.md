@@ -40,7 +40,7 @@
 
 | 能力 | 实现 / 测试 |
 |------|-------------|
-| EIP-7702 delegation E2E | `stEIP7702_delegation.json`；`resolveExecutableCode`（`executeMessage.cpp` / `EthHost.cpp`） |
+| EIP-7702 delegation E2E | `stEIP7702_delegation.json`；`resolveExecutableCode`（`ExecuteMessage.cpp` / `EthHost.cpp`） |
 | EIP-7623 entry precheck (ETH) | `Eip7623PrecheckTest` + `Bcos7623PrecheckTest` |
 | EIP-1153 transient | `State::build_diff()` purge；`Eip1153TransientStorageTest`（3 cases） |
 
@@ -82,7 +82,7 @@
 
 | 变更 | 文件 |
 |------|------|
-| 7702 delegation → delegatee 字节码 | `executeMessage.cpp`、`EthHost.cpp` |
+| 7702 delegation → delegatee 字节码 | `ExecuteMessage.cpp`、`EthHost.cpp` |
 | transient 不进入 `StateDiff` | `State.cpp` `build_diff()` |
 
 ---

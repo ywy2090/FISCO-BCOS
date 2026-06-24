@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Top-level message execution over eth::state::EthHost.
- * @file executeMessage.h
+ * @file ExecuteMessage.h
  */
 
 #pragma once
@@ -26,6 +26,7 @@
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
+#include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
 #include <vector>
 
@@ -50,6 +51,7 @@ struct ExecuteMessageInput
     state::HostExtension* extension{nullptr};
     bool fixStorageStatus{true};
     bool fixNonceInit{false};
+    std::optional<bcos::h256> txHash;
 };
 
 struct ExecuteMessageOutput

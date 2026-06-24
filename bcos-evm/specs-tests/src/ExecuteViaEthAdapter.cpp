@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/gas/Eip4844.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/specs-tests/GstStateHash.h"
 #include "bcos-evm/specs-tests/TestStateView.h"
 #include "bcos-utilities/DataConvertUtility.h"

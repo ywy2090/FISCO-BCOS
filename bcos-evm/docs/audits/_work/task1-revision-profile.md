@@ -17,7 +17,7 @@
 
 ### eip7702 重点
 
-- `RevisionConfig` 有 `eip7702` 字段（`RevisionConfig.h:27`），`executeMessage.cpp:173` 以该 flag 门控 `applyAuthorizations`。
+- `RevisionConfig` 有 `eip7702` 字段（`RevisionConfig.h:27`），`ExecuteMessage.cpp:173` 以该 flag 门控 `applyAuthorizations`。
 - **`EthPolicy::computeRevisionConfig` 从未赋值 `eip7702`** → PRAGUE/OSAKA 区块仍为 `false`。
 - Matrix 声明：`EIP-7702 revision enable | inherited (EthPolicy at PRAGUE+)`（`capability-matrix.md:53`）——与实现不符。
 - 对照：`FiscoPolicy` 在 `feature_evm_prague` 时设 `eip7702=true`（`FiscoPolicy.h:66`）；`makeIsthmusRevisionConfig` 亦设 true（`RevisionConfig.h:67`）。
@@ -43,7 +43,7 @@ cd build && ./bcos-evm/test/RevisionConfigProfileTest --log_level=test_suite
 
 | 字段 | EthPolicy 赋值 | TE consumer（`bcos-evm/eth/`） | ADR-004 分类 |
 |------|---------------|-------------------------------|-------------|
-| `warm_access` | `>= BERLIN` → true | `executeMessage.cpp:140,147,177` 传入 `warmTransactionEntry` / `EthHost` | profile-only（语义门控为 revision；flag 仍被读取） |
+| `warm_access` | `>= BERLIN` → true | `ExecuteMessage.cpp:140,147,177` 传入 `warmTransactionEntry` / `EthHost` | profile-only（语义门控为 revision；flag 仍被读取） |
 | `eip1559` | 未赋值 | **无** grep 命中 | profile-only |
 | `eip3651` | 未赋值 | **无** grep 命中 | profile-only |
 | `prague_post_execution` | 未赋值 | **无** grep 命中 | profile-only |
@@ -53,7 +53,7 @@ cd build && ./bcos-evm/test/RevisionConfigProfileTest --log_level=test_suite
 
 | 字段 | consumer |
 |------|----------|
-| `eip7702` | `executeMessage.cpp:173` |
+| `eip7702` | `ExecuteMessage.cpp:173` |
 | `eip7623` | `ExecuteViaEth.cpp:64,80` + `calldata_floor_per_token` |
 | `eip1153/5656/6780/4844` | evmone via `revision`（`VMInstance.cpp:23-24`） |
 | `eip2537` | `EthPrecompiles` via `revision`（flag 仅 FISCO manager） |

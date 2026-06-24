@@ -59,7 +59,7 @@ ctest -R "Eip7702ApplyAuthorizationEth|EipPrecompileRevisionGate|BcosPrecompileR
 
 | 项 | 内核 | ETH 测试 |
 |----|------|----------|
-| 7702 delegation E2E | `executeMessage.cpp` / `EthHost.cpp` `resolveExecutableCode` | `stEIP7702_delegation.json` + `ExecuteViaEthFixtureTest` |
+| 7702 delegation E2E | `ExecuteMessage.cpp` / `EthHost.cpp` `resolveExecutableCode` | `stEIP7702_delegation.json` + `ExecuteViaEthFixtureTest` |
 | 7623 ETH precheck | `ExecuteViaEth.cpp`（已有） | `Eip7623PrecheckTest` |
 | 1153 transient purge | `State.cpp` `build_diff()` 剥离 `transientStorage` | `Eip1153TransientStorageTest`（3 cases） |
 

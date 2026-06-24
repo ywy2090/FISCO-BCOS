@@ -111,7 +111,7 @@ target_compile_definitions(EthGSTFull PRIVATE
 add_test(NAME EthGSTFull COMMAND EthGSTFull
     --ethereum-tests-root ${EVM_REF_ETHEREUM_TESTS_ROOT}
     --expectations ${CMAKE_CURRENT_SOURCE_DIR}/manifests/expectations.json
-    --fork-profiles eth-prague,eth-osaka
+    --fork-profiles eth-cancun,eth-prague,eth-osaka
     --case-prefix GeneralStateTests/stExample
     --limit 3
 )

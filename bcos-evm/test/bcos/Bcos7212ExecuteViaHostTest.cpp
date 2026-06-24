@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos7212ExecuteViaHostTest
 
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>

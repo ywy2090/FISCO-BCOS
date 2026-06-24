@@ -20,6 +20,8 @@ jobs:
         run: bash bcos-evm/tools/ci/check-capability-matrix.sh
       - name: Revision single-source gate
         run: bash bcos-evm/tools/ci/check-revision-single-source.sh
+      - name: Filename convention gate
+        run: bash bcos-evm/tools/ci/check-filename-convention.sh
       - name: Compile boundary — bcos-evm zero bcos-executor includes
         run: |
           set -euo pipefail

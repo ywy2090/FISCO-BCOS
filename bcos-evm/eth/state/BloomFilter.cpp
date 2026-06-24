@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file bloom_filter.cpp
+ * @file BloomFilter.cpp
  */
 
-#include "bcos-evm/eth/state/bloom_filter.hpp"
+#include "bcos-evm/eth/state/BloomFilter.hpp"
 
 namespace bcos::evm::state
 {

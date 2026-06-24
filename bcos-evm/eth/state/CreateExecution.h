@@ -4,8 +4,8 @@
 #pragma once
 
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
 #include <evmone_precompiles/keccak.hpp>
 
 namespace bcos::evm::state

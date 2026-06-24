@@ -15,7 +15,7 @@
  */
 
 #define BOOST_TEST_MODULE WarmTransactionEntryTest
-#include "bcos-evm/eth/execution/warmTransactionEntry.h"
+#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "state/InMemoryStateView.h"

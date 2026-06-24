@@ -19,7 +19,7 @@
 #define BOOST_TEST_MODULE PrecompileRouterCharacterizationTest
 
 #include "bcos-evm/bcos/FiscoHostExtension.h"
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"

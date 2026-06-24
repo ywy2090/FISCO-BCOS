@@ -2,7 +2,7 @@
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <array>
 
 namespace bcos::evm

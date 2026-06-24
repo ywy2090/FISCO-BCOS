@@ -1,5 +1,5 @@
 #define BOOST_TEST_MODULE PragueStateTest
-#include "bcos-evm/eth/state/transition.hpp"
+#include "bcos-evm/eth/state/Transition.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "state/InMemoryStateView.h"

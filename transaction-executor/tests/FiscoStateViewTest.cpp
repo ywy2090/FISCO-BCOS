@@ -81,8 +81,11 @@ BOOST_AUTO_TEST_CASE(apply_state_diff_to_storage)
     state::StateDiff diff;
     auto& account = diff.accounts[address];
     account.balance = 9999;
+    account.balanceDirty = true;
     account.nonce = 42;
+    account.nonceDirty = true;
     account.code = {0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3};
+    account.codeDirty = true;
     account.abi = "set(uint)";
     account.storage[slot] = value;
 

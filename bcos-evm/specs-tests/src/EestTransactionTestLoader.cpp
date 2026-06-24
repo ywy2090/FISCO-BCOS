@@ -1,6 +1,6 @@
 #include "bcos-evm/specs-tests/EestTransactionTestLoader.h"
 
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <algorithm>

@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Hash and conversion helpers for evmc address/bytes32 keys.
- * @file hash_utils.hpp
+ * @file HashUtils.hpp
  */
 
 #pragma once

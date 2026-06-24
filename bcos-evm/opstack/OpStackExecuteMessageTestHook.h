@@ -2,7 +2,7 @@
 
 #ifdef BCOS_EVM_TESTING
 
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include <functional>
 #include <optional>
 

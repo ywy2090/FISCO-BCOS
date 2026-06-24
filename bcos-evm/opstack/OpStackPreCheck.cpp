@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/opstack/Eip4844.h"
+#include "bcos-evm/opstack/OpStackBlobTxIntent.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include <evmc/evmc.h>

@@ -13,13 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file transition.cpp
+ * @file Transition.cpp
  */
 
-#include "bcos-evm/eth/state/transition.hpp"
+#include "bcos-evm/eth/state/Transition.hpp"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/executeMessage.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <algorithm>
 
 namespace bcos::evm::state

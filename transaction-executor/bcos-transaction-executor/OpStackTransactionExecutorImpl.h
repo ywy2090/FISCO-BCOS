@@ -5,7 +5,7 @@
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
@@ -221,6 +221,7 @@ public:
                     pool->returnGas(remaining, used);
             };
             input.forkSchedule = bcos::evm::makeIsthmusPlusForkSchedule();
+            input.txHash = m_data->m_transaction.get().hash();
 
             co_return co_await opStackExecuteViaHost(std::move(input));
         }

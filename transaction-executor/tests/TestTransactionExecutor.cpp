@@ -175,14 +175,15 @@ BOOST_AUTO_TEST_CASE(costBalance)
         features.setGenesisFeatures(protocol::BlockVersion::V3_13_0_VERSION);
         features.set(bcos::ledger::Features::Flag::feature_balance);
         features.set(bcos::ledger::Features::Flag::feature_balance_policy1);
+        features.set(bcos::ledger::Features::Flag::bugfix_gas_payment_balance_precheck);
         ledgerConfig.setFeatures(features);
         ledgerConfig.setGasPrice({"1", 0});
 
         bcos::bytes helloworldBytecodeBinary;
         boost::algorithm::unhex(helloworldBytecode, std::back_inserter(helloworldBytecodeBinary));
         // First deploy
-        auto transaction = transactionFactory.createTransaction(
-            0, "", helloworldBytecodeBinary, {}, 0, "", "", 0, std::string{}, {}, {}, 1000);
+        auto transaction = transactionFactory.createTransaction(0, "", helloworldBytecodeBinary, {},
+            0, "", "", 0, std::string{}, "0x0", "0x1", 1000, "0x0", "0x0");
         auto receipt = co_await executor.executeTransaction(
             storage, blockHeader, *transaction, 0, ledgerConfig, false);
         BOOST_CHECK_EQUAL(

@@ -15,7 +15,7 @@ EthPolicy::computeRevisionConfig(header)
   → RevisionConfig.eip7702 (default false; EthPolicy 未赋值)
 executeViaEth(input)
   → executeMessage(..., revisionConfig, authorizationListPresent, authorizations)
-executeMessage.cpp:173
+ExecuteMessage.cpp:173
   → if (revisionConfig.eip7702 && authorizationListPresent && !authorizations.empty())
        applyAuthorizations(...); warmDelegationTarget(...)
 ```
@@ -89,7 +89,7 @@ delegation 前缀：`0xEF 0x01 0x00` + 20-byte address（23 bytes），与 geth 
 
 ### 门控
 
-`executeMessage.cpp:173-181` 需 **`eip7702 && authorizationListPresent && !authorizations.empty()`** 三者同时成立。
+`ExecuteMessage.cpp:173-181` 需 **`eip7702 && authorizationListPresent && !authorizations.empty()`** 三者同时成立。
 
 ### 测试覆盖
 

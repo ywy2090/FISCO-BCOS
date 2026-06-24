@@ -10,12 +10,12 @@ set(BCOS_EVM_ETH_SOURCES
     eth/ExecuteViaEth.cpp
     eth/ExecuteViaEthPreCheck.cpp
     eth/orchestration/OrchestrationPipeline.cpp
-    eth/executeMessage.cpp
+    eth/ExecuteMessage.cpp
     eth/state/State.cpp
     eth/state/EthHost.cpp
-    eth/state/bloom_filter.cpp
+    eth/state/BloomFilter.cpp
     eth/state/EthPrecompiles.cpp
-    eth/state/transition.cpp
+    eth/state/Transition.cpp
     eth/precompiled/EthBuiltinRegistry.cpp
     eth/precompiled/PrecompiledContract.cpp
     eth/precompiled/ModexpGas.cpp

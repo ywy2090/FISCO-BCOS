@@ -8,8 +8,8 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/ExecuteViaHost.h"
 #include "bcos-evm/eth/state/Account.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-evm/test/bcos/adapters/InMemoryAuthAdapter.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include <bcos-task/Wait.h>

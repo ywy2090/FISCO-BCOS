@@ -294,6 +294,7 @@ public:
             };
             input.web3TypedTxKind = m_data->m_web3AccessListResolved.web3TypedTxKind;
             input.accessList = m_data->m_web3AccessListResolved.accessList;
+            input.txHash = m_data->m_transaction.get().hash();
 
             bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
                 m_data->m_executionContext.revisionConfig.use_raw_address,

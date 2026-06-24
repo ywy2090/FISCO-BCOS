@@ -437,7 +437,7 @@ EOF
 
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/bcos/ExecuteViaHost.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <boost/test/unit_test.hpp>
 
 namespace bcos::evm::test::fixtures

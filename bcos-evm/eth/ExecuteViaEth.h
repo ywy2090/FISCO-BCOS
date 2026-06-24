@@ -9,6 +9,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-task/Task.h"
+#include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
 #include <functional>
 #include <optional>
@@ -40,6 +41,7 @@ struct ExecuteViaEthInput
     const Eip2930AccessList* accessList{nullptr};
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
+    std::optional<bcos::h256> txHash;
 };
 
 struct ExecuteViaEthOutput

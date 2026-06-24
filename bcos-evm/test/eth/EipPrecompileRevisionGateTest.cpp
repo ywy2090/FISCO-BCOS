@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE EipPrecompileRevisionGateTest
 
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "state/InMemoryStateView.h"

@@ -3,7 +3,7 @@
 #include "../../../transaction-executor/bcos-transaction-executor/OpStackTxInputBuilder.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "state/InMemoryStateView.h"

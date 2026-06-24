@@ -100,7 +100,7 @@ call(msg)
 | `bcos-evm/eth/policy/HostExtension.h` | 修改 | `callFiscoPrecompile` → `tryChainPrecompile`；`onCreateFrameEntry` → `prepareMessage` |
 | `bcos-evm/bcos/FiscoHostExtension.h/.cpp` | 修改 | 覆写新方法；`[PRECOMPILED]` 路由迁入 `tryChainPrecompile` |
 | `bcos-evm/eth/state/EthPrecompiles.hpp/.cpp` | 修改 | 新增 `tryDispatchInCall()` |
-| `bcos-evm/eth/state/transition.cpp` | 修改 | `EthHost` 传入 `&vm` + `block_hashes`；顶层预编译 dispatch 保留或收敛至 `call()` 内（二选一，实现时统一） |
+| `bcos-evm/eth/state/Transition.cpp` | 修改 | `EthHost` 传入 `&vm` + `block_hashes`；顶层预编译 dispatch 保留或收敛至 `call()` 内（二选一，实现时统一） |
 | `bcos-evm/test/state/NestedCallHostTest.cpp` | 新增 | **真实 `EthHost::call()` 递归** — 合约 A 调 B |
 | `bcos-evm/test/state/PrecompileInCallTest.cpp` | 新增 | CALL 指令调内置预编译 |
 | `bcos-evm/test/state/BlockHashHostTest.cpp` | 新增 | BLOCKHASH 操作码 |
@@ -190,7 +190,7 @@ op::executeViaHost()         ← OpHostExtension + OpStackTxExecutor 费用（�
 | 文件 | 操作 | 要点 |
 |------|------|------|
 | `bcos-evm/eth/executeMessage.h/.cpp` | 完善 | 统一管线 |
-| `bcos-evm/eth/state/transition.cpp` | 简化 | 薄包装 → `executeMessage()` + receipt 转换 |
+| `bcos-evm/eth/state/Transition.cpp` | 简化 | 薄包装 → `executeMessage()` + receipt 转换 |
 | `bcos-evm/bcos/ExecuteViaHost.cpp` | 简化 | 仅 FISCO 差异层 |
 | `bcos-evm/opstack/OpHostExtension.h` | 新增 | HostExtension 子类（deposit/L1 钩子 stub） |
 | `bcos-evm/opstack/OpStackExecuteViaHost.h` | 新增 | op 路径入口（无 TE 消费者，烟雾验证） |

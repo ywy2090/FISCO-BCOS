@@ -29,7 +29,7 @@
 #include "bcos-evm/eth/ExecuteViaEth.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"

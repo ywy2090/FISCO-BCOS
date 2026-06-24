@@ -6,7 +6,7 @@
 
 #define BOOST_TEST_MODULE PrecompileRouterEnvelopeTest
 
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>

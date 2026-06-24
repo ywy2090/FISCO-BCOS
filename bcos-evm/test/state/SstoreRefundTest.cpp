@@ -16,9 +16,9 @@
 
 #define BOOST_TEST_MODULE SstoreRefundTest
 
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>

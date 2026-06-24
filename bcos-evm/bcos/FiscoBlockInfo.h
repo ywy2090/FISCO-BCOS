@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/state/BlockInfo.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-ledger/LedgerMethods.h"

@@ -1,6 +1,6 @@
 #include "bcos-evm/specs-tests/GstStateHash.h"
 
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <algorithm>
 #include <array>
 #include <bit>

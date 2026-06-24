@@ -25,7 +25,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `bcos-evm/opstack/Eip4844.h` | `hasBlobTxIntent`、`isValidVersionedHash` |
+| `bcos-evm/opstack/OpStackBlobTxIntent.h` | `hasBlobTxIntent`、`isValidVersionedHash` |
 | `bcos-evm/opstack/OpStackPreCheck.cpp` | blob 三规则 + 统一 blob 分支 |
 | `bcos-evm/opstack/OpStackExecuteViaHost.h/.cpp` | `gasPoolReturnGasHook`；SubGas/ReturnGas 编排 |
 | `transaction-executor/.../OpStackTxInputBuilder.h` | `BlockGasPool::returnGas`、`remaining`、`cumulativeUsed` |
@@ -42,7 +42,7 @@
 ## Task 1: EIP-4844 辅助头 + preCheck 三规则
 
 **Files:**
-- Create: `bcos-evm/opstack/Eip4844.h`
+- Create: `bcos-evm/opstack/OpStackBlobTxIntent.h`
 - Modify: `bcos-evm/opstack/OpStackPreCheck.cpp:77-87`
 
 **Interfaces:**
@@ -79,7 +79,7 @@ inline bool isValidVersionedHash(bcos::h256 const& h) noexcept
 
 - [ ] **Step 3: 修改 `OpStackPreCheck.cpp`**
 
-在 `#include "OpStackPreCheck.h"` 后增加 `#include "bcos-evm/opstack/Eip4844.h"`。
+在 `#include "OpStackPreCheck.h"` 后增加 `#include "bcos-evm/opstack/OpStackBlobTxIntent.h"`。
 
 将 `if (!input.skipTransactionChecks)` 内原 `if (!input.blobVersionedHashes.empty()) { ... }` 块替换为：
 
@@ -125,7 +125,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add bcos-evm/opstack/Eip4844.h bcos-evm/opstack/OpStackPreCheck.cpp
+rtk git add bcos-evm/opstack/OpStackBlobTxIntent.h bcos-evm/opstack/OpStackPreCheck.cpp
 rtk git commit -m "$(cat <<'EOF'
 fix(opstack): align EIP-4844 blob preCheck with op-geth
 

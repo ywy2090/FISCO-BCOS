@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/ExecuteViaHost.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>

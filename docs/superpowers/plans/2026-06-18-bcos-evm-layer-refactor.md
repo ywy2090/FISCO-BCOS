@@ -28,7 +28,7 @@
 | `eth/policy/HostExtension.h` | 1 | 钩子重命名 |
 | `eth/state/EthHost.hpp/.cpp` | 1 | 递归 call、BlockHashes、routeCall 瘦身 |
 | `eth/state/EthPrecompiles.hpp/.cpp` | 1 | `tryDispatchInCall` |
-| `eth/state/transition.cpp` | 1,3 | VM/block_hashes 接线；薄包装 |
+| `eth/state/Transition.cpp` | 1,3 | VM/block_hashes 接线；薄包装 |
 | `bcos/FiscoHostExtension.h/.cpp` | 1,2 | `tryChainPrecompile` 迁移 |
 | `eth/executeMessage.h/.cpp` | 2,3 | 纯 eth 编排核心 |
 | `eth/RevisionConfig.h` | 2 | 纯化 |
@@ -99,7 +99,7 @@ EOF
 **Files:**
 - Modify: `bcos-evm/eth/state/EthHost.hpp`
 - Modify: `bcos-evm/eth/state/EthHost.cpp`（构造签名）
-- Modify: `bcos-evm/eth/state/transition.cpp`
+- Modify: `bcos-evm/eth/state/Transition.cpp`
 - Modify: 所有直接构造 `EthHost` 的测试文件
 
 **Interfaces:**
@@ -126,7 +126,7 @@ EthHost::bytes32 EthHost::get_block_hash(int64_t number) const noexcept
 }
 ```
 
-- [ ] **Step 3:** 更新 `transition.cpp` 传 `vm` 与 `block_hashes`：
+- [ ] **Step 3:** 更新 `Transition.cpp` 传 `vm` 与 `block_hashes`：
 
 ```cpp
 EthHost host(state, txContext, rev, vm, block_hashes, ext);
@@ -263,7 +263,7 @@ ctest --test-dir build/bcos-evm/test --output-on-failure
 - Modify: `bcos-evm/eth/state/EthPrecompiles.hpp/.cpp`
 - Create: `bcos-evm/test/state/PrecompileInCallTest.cpp`
 - Modify: `bcos-evm/test/CMakeLists.txt`
-- Modify: `bcos-evm/eth/state/transition.cpp`（顶层 dispatch 可委托 `tryDispatchInCall` 去重）
+- Modify: `bcos-evm/eth/state/Transition.cpp`（顶层 dispatch 可委托 `tryDispatchInCall` 去重）
 
 **Interfaces:**
 - Produces: `EthPrecompiles::tryDispatchInCall(addr, msg, rev) -> optional<EthPrecompileResult>`
@@ -418,7 +418,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
 **Files:**
 - Modify: `bcos-evm/bcos/ExecuteViaHost.cpp`
 - Modify: `bcos-evm/bcos/ExecuteViaHost.h`
-- Modify: `bcos-evm/eth/state/transition.cpp`
+- Modify: `bcos-evm/eth/state/Transition.cpp`
 
 - [ ] **Step 1:** `executeViaHost` 保留 deriveMessage、auth、EIP-7623、FiscoHostExtension 注入；核心调 `executeMessage`
 
@@ -507,7 +507,7 @@ ctest -R 'ExecuteViaHostCompat|FIB101_102_103_104_SchedulerTest'
 
 **Files:**
 - Modify: `bcos-evm/eth/EthTxExecutor.h`
-- Modify: `bcos-evm/eth/state/transition.cpp`
+- Modify: `bcos-evm/eth/state/Transition.cpp`
 
 - [ ] **Step 1:** 确认 `transition` / `executeMessage` / `executeViaHost` 无重复 warm 逻辑
 

@@ -6,7 +6,7 @@
 
 #define BOOST_TEST_MODULE PrecompileRouterEquivalenceTest
 
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"

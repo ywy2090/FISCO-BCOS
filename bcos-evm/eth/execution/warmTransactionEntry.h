@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Transaction-entry warm set helper over state::State APIs.
- * @file warmTransactionEntry.h
+ * @file WarmTransactionEntry.h
  */
 
 #pragma once

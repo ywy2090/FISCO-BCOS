@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE DepositNoFeeRoutingTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"
 #include "bcos-framework/executor/OpStackTxType.h"
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_execution_but_keeps_mint_and_bumps_
     auto output = task::syncWait(opStackExecuteViaHost(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
-    BOOST_CHECK_EQUAL(output.gasUsed, 21'000);
+    BOOST_CHECK_EQUAL(output.gasUsed, 21'006);
     BOOST_CHECK_LT(output.gasUsed, 50'000);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), u256(100));
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), 8);

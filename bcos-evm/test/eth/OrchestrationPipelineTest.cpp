@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/orchestration/captureSettlementSnapshot.h"
+#include "bcos-evm/eth/orchestration/CaptureSettlementSnapshot.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

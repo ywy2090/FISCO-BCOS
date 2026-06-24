@@ -22,7 +22,7 @@
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/eth/ExecuteViaEth.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::test::fixtures
 {

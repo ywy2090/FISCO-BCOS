@@ -3,8 +3,8 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
@@ -12,6 +12,7 @@
 #include "bcos-evm/opstack/OpStackTxExecutor.h"
 #include "bcos-evm/opstack/RollupCost.h"
 #include <bcos-task/Task.h>
+#include <bcos-utilities/Common.h>
 #include <functional>
 #include <optional>
 #include <vector>
@@ -48,6 +49,7 @@ struct OpStackExecuteViaHostInput
     std::function<bool(uint64_t)> gasPoolSubGasHook;
     std::function<void(uint64_t gasRemaining, uint64_t gasUsed)> gasPoolReturnGasHook;
     OpStackTxExecutor opTxExecutor{};
+    std::optional<bcos::h256> txHash;
 };
 
 struct OpStackExecuteViaHostOutput

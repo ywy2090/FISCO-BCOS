@@ -2,10 +2,10 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/executeMessage.h"
 #include "bcos-evm/eth/gas/EthTxGasSettlement.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpHostExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecuteViaHost.h"

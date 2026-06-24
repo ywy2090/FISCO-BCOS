@@ -82,7 +82,7 @@ OR blobGasFeeCap != 0   // 可选；geth 用 typed tx 字段存在性
 
 **CREATE 检测：** `isCreateKind(message.kind)` OR `state::isZeroAddress(message.recipient)` 且非 CALL（与 geth `To==nil` 对齐，需确认 `newEVMCMessage` 对 CREATE 的 recipient 编码）。
 
-**Version hash：** 新增 `bcos-evm/opstack/Eip4844.h`：
+**Version hash：** 新增 `bcos-evm/opstack/OpStackBlobTxIntent.h`：
 
 ```cpp
 inline bool isValidVersionedHash(bcos::h256 const& h) noexcept {
@@ -111,7 +111,7 @@ inline bool isValidVersionedHash(bcos::h256 const& h) noexcept {
 
 ### 4.1 EIP-4844 preCheck 变更
 
-**文件：** `bcos-evm/opstack/Eip4844.h`（新）、`OpStackPreCheck.cpp`
+**文件：** `bcos-evm/opstack/OpStackBlobTxIntent.h`（新）、`OpStackPreCheck.cpp`
 
 **伪代码：**
 

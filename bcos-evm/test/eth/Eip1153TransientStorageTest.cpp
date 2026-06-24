@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip1153TransientStorageTest
 
-#include "bcos-evm/eth/executeMessage.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "helpers/ApplyStateDiffToView.h"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>

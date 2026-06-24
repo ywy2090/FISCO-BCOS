@@ -6,7 +6,12 @@ enable_testing()
 set(TEST_BINARY_NAME StateJournalRevertTest)
 
 add_executable(${TEST_BINARY_NAME}
-    StateJournalRevertTest.cpp
+    state/StateJournalRevertTest.cpp
+)
+
+target_include_directories(${TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
 )
 
 target_link_libraries(${TEST_BINARY_NAME} PRIVATE
@@ -36,7 +41,12 @@ add_test(
 set(HOOKS_TEST_BINARY_NAME EthHostExtensionHooksTest)
 
 add_executable(${HOOKS_TEST_BINARY_NAME}
-    EthHostExtensionHooksTest.cpp
+    eth/EthHostExtensionHooksTest.cpp
+)
+
+target_include_directories(${HOOKS_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
 )
 
 target_link_libraries(${HOOKS_TEST_BINARY_NAME} PRIVATE
@@ -71,7 +81,12 @@ add_test(
 set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoHostExtensionTest)
 
 add_executable(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
-    FiscoHostExtensionTest.cpp
+    bcos/FiscoHostExtensionTest.cpp
+)
+
+target_include_directories(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
 )
 
 target_link_libraries(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME} PRIVATE
@@ -86,11 +101,12 @@ add_test(
 set(EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME ExecuteViaHostSmokeTest)
 
 add_executable(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
-    ExecuteViaHostSmokeTest.cpp
+    bcos/ExecuteViaHostSmokeTest.cpp
 )
 
 target_include_directories(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
 )
 
 target_link_libraries(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
@@ -105,11 +121,12 @@ add_test(
 set(EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME ExecuteMessageSmokeTest)
 
 add_executable(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
-    ExecuteMessageSmokeTest.cpp
+    eth/ExecuteMessageSmokeTest.cpp
 )
 
 target_include_directories(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
 )
 
 target_link_libraries(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
@@ -227,13 +244,13 @@ set(PRAGUE_STATE_TEST_BINARY_NAME PragueStateTest)
 
 add_executable(${PRAGUE_STATE_TEST_BINARY_NAME}
     state/PragueStateTest.cpp
-    ../eth/executeMessage.cpp
+    ../eth/ExecuteMessage.cpp
     ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
-    ../eth/state/bloom_filter.cpp
+    ../eth/state/BloomFilter.cpp
     ../eth/state/EthPrecompiles.cpp
-    ../eth/state/transition.cpp
+    ../eth/state/Transition.cpp
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
@@ -267,13 +284,13 @@ set(NESTED_CALL_HOST_TEST_BINARY_NAME NestedCallHostTest)
 
 add_executable(${NESTED_CALL_HOST_TEST_BINARY_NAME}
     state/NestedCallHostTest.cpp
-    ../eth/executeMessage.cpp
+    ../eth/ExecuteMessage.cpp
     ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
-    ../eth/state/bloom_filter.cpp
+    ../eth/state/BloomFilter.cpp
     ../eth/state/EthPrecompiles.cpp
-    ../eth/state/transition.cpp
+    ../eth/state/Transition.cpp
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
@@ -303,13 +320,13 @@ set(PRECOMPILE_IN_CALL_TEST_BINARY_NAME PrecompileInCallTest)
 
 add_executable(${PRECOMPILE_IN_CALL_TEST_BINARY_NAME}
     state/PrecompileInCallTest.cpp
-    ../eth/executeMessage.cpp
+    ../eth/ExecuteMessage.cpp
     ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
-    ../eth/state/bloom_filter.cpp
+    ../eth/state/BloomFilter.cpp
     ../eth/state/EthPrecompiles.cpp
-    ../eth/state/transition.cpp
+    ../eth/state/Transition.cpp
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
@@ -339,13 +356,13 @@ set(BLOCK_HASH_HOST_TEST_BINARY_NAME BlockHashHostTest)
 
 add_executable(${BLOCK_HASH_HOST_TEST_BINARY_NAME}
     state/BlockHashHostTest.cpp
-    ../eth/executeMessage.cpp
+    ../eth/ExecuteMessage.cpp
     ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
-    ../eth/state/bloom_filter.cpp
+    ../eth/state/BloomFilter.cpp
     ../eth/state/EthPrecompiles.cpp
-    ../eth/state/transition.cpp
+    ../eth/state/Transition.cpp
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
@@ -375,13 +392,13 @@ set(NESTED_REVERT_WARM_TEST_BINARY_NAME NestedRevertWarmTest)
 
 add_executable(${NESTED_REVERT_WARM_TEST_BINARY_NAME}
     state/NestedRevertWarmTest.cpp
-    ../eth/executeMessage.cpp
+    ../eth/ExecuteMessage.cpp
     ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
-    ../eth/state/bloom_filter.cpp
+    ../eth/state/BloomFilter.cpp
     ../eth/state/EthPrecompiles.cpp
-    ../eth/state/transition.cpp
+    ../eth/state/Transition.cpp
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp
@@ -433,13 +450,13 @@ set(EVMONE_REFUND_SPIKE_TEST_BINARY_NAME EvmoneRefundSpikeTest)
 
 add_executable(${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
     opstack/EvmoneRefundSpikeTest.cpp
-    ../eth/executeMessage.cpp
+    ../eth/ExecuteMessage.cpp
     ../eth/Eip7702.cpp
     ../eth/state/State.cpp
     ../eth/state/EthHost.cpp
-    ../eth/state/bloom_filter.cpp
+    ../eth/state/BloomFilter.cpp
     ../eth/state/EthPrecompiles.cpp
-    ../eth/state/transition.cpp
+    ../eth/state/Transition.cpp
     ../eth/precompiled/EthBuiltinRegistry.cpp
     ../eth/precompiled/PrecompiledContract.cpp
     ../eth/precompiled/ModexpGas.cpp

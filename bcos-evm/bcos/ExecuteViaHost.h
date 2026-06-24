@@ -32,6 +32,7 @@
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-task/Task.h"
+#include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
 #include <functional>
 #include <memory>
@@ -72,6 +73,7 @@ struct ExecuteViaHostInput
     ChainPrecompilePort const* chainPrecompilePort{nullptr};
     std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
     FiscoHostExtension::RecipientPathResolver recipientPathResolver;
+    std::optional<bcos::h256> txHash;
 };
 
 struct ExecuteViaHostOutput

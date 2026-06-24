@@ -17,7 +17,7 @@
 | Host write | `EthHost.cpp:344-347` → `State.cpp:225-229` | `set_transient_storage` journal 后写入 `transientStorage` |
 | 数据模型 | `Account.hpp:38` | `StorageMap transientStorage` |
 | Opcode | evmone `tload`/`tstore`（`instructions.hpp:769-785`） | CANCUN+ revision 启用；经 Host 回调 |
-| Revision 传递 | `executeMessage.cpp:227-228` → `VMInstance.cpp:23-24` | `input.revisionConfig.revision` 传入 `evmone::baseline::execute(..., rev, ...)` |
+| Revision 传递 | `ExecuteMessage.cpp:227-228` → `VMInstance.cpp:23-24` | `input.revisionConfig.revision` 传入 `evmone::baseline::execute(..., rev, ...)` |
 
 ### geth 对照
 
@@ -93,7 +93,7 @@ Profile flag `eip6780` ✅（Task 1）；**kernel 不可声称 compliant**。
 
 - Matrix ETH 列：`unsupported (no blob precheck on reference path)`（`capability-matrix.md:61`）
 - `ExecuteViaEth.cpp`：**无** blob versioned-hash 校验、blob gas、4844 tx type 路由
-- `executeMessage.cpp:71`：`context.blob_base_fee` 填入 tx context（供 BLOBBASEFEE opcode）；非 orchestration
+- `ExecuteMessage.cpp:71`：`context.blob_base_fee` 填入 tx context（供 BLOBBASEFEE opcode）；非 orchestration
 - OPStack 路径有 `OpStackPreCheck` blob 字段（范围外）
 
 **判定：** 📋 ** intentional unsupported** — profile/on-chain opcode 与 matrix 一致；非 🔴。
@@ -114,7 +114,7 @@ Profile flag `eip6780` ✅（Task 1）；**kernel 不可声称 compliant**。
 - Profile：`EthPolicy.h:34` CANCUN+ ✅
 - evmone `mcopy`（`instructions.hpp:896-915`）：memory copy + dynamic gas
 - Revision 证据链：
-  - `executeMessage.cpp:145-147,227-228`：`EthHost(..., input.revisionConfig.revision, ...)` + `vm->execute(..., revision, ...)`
+  - `ExecuteMessage.cpp:145-147,227-228`：`EthHost(..., input.revisionConfig.revision, ...)` + `vm->execute(..., revision, ...)`
   - `VMInstance.cpp:23-24`：`evmone::baseline::execute(..., rev, *msg, *analysis)`
   - `EthHost::call` 嵌套 call 同样 `m_vm.execute(*this, m_revision, ...)`（`EthHost.cpp:224`）
 

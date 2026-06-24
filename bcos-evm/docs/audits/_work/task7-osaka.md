@@ -20,7 +20,7 @@
 | `EthPrecompiles.cpp:421-465` | `precompileGasCost` / `dispatch` switch 无 `0x0100` case |
 | `EthHost.cpp:378-382` | `isBuiltinPrecompileAddress` **包含** `high==0x01 && low==0x00` |
 | `EthHost.cpp:189-196` | 嵌套 CALL：`hasPrecompileTarget` → `tryDispatchInCall` |
-| `executeMessage.cpp:183-194` | 顶层直调预编译同上 |
+| `ExecuteMessage.cpp:183-194` | 顶层直调预编译同上 |
 
 **matrix（`capability-matrix.md:59`）：** `unsupported (TE path: not in EthPrecompiles; legacy registry only)` — **与 TE 实现一致**。
 
@@ -28,7 +28,7 @@
 
 1. CALL `0x000…0100` → `isBuiltinPrecompileAddress` = true → `routeCall` 设 `hasPrecompileTarget`。
 2. `EthPrecompiles::tryDispatchInCall` → `toSuffix` 返回 `nullopt` → **不 dispatch**。
-3. 嵌套 CALL：落回 EVM 空 code 路径；顶层直调：`executeMessage.cpp:197-223` → `makeSuccessResult`（空账户成功）。
+3. 嵌套 CALL：落回 EVM 空 code 路径；顶层直调：`ExecuteMessage.cpp:197-223` → `makeSuccessResult`（空账户成功）。
 4. **与 geth 分叉：** geth Osaka `activePrecompiledContracts` 含 `p256Verify`（6900 gas + 160B 语义）。
 
 ### geth / Besu 对照

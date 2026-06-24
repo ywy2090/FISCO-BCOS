@@ -1,8 +1,8 @@
 #pragma once
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-task/Wait.h"
 #include <functional>

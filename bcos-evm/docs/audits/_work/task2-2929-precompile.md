@@ -10,7 +10,7 @@
 ### FB 实现
 
 - `EthHost::access_account` / `access_storage`（`EthHost.cpp:310–326`）在 `m_warmAccess=true` 时调用 `State::warm_up_address` / `warm_up_storage`，首次返回 `EVMC_ACCESS_COLD`，再次 `EVMC_ACCESS_WARM`；`m_warmAccess=false` 时恒返回 COLD（Berlin 前行为）。
-- `m_warmAccess` 来自 `ExecuteMessageInput.revisionConfig.warm_access`（`executeMessage.cpp:147`），CANCUN+ profile 为 true（`EthPolicy.h:31`）。
+- `m_warmAccess` 来自 `ExecuteMessageInput.revisionConfig.warm_access`（`ExecuteMessage.cpp:147`），CANCUN+ profile 为 true（`EthPolicy.h:31`）。
 - **FB 源码不含 cold/warm gas 常量**；gas 由 evmone 在 Host 返回 COLD/WARM 后按 EIP-2929 计费。
 
 ### geth 对照
@@ -43,7 +43,7 @@
 
 - `ExecuteViaEth.cpp:57–58` 调用 `setWarmDestinationFromKind(txProps, message.kind)`。
 - `TxFeaturePrepare.h:13–16`：`CREATE`/`CREATE2` → `warmDestination=false`；其余 kind → `true`。
-- `warmTransactionEntry.h:62–65`：`props.warmDestination && tx.to` 时 `warm_up_address_no_journal(*tx.to)`。
+- `WarmTransactionEntry.h:62–65`：`props.warmDestination && tx.to` 时 `warm_up_address_no_journal(*tx.to)`。
 - geth `statedb.Prepare`（`statedb.go:1416–1419`）：`dst != nil` 时 warm；create-tx 不设 dst → 不 warm。一致。
 
 **测试：** `WarmTransactionEntryTest`（sender/to/coinbase warm）、`TxFeaturePrepareTest`（create vs call）。
@@ -51,14 +51,14 @@
 ### coinbase warm (#3, EIP-3651)
 
 - `TransactionProperties::warmCoinbase{true}` 默认（`Transaction.hpp:44`）；`ExecuteViaEth` 不显式赋值，依赖 implicit-default（ADR-002 / capability-matrix footnote）。
-- `warmTransactionEntry.h:67–70`：`props.warmCoinbase && rev >= EVMC_SHANGHAI` → warm coinbase。
+- `WarmTransactionEntry.h:67–70`：`props.warmCoinbase && rev >= EVMC_SHANGHAI` → warm coinbase。
 - geth `Prepare`（`statedb.go:1430–1432`）：`rules.IsShanghai` → warm coinbase。一致。
 
 **测试：** `WarmTransactionEntryTest::warms_sender_to_and_coinbase_for_call_transaction` 在 `EVMC_SHANGHAI` 断言 coinbase warm。
 
 ### active precompile warm（tx-entry 子集）
 
-- `warmTransactionEntry.h:77–82`：`rev >= EVMC_BERLIN` 时对 `forEachActivePrecompileAddress(rev, …)` 全部 warm。
+- `WarmTransactionEntry.h:77–82`：`rev >= EVMC_BERLIN` 时对 `forEachActivePrecompileAddress(rev, …)` 全部 warm。
 - `Eip2929PrecompileWarm.h`：1–9 恒活；CANCUN+ 加 0x0a；PRAGUE+ 加 0x0b–0x11；OSAKA+ 加 0x0100。
 - geth `Prepare` 传入 `vm.ActivePrecompiles(rules)` — 分叉阶梯一致（Cancun 无 0x0b–0x11；Prague 有）。
 
@@ -94,7 +94,7 @@
 ### 实现
 
 - 密码学委托 evmone_precompiles / evmmax；ecrecover v 仅 27/28（与 geth 一致）。
-- 路由：`executeMessage.cpp:183–194` 顶层 tx 直调；`EthHost::call` `routeCall` + `tryDispatchInCall` 嵌套 call。
+- 路由：`ExecuteMessage.cpp:183–194` 顶层 tx 直调；`EthHost::call` `routeCall` + `tryDispatchInCall` 嵌套 call。
 
 ### 测试
 

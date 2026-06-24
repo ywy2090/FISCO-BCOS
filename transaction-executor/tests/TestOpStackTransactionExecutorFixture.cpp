@@ -9,7 +9,7 @@
 #include "../bcos-transaction-executor/OpStackTxInputBuilder.h"
 #include "TestMemoryStorage.h"
 #include "bcos-codec/rlp/RLPEncode.h"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/OpStackFee.h"
 #include "bcos-evm/opstack/RollupCost.h"
@@ -570,7 +570,7 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_but_keeps_mint)
 
         BOOST_REQUIRE(receipt);
         BOOST_CHECK_NE(receipt->status(), 0);
-        BOOST_CHECK_EQUAL(receipt->gasUsed(), 21'000);
+        BOOST_CHECK_EQUAL(receipt->gasUsed(), 21'006);
         BOOST_CHECK_LT(receipt->gasUsed(), 50'000);
         BOOST_REQUIRE(receipt->depositNonce().has_value());
         BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(7));

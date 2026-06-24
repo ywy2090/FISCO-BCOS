@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Ethereum state transition skeleton over State/EthHost.
- * @file transition.hpp
+ * @file Transition.hpp
  *
  * Semantic baseline: ywy2090/evmone v0.21.0 (ref 3585c2cb) test/state/ — production code
  * here is self-authored; diff against that tag when upgrading evmone or reviewing vectors.

@@ -22,6 +22,7 @@
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/orchestration/OrchestrationPipeline.h"
+#include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <fmt/compile.h>
@@ -73,10 +74,15 @@ void maybeTransferValue(state::State& state, const evmc_message& msg, bool fixDe
         return;
     }
 
-    bool const shouldTransfer =
-        fixDelegateCallTransfer ?
-            ((msg.kind == EVMC_CALL && (msg.flags & EVMC_STATIC) == 0) || isCreateKind(msg.kind)) :
-            true;
+    // CREATE/CREATE2 endowment is applied by the EVM kernel; pre-transfer would double-count.
+    if (isCreateKind(msg.kind))
+    {
+        return;
+    }
+
+    bool const shouldTransfer = fixDelegateCallTransfer ?
+                                    ((msg.kind == EVMC_CALL && (msg.flags & EVMC_STATIC) == 0)) :
+                                    true;
     if (!shouldTransfer)
     {
         return;
@@ -185,6 +191,9 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
         throw std::invalid_argument("executeViaHost requires stateView/vm/hashImpl");
     }
 
+    trace::EvmTraceScope traceScope(
+        trace::makeTraceContext("fisco", input.blockInfo.number, input.txHash));
+
     ExecuteViaHostOutput output;
     output.executionContext.message = input.message;
     output.executionContext.revisionConfig = input.revisionConfig;
@@ -202,6 +211,8 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
     ctx.inputs.authorizationListPresent = input.authorizationListPresent;
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
+
+    trace::logMessageContext(input.message);
 
     FiscoHostExtension::FiscoHostExtensionDeps deps;
     deps.state = &ctx.state;
@@ -373,6 +384,11 @@ task::Task<ExecuteViaHostOutput> executeViaHost(ExecuteViaHostInput input)
     };
 
     runOrchestration(ctx, hooks);
+
+    EVM_LOG(DEBUG) << LOG_DESC("executeViaHost done")
+                   << LOG_KV("exit", trace::exitKind(ctx.exitKind))
+                   << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
+                   << LOG_KV("gasLeft", ctx.evmcResult.gas_left) << LOG_KV("web3Tx", input.web3Tx);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);

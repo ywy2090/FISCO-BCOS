@@ -15,7 +15,7 @@
  */
 
 #define BOOST_TEST_MODULE StateHostSmokeTest
-#include "bcos-evm/eth/state/transition.hpp"
+#include "bcos-evm/eth/state/Transition.hpp"
 #include "state/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

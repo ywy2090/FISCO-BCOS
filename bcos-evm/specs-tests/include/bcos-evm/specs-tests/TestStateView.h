@@ -1,8 +1,8 @@
 #pragma once
 
 #include "bcos-evm/eth/state/Account.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
 #include <unordered_map>
 
 namespace bcos::evm::reference_tests

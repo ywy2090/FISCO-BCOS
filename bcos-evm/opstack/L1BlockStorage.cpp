@@ -1,6 +1,6 @@
 #include "bcos-evm/opstack/L1BlockStorage.h"
 
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include <algorithm>
 #include <cstring>

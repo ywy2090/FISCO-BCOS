@@ -108,7 +108,7 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | 检查项 | 期望 | 证据 | 判定 |
 |--------|------|------|------|
 | Isthmus helper 未设 | `false` | 稀疏 profile | ✅ |
-| coinbase warm 实际路径 | `txProps.warmCoinbase` + `warm_access=true` | `warmTransactionEntry.h:67-70` | ✅ |
+| coinbase warm 实际路径 | `txProps.warmCoinbase` + `warm_access=true` | `WarmTransactionEntry.h:67-70` | ✅ |
 
 **Part 1 状态：** ✅ — coinbase warm 不经 `eip3651` flag；`warm_access` 已启用。
 

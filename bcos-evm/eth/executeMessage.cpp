@@ -13,17 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file executeMessage.cpp
+ * @file ExecuteMessage.cpp
  */
 
-#include "bcos-evm/eth/executeMessage.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
-#include "bcos-evm/eth/execution/warmTransactionEntry.h"
+#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/state/hash_utils.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/trace/EvmTrace.h"
 #include <optional>
 #include <stdexcept>
 
@@ -154,6 +155,12 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         throw std::invalid_argument("executeMessage requires stateView/vm");
     }
 
+    std::optional<trace::EvmTraceScope> traceScope;
+    if (input.message.depth == 0 && !trace::currentTraceId().has_value())
+    {
+        traceScope.emplace(trace::makeTraceContext("kernel", input.blockInfo.number, input.txHash));
+    }
+
     ExecuteMessageOutput output;
     std::optional<state::State> stateCopy;
     auto& state = resolveState(*input.stateView, stateCopy);
@@ -165,6 +172,19 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     {
         createCodeAddress = input.message.code_address;
     }
+
+    if (input.message.depth == 0)
+    {
+        trace::logMessageContext(input.message);
+    }
+    else
+    {
+        EVM_LOG(TRACE) << LOG_DESC("executeMessage nested")
+                       << LOG_KV("kind", trace::callKind(input.message.kind))
+                       << LOG_KV("depth", input.message.depth) << LOG_KV("gas", input.message.gas)
+                       << LOG_KV("code", trace::evmcAddress(input.message.code_address));
+    }
+
     execution::warmTransactionEntry(state, input.revisionConfig.revision, transaction,
         input.blockInfo, input.txProps, input.revisionConfig.warm_access, input.accessList,
         input.web3TypedTxKind, createCodeAddress);
@@ -209,6 +229,10 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
                 {state, input.revisionConfig, input.extension, input.message, codeAddress, skipVt});
             if (routed.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
             {
+                EVM_LOG(TRACE) << LOG_DESC("executeMessage precompile")
+                               << LOG_KV("target", trace::evmcAddress(codeAddress))
+                               << LOG_KV("status", trace::evmcStatus(routed.result.status_code))
+                               << LOG_KV("gasLeft", routed.result.gas_left);
                 output.result = std::move(routed.result);
                 output.gasRefund = routed.gasRefund;
                 output.stateDiff = state.build_diff();
@@ -222,6 +246,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     if (!applyTopLevelValueTransfer(state, input))
     {
         state.revert();
+        EVM_LOG(DEBUG) << LOG_DESC("executeMessage insufficient balance (top-level transfer)");
         output.result = makeInsufficientBalanceResult();
         output.logs = host.take_logs();
         return output;
@@ -301,6 +326,21 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         state.revert();
         output.gasRefund = static_cast<int64_t>(state.get_refund());
         output.stateDiff = state.build_diff();
+    }
+
+    if (input.message.depth == 0)
+    {
+        EVM_LOG(DEBUG) << LOG_DESC("executeMessage done")
+                       << LOG_KV("status", trace::evmcStatus(output.result.status_code))
+                       << LOG_KV("gasLeft", output.result.gas_left)
+                       << LOG_KV("gasRefund", output.gasRefund)
+                       << LOG_KV("logCount", output.logs.size());
+    }
+    else
+    {
+        EVM_LOG(TRACE) << LOG_DESC("executeMessage nested done")
+                       << LOG_KV("status", trace::evmcStatus(output.result.status_code))
+                       << LOG_KV("gasLeft", output.result.gas_left);
     }
 
     return output;

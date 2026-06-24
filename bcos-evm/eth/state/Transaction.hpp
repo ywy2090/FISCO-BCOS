@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/state/bloom_filter.hpp"
+#include "bcos-evm/eth/state/BloomFilter.hpp"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <optional>

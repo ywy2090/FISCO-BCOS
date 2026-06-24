@@ -15,6 +15,7 @@ inline bool isTopLevelIncludedTxVmError(evmc_status_code status, int32_t depth) 
     switch (status)
     {
     case EVMC_SUCCESS:
+    case EVMC_REVERT:
     case EVMC_INSUFFICIENT_BALANCE:
     case EVMC_INTERNAL_ERROR:
         return false;
