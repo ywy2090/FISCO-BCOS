@@ -266,6 +266,30 @@ BOOST_AUTO_TEST_CASE(top_level_create_checkpoint_before_bind_order)
     BOOST_REQUIRE_EQUAL(frame.gasLeft, 0);
 }
 
+BOOST_AUTO_TEST_CASE(nested_create_insufficient_balance_characterization)
+{
+    auto const sender = addressFromLastByte(0x01);
+    auto const createAddr = addressFromLastByte(0x42);
+
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.depth = 1;
+    message.gas = 500'000;
+    message.sender = sender;
+    message.recipient = createAddr;
+    message.value = weiValue(100);
+    message.input_data = nullptr;
+    message.input_size = 0;
+
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    state.set_balance(sender, 50);
+
+    auto frame = runFrameNested(state, message);
+    BOOST_REQUIRE_EQUAL(frame.status, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_REQUIRE_EQUAL(frame.gasLeft, 0);
+}
+
 BOOST_AUTO_TEST_CASE(top_level_precompile_insufficient_balance_matches_envelope_test)
 {
     auto const sender = addressFromLastByte(0x01);

@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Message routing for execution frames (7702, CREATE fill, precompile target).
+ * @brief Message routing for execution frames (7702 address normalization, CREATE fill).
  * @file RouteMessage.h
  */
 
@@ -33,8 +33,6 @@ namespace bcos::evm::execution
 struct RoutedMessage
 {
     evmc_message message{};
-    evmc_address precompileTarget{};
-    bool hasPrecompileTarget{false};
 };
 
 RoutedMessage routeMessage(state::State& state,

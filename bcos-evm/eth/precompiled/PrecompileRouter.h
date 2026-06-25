@@ -7,6 +7,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/execution/FrameScope.h"
 #include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.hpp>
@@ -18,7 +19,8 @@ enum class PrecompileDispatchOutcome
 {
     NotApplicable,
     Dispatched,
-    EmptyAccountSuccess
+    EmptyAccountSuccess,
+    PolicyRejected,
 };
 
 struct PrecompileRouterInput
@@ -29,6 +31,7 @@ struct PrecompileRouterInput
     evmc_message const& message;
     evmc_address target;
     bool skipValueTransfer;
+    execution::FrameScope scope{execution::FrameScope::TopLevel};
 };
 
 struct PrecompileRouterOutput
@@ -39,5 +42,10 @@ struct PrecompileRouterOutput
 };
 
 PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input);
+
+/// Single precompile dispatch target (7702 CALL uses authority, not delegate address).
+evmc_address resolveDispatchTarget(state::State const& state,
+    bcos::evm_standard::RevisionConfig const& revision, evmc_message const& message,
+    execution::FrameScope scope);
 
 }  // namespace bcos::evm::precompiled

@@ -205,6 +205,27 @@ add_test(
     NAME PrecompileRouterEnvelope
     COMMAND ${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME}
 )
+
+set(PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME PrecompileRouter7702Test)
+
+add_executable(${PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME}
+    eth/PrecompileRouter7702Test.cpp
+)
+
+target_include_directories(${PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth evmone::evmone
+)
+
+add_test(
+    NAME PrecompileRouter7702
+    COMMAND ${PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME}
+)
+
 add_executable(DebitIntrinsicGasTest eth/DebitIntrinsicGasTest.cpp)
 target_include_directories(DebitIntrinsicGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

@@ -30,18 +30,6 @@
 
 namespace bcos::evm::execution
 {
-namespace
-{
-evmc_address resolve7702CodeAddress(evmc_message const& msg) noexcept
-{
-    if (isDirectDelegated7702(msg))
-    {
-        return msg.recipient;
-    }
-    return state::isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address;
-}
-}  // namespace
-
 inline bcos::bytes resolveExecutionCode(state::State& state,
     bcos::evm_standard::RevisionConfig const& revisionConfig, evmc_message const& msg)
 {

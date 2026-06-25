@@ -20,8 +20,6 @@
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Delegation7702Frame.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
-#include "bcos-evm/eth/precompiled/PrecompileActive.h"
-#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::execution
@@ -52,8 +50,6 @@ RoutedMessage routeMessage(state::State& state,
         }
     }
 
-    evmc_address target{};
-
     if (scope == FrameScope::TopLevel)
     {
         if (isCreateKind(msg.kind))
@@ -64,12 +60,12 @@ RoutedMessage routeMessage(state::State& state,
         {
             routed.message.code_address = routed.message.recipient;
         }
-        target = routed.message.code_address;
     }
     else
     {
-        target = state::isZeroAddress(routed.message.code_address) ? routed.message.recipient :
-                                                                     routed.message.code_address;
+        auto target = state::isZeroAddress(routed.message.code_address) ?
+                          routed.message.recipient :
+                          routed.message.code_address;
         // EIP-7702: CALL/STATICCALL pass the authority as recipient; DELEGATECALL/CALLCODE keep
         // the resolved delegate in code_address. Delegation to a precompile runs empty code.
         if (isDirectDelegated7702(msg))
@@ -84,14 +80,6 @@ RoutedMessage routeMessage(state::State& state,
                 routed.message.recipient = target;
             }
         }
-    }
-
-    auto const code = state.get_code(target);
-    if (!state::isZeroAddress(target) && precompiled::isActivePrecompile(revisionConfig, target) &&
-        code.empty() && !(isDelegated7702Message(msg) && msg.kind != EVMC_CALL))
-    {
-        routed.precompileTarget = target;
-        routed.hasPrecompileTarget = true;
     }
 
     return routed;

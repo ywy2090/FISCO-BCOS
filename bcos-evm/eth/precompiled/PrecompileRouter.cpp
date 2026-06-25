@@ -7,6 +7,7 @@
 #include "PrecompileRouter.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/execution/Delegation7702Frame.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -42,11 +43,59 @@ bool is7702DelegationDesignator(
     return revision.eip7702 &&
            parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}).has_value();
 }
+
+evmc::Result makePrecompileFailureResult(int64_t gasLeft) noexcept
+{
+    evmc_result result{};
+    result.status_code = EVMC_PRECOMPILE_FAILURE;
+    result.gas_left = gasLeft;
+    return evmc::Result(result);
+}
+
+bool isActiveEmptyPrecompileTarget(state::State const& state,
+    bcos::evm_standard::RevisionConfig const& revision, evmc_address const& target,
+    evmc_message const& message)
+{
+    if (state::isZeroAddress(target))
+    {
+        return false;
+    }
+    if (execution::isDelegated7702Message(message) && message.kind != EVMC_CALL)
+    {
+        return false;
+    }
+    auto const code = state.get_code(target);
+    if (!code.empty())
+    {
+        return false;
+    }
+    return isActivePrecompile(revision, target);
+}
 }  // namespace
+
+evmc_address resolveDispatchTarget(state::State const& state,
+    bcos::evm_standard::RevisionConfig const& revision, evmc_message const& message,
+    execution::FrameScope scope)
+{
+    (void)state;
+    (void)revision;
+    (void)scope;
+    return execution::resolve7702CodeAddress(message);
+}
 
 PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
 {
     PrecompileRouterOutput output;
+
+    if (input.message.kind == EVMC_DELEGATECALL && input.extension != nullptr &&
+        !input.extension->allowDelegateCallToPrecompile() &&
+        isActiveEmptyPrecompileTarget(input.state, input.revision, input.target, input.message))
+    {
+        output.outcome = PrecompileDispatchOutcome::PolicyRejected;
+        output.result = makePrecompileFailureResult(input.message.gas);
+        return output;
+    }
+
     auto const code = input.state.get_code(input.target);
     bool const emptyCode = code.empty();
 
@@ -73,13 +122,17 @@ PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
 
     if (input.extension != nullptr)
     {
-        if (auto result =
-                input.extension->tryChainPrecompile(input.revision.revision, input.message))
+        bool const tryChainHook = emptyCode || input.scope == execution::FrameScope::Nested;
+        if (tryChainHook)
         {
-            output.outcome = PrecompileDispatchOutcome::Dispatched;
-            output.result = evmc::Result(std::move(*result));
-            finalizeEnvelope(input.state, output);
-            return output;
+            if (auto result =
+                    input.extension->tryChainPrecompile(input.revision.revision, input.message))
+            {
+                output.outcome = PrecompileDispatchOutcome::Dispatched;
+                output.result = evmc::Result(std::move(*result));
+                finalizeEnvelope(input.state, output);
+                return output;
+            }
         }
     }
 

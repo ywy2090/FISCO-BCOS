@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <evmc/evmc.h>
 
 namespace bcos::evm::execution
@@ -33,5 +34,15 @@ inline bool isDirectDelegated7702(evmc_message const& msg) noexcept
 inline bool isDelegated7702Message(evmc_message const& msg) noexcept
 {
     return (msg.flags & EVMC_DELEGATED) != 0;
+}
+
+// Account whose bytecode is resolved for VM execution and precompile dispatch.
+inline evmc_address resolve7702CodeAddress(evmc_message const& msg) noexcept
+{
+    if (isDirectDelegated7702(msg))
+    {
+        return msg.recipient;
+    }
+    return state::isZeroAddress(msg.code_address) ? msg.recipient : msg.code_address;
 }
 }  // namespace bcos::evm::execution
