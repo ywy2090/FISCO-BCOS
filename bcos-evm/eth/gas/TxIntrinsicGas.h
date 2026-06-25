@@ -1,8 +1,10 @@
 /*
- * Ethereum transaction gas settlement (EIP-7623 + intrinsic gas).
+ * Transaction intrinsic gas and top-level settlement (EIP-7623 + EIP-3529).
  *
  * Lean model (geth/op-geth aligned): full intrinsic pre-debit before EVM, then
  *   gasUsed = gasLimit - min(gasLimit, gasLeft + cappedRefund), EIP-7623 floor uplift.
+ *
+ * @file TxIntrinsicGas.h
  */
 #pragma once
 

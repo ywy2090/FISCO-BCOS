@@ -3,7 +3,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-framework/executor/OpStackTxType.h"

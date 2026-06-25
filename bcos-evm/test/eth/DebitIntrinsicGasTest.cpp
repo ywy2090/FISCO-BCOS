@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE DebitIntrinsicGasTest
 
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test

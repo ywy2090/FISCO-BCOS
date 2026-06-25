@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include <evmc/evmc.h>
 
 namespace bcos::evm

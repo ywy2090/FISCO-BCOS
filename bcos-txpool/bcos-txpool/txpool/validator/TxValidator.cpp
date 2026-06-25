@@ -20,7 +20,7 @@
  */
 #include "TxValidator.h"
 #include "bcos-evm/eth/AccessList.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/vm/VMInstance.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/bcos-framework/ledger/Ledger.h"

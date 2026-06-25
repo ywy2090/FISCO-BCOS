@@ -20,7 +20,7 @@
 #pragma once
 
 #include "bcos-evm/bcos/FiscoRevisionConfig.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-framework/protocol/LogEntry.h"
 #include <evmc/evmc.h>
 #include <vector>

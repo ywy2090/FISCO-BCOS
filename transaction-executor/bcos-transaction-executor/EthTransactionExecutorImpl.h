@@ -7,7 +7,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/EthExecutionContext.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/reference/EthTxFeeLedger.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

@@ -19,7 +19,7 @@
  * @date 2024-12-11
  */
 #include "bcos-crypto/interfaces/crypto/KeyPairInterface.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-framework/bcos-framework/testutils/faker/FakeTransaction.h"
 #include "bcos-framework/ledger/Features.h"
