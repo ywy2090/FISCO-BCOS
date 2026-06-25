@@ -9,6 +9,7 @@
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
@@ -290,11 +291,14 @@ BOOST_AUTO_TEST_CASE(top_level_frame_does_not_commit_before_adapter_nonce_bump)
 {
     auto const sender = addressFromLastByte(0x10);
     auto const target = addressFromLastByte(0x20);
+    bcos::bytes stopCode{0x00};
 
     state::test::InMemoryEvmStateReader view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     state.set_nonce(sender, 5);
+    state.set_code(target, stopCode,
+        state::keccak256Code(bcos::bytesConstRef{stopCode.data(), stopCode.size()}));
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -401,11 +405,14 @@ BOOST_AUTO_TEST_CASE(top_level_sender_nonce_bump_on_success)
 {
     auto const sender = addressFromLastByte(0x10);
     auto const target = addressFromLastByte(0x20);
+    bcos::bytes stopCode{0x00};
 
     state::test::InMemoryEvmStateReader view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     state.set_nonce(sender, 5);
+    state.set_code(target, stopCode,
+        state::keccak256Code(bcos::bytesConstRef{stopCode.data(), stopCode.size()}));
 
     evmc_message message{};
     message.kind = EVMC_CALL;

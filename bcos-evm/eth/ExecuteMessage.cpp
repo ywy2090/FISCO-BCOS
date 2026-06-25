@@ -71,7 +71,7 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
 void apply7702TxAuthorizationsIfNeeded(
     state::State& state, ExecuteMessageInput const& input, evmc_address const& codeAddress)
 {
-    if (state::isCreateKind(input.message.kind))
+    if (isCreateKind(input.message.kind))
     {
         return;
     }

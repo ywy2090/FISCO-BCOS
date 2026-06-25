@@ -115,7 +115,8 @@ BOOST_AUTO_TEST_CASE(regular_contract_bytecode)
     auto const contract = addr(0x42);
     bcos::bytes bytecode{0x60, 0x00, 0x60, 0x00, 0xfd};
 
-    state.set_code(contract, bytecode, state::keccak256Code(bcos::bytesConstRef{bytecode}));
+    state.set_code(contract, bytecode,
+        state::keccak256Code(bcos::bytesConstRef{bytecode.data(), bytecode.size()}));
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -138,10 +139,11 @@ BOOST_AUTO_TEST_CASE(eip7702_delegation_bytecode)
     auto const target = addr(0x42);
     bcos::bytes targetCode{0x60, 0x01, 0x60, 0x00, 0x55};
 
-    state.set_code(target, targetCode, state::keccak256Code(bcos::bytesConstRef{targetCode}));
-    auto const delegationCode = addressToDelegation(target);
-    state.set_code(
-        delegateAccount, delegationCode, state::keccak256Code(bcos::bytesConstRef{delegationCode}));
+    state.set_code(target, targetCode,
+        state::keccak256Code(bcos::bytesConstRef{targetCode.data(), targetCode.size()}));
+    bcos::bytes delegationCode = addressToDelegation(target);
+    state.set_code(delegateAccount, delegationCode,
+        state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
