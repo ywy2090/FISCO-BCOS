@@ -7,6 +7,7 @@
 #define BOOST_TEST_MODULE ExecutionFrameTest
 
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "state/InMemoryEvmStateReader.h"
@@ -91,6 +92,30 @@ CallOutcome runDepth1(state::State& state, evmc_message message)
     auto result = fixture.ethHost().call(message);
     return {.status = result.status_code,
         .gasLeft = result.gas_left,
+        .senderBalance = state.get_balance(message.sender),
+        .recipientBalance = state.get_balance(balanceTarget(message))};
+}
+
+ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message const& message)
+{
+    static evmc::VM vm{evmc_create_evmone()};
+    ExecuteMessageInput input;
+    input.stateView = view;
+    input.vm = &vm;
+    input.message = message;
+    input.blockInfo.number = 1;
+    input.blockInfo.gasLimit = 30'000'000;
+    input.revisionConfig.revision = EVMC_PRAGUE;
+    input.revisionConfig.warm_access = true;
+    input.txProps.warmDestination = true;
+    return input;
+}
+
+CallOutcome runDepth0(state::State& state, evmc_message const& message)
+{
+    auto output = executeMessage(makeBaseInput(&state, message));
+    return {.status = output.result.status_code,
+        .gasLeft = output.result.gas_left,
         .senderBalance = state.get_balance(message.sender),
         .recipientBalance = state.get_balance(balanceTarget(message))};
 }
@@ -321,6 +346,106 @@ BOOST_AUTO_TEST_CASE(top_level_create_checkpoint_before_bind_order)
     auto frame = runFrameTopLevel(state, message);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_INSUFFICIENT_BALANCE);
     BOOST_REQUIRE_EQUAL(frame.gasLeft, 0);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_precompile_insufficient_balance_matches_envelope_test)
+{
+    auto const sender = addressFromLastByte(0x01);
+    auto const identity = precompileAddress(0x04);
+    std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
+    auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
+
+    state::test::InMemoryEvmStateReader view0;
+    state::State state0(view0);
+    state0.set_balance(sender, 99);
+    auto depth0 = runDepth0(state0, message);
+
+    state::test::InMemoryEvmStateReader view1;
+    state::State state1(view1);
+    state1.set_balance(sender, 99);
+    auto depth1 = runDepth1(state1, message);
+
+    BOOST_REQUIRE_EQUAL(depth0.status, depth1.status);
+    BOOST_REQUIRE_EQUAL(depth0.gasLeft, depth1.gasLeft);
+    BOOST_REQUIRE_EQUAL(depth0.senderBalance, depth1.senderBalance);
+    BOOST_REQUIRE_EQUAL(depth0.recipientBalance, depth1.recipientBalance);
+    BOOST_REQUIRE_EQUAL(depth0.status, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_REQUIRE_EQUAL(depth0.gasLeft, 0);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_successful_value_transfer_matches_envelope_test)
+{
+    auto const sender = addressFromLastByte(0x01);
+    auto const identity = precompileAddress(0x04);
+    std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
+    auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
+
+    state::test::InMemoryEvmStateReader view0;
+    state::State state0(view0);
+    state0.set_balance(sender, 1'000'000);
+    auto depth0 = runDepth0(state0, message);
+
+    state::test::InMemoryEvmStateReader view1;
+    state::State state1(view1);
+    state1.set_balance(sender, 1'000'000);
+    auto depth1 = runDepth1(state1, message);
+
+    BOOST_REQUIRE_EQUAL(depth0.status, depth1.status);
+    BOOST_REQUIRE_EQUAL(depth0.gasLeft, depth1.gasLeft);
+    BOOST_REQUIRE_EQUAL(depth0.senderBalance, depth1.senderBalance);
+    BOOST_REQUIRE_EQUAL(depth0.recipientBalance, depth1.recipientBalance);
+    BOOST_REQUIRE_EQUAL(depth0.status, EVMC_SUCCESS);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_sender_nonce_bump_on_success)
+{
+    auto const sender = addressFromLastByte(0x10);
+    auto const target = addressFromLastByte(0x20);
+
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 5);
+
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 50'000;
+    message.sender = sender;
+    message.recipient = target;
+    message.code_address = target;
+    message.input_data = nullptr;
+    message.input_size = 0;
+
+    auto const output = executeMessage(makeBaseInput(&state, message));
+    BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(state.get_nonce(sender), 6U);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_precompile_hit_skips_finalize_self_destructs)
+{
+    auto const sender = addressFromLastByte(0x01);
+    auto const victim = addressFromLastByte(0x99);
+    auto const identity = precompileAddress(0x04);
+    std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
+    auto const message = valueTransferMessage(sender, identity, weiValue(0), inputBytes);
+
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_balance(victim, 500);
+    state.set_code(victim, bcos::bytes{0x60, 0x00}, {});
+    state.mark_self_destructed(victim);
+
+    auto const output = executeMessage(makeBaseInput(&state, message));
+    BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE(state.has_self_destructed(victim));
+    BOOST_REQUIRE_EQUAL(state.get_balance(victim), 500U);
+    BOOST_REQUIRE(!state.get_code(victim).empty());
+
+    auto const victimIt = output.stateDiff.accounts.find(victim);
+    BOOST_REQUIRE(victimIt != output.stateDiff.accounts.end());
+    BOOST_CHECK(victimIt->second.selfDestructed);
+    BOOST_CHECK_GT(victimIt->second.balance, 0U);
 }
 
 }  // namespace bcos::evm::test
