@@ -204,7 +204,7 @@ evmone callback → EthHost::call (nested adapter)
 `opStackExecute` 仅校验 `stateView` / `vm` / `hashImpl`，委托 **`runOpStackTxLifecycle`**：
 
 ```text
-opStackTxPrecheck（纯校验，无 gasPool 副作用）
+OpStackPrecheckPolicy::checkEntryRules（buyGas 前 sync 规则）
 acquireGasPool
 branch:
   deposit:  depositNonce → mint → checkpoint → runTxPipeline → settleDeposit

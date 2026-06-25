@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackTxPrecheck.h"
+#include "helpers/OpStackEntryPrecheck.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(sender_with_delegation_code_passes_precheck)
     state::State state(stateView);
     auto input = makeInput(sender);
 
-    auto error = opStackTxPrecheck(input, state);
+    auto error = runOpStackEntryPrecheck(input, stateView);
     BOOST_CHECK(!error.has_value());
 }
 
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(sender_with_non_delegation_code_is_rejected)
     state::State state(stateView);
     auto input = makeInput(sender);
 
-    auto error = opStackTxPrecheck(input, state);
+    auto error = runOpStackEntryPrecheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }

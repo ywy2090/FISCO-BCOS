@@ -18,10 +18,10 @@ Chain-specific behavior spans nonce management, auth checks, value transfer, blo
 
 | Domain | Primary layer | BCOS location | OPStack location | Kernel (`eth`) |
 | --- | --- | --- | --- | --- |
-| **Nonce** (tx + CREATE) | orchestration + VmHostPolicy | `TransactionExecutorImpl`, `FiscoVmHostPolicy::bumpContractCreateNonce` | `OpStackTxPrecheck`, deposit rules | no tx nonce in kernel |
+| **Nonce** (tx + CREATE) | orchestration + VmHostPolicy | `TransactionExecutorImpl`, `FiscoVmHostPolicy::bumpContractCreateNonce` | `OpStackPrecheckPolicy::checkEntryRules`, deposit rules | no tx nonce in kernel |
 | **Auth check** | orchestration | `FiscoExecutionBridge` + `AuthCheck` before `executeMessage` | N/A (OP auth model differs) | never |
 | **Value transfer** | orchestration + VmHostPolicy | `FiscoExecutionBridge::maybeTransferValue`, `skipHostValueTransfer` | deposit mint + fee routing | `Transfer.h` helpers only |
-| **Blob gas (EIP-4844)** | revision profile + orchestration | `feature-gated` until Web3 blob tx on BCOS | `OpStackTxPrecheck` + `eip4844` | no blob tx in kernel |
+| **Blob gas (EIP-4844)** | revision profile + orchestration | `feature-gated` until Web3 blob tx on BCOS | `OpStackPrecheckPolicy::checkEntryRules` + `eip4844` | no blob tx in kernel |
 | **Receipt metadata** | orchestration | FISCO receipt fields via executor | `OpStackReceiptMeta` | logs in `ExecuteMessageOutput` only |
 | **Deposit / L1 fee** | orchestration | unsupported | `OpStackExecutionBridge`, fee modules | never |
 | **Gas settlement / refund** | orchestration | `FiscoExecutionBridge` + TE settlement | `postExecuteGasSettlement`, floor gas | shared helpers in `eth/gas/` |

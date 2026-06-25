@@ -2,10 +2,10 @@
 
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
+#include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
 #include <algorithm>
@@ -105,11 +105,15 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     OpStackFeeContext feeCtx;
     populateFeeContext(feeCtx, input);
 
+    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    auto bindings = OpStackOrchestrationProfile::bind(session);
+
     trace::logMessageContext(input.message);
 
-    if (auto preCheckError = opStackTxPrecheck(input, ctx.state); preCheckError.has_value())
+    bindings.precheckPolicy.checkEntryRules(ctx);
+    if (ctx.earlyExit)
     {
-        output.evmcResult = std::move(*preCheckError);
+        output.evmcResult = std::move(ctx.evmcResult);
         co_return output;
     }
 
@@ -136,8 +140,6 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
         ctx.state.checkpoint();
 
-        OpStackOrchestrationProfile::Session session{input, feeCtx};
-        auto bindings = OpStackOrchestrationProfile::bind(session);
         runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
         output.evmcResult = std::move(ctx.evmcResult);
@@ -172,8 +174,6 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     ctx.gasPrice = feeCtx.m_effectiveGasPrice;
 
-    OpStackOrchestrationProfile::Session session{input, feeCtx};
-    auto bindings = OpStackOrchestrationProfile::bind(session);
     runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     output.evmcResult = std::move(ctx.evmcResult);

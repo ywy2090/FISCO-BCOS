@@ -25,7 +25,7 @@ add_executable(OpStackIntrinsicGasSyncTest
     ../opstack/OpStackTxLifecycle.cpp
     ../opstack/OpStackSettlement.cpp
     ../opstack/OpStackOrchestrationProfile.cpp
-    ../opstack/OpStackTxPrecheck.cpp
+    ../opstack/OpStackPrecheckPolicy.cpp
     ../opstack/OpStackTxFeeLedger.cpp
     ../opstack/fee/RollupCost.cpp
     ../opstack/fee/OpStackFee.cpp
@@ -51,6 +51,11 @@ target_include_directories(OpStackOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackOrchestrationProfileTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackOrchestrationProfile COMMAND OpStackOrchestrationProfileTest)
+add_executable(OpStackPrecheckPolicyTest opstack/OpStackPrecheckPolicyTest.cpp)
+target_include_directories(OpStackPrecheckPolicyTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackPrecheckPolicyTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackPrecheckPolicy COMMAND OpStackPrecheckPolicyTest)
 add_executable(OpStackOrchestrationErrorPolicyTest opstack/OpStackOrchestrationErrorPolicyTest.cpp)
 target_include_directories(OpStackOrchestrationErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

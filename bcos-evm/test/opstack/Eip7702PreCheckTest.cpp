@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE Eip7702PreCheckTest
 
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/OpStackEntryPrecheck.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(rejects_authorization_list_on_create)
     input.message.kind = EVMC_CREATE;
     input.authorizations.push_back({});
 
-    auto error = opStackTxPrecheck(input, state);
+    auto error = runOpStackEntryPrecheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
     input.authorizationListPresent = true;
     input.authorizations.clear();
 
-    auto error = opStackTxPrecheck(input, state);
+    auto error = runOpStackEntryPrecheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }

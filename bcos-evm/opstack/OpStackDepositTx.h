@@ -1,20 +1,14 @@
 #pragma once
 
-#include <bcos-utilities/Common.h>
-#include <evmc/evmc.h>
-#include <optional>
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-framework/executor/OpStackTxType.h"
 
 namespace bcos::evm
 {
-struct OpStackDepositTx
+
+inline bool isDepositTx(OpStackExecutionRequest const& input) noexcept
 {
-    bcos::h256 sourceHash{};
-    evmc_address from{};
-    std::optional<evmc_address> to;
-    std::optional<bcos::u256> mint;
-    bcos::u256 value{0};
-    uint64_t gas{0};
-    bool isSystemTransaction{false};
-    bcos::bytes data;
-};
+    return input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE || input.depositTx.has_value();
+}
+
 }  // namespace bcos::evm

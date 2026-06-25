@@ -13,7 +13,7 @@ ADR-021 deepened **settlement math** (`finalizeNormal` / `finalizeDeposit`) and 
 Understanding one OpStack user transaction still requires reading **`OpStackExecutionBridge::opStackExecute`** across:
 
 - `OpStackFeeContext` manual initialization (20+ fields)
-- `opStackTxPrecheck` (validation + deposit `gasPool.subGas` side effect today)
+- `OpStackPrecheckPolicy::checkEntryRules` (sync validation before buyGas; C3: consolidated from `opStackTxPrecheck`)
 - deposit pre-pipeline (`depositNonce` → `mint` → `checkpoint`)
 - normal `gasPool.subGas` → `buyGas` → `runTxPipeline` → `settleNormal`
 - buyGas-failure `gasPool.returnGas` in bridge (success path `returnGas` in `settleNormal`)
@@ -63,20 +63,33 @@ ADR-021 invariants unchanged.
 ### 4. Lifecycle step order
 
 ```text
-buildSession(request)
-opStackTxPrecheck(request, ctx.state)     // pure validation (C2: no gasPool side effects)
+populateFeeContext → Profile::bind (once)
+OpStackPrecheckPolicy::checkEntryRules(ctx)   // sync rules before buyGas (nonce/7702/blob/feeCap)
 branch:
   deposit:
     acquireGasPool
     runDepositPrePipeline (depositNonce → mint → checkpoint)
-    Profile::bind → runTxPipeline
+    runTxPipeline (checkGasAffordable: floor + post-buyGas canTransfer)
     settleDeposit → projectOutput
   normal:
     acquireGasPool
     buyGas → on fail: releaseGasPool(limit, 0); early exit
-    Profile::bind → runTxPipeline
+    runTxPipeline (checkTransactionRules: no-op; checkGasAffordable after buyGas)
     settleNormal → projectOutput
 ```
+
+### 4½. OpStack sync precheck module (C3)
+
+All **sync** precheck rules live in `OpStackPrecheckPolicy` (two phases):
+
+| Phase | Method | When | Rules |
+| --- | --- | --- | --- |
+| Entry | `checkEntryRules` | lifecycle, before `buyGas` | nonce, 7702 sender, EIP-1559 caps, blob intent, auth+CREATE |
+| Gas afford | `checkGasAffordable` | `runTxPipeline`, after `buyGas` (normal) | floor data gas, `canTransfer(value)` on post-debit balance |
+
+`checkTransactionRules` remains **no-op** for OpStack (pipeline step ②). Async `buyGas`/`refundGas`/`settle*` stay in lifecycle per ADR-019 Q7.
+
+Deleted: `opStackTxPrecheck` free function. `isDepositTx()` → `OpStackDepositTx.h`.
 
 ### 5. GasPool ownership (C2)
 
@@ -103,6 +116,7 @@ Lifecycle **inlines** `OpStackOrchestrationProfile::bind(session)` — hooks are
 | **C0** | ADR-023 (this doc) + `OpStackTxLifecycleCharacterizationTest` (6 paths via `opStackExecute`) | Done |
 | **C1** | `runOpStackTxLifecycle`; bridge delegate; tests target lifecycle | Done |
 | **C2** | Precheck pure; gasPool centralized in lifecycle | Done |
+| **C3** | Sync precheck consolidated in `OpStackPrecheckPolicy` (entry + gasAffordable phases) | Done |
 
 ### 9. Characterization matrix (C0 oracle)
 
@@ -149,7 +163,14 @@ Lifecycle **inlines** `OpStackOrchestrationProfile::bind(session)` — hooks are
 
 ## Compliance (C2 reviewers)
 
-- [x] `opStackTxPrecheck` has no `gasPool` side effects
+- [x] Entry precheck has no `gasPool` side effects
 - [x] Lifecycle `acquireGasPool` used for deposit and normal
 - [x] Lifecycle `releaseGasPoolFullLimit` on buyGas failure
 - [x] ADR-023 Status → Accepted
+
+## Compliance (C3 reviewers)
+
+- [x] `OpStackPrecheckPolicy::checkEntryRules` owns former `opStackTxPrecheck` logic
+- [x] Lifecycle bind-once; entry rules before buyGas; pipeline `checkGasAffordable` unchanged
+- [x] `OpStackPrecheckPolicyTest` + migrated entry-precheck tests green
+- [x] `OpStackTxLifecycleCharacterizationTest` regression green
