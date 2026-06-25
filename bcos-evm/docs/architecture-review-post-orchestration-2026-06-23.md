@@ -70,6 +70,8 @@ P2  Speculative
 
 ### 候选 1 — ExecutionFrame：统一 executeMessage 与 EthHost::call
 
+**Status:** ✅ Done (ExecutionFrame PR1–2, `ea1e4f2dc..274047e4a`). See `architecture-overview.md` §3.1.
+
 **强度:** Strong · **类别:** in-process
 
 **文件:** `eth/ExecuteMessage.cpp` · `eth/state/EthHost.cpp` · `eth/precompiled/PrecompileRouter.cpp` · `test/eth/PrecompileRouterEnvelopeTest.cpp`
