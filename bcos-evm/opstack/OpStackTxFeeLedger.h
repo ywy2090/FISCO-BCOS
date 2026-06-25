@@ -1,7 +1,7 @@
 #pragma once
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"

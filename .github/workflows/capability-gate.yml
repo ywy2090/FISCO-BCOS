@@ -7,7 +7,7 @@ on:
       - 'bcos-evm/eth/**'
       - 'bcos-evm/bcos/**'
       - 'bcos-evm/opstack/**'
-      - 'bcos-evm/specs-tests/**'
+      - 'bcos-evm/test/eth-eest-test/**'
       - 'bcos-evm/test/eth/RevisionConfigProfileTest.cpp'
       - 'transaction-executor/**'
 

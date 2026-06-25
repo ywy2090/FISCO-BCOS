@@ -1,5 +1,19 @@
 # Shared helpers for bcos-evm unit tests.
 
+add_library(bcos-evm-test-state STATIC
+    state/BloomFilter.cpp
+    state/Transition.cpp
+)
+
+target_include_directories(bcos-evm-test-state PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(bcos-evm-test-state PUBLIC
+    bcos-evm-eth
+)
+
 function(add_te_input_builder_test NAME SOURCE)
     add_executable(${NAME} ${SOURCE})
     target_include_directories(${NAME} PRIVATE

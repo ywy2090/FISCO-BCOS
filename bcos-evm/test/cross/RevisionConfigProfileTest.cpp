@@ -2,7 +2,7 @@
 
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/vm/EthPolicy.h"
+#include "bcos-evm/eth/policy/EthPolicy.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <boost/test/included/unit_test.hpp>

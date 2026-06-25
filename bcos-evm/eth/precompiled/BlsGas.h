@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
@@ -39,7 +38,7 @@ inline int64_t blsG1MsmGas(size_t k) noexcept
     {
         return 0;
     }
-    assert(k <= kG1MsmDiscounts.size() && "BLS G1MSM: too many pairs for discount table");
+    // EIP-2537: discount table covers k in [1,128]; k > 128 uses max_discount (last entry).
     auto const discount = kG1MsmDiscounts[std::min(k, kG1MsmDiscounts.size()) - 1];
     return 12000 * static_cast<int64_t>(discount) * static_cast<int64_t>(k) / 1000;
 }
@@ -50,7 +49,7 @@ inline int64_t blsG2MsmGas(size_t k) noexcept
     {
         return 0;
     }
-    assert(k <= kG2MsmDiscounts.size() && "BLS G2MSM: too many pairs for discount table");
+    // EIP-2537: discount table covers k in [1,128]; k > 128 uses max_discount (last entry).
     auto const discount = kG2MsmDiscounts[std::min(k, kG2MsmDiscounts.size()) - 1];
     return 22500 * static_cast<int64_t>(discount) * static_cast<int64_t>(k) / 1000;
 }

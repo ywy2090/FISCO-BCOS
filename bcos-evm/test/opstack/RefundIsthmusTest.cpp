@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE RefundIsthmusTest
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>

@@ -1,9 +1,0 @@
-{
-  "rows": [
-    "eip2929-runtime-warm",
-    "eip6780-selfdestruct-kernel",
-    "builtin-precompiles-kernel",
-    "eip1559-settlement",
-    "eip7702-set-code-tx"
-  ]
-}

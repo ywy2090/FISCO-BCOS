@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7825.subcall_context",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7825_transaction_gas_limit_cap/test_tx_gas_limit_cap_subcall_context.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7825-gas-limit-cap"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7825.contract_creation",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7825_transaction_gas_limit_cap/test_tx_gas_limit_cap_contract_creation.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7825-gas-limit-cap"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7825.max_gas_refund",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7825_transaction_gas_limit_cap/test_maximum_gas_refund.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7825-gas-limit-cap"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

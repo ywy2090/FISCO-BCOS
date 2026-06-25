@@ -1,0 +1,45 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153.tload_works",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_basic_tload_works.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153.tload_after_sstore",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_tload_after_sstore.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153.transient_storage_unset",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_transient_storage_unset_values.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153.contract_creation",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_contract_creation.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

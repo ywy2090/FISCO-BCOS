@@ -1,10 +1,10 @@
 #define BOOST_TEST_MODULE TxPipelineTest
 
-#include "bcos-evm/eth/orchestration/TxPipeline.h"
+#include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/orchestration/CaptureSettlementSnapshot.h"
-#include "bcos-evm/eth/orchestration/EthOrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/orchestration/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
+#include "bcos-evm/eth/pipeline/EthOrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>

@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/execution/ResolveExecutionCode.h"
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/state/CreateExecution.h"
+#include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "state/InMemoryEvmStateReader.h"
@@ -57,7 +57,7 @@ bcos::bytes resolveExecutableCodeLegacy(state::State& state, bcos::bytes code, b
 bcos::bytes resolveCodeLegacyPath(
     state::State& state, bcos::evm_standard::RevisionConfig const& cfg, evmc_message const& msg)
 {
-    if (state::isCreateKind(msg.kind))
+    if (execution::isCreateKind(msg.kind))
     {
         return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
     }

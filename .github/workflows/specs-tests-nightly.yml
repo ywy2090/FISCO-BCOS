@@ -49,17 +49,17 @@ jobs:
           cmake --build build --target EthGSTFull EthExecutionSpecStateTests EthExecutionSpecTransactionTests -j$(nproc)
       - name: Run full GST sweep
         run: |
-          build/bcos-evm/specs-tests/EthGSTFull \
-            --ethereum-tests-root bcos-evm/specs-tests/assets/ethereum-tests \
-            --expectations bcos-evm/specs-tests/manifests/expectations.json
+          build/bcos-evm/test/eth-eest-test/EthGSTFull \
+            --ethereum-tests-root bcos-evm/test/eth-eest-test/assets/ethereum-tests \
+            --expectations bcos-evm/test/eth-eest-test/manifests/expectations.json
       - name: Run EEST state full sweep
         run: |
-          build/bcos-evm/specs-tests/EthExecutionSpecStateTests \
-            --manifest bcos-evm/specs-tests/manifests/eth-eest-state-full.json \
-            --eest-root bcos-evm/specs-tests/assets/eest \
-            --expectations bcos-evm/specs-tests/manifests/expectations.json
+          build/bcos-evm/test/eth-eest-test/EthExecutionSpecStateTests \
+            --manifest bcos-evm/test/eth-eest-test/manifests/eth-eest-state-full.json \
+            --eest-root bcos-evm/test/eth-eest-test/assets/eest \
+            --expectations bcos-evm/test/eth-eest-test/manifests/expectations.json
       - name: Run EEST transaction full sweep
         run: |
-          build/bcos-evm/specs-tests/EthExecutionSpecTransactionTests \
-            --manifest bcos-evm/specs-tests/manifests/eth-eest-tx-full.json \
-            --eest-root bcos-evm/specs-tests/assets/eest
+          build/bcos-evm/test/eth-eest-test/EthExecutionSpecTransactionTests \
+            --manifest bcos-evm/test/eth-eest-test/manifests/eth-eest-tx-full.json \
+            --eest-root bcos-evm/test/eth-eest-test/assets/eest

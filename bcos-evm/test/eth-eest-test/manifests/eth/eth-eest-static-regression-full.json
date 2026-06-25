@@ -1,0 +1,205 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.static.cancun",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/Cancun",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.shanghai",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/Shanghai",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.eip1559",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stEIP1559",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1559-settlement"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.eip2930",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stEIP2930",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.create2",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stCreate2",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.revert",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stRevertTest",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.refund",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stRefundTest",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.sstore",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stSStoreTest",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.create",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stCreateTest",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.initcode",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stInitCodeTest",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.extcodehash",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stExtCodeHash",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.delegatecall",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stDelegatecallTestHomestead",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.callcodes",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stCallCodes",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.staticcall",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stStaticCall",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.selfbalance",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stSelfBalance",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.chainid",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stChainId",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.badopcode",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stBadOpcode",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.returndata",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stReturnDataTest",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.logs",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stLogTests",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.static.bugs",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stBugs",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    }
+  ]
+}

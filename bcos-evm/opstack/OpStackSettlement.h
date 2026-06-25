@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include <bcos-task/Task.h>
 #include <evmc/evmc.h>
 #include <functional>

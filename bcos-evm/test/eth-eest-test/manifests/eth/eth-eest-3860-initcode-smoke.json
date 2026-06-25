@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3860.legacy_create_edge",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3860_initcode/test_legacy_create_edge_code_size.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3860-initcode"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3855.contracts",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3855_push0/test_push0_contracts.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3855-push0"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3855.call_contexts",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3855_push0/test_push0_contract_during_call_contexts.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3855-push0"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

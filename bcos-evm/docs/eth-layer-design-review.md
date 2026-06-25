@@ -28,7 +28,7 @@ opstack/ ──►  eth/
 | 3 | `eth/vm/` | EVM lifecycle (policy, factory, instance) | `EthPolicy`, `VMFactory`, `VMInstance` | `test/eth/` |
 | 4 | `eth/precompiled/` | Precompile dispatch and gas | `PrecompileRouter`, `EthBuiltinRegistry`, `BlsGas`, `ModexpGas` | `test/eth/` |
 | 5 | `eth/gas/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
-| 6 | `eth/orchestration/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `debitIntrinsicGas` | `test/eth/` |
+| 6 | `eth/pipeline/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `debitIntrinsicGas` | `test/eth/` |
 | 7 | `eth/execution/` | Warm-up and feature preparation | `warmTransactionEntry`, `TxFeaturePrepare`, `BlockInfoBuilder`, `Eip2929PrecompileWarm` | `test/eth/` |
 | 8 | `eth/` (root) | Entry points, types, cross-cutting | `executeMessage`, `executeViaEth`, `RevisionConfig`, `Eip7702`, `EVMCResult` | `test/eth/`, `test/` (root) |
 
@@ -163,7 +163,7 @@ PrecompileRouter (top-level dispatch)
 
 ---
 
-### 3.6 `eth/orchestration/` — Shared orchestration pipeline (ADR-019)
+### 3.6 `eth/pipeline/` — Shared orchestration pipeline (ADR-019)
 
 **Files:** `TxPipeline.h` / `.cpp`, `TxPipelineContext.h`, `TxPipelineHooks.h`, `DebitIntrinsicGas.h`, `AdoptEvmcResult.h`, `BuildExecuteMessageInput.h`, `CaptureSettlementSnapshot.h`, `NormalizeIncludedTxVmerr.h`
 
@@ -197,10 +197,10 @@ runTxPipeline(ctx, hooks):
 
 `TxPipelineContext` is non-copyable/non-movable, owns `state::State` and the sole mutable `evmc_message`. `extension` is a borrow pointer set by the wrapper before `runTxPipeline`. `TxPipelineHooks` is a struct of `std::function` callbacks with no-op defaults.
 
-**Seam discipline:** `eth/orchestration/` must not `#include bcos/` or `opstack/`. Chain behaviour enters only through hooks or wrapper translation units (e.g. `OpStackPreDebitEntry` called from `preDebitEntry` lambda in `OpStackExecuteViaHost.cpp`).
+**Seam discipline:** `eth/pipeline/` must not `#include bcos/` or `opstack/`. Chain behaviour enters only through hooks or wrapper translation units (e.g. `OpStackPreDebitEntry` called from `preDebitEntry` lambda in `OpStackExecuteViaHost.cpp`).
 
 **Points a reviewer should check:**
-1. New shared orchestration steps belong in `runTxPipeline` or a portable header under `eth/orchestration/`, not duplicated in three wrappers.
+1. New shared orchestration steps belong in `runTxPipeline` or a portable header under `eth/pipeline/`, not duplicated in three wrappers.
 2. New hooks must have sensible no-op defaults in `TxPipelineHooks`.
 3. `earlyExit` / `TxPipelineExitKind` must be set after `preExecute`, `preDebitEntry`, intrinsic failure, and `preKernel`.
 4. Intrinsic failure uses `DebitIntrinsicGasOutcome` + `mapIntrinsicFailure`; do not construct chain-final `EVMCResult` inside `debitIntrinsicGas`.
@@ -267,7 +267,7 @@ runTxPipeline(ctx, hooks):
 | 7 | `TxPipelineHooks` defaults are no-ops | Default `std::function` initialization |
 | 8 | Capability matrix must be updated in the same PR as kernel/hook changes | CI gate (`capability-gate.yml`) |
 | 9 | `runTxPipeline` is the only fixed orchestration pipeline; wrappers supply hooks only | ADR-019; three `executeVia*` call sites |
-| 10 | `eth/orchestration/` must not include `bcos/` or `opstack/` headers | ADR-005 §4, ADR-019 |
+| 10 | `eth/pipeline/` must not include `bcos/` or `opstack/` headers | ADR-005 §4, ADR-019 |
 
 ---
 

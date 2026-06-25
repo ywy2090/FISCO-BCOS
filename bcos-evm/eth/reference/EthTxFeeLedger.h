@@ -1,7 +1,7 @@
 #pragma once
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
-#include "bcos-evm/eth/vm/EthPolicy.h"
+#include "bcos-evm/eth/policy/EthPolicy.h"
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/protocol/Transaction.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>

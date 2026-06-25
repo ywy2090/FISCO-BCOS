@@ -13,13 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Lightweight transaction/request and receipt model for transition().
+ * @brief Lightweight transaction/request model for execution entry points.
  * @file Transaction.hpp
  */
 
 #pragma once
 
-#include "bcos-evm/eth/state/BloomFilter.hpp"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <optional>
@@ -50,15 +49,5 @@ struct LogEntry
     evmc_address address{};
     bcos::bytes data;
     std::vector<evmc_bytes32> topics;
-};
-
-struct TransactionReceipt
-{
-    evmc_status_code status{EVMC_SUCCESS};
-    int64_t gasUsed{0};
-    int64_t gasRefund{0};
-    bcos::bytes output;
-    std::vector<LogEntry> logs;
-    BloomFilter logsBloom;
 };
 }  // namespace bcos::evm::state

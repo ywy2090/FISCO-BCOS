@@ -80,6 +80,16 @@ void logFrameDoneIfNested(evmc_message const& originalMsg, evmc::Result const& r
     }
 }
 
+inline evmc_address resolveCallerAddress(
+    evmc_address const& executionAddress, evmc_message const& msg) noexcept
+{
+    if (!state::isZeroAddress(executionAddress))
+    {
+        return executionAddress;
+    }
+    return msg.sender;
+}
+
 std::optional<FrameResult> guardDelegatePrecompile(FrameWork const& work)
 {
     auto& callMessage = work.callMessage();

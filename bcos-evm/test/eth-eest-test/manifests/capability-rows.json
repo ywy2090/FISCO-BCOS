@@ -1,0 +1,19 @@
+{
+  "rows": [
+    "eip2929-runtime-warm",
+    "eip6780-selfdestruct-kernel",
+    "builtin-precompiles-kernel",
+    "eip1559-settlement",
+    "eip7702-set-code-tx",
+    "eip2537-bls-precompiles",
+    "eip1153-tstore",
+    "eip5656-mcopy",
+    "eip3855-push0",
+    "eip3860-initcode",
+    "eip3651-warm-coinbase",
+    "eip4844-blobs",
+    "eip7212-p256-precompile",
+    "eip7823-modexp",
+    "eip7825-gas-limit-cap"
+  ]
+}

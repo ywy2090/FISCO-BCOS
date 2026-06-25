@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.cancun.state.eip5656.valid_mcopy",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy/test_valid_mcopy_operations.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip5656.empty_memory",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy/test_mcopy_on_empty_memory.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip5656.no_corruption_call_stack",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy/test_no_memory_corruption_on_upper_call_stack_levels.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

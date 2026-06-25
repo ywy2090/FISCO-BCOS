@@ -21,9 +21,9 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Delegation7702Frame.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
-#include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.h>
@@ -45,7 +45,7 @@ evmc_address resolve7702CodeAddress(evmc_message const& msg) noexcept
 inline bcos::bytes resolveExecutionCode(state::State& state,
     bcos::evm_standard::RevisionConfig const& revisionConfig, evmc_message const& msg)
 {
-    if (state::isCreateKind(msg.kind))
+    if (isCreateKind(msg.kind))
     {
         if (msg.input_data == nullptr || msg.input_size == 0)
         {

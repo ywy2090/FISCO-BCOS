@@ -21,7 +21,7 @@
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoOrchestrationErrorPolicy.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
+#include "bcos-evm/eth/pipeline/TxPipelineHooks.h"
 
 namespace bcos::evm
 {

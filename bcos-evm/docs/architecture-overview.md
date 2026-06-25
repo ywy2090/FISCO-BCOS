@@ -107,7 +107,7 @@ graph TD
 
 ## 3. 执行流：三入口 → 共享编排 → 内核
 
-自 ADR-019 起，三个执行桥入口均为薄 wrapper：映射输入 → 填充 `TxPipelineHooks` → 调用 `runTxPipeline` → 映射输出。共享步骤（intrinsic debit、`BuildExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot）在 `eth/orchestration/` 单点 enforcement。
+自 ADR-019 起，三个执行桥入口均为薄 wrapper：映射输入 → 填充 `TxPipelineHooks` → 调用 `runTxPipeline` → 映射输出。共享步骤（intrinsic debit、`BuildExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot）在 `eth/pipeline/` 单点 enforcement。
 
 `executeMessage` 现为 **tx 级薄 adapter**：warm 目标、7702 tx auth、sender nonce bump、`finalize_self_destructs` 与 `stateDiff` 映射留在 adapter；帧体（precompile route → checkpoint → value transfer → CREATE → evmone）统一委托 `runExecutionFrame(TopLevel)`。嵌套帧由 evmone 回调 `EthHost::call` → `runExecutionFrame(Nested)`。链行为仍仅通过 `VmHostPolicy*` 注入：
 
@@ -241,9 +241,9 @@ struct VmHostPolicy {
 
 ### 4.3 `TxPipelineHooks` —— 编排管线注入（ADR-019）
 
-文件：`eth/orchestration/TxPipelineHooks.h`
+文件：`eth/pipeline/TxPipelineHooks.h`
 
-链特有编排行为通过 hook 回调注入 `runTxPipeline`，**不得**在 `eth/orchestration/` 内 `#include bcos/` 或 `opstack/`。典型 hook：
+链特有编排行为通过 hook 回调注入 `runTxPipeline`，**不得**在 `eth/pipeline/` 内 `#include bcos/` 或 `opstack/`。典型 hook：
 
 | Hook | Eth | Fisco | OpStack |
 | --- | --- | --- | --- |
@@ -357,15 +357,15 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | --- | --- |
 | 外部 review 入口 | `docs/review-pack.md` |
 | 库划分 / 依赖 | `bcos-evm/CMakeLists.txt` |
-| 共享编排管线 | `eth/orchestration/TxPipeline.cpp` |
-| 编排上下文 / 钩子 | `eth/orchestration/TxPipelineContext.h`、`TxPipelineHooks.h` |
+| 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
+| 编排上下文 / 钩子 | `eth/pipeline/TxPipelineContext.h`、`TxPipelineHooks.h` |
 | 内核入口 | `eth/ExecuteMessage.h` / `.cpp` |
 | ExecutionFrame module | `eth/execution/ExecutionFrame.h` / `.cpp` |
 | Frame helpers | `eth/execution/RouteMessage.*`、`FrameValueTransfer.h`、`ResolveExecutionCode.h`、`FrameCaller.h` |
 | Frame parity tests | `test/eth/ExecutionFrameTest.cpp` |
 | 内核扩展点基类 | `eth/policy/VmHostPolicy.h` |
 | EIP 开关 / 单一 derive | `eth/RevisionConfig.h`（`revisionConfigFromRevision`） |
-| ETH 参考 Policy | `eth/vm/EthPolicy.h` |
+| ETH 参考 Policy | `eth/policy/EthPolicy.h` |
 | FISCO 编排入口 | `bcos/FiscoExecutionBridge.h` |
 | FISCO 扩展实现 | `bcos/FiscoVmHostPolicy.h` |
 | FISCO 钩子绑定 | `bcos/FiscoPipelineHookBinder.h` |

@@ -1,0 +1,45 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7883.boundary_inputs",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_boundary_inputs.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7883.call_operations",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_call_operations.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7883.invalid_inputs",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_invalid_inputs.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7883.tx_entry_points",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_used_in_transaction_entry_points.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

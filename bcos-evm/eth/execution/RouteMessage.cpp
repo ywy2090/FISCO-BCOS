@@ -17,9 +17,9 @@
  */
 
 #include "bcos-evm/eth/execution/RouteMessage.h"
+#include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Delegation7702Frame.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
-#include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 
@@ -31,7 +31,7 @@ RoutedMessage routeMessage(state::State& state,
     RoutedMessage routed{};
     routed.message = msg;
 
-    if (scope == FrameScope::Nested && state::isCreateKind(msg.kind))
+    if (scope == FrameScope::Nested && isCreateKind(msg.kind))
     {
         if (!state::isZeroAddress(routed.message.recipient))
         {
@@ -55,7 +55,7 @@ RoutedMessage routeMessage(state::State& state,
 
     if (scope == FrameScope::TopLevel)
     {
-        if (state::isCreateKind(msg.kind))
+        if (isCreateKind(msg.kind))
         {
             return routed;
         }

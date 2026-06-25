@@ -1,0 +1,75 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.static.cancun.eip1153",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/Cancun/stEIP1153_transientStorage",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.cancun.eip5656",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/Cancun/stEIP5656_MCOPY",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.shanghai.eip3855",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/Shanghai/stEIP3855_push0",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3855-push0"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.shanghai.eip3860",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/Shanghai/stEIP3860_limitmeterinitcode",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3860-initcode"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.chainid",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stChainId",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.selfbalance",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stSelfBalance",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.static.bugs",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/static/state_tests/stBugs",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["builtin-precompiles-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

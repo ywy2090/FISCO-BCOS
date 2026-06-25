@@ -2,8 +2,8 @@
 
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "state/InMemoryEvmStateReader.h"

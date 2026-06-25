@@ -1,0 +1,336 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "opstack.eest.prague.state.eip2537.call_types",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_call_types.json",
+      "forkProfileId": "eth-prague",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.prague.state.eip2537.invalid_gas_g1msm",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_invalid_gas_g1msm.json",
+      "forkProfileId": "eth-prague",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.prague.state.eip2537.invalid_gas_g2msm",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_invalid_gas_g2msm.json",
+      "forkProfileId": "eth-prague",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.prague.state.eip2537.precompile_before_fork",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_precompile_before_fork.json",
+      "forkProfileId": "eth-prague",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.prague.state.eip2537.valid_gas_g1msm",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_valid_gas_g1msm.json",
+      "forkProfileId": "eth-prague",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip1153.tload_works",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_basic_tload_works.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip1153.tload_after_sstore",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_tload_after_sstore.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip1153.transient_storage_unset",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_transient_storage_unset_values.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip1153.contract_creation",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_contract_creation.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip5656.valid_mcopy",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy/test_valid_mcopy_operations.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip5656.empty_memory",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy/test_mcopy_on_empty_memory.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip5656.no_corruption_call_stack",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy/test_no_memory_corruption_on_upper_call_stack_levels.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip6780.not_created_revert",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct/test_selfdestruct_not_created_in_same_tx_with_revert.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip6780.created_revert",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct/test_selfdestruct_created_in_same_tx_with_revert.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip6780.initcode_create_tx",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct/test_self_destructing_initcode_create_tx.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.shanghai.state.eip3860.legacy_create_edge",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3860_initcode/test_legacy_create_edge_code_size.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip3860-initcode"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.shanghai.state.eip3651.gas_usage",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3651_warm_coinbase/test_warm_coinbase_gas_usage.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip3651-warm-coinbase"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.shanghai.state.eip3651.call_oog",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3651_warm_coinbase/test_warm_coinbase_call_out_of_gas.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip3651-warm-coinbase"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip7516.blobbasefee_oog",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip7516_blobgasfee/test_blobbasefee_out_of_gas.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip4844-blobs"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip7516.blobbasefee_before_fork",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip7516_blobgasfee/test_blobbasefee_before_fork.json",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip4844-blobs"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7951.call_types",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_call_types.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7951.gas",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_gas.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7951.invalid",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_invalid.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7951.tx_entry_point",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_precompile_as_tx_entry_point.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7951.modular_comparison",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_modular_comparison.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7883.boundary_inputs",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_boundary_inputs.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7883.call_operations",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_call_operations.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7883.invalid_inputs",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_invalid_inputs.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7883.tx_entry_points",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase/test_modexp_used_in_transaction_entry_points.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7825.subcall_context",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7825_transaction_gas_limit_cap/test_tx_gas_limit_cap_subcall_context.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7825-gas-limit-cap"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7825.contract_creation",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7825_transaction_gas_limit_cap/test_tx_gas_limit_cap_contract_creation.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7825-gas-limit-cap"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.osaka.state.eip7825.max_gas_refund",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7825_transaction_gas_limit_cap/test_maximum_gas_refund.json",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7825-gas-limit-cap"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "opstack.eest.prague.state.eip7702.self_sponsored.return",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx/test_self_sponsored_set_code.json",
+      "variantKey": "tests/prague/eip7702_set_code_tx/test_set_code_txs.py::test_self_sponsored_set_code[fork_Osaka-state_test-return-tx_value_0]",
+      "forkProfileId": "eth-osaka",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

@@ -26,6 +26,21 @@
 namespace bcos::evm
 {
 
+/// EIP-2718 typed transaction envelope byte (0 = legacy RLP without type prefix).
+enum class Web3TypedTxKind : uint8_t
+{
+    Legacy = 0x00,
+    EIP2930 = 0x01,
+    EIP1559 = 0x02,
+    EIP4844 = 0x03,
+    EIP7702 = 0x04,
+};
+
+inline constexpr uint8_t toWeb3TypedTxKindValue(Web3TypedTxKind kind) noexcept
+{
+    return static_cast<uint8_t>(kind);
+}
+
 /// Infer typed tx kind when the RLP type byte is missing or legacy (0).
 /// Priority: 0x04 auth → 0x03 blob → 0x02 EIP-1559 caps → 0x01 access list → legacy.
 inline uint8_t inferWeb3TypedTxKindFromFields(bool authorizationListKeyPresent,
@@ -34,21 +49,21 @@ inline uint8_t inferWeb3TypedTxKindFromFields(bool authorizationListKeyPresent,
 {
     if (authorizationListKeyPresent || hasAuthorizationList)
     {
-        return 0x04;
+        return toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702);
     }
     if (hasBlobVersionedHashes)
     {
-        return 0x03;
+        return toWeb3TypedTxKindValue(Web3TypedTxKind::EIP4844);
     }
     if (hasEip1559FeeCaps)
     {
-        return 0x02;
+        return toWeb3TypedTxKindValue(Web3TypedTxKind::EIP1559);
     }
     if (hasAccessList)
     {
-        return 0x01;
+        return toWeb3TypedTxKindValue(Web3TypedTxKind::EIP2930);
     }
-    return 0;
+    return toWeb3TypedTxKindValue(Web3TypedTxKind::Legacy);
 }
 
 /// Reject EIP-2718 typed txs on forks that do not support them (geth/Besu parity).
@@ -57,15 +72,15 @@ inline bool isTypedTxKindSupportedByRevision(
 {
     switch (web3TypedTxKind)
     {
-    case 0x00:
+    case toWeb3TypedTxKindValue(Web3TypedTxKind::Legacy):
         return true;
-    case 0x01:
+    case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP2930):
         return revision.revision >= EVMC_BERLIN;
-    case 0x02:
+    case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP1559):
         return revision.eip1559;
-    case 0x03:
+    case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP4844):
         return revision.eip4844;
-    case 0x04:
+    case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702):
         return revision.eip7702;
     default:
         return false;

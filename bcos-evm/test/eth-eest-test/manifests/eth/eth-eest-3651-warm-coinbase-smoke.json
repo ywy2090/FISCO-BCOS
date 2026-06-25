@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3651.gas_usage",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3651_warm_coinbase/test_warm_coinbase_gas_usage.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3651-warm-coinbase"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3651.call_oog",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3651_warm_coinbase/test_warm_coinbase_call_out_of_gas.json",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3651-warm-coinbase"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

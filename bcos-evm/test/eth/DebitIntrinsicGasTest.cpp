@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE DebitIntrinsicGasTest
 
-#include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include <boost/test/included/unit_test.hpp>
 

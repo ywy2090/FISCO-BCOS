@@ -1,5 +1,5 @@
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
-#include "bcos-evm/eth/orchestration/TxPipeline.h"
+#include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
 #include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

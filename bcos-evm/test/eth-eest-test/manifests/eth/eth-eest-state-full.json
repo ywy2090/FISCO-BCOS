@@ -1,0 +1,155 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.prague.state.eip7623",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7623_increase_calldata_cost",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7823",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7823_modexp_upper_bounds",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.state.eip7702",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2929-runtime-warm"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.state.eip2537",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip5656",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip6780",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3855",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3855_push0",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3855-push0"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3860",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3860_initcode",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3860-initcode"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.shanghai.state.eip3651",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3651_warm_coinbase",
+      "forkProfileId": "eth-shanghai",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip3651-warm-coinbase"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip4844",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip4844_blobs",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip4844-blobs"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip7516",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip7516_blobgasfee",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip4844-blobs"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7951",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7883",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7883_modexp_gas_increase",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7825",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7825_transaction_gas_limit_cap",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7825-gas-limit-cap"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    }
+  ]
+}

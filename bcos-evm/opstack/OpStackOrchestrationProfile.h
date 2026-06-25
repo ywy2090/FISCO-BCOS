@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
+#include "bcos-evm/eth/pipeline/TxPipelineHooks.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"

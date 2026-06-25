@@ -11,11 +11,11 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| `orchestration/` | `runTxPipeline` 共享管线步骤（ADR-019） |
+| `pipeline/` | `runTxPipeline` 共享管线步骤（ADR-019） |
 | `reference/` | ETH 参考链编排（bridge、hooks、precheck、fee ledger） |
 | `execution/` | 交易入口预热、BlockInfo、EIP-2929 warm |
 | `gas/` | 1559/4844/7623 等纯 gas 数学 |
-| `policy/` | `VmHostPolicy` / `EthVmHostPolicy` |
+| `policy/` | `VmHostPolicy` / `EthVmHostPolicy` / `EthPolicy`（revision 策略） |
 | `precompiled/` | `PrecompileRouter`、builtin registry |
 | `state/` | State/Host/Transition（Legacy Enclave，见 ADR-020） |
 | `vm/` | evmone 实例封装 |

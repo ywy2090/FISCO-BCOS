@@ -47,6 +47,7 @@ target_include_directories(${SMOKE_TEST_BINARY_NAME} PRIVATE
 
 target_link_libraries(${SMOKE_TEST_BINARY_NAME} PRIVATE
     bcos-evm
+    bcos-evm-test-state
 )
 
 add_test(
@@ -147,6 +148,7 @@ target_compile_definitions(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
 
 target_link_libraries(${PRAGUE_STATE_TEST_BINARY_NAME} PRIVATE
     bcos-evm-eth
+    bcos-evm-test-state
     evmone::evmone
     bcos-task
     bcos-framework

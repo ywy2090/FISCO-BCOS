@@ -1,0 +1,55 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7951.call_types",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_call_types.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7951.gas",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_gas.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7951.invalid",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_invalid.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7951.tx_entry_point",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_precompile_as_tx_entry_point.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7951.modular_comparison",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7951_p256verify_precompiles/test_modular_comparison.json",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7212-p256-precompile"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.prague.state.eip2537.call_types",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_call_types.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.state.eip2537.invalid_gas_g1msm",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_invalid_gas_g1msm.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.state.eip2537.invalid_gas_g2msm",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_invalid_gas_g2msm.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.state.eip2537.precompile_before_fork",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_precompile_before_fork.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional", "expectException"]
+    },
+    {
+      "evidenceId": "eth.eest.prague.state.eip2537.valid_gas_g1msm",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip2537_bls_12_381_precompiles/test_valid_gas_g1msm.json",
+      "forkProfileId": "eth-prague",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip2537-bls-precompiles"],
+      "assertLevels": ["transitional"]
+    }
+  ]
+}

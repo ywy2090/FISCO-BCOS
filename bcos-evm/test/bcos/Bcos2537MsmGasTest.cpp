@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/precompiled/BlsGas.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -17,6 +18,19 @@ evmc_address precompileAddress(uint8_t lowByte)
     return addr;
 }
 }  // namespace
+
+BOOST_AUTO_TEST_CASE(g1msm_k129_uses_max_discount_not_assert)
+{
+    // k=129 exceeds table length; EIP-2537 caps discount at entry for k=128 (519).
+    BOOST_CHECK_EQUAL(bcos::evm::precompiled::blsG1MsmGas(129), 803412);
+    BOOST_CHECK_EQUAL(bcos::evm::precompiled::blsG2MsmGas(129), 1520910);
+}
+
+BOOST_AUTO_TEST_CASE(g1msm_k200_uses_max_discount)
+{
+    BOOST_CHECK_EQUAL(bcos::evm::precompiled::blsG1MsmGas(200), 1245600);
+    BOOST_CHECK_EQUAL(bcos::evm::precompiled::blsG2MsmGas(200), 2358000);
+}
 
 // fiscoExecute delegates to executeMessage for kernel precompiles; assert MSM gas on that path.
 BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)

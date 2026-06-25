@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE EthOrchestrationProfileTest
 
 #include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
-#include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>

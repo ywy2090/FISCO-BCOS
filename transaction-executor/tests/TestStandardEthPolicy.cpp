@@ -1,4 +1,4 @@
-#include "bcos-evm/eth/vm/EthPolicy.h"
+#include "bcos-evm/eth/policy/EthPolicy.h"
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <evmc/evmc.h>
 #include <boost/test/unit_test.hpp>

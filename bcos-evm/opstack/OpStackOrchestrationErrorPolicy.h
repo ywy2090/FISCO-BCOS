@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/orchestration/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 
 namespace bcos::evm

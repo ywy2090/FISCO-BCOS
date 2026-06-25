@@ -1,0 +1,13 @@
+{
+  "_comment": "OPStack manifest-driven test expectations. Documents known divergences from standard Ethereum execution.",
+  "_policy": "Skip entries that fail due to OPStack fee model or execution path differences.",
+  "_gap_catalog": {
+    "G1": "Fee model divergence — baseFee routed to OP_BASE_FEE_RECIPIENT instead of burned.",
+    "G2": "Nonce tracking — OPStack path does not write sender nonce increment to stateDiff.",
+    "G4": "Precompile behavior difference — OPStack precompile routing differs from evmone built-in precompiles.",
+    "G5": "Gas schedule difference — OPStack intrinsic gas calculation differs from standard Ethereum.",
+    "G8": "Authorization cost — EIP-7702 authorization processing costs may differ in OPStack path."
+  },
+  "expectations": [
+  ]
+}
