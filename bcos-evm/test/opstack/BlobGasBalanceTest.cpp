@@ -2,6 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
@@ -148,27 +149,29 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     auto const sender = addressFromLastByte(0x93);
     auto const initialBalance = u256(3'000'000);
     stateView.insert_account(sender, state::Account{.balance = initialBalance, .nonce = 0});
-    state::State state(stateView);
+
+    evmc_message msg{};
+    msg.sender = sender;
+    msg.gas = 1'000;
+    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackTxFeeLedger executor;
-    OpStackTxFeeLedger::OpStackTxExecutionData txData;
-    txData.m_state = &state;
-    txData.m_message.sender = sender;
-    txData.m_gasTipCap = 1;
-    txData.m_gasFeeCap = 2;
-    txData.m_hasGasFeeCap = true;
-    txData.m_gasLimit = 1'000;
-    txData.m_blockInfo.baseFee = 1;
-    txData.m_blockInfo.blobBaseFee = 10;
-    txData.m_blobGasFeeCap = 20;
-    txData.m_blobVersionedHashes.push_back(makeVersionedHash());
+    OpStackFeeContext feeCtx;
+    feeCtx.m_gasTipCap = 1;
+    feeCtx.m_gasFeeCap = 2;
+    feeCtx.m_hasGasFeeCap = true;
+    feeCtx.m_blockInfo.baseFee = 1;
+    feeCtx.m_blockInfo.blobBaseFee = 10;
+    feeCtx.m_blobGasFeeCap = 20;
+    feeCtx.m_blobVersionedHashes.push_back(makeVersionedHash());
 
     auto const executionGasCost = u256(1'000) * u256(2);
     auto const blobGasCost = u256(OP_BLOB_GAS_PER_BLOB) * u256(10);
     auto const expectedDeduction = executionGasCost + blobGasCost;
 
-    BOOST_REQUIRE(task::syncWait(executor.buyGas(txData)));
-    BOOST_CHECK_EQUAL(state.get_balance(sender), initialBalance - expectedDeduction);
+    BOOST_REQUIRE(task::syncWait(executor.buyGas(ctx, feeCtx)));
+    BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), initialBalance - expectedDeduction);
 }
 
 BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
@@ -176,26 +179,28 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x94);
     stateView.insert_account(sender, state::Account{.balance = u256(1'500'000), .nonce = 0});
-    state::State state(stateView);
+
+    evmc_message msg{};
+    msg.sender = sender;
+    msg.gas = 1'000;
+    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackTxFeeLedger executor;
-    OpStackTxFeeLedger::OpStackTxExecutionData txData;
-    txData.m_state = &state;
-    txData.m_message.sender = sender;
-    txData.m_gasTipCap = 1;
-    txData.m_gasFeeCap = 2;
-    txData.m_hasGasFeeCap = true;
-    txData.m_gasLimit = 1'000;
-    txData.m_blockInfo.baseFee = 1;
-    txData.m_blockInfo.blobBaseFee = 10;
-    txData.m_blobGasFeeCap = 20;
-    txData.m_blobVersionedHashes.push_back(makeVersionedHash());
+    OpStackFeeContext feeCtx;
+    feeCtx.m_gasTipCap = 1;
+    feeCtx.m_gasFeeCap = 2;
+    feeCtx.m_hasGasFeeCap = true;
+    feeCtx.m_blockInfo.baseFee = 1;
+    feeCtx.m_blockInfo.blobBaseFee = 10;
+    feeCtx.m_blobGasFeeCap = 20;
+    feeCtx.m_blobVersionedHashes.push_back(makeVersionedHash());
 
-    auto const balanceBefore = state.get_balance(sender);
-    BOOST_REQUIRE(!task::syncWait(executor.buyGas(txData)));
-    BOOST_REQUIRE(txData.m_evmcResult.has_value());
-    BOOST_CHECK_EQUAL(txData.m_evmcResult->status_code, EVMC_INSUFFICIENT_BALANCE);
-    BOOST_CHECK_EQUAL(state.get_balance(sender), balanceBefore);
+    auto const balanceBefore = ctx.state.get_balance(sender);
+    BOOST_REQUIRE(!task::syncWait(executor.buyGas(ctx, feeCtx)));
+    BOOST_REQUIRE(feeCtx.m_evmcResult.has_value());
+    BOOST_CHECK_EQUAL(feeCtx.m_evmcResult->status_code, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), balanceBefore);
 }
 
 BOOST_AUTO_TEST_CASE(l1_blob_base_fee_slot_does_not_set_execution_blob_base_fee)

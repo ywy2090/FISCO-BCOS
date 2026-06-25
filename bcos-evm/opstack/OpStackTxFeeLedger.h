@@ -1,8 +1,8 @@
 #pragma once
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
-#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include <bcos-protocol/TransactionStatus.h>
@@ -18,6 +18,37 @@ namespace bcos::evm
 
 u256 resolveEffectiveGasPrice(u256 const& gasTipCap, u256 const& gasFeeCap, u256 const& baseFee);
 
+struct OpStackFeeContext
+{
+    bool m_call{false};
+    bool m_isDepositTx{false};
+    bool m_skipNonceChecks{false};
+    bool m_skipTransactionChecks{false};
+    bool m_noBaseFee{false};
+    bcos::u256 m_gasPrice{0};
+    bcos::u256 m_gasTipCap{0};
+    bcos::u256 m_gasFeeCap{0};
+    bool m_hasGasFeeCap{false};
+    int64_t m_gasUsed{0};
+    uint64_t m_gasRemaining{0};
+    uint64_t m_maxUsedGas{0};
+    state::BlockInfo m_blockInfo{};
+    bcos::u256 m_l1CostCharged{0};
+    bcos::u256 m_operatorCostLimit{0};
+    bcos::u256 m_effectiveGasPrice{0};
+    bcos::u256 m_baseFee{0};
+    uint64_t m_floorDataGas{0};
+    const Eip2930AccessList* m_accessList{nullptr};
+    uint8_t m_web3TypedTxKind{0};
+    uint64_t m_authTupleCount{0};
+    bcos::u256 m_blobGasFeeCap{0};
+    std::vector<bcos::h256> m_blobVersionedHashes;
+    std::optional<RollupCostData> m_rollupCostData;
+    std::optional<EVMCResult> m_evmcResult;
+};
+
+using OpStackTxExecutionData = OpStackFeeContext;
+
 struct OpStackTxFeeLedger
 {
     std::function<u256(const RollupCostData&, uint64_t blockTime)> m_l1CostFunc;
@@ -26,41 +57,9 @@ struct OpStackTxFeeLedger
     evmc_address m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
     evmc_address m_operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
 
-    struct OpStackTxExecutionData
-    {
-        bool m_call{false};
-        bool m_isDepositTx{false};
-        bool m_skipNonceChecks{false};
-        bool m_skipTransactionChecks{false};
-        bool m_noBaseFee{false};
-        state::State* m_state{nullptr};
-        evmc_message m_message{};
-        bcos::u256 m_gasPrice{0};
-        bcos::u256 m_gasTipCap{0};
-        bcos::u256 m_gasFeeCap{0};
-        bool m_hasGasFeeCap{false};
-        int64_t m_gasLimit{0};
-        int64_t m_gasUsed{0};
-        uint64_t m_gasRemaining{0};
-        uint64_t m_maxUsedGas{0};
-        state::BlockInfo m_blockInfo{};
-        bcos::u256 m_l1CostCharged{0};
-        bcos::u256 m_operatorCostLimit{0};
-        bcos::u256 m_effectiveGasPrice{0};
-        bcos::u256 m_baseFee{0};
-        uint64_t m_floorDataGas{0};
-        const Eip2930AccessList* m_accessList{nullptr};
-        uint8_t m_web3TypedTxKind{0};
-        uint64_t m_authTupleCount{0};
-        bcos::u256 m_blobGasFeeCap{0};
-        std::vector<bcos::h256> m_blobVersionedHashes;
-        std::optional<RollupCostData> m_rollupCostData;
-        std::optional<EVMCResult> m_evmcResult;
-    };
-
-    task::Task<bool> buyGas(OpStackTxExecutionData& data);
-    task::Task<void> refundGas(OpStackTxExecutionData& data);
-    task::Task<void> refundIsthmusOperatorCost(OpStackTxExecutionData& data);
+    task::Task<bool> buyGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx);
+    task::Task<void> refundGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx);
+    task::Task<void> refundIsthmusOperatorCost(TxPipelineContext& ctx, OpStackFeeContext& feeCtx);
 };
 
 }  // namespace bcos::evm

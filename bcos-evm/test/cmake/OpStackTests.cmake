@@ -22,6 +22,7 @@ add_test(
 add_executable(OpStackIntrinsicGasSyncTest
     opstack/OpStackIntrinsicGasSyncTest.cpp
     ../opstack/OpStackExecutionBridge.cpp
+    ../opstack/OpStackSettlement.cpp
     ../opstack/OpStackPipelineHookBinder.cpp
     ../opstack/OpStackTxPrecheck.cpp
     ../opstack/OpStackTxFeeLedger.cpp
@@ -339,6 +340,26 @@ target_link_libraries(OpStackSettlementCharacterizationTest PRIVATE
 add_test(
     NAME OpStackSettlementCharacterization
     COMMAND OpStackSettlementCharacterizationTest
+)
+
+set(OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME OpStackTxFeeLedgerCtxTest)
+
+add_executable(${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME}
+    opstack/OpStackTxFeeLedgerCtxTest.cpp
+)
+
+target_include_directories(${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME OpStackTxFeeLedgerCtx
+    COMMAND ${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME}
 )
 
 set(L1BLOCK_PREDEPLOY_TEST_BINARY_NAME L1BlockPredeployTest)

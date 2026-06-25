@@ -17,9 +17,7 @@
  */
 
 #include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
-#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
-#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #ifdef BCOS_EVM_TESTING
 #include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
 #endif
@@ -27,41 +25,22 @@
 
 namespace bcos::evm
 {
-void OpStackPipelineHookBinder::applySettlement(
-    HookBindingContext const& session, EVMCResult const& result)
-{
-    auto& txData = session.txData;
-    // Use evmone's gas_refund directly — the State journal's refund counter
-    // (ctx.state.get_refund()) can diverge from evmone's internal refund tracking
-    // for complex contracts with many SSTORE operations.
-    // EIP-3529 refund only applies London+ (eip1559 flag in RevisionConfig).
-    auto const stateRefund = session.input.revisionConfig.eip1559 ?
-                                 static_cast<uint64_t>(std::max<int64_t>(0, result.gas_refund)) :
-                                 uint64_t{0};
-    auto const settlement =
-        postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit)),
-            static_cast<uint64_t>(std::max<int64_t>(0, result.gas_left)), stateRefund,
-            txData.m_floorDataGas);
-    txData.m_gasRemaining = settlement.gasRemaining;
-    txData.m_maxUsedGas = settlement.maxUsedGas;
-    txData.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
-}
-
 TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& session)
 {
-    auto& txData = session.txData;
+    auto& feeCtx = session.feeCtx;
     TxPipelineHooks hooks;
 
-    hooks.txCheckGasAffordable = [&txData](TxPipelineContext& orchestrationCtx) {
-        auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
+    hooks.txCheckGasAffordable = [&feeCtx](TxPipelineContext& orchestrationCtx) {
+        auto const gasLimit =
+            static_cast<uint64_t>(std::max<int64_t>(0, orchestrationCtx.originalGasLimit));
         bcos::bytesConstRef inputData{
             orchestrationCtx.message.input_data, orchestrationCtx.message.input_size};
         if (auto preDebitError = opStackFloorGasPrecheck({.message = orchestrationCtx.message,
                 .state = orchestrationCtx.state,
                 .gasLimit = gasLimit,
-                .skipTransactionChecks = txData.m_skipTransactionChecks,
+                .skipTransactionChecks = feeCtx.m_skipTransactionChecks,
                 .inputData = inputData,
-                .floorDataGasOut = txData.m_floorDataGas});
+                .floorDataGasOut = feeCtx.m_floorDataGas});
             preDebitError.has_value())
         {
             orchestrationCtx.evmcResult = std::move(*preDebitError);
@@ -70,13 +49,9 @@ TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& sessio
     };
 
     hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
-    hooks.intrinsicPolicy.authTupleCount = txData.m_authTupleCount;
-    hooks.intrinsicPolicy.accessList = txData.m_accessList;
-    hooks.intrinsicPolicy.web3TypedTxKind = txData.m_web3TypedTxKind;
-
-    hooks.txFinalizeGasSettlement = [&session](TxPipelineContext& orchestrationCtx) {
-        applySettlement(session, orchestrationCtx.evmcResult);
-    };
+    hooks.intrinsicPolicy.authTupleCount = feeCtx.m_authTupleCount;
+    hooks.intrinsicPolicy.accessList = feeCtx.m_accessList;
+    hooks.intrinsicPolicy.web3TypedTxKind = feeCtx.m_web3TypedTxKind;
 
 #ifdef BCOS_EVM_TESTING
     hooks.txRunEvmExecutionOverride = [](ExecuteMessageInput&& execInput) -> ExecuteMessageOutput {

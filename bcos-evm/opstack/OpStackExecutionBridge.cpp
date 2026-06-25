@@ -1,8 +1,10 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
+#include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
+#include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
@@ -30,14 +32,14 @@ struct GasPoolReturnGuard
 };
 
 void returnDepositPoolGas(
-    OpStackExecutionRequest const& input, OpStackTxFeeLedger::OpStackTxExecutionData const& txData)
+    OpStackExecutionRequest const& input, OpStackFeeContext const& feeCtx, int64_t originalGasLimit)
 {
     if (!input.gasPoolReturnGasHook)
     {
         return;
     }
-    auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
-    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
+    auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, originalGasLimit));
+    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, feeCtx.m_gasUsed));
     auto const gasRemaining = gasLimit > gasUsed ? gasLimit - gasUsed : 0;
     input.gasPoolReturnGasHook(gasRemaining, gasUsed);
 }
@@ -73,28 +75,25 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
     input.opTxExecutor.m_operatorCostFunc =
         wireOperatorCostFuncWithState(input.forkSchedule, ctx.state);
 
-    OpStackTxFeeLedger::OpStackTxExecutionData txData;
-    txData.m_call = input.call;
-    txData.m_isDepositTx = isDepositTx(input);
-    txData.m_state = &ctx.state;
-    txData.m_message = input.message;
-    txData.m_gasTipCap = input.gasTipCap;
-    txData.m_gasFeeCap = input.gasFeeCap;
-    txData.m_hasGasFeeCap = true;
-    txData.m_effectiveGasPrice =
+    OpStackFeeContext feeCtx;
+    feeCtx.m_call = input.call;
+    feeCtx.m_isDepositTx = isDepositTx(input);
+    feeCtx.m_gasTipCap = input.gasTipCap;
+    feeCtx.m_gasFeeCap = input.gasFeeCap;
+    feeCtx.m_hasGasFeeCap = true;
+    feeCtx.m_effectiveGasPrice =
         resolveEffectiveGasPrice(input.gasTipCap, input.gasFeeCap, input.blockInfo.baseFee);
-    txData.m_gasLimit = input.message.gas;
-    txData.m_blockInfo = input.blockInfo;
-    txData.m_skipNonceChecks = input.skipNonceChecks;
-    txData.m_skipTransactionChecks = input.skipTransactionChecks;
-    txData.m_noBaseFee = input.noBaseFee;
-    txData.m_floorDataGas = input.floorDataGas;
-    txData.m_accessList = input.accessList;
-    txData.m_web3TypedTxKind = input.web3TypedTxKind;
-    txData.m_authTupleCount = static_cast<uint64_t>(input.authorizations.size());
-    txData.m_blobGasFeeCap = input.blobGasFeeCap;
-    txData.m_blobVersionedHashes = input.blobVersionedHashes;
-    txData.m_rollupCostData = input.rollupCostData;
+    feeCtx.m_blockInfo = input.blockInfo;
+    feeCtx.m_skipNonceChecks = input.skipNonceChecks;
+    feeCtx.m_skipTransactionChecks = input.skipTransactionChecks;
+    feeCtx.m_noBaseFee = input.noBaseFee;
+    feeCtx.m_floorDataGas = input.floorDataGas;
+    feeCtx.m_accessList = input.accessList;
+    feeCtx.m_web3TypedTxKind = input.web3TypedTxKind;
+    feeCtx.m_authTupleCount = static_cast<uint64_t>(input.authorizations.size());
+    feeCtx.m_blobGasFeeCap = input.blobGasFeeCap;
+    feeCtx.m_blobVersionedHashes = input.blobVersionedHashes;
+    feeCtx.m_rollupCostData = input.rollupCostData;
 
     trace::logMessageContext(input.message);
 
@@ -104,7 +103,7 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
         co_return output;
     }
 
-    if (txData.m_isDepositTx)
+    if (feeCtx.m_isDepositTx)
     {
         output.receiptMeta.depositNonce = ctx.state.get_nonce(input.message.sender);
         if (input.depositTx.has_value() && input.depositTx->mint.has_value() &&
@@ -116,22 +115,16 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
 
         ctx.state.checkpoint();
 
-        OpStackPipelineHookBinder::HookBindingContext session{input, txData};
+        OpStackPipelineHookBinder::HookBindingContext session{input, feeCtx};
         auto hooks = OpStackPipelineHookBinder::buildHooks(session);
-        // TODO: OrchestrationErrorPolicy (candidate 4)
-        hooks.txHandleIntrinsicGasFailure = [](TxPipelineContext& c, IntrinsicDebitFailure) {
-            c.evmcResult = makeOutOfGasLimitResult();
-        };
-        hooks.txHandlePipelineException = [](TxPipelineContext& c, std::exception_ptr) {
-            c.evmcResult = makeInternalErrorResult();
-        };
-        runTxPipeline(ctx, hooks);
+        OpStackOrchestrationErrorPolicy errorPolicy;
+        runTxPipeline(ctx, hooks, errorPolicy);
 
         output.evmcResult = std::move(ctx.evmcResult);
         EVM_LOG(DEBUG) << LOG_DESC("opStackExecute deposit done")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
-                       << LOG_KV("gasUsed", txData.m_gasUsed);
+                       << LOG_KV("gasUsed", feeCtx.m_gasUsed);
 
         output.logs = std::move(ctx.kernelOutput.logs);
 
@@ -152,19 +145,20 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
             ctx.state.set_nonce(input.message.sender, nonce + 1);
             if (ctx.exitKind != TxPipelineExitKind::Completed)
             {
-                txData.m_gasUsed = std::max<int64_t>(0, txData.m_gasLimit);
+                feeCtx.m_gasUsed = std::max<int64_t>(0, ctx.originalGasLimit);
             }
         }
 
-        output.gasUsed = txData.m_gasUsed;
+        output.gasUsed = feeCtx.m_gasUsed;
         output.stateDiff = ctx.state.build_diff();
-        returnDepositPoolGas(input, txData);
+        returnDepositPoolGas(input, feeCtx, ctx.originalGasLimit);
         co_return output;
     }
 
     if (input.gasPoolSubGasHook)
     {
-        auto const gasLimitForPool = static_cast<uint64_t>(std::max<int64_t>(0, input.message.gas));
+        auto const gasLimitForPool =
+            static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
         if (!input.gasPoolSubGasHook(gasLimitForPool))
         {
             output.evmcResult = makeOutOfGasLimitResult();
@@ -174,61 +168,45 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
 
     GasPoolReturnGuard guard{&input.gasPoolReturnGasHook};
 
-    auto buyGasOk = co_await input.opTxExecutor.buyGas(txData);
+    auto buyGasOk = co_await input.opTxExecutor.buyGas(ctx, feeCtx);
     if (!buyGasOk)
     {
-        output.evmcResult = std::move(*txData.m_evmcResult);
+        output.evmcResult = std::move(*feeCtx.m_evmcResult);
         co_return output;
     }
 
     guard.armed = true;
-    ctx.gasPrice = txData.m_effectiveGasPrice;
+    ctx.gasPrice = feeCtx.m_effectiveGasPrice;
 
-    OpStackPipelineHookBinder::HookBindingContext session{input, txData};
+    OpStackPipelineHookBinder::HookBindingContext session{input, feeCtx};
     auto hooks = OpStackPipelineHookBinder::buildHooks(session);
-    // TODO: OrchestrationErrorPolicy (candidate 4)
-    hooks.txHandleIntrinsicGasFailure = [](TxPipelineContext& c, IntrinsicDebitFailure) {
-        c.evmcResult = makeOutOfGasLimitResult();
-    };
-    hooks.txHandlePipelineException = [](TxPipelineContext& c, std::exception_ptr) {
-        c.evmcResult = makeInternalErrorResult();
-    };
-    runTxPipeline(ctx, hooks);
+    OpStackOrchestrationErrorPolicy errorPolicy;
+    runTxPipeline(ctx, hooks, errorPolicy);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
+
+    GasPoolHooks gasPool{
+        .subGas = input.gasPoolSubGasHook,
+        .returnGas = input.gasPoolReturnGasHook,
+    };
+    auto settled = finalizeNormal(ctx, feeCtx, ctx.exitKind, input.opTxExecutor, gasPool);
+
     EVM_LOG(DEBUG) << LOG_DESC("opStackExecute done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
-                   << LOG_KV("gasUsed", txData.m_gasUsed)
-                   << LOG_KV("l1Fee", txData.m_l1CostCharged);
-    if (ctx.exitKind != TxPipelineExitKind::Completed)
-    {
-        if (ctx.exitKind == TxPipelineExitKind::IntrinsicRejected ||
-            ctx.exitKind == TxPipelineExitKind::GasAffordRejected)
-        {
-            // EVM never ran (intrinsic or floor-gas rejection): refund the full buyGas
-            // pre-deduction so the sender is not charged for a tx that should be rejected
-            // with only a nonce bump (no balance change).
-            txData.m_gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasLimit));
-            txData.m_gasUsed = 0;
-        }
-        else
-        {
-            OpStackPipelineHookBinder::applySettlement(session, output.evmcResult);
-        }
-    }
+                   << LOG_KV("gasUsed", settled.gasUsed) << LOG_KV("l1Fee", feeCtx.m_l1CostCharged);
 
-    co_await input.opTxExecutor.refundGas(txData);
+    co_await input.opTxExecutor.refundGas(ctx, feeCtx);
 
-    output.gasUsed = txData.m_gasUsed;
-    output.receiptMeta.l1Fee = txData.m_l1CostCharged;
-    if (isOpStackIsthmus(input.forkSchedule, txData.m_blockInfo.timestamp) &&
+    output.gasUsed = settled.gasUsed;
+    output.receiptMeta.l1Fee = feeCtx.m_l1CostCharged;
+    if (isOpStackIsthmus(input.forkSchedule, feeCtx.m_blockInfo.timestamp) &&
         input.opTxExecutor.m_operatorCostFunc)
     {
-        auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
+        auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
         output.receiptMeta.operatorFee =
-            input.opTxExecutor.m_operatorCostFunc(gasUsed, txData.m_blockInfo.timestamp);
+            input.opTxExecutor.m_operatorCostFunc(gasUsed, feeCtx.m_blockInfo.timestamp);
         if (feeParams.operatorFeeScalar != 0 || feeParams.operatorFeeConstant != 0)
         {
             output.receiptMeta.operatorFeeScalar = feeParams.operatorFeeScalar;
@@ -236,8 +214,8 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
         }
     }
     output.stateDiff = ctx.state.build_diff();
-    guard.gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasRemaining));
-    guard.gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, txData.m_gasUsed));
+    guard.gasRemaining = settled.gasRemaining;
+    guard.gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
     co_return output;
 }
 }  // namespace bcos::evm

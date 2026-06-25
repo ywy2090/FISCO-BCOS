@@ -21,68 +21,68 @@ u256 resolveEffectiveGasPrice(u256 const& gasTipCap, u256 const& gasFeeCap, u256
     return std::min(gasTipCap + baseFee, gasFeeCap);
 }
 
-task::Task<bool> OpStackTxFeeLedger::buyGas(OpStackTxExecutionData& data)
+task::Task<bool> OpStackTxFeeLedger::buyGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx)
 {
-    if (data.m_call || data.m_state == nullptr || data.m_isDepositTx)
+    if (feeCtx.m_call || feeCtx.m_isDepositTx)
     {
         co_return true;
     }
-    if (data.m_gasLimit <= 0)
+    if (ctx.originalGasLimit <= 0)
     {
         co_return true;
     }
 
-    auto const baseFee = data.m_blockInfo.baseFee;
-    data.m_baseFee = baseFee;
+    auto const baseFee = feeCtx.m_blockInfo.baseFee;
+    feeCtx.m_baseFee = baseFee;
 
-    auto gasTipCap = data.m_gasTipCap;
-    auto gasFeeCap = data.m_gasFeeCap;
-    if (!data.m_hasGasFeeCap)
+    auto gasTipCap = feeCtx.m_gasTipCap;
+    auto gasFeeCap = feeCtx.m_gasFeeCap;
+    if (!feeCtx.m_hasGasFeeCap)
     {
-        gasTipCap = data.m_gasPrice;
-        gasFeeCap = data.m_gasPrice;
+        gasTipCap = feeCtx.m_gasPrice;
+        gasFeeCap = feeCtx.m_gasPrice;
     }
 
-    data.m_effectiveGasPrice = resolveEffectiveGasPrice(gasTipCap, gasFeeCap, baseFee);
+    feeCtx.m_effectiveGasPrice = resolveEffectiveGasPrice(gasTipCap, gasFeeCap, baseFee);
 
-    auto const gasLimit = u256(data.m_gasLimit);
-    auto mgval = gasLimit * data.m_effectiveGasPrice;
-    uint64_t const blockTime = data.m_blockInfo.timestamp;
+    auto const gasLimit = u256(ctx.originalGasLimit);
+    auto mgval = gasLimit * feeCtx.m_effectiveGasPrice;
+    uint64_t const blockTime = feeCtx.m_blockInfo.timestamp;
 
-    data.m_l1CostCharged = 0;
-    if (m_l1CostFunc && data.m_rollupCostData)
+    feeCtx.m_l1CostCharged = 0;
+    if (m_l1CostFunc && feeCtx.m_rollupCostData)
     {
-        data.m_l1CostCharged = m_l1CostFunc(*data.m_rollupCostData, blockTime);
-        mgval += data.m_l1CostCharged;
+        feeCtx.m_l1CostCharged = m_l1CostFunc(*feeCtx.m_rollupCostData, blockTime);
+        mgval += feeCtx.m_l1CostCharged;
     }
 
-    data.m_operatorCostLimit = 0;
+    feeCtx.m_operatorCostLimit = 0;
     if (m_operatorCostFunc)
     {
-        data.m_operatorCostLimit =
-            m_operatorCostFunc(static_cast<uint64_t>(data.m_gasLimit), blockTime);
-        mgval += data.m_operatorCostLimit;
+        feeCtx.m_operatorCostLimit =
+            m_operatorCostFunc(static_cast<uint64_t>(ctx.originalGasLimit), blockTime);
+        mgval += feeCtx.m_operatorCostLimit;
     }
 
     u256 blobGasUsed{0};
     u256 blobBalanceCheck{0};
-    if (!data.m_blobVersionedHashes.empty())
+    if (!feeCtx.m_blobVersionedHashes.empty())
     {
-        blobGasUsed = u256(data.m_blobVersionedHashes.size()) * OP_BLOB_GAS_PER_BLOB;
-        auto const blobCost = blobGasUsed * data.m_blockInfo.blobBaseFee;
+        blobGasUsed = u256(feeCtx.m_blobVersionedHashes.size()) * OP_BLOB_GAS_PER_BLOB;
+        auto const blobCost = blobGasUsed * feeCtx.m_blockInfo.blobBaseFee;
         mgval += blobCost;
-        blobBalanceCheck = blobGasUsed * data.m_blobGasFeeCap;
+        blobBalanceCheck = blobGasUsed * feeCtx.m_blobGasFeeCap;
     }
 
-    auto const txValue = state::fromEvmC(data.m_message.value);
+    auto const txValue = state::fromEvmC(ctx.message.value);
     auto balanceCheck = mgval + txValue;
-    if (data.m_hasGasFeeCap)
+    if (feeCtx.m_hasGasFeeCap)
     {
-        balanceCheck = gasLimit * gasFeeCap + data.m_l1CostCharged + data.m_operatorCostLimit +
+        balanceCheck = gasLimit * gasFeeCap + feeCtx.m_l1CostCharged + feeCtx.m_operatorCostLimit +
                        blobBalanceCheck + txValue;
     }
 
-    auto const senderBalance = data.m_state->get_balance(data.m_message.sender);
+    auto const senderBalance = ctx.state.get_balance(ctx.message.sender);
     if (senderBalance < balanceCheck)
     {
         OP_TX_EXECUTOR_LOG(ERROR) << "buyGas: insufficient balance"
@@ -91,62 +91,63 @@ task::Task<bool> OpStackTxFeeLedger::buyGas(OpStackTxExecutionData& data)
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
         failResult.gas_left = 0;
-        data.m_evmcResult.emplace(
+        feeCtx.m_evmcResult.emplace(
             EVMCResult(failResult, protocol::TransactionStatus::NotEnoughCash));
         co_return false;
     }
 
-    data.m_state->set_balance(data.m_message.sender, senderBalance - mgval);
+    ctx.state.set_balance(ctx.message.sender, senderBalance - mgval);
     co_return true;
 }
 
-task::Task<void> OpStackTxFeeLedger::refundIsthmusOperatorCost(OpStackTxExecutionData& data)
+task::Task<void> OpStackTxFeeLedger::refundIsthmusOperatorCost(
+    TxPipelineContext& ctx, OpStackFeeContext& feeCtx)
 {
-    if (data.m_state == nullptr || !m_operatorCostFunc)
+    if (!m_operatorCostFunc)
     {
         co_return;
     }
 
-    auto const usedGas = static_cast<uint64_t>(std::max<int64_t>(0, data.m_gasUsed));
-    auto const usedCost = m_operatorCostFunc(usedGas, data.m_blockInfo.timestamp);
-    if (usedCost >= data.m_operatorCostLimit)
+    auto const usedGas = static_cast<uint64_t>(std::max<int64_t>(0, feeCtx.m_gasUsed));
+    auto const usedCost = m_operatorCostFunc(usedGas, feeCtx.m_blockInfo.timestamp);
+    if (usedCost >= feeCtx.m_operatorCostLimit)
     {
         co_return;
     }
 
-    addBalance(*data.m_state, data.m_message.sender, data.m_operatorCostLimit - usedCost);
+    addBalance(ctx.state, ctx.message.sender, feeCtx.m_operatorCostLimit - usedCost);
 }
 
-task::Task<void> OpStackTxFeeLedger::refundGas(OpStackTxExecutionData& data)
+task::Task<void> OpStackTxFeeLedger::refundGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx)
 {
-    if (data.m_state == nullptr || data.m_isDepositTx)
+    if (feeCtx.m_isDepositTx)
     {
         co_return;
     }
 
-    if (data.m_call && data.m_skipTransactionChecks && data.m_noBaseFee && data.m_gasFeeCap == 0 &&
-        data.m_gasTipCap == 0)
+    if (feeCtx.m_call && feeCtx.m_skipTransactionChecks && feeCtx.m_noBaseFee &&
+        feeCtx.m_gasFeeCap == 0 && feeCtx.m_gasTipCap == 0)
     {
         co_return;
     }
 
-    auto& state = *data.m_state;
-    auto const gasRemaining = data.m_gasRemaining;
-    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, data.m_gasUsed));
+    auto& state = ctx.state;
+    auto const gasRemaining = feeCtx.m_gasRemaining;
+    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, feeCtx.m_gasUsed));
 
-    addBalance(state, data.m_message.sender, u256(gasRemaining) * data.m_effectiveGasPrice);
+    addBalance(state, ctx.message.sender, u256(gasRemaining) * feeCtx.m_effectiveGasPrice);
 
-    auto const effectiveTip = (data.m_effectiveGasPrice > data.m_baseFee) ?
-                                  (data.m_effectiveGasPrice - data.m_baseFee) :
+    auto const effectiveTip = (feeCtx.m_effectiveGasPrice > feeCtx.m_baseFee) ?
+                                  (feeCtx.m_effectiveGasPrice - feeCtx.m_baseFee) :
                                   u256(0);
-    addBalance(state, data.m_blockInfo.coinbase, u256(gasUsed) * effectiveTip);
-    addBalance(state, m_baseFeeRecipient, u256(gasUsed) * data.m_baseFee);
-    addBalance(state, m_l1FeeRecipient, data.m_l1CostCharged);
+    addBalance(state, feeCtx.m_blockInfo.coinbase, u256(gasUsed) * effectiveTip);
+    addBalance(state, m_baseFeeRecipient, u256(gasUsed) * feeCtx.m_baseFee);
+    addBalance(state, m_l1FeeRecipient, feeCtx.m_l1CostCharged);
 
-    co_await refundIsthmusOperatorCost(data);
+    co_await refundIsthmusOperatorCost(ctx, feeCtx);
     if (m_operatorCostFunc)
     {
-        auto const operatorFee = m_operatorCostFunc(gasUsed, data.m_blockInfo.timestamp);
+        auto const operatorFee = m_operatorCostFunc(gasUsed, feeCtx.m_blockInfo.timestamp);
         addBalance(state, m_operatorFeeRecipient, operatorFee);
     }
 }

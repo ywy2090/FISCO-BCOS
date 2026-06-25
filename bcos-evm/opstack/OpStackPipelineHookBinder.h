@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
@@ -31,11 +30,10 @@ struct OpStackPipelineHookBinder
     struct HookBindingContext
     {
         OpStackExecutionRequest const& input;
-        OpStackTxFeeLedger::OpStackTxExecutionData& txData;
+        OpStackFeeContext& feeCtx;
     };
 
     static TxPipelineHooks buildHooks(HookBindingContext& session);
-    static void applySettlement(HookBindingContext const& session, EVMCResult const& result);
 };
 
 }  // namespace bcos::evm

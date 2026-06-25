@@ -1,5 +1,7 @@
 #define BOOST_TEST_MODULE RefundIsthmusTest
 
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
@@ -25,20 +27,22 @@ BOOST_AUTO_TEST_CASE(RefundIsthmus_refundsLimitMinusUsedCost)
     senderAccount.balance = 10;
     stateView.insert_account(sender, senderAccount);
 
-    state::State state(stateView);
+    evmc_message msg{};
+    msg.sender = sender;
+    msg.gas = 1'618;
+    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+
     OpStackTxFeeLedger executor;
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 1000); };
 
-    OpStackTxFeeLedger::OpStackTxExecutionData txData;
-    txData.m_state = &state;
-    txData.m_message.sender = sender;
-    txData.m_gasLimit = 1'618;
-    txData.m_gasUsed = 500;
-    txData.m_blockInfo.timestamp = 1;
-    txData.m_operatorCostLimit = u256(2'618);
+    OpStackFeeContext feeCtx;
+    feeCtx.m_gasUsed = 500;
+    feeCtx.m_blockInfo.timestamp = 1;
+    feeCtx.m_operatorCostLimit = u256(2'618);
 
-    task::syncWait(executor.refundIsthmusOperatorCost(txData));
+    task::syncWait(executor.refundIsthmusOperatorCost(ctx, feeCtx));
 
-    BOOST_CHECK_EQUAL(state.get_balance(sender), u256(1'128));
+    BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), u256(1'128));
 }
 }  // namespace bcos::evm::test
