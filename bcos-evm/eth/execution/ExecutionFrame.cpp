@@ -17,17 +17,18 @@
  */
 
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Delegation7702Frame.h"
 #include "bcos-evm/eth/execution/FrameCaller.h"
 #include "bcos-evm/eth/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/execution/ResolveExecutionCode.h"
 #include "bcos-evm/eth/execution/RouteMessage.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <cstring>
+#include <optional>
 
 namespace bcos::evm::execution
 {
@@ -57,67 +58,121 @@ evmc_address resolveCreateAddress(evmc_message const& message, evmc_result const
     return createAddr;
 }
 
-FrameResult runTopLevelExecutionFrame(FrameContext& ctx, evmc_message message, state::EthHost& host)
+struct FrameWork
 {
-    auto const originalMsg = message;
-    auto routed = routeMessage(ctx.state, ctx.revisionConfig, message, FrameScope::TopLevel);
-    auto& callMessage = routed.message;
+    FrameContext& ctx;
+    evmc_message const& originalMsg;
+    RoutedMessage routed;
+    bcos::bytes code;
+    state::EthHost& host;
 
-    if (callMessage.kind == EVMC_DELEGATECALL && routed.hasPrecompileTarget &&
-        ctx.extension != nullptr && !ctx.extension->allowDelegateCallToPrecompile())
+    evmc_message& callMessage() noexcept { return routed.message; }
+    evmc_message const& callMessage() const noexcept { return routed.message; }
+};
+
+void logFrameDoneIfNested(evmc_message const& originalMsg, evmc::Result const& result)
+{
+    if (originalMsg.depth > 0)
+    {
+        EVM_LOG(TRACE) << LOG_DESC("EthHost::call done") << LOG_KV("depth", originalMsg.depth)
+                       << LOG_KV("status", trace::evmcStatus(result.status_code))
+                       << LOG_KV("gasLeft", result.gas_left);
+    }
+}
+
+std::optional<FrameResult> guardDelegatePrecompile(FrameWork const& work)
+{
+    auto& callMessage = work.callMessage();
+    if (callMessage.kind == EVMC_DELEGATECALL && work.routed.hasPrecompileTarget &&
+        work.ctx.extension != nullptr && !work.ctx.extension->allowDelegateCallToPrecompile())
     {
         return FrameResult{.result = makeFrameResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas)};
     }
+    return std::nullopt;
+}
 
-    auto code = resolveExecutionCode(ctx.state, ctx.revisionConfig, callMessage);
-    if (!state::isCreateKind(callMessage.kind) &&
-        !(isDelegated7702Message(originalMsg) && callMessage.kind != EVMC_CALL) && code.empty())
+std::optional<FrameResult> tryPrecompileAtTarget(FrameWork& work, evmc_address const& target)
+{
+    auto& callMessage = work.callMessage();
+    if (isCreateKind(callMessage.kind))
     {
-        bool const skipVt = ctx.extension != nullptr && ctx.extension->skipHostValueTransfer();
-        auto const target =
-            routed.hasPrecompileTarget ?
-                routed.precompileTarget :
-                (state::isZeroAddress(callMessage.code_address) ? callMessage.recipient :
-                                                                  callMessage.code_address);
-        auto out = precompiled::dispatchPrecompile(
-            {ctx.state, ctx.revisionConfig, ctx.extension, callMessage, target, skipVt});
-        if (out.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
-        {
-            return FrameResult{
-                .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
-        }
+        return std::nullopt;
     }
+    if (isDelegated7702Message(work.originalMsg) && callMessage.kind != EVMC_CALL)
+    {
+        return std::nullopt;
+    }
+    bool const skipVt =
+        work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer();
+    auto out = precompiled::dispatchPrecompile(
+        {work.ctx.state, work.ctx.revisionConfig, work.ctx.extension, callMessage, target, skipVt});
+    if (out.outcome == precompiled::PrecompileDispatchOutcome::NotApplicable)
+    {
+        return std::nullopt;
+    }
+    return FrameResult{
+        .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
+}
 
-    ctx.state.checkpoint();
-    if (!state::isCreateKind(callMessage.kind))
+std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
+{
+    if (!transferFrameValue(
+            work.ctx.state, work.ctx.revisionConfig, work.ctx.extension, work.callMessage(), scope))
     {
-        if (!transferFrameValue(
-                ctx.state, ctx.revisionConfig, ctx.extension, callMessage, FrameScope::TopLevel))
-        {
-            ctx.state.revert();
-            return FrameResult{.result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, 0)};
-        }
+        work.ctx.state.revert();
+        return FrameResult{.result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, 0)};
     }
-    else
-    {
-        state::bindCreateMessageForInit(host, callMessage,
-            bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), ctx.state);
-        if (!transferFrameValue(
-                ctx.state, ctx.revisionConfig, ctx.extension, callMessage, FrameScope::TopLevel))
-        {
-            ctx.state.revert();
-            return FrameResult{.result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, 0)};
-        }
-        state::initializeCreateTargetAccount(ctx.state, callMessage.recipient,
-            ctx.revisionConfig.revision, ctx.revisionConfig.warm_access);
-    }
+    return std::nullopt;
+}
 
-    auto result =
-        ctx.vm.execute(host, ctx.revisionConfig.revision, callMessage, code.data(), code.size());
-    if (result.status_code == EVMC_SUCCESS && state::isCreateKind(callMessage.kind))
+void prepareNestedMessage(FrameWork& work)
+{
+    auto const callerAddress = resolveCallerAddress(work.ctx.executionAddress, work.routed.message);
+    if (work.ctx.extension != nullptr)
+    {
+        work.ctx.extension->setCallerAddress(callerAddress);
+        work.ctx.extension->prepareMessage(work.ctx.revisionConfig.revision, work.routed.message);
+    }
+}
+
+void bindCreateForInit(FrameWork& work)
+{
+    auto& callMessage = work.callMessage();
+    bindCreateMessageForInit(work.host, callMessage,
+        bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), work.ctx.state);
+}
+
+void checkpointFrame(FrameWork& work)
+{
+    work.ctx.state.checkpoint();
+}
+
+void initializeCreateAccount(FrameWork& work)
+{
+    auto& callMessage = work.callMessage();
+    initializeCreateTargetAccount(work.ctx.state, callMessage.recipient,
+        work.ctx.revisionConfig.revision, work.ctx.revisionConfig.warm_access);
+}
+
+evmc::Result runVm(FrameWork& work)
+{
+    auto& callMessage = work.callMessage();
+    if (work.code.empty())
+    {
+        work.code = resolveExecutionCode(work.ctx.state, work.ctx.revisionConfig, callMessage);
+    }
+    return work.ctx.vm.execute(work.host, work.ctx.revisionConfig.revision, callMessage,
+        work.code.data(), work.code.size());
+}
+
+FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result)
+{
+    auto& callMessage = work.callMessage();
+
+    if (result.status_code == EVMC_SUCCESS && isCreateKind(callMessage.kind))
     {
         auto raw = result.release_raw();
-        if (!state::applyCreateCodeDepositGas(raw, ctx.revisionConfig.revision) &&
+        if (!applyCreateCodeDepositGas(raw, work.ctx.revisionConfig.revision) &&
             raw.release != nullptr)
         {
             raw.release(&raw);
@@ -134,167 +189,154 @@ FrameResult runTopLevelExecutionFrame(FrameContext& ctx, evmc_message message, s
             result = makeFrameResult(raw.status_code, raw.gas_left);
         }
     }
+
     if (result.status_code == EVMC_SUCCESS)
     {
-        state::installCreatedContractCode(ctx.state, callMessage, result.raw());
-        if (state::isCreateKind(callMessage.kind))
+        state::installCreatedContractCode(work.ctx.state, callMessage, result.raw());
+        if (isCreateKind(callMessage.kind))
         {
-            auto createAddr = resolveCreateAddress(callMessage, result.raw());
-            host.markCreatedInTx(createAddr);
+            evmc_address createAddr = scope == FrameScope::TopLevel ?
+                                          resolveCreateAddress(callMessage, result.raw()) :
+                                          callMessage.recipient;
+            work.host.markCreatedInTx(createAddr);
             auto& raw = const_cast<evmc_result&>(result.raw());
             if (state::isZeroAddress(raw.create_address))
             {
                 raw.create_address = callMessage.recipient;
             }
         }
-        if (ctx.fixNonceInit && state::isCreateKind(callMessage.kind))
+
+        if (scope == FrameScope::TopLevel)
         {
-            auto createAddr = resolveCreateAddress(callMessage, result.raw());
-            if (!state::isZeroAddress(createAddr))
+            if (work.ctx.fixNonceInit && isCreateKind(callMessage.kind))
             {
-                ctx.state.set_nonce(createAddr, 1);
+                auto createAddr = resolveCreateAddress(callMessage, result.raw());
+                if (!state::isZeroAddress(createAddr))
+                {
+                    work.ctx.state.set_nonce(createAddr, 1);
+                }
             }
-        }
-    }
-    else
-    {
-        ctx.state.revert();
-    }
-
-    if (originalMsg.depth > 0)
-    {
-        EVM_LOG(TRACE) << LOG_DESC("EthHost::call done") << LOG_KV("depth", originalMsg.depth)
-                       << LOG_KV("status", trace::evmcStatus(result.status_code))
-                       << LOG_KV("gasLeft", result.gas_left);
-    }
-
-    return FrameResult{.result = std::move(result)};
-}
-}  // namespace
-
-FrameResult runExecutionFrame(
-    FrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
-{
-    if (scope == FrameScope::TopLevel)
-    {
-        return runTopLevelExecutionFrame(ctx, message, host);
-    }
-
-    auto const originalMsg = message;
-    auto routed = routeMessage(ctx.state, ctx.revisionConfig, message, FrameScope::Nested);
-    auto& callMessage = routed.message;
-
-    if (callMessage.kind == EVMC_DELEGATECALL && routed.hasPrecompileTarget &&
-        ctx.extension != nullptr && !ctx.extension->allowDelegateCallToPrecompile())
-    {
-        return FrameResult{.result = makeFrameResult(EVMC_PRECOMPILE_FAILURE, callMessage.gas)};
-    }
-
-    if (!state::isCreateKind(callMessage.kind) &&
-        !(isDelegated7702Message(originalMsg) && callMessage.kind != EVMC_CALL))
-    {
-        bool const skipVt = ctx.extension != nullptr && ctx.extension->skipHostValueTransfer();
-        auto const target = state::isZeroAddress(callMessage.code_address) ?
-                                callMessage.recipient :
-                                callMessage.code_address;
-        auto out = precompiled::dispatchPrecompile(
-            {ctx.state, ctx.revisionConfig, ctx.extension, callMessage, target, skipVt});
-        if (out.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
-        {
-            return FrameResult{
-                .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
-        }
-    }
-
-    auto const callerAddress = resolveCallerAddress(ctx.executionAddress, routed.message);
-    if (ctx.extension != nullptr)
-    {
-        ctx.extension->setCallerAddress(callerAddress);
-        ctx.extension->prepareMessage(ctx.revisionConfig.revision, routed.message);
-    }
-
-    if (state::isCreateKind(callMessage.kind))
-    {
-        state::bindCreateMessageForInit(host, callMessage,
-            bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), ctx.state);
-    }
-
-    ctx.state.checkpoint();
-    if (state::isCreateKind(callMessage.kind))
-    {
-        state::initializeCreateTargetAccount(ctx.state, callMessage.recipient,
-            ctx.revisionConfig.revision, ctx.revisionConfig.warm_access);
-    }
-
-    if (!transferFrameValue(
-            ctx.state, ctx.revisionConfig, ctx.extension, callMessage, FrameScope::Nested))
-    {
-        ctx.state.revert();
-        return FrameResult{.result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, 0)};
-    }
-
-    auto code = resolveExecutionCode(ctx.state, ctx.revisionConfig, callMessage);
-    auto result =
-        ctx.vm.execute(host, ctx.revisionConfig.revision, callMessage, code.data(), code.size());
-    if (result.status_code == EVMC_SUCCESS && state::isCreateKind(callMessage.kind))
-    {
-        auto raw = result.release_raw();
-        if (!state::applyCreateCodeDepositGas(raw, ctx.revisionConfig.revision) &&
-            raw.release != nullptr)
-        {
-            raw.release(&raw);
-            raw.release = nullptr;
-            raw.output_data = nullptr;
-            raw.output_size = 0;
-        }
-        if (raw.status_code == EVMC_SUCCESS)
-        {
-            result = evmc::Result(raw);
         }
         else
         {
-            result = makeFrameResult(raw.status_code, raw.gas_left);
-        }
-    }
-    if (result.status_code == EVMC_SUCCESS)
-    {
-        state::installCreatedContractCode(ctx.state, callMessage, result.raw());
-        if (state::isCreateKind(callMessage.kind))
-        {
-            auto createAddr = callMessage.recipient;
-            host.markCreatedInTx(createAddr);
-            auto& raw = const_cast<evmc_result&>(result.raw());
-            if (state::isZeroAddress(raw.create_address))
+            work.ctx.state.commit();
+            if (!isCreateKind(callMessage.kind))
             {
-                raw.create_address = createAddr;
-            }
-        }
-        ctx.state.commit();
-        if (!state::isCreateKind(callMessage.kind))
-        {
-            auto const nextExecution = state::isZeroAddress(callMessage.code_address) ?
-                                           callMessage.recipient :
-                                           callMessage.code_address;
-            if (!state::isZeroAddress(nextExecution))
-            {
-                ctx.executionAddress = nextExecution;
+                auto const nextExecution = state::isZeroAddress(callMessage.code_address) ?
+                                               callMessage.recipient :
+                                               callMessage.code_address;
+                if (!state::isZeroAddress(nextExecution))
+                {
+                    work.ctx.executionAddress = nextExecution;
+                }
             }
         }
     }
     else
     {
-        ctx.state.revert();
+        work.ctx.state.revert();
     }
 
-    if (originalMsg.depth > 0)
+    logFrameDoneIfNested(work.originalMsg, result);
+    return FrameResult{.result = std::move(result)};
+}
+
+FrameResult runTopLevelSteps(FrameContext& ctx, evmc_message message, state::EthHost& host)
+{
+    FrameWork work{ctx, message,
+        routeMessage(ctx.state, ctx.revisionConfig, message, FrameScope::TopLevel), {}, host};
+
+    if (auto early = guardDelegatePrecompile(work))
     {
-        EVM_LOG(TRACE) << LOG_DESC("EthHost::call done") << LOG_KV("depth", originalMsg.depth)
-                       << LOG_KV("status", trace::evmcStatus(result.status_code))
-                       << LOG_KV("gasLeft", result.gas_left);
+        return std::move(*early);
     }
 
-    if (state::isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender) &&
-        originalMsg.depth > 0)
+    work.code = resolveExecutionCode(ctx.state, ctx.revisionConfig, work.callMessage());
+    if (work.code.empty())
+    {
+        auto& callMessage = work.callMessage();
+        auto const target =
+            work.routed.hasPrecompileTarget ?
+                work.routed.precompileTarget :
+                (state::isZeroAddress(callMessage.code_address) ? callMessage.recipient :
+                                                                  callMessage.code_address);
+        if (auto early = tryPrecompileAtTarget(work, target))
+        {
+            return std::move(*early);
+        }
+    }
+
+    checkpointFrame(work);
+
+    if (!isCreateKind(work.callMessage().kind))
+    {
+        if (auto early = transferOrFail(work, FrameScope::TopLevel))
+        {
+            return std::move(*early);
+        }
+    }
+    else
+    {
+        // RR7 TopLevel: checkpoint → bindCreate → transfer → initAccount
+        bindCreateForInit(work);
+        if (auto early = transferOrFail(work, FrameScope::TopLevel))
+        {
+            return std::move(*early);
+        }
+        initializeCreateAccount(work);
+    }
+
+    auto result = runVm(work);
+    return finalizeFrame(work, FrameScope::TopLevel, std::move(result));
+}
+
+FrameResult runNestedSteps(FrameContext& ctx, evmc_message message, state::EthHost& host)
+{
+    FrameWork work{ctx, message,
+        routeMessage(ctx.state, ctx.revisionConfig, message, FrameScope::Nested), {}, host};
+
+    if (auto early = guardDelegatePrecompile(work))
+    {
+        return std::move(*early);
+    }
+
+    // RR6: tryPrecompile before prepareNestedMessage
+    {
+        auto& callMessage = work.callMessage();
+        auto const target = state::isZeroAddress(callMessage.code_address) ?
+                                callMessage.recipient :
+                                callMessage.code_address;
+        if (auto early = tryPrecompileAtTarget(work, target))
+        {
+            return std::move(*early);
+        }
+    }
+
+    prepareNestedMessage(work);
+
+    if (isCreateKind(work.callMessage().kind))
+    {
+        bindCreateForInit(work);
+    }
+
+    checkpointFrame(work);
+
+    if (isCreateKind(work.callMessage().kind))
+    {
+        initializeCreateAccount(work);
+    }
+
+    if (auto early = transferOrFail(work, FrameScope::Nested))
+    {
+        return std::move(*early);
+    }
+
+    auto result = runVm(work);
+    auto fr = finalizeFrame(work, FrameScope::Nested, std::move(result));
+
+    auto& callMessage = work.callMessage();
+    if (isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender) &&
+        work.originalMsg.depth > 0)
     {
         ctx.state.set_nonce(callMessage.sender, ctx.state.get_nonce(callMessage.sender) + 1);
         if (ctx.extension != nullptr && std::memcmp(callMessage.sender.bytes, ctx.txOrigin.bytes,
@@ -304,7 +346,18 @@ FrameResult runExecutionFrame(
         }
     }
 
-    return FrameResult{.result = std::move(result)};
+    return fr;
+}
+}  // namespace
+
+FrameResult runExecutionFrame(
+    FrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
+{
+    if (scope == FrameScope::TopLevel)
+    {
+        return runTopLevelSteps(ctx, message, host);
+    }
+    return runNestedSteps(ctx, message, host);
 }
 
 }  // namespace bcos::evm::execution

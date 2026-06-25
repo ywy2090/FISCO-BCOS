@@ -1,7 +1,7 @@
 # bcos-evm 架构设计原理（评审稿）
 
 **用途：** 供评审者快速理解 `bcos-evm` 的分层契约、扩展机制与治理纪律。
-**配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–019`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`。
+**配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–021`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`。
 **校验：** 2026-06-25（ExecutionFrame PR1–2 统一帧层；`runTxPipeline` 三路径收敛）
 
 ---
@@ -137,6 +137,8 @@ evmone callback → EthHost::call (nested adapter)
 ```
 
 `FrameScope` 由 adapter 显式传入（TopLevel / Nested），Frame 内部不根据 `message.depth` 驱动语义分叉。TopLevel 路径 defer `state.commit()` 至 adapter nonce bump 之后；Nested 路径忽略 `fr.gasRefund`（RR4）。
+
+**PR4（2026-06-25）：** `ExecutionFrame.cpp` 内部 implementation 双轨已合并为命名 step + `runTopLevelSteps` / `runNestedSteps`；RR6/RR7 scope 执行序冻结不变。
 
 三个编排入口签名风格一致，但各自携带链特有字段：
 
@@ -345,7 +347,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 3. **`FiscoPolicy.h` 直接 include `transaction-executor/.../AuthCheck.h` 与 `PrecompiledManager.h`**：位于 `bcos/` 层（允许，且不违反零 `bcos-executor` include），但与 ADR-017 Port 全生命周期方向仍有张力。
 4. **ETH 列定位**：矩阵明确 ETH 路径"不是生产继承证明"，勿把 ETH 测试通过误读为 BCOS/OP 通过。
 5. **Prepare 阶段 dead warm**（Gap 36）：`prepareTransaction` 的 warm set 未持久化到 Execute，属已知无效逻辑，待产品决策清理。
-6. ~~**内核帧语义双轨**~~ **Done (ExecutionFrame PR1–2)**：`executeMessage` 与 `EthHost::call` 均 delegate 至 `runExecutionFrame`；PrecompileRouter 仍保留 transfer→checkpoint→dispatch 信封（与 geth 已知偏差，非 Frame 范围）。
+6. ~~**内核帧语义双轨**~~ **Done (ExecutionFrame PR1–4)**：adapter 双轨（PR1–2）与 internal pipeline 双轨（PR4）均已闭合；`executeMessage` / `EthHost::call` delegate 至 `runTopLevelSteps` / `runNestedSteps`；PrecompileRouter 仍保留 transfer→checkpoint→dispatch 信封（与 geth 已知偏差，非 Frame 范围）。
 
 ---
 

@@ -360,7 +360,19 @@ For TopLevel precompile hit, `FrameResult::precompileHit == true` is an `execute
 - Optional ADR-021 or §追加至 ADR-019 related docs.
 - Remove redundant `runDepth0`/`runDepth1` if fully superseded.
 
-After PR2, **no frame-level dual-track** remains.
+After PR2, **adapter-level dual-track** is closed (`executeMessage` + `EthHost::call` both delegate to `runExecutionFrame`).
+
+### PR4 — Pipeline 结构重组（internal implementation merge）
+
+**Spec:** `docs/superpowers/specs/2026-06-25-execution-frame-pr4-pipeline-structure.md`  
+**Status:** ✅ Done (2026-06-25)
+
+- Refactor `ExecutionFrame.cpp`: named step functions + `runTopLevelSteps` / `runNestedSteps`; delete `runTopLevelExecutionFrame`.
+- **Zero behavior change** — RR6/RR7 frozen scope ordering preserved.
+- Gate: `ExecutionFrameTest` + `PrecompileRouter*Test` green.
+- Public interface (`ExecutionFrame.h`) and adapters unchanged.
+
+After PR4, **internal implementation dual-track** is closed.
 
 ---
 
