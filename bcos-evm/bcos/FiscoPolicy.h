@@ -98,15 +98,25 @@ public:
                                  m_features.get(Flag::feature_evm_timestamp);
         cfg.enable_balance_transfer = m_balanceTransfer;
         cfg.enable_auth_check = m_authCheckEnabled;
+        cfg.feature_evm_address = m_features.get(Flag::feature_evm_address);
 
         return cfg;
     }
 
-    static evmc_message deriveMessage(bool web3Tx, const evmc_message& msg,
+    static evmc_message deriveMessage(bool web3Tx, bool featureEvmAddress, const evmc_message& msg,
         protocol::BlockNumber blockNum, int64_t ctxId, int64_t seq, const u256& nonce,
         const crypto::Hash& hashImpl)
     {
-        return deriveMessageImpl(web3Tx, msg, blockNum, ctxId, seq, nonce, hashImpl);
+        evmc_message message = msg;
+        bcos::evm::applyTopLevelCreateDerivation(
+            message, bcos::evm::FiscoTopLevelCreateParams{.web3Tx = web3Tx,
+                         .featureEvmAddress = featureEvmAddress,
+                         .blockNumber = blockNum,
+                         .contextID = ctxId,
+                         .seq = seq,
+                         .txNonce = nonce,
+                         .hashImpl = &hashImpl});
+        return message;
     }
 
     int64_t convertTimestamp(int64_t blockTimestampMs) const
@@ -142,21 +152,6 @@ public:
     }
 
 private:
-    static evmc_message deriveMessageImpl(bool web3Tx, const evmc_message& msg,
-        protocol::BlockNumber blockNum, int64_t ctxId, int64_t seq, const u256& nonce,
-        const crypto::Hash& hashImpl)
-    {
-        evmc_message message = msg;
-        bcos::evm::applyTopLevelCreateDerivation(
-            message, bcos::evm::FiscoTopLevelCreateParams{.web3Tx = web3Tx,
-                         .blockNumber = blockNum,
-                         .contextID = ctxId,
-                         .seq = seq,
-                         .txNonce = nonce,
-                         .hashImpl = &hashImpl});
-        return message;
-    }
-
     const ledger::Features& m_features;
     bool m_balanceTransfer;
     bool m_authCheckEnabled;

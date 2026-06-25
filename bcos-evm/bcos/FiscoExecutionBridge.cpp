@@ -62,6 +62,7 @@ evmc_message deriveMessage(const FiscoTxAdapterInput& input)
 {
     auto message = input.message;
     applyTopLevelCreateDerivation(message, FiscoTopLevelCreateParams{.web3Tx = input.web3Tx,
+                                               .featureEvmAddress = input.featureEvmAddress,
                                                .blockNumber = input.blockNumber,
                                                .contextID = input.contextID,
                                                .seq = input.seq,

@@ -34,6 +34,7 @@ namespace bcos::evm
 struct FiscoTxAdapterInput
 {
     bool web3Tx{false};
+    bool featureEvmAddress{false};
     evmc_message message{};
     protocol::BlockNumber blockNumber{0};
     int64_t contextID{0};

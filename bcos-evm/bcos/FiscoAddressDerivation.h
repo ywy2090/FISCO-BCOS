@@ -37,6 +37,7 @@ namespace bcos::evm
 struct FiscoTopLevelCreateParams
 {
     bool web3Tx{false};
+    bool featureEvmAddress{false};
     protocol::BlockNumber blockNumber{0};
     int64_t contextID{0};
     int64_t seq{0};
@@ -125,7 +126,7 @@ inline void bindCreateAddressFields(evmc_message& message, evmc_address const& a
     message.recipient = address;
 }
 
-/// Top-level orchestration path (ADR-022 §2.1). Preserves pre-PR-A gate: legacy only when web3Tx.
+/// Top-level orchestration path (ADR-022 §2.1). Legacy when web3Tx || featureEvmAddress.
 inline void applyTopLevelCreateDerivation(
     evmc_message& message, FiscoTopLevelCreateParams const& params)
 {
@@ -143,14 +144,14 @@ inline void applyTopLevelCreateDerivation(
             message.recipient = message.code_address;
             break;
         }
-        if (!params.web3Tx)
+        if (useLegacyCreateAddress(params.web3Tx, params.featureEvmAddress))
         {
-            bindCreateAddressFields(message, fiscoHashContractAddress(*params.hashImpl,
-                                                 params.blockNumber, params.contextID, params.seq));
+            bindCreateAddressFields(message, legacyCreateAddress(message.sender, params.txNonce));
         }
         else
         {
-            bindCreateAddressFields(message, legacyCreateAddress(message.sender, params.txNonce));
+            bindCreateAddressFields(message, fiscoHashContractAddress(*params.hashImpl,
+                                                 params.blockNumber, params.contextID, params.seq));
         }
         break;
     }

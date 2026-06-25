@@ -173,8 +173,8 @@ BOOST_AUTO_TEST_CASE(derive_message_matches_fisco_policy_derive)
         .nonce = u256{0},
         .hashImpl = &hashImpl});
 
-    auto const fromPolicy =
-        bcos::chain_policy::FiscoPolicy::deriveMessage(false, message, 42, 7, 3, u256{0}, hashImpl);
+    auto const fromPolicy = bcos::chain_policy::FiscoPolicy::deriveMessage(
+        false, false, message, 42, 7, 3, u256{0}, hashImpl);
 
     BOOST_CHECK(addressEqual(fromBridge.code_address, fromPolicy.code_address));
     BOOST_CHECK(addressEqual(fromBridge.recipient, fromPolicy.recipient));
@@ -235,16 +235,16 @@ BOOST_AUTO_TEST_CASE(top_level_create_skips_when_code_address_prefilled)
     BOOST_CHECK(addressEqual(resolved.code_address, message.code_address));
 }
 
-// ADR-022 D1: current top-level ignores feature_evm_address (documents drift).
-BOOST_AUTO_TEST_CASE(characterize_d1_top_level_feature_evm_address_still_fisco_hash)
+// ADR-022 D1: top-level honors feature_evm_address (aligned with nested).
+BOOST_AUTO_TEST_CASE(top_level_feature_evm_address_enables_legacy_without_web3_tx)
 {
     auto const sender = addressFromTailByte(0x51);
     auto const message = makeEmptyCreateMessage(sender);
     auto const& hashImpl = keccakHashImpl();
-    auto const fiscoExpected = fiscoHashAddress(hashImpl, 11, 2, 4);
     auto const legacyExpected = legacyAddressFromSenderNonce(sender, u256{3});
 
     auto const resolved = runTopLevelDerive(FiscoTxAdapterInput{.web3Tx = false,
+        .featureEvmAddress = true,
         .message = message,
         .blockNumber = 11,
         .contextID = 2,
@@ -252,8 +252,7 @@ BOOST_AUTO_TEST_CASE(characterize_d1_top_level_feature_evm_address_still_fisco_h
         .nonce = u256{3},
         .hashImpl = &hashImpl});
 
-    BOOST_CHECK(addressEqual(resolved.code_address, fiscoExpected));
-    BOOST_CHECK(!addressEqual(resolved.code_address, legacyExpected));
+    BOOST_CHECK(addressEqual(resolved.code_address, legacyExpected));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -399,7 +398,7 @@ BOOST_AUTO_TEST_CASE(oq1_nested_legacy_nonce_oracle_diverges_from_policy_derive)
 
     u256 const txNonceParam{1};
     auto const policyAddr = bcos::chain_policy::FiscoPolicy::deriveMessage(
-        true, message, 1, 0, /*seq=*/nestedSeq + 1, txNonceParam, hashImpl)
+        true, false, message, 1, 0, /*seq=*/nestedSeq + 1, txNonceParam, hashImpl)
                                 .code_address;
 
     BOOST_CHECK(!addressEqual(vmHostAddr, policyAddr));
@@ -535,31 +534,6 @@ BOOST_AUTO_TEST_CASE(oq3_create2_initcode_digest_uses_hash_impl_not_eth_keccak)
         .hashImpl = &labeledHash});
 
     BOOST_CHECK(addressEqual(resolved.code_address, labeledExpected));
-}
-
-BOOST_AUTO_TEST_SUITE_END()
-
-// --- ADR-022 target behavior (enable when module + D1 fix land) --------------
-
-BOOST_AUTO_TEST_SUITE(FiscoAddressDerivationAdr022Target)
-
-BOOST_AUTO_TEST_CASE(
-    target_d1_top_level_feature_evm_address_uses_legacy, *boost::unit_test::disabled())
-{
-    auto const sender = addressFromTailByte(0xE1);
-    auto const message = makeEmptyCreateMessage(sender);
-    auto const& hashImpl = keccakHashImpl();
-    auto const expected = legacyAddressFromSenderNonce(sender, u256{2});
-
-    auto const resolved = runTopLevelDerive(FiscoTxAdapterInput{.web3Tx = false,
-        .message = message,
-        .blockNumber = 11,
-        .contextID = 2,
-        .seq = 4,
-        .nonce = u256{2},
-        .hashImpl = &hashImpl});
-
-    BOOST_CHECK(addressEqual(resolved.code_address, expected));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

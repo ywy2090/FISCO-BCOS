@@ -24,6 +24,7 @@ struct FiscoRevisionConfig
     bool use_web3_timestamp : 1 = false;
     bool enable_balance_transfer : 1 = false;
     bool enable_auth_check : 1 = false;
+    bool feature_evm_address : 1 = false;
 
     bcos::evm_standard::RevisionConfig& eth() noexcept { return ethConfig; }
     const bcos::evm_standard::RevisionConfig& eth() const noexcept { return ethConfig; }

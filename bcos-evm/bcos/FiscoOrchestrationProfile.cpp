@@ -35,6 +35,7 @@ TxPipelineHooks FiscoOrchestrationProfile::buildHooks(Session& session)
 
     hooks.txSetupMessage = [&input](TxPipelineContext& orchestrationCtx) {
         orchestrationCtx.message = deriveMessage(FiscoTxAdapterInput{.web3Tx = input.web3Tx,
+            .featureEvmAddress = input.revisionConfig.feature_evm_address,
             .message = orchestrationCtx.message,
             .blockNumber = input.blockInfo.number,
             .contextID = input.contextID,
