@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/orchestration/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "state/InMemoryEvmStateReader.h"
@@ -75,10 +76,11 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
 
     BOOST_REQUIRE(task::syncWait(executor.buyGas(ctx, feeCtx)));
 
-    feeCtx.m_gasUsed = 400;
-    feeCtx.m_gasRemaining = 600;
+    OpStackSettlementResult settled;
+    settled.gasUsed = 400;
+    settled.gasRemaining = 600;
 
-    task::syncWait(executor.refundGas(ctx, feeCtx));
+    task::syncWait(executor.refundGas(ctx, feeCtx, settled));
 
     BOOST_CHECK_EQUAL(ctx.state.get_balance(coinbase), u256(2'000));
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_BASE_FEE_RECIPIENT), u256(800));
@@ -124,10 +126,11 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     feeCtx.m_evmcResult.emplace(failResult, protocol::TransactionStatus::OutOfGas);
 
     auto const settlement = postExecuteGasSettlement(500, 120, 0, 0);
-    feeCtx.m_gasUsed = static_cast<int64_t>(settlement.gasUsed);
-    feeCtx.m_gasRemaining = settlement.gasRemaining;
+    OpStackSettlementResult settled;
+    settled.gasUsed = static_cast<int64_t>(settlement.gasUsed);
+    settled.gasRemaining = settlement.gasRemaining;
 
-    task::syncWait(executor.refundGas(ctx, feeCtx));
+    task::syncWait(executor.refundGas(ctx, feeCtx, settled));
 
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_L1_FEE_RECIPIENT), u256(60));
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_OPERATOR_FEE_RECIPIENT), u256(430));

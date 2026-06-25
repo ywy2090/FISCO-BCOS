@@ -53,6 +53,13 @@ TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& sessio
     hooks.intrinsicPolicy.accessList = feeCtx.m_accessList;
     hooks.intrinsicPolicy.web3TypedTxKind = feeCtx.m_web3TypedTxKind;
 
+    if (feeCtx.m_isDepositTx)
+    {
+        hooks.txTuneExecutionInput = [](ExecuteMessageInput& execInput) {
+            execInput.skipTopLevelSenderNonceBump = true;
+        };
+    }
+
 #ifdef BCOS_EVM_TESTING
     hooks.txRunEvmExecutionOverride = [](ExecuteMessageInput&& execInput) -> ExecuteMessageOutput {
         if (auto spyOutput = opstack::test::maybeCallExecuteMessageSpy(execInput);

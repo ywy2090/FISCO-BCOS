@@ -1,4 +1,5 @@
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/opstack/OpStackSettlement.h"
 
 #include <algorithm>
 
@@ -101,15 +102,14 @@ task::Task<bool> OpStackTxFeeLedger::buyGas(TxPipelineContext& ctx, OpStackFeeCo
 }
 
 task::Task<void> OpStackTxFeeLedger::refundIsthmusOperatorCost(
-    TxPipelineContext& ctx, OpStackFeeContext& feeCtx)
+    TxPipelineContext& ctx, OpStackFeeContext const& feeCtx, uint64_t gasUsed)
 {
     if (!m_operatorCostFunc)
     {
         co_return;
     }
 
-    auto const usedGas = static_cast<uint64_t>(std::max<int64_t>(0, feeCtx.m_gasUsed));
-    auto const usedCost = m_operatorCostFunc(usedGas, feeCtx.m_blockInfo.timestamp);
+    auto const usedCost = m_operatorCostFunc(gasUsed, feeCtx.m_blockInfo.timestamp);
     if (usedCost >= feeCtx.m_operatorCostLimit)
     {
         co_return;
@@ -118,7 +118,8 @@ task::Task<void> OpStackTxFeeLedger::refundIsthmusOperatorCost(
     addBalance(ctx.state, ctx.message.sender, feeCtx.m_operatorCostLimit - usedCost);
 }
 
-task::Task<void> OpStackTxFeeLedger::refundGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx)
+task::Task<void> OpStackTxFeeLedger::refundGas(
+    TxPipelineContext& ctx, OpStackFeeContext const& feeCtx, OpStackSettlementResult const& settled)
 {
     if (feeCtx.m_isDepositTx)
     {
@@ -132,8 +133,8 @@ task::Task<void> OpStackTxFeeLedger::refundGas(TxPipelineContext& ctx, OpStackFe
     }
 
     auto& state = ctx.state;
-    auto const gasRemaining = feeCtx.m_gasRemaining;
-    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, feeCtx.m_gasUsed));
+    auto const gasRemaining = settled.gasRemaining;
+    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
 
     addBalance(state, ctx.message.sender, u256(gasRemaining) * feeCtx.m_effectiveGasPrice);
 
@@ -144,7 +145,7 @@ task::Task<void> OpStackTxFeeLedger::refundGas(TxPipelineContext& ctx, OpStackFe
     addBalance(state, m_baseFeeRecipient, u256(gasUsed) * feeCtx.m_baseFee);
     addBalance(state, m_l1FeeRecipient, feeCtx.m_l1CostCharged);
 
-    co_await refundIsthmusOperatorCost(ctx, feeCtx);
+    co_await refundIsthmusOperatorCost(ctx, feeCtx, gasUsed);
     if (m_operatorCostFunc)
     {
         auto const operatorFee = m_operatorCostFunc(gasUsed, feeCtx.m_blockInfo.timestamp);

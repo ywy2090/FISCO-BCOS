@@ -37,11 +37,10 @@ BOOST_AUTO_TEST_CASE(RefundIsthmus_refundsLimitMinusUsedCost)
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 1000); };
 
     OpStackFeeContext feeCtx;
-    feeCtx.m_gasUsed = 500;
     feeCtx.m_blockInfo.timestamp = 1;
     feeCtx.m_operatorCostLimit = u256(2'618);
 
-    task::syncWait(executor.refundIsthmusOperatorCost(ctx, feeCtx));
+    task::syncWait(executor.refundIsthmusOperatorCost(ctx, feeCtx, 500));
 
     BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), u256(1'128));
 }

@@ -189,7 +189,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
             bool const authPrebumped =
                 !isCreateKind(input.message.kind) && input.revisionConfig.eip7702 &&
                 input.authorizationListPresent && !input.authorizations.empty();
-            if (!authPrebumped)
+            if (!authPrebumped && !input.skipTopLevelSenderNonceBump)
             {
                 state.set_nonce(input.message.sender, state.get_nonce(input.message.sender) + 1);
             }

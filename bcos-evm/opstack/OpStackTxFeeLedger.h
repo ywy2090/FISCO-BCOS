@@ -16,6 +16,8 @@ namespace bcos::evm
 {
 #define OP_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("OP_TX_EXECUTOR")
 
+struct OpStackSettlementResult;
+
 u256 resolveEffectiveGasPrice(u256 const& gasTipCap, u256 const& gasFeeCap, u256 const& baseFee);
 
 struct OpStackFeeContext
@@ -29,9 +31,6 @@ struct OpStackFeeContext
     bcos::u256 m_gasTipCap{0};
     bcos::u256 m_gasFeeCap{0};
     bool m_hasGasFeeCap{false};
-    int64_t m_gasUsed{0};
-    uint64_t m_gasRemaining{0};
-    uint64_t m_maxUsedGas{0};
     state::BlockInfo m_blockInfo{};
     bcos::u256 m_l1CostCharged{0};
     bcos::u256 m_operatorCostLimit{0};
@@ -58,8 +57,10 @@ struct OpStackTxFeeLedger
     evmc_address m_operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
 
     task::Task<bool> buyGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx);
-    task::Task<void> refundGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx);
-    task::Task<void> refundIsthmusOperatorCost(TxPipelineContext& ctx, OpStackFeeContext& feeCtx);
+    task::Task<void> refundGas(TxPipelineContext& ctx, OpStackFeeContext const& feeCtx,
+        OpStackSettlementResult const& settled);
+    task::Task<void> refundIsthmusOperatorCost(
+        TxPipelineContext& ctx, OpStackFeeContext const& feeCtx, uint64_t gasUsed);
 };
 
 }  // namespace bcos::evm

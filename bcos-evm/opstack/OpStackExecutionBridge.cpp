@@ -13,37 +13,6 @@
 
 namespace bcos::evm
 {
-namespace
-{
-struct GasPoolReturnGuard
-{
-    std::function<void(uint64_t, uint64_t)>* hook{};
-    uint64_t gasRemaining{0};
-    uint64_t gasUsed{0};
-    bool armed{false};
-
-    ~GasPoolReturnGuard()
-    {
-        if (armed && hook && *hook)
-        {
-            (*hook)(gasRemaining, gasUsed);
-        }
-    }
-};
-
-void returnDepositPoolGas(
-    OpStackExecutionRequest const& input, OpStackFeeContext const& feeCtx, int64_t originalGasLimit)
-{
-    if (!input.gasPoolReturnGasHook)
-    {
-        return;
-    }
-    auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, originalGasLimit));
-    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, feeCtx.m_gasUsed));
-    auto const gasRemaining = gasLimit > gasUsed ? gasLimit - gasUsed : 0;
-    input.gasPoolReturnGasHook(gasRemaining, gasUsed);
-}
-}  // namespace
 
 task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
 {
@@ -103,6 +72,11 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
         co_return output;
     }
 
+    GasPoolHooks gasPool{
+        .subGas = input.gasPoolSubGasHook,
+        .returnGas = input.gasPoolReturnGasHook,
+    };
+
     if (feeCtx.m_isDepositTx)
     {
         output.receiptMeta.depositNonce = ctx.state.get_nonce(input.message.sender);
@@ -121,61 +95,45 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
         runTxPipeline(ctx, hooks, errorPolicy);
 
         output.evmcResult = std::move(ctx.evmcResult);
+        output.logs = std::move(ctx.kernelOutput.logs);
+
+        auto settled =
+            co_await settleDeposit(ctx, ctx.exitKind, output.evmcResult.status_code, gasPool);
+
         EVM_LOG(DEBUG) << LOG_DESC("opStackExecute deposit done")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
-                       << LOG_KV("gasUsed", feeCtx.m_gasUsed);
+                       << LOG_KV("gasUsed", settled.gasUsed);
 
-        output.logs = std::move(ctx.kernelOutput.logs);
-
-        if (ctx.exitKind == TxPipelineExitKind::Completed &&
-            output.evmcResult.status_code == EVMC_SUCCESS)
-        {
-            auto const nonce = ctx.state.get_nonce(input.message.sender);
-            ctx.state.set_nonce(input.message.sender, nonce + 1);
-            ctx.state.commit();
-        }
-        else
-        {
-            if (ctx.state.has_checkpoint())
-            {
-                ctx.state.revert();
-            }
-            auto const nonce = ctx.state.get_nonce(input.message.sender);
-            ctx.state.set_nonce(input.message.sender, nonce + 1);
-            if (ctx.exitKind != TxPipelineExitKind::Completed)
-            {
-                feeCtx.m_gasUsed = std::max<int64_t>(0, ctx.originalGasLimit);
-            }
-        }
-
-        output.gasUsed = feeCtx.m_gasUsed;
+        output.gasUsed = settled.gasUsed;
         output.stateDiff = ctx.state.build_diff();
-        returnDepositPoolGas(input, feeCtx, ctx.originalGasLimit);
         co_return output;
     }
 
-    if (input.gasPoolSubGasHook)
+    if (gasPool.subGas)
     {
         auto const gasLimitForPool =
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
-        if (!input.gasPoolSubGasHook(gasLimitForPool))
+        if (!gasPool.subGas(gasLimitForPool))
         {
             output.evmcResult = makeOutOfGasLimitResult();
             co_return output;
         }
     }
 
-    GasPoolReturnGuard guard{&input.gasPoolReturnGasHook};
-
     auto buyGasOk = co_await input.opTxExecutor.buyGas(ctx, feeCtx);
     if (!buyGasOk)
     {
+        if (gasPool.returnGas)
+        {
+            auto const gasLimitForPool =
+                static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
+            gasPool.returnGas(gasLimitForPool, 0);
+        }
         output.evmcResult = std::move(*feeCtx.m_evmcResult);
         co_return output;
     }
 
-    guard.armed = true;
     ctx.gasPrice = feeCtx.m_effectiveGasPrice;
 
     OpStackPipelineHookBinder::HookBindingContext session{input, feeCtx};
@@ -186,18 +144,12 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
 
-    GasPoolHooks gasPool{
-        .subGas = input.gasPoolSubGasHook,
-        .returnGas = input.gasPoolReturnGasHook,
-    };
-    auto settled = finalizeNormal(ctx, feeCtx, ctx.exitKind, input.opTxExecutor, gasPool);
+    auto settled = co_await settleNormal(ctx, feeCtx, ctx.exitKind, input.opTxExecutor, gasPool);
 
     EVM_LOG(DEBUG) << LOG_DESC("opStackExecute done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
                    << LOG_KV("gasUsed", settled.gasUsed) << LOG_KV("l1Fee", feeCtx.m_l1CostCharged);
-
-    co_await input.opTxExecutor.refundGas(ctx, feeCtx);
 
     output.gasUsed = settled.gasUsed;
     output.receiptMeta.l1Fee = feeCtx.m_l1CostCharged;
@@ -214,8 +166,6 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
         }
     }
     output.stateDiff = ctx.state.build_diff();
-    guard.gasRemaining = settled.gasRemaining;
-    guard.gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
     co_return output;
 }
 }  // namespace bcos::evm

@@ -29,16 +29,13 @@ BOOST_AUTO_TEST_CASE(finalize_normal_completed_matches_post_execute_settlement)
 
     OpStackFeeContext feeCtx;
     feeCtx.m_floorDataGas = 0;
-    OpStackTxFeeLedger ledger;
-    GasPoolHooks pool{};
 
-    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind, ledger, pool);
+    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind);
 
     auto const stateRefund = revision.eip1559 ? 5'000u : 0u;
     auto const expected = postExecuteGasSettlement(100'000u, 80'000u, stateRefund, 0u);
     BOOST_CHECK_EQUAL(result.gasUsed, static_cast<int64_t>(expected.gasUsed));
     BOOST_CHECK_EQUAL(result.gasRemaining, expected.gasRemaining);
-    BOOST_CHECK_EQUAL(feeCtx.m_gasUsed, static_cast<int64_t>(expected.gasUsed));
 }
 
 BOOST_AUTO_TEST_CASE(finalize_normal_intrinsic_reject_gas_used_zero)
@@ -51,15 +48,11 @@ BOOST_AUTO_TEST_CASE(finalize_normal_intrinsic_reject_gas_used_zero)
     ctx.exitKind = TxPipelineExitKind::IntrinsicRejected;
 
     OpStackFeeContext feeCtx;
-    OpStackTxFeeLedger ledger;
-    GasPoolHooks pool{};
 
-    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind, ledger, pool);
+    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind);
 
     BOOST_CHECK_EQUAL(result.gasUsed, int64_t{0});
     BOOST_CHECK_EQUAL(result.gasRemaining, 50'000u);
-    BOOST_CHECK_EQUAL(feeCtx.m_gasUsed, int64_t{0});
-    BOOST_CHECK_EQUAL(feeCtx.m_gasRemaining, 50'000u);
 }
 
 BOOST_AUTO_TEST_CASE(finalize_normal_rules_rejected_applies_settlement)
@@ -79,10 +72,8 @@ BOOST_AUTO_TEST_CASE(finalize_normal_rules_rejected_applies_settlement)
 
     OpStackFeeContext feeCtx;
     feeCtx.m_floorDataGas = 0;
-    OpStackTxFeeLedger ledger;
-    GasPoolHooks pool{};
 
-    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind, ledger, pool);
+    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind);
 
     auto const expected = postExecuteGasSettlement(100'000u, 60'000u, 0u, 0u);
     BOOST_CHECK_EQUAL(result.gasUsed, static_cast<int64_t>(expected.gasUsed));
