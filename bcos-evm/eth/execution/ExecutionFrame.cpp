@@ -70,12 +70,15 @@ FrameResult runTopLevelExecutionFrame(FrameContext& ctx, evmc_message message, s
     }
 
     auto code = resolveExecutionCode(ctx.state, ctx.revisionConfig, callMessage);
-    if (!state::isCreateKind(callMessage.kind) && code.empty())
+    if (!state::isCreateKind(callMessage.kind) &&
+        !(isDelegated7702Message(originalMsg) && callMessage.kind != EVMC_CALL) && code.empty())
     {
         bool const skipVt = ctx.extension != nullptr && ctx.extension->skipHostValueTransfer();
-        auto const target = state::isZeroAddress(callMessage.code_address) ?
-                                callMessage.recipient :
-                                callMessage.code_address;
+        auto const target =
+            routed.hasPrecompileTarget ?
+                routed.precompileTarget :
+                (state::isZeroAddress(callMessage.code_address) ? callMessage.recipient :
+                                                                  callMessage.code_address);
         auto out = precompiled::dispatchPrecompile(
             {ctx.state, ctx.revisionConfig, ctx.extension, callMessage, target, skipVt});
         if (out.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
@@ -152,7 +155,6 @@ FrameResult runTopLevelExecutionFrame(FrameContext& ctx, evmc_message message, s
                 ctx.state.set_nonce(createAddr, 1);
             }
         }
-        ctx.state.commit();
     }
     else
     {

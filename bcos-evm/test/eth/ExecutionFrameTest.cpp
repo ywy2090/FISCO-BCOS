@@ -8,6 +8,7 @@
 
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -258,6 +259,45 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_hit_sets_precompileHit)
     auto frame = runFrameTopLevel(state, message);
     BOOST_REQUIRE(frame.precompileHit);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_SUCCESS);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_frame_does_not_commit_before_adapter_nonce_bump)
+{
+    auto const sender = addressFromLastByte(0x10);
+    auto const target = addressFromLastByte(0x20);
+
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 5);
+
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 50'000;
+    message.sender = sender;
+    message.recipient = target;
+    message.code_address = target;
+    message.input_data = nullptr;
+    message.input_size = 0;
+
+    FrameTestHost fixture(state);
+    execution::FrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+        fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
+    auto fr = execution::runExecutionFrame(
+        frameCtx, message, execution::FrameScope::TopLevel, fixture.ethHost());
+
+    BOOST_REQUIRE_EQUAL(fr.result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(state.get_nonce(sender), 5U);
+    BOOST_REQUIRE(state.has_checkpoint());
+
+    state.set_nonce(sender, 6);
+    state.commit();
+    BOOST_REQUIRE(!state.has_checkpoint());
+
+    auto const diff = state.build_diff();
+    auto const senderIt = diff.accounts.find(sender);
+    BOOST_REQUIRE(senderIt != diff.accounts.end());
+    BOOST_CHECK_EQUAL(senderIt->second.nonce, 6U);
 }
 
 BOOST_AUTO_TEST_CASE(top_level_create_checkpoint_before_bind_order)
