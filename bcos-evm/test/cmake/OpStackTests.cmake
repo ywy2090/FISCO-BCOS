@@ -322,6 +322,25 @@ add_test(
     COMMAND ${OPSTACK_SETTLEMENT_TEST_BINARY_NAME}
 )
 
+
+add_executable(OpStackSettlementCharacterizationTest
+    opstack/OpStackSettlementCharacterizationTest.cpp
+)
+
+target_include_directories(OpStackSettlementCharacterizationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(OpStackSettlementCharacterizationTest PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME OpStackSettlementCharacterization
+    COMMAND OpStackSettlementCharacterizationTest
+)
+
 set(L1BLOCK_PREDEPLOY_TEST_BINARY_NAME L1BlockPredeployTest)
 
 add_executable(${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME}
