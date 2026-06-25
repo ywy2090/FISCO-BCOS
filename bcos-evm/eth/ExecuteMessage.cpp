@@ -34,23 +34,18 @@ bool isCreateKind(evmc_call_kind kind) noexcept
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
 }
 
-evmc_address resolveCodeAddress(const evmc_message& message) noexcept
-{
-    auto codeAddress = message.code_address;
-    if (state::isZeroAddress(codeAddress))
-    {
-        codeAddress = message.recipient;
-    }
-    return codeAddress;
-}
-
 state::Transaction toStateTransaction(const evmc_message& message)
 {
     state::Transaction transaction;
     transaction.from = message.sender;
     if (!isCreateKind(message.kind))
     {
-        transaction.to = resolveCodeAddress(message);
+        auto to = message.code_address;
+        if (state::isZeroAddress(to))
+        {
+            to = message.recipient;
+        }
+        transaction.to = to;
     }
     transaction.data.assign(message.input_data, message.input_data + message.input_size);
     transaction.value = state::fromEvmC(message.value);
@@ -158,12 +153,12 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         input.extension, input.fixStorageStatus);
     if (!isCreateKind(input.message.kind))
     {
-        host.set_execution_address(resolveCodeAddress(input.message));
-    }
-
-    if (!isCreateKind(input.message.kind))
-    {
-        auto const codeAddress = resolveCodeAddress(input.message);
+        auto codeAddress = input.message.code_address;
+        if (state::isZeroAddress(codeAddress))
+        {
+            codeAddress = input.message.recipient;
+        }
+        host.set_execution_address(codeAddress);
         apply7702TxAuthorizationsIfNeeded(state, input, codeAddress);
     }
 
