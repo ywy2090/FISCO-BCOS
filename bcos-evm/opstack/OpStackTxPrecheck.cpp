@@ -36,17 +36,12 @@ std::optional<EVMCResult> opStackTxPrecheck(
     OpStackExecutionRequest const& input, state::State& state)
 {
     auto const deposit = isDepositTx(input);
-    auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, input.message.gas));
 
     if (deposit)
     {
         if (input.depositTx.has_value() && input.depositTx->isSystemTransaction)
         {
             return makePreCheckError(protocol::TransactionStatus::Malformed);
-        }
-        if (input.gasPoolSubGasHook && !input.gasPoolSubGasHook(gasLimit))
-        {
-            return makePreCheckError(protocol::TransactionStatus::OutOfGasLimit, EVMC_OUT_OF_GAS);
         }
         return std::nullopt;
     }
