@@ -7,27 +7,21 @@
 #define BOOST_TEST_MODULE ExecutionFrameTest
 
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "fixtures/EthFrameParityHelpers.h"
 #include "state/InMemoryEvmStateReader.h"
-#include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
-#include <cstring>
 #include <optional>
 
 namespace bcos::evm::test
 {
 namespace
 {
-struct CallOutcome
+struct CallOutcome : FrameBalanceOutcome
 {
-    evmc_status_code status{};
-    int64_t gasLeft{};
-    bcos::u256 senderBalance{};
-    bcos::u256 recipientBalance{};
     bool precompileHit{false};
 };
 
@@ -35,40 +29,6 @@ struct DenyDelegatePrecompilePolicy : state::VmHostPolicy
 {
     bool allowDelegateCallToPrecompile() override { return false; }
 };
-
-evmc_address addressFromLastByte(uint8_t value)
-{
-    evmc_address address{};
-    address.bytes[19] = value;
-    return address;
-}
-
-evmc_address precompileAddress(uint8_t lowByte)
-{
-    evmc_address addr{};
-    addr.bytes[19] = lowByte;
-    return addr;
-}
-
-state::BlockHashes emptyBlockHashes()
-{
-    return [](int64_t) { return evmc_bytes32{}; };
-}
-
-evmc_uint256be weiValue(uint8_t value)
-{
-    evmc_uint256be out{};
-    out.bytes[31] = value;
-    return out;
-}
-
-evmc_address balanceTarget(evmc_message const& msg)
-{
-    return std::memcmp(
-               msg.code_address.bytes, evmc_address{}.bytes, sizeof(evmc_address{}.bytes)) != 0 ?
-               msg.code_address :
-               msg.recipient;
-}
 
 struct FrameTestHost
 {
@@ -85,41 +45,6 @@ struct FrameTestHost
 
     state::EthHost& ethHost() { return *host; }
 };
-
-CallOutcome runDepth1(state::State& state, evmc_message message)
-{
-    FrameTestHost fixture(state);
-    message.depth = 1;
-    auto result = fixture.ethHost().call(message);
-    return {.status = result.status_code,
-        .gasLeft = result.gas_left,
-        .senderBalance = state.get_balance(message.sender),
-        .recipientBalance = state.get_balance(balanceTarget(message))};
-}
-
-ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message const& message)
-{
-    static evmc::VM vm{evmc_create_evmone()};
-    ExecuteMessageInput input;
-    input.stateView = view;
-    input.vm = &vm;
-    input.message = message;
-    input.blockInfo.number = 1;
-    input.blockInfo.gasLimit = 30'000'000;
-    input.revisionConfig.revision = EVMC_PRAGUE;
-    input.revisionConfig.warm_access = true;
-    input.txProps.warmDestination = true;
-    return input;
-}
-
-CallOutcome runDepth0(state::State& state, evmc_message const& message)
-{
-    auto output = executeMessage(makeBaseInput(&state, message));
-    return {.status = output.result.status_code,
-        .gasLeft = output.result.gas_left,
-        .senderBalance = state.get_balance(message.sender),
-        .recipientBalance = state.get_balance(balanceTarget(message))};
-}
 
 CallOutcome runFrameNested(
     state::State& state, evmc_message message, state::VmHostPolicy* extension = nullptr)
@@ -149,21 +74,6 @@ CallOutcome runFrameTopLevel(state::State& state, evmc_message message)
         .senderBalance = state.get_balance(message.sender),
         .recipientBalance = state.get_balance(balanceTarget(message)),
         .precompileHit = fr.precompileHit};
-}
-
-evmc_message valueTransferMessage(evmc_address sender, evmc_address recipient, evmc_uint256be value,
-    std::array<uint8_t, 4> const& inputBytes)
-{
-    evmc_message message{};
-    message.kind = EVMC_CALL;
-    message.gas = 500'000;
-    message.sender = sender;
-    message.recipient = recipient;
-    message.code_address = recipient;
-    message.value = value;
-    message.input_data = inputBytes.data();
-    message.input_size = inputBytes.size();
-    return message;
 }
 }  // namespace
 
