@@ -146,4 +146,15 @@ Mint is never rolled back on failure.
 - [x] Deposit pre-pipeline (depositNonce → mint → checkpoint) stays in bridge
 - [x] `finalizeDeposit` matches three-track table
 - [x] `OpStackDepositSettlementTest` + existing `Deposit*` green
+- [x] `OpStackSettleAsyncTest` — async `settleNormal`/`settleDeposit` wiring (14 cases)
 - [x] `eth/` seam discipline unchanged (ADR-005)
+
+### Test coverage (settlement layers)
+
+| Layer | Tests |
+| --- | --- |
+| Sync `finalizeNormal` | `OpStackSettlementTest` |
+| Sync `finalizeDeposit` | `OpStackDepositSettlementTest` |
+| Async `settleNormal` / `settleDeposit` | `OpStackSettleAsyncTest` |
+| Fee ledger routing | `OpStackTxFeeLedgerCtxTest` |
+| E2E oracle | `OpStackSettlementCharacterizationTest`, deposit integration tests |

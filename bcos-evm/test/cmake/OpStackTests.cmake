@@ -343,6 +343,26 @@ add_test(
     COMMAND ${OPSTACK_DEPOSIT_SETTLEMENT_TEST_BINARY_NAME}
 )
 
+set(OPSTACK_SETTLE_ASYNC_TEST_BINARY_NAME OpStackSettleAsyncTest)
+
+add_executable(${OPSTACK_SETTLE_ASYNC_TEST_BINARY_NAME}
+    opstack/OpStackSettleAsyncTest.cpp
+)
+
+target_include_directories(${OPSTACK_SETTLE_ASYNC_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${OPSTACK_SETTLE_ASYNC_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME OpStackSettleAsync
+    COMMAND ${OPSTACK_SETTLE_ASYNC_TEST_BINARY_NAME}
+)
+
 add_executable(OpStackSettlementCharacterizationTest
     opstack/OpStackSettlementCharacterizationTest.cpp
 )

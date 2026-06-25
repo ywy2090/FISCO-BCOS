@@ -1,7 +1,7 @@
 # OpStack settle* Async Layer — Unit Test Design
 
 **Date:** 2026-06-25  
-**Status:** Draft (pending user review)  
+**Status:** Implemented  
 **Related:** ADR-021 · `docs/superpowers/specs/2026-06-25-opstack-settlement-pr2-design.md` §7.4  
 **Scope:** Test-only PR — zero production code changes
 

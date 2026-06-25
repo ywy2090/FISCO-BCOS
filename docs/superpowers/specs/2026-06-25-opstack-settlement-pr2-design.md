@@ -264,10 +264,12 @@ task::Task<void> refundGas(
 | `L1AttributesDepositTest.cpp` | 成功 gasUsed > 0 |
 | `OpStackSettlementCharacterizationTest.cpp` | normal 路径 oracle |
 
-### 7.4 `settleNormal` 单测（可选 PR2）
+### 7.4 `settleNormal` / `settleDeposit` async 单测（Implemented）
 
-- Mock `OpStackTxFeeLedger` 验证 `refundGas` 在 `finalizeNormal` 之后调用
-- Gas pool hook 收到 `settled.gasRemaining` / `settled.gasUsed`
+- `bcos-evm/test/opstack/OpStackSettleAsyncTest.cpp` — 14 cases（8 normal + 6 deposit）
+- `GasPoolSpy` 验证 `returnGas(settled.gasRemaining, settled.gasUsed)`
+- `assertSettleNormalMatchesFinalizeOracle` 验证返回值与 sync 层一致
+- 详见 `docs/superpowers/specs/2026-06-25-opstack-settle-async-test-design.md`
 
 ---
 
@@ -283,6 +285,7 @@ task::Task<void> refundGas(
 | `test/opstack/OpStackSettlementTest.cpp` | 适配 H1 + E1 |
 | `test/opstack/OpStackTxFeeLedgerCtxTest.cpp` | 适配 `refundGas` 签名 |
 | `test/cmake/OpStackTests.cmake` | 注册新测试 target |
+| `test/opstack/OpStackSettleAsyncTest.cpp` | async 层 14 用例（Implemented） |
 | `bcos-evm/docs/adr/021-opstack-settlement-ctx-single-source.md` | PR2 → Implemented |
 
 ---
