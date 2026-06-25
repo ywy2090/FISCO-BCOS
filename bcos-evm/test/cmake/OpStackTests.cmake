@@ -22,6 +22,7 @@ add_test(
 add_executable(OpStackIntrinsicGasSyncTest
     opstack/OpStackIntrinsicGasSyncTest.cpp
     ../opstack/OpStackExecutionBridge.cpp
+    ../opstack/OpStackTxLifecycle.cpp
     ../opstack/OpStackSettlement.cpp
     ../opstack/OpStackOrchestrationProfile.cpp
     ../opstack/OpStackTxPrecheck.cpp
@@ -384,6 +385,26 @@ target_link_libraries(OpStackSettlementCharacterizationTest PRIVATE
 add_test(
     NAME OpStackSettlementCharacterization
     COMMAND OpStackSettlementCharacterizationTest
+)
+
+set(OPSTACK_TX_LIFECYCLE_CHARACTERIZATION_TEST_BINARY_NAME OpStackTxLifecycleCharacterizationTest)
+
+add_executable(${OPSTACK_TX_LIFECYCLE_CHARACTERIZATION_TEST_BINARY_NAME}
+    opstack/OpStackTxLifecycleCharacterizationTest.cpp
+)
+
+target_include_directories(${OPSTACK_TX_LIFECYCLE_CHARACTERIZATION_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${OPSTACK_TX_LIFECYCLE_CHARACTERIZATION_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME OpStackTxLifecycleCharacterization
+    COMMAND ${OPSTACK_TX_LIFECYCLE_CHARACTERIZATION_TEST_BINARY_NAME}
 )
 
 set(OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME OpStackTxFeeLedgerCtxTest)
