@@ -87,4 +87,52 @@ BOOST_AUTO_TEST_CASE(top_level_skips_create_warm_pin)
     // TopLevel: no recipient/code_address mutation beyond caller-provided fields
     BOOST_REQUIRE(std::memcmp(routed.message.code_address.bytes, evmc_address{}.bytes, 20) == 0);
 }
+
+BOOST_AUTO_TEST_CASE(top_level_call_zero_code_address_fills_recipient)
+{
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    auto cfg = pragueCfg();
+    auto recipient = addr(0x77);
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.recipient = recipient;
+    msg.code_address = {};
+
+    auto routed = execution::routeMessage(state, cfg, msg, execution::FrameScope::TopLevel);
+    BOOST_REQUIRE(std::memcmp(routed.message.code_address.bytes, recipient.bytes, 20) == 0);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_call_marks_identity_precompile_target)
+{
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    auto cfg = pragueCfg();
+    auto identity = addr(0x04);
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.recipient = identity;
+    msg.code_address = {};
+
+    auto routed = execution::routeMessage(state, cfg, msg, execution::FrameScope::TopLevel);
+    BOOST_REQUIRE(routed.hasPrecompileTarget);
+    BOOST_REQUIRE(std::memcmp(routed.precompileTarget.bytes, identity.bytes, 20) == 0);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_create_skips_precompile_target)
+{
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    auto cfg = pragueCfg();
+
+    evmc_message msg{};
+    msg.kind = EVMC_CREATE;
+    msg.recipient = addr(0x04);
+    msg.code_address = {};
+
+    auto routed = execution::routeMessage(state, cfg, msg, execution::FrameScope::TopLevel);
+    BOOST_REQUIRE(!routed.hasPrecompileTarget);
+}
 }  // namespace bcos::evm::test
