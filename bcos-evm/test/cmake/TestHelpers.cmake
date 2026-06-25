@@ -1,8 +1,8 @@
 # Shared helpers for bcos-evm unit tests.
 
 add_library(bcos-evm-test-state STATIC
-    state/BloomFilter.cpp
-    state/Transition.cpp
+    helpers/BloomFilter.cpp
+    helpers/Transition.cpp
 )
 
 target_include_directories(bcos-evm-test-state PUBLIC

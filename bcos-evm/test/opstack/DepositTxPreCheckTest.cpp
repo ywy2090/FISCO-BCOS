@@ -3,7 +3,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackTxPrecheck.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test

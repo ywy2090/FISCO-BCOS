@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test

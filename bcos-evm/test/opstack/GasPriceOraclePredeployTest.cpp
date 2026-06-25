@@ -5,7 +5,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/l1/GasPriceOracleSelectors.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test

@@ -4,7 +4,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

@@ -7,7 +7,7 @@
 #define BOOST_TEST_MODULE CreateWarmPinRevertTest
 
 #include "bcos-evm/eth/state/State.hpp"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::state::test

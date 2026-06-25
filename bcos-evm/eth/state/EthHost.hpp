@@ -20,10 +20,10 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmc/evmc.hpp>
 #include <optional>
 #include <unordered_map>

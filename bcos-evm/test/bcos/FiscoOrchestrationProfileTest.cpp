@@ -7,7 +7,7 @@
 #include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>

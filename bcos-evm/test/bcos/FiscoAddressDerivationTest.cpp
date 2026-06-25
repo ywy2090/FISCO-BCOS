@@ -21,7 +21,7 @@
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-utilities/DataConvertUtility.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <fmt/compile.h>
 #include <fmt/format.h>
 #include <boost/test/included/unit_test.hpp>

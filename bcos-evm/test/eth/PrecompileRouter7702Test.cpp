@@ -10,11 +10,11 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include "fixtures/EthFrameParityHelpers.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <cstring>

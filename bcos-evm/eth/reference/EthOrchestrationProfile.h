@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/pipeline/EthOrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/reference/EthPrecheckPolicy.h"
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 

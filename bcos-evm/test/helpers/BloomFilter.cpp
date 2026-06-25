@@ -16,7 +16,7 @@
  * @file BloomFilter.cpp
  */
 
-#include "state/BloomFilter.hpp"
+#include "helpers/BloomFilter.hpp"
 
 namespace bcos::evm::state
 {

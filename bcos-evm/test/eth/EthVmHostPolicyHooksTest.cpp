@@ -15,9 +15,9 @@
  */
 
 #define BOOST_TEST_MODULE EthVmHostPolicyHooksTest
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 

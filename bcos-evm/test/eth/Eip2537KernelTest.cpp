@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE Eip2537KernelTest
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/state/EthPrecompiles.hpp"
+#include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -17,7 +17,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth)
     addr.bytes[19] = 0x0c;
     bcos::bytes input(320, 0);
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
-    auto r = state::EthPrecompiles::dispatch(
+    auto r = precompiled::EthPrecompiles::dispatch(
         addr, bcos::bytesConstRef(input.data(), input.size()), 500000, EVMC_PRAGUE, cfg);
     BOOST_REQUIRE(r.has_value());
     BOOST_CHECK_EQUAL(r->gasCost, 22776);

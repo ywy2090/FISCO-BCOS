@@ -25,7 +25,7 @@
 #include <evmc/evmc.hpp>
 #include <optional>
 
-namespace bcos::evm::state
+namespace bcos::evm::precompiled
 {
 struct EthPrecompileResult
 {
@@ -47,4 +47,4 @@ public:
         const evmc_message& msg, evmc_revision revision,
         bcos::evm_standard::RevisionConfig const& cfg);
 };
-}  // namespace bcos::evm::state
+}  // namespace bcos::evm::precompiled

@@ -7,8 +7,8 @@
 #include "PrecompileRouter.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
-#include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::precompiled
@@ -132,7 +132,7 @@ PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
 
     if (emptyCode && isActivePrecompile(input.revision, input.target))
     {
-        if (auto result = state::EthPrecompiles::tryDispatchInCall(
+        if (auto result = EthPrecompiles::tryDispatchInCall(
                 input.target, input.message, input.revision.revision, input.revision))
         {
             output.outcome = PrecompileDispatchOutcome::Dispatched;

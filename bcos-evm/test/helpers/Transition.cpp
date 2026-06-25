@@ -16,7 +16,7 @@
  * @file Transition.cpp
  */
 
-#include "state/Transition.hpp"
+#include "helpers/Transition.hpp"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

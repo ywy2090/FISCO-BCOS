@@ -8,8 +8,8 @@
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>

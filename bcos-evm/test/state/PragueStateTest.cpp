@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE PragueStateTest
 #include "bcos-utilities/DataConvertUtility.h"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "state/InMemoryEvmStateReader.h"
-#include "state/Transition.hpp"
+#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/Transition.hpp"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <filesystem>

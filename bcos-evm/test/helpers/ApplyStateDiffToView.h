@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/state/StateDiff.hpp"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 
 namespace bcos::evm::test
 {

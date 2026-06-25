@@ -23,9 +23,9 @@
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmc/evmc.h>
 
 namespace bcos::evm::execution

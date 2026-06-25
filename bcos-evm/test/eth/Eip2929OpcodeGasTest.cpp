@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip2929OpcodeGasTest
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <evmone/instructions_traits.hpp>

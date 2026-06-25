@@ -7,7 +7,7 @@
 #define BOOST_TEST_MODULE PrecompileRouterPrecedenceTest
 
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <optional>

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 
 namespace bcos::evm::state
 {

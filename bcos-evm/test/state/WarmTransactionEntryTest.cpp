@@ -19,7 +19,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 

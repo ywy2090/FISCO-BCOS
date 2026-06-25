@@ -9,7 +9,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmc/evmc.h>
 #include <functional>
 

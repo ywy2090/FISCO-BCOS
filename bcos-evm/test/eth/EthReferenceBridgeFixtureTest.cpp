@@ -5,7 +5,7 @@
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

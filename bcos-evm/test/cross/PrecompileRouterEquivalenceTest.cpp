@@ -10,7 +10,7 @@
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>

@@ -24,8 +24,8 @@
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/bcos/ports/ChainPrecompilePort.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include <evmc/evmc.h>

@@ -20,7 +20,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <string_view>

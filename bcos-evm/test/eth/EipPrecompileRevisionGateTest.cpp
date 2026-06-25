@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>

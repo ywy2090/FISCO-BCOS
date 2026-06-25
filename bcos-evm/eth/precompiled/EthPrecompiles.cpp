@@ -16,7 +16,7 @@
  * @file EthPrecompiles.cpp
  */
 
-#include "bcos-evm/eth/state/EthPrecompiles.hpp"
+#include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/precompiled/BlsGas.h"
 #include "bcos-evm/eth/precompiled/ModexpGas.h"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -38,7 +38,7 @@
 #include <span>
 #include <vector>
 
-namespace bcos::evm::state
+namespace bcos::evm::precompiled
 {
 namespace
 {
@@ -656,4 +656,4 @@ std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(const evmc_address
     }
     return evmc::Result(result);
 }
-}  // namespace bcos::evm::state
+}  // namespace bcos::evm::precompiled

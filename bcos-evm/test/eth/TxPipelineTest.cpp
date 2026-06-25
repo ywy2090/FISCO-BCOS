@@ -4,10 +4,10 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <functional>

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/l1/GasPriceOraclePredeploy.h"
 #include "bcos-evm/opstack/l1/L1BlockPredeploy.h"

@@ -5,7 +5,7 @@
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
 

@@ -6,7 +6,7 @@
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

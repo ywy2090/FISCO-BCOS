@@ -2,7 +2,7 @@
 
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <evmone/evmone.h>

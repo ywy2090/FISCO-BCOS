@@ -11,7 +11,7 @@
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>

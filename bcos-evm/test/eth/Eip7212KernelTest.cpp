@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE Eip7212KernelTest
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/state/EthPrecompiles.hpp"
-#include "state/InMemoryEvmStateReader.h"
+#include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_dispatch)
     auto const input = p256verifyValidSignatureInput();
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip7212 = true};
 
-    auto result = state::EthPrecompiles::dispatch(
+    auto result = precompiled::EthPrecompiles::dispatch(
         addr, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_OSAKA, cfg);
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK_EQUAL(result->status, EVMC_SUCCESS);

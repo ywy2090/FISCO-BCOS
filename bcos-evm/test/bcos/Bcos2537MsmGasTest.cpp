@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/BlsGas.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 

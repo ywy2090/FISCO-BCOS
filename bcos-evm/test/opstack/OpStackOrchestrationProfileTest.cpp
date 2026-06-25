@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
 

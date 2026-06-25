@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "state/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
