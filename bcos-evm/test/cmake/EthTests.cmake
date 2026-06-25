@@ -202,3 +202,9 @@ target_include_directories(ExecutionFrameTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(ExecutionFrameTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME ExecutionFrame COMMAND ExecutionFrameTest)
+
+add_executable(ResolveExecutionCodeTest eth/ResolveExecutionCodeTest.cpp)
+target_include_directories(ResolveExecutionCodeTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(ResolveExecutionCodeTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME ResolveExecutionCode COMMAND ResolveExecutionCodeTest)
