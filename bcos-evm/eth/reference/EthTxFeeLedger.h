@@ -1,6 +1,7 @@
 #pragma once
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/policy/EthPolicy.h"
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/protocol/Transaction.h>
@@ -54,8 +55,7 @@ struct EthTxFeeLedger
                 << LOG_KV("totalRequired", totalRequired);
 
             // Charge minimum penalty = intrinsic_gas * gasPrice, capped at balance.
-            constexpr static int64_t INTRINSIC_GAS = 21000;
-            const auto intrinsicCost = u256(INTRINSIC_GAS) * data.m_effectiveGasPrice;
+            const auto intrinsicCost = u256(gas::TX_BASE_GAS) * data.m_effectiveGasPrice;
             const auto penalty = std::min(senderBalance, intrinsicCost);
             if (penalty > 0)
             {

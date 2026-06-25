@@ -11,6 +11,7 @@
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include <evmc/evmc.h>
 #include <algorithm>
 
@@ -18,12 +19,6 @@ namespace bcos::evm
 {
 namespace gas
 {
-
-constexpr int64_t TX_BASE_GAS = 21000;
-constexpr int64_t CREATE_BASE_GAS = 32000;
-constexpr int64_t INITCODE_WORD_GAS = 2;
-constexpr int64_t ACCESS_LIST_ADDRESS_COST = 2400;
-constexpr int64_t ACCESS_LIST_STORAGE_KEY_COST = 1900;
 
 struct TxIntrinsicGas
 {

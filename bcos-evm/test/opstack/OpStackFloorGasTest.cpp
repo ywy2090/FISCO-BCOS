@@ -8,9 +8,9 @@ namespace bcos::evm::test
 {
 namespace
 {
-constexpr uint64_t kTxGas = 21'000;
-constexpr uint64_t kTokenPerNonZero = 4;
-constexpr uint64_t kCostFloorPerToken = 10;
+constexpr uint64_t kTxGas = OP_TX_GAS;
+constexpr uint64_t kTokenPerNonZero = OP_TX_TOKEN_PER_NON_ZERO_BYTE;
+constexpr uint64_t kCostFloorPerToken = OP_TX_COST_FLOOR_PER_TOKEN;
 
 bytesConstRef toRef(bytes const& data)
 {

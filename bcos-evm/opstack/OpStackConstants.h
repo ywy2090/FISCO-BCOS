@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth/gas/Eip4844.h"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 
@@ -52,6 +53,6 @@ inline constexpr int64_t FJORD_DIVISOR = 1'000'000'000'000;
 inline constexpr size_t ISTHMUS_L1_ATTRIBUTES_LEN = 176;
 
 // EIP-4844 blob gas per blob (Cancun / Isthmus)
-inline constexpr uint64_t OP_BLOB_GAS_PER_BLOB = 131'072;
+inline constexpr uint64_t OP_BLOB_GAS_PER_BLOB = gas::BLOB_GAS_PER_BLOB;
 
 }  // namespace bcos::evm

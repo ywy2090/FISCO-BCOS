@@ -7,6 +7,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include <evmc/evmc.h>
 #include <cstdint>
 
@@ -31,12 +32,15 @@ inline bool isLowPrecompile(evmc_address const& addr) noexcept
     {
         return false;
     }
-    return addr.bytes[18] == 0x00 && addr.bytes[19] >= 0x01 && addr.bytes[19] <= 0x11;
+    return addr.bytes[18] == 0x00 && addr.bytes[19] >= ETH_PRECOMPILE_INDEX_FIRST &&
+           addr.bytes[19] <= ETH_PRECOMPILE_INDEX_LAST;
 }
 
 inline bool isP256Precompile(evmc_address const& addr) noexcept
 {
-    return isHigh18BytesZero(addr) && addr.bytes[18] == 0x01 && addr.bytes[19] == 0x00;
+    return isHigh18BytesZero(addr) &&
+           addr.bytes[18] == static_cast<uint8_t>(P256VERIFY_PRECOMPILE_INDEX >> 8) &&
+           addr.bytes[19] == static_cast<uint8_t>(P256VERIFY_PRECOMPILE_INDEX & 0xFF);
 }
 
 inline bool isActivePrecompile(
@@ -51,15 +55,15 @@ inline bool isActivePrecompile(
         return false;
     }
     auto const suffix = addr.bytes[19];
-    if (suffix >= 0x01 && suffix <= 0x09)
+    if (suffix >= ETH_PRECOMPILE_INDEX_FIRST && suffix <= CLASSIC_PRECOMPILE_INDEX_LAST)
     {
         return cfg.revision >= EVMC_BERLIN;
     }
-    if (suffix == 0x0a)
+    if (suffix == POINT_EVALUATION_PRECOMPILE_INDEX)
     {
         return cfg.revision >= EVMC_CANCUN;
     }
-    if (suffix >= 0x0b && suffix <= 0x11)
+    if (suffix >= BLS_PRECOMPILE_INDEX_FIRST && suffix <= BLS_PRECOMPILE_INDEX_LAST)
     {
         return cfg.revision >= EVMC_PRAGUE && cfg.eip2537;
     }
@@ -70,7 +74,7 @@ template <typename Consumer>
 void forEachActivePrecompile(bcos::evm_standard::RevisionConfig const& cfg, Consumer&& consume)
 {
     static constexpr unsigned precompileHi = sizeof(evmc_address) - 1;
-    for (uint8_t i = 1; i <= 0x11; ++i)
+    for (uint8_t i = ETH_PRECOMPILE_INDEX_FIRST; i <= ETH_PRECOMPILE_INDEX_LAST; ++i)
     {
         evmc_address precompile{};
         precompile.bytes[precompileHi] = i;
@@ -80,8 +84,8 @@ void forEachActivePrecompile(bcos::evm_standard::RevisionConfig const& cfg, Cons
         }
     }
     evmc_address p256{};
-    p256.bytes[18] = 0x01;
-    p256.bytes[19] = 0x00;
+    p256.bytes[18] = static_cast<uint8_t>(P256VERIFY_PRECOMPILE_INDEX >> 8);
+    p256.bytes[19] = static_cast<uint8_t>(P256VERIFY_PRECOMPILE_INDEX & 0xFF);
     if (isActivePrecompile(cfg, p256))
     {
         consume(p256);

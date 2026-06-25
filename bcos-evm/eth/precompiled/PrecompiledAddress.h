@@ -14,6 +14,11 @@
 namespace bcos::evm
 {
 
+/// Low-byte index range for standard Ethereum precompiles (0x01–0x11).
+inline constexpr uint8_t ETH_PRECOMPILE_INDEX_FIRST = 0x01;
+inline constexpr uint8_t CLASSIC_PRECOMPILE_INDEX_LAST = 0x09;
+inline constexpr uint8_t ETH_PRECOMPILE_INDEX_LAST = 0x11;
+
 /// 40-nibble hex body prefix shared by all Ethereum precompiles (see also
 /// precompiled::EVM_PRECOMPILED_PREFIX in PrecompiledTypeDef.h).
 inline constexpr std::string_view EVM_PRECOMPILED_ADDRESS_PREFIX =

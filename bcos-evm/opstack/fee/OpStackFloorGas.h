@@ -1,5 +1,7 @@
 #pragma once
 
+#include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include <bcos-utilities/Common.h>
 #include <cstdint>
 #include <optional>
@@ -7,9 +9,11 @@
 namespace bcos::evm
 {
 
-constexpr uint64_t OP_TX_GAS = 21'000;
-constexpr uint64_t OP_TX_TOKEN_PER_NON_ZERO_BYTE = 4;
-constexpr uint64_t OP_TX_COST_FLOOR_PER_TOKEN = 10;
+inline constexpr uint64_t OP_TX_GAS = static_cast<uint64_t>(gas::TX_BASE_GAS);
+inline constexpr uint64_t OP_TX_TOKEN_PER_NON_ZERO_BYTE =
+    static_cast<uint64_t>(gas::TOKENS_PER_NONZERO_BYTE);
+inline constexpr uint64_t OP_TX_COST_FLOOR_PER_TOKEN =
+    static_cast<uint64_t>(gas::TOTAL_COST_FLOOR_PER_TOKEN);
 
 enum class FloorDataGasError
 {

@@ -1,5 +1,6 @@
 #pragma once
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
@@ -68,11 +69,10 @@ struct FiscoTxFeeLedger
             // FIB-75: charge minimum penalty = min(balance, intrinsic_gas * gasPrice).
             // The transaction is already in a consensus-packed block and consumed
             // consensus/storage resources, so a sender who can't cover full gas cost
-            // still pays at least the 21000-gas base cost (geth's intrinsic gas for
+            // still pays at least the base tx gas cost (geth's intrinsic gas for
             // an empty tx). If balance < intrinsic cost, drain what's left. This
             // prevents free spam from repeatedly submitting under-funded transactions.
-            constexpr static int64_t INTRINSIC_GAS = 21000;
-            const auto intrinsicCost = u256(INTRINSIC_GAS) * gasPrice;
+            const auto intrinsicCost = u256(gas::TX_BASE_GAS) * gasPrice;
             const auto penalty = std::min(senderBalance, intrinsicCost);
             if (penalty > 0)
             {

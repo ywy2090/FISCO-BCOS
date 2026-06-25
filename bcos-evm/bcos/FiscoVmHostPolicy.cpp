@@ -252,8 +252,6 @@ std::string FiscoVmHostPolicy::hexAddress(const evmc_address& address)
 
 bool FiscoVmHostPolicy::isFiscoPrecompileAddress(const evmc_address& address) noexcept
 {
-    constexpr uint64_t FISCO_PRECOMPILE_MIN = 0x1000;
-
     // Keep small-address semantics (same family as PrecompiledManager lookup).
     for (size_t i = 0; i < 12; ++i)
     {

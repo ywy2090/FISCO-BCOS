@@ -1,8 +1,9 @@
 #define BOOST_TEST_MODULE Bcos21000GasDeviationTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
+#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -32,7 +33,7 @@ BOOST_AUTO_TEST_SUITE(Bcos21000GasDeviationTest)
 
 BOOST_AUTO_TEST_CASE(balance_transfer_gas_constant_documents_deviation)
 {
-    BOOST_CHECK_EQUAL(BALANCE_TRANSFER_GAS, 21'000);
+    BOOST_CHECK_EQUAL(BALANCE_TRANSFER_GAS, gas::TX_BASE_GAS);
 }
 
 BOOST_AUTO_TEST_CASE(fiscoExecute_debits_balance_transfer_gas_before_evm)

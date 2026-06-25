@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-utilities/Common.h"
 #include <algorithm>
 #include <limits>
@@ -27,8 +28,8 @@ namespace bcos::evm::gas
 {
 
 // token = 1 for zero byte, TOKENS_PER_NONZERO_BYTE for non-zero byte; floor = tokens * 10
-constexpr int64_t TOKENS_PER_NONZERO_BYTE = 4;
-constexpr int64_t TOTAL_COST_FLOOR_PER_TOKEN = 10;
+inline constexpr int64_t TOKENS_PER_NONZERO_BYTE = 4;
+inline constexpr int64_t TOTAL_COST_FLOOR_PER_TOKEN = 10;
 
 struct Eip7623Components
 {
@@ -53,12 +54,12 @@ inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data)
     {
         if (byte == 0)
         {
-            components.normalCost += 4;
+            components.normalCost += ZERO_BYTE_INTRINSIC_COST;
             ++components.tokenCount;
         }
         else
         {
-            components.normalCost += 16;
+            components.normalCost += NONZERO_BYTE_INTRINSIC_COST;
             components.tokenCount += TOKENS_PER_NONZERO_BYTE;
         }
     }
