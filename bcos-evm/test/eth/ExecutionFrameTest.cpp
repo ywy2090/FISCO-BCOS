@@ -20,8 +20,12 @@ namespace bcos::evm::test
 {
 namespace
 {
-struct CallOutcome : FrameBalanceOutcome
+struct CallOutcome
 {
+    evmc_status_code status{};
+    int64_t gasLeft{};
+    bcos::u256 senderBalance{};
+    bcos::u256 recipientBalance{};
     bool precompileHit{false};
 };
 
