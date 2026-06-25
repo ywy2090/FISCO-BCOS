@@ -17,13 +17,9 @@
  */
 
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-crypto/ChecksumAddress.h"
-#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/bcos/FiscoAddressDerivation.h"
 #include "bcos-framework/ledger/Features.h"
-#include "bcos-utilities/DataConvertUtility.h"
-#include <fmt/compile.h>
 #include <algorithm>
-#include <array>
 #include <cstring>
 #include <vector>
 
@@ -126,64 +122,23 @@ std::optional<evmc_result> FiscoVmHostPolicy::tryChainPrecompile(
 
 void FiscoVmHostPolicy::deriveNestedCreateAddress(evmc_message& message)
 {
-    if (m_state == nullptr || m_hashImpl == nullptr)
+    if (shouldSkipNestedCreateDerivation(message, m_origin))
     {
         return;
     }
 
-    bool const contractSender =
-        std::memcmp(message.sender.bytes, m_origin.bytes, sizeof(message.sender.bytes)) != 0;
-    if (message.depth == 0 && !contractSender)
-    {
-        return;
-    }
-
-    if (message.kind == EVMC_CREATE2)
-    {
-        auto const deployer =
-            !state::isZeroAddress(m_callerAddress) ? m_callerAddress : message.sender;
-        std::array<bcos::byte, 1 + sizeof(deployer.bytes) + sizeof(message.create2_salt) +
-                                   bcos::crypto::HashType::SIZE>
-            buffer;
-        uint8_t* ptr = buffer.data();
-        *ptr++ = 0xff;
-        ptr = std::uninitialized_copy_n(deployer.bytes, sizeof(deployer.bytes), ptr);
-        auto salt = toBigEndian(state::fromEvmC(message.create2_salt));
-        ptr = std::uninitialized_copy(salt.begin(), salt.end(), ptr);
-        auto inputHash = m_hashImpl->hash(bytesConstRef(message.input_data, message.input_size));
-        ptr = std::uninitialized_copy(inputHash.begin(), inputHash.end(), ptr);
-        auto addressHash = m_hashImpl->hash(bytesConstRef(buffer.data(), buffer.size()));
-        std::copy_n(addressHash.begin() + 12, sizeof(message.code_address.bytes),
-            message.code_address.bytes);
-        message.recipient = message.code_address;
-        return;
-    }
-
-    if (message.kind != EVMC_CREATE)
-    {
-        return;
-    }
-
-    bool const useLegacyAddress =
-        m_revisionFlags.web3Tx ||
-        (m_ledgerConfig != nullptr &&
-            m_ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address));
-    if (useLegacyAddress)
-    {
-        auto const deployer =
-            !state::isZeroAddress(m_callerAddress) ? m_callerAddress : message.sender;
-        auto const nonce = m_state->get_nonce(deployer);
-        auto legacyAddr = newLegacyEVMAddress(bytesConstRef(deployer.bytes), nonce);
-        std::copy(legacyAddr.begin(), legacyAddr.end(), message.code_address.bytes);
-    }
-    else
-    {
-        int64_t callSeq = m_seq != nullptr ? (++*m_seq) : 0;
-        auto address = fmt::format(FMT_COMPILE("{}_{}_{}"), m_blockNumber, m_contextID, callSeq);
-        auto hash = m_hashImpl->hash(address);
-        std::copy_n(hash.data(), sizeof(message.code_address.bytes), message.code_address.bytes);
-    }
-    message.recipient = message.code_address;
+    bool const featureEvmAddress =
+        m_ledgerConfig != nullptr &&
+        m_ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address);
+    applyNestedCreateDerivation(message, FiscoNestedCreateParams{.web3Tx = m_revisionFlags.web3Tx,
+                                             .featureEvmAddress = featureEvmAddress,
+                                             .callerAddress = m_callerAddress,
+                                             .origin = m_origin,
+                                             .blockNumber = m_blockNumber,
+                                             .contextID = m_contextID,
+                                             .nestedSeq = m_seq,
+                                             .state = m_state,
+                                             .hashImpl = m_hashImpl});
 }
 
 void FiscoVmHostPolicy::prepareMessage(evmc_revision rev, evmc_message& msg)

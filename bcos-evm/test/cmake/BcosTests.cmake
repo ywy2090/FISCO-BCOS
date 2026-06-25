@@ -40,6 +40,27 @@ add_test(
     COMMAND ${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
 )
 
+set(FISCO_ADDRESS_DERIVATION_TEST_BINARY_NAME FiscoAddressDerivationTest)
+
+add_executable(${FISCO_ADDRESS_DERIVATION_TEST_BINARY_NAME}
+    bcos/FiscoAddressDerivationTest.cpp
+)
+
+target_include_directories(${FISCO_ADDRESS_DERIVATION_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${FISCO_ADDRESS_DERIVATION_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+    ledger
+)
+
+add_test(
+    NAME FiscoAddressDerivation
+    COMMAND ${FISCO_ADDRESS_DERIVATION_TEST_BINARY_NAME}
+)
+
 set(EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME FiscoExecutionBridgeSmokeTest)
 
 add_executable(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}

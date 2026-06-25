@@ -18,6 +18,7 @@
 
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-crypto/ChecksumAddress.h"
+#include "bcos-evm/bcos/FiscoAddressDerivation.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
@@ -26,13 +27,8 @@
 #include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
-#include "bcos-utilities/DataConvertUtility.h"
-#include <fmt/compile.h>
-#include <fmt/format.h>
 #include <boost/throw_exception.hpp>
 #include <algorithm>
-#include <array>
-#include <cstring>
 #include <exception>
 #include <memory>
 #include <span>
@@ -64,60 +60,13 @@ std::vector<protocol::LogEntry> convertLogs(const std::vector<state::LogEntry>& 
 
 evmc_message deriveMessage(const FiscoTxAdapterInput& input)
 {
-    if (input.hashImpl == nullptr)
-    {
-        return input.message;
-    }
-
     auto message = input.message;
-    switch (message.kind)
-    {
-    case EVMC_CREATE:
-    {
-        if (std::memcmp(message.code_address.bytes, EMPTY_EVM_ADDRESS.bytes,
-                sizeof(EMPTY_EVM_ADDRESS.bytes)) == 0)
-        {
-            if (!input.web3Tx)
-            {
-                auto address = fmt::format(
-                    FMT_COMPILE("{}_{}_{}"), input.blockNumber, input.contextID, input.seq);
-                auto hash = input.hashImpl->hash(address);
-                std::copy_n(
-                    hash.data(), sizeof(message.code_address.bytes), message.code_address.bytes);
-            }
-            else
-            {
-                auto legacyAddr =
-                    newLegacyEVMAddress(bytesConstRef(message.sender.bytes), input.nonce);
-                std::copy(legacyAddr.begin(), legacyAddr.end(), message.code_address.bytes);
-            }
-        }
-        message.recipient = message.code_address;
-        break;
-    }
-    case EVMC_CREATE2:
-    {
-        std::array<bcos::byte, 1 + sizeof(message.sender.bytes) + sizeof(message.create2_salt) +
-                                   crypto::HashType::SIZE>
-            buffer;
-        uint8_t* ptr = buffer.data();
-        *ptr++ = 0xff;
-        ptr = std::uninitialized_copy_n(message.sender.bytes, sizeof(message.sender.bytes), ptr);
-        auto salt = toBigEndian(state::fromEvmC(message.create2_salt));
-        ptr = std::uninitialized_copy(salt.begin(), salt.end(), ptr);
-        auto inputHash =
-            input.hashImpl->hash(bytesConstRef(message.input_data, message.input_size));
-        ptr = std::uninitialized_copy(inputHash.begin(), inputHash.end(), ptr);
-        auto addressHash = input.hashImpl->hash(bytesConstRef(buffer.data(), buffer.size()));
-        std::copy_n(addressHash.begin() + 12, sizeof(message.code_address.bytes),
-            message.code_address.bytes);
-        message.recipient = message.code_address;
-        break;
-    }
-    default:
-        break;
-    }
-
+    applyTopLevelCreateDerivation(message, FiscoTopLevelCreateParams{.web3Tx = input.web3Tx,
+                                               .blockNumber = input.blockNumber,
+                                               .contextID = input.contextID,
+                                               .seq = input.seq,
+                                               .txNonce = input.nonce,
+                                               .hashImpl = input.hashImpl});
     return message;
 }
 

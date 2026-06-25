@@ -16,6 +16,7 @@
 
 #define BOOST_TEST_MODULE FiscoVmHostPolicyTest
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
+#include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryAuthAdapter.h"
@@ -228,11 +229,15 @@ BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)
 {
     MockStateView baseView;
     state::State state(baseView);
-    auto sender = addressFromValue(0x01);
+    auto const sender = addressFromValue(0x01);
+    auto const origin = addressFromValue(0x02);
+    static crypto::Keccak256 hashImpl;
 
     state.set_nonce(sender, 7);
     FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
     deps.state = &state;
+    deps.hashImpl = &hashImpl;
+    deps.origin = origin;
     deps.revisionFlags.web3Tx = true;
     deps.revisionFlags.createLevel = 1;
 
@@ -241,12 +246,16 @@ BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
     state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
 
+    // Minimal initcode: PUSH0 PUSH0 RETURN
+    static uint8_t initCode[] = {0x5F, 0x5F, 0xF3};
+
     evmc_message createMsg{};
     createMsg.kind = EVMC_CREATE;
+    createMsg.depth = 1;
     createMsg.gas = 100000;
     createMsg.sender = sender;
-    createMsg.code_address = addressFromValue(0x4001);
-    createMsg.recipient = createMsg.code_address;
+    createMsg.input_data = initCode;
+    createMsg.input_size = sizeof(initCode);
 
     auto result = host.call(createMsg);
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
