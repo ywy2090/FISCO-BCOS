@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file OpStackPipelineHookBinder.cpp
+ * @file OpStackOrchestrationProfile.cpp
  */
 
-#include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
+#include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
 #ifdef BCOS_EVM_TESTING
 #include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
@@ -25,7 +25,8 @@
 
 namespace bcos::evm
 {
-TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& session)
+
+TxPipelineHooks OpStackOrchestrationProfile::buildHooks(Session& session)
 {
     auto& feeCtx = session.feeCtx;
     TxPipelineHooks hooks;
@@ -72,6 +73,17 @@ TxPipelineHooks OpStackPipelineHookBinder::buildHooks(HookBindingContext& sessio
 #endif
 
     return hooks;
+}
+
+OpStackOrchestrationErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
+    Session const& /*session*/)
+{
+    return OpStackOrchestrationErrorPolicy{};
+}
+
+OpStackOrchestrationProfile::Bindings OpStackOrchestrationProfile::bind(Session& session)
+{
+    return Bindings{buildHooks(session), buildErrorPolicy(session)};
 }
 
 }  // namespace bcos::evm

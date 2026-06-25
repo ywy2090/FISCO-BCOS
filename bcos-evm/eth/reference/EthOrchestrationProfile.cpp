@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file EthPipelineHookBinder.cpp
+ * @file EthOrchestrationProfile.cpp
  */
 
-#include "bcos-evm/eth/reference/EthPipelineHookBinder.h"
+#include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
@@ -26,7 +26,7 @@
 namespace bcos::evm
 {
 
-TxPipelineHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session)
+TxPipelineHooks EthOrchestrationProfile::buildHooks(Session& session)
 {
     auto& input = session.input;
     TxPipelineHooks hooks;
@@ -77,6 +77,16 @@ TxPipelineHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session)
     };
 
     return hooks;
+}
+
+EthOrchestrationErrorPolicy EthOrchestrationProfile::buildErrorPolicy(Session const& /*session*/)
+{
+    return EthOrchestrationErrorPolicy{};
+}
+
+EthOrchestrationProfile::Bindings EthOrchestrationProfile::bind(Session& session)
+{
+    return Bindings{buildHooks(session), buildErrorPolicy(session)};
 }
 
 }  // namespace bcos::evm

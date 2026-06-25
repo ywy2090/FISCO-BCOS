@@ -1,8 +1,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
-#include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
-#include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
+#include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackTxPrecheck.h"
@@ -89,10 +88,9 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
 
         ctx.state.checkpoint();
 
-        OpStackPipelineHookBinder::HookBindingContext session{input, feeCtx};
-        auto hooks = OpStackPipelineHookBinder::buildHooks(session);
-        OpStackOrchestrationErrorPolicy errorPolicy;
-        runTxPipeline(ctx, hooks, errorPolicy);
+        OpStackOrchestrationProfile::Session session{input, feeCtx};
+        auto bindings = OpStackOrchestrationProfile::bind(session);
+        runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
 
         output.evmcResult = std::move(ctx.evmcResult);
         output.logs = std::move(ctx.kernelOutput.logs);
@@ -136,10 +134,9 @@ task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
 
     ctx.gasPrice = feeCtx.m_effectiveGasPrice;
 
-    OpStackPipelineHookBinder::HookBindingContext session{input, feeCtx};
-    auto hooks = OpStackPipelineHookBinder::buildHooks(session);
-    OpStackOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, hooks, errorPolicy);
+    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    auto bindings = OpStackOrchestrationProfile::bind(session);
+    runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);

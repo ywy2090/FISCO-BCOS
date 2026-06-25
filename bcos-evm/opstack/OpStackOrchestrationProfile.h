@@ -13,30 +13,36 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file FiscoPipelineHookBinder.h
+ * @file OpStackOrchestrationProfile.h
  */
 
 #pragma once
 
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
+#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 
 namespace bcos::evm
 {
 
-struct FiscoPipelineHookBinder
+struct OpStackOrchestrationProfile
 {
-    struct HookBindingContext
+    struct Session
     {
-        FiscoExecutionRequest const& input;
-        FiscoExecutionResult& output;
-        FiscoVmHostPolicy& extension;
-        bool fixErrorHandling{false};
-        bool eip7623Enabled{false};
+        OpStackExecutionRequest const& input;
+        OpStackFeeContext& feeCtx;
     };
 
-    static TxPipelineHooks buildHooks(HookBindingContext& session);
+    struct Bindings
+    {
+        TxPipelineHooks hooks;
+        OpStackOrchestrationErrorPolicy errorPolicy;
+    };
+
+    static TxPipelineHooks buildHooks(Session& session);
+    static OpStackOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
+    static Bindings bind(Session& session);
 };
 
 }  // namespace bcos::evm

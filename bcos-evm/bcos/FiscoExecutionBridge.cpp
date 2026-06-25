@@ -19,8 +19,7 @@
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
-#include "bcos-evm/bcos/FiscoOrchestrationErrorPolicy.h"
-#include "bcos-evm/bcos/FiscoPipelineHookBinder.h"
+#include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
@@ -169,15 +168,10 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     FiscoVmHostPolicy extension(input.revisionConfig.enable_balance_transfer, std::move(deps));
     ctx.extension = &extension;
 
-    FiscoPipelineHookBinder::HookBindingContext session{
+    FiscoOrchestrationProfile::Session session{
         input, output, extension, fixErrorHandling, eip7623Enabled};
-    auto hooks = FiscoPipelineHookBinder::buildHooks(session);
-
-    FiscoOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.hashImpl = input.hashImpl;
-    errorPolicy.fixErrorHandling = fixErrorHandling;
-    errorPolicy.fixRevertLogs = input.revisionConfig.fix_revert_logs;
-    runTxPipeline(ctx, hooks, errorPolicy);
+    auto bindings = FiscoOrchestrationProfile::bind(session);
+    runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
@@ -187,7 +181,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
     output.executionContext.message = ctx.message;
 
-    if (hooks.intrinsicPolicy.mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.hooks.intrinsicPolicy.mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

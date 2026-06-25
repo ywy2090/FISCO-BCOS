@@ -13,26 +13,35 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file EthPipelineHookBinder.h
+ * @file EthOrchestrationProfile.h
  */
 
 #pragma once
 
+#include "bcos-evm/eth/orchestration/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/orchestration/TxPipelineHooks.h"
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 
 namespace bcos::evm
 {
 
-struct EthPipelineHookBinder
+struct EthOrchestrationProfile
 {
-    struct HookBindingContext
+    struct Session
     {
         EthReferenceRequest const& input;
         EthReferenceResult& output;
     };
 
-    static TxPipelineHooks buildHooks(HookBindingContext& session);
+    struct Bindings
+    {
+        TxPipelineHooks hooks;
+        EthOrchestrationErrorPolicy errorPolicy;
+    };
+
+    static TxPipelineHooks buildHooks(Session& session);
+    static EthOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
+    static Bindings bind(Session& session);
 };
 
 }  // namespace bcos::evm

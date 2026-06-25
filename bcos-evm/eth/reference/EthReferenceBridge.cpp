@@ -1,8 +1,7 @@
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
-#include "bcos-evm/eth/orchestration/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
-#include "bcos-evm/eth/reference/EthPipelineHookBinder.h"
+#include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
@@ -62,11 +61,10 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     state::EthVmHostPolicy ethExtension;
     ctx.extension = &ethExtension;
 
-    EthPipelineHookBinder::HookBindingContext session{input, output};
-    auto hooks = EthPipelineHookBinder::buildHooks(session);
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthOrchestrationProfile::Session session{input, output};
+    auto bindings = EthOrchestrationProfile::bind(session);
 
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("ethReferenceExecute done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -81,7 +79,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     output.executionContext.message = ctx.message;
     output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
 
-    if (hooks.intrinsicPolicy.mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.hooks.intrinsicPolicy.mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

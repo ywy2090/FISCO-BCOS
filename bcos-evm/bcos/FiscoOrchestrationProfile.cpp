@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file FiscoPipelineHookBinder.cpp
+ * @file FiscoOrchestrationProfile.cpp
  */
 
-#include "bcos-evm/bcos/FiscoPipelineHookBinder.h"
+#include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
@@ -28,7 +28,7 @@
 namespace bcos::evm
 {
 
-TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
+TxPipelineHooks FiscoOrchestrationProfile::buildHooks(Session& session)
 {
     auto& input = session.input;
     TxPipelineHooks hooks;
@@ -97,6 +97,20 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
     };
 
     return hooks;
+}
+
+FiscoOrchestrationErrorPolicy FiscoOrchestrationProfile::buildErrorPolicy(Session const& session)
+{
+    FiscoOrchestrationErrorPolicy errorPolicy;
+    errorPolicy.hashImpl = session.input.hashImpl;
+    errorPolicy.fixErrorHandling = session.fixErrorHandling;
+    errorPolicy.fixRevertLogs = session.input.revisionConfig.fix_revert_logs;
+    return errorPolicy;
+}
+
+FiscoOrchestrationProfile::Bindings FiscoOrchestrationProfile::bind(Session& session)
+{
+    return Bindings{buildHooks(session), buildErrorPolicy(session)};
 }
 
 }  // namespace bcos::evm

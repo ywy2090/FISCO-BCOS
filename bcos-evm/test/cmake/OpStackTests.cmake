@@ -23,7 +23,7 @@ add_executable(OpStackIntrinsicGasSyncTest
     opstack/OpStackIntrinsicGasSyncTest.cpp
     ../opstack/OpStackExecutionBridge.cpp
     ../opstack/OpStackSettlement.cpp
-    ../opstack/OpStackPipelineHookBinder.cpp
+    ../opstack/OpStackOrchestrationProfile.cpp
     ../opstack/OpStackTxPrecheck.cpp
     ../opstack/OpStackTxFeeLedger.cpp
     ../opstack/fee/RollupCost.cpp
@@ -45,11 +45,11 @@ target_include_directories(OpStackFloorGasPrecheckOrderTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackFloorGasPrecheckOrderTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackPreDebitOrder COMMAND OpStackFloorGasPrecheckOrderTest)
-add_executable(OpStackPipelineHookBinderTest opstack/OpStackPipelineHookBinderTest.cpp)
-target_include_directories(OpStackPipelineHookBinderTest PRIVATE
+add_executable(OpStackOrchestrationProfileTest opstack/OpStackOrchestrationProfileTest.cpp)
+target_include_directories(OpStackOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStackPipelineHookBinderTest PRIVATE bcos-evm-op)
-add_test(NAME OpStackPipelineHookBinder COMMAND OpStackPipelineHookBinderTest)
+target_link_libraries(OpStackOrchestrationProfileTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackOrchestrationProfile COMMAND OpStackOrchestrationProfileTest)
 
 set(DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME DepositTxPreCheckTest)
 

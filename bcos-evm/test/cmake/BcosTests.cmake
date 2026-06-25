@@ -83,12 +83,12 @@ target_include_directories(BcosAuthOrchestratorHookTest PRIVATE
 target_link_libraries(BcosAuthOrchestratorHookTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-protocol)
 add_test(NAME BcosAuthOrchestratorHook COMMAND BcosAuthOrchestratorHookTest)
-add_executable(FiscoPipelineHookBinderTest bcos/FiscoPipelineHookBinderTest.cpp)
-target_include_directories(FiscoPipelineHookBinderTest PRIVATE
+add_executable(FiscoOrchestrationProfileTest bcos/FiscoOrchestrationProfileTest.cpp)
+target_include_directories(FiscoOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(FiscoPipelineHookBinderTest PRIVATE
+target_link_libraries(FiscoOrchestrationProfileTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-protocol)
-add_test(NAME FiscoPipelineHookBinder COMMAND FiscoPipelineHookBinderTest)
+add_test(NAME FiscoOrchestrationProfile COMMAND FiscoOrchestrationProfileTest)
 add_executable(FiscoOrchestrationErrorPolicyTest bcos/FiscoOrchestrationErrorPolicyTest.cpp)
 target_include_directories(FiscoOrchestrationErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

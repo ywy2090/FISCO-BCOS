@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE OpStackPipelineHookBinderTest
+#define BOOST_TEST_MODULE OpStackOrchestrationProfileTest
 
-#include "bcos-evm/opstack/OpStackPipelineHookBinder.h"
+#include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/orchestration/TxPipelineContext.h"
@@ -32,8 +32,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     OpStackExecutionRequest input;
     OpStackFeeContext feeCtx;
 
-    OpStackPipelineHookBinder::HookBindingContext session{input, feeCtx};
-    auto hooks = OpStackPipelineHookBinder::buildHooks(session);
+    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    auto hooks = OpStackOrchestrationProfile::buildHooks(session);
 
     BOOST_CHECK_EQUAL(static_cast<int>(hooks.intrinsicPolicy.mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
@@ -60,11 +60,24 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 
     TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
-    OpStackPipelineHookBinder::HookBindingContext session{input, feeCtx};
-    auto hooks = OpStackPipelineHookBinder::buildHooks(session);
+    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    auto hooks = OpStackOrchestrationProfile::buildHooks(session);
     hooks.txCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
+
+BOOST_AUTO_TEST_CASE(bind_returns_hooks_and_error_policy)
+{
+    OpStackExecutionRequest input;
+    OpStackFeeContext feeCtx;
+
+    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    auto bindings = OpStackOrchestrationProfile::bind(session);
+
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.intrinsicPolicy.mode),
+        static_cast<int>(IntrinsicDebitMode::OpStackEntry));
+}
+
 }  // namespace bcos::evm::test

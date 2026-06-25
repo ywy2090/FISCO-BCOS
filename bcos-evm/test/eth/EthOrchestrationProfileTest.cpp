@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE EthPipelineHookBinderTest
+#define BOOST_TEST_MODULE EthOrchestrationProfileTest
 
-#include "bcos-evm/eth/reference/EthPipelineHookBinder.h"
+#include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/orchestration/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -16,8 +16,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
     input.revisionConfig.eip7623 = true;
 
     EthReferenceResult output;
-    EthPipelineHookBinder::HookBindingContext session{input, output};
-    auto hooks = EthPipelineHookBinder::buildHooks(session);
+    EthOrchestrationProfile::Session session{input, output};
+    auto hooks = EthOrchestrationProfile::buildHooks(session);
 
     BOOST_CHECK_EQUAL(static_cast<int>(hooks.intrinsicPolicy.mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
@@ -31,8 +31,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
     input.authorizations.push_back({});
 
     EthReferenceResult output;
-    EthPipelineHookBinder::HookBindingContext session{input, output};
-    auto hooks = EthPipelineHookBinder::buildHooks(session);
+    EthOrchestrationProfile::Session session{input, output};
+    auto hooks = EthOrchestrationProfile::buildHooks(session);
 
     BOOST_CHECK_EQUAL(static_cast<int>(hooks.intrinsicPolicy.mode),
         static_cast<int>(IntrinsicDebitMode::AuthOnly));
@@ -54,13 +54,24 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     EthReferenceResult output;
     TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
-    EthPipelineHookBinder::HookBindingContext session{input, output};
-    auto hooks = EthPipelineHookBinder::buildHooks(session);
+    EthOrchestrationProfile::Session session{input, output};
+    auto hooks = EthOrchestrationProfile::buildHooks(session);
     hooks.txCheckTransactionRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::Malformed));
+}
+
+BOOST_AUTO_TEST_CASE(bind_returns_hooks_and_error_policy)
+{
+    EthReferenceRequest input;
+    EthReferenceResult output;
+    EthOrchestrationProfile::Session session{input, output};
+    auto bindings = EthOrchestrationProfile::bind(session);
+
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.intrinsicPolicy.mode),
+        static_cast<int>(IntrinsicDebitMode::None));
 }
 
 }  // namespace bcos::evm::test

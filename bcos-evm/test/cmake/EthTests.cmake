@@ -82,12 +82,12 @@ target_include_directories(TxPipelineTest PRIVATE
 target_link_libraries(TxPipelineTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME TxPipeline COMMAND TxPipelineTest)
-add_executable(EthPipelineHookBinderTest eth/EthPipelineHookBinderTest.cpp)
-target_include_directories(EthPipelineHookBinderTest PRIVATE
+add_executable(EthOrchestrationProfileTest eth/EthOrchestrationProfileTest.cpp)
+target_include_directories(EthOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(EthPipelineHookBinderTest PRIVATE
+target_link_libraries(EthOrchestrationProfileTest PRIVATE
     bcos-evm-eth bcos-protocol)
-add_test(NAME EthPipelineHookBinder COMMAND EthPipelineHookBinderTest)
+add_test(NAME EthOrchestrationProfile COMMAND EthOrchestrationProfileTest)
 add_executable(OrchestrationErrorPolicyTest eth/OrchestrationErrorPolicyTest.cpp)
 target_include_directories(OrchestrationErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
