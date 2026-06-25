@@ -1,8 +1,8 @@
 # bcos-evm 架构设计原理（评审稿）
 
 **用途：** 供评审者快速理解 `bcos-evm` 的分层契约、扩展机制与治理纪律。
-**配套文档：** 外部入口 [review-pack.md](review-pack.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–019`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`。
-**校验：** 2026-06-24（与 `runTxPipeline` 三路径收敛、ADR-018 dense Isthmus 对齐）
+**配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–019`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`。
+**校验：** 2026-06-25（ExecutionFrame PR1–2 统一帧层；`runTxPipeline` 三路径收敛）
 
 ---
 
@@ -37,7 +37,9 @@ add_library(bcos-evm ALIAS bcos-evm-bcos)
 graph TD
     subgraph kernel["bcos-evm-eth（共享内核）"]
         RO["runTxPipeline()"]
+        EF["runExecutionFrame()"]
         EM["executeMessage()"]
+        EH["EthHost::call()"]
         VHP["VmHostPolicy（基类=标准以太坊语义）"]
         RC["RevisionConfig（EIP 开关位域）"]
     end
@@ -55,6 +57,8 @@ graph TD
     FEB --> RO
     OEB --> RO
     RO --> EM
+    EM --> EF
+    EH --> EF
     FVP -.implements.-> VHP
     OVP -.implements.-> VHP
     FEB -. 注入 .-> PORTS
@@ -80,7 +84,9 @@ graph TD
             │                  bcos-evm-eth （共享内核）                   │
             │  ───────────────────────────────────────────────────────   │
             │   runTxPipeline()      共享编排管线（ADR-019）            │
-            │   executeMessage()        纯函数式 EVM 执行核心              │
+            │   executeMessage()        tx 级薄 adapter（warm/7702/nonce）│
+            │   runExecutionFrame()     统一帧执行 deep module（PR1–2）   │
+            │   EthHost::call()         evmc 嵌套帧 adapter → Nested     │
             │   VmHostPolicy            扩展点基类 = 标准以太坊默认语义     │
             │   RevisionConfig          EIP 开关位域（13 个 bool + 参数）   │
             │   PrecompileRouter        内核精编译路由                     │
@@ -103,7 +109,7 @@ graph TD
 
 自 ADR-019 起，三个执行桥入口均为薄 wrapper：映射输入 → 填充 `TxPipelineHooks` → 调用 `runTxPipeline` → 映射输出。共享步骤（intrinsic debit、`BuildExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot）在 `eth/orchestration/` 单点 enforcement。
 
-内核 `executeMessage` 是纯函数式 EVM 执行核心，仅通过 `VmHostPolicy*` 注入链行为：
+`executeMessage` 现为 **tx 级薄 adapter**：warm 目标、7702 tx auth、sender nonce bump、`finalize_self_destructs` 与 `stateDiff` 映射留在 adapter；帧体（precompile route → checkpoint → value transfer → CREATE → evmone）统一委托 `runExecutionFrame(TopLevel)`。嵌套帧由 evmone 回调 `EthHost::call` → `runExecutionFrame(Nested)`。链行为仍仅通过 `VmHostPolicy*` 注入：
 
 ```cpp
 // eth/ExecuteMessage.h
@@ -120,6 +126,18 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
 
 **编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `debitIntrinsicGas` 修改它，步骤 ⑦ `executeMessage` 使用同一引用（源码：`TxPipeline.cpp`；三路径均 call `runTxPipeline`：`EthReferenceBridge.cpp`、`FiscoExecutionBridge.cpp`、`OpStackExecutionBridge.cpp`）。
 
+### 3.1 Frame execution (ExecutionFrame)
+
+```text
+runTxPipeline → executeMessage (tx adapter)
+                    └─ runExecutionFrame(TopLevel)
+evmone callback → EthHost::call (nested adapter)
+                    └─ runExecutionFrame(Nested)
+                         └─ PrecompileRouter::dispatchPrecompile (step ③, sole call site)
+```
+
+`FrameScope` 由 adapter 显式传入（TopLevel / Nested），Frame 内部不根据 `message.depth` 驱动语义分叉。TopLevel 路径 defer `state.commit()` 至 adapter nonce bump 之后；Nested 路径忽略 `fr.gasRefund`（RR4）。
+
 三个编排入口签名风格一致，但各自携带链特有字段：
 
 | 入口 | 文件 | 链特有输入 | 能力矩阵列语义 |
@@ -130,7 +148,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
 
 > 评审提醒：ETH 列测试通过 **不等于** BCOS/OP 通过。矩阵中标 `inherited` 且 baseline-reachable 的行必须有 TE 路径测试。
 
-### 3.1 固定编排管线（`runTxPipeline`，ADR-019）
+### 3.2 固定编排管线（`runTxPipeline`，ADR-019）
 
 ```text
 ① validate(vm, hashImpl)     — try/catch 外
@@ -149,7 +167,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
 
 OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `stateDiff` 映射仍在 wrapper 外圈（ADR-019 Q7/Q18/Q19）。详见 ADR-019 与 [review-pack.md §2](review-pack.md#2-执行流全景adr-019)。
 
-### 3.2 三路径调用流
+### 3.3 三路径调用流
 
 ```text
    ETH 参考路径        FISCO 生产路径            OP Stack 生产路径
@@ -168,8 +186,13 @@ OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `s
                                ▼
         ┌──────────────────────────────────────────────┐
         │            executeMessage(input)               │
-        │            ── 共享 EVM 内核 ──                  │
-        │   evmone 执行字节码，遇到下列语义点回调扩展点：   │
+        │            ── tx adapter ──                     │
+        │   warm / 7702 auth → runExecutionFrame(TopLevel)│
+        │   nonce bump → commit → finalize_self_destructs │
+        │                                                │
+        │   evmone 嵌套回调 EthHost::call →              │
+        │   runExecutionFrame(Nested)                    │
+        │   遇到下列语义点回调扩展点：                     │
         │                                                │
         │     ├─ tryChainPrecompile()  ── 链精编译分发    │
         │     ├─ skipHostValueTransfer() ── 是否跳过转账  │
@@ -322,7 +345,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 3. **`FiscoPolicy.h` 直接 include `transaction-executor/.../AuthCheck.h` 与 `PrecompiledManager.h`**：位于 `bcos/` 层（允许，且不违反零 `bcos-executor` include），但与 ADR-017 Port 全生命周期方向仍有张力。
 4. **ETH 列定位**：矩阵明确 ETH 路径"不是生产继承证明"，勿把 ETH 测试通过误读为 BCOS/OP 通过。
 5. **Prepare 阶段 dead warm**（Gap 36）：`prepareTransaction` 的 warm set 未持久化到 Execute，属已知无效逻辑，待产品决策清理。
-6. **内核帧语义双轨**（候选 1/3）：`executeMessage` depth=0 与 `EthHost::call` depth>0 仍分两条路径；PrecompileRouter 信封顺序为 transfer→checkpoint→dispatch（与 geth snapshot-first 已知偏差）。
+6. ~~**内核帧语义双轨**~~ **Done (ExecutionFrame PR1–2)**：`executeMessage` 与 `EthHost::call` 均 delegate 至 `runExecutionFrame`；PrecompileRouter 仍保留 transfer→checkpoint→dispatch 信封（与 geth 已知偏差，非 Frame 范围）。
 
 ---
 
@@ -335,6 +358,9 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 共享编排管线 | `eth/orchestration/TxPipeline.cpp` |
 | 编排上下文 / 钩子 | `eth/orchestration/TxPipelineContext.h`、`TxPipelineHooks.h` |
 | 内核入口 | `eth/ExecuteMessage.h` / `.cpp` |
+| ExecutionFrame module | `eth/execution/ExecutionFrame.h` / `.cpp` |
+| Frame helpers | `eth/execution/RouteMessage.*`、`FrameValueTransfer.h`、`ResolveExecutionCode.h`、`FrameCaller.h` |
+| Frame parity tests | `test/eth/ExecutionFrameTest.cpp` |
 | 内核扩展点基类 | `eth/policy/VmHostPolicy.h` |
 | EIP 开关 / 单一 derive | `eth/RevisionConfig.h`（`revisionConfigFromRevision`） |
 | ETH 参考 Policy | `eth/vm/EthPolicy.h` |
