@@ -3,9 +3,13 @@
 #include "bcos-evm/eth/orchestration/TxPipeline.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/orchestration/CaptureSettlementSnapshot.h"
+#include "bcos-evm/eth/orchestration/EthOrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/orchestration/OrchestrationErrorPolicy.h"
+#include "bcos-protocol/TransactionStatus.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
+#include <functional>
 #include <stdexcept>
 #include <type_traits>
 
@@ -21,6 +25,28 @@ TxPipelineContext makeContext(state::test::InMemoryEvmStateReader const& stateVi
     return TxPipelineContext{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(1)};
 }
+
+struct CallbackOrchestrationErrorPolicy : OrchestrationErrorPolicy
+{
+    std::function<void(TxPipelineContext&, IntrinsicDebitFailure)> onIntrinsic;
+    std::function<void(TxPipelineContext&, std::exception_ptr)> onException;
+
+    void onIntrinsicGasFailure(TxPipelineContext& ctx, IntrinsicDebitFailure failure) const override
+    {
+        if (onIntrinsic)
+        {
+            onIntrinsic(ctx, failure);
+        }
+    }
+
+    void onPipelineException(TxPipelineContext& ctx, std::exception_ptr exceptionPtr) const override
+    {
+        if (onException)
+        {
+            onException(ctx, exceptionPtr);
+        }
+    }
+};
 }  // namespace
 
 static_assert(!std::is_default_constructible_v<TxPipelineContext>);
@@ -50,7 +76,8 @@ BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
     hooks.txCheckBalanceAndValue = [&](TxPipelineContext&) { ++checkBalanceAndValueCalls; };
     hooks.txTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
-    runTxPipeline(ctx, hooks);
+    EthOrchestrationErrorPolicy errorPolicy;
+    runTxPipeline(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -60,7 +87,7 @@ BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
     BOOST_CHECK_EQUAL(tuneExecutionInputCalls, 0);
 }
 
-BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_hook)
+BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
 {
     state::test::InMemoryEvmStateReader stateView;
     auto ctx = makeContext(stateView);
@@ -75,7 +102,9 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_hook)
     hooks.intrinsicPolicy.authorizationListPresent = true;
     hooks.intrinsicPolicy.authTupleCount = 2;
     ctx.message.gas = 1;
-    hooks.txHandleIntrinsicGasFailure = [&](TxPipelineContext& c, IntrinsicDebitFailure failure) {
+
+    CallbackOrchestrationErrorPolicy errorPolicy;
+    errorPolicy.onIntrinsic = [&](TxPipelineContext& c, IntrinsicDebitFailure failure) {
         mapped = true;
         BOOST_CHECK_EQUAL(
             static_cast<int>(failure), static_cast<int>(IntrinsicDebitFailure::AuthTupleOutOfGas));
@@ -85,7 +114,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_hook)
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     };
 
-    runTxPipeline(ctx, hooks);
+    runTxPipeline(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(mapped);
     BOOST_CHECK(ctx.earlyExit);
@@ -116,7 +145,8 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
     };
     hooks.txTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
-    runTxPipeline(ctx, hooks);
+    EthOrchestrationErrorPolicy errorPolicy;
+    runTxPipeline(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -138,7 +168,9 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
     TxPipelineHooks hooks;
     hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
     hooks.txCheckBalanceAndValue = [](TxPipelineContext&) { throw std::runtime_error("boom"); };
-    hooks.txHandlePipelineException = [&](TxPipelineContext& c, std::exception_ptr ex) {
+
+    CallbackOrchestrationErrorPolicy errorPolicy;
+    errorPolicy.onException = [&](TxPipelineContext& c, std::exception_ptr ex) {
         mapCalled = true;
         BOOST_REQUIRE(ex != nullptr);
         try
@@ -155,7 +187,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
     };
 
-    runTxPipeline(ctx, hooks);
+    runTxPipeline(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(mapCalled);
     BOOST_CHECK_EQUAL(
@@ -178,6 +210,39 @@ BOOST_AUTO_TEST_CASE(capture_snapshot_non_eip7623_keeps_existing_values)
 
     BOOST_CHECK_EQUAL(ctx.snapshot.gasLimit, 123);
     BOOST_CHECK_EQUAL(ctx.snapshot.evmGasRefund, 456);
+}
+
+// INT-04: completed pipeline path invokes Eth post-execute normalization.
+BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto ctx = makeContext(stateView);
+    ctx.message.depth = 0;
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
+
+    TxPipelineHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.txRunEvmExecutionOverride = [](ExecuteMessageInput&&) -> ExecuteMessageOutput {
+        ExecuteMessageOutput output;
+        evmc_result raw{};
+        raw.status_code = EVMC_INVALID_INSTRUCTION;
+        raw.gas_left = 90'000;
+        output.result = evmc::Result(raw);
+        return output;
+    };
+
+    EthOrchestrationErrorPolicy errorPolicy;
+    runTxPipeline(ctx, hooks, errorPolicy);
+
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::Completed));
+    BOOST_CHECK(ctx.topLevelIncludedTxVmError);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::None));
 }
 
 }  // namespace bcos::evm::test

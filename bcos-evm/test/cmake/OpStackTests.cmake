@@ -50,6 +50,11 @@ target_include_directories(OpStackOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackOrchestrationProfileTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackOrchestrationProfile COMMAND OpStackOrchestrationProfileTest)
+add_executable(OpStackOrchestrationErrorPolicyTest opstack/OpStackOrchestrationErrorPolicyTest.cpp)
+target_include_directories(OpStackOrchestrationErrorPolicyTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackOrchestrationErrorPolicyTest PRIVATE bcos-evm-op bcos-protocol evmone::evmone)
+add_test(NAME OpStackOrchestrationErrorPolicy COMMAND OpStackOrchestrationErrorPolicyTest)
 
 set(DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME DepositTxPreCheckTest)
 
