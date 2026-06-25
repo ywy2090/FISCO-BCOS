@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
     BOOST_CHECK(output.logs.empty());
 }
 
-BOOST_AUTO_TEST_CASE(top_level_revert_still_bumps_sender_nonce_in_state_diff)
+BOOST_AUTO_TEST_CASE(top_level_revert_does_not_bump_sender_nonce)
 {
     state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x03);
@@ -113,10 +113,7 @@ BOOST_AUTO_TEST_CASE(top_level_revert_still_bumps_sender_nonce_in_state_diff)
 
     auto output = executeMessage(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_REVERT);
-
-    auto const diffIt = output.stateDiff.accounts.find(sender);
-    BOOST_REQUIRE(diffIt != output.stateDiff.accounts.end());
-    BOOST_CHECK_EQUAL(diffIt->second.nonce, 2U);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 1U);
 }
 
 }  // namespace bcos::evm::test

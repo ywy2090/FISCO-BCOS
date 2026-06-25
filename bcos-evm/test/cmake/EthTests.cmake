@@ -40,6 +40,26 @@ add_test(
     COMMAND ${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
 )
 
+set(TX_EXECUTION_ADAPTER_TEST_BINARY_NAME TxExecutionAdapterTest)
+
+add_executable(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME}
+    eth/TxExecutionAdapterTest.cpp
+)
+
+target_include_directories(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth evmone::evmone
+)
+
+add_test(
+    NAME TxExecutionAdapter
+    COMMAND ${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME}
+)
+
 add_executable(Eip2929OpcodeGasTest eth/Eip2929OpcodeGasTest.cpp)
 target_include_directories(Eip2929OpcodeGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
