@@ -51,19 +51,20 @@ evmc_message callMessage(evmc_address sender, evmc_address target, int64_t depth
 }
 }  // namespace
 
-// Matrix: T02 — top-level SUCCESS bumps sender nonce in state diff.
+// Matrix: T02 — top-level SUCCESS bumps sender nonce (VM frame path).
 BOOST_AUTO_TEST_CASE(top_level_success_bumps_sender_nonce)
 {
     state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x11);
     auto const target = addressFromLastByte(0x12);
-
-    state::Account senderAccount;
-    senderAccount.nonce = 3;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    bcos::bytes stopCode{0x00};
 
     state::State state(stateView);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 3);
+    state.set_code(target, stopCode,
+        state::keccak256Code(bcos::bytesConstRef{stopCode.data(), stopCode.size()}));
+
     auto input = makePragueCallInput(&state, callMessage(sender, target));
 
     auto const output = TxExecutionAdapter::run(std::move(input));
@@ -77,22 +78,20 @@ BOOST_AUTO_TEST_CASE(skip_top_level_sender_nonce_bump_flag)
     state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x21);
     auto const target = addressFromLastByte(0x22);
-
-    state::Account senderAccount;
-    senderAccount.nonce = 5;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    bcos::bytes stopCode{0x00};
 
     state::State state(stateView);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 5);
+    state.set_code(target, stopCode,
+        state::keccak256Code(bcos::bytesConstRef{stopCode.data(), stopCode.size()}));
+
     auto input = makePragueCallInput(&state, callMessage(sender, target));
     input.skipTopLevelSenderNonceBump = true;
 
     auto const output = TxExecutionAdapter::run(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
-
-    auto const diffIt = output.stateDiff.accounts.find(sender);
-    BOOST_REQUIRE(diffIt != output.stateDiff.accounts.end());
-    BOOST_CHECK_EQUAL(diffIt->second.nonce, 5U);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 5U);
 }
 
 // Matrix: T03 — EIP-7702 auth pre-bump + finalize mutual exclusion (characterization).
