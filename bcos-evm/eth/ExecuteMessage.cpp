@@ -18,12 +18,9 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/execution/warmTransactionEntry.h"
-#include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <optional>
 #include <stdexcept>
@@ -37,20 +34,6 @@ bool isCreateKind(evmc_call_kind kind) noexcept
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
 }
 
-evmc_address resolveCreateAddress(const evmc_message& message, const evmc_result& result) noexcept
-{
-    auto createAddr = message.recipient;
-    if (state::isZeroAddress(createAddr))
-    {
-        createAddr = message.code_address;
-    }
-    if (state::isZeroAddress(createAddr))
-    {
-        createAddr = result.create_address;
-    }
-    return createAddr;
-}
-
 evmc_address resolveCodeAddress(const evmc_message& message) noexcept
 {
     auto codeAddress = message.code_address;
@@ -59,19 +42,6 @@ evmc_address resolveCodeAddress(const evmc_message& message) noexcept
         codeAddress = message.recipient;
     }
     return codeAddress;
-}
-
-bcos::bytes resolveExecutableCode(state::State& state, bcos::bytes code, bool eip7702Enabled)
-{
-    if (!eip7702Enabled || code.empty())
-    {
-        return code;
-    }
-    if (auto const delegate = parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
-    {
-        return state.get_code(*delegate);
-    }
-    return code;
 }
 
 state::Transaction toStateTransaction(const evmc_message& message)
@@ -101,38 +71,6 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
     context.block_base_fee = state::toEvmC(block.baseFee);
     context.blob_base_fee = state::toEvmC(block.blobBaseFee);
     return context;
-}
-
-evmc::Result makeInsufficientBalanceResult() noexcept
-{
-    evmc_result result{};
-    result.status_code = EVMC_INSUFFICIENT_BALANCE;
-    result.gas_left = 0;
-    return evmc::Result(result);
-}
-
-bool applyTopLevelValueTransfer(state::State& state, ExecuteMessageInput const& input) noexcept
-{
-    if (input.message.depth != 0 || isCreateKind(input.message.kind))
-    {
-        return true;
-    }
-    if (input.extension != nullptr && input.extension->skipHostValueTransfer())
-    {
-        return true;
-    }
-    auto const value = state::fromEvmC(input.message.value);
-    if (value == 0)
-    {
-        return true;
-    }
-    auto const recipient = resolveCodeAddress(input.message);
-    if (!canTransfer(state, input.message.sender, value))
-    {
-        return false;
-    }
-    transfer(state, input.message.sender, recipient, value);
-    return true;
 }
 
 void apply7702TxAuthorizationsIfNeeded(
@@ -223,111 +161,34 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
         host.set_execution_address(resolveCodeAddress(input.message));
     }
 
-    bcos::bytes code;
-    if (isCreateKind(input.message.kind))
-    {
-        code.assign(input.message.input_data, input.message.input_data + input.message.input_size);
-    }
-    else
+    if (!isCreateKind(input.message.kind))
     {
         auto const codeAddress = resolveCodeAddress(input.message);
         apply7702TxAuthorizationsIfNeeded(state, input, codeAddress);
-        code = state.get_code(codeAddress);
-        code = resolveExecutableCode(state, std::move(code), input.revisionConfig.eip7702);
-        if (code.empty())
-        {
-            bool const skipVt = input.extension && input.extension->skipHostValueTransfer();
-            auto routed = precompiled::dispatchPrecompile(
-                {state, input.revisionConfig, input.extension, input.message, codeAddress, skipVt});
-            if (routed.outcome != precompiled::PrecompileDispatchOutcome::NotApplicable)
-            {
-                EVM_LOG(TRACE) << LOG_DESC("executeMessage precompile")
-                               << LOG_KV("target", trace::evmcAddress(codeAddress))
-                               << LOG_KV("status", trace::evmcStatus(routed.result.status_code))
-                               << LOG_KV("gasLeft", routed.result.gas_left);
-                output.result = std::move(routed.result);
-                output.gasRefund = routed.gasRefund;
-                output.stateDiff = state.build_diff();
-                output.logs = host.take_logs();
-                return output;
-            }
-        }
     }
 
-    state.checkpoint();
-    if (!applyTopLevelValueTransfer(state, input))
-    {
-        state.revert();
-        EVM_LOG(DEBUG) << LOG_DESC("executeMessage insufficient balance (top-level transfer)");
-        output.result = makeInsufficientBalanceResult();
-        output.logs = host.take_logs();
-        return output;
-    }
-    if (isCreateKind(input.message.kind))
-    {
-        auto const initCode =
-            bcos::bytesConstRef(input.message.input_data, input.message.input_size);
-        state::bindCreateMessageForInit(host, input.message, initCode, state);
-        auto const endowment = state::fromEvmC(input.message.value);
-        if (endowment != 0)
-        {
-            if (!canTransfer(state, input.message.sender, endowment))
-            {
-                state.revert();
-                output.result = makeInsufficientBalanceResult();
-                output.logs = host.take_logs();
-                return output;
-            }
-            transfer(state, input.message.sender, input.message.recipient, endowment);
-        }
-        state::initializeCreateTargetAccount(state, input.message.recipient,
-            input.revisionConfig.revision, input.revisionConfig.warm_access);
-    }
-    output.result = input.vm->execute(
-        host, input.revisionConfig.revision, input.message, code.data(), code.size());
+    execution::FrameContext frameCtx{state, *input.vm, input.revisionConfig, input.extension,
+        txContext.tx_origin, host.execution_address_ref(), input.fixNonceInit};
+
+    auto const scope =
+        input.message.depth == 0 ? execution::FrameScope::TopLevel : execution::FrameScope::Nested;
+    auto fr = execution::runExecutionFrame(frameCtx, input.message, scope, host);
+
+    output.result = std::move(fr.result);
     output.logs = host.take_logs();
 
-    if (output.result.status_code == EVMC_SUCCESS && isCreateKind(input.message.kind))
+    if (fr.precompileHit)
     {
-        auto raw = output.result.release_raw();
-        if (!state::applyCreateCodeDepositGas(raw, input.revisionConfig.revision) &&
-            raw.release != nullptr)
-        {
-            raw.release(&raw);
-            raw.release = nullptr;
-            raw.output_data = nullptr;
-            raw.output_size = 0;
-        }
-        output.result = evmc::Result(raw);
+        EVM_LOG(TRACE) << LOG_DESC("executeMessage precompile")
+                       << LOG_KV("status", trace::evmcStatus(output.result.status_code))
+                       << LOG_KV("gasLeft", output.result.gas_left);
+        output.gasRefund = fr.gasRefund;
+        output.stateDiff = state.build_diff();
+        return output;
     }
+
     if (output.result.status_code == EVMC_SUCCESS)
     {
-        installCreatedContractCode(state, input.message, output.result.raw());
-        if (isCreateKind(input.message.kind))
-        {
-            host.markCreatedInTx(resolveCreateAddress(input.message, output.result.raw()));
-            auto& raw = const_cast<evmc_result&>(output.result.raw());
-            if (state::isZeroAddress(raw.create_address))
-            {
-                raw.create_address = input.message.recipient;
-            }
-        }
-        if (input.fixNonceInit && isCreateKind(input.message.kind))
-        {
-            auto createAddr = input.message.recipient;
-            if (state::isZeroAddress(createAddr))
-            {
-                createAddr = input.message.code_address;
-            }
-            if (state::isZeroAddress(createAddr))
-            {
-                createAddr = output.result.create_address;
-            }
-            if (!state::isZeroAddress(createAddr))
-            {
-                state.set_nonce(createAddr, 1);
-            }
-        }
         if (input.message.depth == 0 && !state::isZeroAddress(input.message.sender))
         {
             bool const authPrebumped =
@@ -345,7 +206,6 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     }
     else
     {
-        state.revert();
         output.gasRefund = static_cast<int64_t>(state.get_refund());
         output.stateDiff = state.build_diff();
     }
