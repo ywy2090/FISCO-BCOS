@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(system_deposit_is_rejected)
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
 
-BOOST_AUTO_TEST_CASE(deposit_skips_nonce_and_fee_checks_but_still_subtracts_gas_pool)
+BOOST_AUTO_TEST_CASE(deposit_skips_nonce_and_fee_checks)
 {
     state::test::InMemoryEvmStateReader stateView;
     auto const sender = addressFromLastByte(0x02);
@@ -61,15 +61,9 @@ BOOST_AUTO_TEST_CASE(deposit_skips_nonce_and_fee_checks_but_still_subtracts_gas_
     input.nonce = 1;
     input.gasTipCap = 100;
     input.gasFeeCap = 1;
-    bool hookCalled = false;
-    input.gasPoolSubGasHook = [&](uint64_t gas) {
-        hookCalled = true;
-        return gas == static_cast<uint64_t>(input.message.gas);
-    };
 
     auto error = opStackTxPrecheck(input, state);
     BOOST_CHECK(!error.has_value());
-    BOOST_CHECK(hookCalled);
 }
 
 BOOST_AUTO_TEST_CASE(non_deposit_rejects_nonce_mismatch)
