@@ -72,9 +72,10 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                    << LOG_KV("gasLeft", ctx.evmcResult.gas_left)
-                   << LOG_KV("includedTxVmError", output.topLevelIncludedTxVmError);
+                   << LOG_KV("includedTxVmError", ctx.topLevelIncludedTxVmError);
 
     output.evmcResult = std::move(ctx.evmcResult);
+    output.topLevelIncludedTxVmError = ctx.topLevelIncludedTxVmError;
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
     output.logs = std::move(ctx.kernelOutput.logs);
     output.executionContext.message = ctx.message;

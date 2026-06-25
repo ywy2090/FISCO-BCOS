@@ -17,8 +17,6 @@ struct TxPipelineHooks
     std::function<void(TxPipelineContext&)> txCheckGasAffordable = [](TxPipelineContext&) {};
     std::function<void(TxPipelineContext&)> txCheckBalanceAndValue = [](TxPipelineContext&) {};
     std::function<void(ExecuteMessageInput&)> txTuneExecutionInput = [](ExecuteMessageInput&) {};
-    std::function<void(TxPipelineContext&)> txPatchExecutionResult = [](TxPipelineContext&) {};
-    std::function<void(TxPipelineContext&)> txFinalizeGasSettlement = [](TxPipelineContext&) {};
     // Test-only seam: when set, pipeline calls this instead of executeMessage (OpStack spy tests).
     std::function<ExecuteMessageOutput(ExecuteMessageInput&&)> txRunEvmExecutionOverride;
 };

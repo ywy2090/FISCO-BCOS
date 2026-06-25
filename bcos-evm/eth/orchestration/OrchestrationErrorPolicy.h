@@ -18,6 +18,10 @@ struct OrchestrationErrorPolicy
     virtual void onPipelineException(
         TxPipelineContext& ctx, std::exception_ptr exceptionPtr) const = 0;
 
+    /// Post-EVM execution result normalization (included-vmerr, CREATE address, revert logs, etc.).
+    /// ADR-015: interface is shared; chain semantics live in Eth/Fisco/OpStack adapters only.
+    virtual void onPostExecuteNormalize(TxPipelineContext& ctx) const { (void)ctx; }
+
     /// Optional post-pipeline normalization (e.g. FISCO negative gas_left clamp).
     virtual void onPipelineComplete(TxPipelineContext& ctx) const { (void)ctx; }
 };

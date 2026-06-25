@@ -88,6 +88,8 @@ public:
     bool earlyExit{false};
     TxPipelineExitKind exitKind{TxPipelineExitKind::None};
     IntrinsicDebitMode intrinsicDebitMode{IntrinsicDebitMode::None};
+    /// Eth-only: set by EthOrchestrationErrorPolicy when top-level vmerr is included in block.
+    bool topLevelIncludedTxVmError{false};
 
 private:
     static bcos::u256 intxToU256(intx::uint256 const& value)

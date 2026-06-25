@@ -173,8 +173,10 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
         input, output, extension, fixErrorHandling, eip7623Enabled};
     auto hooks = FiscoPipelineHookBinder::buildHooks(session);
 
-    FiscoOrchestrationErrorPolicy errorPolicy{
-        .hashImpl = input.hashImpl, .fixErrorHandling = fixErrorHandling};
+    FiscoOrchestrationErrorPolicy errorPolicy;
+    errorPolicy.hashImpl = input.hashImpl;
+    errorPolicy.fixErrorHandling = fixErrorHandling;
+    errorPolicy.fixRevertLogs = input.revisionConfig.fix_revert_logs;
     runTxPipeline(ctx, hooks, errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))

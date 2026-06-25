@@ -20,7 +20,6 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
-#include "bcos-evm/eth/orchestration/NormalizeIncludedTxVmerr.h"
 #include "bcos-evm/eth/reference/EthTxPrecheck.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
@@ -30,7 +29,6 @@ namespace bcos::evm
 TxPipelineHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session)
 {
     auto& input = session.input;
-    auto& output = session.output;
     TxPipelineHooks hooks;
 
     hooks.txCheckTransactionRules = [&input](TxPipelineContext& orchestrationCtx) {
@@ -76,14 +74,6 @@ TxPipelineHooks EthPipelineHookBinder::buildHooks(HookBindingContext& session)
                 EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
             orchestrationCtx.earlyExit = true;
         }
-    };
-
-    hooks.txPatchExecutionResult = [&output, &input](TxPipelineContext& orchestrationCtx) {
-        normalizeSetCodeTransactionVmerr(
-            orchestrationCtx.evmcResult, input.message.depth, input.authorizationListPresent);
-        output.topLevelIncludedTxVmError = isTopLevelIncludedTxVmError(
-            orchestrationCtx.evmcResult.status_code, input.message.depth);
-        normalizeIncludedTxVmerr(orchestrationCtx.evmcResult, input.message.depth);
     };
 
     return hooks;

@@ -116,8 +116,7 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
 
         captureSettlementSnapshot(ctx, ctx.kernelOutput);
 
-        hooks.txPatchExecutionResult(ctx);
-        hooks.txFinalizeGasSettlement(ctx);
+        errorPolicy.onPostExecuteNormalize(ctx);
         ctx.exitKind = TxPipelineExitKind::Completed;
 
         EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline done")

@@ -63,32 +63,4 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
         static_cast<int>(protocol::TransactionStatus::Malformed));
 }
 
-BOOST_AUTO_TEST_CASE(post_adopt_sets_included_tx_vmerr_flag)
-{
-    state::test::InMemoryEvmStateReader stateView;
-
-    evmc_message message{};
-    message.depth = 0;
-    message.gas = 100'000;
-
-    EthReferenceRequest input;
-    input.message = message;
-
-    EthReferenceResult output;
-    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
-
-    evmc_result raw{};
-    raw.status_code = EVMC_INVALID_INSTRUCTION;
-    ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
-
-    EthPipelineHookBinder::HookBindingContext session{input, output};
-    auto hooks = EthPipelineHookBinder::buildHooks(session);
-    hooks.txPatchExecutionResult(ctx);
-
-    BOOST_CHECK(output.topLevelIncludedTxVmError);
-    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
-    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
-        static_cast<int>(protocol::TransactionStatus::None));
-}
-
 }  // namespace bcos::evm::test

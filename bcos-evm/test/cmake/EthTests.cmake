@@ -88,6 +88,12 @@ target_include_directories(EthPipelineHookBinderTest PRIVATE
 target_link_libraries(EthPipelineHookBinderTest PRIVATE
     bcos-evm-eth bcos-protocol)
 add_test(NAME EthPipelineHookBinder COMMAND EthPipelineHookBinderTest)
+add_executable(OrchestrationErrorPolicyTest eth/OrchestrationErrorPolicyTest.cpp)
+target_include_directories(OrchestrationErrorPolicyTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OrchestrationErrorPolicyTest PRIVATE
+    bcos-evm-eth bcos-protocol)
+add_test(NAME OrchestrationErrorPolicy COMMAND OrchestrationErrorPolicyTest)
 add_te_input_builder_test(EthTxInputBuilderTest eth/EthTxInputBuilderTest.cpp)
 add_executable(Eip7702ApplyAuthorizationEthTest eth/Eip7702ApplyAuthorizationEthTest.cpp)
 target_include_directories(Eip7702ApplyAuthorizationEthTest PRIVATE

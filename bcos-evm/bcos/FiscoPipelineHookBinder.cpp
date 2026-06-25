@@ -24,7 +24,6 @@
 #include "bcos-evm/eth/orchestration/TxPipelineContext.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <boost/throw_exception.hpp>
-#include <cstring>
 
 namespace bcos::evm
 {
@@ -95,25 +94,6 @@ TxPipelineHooks FiscoPipelineHookBinder::buildHooks(HookBindingContext& session)
         executeInput.fixStorageStatus = input.revisionConfig.fix_storage_status;
         executeInput.fixNonceInit = input.revisionConfig.fix_nonce_init;
         executeInput.revisionConfig = input.revisionConfig.eth();
-    };
-
-    hooks.txPatchExecutionResult = [](TxPipelineContext& orchestrationCtx) {
-        if ((orchestrationCtx.message.kind == EVMC_CREATE ||
-                orchestrationCtx.message.kind == EVMC_CREATE2) &&
-            orchestrationCtx.evmcResult.status_code == EVMC_SUCCESS &&
-            std::memcmp(orchestrationCtx.evmcResult.create_address.bytes, EMPTY_EVM_ADDRESS.bytes,
-                sizeof(orchestrationCtx.evmcResult.create_address.bytes)) == 0)
-        {
-            orchestrationCtx.evmcResult.create_address = orchestrationCtx.message.recipient;
-        }
-    };
-
-    hooks.txFinalizeGasSettlement = [fixRevertLogs = input.revisionConfig.fix_revert_logs](
-                                        TxPipelineContext& orchestrationCtx) {
-        if (fixRevertLogs && orchestrationCtx.evmcResult.status_code != EVMC_SUCCESS)
-        {
-            orchestrationCtx.kernelOutput.logs.clear();
-        }
     };
 
     return hooks;
