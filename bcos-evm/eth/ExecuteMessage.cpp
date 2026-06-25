@@ -19,7 +19,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
-#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
+#include "bcos-evm/eth/execution/warmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/CreateExecution.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
@@ -135,6 +135,32 @@ bool applyTopLevelValueTransfer(state::State& state, ExecuteMessageInput const& 
     return true;
 }
 
+void apply7702TxAuthorizationsIfNeeded(
+    state::State& state, ExecuteMessageInput const& input, evmc_address const& codeAddress)
+{
+    if (state::isCreateKind(input.message.kind))
+    {
+        return;
+    }
+    if (!input.revisionConfig.eip7702 || !input.authorizationListPresent ||
+        input.authorizations.empty())
+    {
+        return;
+    }
+    state.checkpoint();
+    if (!state::isZeroAddress(input.message.sender))
+    {
+        auto const senderNonce = state.get_nonce(input.message.sender);
+        state.set_nonce(input.message.sender, senderNonce + 1);
+    }
+    applyAuthorizations(state, input.authorizations, input.blockInfo.chainId);
+    if (input.revisionConfig.warm_access && !state::isZeroAddress(codeAddress))
+    {
+        warmDelegationTarget(state, codeAddress);
+    }
+    state.commit();
+}
+
 state::State& resolveState(
     state::EvmStateReader const& stateView, std::optional<state::State>& stateCopy)
 {
@@ -205,22 +231,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
     else
     {
         auto const codeAddress = resolveCodeAddress(input.message);
-        if (input.revisionConfig.eip7702 && input.authorizationListPresent &&
-            !input.authorizations.empty())
-        {
-            state.checkpoint();
-            if (!state::isZeroAddress(input.message.sender))
-            {
-                auto const senderNonce = state.get_nonce(input.message.sender);
-                state.set_nonce(input.message.sender, senderNonce + 1);
-            }
-            applyAuthorizations(state, input.authorizations, input.blockInfo.chainId);
-            if (input.revisionConfig.warm_access && !state::isZeroAddress(codeAddress))
-            {
-                warmDelegationTarget(state, codeAddress);
-            }
-            state.commit();
-        }
+        apply7702TxAuthorizationsIfNeeded(state, input, codeAddress);
         code = state.get_code(codeAddress);
         code = resolveExecutableCode(state, std::move(code), input.revisionConfig.eip7702);
         if (code.empty())
