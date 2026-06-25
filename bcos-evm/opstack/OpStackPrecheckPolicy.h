@@ -13,27 +13,32 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file EthOrchestrationProfile.cpp
+ * @file OpStackPrecheckPolicy.h
  */
 
-#include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
+#pragma once
+
+#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
+#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 
 namespace bcos::evm
 {
 
-EthPrecheckPolicy EthOrchestrationProfile::buildPrecheckPolicy(Session& session)
+struct OpStackPrecheckPolicy : ChainPrecheckPolicy
 {
-    return EthPrecheckPolicy{session.input};
-}
+    explicit OpStackPrecheckPolicy(OpStackFeeContext& feeCtx);
 
-EthOrchestrationErrorPolicy EthOrchestrationProfile::buildErrorPolicy(Session const& /*session*/)
-{
-    return EthOrchestrationErrorPolicy{};
-}
+    IntrinsicGasPolicy intrinsicGasPolicy() const override { return m_intrinsicPolicy; }
 
-EthOrchestrationProfile::Bindings EthOrchestrationProfile::bind(Session& session)
-{
-    return Bindings{buildPrecheckPolicy(session), buildErrorPolicy(session)};
-}
+    void checkGasAffordable(TxPipelineContext& ctx) const override;
+
+    void tuneExecutionInput(ExecuteMessageInput& input) const override;
+
+    ExecuteMessageOutput runEvmExecution(ExecuteMessageInput&& input) const override;
+
+private:
+    OpStackFeeContext& m_feeCtx;
+    IntrinsicGasPolicy m_intrinsicPolicy{};
+};
 
 }  // namespace bcos::evm

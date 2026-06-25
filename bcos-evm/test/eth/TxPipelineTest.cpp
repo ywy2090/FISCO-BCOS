@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
+#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -25,6 +26,69 @@ TxPipelineContext makeContext(state::test::InMemoryEvmStateReader const& stateVi
     return TxPipelineContext{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(1)};
 }
+
+struct CallbackPrecheckPolicy : ChainPrecheckPolicy
+{
+    IntrinsicGasPolicy intrinsicPolicy{};
+
+    std::function<void(TxPipelineContext&)> onSetupMessage;
+    std::function<void(TxPipelineContext&)> onCheckTransactionRules;
+    std::function<void(TxPipelineContext&)> onCheckGasAffordable;
+    std::function<void(TxPipelineContext&)> onCheckBalanceAndValue;
+    std::function<void(ExecuteMessageInput&)> onTuneExecutionInput;
+    std::function<ExecuteMessageOutput(ExecuteMessageInput&&)> onRunEvmExecution;
+
+    IntrinsicGasPolicy intrinsicGasPolicy() const override { return intrinsicPolicy; }
+
+    void setupMessage(TxPipelineContext& ctx) const override
+    {
+        if (onSetupMessage)
+        {
+            onSetupMessage(ctx);
+        }
+    }
+
+    void checkTransactionRules(TxPipelineContext& ctx) const override
+    {
+        if (onCheckTransactionRules)
+        {
+            onCheckTransactionRules(ctx);
+        }
+    }
+
+    void checkGasAffordable(TxPipelineContext& ctx) const override
+    {
+        if (onCheckGasAffordable)
+        {
+            onCheckGasAffordable(ctx);
+        }
+    }
+
+    void checkBalanceAndValue(TxPipelineContext& ctx) const override
+    {
+        if (onCheckBalanceAndValue)
+        {
+            onCheckBalanceAndValue(ctx);
+        }
+    }
+
+    void tuneExecutionInput(ExecuteMessageInput& input) const override
+    {
+        if (onTuneExecutionInput)
+        {
+            onTuneExecutionInput(input);
+        }
+    }
+
+    ExecuteMessageOutput runEvmExecution(ExecuteMessageInput&& input) const override
+    {
+        if (onRunEvmExecution)
+        {
+            return onRunEvmExecution(std::move(input));
+        }
+        return ChainPrecheckPolicy::runEvmExecution(std::move(input));
+    }
+};
 
 struct CallbackOrchestrationErrorPolicy : OrchestrationErrorPolicy
 {
@@ -65,19 +129,21 @@ BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
     int checkGasAffordableCalls = 0;
     int checkBalanceAndValueCalls = 0;
     int tuneExecutionInputCalls = 0;
-    TxPipelineHooks hooks;
-    hooks.txCheckTransactionRules = [](TxPipelineContext& c) {
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.onCheckTransactionRules = [](TxPipelineContext& c) {
         c.earlyExit = true;
         evmc_result failResult{};
         failResult.status_code = EVMC_REJECTED;
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
     };
-    hooks.txCheckGasAffordable = [&](TxPipelineContext&) { ++checkGasAffordableCalls; };
-    hooks.txCheckBalanceAndValue = [&](TxPipelineContext&) { ++checkBalanceAndValueCalls; };
-    hooks.txTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
+    precheckPolicy.onCheckGasAffordable = [&](TxPipelineContext&) { ++checkGasAffordableCalls; };
+    precheckPolicy.onCheckBalanceAndValue = [&](TxPipelineContext&) {
+        ++checkBalanceAndValueCalls;
+    };
+    precheckPolicy.onTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -97,10 +163,10 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
     ctx.inputs.hashImpl = &hashImpl;
 
     bool mapped = false;
-    TxPipelineHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::AuthOnly;
-    hooks.intrinsicPolicy.authorizationListPresent = true;
-    hooks.intrinsicPolicy.authTupleCount = 2;
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::AuthOnly;
+    precheckPolicy.intrinsicPolicy.authorizationListPresent = true;
+    precheckPolicy.intrinsicPolicy.authTupleCount = 2;
     ctx.message.gas = 1;
 
     CallbackOrchestrationErrorPolicy errorPolicy;
@@ -114,7 +180,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     };
 
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(mapped);
     BOOST_CHECK(ctx.earlyExit);
@@ -133,9 +199,9 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
     ctx.inputs.hashImpl = &hashImpl;
 
     int tuneExecutionInputCalls = 0;
-    TxPipelineHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    hooks.txCheckBalanceAndValue = [](TxPipelineContext& c) {
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    precheckPolicy.onCheckBalanceAndValue = [](TxPipelineContext& c) {
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
         failResult.gas_left = 0;
@@ -143,10 +209,10 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
         c.earlyExit = true;
         c.exitKind = TxPipelineExitKind::GasAffordRejected;
     };
-    hooks.txTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
+    precheckPolicy.onTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -165,9 +231,11 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
 
     bool mapCalled = false;
     ctx.state.checkpoint();
-    TxPipelineHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    hooks.txCheckBalanceAndValue = [](TxPipelineContext&) { throw std::runtime_error("boom"); };
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    precheckPolicy.onCheckBalanceAndValue = [](TxPipelineContext&) {
+        throw std::runtime_error("boom");
+    };
 
     CallbackOrchestrationErrorPolicy errorPolicy;
     errorPolicy.onException = [&](TxPipelineContext& c, std::exception_ptr ex) {
@@ -187,7 +255,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
     };
 
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(mapCalled);
     BOOST_CHECK_EQUAL(
@@ -223,9 +291,9 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    TxPipelineHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    hooks.txRunEvmExecutionOverride = [](ExecuteMessageInput&&) -> ExecuteMessageOutput {
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    precheckPolicy.onRunEvmExecution = [](ExecuteMessageInput&&) -> ExecuteMessageOutput {
         ExecuteMessageOutput output;
         evmc_result raw{};
         raw.status_code = EVMC_INVALID_INSTRUCTION;
@@ -235,7 +303,7 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::Completed));

@@ -232,11 +232,17 @@ target_include_directories(DebitIntrinsicGasTest PRIVATE
 target_link_libraries(DebitIntrinsicGasTest PRIVATE bcos-evm-eth)
 add_test(NAME DebitIntrinsicGas COMMAND DebitIntrinsicGasTest)
 
-add_executable(RouteMessageTest eth/RouteMessageTest.cpp)
-target_include_directories(RouteMessageTest PRIVATE
+add_executable(FrameTargetResolverTest eth/FrameTargetResolverTest.cpp)
+target_include_directories(FrameTargetResolverTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(RouteMessageTest PRIVATE bcos-evm-eth evmone::evmone)
-add_test(NAME RouteMessage COMMAND RouteMessageTest)
+target_link_libraries(FrameTargetResolverTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME FrameTargetResolver COMMAND FrameTargetResolverTest)
+
+add_executable(FrameTargetRoutingCharacterizationTest eth/FrameTargetRoutingCharacterizationTest.cpp)
+target_include_directories(FrameTargetRoutingCharacterizationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(FrameTargetRoutingCharacterizationTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME FrameTargetRoutingCharacterization COMMAND FrameTargetRoutingCharacterizationTest)
 
 add_executable(FrameValueTransferTest eth/FrameValueTransferTest.cpp)
 target_include_directories(FrameValueTransferTest PRIVATE

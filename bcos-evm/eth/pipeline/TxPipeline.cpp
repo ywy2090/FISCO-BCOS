@@ -9,7 +9,7 @@
 namespace bcos::evm
 {
 
-void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
+void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
     OrchestrationErrorPolicy const& errorPolicy)
 {
     struct PipelineCompleteGuard
@@ -24,9 +24,11 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
         throw std::invalid_argument("runTxPipeline requires vm/hashImpl");
     }
 
+    auto const intrinsicPolicy = precheckPolicy.intrinsicGasPolicy();
+
     ctx.earlyExit = false;
     ctx.exitKind = TxPipelineExitKind::None;
-    ctx.intrinsicDebitMode = hooks.intrinsicPolicy.mode;
+    ctx.intrinsicDebitMode = intrinsicPolicy.mode;
 
     EVM_LOG(DEBUG) << LOG_DESC("runTxPipeline begin")
                    << LOG_KV("kind", trace::callKind(ctx.message.kind))
@@ -34,16 +36,16 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
                    << LOG_KV("originalGas", ctx.originalGasLimit)
                    << LOG_KV("sender", trace::evmcAddress(ctx.message.sender))
                    << LOG_KV("recipient", trace::evmcAddress(ctx.message.recipient))
-                   << LOG_KV("intrinsicMode", trace::intrinsicDebitMode(hooks.intrinsicPolicy.mode))
+                   << LOG_KV("intrinsicMode", trace::intrinsicDebitMode(intrinsicPolicy.mode))
                    << LOG_KV("revision", static_cast<int>(ctx.revisionConfig.revision));
 
     try
     {
-        hooks.txSetupMessage(ctx);
-        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "txSetupMessage")
+        precheckPolicy.setupMessage(ctx);
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "setupMessage")
                        << LOG_KV("gas", ctx.message.gas);
 
-        hooks.txCheckTransactionRules(ctx);
+        precheckPolicy.checkTransactionRules(ctx);
         if (ctx.earlyExit)
         {
             ctx.exitKind = TxPipelineExitKind::RulesRejected;
@@ -53,7 +55,7 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
             return;
         }
 
-        hooks.txCheckGasAffordable(ctx);
+        precheckPolicy.checkGasAffordable(ctx);
         if (ctx.earlyExit)
         {
             ctx.exitKind = TxPipelineExitKind::GasAffordRejected;
@@ -64,7 +66,7 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
         }
 
         auto const gasBeforeDebit = ctx.message.gas;
-        auto const debitOutcome = debitIntrinsicGas(ctx.message, hooks.intrinsicPolicy);
+        auto const debitOutcome = debitIntrinsicGas(ctx.message, intrinsicPolicy);
         if (!debitOutcome.ok)
         {
             ctx.earlyExit = true;
@@ -84,7 +86,7 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
                            << LOG_KV("gasAfter", ctx.message.gas);
         }
 
-        hooks.txCheckBalanceAndValue(ctx);
+        precheckPolicy.checkBalanceAndValue(ctx);
         if (ctx.earlyExit)
         {
             if (ctx.exitKind == TxPipelineExitKind::None)
@@ -98,20 +100,13 @@ void runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks,
             return;
         }
 
-        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "txRunEvmExecution")
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "runEvmExecution")
                        << LOG_KV("gas", ctx.message.gas);
 
         auto executeInput = buildExecuteMessageInput(ctx);
-        hooks.txTuneExecutionInput(executeInput);
+        precheckPolicy.tuneExecutionInput(executeInput);
 
-        if (hooks.txRunEvmExecutionOverride)
-        {
-            ctx.kernelOutput = hooks.txRunEvmExecutionOverride(std::move(executeInput));
-        }
-        else
-        {
-            ctx.kernelOutput = executeMessage(std::move(executeInput));
-        }
+        ctx.kernelOutput = precheckPolicy.runEvmExecution(std::move(executeInput));
         ctx.evmcResult = adoptEvmcResult(std::move(ctx.kernelOutput.result), *ctx.inputs.hashImpl);
 
         captureSettlementSnapshot(ctx, ctx.kernelOutput);

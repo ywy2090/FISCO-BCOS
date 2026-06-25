@@ -1,6 +1,5 @@
 #pragma once
 #include "bcos-evm/eth/AccessList.h"
-#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
@@ -43,10 +42,7 @@ struct OpStackFeeContext
     bcos::u256 m_blobGasFeeCap{0};
     std::vector<bcos::h256> m_blobVersionedHashes;
     std::optional<RollupCostData> m_rollupCostData;
-    std::optional<EVMCResult> m_evmcResult;
 };
-
-using OpStackTxExecutionData = OpStackFeeContext;
 
 struct OpStackTxFeeLedger
 {

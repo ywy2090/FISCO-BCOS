@@ -18,12 +18,11 @@
 
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
-#include "bcos-evm/eth/execution/Delegation7702Frame.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/FrameCaller.h"
+#include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/execution/ResolveExecutionCode.h"
-#include "bcos-evm/eth/execution/RouteMessage.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -63,12 +62,12 @@ struct FrameWork
 {
     FrameContext& ctx;
     evmc_message const& originalMsg;
-    RoutedMessage routed;
+    FrameTarget target;
     bcos::bytes code;
     state::EthHost& host;
 
-    evmc_message& callMessage() noexcept { return routed.message; }
-    evmc_message const& callMessage() const noexcept { return routed.message; }
+    evmc_message& callMessage() noexcept { return target.routed; }
+    evmc_message const& callMessage() const noexcept { return target.routed; }
 };
 
 void logFrameDoneIfNested(evmc_message const& originalMsg, evmc::Result const& result)
@@ -98,19 +97,17 @@ std::optional<FrameResult> tryPrecompileDispatch(FrameWork& work, FrameScope sco
     {
         return std::nullopt;
     }
-    if (isDelegated7702Message(work.originalMsg) && callMessage.kind != EVMC_CALL)
+    if ((work.originalMsg.flags & EVMC_DELEGATED) != 0 && callMessage.kind != EVMC_CALL)
     {
         return std::nullopt;
     }
-    auto const target = precompiled::resolveDispatchTarget(
-        work.ctx.state, work.ctx.revisionConfig, callMessage, scope);
     bool const skipVt =
         work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer();
     auto out = precompiled::dispatchPrecompile({.state = work.ctx.state,
         .revision = work.ctx.revisionConfig,
         .extension = work.ctx.extension,
         .message = callMessage,
-        .target = target,
+        .target = work.target.executionAddress,
         .skipValueTransfer = skipVt,
         .scope = scope});
     if (out.outcome == precompiled::PrecompileDispatchOutcome::NotApplicable)
@@ -138,11 +135,11 @@ std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
 
 void prepareNestedMessage(FrameWork& work)
 {
-    auto const callerAddress = resolveCallerAddress(work.ctx.executionAddress, work.routed.message);
+    auto const callerAddress = resolveCallerAddress(work.ctx.executionAddress, work.callMessage());
     if (work.ctx.extension != nullptr)
     {
         work.ctx.extension->setCallerAddress(callerAddress);
-        work.ctx.extension->prepareMessage(work.ctx.revisionConfig.revision, work.routed.message);
+        work.ctx.extension->prepareMessage(work.ctx.revisionConfig.revision, work.callMessage());
     }
 }
 
@@ -170,7 +167,8 @@ evmc::Result runVm(FrameWork& work)
     auto& callMessage = work.callMessage();
     if (work.code.empty())
     {
-        work.code = resolveExecutionCode(work.ctx.state, work.ctx.revisionConfig, callMessage);
+        work.code = resolveExecutionCode(
+            work.ctx.state, work.ctx.revisionConfig, callMessage, work.target.executionAddress);
     }
     return work.ctx.vm.execute(work.host, work.ctx.revisionConfig.revision, callMessage,
         work.code.data(), work.code.size());
@@ -273,7 +271,7 @@ FrameResult runFrameSteps(
     FrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     FrameWork work{
-        ctx, message, routeMessage(ctx.state, ctx.revisionConfig, message, scope), {}, host};
+        ctx, message, resolveFrameTarget(ctx.state, ctx.revisionConfig, message, scope), {}, host};
 
     if (auto early = tryPrecompileDispatch(work, scope))
     {

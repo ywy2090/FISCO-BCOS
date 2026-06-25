@@ -17,62 +17,13 @@
  */
 
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
-#include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
-#ifdef BCOS_EVM_TESTING
-#include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
-#endif
-#include <algorithm>
 
 namespace bcos::evm
 {
 
-TxPipelineHooks OpStackOrchestrationProfile::buildHooks(Session& session)
+OpStackPrecheckPolicy OpStackOrchestrationProfile::buildPrecheckPolicy(Session& session)
 {
-    auto& feeCtx = session.feeCtx;
-    TxPipelineHooks hooks;
-
-    hooks.txCheckGasAffordable = [&feeCtx](TxPipelineContext& orchestrationCtx) {
-        auto const gasLimit =
-            static_cast<uint64_t>(std::max<int64_t>(0, orchestrationCtx.originalGasLimit));
-        bcos::bytesConstRef inputData{
-            orchestrationCtx.message.input_data, orchestrationCtx.message.input_size};
-        if (auto preDebitError = opStackFloorGasPrecheck({.message = orchestrationCtx.message,
-                .state = orchestrationCtx.state,
-                .gasLimit = gasLimit,
-                .skipTransactionChecks = feeCtx.m_skipTransactionChecks,
-                .inputData = inputData,
-                .floorDataGasOut = feeCtx.m_floorDataGas});
-            preDebitError.has_value())
-        {
-            orchestrationCtx.evmcResult = std::move(*preDebitError);
-            orchestrationCtx.earlyExit = true;
-        }
-    };
-
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
-    hooks.intrinsicPolicy.authTupleCount = feeCtx.m_authTupleCount;
-    hooks.intrinsicPolicy.accessList = feeCtx.m_accessList;
-    hooks.intrinsicPolicy.web3TypedTxKind = feeCtx.m_web3TypedTxKind;
-
-    if (feeCtx.m_isDepositTx)
-    {
-        hooks.txTuneExecutionInput = [](ExecuteMessageInput& execInput) {
-            execInput.skipTopLevelSenderNonceBump = true;
-        };
-    }
-
-#ifdef BCOS_EVM_TESTING
-    hooks.txRunEvmExecutionOverride = [](ExecuteMessageInput&& execInput) -> ExecuteMessageOutput {
-        if (auto spyOutput = opstack::test::maybeCallExecuteMessageSpy(execInput);
-            spyOutput.has_value())
-        {
-            return std::move(*spyOutput);
-        }
-        return executeMessage(std::move(execInput));
-    };
-#endif
-
-    return hooks;
+    return OpStackPrecheckPolicy{session.feeCtx};
 }
 
 OpStackOrchestrationErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
@@ -83,7 +34,7 @@ OpStackOrchestrationErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
 
 OpStackOrchestrationProfile::Bindings OpStackOrchestrationProfile::bind(Session& session)
 {
-    return Bindings{buildHooks(session), buildErrorPolicy(session)};
+    return Bindings{buildPrecheckPolicy(session), buildErrorPolicy(session)};
 }
 
 }  // namespace bcos::evm

@@ -64,7 +64,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     EthOrchestrationProfile::Session session{input, output};
     auto bindings = EthOrchestrationProfile::bind(session);
 
-    runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
+    runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("ethReferenceExecute done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -79,7 +79,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     output.executionContext.message = ctx.message;
     output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
 
-    if (bindings.hooks.intrinsicPolicy.mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.precheckPolicy.intrinsicGasPolicy().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

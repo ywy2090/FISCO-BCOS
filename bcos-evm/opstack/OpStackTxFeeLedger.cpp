@@ -1,4 +1,5 @@
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 
 #include <algorithm>
@@ -92,8 +93,7 @@ task::Task<bool> OpStackTxFeeLedger::buyGas(TxPipelineContext& ctx, OpStackFeeCo
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
         failResult.gas_left = 0;
-        feeCtx.m_evmcResult.emplace(
-            EVMCResult(failResult, protocol::TransactionStatus::NotEnoughCash));
+        ctx.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::NotEnoughCash);
         co_return false;
     }
 

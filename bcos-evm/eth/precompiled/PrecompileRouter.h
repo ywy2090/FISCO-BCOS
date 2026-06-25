@@ -43,9 +43,4 @@ struct PrecompileRouterOutput
 
 PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input);
 
-/// Single precompile dispatch target (7702 CALL uses authority, not delegate address).
-evmc_address resolveDispatchTarget(state::State const& state,
-    bcos::evm_standard::RevisionConfig const& revision, evmc_message const& message,
-    execution::FrameScope scope);
-
 }  // namespace bcos::evm::precompiled

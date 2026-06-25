@@ -30,8 +30,8 @@ bytes loadFixture(std::string_view name)
     return {std::istreambuf_iterator<char>(input), {}};
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
-    crypto::Hash const& hash, bytes const& calldata)
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView,
+    evmc::VM& vm, crypto::Hash const& hash, bytes const& calldata)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -64,8 +64,7 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
     FakeHash hash;
 
     auto valid = loadFixture("isthmus_l1_attributes.bin");
-    auto okOutput =
-        task::syncWait(opStackExecute(makeDepositInput(stateView, vm, hash, valid)));
+    auto okOutput = task::syncWait(opStackExecute(makeDepositInput(stateView, vm, hash, valid)));
     BOOST_REQUIRE_EQUAL(okOutput.evmcResult.status_code, EVMC_SUCCESS);
     applyStateDiffToView(okOutput.stateDiff, stateView);
 

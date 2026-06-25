@@ -7,8 +7,8 @@
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
-#include <boost/test/included/unit_test.hpp>
 #include <evmone/evmone.h>
+#include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
@@ -49,8 +49,9 @@ uint64_t nonceFromDiff(
     return it->second.nonce;
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
-    const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView,
+    evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
+    const evmc_address& recipient)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -74,8 +75,8 @@ OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& st
     input.revisionConfig.revision = EVMC_CANCUN;
     input.txProps.warmDestination = true;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
-    input.depositTx =
-        OpStackDepositTx{.from = sender, .to = recipient, .mint = u256(100), .value = 0, .gas = 50'000};
+    input.depositTx = OpStackDepositTx{
+        .from = sender, .to = recipient, .mint = u256(100), .value = 0, .gas = 50'000};
     return input;
 }
 }  // namespace
@@ -161,4 +162,3 @@ BOOST_AUTO_TEST_CASE(deposit_entry_failure_bumps_nonce_and_uses_gas_limit)
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 5);
 }
 }  // namespace bcos::evm::test
-

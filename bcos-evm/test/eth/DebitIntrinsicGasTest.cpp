@@ -24,10 +24,9 @@ BOOST_AUTO_TEST_CASE(auth_only_mode_debits_auth_cost)
     message.kind = EVMC_CALL;
     message.gas = 100'000;
 
-    auto const out = debitIntrinsicGas(message,
-        {.mode = IntrinsicDebitMode::AuthOnly,
-            .authorizationListPresent = true,
-            .authTupleCount = 1});
+    auto const out = debitIntrinsicGas(message, {.mode = IntrinsicDebitMode::AuthOnly,
+                                                    .authorizationListPresent = true,
+                                                    .authTupleCount = 1});
     BOOST_REQUIRE(out.ok);
     BOOST_CHECK_EQUAL(out.debitAmount, gas::calcAuthTupleIntrinsicGas(1));
     BOOST_CHECK_EQUAL(message.gas, 100'000 - gas::calcAuthTupleIntrinsicGas(1));
@@ -46,8 +45,8 @@ BOOST_AUTO_TEST_CASE(eip7623_mode_reports_structured_gas_limit_minimum_failure)
 
     auto const out = debitIntrinsicGas(message, {.mode = IntrinsicDebitMode::Eip7623});
     BOOST_REQUIRE(!out.ok);
-    BOOST_CHECK_EQUAL(static_cast<int>(out.failure),
-        static_cast<int>(IntrinsicDebitFailure::GasLimitMinimum));
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(out.failure), static_cast<int>(IntrinsicDebitFailure::GasLimitMinimum));
     BOOST_CHECK_EQUAL(message.gas, calldataGas - 1);
 }
 

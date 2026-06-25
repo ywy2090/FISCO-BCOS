@@ -22,8 +22,6 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
-#include "bcos-evm/eth/execution/Delegation7702Frame.h"
-#include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.h>
@@ -31,7 +29,8 @@
 namespace bcos::evm::execution
 {
 inline bcos::bytes resolveExecutionCode(state::State& state,
-    bcos::evm_standard::RevisionConfig const& revisionConfig, evmc_message const& msg)
+    bcos::evm_standard::RevisionConfig const& revisionConfig, evmc_message const& msg,
+    evmc_address executionAddress)
 {
     if (isCreateKind(msg.kind))
     {
@@ -42,15 +41,7 @@ inline bcos::bytes resolveExecutionCode(state::State& state,
         return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
     }
 
-    auto const codeAddress = resolve7702CodeAddress(msg);
-    if (!state::isZeroAddress(codeAddress) &&
-        precompiled::isActivePrecompile(revisionConfig, codeAddress) &&
-        state.get_code(codeAddress).empty())
-    {
-        return {};
-    }
-
-    auto code = state.get_code(codeAddress);
+    auto code = state.get_code(executionAddress);
     if (revisionConfig.eip7702)
     {
         if (auto const delegate =

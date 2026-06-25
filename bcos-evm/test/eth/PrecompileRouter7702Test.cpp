@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief PrecompileRouter resolveDispatchTarget and EIP-7702 delegation tests.
+ *  @brief PrecompileRouter EIP-7702 delegation tests (via FrameTargetResolver).
  */
 
 #define BOOST_TEST_MODULE PrecompileRouter7702Test
@@ -9,6 +9,7 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
+#include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/policy/VmHostPolicy.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
@@ -73,7 +74,7 @@ FrameBalanceOutcome runDepth1With7702(state::State& state, evmc_message message)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(resolve_dispatch_target_7702_call_uses_authority)
+BOOST_AUTO_TEST_CASE(resolve_frame_target_7702_call_uses_authority)
 {
     auto const authority = addressFromLastByte(0xAA);
     auto const identity = precompileAddress(0x04);
@@ -81,13 +82,14 @@ BOOST_AUTO_TEST_CASE(resolve_dispatch_target_7702_call_uses_authority)
 
     state::test::InMemoryEvmStateReader view;
     state::State state(view);
-    auto const target = precompiled::resolveDispatchTarget(
-        state, pragueCfg(), message, execution::FrameScope::Nested);
+    auto const target =
+        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::Nested);
 
-    BOOST_REQUIRE(std::memcmp(target.bytes, authority.bytes, sizeof(authority.bytes)) == 0);
+    BOOST_REQUIRE(
+        std::memcmp(target.executionAddress.bytes, authority.bytes, sizeof(authority.bytes)) == 0);
 }
 
-BOOST_AUTO_TEST_CASE(resolve_dispatch_target_direct_identity_call)
+BOOST_AUTO_TEST_CASE(resolve_frame_target_direct_identity_call)
 {
     auto const identity = precompileAddress(0x04);
     evmc_message message{};
@@ -97,10 +99,11 @@ BOOST_AUTO_TEST_CASE(resolve_dispatch_target_direct_identity_call)
 
     state::test::InMemoryEvmStateReader view;
     state::State state(view);
-    auto const target = precompiled::resolveDispatchTarget(
-        state, pragueCfg(), message, execution::FrameScope::TopLevel);
+    auto const target =
+        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::TopLevel);
 
-    BOOST_REQUIRE(std::memcmp(target.bytes, identity.bytes, sizeof(identity.bytes)) == 0);
+    BOOST_REQUIRE(
+        std::memcmp(target.executionAddress.bytes, identity.bytes, sizeof(identity.bytes)) == 0);
 }
 
 BOOST_AUTO_TEST_CASE(delegatecall_to_precompile_blocked_at_router_seam)
@@ -122,14 +125,14 @@ BOOST_AUTO_TEST_CASE(delegatecall_to_precompile_blocked_at_router_seam)
     DenyDelegatePrecompilePolicy policy;
     state::test::InMemoryEvmStateReader view;
     state::State state(view);
-    auto const target = precompiled::resolveDispatchTarget(
-        state, pragueCfg(), message, execution::FrameScope::Nested);
+    auto const resolved =
+        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::Nested);
 
     auto output = precompiled::dispatchPrecompile({.state = state,
         .revision = pragueCfg(),
         .extension = &policy,
-        .message = message,
-        .target = target,
+        .message = resolved.routed,
+        .target = resolved.executionAddress,
         .skipValueTransfer = false});
 
     BOOST_REQUIRE_EQUAL(static_cast<int>(output.outcome),
@@ -150,14 +153,14 @@ BOOST_AUTO_TEST_CASE(dispatch_not_applicable_for_7702_delegation_to_precompile)
         state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
 
     auto message = delegatedCallToAuthority(authority, identity);
-    auto const target = precompiled::resolveDispatchTarget(
-        state, pragueCfg(), message, execution::FrameScope::TopLevel);
+    auto const resolved =
+        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::TopLevel);
 
     auto output = precompiled::dispatchPrecompile({.state = state,
         .revision = pragueCfg(),
         .extension = nullptr,
-        .message = message,
-        .target = target,
+        .message = resolved.routed,
+        .target = resolved.executionAddress,
         .skipValueTransfer = false});
 
     BOOST_REQUIRE_EQUAL(static_cast<int>(output.outcome),

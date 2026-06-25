@@ -138,7 +138,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
         OpStackOrchestrationProfile::Session session{input, feeCtx};
         auto bindings = OpStackOrchestrationProfile::bind(session);
-        runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
+        runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
         output.evmcResult = std::move(ctx.evmcResult);
         output.logs = std::move(ctx.kernelOutput.logs);
@@ -166,7 +166,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     if (!buyGasOk)
     {
         releaseGasPoolFullLimit(gasPool, ctx.originalGasLimit);
-        output.evmcResult = std::move(*feeCtx.m_evmcResult);
+        output.evmcResult = std::move(ctx.evmcResult);
         co_return output;
     }
 
@@ -174,7 +174,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     OpStackOrchestrationProfile::Session session{input, feeCtx};
     auto bindings = OpStackOrchestrationProfile::bind(session);
-    runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
+    runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);

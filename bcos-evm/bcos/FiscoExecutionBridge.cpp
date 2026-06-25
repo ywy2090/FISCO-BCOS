@@ -121,7 +121,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     FiscoOrchestrationProfile::Session session{
         input, output, extension, fixErrorHandling, eip7623Enabled};
     auto bindings = FiscoOrchestrationProfile::bind(session);
-    runTxPipeline(ctx, bindings.hooks, bindings.errorPolicy);
+    runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
@@ -131,7 +131,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
     output.executionContext.message = ctx.message;
 
-    if (bindings.hooks.intrinsicPolicy.mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.precheckPolicy.intrinsicGasPolicy().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

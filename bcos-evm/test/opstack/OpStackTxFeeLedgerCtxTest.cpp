@@ -21,6 +21,30 @@ evmc_address fromLastByte(uint8_t value)
 }
 }  // namespace
 
+BOOST_AUTO_TEST_CASE(buyGas_failure_records_result_on_ctx_not_fee_context)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto const sender = fromLastByte(0x43);
+    stateView.insert_account(sender, state::Account{.balance = u256(1)});
+
+    evmc_message msg{};
+    msg.sender = sender;
+    msg.gas = 50'000;
+    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+
+    OpStackFeeContext feeCtx;
+    feeCtx.m_gasTipCap = 1;
+    feeCtx.m_gasFeeCap = 10;
+    feeCtx.m_hasGasFeeCap = true;
+    feeCtx.m_blockInfo.baseFee = 0;
+
+    OpStackTxFeeLedger ledger;
+    BOOST_REQUIRE(!task::syncWait(ledger.buyGas(ctx, feeCtx)));
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
+}
+
 BOOST_AUTO_TEST_CASE(buyGas_uses_ctx_message_not_fee_context_copy)
 {
     state::test::InMemoryEvmStateReader stateView;
@@ -119,11 +143,6 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     feeCtx.m_rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
 
     BOOST_REQUIRE(task::syncWait(executor.buyGas(ctx, feeCtx)));
-
-    evmc_result failResult{};
-    failResult.status_code = EVMC_OUT_OF_GAS;
-    failResult.gas_left = 120;
-    feeCtx.m_evmcResult.emplace(failResult, protocol::TransactionStatus::OutOfGas);
 
     auto const settlement = postExecuteGasSettlement(500, 120, 0, 0);
     OpStackSettlementResult settled;

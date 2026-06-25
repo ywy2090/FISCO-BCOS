@@ -7,7 +7,6 @@
 #include "PrecompileRouter.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
-#include "bcos-evm/eth/execution/Delegation7702Frame.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -16,6 +15,11 @@ namespace bcos::evm::precompiled
 {
 namespace
 {
+inline bool isDelegated7702Message(evmc_message const& msg) noexcept
+{
+    return (msg.flags & EVMC_DELEGATED) != 0;
+}
+
 evmc::Result makeInsufficientBalanceResult() noexcept
 {
     evmc_result result{};
@@ -60,7 +64,7 @@ bool isActiveEmptyPrecompileTarget(state::State const& state,
     {
         return false;
     }
-    if (execution::isDelegated7702Message(message) && message.kind != EVMC_CALL)
+    if (isDelegated7702Message(message) && message.kind != EVMC_CALL)
     {
         return false;
     }
@@ -72,16 +76,6 @@ bool isActiveEmptyPrecompileTarget(state::State const& state,
     return isActivePrecompile(revision, target);
 }
 }  // namespace
-
-evmc_address resolveDispatchTarget(state::State const& state,
-    bcos::evm_standard::RevisionConfig const& revision, evmc_message const& message,
-    execution::FrameScope scope)
-{
-    (void)state;
-    (void)revision;
-    (void)scope;
-    return execution::resolve7702CodeAddress(message);
-}
 
 PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
 {

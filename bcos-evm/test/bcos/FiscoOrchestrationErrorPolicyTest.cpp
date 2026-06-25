@@ -4,6 +4,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
+#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
@@ -510,12 +511,25 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    TxPipelineHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    hooks.txCheckBalanceAndValue = [](TxPipelineContext&) { throw protocol::NotEnoughCashError{}; };
+    struct ThrowBalancePrecheckPolicy : ChainPrecheckPolicy
+    {
+        IntrinsicGasPolicy intrinsicGasPolicy() const override
+        {
+            IntrinsicGasPolicy policy;
+            policy.mode = IntrinsicDebitMode::None;
+            return policy;
+        }
+
+        void checkBalanceAndValue(TxPipelineContext&) const override
+        {
+            throw protocol::NotEnoughCashError{};
+        }
+    };
+
+    ThrowBalancePrecheckPolicy precheckPolicy;
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::ExceptionHandled));

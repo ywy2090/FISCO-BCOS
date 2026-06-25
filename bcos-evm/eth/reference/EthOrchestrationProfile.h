@@ -19,7 +19,7 @@
 #pragma once
 
 #include "bcos-evm/eth/pipeline/EthOrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/pipeline/TxPipelineHooks.h"
+#include "bcos-evm/eth/reference/EthPrecheckPolicy.h"
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 
 namespace bcos::evm
@@ -35,11 +35,11 @@ struct EthOrchestrationProfile
 
     struct Bindings
     {
-        TxPipelineHooks hooks;
+        EthPrecheckPolicy precheckPolicy;
         EthOrchestrationErrorPolicy errorPolicy;
     };
 
-    static TxPipelineHooks buildHooks(Session& session);
+    static EthPrecheckPolicy buildPrecheckPolicy(Session& session);
     static EthOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
     static Bindings bind(Session& session);
 };

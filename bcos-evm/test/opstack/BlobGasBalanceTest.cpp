@@ -198,8 +198,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
 
     auto const balanceBefore = ctx.state.get_balance(sender);
     BOOST_REQUIRE(!task::syncWait(executor.buyGas(ctx, feeCtx)));
-    BOOST_REQUIRE(feeCtx.m_evmcResult.has_value());
-    BOOST_CHECK_EQUAL(feeCtx.m_evmcResult->status_code, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
     BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), balanceBefore);
 }
 

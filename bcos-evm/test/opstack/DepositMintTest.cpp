@@ -5,8 +5,8 @@
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "state/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
-#include <boost/test/included/unit_test.hpp>
 #include <evmone/evmone.h>
+#include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
@@ -47,8 +47,9 @@ uint64_t nonceFromDiff(
     return it->second.nonce;
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
-    const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView,
+    evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
+    const evmc_address& recipient)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -103,4 +104,3 @@ BOOST_AUTO_TEST_CASE(deposit_mint_is_applied_before_execution)
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 3);
 }
 }  // namespace bcos::evm::test
-

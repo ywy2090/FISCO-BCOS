@@ -33,9 +33,9 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     OpStackFeeContext feeCtx;
 
     OpStackOrchestrationProfile::Session session{input, feeCtx};
-    auto hooks = OpStackOrchestrationProfile::buildHooks(session);
+    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(hooks.intrinsicPolicy.mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
 }
 
@@ -61,14 +61,14 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     OpStackOrchestrationProfile::Session session{input, feeCtx};
-    auto hooks = OpStackOrchestrationProfile::buildHooks(session);
-    hooks.txCheckGasAffordable(ctx);
+    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
+    policy.checkGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(bind_returns_hooks_and_error_policy)
+BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
     OpStackExecutionRequest input;
     OpStackFeeContext feeCtx;
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_hooks_and_error_policy)
     OpStackOrchestrationProfile::Session session{input, feeCtx};
     auto bindings = OpStackOrchestrationProfile::bind(session);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.intrinsicPolicy.mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
 }
 

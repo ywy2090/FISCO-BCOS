@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include "bcos-evm/eth/pipeline/TxPipelineHooks.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
+#include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 
 namespace bcos::evm
@@ -36,11 +36,11 @@ struct OpStackOrchestrationProfile
 
     struct Bindings
     {
-        TxPipelineHooks hooks;
+        OpStackPrecheckPolicy precheckPolicy;
         OpStackOrchestrationErrorPolicy errorPolicy;
     };
 
-    static TxPipelineHooks buildHooks(Session& session);
+    static OpStackPrecheckPolicy buildPrecheckPolicy(Session& session);
     static OpStackOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
     static Bindings bind(Session& session);
 };

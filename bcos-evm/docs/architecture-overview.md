@@ -1,8 +1,8 @@
 # bcos-evm 架构设计原理（评审稿）
 
 **用途：** 供评审者快速理解 `bcos-evm` 的分层契约、扩展机制与治理纪律。
-**配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–021`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`。
-**校验：** 2026-06-25（ExecutionFrame PR1–2 统一帧层；`runTxPipeline` 三路径收敛）
+**配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–023`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`、编排后审查 [architecture-review-post-orchestration-2026-06-23.md](architecture-review-post-orchestration-2026-06-23.md)。
+**校验：** 2026-06-25（ExecutionFrame PR4；`TxExecutionAdapter`；`PrecompileActive` 单源；三链 `OrchestrationProfile`；OpStack `runOpStackTxLifecycle` ADR-023）
 
 ---
 
@@ -36,28 +36,37 @@ add_library(bcos-evm ALIAS bcos-evm-bcos)
 ```mermaid
 graph TD
     subgraph kernel["bcos-evm-eth（共享内核）"]
-        RO["runTxPipeline()"]
+        RO["runTxPipeline(hooks, errorPolicy)"]
+        TEA["TxExecutionAdapter::run"]
         EF["runExecutionFrame()"]
-        EM["executeMessage()"]
+        PA["PrecompileActive / PrecompileRouter"]
         EH["EthHost::call()"]
-        VHP["VmHostPolicy（基类=标准以太坊语义）"]
-        RC["RevisionConfig（EIP 开关位域）"]
+        VHP["VmHostPolicy"]
+        RC["RevisionConfig + Eip2929Access"]
     end
     subgraph bcos["bcos-evm-bcos（FISCO）"]
         FEB["fiscoExecute()"]
+        FOP["FiscoOrchestrationProfile::bind"]
         FVP["FiscoVmHostPolicy"]
         FP["FiscoPolicy"]
-        PORTS["AuthPort / ChainPrecompilePort（纯虚接口）"]
+        PORTS["AuthPort / ChainPrecompilePort"]
     end
     subgraph op["bcos-evm-op（OP Stack）"]
         OEB["opStackExecute()"]
+        OTL["runOpStackTxLifecycle()"]
+        OOP["OpStackOrchestrationProfile::bind"]
+        OSET["OpStackSettlement settle*"]
         OVP["OpStackVmHostPolicy"]
     end
-    ETH["ethReferenceExecute()"] --> RO
-    FEB --> RO
-    OEB --> RO
-    RO --> EM
-    EM --> EF
+    ETH["ethReferenceExecute()"] --> EOP["EthOrchestrationProfile::bind"]
+    EOP --> RO
+    FEB --> FOP --> RO
+    OEB --> OTL
+    OTL --> OOP --> RO
+    OTL --> OSET
+    RO --> TEA
+    TEA --> EF
+    EF --> PA
     EH --> EF
     FVP -.implements.-> VHP
     OVP -.implements.-> VHP
@@ -73,9 +82,10 @@ graph TD
             │   bcos-evm-bcos (FISCO)   │   │   bcos-evm-op (OP Stack)  │
             │  ──────────────────────   │   │  ──────────────────────   │
             │  fiscoExecute()           │   │  opStackExecute()         │
-            │  FiscoVmHostPolicy        │   │  OpStackVmHostPolicy      │
-            │  FiscoPolicy              │   │  (Isthmus profile)        │
-            │  AuthPort /               │   │                           │
+            │  FiscoOrchestrationProfile│   │  runOpStackTxLifecycle()  │
+            │  FiscoVmHostPolicy        │   │  OpStackOrchestrationProf.│
+            │  FiscoPolicy              │   │  OpStackSettlement        │
+            │  AuthPort /               │   │  OpStackVmHostPolicy      │
             │  ChainPrecompilePort      │   │                           │
             └────────────┬─────────────┘   └─────────────┬────────────┘
                          │   依赖（单向）                  │   依赖（单向）
@@ -83,14 +93,16 @@ graph TD
             ┌───────────────────────────────────────────────────────────┐
             │                  bcos-evm-eth （共享内核）                   │
             │  ───────────────────────────────────────────────────────   │
-            │   runTxPipeline()      共享编排管线（ADR-019）            │
-            │   executeMessage()        tx 级薄 adapter（warm/7702/nonce）│
-            │   runExecutionFrame()     统一帧执行 deep module（PR1–2）   │
-            │   EthHost::call()         evmc 嵌套帧 adapter → Nested     │
-            │   VmHostPolicy            扩展点基类 = 标准以太坊默认语义     │
-            │   RevisionConfig          EIP 开关位域（13 个 bool + 参数）   │
-            │   PrecompileRouter        内核精编译路由                     │
-            │   EthPolicy / EthReferenceBridge   以太坊参考路径（接线审计）  │
+            │   runTxPipeline()      共享编排管线 + OrchestrationErrorPolicy│
+            │   executeMessage()     → TxExecutionAdapter（tx 级 adapter）  │
+            │   runExecutionFrame()  统一帧 deep module（PR1–4）           │
+            │   EthHost::call()      嵌套帧 adapter → Nested               │
+            │   PrecompileActive.h   warm/dispatch 单源                    │
+            │   PrecompileRouter     checkpoint→transfer→dispatch envelope │
+            │   Eip2929Access.h      2929 / coinbase / CREATE warm gate    │
+            │   VmHostPolicy         扩展点基类 = 标准以太坊默认语义         │
+            │   RevisionConfig       EIP 开关位域（13 bool + 参数）          │
+            │   EthReferenceBridge   以太坊参考路径（接线审计）              │
             └───────────────────────────────────────────────────────────┘
                          │
                          ▼  仅依赖
@@ -105,114 +117,133 @@ graph TD
 
 ---
 
-## 3. 执行流：三入口 → 共享编排 → 内核
+## 3. 执行流：三入口 → Profile 绑定 → 共享编排 → 内核
 
-自 ADR-019 起，三个执行桥入口均为薄 wrapper：映射输入 → 填充 `TxPipelineHooks` → 调用 `runTxPipeline` → 映射输出。共享步骤（intrinsic debit、`BuildExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot）在 `eth/pipeline/` 单点 enforcement。
+自 ADR-019 起，三条链在 **`runTxPipeline` 之前**各自装配 `TxPipelineHooks` + `OrchestrationErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(Session)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
 
-`executeMessage` 现为 **tx 级薄 adapter**：warm 目标、7702 tx auth、sender nonce bump、`finalize_self_destructs` 与 `stateDiff` 映射留在 adapter；帧体（precompile route → checkpoint → value transfer → CREATE → evmone）统一委托 `runExecutionFrame(TopLevel)`。嵌套帧由 evmone 回调 `EthHost::call` → `runExecutionFrame(Nested)`。链行为仍仅通过 `VmHostPolicy*` 注入：
+共享步骤（intrinsic debit、`BuildExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/pipeline/` 单点 enforcement。`runTxPipeline(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onPipelineComplete`。
 
-```cpp
-// eth/ExecuteMessage.h
-struct ExecuteMessageInput {
-    state::EvmStateReader const* stateView;
-    evmc::VM* vm;
-    evmc_message message;
-    bcos::evm_standard::RevisionConfig revisionConfig;
-    state::VmHostPolicy* extension;   // 内核内唯一的链行为注入点
-    // ...
-};
-ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
+**内核入口分层：**
+
+```text
+executeMessage(input)                    // 稳定 TE 符号
+    └─ TxExecutionAdapter::run(input)    // warm / 7702 tx auth / trace
+           └─ runExecutionFrame(TopLevel)
+EthHost::call(msg)
+    └─ runExecutionFrame(Nested)
 ```
 
-**编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `debitIntrinsicGas` 修改它，步骤 ⑦ `executeMessage` 使用同一引用（源码：`TxPipeline.cpp`；三路径均 call `runTxPipeline`：`EthReferenceBridge.cpp`、`FiscoExecutionBridge.cpp`、`OpStackExecutionBridge.cpp`）。
+`TxExecutionAdapter` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runExecutionFrame` 内；链行为通过 `VmHostPolicy*` 注入。
+
+```cpp
+// eth/ExecuteMessage.h — 对外接口不变
+ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
+
+// eth/execution/TxExecutionAdapter.h — 实现体
+namespace bcos::evm::execution {
+struct TxExecutionAdapter {
+    static ExecuteMessageOutput run(ExecuteMessageInput input);
+};
+}
+```
+
+**编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `debitIntrinsicGas` 修改它，步骤 ⑦ `executeMessage` 使用同一引用。三路径内核调用点：`EthReferenceBridge.cpp`、`FiscoExecutionBridge.cpp`、`OpStackTxLifecycle.cpp`（经 `OpStackOrchestrationProfile::bind`）。
 
 ### 3.1 Frame execution (ExecutionFrame)
 
 ```text
-runTxPipeline → executeMessage (tx adapter)
-                    └─ runExecutionFrame(TopLevel)
+runTxPipeline → executeMessage → TxExecutionAdapter::run
+                                    └─ runExecutionFrame(TopLevel)
 evmone callback → EthHost::call (nested adapter)
                     └─ runExecutionFrame(Nested)
-                         └─ PrecompileRouter::dispatchPrecompile (step ③, sole call site)
+                         ├─ FrameTargetResolver (7702 / CREATE address normalization)
+                         └─ PrecompileRouter::dispatchPrecompile (envelope 唯一 dispatch 点)
 ```
 
-`FrameScope` 由 adapter 显式传入（TopLevel / Nested），Frame 内部不根据 `message.depth` 驱动语义分叉。TopLevel 路径 defer `state.commit()` 至 adapter nonce bump 之后；Nested 路径忽略 `fr.gasRefund`（RR4）。
+`FrameScope` 由 adapter 显式传入（TopLevel / Nested），Frame 内部不根据 `message.depth` 驱动语义分叉。TopLevel 路径 defer `state.commit()` 至 `TxExecutionAdapter` nonce bump 之后；Nested 路径忽略 `fr.gasRefund`（RR4）。
 
-**PR4（2026-06-25）：** `ExecutionFrame.cpp` 内部 implementation 双轨已合并为命名 step + `runTopLevelSteps` / `runNestedSteps`；RR6/RR7 scope 执行序冻结不变。
+**Precompile 单源：** tx-entry warm（`WarmTransactionEntry` → `forEachActivePrecompile`）与 dispatch（`PrecompileRouter` → `isActivePrecompile`）共用 `PrecompileActive.h`。帧级路由由 `FrameTargetResolver` 单源产出 `executionAddress`。FISCO `eip2537=false` 时 0x0b–0x11 既不 warm 也不 dispatch（`EipPrecompileRevisionGateTest`）。
+
+**Precompile envelope：** `checkpoint → transfer → dispatch`；失败 `revert`（`PrecompileRouter.cpp`；`PrecompileRouterEnvelopeTest`）。
+
+**PR4：** `ExecutionFrame.cpp` 内部为 `runTopLevelSteps` / `runNestedSteps` + 命名 step；RR6/RR7 执行序冻结。
 
 三个编排入口签名风格一致，但各自携带链特有字段：
 
-| 入口 | 文件 | 链特有输入 | 能力矩阵列语义 |
+| 入口 | 文件 | Profile / 外圈 | 能力矩阵列语义 |
 | --- | --- | --- | --- |
-| `ethReferenceExecute` | `eth/EthReferenceBridge.h` | 无（标准以太坊） | ETH = **接线审计 / 契约测试**（非生产继承证明） |
-| `fiscoExecute` | `bcos/FiscoExecutionBridge.h` | `AuthPort* / ChainPrecompilePort* / persistContractCreateNonce` | BCOS = **FISCO 生产继承契约** |
-| `opStackExecute` | `opstack/OpStackExecutionBridge.h` | deposit tx、blob、rollup cost、fork schedule | OPStack = **OP 生产继承契约** |
+| `ethReferenceExecute` | `eth/reference/EthReferenceBridge.h` | `EthOrchestrationProfile::bind` | ETH = **接线审计**（非生产继承证明） |
+| `fiscoExecute` | `bcos/FiscoExecutionBridge.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | BCOS = **FISCO 生产继承契约** |
+| `opStackExecute` | `opstack/OpStackExecutionBridge.h` | validate → `runOpStackTxLifecycle`（ADR-023） | OPStack = **OP 生产继承契约** |
+| `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | ADR-023 characterization 主面 |
 
 > 评审提醒：ETH 列测试通过 **不等于** BCOS/OP 通过。矩阵中标 `inherited` 且 baseline-reachable 的行必须有 TE 路径测试。
 
 ### 3.2 固定编排管线（`runTxPipeline`，ADR-019）
 
 ```text
-① validate(vm, hashImpl)     — try/catch 外
+① validate(vm, hashImpl)
 ② hooks.txSetupMessage(ctx)
 ③ hooks.txCheckTransactionRules(ctx)      → earlyExit?
 ③½ hooks.txCheckGasAffordable(ctx)       → earlyExit?   （OpStack floor/balance）
 ④ debitIntrinsicGas(ctx.message, intrinsicPolicy) → earlyExit?
+    └─ on failure: errorPolicy.onIntrinsicGasFailure
 ⑤ hooks.txCheckBalanceAndValue(ctx)
 ⑥ buildExecuteMessageInput(ctx) + hooks.txTuneExecutionInput
 ⑦ executeMessage(input)      — input.message == ctx.message
 ⑧ adoptEvmcResult(...)
 ⑨ captureSettlementSnapshot    — Eip7623 mode only
-⑩ hooks.txPatchExecutionResult(ctx)
-⑪ hooks.txFinalizeGasSettlement(ctx)
+⑩ errorPolicy.onPostExecuteNormalize(ctx)
+⑪ （guard）errorPolicy.onPipelineComplete(ctx)
 ```
 
-OpStack 异步 fee（`buyGas`/`refundGas`）、deposit state machine、最终 `stateDiff` 映射仍在 wrapper 外圈（ADR-019 Q7/Q18/Q19）。详见 ADR-019 与 [review-pack.md §2](review-pack.md#2-执行流全景adr-019)。
+异常路径：`errorPolicy.onPipelineException`。链特有 hook 逻辑由 `*OrchestrationProfile` 填充，不再散落在 bridge cpp 匿名 namespace。
 
-### 3.3 三路径调用流
+### 3.3 OpStack 外圈（ADR-021 + ADR-023）
+
+`opStackExecute` 仅校验 `stateView` / `vm` / `hashImpl`，委托 **`runOpStackTxLifecycle`**：
+
+```text
+opStackTxPrecheck（纯校验，无 gasPool 副作用）
+acquireGasPool
+branch:
+  deposit:  depositNonce → mint → checkpoint → runTxPipeline → settleDeposit
+  normal:   buyGas → (fail: releaseGasPool) → runTxPipeline → settleNormal → receiptMeta
+```
+
+`settleNormal` / `settleDeposit` compose `OpStackSettlement`（`finalize*` 同步数学 + `refundGas` + gasPool）。`OpStackOrchestrationProfile::bind` 在 lifecycle 内联调用（D13）。详见 ADR-021/023。
+
+### 3.4 三路径调用流（总览）
 
 ```text
    ETH 参考路径        FISCO 生产路径            OP Stack 生产路径
   ──────────────     ─────────────────        ───────────────────
   ethReferenceExecute  fiscoExecute             opStackExecute
        │                  │                          │
-       │             wrapper 外圈：auth、           wrapper 外圈：
-       │             value xfer、21000 gas          buyGas/refund、deposit、
-       │                                          L1 fee、gas pool
+       │             FiscoOrchestrationProfile      runOpStackTxLifecycle
+       │             .bind(hooks, errorPolicy)      (precheck, gasPool, settle*)
+       │                  │                          │
+       │                  │                    OpStackOrchestrationProfile
+       │                  │                    .bind → runTxPipeline
        └───────┬──────────┴────────────┬─────────────┘
                ▼                        ▼
         ┌──────────────────────────────────────────────┐
-        │         runTxPipeline(ctx, hooks)           │
-        │         ctx.message = intrinsic 唯一 owner     │
+        │    runTxPipeline(ctx, hooks, errorPolicy)   │
+        │    ctx.message = intrinsic 唯一 owner        │
         └──────────────────────┬───────────────────────┘
                                ▼
         ┌──────────────────────────────────────────────┐
-        │            executeMessage(input)               │
-        │            ── tx adapter ──                     │
-        │   warm / 7702 auth → runExecutionFrame(TopLevel)│
-        │   nonce bump → commit → finalize_self_destructs │
-        │                                                │
-        │   evmone 嵌套回调 EthHost::call →              │
-        │   runExecutionFrame(Nested)                    │
-        │   遇到下列语义点回调扩展点：                     │
-        │                                                │
-        │     ├─ tryChainPrecompile()  ── 链精编译分发    │
-        │     ├─ skipHostValueTransfer() ── 是否跳过转账  │
-        │     ├─ allowSelfdestruct()   ── SELFDESTRUCT   │
-        │     ├─ prepareMessage()/setCallerAddress()     │
-        │     └─ bumpContractCreateNonce() ── CREATE     │
-        │                   │                            │
-        │                   ▼                            │
-        │        VmHostPolicy*（多态派发）                │
-        │   ┌───────────────┼────────────────┐          │
-        │   ▼               ▼                ▼          │
-        │ 默认基类     FiscoVmHostPolicy  OpStackVmHostPolicy │
-        │ (标准以太坊)   (FISCO 语义)      (L1Block 预部署) │
+        │  executeMessage → TxExecutionAdapter::run    │
+        │  warm / 7702 → runExecutionFrame(TopLevel)   │
+        │  nonce bump → commit → finalize_self_destructs│
+        │                                              │
+        │  evmone → EthHost::call → runExecutionFrame  │
+        │            (Nested) + VmHostPolicy 回调       │
         └──────────────────────────────────────────────┘
                │
                ▼
-        ExecuteMessageOutput { result, stateDiff, logs, gasRefund }
-        （最终 stateDiff/logs 由 wrapper 映射；OpStack 在 refund 后 build_diff）
+        ExecuteMessageOutput / OpStackExecutionResult
+        （OpStack：lifecycle 内 build_diff + receiptMeta）
 ```
 
 ---
@@ -239,22 +270,30 @@ struct VmHostPolicy {
 - `OpStackVmHostPolicy`：只覆写 `tryChainPrecompile`，挂载 L1Block 预部署。
 - 这些钩子在**内核调用树内部**触发（ADR-005 §3：`VmHostPolicy` 在 kernel 内运行；Orchestrator / `runTxPipeline` 在 `executeMessage` 之前运行）。
 
-### 4.3 `TxPipelineHooks` —— 编排管线注入（ADR-019）
+### 4.3 `TxPipelineHooks` + `OrchestrationErrorPolicy` —— 编排管线注入（ADR-019）
 
-文件：`eth/pipeline/TxPipelineHooks.h`
+文件：`eth/pipeline/TxPipelineHooks.h`、`eth/pipeline/OrchestrationErrorPolicy.h`
 
-链特有编排行为通过 hook 回调注入 `runTxPipeline`，**不得**在 `eth/pipeline/` 内 `#include bcos/` 或 `opstack/`。典型 hook：
+链特有编排通过 **`OrchestrationProfile::bind(Session)`** 产出 `{ hooks, errorPolicy }`，再传入 `runTxPipeline`。三链 profile：
+
+| Profile | 文件 | ErrorPolicy |
+| --- | --- | --- |
+| `EthOrchestrationProfile` | `eth/reference/EthOrchestrationProfile.h` | `EthOrchestrationErrorPolicy` |
+| `FiscoOrchestrationProfile` | `bcos/FiscoOrchestrationProfile.h` | `FiscoOrchestrationErrorPolicy` |
+| `OpStackOrchestrationProfile` | `opstack/OpStackOrchestrationProfile.h` | `OpStackOrchestrationErrorPolicy` |
+
+典型 hook（由 profile 填充，**不得**在 `eth/pipeline/` 内 `#include bcos/` 或 `opstack/`）：
 
 | Hook | Eth | Fisco | OpStack |
 | --- | --- | --- | --- |
 | `txCheckTransactionRules` | 1559 caps、precheck | auth check | — |
-| `txCheckGasAffordable` | — | — | floor/balance（`OpStackFloorGasPrecheck`） |
+| `txCheckGasAffordable` | — | — | floor/balance |
 | `txCheckBalanceAndValue` | `canTransfer` | 21000 gas、value xfer | — |
-| `txPatchExecutionResult` | included-tx vmerr | CREATE address 修补 | — |
-| `txFinalizeGasSettlement` | — | revert logs | `postExecuteGasSettlement` |
-| `txHandleIntrinsicGasFailure` / `txHandlePipelineException` | 链特有错误映射 | Fisco `fixErrorHandling` | internal error |
+| `intrinsicPolicy.mode` | standard / Eip7623 | Eip7623（web3） | `opstack_entry` |
 
-与 `VmHostPolicy` 的分界：hooks 在 `executeMessage` **之前/之后**的管线步骤运行；`VmHostPolicy` 在 evmone 调用树**内部**运行。
+错误语义（included-tx vmerr、Fisco `fixErrorHandling`、OpStack gas settlement）由 **`OrchestrationErrorPolicy`** 方法承载：`onIntrinsicGasFailure`、`onPostExecuteNormalize`、`onPipelineException`、`onPipelineComplete`——替代原 `txPatchExecutionResult` / `txFinalizeGasSettlement` 中分散的 lambda。
+
+与 `VmHostPolicy` 的分界：hooks / errorPolicy 在 `executeMessage` **之前/之后**的管线步骤运行；`VmHostPolicy` 在 evmone 调用树**内部**运行。
 
 ### 4.2 `Port` —— 编排层对 `bcos-executor` 的依赖倒置（ADR-017，本次重构新增）
 
@@ -309,7 +348,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 - **B 类 revision-derived**：`eip1153 / eip4844 / eip5656 / eip6780 / eip1559 / eip3651 / prague_post_execution`
 - **C 类 fork 参数**：`calldata_floor_per_token`
 
-**单一推导源（ADR-018）：** `revisionConfigFromRevision(evmc_revision)` 在 `RevisionConfig.h` 内 canonical 赋值；消费者（`PrecompileActive.h`、`EthHost::selfdestruct` 等）读 `cfg` bool，不在 consumer 侧写 `revision >= EVMC_*`。
+**单一推导源（ADR-018）：** `revisionConfigFromRevision(evmc_revision)` canonical 赋值；消费者读 `cfg` bool。**Precompile 集合**由 `PrecompileActive.h::isActivePrecompile` 单源（warm + dispatch）。**EIP-2929 TE gate** 由 `Eip2929Access.h::isEip2929Enabled` 读 `cfg.warm_access`（FISCO `feature_evm_eip2929=OFF` 为 ADR-004 有意偏离）。
 
 由三套 Policy 生成：
 
@@ -330,7 +369,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 这是该架构区别于一般重构的关键——它不止有代码，还有一套**强制对账系统**：
 
 - **能力矩阵**（`capability-matrix.md`）：每个能力 × 路径（ETH/BCOS/OP）× 层（kernel / orchestration / tx input / revision profile）= 一个单元格；token 只能是 `inherited / explicit / feature-gated / unsupported / deviation`，非 `inherited` 必须写理由 + 测试引用。
-- **ADR 链**（`docs/adr/001–019`）：每个设计决策（基线 vs 参考路径、域边界、7702 门控、precompile port、revision 单源、编排管线…）都有不可变记录。
+- **ADR 链**（`docs/adr/001–023`）：编排管线（019）、settlement（021）、OpStack lifecycle（023）、FISCO CREATE 地址（022）等。
 - **CI 门禁**（`.github/workflows/capability-gate.yml`）：
   - `check-capability-matrix.sh` — 矩阵 token lint
   - `check-revision-single-source.sh` — A 类字段不得在 consumer 侧 `revision >=` 推导
@@ -342,12 +381,14 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 
 ## 7. 评审者应重点质疑的点
 
-1. **profile-only 字段**（Gap 37）：`warm_access / eip1559 / prague_post_execution` 在 Policy 被赋值但尚无 TE 消费者（`prague_post_execution` 为 reserved，恒 `false`）。`eip3651` 已接线：`warmTransactionEntry` 读 `cfg.eip3651` 做 coinbase warm。剩余字段长期应决定**接线还是删字段**。
-2. **warm 与 dispatch 未单源**（候选 2）：tx-entry warm 仍部分按 `evmc_revision` 硬编码，而 dispatch 已读 `cfg.eip2537` 等；FISCO `revision=PRAGUE` + `eip2537=false` 时可能 warm 但不 dispatch。见 [architecture-review-post-orchestration-2026-06-23.md](architecture-review-post-orchestration-2026-06-23.md)。
-3. **`FiscoPolicy.h` 直接 include `transaction-executor/.../AuthCheck.h` 与 `PrecompiledManager.h`**：位于 `bcos/` 层（允许，且不违反零 `bcos-executor` include），但与 ADR-017 Port 全生命周期方向仍有张力。
-4. **ETH 列定位**：矩阵明确 ETH 路径"不是生产继承证明"，勿把 ETH 测试通过误读为 BCOS/OP 通过。
-5. **Prepare 阶段 dead warm**（Gap 36）：`prepareTransaction` 的 warm set 未持久化到 Execute，属已知无效逻辑，待产品决策清理。
-6. ~~**内核帧语义双轨**~~ **Done (ExecutionFrame PR1–4)**：adapter 双轨（PR1–2）与 internal pipeline 双轨（PR4）均已闭合；`executeMessage` / `EthHost::call` delegate 至 `runTopLevelSteps` / `runNestedSteps`；PrecompileRouter 仍保留 transfer→checkpoint→dispatch 信封（与 geth 已知偏差，非 Frame 范围）。
+1. **profile-only 字段**（Gap 37）：`eip1559` / `prague_post_execution` 仍无 TE 消费者（`prague_post_execution` reserved）。`warm_access`、`eip3651` 已接线（`Eip2929Access`、`WarmTransactionEntry`）。
+2. ~~**warm 与 dispatch 未单源**~~ **Done：** `PrecompileActive.h` + `EipPrecompileRevisionGateTest`。
+3. **`FiscoPolicy.h` include `transaction-executor/.../AuthCheck.h`**：与 ADR-017 Port 全生命周期方向仍有张力（候选 5）。
+4. **ETH 列定位**：矩阵明确 ETH 路径非生产继承证明。
+5. **Prepare 阶段 dead warm**（Gap 36）：`prepareTransaction` warm 未持久化到 Execute。
+6. ~~**内核帧语义双轨**~~ **Done (ExecutionFrame PR1–4 + TxExecutionAdapter)**。
+7. ~~**PrecompileRouter envelope 顺序**~~ **Done：** `checkpoint → transfer → dispatch` + envelope 测试。
+8. **OpStack TE 层**：`bcos-evm` 内 ADR-021/023 已闭合；executor 侧 `txData` 影子帧是否残留需 TE 审计（候选 7）。
 
 ---
 
@@ -358,22 +399,32 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 外部 review 入口 | `docs/review-pack.md` |
 | 库划分 / 依赖 | `bcos-evm/CMakeLists.txt` |
 | 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
-| 编排上下文 / 钩子 | `eth/pipeline/TxPipelineContext.h`、`TxPipelineHooks.h` |
-| 内核入口 | `eth/ExecuteMessage.h` / `.cpp` |
-| ExecutionFrame module | `eth/execution/ExecutionFrame.h` / `.cpp` |
-| Frame helpers | `eth/execution/RouteMessage.*`、`FrameValueTransfer.h`、`ResolveExecutionCode.h`、`FrameCaller.h` |
-| Frame parity tests | `test/eth/ExecutionFrameTest.cpp` |
-| 内核扩展点基类 | `eth/policy/VmHostPolicy.h` |
-| EIP 开关 / 单一 derive | `eth/RevisionConfig.h`（`revisionConfigFromRevision`） |
-| ETH 参考 Policy | `eth/policy/EthPolicy.h` |
-| FISCO 编排入口 | `bcos/FiscoExecutionBridge.h` |
-| FISCO 扩展实现 | `bcos/FiscoVmHostPolicy.h` |
-| FISCO 钩子绑定 | `bcos/FiscoPipelineHookBinder.h` |
-| FISCO Policy（derive + 掩码） | `bcos/FiscoPolicy.h` |
-| 依赖倒置端口 | `bcos/ports/AuthPort.h`、`bcos/ports/ChainPrecompilePort.h` |
-| OP 编排入口 | `opstack/OpStackExecutionBridge.h` |
-| OP pre-debit | `opstack/OpStackFloorGasPrecheck.cpp` |
-| OP 扩展实现 | `opstack/OpStackVmHostPolicy.h` |
+| 编排上下文 | `eth/pipeline/TxPipelineContext.h` |
+| 编排钩子 | `eth/pipeline/TxPipelineHooks.h` |
+| 编排错误策略（基类） | `eth/pipeline/OrchestrationErrorPolicy.h` |
+| ETH Profile | `eth/reference/EthOrchestrationProfile.h` |
+| FISCO Profile | `bcos/FiscoOrchestrationProfile.h` |
+| OP Profile | `opstack/OpStackOrchestrationProfile.h` |
+| 内核入口（符号） | `eth/ExecuteMessage.h` / `.cpp` |
+| Tx 级 adapter | `eth/execution/TxExecutionAdapter.h` / `.cpp` |
+| ExecutionFrame | `eth/execution/ExecutionFrame.h` / `.cpp` |
+| Precompile 单源 | `eth/precompiled/PrecompileActive.h` |
+| Precompile 路由 / envelope | `eth/precompiled/PrecompileRouter.cpp` |
+| 2929 warm gate | `eth/execution/Eip2929Access.h` |
+| Tx-entry warm | `eth/execution/WarmTransactionEntry.h` |
+| Frame target resolver | `eth/execution/FrameTargetResolver.h` / `.cpp` |
+| Frame helpers | `eth/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |
+| 内核扩展点 | `eth/policy/VmHostPolicy.h` |
+| EIP 开关 | `eth/RevisionConfig.h` |
+| FISCO 编排 | `bcos/FiscoExecutionBridge.cpp` |
+| FISCO 扩展 | `bcos/FiscoVmHostPolicy.h` |
+| FISCO CREATE 地址 | `bcos/FiscoAddressDerivation.h`（ADR-022） |
+| FISCO Policy | `bcos/FiscoPolicy.h` |
+| 依赖倒置端口 | `bcos/ports/AuthPort.h`、`ChainPrecompilePort.h` |
+| OP 入口 | `opstack/OpStackExecutionBridge.cpp` |
+| OP lifecycle | `opstack/OpStackTxLifecycle.h` / `.cpp`（ADR-023） |
+| OP settlement | `opstack/OpStackSettlement.h` / `.cpp`（ADR-021） |
+| OP 扩展 | `opstack/OpStackVmHostPolicy.h` |
 | 能力契约 | `capability-matrix.md` |
-| 决策记录 | `docs/adr/001–019` |
+| 决策记录 | `docs/adr/001–023` |
 | 技术债台账 | `docs/architecture-known-gaps.md` |

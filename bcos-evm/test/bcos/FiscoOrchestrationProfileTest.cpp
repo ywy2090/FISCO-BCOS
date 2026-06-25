@@ -47,8 +47,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
     FiscoOrchestrationProfile::Session session{
         input, output, extension, false, true /* eip7623Enabled */};
 
-    auto hooks = FiscoOrchestrationProfile::buildHooks(session);
-    BOOST_CHECK_EQUAL(static_cast<int>(hooks.intrinsicPolicy.mode),
+    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(session);
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
 
@@ -76,8 +76,8 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
     ctx.inputs.hashImpl = &hashImpl;
 
     FiscoOrchestrationProfile::Session session{input, output, extension, false, false};
-    auto hooks = FiscoOrchestrationProfile::buildHooks(session);
-    hooks.txCheckTransactionRules(ctx);
+    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(session);
+    policy.checkTransactionRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -109,8 +109,8 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
     TxPipelineContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
 
     FiscoOrchestrationProfile::Session session{input, output, extension, false, false};
-    auto hooks = FiscoOrchestrationProfile::buildHooks(session);
-    hooks.txSetupMessage(ctx);
+    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(session);
+    policy.setupMessage(ctx);
 
     BOOST_CHECK(ctx.message.kind == EVMC_CREATE);
     BOOST_CHECK(std::memcmp(ctx.message.recipient.bytes, ctx.message.code_address.bytes,

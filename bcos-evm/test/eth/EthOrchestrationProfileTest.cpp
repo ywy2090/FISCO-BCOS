@@ -17,9 +17,9 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
 
     EthReferenceResult output;
     EthOrchestrationProfile::Session session{input, output};
-    auto hooks = EthOrchestrationProfile::buildHooks(session);
+    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(session);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(hooks.intrinsicPolicy.mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
 
@@ -32,9 +32,9 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
 
     EthReferenceResult output;
     EthOrchestrationProfile::Session session{input, output};
-    auto hooks = EthOrchestrationProfile::buildHooks(session);
+    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(session);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(hooks.intrinsicPolicy.mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::AuthOnly));
 }
 
@@ -55,22 +55,22 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     EthOrchestrationProfile::Session session{input, output};
-    auto hooks = EthOrchestrationProfile::buildHooks(session);
-    hooks.txCheckTransactionRules(ctx);
+    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(session);
+    policy.checkTransactionRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::Malformed));
 }
 
-BOOST_AUTO_TEST_CASE(bind_returns_hooks_and_error_policy)
+BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
     EthReferenceRequest input;
     EthReferenceResult output;
     EthOrchestrationProfile::Session session{input, output};
     auto bindings = EthOrchestrationProfile::bind(session);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.intrinsicPolicy.mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::None));
 }
 

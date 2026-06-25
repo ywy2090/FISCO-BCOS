@@ -51,26 +51,26 @@ opStackExecute   ──hooks──► runTxPipeline ──► executeMessage
 ### 优先级总览
 
 ```text
-P0  Strong
-  ├─ 1. ExecutionFrame 统一 executeMessage + EthHost::call
-  ├─ 2. ActivePrecompileSet 统一 warm + dispatch
-  ├─ 3. PrecompileRouter checkpoint 信封
-  └─ 4. OrchestrationErrorPolicy
+P0  Strong — 内核帧 / precompile（2026-06-25 已闭合）
+  ├─ 1. ExecutionFrame 统一 executeMessage + EthHost::call     ✅ Done (PR1–4)
+  ├─ 2. ActivePrecompileSet 统一 warm + dispatch               ✅ Done
+  ├─ 3. PrecompileRouter checkpoint 信封                       ✅ Done
+  └─ 4. OrchestrationErrorPolicy                               ✅ Done（三链 adapter + 对称测试）
 
 P1  Worth exploring
   ├─ 5. AuthPort 全生命周期
-  ├─ 6. FiscoAddressDerivation 单 module
-  └─ 7. OpStackSettlementContext
+  ├─ 6. FiscoAddressDerivation 单 module                       ✅ Done (ADR-022 PR-A)
+  └─ 7. OpStackSettlementContext                               ⚠️ bcos-evm 内 largely closed (ADR-021/023)
 
-P2  Speculative
-  └─ 8. Typed OrchestrationProfiles
+P2  Speculative → Done
+  └─ 8. Typed OrchestrationProfiles                            ✅ Done
 ```
 
 ---
 
 ### 候选 1 — ExecutionFrame：统一 executeMessage 与 EthHost::call
 
-**Status:** ✅ Done (ExecutionFrame PR1–2, `ea1e4f2dc..274047e4a`). See `architecture-overview.md` §3.1.
+**Status:** ✅ Done (ExecutionFrame PR1–4, `ea1e4f2dc`..`063366771`). See `architecture-overview.md` §3.1.
 
 **强度:** Strong · **类别:** in-process
 
@@ -97,42 +97,43 @@ P2  Speculative
 
 ### 候选 2 — ActivePrecompileSet：warm 与 dispatch 单源
 
+**Status:** ✅ Done (`070434886` 单源 rollout；`e1106638c` `Eip2929Access` TE gate)。`Eip2929PrecompileWarm.h` 已删除。
+
 **强度:** Strong · **类别:** in-process
 
-**文件:** `eth/execution/Eip2929PrecompileWarm.h` · `eth/precompiled/PrecompileActive.h` · `eth/execution/WarmTransactionEntry.h` · `bcos/FiscoPolicy.h` · `test/eth/EipPrecompileRevisionGateTest.cpp`
+**文件:** `eth/precompiled/PrecompileActive.h` · `eth/execution/WarmTransactionEntry.h` · `eth/precompiled/PrecompileRouter.cpp` · `eth/execution/RouteMessage.cpp` · `bcos/FiscoPolicy.h` · `test/eth/EipPrecompileRevisionGateTest.cpp` · `test/bcos/BcosPrecompileRevisionGateTest.cpp`
 
-**问题（seam 泄漏）：** ADR-018 要求 gated EIP 消费 `RevisionConfig` bool；dispatch 已遵守（`PrecompileActive` 读 `cfg.eip2537`），但 tx-entry warm 仍按 `evmc_revision >= PRAGUE/OSAKA` 硬编码。FISCO 场景 `revision=PRAGUE` + `eip2537=false` 时，0x0b–0x11 仍被 warm 却不会 dispatch——与 geth `ActivePrecompiles(rules)` 分叉。Gap 37 / ADR-004 对 `warm_access` 标 profile-only，与 `EthHost::access_account` 实际读 `m_revisionConfig.warm_access` 不一致。
+**问题（已修复，归档）：** ADR-018 要求 gated EIP 消费 `RevisionConfig` bool；dispatch 已遵守（`PrecompileActive` 读 `cfg.eip2537`），但 tx-entry warm 曾按 `evmc_revision >= PRAGUE/OSAKA` 硬编码。FISCO 场景 `revision=PRAGUE` + `eip2537=false` 时，0x0b–0x11 曾被 warm 却不会 dispatch——与 geth `ActivePrecompiles(rules)` 分叉。
 
-**方案:** 统一 `ActivePrecompileSet(revisionConfig)` module；warm 集与 dispatch 集共用同一 interface；FISCO feature mask 一次生效。
+**落地:** `isActivePrecompile` / `forEachActivePrecompile` 为唯一集合；`WarmTransactionEntry` warm 与 `PrecompileRouter` / `RouteMessage` dispatch 共用。FISCO `FISCO_GATED_FLAG_MAP` 一次 mask `eip2537` / `warm_access`。
 
-**收益:**
+**测试:** `EipPrecompileRevisionGateTest`（含 `fisco_mask_bls_not_warmed_when_eip2537_off`）、`BcosPrecompileRevisionGateTest`、`PrecompileRouterCharacterizationTest` C6。
 
-- 闭合 Gap 37 / ADR-004 漂移
-- ADR-018 消费对齐
+**ADR 张力（已文档化）:** ADR-004 Scheme A — `warm_access` 由 `Eip2929Access.h` 消费；FISCO `feature_evm_eip2929=OFF` 为相对 geth 的有意偏离。Gap 37 台账见 `architecture-known-gaps.md`（`warm_access` / `eip3651` 已闭合；`eip1559` / `prague_post_execution` 仍 profile-only）。
 
-**ADR 张力:** 与 ADR-004 §2（`warm_access` profile-only）直接张力——需更新消费表或改代码。
+**可选后续:** `fiscoExecute(PRAGUE, eip2537=false)` + CALL 0x0b 端到端 gas characterization（warm 单测已覆盖）。
 
 ---
 
 ### 候选 3 — PrecompileRouter envelope：checkpoint 先于 transfer
 
+**Status:** ✅ Done。`PrecompileRouter.cpp` 顺序为 `checkpoint → transfer → dispatch`；`finalizeEnvelope` 失败 `revert`。`PrecompileRouterEnvelopeTest` 含转账后 precompile 失败余额回滚（`3797aceca`）。
+
 **强度:** Strong · **类别:** in-process
 
 **文件:** `eth/precompiled/PrecompileRouter.cpp` · `test/eth/PrecompileRouterEnvelopeTest.cpp` · [error-handling-parity-design](../../docs/superpowers/specs/2026-06-23-eth-evm-error-handling-parity-design.md) §1.1 P0
 
-**问题:** 当前实现 transfer → checkpoint → dispatch；geth 金标准为 Snapshot → Transfer → Run。precompile 失败时 value 可能已转出且无法随 checkpoint revert，影响 stateRoot。纯 Router 单测测不到编排顺序 bug。
+**问题（已修复，归档）：** 错误顺序 transfer → checkpoint → dispatch 时，precompile 失败无法撤销已转 value，影响 stateRoot。
 
-**方案:** `PrecompileEnvelope` module：checkpoint → transfer → dispatch；失败 revert 到 snapshot；与候选 1（ExecutionFrame）合并更佳。
+**落地:** envelope 在 `dispatchPrecompile` 内；`ExecutionFrame` precompile 命中路径委托 Router，不在 frame 层重复 transfer。
 
-**收益:**
-
-- locality：信封顺序单点 enforcement
-- 与 error-handling spec P0 对齐
-- 与 ADR-017（Router 与 Port 正交）不冲突
+**可选后续:** 将 `finalizeEnvelope` 具名化为独立 `PrecompileEnvelope` module（locality，非行为变更）；chain precompile 失败 + value transfer 测试。
 
 ---
 
 ### 候选 4 — OrchestrationErrorPolicy：跨链错误 typed seam
+
+**Status:** ✅ Done (`58bfb9db6` policy 抽取；`738f30e8b` 三链 `OrchestrationProfile::bind`；`1ec290a81` 对称单测）。
 
 **强度:** Strong · **类别:** in-process
 
@@ -167,6 +168,8 @@ P2  Speculative
 
 ### 候选 6 — FiscoAddressDerivation：合并 CREATE 地址逻辑
 
+**Status:** ✅ Done (ADR-022 PR-A, `8a14a497f`).
+
 **强度:** Worth exploring · **类别:** in-process
 
 **文件:** `bcos/FiscoTxAdapter.h` · `bcos/ExecuteViaHost.cpp` · `bcos/FiscoPolicy.h` · `bcos/FiscoHostExtension.cpp`
@@ -181,6 +184,8 @@ P2  Speculative
 
 ### 候选 7 — OpStackSettlementContext：消除 txData 影子帧
 
+**Status:** ⚠️ Partially closed in `bcos-evm`：`OpStackSettlement` + ADR-021；外圈 `runOpStackTxLifecycle`（ADR-023）取代 bridge 内联。TE 层 `txData` 是否仍双轨需单独审计。`feeCtx.m_evmcResult` 已移除（buyGas 失败写 `ctx.evmcResult`）；`OpStackTxExecutionData` 别名已删除。
+
 **强度:** Worth exploring · **类别:** in-process
 
 **文件:** `opstack/OpStackExecuteViaHost.cpp` · `opstack/OpStackPreDebitEntry.cpp` · `test/opstack/OpStackIntrinsicGasSyncTest.cpp` · `test/opstack/OpStackExecuteViaHostSmokeTest.cpp`
@@ -194,6 +199,8 @@ P2  Speculative
 ---
 
 ### 候选 8 — Typed OrchestrationProfiles
+
+**Status:** ✅ Done (`738f30e8b` Eth/Fisco/Op `OrchestrationProfile::bind`).
 
 **强度:** Speculative → Worth exploring（在 P0 之后）· **类别:** in-process
 
@@ -213,8 +220,9 @@ P2  Speculative
 | --- | --- | --- |
 | `runTxPipeline` 步序 | `TxPipelineTest.cpp` | 无链 profile 快照 |
 | `executeViaHost` 编排 hook | `BcosAuthOrchestratorHookTest`, smoke | 无 full Fisco orchestration matrix |
-| OpStack normal 外圈 | `OpStackExecuteViaHostSmokeTest` | earlyExit × refundGas × gas pool 组合少 |
-| PrecompileRouter | 多个 Router 测试 | envelope 顺序 bug 测试可能固化错误行为 |
+| OpStack normal 外圈 | `OpStackTxLifecycleCharacterizationTest`（7 cases） | Isthmus operator fee 边界可选 |
+| PrecompileRouter | `PrecompileRouterEnvelopeTest`（3 cases，含失败回滚） | chain precompile 失败 + value 可选补 |
+| Active precompile warm/dispatch | `EipPrecompileRevisionGateTest`, `BcosPrecompileRevisionGateTest` | FISCO `eip2537=false` 全路径 gas E2E 可选 |
 | Eth included-vmerr | `EthIncludedTxVmerrTest.cpp` | Fisco/Op 无对称 error taxonomy 测试 |
 | OpStack intrinsic sync | `OpStackIntrinsicGasSyncTest.cpp` | deposit 路径 only；normal 路径无 spy |
 
@@ -222,13 +230,13 @@ P2  Speculative
 
 ## 4. Top recommendation
 
-**下一刀：候选 1 + 3（ExecutionFrame + PrecompileRouter envelope）**
+**P0 内核候选（1–4）与 Typed Profiles（8）已闭合（2026-06-25）。**
 
-编排收敛已完成；最高 leverage 的下一 cut 在**内核内部**：单一帧 implementation + 正确 checkpoint→transfer→dispatch 顺序。修复 stateRoot 类 bug，自动惠及 Eth/Fisco/Op，无需再碰 wrapper hook 装配。
+**下一刀：候选 5（AuthPort 全生命周期）** — `FiscoPolicy` 仍 include TE adapter，与 ADR-017 张力；或 **候选 7 TE 层审计**（`txData` 影子帧是否在 executor 残留）。
 
-**随后:** 候选 2（RevisionConfig warm/dispatch 单源）→ 候选 4（OrchestrationErrorPolicy）。
+**不建议再开:** 三路径编排收敛、ExecutionFrame 双轨、warm/dispatch 双轨、PrecompileRouter envelope 顺序。
 
-**不建议再开:** 三路径编排收敛（已完成）。
+**随后（合规）:** EEST smoke manifests、三链 orchestration profile 快照测试。
 
 ---
 
@@ -251,4 +259,5 @@ P2  Speculative
 
 | 日期 | 说明 |
 | --- | --- |
+| 2026-06-25 | 候选 1–4、6、8 标 Done；候选 2/3 测试与 commit 引用；候选 7 标 bcos-evm partial；更新 Top recommendation |
 | 2026-06-23 | 初版：编排迁移后架构审查（subagent explore + improve-codebase-architecture） |

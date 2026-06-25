@@ -20,8 +20,8 @@
 
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoOrchestrationErrorPolicy.h"
+#include "bcos-evm/bcos/FiscoPrecheckPolicy.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/pipeline/TxPipelineHooks.h"
 
 namespace bcos::evm
 {
@@ -39,11 +39,11 @@ struct FiscoOrchestrationProfile
 
     struct Bindings
     {
-        TxPipelineHooks hooks;
+        FiscoPrecheckPolicy precheckPolicy;
         FiscoOrchestrationErrorPolicy errorPolicy;
     };
 
-    static TxPipelineHooks buildHooks(Session& session);
+    static FiscoPrecheckPolicy buildPrecheckPolicy(Session& session);
     static FiscoOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
     static Bindings bind(Session& session);
 };

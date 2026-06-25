@@ -365,21 +365,23 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | Gap | 摘要 | 状态 |
 | --- | --- | --- |
 | 36 | Prepare 阶段 warm 未持久化到 Execute | 待产品决策 |
-| 37 | profile-only 字段无 TE 消费者 | ADR-004 文档化 |
+| 37 | `RevisionConfig` profile-only 字段 | 部分闭合：`warm_access`/`eip3651` 已消费（`Eip2929Access`）；`eip1559`/`prague_post_execution` 仍 profile-only |
 | 38 | eth/ 无 BCOS/OP include | 审计通过，新增 hook 时重跑 |
 
-### 7.2 架构审查下一刀（2026-06-23）
+### 7.2 架构审查下一刀（2026-06-23，2026-06-25 更新）
 
-编排收敛**已完成**。最高 leverage 的 open work 在**内核内部**：
+P0 内核候选**已闭合**。当前 open work：
 
-| 优先级 | 候选 | 问题摘要 |
+| 优先级 | 候选 | 状态 / 摘要 |
 | --- | --- | --- |
-| **P0** | ExecutionFrame | depth=0 与 `EthHost::call` 帧语义双轨 |
-| **P0** | PrecompileRouter envelope | checkpoint 应在 transfer 之前（stateRoot 风险） |
-| **P1** | ActivePrecompileSet | warm 集与 dispatch 集未单源（Gap 37 张力） |
-| **P1** | OrchestrationErrorPolicy | 三链错误语义分散在 wrapper lambda |
+| ~~P0~~ | ExecutionFrame | ✅ Done (PR1–4) |
+| ~~P0~~ | PrecompileRouter envelope | ✅ Done + `PrecompileRouterEnvelopeTest` |
+| ~~P0~~ | ActivePrecompileSet | ✅ Done (`PrecompileActive.h` 单源) |
+| ~~P0~~ | OrchestrationErrorPolicy | ✅ Done（三链 adapter + 对称测试） |
 | **P1** | AuthPort 全生命周期 | `FiscoPolicy` 仍 include TE adapter |
-| **P2** | OpStackSettlementContext | `txData` 影子帧与 `ctx` 部分双轨 |
+| ~~P1~~ | FiscoAddressDerivation | ✅ Done (ADR-022) |
+| **P1** | OpStackSettlementContext | ⚠️ bcos-evm 内 ADR-021/023；TE 层待审计 |
+| ~~P2~~ | Typed OrchestrationProfiles | ✅ Done |
 
 详见：[architecture-review-post-orchestration-2026-06-23.md](architecture-review-post-orchestration-2026-06-23.md)
 
@@ -388,7 +390,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | 区域 | 缺口 |
 | --- | --- |
 | 链 profile 快照 | 无三链 orchestration profile 对照测试 |
-| OpStack normal 外圈 | earlyExit × refundGas × gas pool 组合少 |
+| OpStack normal 外圈 | `OpStackTxLifecycleCharacterizationTest` 已覆盖主路径 |
 | Fisco/Op error taxonomy | 无 Eth `IncludedTxVmerr` 对称测试 |
 
 ---
@@ -401,7 +403,8 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
 | 编排上下文 / 钩子 | `eth/pipeline/TxPipelineContext.h`、`TxPipelineHooks.h` |
 | intrinsic 扣减 | `eth/pipeline/DebitIntrinsicGas.h` |
-| 内核入口 | `eth/ExecuteMessage.h` / `.cpp` |
+| 内核入口 | `eth/ExecuteMessage.h` / `.cpp` → `TxExecutionAdapter` |
+| 内核精编译路由 | `eth/precompiled/PrecompileActive.h`、`PrecompileRouter.cpp` |
 | 内核扩展点 | `eth/policy/HostExtension.h` |
 | EIP 开关位域 | `eth/RevisionConfig.h` |
 | 单一 derive | `revisionConfigFromRevision()` in `RevisionConfig.h` |
@@ -410,8 +413,8 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | FISCO 扩展 | `bcos/FiscoHostExtension.h` |
 | FISCO Policy | `bcos/FiscoPolicy.h` |
 | 依赖倒置端口 | `bcos/ports/AuthPort.h`、`ChainPrecompilePort.h` |
-| OP 编排 | `opstack/OpStackExecuteViaHost.cpp` |
-| OP pre-debit | `opstack/OpStackPreDebitEntry.cpp` |
+| OP 编排 | `opstack/OpStackExecutionBridge.cpp` → `OpStackTxLifecycle.cpp` |
+| OP settlement | `opstack/OpStackSettlement.cpp`（ADR-021） |
 | OP 扩展 | `opstack/OpHostExtension.h` |
 | 能力契约 | `capability-matrix.md` |
 | 已知缺口 | `architecture-known-gaps.md` |
@@ -425,13 +428,13 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 
 ## 9. 文档同步状态
 
-| 文档 | 状态（2026-06-24） |
+| 文档 | 状态（2026-06-25） |
 | --- | --- |
-| `review-pack.md` | 当前外部入口，与源码同步 |
-| `architecture-overview.md` | 已同步 ADR-018/019（编排管线、dense Isthmus、§4.3 hooks） |
-| `eth-layer-design-review.md` | 已同步三路径 pipeline、12 步序、`makeIsthmusRevisionConfig` 生产用途 |
+| `review-pack.md` | 当前外部入口；§7.2 已同步 P0 闭合 |
+| `architecture-overview.md` | 已同步 ADR-018/019/023、ExecutionFrame PR4 |
+| `eth-layer-design-review.md` | 已同步三路径 pipeline、12 步序 |
 | `capability-matrix.md` | normative，持续维护 |
-| `architecture-review-post-orchestration-2026-06-23.md` | 下一杠杆候选（内核帧、warm/dispatch）仍有效 |
+| `architecture-review-post-orchestration-2026-06-23.md` | 候选 1–4/6/8 Done；下一刀 AuthPort / TE settlement 审计 |
 
 ---
 
@@ -439,7 +442,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 
 ```text
 review-pack.md                    ← 你在这里（外部 reviewer 入口）
-├── architecture-overview.md      ← 内部深度参考（部分章节待更新）
+├── architecture-overview.md      ← 内部深度参考（ADR-023 / PrecompileActive 已同步）
 ├── eth-layer-design-review.md    ← eth/ 源码级 walkthrough
 ├── architecture-known-gaps.md    ← 技术债台账
 ├── architecture-review-post-orchestration-2026-06-23.md  ← 下一杠杆

@@ -42,8 +42,7 @@ BOOST_AUTO_TEST_CASE(deposit_success_actual_gas_commits_and_bumps_nonce)
     raw.gas_refund = 0;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
-    auto const result =
-        finalizeDeposit(ctx, TxPipelineExitKind::Completed, EVMC_SUCCESS);
+    auto const result = finalizeDeposit(ctx, TxPipelineExitKind::Completed, EVMC_SUCCESS);
 
     auto const expected = postExecuteGasSettlement(100'000u, 80'000u, 0u, 0u);
     BOOST_CHECK_EQUAL(result.gasUsed, static_cast<int64_t>(expected.gasUsed));
@@ -75,8 +74,7 @@ BOOST_AUTO_TEST_CASE(deposit_revert_actual_gas_reverts_state_but_bumps_nonce)
     raw.gas_refund = 0;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
 
-    auto const result =
-        finalizeDeposit(ctx, TxPipelineExitKind::Completed, EVMC_REVERT);
+    auto const result = finalizeDeposit(ctx, TxPipelineExitKind::Completed, EVMC_REVERT);
 
     auto const expected = postExecuteGasSettlement(50'000u, 29'000u, 0u, 0u);
     BOOST_CHECK_EQUAL(result.gasUsed, static_cast<int64_t>(expected.gasUsed));

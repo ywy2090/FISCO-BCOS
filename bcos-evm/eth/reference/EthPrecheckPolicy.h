@@ -13,28 +13,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Message routing for execution frames (7702 address normalization, CREATE fill).
- * @file RouteMessage.h
+ * @file EthPrecheckPolicy.h
  */
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/execution/FrameScope.h"
-#include <evmc/evmc.h>
+#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
+#include "bcos-evm/eth/reference/EthReferenceBridge.h"
 
-namespace bcos::evm::state
+namespace bcos::evm
 {
-class State;
-}
 
-namespace bcos::evm::execution
+struct EthPrecheckPolicy : ChainPrecheckPolicy
 {
-struct RoutedMessage
-{
-    evmc_message message{};
+    explicit EthPrecheckPolicy(EthReferenceRequest const& input);
+
+    IntrinsicGasPolicy intrinsicGasPolicy() const override { return m_intrinsicPolicy; }
+
+    void checkTransactionRules(TxPipelineContext& ctx) const override;
+
+    void checkBalanceAndValue(TxPipelineContext& ctx) const override;
+
+private:
+    EthReferenceRequest const& m_input;
+    IntrinsicGasPolicy m_intrinsicPolicy{};
 };
 
-RoutedMessage routeMessage(state::State& state,
-    bcos::evm_standard::RevisionConfig const& revisionConfig, evmc_message msg, FrameScope scope);
-}  // namespace bcos::evm::execution
+}  // namespace bcos::evm

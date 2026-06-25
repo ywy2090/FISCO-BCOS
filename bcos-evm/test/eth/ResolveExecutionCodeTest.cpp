@@ -9,6 +9,7 @@
 #include "bcos-evm/eth/execution/ResolveExecutionCode.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
+#include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "state/InMemoryEvmStateReader.h"
@@ -61,16 +62,18 @@ bcos::bytes resolveCodeLegacyPath(
     {
         return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
     }
-    auto const addr = resolveCodeAddress(msg);
-    auto code = state.get_code(addr);
+    auto const address = resolveCodeAddress(msg);
+    auto code = state.get_code(address);
     return resolveExecutableCodeLegacy(state, std::move(code), cfg.eip7702);
 }
 
-void assertResolveParity(
-    state::State& state, bcos::evm_standard::RevisionConfig const& cfg, evmc_message const& msg)
+void assertResolveParity(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
+    evmc_message const& msg, execution::FrameScope scope)
 {
-    auto const legacy = resolveCodeLegacyPath(state, cfg, msg);
-    auto const current = execution::resolveExecutionCode(state, cfg, msg);
+    auto const target = execution::resolveFrameTarget(state, cfg, msg, scope);
+    auto const legacy = resolveCodeLegacyPath(state, cfg, target.routed);
+    auto const current =
+        execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
     BOOST_CHECK_EQUAL_COLLECTIONS(legacy.begin(), legacy.end(), current.begin(), current.end());
 }
 }  // namespace
@@ -87,7 +90,7 @@ BOOST_AUTO_TEST_CASE(create_returns_initcode)
     msg.input_data = initCode.data();
     msg.input_size = initCode.size();
 
-    assertResolveParity(state, cfg, msg);
+    assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
 }
 
 BOOST_AUTO_TEST_CASE(identity_precompile_empty_code)
@@ -102,8 +105,11 @@ BOOST_AUTO_TEST_CASE(identity_precompile_empty_code)
     msg.recipient = identity;
     msg.code_address = identity;
 
-    assertResolveParity(state, cfg, msg);
-    auto const resolved = execution::resolveExecutionCode(state, cfg, msg);
+    assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto const target =
+        execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto const resolved =
+        execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
     BOOST_REQUIRE(resolved.empty());
 }
 
@@ -123,8 +129,11 @@ BOOST_AUTO_TEST_CASE(regular_contract_bytecode)
     msg.recipient = contract;
     msg.code_address = contract;
 
-    assertResolveParity(state, cfg, msg);
-    auto const resolved = execution::resolveExecutionCode(state, cfg, msg);
+    assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto const target =
+        execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto const resolved =
+        execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
     BOOST_REQUIRE_EQUAL(resolved.size(), bytecode.size());
     BOOST_CHECK_EQUAL_COLLECTIONS(
         resolved.begin(), resolved.end(), bytecode.begin(), bytecode.end());
@@ -150,8 +159,11 @@ BOOST_AUTO_TEST_CASE(eip7702_delegation_bytecode)
     msg.recipient = delegateAccount;
     msg.code_address = delegateAccount;
 
-    assertResolveParity(state, cfg, msg);
-    auto const resolved = execution::resolveExecutionCode(state, cfg, msg);
+    assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto const resolvedTarget =
+        execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto const resolved = execution::resolveExecutionCode(
+        state, cfg, resolvedTarget.routed, resolvedTarget.executionAddress);
     BOOST_REQUIRE_EQUAL(resolved.size(), targetCode.size());
     BOOST_CHECK_EQUAL_COLLECTIONS(
         resolved.begin(), resolved.end(), targetCode.begin(), targetCode.end());

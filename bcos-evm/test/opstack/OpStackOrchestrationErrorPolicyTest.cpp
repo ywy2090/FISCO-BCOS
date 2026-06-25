@@ -2,6 +2,7 @@
 
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
@@ -159,11 +160,20 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    TxPipelineHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+    struct OpStackEntryPrecheckPolicy : ChainPrecheckPolicy
+    {
+        IntrinsicGasPolicy intrinsicGasPolicy() const override
+        {
+            IntrinsicGasPolicy policy;
+            policy.mode = IntrinsicDebitMode::OpStackEntry;
+            return policy;
+        }
+    };
+
+    OpStackEntryPrecheckPolicy precheckPolicy;
 
     OpStackOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, hooks, errorPolicy);
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
