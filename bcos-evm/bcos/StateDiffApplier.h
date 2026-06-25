@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-task/Task.h"
+#include <string>
 #include <string_view>
 
 namespace bcos::evm::state
@@ -33,7 +34,15 @@ task::Task<void> applyStateDiff(Storage& storage, const StateDiff& diff, bool us
         {
             auto const codeHash =
                 hashImpl.hash(bytesConstRef(accountDiff.code.data(), accountDiff.code.size()));
-            auto abi = accountDiff.abi.empty() ? std::string(defaultAbi) : accountDiff.abi;
+            std::string abi;
+            if (auto abiEntry = co_await account.abi(); abiEntry.has_value())
+            {
+                abi = std::string(abiEntry->get());
+            }
+            else
+            {
+                abi = std::string(defaultAbi);
+            }
             co_await account.setCode(accountDiff.code, std::move(abi), codeHash);
         }
 

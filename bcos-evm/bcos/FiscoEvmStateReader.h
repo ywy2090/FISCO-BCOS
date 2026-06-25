@@ -46,11 +46,6 @@ public:
                 loadedAccount.code.assign(codeView.begin(), codeView.end());
             }
 
-            if (auto abiEntry = task::syncWait(account.abi()); abiEntry.has_value())
-            {
-                loadedAccount.abi = std::string(abiEntry->get());
-            }
-
             auto const codeHash = task::syncWait(account.codeHash());
             loadedAccount.codeHash = state::toEvmC(codeHash);
 

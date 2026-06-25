@@ -60,7 +60,6 @@ BOOST_AUTO_TEST_CASE(read_account_from_storage)
     BOOST_CHECK_EQUAL(loaded->balance, bcos::u256(1234));
     BOOST_CHECK_EQUAL(loaded->nonce, 7);
     BOOST_CHECK_EQUAL(loaded->code, code);
-    BOOST_CHECK_EQUAL(loaded->abi, "abi()");
     BOOST_CHECK_EQUAL_COLLECTIONS(
         loaded->codeHash.bytes, loaded->codeHash.bytes + 32, codeHash.begin(), codeHash.end());
     auto storageValue = view.get_storage(address, slot);
@@ -86,10 +85,10 @@ BOOST_AUTO_TEST_CASE(apply_state_diff_to_storage)
     account.nonceDirty = true;
     account.code = {0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3};
     account.codeDirty = true;
-    account.abi = "set(uint)";
     account.storage[slot] = value;
 
-    task::syncWait(state::applyStateDiff(rollbackableStorage, diff, false, *hashImpl));
+    constexpr std::string_view kDefaultAbi = "set(uint)";
+    task::syncWait(state::applyStateDiff(rollbackableStorage, diff, false, *hashImpl, kDefaultAbi));
 
     ledger::account::EVMAccount storedAccount(rollbackableStorage, address, false);
     auto storedBalance = task::syncWait(storedAccount.balance());
@@ -104,7 +103,7 @@ BOOST_AUTO_TEST_CASE(apply_state_diff_to_storage)
     BOOST_REQUIRE(storedCode.has_value());
     BOOST_CHECK_EQUAL(storedCode->get(), std::string(account.code.begin(), account.code.end()));
     BOOST_REQUIRE(storedAbi.has_value());
-    BOOST_CHECK_EQUAL(storedAbi->get(), account.abi);
+    BOOST_CHECK_EQUAL(storedAbi->get(), kDefaultAbi);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         storedStorage.bytes, storedStorage.bytes + 32, value.bytes, value.bytes + 32);
 }

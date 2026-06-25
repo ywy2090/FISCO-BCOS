@@ -20,7 +20,6 @@
 #pragma once
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include <string>
 #include <unordered_map>
 
 namespace bcos::evm::state
@@ -32,7 +31,6 @@ struct Account
     bcos::u256 balance{0};
     uint64_t nonce{0};
     bcos::bytes code;
-    std::string abi;
     evmc_bytes32 codeHash{};
     StorageMap storage;
     StorageMap transientStorage;
