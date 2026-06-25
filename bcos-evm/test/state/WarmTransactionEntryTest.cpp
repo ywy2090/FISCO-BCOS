@@ -87,6 +87,30 @@ BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
     BOOST_CHECK(state.is_address_warm(block.coinbase));
 }
 
+BOOST_AUTO_TEST_CASE(skips_coinbase_warm_when_eip3651_disabled)
+{
+    InMemoryEvmStateReader view;
+    State state(view);
+
+    Transaction tx;
+    tx.from = evmcAddressFromLastByte(0x01);
+    tx.to = evmcAddressFromLastByte(0x02);
+
+    // Avoid low addresses that overlap active precompile slots warmed at BERLIN+.
+    auto const coinbase = evmcAddressFromLastByte(0xFE);
+    auto const block = execution::BlockInfoBuilder().coinbase(coinbase).build();
+
+    TransactionProperties props;
+    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_PARIS);
+    BOOST_REQUIRE(!cfg.eip3651);
+    execution::warmTransactionEntry(state, cfg, tx, block, props);
+
+    BOOST_CHECK(state.is_address_warm(tx.from));
+    BOOST_REQUIRE(tx.to.has_value());
+    BOOST_CHECK(state.is_address_warm(*tx.to));
+    BOOST_CHECK(!state.is_address_warm(block.coinbase));
+}
+
 BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
 {
     InMemoryEvmStateReader view;

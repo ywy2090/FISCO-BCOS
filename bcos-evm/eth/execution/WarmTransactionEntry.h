@@ -64,7 +64,7 @@ inline void warmTransactionEntry(state::State& state, bcos::evm_standard::Revisi
         (void)state.warm_up_address_no_journal(*tx.to);
     }
 
-    if (props.warmCoinbase && cfg.revision >= EVMC_SHANGHAI)
+    if (props.warmCoinbase && cfg.eip3651)
     {
         (void)state.warm_up_address_no_journal(block.coinbase);
     }

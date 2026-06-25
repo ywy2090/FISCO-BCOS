@@ -25,6 +25,7 @@ struct RevisionConfig
     bool eip1559 : 1 = false;
     bool eip3651 : 1 = false;
     bool eip7702 : 1 = false;
+    // Reserved profile-only: no TE consumer; stays false (ADR-004 deprecated/reserved).
     bool prague_post_execution : 1 = false;
 
     // C. Fork-dependent parameters

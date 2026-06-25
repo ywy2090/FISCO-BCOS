@@ -10,9 +10,9 @@ Tracked items from Phase 1 audit and grill review. Update when closed.
 
 ## 37 — RevisionConfig profile-only fields
 
-Fields such as `warm_access`, `eip3651`, `eip1559`, `prague_post_execution` are set in policy builders but have **no TE kernel/orchestration consumer** today. Runtime warm access uses `evmc_revision` and tx props (ADR-004).
+Fields such as `warm_access`, `eip1559`, and `prague_post_execution` are set in policy builders but have **no TE kernel/orchestration consumer** today (or are explicitly reserved). `eip3651` is wired: `warmTransactionEntry` reads `cfg.eip3651` for coinbase warm (ADR-004). `prague_post_execution` stays struct-default `false` — deprecated/reserved, future-removal candidate.
 
-**Status:** Documented in ADR-004 + matrix rows. **Fix options:** wire consumers, delete fields, or keep as profile documentation only.
+**Status:** Partially closed (`eip3651` consumed). Remaining: `warm_access` / `eip1559` profile-only; `prague_post_execution` reserved. **Fix options:** wire remaining consumers, delete reserved fields, or keep as profile documentation only.
 
 ## 38 — VmHostPolicy CMake / include audit
 

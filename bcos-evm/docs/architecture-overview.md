@@ -342,7 +342,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 
 ## 7. 评审者应重点质疑的点
 
-1. **profile-only 字段**（Gap 37）：`warm_access / eip3651 / eip1559 / prague_post_execution` 在 Policy 被赋值，但部分尚无 TE 编排/内核消费者；运行时 warm 主要走 `evmc_revision` + tx props。矩阵已标 `feature-gated (profile-only)`，长期应决定**接线还是删字段**。
+1. **profile-only 字段**（Gap 37）：`warm_access / eip1559 / prague_post_execution` 在 Policy 被赋值但尚无 TE 消费者（`prague_post_execution` 为 reserved，恒 `false`）。`eip3651` 已接线：`warmTransactionEntry` 读 `cfg.eip3651` 做 coinbase warm。剩余字段长期应决定**接线还是删字段**。
 2. **warm 与 dispatch 未单源**（候选 2）：tx-entry warm 仍部分按 `evmc_revision` 硬编码，而 dispatch 已读 `cfg.eip2537` 等；FISCO `revision=PRAGUE` + `eip2537=false` 时可能 warm 但不 dispatch。见 [architecture-review-post-orchestration-2026-06-23.md](architecture-review-post-orchestration-2026-06-23.md)。
 3. **`FiscoPolicy.h` 直接 include `transaction-executor/.../AuthCheck.h` 与 `PrecompiledManager.h`**：位于 `bcos/` 层（允许，且不违反零 `bcos-executor` include），但与 ADR-017 Port 全生命周期方向仍有张力。
 4. **ETH 列定位**：矩阵明确 ETH 路径"不是生产继承证明"，勿把 ETH 测试通过误读为 BCOS/OP 通过。
