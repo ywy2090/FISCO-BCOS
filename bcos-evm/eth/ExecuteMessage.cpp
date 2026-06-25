@@ -18,6 +18,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
@@ -87,7 +88,7 @@ void apply7702TxAuthorizationsIfNeeded(
         state.set_nonce(input.message.sender, senderNonce + 1);
     }
     applyAuthorizations(state, input.authorizations, input.blockInfo.chainId);
-    if (input.revisionConfig.warm_access && !state::isZeroAddress(codeAddress))
+    if (execution::isEip2929Enabled(input.revisionConfig) && !state::isZeroAddress(codeAddress))
     {
         warmDelegationTarget(state, codeAddress);
     }

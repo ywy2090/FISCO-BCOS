@@ -19,6 +19,7 @@
 #include "bcos-evm/eth/execution/RouteMessage.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Delegation7702Frame.h"
+#include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -36,7 +37,7 @@ RoutedMessage routeMessage(state::State& state,
         if (!state::isZeroAddress(routed.message.recipient))
         {
             routed.message.code_address = routed.message.recipient;
-            if (revisionConfig.warm_access)
+            if (isCreateWarmPinEnabled(revisionConfig))
             {
                 state.pin_warm_create_address(routed.message.code_address);
             }
@@ -44,7 +45,7 @@ RoutedMessage routeMessage(state::State& state,
         else if (!state::isZeroAddress(routed.message.code_address))
         {
             routed.message.recipient = routed.message.code_address;
-            if (revisionConfig.warm_access)
+            if (isCreateWarmPinEnabled(revisionConfig))
             {
                 state.pin_warm_create_address(routed.message.code_address);
             }

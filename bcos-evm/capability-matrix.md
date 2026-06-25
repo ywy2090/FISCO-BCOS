@@ -47,7 +47,7 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 
 | Capability | Layer | ETH (reference) | BCOS (TE baseline) | OPStack (TE baseline) | Test ref |
 | --- | --- | --- | --- | --- | --- |
-| EIP-2929 runtime warm | kernel | inherited | inherited | inherited | `Eip2929AccessHostTest`, `WarmTransactionEntryTest` |
+| EIP-2929 runtime warm | kernel | inherited | deviation (`warm_access` masked by `feature_evm_eip2929`; Scheme A ADR-004) | inherited | `Eip2929AccessHostTest`, `Eip2929OpcodeGasTest`, `WarmTransactionEntryTest` |
 | EIP-2929 tx-entry destination warm | tx input | inherited (explicit `setWarmDestinationFromKind` in `ExecuteViaEth.cpp`) | inherited (explicit in `ExecuteViaHost.cpp:213`) | inherited (explicit `applyDefaultTxProps` in TE) | `WarmTransactionEntryTest`, `OpStackTxPropsTest` |
 | EIP-2929 tx-entry coinbase warm | tx input | inherited (implicit-default `warmCoinbase{true}` when `rev>=SHANGHAI`) | inherited (same default) | inherited (same default) | `WarmTransactionEntryTest` |
 | EIP-7702 authorization apply | kernel | inherited (`EthPolicy` sets `eip7702` at PRAGUE+; `applyAuthorizations` reachable) | inherited (kernel-capable; baseline-reachable when profile + tx rows satisfied) | inherited (baseline-reachable on Isthmus profile) | `Eip7702ApplyAuthorizationEthTest`, `Eip7702ApplyAuthorizationTest`, EEST `eth-eest-7702-core-smoke.json` |
@@ -73,7 +73,7 @@ Each cell uses exactly one token. Non-`inherited` cells must include a short rea
 | Rollup L1 cost fork selection | orchestration | unsupported | unsupported | explicit (`wireL1CostFuncWithState` / `selectL1CostFunc`) | `OpStackForkScheduleTest`, `OpStackFeeTest` FIX-04 |
 | L1 pre-Fjord unsupported | orchestration | unsupported | unsupported | deviation (throw) | `OpStackExecuteViaHostSmokeTest` pre_fjord |
 | OPStack operator fee fork gate | orchestration | unsupported | unsupported | explicit (`wireOperatorCostFuncWithState` / `selectOperatorCostFunc`) | `OpStackFeeTest`, `RefundIsthmusTest` |
-| RevisionConfig `warm_access` | revision profile | feature-gated (profile-only; runtime uses `rev>=BERLIN`, ADR-004) | feature-gated (via `revisionConfigFromRevision` + `applyFiscoFeatureGates`, ADR-018) | feature-gated (via `revisionConfigFromRevision`, ADR-018) | `RevisionConfigProfileTest` |
+| RevisionConfig `warm_access` | revision profile | inherited (TE consumer via `Eip2929Access.h`; ADR-004 Scheme A) | feature-gated (`revisionConfigFromRevision` + FISCO `feature_evm_eip2929` mask; OFF = deviation) | inherited (via `revisionConfigFromRevision`, ADR-018) | `RevisionConfigProfileTest`, `Eip2929AccessHostTest`, `Eip2929OpcodeGasTest` |
 | RevisionConfig `eip1153` | revision profile | inherited (via `revisionConfigFromRevision` at CANCUN+, ADR-018) | inherited (via `revisionConfigFromRevision` at CANCUN+, ADR-018) | inherited (via `makeIsthmusRevisionConfig` = `derive(PRAGUE)`, ADR-018) | `RevisionConfigProfileTest` |
 | RevisionConfig `eip5656` | revision profile | inherited (via `revisionConfigFromRevision`, ADR-018) | inherited (via `revisionConfigFromRevision`, ADR-018) | inherited (via `derive(PRAGUE)`, ADR-018) | `RevisionConfigProfileTest` |
 | RevisionConfig `eip6780` | revision profile | inherited (via `revisionConfigFromRevision` at CANCUN+; kernel reads `cfg.eip6780` in `EthHost::selfdestruct`, ADR-018) | inherited (via `revisionConfigFromRevision` at CANCUN+) | inherited (via `derive(PRAGUE)`, ADR-018) | `RevisionConfigProfileTest` |

@@ -21,6 +21,7 @@
 
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -52,7 +53,7 @@ inline void warmTransactionEntry(state::State& state, bcos::evm_standard::Revisi
     const state::TransactionProperties& props, const Eip2930AccessList* accessList = nullptr,
     uint8_t web3TypedTxKind = 0, std::optional<evmc_address> createCodeAddress = std::nullopt)
 {
-    if (!cfg.warm_access)
+    if (!isEip2929Enabled(cfg))
     {
         return;
     }
@@ -64,7 +65,7 @@ inline void warmTransactionEntry(state::State& state, bcos::evm_standard::Revisi
         (void)state.warm_up_address_no_journal(*tx.to);
     }
 
-    if (props.warmCoinbase && cfg.eip3651)
+    if (props.warmCoinbase && isCoinbaseWarmEnabled(cfg))
     {
         (void)state.warm_up_address_no_journal(block.coinbase);
     }
@@ -74,12 +75,9 @@ inline void warmTransactionEntry(state::State& state, bcos::evm_standard::Revisi
         (void)state.warm_up_address_no_journal(*createCodeAddress);
     }
 
-    if (cfg.revision >= EVMC_BERLIN)
-    {
-        precompiled::forEachActivePrecompile(cfg, [&state](evmc_address const& precompile) {
-            (void)state.warm_up_address_no_journal(precompile);
-        });
-    }
+    precompiled::forEachActivePrecompile(cfg, [&state](evmc_address const& precompile) {
+        (void)state.warm_up_address_no_journal(precompile);
+    });
 
     if (accessList == nullptr || accessList->empty())
     {

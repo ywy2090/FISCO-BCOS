@@ -19,6 +19,7 @@
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Delegation7702Frame.h"
+#include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/FrameCaller.h"
 #include "bcos-evm/eth/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/execution/ResolveExecutionCode.h"
@@ -161,7 +162,7 @@ void initializeCreateAccount(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
     initializeCreateTargetAccount(work.ctx.state, callMessage.recipient,
-        work.ctx.revisionConfig.revision, work.ctx.revisionConfig.warm_access);
+        work.ctx.revisionConfig.revision, isCreateWarmPinEnabled(work.ctx.revisionConfig));
 }
 
 evmc::Result runVm(FrameWork& work)

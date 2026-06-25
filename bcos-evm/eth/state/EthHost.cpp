@@ -18,6 +18,7 @@
 
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
@@ -300,7 +301,7 @@ void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_siz
 
 evmc_access_status EthHost::access_account(const address& addr) noexcept
 {
-    if (!m_revisionConfig.warm_access)
+    if (!execution::isEip2929Enabled(m_revisionConfig))
     {
         return EVMC_ACCESS_COLD;
     }
@@ -309,7 +310,7 @@ evmc_access_status EthHost::access_account(const address& addr) noexcept
 
 evmc_access_status EthHost::access_storage(const address& addr, const bytes32& key) noexcept
 {
-    if (!m_revisionConfig.warm_access)
+    if (!execution::isEip2929Enabled(m_revisionConfig))
     {
         return EVMC_ACCESS_COLD;
     }
