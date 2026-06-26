@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/l1/GasPriceOracleSelectors.h"
@@ -103,8 +104,9 @@ std::optional<evmc_result> dispatchL1BlockProxyGetter(
 }
 }  // namespace
 
-std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(
-    state::State& state, evmc_message const& msg, bcos::u256 l2BaseFee)
+std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state,
+    evmc_message const& msg, bcos::u256 l2BaseFee, OpStackForkSchedule const& forkSchedule,
+    uint64_t blockTime)
 {
     bytesConstRef input{msg.input_data, msg.input_size};
     if (input.size() < 4)
@@ -130,7 +132,8 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(
     case gpo::kIsIsthmus:
         return successWithU256(msg.gas, 1);
     case gpo::kIsJovian:
-        return successWithU256(msg.gas, 0);
+        return successWithU256(
+            msg.gas, isOpStackJovian(forkSchedule, blockTime) ? u256(1) : u256(0));
     case gpo::kOverhead:
     case gpo::kScalar:
         return makeResult(EVMC_REVERT, msg.gas);
@@ -162,8 +165,10 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(
             return makeResult(EVMC_REVERT, msg.gas);
         }
         auto const gasUsed = readU256At(input, 4);
-        auto const fee =
-            operatorCostIsthmus(static_cast<uint64_t>(gasUsed), loadOpStackFeeParams(state));
+        auto const params = loadOpStackFeeParams(state);
+        auto const fee = isOpStackJovian(forkSchedule, blockTime) ?
+                             operatorCostJovian(static_cast<uint64_t>(gasUsed), params) :
+                             operatorCostIsthmus(static_cast<uint64_t>(gasUsed), params);
         return successWithU256(msg.gas, fee);
     }
     default:

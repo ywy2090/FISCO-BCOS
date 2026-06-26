@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/VmHostPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/l1/GasPriceOraclePredeploy.h"
 #include "bcos-evm/opstack/l1/L1BlockPredeploy.h"
 #include <bcos-utilities/Common.h>
@@ -13,8 +14,13 @@ namespace bcos::evm
 class OpStackVmHostPolicy final : public state::VmHostPolicy
 {
 public:
-    explicit OpStackVmHostPolicy(state::State* state = nullptr, bcos::u256 l2BaseFee = 0)
-      : m_state(state), m_l2BaseFee(std::move(l2BaseFee))
+    explicit OpStackVmHostPolicy(state::State* state = nullptr, bcos::u256 l2BaseFee = 0,
+        OpStackForkSchedule forkSchedule = makeIsthmusPlusForkSchedule(),
+        uint64_t blockTimestamp = 0)
+      : m_state(state),
+        m_l2BaseFee(std::move(l2BaseFee)),
+        m_forkSchedule(std::move(forkSchedule)),
+        m_blockTimestamp(blockTimestamp)
     {}
 
     void prepareMessage(evmc_revision /*rev*/, evmc_message& /*msg*/) override {}
@@ -36,7 +42,8 @@ public:
         }
         if (sameAddress(target, OP_GAS_PRICE_ORACLE_PREDEPLOY))
         {
-            return GasPriceOraclePredeploy::dispatch(*m_state, msg, m_l2BaseFee);
+            return GasPriceOraclePredeploy::dispatch(
+                *m_state, msg, m_l2BaseFee, m_forkSchedule, m_blockTimestamp);
         }
         return std::nullopt;
     }
@@ -49,5 +56,7 @@ private:
 
     state::State* m_state{nullptr};
     bcos::u256 m_l2BaseFee{0};
+    OpStackForkSchedule m_forkSchedule{makeIsthmusPlusForkSchedule()};
+    uint64_t m_blockTimestamp{0};
 };
 }  // namespace bcos::evm

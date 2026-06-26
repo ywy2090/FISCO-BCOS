@@ -156,6 +156,19 @@ BOOST_AUTO_TEST_CASE(IsthmusOperator_gas1618_matchesFixture)
     BOOST_CHECK_EQUAL(operatorCostIsthmus(1618, params), u256("1256417826611659930"));
 }
 
+BOOST_AUTO_TEST_CASE(JovianOperator_gas1618_matchesOpGethFixture)
+{
+    auto const params = makeTestParams();
+    BOOST_CHECK_EQUAL(operatorCostJovian(1618, params), u256("1256650673615173860"));
+}
+
+BOOST_AUTO_TEST_CASE(selectOperator_JovianPlus_gas1618_usesJovianFormula)
+{
+    auto const schedule = makeJovianPlusForkSchedule();
+    auto const operatorCost = selectOperatorCostFunc(schedule, makeTestParams());
+    BOOST_CHECK_EQUAL(operatorCost(1618, 1), u256("1256650673615173860"));
+}
+
 BOOST_AUTO_TEST_CASE(FjordL1_emptyRollupCostData_returnsZero)
 {
     auto const params = makeTestParams();

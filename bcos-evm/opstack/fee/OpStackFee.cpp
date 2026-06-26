@@ -101,6 +101,10 @@ OperatorCostFunc makeCachedOperatorCostFunc(
             return 0;
         }
 
+        if (isOpStackJovian(schedule, blockTime))
+        {
+            return operatorCostJovian(gas, cache->params);
+        }
         return operatorCostIsthmus(gas, cache->params);
     };
 }
@@ -136,6 +140,18 @@ u256 operatorCostIsthmus(uint64_t gas, OpStackFeeParams const& params)
     }
 
     auto fee = u256(gas) * params.operatorFeeScalar / u256(1'000'000);
+    fee += params.operatorFeeConstant;
+    return fee;
+}
+
+u256 operatorCostJovian(uint64_t gas, OpStackFeeParams const& params)
+{
+    if (params.operatorFeeScalar == 0 && params.operatorFeeConstant == 0)
+    {
+        return 0;
+    }
+
+    auto fee = u256(gas) * params.operatorFeeScalar * u256(100);
     fee += params.operatorFeeConstant;
     return fee;
 }

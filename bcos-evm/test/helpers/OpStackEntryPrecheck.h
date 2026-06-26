@@ -34,7 +34,7 @@ inline std::optional<EVMCResult> runOpStackEntryPrecheck(
     policy.checkEntryRules(ctx);
     if (ctx.earlyExit)
     {
-        return ctx.evmcResult;
+        return std::optional<EVMCResult>{std::move(ctx.evmcResult)};
     }
     return std::nullopt;
 }

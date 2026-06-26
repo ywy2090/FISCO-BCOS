@@ -51,6 +51,7 @@ inline constexpr int64_t MIN_TX_SIZE_SCALED = 100'000'000;
 inline constexpr int64_t FJORD_DIVISOR = 1'000'000'000'000;
 
 inline constexpr size_t ISTHMUS_L1_ATTRIBUTES_LEN = 176;
+inline constexpr size_t JOVIAN_L1_ATTRIBUTES_LEN = 178;
 
 // EIP-4844 blob gas per blob (Cancun / Isthmus)
 inline constexpr uint64_t OP_BLOB_GAS_PER_BLOB = gas::BLOB_GAS_PER_BLOB;

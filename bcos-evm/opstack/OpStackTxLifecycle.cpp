@@ -94,7 +94,8 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
 
-    OpStackVmHostPolicy opHostExtension(&ctx.state, input.blockInfo.baseFee);
+    OpStackVmHostPolicy opHostExtension(
+        &ctx.state, input.blockInfo.baseFee, input.forkSchedule, input.blockInfo.timestamp);
     ctx.extension = &opHostExtension;
 
     auto const feeParams = loadOpStackFeeParams(ctx.state);

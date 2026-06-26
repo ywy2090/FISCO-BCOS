@@ -79,6 +79,42 @@ evmc_result applySetterIsthmus(state::State& state, evmc_message const& msg, byt
         packOperatorFeeParams(parsed->operatorFeeScalar, parsed->operatorFeeConstant));
     return makeResult(EVMC_SUCCESS, msg.gas);
 }
+
+evmc_result applySetterJovian(state::State& state, evmc_message const& msg, bytesConstRef input)
+{
+    if (std::memcmp(msg.sender.bytes, OP_DEPOSITOR_ACCOUNT.bytes, sizeof(msg.sender.bytes)) != 0)
+    {
+        evmc_bytes32 reason{};
+        reason.bytes[28] = static_cast<uint8_t>((l1block::kNotDepositor >> 24) & 0xff);
+        reason.bytes[29] = static_cast<uint8_t>((l1block::kNotDepositor >> 16) & 0xff);
+        reason.bytes[30] = static_cast<uint8_t>((l1block::kNotDepositor >> 8) & 0xff);
+        reason.bytes[31] = static_cast<uint8_t>(l1block::kNotDepositor & 0xff);
+        bytes output(reason.bytes + 28, reason.bytes + 32);
+        return makeResult(EVMC_REVERT, msg.gas, std::move(output));
+    }
+
+    auto const parsed = parseJovianL1Attributes(input);
+    if (!parsed.has_value())
+    {
+        return makeResult(EVMC_REVERT, msg.gas);
+    }
+
+    state.set_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_NUMBER_TIMESTAMP_SLOT),
+        packL1NumberTimestamp(parsed->timestamp, parsed->l1BlockNumber));
+    state.set_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BASE_FEE_SLOT), parsed->l1BaseFee);
+    state.set_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_HASH_SLOT), parsed->hash);
+    state.set_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_FEE_SCALARS_SLOT),
+        packL1FeeScalarsSlot(
+            parsed->baseFeeScalar, parsed->blobBaseFeeScalar, parsed->sequenceNumber));
+    state.set_storage(
+        OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BATCHER_HASH_SLOT), parsed->batcherHash);
+    state.set_storage(
+        OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_BLOB_BASE_FEE_SLOT), parsed->l1BlobBaseFee);
+    state.set_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT),
+        packOperatorFeeParams(
+            parsed->operatorFeeScalar, parsed->operatorFeeConstant, parsed->daFootprintGasScalar));
+    return makeResult(EVMC_SUCCESS, msg.gas);
+}
 }  // namespace
 
 std::optional<evmc_result> L1BlockPredeploy::dispatchGetter(
@@ -177,6 +213,8 @@ std::optional<evmc_result> L1BlockPredeploy::dispatch(state::State& state, evmc_
     }
     case l1block::kSetL1BlockValuesIsthmus:
         return applySetterIsthmus(state, msg, input);
+    case l1block::kSetL1BlockValuesJovian:
+        return applySetterJovian(state, msg, input);
     default:
         return makeResult(EVMC_REVERT, msg.gas);
     }

@@ -11,6 +11,7 @@
 #include "bcos-evm/opstack/OpStackReceiptMeta.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
+#include <bcos-framework/executor/OpStackTxType.h>
 #include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>
 #include <functional>
@@ -62,4 +63,9 @@ struct OpStackExecutionResult
 };
 
 task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input);
+
+inline bool isDepositTx(OpStackExecutionRequest const& input) noexcept
+{
+    return input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE || input.depositTx.has_value();
+}
 }  // namespace bcos::evm

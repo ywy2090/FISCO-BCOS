@@ -66,6 +66,26 @@ std::optional<IsthmusL1Attributes> parseIsthmusL1Attributes(bytesConstRef callda
     return parsed;
 }
 
+std::optional<JovianL1Attributes> parseJovianL1Attributes(bytesConstRef calldata)
+{
+    if (calldata.size() < JOVIAN_L1_ATTRIBUTES_LEN)
+    {
+        return std::nullopt;
+    }
+
+    auto const isthmus = parseIsthmusL1Attributes(calldata);
+    if (!isthmus.has_value())
+    {
+        return std::nullopt;
+    }
+
+    JovianL1Attributes parsed;
+    static_cast<IsthmusL1Attributes&>(parsed) = *isthmus;
+    parsed.daFootprintGasScalar = static_cast<uint16_t>(
+        (static_cast<uint16_t>(calldata[176]) << 8) | static_cast<uint16_t>(calldata[177]));
+    return parsed;
+}
+
 evmc_bytes32 packL1NumberTimestamp(uint64_t timestamp, uint64_t number)
 {
     evmc_bytes32 out{};
@@ -91,9 +111,12 @@ evmc_bytes32 packL1FeeScalarsSlot(
     return out;
 }
 
-evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operatorFeeConstant)
+evmc_bytes32 packOperatorFeeParams(
+    uint32_t operatorFeeScalar, uint64_t operatorFeeConstant, uint16_t daFootprintGasScalar)
 {
     evmc_bytes32 out{};
+    out.bytes[18] = static_cast<uint8_t>((daFootprintGasScalar >> 8) & 0xff);
+    out.bytes[19] = static_cast<uint8_t>(daFootprintGasScalar & 0xff);
     out.bytes[20] = static_cast<uint8_t>((operatorFeeScalar >> 24) & 0xff);
     out.bytes[21] = static_cast<uint8_t>((operatorFeeScalar >> 16) & 0xff);
     out.bytes[22] = static_cast<uint8_t>((operatorFeeScalar >> 8) & 0xff);

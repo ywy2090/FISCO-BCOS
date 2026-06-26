@@ -5,6 +5,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/l1/L1BlockSelectors.h"
+#include "bcos-evm/opstack/l1/L1BlockStorage.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
@@ -257,6 +258,39 @@ BOOST_AUTO_TEST_CASE(isFeatureEnabled_returns_false_by_default)
         result->release(&result.value());
     }
     BOOST_CHECK(state::isZeroBytes32(raw));
+}
+
+BOOST_AUTO_TEST_CASE(parse_jovian_fixture_matches_fields)
+{
+    auto const calldata = loadFixture("jovian_l1_attributes.bin");
+    BOOST_REQUIRE_EQUAL(calldata.size(), JOVIAN_L1_ATTRIBUTES_LEN);
+    auto const parsed = parseJovianL1Attributes(bcos::ref(calldata));
+    BOOST_REQUIRE(parsed.has_value());
+    BOOST_CHECK_EQUAL(parsed->baseFeeScalar, 2u);
+    BOOST_CHECK_EQUAL(parsed->blobBaseFeeScalar, 3u);
+    BOOST_CHECK_EQUAL(parsed->daFootprintGasScalar, 400u);
+}
+
+BOOST_AUTO_TEST_CASE(pack_operator_fee_params_writes_da_footprint_scalar)
+{
+    auto const packed = packOperatorFeeParams(2, 5, 400);
+    BOOST_CHECK_EQUAL(unpackDaFootprintGasScalar(packed), u256(400));
+    BOOST_CHECK_EQUAL(unpackOperatorFeeScalar(packed), u256(2));
+    BOOST_CHECK_EQUAL(unpackOperatorFeeConstant(packed), u256(5));
+}
+
+BOOST_AUTO_TEST_CASE(setter_unpacks_jovian_fixture_into_slots_including_da_footprint)
+{
+    state::test::InMemoryEvmStateReader baseState;
+    state::State state(baseState);
+    auto const calldata = loadFixture("jovian_l1_attributes.bin");
+
+    auto result = L1BlockPredeploy::dispatch(state, makeCall(calldata, OP_DEPOSITOR_ACCOUNT));
+    BOOST_REQUIRE(result.has_value());
+    BOOST_REQUIRE_EQUAL(result->status_code, EVMC_SUCCESS);
+
+    checkGetterHex(state, l1block::kDaFootprintGasScalar,
+        "0000000000000000000000000000000000000000000000000000000000000190");
 }
 
 }  // namespace bcos::evm::test

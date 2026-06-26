@@ -5,6 +5,7 @@
 namespace bcos::evm::l1block
 {
 inline constexpr uint32_t kSetL1BlockValuesIsthmus = 0x098999be;
+inline constexpr uint32_t kSetL1BlockValuesJovian = 0x3db6be2b;
 inline constexpr uint32_t kNotDepositor = 0x3cc50b45;
 
 inline constexpr uint32_t kNumber = 0x8381f58a;

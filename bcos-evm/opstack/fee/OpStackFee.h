@@ -22,6 +22,7 @@ struct OpStackFeeParams
 
 u256 l1CostFjord(RollupCostData const& data, OpStackFeeParams const& params);
 u256 operatorCostIsthmus(uint64_t gas, OpStackFeeParams const& params);
+u256 operatorCostJovian(uint64_t gas, OpStackFeeParams const& params);
 
 OpStackFeeParams loadOpStackFeeParams(state::EvmStateReader const& state);
 

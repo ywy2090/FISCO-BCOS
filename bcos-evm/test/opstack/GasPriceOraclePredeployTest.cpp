@@ -4,9 +4,12 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/l1/GasPriceOracleSelectors.h"
+#include "bcos-evm/opstack/l1/L1BlockStorage.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
+#include <cstring>
 
 namespace bcos::evm::test
 {
@@ -81,24 +84,57 @@ BOOST_AUTO_TEST_CASE(decimals_and_fork_flags_match_isthmus_profile)
 {
     state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
+    auto const schedule = makeIsthmusPlusForkSchedule();
 
-    auto decimals =
-        GasPriceOraclePredeploy::dispatch(state, makeCall(selectorInput(gpo::kDecimals)), u256(0));
+    auto decimals = GasPriceOraclePredeploy::dispatch(
+        state, makeCall(selectorInput(gpo::kDecimals)), u256(0), schedule, 0);
     BOOST_REQUIRE(decimals.has_value());
     BOOST_CHECK_EQUAL(readU256Output(*decimals), u256(6));
     releaseResult(*decimals);
 
-    auto isthmus =
-        GasPriceOraclePredeploy::dispatch(state, makeCall(selectorInput(gpo::kIsIsthmus)), u256(0));
+    auto isthmus = GasPriceOraclePredeploy::dispatch(
+        state, makeCall(selectorInput(gpo::kIsIsthmus)), u256(0), schedule, 0);
     BOOST_REQUIRE(isthmus.has_value());
     BOOST_CHECK_EQUAL(readU256Output(*isthmus), u256(1));
     releaseResult(*isthmus);
 
-    auto jovian =
-        GasPriceOraclePredeploy::dispatch(state, makeCall(selectorInput(gpo::kIsJovian)), u256(0));
+    auto jovian = GasPriceOraclePredeploy::dispatch(
+        state, makeCall(selectorInput(gpo::kIsJovian)), u256(0), schedule, 0);
     BOOST_REQUIRE(jovian.has_value());
     BOOST_CHECK_EQUAL(readU256Output(*jovian), u256(0));
     releaseResult(*jovian);
+}
+
+BOOST_AUTO_TEST_CASE(jovian_schedule_is_jovian_and_operator_fee_use_jovian_formula)
+{
+    state::test::InMemoryEvmStateReader baseState;
+    state::State state(baseState);
+
+    state::Account l1Block;
+    l1Block.storage[state::toEvmC(OPERATOR_FEE_PARAMS_SLOT)] =
+        packOperatorFeeParams(1'439'103'868, 1'256'417'826'609'331'460ULL);
+    baseState.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1Block));
+
+    auto const schedule = makeJovianPlusForkSchedule();
+    auto const blockTime = 1u;
+
+    auto jovian = GasPriceOraclePredeploy::dispatch(
+        state, makeCall(selectorInput(gpo::kIsJovian)), u256(0), schedule, blockTime);
+    BOOST_REQUIRE(jovian.has_value());
+    BOOST_CHECK_EQUAL(readU256Output(*jovian), u256(1));
+    releaseResult(*jovian);
+
+    bytes getOpFeeInput = selectorInput(gpo::kGetOperatorFee);
+    getOpFeeInput.resize(36);
+    auto const gasUsed = u256(1618);
+    auto const encoded = state::toEvmC(gasUsed);
+    std::memcpy(getOpFeeInput.data() + 4, encoded.bytes, 32);
+
+    auto fee = GasPriceOraclePredeploy::dispatch(
+        state, makeCall(getOpFeeInput), u256(0), schedule, blockTime);
+    BOOST_REQUIRE(fee.has_value());
+    BOOST_CHECK_EQUAL(readU256Output(*fee), u256("1256650673615173860"));
+    releaseResult(*fee);
 }
 
 BOOST_AUTO_TEST_CASE(legacy_overhead_and_scalar_revert_after_ecotone)

@@ -23,12 +23,19 @@ struct IsthmusL1Attributes
     uint64_t operatorFeeConstant{0};
 };
 
+struct JovianL1Attributes : IsthmusL1Attributes
+{
+    uint16_t daFootprintGasScalar{0};
+};
+
 std::optional<IsthmusL1Attributes> parseIsthmusL1Attributes(bytesConstRef calldata);
+std::optional<JovianL1Attributes> parseJovianL1Attributes(bytesConstRef calldata);
 
 evmc_bytes32 packL1NumberTimestamp(uint64_t timestamp, uint64_t number);
 evmc_bytes32 packL1FeeScalarsSlot(
     uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar, uint64_t sequenceNumber);
-evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operatorFeeConstant);
+evmc_bytes32 packOperatorFeeParams(
+    uint32_t operatorFeeScalar, uint64_t operatorFeeConstant, uint16_t daFootprintGasScalar = 0);
 
 u256 unpackNumber(evmc_bytes32 const& packed);
 u256 unpackTimestamp(evmc_bytes32 const& packed);
