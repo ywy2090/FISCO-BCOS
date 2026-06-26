@@ -18,6 +18,7 @@ namespace bcos::evm::test
 {
 using bcos::evm::gas::FeeInputs;
 using bcos::evm::gas::planPostExecution;
+using bcos::evm::gas::planPreExecution;
 using bcos::evm_standard::revisionConfigFromRevision;
 
 namespace
@@ -160,6 +161,20 @@ BOOST_AUTO_TEST_CASE(matches_oracle_null_hooks)
     BOOST_CHECK_EQUAL(plan.l1FeeRouted, bcos::u256(12'345));
     BOOST_CHECK_EQUAL(plan.operatorFeeCharged, bcos::u256(0));
     BOOST_CHECK_EQUAL(plan.senderOperatorRefund, bcos::u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(post_effective_gas_price_matches_sidecar_snapshot)
+{
+    auto const fee = makeType2FeeInputs();
+    OpStackPostSettlementInputs inputs{
+        .fee = fee,
+        .gasUsed = 120'000,
+        .gasRemaining = 380'000,
+        .l1CostCharged = 42'000,
+        .operatorCostLimit = 1'000'000,
+    };
+    auto const plan = planOpStackPostSettlement(inputs, {});
+    BOOST_CHECK_EQUAL(plan.core1559.effectiveGasPrice, planPreExecution(fee).effectiveGasPrice);
 }
 
 BOOST_AUTO_TEST_CASE(isthmus_refund_limit_minus_used)
