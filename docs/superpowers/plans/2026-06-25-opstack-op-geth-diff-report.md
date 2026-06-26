@@ -46,7 +46,7 @@
 - **未进入执行**：gas pool 拒绝、system deposit precheck → 无 `settleDeposit`，nonce 不变
 - **`depositNonce`**：`OpStackTxLifecycle` 在 mint/checkpoint **之前**快照
 
-**对齐结论**：✅ 成功与常见异常路径下 sender 最终 nonce 均为 **+1**；`depositNonce` 均为执行前快照。差异仅为架构分工（op-geth EVM 内 bump vs bcos-evm `finalizeDeposit` 集中 bump），**无链上状态分歧**。回归：`DepositCreateNonceTest`、`OpStackTxLifecycleCharacterizationTest`、`L1AttributesDepositFailureTest`。
+**对齐结论**：✅ 成功与常见异常路径下 sender 最终 nonce 均为 **+1**；`depositNonce` 均为执行前快照。差异仅为架构分工（op-geth EVM 内 bump vs bcos-evm `finalizeDeposit` 集中 bump），**无链上状态分歧**。回归：`DepositCreateNonceTest`（SUCCESS / REVERT / intrinsic reject / OOG）、`OpStackTxLifecycleCharacterizationTest`、`L1AttributesDepositFailureTest`。
 
 ---
 
