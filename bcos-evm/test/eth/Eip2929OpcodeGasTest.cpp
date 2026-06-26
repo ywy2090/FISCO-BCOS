@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE Eip2929OpcodeGasTest
 
 #include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -64,7 +65,7 @@ ExecuteMessageOutput runContractCode(state::test::InMemoryEvmStateReader& stateV
     message.code_address = contract;
 
     ExecuteMessageInput input;
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo = blockInfo;
@@ -213,7 +214,7 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_warm_access_disabled)
     cfg.warm_access = false;
 
     ExecuteMessageInput input;
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo = blockInfo;

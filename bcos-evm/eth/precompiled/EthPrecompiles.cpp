@@ -19,6 +19,7 @@
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/precompiled/BlsGas.h"
 #include "bcos-evm/eth/precompiled/ModexpGas.h"
+#include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <algorithm>
 #include <array>
@@ -42,37 +43,6 @@ namespace bcos::evm::precompiled
 {
 namespace
 {
-bool isHigh18BytesZero(const evmc_address& address) noexcept
-{
-    for (size_t i = 0; i < 18; ++i)
-    {
-        if (address.bytes[i] != 0)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-std::optional<uint16_t> toSuffix(const evmc_address& address) noexcept
-{
-    if (!isHigh18BytesZero(address))
-    {
-        return std::nullopt;
-    }
-    auto const suffix = static_cast<uint16_t>((address.bytes[18] << 8) | address.bytes[19]);
-    if (suffix < 0x0001 || suffix > 0x0011)
-    {
-        return std::nullopt;
-    }
-    return suffix;
-}
-
-bool isP256Address(const evmc_address& address) noexcept
-{
-    return isHigh18BytesZero(address) && address.bytes[18] == 0x01 && address.bytes[19] == 0x00;
-}
-
 int64_t safeBigintToI64(const bcos::bigint& value) noexcept
 {
     if (value < 0)
@@ -448,92 +418,196 @@ std::pair<bool, bcos::bytes> executeP256Verify(bcos::bytesConstRef input)
     return {true, std::move(output)};
 }
 
-int64_t precompileGasCost(uint16_t suffix, bcos::bytesConstRef input, evmc_revision revision)
+std::pair<bool, bcos::bytes> executeSha256(bcos::bytesConstRef input)
 {
-    switch (suffix)
+    bcos::bytes output(evmone::crypto::SHA256_HASH_SIZE, 0);
+    evmone::crypto::sha256(reinterpret_cast<std::byte*>(output.data()),
+        reinterpret_cast<const std::byte*>(input.data()), input.size());
+    return {true, std::move(output)};
+}
+
+std::pair<bool, bcos::bytes> executeRipemd160(bcos::bytesConstRef input)
+{
+    bcos::bytes output(32, 0);
+    evmone::crypto::ripemd160(reinterpret_cast<std::byte*>(output.data() + 12),
+        reinterpret_cast<const std::byte*>(input.data()), input.size());
+    return {true, std::move(output)};
+}
+
+std::pair<bool, bcos::bytes> executeIdentity(bcos::bytesConstRef input)
+{
+    return {true, input.toBytes()};
+}
+
+int64_t gasEcrecover(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
+{
+    return 3000;
+}
+
+int64_t gasSha256(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
+{
+    return wordsCost(input.size(), 60, 12);
+}
+
+int64_t gasRipemd160(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
+{
+    return wordsCost(input.size(), 600, 120);
+}
+
+int64_t gasIdentity(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
+{
+    return wordsCost(input.size(), 15, 3);
+}
+
+int64_t gasModexp(bcos::bytesConstRef input, evmc_revision revision) noexcept
+{
+    return safeBigintToI64(bcos::evm::calcModexpGas(input, revision));
+}
+
+int64_t gasBnAdd(bcos::bytesConstRef /*input*/, evmc_revision revision) noexcept
+{
+    return revision >= EVMC_ISTANBUL ? 150 : 500;
+}
+
+int64_t gasBnMul(bcos::bytesConstRef /*input*/, evmc_revision revision) noexcept
+{
+    return revision >= EVMC_ISTANBUL ? 6000 : 40000;
+}
+
+int64_t gasBnPairing(bcos::bytesConstRef input, evmc_revision revision) noexcept
+{
+    return (revision >= EVMC_ISTANBUL ? 45000 : 100000) +
+           static_cast<int64_t>(input.size() / 192) * (revision >= EVMC_ISTANBUL ? 34000 : 80000);
+}
+
+int64_t gasBlake2f(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
+{
+    return input.size() < 4 ?
+               0 :
+               static_cast<int64_t>(fromBigEndian<uint32_t>(input.getCroppedData(0, 4)));
+}
+
+int64_t gasPointEvaluation(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
+{
+    return 50000;
+}
+
+int64_t gasBlsG1Add(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
+{
+    return 375;
+}
+
+int64_t gasBlsG1Msm(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
+{
+    return precompiled::blsG1MsmGas(input.size() / 160);
+}
+
+int64_t gasBlsG2Add(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
+{
+    return 600;
+}
+
+int64_t gasBlsG2Msm(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
+{
+    return precompiled::blsG2MsmGas(input.size() / 288);
+}
+
+int64_t gasBlsPairingCheck(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
+{
+    return 37700 + 32600 * static_cast<int64_t>(input.size() / 384);
+}
+
+int64_t gasBlsMapFpToG1(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
+{
+    return 5500;
+}
+
+int64_t gasBlsMapFp2ToG2(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
+{
+    return 23800;
+}
+
+int64_t gasP256Verify(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
+{
+    return 6900;
+}
+
+bool rejectModexp7823(evmc_address const& address, bcos::bytesConstRef input,
+    bcos::evm_standard::RevisionConfig const& cfg, evmc_revision revision) noexcept
+{
+    return bcos::evm::shouldRejectModexpEip7823(address, input, cfg, revision);
+}
+
+using ExecuteFn = std::pair<bool, bcos::bytes> (*)(bcos::bytesConstRef);
+using GasFn = int64_t (*)(bcos::bytesConstRef, evmc_revision);
+using RejectFn = bool (*)(evmc_address const&, bcos::bytesConstRef,
+    bcos::evm_standard::RevisionConfig const&, evmc_revision);
+
+struct PrecompileEntry
+{
+    uint16_t suffix;
+    ExecuteFn execute;
+    GasFn gas;
+    RejectFn reject;
+};
+
+constexpr PrecompileEntry kPrecompileTable[] = {
+    {0x0001, executeEcrecover, gasEcrecover, nullptr},
+    {0x0002, executeSha256, gasSha256, nullptr},
+    {0x0003, executeRipemd160, gasRipemd160, nullptr},
+    {0x0004, executeIdentity, gasIdentity, nullptr},
+    {0x0005, executeModexp, gasModexp, rejectModexp7823},
+    {0x0006, executeBnAdd, gasBnAdd, nullptr},
+    {0x0007, executeBnMul, gasBnMul, nullptr},
+    {0x0008, executeBnPairing, gasBnPairing, nullptr},
+    {0x0009, executeBlake2f, gasBlake2f, nullptr},
+    {0x000a, executePointEvaluation, gasPointEvaluation, nullptr},
+    {0x000b, executeBlsG1Add, gasBlsG1Add, nullptr},
+    {0x000c, executeBlsG1Msm, gasBlsG1Msm, nullptr},
+    {0x000d, executeBlsG2Add, gasBlsG2Add, nullptr},
+    {0x000e, executeBlsG2Msm, gasBlsG2Msm, nullptr},
+    {0x000f, executeBlsPairingCheck, gasBlsPairingCheck, nullptr},
+    {0x0010, executeBlsMapFpToG1, gasBlsMapFpToG1, nullptr},
+    {0x0011, executeBlsMapFp2ToG2, gasBlsMapFp2ToG2, nullptr},
+    {static_cast<uint16_t>(P256VERIFY_PRECOMPILE_INDEX), executeP256Verify, gasP256Verify, nullptr},
+};
+
+PrecompileEntry const* lookupPrecompileEntry(uint16_t suffix) noexcept
+{
+    for (auto const& entry : kPrecompileTable)
     {
-    case 0x0001:
-        return 3000;
-    case 0x0002:
-        return wordsCost(input.size(), 60, 12);
-    case 0x0003:
-        return wordsCost(input.size(), 600, 120);
-    case 0x0004:
-        return wordsCost(input.size(), 15, 3);
-    case 0x0005:
-        return safeBigintToI64(bcos::evm::calcModexpGas(input, revision));
-    case 0x0006:
-        return revision >= EVMC_ISTANBUL ? 150 : 500;
-    case 0x0007:
-        return revision >= EVMC_ISTANBUL ? 6000 : 40000;
-    case 0x0008:
-        return (revision >= EVMC_ISTANBUL ? 45000 : 100000) +
-               static_cast<int64_t>(input.size() / 192) *
-                   (revision >= EVMC_ISTANBUL ? 34000 : 80000);
-    case 0x0009:
-        return input.size() < 4 ?
-                   0 :
-                   static_cast<int64_t>(fromBigEndian<uint32_t>(input.getCroppedData(0, 4)));
-    case 0x000a:
-        return 50000;
-    case 0x000b:
-        return 375;
-    case 0x000c:
-    {
-        auto const k = input.size() / 160;
-        return precompiled::blsG1MsmGas(k);
+        if (entry.suffix == suffix)
+        {
+            return &entry;
+        }
     }
-    case 0x000d:
-        return 600;
-    case 0x000e:
-    {
-        auto const k = input.size() / 288;
-        return precompiled::blsG2MsmGas(k);
-    }
-    case 0x000f:
-        return 37700 + 32600 * static_cast<int64_t>(input.size() / 384);
-    case 0x0010:
-        return 5500;
-    case 0x0011:
-        return 23800;
-    default:
-        return 0;
-    }
+    return nullptr;
 }
 }  // namespace
 
 bool EthPrecompiles::isAddressInRange(const evmc_address& address) noexcept
 {
-    return toSuffix(address).has_value() || isP256Address(address);
+    return bcos::evm::precompileSuffix(address).has_value();
 }
 
 std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& address,
     bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision,
     bcos::evm_standard::RevisionConfig const& cfg)
 {
-    if (isP256Address(address))
+    auto const suffixKey = bcos::evm::precompileSuffix(address);
+    if (!suffixKey.has_value())
     {
-        EthPrecompileResult result;
-        result.gasCost = 6900;
-        if (msgGas < result.gasCost)
-        {
-            result.status = EVMC_OUT_OF_GAS;
-            return result;
-        }
-        auto executed = executeP256Verify(input);
-        result.status = executed.first ? EVMC_SUCCESS : EVMC_PRECOMPILE_FAILURE;
-        result.output = std::move(executed.second);
-        return result;
+        return std::nullopt;
     }
 
-    auto const suffix = toSuffix(address);
-    if (!suffix.has_value())
+    auto const* entry = lookupPrecompileEntry(*suffixKey);
+    if (entry == nullptr)
     {
         return std::nullopt;
     }
 
     EthPrecompileResult result;
-    result.gasCost = precompileGasCost(*suffix, input, revision);
+    result.gasCost = entry->gas(input, revision);
     if (msgGas < result.gasCost)
     {
         result.status = EVMC_OUT_OF_GAS;
@@ -541,78 +615,13 @@ std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& 
     }
 
     std::pair<bool, bcos::bytes> executed{false, {}};
-    switch (*suffix)
+    if (entry->reject != nullptr && entry->reject(address, input, cfg, revision))
     {
-    case 0x0001:
-        executed = executeEcrecover(input);
-        break;
-    case 0x0002:
-    {
-        bcos::bytes output(evmone::crypto::SHA256_HASH_SIZE, 0);
-        evmone::crypto::sha256(reinterpret_cast<std::byte*>(output.data()),
-            reinterpret_cast<const std::byte*>(input.data()), input.size());
-        executed = {true, std::move(output)};
-        break;
+        executed = {false, {}};
     }
-    case 0x0003:
+    else
     {
-        bcos::bytes output(32, 0);
-        evmone::crypto::ripemd160(reinterpret_cast<std::byte*>(output.data() + 12),
-            reinterpret_cast<const std::byte*>(input.data()), input.size());
-        executed = {true, std::move(output)};
-        break;
-    }
-    case 0x0004:
-        executed = {true, input.toBytes()};
-        break;
-    case 0x0005:
-        if (bcos::evm::shouldRejectModexpEip7823(address, input, cfg, revision))
-        {
-            executed = {false, {}};
-        }
-        else
-        {
-            executed = executeModexp(input);
-        }
-        break;
-    case 0x0006:
-        executed = executeBnAdd(input);
-        break;
-    case 0x0007:
-        executed = executeBnMul(input);
-        break;
-    case 0x0008:
-        executed = executeBnPairing(input);
-        break;
-    case 0x0009:
-        executed = executeBlake2f(input);
-        break;
-    case 0x000a:
-        executed = executePointEvaluation(input);
-        break;
-    case 0x000b:
-        executed = executeBlsG1Add(input);
-        break;
-    case 0x000c:
-        executed = executeBlsG1Msm(input);
-        break;
-    case 0x000d:
-        executed = executeBlsG2Add(input);
-        break;
-    case 0x000e:
-        executed = executeBlsG2Msm(input);
-        break;
-    case 0x000f:
-        executed = executeBlsPairingCheck(input);
-        break;
-    case 0x0010:
-        executed = executeBlsMapFpToG1(input);
-        break;
-    case 0x0011:
-        executed = executeBlsMapFp2ToG2(input);
-        break;
-    default:
-        return std::nullopt;
+        executed = entry->execute(input);
     }
 
     result.status = executed.first ? EVMC_SUCCESS : EVMC_PRECOMPILE_FAILURE;

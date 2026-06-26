@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/ApplyStateDiffToView.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
@@ -34,8 +35,8 @@ bcos::evm_standard::RevisionConfig makeCancunRevisionConfig()
     return cfg;
 }
 
-ExecuteMessageInput makeCallInput(state::EvmStateReader const& stateView, evmc::VM& vm,
-    evmc_address sender, evmc_address target, bcos::bytes const& code, int64_t gas = 200'000)
+ExecuteMessageInput makeCallInput(state::State& state, evmc::VM& vm, evmc_address sender,
+    evmc_address target, bcos::bytes const& code, int64_t gas = 200'000)
 {
     state::BlockInfo blockInfo;
     blockInfo.number = 19'426'587;
@@ -50,7 +51,7 @@ ExecuteMessageInput makeCallInput(state::EvmStateReader const& stateView, evmc::
     message.code_address = target;
 
     ExecuteMessageInput input;
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo = blockInfo;
@@ -68,7 +69,8 @@ BOOST_AUTO_TEST_CASE(tstore_tload_returns_value_within_transaction)
     stateView.insert_account(contract, state::Account{.code = kTstoreThenTloadReturn42});
 
     evmc::VM vm{evmc_create_evmone()};
-    auto input = makeCallInput(stateView, vm, sender, contract, kTstoreThenTloadReturn42);
+    state::State state(stateView);
+    auto input = makeCallInput(state, vm, sender, contract, kTstoreThenTloadReturn42);
     auto output = executeMessage(std::move(input));
 
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
@@ -90,13 +92,15 @@ BOOST_AUTO_TEST_CASE(transient_storage_does_not_persist_across_transactions)
 
     evmc::VM vm{evmc_create_evmone()};
 
-    auto storeInput = makeCallInput(stateView, vm, sender, contract, kTstoreThenTloadReturn42);
+    state::State storeState(stateView);
+    auto storeInput = makeCallInput(storeState, vm, sender, contract, kTstoreThenTloadReturn42);
     auto storeOutput = executeMessage(std::move(storeInput));
     BOOST_REQUIRE_EQUAL(storeOutput.result.status_code, EVMC_SUCCESS);
     applyStateDiffToView(storeOutput.stateDiff, stateView);
     stateView.insert_account(contract, state::Account{.code = kTloadSlotZeroReturn});
 
-    auto loadInput = makeCallInput(stateView, vm, sender, contract, kTloadSlotZeroReturn);
+    state::State loadState(stateView);
+    auto loadInput = makeCallInput(loadState, vm, sender, contract, kTloadSlotZeroReturn);
     auto loadOutput = executeMessage(std::move(loadInput));
     BOOST_REQUIRE_EQUAL(loadOutput.result.status_code, EVMC_SUCCESS);
 
@@ -118,12 +122,14 @@ BOOST_AUTO_TEST_CASE(transient_storage_reverts_with_call_frame)
     stateView.insert_account(contract, state::Account{.code = revertAfterTstore});
 
     evmc::VM vm{evmc_create_evmone()};
-    auto input = makeCallInput(stateView, vm, sender, contract, revertAfterTstore);
+    state::State state(stateView);
+    auto input = makeCallInput(state, vm, sender, contract, revertAfterTstore);
     auto output = executeMessage(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_REVERT);
 
     stateView.insert_account(contract, state::Account{.code = kTloadSlotZeroReturn});
-    auto loadInput = makeCallInput(stateView, vm, sender, contract, kTloadSlotZeroReturn);
+    state::State loadState(stateView);
+    auto loadInput = makeCallInput(loadState, vm, sender, contract, kTloadSlotZeroReturn);
     auto loadOutput = executeMessage(std::move(loadInput));
     BOOST_REQUIRE_EQUAL(loadOutput.result.status_code, EVMC_SUCCESS);
 

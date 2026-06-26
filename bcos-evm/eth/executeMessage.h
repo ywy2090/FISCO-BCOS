@@ -36,7 +36,8 @@ using LogEntry = state::LogEntry;
 
 struct ExecuteMessageInput
 {
-    state::EvmStateReader const* stateView{nullptr};
+    /// Mutable execution journal; pipeline passes &TxPipelineContext::state (ADR-019 Q14).
+    state::State* state{nullptr};
     evmc::VM* vm{nullptr};
     evmc_message message{};
     bcos::u256 gasPrice{0};

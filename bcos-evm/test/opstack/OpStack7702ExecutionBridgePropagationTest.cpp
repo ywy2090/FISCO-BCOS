@@ -192,7 +192,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple
     BOOST_CHECK_EQUAL(intrinsicGas, gas::TX_BASE_GAS + PER_EMPTY_ACCOUNT_COST);
 
     auto input = make7702Input(sender, recipient, delegationTarget, intrinsicGas - 1, 1);
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.hashImpl = &hash;
 
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
 
     auto input =
         make7702Input(sender, recipient, delegationTarget, intrinsicGas - 1, authTupleCount);
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.hashImpl = &hash;
 
@@ -294,7 +294,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
             .authority = authorityAddr,
             .address = delegationTargetAddr,
             .nonce = 0});
-        input.stateView = &stateView;
+        input.state = &state;
         input.vm = &vm;
         input.hashImpl = &hash;
 
@@ -338,7 +338,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         OpStackVmHostPolicy extension(&state);
 
         ExecuteMessageInput input;
-        input.stateView = &state;
+        input.state = &state;
         input.vm = &vm;
         input.message = message;
         input.blockInfo.number = 1;

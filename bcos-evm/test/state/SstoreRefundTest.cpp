@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(EthHost_sstoreClear_accumulates4800)
     evmc::VM vm{evmc_create_evmone()};
 
     ExecuteMessageInput input;
-    input.stateView = &state;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo = blockInfo;

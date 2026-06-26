@@ -67,12 +67,12 @@ evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message const& message,
-    state::VmHostPolicy* extension = nullptr)
+ExecuteMessageInput makeBaseInput(
+    state::State& state, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
-    input.stateView = view;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo.number = 1;
@@ -87,7 +87,7 @@ ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message cons
 CallOutcome runDepth0(
     state::State& state, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
 {
-    auto output = executeMessage(makeBaseInput(&state, message, extension));
+    auto output = executeMessage(makeBaseInput(state, message, extension));
     return {.status = output.result.status_code,
         .gasLeft = output.result.gas_left,
         .recipientBalance = state.get_balance(balanceTarget(message))};

@@ -9,6 +9,7 @@
 #include <evmc/evmc.h>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string_view>
 
 namespace bcos::evm
@@ -77,6 +78,38 @@ inline constexpr std::string_view P256VERIFY_PRECOMPILED_ADDRESS = P256VERIFY_PR
 
 inline constexpr std::string_view BLS_ADDRESS_ZERO_PREFIX =
     "00000000000000000000000000000000000000";
+
+inline bool isHigh18BytesZero(evmc_address const& addr) noexcept
+{
+    for (size_t i = 0; i < 18; ++i)
+    {
+        if (addr.bytes[i] != 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// @brief Canonical uint16_t suffix for kernel builtin precompiles (0x0001–0x0011, 0x0100).
+inline std::optional<uint16_t> precompileSuffix(evmc_address const& addr) noexcept
+{
+    if (!isHigh18BytesZero(addr))
+    {
+        return std::nullopt;
+    }
+    auto const suffix =
+        static_cast<uint16_t>((static_cast<uint16_t>(addr.bytes[18]) << 8) | addr.bytes[19]);
+    if (suffix >= ETH_PRECOMPILE_INDEX_FIRST && suffix <= ETH_PRECOMPILE_INDEX_LAST)
+    {
+        return suffix;
+    }
+    if (suffix == static_cast<uint16_t>(P256VERIFY_PRECOMPILE_INDEX))
+    {
+        return suffix;
+    }
+    return std::nullopt;
+}
 
 /// @return 40-nibble lowercase hex body without 0x prefix, or empty view if length is invalid.
 /// @details Incoming contract addresses are normalized to lowercase before this helper runs.

@@ -59,8 +59,9 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
 
     evmc::VM vm{evmc_create_evmone()};
 
+    state::State state(stateView);
     ExecuteMessageInput input;
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo = blockInfo;
@@ -104,7 +105,7 @@ BOOST_AUTO_TEST_CASE(top_level_revert_does_not_bump_sender_nonce)
     state::State state(stateView);
 
     ExecuteMessageInput input;
-    input.stateView = &state;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo = blockInfo;

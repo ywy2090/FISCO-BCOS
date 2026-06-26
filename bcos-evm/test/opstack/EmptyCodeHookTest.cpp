@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
     message.input_size = calldata.size();
 
     ExecuteMessageInput input;
-    input.stateView = &state;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo.number = 1;

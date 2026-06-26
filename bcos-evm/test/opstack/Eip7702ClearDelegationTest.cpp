@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -40,8 +41,9 @@ BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
     message.code_address = recipient;
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(stateView);
     ExecuteMessageInput input;
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.revisionConfig.revision = EVMC_CANCUN;

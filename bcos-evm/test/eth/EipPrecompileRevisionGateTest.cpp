@@ -197,8 +197,9 @@ BOOST_AUTO_TEST_CASE(cancun_call_0x0b_not_precompile_dispatch)
     msg.input_size = fixture.tx.data.size();
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(view);
     ExecuteMessageInput input;
-    input.stateView = &view;
+    input.state = &state;
     input.vm = &vm;
     input.message = msg;
     input.blockInfo = fixture.block;

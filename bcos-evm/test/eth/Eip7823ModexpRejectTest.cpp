@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -66,7 +67,7 @@ BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_executeMessage)
 
     evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput execInput;
-    execInput.stateView = &stateView;
+    execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;
     execInput.blockInfo = blockInfo;
@@ -83,7 +84,7 @@ BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_dispatch)
     auto const input = modexpHeaderBaseLen1025();
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip7823 = true};
 
-    auto result = precompiled::EthPrecompiles::dispatch(
+    auto result = bcos::evm::precompiled::EthPrecompiles::dispatch(
         modexp, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_OSAKA, cfg);
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK_EQUAL(result->status, EVMC_PRECOMPILE_FAILURE);
@@ -95,7 +96,7 @@ BOOST_AUTO_TEST_CASE(prague_modexp_field_1025_not_rejected)
     auto const input = modexpHeaderBaseLen1025();
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip7823 = false};
 
-    auto result = precompiled::EthPrecompiles::dispatch(
+    auto result = bcos::evm::precompiled::EthPrecompiles::dispatch(
         modexp, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_PRAGUE, cfg);
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK_EQUAL(result->status, EVMC_SUCCESS);
@@ -113,8 +114,8 @@ BOOST_AUTO_TEST_CASE(precompile_failure_exhausts_call_gas)
     message.input_data = nullptr;
     message.input_size = 0;
 
-    auto result =
-        precompiled::EthPrecompiles::tryDispatchInCall(blake2f, message, EVMC_PRAGUE, cfg);
+    auto result = bcos::evm::precompiled::EthPrecompiles::tryDispatchInCall(
+        blake2f, message, EVMC_PRAGUE, cfg);
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK_EQUAL(result->status_code, EVMC_PRECOMPILE_FAILURE);
     BOOST_CHECK_EQUAL(result->gas_left, 0);

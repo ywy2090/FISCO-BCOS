@@ -84,18 +84,6 @@ void apply7702TxAuthorizationsIfNeeded(
     state.commit();
 }
 
-state::State& resolveState(
-    state::EvmStateReader const& stateView, std::optional<state::State>& stateCopy)
-{
-    if (auto* statePtr = dynamic_cast<state::State const*>(&stateView); statePtr != nullptr)
-    {
-        return *const_cast<state::State*>(statePtr);
-    }
-
-    stateCopy.emplace(stateView);
-    return *stateCopy;
-}
-
 void logEntry(ExecuteMessageInput const& input)
 {
     if (input.message.depth == 0)
@@ -201,9 +189,9 @@ ExecuteMessageOutput finalizeAfterFrame(
 
 ExecuteMessageOutput TxExecutionAdapter::run(ExecuteMessageInput input)
 {
-    if (input.stateView == nullptr || input.vm == nullptr)
+    if (input.state == nullptr || input.vm == nullptr)
     {
-        throw std::invalid_argument("executeMessage requires stateView/vm");
+        throw std::invalid_argument("executeMessage requires State owner and vm");
     }
 
     std::optional<trace::EvmTraceScope> traceScope;
@@ -212,8 +200,7 @@ ExecuteMessageOutput TxExecutionAdapter::run(ExecuteMessageInput input)
         traceScope.emplace(trace::makeTraceContext("kernel", input.blockInfo.number, input.txHash));
     }
 
-    std::optional<state::State> stateCopy;
-    auto& state = resolveState(*input.stateView, stateCopy);
+    auto& state = *input.state;
     state.clear_refund();
 
     logEntry(input);

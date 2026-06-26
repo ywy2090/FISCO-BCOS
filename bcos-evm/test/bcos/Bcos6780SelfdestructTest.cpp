@@ -24,10 +24,10 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 
 ExecuteMessageInput buildExecuteMessageInput(
-    FixtureCase const& fixture, state::EvmStateReader const& stateView, evmc::VM& vm)
+    FixtureCase const& fixture, state::State& state, evmc::VM& vm)
 {
     ExecuteMessageInput input;
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
 
     evmc_message msg{};
@@ -66,7 +66,8 @@ BOOST_AUTO_TEST_CASE(imported_selfdestruct_fixture_via_execute_message)
         view.insert_account(addr, acct);
     }
 
-    auto input = buildExecuteMessageInput(fixture, view, vm);
+    state::State state(view);
+    auto input = buildExecuteMessageInput(fixture, state, vm);
     int64_t const gasBefore = input.message.gas;
     auto output = executeMessage(std::move(input));
 
@@ -110,8 +111,9 @@ BOOST_AUTO_TEST_CASE(created_in_tx_selfdestruct_clears_code_via_execute_message)
     blockInfo.gasLimit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(stateView);
     ExecuteMessageInput input;
-    input.stateView = &stateView;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo = blockInfo;

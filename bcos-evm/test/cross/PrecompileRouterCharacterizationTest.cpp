@@ -135,22 +135,14 @@ CallOutcome runDepth0EmptyCall(ExecuteMessageInput input)
                                sizeof(evmc_address{}.bytes)) != 0 ?
                                input.message.code_address :
                                input.message.recipient;
-    auto* stateView = input.stateView;
+    auto* statePtr = input.state;
     auto output = executeMessage(std::move(input));
     CallOutcome outcome;
     outcome.status = output.result.status_code;
     outcome.gasLeft = output.result.gas_left;
-    if (auto* statePtr = dynamic_cast<state::State const*>(stateView); statePtr != nullptr)
+    if (statePtr != nullptr)
     {
         outcome.recipientBalance = statePtr->get_balance(recipient);
-    }
-    else if (auto* viewPtr = dynamic_cast<state::test::InMemoryEvmStateReader const*>(stateView);
-             viewPtr != nullptr)
-    {
-        if (auto acct = viewPtr->get_account(recipient))
-        {
-            outcome.recipientBalance = acct->balance;
-        }
     }
     return outcome;
 }
@@ -187,12 +179,12 @@ struct Depth1HostFixture
     state::EthHost& ethHost() { return *host; }
 };
 
-ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message const& message,
-    state::VmHostPolicy* extension = nullptr)
+ExecuteMessageInput makeBaseInput(
+    state::State& state, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
-    input.stateView = view;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo.number = 1;
@@ -226,7 +218,9 @@ BOOST_AUTO_TEST_CASE(c1_identity_precompile_depth0_and_depth1)
     message.input_data = inputBytes.data();
     message.input_size = inputBytes.size();
 
-    auto depth0 = runDepth0EmptyCall(makeBaseInput(&view, message));
+    state::State state(view);
+    state.set_balance(sender, senderAccount.balance);
+    auto depth0 = runDepth0EmptyCall(makeBaseInput(state, message));
     BOOST_CHECK_EQUAL(depth0.status, kC1Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC1Depth0GasLeft);
 
@@ -261,7 +255,7 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    auto depth0 = runDepth0EmptyCall(makeBaseInput(&state0, message, &extension0));
+    auto depth0 = runDepth0EmptyCall(makeBaseInput(state0, message, &extension0));
     BOOST_CHECK_EQUAL(depth0.status, kC2Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC2Depth0GasLeft);
 
@@ -296,7 +290,9 @@ BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_and_depth1)
     message.recipient = target;
     message.code_address = target;
 
-    auto depth0 = runDepth0EmptyCall(makeBaseInput(&view, message));
+    state::State state(view);
+    state.set_balance(sender, senderAccount.balance);
+    auto depth0 = runDepth0EmptyCall(makeBaseInput(state, message));
     BOOST_CHECK_EQUAL(depth0.status, kC3Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC3Depth0GasLeft);
 
@@ -359,7 +355,7 @@ BOOST_AUTO_TEST_CASE(c5_call_with_value_to_identity_depth0_and_depth1)
     message.input_data = inputBytes.data();
     message.input_size = inputBytes.size();
 
-    auto depth0 = runDepth0EmptyCall(makeBaseInput(&state0, message));
+    auto depth0 = runDepth0EmptyCall(makeBaseInput(state0, message));
     BOOST_CHECK_EQUAL(depth0.status, kC5Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC5Depth0GasLeft);
     BOOST_CHECK_EQUAL(depth0.recipientBalance, kC5Depth0RecipientBalance);
@@ -398,7 +394,9 @@ BOOST_AUTO_TEST_CASE(c6_revision_gate_bls_inactive_at_cancun)
     message.recipient = bls;
     message.code_address = bls;
 
-    auto input = makeBaseInput(&view, message);
+    state::State state(view);
+    state.set_balance(sender, senderAccount.balance);
+    auto input = makeBaseInput(state, message);
     input.revisionConfig.revision = EVMC_CANCUN;
     auto depth0 = runDepth0EmptyCall(std::move(input));
     BOOST_CHECK_EQUAL(depth0.status, kC6Depth0Status);
@@ -480,7 +478,7 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
             });
         depth0Deps.chainPrecompilePort = &depth0ChainPort;
         FiscoVmHostPolicy depth0Ext(/*skipEvmNativeValueTransfer*/ true, std::move(depth0Deps));
-        depth0Outcome = runDepth0EmptyCall(makeBaseInput(&depth0State, message, &depth0Ext));
+        depth0Outcome = runDepth0EmptyCall(makeBaseInput(depth0State, message, &depth0Ext));
         BOOST_CHECK(!callbackInvoked);
         BOOST_CHECK_EQUAL(depth0Outcome.status, kC7Depth0Status);
         BOOST_CHECK(depth0Outcome.status != kC7Depth1Status);

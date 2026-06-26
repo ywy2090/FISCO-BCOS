@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -43,7 +44,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_dispatch)
     auto const input = p256verifyValidSignatureInput();
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip7212 = true};
 
-    auto result = precompiled::EthPrecompiles::dispatch(
+    auto result = bcos::evm::precompiled::EthPrecompiles::dispatch(
         addr, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_OSAKA, cfg);
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK_EQUAL(result->status, EVMC_SUCCESS);
@@ -78,7 +79,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_executeMessage)
 
     evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput execInput;
-    execInput.stateView = &stateView;
+    execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;
     execInput.blockInfo = blockInfo;

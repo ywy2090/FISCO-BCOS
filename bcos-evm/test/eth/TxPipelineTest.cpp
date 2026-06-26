@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/eth/pipeline/BuildExecuteMessageInput.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
@@ -25,6 +26,13 @@ TxPipelineContext makeContext(state::test::InMemoryEvmStateReader const& stateVi
     message.gas = 100'000;
     return TxPipelineContext{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(1)};
+}
+
+evmc_address addressFromLastByte(uint8_t value)
+{
+    evmc_address address{};
+    address.bytes[19] = value;
+    return address;
 }
 
 struct CallbackPrecheckPolicy : ChainPrecheckPolicy
@@ -311,6 +319,44 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::None));
+}
+
+BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto ctx = makeContext(stateView);
+    ctx.message.sender = addressFromLastByte(0x01);
+    ctx.message.recipient = addressFromLastByte(0x02);
+    ctx.message.code_address = ctx.message.recipient;
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
+
+    auto const warmAddr = ctx.message.recipient;
+    ctx.state.pin_warm_create_address(warmAddr);
+    BOOST_REQUIRE(ctx.state.is_address_warm(warmAddr));
+
+    state::State* capturedState = nullptr;
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    precheckPolicy.onRunEvmExecution = [&](ExecuteMessageInput&& execInput) {
+        capturedState = execInput.state;
+        BOOST_CHECK(execInput.state == &ctx.state);
+        ExecuteMessageOutput output;
+        evmc_result raw{};
+        raw.status_code = EVMC_SUCCESS;
+        raw.gas_left = execInput.message.gas;
+        output.result = evmc::Result(raw);
+        return output;
+    };
+
+    EthOrchestrationErrorPolicy errorPolicy;
+    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+
+    BOOST_REQUIRE(capturedState != nullptr);
+    BOOST_CHECK(capturedState == &ctx.state);
+    BOOST_CHECK(capturedState->is_address_warm(warmAddr));
 }
 
 }  // namespace bcos::evm::test

@@ -58,11 +58,11 @@ inline evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-inline ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_message const& message)
+inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
-    input.stateView = view;
+    input.state = &state;
     input.vm = &vm;
     input.message = message;
     input.blockInfo.number = 1;
@@ -75,7 +75,7 @@ inline ExecuteMessageInput makeBaseInput(state::EvmStateReader* view, evmc_messa
 
 inline FrameBalanceOutcome runDepth0(state::State& state, evmc_message const& message)
 {
-    auto output = executeMessage(makeBaseInput(&state, message));
+    auto output = executeMessage(makeBaseInput(state, message));
     return {.status = output.result.status_code,
         .gasLeft = output.result.gas_left,
         .senderBalance = state.get_balance(message.sender),

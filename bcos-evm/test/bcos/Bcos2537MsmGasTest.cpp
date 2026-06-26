@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/BlsGas.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -59,8 +60,9 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
     blockInfo.gasLimit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(view);
     ExecuteMessageInput execInput;
-    execInput.stateView = &view;
+    execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;
     execInput.blockInfo = blockInfo;
@@ -98,8 +100,9 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_isthmus_profil
     blockInfo.gasLimit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(view);
     ExecuteMessageInput execInput;
-    execInput.stateView = &view;
+    execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;
     execInput.blockInfo = blockInfo;

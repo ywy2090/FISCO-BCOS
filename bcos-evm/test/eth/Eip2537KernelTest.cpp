@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
@@ -17,7 +18,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth)
     addr.bytes[19] = 0x0c;
     bcos::bytes input(320, 0);
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
-    auto r = precompiled::EthPrecompiles::dispatch(
+    auto r = bcos::evm::precompiled::EthPrecompiles::dispatch(
         addr, bcos::bytesConstRef(input.data(), input.size()), 500000, EVMC_PRAGUE, cfg);
     BOOST_REQUIRE(r.has_value());
     BOOST_CHECK_EQUAL(r->gasCost, 22776);
@@ -45,8 +46,9 @@ BOOST_AUTO_TEST_CASE(stBLS_add_precompile_0x0b_via_executeMessage)
     msg.input_size = fixture.tx.data.size();
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(view);
     ExecuteMessageInput input;
-    input.stateView = &view;
+    input.state = &state;
     input.vm = &vm;
     input.message = msg;
     input.blockInfo = fixture.block;

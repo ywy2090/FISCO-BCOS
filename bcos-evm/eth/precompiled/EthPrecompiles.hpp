@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Builtin ethereum precompile dispatcher (0x01..0x11).
+ * @brief Builtin ethereum precompile dispatcher (0x01..0x11, 0x0100).
  * @file EthPrecompiles.hpp
  */
 
@@ -34,6 +34,9 @@ struct EthPrecompileResult
     bcos::bytes output;
 };
 
+/// Execute-only builtin precompile module. Does not apply revision activation gates;
+/// production callers must gate via precompiled::isActivePrecompile before dispatch.
+/// Direct dispatch/tryDispatchInCall use is reserved for kernel characterization tests.
 class EthPrecompiles
 {
 public:

@@ -14,33 +14,16 @@
 namespace bcos::evm::precompiled
 {
 
-inline bool isHigh18BytesZero(evmc_address const& addr) noexcept
-{
-    for (size_t i = 0; i < 18; ++i)
-    {
-        if (addr.bytes[i] != 0)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
 inline bool isLowPrecompile(evmc_address const& addr) noexcept
 {
-    if (!isHigh18BytesZero(addr))
-    {
-        return false;
-    }
-    return addr.bytes[18] == 0x00 && addr.bytes[19] >= ETH_PRECOMPILE_INDEX_FIRST &&
-           addr.bytes[19] <= ETH_PRECOMPILE_INDEX_LAST;
+    auto const suffix = precompileSuffix(addr);
+    return suffix.has_value() && *suffix <= ETH_PRECOMPILE_INDEX_LAST;
 }
 
 inline bool isP256Precompile(evmc_address const& addr) noexcept
 {
-    return isHigh18BytesZero(addr) &&
-           addr.bytes[18] == static_cast<uint8_t>(P256VERIFY_PRECOMPILE_INDEX >> 8) &&
-           addr.bytes[19] == static_cast<uint8_t>(P256VERIFY_PRECOMPILE_INDEX & 0xFF);
+    auto const suffix = precompileSuffix(addr);
+    return suffix.has_value() && *suffix == static_cast<uint16_t>(P256VERIFY_PRECOMPILE_INDEX);
 }
 
 inline bool isActivePrecompile(

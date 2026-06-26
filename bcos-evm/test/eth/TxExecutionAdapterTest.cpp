@@ -28,9 +28,9 @@ using bcos::evm::SetCodeAuthorization;
 using bcos::evm::execution::TxExecutionAdapter;
 
 ExecuteMessageInput makePragueCallInput(
-    state::EvmStateReader* view, evmc_message message, bcos::evm_standard::RevisionConfig cfg = {})
+    state::State& state, evmc_message message, bcos::evm_standard::RevisionConfig cfg = {})
 {
-    auto input = makeBaseInput(view, message);
+    auto input = makeBaseInput(state, message);
     if (cfg.revision != EVMC_FRONTIER)
     {
         input.revisionConfig = cfg;
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(top_level_success_bumps_sender_nonce)
     state.set_code(target, stopCode,
         state::keccak256Code(bcos::bytesConstRef{stopCode.data(), stopCode.size()}));
 
-    auto input = makePragueCallInput(&state, callMessage(sender, target));
+    auto input = makePragueCallInput(state, callMessage(sender, target));
 
     auto const output = TxExecutionAdapter::run(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(skip_top_level_sender_nonce_bump_flag)
     state.set_code(target, stopCode,
         state::keccak256Code(bcos::bytesConstRef{stopCode.data(), stopCode.size()}));
 
-    auto input = makePragueCallInput(&state, callMessage(sender, target));
+    auto input = makePragueCallInput(state, callMessage(sender, target));
     input.skipTopLevelSenderNonceBump = true;
 
     auto const output = TxExecutionAdapter::run(std::move(input));
@@ -108,7 +108,8 @@ BOOST_AUTO_TEST_CASE(eip7702_auth_prebump_characterization)
     stateView.insert_account(sender, senderAccount);
     stateView.insert_account(recipient, state::Account{});
 
-    auto input = makePragueCallInput(&stateView, callMessage(sender, recipient));
+    state::State state(stateView);
+    auto input = makePragueCallInput(state, callMessage(sender, recipient));
     input.revisionConfig.eip7702 = true;
     input.blockInfo.chainId = 1;
     input.authorizationListPresent = true;
@@ -140,7 +141,7 @@ BOOST_AUTO_TEST_CASE(precompile_hit_returns_state_diff)
     evmc_message message = callMessage(sender, identity);
     message.value = weiValue(100);
 
-    auto input = makePragueCallInput(&state, message);
+    auto input = makePragueCallInput(state, message);
     auto const output = TxExecutionAdapter::run(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
@@ -166,7 +167,7 @@ BOOST_AUTO_TEST_CASE(top_level_revert_nonce_characterization)
     stateView.insert_account(target, targetAccount);
 
     state::State state(stateView);
-    auto input = makePragueCallInput(&state, callMessage(sender, target));
+    auto input = makePragueCallInput(state, callMessage(sender, target));
 
     auto const output = TxExecutionAdapter::run(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_REVERT);
@@ -201,7 +202,8 @@ BOOST_AUTO_TEST_CASE(create_skips_eip7702_tx_auth_apply)
     message.input_data = initCode.data();
     message.input_size = initCode.size();
 
-    auto input = makePragueCallInput(&stateView, message);
+    state::State state(stateView);
+    auto input = makePragueCallInput(state, message);
     input.revisionConfig.eip7702 = true;
     input.authorizationListPresent = true;
     input.authorizations.push_back(SetCodeAuthorization{.chainId = bcos::u256(1),
@@ -232,7 +234,7 @@ BOOST_AUTO_TEST_CASE(nested_success_skips_top_level_sender_nonce_bump)
     stateView.insert_account(target, state::Account{});
 
     state::State state(stateView);
-    auto input = makePragueCallInput(&state, callMessage(sender, target, /*depth=*/1));
+    auto input = makePragueCallInput(state, callMessage(sender, target, /*depth=*/1));
 
     auto const output = TxExecutionAdapter::run(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
@@ -259,10 +261,10 @@ BOOST_AUTO_TEST_CASE(execute_message_delegates_to_adapter)
 
     state::State state(stateView);
     auto message = callMessage(sender, target);
-    auto const viaAdapter = TxExecutionAdapter::run(makePragueCallInput(&state, message));
+    auto const viaAdapter = TxExecutionAdapter::run(makePragueCallInput(state, message));
 
     state::State stateAgain(stateView);
-    auto input = makePragueCallInput(&stateAgain, message);
+    auto input = makePragueCallInput(stateAgain, message);
     auto const viaFacade = bcos::evm::executeMessage(std::move(input));
 
     BOOST_CHECK_EQUAL(viaAdapter.result.status_code, viaFacade.result.status_code);

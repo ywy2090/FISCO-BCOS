@@ -9,7 +9,7 @@ namespace bcos::evm
 inline ExecuteMessageInput buildExecuteMessageInput(TxPipelineContext& ctx)
 {
     ExecuteMessageInput input;
-    input.stateView = &ctx.state;
+    input.state = &ctx.state;
     input.vm = ctx.inputs.vm;
     input.message = ctx.message;
     input.gasPrice = ctx.gasPrice;
