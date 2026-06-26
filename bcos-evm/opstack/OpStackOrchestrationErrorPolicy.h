@@ -18,6 +18,11 @@ struct OpStackOrchestrationErrorPolicy : OrchestrationErrorPolicy
         TxPipelineContext& ctx, std::exception_ptr /*exceptionPtr*/) const override
     {
         ctx.evmcResult = makeInternalErrorResult();
+
+        if (ctx.state.has_checkpoint())
+        {
+            ctx.state.revert();
+        }
     }
 };
 

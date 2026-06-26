@@ -102,6 +102,34 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_treats_out_of_gas_like_generic)
         static_cast<int>(protocol::TransactionStatus::Unknown));
 }
 
+// O-PEX-03: pipeline exception reverts an open checkpoint (ADR-019 Q20).
+BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
+{
+    state::test::InMemoryEvmStateReader stateView;
+
+    evmc_address sender{};
+    sender.bytes[19] = 0x03;
+    state::Account senderAccount;
+    senderAccount.balance = 2'000;
+    stateView.insert_account(sender, senderAccount);
+
+    evmc_message message{};
+    message.sender = sender;
+    message.gas = 100'000;
+
+    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    ctx.state.checkpoint();
+    ctx.state.set_balance(sender, 200);
+    BOOST_CHECK(ctx.state.has_checkpoint());
+
+    OpStackOrchestrationErrorPolicy errorPolicy;
+    invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
+
+    BOOST_CHECK(!ctx.state.has_checkpoint());
+    BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), 2'000);
+}
+
 // O-PEN-01: OpStack inherits base noop post-execute normalization.
 BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
 {
