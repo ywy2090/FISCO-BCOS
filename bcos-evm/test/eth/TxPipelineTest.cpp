@@ -2,9 +2,9 @@
 
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/pipeline/BuildExecuteMessageInput.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
+#include "bcos-evm/eth/pipeline/ExecutionSession.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -33,6 +33,15 @@ evmc_address addressFromLastByte(uint8_t value)
     evmc_address address{};
     address.bytes[19] = value;
     return address;
+}
+
+void wireMinimalExecutionSession(TxPipelineContext& ctx, ExecutionSession& session)
+{
+    session.vm = ctx.inputs.vm;
+    session.extension = ctx.extension;
+    session.chainPort = ctx.chainPort;
+    session.blockHashes = ctx.inputs.blockHashes;
+    session.wire(ctx);
 }
 
 struct CallbackPrecheckPolicy : ChainPrecheckPolicy
@@ -299,6 +308,9 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
+    ExecutionSession session;
+    wireMinimalExecutionSession(ctx, session);
+
     CallbackPrecheckPolicy precheckPolicy;
     precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
     precheckPolicy.onRunEvmExecution = [](ExecuteMessageInput&&) -> ExecuteMessageOutput {
@@ -332,6 +344,9 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     evmc::VM vm{evmc_create_evmone()};
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
+
+    ExecutionSession session;
+    wireMinimalExecutionSession(ctx, session);
 
     auto const warmAddr = ctx.message.recipient;
     ctx.state.pin_warm_create_address(warmAddr);

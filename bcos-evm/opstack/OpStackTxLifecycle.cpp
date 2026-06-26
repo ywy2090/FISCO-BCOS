@@ -2,8 +2,8 @@
 
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
-#include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
-#include "bcos-evm/opstack/OpStackDepositTx.h"
+#include "bcos-evm/opstack/OpStackExecutionBundle.h"
+#include "bcos-evm/opstack/OpStackNormalFeeSettlement.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
@@ -44,9 +44,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
 
-    OpStackChainCallTargetAdapter chainAdapter(
-        &ctx.state, input.blockInfo.baseFee, input.forkSchedule, input.blockInfo.timestamp);
-    ctx.chainPort = &chainAdapter;
+    OpStackExecutionBundle execBundle{ctx, input};
 
     auto const feeParams = loadOpStackFeeParams(ctx.state);
     input.opTxExecutor.m_l1CostFunc = wireL1CostFuncWithState(input.forkSchedule, ctx.state);
@@ -118,11 +116,9 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     ctx.state.checkpoint();
 
-    auto buyGasOk = co_await input.opTxExecutor.buyGas(view);
-    if (!buyGasOk)
+    OpStackNormalFeeSettlement settlement{input.opTxExecutor};
+    if (!co_await settlement.buyGas(view, gasPool, output))
     {
-        abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
-        output.evmcResult = std::move(ctx.evmcResult);
         co_return output;
     }
 
@@ -133,7 +129,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
 
-    co_await completeNormalTxAfterPipeline(view, input, feeParams, gasPool, output);
+    co_await settlement.completeAfterPipeline(view, feeParams, gasPool, output);
 
     if (isNormalPreExecutionReject(ctx.exitKind))
     {

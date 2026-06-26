@@ -17,10 +17,9 @@
  */
 
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
-#include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/bcos/FiscoAddressDerivation.h"
-#include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
+#include "bcos-evm/bcos/FiscoExecutionBundle.h"
 #include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
@@ -102,31 +101,10 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
 
     trace::logMessageContext(input.message);
 
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
-    deps.state = &ctx.state;
-    deps.blockNumber = input.blockInfo.number;
-    deps.revisionFlags.fix_auth_check = input.revisionConfig.fix_auth_check;
-    deps.revisionFlags.use_raw_address = input.revisionConfig.use_raw_address;
-    deps.revisionFlags.fix_nonce_init = input.revisionConfig.fix_nonce_init;
-    deps.revisionFlags.web3Tx = input.web3Tx;
-    deps.hashImpl = input.hashImpl;
-    deps.seq = input.nestedSeq;
-    deps.origin = input.origin;
-    deps.persistContractCreateNonce = std::move(input.persistContractCreateNonce);
-    deps.recipientPathResolver = std::move(input.recipientPathResolver);
-    deps.authPort = input.authPort;
-    FiscoVmHostPolicy extension(input.revisionConfig.enable_balance_transfer, std::move(deps));
-    ctx.extension = &extension;
-
-    std::optional<FiscoChainCallTargetAdapter> chainTargetAdapter;
-    if (input.chainDispatchPort != nullptr)
-    {
-        chainTargetAdapter.emplace(ctx.state, *input.chainDispatchPort);
-        ctx.chainPort = std::addressof(*chainTargetAdapter);
-    }
+    FiscoExecutionBundle execBundle{ctx, input};
 
     FiscoOrchestrationProfile::Session session{
-        input, output, extension, fixErrorHandling, eip7623Enabled};
+        input, output, execBundle.extension(), fixErrorHandling, eip7623Enabled};
     auto bindings = FiscoOrchestrationProfile::bind(session);
     runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 

@@ -6,36 +6,43 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| 根目录 | 四件套（Bridge / HookBinder / VmHostPolicy / TxFeeLedger）、TxPrecheck、常量 |
+| 根目录 | Bridge、Lifecycle、Settlement、OrchestrationProfile、Precheck、常量 |
 | `fee/` | L1 fee、rollup cost、floor gas、gas settlement |
 | `l1/` | L1Block 与 GasPriceOracle 预部署 |
 
-## 四件套（根目录）
+## 核心模块（根目录）
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
-| 执行桥 | `OpStackExecutionBridge.*` | 入口 `opStackExecute()` |
-| 钩子绑定 | `OpStackPipelineHookBinder.*` | 填充 `TxPipelineHooks` |
-| 链 call target | `OpStackChainCallTargetAdapter` + `chainPort` | L1Block / GasPriceOracle classify + dispatch |
-| 费用账本 | `OpStackTxFeeLedger.*` | `buyGas` / `refundGas` 等 |
+| 执行桥 | `OpStackExecutionBridge.*` | TE 稳定入口 `opStackExecute()` → 委托 lifecycle |
+| 生命周期 | `OpStackTxLifecycle.*` | Deep module `runOpStackTxLifecycle`（gasPool、分支、settlement 编排） |
+| 费用投影 | `OpStackSettlementView.*`, `OpStackFeeSidecar.h` | `ctx` + `input` + sidecar 只读投影；无 request 镜像 |
+| Normal 结算 | `OpStackNormalFeeSettlement.*` | `buyGas` + `completeAfterPipeline`（ADR-025 内聚） |
+| 同步结算 | `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort helpers |
+| 费用账本 | `OpStackTxFeeLedger.*` | Adapter：`buyGas` / `refundGas`（读 `OpStackSettlementView`） |
+| 编排 | `OpStackOrchestrationProfile.*` | Session `{ input, view }`；`bind` → pipeline hooks |
+| 预检 | `OpStackPrecheckPolicy.*` | `checkEntryRules` + `checkGasAffordable` |
+| 链 call target | `OpStackChainCallTargetAdapter.*` | L1Block / GasPriceOracle classify + dispatch |
 
 ## 子目录模块
 
 | 目录 | 文件 | 职责 |
 | --- | --- | --- |
-| 根 | `OpStackPrecheckPolicy.*` | sync precheck：`checkEntryRules`（buyGas 前）+ `checkGasAffordable`（pipeline 内） |
-| 根 | `OpStackDepositTx.h` | `isDepositTx()` |
-| `fee/` | `OpStackFloorGasPrecheck.*` | ③½ `txCheckGasAffordable` 余额/floor 检查 |
 | `fee/` | `OpStackFee.*`、`RollupCost.*`、`OpStackFloorGas.*`、`OpStackGasSettlement.h` | L1 fee、rollup、settlement |
 | `l1/` | `L1Block*`、`GasPriceOracle*` | L1 属性与预部署 |
 
-## 执行流
+## 执行流（ADR-021 Appendix A）
 
 ```text
 OpStackTransactionExecutorImpl
-  → buyGas (wrapper 外圈)
-  → opStackExecute() → runTxPipeline()
-  → refundGas + build_diff (wrapper 外圈)
+  → opStackExecute()
+  → runOpStackTxLifecycle
+      ├─ OpStackSettlementView { ctx, input, sidecar }
+      ├─ OpStackOrchestrationProfile::bind(session)
+      ├─ checkEntryRules
+      ├─ deposit: gasPool → mint → pipeline → settleDeposit
+      └─ normal:  gasPool → checkpoint → NormalFeeSettlement.buyGas
+                  → pipeline → completeAfterPipeline
 ```
 
-测试见 `test/opstack/`。
+测试见 `test/opstack/`。设计见 ADR-021（Appendix A）、ADR-023、ADR-025。

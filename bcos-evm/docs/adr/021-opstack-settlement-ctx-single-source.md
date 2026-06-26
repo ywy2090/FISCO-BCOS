@@ -1,8 +1,8 @@
 # ADR-021: OpStack Settlement — ctx Single Source of Truth
 
-**Status:** Implemented (PR1 + PR2); Appendix A Accepted (fee projection — pending PR1–PR3)  
+**Status:** Implemented (PR1 + PR2 + Appendix A PR1–PR3)  
 **Date:** 2026-06-25 (PR2 section added 2026-06-25; Appendix A 2026-06-26)  
-**Implementation (PR1):** `OpStackSettlement::finalizeNormal`, `OpStackFeeContext`, `buyGas(ctx, feeCtx)`  
+**Implementation:** `OpStackSettlementView`, `OpStackFeeSidecar`, `OpStackNormalFeeSettlement`, `finalizeNormal(sidecar)`  
 **Spec (PR2):** `docs/superpowers/specs/2026-06-25-opstack-settlement-pr2-design.md`  
 **Spec (Appendix A):** `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`  
 **Deciders:** bcos-evm architecture  
@@ -192,7 +192,7 @@ Mint is never rolled back on failure.
 | `OpStackTxFeeLedger` | **Adapter seam** (L1/operator hooks, recipients); not lifecycle's direct interface |
 | `finalizeNormal` | **Sync internal seam** (ADR-021 §2.2 invariant preserved); unit-testable gas math |
 
-Delete: `populateFeeContext`. Retire public `OpStackFeeContext`, `settleNormal`, `completeNormalTxAfterPipeline` after PR3.
+Delete: `populateFeeContext`. Removed in Appendix A PR3: `OpStackFeeContext`, public `settleNormal`, `completeNormalTxAfterPipeline`.
 
 ### A.3 Invariants carried forward from §2
 
@@ -218,29 +218,29 @@ settlement.completeAfterPipeline(view, gasPool, feeParams, output)
 | --- | --- | --- |
 | **PR1** | `OpStackSettlementView`, `OpStackFeeSidecar`; Session E2; ledger/precheck read view; delete `populateFeeContext` | None |
 | **PR2** | `OpStackNormalFeeSettlement`; lifecycle convergence; ADR-025 tests on `completeAfterPipeline` | Abort/settle locality only (no semantic drift) |
-| **PR3** | Remove `OpStackFeeContext`; drop public `settleNormal` / `completeNormalTxAfterPipeline`; doc sync | None |
+| **PR3** | Remove `OpStackFeeContext`; drop public `settleNormal` / `completeNormalTxAfterPipeline`; doc sync | Implemented |
 
 ### A.6 Compliance (Appendix A — reviewers)
 
 **PR1**
 
-- [ ] `populateFeeContext` deleted
-- [ ] No new fields on `TxPipelineContext` under `eth/`
-- [ ] `OpStackOrchestrationProfile::Session` holds `view`, not `feeCtx`
-- [ ] All OpStack ctest green; no intentional behavior change
+- [x] `populateFeeContext` deleted
+- [x] No new fields on `TxPipelineContext` under `eth/`
+- [x] `OpStackOrchestrationProfile::Session` holds `view`, not `feeCtx`
+- [x] All OpStack ctest green; no intentional behavior change
 
 **PR2**
 
-- [ ] Lifecycle normal path calls only `buyGas` + `completeAfterPipeline` on settlement module
-- [ ] ADR-025 characterization matrix green (`OpStackTxLifecycleCharacterizationTest`)
-- [ ] `finalizeNormal` remains sync-only internal seam
-- [ ] Bridge/lifecycle does not call `refundGas` or `settleNormal` directly
+- [x] Lifecycle normal path calls only `buyGas` + `completeAfterPipeline` on settlement module
+- [x] ADR-025 characterization matrix green (`OpStackTxLifecycleCharacterizationTest`)
+- [x] `finalizeNormal` remains sync-only internal seam
+- [x] Bridge/lifecycle does not call `refundGas` or `settleNormal` directly
 
 **PR3**
 
-- [ ] `OpStackFeeContext` removed
-- [ ] Public async helpers removed from `OpStackSettlement.h` (internal to settlement module)
-- [ ] `OpStackTxFeeLedgerCtxTest` still covers adapter routing
+- [x] `OpStackFeeContext` removed
+- [x] Public async helpers removed from `OpStackSettlement.h` (internal to settlement module)
+- [x] `OpStackTxFeeLedgerCtxTest` still covers adapter routing
 
 ### A.7 Test surface (Appendix A)
 

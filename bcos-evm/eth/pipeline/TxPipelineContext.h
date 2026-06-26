@@ -23,6 +23,7 @@ namespace bcos::evm
 {
 
 struct ChainCallTargetPort;
+struct ExecutionSession;
 
 enum class TxPipelineExitKind
 {
@@ -83,6 +84,7 @@ public:
     bcos::u256 gasPrice{0};
     state::VmHostPolicy* extension{nullptr};
     ChainCallTargetPort* chainPort{nullptr};
+    ExecutionSession const* session{nullptr};
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};

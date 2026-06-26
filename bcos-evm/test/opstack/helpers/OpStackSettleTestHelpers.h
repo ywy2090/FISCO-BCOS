@@ -5,6 +5,7 @@
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackNormalFeeSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlementView.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
@@ -60,6 +61,8 @@ struct NormalSettleFixture
     OpStackFeeSidecar sidecar;
     OpStackSettlementView view;
     OpStackTxFeeLedger ledger;
+    OpStackNormalFeeSettlement settlement;
+    OpStackFeeParams feeParams{};
     GasPoolSpy spy;
 
     NormalSettleFixture(int64_t gasLimit, TxPipelineExitKind exitKind, int64_t gasLeft,
@@ -68,7 +71,8 @@ struct NormalSettleFixture
         coinbase(addressFromLastByte(0x02)),
         message(makeMessage(sender, gasLimit)),
         ctx(stateView, message, bcos::evm_standard::makeIsthmusRevisionConfig(), bcos::u256(0)),
-        view(ctx, input, sidecar)
+        view(ctx, input, sidecar),
+        settlement(ledger)
     {
         stateView.insert_account(sender, state::Account{.balance = u256(2'000'000)});
 
@@ -90,10 +94,26 @@ struct NormalSettleFixture
         ledger.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 10); };
     }
 
-    void buyGas()
+    void checkpointBeforeBuyGas() { ctx.state.checkpoint(); }
+
+    bool buyGas()
     {
-        auto ok = task::syncWait(ledger.buyGas(view));
-        BOOST_REQUIRE(ok);
+        OpStackExecutionResult output;
+        auto const ok = task::syncWait(settlement.buyGas(view, spy.hooks(), output));
+        return ok;
+    }
+
+    OpStackExecutionResult completeAfterPipeline()
+    {
+        OpStackExecutionResult output;
+        task::syncWait(settlement.completeAfterPipeline(view, feeParams, spy.hooks(), output));
+        return output;
+    }
+
+    void prepareAndComplete()
+    {
+        checkpointBeforeBuyGas();
+        BOOST_REQUIRE(buyGas());
     }
 };
 
@@ -105,13 +125,12 @@ inline void assertGasPoolMatchesSettled(
     BOOST_CHECK_EQUAL(spy.lastUsed, static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed)));
 }
 
-inline void assertSettleNormalMatchesFinalizeOracle(
-    NormalSettleFixture const& fixture, OpStackSettlementResult const& settled)
+inline void assertCompleteOutputMatchesFinalizeOracle(
+    NormalSettleFixture const& fixture, OpStackExecutionResult const& output)
 {
     auto const oracle = finalizeNormal(fixture.ctx, fixture.sidecar, fixture.ctx.exitKind);
-    BOOST_CHECK_EQUAL(settled.gasUsed, oracle.gasUsed);
-    BOOST_CHECK_EQUAL(settled.gasRemaining, oracle.gasRemaining);
-    BOOST_CHECK_EQUAL(settled.maxUsedGas, oracle.maxUsedGas);
+    BOOST_CHECK_EQUAL(output.gasUsed, oracle.gasUsed);
+    assertGasPoolMatchesSettled(fixture.spy, oracle);
 }
 
 struct DepositSettleFixture

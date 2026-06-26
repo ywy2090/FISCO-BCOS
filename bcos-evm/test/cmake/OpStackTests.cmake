@@ -24,6 +24,7 @@ add_executable(OpStackIntrinsicGasSyncTest
     ../opstack/OpStackExecutionBridge.cpp
     ../opstack/OpStackTxLifecycle.cpp
     ../opstack/OpStackSettlement.cpp
+    ../opstack/OpStackNormalFeeSettlement.cpp
     ../opstack/OpStackOrchestrationProfile.cpp
     ../opstack/OpStackPrecheckPolicy.cpp
     ../opstack/OpStackTxFeeLedger.cpp
@@ -375,6 +376,12 @@ add_test(
     NAME OpStackSettleAsync
     COMMAND ${OPSTACK_SETTLE_ASYNC_TEST_BINARY_NAME}
 )
+
+add_executable(OpStackNormalFeeSettlementTest opstack/OpStackNormalFeeSettlementTest.cpp)
+target_include_directories(OpStackNormalFeeSettlementTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackNormalFeeSettlementTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackNormalFeeSettlement COMMAND OpStackNormalFeeSettlementTest)
 
 add_executable(OpStackSettlementCharacterizationTest
     opstack/OpStackSettlementCharacterizationTest.cpp

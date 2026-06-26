@@ -2,7 +2,7 @@
 
 **用途：** 供评审者快速理解 `bcos-evm` 的分层契约、扩展机制与治理纪律。
 **配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–024`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`、编排后审查 [architecture-review-post-orchestration-2026-06-23.md](architecture-review-post-orchestration-2026-06-23.md)。
-**校验：** 2026-06-26（CallTargetResolver ADR-024 PR6；`chainPort` 单源；`PrecompileRouter` envelope-only）
+**校验：** 2026-06-26（CallTargetResolver ADR-024；ExecutionSession ADR-027；`PrecompileRouter` envelope-only）
 
 ---
 
@@ -189,7 +189,7 @@ evmone callback → EthHost::call (nested adapter)
 ④ debitIntrinsicGas(ctx.message, intrinsicPolicy) → earlyExit?
     └─ on failure: errorPolicy.onIntrinsicGasFailure
 ⑤ hooks.txCheckBalanceAndValue(ctx)
-⑥ buildExecuteMessageInput(ctx) + hooks.txTuneExecutionInput
+⑥ ctx.session->toExecuteMessageInput(ctx) + hooks.txTuneExecutionInput   （ADR-027；`BuildExecuteMessageInput` deprecated）
 ⑦ executeMessage(input)      — input.message == ctx.message
 ⑧ adoptEvmcResult(...)
 ⑨ captureSettlementSnapshot    — Eip7623 mode only
@@ -198,6 +198,8 @@ evmone callback → EthHost::call (nested adapter)
 ```
 
 异常路径：`errorPolicy.onPipelineException`。链特有 hook 逻辑由 `*OrchestrationProfile` 填充，不再散落在 bridge cpp 匿名 namespace。
+
+**执行环境注入（ADR-027）：** 三入口在 `runTxPipeline` 前构造链侧 `*ExecutionBundle`（拥有 `VmHostPolicy` / `ChainCallTargetAdapter`），暴露 kernel `ExecutionSession` view；`wire()` 一次写入 `ctx.session` / `ctx.chainPort` / `ctx.extension`；pipeline ⑥ 经 `toExecuteMessageInput(ctx)` 投影，nested `EthHost::call` 与 top-level 共享同一 `chainPort*`。
 
 ### 3.3 OpStack 外圈（ADR-021 + ADR-023）
 
@@ -208,10 +210,12 @@ OpStackPrecheckPolicy::checkEntryRules（buyGas 前 sync 规则）
 acquireGasPool
 branch:
   deposit:  depositNonce → mint → checkpoint → runTxPipeline → settleDeposit
-  normal:   buyGas → (fail: releaseGasPool) → runTxPipeline → settleNormal → receiptMeta
+  normal:   checkpoint → OpStackNormalFeeSettlement::buyGas
+            → (fail: abortNormalAfterBuyGas) → runTxPipeline
+            → completeAfterPipeline（ADR-025 决策树内聚）
 ```
 
-`settleNormal` / `settleDeposit` compose `OpStackSettlement`（`finalize*` 同步数学 + `refundGas` + gasPool）。`OpStackOrchestrationProfile::bind` 在 lifecycle 内联调用（D13）。详见 ADR-021/023。
+Normal 路径：`OpStackNormalFeeSettlement` deep module（`buyGas` + `completeAfterPipeline`）；内部经 `finalizeNormal` + `refundGas` + receipt meta。Deposit 仍用 `settleDeposit`（`finalizeDeposit` + gasPool）。`OpStackOrchestrationProfile::bind` 在 lifecycle 内联调用（D13）。详见 ADR-021 Appendix A / ADR-023 / ADR-025。
 
 ### 3.4 三路径调用流（总览）
 

@@ -1,25 +1,16 @@
 # ADR-023: OpStack Transaction Lifecycle (Deep Module)
 
-**Status:** Accepted (C0–C2 complete)  
-**Date:** 2026-06-25  
-**Related:** ADR-019, ADR-021, `docs/superpowers/specs/2026-06-25-opstack-settlement-pr2-design.md`, architecture review candidate #1 (OpStack outer-ring wiring)
+**Status:** Accepted (C0–C3 complete; fee projection Appendix A PR1–PR3 complete)  
+**Date:** 2026-06-25 (Appendix A alignment 2026-06-26)  
+**Related:** ADR-019, ADR-021 (Appendix A), ADR-025, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`
 
 ---
 
 ## Context
 
-ADR-021 deepened **settlement math** (`finalizeNormal` / `finalizeDeposit`) and **async settlement facades** (`settleNormal` / `settleDeposit`). `TxPipelineContext` is the gas/message/state single source for normal L2 txs.
+ADR-021 deepened **settlement math** (`finalizeNormal` / `finalizeDeposit`) and async settlement. **ADR-021 Appendix A (2026-06-26)** replaced `OpStackFeeContext` / `populateFeeContext` with `OpStackSettlementView` + `OpStackFeeSidecar` and moved normal post-pipeline wiring into **`OpStackNormalFeeSettlement`** (`buyGas` + `completeAfterPipeline`). `TxPipelineContext` remains the gas/message/state single source.
 
-Understanding one OpStack user transaction still requires reading **`OpStackExecutionBridge::opStackExecute`** across:
-
-- `OpStackFeeContext` manual initialization (20+ fields)
-- `OpStackPrecheckPolicy::checkEntryRules` (sync validation before buyGas; C3: consolidated from `opStackTxPrecheck`)
-- deposit pre-pipeline (`depositNonce` → `mint` → `checkpoint`)
-- normal `gasPool.subGas` → `buyGas` → `runTxPipeline` → `settleNormal`
-- buyGas-failure `gasPool.returnGas` in bridge (success path `returnGas` in `settleNormal`)
-- `receiptMeta` projection (`l1Fee`, `operatorFee`, `depositNonce`)
-
-The bridge is a **shallow adapter** with **low locality**: combination bugs (earlyExit × buyGas × gasPool × receipt) have no single module interface to test.
+Historical context (pre–Appendix A): outer-ring wiring lived in `OpStackExecutionBridge` with manual `OpStackFeeContext` initialization and public `settleNormal`.
 
 Grilling decisions D12–D18 (2026-06-25) resolved interface shape and delivery phasing.
 
@@ -43,39 +34,40 @@ Introduce `runOpStackTxLifecycle(OpStackExecutionRequest)` as the **OpStack oute
 | Module | Responsibility | Lifecycle relationship |
 | --- | --- | --- |
 | `runTxPipeline` (eth) | Fixed 12-step kernel | lifecycle calls via `OpStackOrchestrationProfile::bind` |
-| `finalizeNormal` / `finalizeDeposit` | Sync gas/journal math | lifecycle calls only through `settle*` |
-| `settleNormal` / `settleDeposit` | Async: finalize → refund → gasPool | lifecycle sole caller post-pipeline |
-| `OpStackTxFeeLedger` | buyGas / refundGas | lifecycle calls; not on bridge after C1 |
+| `finalizeNormal` / `finalizeDeposit` | Sync gas/journal math | normal: internal to `OpStackNormalFeeSettlement`; deposit: via `settleDeposit` |
+| `OpStackNormalFeeSettlement` | `buyGas` + `completeAfterPipeline` (ADR-025 tree) | lifecycle sole normal settlement interface |
+| `settleDeposit` | Async: `finalizeDeposit` + gasPool | lifecycle sole deposit post-pipeline entry |
+| `OpStackTxFeeLedger` | buyGas / refundGas adapter | called via settlement module / `settleDeposit`; not on bridge |
 
 ADR-021 invariants unchanged.
 
 ### 3. Internal session (not interface)
 
-`OpStackTxSession` (private to lifecycle implementation):
+`OpStackOrchestrationProfile::Session` (internal):
 
-- `TxPipelineContext ctx`
-- `OpStackFeeContext fee`
-- `OpStackVmHostPolicy host`
-- `depositNonceSnapshot` (deposit only)
+- `OpStackExecutionRequest& input`
+- `OpStackSettlementView view` (`ctx` + `input` + `sidecar`)
 
-`feeCtx` does not cross the lifecycle external seam.
+`sidecar` / `view` do not cross the lifecycle external seam.
 
 ### 4. Lifecycle step order
 
 ```text
-populateFeeContext → Profile::bind (once)
-OpStackPrecheckPolicy::checkEntryRules(ctx)   // sync rules before buyGas (nonce/7702/blob/feeCap)
+view = { ctx, input, sidecar }
+session = { input, view }
+Profile::bind(session)   // once
+OpStackPrecheckPolicy::checkEntryRules(ctx)
 branch:
   deposit:
     acquireGasPool
-    runDepositPrePipeline (depositNonce → mint → checkpoint)
-    runTxPipeline (checkGasAffordable: floor + post-buyGas canTransfer)
-    settleDeposit → projectOutput
+    depositNonce → mint → checkpoint
+    runTxPipeline
+    settleDeposit → stateDiff
   normal:
-    acquireGasPool
-    buyGas → on fail: releaseGasPool(limit, 0); early exit
-    runTxPipeline (checkTransactionRules: no-op; checkGasAffordable after buyGas)
-    settleNormal → projectOutput
+    acquireGasPool → checkpoint
+    NormalFeeSettlement.buyGas → on fail: abortNormalAfterBuyGas
+    runTxPipeline
+    NormalFeeSettlement.completeAfterPipeline  // ADR-025 abort or commit+settle+meta
 ```
 
 ### 4½. OpStack sync precheck module (C3)
@@ -110,7 +102,7 @@ Lifecycle **inlines** `OpStackOrchestrationProfile::bind(session)` — hooks are
 | normal pre-execution reject (`IntrinsicRejected`, `GasAffordRejected`) | `evmcResult`; `gasUsed = 0`; gasPool released; **no fee meta**; **unchanged sender balance in `stateDiff`** | `logs` |
 | full path | all via `projectOutput` | — |
 
-See **ADR-025** for R3-7623-1 abort semantics (`buyGas` checkpoint + revert, no `settleNormal` on entry reject).
+See **ADR-025** for R3-7623-1 abort semantics (`buyGas` checkpoint + revert; `completeAfterPipeline` must not settle on entry reject).
 
 ### 8. Phased delivery
 

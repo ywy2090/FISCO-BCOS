@@ -1,7 +1,9 @@
 #pragma once
 
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlementView.h"
+#include "bcos-evm/opstack/fee/OpStackFee.h"
 #include <bcos-task/Task.h>
 
 namespace bcos::evm

@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/eth/gas/Eip1559Access.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackFeeSidecar.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include <algorithm>
@@ -56,27 +57,6 @@ void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
     releaseGasPoolFullLimit(gasPool, originalGasLimit);
     output.gasUsed = 0;
     output.stateDiff = ctx.state.build_diff();
-}
-
-void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackSettlementView& view,
-    OpStackFeeParams const& feeParams, OpStackSettlementResult const& settled)
-{
-    auto const& input = view.input;
-    auto const& sidecar = view.feeSidecar();
-
-    output.receiptMeta.l1Fee = sidecar.l1CostCharged;
-    if (isOpStackIsthmus(input.forkSchedule, view.blockInfo().timestamp) &&
-        input.opTxExecutor.m_operatorCostFunc)
-    {
-        auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
-        output.receiptMeta.operatorFee =
-            input.opTxExecutor.m_operatorCostFunc(gasUsed, view.blockInfo().timestamp);
-        if (feeParams.operatorFeeScalar != 0 || feeParams.operatorFeeConstant != 0)
-        {
-            output.receiptMeta.operatorFeeScalar = feeParams.operatorFeeScalar;
-            output.receiptMeta.operatorFeeConstant = feeParams.operatorFeeConstant;
-        }
-    }
 }
 
 OpStackSettlementResult finalizeNormal(
@@ -138,20 +118,6 @@ OpStackSettlementResult finalizeDeposit(
     return out;
 }
 
-task::Task<OpStackSettlementResult> settleNormal(OpStackSettlementView view,
-    TxPipelineExitKind exitKind, OpStackTxFeeLedger& ledger, GasPoolHooks const& gasPool)
-{
-    auto& ctx = view.pipelineContext();
-    auto settled = finalizeNormal(ctx, view.feeSidecar(), exitKind);
-    co_await ledger.refundGas(view, settled);
-    if (gasPool.returnGas)
-    {
-        gasPool.returnGas(
-            settled.gasRemaining, static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed)));
-    }
-    co_return settled;
-}
-
 task::Task<OpStackSettlementResult> settleDeposit(TxPipelineContext& ctx,
     TxPipelineExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool)
 {
@@ -162,25 +128,6 @@ task::Task<OpStackSettlementResult> settleDeposit(TxPipelineContext& ctx,
             settled.gasRemaining, static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed)));
     }
     co_return settled;
-}
-
-task::Task<void> completeNormalTxAfterPipeline(OpStackSettlementView view,
-    OpStackExecutionRequest& input, OpStackFeeParams const& feeParams, GasPoolHooks const& gasPool,
-    OpStackExecutionResult& output)
-{
-    auto& ctx = view.pipelineContext();
-    if (isNormalPreExecutionReject(ctx.exitKind))
-    {
-        abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
-        co_return;
-    }
-
-    ctx.state.commit();
-
-    auto settled = co_await settleNormal(view, ctx.exitKind, input.opTxExecutor, gasPool);
-    output.gasUsed = settled.gasUsed;
-    projectNormalReceiptMeta(output, view, feeParams, settled);
-    output.stateDiff = ctx.state.build_diff();
 }
 
 }  // namespace bcos::evm

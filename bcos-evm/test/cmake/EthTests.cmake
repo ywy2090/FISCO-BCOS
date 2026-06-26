@@ -118,6 +118,18 @@ target_include_directories(TxPipelineTest PRIVATE
 target_link_libraries(TxPipelineTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME TxPipeline COMMAND TxPipelineTest)
+add_executable(ExecutionSessionTest eth/ExecutionSessionTest.cpp)
+target_include_directories(ExecutionSessionTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(ExecutionSessionTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
+add_test(NAME ExecutionSession COMMAND ExecutionSessionTest)
+add_executable(ExecutionSessionPropagationTest eth/ExecutionSessionPropagationTest.cpp)
+target_include_directories(ExecutionSessionPropagationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(ExecutionSessionPropagationTest PRIVATE
+    bcos-evm-eth bcos-evm-op evmone::evmone bcos-task bcos-crypto)
+add_test(NAME ExecutionSessionPropagation COMMAND ExecutionSessionPropagationTest)
 add_executable(EthOrchestrationProfileTest eth/EthOrchestrationProfileTest.cpp)
 target_include_directories(EthOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

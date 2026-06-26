@@ -33,7 +33,7 @@ struct OpStackSettlementView
     bool skipTransactionChecks() const noexcept;
     bool noBaseFee() const noexcept;
 
-    /// Matches legacy `populateFeeContext` (`m_hasGasFeeCap = true`).
+    /// OpStack typed txs always carry EIP-1559 fee caps on the execution request.
     bool hasGasFeeCap() const noexcept;
 
     bcos::u256 gasTipCap() const noexcept;

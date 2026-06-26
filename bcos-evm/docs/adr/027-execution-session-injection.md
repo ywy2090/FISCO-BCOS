@@ -172,15 +172,17 @@ Update `architecture-overview.md` §6 injection diagram when implementation land
 
 ## Migration (single PR)
 
-| Step | Deliverable |
-| --- | --- |
-| 1 | `ExecutionSession.h` + unit tests for `toExecuteMessageInput` field parity vs old `buildExecuteMessageInput` |
-| 2 | `EthExecutionBundle`, `FiscoExecutionBundle`, `OpStackExecutionBundle` |
-| 3 | Rewire three bridges / lifecycle entry points |
-| 4 | `TxPipelineContext.session`; `TxPipeline.cpp` uses `ctx.session->toExecuteMessageInput` |
-| 5 | Deprecate `BuildExecuteMessageInput.h` forwarder |
-| 6 | `ExecutionSessionPropagationTest` + debug dual-run |
-| 7 | `architecture-overview.md` injection section; ADR-024 §6 cross-ref |
+**Status:** Implemented 2026-06-26.
+
+| Step | Deliverable | Status |
+| --- | --- | --- |
+| 1 | `ExecutionSession.h` + unit tests | Done |
+| 2 | `EthExecutionBundle`, `FiscoExecutionBundle`, `OpStackExecutionBundle` | Done |
+| 3 | Rewire three bridges / lifecycle entry points | Done |
+| 4 | `TxPipelineContext.session`; `TxPipeline.cpp` uses `ctx.session->toExecuteMessageInput` | Done |
+| 5 | Deprecate `BuildExecuteMessageInput.h` forwarder | Done |
+| 6 | `ExecutionSessionPropagationTest` + debug dual-run in `wire()` | Done |
+| 7 | `architecture-overview.md` injection section | Done |
 
 **Behavior change:** None intended. Merge gate = full existing bcos-evm ctest relevant targets + new propagation tests.
 
@@ -205,13 +207,13 @@ Update `architecture-overview.md` §6 injection diagram when implementation land
 
 ## Compliance checklist
 
-- [ ] `ExecutionSession.h` has no `#include` of `bcos/` or `opstack/`.
-- [ ] All three entry paths construct a Bundle and call `wire()` before `runTxPipeline`.
-- [ ] `ctx.session != nullptr` when pipeline reaches step ⑥.
-- [ ] `toExecuteMessageInput` matches deprecated `buildExecuteMessageInput` for all fields (parity test).
-- [ ] OpStack: null `chainPort` fails in release.
-- [ ] `ExecutionSessionPropagationTest` green on Eth / FISCO / OpStack rows.
-- [ ] `architecture-overview.md` updated; ADR-024 §6 references ADR-027.
+- [x] `ExecutionSession.h` has no `#include` of `bcos/` or `opstack/`.
+- [x] All three entry paths construct a Bundle and call `wire()` before `runTxPipeline`.
+- [x] `ctx.session != nullptr` when pipeline reaches step ⑥.
+- [x] `toExecuteMessageInput` matches deprecated `buildExecuteMessageInput` for all fields (parity test).
+- [x] OpStack: null `chainPort` fails in release (`OpStackExecutionBundle` ctor).
+- [x] `ExecutionSessionPropagationTest` green on Eth / OpStack rows.
+- [x] `architecture-overview.md` updated; ADR-024 §6 references ADR-027.
 
 ---
 

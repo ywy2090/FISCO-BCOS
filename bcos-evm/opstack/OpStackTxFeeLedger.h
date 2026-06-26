@@ -16,9 +16,6 @@ namespace bcos::evm
 
 struct OpStackSettlementResult;
 
-/// PR1 compat alias — removed in Appendix A PR3.
-using OpStackFeeContext = OpStackFeeSidecar;
-
 struct OpStackTxFeeLedger
 {
     std::function<u256(const RollupCostData&, uint64_t blockTime)> m_l1CostFunc;

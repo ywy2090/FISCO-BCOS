@@ -1,8 +1,8 @@
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/pipeline/AdoptEvmcResult.h"
-#include "bcos-evm/eth/pipeline/BuildExecuteMessageInput.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
+#include "bcos-evm/eth/pipeline/ExecutionSession.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <stdexcept>
 
@@ -103,7 +103,11 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
         EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "runEvmExecution")
                        << LOG_KV("gas", ctx.message.gas);
 
-        auto executeInput = buildExecuteMessageInput(ctx);
+        if (ctx.session == nullptr)
+        {
+            throw std::invalid_argument("runTxPipeline requires wired ExecutionSession");
+        }
+        auto executeInput = ctx.session->toExecuteMessageInput(ctx);
         precheckPolicy.tuneExecutionInput(executeInput);
 
         ctx.kernelOutput = precheckPolicy.runEvmExecution(std::move(executeInput));

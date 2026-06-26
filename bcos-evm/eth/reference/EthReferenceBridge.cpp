@@ -1,6 +1,7 @@
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
+#include "bcos-evm/eth/reference/EthExecutionBundle.h"
 #include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
@@ -58,8 +59,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
 
     trace::logMessageContext(input.message);
 
-    state::EthVmHostPolicy ethExtension;
-    ctx.extension = &ethExtension;
+    EthExecutionBundle execBundle{ctx, input};
 
     EthOrchestrationProfile::Session session{input, output};
     auto bindings = EthOrchestrationProfile::bind(session);
