@@ -14,6 +14,7 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -106,15 +107,13 @@ BOOST_AUTO_TEST_CASE(skip_top_level_sender_nonce_bump_flag)
 // Matrix: T03 — EIP-7702 auth pre-bump + finalize mutual exclusion (characterization).
 BOOST_AUTO_TEST_CASE(eip7702_auth_prebump_characterization)
 {
-    state::test::InMemoryEvmStateReader stateView;
-    auto const sender = addressFromLastByte(0x31);
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
 
-    state::Account senderAccount;
-    senderAccount.nonce = 0;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    state::test::InMemoryEvmStateReader stateView;
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 
     state::State state(stateView);
@@ -122,8 +121,7 @@ BOOST_AUTO_TEST_CASE(eip7702_auth_prebump_characterization)
     input.revisionConfig.eip7702 = true;
     input.blockInfo.chainId = 1;
     input.authorizationListPresent = true;
-    input.authorizations.push_back(SetCodeAuthorization{
-        .chainId = bcos::u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
+    input.authorizations.push_back(authKey.sign(delegationTarget, 1));
 
     auto const output = TxExecutionAdapter::run(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
@@ -195,13 +193,11 @@ BOOST_AUTO_TEST_CASE(top_level_revert_nonce_characterization)
 // Matrix: T06 — CREATE skips EIP-7702 tx auth apply on sender.
 BOOST_AUTO_TEST_CASE(create_skips_eip7702_tx_auth_apply)
 {
-    state::test::InMemoryEvmStateReader stateView;
-    auto const sender = addressFromLastByte(0x61);
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
 
-    state::Account senderAccount;
-    senderAccount.nonce = 0;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    state::test::InMemoryEvmStateReader stateView;
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
 
     bcos::bytes initCode{0x60, 0x80, 0x60, 0x40, 0x52, 0x60, 0x04, 0x60, 0x1c, 0x60, 0x00, 0x39};
     evmc_message message{};
@@ -215,10 +211,7 @@ BOOST_AUTO_TEST_CASE(create_skips_eip7702_tx_auth_apply)
     auto input = makePragueCallInput(state, message);
     input.revisionConfig.eip7702 = true;
     input.authorizationListPresent = true;
-    input.authorizations.push_back(SetCodeAuthorization{.chainId = bcos::u256(1),
-        .authority = sender,
-        .address = addressFromLastByte(0x99),
-        .nonce = 1});
+    input.authorizations.push_back(authKey.sign(addressFromLastByte(0x99), 1));
 
     auto const output = TxExecutionAdapter::run(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);

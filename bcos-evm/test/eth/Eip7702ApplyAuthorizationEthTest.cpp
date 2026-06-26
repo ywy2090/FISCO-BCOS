@@ -4,32 +4,24 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
-namespace
-{
-evmc_address addressFromLastByte(uint8_t value)
-{
-    evmc_address address{};
-    address.bytes[19] = value;
-    return address;
-}
-}  // namespace
 
 BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
 {
-    state::test::InMemoryEvmStateReader stateView;
-    auto const sender = addressFromLastByte(0x31);
-    auto const recipient = addressFromLastByte(0x32);
-    auto const delegationTarget = addressFromLastByte(0x42);
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
+    evmc_address recipient{};
+    recipient.bytes[19] = 0x32;
+    evmc_address delegationTarget{};
+    delegationTarget.bytes[19] = 0x42;
 
-    state::Account senderAccount;
-    senderAccount.nonce = 0;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    state::test::InMemoryEvmStateReader stateView;
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 
     evmc_message message{};
@@ -45,7 +37,7 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
     blockInfo.gasLimit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
-    state::State state(view);
+    state::State state(stateView);
     ExecuteMessageInput input;
     input.state = &state;
     input.vm = &vm;
@@ -54,8 +46,7 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
     input.revisionConfig.revision = EVMC_PRAGUE;
     input.revisionConfig.eip7702 = true;
     input.authorizationListPresent = true;
-    input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
+    input.authorizations.push_back(authKey.sign(delegationTarget, 1));
 
     auto output = executeMessage(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);

@@ -4,6 +4,7 @@
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -29,15 +30,13 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(fiscoExecute_propagates_authorizations_to_executeMessage)
 {
-    state::test::InMemoryEvmStateReader stateView;
-    auto const sender = addressFromLastByte(0x31);
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
 
-    state::Account senderAccount;
-    senderAccount.nonce = 0;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    state::test::InMemoryEvmStateReader stateView;
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 
     evmc_message message{};
@@ -63,8 +62,7 @@ BOOST_AUTO_TEST_CASE(fiscoExecute_propagates_authorizations_to_executeMessage)
     input.revisionConfig.eth().revision = EVMC_PRAGUE;
     input.revisionConfig.eth().eip7702 = true;
     input.authorizationListPresent = true;
-    input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
+    input.authorizations.push_back(authKey.sign(delegationTarget, 1));
 
     auto output = task::syncWait(fiscoExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);

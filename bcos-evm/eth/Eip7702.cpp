@@ -53,11 +53,7 @@ std::optional<evmc_address> resolveAuthority(SetCodeAuthorization const& authori
 {
     if (!hasSignatureMaterial(authorization))
     {
-        if (state::isZeroAddress(authorization.authority))
-        {
-            return std::nullopt;
-        }
-        return authorization.authority;
+        return std::nullopt;
     }
 
     return recoverAuthorizationAuthority(authorization.chainId.value_or(0), authorization.address,

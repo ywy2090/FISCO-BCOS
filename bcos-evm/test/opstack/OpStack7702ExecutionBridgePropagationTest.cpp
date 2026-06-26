@@ -11,6 +11,7 @@
 #include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -77,9 +78,10 @@ void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecutionRequest make7702Input(evmc_address sender, evmc_address recipient,
+OpStackExecutionRequest make7702Input(TestAuthKeyPair const& authKey, evmc_address recipient,
     evmc_address delegationTarget, uint64_t gasLimit, uint64_t authTupleCount)
 {
+    auto const sender = authKey.address();
     OpStackExecutionRequest input;
     input.message.kind = EVMC_CALL;
     input.message.gas = static_cast<int64_t>(gasLimit);
@@ -103,8 +105,7 @@ OpStackExecutionRequest make7702Input(evmc_address sender, evmc_address recipien
     input.authorizationListPresent = true;
     for (uint64_t i = 0; i < authTupleCount; ++i)
     {
-        input.authorizations.push_back(
-            {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = i + 1});
+        input.authorizations.push_back(authKey.sign(delegationTarget, i + 1));
     }
     return input;
 }
@@ -112,50 +113,23 @@ OpStackExecutionRequest make7702Input(evmc_address sender, evmc_address recipien
 
 BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_executeMessage)
 {
-    state::test::InMemoryEvmStateReader stateView;
-    auto const sender = addressFromLastByte(0x31);
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
+    state::test::InMemoryEvmStateReader stateView;
     setOpFeeParams(stateView);
 
-    state::Account senderAccount;
-    senderAccount.nonce = 0;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
-
-    evmc_message message{};
-    message.kind = EVMC_CALL;
-    message.gas = 200'000;
-    message.sender = sender;
-    message.recipient = recipient;
-    message.code_address = recipient;
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
 
-    OpStackExecutionRequest input;
+    auto input = make7702Input(authKey, recipient, delegationTarget, 200'000, 1);
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
-    input.message = message;
-    input.gasTipCap = 1;
-    input.gasFeeCap = 2;
-    input.blockInfo.number = 1;
-    input.blockInfo.timestamp = 12345;
-    input.blockInfo.gasLimit = 30'000'000;
-    input.blockInfo.baseFee = 1;
-    input.blockInfo.chainId = 1;
-    input.blockInfo.coinbase = addressFromLastByte(0x99);
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
-    input.txProps.warmDestination = true;
-    input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
-    input.opTxExecutor.m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
-    input.skipTransactionChecks = true;
-    input.skipNonceChecks = true;
-    input.authorizationListPresent = true;
-    input.authorizations.push_back(
-        {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
 
     auto output = task::syncWait(opStackExecute(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
@@ -172,16 +146,14 @@ BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_executeMessage)
 
 BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple)
 {
-    state::test::InMemoryEvmStateReader stateView;
-    auto const sender = addressFromLastByte(0x33);
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x34);
     auto const delegationTarget = addressFromLastByte(0x43);
+    state::test::InMemoryEvmStateReader stateView;
     setOpFeeParams(stateView);
 
-    state::Account senderAccount;
-    senderAccount.nonce = 0;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 
     evmc::VM vm{evmc_create_evmone()};
@@ -191,8 +163,8 @@ BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple
         static_cast<uint64_t>(gas::TX_BASE_GAS + gas::calcAuthTupleIntrinsicGas(1));
     BOOST_CHECK_EQUAL(intrinsicGas, gas::TX_BASE_GAS + PER_EMPTY_ACCOUNT_COST);
 
-    auto input = make7702Input(sender, recipient, delegationTarget, intrinsicGas - 1, 1);
-    input.state = &state;
+    auto input = make7702Input(authKey, recipient, delegationTarget, intrinsicGas - 1, 1);
+    input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
 
@@ -202,16 +174,14 @@ BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple
 
 BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
 {
-    state::test::InMemoryEvmStateReader stateView;
-    auto const sender = addressFromLastByte(0x35);
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x36);
     auto const delegationTarget = addressFromLastByte(0x44);
+    state::test::InMemoryEvmStateReader stateView;
     setOpFeeParams(stateView);
 
-    state::Account senderAccount;
-    senderAccount.nonce = 0;
-    senderAccount.balance = 1'000'000;
-    stateView.insert_account(sender, senderAccount);
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 
     evmc::VM vm{evmc_create_evmone()};
@@ -223,8 +193,8 @@ BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
     BOOST_CHECK_EQUAL(intrinsicGas, gas::TX_BASE_GAS + authTupleCount * PER_EMPTY_ACCOUNT_COST);
 
     auto input =
-        make7702Input(sender, recipient, delegationTarget, intrinsicGas - 1, authTupleCount);
-    input.state = &state;
+        make7702Input(authKey, recipient, delegationTarget, intrinsicGas - 1, authTupleCount);
+    input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
 
@@ -237,10 +207,10 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
     constexpr uint64_t kExistenceRefund = PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST;
     BOOST_CHECK_EQUAL(kExistenceRefund, 12'500u);
 
-    auto const authority = addressFromLastByte(0x53);
+    auto const authorityKey = TestAuthKeyPair::generate();
+    auto const authority = authorityKey.address();
     auto const delegationTarget = addressFromLastByte(0x55);
-    std::vector<SetCodeAuthorization> const auths = {
-        {.chainId = u256(1), .authority = authority, .address = delegationTarget, .nonce = 0}};
+    std::vector<SetCodeAuthorization> const auths = {authorityKey.sign(delegationTarget, 0)};
 
     {
         state::test::InMemoryEvmStateReader seededView;
@@ -262,17 +232,15 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         0x60, 0x2a, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3};
 
     auto const runOpStackCase = [&](bool preSeedAuthority) {
+        auto const authorityKey = TestAuthKeyPair::generate();
+        auto const authorityAddr = authorityKey.address();
         state::test::InMemoryEvmStateReader stateView;
         auto const sender = addressFromLastByte(0x51);
         auto const recipient = addressFromLastByte(0x52);
-        auto const authorityAddr = addressFromLastByte(0x53);
         auto const delegationTargetAddr = addressFromLastByte(0x55);
         setOpFeeParams(stateView);
 
-        state::Account senderAccount;
-        senderAccount.nonce = 0;
-        senderAccount.balance = 10'000'000;
-        stateView.insert_account(sender, senderAccount);
+        stateView.insert_account(sender, state::Account{.balance = 10'000'000, .nonce = 0});
 
         state::Account recipientAccount;
         recipientAccount.code = kReturn42Code;
@@ -280,21 +248,16 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
 
         if (preSeedAuthority)
         {
-            state::Account authorityAccount;
-            authorityAccount.nonce = 0;
-            stateView.insert_account(authorityAddr, authorityAccount);
+            stateView.insert_account(authorityAddr, state::Account{.nonce = 0});
         }
 
         evmc::VM vm{evmc_create_evmone()};
         FakeHash hash;
 
-        auto input = make7702Input(sender, recipient, delegationTargetAddr, 200'000, 1);
-        input.authorizations.clear();
-        input.authorizations.push_back({.chainId = u256(1),
-            .authority = authorityAddr,
-            .address = delegationTargetAddr,
-            .nonce = 0});
-        input.state = &state;
+        auto input = make7702Input(authorityKey, recipient, delegationTargetAddr, 200'000, 0);
+        input.message.sender = sender;
+        input.authorizations.push_back(authorityKey.sign(delegationTargetAddr, 0));
+        input.stateView = &stateView;
         input.vm = &vm;
         input.hashImpl = &hash;
 
@@ -306,10 +269,11 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
     };
 
     auto const runExecuteMessageRefund = [&](bool preSeedAuthority) {
+        auto const authorityKey = TestAuthKeyPair::generate();
+        auto const authorityAddr = authorityKey.address();
         state::test::InMemoryEvmStateReader stateView;
         auto const sender = addressFromLastByte(0x61);
         auto const recipient = addressFromLastByte(0x62);
-        auto const authorityAddr = addressFromLastByte(0x63);
         auto const delegationTargetAddr = addressFromLastByte(0x65);
 
         stateView.insert_account(sender, state::Account{.balance = 1'000'000});
@@ -320,9 +284,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
 
         if (preSeedAuthority)
         {
-            state::Account authorityAccount;
-            authorityAccount.nonce = 0;
-            stateView.insert_account(authorityAddr, authorityAccount);
+            stateView.insert_account(authorityAddr, state::Account{.nonce = 0});
         }
 
         evmc_message message{};
@@ -346,10 +308,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         input.blockInfo.gasLimit = 30'000'000;
         input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
         input.authorizationListPresent = true;
-        input.authorizations.push_back({.chainId = u256(1),
-            .authority = authorityAddr,
-            .address = delegationTargetAddr,
-            .nonce = 0});
+        input.authorizations.push_back(authorityKey.sign(delegationTargetAddr, 0));
         input.extension = &extension;
 
         auto const intrinsicGas = static_cast<int64_t>(
