@@ -27,39 +27,26 @@
 
 ## 🔴 高优先级差异
 
-### 🔴 差异 1: Deposit tx 非 Call 路径的 Nonce 递增
+### ✅ 已对齐：差异 1 — Deposit tx（含 Create）Nonce 递增
 
-**风险等级**: 🔴 高
+**原风险等级**: 🔴 高 → **已对齐**（2026-06-26 源码复核）
 
-**op-geth 行为**:
-在 `innerExecute()` line 602 处，nonce 递增仅发生在 Call 路径（非 contract creation）:
-```go
-if contractCreation {
-    ret, _, st.gasRemaining, vmerr = st.evm.Create(...)
-} else {
-    st.state.SetNonce(msg.From, st.state.GetNonce(msg.From)+1, ...)
-    // apply authorizations...
-    ret, st.gasRemaining, vmerr = st.evm.Call(...)
-}
-```
-对于 deposit tx 且 `msg.To == nil`（contract creation 路径），nonce 不会在 innerExecute 中递增。仅在 `execute()` 的 failed-deposit 恢复分支 (line 493) 中递增。
+**原文误判**：正文曾写「op-geth 对 deposit+Create 成功路径不递增 nonce」，遗漏了 `evm.create()` 内部在 `core/vm/evm.go:530` 的 `SetNonce(…, NonceChangeContractCreator)`。
 
-**bcos-evm 行为**:
-`finalizeDeposit` (`OpStackSettlement.cpp:57-88`) 中，**所有三个路径** 都执行 `ctx.state.set_nonce(sender, get_nonce(sender) + 1)`:
-- SUCCESS 路径: commit → nonce+1
-- 非 SUCCESS 完成路径: revert → nonce+1
-- 非完成路径 (gasUsed == gasLimit): revert → nonce+1
+**op-geth 实际行为**：
+- **Call**：`innerExecute` `else` 分支显式 `SetNonce`（`NonceChangeEoACall`）
+- **Create**：`evm.create()` 开头 bump sender nonce（L530）；内层 snapshot 回滚**不撤销**该 bump
+- **失败 deposit**（Go `error`，不含 `ErrGasLimitReached` / `ErrSystemTxNotSupported`）：`execute()` 恢复路径 L493 强制 +1
+- **区块 gas pool 耗尽**：`ErrGasLimitReached` 排除在 failed-deposit 外 → 交易不落地，nonce 不变
+- **`depositNonce` 收据**：`state_processor.go` 在 `ApplyMessage` **之前**快照 `GetNonce(from)`
 
-**差异分析**:
-op-geth 对 deposit + Create 成功路径不递增 nonce；bcos-evm 对所有 deposit 路径都递增 nonce。虽然 deposit tx 通常一定是 call（有 `To` 地址），但如果有 deposit + Create 的边缘情况，两边 nonce 不一致。
+**bcos-evm 实际行为**：
+- deposit 设 `skipTopLevelSenderNonceBump`，抑制 `TxExecutionAdapter` 顶层 bump
+- **所有**进入 `finalizeDeposit` 的路径统一 `set_nonce(+1)`（成功 / REVERT / intrinsic reject 等）
+- **未进入执行**：gas pool 拒绝、system deposit precheck → 无 `settleDeposit`，nonce 不变
+- **`depositNonce`**：`OpStackTxLifecycle` 在 mint/checkpoint **之前**快照
 
-**触发场景**:
-一个 deposit tx 的 `To` 地址为 nil 且 `input` 是 contract creation data 时（即 L1→L2 deposit 创建合约），成功执行后：
-- op-geth: nonce 不递增
-- bcos-evm: nonce 递增 +1
-
-**修复建议**:
-OP Stack 规范中 deposit tx 是否允许 Create？如果允许，需确认规范行为。如果 OP Stack 不允许 deposit Create，bcos-evm 的当前行为反而是安全的（多递增 nonce 不影响正确性，因为 deposit nonce 不会被再次检查）。
+**对齐结论**：✅ 成功与常见异常路径下 sender 最终 nonce 均为 **+1**；`depositNonce` 均为执行前快照。差异仅为架构分工（op-geth EVM 内 bump vs bcos-evm `finalizeDeposit` 集中 bump），**无链上状态分歧**。回归：`DepositCreateNonceTest`、`OpStackTxLifecycleCharacterizationTest`、`L1AttributesDepositFailureTest`。
 
 ---
 
@@ -353,7 +340,6 @@ fee = gas * scalar * 100 + constant  // operatorCostJovian, gated by isOpStackJo
 
 | # | 差异 | 影响 | 触发条件 |
 |---|------|------|---------|
-| 1 | Deposit Create nonce | nonce 不一致 | deposit tx + To=nil（罕见） |
 | 2 | Legacy tx effectiveGasPrice=0 | 费用计算完全错误 | legacy tx 传入且 gasFeeCap/gasTipCap 未设置 |
 | 3 | Pre-Regolith system deposit | 历史区块重放失败 | pre-Regolith 区块（几乎不会遇到） |
 | 6 | NoBaseFee skip 缺失 | eth_call 可能误 reject | NoBaseFee=true + 低 gasFeeCap |
@@ -368,6 +354,7 @@ fee = gas * scalar * 100 + constant  // operatorCostJovian, gated by isOpStackJo
 
 | # | 项 | 说明 |
 |---|-----|------|
+| 1 | Deposit nonce（含 Create） | 最终 sender nonce 均 +1；`depositNonce` 为执行前快照；异常路径（REVERT/intrinsic/gas pool 拒绝）行为等价 |
 | 4 | Floor data gas 检查 | 均在 intrinsic 扣减前用原始 gasLimit 比较，行为等价 |
 | 7 | CREATE intrinsic gas | `21000 + 32000 = 53000`，与 op-geth `TxGasContractCreation` 一致 |
 | 9 | Jovian operator fee | `gas * scalar * 100 + constant`；GPO + L1 attributes 178B setter |
@@ -376,9 +363,8 @@ fee = gas * scalar * 100 + constant  // operatorCostJovian, gated by isOpStackJo
 
 bcos-evm/opstack 的实现与 op-geth **高度对齐**。核心执行逻辑（intrinsic gas、floor data gas、L1 cost、gas settlement、fee routing）均已验证数值一致。主要风险集中在：
 1. **Legacy tx 兼容**：需确认 TE 层是否保证 gasFeeCap/gasTipCap 填充（见差异 2 修复建议）
-2. **Deposit 边缘路径**：deposit Create 的 nonce 行为
 
-> **修订记录**（2026-06-26）：修正差异 4 floor gas 时序描述（op-geth 同样在 intrinsic 扣减前检查）；澄清 effectiveGasPrice / PER_AUTH 常量适用条件；补充差异 2 修复前提（`OpStackExecutionRequest` 无 `gasPrice` 字段）；差异 7 移入已对齐项；**差异 9 Jovian operator fee 已实现**（见 `2026-06-26-opstack-jovian.md`）。
+> **修订记录**（2026-06-26）：修正差异 4 floor gas 时序描述；澄清 effectiveGasPrice / PER_AUTH 条件；差异 7 移入已对齐项；差异 9 Jovian operator fee 已实现；**差异 1 deposit nonce（含 Create）经 op-geth `evm.create()` + 异常路径复核，移入已对齐（原文误判 Create 成功不 bump）**。
 
 ---
 
@@ -392,7 +378,7 @@ bcos-evm/opstack 的实现与 op-geth **高度对齐**。核心执行逻辑（in
 
 **原文声明**：op-geth 对 deposit+Create 成功路径不递增 nonce；bcos-evm 对所有 deposit 路径都递增 nonce。
 
-**核查结论**：🔴 **部分证伪** — 原文关于 bcos-evm 的描述正确，但关于 op-geth 的描述遗漏了关键细节。
+**核查结论**：✅ **消除** — 原文对 op-geth Create 路径描述错误；异常路径（REVERT、intrinsic reject、gas pool 拒绝）复核后 **无行为分歧**。
 
 **op-geth 证据**：
 - `core/state_transition.go:598-602`：`innerExecute()` 中 nonce 递增在 `else` 分支（非 contract creation），deposit+Create 不经过此处
@@ -598,7 +584,7 @@ bcos-evm/opstack 的实现与 op-geth **高度对齐**。核心执行逻辑（in
 
 | 差异编号 | 原文结论 | 核查结果 | 状态变化 |
 |---------|---------|---------|---------|
-| 差异 1 (Deposit nonce) | 🔴 op-geth 可能不递增 | 🟢 两者均递增，行为等价 | **降级** |
+| 差异 1 (Deposit nonce) | 🔴 op-geth 可能不递增 | ✅ 含 Create/异常路径，最终 nonce 均 +1 | **消除** |
 | 差异 2 (Legacy tx) | 🔴 effectiveGasPrice=0 | 🟡 生产路径安全（fillGasCaps 正常化），直接调用有风险 | **降级** |
 | 差异 3 (System deposit) | 🔴 pre-Regolith 分歧 | 🔴 证实，但 pre-Regolith 已无关紧要 | 维持 |
 | 差异 4 (Floor gas 时序) | 🟡 时序差异 | 🟢 无时序差异，均在 intrinsic 扣减前检查 | **消除** |
