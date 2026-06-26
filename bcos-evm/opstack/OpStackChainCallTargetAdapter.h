@@ -24,8 +24,6 @@ public:
         std::function<void(evmc_address const&)> const& consume) const override;
 
 private:
-    static bool sameAddress(evmc_address const& left, evmc_address const& right) noexcept;
-
     state::State* m_state{nullptr};
     bcos::u256 m_l2BaseFee{0};
     OpStackForkSchedule m_forkSchedule{makeIsthmusPlusForkSchedule()};

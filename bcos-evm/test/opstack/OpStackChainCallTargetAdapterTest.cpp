@@ -83,4 +83,32 @@ BOOST_AUTO_TEST_CASE(enumerate_static_warm_targets)
     BOOST_CHECK(contains(OP_GAS_PRICE_ORACLE_PREDEPLOY));
 }
 
+BOOST_AUTO_TEST_CASE(invariant_classify_warm_policy_matches_static_warm_enumerate)
+{
+    state::test::InMemoryEvmStateReader base;
+    state::State state{base};
+    OpStackChainCallTargetAdapter adapter(&state, bcos::u256(0), makeIsthmusPlusForkSchedule(), 0);
+
+    std::vector<evmc_address> enumerated;
+    adapter.forEachStaticWarmTarget([&](evmc_address const& addr) { enumerated.push_back(addr); });
+
+    auto const expected = {OP_L1_BLOCK_PREDEPLOY, OP_GAS_PRICE_ORACLE_PREDEPLOY};
+    BOOST_REQUIRE_EQUAL(enumerated.size(), expected.size());
+
+    for (auto const& target : expected)
+    {
+        auto desc = adapter.classifyTarget(
+            state, target, makeCall(target), execution::FrameScope::TopLevel);
+        BOOST_REQUIRE(desc.has_value());
+        BOOST_CHECK(desc->kind == execution::CallTargetKind::ChainPrecompile);
+        BOOST_CHECK(execution::isTxEntryWarm(desc->warmPolicy));
+
+        auto inEnumerate =
+            std::any_of(enumerated.begin(), enumerated.end(), [&](evmc_address const& a) {
+                return std::memcmp(a.bytes, target.bytes, sizeof(target.bytes)) == 0;
+            });
+        BOOST_CHECK(inEnumerate);
+    }
+}
+
 }  // namespace bcos::evm::test

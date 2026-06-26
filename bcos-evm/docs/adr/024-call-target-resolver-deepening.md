@@ -249,8 +249,8 @@ PR2: debug dual-run should cover R1–R8 before PR4.
 | **PR2** | `CallTargetResolver` + tests; optional dual-run | None |
 | **PR3** | `FiscoChainCallTargetAdapter`, `OpStackChainCallTargetAdapter`; wire `chainPort` field, old path still default | None |
 | **PR4** | `ExecutionFrame` delta; `executePrecompileEnvelope`; characterization baselines | **Yes** |
-| **PR5** | `enumerateTxEntryWarmTargets` in `warmTransactionEntry` | OpStack predeploy warm **only after** geth reference or C2 gas baseline recorded |
-| **PR6** | Remove shims; delete migrated tests; update ADR-005, ADR-017, Execution Frame Design, `architecture-overview.md` | Cleanup |
+| **PR5** | `enumerateTxEntryWarmTargets` policy engine + adapter static tables; gas characterization | OpStack predeploy warm regression oracle (8b) |
+| **PR6** | Remove shims; port `forEachClassifiedTarget`; delete migrated tests; update ADR-005, ADR-017, Execution Frame Design, `architecture-overview.md` | Cleanup |
 
 ---
 
@@ -274,19 +274,28 @@ PR2: debug dual-run should cover R1–R8 before PR4.
 - [ ] **EmptyAccount** journal / `precompileHit` / top-level finalize match §5.1
 - [ ] `executeMessage` and `EthHost::call` share same `chainPort` pointer per tx
 
+### PR5 gate (warm policy single engine)
+
+- [x] `isTxEntryWarm(WarmPolicy)` in `CallTargetResolver.h`
+- [x] OpStack adapter `{address, WarmPolicy}` static table drives `classifyTarget` + `forEachStaticWarmTarget`
+- [x] FISCO adapter empty static warm enumerate; dynamic `[PRECOMPILED]` unchanged
+- [x] Adapter invariant tests (`OpStackChainCallTargetAdapterTest`, `FiscoChainCallTargetAdapterTest`)
+- [x] Characterization: `pr5_op_l1block_chain_static_warm_tx_entry_oracle` (state warm; chain-precompile envelope bypasses EIP-2929 access_account)
+- [ ] PR6: `forEachClassifiedTarget` replaces `forEachStaticWarmTarget` on `ChainCallTargetPort`
+
 ### PR6 gate (full)
 
 - [ ] `CallTargetResolver` + `ChainCallTargetPort` under `eth/`; no `bcos/` / `opstack/` includes in those TUs
 - [ ] Builtin gates only in `PrecompileActive.h`
 - [ ] `executePrecompileEnvelope` has no `isActivePrecompile` or `tryChainPrecompile`
-- [ ] `warmTransactionEntry` uses `enumerateTxEntryWarmTargets`
+- [x] `warmTransactionEntry` uses `enumerateTxEntryWarmTargets`
 - [ ] FISCO `[PRECOMPILED]` only in `FiscoChainCallTargetAdapter`
 - [ ] OpStack L1/GasOracle only in `OpStackChainCallTargetAdapter`
 - [ ] `CallTargetResolverTest` covers R1–R8, W1–W2; PR2 dual-run if enabled
 - [ ] TE smoke: `FiscoChainCallTargetAdapter` full port
 - [ ] `VmHostPolicy::tryChainPrecompile` removed from main path
 - [ ] FISCO: `OpStackTxLifecycle`, `FiscoExecutionBridge`, `EthHost.cpp` wired
-- [ ] **PR5:** OpStack predeploy warm has geth or gas-test evidence
+- [x] **PR5:** OpStack predeploy warm has gas-test evidence (`CallTargetCharacterizationTest` PR5 gate)
 - [ ] ADR-005 §3, ADR-017, Execution Frame Design §2.2, `architecture-overview.md` (ADR 001–024) updated
 
 ---

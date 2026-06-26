@@ -1,4 +1,5 @@
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
+#include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/l1/GasPriceOraclePredeploy.h"
 #include "bcos-evm/opstack/l1/L1BlockPredeploy.h"
@@ -6,6 +7,37 @@
 
 namespace bcos::evm
 {
+namespace
+{
+bool sameAddress(evmc_address const& left, evmc_address const& right) noexcept
+{
+    return std::memcmp(left.bytes, right.bytes, sizeof(left.bytes)) == 0;
+}
+
+struct StaticChainTarget
+{
+    evmc_address address;
+    execution::WarmPolicy warmPolicy;
+};
+
+constexpr StaticChainTarget kOpStackStaticTargets[] = {
+    {OP_L1_BLOCK_PREDEPLOY, execution::WarmPolicy::TxEntryIfStatic},
+    {OP_GAS_PRICE_ORACLE_PREDEPLOY, execution::WarmPolicy::TxEntryIfStatic},
+};
+
+std::optional<StaticChainTarget const*> findStaticTarget(
+    evmc_address const& executionAddress) noexcept
+{
+    for (auto const& entry : kOpStackStaticTargets)
+    {
+        if (sameAddress(executionAddress, entry.address))
+        {
+            return &entry;
+        }
+    }
+    return std::nullopt;
+}
+}  // namespace
 
 OpStackChainCallTargetAdapter::OpStackChainCallTargetAdapter(state::State* state,
     bcos::u256 l2BaseFee, OpStackForkSchedule forkSchedule, uint64_t blockTimestamp)
@@ -15,26 +47,21 @@ OpStackChainCallTargetAdapter::OpStackChainCallTargetAdapter(state::State* state
     m_blockTimestamp(blockTimestamp)
 {}
 
-bool OpStackChainCallTargetAdapter::sameAddress(
-    evmc_address const& left, evmc_address const& right) noexcept
-{
-    return std::memcmp(left.bytes, right.bytes, sizeof(left.bytes)) == 0;
-}
-
 std::optional<execution::CallTargetDescriptor> OpStackChainCallTargetAdapter::classifyTarget(
     state::State& /*state*/, evmc_address const& executionAddress, evmc_message const& /*msg*/,
     execution::FrameScope /*scope*/)
 {
-    if (sameAddress(executionAddress, OP_L1_BLOCK_PREDEPLOY) ||
-        sameAddress(executionAddress, OP_GAS_PRICE_ORACLE_PREDEPLOY))
+    auto const* entry = findStaticTarget(executionAddress).value_or(nullptr);
+    if (entry == nullptr)
     {
-        return execution::CallTargetDescriptor{
-            .kind = execution::CallTargetKind::ChainPrecompile,
-            .dispatchAddress = executionAddress,
-            .warmPolicy = execution::WarmPolicy::TxEntryIfStatic,
-        };
+        return std::nullopt;
     }
-    return std::nullopt;
+
+    return execution::CallTargetDescriptor{
+        .kind = execution::CallTargetKind::ChainPrecompile,
+        .dispatchAddress = entry->address,
+        .warmPolicy = entry->warmPolicy,
+    };
 }
 
 std::optional<evmc_result> OpStackChainCallTargetAdapter::dispatch(
@@ -61,8 +88,13 @@ std::optional<evmc_result> OpStackChainCallTargetAdapter::dispatch(
 void OpStackChainCallTargetAdapter::forEachStaticWarmTarget(
     std::function<void(evmc_address const&)> const& consume) const
 {
-    consume(OP_L1_BLOCK_PREDEPLOY);
-    consume(OP_GAS_PRICE_ORACLE_PREDEPLOY);
+    for (auto const& entry : kOpStackStaticTargets)
+    {
+        if (execution::isTxEntryWarm(entry.warmPolicy))
+        {
+            consume(entry.address);
+        }
+    }
 }
 
 }  // namespace bcos::evm

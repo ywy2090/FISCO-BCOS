@@ -10,12 +10,15 @@
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
+#include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
@@ -478,6 +481,41 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
     BOOST_CHECK_EQUAL(depth1.status, kC7Depth1Status);
     BOOST_CHECK_EQUAL(depth1.gasLeft, kC7Depth1GasLeft);
     BOOST_CHECK(depth0Outcome.status != depth1.status);
+}
+
+BOOST_AUTO_TEST_CASE(pr5_op_l1block_chain_static_warm_tx_entry_oracle)
+{
+    auto isL1BlockWarmAfterTxEntry = [](bool withStaticWarm) {
+        state::test::InMemoryEvmStateReader view;
+        state::State state(view);
+
+        OpStackChainCallTargetAdapter opAdapter(&state, 0, makeIsthmusPlusForkSchedule(), 0);
+        InMemoryChainCallTargetAdapter port(
+            [&opAdapter](state::State& s, evmc_address const& a, evmc_message const& m,
+                execution::FrameScope scope) { return opAdapter.classifyTarget(s, a, m, scope); },
+            [&opAdapter](
+                evmc_revision r, evmc_message const& m) { return opAdapter.dispatch(r, m); });
+        if (withStaticWarm)
+        {
+            port.addStaticWarmTarget(OP_L1_BLOCK_PREDEPLOY);
+            port.addStaticWarmTarget(OP_GAS_PRICE_ORACLE_PREDEPLOY);
+        }
+
+        bcos::evm_standard::RevisionConfig cfg{};
+        cfg.revision = EVMC_PRAGUE;
+        cfg.warm_access = true;
+
+        state::Transaction tx{};
+        state::BlockInfo block{};
+        state::TransactionProperties props{};
+        props.warmDestination = false;
+        props.warmCoinbase = false;
+        execution::warmTransactionEntry(state, cfg, &port, tx, block, props);
+        return state.is_address_warm(OP_L1_BLOCK_PREDEPLOY);
+    };
+
+    BOOST_CHECK(!isL1BlockWarmAfterTxEntry(false));
+    BOOST_CHECK(isL1BlockWarmAfterTxEntry(true));
 }
 
 }  // namespace bcos::evm::test

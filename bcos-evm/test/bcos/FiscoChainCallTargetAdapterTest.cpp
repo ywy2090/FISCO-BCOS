@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE FiscoChainCallTargetAdapterTest
 
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
+#include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
@@ -213,6 +214,25 @@ BOOST_AUTO_TEST_CASE(dynamic_precompile_marker_is_resolved_by_adapter)
     BOOST_REQUIRE(result.has_value());
     BOOST_CHECK(called);
     BOOST_CHECK_EQUAL(result->status_code, EVMC_SUCCESS);
+}
+
+BOOST_AUTO_TEST_CASE(static_warm_enumerate_is_empty)
+{
+    state::test::InMemoryEvmStateReader base;
+    state::State state{base};
+    InMemoryChainPrecompileAdapter dispatchPort;
+    FiscoChainCallTargetAdapter adapter(state, dispatchPort);
+
+    size_t count = 0;
+    adapter.forEachStaticWarmTarget([&](evmc_address const&) { ++count; });
+    BOOST_CHECK_EQUAL(count, 0U);
+
+    evmc_message msg{};
+    msg.recipient = fiscoPrecompileAddress(0x1003);
+    msg.code_address = msg.recipient;
+    auto desc = adapter.classifyTarget(state, msg.recipient, msg, execution::FrameScope::TopLevel);
+    BOOST_REQUIRE(desc.has_value());
+    BOOST_CHECK(desc->warmPolicy == execution::WarmPolicy::Never);
 }
 
 }  // namespace bcos::evm::test

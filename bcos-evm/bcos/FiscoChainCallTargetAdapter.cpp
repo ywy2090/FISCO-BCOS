@@ -34,6 +34,8 @@ std::optional<evmc_result> FiscoChainCallTargetAdapter::dispatch(
 
 void FiscoChainCallTargetAdapter::forEachStaticWarmTarget(
     std::function<void(evmc_address const&)> const& /*consume*/) const
-{}
+{
+    // FISCO has no static tx-entry warm targets (dynamic [PRECOMPILED] uses classifyTarget only).
+}
 
 }  // namespace bcos::evm

@@ -113,7 +113,10 @@ CallTargetDescriptor resolveCallTarget(state::State& state,
 void enumerateTxEntryWarmTargets(bcos::evm_standard::RevisionConfig const& cfg,
     ChainCallTargetPort const* chainPort, std::function<void(evmc_address const&)> const& consume)
 {
+    // Builtin precompiles: resolveCallTarget assigns WarmPolicy::TxEntryAlways (PrecompileActive
+    // single source).
     precompiled::forEachActivePrecompile(cfg, [&](evmc_address const& a) { consume(a); });
+    // Chain static targets: adapter forEachStaticWarmTarget emits only isTxEntryWarm entries (PR5).
     if (chainPort != nullptr)
     {
         chainPort->forEachStaticWarmTarget(consume);

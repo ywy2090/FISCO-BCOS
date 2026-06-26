@@ -33,8 +33,14 @@ enum class WarmPolicy
     Never,
     TxEntryAlways,
     TxEntryIfStatic,
-    FrameEntryOnly,
+    FrameEntryOnly,  // CREATE warm-pin; set by resolveFrameTarget, not consumed by enumerate
 };
+
+/// Tx-entry warm set includes TxEntryAlways (builtin) and TxEntryIfStatic (fixed predeploys).
+inline constexpr bool isTxEntryWarm(WarmPolicy policy) noexcept
+{
+    return policy == WarmPolicy::TxEntryAlways || policy == WarmPolicy::TxEntryIfStatic;
+}
 
 struct CallTargetDescriptor
 {
