@@ -1,8 +1,8 @@
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
+#include "bcos-evm/opstack/fee/OpStackPostSettlementInputs.h"
+#include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitInputs.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 
@@ -68,62 +68,40 @@ task::Task<bool> OpStackTxFeeLedger::buyGas(OpStackSettlementView view)
     co_return true;
 }
 
-task::Task<void> OpStackTxFeeLedger::refundIsthmusOperatorCost(
-    OpStackSettlementView& view, uint64_t gasUsed)
-{
-    if (!m_operatorCostFunc)
-    {
-        co_return;
-    }
-
-    auto& sidecar = view.feeSidecar();
-    auto const usedCost = m_operatorCostFunc(gasUsed, view.blockInfo().timestamp);
-    if (usedCost >= sidecar.operatorCostLimit)
-    {
-        co_return;
-    }
-
-    addBalance(view.pipelineContext().state, view.pipelineContext().message.sender,
-        sidecar.operatorCostLimit - usedCost);
-}
-
-task::Task<void> OpStackTxFeeLedger::refundGas(
+task::Task<OpStackPostSettlementPlan> OpStackTxFeeLedger::refundGas(
     OpStackSettlementView& view, OpStackSettlementResult const& settled)
 {
     if (view.isDeposit())
     {
-        co_return;
+        co_return OpStackPostSettlementPlan{};
     }
-
     if (view.isCall() && view.skipTransactionChecks() && view.noBaseFee() &&
         view.gasFeeCap() == 0 && view.gasTipCap() == 0)
     {
-        co_return;
+        co_return OpStackPostSettlementPlan{};
     }
 
     auto& ctx = view.pipelineContext();
     auto& state = ctx.state;
-    auto const& sidecar = view.feeSidecar();
-    auto const gasRemaining = settled.gasRemaining;
-    auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
 
-    auto const feeInputs = gas::toFeeInputs(ctx.revisionConfig, view.blockInfo(),
-        gas::FeeCapsView{ctx.gasPrice, view.gasTipCap(), view.gasFeeCap(), view.web3TypedTxKind(),
-            view.hasGasFeeCap()},
-        ctx.originalGasLimit);
-    auto const plan = gas::planPostExecution(
-        feeInputs, static_cast<int64_t>(gasUsed), static_cast<int64_t>(gasRemaining));
-
-    addBalance(state, ctx.message.sender, plan.unusedRefund);
-    addBalance(state, view.blockInfo().coinbase, plan.coinbaseTip);
-    addBalance(state, m_baseFeeRecipient, plan.baseFeeAmount);
-    addBalance(state, m_l1FeeRecipient, sidecar.l1CostCharged);
-
-    co_await refundIsthmusOperatorCost(view, gasUsed);
+    OpStackFeeHooks hooks{};
     if (m_operatorCostFunc)
     {
-        auto const operatorFee = m_operatorCostFunc(gasUsed, view.blockInfo().timestamp);
-        addBalance(state, m_operatorFeeRecipient, operatorFee);
+        hooks.operatorCostFunc = &m_operatorCostFunc;
     }
+
+    auto const plan =
+        planOpStackPostSettlement(toOpStackPostSettlementInputs(view, settled), hooks);
+
+    addBalance(state, ctx.message.sender, plan.core1559.unusedRefund + plan.senderOperatorRefund);
+    addBalance(state, view.blockInfo().coinbase, plan.core1559.coinbaseTip);
+    addBalance(state, m_baseFeeRecipient, plan.core1559.baseFeeAmount);
+    addBalance(state, m_l1FeeRecipient, plan.l1FeeRouted);
+    if (hooks.operatorCostFunc != nullptr)
+    {
+        addBalance(state, m_operatorFeeRecipient, plan.operatorFeeCharged);
+    }
+
+    co_return plan;
 }
 }  // namespace bcos::evm

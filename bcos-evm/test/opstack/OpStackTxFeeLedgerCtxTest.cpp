@@ -112,7 +112,8 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
     settled.gasUsed = 400;
     settled.gasRemaining = 600;
 
-    task::syncWait(executor.refundGas(view, settled));
+    auto const feePlan = task::syncWait(executor.refundGas(view, settled));
+    (void)feePlan;
 
     BOOST_CHECK_EQUAL(ctx.state.get_balance(coinbase), u256(2'000));
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_BASE_FEE_RECIPIENT), u256(800));
@@ -159,7 +160,8 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     settled.gasUsed = static_cast<int64_t>(settlement.gasUsed);
     settled.gasRemaining = settlement.gasRemaining;
 
-    task::syncWait(executor.refundGas(view, settled));
+    auto const feePlan = task::syncWait(executor.refundGas(view, settled));
+    (void)feePlan;
 
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_L1_FEE_RECIPIENT), u256(60));
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_OPERATOR_FEE_RECIPIENT), u256(430));

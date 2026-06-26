@@ -196,6 +196,43 @@ BOOST_AUTO_TEST_CASE(isthmus_refund_limit_minus_used)
     BOOST_CHECK_EQUAL(plan.senderOperatorRefund, bcos::u256(1'118));
 }
 
+BOOST_AUTO_TEST_CASE(operator_at_limit_no_sender_refund)
+{
+    std::function<bcos::u256(uint64_t, uint64_t)> op = [](uint64_t gas, uint64_t) {
+        return bcos::u256(gas * 2);
+    };
+    OpStackFeeHooks hooks{.operatorCostFunc = &op};
+    OpStackPostSettlementInputs inputs{
+        .fee = makeType2FeeInputs(),
+        .gasUsed = 100'000,
+        .gasRemaining = 400'000,
+        .blockTime = 1,
+        .operatorCostLimit = 200'000,
+    };
+    auto const plan = planOpStackPostSettlement(inputs, hooks);
+    assertMatchesOracle(inputs, hooks);
+    BOOST_CHECK(plan.operatorFeeCharged >= inputs.operatorCostLimit);
+    BOOST_CHECK_EQUAL(plan.senderOperatorRefund, bcos::u256(0));
+}
+
+BOOST_AUTO_TEST_CASE(l1_hook_not_invoked_on_post)
+{
+    std::function<bcos::u256(RollupCostData const&, uint64_t)> l1Func = [](RollupCostData const&,
+                                                                            uint64_t) {
+        BOOST_FAIL("l1CostFunc must not be called during post-settlement planning");
+        return bcos::u256(0);
+    };
+    OpStackFeeHooks hooks{.l1CostFunc = &l1Func};
+    OpStackPostSettlementInputs inputs{
+        .fee = makeType2FeeInputs(),
+        .gasUsed = 50'000,
+        .gasRemaining = 450'000,
+        .l1CostCharged = 42'000,
+    };
+    auto const plan = planOpStackPostSettlement(inputs, hooks);
+    BOOST_CHECK_EQUAL(plan.l1FeeRouted, bcos::u256(42'000));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }  // namespace bcos::evm::test

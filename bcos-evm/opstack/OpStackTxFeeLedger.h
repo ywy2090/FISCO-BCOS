@@ -2,6 +2,7 @@
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackFeeSidecar.h"
 #include "bcos-evm/opstack/OpStackSettlementView.h"
+#include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Task.h>
@@ -25,8 +26,8 @@ struct OpStackTxFeeLedger
     evmc_address m_operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
 
     task::Task<bool> buyGas(OpStackSettlementView view);
-    task::Task<void> refundGas(OpStackSettlementView& view, OpStackSettlementResult const& settled);
-    task::Task<void> refundIsthmusOperatorCost(OpStackSettlementView& view, uint64_t gasUsed);
+    task::Task<OpStackPostSettlementPlan> refundGas(
+        OpStackSettlementView& view, OpStackSettlementResult const& settled);
 };
 
 }  // namespace bcos::evm
