@@ -10,9 +10,9 @@ Tracked items from Phase 1 audit and grill review. Update when closed.
 
 ## 37 — RevisionConfig profile-only fields
 
-Fields such as `eip1559` and `prague_post_execution` are set in policy builders but have **no TE kernel/orchestration consumer** today (or are explicitly reserved). `eip3651` and `warm_access` are wired: coinbase warm via `isCoinbaseWarmEnabled`; EIP-2929 TE gate via `Eip2929Access.h` (ADR-004 Scheme A — FISCO `feature_evm_eip2929=OFF` is intentional deviation). `prague_post_execution` stays struct-default `false` — deprecated/reserved, future-removal candidate.
+Fields such as `eip1559` are consumed via `Eip1559Access.h` (typed-tx gate, fee-cap precheck, `normalizeGasCaps`, OpStack refund). `eip3651` and `warm_access` are wired: coinbase warm via `isCoinbaseWarmEnabled`; EIP-2929 TE gate via `Eip2929Access.h` (ADR-004 Scheme A — FISCO `feature_evm_eip2929=OFF` is intentional deviation).
 
-**Status:** Partially closed (`eip3651`, `warm_access` consumed). Remaining: `eip1559` profile-only overlap with `Web3TypedTxKind`; `prague_post_execution` reserved.
+**Status:** Partially closed (`eip3651`, `warm_access`, `eip1559` consumed). Removed: `prague_post_execution` (dead flag).
 
 ## 38 — VmHostPolicy CMake / include audit
 

@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
+#include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.h>
@@ -42,9 +43,12 @@ std::optional<EVMCResult> ethTxPrecheck(EthReferenceRequest const& input, state:
         return makePreCheckError(protocol::TransactionStatus::Malformed);
     }
 
-    if (input.gasFeeCap < input.gasTipCap || input.gasFeeCap < input.blockInfo.baseFee)
+    if (gas::isEip1559FeeMarketActive(input.revisionConfig))
     {
-        return makePreCheckError(protocol::TransactionStatus::Malformed);
+        if (input.gasFeeCap < input.gasTipCap || input.gasFeeCap < input.blockInfo.baseFee)
+        {
+            return makePreCheckError(protocol::TransactionStatus::Malformed);
+        }
     }
 
     if (input.authorizationListPresent && input.authorizations.empty())

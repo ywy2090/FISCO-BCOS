@@ -18,6 +18,7 @@
 
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/opstack/OpStackBlobTxIntent.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
@@ -92,11 +93,15 @@ void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
             return;
         }
 
-        if (m_input.gasFeeCap < m_input.gasTipCap || m_input.gasFeeCap < m_input.blockInfo.baseFee)
+        if (gas::isEip1559FeeMarketActive(m_input.revisionConfig))
         {
-            ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
-            ctx.earlyExit = true;
-            return;
+            if (m_input.gasFeeCap < m_input.gasTipCap ||
+                m_input.gasFeeCap < m_input.blockInfo.baseFee)
+            {
+                ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
+                ctx.earlyExit = true;
+                return;
+            }
         }
 
         if (hasBlobTxIntent(m_input))

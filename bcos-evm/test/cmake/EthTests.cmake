@@ -66,6 +66,12 @@ target_include_directories(Eip2929OpcodeGasTest PRIVATE
 target_link_libraries(Eip2929OpcodeGasTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip2929OpcodeGas COMMAND Eip2929OpcodeGasTest)
 
+add_executable(Eip7702DelegatedCallGasTest eth/Eip7702DelegatedCallGasTest.cpp)
+target_include_directories(Eip7702DelegatedCallGasTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip7702DelegatedCallGasTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip7702DelegatedCallGas COMMAND Eip7702DelegatedCallGasTest)
+
 add_executable(EthReferenceBridgeFixtureTest eth/EthReferenceBridgeFixtureTest.cpp)
 target_include_directories(EthReferenceBridgeFixtureTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -85,6 +91,11 @@ target_include_directories(EthEip1559GasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(EthEip1559GasTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME EthEip1559Gas COMMAND EthEip1559GasTest)
+add_executable(Eip1559AccessTest eth/Eip1559AccessTest.cpp)
+target_include_directories(Eip1559AccessTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip1559AccessTest PRIVATE bcos-evm-eth bcos-utilities)
+add_test(NAME Eip1559Access COMMAND Eip1559AccessTest)
 add_executable(Web3TypedTxKindTest eth/Web3TypedTxKindTest.cpp)
 target_include_directories(Web3TypedTxKindTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -138,6 +149,11 @@ target_compile_definitions(EipPrecompileRevisionGateTest PRIVATE
     ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
 target_link_libraries(EipPrecompileRevisionGateTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME EipPrecompileRevisionGate COMMAND EipPrecompileRevisionGateTest)
+add_executable(PrecompileActiveGateMatrixTest eth/PrecompileActiveGateMatrixTest.cpp)
+target_include_directories(PrecompileActiveGateMatrixTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(PrecompileActiveGateMatrixTest PRIVATE bcos-evm-eth)
+add_test(NAME PrecompileActiveGateMatrix COMMAND PrecompileActiveGateMatrixTest)
 add_executable(Eip7823ModexpRejectTest eth/Eip7823ModexpRejectTest.cpp)
 target_include_directories(Eip7823ModexpRejectTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

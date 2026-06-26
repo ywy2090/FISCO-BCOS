@@ -266,7 +266,7 @@ task::Task<ExecutionResult> EthReferenceBridgeAdapter::execute(
     if (result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty())
     {
         auto const effectiveGasPrice =
-            gas::isEip1559GasCapsTx(web3TypedTxKind, hasExplicitFeeCaps) ?
+            gas::isEip1559GasCapsTx(web3TypedTxKind, hasExplicitFeeCaps, m_profile.revision) ?
                 gas::resolveEffectiveGasPrice(gasTipCap, gasFeeCap, testCase.env.baseFee) :
                 tx.gasPrice;
         bcos::u256 blobFee{0};

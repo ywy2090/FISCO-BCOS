@@ -19,13 +19,20 @@
 
 #pragma once
 
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-utilities/Common.h"
 
 namespace bcos::evm::gas
 {
 
-inline bool isEip1559GasCapsTx(uint8_t web3TypedTxKind, bool hasExplicitFeeCapsFromTx) noexcept
+inline bool isEip1559GasCapsTx(uint8_t web3TypedTxKind, bool hasExplicitFeeCapsFromTx,
+    bcos::evm_standard::RevisionConfig const& cfg) noexcept
 {
+    if (!isEip1559FeeMarketActive(cfg))
+    {
+        return false;
+    }
     if (web3TypedTxKind == 0x02 || web3TypedTxKind == 0x04)
     {
         return true;
@@ -53,10 +60,11 @@ struct GasCaps
 };
 
 inline GasCaps normalizeGasCaps(bcos::u256 gasPrice, bcos::u256 gasTipCap, bcos::u256 gasFeeCap,
-    uint8_t web3TypedTxKind, bool hasExplicitFeeCapsFromTx) noexcept
+    uint8_t web3TypedTxKind, bool hasExplicitFeeCapsFromTx,
+    bcos::evm_standard::RevisionConfig const& cfg) noexcept
 {
     GasCaps caps{};
-    caps.isEip1559Caps = isEip1559GasCapsTx(web3TypedTxKind, hasExplicitFeeCapsFromTx);
+    caps.isEip1559Caps = isEip1559GasCapsTx(web3TypedTxKind, hasExplicitFeeCapsFromTx, cfg);
     if (caps.isEip1559Caps)
     {
         caps.gasTipCap = gasTipCap;

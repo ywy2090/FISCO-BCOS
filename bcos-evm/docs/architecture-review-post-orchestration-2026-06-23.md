@@ -109,7 +109,7 @@ P2  Speculative → Done
 
 **测试:** `EipPrecompileRevisionGateTest`（含 `fisco_mask_bls_not_warmed_when_eip2537_off`）、`BcosPrecompileRevisionGateTest`、`PrecompileRouterCharacterizationTest` C6。
 
-**ADR 张力（已文档化）:** ADR-004 Scheme A — `warm_access` 由 `Eip2929Access.h` 消费；FISCO `feature_evm_eip2929=OFF` 为相对 geth 的有意偏离。Gap 37 台账见 `architecture-known-gaps.md`（`warm_access` / `eip3651` 已闭合；`eip1559` / `prague_post_execution` 仍 profile-only）。
+**ADR 张力（已文档化）:** ADR-004 Scheme A — `warm_access` 由 `Eip2929Access.h` 消费；FISCO `feature_evm_eip2929=OFF` 为相对 geth 的有意偏离。Gap 37 台账见 `architecture-known-gaps.md`（`warm_access` / `eip3651` 已闭合；`eip1559` 仍 profile-only；`prague_post_execution` 已删除）。
 
 **可选后续:** `fiscoExecute(PRAGUE, eip2537=false)` + CALL 0x0b 端到端 gas characterization（warm 单测已覆盖）。
 

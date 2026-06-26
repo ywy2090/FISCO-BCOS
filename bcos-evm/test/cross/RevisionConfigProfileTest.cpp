@@ -56,7 +56,6 @@ inline void assertIsthmusHelperProfile(bcos::evm_standard::RevisionConfig const&
     expected.eip6780 = true;
     expected.eip1559 = true;
     expected.eip3651 = true;
-    expected.prague_post_execution = false;
     expected.calldata_floor_per_token = 10;
     assertRevisionConfigMatches(actual, expected);
 }
@@ -66,7 +65,7 @@ BOOST_AUTO_TEST_SUITE(RevisionConfigProfileTest)
 
 BOOST_AUTO_TEST_CASE(revision_config_bool_field_macro_count)
 {
-    BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 13U);
+    BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 12U);
 }
 
 BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)

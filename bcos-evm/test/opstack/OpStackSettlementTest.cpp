@@ -3,6 +3,7 @@
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
@@ -32,7 +33,7 @@ BOOST_AUTO_TEST_CASE(finalize_normal_completed_matches_post_execute_settlement)
 
     auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind);
 
-    auto const stateRefund = revision.eip1559 ? 5'000u : 0u;
+    auto const stateRefund = gas::isEip1559GasRefundEnabled(revision) ? 5'000u : 0u;
     auto const expected = postExecuteGasSettlement(100'000u, 80'000u, stateRefund, 0u);
     BOOST_CHECK_EQUAL(result.gasUsed, static_cast<int64_t>(expected.gasUsed));
     BOOST_CHECK_EQUAL(result.gasRemaining, expected.gasRemaining);

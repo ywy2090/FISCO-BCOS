@@ -25,8 +25,6 @@ struct RevisionConfig
     bool eip1559 : 1 = false;
     bool eip3651 : 1 = false;
     bool eip7702 : 1 = false;
-    // Reserved profile-only: no TE consumer; stays false (ADR-004 deprecated/reserved).
-    bool prague_post_execution : 1 = false;
 
     // C. Fork-dependent parameters
     uint8_t calldata_floor_per_token = 10;
@@ -45,8 +43,7 @@ struct RevisionConfig
     X(eip6780)                         \
     X(eip1559)                         \
     X(eip3651)                         \
-    X(eip7702)                         \
-    X(prague_post_execution)
+    X(eip7702)
 
 inline constexpr std::size_t revisionConfigBoolFieldCount() noexcept
 {
@@ -57,7 +54,7 @@ inline constexpr std::size_t revisionConfigBoolFieldCount() noexcept
     return n;
 }
 
-static_assert(revisionConfigBoolFieldCount() == 13,
+static_assert(revisionConfigBoolFieldCount() == 12,
     "Keep REVISION_CONFIG_BOOL_FIELDS in sync with RevisionConfig bool bitfields");
 
 // A-class feature-gated fields (FISCO requires an explicit flag ON for each).
@@ -106,8 +103,6 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
 
 inline RevisionConfig makeIsthmusRevisionConfig()
 {
-    // OP-Stack Isthmus runs on the canonical Prague gate set; prague_post_execution
-    // has no production consumer and stays false via struct default (future-removal candidate).
     return revisionConfigFromRevision(EVMC_PRAGUE);
 }
 

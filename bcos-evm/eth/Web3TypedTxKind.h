@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/gas/Eip1559Access.h"
 #include <evmc/evmc.h>
 #include <cstdint>
 
@@ -77,7 +78,7 @@ inline bool isTypedTxKindSupportedByRevision(
     case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP2930):
         return revision.revision >= EVMC_BERLIN;
     case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP1559):
-        return revision.eip1559;
+        return gas::isEip1559TypedTxAllowed(revision);
     case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP4844):
         return revision.eip4844;
     case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702):

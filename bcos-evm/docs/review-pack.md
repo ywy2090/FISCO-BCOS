@@ -216,7 +216,7 @@ opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
 | 类别 | 字段 | 语义 |
 | --- | --- | --- |
 | **A 类 feature-gated** | `warm_access`, `eip2537`, `eip7212`, `eip7623`, `eip7823`, `eip7702` | FISCO 需显式 `Features::Flag` |
-| **B 类 revision-derived** | `eip1153`, `eip4844`, `eip5656`, `eip6780`, `eip1559`, `eip3651`, `prague_post_execution` | 由 `revisionConfigFromRevision(rev)` 推导 |
+| **B 类 revision-derived** | `eip1153`, `eip4844`, `eip5656`, `eip6780`, `eip1559`, `eip3651` | 由 `revisionConfigFromRevision(rev)` 推导 |
 | **C 类 fork 参数** | `calldata_floor_per_token` | fork 依赖常量 |
 
 `REVISION_CONFIG_BOOL_FIELDS` X-macro + `static_assert(... == 13)` 做漂移检测。
@@ -250,7 +250,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 
 以下字段在 Policy 中被赋值，但**部分尚无 TE 编排/内核消费者**（ADR-004）；矩阵标 `feature-gated (profile-only)`：
 
-`warm_access`、`eip1559`、`eip3651`、`prague_post_execution`
+`warm_access`、`eip1559`、`eip3651`
 
 运行时 warm 主要走 `evmc_revision` + tx props；长期需决定**接线、删字段或保留作文档**。
 
@@ -365,7 +365,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | Gap | 摘要 | 状态 |
 | --- | --- | --- |
 | 36 | Prepare 阶段 warm 未持久化到 Execute | 待产品决策 |
-| 37 | `RevisionConfig` profile-only 字段 | 部分闭合：`warm_access`/`eip3651` 已消费（`Eip2929Access`）；`eip1559`/`prague_post_execution` 仍 profile-only |
+| 37 | `RevisionConfig` profile-only 字段 | 部分闭合：`warm_access`/`eip3651` 已消费（`Eip2929Access`）；`eip1559` 仍 profile-only；`prague_post_execution` 已删除 |
 | 38 | eth/ 无 BCOS/OP include | 审计通过，新增 hook 时重跑 |
 
 ### 7.2 架构审查下一刀（2026-06-23，2026-06-25 更新）

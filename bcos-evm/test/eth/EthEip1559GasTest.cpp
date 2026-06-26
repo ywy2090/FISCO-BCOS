@@ -1,4 +1,5 @@
 #define BOOST_TEST_MODULE EthEip1559GasTest
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
 #include <boost/test/included/unit_test.hpp>
 
@@ -9,6 +10,13 @@ using bcos::evm::gas::maxBalanceGasDebit;
 using bcos::evm::gas::normalizeGasCaps;
 using bcos::evm::gas::resolveEffectiveGasPrice;
 using bcos::evm::gas::tipPerGas;
+using bcos::evm_standard::revisionConfigFromRevision;
+
+namespace
+{
+auto const kLondon = revisionConfigFromRevision(EVMC_LONDON);
+auto const kBerlin = revisionConfigFromRevision(EVMC_BERLIN);
+}  // namespace
 
 BOOST_AUTO_TEST_SUITE(EthEip1559GasTest)
 
@@ -26,8 +34,8 @@ BOOST_AUTO_TEST_CASE(tip_plus_base_above_fee_cap)
 
 BOOST_AUTO_TEST_CASE(legacy_type0_not_1559)
 {
-    BOOST_CHECK(!isEip1559GasCapsTx(0, false));
-    auto const caps = normalizeGasCaps(7, 7, 7, 0, false);
+    BOOST_CHECK(!isEip1559GasCapsTx(0, false, kLondon));
+    auto const caps = normalizeGasCaps(7, 7, 7, 0, false, kLondon);
     BOOST_CHECK(!caps.isEip1559Caps);
     BOOST_CHECK_EQUAL(caps.gasTipCap, 7);
     BOOST_CHECK_EQUAL(resolveEffectiveGasPrice(caps.gasTipCap, caps.gasFeeCap, 10), 7);
@@ -35,7 +43,7 @@ BOOST_AUTO_TEST_CASE(legacy_type0_not_1559)
 
 BOOST_AUTO_TEST_CASE(type1_not_1559)
 {
-    BOOST_CHECK(!isEip1559GasCapsTx(0x01, false));
+    BOOST_CHECK(!isEip1559GasCapsTx(0x01, false, kLondon));
 }
 
 BOOST_AUTO_TEST_CASE(type2_zero_priority_fee)
@@ -44,9 +52,14 @@ BOOST_AUTO_TEST_CASE(type2_zero_priority_fee)
     BOOST_CHECK_EQUAL(eff, 10);
 }
 
-BOOST_AUTO_TEST_CASE(type4_is_1559)
+BOOST_AUTO_TEST_CASE(type4_is_1559_when_fee_market_active)
 {
-    BOOST_CHECK(isEip1559GasCapsTx(0x04, false));
+    BOOST_CHECK(isEip1559GasCapsTx(0x04, false, kLondon));
+}
+
+BOOST_AUTO_TEST_CASE(type4_not_1559_when_fee_market_inactive)
+{
+    BOOST_CHECK(!isEip1559GasCapsTx(0x04, false, kBerlin));
 }
 
 BOOST_AUTO_TEST_CASE(max_balance_debit_1559)

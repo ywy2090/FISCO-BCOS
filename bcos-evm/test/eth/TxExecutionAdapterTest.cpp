@@ -51,7 +51,16 @@ evmc_message callMessage(evmc_address sender, evmc_address target, int64_t depth
 }
 }  // namespace
 
-// Matrix: T02 — top-level SUCCESS bumps sender nonce (VM frame path).
+BOOST_AUTO_TEST_CASE(null_state_throws_invalid_argument)
+{
+    evmc::VM vm{evmc_create_evmone()};
+    ExecuteMessageInput input;
+    input.state = nullptr;
+    input.vm = &vm;
+    BOOST_CHECK_THROW(TxExecutionAdapter::run(std::move(input)), std::invalid_argument);
+}
+
+// Matrix: T02 — state ownership contract: mutations visible on caller's State (VM frame path).
 BOOST_AUTO_TEST_CASE(top_level_success_bumps_sender_nonce)
 {
     state::test::InMemoryEvmStateReader stateView;

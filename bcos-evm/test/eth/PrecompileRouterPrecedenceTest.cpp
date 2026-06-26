@@ -215,11 +215,13 @@ BOOST_AUTO_TEST_CASE(inactive_bls_router_skips_dispatch_but_execute_module_has_n
     bcos::evm_standard::RevisionConfig revision{.revision = EVMC_CANCUN};
     BOOST_REQUIRE(!bcos::evm::precompiled::isActivePrecompile(revision, bls));
 
-    bcos::bytes input(256, 0);
+    bcos::bytes input(64, 0);
     auto direct = bcos::evm::precompiled::EthPrecompiles::dispatch(
         bls, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_CANCUN, revision);
     BOOST_REQUIRE(direct.has_value());
     BOOST_CHECK_EQUAL(direct->status, EVMC_PRECOMPILE_FAILURE);
+
+    input.assign(256, 0);
 
     state::test::InMemoryEvmStateReader baseView;
     state::State state(baseView);

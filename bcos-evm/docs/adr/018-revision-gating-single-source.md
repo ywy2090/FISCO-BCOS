@@ -31,7 +31,6 @@ EIP-to-revision derivation was duplicated across `EthPolicy`, `FiscoPolicy`, `Fo
 ## Consequences
 
 - EthPolicy / FiscoPolicy / Isthmus / ForkProfileRegistry snapshots densify (`eip1559`/`eip3651`, full Prague set for Isthmus); changes are profile-only / runtime-inert per ADR-004.
-- `prague_post_execution` has no overlay; struct default `false` (future-removal candidate).
 - New A-class fields require updating `REVISION_CONFIG_GATED_FIELDS`, `FISCO_GATED_FLAG_MAP`, and the CI grep field list together.
 
 ---

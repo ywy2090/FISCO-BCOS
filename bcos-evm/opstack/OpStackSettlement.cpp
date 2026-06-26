@@ -1,4 +1,5 @@
 #include "bcos-evm/opstack/OpStackSettlement.h"
+#include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include <algorithm>
@@ -11,7 +12,7 @@ void applyPostExecuteSettlement(
     TxPipelineContext const& ctx, uint64_t floorDataGas, OpStackSettlementResult& out)
 {
     auto const stateRefund =
-        ctx.revisionConfig.eip1559 ?
+        gas::isEip1559GasRefundEnabled(ctx.revisionConfig) ?
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_refund)) :
             uint64_t{0};
     auto const settlement =

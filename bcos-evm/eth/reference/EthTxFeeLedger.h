@@ -31,7 +31,8 @@ struct EthTxFeeLedger
             co_return true;
 
         const auto caps = gas::normalizeGasCaps(data.m_gasPriceLegacy, data.m_gasTipCap,
-            data.m_gasFeeCap, data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps);
+            data.m_gasFeeCap, data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps,
+            data.m_executionContext.revisionConfig);
         data.m_effectiveGasPrice =
             gas::resolveEffectiveGasPrice(caps.gasTipCap, caps.gasFeeCap, data.m_blockInfo.baseFee);
         if (data.m_effectiveGasPrice == 0)

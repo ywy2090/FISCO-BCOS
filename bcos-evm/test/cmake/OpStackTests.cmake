@@ -620,26 +620,6 @@ add_test(
     COMMAND ${CAN_TRANSFER_TEST_BINARY_NAME}
 )
 
-set(ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME IsthmusPostExecutionPolicyTest)
-
-add_executable(${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME}
-    opstack/IsthmusPostExecutionPolicyTest.cpp
-)
-
-target_include_directories(${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}
-)
-
-target_link_libraries(${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME} PRIVATE
-    bcos-evm-op
-)
-
-add_test(
-    NAME IsthmusPostExecutionPolicy
-    COMMAND ${ISTHMUS_POST_EXECUTION_POLICY_TEST_BINARY_NAME}
-)
-
 set(L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME L1AttributesDepositFailureTest)
 
 add_executable(${L1_ATTRIBUTES_DEPOSIT_FAILURE_TEST_BINARY_NAME}

@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
+#include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
@@ -420,7 +421,7 @@ OpStackEestFixture adaptStateFixture(pt::ptree const& fixtureJson, std::string c
     // only gets tip (effectiveGasPrice - baseFee) instead of full gasPrice.
     // For London+ forks, baseFee stays as-is — OPStack routes it to OP_BASE_FEE_RECIPIENT
     // (op-geth compatible), which EEST doesn't track but doesn't affect coinbase assertions.
-    if (!input.revisionConfig.eip1559)
+    if (!gas::isEip1559FeeMarketActive(input.revisionConfig))
     {
         input.blockInfo.baseFee = 0;
     }

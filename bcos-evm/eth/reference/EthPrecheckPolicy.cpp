@@ -53,7 +53,7 @@ void EthPrecheckPolicy::checkTransactionRules(TxPipelineContext& ctx) const
     }
 
     auto const caps = gas::normalizeGasCaps(m_input.gasPrice, m_input.gasTipCap, m_input.gasFeeCap,
-        m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps);
+        m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps, m_input.revisionConfig);
     if (caps.isEip1559Caps)
     {
         ctx.gasPrice = gas::resolveEffectiveGasPrice(
