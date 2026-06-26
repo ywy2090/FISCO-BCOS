@@ -22,6 +22,8 @@ jobs:
         run: bash bcos-evm/tools/ci/check-revision-single-source.sh
       - name: EIP-1559 access gate
         run: bash bcos-evm/tools/ci/check-eip1559-access.sh
+      - name: OpStack no Prague postExecution gate
+        run: bash bcos-evm/tools/ci/check-opstack-no-prague-post-execution.sh
       - name: Filename convention gate
         run: bash bcos-evm/tools/ci/check-filename-convention.sh
       - name: Eth layer boundary gate

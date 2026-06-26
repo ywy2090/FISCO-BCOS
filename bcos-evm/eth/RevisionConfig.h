@@ -101,6 +101,10 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
     return cfg;
 }
 
+// Isthmus binds to Prague EVM revision at tx granularity. Block-level Prague
+// postExecution (EIP-6110/7002/7251) is out of scope — op-geth skips it when
+// IsIsthmus (state_processor.go:141). Guarded by IsthmusPostExecutionPolicyTest
+// and check-opstack-no-prague-post-execution.sh.
 inline RevisionConfig makeIsthmusRevisionConfig()
 {
     return revisionConfigFromRevision(EVMC_PRAGUE);

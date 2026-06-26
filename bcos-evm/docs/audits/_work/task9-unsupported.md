@@ -10,7 +10,7 @@
 
 ## Step 1 — `makeIsthmusRevisionConfig()` 稀疏 profile（@ `54e17a62c`）
 
-**源码：** `bcos-evm/eth/RevisionConfig.h:62-72`
+**源码：** `bcos-evm/eth/RevisionConfig.h` — `makeIsthmusRevisionConfig()` → `revisionConfigFromRevision(EVMC_PRAGUE)`
 
 | 字段 | Isthmus helper 赋值 | 默认（未赋值） |
 |------|---------------------|----------------|
@@ -19,21 +19,19 @@
 | `eip7623` | `true` | — |
 | `eip7702` | `true` | — |
 | `eip4844` | `true` | — |
-| `prague_post_execution` | `false`（显式） | — |
+| `eip2537` | `true`（via `revisionConfigFromRevision`） | — |
+| `eip1153` / `eip5656` / `eip6780` / `eip1559` / `eip3651` | `true`（via derive） | — |
 | `calldata_floor_per_token` | `10` | — |
-| `eip2537` | — | `false`（kernel 经 `revision>=PRAGUE`） |
 | `eip7212` | — | `false` |
 | `eip7823` | — | `false` |
-| `eip1153` / `eip5656` / `eip6780` | — | `false`（evmone 经 `revision`） |
-| `eip1559` / `eip3651` | — | `false` |
 
-**变更（OP-09b）：** `warm_access` 由 implicit false → **显式 true**，与 `EthPolicy` Berlin+ 对齐。
+**变更（2026-06-26）：** `prague_post_execution` **已删除**（dead profile-only flag）。Isthmus criteria 14 改由 tx-level 执行边界 + `IsthmusPostExecutionPolicyTest` + `check-opstack-no-prague-post-execution.sh` 守护。
 
 **测试锚点：**
 
-- `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields` — 期望 `warm_access=true`
+- `RevisionConfigProfileTest::isthmus_helper_dense_profile_all_fields`
 - `OpStackTxPropsTest::isthmus_revision_profile_enables_warm_access`
-- `IsthmusPostExecutionPolicyTest::isthmus_revision_config_disables_prague_post_execution`
+- `IsthmusPostExecutionPolicyTest` — Prague tx-level profile；`opstack/` 无 6110/7002/7251 hooks
 
 **生产注入：** `OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()` `input.revisionConfig = makeIsthmusRevisionConfig()`（`:197`）
 
@@ -50,7 +48,13 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | `eip7212` | **0** | 仅 `RevisionConfig.h` 字段定义 |
 | `eip7823` | **0** | 仅 `RevisionConfig.h` 字段定义 |
 | `BALANCE_TRANSFER` | **0** | `ExecuteViaHost.cpp`（BCOS 路径） |
-| `prague_post_execution` | **0** | `RevisionConfig.h:70` 显式 `false` |
+| `prague_post_execution` | **N/A（字段已删除）** | — |
+
+**Prague block postExecution hooks（6110/7002/7251）：**
+
+| 模式 | `bcos-evm/opstack/` | 守护 |
+|------|---------------------|------|
+| `ParseDepositLogs` / `ProcessWithdrawalQueue` / `ProcessConsolidationQueue` | **0** | `IsthmusPostExecutionPolicyTest` + CI gate |
 
 **BCOS-only orchestration grep：**
 
@@ -114,15 +118,16 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 
 ---
 
-### #24 RevisionConfig `prague_post_execution` — ⚪ unsupported
+### #24 Prague block postExecution (6110/7002/7251) — N/A at Isthmus
 
 | 检查项 | 期望 | 证据 | 判定 |
 |--------|------|------|------|
-| Isthmus 显式 false | `false` | `RevisionConfig.h:70`；`IsthmusPostExecutionPolicyTest` | ✅ |
-| TE consumer | 无 | grep 仅定义 + 测试 | ✅ |
-| opstack 无引用 | 0 命中 | grep opstack | ✅ |
+| 无 block postExecution 层 | OpStack tx-level only | 无 `ParseDepositLogs` 等实现 | ✅ |
+| op-geth Isthmus 对齐 | skip when `IsIsthmus` | `state_processor.go:141` | ✅ |
+| 回归守护 | test + CI | `IsthmusPostExecutionPolicyTest`；`check-opstack-no-prague-post-execution.sh` | ✅ |
+| `prague_post_execution` flag | 已删除 | `RevisionConfig.h` 无此字段 | ✅ |
 
-**Part 1 状态：** ✅ — 显式 false；无 post-execution Prague 钩子。
+**Part 1 状态：** ✅ — 架构边界 + 测试/CI gate；非 RevisionConfig 字段。
 
 ---
 

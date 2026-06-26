@@ -31,7 +31,7 @@
 | `EmptyCodeHookTest.cpp` | 1 | L1Block 空 code hook |
 | `EvmoneRefundSpikeTest.cpp` | 1 | evmone SSTORE clear refund 语义 |
 | `GasFeeCapBalanceTest.cpp` | 1 | gasFeeCap balance 预检 |
-| `IsthmusPostExecutionPolicyTest.cpp` | 1 | `makeIsthmusRevisionConfig()` profile |
+| `IsthmusPostExecutionPolicyTest.cpp` | 3 | Isthmus Prague tx-level profile; no block postExecution hooks in `opstack/` |
 | `L1AttributesDepositFailureTest.cpp` | 1 | L1 attributes deposit REVERT 不提交 slot |
 | `L1AttributesDepositTest.cpp` | 1 | L1 attributes → user tx L1/operator literal + depositNonce |
 | `L1BlockGetterTest.cpp` | 3 | L1Block getter / baseFee / number |

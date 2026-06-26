@@ -92,7 +92,8 @@ BOOST_CHECK_LT(output.gasUsed, 50'000);
 | `EmptyCodeHookTest.cpp` | `top_level_call_hits_chain_precompile_hook_on_empty_code` | 🟡 | L1Block hook | 仅 REVERT |
 | `EvmoneRefundSpikeTest.cpp` | `SstoreClear_recordsGasLeftAndRefund` | ✅ | EIP-3529 SSTORE clear | |
 | `GasFeeCapBalanceTest.cpp` | `gas_fee_cap_balance_check_rejects_insufficient_sender` | ✅ | buyGas balance | |
-| `IsthmusPostExecutionPolicyTest.cpp` | `isthmus_revision_config_disables_prague_post_execution` | ✅ | profile 字面量 | |
+| `IsthmusPostExecutionPolicyTest.cpp` | `isthmus_revision_config_is_prague_tx_level` | ✅ | profile + source scan | |
+| `IsthmusPostExecutionPolicyTest.cpp` | `opstack_sources_have_no_prague_block_post_execution_hooks` | ✅ | forbidden symbol scan | |
 | `L1AttributesDepositFailureTest.cpp` | `failed_l1_attributes_deposit_does_not_commit_slot_changes` | ✅ | REVERT 不 commit | |
 | `L1AttributesDepositTest.cpp` | `l1_attributes_deposit_updates_l1block_and_affects_following_user_tx` | ✅ | L1Block + Fjord/operator literal + depositNonce | OP-12；FIX-06 交叉 |
 | `L1BlockGetterTest.cpp` | `op_host_extension_dispatches_l1block_getter` | ✅ | L1Block getter | |

@@ -42,7 +42,7 @@ This spec covers two implementation stages delivered as one unit:
 11. `OpHostExtension` dispatches L1Block read-only getter calls.
 12. Non-deposit txs: GasFeeCap balance check and blob gas check in buyGas.
 13. EIP-7702: auth list preCheck, delegation EOA sender allowed, `applyAuthorization` before CALL, existence refund (`state_transition.go:451–459, 604–609, 778–802`).
-14. EIP-6110/7002/7251 block postExecution **not invoked** at Isthmus (`state_processor.go:141`).
+14. EIP-6110/7002/7251 block postExecution **not invoked** at Isthmus (`state_processor.go:141`). Enforced by **tx-level execution scope** (no block `postExecution` layer in bcos-evm OpStack), `IsthmusPostExecutionPolicyTest`, and `check-opstack-no-prague-post-execution.sh` — not a `RevisionConfig` flag (removed as dead profile-only field).
 15. `CanTransfer`: sender balance covers `tx.value` at execute entry; nested CALL value transfers use same rule (`core/evm.go:142–146`).
 
 **Regression**
@@ -60,7 +60,7 @@ This spec covers two implementation stages delivered as one unit:
 | EVM revision | **Prague** (bound to Isthmus) |
 | Deposit tx | post-Regolith: gas free, no fee routing, system tx rejected |
 | L1 attributes | Isthmus selector `0x098999be`, **176-byte** payload (`IsthmusL1AttributesLen`; Jovian=178, out of scope) |
-| Prague postExecution | EIP-6110/7002/7251 **disabled** when Isthmus active (`state_processor.go:141`) |
+| Prague postExecution | EIP-6110/7002/7251 **not implemented** — OpStack is tx-level; aligns with op-geth `IsPrague && !IsIsthmus` skip (`state_processor.go:141`) |
 | EIP-7623 floor gas | **Enabled** (`PragueTime = IsthmusTime`; `RevisionConfig.eip7623 = true`) |
 | EIP-7702 delegations | **Enabled** at Prague (`RevisionConfig.eip7702 = true`) |
 
@@ -83,7 +83,7 @@ This spec covers two implementation stages delivered as one unit:
 | Q5 | `gasUsed` / `calcRefund` | **B**: explicit `calcRefund` port; State refund counter + post-execute settlement before `returnGas` → §5.9, §7.3 |
 | Q6 | EIP-7623 floor gas | **A**: align op-geth — `FloorDataGas` at execute entry + post-`calcRefund` floor bump → §6.4, §7.1.1, §7.3 |
 | Q7 | EIP-7702 authorizations | **A**: align op-geth — preCheck auth list + `applyAuthorization` before CALL + existence refund → §5.10, §7.1, §7.8 |
-| Q8 | EIP-6110/7002/7251 postExecution | **A**: align op-geth — disabled at Isthmus (`IsPrague && !IsIsthmus`); `praguePostExecution=false` in preset → §5.11 |
+| Q8 | EIP-6110/7002/7251 postExecution | **A**: align op-geth — disabled at Isthmus (`IsPrague && !IsIsthmus`); bcos-evm OpStack has **no block postExecution layer** (tx-only); `prague_post_execution` RevisionConfig flag **removed**; guarded by `IsthmusPostExecutionPolicyTest` + CI gate → §5.11 |
 | Q9 | `CanTransfer` / tx value | **A**: align op-geth — `GetBalance(from) >= value` at execute entry + EVM CALL path → §5.12, §7.1.1 |
 | Q10 | evmone refund semantics | **A**: **Branch A normative** — `gas_left` pre-refund; `State` counter drives `calcRefund`; Day-0 spike validates + host shim if double-count → §5.9 |
 
@@ -958,7 +958,7 @@ if (code.empty() && !isCreateKind(input.message.kind))
 | `Eip7702DelegationSenderTest` | Sender with delegation code passes EOA check |
 | `Eip7702ApplyAuthorizationTest` | Valid auth installs delegation; invalid auth skipped; existence refund 12500 |
 | `Eip7702ClearDelegationTest` | Auth with zero address clears delegation code |
-| `IsthmusPostExecutionPolicyTest` | `makeIsthmusRevisionConfig().prague_post_execution == false`; documents Integration skip |
+| `IsthmusPostExecutionPolicyTest` | Isthmus uses Prague tx-level profile; `opstack/` sources contain no 6110/7002/7251 block postExecution hooks; CI `check-opstack-no-prague-post-execution.sh` |
 | `CanTransferTest` | `value > balance` rejected at execute entry |
 | `CanTransferPredeployTest` | Transfer to `0x4200…0015` succeeds when sender funded (no deny-list) |
 
