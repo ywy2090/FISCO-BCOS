@@ -390,6 +390,12 @@ target_include_directories(OpStackPreDebitCharacterizationTest PRIVATE
 target_link_libraries(OpStackPreDebitCharacterizationTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackPreDebitCharacterization COMMAND OpStackPreDebitCharacterizationTest)
 
+add_executable(OpStackPostSettlementCharacterizationTest opstack/OpStackPostSettlementCharacterizationTest.cpp)
+target_include_directories(OpStackPostSettlementCharacterizationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackPostSettlementCharacterizationTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackPostSettlementCharacterization COMMAND OpStackPostSettlementCharacterizationTest)
+
 add_executable(OpStackSettlementCharacterizationTest
     opstack/OpStackSettlementCharacterizationTest.cpp
 )
