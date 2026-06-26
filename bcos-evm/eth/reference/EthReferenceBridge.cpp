@@ -59,10 +59,12 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
 
     trace::logMessageContext(input.message);
 
+    // Dual context (ADR-027 naming): execBundle wires kernel ExecutionSession into ctx;
+    // bindingsCtx is orchestration policy bind input only — not merged with ExecutionSession.
     EthExecutionBundle execBundle{ctx, input};
 
-    EthOrchestrationProfile::Session session{input, output};
-    auto bindings = EthOrchestrationProfile::bind(session);
+    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
+    auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
     runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 

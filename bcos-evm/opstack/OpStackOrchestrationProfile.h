@@ -28,7 +28,8 @@ namespace bcos::evm
 
 struct OpStackOrchestrationProfile
 {
-    struct Session
+    /// Orchestration policy bind input (not kernel ExecutionSession; ADR-027 naming follow-up).
+    struct BindingsContext
     {
         OpStackExecutionRequest const& input;
         OpStackSettlementView view;
@@ -40,9 +41,9 @@ struct OpStackOrchestrationProfile
         OpStackOrchestrationErrorPolicy errorPolicy;
     };
 
-    static OpStackPrecheckPolicy buildPrecheckPolicy(Session& session);
-    static OpStackOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
-    static Bindings bind(Session& session);
+    static OpStackPrecheckPolicy buildPrecheckPolicy(BindingsContext& bindingsCtx);
+    static OpStackOrchestrationErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
+    static Bindings bind(BindingsContext& bindingsCtx);
 };
 
 }  // namespace bcos::evm

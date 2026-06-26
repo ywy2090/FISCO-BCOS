@@ -217,6 +217,28 @@ Update `architecture-overview.md` §6 injection diagram when implementation land
 
 ---
 
+## Naming follow-up (2026-06-26)
+
+Grilling outcome: disambiguate orchestration policy bind input from kernel `ExecutionSession`.
+
+| Before | After |
+| --- | --- |
+| `OrchestrationProfile::Session` | `OrchestrationProfile::BindingsContext` |
+| local variable `session` | `bindingsCtx` |
+| FISCO `BindingsContext.extension` | **removed** (dead; injection via `ExecutionBundle`) |
+
+**Unchanged:** `BindingsContext` and `ExecutionSession` remain **separate seams** — not merged (ADR-027 non-goal).
+
+Bridge pattern (all three entry paths):
+
+```text
+*ExecutionBundle{ctx, input}   // wire() → ctx.session
+BindingsContext bindingsCtx      // Profile::bind input only
+Profile::bind(bindingsCtx) → runTxPipeline(ctx, ...)
+```
+
+---
+
 ## References
 
 - ADR-024 §6 (injection wiring table)

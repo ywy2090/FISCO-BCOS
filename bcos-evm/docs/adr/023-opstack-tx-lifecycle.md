@@ -41,9 +41,9 @@ Introduce `runOpStackTxLifecycle(OpStackExecutionRequest)` as the **OpStack oute
 
 ADR-021 invariants unchanged.
 
-### 3. Internal session (not interface)
+### 3. Internal bindings context (not interface)
 
-`OpStackOrchestrationProfile::Session` (internal):
+`OpStackOrchestrationProfile::BindingsContext` (internal; renamed from `Session`, ADR-027 naming follow-up):
 
 - `OpStackExecutionRequest& input`
 - `OpStackSettlementView view` (`ctx` + `input` + `sidecar`)
@@ -54,8 +54,8 @@ ADR-021 invariants unchanged.
 
 ```text
 view = { ctx, input, sidecar }
-session = { input, view }
-Profile::bind(session)   // once
+bindingsCtx = { input, view }
+Profile::bind(bindingsCtx)   // once
 OpStackPrecheckPolicy::checkEntryRules(ctx)
 branch:
   deposit:
@@ -91,7 +91,7 @@ Private helpers: `acquireGasPool`, `releaseGasPool`.
 
 ### 6. Profile wiring
 
-Lifecycle **inlines** `OpStackOrchestrationProfile::bind(session)` — hooks are not injected through the external interface (D13).
+Lifecycle **inlines** `OpStackOrchestrationProfile::bind(bindingsCtx)` — hooks are not injected through the external interface (D13).
 
 ### 7. Early-exit result contract (D18)
 

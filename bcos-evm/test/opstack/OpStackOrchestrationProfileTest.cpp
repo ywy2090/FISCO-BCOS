@@ -37,8 +37,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     OpStackFeeSidecar sidecar;
     OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, view};
-    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
+    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
+    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
@@ -66,8 +66,8 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     OpStackFeeSidecar sidecar;
     OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, view};
-    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
+    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
+    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
     policy.checkGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -83,8 +83,8 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     OpStackFeeSidecar sidecar;
     OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, view};
-    auto bindings = OpStackOrchestrationProfile::bind(session);
+    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
+    auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));

@@ -21,20 +21,21 @@
 namespace bcos::evm
 {
 
-OpStackPrecheckPolicy OpStackOrchestrationProfile::buildPrecheckPolicy(Session& session)
+OpStackPrecheckPolicy OpStackOrchestrationProfile::buildPrecheckPolicy(BindingsContext& bindingsCtx)
 {
-    return OpStackPrecheckPolicy{session.view};
+    return OpStackPrecheckPolicy{bindingsCtx.view};
 }
 
 OpStackOrchestrationErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
-    Session const& /*session*/)
+    BindingsContext const& /*bindingsCtx*/)
 {
     return OpStackOrchestrationErrorPolicy{};
 }
 
-OpStackOrchestrationProfile::Bindings OpStackOrchestrationProfile::bind(Session& session)
+OpStackOrchestrationProfile::Bindings OpStackOrchestrationProfile::bind(
+    BindingsContext& bindingsCtx)
 {
-    return Bindings{buildPrecheckPolicy(session), buildErrorPolicy(session)};
+    return Bindings{buildPrecheckPolicy(bindingsCtx), buildErrorPolicy(bindingsCtx)};
 }
 
 }  // namespace bcos::evm

@@ -55,8 +55,10 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     sidecar.floorDataGas = input.floorDataGas;
     OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, view};
-    auto bindings = OpStackOrchestrationProfile::bind(session);
+    // Dual context (ADR-027 naming): execBundle wires kernel ExecutionSession into ctx;
+    // bindingsCtx is orchestration policy bind input only — not merged with ExecutionSession.
+    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
+    auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
 
     trace::logMessageContext(input.message);
 

@@ -21,18 +21,17 @@
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-evm/bcos/FiscoOrchestrationErrorPolicy.h"
 #include "bcos-evm/bcos/FiscoPrecheckPolicy.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 
 namespace bcos::evm
 {
 
 struct FiscoOrchestrationProfile
 {
-    struct Session
+    /// Orchestration policy bind input (not kernel ExecutionSession; ADR-027 naming follow-up).
+    struct BindingsContext
     {
         FiscoExecutionRequest const& input;
         FiscoExecutionResult& output;
-        FiscoVmHostPolicy& extension;
         bool fixErrorHandling{false};
         bool eip7623Enabled{false};
     };
@@ -43,9 +42,9 @@ struct FiscoOrchestrationProfile
         FiscoOrchestrationErrorPolicy errorPolicy;
     };
 
-    static FiscoPrecheckPolicy buildPrecheckPolicy(Session& session);
-    static FiscoOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
-    static Bindings bind(Session& session);
+    static FiscoPrecheckPolicy buildPrecheckPolicy(BindingsContext& bindingsCtx);
+    static FiscoOrchestrationErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
+    static Bindings bind(BindingsContext& bindingsCtx);
 };
 
 }  // namespace bcos::evm

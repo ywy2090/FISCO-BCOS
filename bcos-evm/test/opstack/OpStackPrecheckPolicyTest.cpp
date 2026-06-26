@@ -84,8 +84,8 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
     OpStackFeeSidecar sidecar;
     OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, view};
-    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
+    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
+    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
     policy.checkGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -104,8 +104,8 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
     OpStackFeeSidecar sidecar;
     OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, view};
-    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
+    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
+    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));

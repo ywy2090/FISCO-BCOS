@@ -16,8 +16,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
     input.revisionConfig.eip7623 = true;
 
     EthReferenceResult output;
-    EthOrchestrationProfile::Session session{input, output};
-    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(session);
+    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
+    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
@@ -31,8 +31,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
     input.authorizations.push_back({});
 
     EthReferenceResult output;
-    EthOrchestrationProfile::Session session{input, output};
-    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(session);
+    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
+    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::AuthOnly));
@@ -54,8 +54,8 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     EthReferenceResult output;
     TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
-    EthOrchestrationProfile::Session session{input, output};
-    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(session);
+    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
+    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
     policy.checkTransactionRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -67,8 +67,8 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
     EthReferenceRequest input;
     EthReferenceResult output;
-    EthOrchestrationProfile::Session session{input, output};
-    auto bindings = EthOrchestrationProfile::bind(session);
+    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
+    auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::None));

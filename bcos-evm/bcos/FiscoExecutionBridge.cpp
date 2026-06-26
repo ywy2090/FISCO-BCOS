@@ -101,11 +101,13 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
 
     trace::logMessageContext(input.message);
 
+    // Dual context (ADR-027 naming): execBundle wires kernel ExecutionSession into ctx;
+    // bindingsCtx is orchestration policy bind input only — not merged with ExecutionSession.
     FiscoExecutionBundle execBundle{ctx, input};
 
-    FiscoOrchestrationProfile::Session session{
-        input, output, execBundle.extension(), fixErrorHandling, eip7623Enabled};
-    auto bindings = FiscoOrchestrationProfile::bind(session);
+    FiscoOrchestrationProfile::BindingsContext bindingsCtx{
+        input, output, fixErrorHandling, eip7623Enabled};
+    auto bindings = FiscoOrchestrationProfile::bind(bindingsCtx);
     runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))

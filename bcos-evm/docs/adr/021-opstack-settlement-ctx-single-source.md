@@ -178,7 +178,7 @@ Mint is never rolled back on failure.
 | 3 | View lifecycle | **B3** — view always holds `ctx` + `input` + `sidecar&`; accessors fall back to input when sidecar unset |
 | 4 | Fee module shape | **C2** — `OpStackNormalFeeSettlement` deep module: `buyGas` + `completeAfterPipeline` |
 | 5 | Deposit | **D1** — unchanged; view shared for precheck only |
-| 6 | `OrchestrationProfile::Session` | **E2** — `{ input, view }`; precheck writes via `view.mutableSidecar()` |
+| 6 | `OrchestrationProfile::BindingsContext` | **E2** — `{ input, view }`; precheck writes via `view.mutableSidecar()` |
 | 7 | Test migration | **F3** — keep `finalizeNormal` as internal sync seam; adapter tests on `OpStackTxFeeLedger`; ADR-025 tree on `completeAfterPipeline` |
 | 8 | Delivery | **Three PRs** — projection → deep module → cleanup |
 
@@ -226,7 +226,7 @@ settlement.completeAfterPipeline(view, gasPool, feeParams, output)
 
 - [x] `populateFeeContext` deleted
 - [x] No new fields on `TxPipelineContext` under `eth/`
-- [x] `OpStackOrchestrationProfile::Session` holds `view`, not `feeCtx`
+- [x] `OpStackOrchestrationProfile::BindingsContext` holds `view`, not `feeCtx`
 - [x] All OpStack ctest green; no intentional behavior change
 
 **PR2**

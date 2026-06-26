@@ -27,7 +27,8 @@ namespace bcos::evm
 
 struct EthOrchestrationProfile
 {
-    struct Session
+    /// Orchestration policy bind input (not kernel ExecutionSession; ADR-027 naming follow-up).
+    struct BindingsContext
     {
         EthReferenceRequest const& input;
         EthReferenceResult& output;
@@ -39,9 +40,9 @@ struct EthOrchestrationProfile
         EthOrchestrationErrorPolicy errorPolicy;
     };
 
-    static EthPrecheckPolicy buildPrecheckPolicy(Session& session);
-    static EthOrchestrationErrorPolicy buildErrorPolicy(Session const& session);
-    static Bindings bind(Session& session);
+    static EthPrecheckPolicy buildPrecheckPolicy(BindingsContext& bindingsCtx);
+    static EthOrchestrationErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
+    static Bindings bind(BindingsContext& bindingsCtx);
 };
 
 }  // namespace bcos::evm

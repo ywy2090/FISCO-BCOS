@@ -2,7 +2,6 @@
 
 #include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
@@ -40,14 +39,11 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
     input.revisionConfig.eth().eip7623 = true;
 
     FiscoExecutionResult output;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
-    deps.state = nullptr;
-    FiscoVmHostPolicy extension(false, std::move(deps));
 
-    FiscoOrchestrationProfile::Session session{
-        input, output, extension, false, true /* eip7623Enabled */};
+    FiscoOrchestrationProfile::BindingsContext bindingsCtx{
+        input, output, false, true /* eip7623Enabled */};
 
-    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(session);
+    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
     BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
@@ -67,16 +63,13 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
     input.authPort = &authPort;
 
     FiscoExecutionResult output;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
-    deps.state = nullptr;
-    FiscoVmHostPolicy extension(false, std::move(deps));
 
     TxPipelineContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    FiscoOrchestrationProfile::Session session{input, output, extension, false, false};
-    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(session);
+    FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
+    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
     policy.checkTransactionRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -102,14 +95,11 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
     input.nonce = 0;
 
     FiscoExecutionResult output;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
-    deps.state = nullptr;
-    FiscoVmHostPolicy extension(false, std::move(deps));
 
     TxPipelineContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
 
-    FiscoOrchestrationProfile::Session session{input, output, extension, false, false};
-    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(session);
+    FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
+    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
     policy.setupMessage(ctx);
 
     BOOST_CHECK(ctx.message.kind == EVMC_CREATE);
@@ -127,7 +117,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
     BOOST_CHECK(!allZero);
 }
 
-BOOST_AUTO_TEST_CASE(bind_wires_error_policy_from_session)
+BOOST_AUTO_TEST_CASE(bind_wires_error_policy_from_bindings_context)
 {
     crypto::Keccak256 hashImpl;
     FiscoExecutionRequest input;
@@ -135,12 +125,9 @@ BOOST_AUTO_TEST_CASE(bind_wires_error_policy_from_session)
     input.revisionConfig.fix_revert_logs = true;
 
     FiscoExecutionResult output;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
-    deps.state = nullptr;
-    FiscoVmHostPolicy extension(false, std::move(deps));
 
-    FiscoOrchestrationProfile::Session session{input, output, extension, true, false};
-    auto bindings = FiscoOrchestrationProfile::bind(session);
+    FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, true, false};
+    auto bindings = FiscoOrchestrationProfile::bind(bindingsCtx);
 
     BOOST_CHECK(bindings.errorPolicy.fixErrorHandling);
     BOOST_CHECK(bindings.errorPolicy.fixRevertLogs);

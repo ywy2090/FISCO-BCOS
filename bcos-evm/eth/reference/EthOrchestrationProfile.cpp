@@ -21,19 +21,20 @@
 namespace bcos::evm
 {
 
-EthPrecheckPolicy EthOrchestrationProfile::buildPrecheckPolicy(Session& session)
+EthPrecheckPolicy EthOrchestrationProfile::buildPrecheckPolicy(BindingsContext& bindingsCtx)
 {
-    return EthPrecheckPolicy{session.input};
+    return EthPrecheckPolicy{bindingsCtx.input};
 }
 
-EthOrchestrationErrorPolicy EthOrchestrationProfile::buildErrorPolicy(Session const& /*session*/)
+EthOrchestrationErrorPolicy EthOrchestrationProfile::buildErrorPolicy(
+    BindingsContext const& /*bindingsCtx*/)
 {
     return EthOrchestrationErrorPolicy{};
 }
 
-EthOrchestrationProfile::Bindings EthOrchestrationProfile::bind(Session& session)
+EthOrchestrationProfile::Bindings EthOrchestrationProfile::bind(BindingsContext& bindingsCtx)
 {
-    return Bindings{buildPrecheckPolicy(session), buildErrorPolicy(session)};
+    return Bindings{buildPrecheckPolicy(bindingsCtx), buildErrorPolicy(bindingsCtx)};
 }
 
 }  // namespace bcos::evm

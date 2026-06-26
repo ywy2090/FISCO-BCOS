@@ -21,23 +21,24 @@
 namespace bcos::evm
 {
 
-FiscoPrecheckPolicy FiscoOrchestrationProfile::buildPrecheckPolicy(Session& session)
+FiscoPrecheckPolicy FiscoOrchestrationProfile::buildPrecheckPolicy(BindingsContext& bindingsCtx)
 {
-    return FiscoPrecheckPolicy{session.input, session.eip7623Enabled};
+    return FiscoPrecheckPolicy{bindingsCtx.input, bindingsCtx.eip7623Enabled};
 }
 
-FiscoOrchestrationErrorPolicy FiscoOrchestrationProfile::buildErrorPolicy(Session const& session)
+FiscoOrchestrationErrorPolicy FiscoOrchestrationProfile::buildErrorPolicy(
+    BindingsContext const& bindingsCtx)
 {
     FiscoOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.hashImpl = session.input.hashImpl;
-    errorPolicy.fixErrorHandling = session.fixErrorHandling;
-    errorPolicy.fixRevertLogs = session.input.revisionConfig.fix_revert_logs;
+    errorPolicy.hashImpl = bindingsCtx.input.hashImpl;
+    errorPolicy.fixErrorHandling = bindingsCtx.fixErrorHandling;
+    errorPolicy.fixRevertLogs = bindingsCtx.input.revisionConfig.fix_revert_logs;
     return errorPolicy;
 }
 
-FiscoOrchestrationProfile::Bindings FiscoOrchestrationProfile::bind(Session& session)
+FiscoOrchestrationProfile::Bindings FiscoOrchestrationProfile::bind(BindingsContext& bindingsCtx)
 {
-    return Bindings{buildPrecheckPolicy(session), buildErrorPolicy(session)};
+    return Bindings{buildPrecheckPolicy(bindingsCtx), buildErrorPolicy(bindingsCtx)};
 }
 
 }  // namespace bcos::evm

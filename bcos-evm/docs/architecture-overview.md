@@ -119,7 +119,19 @@ graph TD
 
 ## 3. 执行流：三入口 → Profile 绑定 → 共享编排 → 内核
 
-自 ADR-019 起，三条链在 **`runTxPipeline` 之前**各自装配 `TxPipelineHooks` + `OrchestrationErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(Session)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
+自 ADR-019 起，三条链在 **`runTxPipeline` 之前**各自装配 `TxPipelineHooks` + `OrchestrationErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(BindingsContext)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
+
+**双上下文（ADR-027 naming follow-up）：** 每个 bridge / lifecycle 入口并行维护两类上下文，**不合并**：
+
+```text
+TxPipelineContext ctx
+  → *ExecutionBundle{ctx, input}        // wire() → ctx.session = ExecutionSession*
+  → BindingsContext bindingsCtx         // orchestration policy bind input
+  → Profile::bind(bindingsCtx)          // → { precheckPolicy, errorPolicy }
+  → runTxPipeline(ctx, ...)
+```
+
+`BindingsContext`（编排 policy 绑定输入）≠ `ExecutionSession`（内核执行环境注入 View）。
 
 共享步骤（intrinsic debit、`BuildExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/pipeline/` 单点 enforcement。`runTxPipeline(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onPipelineComplete`。
 
@@ -278,7 +290,7 @@ struct VmHostPolicy {
 
 文件：`eth/pipeline/TxPipelineHooks.h`、`eth/pipeline/OrchestrationErrorPolicy.h`
 
-链特有编排通过 **`OrchestrationProfile::bind(Session)`** 产出 `{ hooks, errorPolicy }`，再传入 `runTxPipeline`。三链 profile：
+链特有编排通过 **`OrchestrationProfile::bind(BindingsContext)`** 产出 `{ precheckPolicy, errorPolicy }`，再传入 `runTxPipeline`。三链 profile：
 
 | Profile | 文件 | ErrorPolicy |
 | --- | --- | --- |
