@@ -55,8 +55,8 @@ executeMessage        FrameContext + FrameScope        evmone VM
 
 - 新增代码位于 `bcos-evm/eth/execution/`。
 - **`eth/execution/` 不得 `#include` `bcos/` 或 `opstack/`**（延续 ADR-005 / ADR-019）。
-- 链定制仅通过 `FrameContext::extension`（`state::VmHostPolicy*`）注入。
-- `PrecompileRouter::dispatchPrecompile` 保留为独立 module；**Frame 是唯一 call site**。
+- 链定制通过 `FrameContext::extension`（`state::VmHostPolicy*`）与 `FrameContext::chainPort`（`ChainCallTargetPort*`，ADR-024）注入。
+- `PrecompileRouter::executePrecompileEnvelope` 为 envelope-only；分类由 `CallTargetResolver` 单源。
 
 ---
 
