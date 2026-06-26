@@ -9,6 +9,9 @@ namespace bcos::evm
 {
 
 struct OpStackFeeContext;
+struct OpStackFeeParams;
+struct OpStackExecutionRequest;
+struct OpStackExecutionResult;
 struct OpStackTxFeeLedger;
 
 struct GasPoolHooks
@@ -24,6 +27,15 @@ struct OpStackSettlementResult
     uint64_t maxUsedGas{0};
 };
 
+bool isNormalPreExecutionReject(TxPipelineExitKind exitKind) noexcept;
+
+void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
+    OpStackExecutionResult& output, int64_t originalGasLimit);
+
+void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackExecutionRequest const& input,
+    OpStackFeeContext const& feeCtx, OpStackFeeParams const& feeParams,
+    OpStackSettlementResult const& settled);
+
 OpStackSettlementResult finalizeNormal(
     TxPipelineContext const& ctx, OpStackFeeContext const& feeCtx, TxPipelineExitKind exitKind);
 
@@ -35,5 +47,10 @@ task::Task<OpStackSettlementResult> settleNormal(TxPipelineContext& ctx, OpStack
 
 task::Task<OpStackSettlementResult> settleDeposit(TxPipelineContext& ctx,
     TxPipelineExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool);
+
+/// ADR-025: abort (Intrinsic/GasAfford reject) or commit + settle + receipt meta projection.
+task::Task<void> completeNormalTxAfterPipeline(TxPipelineContext& ctx, OpStackFeeContext& feeCtx,
+    OpStackExecutionRequest& input, OpStackFeeParams const& feeParams, GasPoolHooks const& gasPool,
+    OpStackExecutionResult& output);
 
 }  // namespace bcos::evm

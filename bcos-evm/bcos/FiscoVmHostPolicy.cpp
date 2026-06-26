@@ -21,38 +21,9 @@
 #include "bcos-framework/ledger/Features.h"
 #include <algorithm>
 #include <cstring>
-#include <vector>
 
 namespace bcos::evm
 {
-namespace
-{
-constexpr std::string_view PRECOMPILED_CODE_FIELD = "[PRECOMPILED]";
-
-bool startsWith(std::string_view input, std::string_view prefix) noexcept
-{
-    return input.size() >= prefix.size() &&
-           std::memcmp(input.data(), prefix.data(), prefix.size()) == 0;
-}
-
-std::vector<std::string_view> splitByComma(std::string_view input)
-{
-    std::vector<std::string_view> tokens;
-    size_t begin = 0;
-    while (begin <= input.size())
-    {
-        auto const end = input.find(',', begin);
-        if (end == std::string_view::npos)
-        {
-            tokens.push_back(input.substr(begin));
-            break;
-        }
-        tokens.push_back(input.substr(begin, end - begin));
-        begin = end + 1;
-    }
-    return tokens;
-}
-}  // namespace
 
 FiscoVmHostPolicy::FiscoVmHostPolicy(bool skipEvmNativeValueTransfer, FiscoVmHostPolicyDeps deps)
   : m_skipEvmNativeValueTransfer(skipEvmNativeValueTransfer)
@@ -69,7 +40,6 @@ FiscoVmHostPolicy::FiscoVmHostPolicy(bool skipEvmNativeValueTransfer, FiscoVmHos
     m_hashImpl = deps.hashImpl;
     m_persistContractCreateNonce = std::move(deps.persistContractCreateNonce);
     m_authPort = deps.authPort;
-    m_chainPrecompilePort = deps.chainPrecompilePort;
 
     if (deps.recipientPathResolver)
     {
@@ -81,43 +51,6 @@ FiscoVmHostPolicy::FiscoVmHostPolicy(bool skipEvmNativeValueTransfer, FiscoVmHos
             return std::string(USER_APPS_PREFIX) + hexAddress(message.recipient);
         };
     }
-}
-
-std::optional<evmc_result> FiscoVmHostPolicy::tryChainPrecompile(
-    evmc_revision rev, const evmc_message& msg)
-{
-    if (m_chainPrecompilePort == nullptr)
-    {
-        return std::nullopt;
-    }
-
-    const evmc_address zero{};
-    auto const target = std::memcmp(msg.code_address.bytes, zero.bytes, sizeof(zero.bytes)) != 0 ?
-                            msg.code_address :
-                            msg.recipient;
-    auto resolvedTarget = target;
-    if (m_state != nullptr)
-    {
-        auto const code = m_state->get_code(target);
-        if (!code.empty())
-        {
-            std::string_view codeView(reinterpret_cast<const char*>(code.data()), code.size());
-            if (auto dynamicTarget = parseDynamicPrecompileTarget(codeView))
-            {
-                resolvedTarget = *dynamicTarget;
-            }
-        }
-    }
-
-    if (!isFiscoPrecompileAddress(resolvedTarget))
-    {
-        return std::nullopt;
-    }
-
-    auto routedMessage = msg;
-    routedMessage.recipient = resolvedTarget;
-    routedMessage.code_address = resolvedTarget;
-    return const_cast<ChainPrecompilePort*>(m_chainPrecompilePort)->dispatch(rev, routedMessage);
 }
 
 void FiscoVmHostPolicy::deriveNestedCreateAddress(evmc_message& message)
@@ -162,28 +95,6 @@ bool FiscoVmHostPolicy::isZeroAddress(const evmc_address& address) noexcept
 {
     return std::all_of(
         std::begin(address.bytes), std::end(address.bytes), [](uint8_t byte) { return byte == 0; });
-}
-
-std::optional<evmc_address> FiscoVmHostPolicy::parseDynamicPrecompileTarget(
-    std::string_view code) noexcept
-{
-    if (!startsWith(code, PRECOMPILED_CODE_FIELD))
-    {
-        return std::nullopt;
-    }
-
-    auto const tokens = splitByComma(code);
-    if (tokens.size() < 2)
-    {
-        return std::nullopt;
-    }
-
-    auto target = state::parseHexAddress(tokens[1]);
-    if (state::isZeroAddress(target))
-    {
-        return std::nullopt;
-    }
-    return target;
 }
 
 evmc_address FiscoVmHostPolicy::createTarget(const evmc_message& message) noexcept
@@ -248,25 +159,6 @@ std::string FiscoVmHostPolicy::hexAddress(const evmc_address& address)
         out[i * 2 + 1] = HEX[address.bytes[i] & 0x0F];
     }
     return out;
-}
-
-bool FiscoVmHostPolicy::isFiscoPrecompileAddress(const evmc_address& address) noexcept
-{
-    // Keep small-address semantics (same family as PrecompiledManager lookup).
-    for (size_t i = 0; i < 12; ++i)
-    {
-        if (address.bytes[i] != 0)
-        {
-            return false;
-        }
-    }
-
-    uint64_t value = 0;
-    for (size_t i = 12; i < sizeof(address.bytes); ++i)
-    {
-        value = (value << 8U) | static_cast<uint64_t>(address.bytes[i]);
-    }
-    return value >= FISCO_PRECOMPILE_MIN;
 }
 
 }  // namespace bcos::evm

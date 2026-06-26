@@ -1,8 +1,8 @@
 # bcos-evm 架构设计原理（评审稿）
 
 **用途：** 供评审者快速理解 `bcos-evm` 的分层契约、扩展机制与治理纪律。
-**配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–023`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`、编排后审查 [architecture-review-post-orchestration-2026-06-23.md](architecture-review-post-orchestration-2026-06-23.md)。
-**校验：** 2026-06-25（ExecutionFrame PR4；`TxExecutionAdapter`；`PrecompileActive` 单源；三链 `OrchestrationProfile`；OpStack `runOpStackTxLifecycle` ADR-023）
+**配套文档：** 外部入口 [review-pack.md](review-pack.md)、[模块对接梳理（从区块执行开始）](module-integration-from-block-execution.md)、能力矩阵 `bcos-evm/capability-matrix.md`、决策记录 `bcos-evm/docs/adr/001–024`、已知缺口 `bcos-evm/docs/architecture-known-gaps.md`、编排后审查 [architecture-review-post-orchestration-2026-06-23.md](architecture-review-post-orchestration-2026-06-23.md)。
+**校验：** 2026-06-26（CallTargetResolver ADR-024 PR6；`chainPort` 单源；`PrecompileRouter` envelope-only）
 
 ---
 
@@ -49,7 +49,7 @@ graph TD
         FOP["FiscoOrchestrationProfile::bind"]
         FVP["FiscoVmHostPolicy"]
         FP["FiscoPolicy"]
-        PORTS["AuthPort / ChainPrecompilePort"]
+        PORTS["AuthPort / ChainCallTargetPort"]
     end
     subgraph op["bcos-evm-op（OP Stack）"]
         OEB["opStackExecute()"]
@@ -267,7 +267,7 @@ struct VmHostPolicy {
 
 - **默认实现 = 标准以太坊语义**，链层只覆写差异。
 - `FiscoVmHostPolicy`：禁 selfdestruct、禁 delegatecall-to-precompile、CREATE nonce 持久化、FISCO precompile 优先级。
-- `OpStackVmHostPolicy`：只覆写 `tryChainPrecompile`，挂载 L1Block 预部署。
+- `OpStackVmHostPolicy`：占位 extension；链 call target 经 `OpStackChainCallTargetAdapter` + `chainPort`（ADR-024）。
 - 这些钩子在**内核调用树内部**触发（ADR-005 §3：`VmHostPolicy` 在 kernel 内运行；Orchestrator / `runTxPipeline` 在 `executeMessage` 之前运行）。
 
 ### 4.3 `TxPipelineHooks` + `OrchestrationErrorPolicy` —— 编排管线注入（ADR-019）
@@ -369,7 +369,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 这是该架构区别于一般重构的关键——它不止有代码，还有一套**强制对账系统**：
 
 - **能力矩阵**（`capability-matrix.md`）：每个能力 × 路径（ETH/BCOS/OP）× 层（kernel / orchestration / tx input / revision profile）= 一个单元格；token 只能是 `inherited / explicit / feature-gated / unsupported / deviation`，非 `inherited` 必须写理由 + 测试引用。
-- **ADR 链**（`docs/adr/001–023`）：编排管线（019）、settlement（021）、OpStack lifecycle（023）、FISCO CREATE 地址（022）等。
+- **ADR 链**（`docs/adr/001–024`）：编排管线（019）、settlement（021）、OpStack lifecycle（023）、CallTargetResolver（024）、FISCO CREATE 地址（022）等。
 - **CI 门禁**（`.github/workflows/capability-gate.yml`）：
   - `check-capability-matrix.sh` — 矩阵 token lint
   - `check-revision-single-source.sh` — A 类字段不得在 consumer 侧 `revision >=` 推导
@@ -407,9 +407,10 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | OP Profile | `opstack/OpStackOrchestrationProfile.h` |
 | 内核入口（符号） | `eth/ExecuteMessage.h` / `.cpp` |
 | Tx 级 adapter | `eth/execution/TxExecutionAdapter.h` / `.cpp` |
+| Call target 分类 | `eth/execution/CallTargetResolver.h` / `.cpp`（ADR-024） |
 | ExecutionFrame | `eth/execution/ExecutionFrame.h` / `.cpp` |
 | Precompile 单源 | `eth/precompiled/PrecompileActive.h` |
-| Precompile 路由 / envelope | `eth/precompiled/PrecompileRouter.cpp` |
+| Precompile envelope | `eth/precompiled/PrecompileRouter.cpp`（`executePrecompileEnvelope`） |
 | 2929 warm gate | `eth/execution/Eip2929Access.h` |
 | Tx-entry warm | `eth/execution/WarmTransactionEntry.h` |
 | Frame target resolver | `eth/execution/FrameTargetResolver.h` / `.cpp` |
@@ -420,11 +421,11 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | FISCO 扩展 | `bcos/FiscoVmHostPolicy.h` |
 | FISCO CREATE 地址 | `bcos/FiscoAddressDerivation.h`（ADR-022） |
 | FISCO Policy | `bcos/FiscoPolicy.h` |
-| 依赖倒置端口 | `bcos/ports/AuthPort.h`、`ChainPrecompilePort.h` |
+| 依赖倒置端口 | `bcos/ports/AuthPort.h`、`eth/ports/ChainCallTargetPort.h` |
 | OP 入口 | `opstack/OpStackExecutionBridge.cpp` |
 | OP lifecycle | `opstack/OpStackTxLifecycle.h` / `.cpp`（ADR-023） |
 | OP settlement | `opstack/OpStackSettlement.h` / `.cpp`（ADR-021） |
 | OP 扩展 | `opstack/OpStackVmHostPolicy.h` |
 | 能力契约 | `capability-matrix.md` |
-| 决策记录 | `docs/adr/001–023` |
+| 决策记录 | `docs/adr/001–024` |
 | 技术债台账 | `docs/architecture-known-gaps.md` |

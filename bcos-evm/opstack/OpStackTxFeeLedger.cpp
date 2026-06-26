@@ -1,8 +1,7 @@
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
-
-#include <algorithm>
 
 namespace bcos::evm
 {
@@ -17,11 +16,6 @@ void addBalance(state::State& state, evmc_address const& address, u256 const& de
     state.set_balance(address, state.get_balance(address) + delta);
 }
 }  // namespace
-
-u256 resolveEffectiveGasPrice(u256 const& gasTipCap, u256 const& gasFeeCap, u256 const& baseFee)
-{
-    return std::min(gasTipCap + baseFee, gasFeeCap);
-}
 
 task::Task<bool> OpStackTxFeeLedger::buyGas(TxPipelineContext& ctx, OpStackFeeContext& feeCtx)
 {
@@ -45,7 +39,7 @@ task::Task<bool> OpStackTxFeeLedger::buyGas(TxPipelineContext& ctx, OpStackFeeCo
         gasFeeCap = feeCtx.m_gasPrice;
     }
 
-    feeCtx.m_effectiveGasPrice = resolveEffectiveGasPrice(gasTipCap, gasFeeCap, baseFee);
+    feeCtx.m_effectiveGasPrice = gas::resolveEffectiveGasPrice(gasTipCap, gasFeeCap, baseFee);
 
     auto const gasLimit = u256(ctx.originalGasLimit);
     auto mgval = gasLimit * feeCtx.m_effectiveGasPrice;

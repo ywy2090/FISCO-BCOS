@@ -24,6 +24,11 @@
 #include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmc/evmc.hpp>
 
+namespace bcos::evm
+{
+struct ChainCallTargetPort;
+}
+
 namespace bcos::evm::state
 {
 class State;
@@ -39,18 +44,20 @@ struct FrameContext
     evmc::VM& vm;
     bcos::evm_standard::RevisionConfig const& revisionConfig;
     state::VmHostPolicy* extension{nullptr};
+    ChainCallTargetPort* chainPort{nullptr};
     evmc_address txOrigin{};
     evmc_address& executionAddress;
     bool fixNonceInit{false};
 
     FrameContext(state::State& state_, evmc::VM& vm_,
         bcos::evm_standard::RevisionConfig const& revisionConfig_, state::VmHostPolicy* extension_,
-        evmc_address txOrigin_, evmc_address& executionAddress_,
-        bool fixNonceInit_ = false) noexcept
+        evmc_address txOrigin_, evmc_address& executionAddress_, bool fixNonceInit_ = false,
+        ChainCallTargetPort* chainPort_ = nullptr) noexcept
       : state(state_),
         vm(vm_),
         revisionConfig(revisionConfig_),
         extension(extension_),
+        chainPort(chainPort_),
         txOrigin(txOrigin_),
         executionAddress(executionAddress_),
         fixNonceInit(fixNonceInit_)

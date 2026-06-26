@@ -58,7 +58,8 @@ inline evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message)
+inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message,
+    state::VmHostPolicy* extension = nullptr, ChainCallTargetPort* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
@@ -70,7 +71,15 @@ inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const
     input.revisionConfig.revision = EVMC_PRAGUE;
     input.revisionConfig.warm_access = true;
     input.txProps.warmDestination = true;
+    input.extension = extension;
+    input.chainPort = chainPort;
     return input;
+}
+
+inline ExecuteMessageInput makeBaseInput(state::State* state, evmc_message const& message,
+    state::VmHostPolicy* extension = nullptr, ChainCallTargetPort* chainPort = nullptr)
+{
+    return makeBaseInput(*state, message, extension, chainPort);
 }
 
 inline FrameBalanceOutcome runDepth0(state::State& state, evmc_message const& message)

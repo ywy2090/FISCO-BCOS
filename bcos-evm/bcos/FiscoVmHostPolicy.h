@@ -22,7 +22,6 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
-#include "bcos-evm/bcos/ports/ChainPrecompilePort.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/VmHostPolicy.h"
@@ -30,9 +29,7 @@
 #include "bcos-framework/protocol/BlockHeader.h"
 #include <evmc/evmc.h>
 #include <functional>
-#include <optional>
 #include <string>
-#include <string_view>
 
 namespace bcos::evm
 {
@@ -65,7 +62,6 @@ public:
         state::State* state{nullptr};
         RecipientPathResolver recipientPathResolver{};
         AuthPort const* authPort{nullptr};
-        ChainPrecompilePort const* chainPrecompilePort{nullptr};
     };
 
     explicit FiscoVmHostPolicy(bool skipEvmNativeValueTransfer, FiscoVmHostPolicyDeps deps);
@@ -74,15 +70,11 @@ public:
     bool allowDelegateCallToPrecompile() override { return false; }
     bool skipHostValueTransfer() override { return m_skipEvmNativeValueTransfer; }
 
-    std::optional<evmc_result> tryChainPrecompile(
-        evmc_revision rev, const evmc_message& msg) override;
     void prepareMessage(evmc_revision rev, evmc_message& msg) override;
     void setCallerAddress(const evmc_address& caller) override;
     void bumpContractCreateNonce(const evmc_address& contractAddress) override;
 
 private:
-    static bool isFiscoPrecompileAddress(const evmc_address& address) noexcept;
-    static std::optional<evmc_address> parseDynamicPrecompileTarget(std::string_view code) noexcept;
     static bool isZeroAddress(const evmc_address& address) noexcept;
     static evmc_address createTarget(const evmc_message& message) noexcept;
     static std::string hexAddress(const evmc_address& address);
@@ -106,7 +98,6 @@ private:
     state::State* m_state{nullptr};
     RecipientPathResolver m_recipientPathResolver;
     AuthPort const* m_authPort{nullptr};
-    ChainPrecompilePort const* m_chainPrecompilePort{nullptr};
 };
 
 }  // namespace bcos::evm

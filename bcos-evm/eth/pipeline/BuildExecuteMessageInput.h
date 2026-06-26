@@ -22,6 +22,7 @@ inline ExecuteMessageInput buildExecuteMessageInput(TxPipelineContext& ctx)
     input.authorizations = ctx.inputs.authorizations;
     input.web3TypedTxKind = ctx.inputs.web3TypedTxKind;
     input.extension = ctx.extension;
+    input.chainPort = ctx.chainPort;
     return input;
 }
 

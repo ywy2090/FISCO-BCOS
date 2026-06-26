@@ -8,7 +8,6 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
@@ -297,7 +296,6 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
 
         evmc::VM vm{evmc_create_evmone()};
         state::State state(stateView);
-        OpStackVmHostPolicy extension(&state);
 
         ExecuteMessageInput input;
         input.state = &state;
@@ -309,7 +307,6 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
         input.authorizationListPresent = true;
         input.authorizations.push_back(authorityKey.sign(delegationTargetAddr, 0));
-        input.extension = &extension;
 
         auto const intrinsicGas = static_cast<int64_t>(
             gas::TX_BASE_GAS + gas::calcAuthTupleIntrinsicGas(input.authorizations.size()));

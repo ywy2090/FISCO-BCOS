@@ -22,6 +22,8 @@ class Hash;
 namespace bcos::evm
 {
 
+struct ChainCallTargetPort;
+
 enum class TxPipelineExitKind
 {
     None,
@@ -80,6 +82,7 @@ public:
     state::State state;
     bcos::u256 gasPrice{0};
     state::VmHostPolicy* extension{nullptr};
+    ChainCallTargetPort* chainPort{nullptr};
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};

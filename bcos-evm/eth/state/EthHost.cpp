@@ -87,13 +87,14 @@ void applySstoreRefundEip3529(State& state, const evmc_bytes32& current,
 
 EthHost::EthHost(State& state, evmc_tx_context txContext,
     bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-    VmHostPolicy* extension, bool fixStorageStatus)
+    VmHostPolicy* extension, bool fixStorageStatus, ChainCallTargetPort* chainPort)
   : m_state(state),
     m_txContext(txContext),
     m_revisionConfig(revisionConfig),
     m_vm(vm),
     m_blockHashes(std::move(blockHashes)),
     m_extension(extension),
+    m_chainPort(chainPort),
     m_fixStorageStatus(fixStorageStatus)
 {}
 
@@ -262,8 +263,8 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     };
     ExecutionAddressGuard guard{m_executionAddress};
 
-    execution::FrameContext frameCtx{
-        m_state, m_vm, m_revisionConfig, m_extension, m_txContext.tx_origin, m_executionAddress};
+    execution::FrameContext frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
+        m_txContext.tx_origin, m_executionAddress, false, m_chainPort};
     auto fr = execution::runExecutionFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
     return Result(std::move(fr.result));
 }

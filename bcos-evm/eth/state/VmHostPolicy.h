@@ -20,13 +20,13 @@
 #pragma once
 
 #include <evmc/evmc.h>
-#include <optional>
 
 namespace bcos::evm::state
 {
 struct Account;
 
 /// Injectable policy for EthHost extension points (Hook#3–6, #8 via FiscoVmHostPolicy).
+/// Chain precompile dispatch is via `ChainCallTargetPort` on FrameContext (ADR-024).
 struct VmHostPolicy
 {
     virtual ~VmHostPolicy() = default;
@@ -34,13 +34,6 @@ struct VmHostPolicy
     virtual bool allowSelfdestruct(const Account& acc) { return true; }
     virtual bool allowDelegateCallToPrecompile() { return true; }
     virtual bool skipHostValueTransfer() { return false; }
-    virtual std::optional<evmc_result> tryChainPrecompile(
-        evmc_revision rev, const evmc_message& msg)
-    {
-        (void)rev;
-        (void)msg;
-        return std::nullopt;
-    }
 
     virtual void prepareMessage(evmc_revision rev, evmc_message& msg)
     {

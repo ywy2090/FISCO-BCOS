@@ -456,6 +456,12 @@ add_test(
     COMMAND ${L1BLOCK_PREDEPLOY_TEST_BINARY_NAME}
 )
 
+add_executable(OpStackChainCallTargetAdapterTest opstack/OpStackChainCallTargetAdapterTest.cpp)
+target_include_directories(OpStackChainCallTargetAdapterTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackChainCallTargetAdapterTest PRIVATE bcos-evm-op bcos-evm-eth)
+add_test(NAME OpStackChainCallTargetAdapter COMMAND OpStackChainCallTargetAdapterTest)
+
 set(GPO_PREDEPLOY_TEST_BINARY_NAME GasPriceOraclePredeployTest)
 
 add_executable(${GPO_PREDEPLOY_TEST_BINARY_NAME}

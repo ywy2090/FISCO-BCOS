@@ -5,6 +5,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -78,5 +79,48 @@ BOOST_AUTO_TEST_CASE(finalize_normal_rules_rejected_applies_settlement)
 
     auto const expected = postExecuteGasSettlement(100'000u, 60'000u, 0u, 0u);
     BOOST_CHECK_EQUAL(result.gasUsed, static_cast<int64_t>(expected.gasUsed));
+}
+
+BOOST_AUTO_TEST_CASE(abort_after_buy_gas_reverts_checkpoint_and_releases_gas_pool)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    evmc_address sender{};
+    sender.bytes[19] = 0x42;
+    stateView.insert_account(sender, state::Account{.balance = u256(1'000), .nonce = 0});
+
+    evmc_message msg{};
+    msg.gas = 50'000;
+    msg.sender = sender;
+    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    state::State state{stateView};
+    TxPipelineContext ctx{state, msg, revision, bcos::u256(0)};
+
+    ctx.state.checkpoint();
+    ctx.state.set_balance(sender, u256(200));
+
+    uint64_t returnRemaining = 0;
+    uint64_t returnUsed = 0;
+    GasPoolHooks gasPool{
+        .returnGas =
+            [&](uint64_t remaining, uint64_t used) {
+                returnRemaining = remaining;
+                returnUsed = used;
+            },
+    };
+
+    OpStackExecutionResult output;
+    abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
+
+    BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
+    BOOST_CHECK_EQUAL(state.get_balance(sender), u256(1'000));
+    BOOST_CHECK_EQUAL(returnRemaining, 50'000u);
+    BOOST_CHECK_EQUAL(returnUsed, 0u);
+}
+
+BOOST_AUTO_TEST_CASE(is_normal_pre_execution_reject_covers_intrinsic_and_gas_afford)
+{
+    BOOST_CHECK(isNormalPreExecutionReject(TxPipelineExitKind::IntrinsicRejected));
+    BOOST_CHECK(isNormalPreExecutionReject(TxPipelineExitKind::GasAffordRejected));
+    BOOST_CHECK(!isNormalPreExecutionReject(TxPipelineExitKind::Completed));
 }
 }  // namespace bcos::evm::test

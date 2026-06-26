@@ -17,8 +17,6 @@ namespace bcos::evm
 
 struct OpStackSettlementResult;
 
-u256 resolveEffectiveGasPrice(u256 const& gasTipCap, u256 const& gasFeeCap, u256 const& baseFee);
-
 struct OpStackFeeContext
 {
     bool m_call{false};

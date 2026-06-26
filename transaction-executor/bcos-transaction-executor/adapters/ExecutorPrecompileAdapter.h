@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ExecutorSessionContext.h"
-#include "bcos-evm/bcos/ports/ChainPrecompilePort.h"
+#include "bcos-evm/eth/ports/ChainCallTargetPort.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledImpl.h"
 #include <optional>
 
@@ -9,12 +9,19 @@ namespace bcos::transaction_executor
 {
 
 template <class SessionContext>
-class ExecutorPrecompileAdapter final : public evm::ChainPrecompilePort
+class ExecutorPrecompileAdapter final : public evm::ChainCallTargetPort
 {
 public:
     explicit ExecutorPrecompileAdapter(SessionContext& sessionContext)
       : m_sessionContext(sessionContext)
     {}
+
+    std::optional<bcos::evm::execution::CallTargetDescriptor> classifyTarget(
+        bcos::evm::state::State&, evmc_address const&, evmc_message const&,
+        bcos::evm::execution::FrameScope) override
+    {
+        return std::nullopt;
+    }
 
     std::optional<evmc_result> dispatch(evmc_revision rev, evmc_message const& msg) override
     {
@@ -37,6 +44,8 @@ public:
         result.release = nullptr;
         return raw;
     }
+
+    void forEachStaticWarmTarget(std::function<void(evmc_address const&)> const&) const override {}
 
 private:
     SessionContext& m_sessionContext;

@@ -311,7 +311,7 @@ public:
             transaction_executor::ExecutorPrecompileAdapter precompileAdapter{sessionCtx};
 
             input.authPort = &authAdapter;
-            input.chainPrecompilePort = &precompileAdapter;
+            input.chainDispatchPort = &precompileAdapter;
 
             co_return co_await fiscoExecute(std::move(input));
         }

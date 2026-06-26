@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/FrameCaller.h"
@@ -90,7 +91,7 @@ inline evmc_address resolveCallerAddress(
     return msg.sender;
 }
 
-std::optional<FrameResult> tryPrecompileDispatch(FrameWork& work, FrameScope scope)
+std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope scope)
 {
     auto& callMessage = work.callMessage();
     if (isCreateKind(callMessage.kind))
@@ -101,25 +102,46 @@ std::optional<FrameResult> tryPrecompileDispatch(FrameWork& work, FrameScope sco
     {
         return std::nullopt;
     }
+
     bool const skipVt =
         work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer();
-    auto out = precompiled::dispatchPrecompile({.state = work.ctx.state,
+
+    auto const desc = resolveCallTarget(work.ctx.state, work.ctx.revisionConfig, callMessage, scope,
+        work.ctx.chainPort, work.ctx.extension);
+
+    precompiled::PrecompileEnvelopeInput envInput{.state = work.ctx.state,
         .revision = work.ctx.revisionConfig,
-        .extension = work.ctx.extension,
+        .target = desc,
         .message = callMessage,
-        .target = work.target.executionAddress,
         .skipValueTransfer = skipVt,
-        .scope = scope});
-    if (out.outcome == precompiled::PrecompileDispatchOutcome::NotApplicable)
+        .chainPort = work.ctx.chainPort};
+
+    switch (desc.kind)
     {
+    case CallTargetKind::BuiltinPrecompile:
+    case CallTargetKind::ChainPrecompile:
+    {
+        auto out = precompiled::executePrecompileEnvelope(envInput);
+        return FrameResult{
+            .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
+    }
+    case CallTargetKind::EmptyAccount:
+    {
+        auto out = precompiled::executeEmptyAccountEnvelope(envInput);
+        return FrameResult{
+            .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
+    }
+    case CallTargetKind::PolicyRejected:
+    {
+        evmc_result raw{};
+        raw.status_code = EVMC_PRECOMPILE_FAILURE;
+        raw.gas_left = callMessage.gas;
+        return FrameResult{.result = evmc::Result(raw), .precompileHit = false};
+    }
+    case CallTargetKind::EvmContract:
         return std::nullopt;
     }
-    if (out.outcome == precompiled::PrecompileDispatchOutcome::PolicyRejected)
-    {
-        return FrameResult{.result = std::move(out.result), .precompileHit = false};
-    }
-    return FrameResult{
-        .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
+    return std::nullopt;
 }
 
 std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
@@ -273,7 +295,7 @@ FrameResult runFrameSteps(
     FrameWork work{
         ctx, message, resolveFrameTarget(ctx.state, ctx.revisionConfig, message, scope), {}, host};
 
-    if (auto early = tryPrecompileDispatch(work, scope))
+    if (auto early = tryCallTargetDispatch(work, scope))
     {
         return std::move(*early);
     }

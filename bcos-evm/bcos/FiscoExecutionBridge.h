@@ -23,10 +23,10 @@
 #include "bcos-evm/bcos/FiscoRevisionConfig.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
-#include "bcos-evm/bcos/ports/ChainPrecompilePort.h"
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/ports/ChainCallTargetPort.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -70,7 +70,7 @@ struct FiscoExecutionRequest
 
     // Optional adapters for integration layering.
     AuthPort const* authPort{nullptr};
-    ChainPrecompilePort const* chainPrecompilePort{nullptr};
+    ChainCallTargetPort* chainDispatchPort{nullptr};
     std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
     FiscoVmHostPolicy::RecipientPathResolver recipientPathResolver;
     std::optional<bcos::h256> txHash;

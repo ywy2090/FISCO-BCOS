@@ -105,8 +105,8 @@ void prepareTxEntry(state::State& state, ExecuteMessageInput const& input)
     {
         createCodeAddress = input.message.code_address;
     }
-    execution::warmTransactionEntry(state, input.revisionConfig, transaction, input.blockInfo,
-        input.txProps, input.accessList, input.web3TypedTxKind, createCodeAddress);
+    execution::warmTransactionEntry(state, input.revisionConfig, input.chainPort, transaction,
+        input.blockInfo, input.txProps, input.accessList, input.web3TypedTxKind, createCodeAddress);
 }
 
 void setupHostExecutionTarget(
@@ -209,11 +209,11 @@ ExecuteMessageOutput TxExecutionAdapter::run(ExecuteMessageInput input)
     auto txContext = buildTxContext(input.blockInfo, input.message);
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);
     state::EthHost host(state, txContext, input.revisionConfig, *input.vm, input.blockHashes,
-        input.extension, input.fixStorageStatus);
+        input.extension, input.fixStorageStatus, input.chainPort);
     setupHostExecutionTarget(host, state, input);
 
     execution::FrameContext frameCtx{state, *input.vm, input.revisionConfig, input.extension,
-        txContext.tx_origin, host.execution_address_ref(), input.fixNonceInit};
+        txContext.tx_origin, host.execution_address_ref(), input.fixNonceInit, input.chainPort};
 
     auto const scope = input.message.depth == 0 ? FrameScope::TopLevel : FrameScope::Nested;
     auto fr = runExecutionFrame(frameCtx, input.message, scope, host);

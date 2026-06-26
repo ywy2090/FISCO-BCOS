@@ -7,12 +7,12 @@ target_link_libraries(RevisionConfigProfileTest PRIVATE
     bcos-evm-eth bcos-evm-bcos protocol-tars bcos-framework)
 add_test(NAME RevisionConfigProfile COMMAND RevisionConfigProfileTest)
 
-add_executable(PrecompileRouterCharacterizationTest cross/PrecompileRouterCharacterizationTest.cpp)
-target_include_directories(PrecompileRouterCharacterizationTest PRIVATE
+add_executable(CallTargetCharacterizationTest cross/CallTargetCharacterizationTest.cpp)
+target_include_directories(CallTargetCharacterizationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(PrecompileRouterCharacterizationTest PRIVATE
+target_link_libraries(CallTargetCharacterizationTest PRIVATE
     bcos-evm-eth bcos-evm-bcos bcos-evm-op evmone::evmone)
-add_test(NAME PrecompileRouterCharacterization COMMAND PrecompileRouterCharacterizationTest)
+add_test(NAME CallTargetCharacterization COMMAND CallTargetCharacterizationTest)
 
 add_executable(PrecompileRouterEquivalenceTest cross/PrecompileRouterEquivalenceTest.cpp)
 target_include_directories(PrecompileRouterEquivalenceTest PRIVATE

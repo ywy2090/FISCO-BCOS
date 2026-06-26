@@ -43,7 +43,7 @@ struct FiscoTransactionPrepareInput
 inline void prepareTransaction(state::State& state, const state::Transaction& transaction,
     const state::BlockInfo& blockInfo, const FiscoTransactionPrepareInput& input = {})
 {
-    execution::warmTransactionEntry(state, input.revisionConfig, transaction, blockInfo,
+    execution::warmTransactionEntry(state, input.revisionConfig, nullptr, transaction, blockInfo,
         input.properties, input.accessList, input.web3TypedTxKind, input.createCodeAddress);
 }
 

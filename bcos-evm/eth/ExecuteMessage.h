@@ -32,6 +32,7 @@
 
 namespace bcos::evm
 {
+struct ChainCallTargetPort;
 using LogEntry = state::LogEntry;
 
 struct ExecuteMessageInput
@@ -50,6 +51,7 @@ struct ExecuteMessageInput
     std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
     state::VmHostPolicy* extension{nullptr};
+    ChainCallTargetPort* chainPort{nullptr};
     bool fixStorageStatus{true};
     bool fixNonceInit{false};
     /// When true, orchestration (e.g. OpStack deposit finalizeDeposit) owns sender nonce bump.

@@ -30,6 +30,11 @@
 #include <unordered_set>
 #include <utility>
 
+namespace bcos::evm
+{
+struct ChainCallTargetPort;
+}
+
 namespace bcos::evm::state
 {
 class EthHost : public evmc::Host
@@ -42,7 +47,8 @@ public:
 
     EthHost(State& state, evmc_tx_context txContext,
         bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-        VmHostPolicy* extension = nullptr, bool fixStorageStatus = true);
+        VmHostPolicy* extension = nullptr, bool fixStorageStatus = true,
+        ChainCallTargetPort* chainPort = nullptr);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -87,6 +93,7 @@ private:
     evmc::VM& m_vm;
     BlockHashes m_blockHashes;
     VmHostPolicy* m_extension{nullptr};
+    ChainCallTargetPort* m_chainPort{nullptr};
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_storageOriginalValues;

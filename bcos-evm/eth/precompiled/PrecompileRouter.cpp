@@ -1,30 +1,34 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief Precompile dispatch router (Phase 1 skeleton).
+ *  @brief Precompile dispatch router (ADR-024 envelope-only).
  */
 
 #include "PrecompileRouter.h"
-#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/execution/CallTargetResolver.h"
+#include "bcos-evm/eth/ports/ChainCallTargetPort.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
-#include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include <functional>
 
 namespace bcos::evm::precompiled
 {
 namespace
 {
-inline bool isDelegated7702Message(evmc_message const& msg) noexcept
-{
-    return (msg.flags & EVMC_DELEGATED) != 0;
-}
-
 evmc::Result makeInsufficientBalanceResult() noexcept
 {
     evmc_result result{};
     result.status_code = EVMC_INSUFFICIENT_BALANCE;
     result.gas_left = 0;
+    return evmc::Result(result);
+}
+
+evmc::Result makePrecompileFailureResult(int64_t gasLeft) noexcept
+{
+    evmc_result result{};
+    result.status_code = EVMC_PRECOMPILE_FAILURE;
+    result.gas_left = gasLeft;
     return evmc::Result(result);
 }
 
@@ -41,120 +45,110 @@ void finalizeEnvelope(state::State& state, PrecompileRouterOutput& output)
     }
 }
 
-bool is7702DelegationDesignator(
-    bcos::evm_standard::RevisionConfig const& revision, bcos::bytes const& code)
+std::optional<evmc::Result> tryEnvelopeValueTransfer(state::State& state,
+    evmc_message const& message, evmc_address const& target, bool skipValueTransfer)
 {
-    return revision.eip7702 &&
-           parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}).has_value();
+    if (state::isZeroBytes32(message.value) || skipValueTransfer)
+    {
+        return std::nullopt;
+    }
+    auto const value = state::fromEvmC(message.value);
+    if (!canTransfer(state, message.sender, value))
+    {
+        return makeInsufficientBalanceResult();
+    }
+    transfer(state, message.sender, target, value);
+    return std::nullopt;
 }
 
-evmc::Result makePrecompileFailureResult(int64_t gasLeft) noexcept
+PrecompileRouterOutput envelopeAfterValueTransfer(
+    PrecompileEnvelopeInput const& input, std::function<evmc::Result()> dispatchFn)
 {
-    evmc_result result{};
-    result.status_code = EVMC_PRECOMPILE_FAILURE;
-    result.gas_left = gasLeft;
-    return evmc::Result(result);
-}
+    PrecompileRouterOutput output;
+    input.state.checkpoint();
 
-bool isActiveEmptyPrecompileTarget(state::State const& state,
-    bcos::evm_standard::RevisionConfig const& revision, evmc_address const& target,
-    evmc_message const& message)
-{
-    if (state::isZeroAddress(target))
+    if (auto insufficient = tryEnvelopeValueTransfer(
+            input.state, input.message, input.target.dispatchAddress, input.skipValueTransfer))
     {
-        return false;
+        output.outcome = PrecompileDispatchOutcome::Dispatched;
+        output.result = std::move(*insufficient);
+        input.state.revert();
+        return output;
     }
-    if (isDelegated7702Message(message) && message.kind != EVMC_CALL)
-    {
-        return false;
-    }
-    auto const code = state.get_code(target);
-    if (!code.empty())
-    {
-        return false;
-    }
-    return isActivePrecompile(revision, target);
+
+    output.outcome = PrecompileDispatchOutcome::Dispatched;
+    output.result = dispatchFn();
+    finalizeEnvelope(input.state, output);
+    return output;
 }
 }  // namespace
+
+PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& input)
+{
+    return envelopeAfterValueTransfer(input, [&input]() -> evmc::Result {
+        if (input.target.kind == execution::CallTargetKind::BuiltinPrecompile)
+        {
+            if (auto result = EthPrecompiles::tryDispatchInCall(input.target.dispatchAddress,
+                    input.message, input.revision.revision, input.revision))
+            {
+                return std::move(*result);
+            }
+            return makePrecompileFailureResult(input.message.gas);
+        }
+
+        if (input.target.kind == execution::CallTargetKind::ChainPrecompile &&
+            input.chainPort != nullptr)
+        {
+            if (auto result = input.chainPort->dispatch(input.revision.revision, input.message))
+            {
+                return evmc::Result(std::move(*result));
+            }
+        }
+
+        return makePrecompileFailureResult(input.message.gas);
+    });
+}
+
+PrecompileRouterOutput executeEmptyAccountEnvelope(PrecompileEnvelopeInput const& input)
+{
+    auto output = envelopeAfterValueTransfer(input, [&input]() -> evmc::Result {
+        evmc_result result{};
+        result.status_code = EVMC_SUCCESS;
+        result.gas_left = input.message.gas;
+        return evmc::Result(result);
+    });
+    output.outcome = PrecompileDispatchOutcome::EmptyAccountSuccess;
+    return output;
+}
 
 PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
 {
     PrecompileRouterOutput output;
 
-    if (input.message.kind == EVMC_DELEGATECALL && input.extension != nullptr &&
-        !input.extension->allowDelegateCallToPrecompile() &&
-        isActiveEmptyPrecompileTarget(input.state, input.revision, input.target, input.message))
+    auto const desc = execution::resolveCallTarget(
+        input.state, input.revision, input.message, input.scope, input.chainPort, input.extension);
+
+    PrecompileEnvelopeInput envInput{.state = input.state,
+        .revision = input.revision,
+        .target = desc,
+        .message = input.message,
+        .skipValueTransfer = input.skipValueTransfer,
+        .chainPort = input.chainPort};
+
+    switch (desc.kind)
     {
+    case execution::CallTargetKind::PolicyRejected:
         output.outcome = PrecompileDispatchOutcome::PolicyRejected;
         output.result = makePrecompileFailureResult(input.message.gas);
         return output;
-    }
-
-    auto const code = input.state.get_code(input.target);
-    bool const emptyCode = code.empty();
-
-    // EIP-7702 delegation designator: execute via resolveExecutionCode (empty delegate code).
-    if (!emptyCode && is7702DelegationDesignator(input.revision, code))
-    {
+    case execution::CallTargetKind::EmptyAccount:
+        return executeEmptyAccountEnvelope(envInput);
+    case execution::CallTargetKind::BuiltinPrecompile:
+    case execution::CallTargetKind::ChainPrecompile:
+        return executePrecompileEnvelope(envInput);
+    case execution::CallTargetKind::EvmContract:
         return output;
     }
-
-    input.state.checkpoint();
-
-    if (emptyCode && !state::isZeroBytes32(input.message.value) && !input.skipValueTransfer)
-    {
-        auto const value = state::fromEvmC(input.message.value);
-        if (!canTransfer(input.state, input.message.sender, value))
-        {
-            output.outcome = PrecompileDispatchOutcome::Dispatched;
-            output.result = makeInsufficientBalanceResult();
-            input.state.revert();
-            return output;
-        }
-        transfer(input.state, input.message.sender, input.target, value);
-    }
-
-    if (input.extension != nullptr)
-    {
-        bool const tryChainHook = emptyCode || input.scope == execution::FrameScope::Nested;
-        if (tryChainHook)
-        {
-            if (auto result =
-                    input.extension->tryChainPrecompile(input.revision.revision, input.message))
-            {
-                output.outcome = PrecompileDispatchOutcome::Dispatched;
-                output.result = evmc::Result(std::move(*result));
-                finalizeEnvelope(input.state, output);
-                return output;
-            }
-        }
-    }
-
-    if (emptyCode && isActivePrecompile(input.revision, input.target))
-    {
-        if (auto result = EthPrecompiles::tryDispatchInCall(
-                input.target, input.message, input.revision.revision, input.revision))
-        {
-            output.outcome = PrecompileDispatchOutcome::Dispatched;
-            output.result = std::move(*result);
-            finalizeEnvelope(input.state, output);
-            return output;
-        }
-    }
-
-    if (emptyCode)
-    {
-        evmc_result result{};
-        result.status_code = EVMC_SUCCESS;
-        result.gas_left = input.message.gas;
-        output.outcome = PrecompileDispatchOutcome::EmptyAccountSuccess;
-        output.result = evmc::Result(result);
-        finalizeEnvelope(input.state, output);
-        return output;
-    }
-
-    input.state.revert();
-    return output;
 }
 
 }  // namespace bcos::evm::precompiled

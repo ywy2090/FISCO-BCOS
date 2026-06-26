@@ -6,6 +6,7 @@
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
+#include "bcos-evm/opstack/l1/L1BlockStorage.h"
 #include <boost/algorithm/hex.hpp>
 #include <boost/test/included/unit_test.hpp>
 #include <fstream>
@@ -18,8 +19,6 @@ namespace bcos::evm::test
 {
 namespace
 {
-constexpr int64_t kScalarSectionStart = 32 - 12 - 4;
-
 OpStackFeeParams makeTestParams()
 {
     return OpStackFeeParams{
@@ -84,37 +83,9 @@ private:
     std::unordered_map<u256, evmc_bytes32, boost::hash<u256>> m_slots;
 };
 
-evmc_bytes32 packFeeScalars(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar)
+evmc_bytes32 packL1FeeScalarsForTest(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar)
 {
-    evmc_bytes32 out{};
-    auto const offset = static_cast<size_t>(kScalarSectionStart);
-    out.bytes[offset] = static_cast<uint8_t>((baseFeeScalar >> 24) & 0xff);
-    out.bytes[offset + 1] = static_cast<uint8_t>((baseFeeScalar >> 16) & 0xff);
-    out.bytes[offset + 2] = static_cast<uint8_t>((baseFeeScalar >> 8) & 0xff);
-    out.bytes[offset + 3] = static_cast<uint8_t>(baseFeeScalar & 0xff);
-    out.bytes[offset + 4] = static_cast<uint8_t>((blobBaseFeeScalar >> 24) & 0xff);
-    out.bytes[offset + 5] = static_cast<uint8_t>((blobBaseFeeScalar >> 16) & 0xff);
-    out.bytes[offset + 6] = static_cast<uint8_t>((blobBaseFeeScalar >> 8) & 0xff);
-    out.bytes[offset + 7] = static_cast<uint8_t>(blobBaseFeeScalar & 0xff);
-    return out;
-}
-
-evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operatorFeeConstant)
-{
-    evmc_bytes32 out{};
-    out.bytes[20] = static_cast<uint8_t>((operatorFeeScalar >> 24) & 0xff);
-    out.bytes[21] = static_cast<uint8_t>((operatorFeeScalar >> 16) & 0xff);
-    out.bytes[22] = static_cast<uint8_t>((operatorFeeScalar >> 8) & 0xff);
-    out.bytes[23] = static_cast<uint8_t>(operatorFeeScalar & 0xff);
-    out.bytes[24] = static_cast<uint8_t>((operatorFeeConstant >> 56) & 0xff);
-    out.bytes[25] = static_cast<uint8_t>((operatorFeeConstant >> 48) & 0xff);
-    out.bytes[26] = static_cast<uint8_t>((operatorFeeConstant >> 40) & 0xff);
-    out.bytes[27] = static_cast<uint8_t>((operatorFeeConstant >> 32) & 0xff);
-    out.bytes[28] = static_cast<uint8_t>((operatorFeeConstant >> 24) & 0xff);
-    out.bytes[29] = static_cast<uint8_t>((operatorFeeConstant >> 16) & 0xff);
-    out.bytes[30] = static_cast<uint8_t>((operatorFeeConstant >> 8) & 0xff);
-    out.bytes[31] = static_cast<uint8_t>(operatorFeeConstant & 0xff);
-    return out;
+    return packL1FeeScalarsSlot(baseFeeScalar, blobBaseFeeScalar, 0);
 }
 
 MockStateView makeTestParamsState()
@@ -122,7 +93,7 @@ MockStateView makeTestParamsState()
     MockStateView state;
     state.setSlot(L1_BASE_FEE_SLOT, state::toEvmC(u256(1000) * u256(1'000'000)));
     state.setSlot(L1_BLOB_BASE_FEE_SLOT, state::toEvmC(u256(10) * u256(1'000'000)));
-    state.setSlot(L1_FEE_SCALARS_SLOT, packFeeScalars(2, 3));
+    state.setSlot(L1_FEE_SCALARS_SLOT, packL1FeeScalarsForTest(2, 3));
     state.setSlot(OPERATOR_FEE_PARAMS_SLOT,
         packOperatorFeeParams(1'439'103'868, 1'256'417'826'609'331'460ULL));
     return state;
@@ -188,7 +159,7 @@ BOOST_AUTO_TEST_CASE(LoadOpStackFeeParams_unpacksSlots)
     MockStateView state;
     state.setSlot(L1_BASE_FEE_SLOT, state::toEvmC(u256(1000) * u256(1'000'000)));
     state.setSlot(L1_BLOB_BASE_FEE_SLOT, state::toEvmC(u256(10) * u256(1'000'000)));
-    state.setSlot(L1_FEE_SCALARS_SLOT, packFeeScalars(2, 3));
+    state.setSlot(L1_FEE_SCALARS_SLOT, packL1FeeScalarsForTest(2, 3));
     state.setSlot(OPERATOR_FEE_PARAMS_SLOT,
         packOperatorFeeParams(1'439'103'868, 1'256'417'826'609'331'460ULL));
 

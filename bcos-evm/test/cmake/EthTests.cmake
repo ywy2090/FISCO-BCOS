@@ -182,26 +182,6 @@ target_include_directories(Eip1153TransientStorageTest PRIVATE
 target_link_libraries(Eip1153TransientStorageTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip1153TransientStorage COMMAND Eip1153TransientStorageTest)
 
-set(PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME PrecompileRouterPrecedenceTest)
-
-add_executable(${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME}
-    eth/PrecompileRouterPrecedenceTest.cpp
-)
-
-target_include_directories(${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}
-)
-
-target_link_libraries(${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME} PRIVATE
-    bcos-evm-eth
-)
-
-add_test(
-    NAME PrecompileRouterPrecedence
-    COMMAND ${PRECOMPILE_ROUTER_PRECEDENCE_TEST_BINARY_NAME}
-)
-
 set(PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME PrecompileRouterEnvelopeTest)
 
 add_executable(${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME}
@@ -253,6 +233,18 @@ target_include_directories(FrameTargetResolverTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(FrameTargetResolverTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME FrameTargetResolver COMMAND FrameTargetResolverTest)
+
+add_executable(CallTargetResolverTest eth/CallTargetResolverTest.cpp)
+target_include_directories(CallTargetResolverTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(CallTargetResolverTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME CallTargetResolver COMMAND CallTargetResolverTest)
+
+add_executable(PrecompileEnvelopeTest eth/PrecompileEnvelopeTest.cpp)
+target_include_directories(PrecompileEnvelopeTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(PrecompileEnvelopeTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME PrecompileEnvelope COMMAND PrecompileEnvelopeTest)
 
 add_executable(FrameTargetRoutingCharacterizationTest eth/FrameTargetRoutingCharacterizationTest.cpp)
 target_include_directories(FrameTargetRoutingCharacterizationTest PRIVATE

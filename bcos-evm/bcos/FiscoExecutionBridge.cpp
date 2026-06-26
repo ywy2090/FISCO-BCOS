@@ -19,6 +19,7 @@
 #include "bcos-evm/bcos/FiscoExecutionBridge.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-evm/bcos/FiscoAddressDerivation.h"
+#include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
@@ -114,9 +115,15 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     deps.persistContractCreateNonce = std::move(input.persistContractCreateNonce);
     deps.recipientPathResolver = std::move(input.recipientPathResolver);
     deps.authPort = input.authPort;
-    deps.chainPrecompilePort = input.chainPrecompilePort;
     FiscoVmHostPolicy extension(input.revisionConfig.enable_balance_transfer, std::move(deps));
     ctx.extension = &extension;
+
+    std::optional<FiscoChainCallTargetAdapter> chainTargetAdapter;
+    if (input.chainDispatchPort != nullptr)
+    {
+        chainTargetAdapter.emplace(ctx.state, *input.chainDispatchPort);
+        ctx.chainPort = std::addressof(*chainTargetAdapter);
+    }
 
     FiscoOrchestrationProfile::Session session{
         input, output, extension, fixErrorHandling, eip7623Enabled};

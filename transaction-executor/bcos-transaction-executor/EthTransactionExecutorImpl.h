@@ -154,7 +154,7 @@ public:
                 state::TransactionProperties props;
                 props.warmDestination = !isCreateKind(msg.kind);
                 execution::warmTransactionEntry(state, m_data->m_executionContext.revisionConfig,
-                    tx, m_data->m_blockInfo, props,
+                    nullptr, tx, m_data->m_blockInfo, props,
                     m_data->m_web3AccessListResolved.accessList.get(), m_data->m_web3TypedTxKind);
             }
             else if constexpr (phase == static_cast<int>(EthExecutePhase::Execute))

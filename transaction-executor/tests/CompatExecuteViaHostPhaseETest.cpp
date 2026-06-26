@@ -8,14 +8,16 @@
 #include "../../bcos-executor/test/unittest/evmone/compat/CompatTestFixture.h"
 #include "ExecuteViaHostEip2929Harness.h"
 #include "SelfdestructCompatBytecode.h"
+#include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
+#include "helpers/InMemoryEvmStateReader.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-task/Wait.h>
@@ -112,16 +114,19 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_P_address_routing_prefix_overlap)
         return std::nullopt;
     };
     bcos::evm::test::InMemoryChainPrecompileAdapter port(std::move(callback));
-    bcos::evm::FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
-    deps.chainPrecompilePort = &port;
-    bcos::evm::FiscoVmHostPolicy extension(true, std::move(deps));
+    bcos::evm::state::test::InMemoryEvmStateReader baseView;
+    bcos::evm::state::State state(baseView);
+    bcos::evm::FiscoChainCallTargetAdapter adapter(state, port);
 
     evmc_message blsMsg{};
     blsMsg.kind = EVMC_CALL;
     blsMsg.gas = 50'000;
     blsMsg.recipient = bls;
     blsMsg.code_address = bls;
-    BOOST_CHECK(!extension.tryChainPrecompile(EVMC_CANCUN, blsMsg).has_value());
+    BOOST_CHECK(
+        !adapter.classifyTarget(state, bls, blsMsg, bcos::evm::execution::FrameScope::TopLevel)
+             .has_value());
+    BOOST_CHECK(!adapter.dispatch(EVMC_CANCUN, blsMsg).has_value());
     BOOST_CHECK(!blsCallbackCalled);
 
     evmc_message sysMsg{};
@@ -129,7 +134,10 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_P_address_routing_prefix_overlap)
     sysMsg.gas = 50'000;
     sysMsg.recipient = sys;
     sysMsg.code_address = sys;
-    auto sysResult = extension.tryChainPrecompile(EVMC_CANCUN, sysMsg);
+    BOOST_REQUIRE(
+        adapter.classifyTarget(state, sys, sysMsg, bcos::evm::execution::FrameScope::TopLevel)
+            .has_value());
+    auto sysResult = adapter.dispatch(EVMC_CANCUN, sysMsg);
     BOOST_REQUIRE(sysResult.has_value());
     BOOST_CHECK(sysCallbackCalled);
     BOOST_CHECK_EQUAL(sysResult->status_code, EVMC_SUCCESS);
@@ -235,7 +243,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_S_bls_without_prague_via_execute_via_host)
         BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
         BOOST_TEST_MESSAGE(
             "Fisco gate: fiscoExecute dispatches BLS via EthPrecompiles when code is empty; "
-            "PrecompiledManager gate applies only to >=0x1000 tryChainPrecompile path.");
+            "PrecompiledManager gate applies only to >=0x1000 FiscoChainCallTargetAdapter path.");
     }());
 }
 

@@ -1,30 +1,21 @@
 /*
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- * @brief PR-1 characterization baseline: depth=0 vs depth=1 precompile dispatch (C1–C7).
- * @file PrecompileRouterCharacterizationTest.cpp
+ * @brief ADR-024 characterization baseline: depth=0 vs depth=1 call-target dispatch (C1–C7).
+ * @file CallTargetCharacterizationTest.cpp
  */
-#define BOOST_TEST_MODULE PrecompileRouterCharacterizationTest
+#define BOOST_TEST_MODULE CallTargetCharacterizationTest
 
+#include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackVmHostPolicy.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
@@ -37,56 +28,57 @@ namespace bcos::evm::test
 {
 namespace
 {
-// BASELINE(pre-router): C1 identity 0x04 — depth=0 via executeMessage
+// BASELINE(call-target-resolver): C1 identity 0x04 — depth=0 via executeMessage
 constexpr evmc_status_code kC1Depth0Status = EVMC_SUCCESS;
 constexpr int64_t kC1Depth0GasLeft = 499'982;
 
-// BASELINE(pre-router): C1 identity 0x04 — depth=1 via EthHost::call
+// BASELINE(call-target-resolver): C1 identity 0x04 — depth=1 via EthHost::call
 constexpr evmc_status_code kC1Depth1Status = EVMC_SUCCESS;
 constexpr int64_t kC1Depth1GasLeft = 499'982;
 
-// BASELINE(pre-router): C2 Op L1Block chain hook — depth=0
+// BASELINE(call-target-resolver): C2 Op L1Block chain hook — depth=0
 constexpr evmc_status_code kC2Depth0Status = EVMC_REVERT;
 constexpr int64_t kC2Depth0GasLeft = 300'000;
 
-// BASELINE(pre-router): C2 Op L1Block chain hook — depth=1
+// BASELINE(call-target-resolver): C2 Op L1Block chain hook — depth=1
 constexpr evmc_status_code kC2Depth1Status = EVMC_REVERT;
 constexpr int64_t kC2Depth1GasLeft = 300'000;
 
-// BASELINE(pre-router): C3 empty EOA — depth=0
+// BASELINE(call-target-resolver): C3 empty EOA — depth=0
 constexpr evmc_status_code kC3Depth0Status = EVMC_SUCCESS;
 constexpr int64_t kC3Depth0GasLeft = 49'940;
 
-// BASELINE(pre-router): C3 empty EOA — depth=1
+// BASELINE(call-target-resolver): C3 empty EOA — depth=1
 constexpr evmc_status_code kC3Depth1Status = EVMC_SUCCESS;
 constexpr int64_t kC3Depth1GasLeft = 49'940;
 
-// BASELINE(pre-router): C4 DELEGATECALL → precompile with allowDelegateCallToPrecompile=false
+// BASELINE(call-target-resolver): C4 DELEGATECALL → precompile with
+// allowDelegateCallToPrecompile=false
 constexpr evmc_status_code kC4Depth1Status = EVMC_PRECOMPILE_FAILURE;
 constexpr int64_t kC4Depth1GasLeft = 100'000;
 
-// BASELINE(pre-router): C5 CALL + value → identity 0x04 — depth=0
+// BASELINE(call-target-resolver): C5 CALL + value → identity 0x04 — depth=0
 constexpr evmc_status_code kC5Depth0Status = EVMC_SUCCESS;
 constexpr int64_t kC5Depth0GasLeft = 499'982;
 constexpr uint64_t kC5Depth0RecipientBalance = 100;
 
-// BASELINE(router): C5 CALL + value → identity 0x04 — depth=1
+// BASELINE(call-target-resolver): C5 CALL + value → identity 0x04 — depth=1
 constexpr evmc_status_code kC5Depth1Status = EVMC_SUCCESS;
 constexpr int64_t kC5Depth1GasLeft = 499'982;
 constexpr uint64_t kC5Depth1RecipientBalance = 100;
 
-// BASELINE(pre-router): C6 BLS 0x0b at CANCUN (inactive) — depth=0
+// BASELINE(call-target-resolver): C6 BLS 0x0b at CANCUN (inactive) — depth=0
 constexpr evmc_status_code kC6Depth0Status = EVMC_SUCCESS;
 constexpr int64_t kC6Depth0GasLeft = 100'000;
 
-// BASELINE(pre-router): C6 BLS 0x0b at CANCUN (inactive) — depth=1
+// BASELINE(call-target-resolver): C6 BLS 0x0b at CANCUN (inactive) — depth=1
 constexpr evmc_status_code kC6Depth1Status = EVMC_SUCCESS;
 constexpr int64_t kC6Depth1GasLeft = 100'000;
 
-// BASELINE(pre-router): C7 [PRECOMPILED] non-empty code asymmetry — depth=0 (vm.execute)
+// BASELINE(call-target-resolver): C7 [PRECOMPILED] non-empty code asymmetry — depth=0 (vm.execute)
 constexpr evmc_status_code kC7Depth0Status = EVMC_STACK_UNDERFLOW;
 
-// BASELINE(pre-router): C7 [PRECOMPILED] non-empty code asymmetry — depth=1 (chain hook)
+// BASELINE(call-target-resolver): C7 [PRECOMPILED] non-empty code asymmetry — depth=1 (chain hook)
 constexpr evmc_status_code kC7Depth1Status = EVMC_SUCCESS;
 constexpr int64_t kC7Depth1GasLeft = 50'000;
 
@@ -168,19 +160,19 @@ struct Depth1HostFixture
     bcos::evm_standard::RevisionConfig cfg{};
     std::optional<state::EthHost> host;
 
-    Depth1HostFixture(
-        state::State& state, state::VmHostPolicy* extension, evmc_revision revision = EVMC_PRAGUE)
+    Depth1HostFixture(state::State& state, state::VmHostPolicy* extension = nullptr,
+        evmc_revision revision = EVMC_PRAGUE, ChainCallTargetPort* chainPort = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = revision, .warm_access = true};
-        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, false);
+        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, false, chainPort);
     }
 
     state::EthHost& ethHost() { return *host; }
 };
 
-ExecuteMessageInput makeBaseInput(
-    state::State& state, evmc_message const& message, state::VmHostPolicy* extension = nullptr)
+ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message,
+    state::VmHostPolicy* extension = nullptr, ChainCallTargetPort* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
@@ -193,13 +185,13 @@ ExecuteMessageInput makeBaseInput(
     input.revisionConfig.warm_access = true;
     input.txProps.warmDestination = true;
     input.extension = extension;
+    input.chainPort = chainPort;
     return input;
 }
 }  // namespace
 
 BOOST_AUTO_TEST_CASE(c1_identity_precompile_depth0_and_depth1)
 {
-    // C1: builtin identity 0x04, empty code, input 0xdeadbeef
     auto const sender = addressFromLastByte(0x01);
     auto const identity = precompileAddress(0x04);
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
@@ -225,25 +217,24 @@ BOOST_AUTO_TEST_CASE(c1_identity_precompile_depth0_and_depth1)
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC1Depth0GasLeft);
 
     state::test::InMemoryEvmStateReader view1;
-    state::State state(view1);
-    state.set_balance(sender, senderAccount.balance);
-    Depth1HostFixture fixture(state, nullptr);
+    state::State state1(view1);
+    state1.set_balance(sender, senderAccount.balance);
+    Depth1HostFixture fixture(state1, nullptr);
 
     evmc_message depth1Msg = message;
     depth1Msg.depth = 1;
-    auto depth1 = runDepth1EmptyCall(state, fixture.ethHost(), depth1Msg);
+    auto depth1 = runDepth1EmptyCall(state1, fixture.ethHost(), depth1Msg);
     BOOST_CHECK_EQUAL(depth1.status, kC1Depth1Status);
     BOOST_CHECK_EQUAL(depth1.gasLeft, kC1Depth1GasLeft);
 }
 
 BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
 {
-    // C2: Op L1Block chain hook — reference EmptyCodeHookTest pattern
     auto calldata = setterSelector();
 
     state::test::InMemoryEvmStateReader baseState;
     state::State state0(baseState);
-    OpStackVmHostPolicy extension0(&state0);
+    OpStackChainCallTargetAdapter chainAdapter0(&state0, 0, makeIsthmusPlusForkSchedule(), 0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
 
     evmc_message message{};
@@ -255,15 +246,15 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    auto depth0 = runDepth0EmptyCall(makeBaseInput(state0, message, &extension0));
+    auto depth0 = runDepth0EmptyCall(makeBaseInput(state0, message, nullptr, &chainAdapter0));
     BOOST_CHECK_EQUAL(depth0.status, kC2Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC2Depth0GasLeft);
 
     state::test::InMemoryEvmStateReader baseState1;
     state::State state1(baseState1);
-    OpStackVmHostPolicy extension1(&state1);
+    OpStackChainCallTargetAdapter chainAdapter1(&state1, 0, makeIsthmusPlusForkSchedule(), 0);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
-    Depth1HostFixture fixture(state1, &extension1);
+    Depth1HostFixture fixture(state1, nullptr, EVMC_PRAGUE, &chainAdapter1);
 
     evmc_message depth1Msg = message;
     depth1Msg.depth = 1;
@@ -274,7 +265,6 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
 
 BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_and_depth1)
 {
-    // C3: empty EOA call — reference ExecuteMessageSmokeTest pattern
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 
@@ -297,20 +287,19 @@ BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_and_depth1)
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC3Depth0GasLeft);
 
     state::test::InMemoryEvmStateReader view1;
-    state::State state(view1);
-    state.set_balance(sender, senderAccount.balance);
-    Depth1HostFixture fixture(state, nullptr);
+    state::State state1(view1);
+    state1.set_balance(sender, senderAccount.balance);
+    Depth1HostFixture fixture(state1, nullptr);
 
     evmc_message depth1Msg = message;
     depth1Msg.depth = 1;
-    auto depth1 = runDepth1EmptyCall(state, fixture.ethHost(), depth1Msg);
+    auto depth1 = runDepth1EmptyCall(state1, fixture.ethHost(), depth1Msg);
     BOOST_CHECK_EQUAL(depth1.status, kC3Depth1Status);
     BOOST_CHECK_EQUAL(depth1.gasLeft, kC3Depth1GasLeft);
 }
 
 BOOST_AUTO_TEST_CASE(c4_delegatecall_to_precompile_blocked_at_depth1)
 {
-    // C4: DELEGATECALL → precompile with allowDelegateCallToPrecompile=false (FiscoVmHostPolicy)
     auto const caller = addressFromLastByte(0x01);
     auto const identity = precompileAddress(0x04);
 
@@ -335,7 +324,6 @@ BOOST_AUTO_TEST_CASE(c4_delegatecall_to_precompile_blocked_at_depth1)
 
 BOOST_AUTO_TEST_CASE(c5_call_with_value_to_identity_depth0_and_depth1)
 {
-    // C5: CALL + non-zero value → builtin identity 0x04
     auto const sender = addressFromLastByte(0x01);
     auto const identity = precompileAddress(0x04);
     auto const value = oneWeiValue();
@@ -375,7 +363,6 @@ BOOST_AUTO_TEST_CASE(c5_call_with_value_to_identity_depth0_and_depth1)
 
 BOOST_AUTO_TEST_CASE(c6_revision_gate_bls_inactive_at_cancun)
 {
-    // C6: BLS precompile 0x0b inactive at CANCUN — revision gate baseline
     auto const sender = addressFromLastByte(0x01);
     auto const bls = precompileAddress(0x0b);
     bcos::evm_standard::RevisionConfig cancunCfg{};
@@ -403,21 +390,19 @@ BOOST_AUTO_TEST_CASE(c6_revision_gate_bls_inactive_at_cancun)
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC6Depth0GasLeft);
 
     state::test::InMemoryEvmStateReader view1;
-    state::State state(view1);
-    state.set_balance(sender, senderAccount.balance);
-    Depth1HostFixture fixture(state, nullptr, EVMC_CANCUN);
+    state::State state1(view1);
+    state1.set_balance(sender, senderAccount.balance);
+    Depth1HostFixture fixture(state1, nullptr, EVMC_CANCUN);
 
     evmc_message depth1Msg = message;
     depth1Msg.depth = 1;
-    auto depth1 = runDepth1EmptyCall(state, fixture.ethHost(), depth1Msg);
+    auto depth1 = runDepth1EmptyCall(state1, fixture.ethHost(), depth1Msg);
     BOOST_CHECK_EQUAL(depth1.status, kC6Depth1Status);
     BOOST_CHECK_EQUAL(depth1.gasLeft, kC6Depth1GasLeft);
 }
 
 BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
 {
-    // C7: non-empty [PRECOMPILED] code — depth=0 runs vm.execute, depth=1 hits chain hook.
-    // PR-2 does NOT require equivalence for this scenario.
     auto const sender = addressFromLastByte(0x01);
     auto const markerContract = addressFromLastByte(0x22);
     evmc_address expectedTarget{};
@@ -447,12 +432,6 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
     markerAccount.code = bcos::bytes(markerCode.begin(), markerCode.end());
     view.insert_account(markerContract, markerAccount);
 
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
-    deps.state = nullptr;
-    InMemoryChainPrecompileAdapter extensionChainPort(callback);
-    deps.chainPrecompilePort = &extensionChainPort;
-    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
-
     evmc_message message{};
     message.kind = EVMC_CALL;
     message.gas = 50'000;
@@ -461,41 +440,36 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
     message.code_address = markerContract;
 
     CallOutcome depth0Outcome;
-    // depth=0: non-empty code bypasses chain hook → EVM executes marker bytecode
+    // depth=0: non-empty code bypasses chain classify → EVM executes marker bytecode
     {
         state::test::InMemoryEvmStateReader depth0View;
         depth0View.insert_account(sender, senderAccount);
         depth0View.insert_account(markerContract, markerAccount);
-        FiscoVmHostPolicy::FiscoVmHostPolicyDeps depth0Deps;
         state::State depth0State(depth0View);
-        depth0Deps.state = &depth0State;
-        InMemoryChainPrecompileAdapter depth0ChainPort(
+        InMemoryChainPrecompileAdapter dispatchPort(
             [&callbackInvoked](evmc_revision /*rev*/, const evmc_message& /*msg*/) {
                 callbackInvoked = true;
                 evmc_result result{};
                 result.status_code = EVMC_SUCCESS;
                 return std::optional<evmc_result>{result};
             });
-        depth0Deps.chainPrecompilePort = &depth0ChainPort;
-        FiscoVmHostPolicy depth0Ext(/*skipEvmNativeValueTransfer*/ true, std::move(depth0Deps));
-        depth0Outcome = runDepth0EmptyCall(makeBaseInput(depth0State, message, &depth0Ext));
+        FiscoChainCallTargetAdapter chainAdapter(depth0State, dispatchPort);
+        depth0Outcome =
+            runDepth0EmptyCall(makeBaseInput(depth0State, message, nullptr, &chainAdapter));
         BOOST_CHECK(!callbackInvoked);
         BOOST_CHECK_EQUAL(depth0Outcome.status, kC7Depth0Status);
         BOOST_CHECK(depth0Outcome.status != kC7Depth1Status);
     }
 
-    // depth=1: chain hook runs before EVM regardless of non-empty code
+    // depth=1: chain classify runs before EVM regardless of non-empty code
     callbackInvoked = false;
     state::test::InMemoryEvmStateReader view1;
     state::State state(view1);
     state.set_balance(sender, senderAccount.balance);
     state.set_code(markerContract, markerAccount.code, {});
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps depth1Deps;
-    depth1Deps.state = &state;
-    InMemoryChainPrecompileAdapter depth1ChainPort(callback);
-    depth1Deps.chainPrecompilePort = &depth1ChainPort;
-    FiscoVmHostPolicy depth1Ext(/*skipEvmNativeValueTransfer*/ true, std::move(depth1Deps));
-    Depth1HostFixture fixture(state, &depth1Ext);
+    InMemoryChainPrecompileAdapter dispatchPort(callback);
+    FiscoChainCallTargetAdapter chainAdapter(state, dispatchPort);
+    Depth1HostFixture fixture(state, nullptr, EVMC_PRAGUE, &chainAdapter);
 
     evmc_message depth1Msg = message;
     depth1Msg.depth = 1;

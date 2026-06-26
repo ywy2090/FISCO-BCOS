@@ -1,8 +1,9 @@
 #define BOOST_TEST_MODULE EmptyCodeHookTest
 
 #include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackVmHostPolicy.h"
+#include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -21,7 +22,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
 {
     state::test::InMemoryEvmStateReader baseState;
     state::State state(baseState);
-    OpStackVmHostPolicy extension(&state);
+    OpStackChainCallTargetAdapter chainAdapter(&state, 0, makeIsthmusPlusForkSchedule(), 0);
     evmc::VM vm{evmc_create_evmone()};
 
     state::Account senderAccount;
@@ -46,7 +47,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_CANCUN;
     input.txProps.warmDestination = true;
-    input.extension = &extension;
+    input.chainPort = &chainAdapter;
 
     auto output = executeMessage(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_REVERT);

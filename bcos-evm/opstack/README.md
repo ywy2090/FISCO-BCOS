@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | 执行桥 | `OpStackExecutionBridge.*` | 入口 `opStackExecute()` |
 | 钩子绑定 | `OpStackPipelineHookBinder.*` | 填充 `TxPipelineHooks` |
-| VM 策略 | `OpStackVmHostPolicy.h` | L1Block 预部署等 |
+| 链 call target | `OpStackChainCallTargetAdapter` + `chainPort` | L1Block / GasPriceOracle classify + dispatch |
 | 费用账本 | `OpStackTxFeeLedger.*` | `buyGas` / `refundGas` 等 |
 
 ## 子目录模块

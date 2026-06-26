@@ -19,6 +19,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -79,7 +80,7 @@ BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
 
     TransactionProperties props;
     auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_SHANGHAI);
-    execution::warmTransactionEntry(state, cfg, tx, block, props);
+    execution::warmTransactionEntry(state, cfg, nullptr, tx, block, props);
 
     BOOST_CHECK(state.is_address_warm(tx.from));
     BOOST_REQUIRE(tx.to.has_value());
@@ -103,7 +104,7 @@ BOOST_AUTO_TEST_CASE(skips_coinbase_warm_when_eip3651_disabled)
     TransactionProperties props;
     auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_PARIS);
     BOOST_REQUIRE(!cfg.eip3651);
-    execution::warmTransactionEntry(state, cfg, tx, block, props);
+    execution::warmTransactionEntry(state, cfg, nullptr, tx, block, props);
 
     BOOST_CHECK(state.is_address_warm(tx.from));
     BOOST_REQUIRE(tx.to.has_value());
@@ -131,7 +132,7 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
     TransactionProperties props;
     auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_SHANGHAI);
     execution::warmTransactionEntry(
-        state, cfg, tx, block, props, &accessList, /*web3TypedTxKind=*/1);
+        state, cfg, nullptr, tx, block, props, &accessList, /*web3TypedTxKind=*/1);
 
     auto const evmcAccessAddress = evmcAddressFromLastByte(0x21);
     BOOST_CHECK(state.is_address_warm(evmcAccessAddress));
@@ -155,7 +156,7 @@ BOOST_AUTO_TEST_CASE(legacy_kind_zero_ignores_access_list)
     TransactionProperties props;
     auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_SHANGHAI);
     execution::warmTransactionEntry(
-        state, cfg, tx, block, props, &accessList, /*web3TypedTxKind=*/0);
+        state, cfg, nullptr, tx, block, props, &accessList, /*web3TypedTxKind=*/0);
 
     auto const evmcAccessAddress = evmcAddressFromLastByte(0x41);
     BOOST_CHECK(!state.is_address_warm(evmcAccessAddress));
@@ -182,6 +183,58 @@ BOOST_AUTO_TEST_CASE(builds_block_info_with_expected_fields)
     BOOST_CHECK_EQUAL(block.prevRandao.bytes[31], 0x99);
     BOOST_CHECK_EQUAL(block.baseFee, bcos::u256(404));
     BOOST_CHECK_EQUAL(block.chainId, bcos::u256(505));
+}
+
+BOOST_AUTO_TEST_CASE(W1_warms_active_builtin_precompiles)
+{
+    InMemoryEvmStateReader view;
+    State state(view);
+
+    Transaction tx{};
+    BlockInfo block{};
+    TransactionProperties props{};
+    props.warmDestination = false;
+    props.warmCoinbase = false;
+
+    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_CANCUN);
+    execution::warmTransactionEntry(state, cfg, nullptr, tx, block, props);
+
+    auto const ecRecover = evmcAddressFromLastByte(0x01);
+    auto const identity = evmcAddressFromLastByte(0x04);
+    auto const bls = evmcAddressFromLastByte(0x0b);
+
+    BOOST_CHECK(state.is_address_warm(ecRecover));
+    BOOST_CHECK(state.is_address_warm(identity));
+    BOOST_CHECK(!state.is_address_warm(bls));
+}
+
+BOOST_AUTO_TEST_CASE(W2_warms_chain_static_targets)
+{
+    evmc_address l1Block{};
+    l1Block.bytes[18] = 0x42;
+    l1Block.bytes[19] = 0x0A;
+    evmc_address gasOracle{};
+    gasOracle.bytes[18] = 0x42;
+    gasOracle.bytes[19] = 0x0F;
+
+    bcos::evm::test::InMemoryChainCallTargetAdapter adapter({}, {});
+    adapter.addStaticWarmTarget(l1Block);
+    adapter.addStaticWarmTarget(gasOracle);
+
+    InMemoryEvmStateReader view;
+    State state(view);
+
+    Transaction tx{};
+    BlockInfo block{};
+    TransactionProperties props{};
+    props.warmDestination = false;
+    props.warmCoinbase = false;
+
+    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_CANCUN);
+    execution::warmTransactionEntry(state, cfg, &adapter, tx, block, props);
+
+    BOOST_CHECK(state.is_address_warm(l1Block));
+    BOOST_CHECK(state.is_address_warm(gasOracle));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

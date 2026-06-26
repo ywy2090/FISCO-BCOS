@@ -1,25 +1,5 @@
 # bcos-evm bcos tests.
 
-set(CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME ChainPrecompilePortTest)
-
-add_executable(${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME}
-    bcos/ChainPrecompilePortTest.cpp
-)
-
-target_include_directories(${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}
-)
-
-target_link_libraries(${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
-)
-
-add_test(
-    NAME ChainPrecompilePort
-    COMMAND ${CHAIN_PRECOMPILE_PORT_TEST_BINARY_NAME}
-)
-
 set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoVmHostPolicyTest)
 
 add_executable(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
@@ -39,6 +19,12 @@ add_test(
     NAME FiscoVmHostPolicy
     COMMAND ${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
 )
+
+add_executable(FiscoChainCallTargetAdapterTest bcos/FiscoChainCallTargetAdapterTest.cpp)
+target_include_directories(FiscoChainCallTargetAdapterTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(FiscoChainCallTargetAdapterTest PRIVATE bcos-evm)
+add_test(NAME FiscoChainCallTargetAdapter COMMAND FiscoChainCallTargetAdapterTest)
 
 set(FISCO_ADDRESS_DERIVATION_TEST_BINARY_NAME FiscoAddressDerivationTest)
 

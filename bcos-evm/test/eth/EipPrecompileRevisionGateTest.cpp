@@ -41,7 +41,7 @@ void warmPrecompilesOnly(state::State& state, bcos::evm_standard::RevisionConfig
     state::TransactionProperties props{};
     props.warmDestination = false;
     props.warmCoinbase = false;
-    execution::warmTransactionEntry(state, cfg, tx, block, props);
+    execution::warmTransactionEntry(state, cfg, nullptr, tx, block, props);
 }
 
 std::array<uint8_t, 20> toAddressKey(evmc_address const& addr)

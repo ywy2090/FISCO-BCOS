@@ -5,6 +5,7 @@
 #include "bcos-evm/bcos/FiscoEvmStateReader.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
@@ -66,7 +67,7 @@ inline std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& 
 /// baseline scheduler / Engine API via the executor_v1::TransactionExecutor concept.
 ///
 /// Compared to TransactionExecutorImpl:
-/// - No FISCO auth/precompile hooks (L1Block native dispatch via OpStackVmHostPolicy).
+/// - No FISCO auth/precompile hooks (L1Block via OpStackChainCallTargetAdapter + chainPort).
 /// - Gas buy/refund/settlement is internal to opStackExecute.
 /// - Uses gasTipCap/gasFeeCap (EIP-1559) instead of legacy gasPrice.
 class OpStackTransactionExecutorImpl
@@ -169,7 +170,7 @@ public:
                 m_data->m_gasUsed = output.gasUsed;
                 m_data->m_receiptMeta = output.receiptMeta;
                 m_data->m_logs = opstack_executor_detail::convertLogs(output.logs);
-                m_data->m_effectiveGasPrice = resolveEffectiveGasPrice(
+                m_data->m_effectiveGasPrice = gas::resolveEffectiveGasPrice(
                     opstack_tx::parseU256Field(m_data->m_transaction.get().maxPriorityFeePerGas()),
                     opstack_tx::parseU256Field(m_data->m_transaction.get().maxFeePerGas()),
                     opstack_tx::resolveOpStackBaseFee(m_data->m_blockHeader.get()));

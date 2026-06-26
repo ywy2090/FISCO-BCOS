@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
+#include "bcos-evm/opstack/l1/L1BlockStorage.h"
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -11,26 +12,6 @@ namespace bcos::evm
 {
 namespace
 {
-constexpr size_t kScalarSectionStart = 32 - 12 - 4;
-
-u256 readBigEndianU32(evmc_bytes32 const& slot, size_t offset)
-{
-    return u256((static_cast<uint64_t>(slot.bytes[offset]) << 24) |
-                (static_cast<uint64_t>(slot.bytes[offset + 1]) << 16) |
-                (static_cast<uint64_t>(slot.bytes[offset + 2]) << 8) |
-                static_cast<uint64_t>(slot.bytes[offset + 3]));
-}
-
-u256 readBigEndianU64(evmc_bytes32 const& slot, size_t offset)
-{
-    u256 value = 0;
-    for (size_t i = 0; i < 8; ++i)
-    {
-        value = (value << 8) | slot.bytes[offset + i];
-    }
-    return value;
-}
-
 evmc_bytes32 slotKey(u256 slot)
 {
     return state::toEvmC(slot);
@@ -168,8 +149,8 @@ OpStackFeeParams loadOpStackFeeParams(state::EvmStateReader const& state)
     params.l1BlobBaseFee = state::fromEvmC(readSlot(L1_BLOB_BASE_FEE_SLOT));
 
     auto const feeScalars = readSlot(L1_FEE_SCALARS_SLOT);
-    params.l1BaseFeeScalar = readBigEndianU32(feeScalars, kScalarSectionStart);
-    params.l1BlobBaseFeeScalar = readBigEndianU32(feeScalars, kScalarSectionStart + 4);
+    params.l1BaseFeeScalar = unpackBaseFeeScalar(feeScalars);
+    params.l1BlobBaseFeeScalar = unpackBlobBaseFeeScalar(feeScalars);
 
     auto const operatorFeeParams = readSlot(OPERATOR_FEE_PARAMS_SLOT);
     if (state::isZeroBytes32(operatorFeeParams))
@@ -177,8 +158,8 @@ OpStackFeeParams loadOpStackFeeParams(state::EvmStateReader const& state)
         return params;
     }
 
-    params.operatorFeeScalar = readBigEndianU32(operatorFeeParams, 20);
-    params.operatorFeeConstant = readBigEndianU64(operatorFeeParams, 24);
+    params.operatorFeeScalar = unpackOperatorFeeScalar(operatorFeeParams);
+    params.operatorFeeConstant = unpackOperatorFeeConstant(operatorFeeParams);
     return params;
 }
 

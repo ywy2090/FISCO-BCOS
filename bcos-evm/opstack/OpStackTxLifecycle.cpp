@@ -1,12 +1,13 @@
 #include "bcos-evm/opstack/OpStackTxLifecycle.h"
 
+#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
+#include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackVmHostPolicy.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
 #include <algorithm>
 #include <stdexcept>
@@ -15,16 +16,6 @@ namespace bcos::evm
 {
 namespace
 {
-void releaseGasPoolFullLimit(GasPoolHooks const& gasPool, int64_t originalGasLimit)
-{
-    if (!gasPool.returnGas)
-    {
-        return;
-    }
-    auto const gasLimitForPool = static_cast<uint64_t>(std::max<int64_t>(0, originalGasLimit));
-    gasPool.returnGas(gasLimitForPool, 0);
-}
-
 bool acquireGasPool(GasPoolHooks const& gasPool, int64_t originalGasLimit)
 {
     if (!gasPool.subGas)
@@ -35,24 +26,6 @@ bool acquireGasPool(GasPoolHooks const& gasPool, int64_t originalGasLimit)
     return gasPool.subGas(gasLimitForPool);
 }
 
-bool isNormalPreExecutionReject(TxPipelineExitKind exitKind) noexcept
-{
-    return exitKind == TxPipelineExitKind::IntrinsicRejected ||
-           exitKind == TxPipelineExitKind::GasAffordRejected;
-}
-
-void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
-    OpStackExecutionResult& output, int64_t originalGasLimit)
-{
-    if (ctx.state.has_checkpoint())
-    {
-        ctx.state.revert();
-    }
-    releaseGasPoolFullLimit(gasPool, originalGasLimit);
-    output.gasUsed = 0;
-    output.stateDiff = ctx.state.build_diff();
-}
-
 void populateFeeContext(OpStackFeeContext& feeCtx, OpStackExecutionRequest const& input)
 {
     feeCtx.m_call = input.call;
@@ -61,7 +34,7 @@ void populateFeeContext(OpStackFeeContext& feeCtx, OpStackExecutionRequest const
     feeCtx.m_gasFeeCap = input.gasFeeCap;
     feeCtx.m_hasGasFeeCap = true;
     feeCtx.m_effectiveGasPrice =
-        resolveEffectiveGasPrice(input.gasTipCap, input.gasFeeCap, input.blockInfo.baseFee);
+        gas::resolveEffectiveGasPrice(input.gasTipCap, input.gasFeeCap, input.blockInfo.baseFee);
     feeCtx.m_blockInfo = input.blockInfo;
     feeCtx.m_skipNonceChecks = input.skipNonceChecks;
     feeCtx.m_skipTransactionChecks = input.skipTransactionChecks;
@@ -73,25 +46,6 @@ void populateFeeContext(OpStackFeeContext& feeCtx, OpStackExecutionRequest const
     feeCtx.m_blobGasFeeCap = input.blobGasFeeCap;
     feeCtx.m_blobVersionedHashes = input.blobVersionedHashes;
     feeCtx.m_rollupCostData = input.rollupCostData;
-}
-
-void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackExecutionRequest const& input,
-    OpStackFeeContext const& feeCtx, OpStackFeeParams const& feeParams,
-    OpStackSettlementResult const& settled)
-{
-    output.receiptMeta.l1Fee = feeCtx.m_l1CostCharged;
-    if (isOpStackIsthmus(input.forkSchedule, feeCtx.m_blockInfo.timestamp) &&
-        input.opTxExecutor.m_operatorCostFunc)
-    {
-        auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
-        output.receiptMeta.operatorFee =
-            input.opTxExecutor.m_operatorCostFunc(gasUsed, feeCtx.m_blockInfo.timestamp);
-        if (feeParams.operatorFeeScalar != 0 || feeParams.operatorFeeConstant != 0)
-        {
-            output.receiptMeta.operatorFeeScalar = feeParams.operatorFeeScalar;
-            output.receiptMeta.operatorFeeConstant = feeParams.operatorFeeConstant;
-        }
-    }
 }
 }  // namespace
 
@@ -112,9 +66,9 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
 
-    OpStackVmHostPolicy opHostExtension(
+    OpStackChainCallTargetAdapter chainAdapter(
         &ctx.state, input.blockInfo.baseFee, input.forkSchedule, input.blockInfo.timestamp);
-    ctx.extension = &opHostExtension;
+    ctx.chainPort = &chainAdapter;
 
     auto const feeParams = loadOpStackFeeParams(ctx.state);
     input.opTxExecutor.m_l1CostFunc = wireL1CostFuncWithState(input.forkSchedule, ctx.state);
@@ -200,27 +154,23 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
 
+    co_await completeNormalTxAfterPipeline(ctx, feeCtx, input, feeParams, gasPool, output);
+
     if (isNormalPreExecutionReject(ctx.exitKind))
     {
-        abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
         EVM_LOG(DEBUG) << LOG_DESC("opStackTxLifecycle entry reject abort")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code));
-        co_return output;
+    }
+    else
+    {
+        EVM_LOG(DEBUG) << LOG_DESC("opStackTxLifecycle done")
+                       << LOG_KV("exit", trace::exitKind(ctx.exitKind))
+                       << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
+                       << LOG_KV("gasUsed", output.gasUsed)
+                       << LOG_KV("l1Fee", feeCtx.m_l1CostCharged);
     }
 
-    ctx.state.commit();
-
-    auto settled = co_await settleNormal(ctx, feeCtx, ctx.exitKind, input.opTxExecutor, gasPool);
-
-    EVM_LOG(DEBUG) << LOG_DESC("opStackTxLifecycle done")
-                   << LOG_KV("exit", trace::exitKind(ctx.exitKind))
-                   << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
-                   << LOG_KV("gasUsed", settled.gasUsed) << LOG_KV("l1Fee", feeCtx.m_l1CostCharged);
-
-    output.gasUsed = settled.gasUsed;
-    projectNormalReceiptMeta(output, input, feeCtx, feeParams, settled);
-    output.stateDiff = ctx.state.build_diff();
     co_return output;
 }
 }  // namespace bcos::evm
