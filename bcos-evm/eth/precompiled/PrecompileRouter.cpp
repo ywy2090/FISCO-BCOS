@@ -16,11 +16,11 @@ namespace bcos::evm::precompiled
 {
 namespace
 {
-evmc::Result makeInsufficientBalanceResult() noexcept
+evmc::Result makeInsufficientBalanceResult(int64_t gasLeft) noexcept
 {
     evmc_result result{};
     result.status_code = EVMC_INSUFFICIENT_BALANCE;
-    result.gas_left = 0;
+    result.gas_left = gasLeft;
     return evmc::Result(result);
 }
 
@@ -55,7 +55,7 @@ std::optional<evmc::Result> tryEnvelopeValueTransfer(state::State& state,
     auto const value = state::fromEvmC(message.value);
     if (!canTransfer(state, message.sender, value))
     {
-        return makeInsufficientBalanceResult();
+        return makeInsufficientBalanceResult(message.gas);
     }
     transfer(state, message.sender, target, value);
     return std::nullopt;

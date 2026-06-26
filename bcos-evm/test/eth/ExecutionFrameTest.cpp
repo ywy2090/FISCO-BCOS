@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(nested_precompile_insufficient_balance_matches_envelope_tes
     BOOST_REQUIRE_EQUAL(frame.senderBalance, depth1.senderBalance);
     BOOST_REQUIRE_EQUAL(frame.recipientBalance, depth1.recipientBalance);
     BOOST_REQUIRE_EQUAL(depth1.status, EVMC_INSUFFICIENT_BALANCE);
-    BOOST_REQUIRE_EQUAL(depth1.gasLeft, 0);
+    BOOST_REQUIRE_EQUAL(depth1.gasLeft, 500'000);
 }
 
 BOOST_AUTO_TEST_CASE(nested_successful_value_transfer_matches_envelope_test)
@@ -263,7 +263,7 @@ BOOST_AUTO_TEST_CASE(top_level_create_checkpoint_before_bind_order)
 
     auto frame = runFrameTopLevel(state, message);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_INSUFFICIENT_BALANCE);
-    BOOST_REQUIRE_EQUAL(frame.gasLeft, 0);
+    BOOST_REQUIRE_EQUAL(frame.gasLeft, 500'000);
 }
 
 BOOST_AUTO_TEST_CASE(nested_create_insufficient_balance_characterization)
@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE(nested_create_insufficient_balance_characterization)
 
     auto frame = runFrameNested(state, message);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_INSUFFICIENT_BALANCE);
-    BOOST_REQUIRE_EQUAL(frame.gasLeft, 0);
+    BOOST_REQUIRE_EQUAL(frame.gasLeft, 500'000);
 }
 
 BOOST_AUTO_TEST_CASE(top_level_precompile_insufficient_balance_matches_envelope_test)
@@ -312,7 +312,7 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_insufficient_balance_matches_envelope_
     BOOST_REQUIRE_EQUAL(depth0.senderBalance, depth1.senderBalance);
     BOOST_REQUIRE_EQUAL(depth0.recipientBalance, depth1.recipientBalance);
     BOOST_REQUIRE_EQUAL(depth0.status, EVMC_INSUFFICIENT_BALANCE);
-    BOOST_REQUIRE_EQUAL(depth0.gasLeft, 0);
+    BOOST_REQUIRE_EQUAL(depth0.gasLeft, 500'000);
 }
 
 BOOST_AUTO_TEST_CASE(top_level_successful_value_transfer_matches_envelope_test)

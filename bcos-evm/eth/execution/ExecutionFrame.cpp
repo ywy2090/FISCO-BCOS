@@ -150,7 +150,8 @@ std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
             work.ctx.state, work.ctx.revisionConfig, work.ctx.extension, work.callMessage(), scope))
     {
         work.ctx.state.revert();
-        return FrameResult{.result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, 0)};
+        return FrameResult{
+            .result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, work.callMessage().gas)};
     }
     return std::nullopt;
 }

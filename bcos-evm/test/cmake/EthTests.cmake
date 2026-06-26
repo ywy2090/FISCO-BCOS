@@ -86,6 +86,13 @@ target_include_directories(EthIncludedTxVmerrTest PRIVATE
 target_link_libraries(EthIncludedTxVmerrTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME EthIncludedTxVmerr COMMAND EthIncludedTxVmerrTest)
+add_executable(EthIntrinsicGasFailureCharacterizationTest
+    eth/EthIntrinsicGasFailureCharacterizationTest.cpp)
+target_include_directories(EthIntrinsicGasFailureCharacterizationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EthIntrinsicGasFailureCharacterizationTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-protocol)
+add_test(NAME EthIntrinsicGasFailure COMMAND EthIntrinsicGasFailureCharacterizationTest)
 add_executable(EthEip1559GasTest eth/EthEip1559GasTest.cpp)
 target_include_directories(EthEip1559GasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -219,6 +226,26 @@ add_test(
     COMMAND ${PRECOMPILE_ROUTER_ENVELOPE_TEST_BINARY_NAME}
 )
 
+set(INSUFFICIENT_BALANCE_GAS_LEFT_TEST_BINARY_NAME InsufficientBalanceGasLeftTest)
+
+add_executable(${INSUFFICIENT_BALANCE_GAS_LEFT_TEST_BINARY_NAME}
+    eth/InsufficientBalanceGasLeftTest.cpp
+)
+
+target_include_directories(${INSUFFICIENT_BALANCE_GAS_LEFT_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${INSUFFICIENT_BALANCE_GAS_LEFT_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth evmone::evmone
+)
+
+add_test(
+    NAME InsufficientBalanceGasLeft
+    COMMAND ${INSUFFICIENT_BALANCE_GAS_LEFT_TEST_BINARY_NAME}
+)
+
 set(PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME PrecompileRouter7702Test)
 
 add_executable(${PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME}
@@ -286,3 +313,17 @@ target_include_directories(ResolveExecutionCodeTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(ResolveExecutionCodeTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME ResolveExecutionCode COMMAND ResolveExecutionCodeTest)
+
+add_executable(TopLevelInsufficientBalanceStateDiffTest eth/TopLevelInsufficientBalanceStateDiffTest.cpp)
+target_include_directories(TopLevelInsufficientBalanceStateDiffTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(TopLevelInsufficientBalanceStateDiffTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
+add_test(NAME TopLevelInsufficientBalanceStateDiff COMMAND TopLevelInsufficientBalanceStateDiffTest)
+
+add_executable(EvmcStatusMappingTest eth/EvmcStatusMappingTest.cpp)
+target_include_directories(EvmcStatusMappingTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EvmcStatusMappingTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-crypto)
+add_test(NAME EvmcStatusMapping COMMAND EvmcStatusMappingTest)
