@@ -26,11 +26,15 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
+#include "helpers/SetCodeAuthorizationTestHelper.h"
+#include <bcos-crypto/signature/key/KeyImpl.h>
+#include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -132,6 +136,98 @@ inline state::BlockInfo parseBlock(const pt::ptree& tree)
     return builder.build();
 }
 
+namespace detail
+{
+inline bool fixtureAddressEqual(evmc_address const& lhs, evmc_address const& rhs) noexcept
+{
+    return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
+}
+
+inline bool authorizationNeedsSignature(SetCodeAuthorization const& authorization) noexcept
+{
+    return !authorization.yParity.has_value() && authorization.signatureR.empty() &&
+           authorization.signatureS.empty();
+}
+
+inline bcos::evm::test::TestAuthKeyPair delegationFixtureAuthorityKey()
+{
+    static bcos::evm::test::TestAuthKeyPair const kPair = [] {
+        bcos::crypto::Secp256k1Crypto crypto;
+        auto const secretBytes =
+            bcos::fromHex("ac0974bec39a17db87687415b8a7ab6854ffd681c0695ff8a57b78e22a448738");
+        bcos::evm::test::TestAuthKeyPair out;
+        out.keyPair = crypto.createKeyPair(std::make_shared<bcos::crypto::KeyImpl>(secretBytes));
+        return out;
+    }();
+    return kPair;
+}
+
+inline void remapPreStateAuthority(FixtureCase& fixture, evmc_address const& placeholder,
+    evmc_address const& authority, uint64_t authorityNonce)
+{
+    fixture.preState.erase(
+        std::remove_if(fixture.preState.begin(), fixture.preState.end(),
+            [&](auto const& entry) { return fixtureAddressEqual(entry.first, placeholder); }),
+        fixture.preState.end());
+
+    bool found = false;
+    for (auto& [address, account] : fixture.preState)
+    {
+        if (fixtureAddressEqual(address, authority))
+        {
+            account.nonce = authorityNonce;
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+    {
+        state::Account account;
+        account.nonce = authorityNonce;
+        fixture.preState.emplace_back(authority, std::move(account));
+    }
+}
+
+inline void hydrateUnsigned7702Authorizations(FixtureCase& fixture)
+{
+    if (!fixture.authorizationListPresent || fixture.authorizations.empty())
+    {
+        return;
+    }
+    if (!std::all_of(fixture.authorizations.begin(), fixture.authorizations.end(),
+            authorizationNeedsSignature))
+    {
+        return;
+    }
+
+    auto const authKey = delegationFixtureAuthorityKey();
+    auto const authority = authKey.address();
+    auto const& templateAuth = fixture.authorizations.front();
+    auto const placeholder = templateAuth.authority;
+    auto const delegateTarget = templateAuth.address;
+    auto const nonce = templateAuth.nonce;
+    auto const chainId = fixture.block.chainId;
+
+    remapPreStateAuthority(fixture, placeholder, authority, nonce);
+
+    if (fixture.tx.to.has_value() && fixtureAddressEqual(*fixture.tx.to, placeholder))
+    {
+        fixture.tx.to = authority;
+    }
+
+    for (auto& expectedPost : fixture.expected.post)
+    {
+        if (fixtureAddressEqual(expectedPost.address, placeholder))
+        {
+            expectedPost.address = authority;
+        }
+    }
+
+    fixture.authorizations.clear();
+    fixture.authorizations.push_back(authKey.sign(delegateTarget, nonce, chainId));
+}
+}  // namespace detail
+
 inline FixtureCase loadFixture(std::filesystem::path const& path)
 {
     std::ifstream file(path);
@@ -228,6 +324,7 @@ inline FixtureCase loadFixture(std::filesystem::path const& path)
         }
     }
 
+    detail::hydrateUnsigned7702Authorizations(fixture);
     return fixture;
 }
 

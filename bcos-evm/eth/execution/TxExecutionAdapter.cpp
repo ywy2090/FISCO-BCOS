@@ -99,6 +99,10 @@ void logEntry(ExecuteMessageInput const& input)
 
 void prepareTxEntry(state::State& state, ExecuteMessageInput const& input)
 {
+    if (input.message.depth == 0)
+    {
+        state.clearAllTransientStorage();
+    }
     auto const transaction = toStateTransaction(input.message);
     std::optional<evmc_address> createCodeAddress;
     if (isCreateKind(input.message.kind))

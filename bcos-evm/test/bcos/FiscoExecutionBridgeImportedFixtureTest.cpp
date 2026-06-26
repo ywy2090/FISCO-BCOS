@@ -16,7 +16,8 @@ using namespace fixtures;
 
 BOOST_AUTO_TEST_CASE(imported_fixture_plain_call_via_execute_via_host)
 {
-    // stEIP7702_delegation.json: historical filename; plain CALL to 0xbb returning 42.
+    // stEIP7702_delegation.json: unsigned auth tuples are signed at load time; delegated CALL to
+    // 0xbb returning 42.
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
     auto const path =

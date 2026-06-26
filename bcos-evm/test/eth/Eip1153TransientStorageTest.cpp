@@ -111,6 +111,34 @@ BOOST_AUTO_TEST_CASE(transient_storage_does_not_persist_across_transactions)
         actual.begin(), actual.end(), expectedZero.begin(), expectedZero.end());
 }
 
+BOOST_AUTO_TEST_CASE(transient_storage_cleared_when_reusing_state_across_transactions)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto const sender = addressFromLastByte(0x51);
+    auto const contract = addressFromLastByte(0x52);
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
+    stateView.insert_account(contract, state::Account{.code = kTstoreThenTloadReturn42});
+
+    evmc::VM vm{evmc_create_evmone()};
+    state::State state(stateView);
+
+    auto storeInput = makeCallInput(state, vm, sender, contract, kTstoreThenTloadReturn42);
+    auto storeOutput = executeMessage(std::move(storeInput));
+    BOOST_REQUIRE_EQUAL(storeOutput.result.status_code, EVMC_SUCCESS);
+
+    state.set_code(contract, kTloadSlotZeroReturn, {});
+
+    auto loadInput = makeCallInput(state, vm, sender, contract, kTloadSlotZeroReturn);
+    auto loadOutput = executeMessage(std::move(loadInput));
+    BOOST_REQUIRE_EQUAL(loadOutput.result.status_code, EVMC_SUCCESS);
+
+    bcos::bytes expectedZero(32, 0);
+    bcos::bytes actual(loadOutput.result.output_data,
+        loadOutput.result.output_data + loadOutput.result.output_size);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        actual.begin(), actual.end(), expectedZero.begin(), expectedZero.end());
+}
+
 BOOST_AUTO_TEST_CASE(transient_storage_reverts_with_call_frame)
 {
     state::test::InMemoryEvmStateReader stateView;

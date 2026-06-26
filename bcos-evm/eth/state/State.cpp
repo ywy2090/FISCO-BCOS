@@ -270,6 +270,15 @@ void State::set_transient_storage(
     mutable_account(address).transientStorage[key] = value;
 }
 
+void State::clearAllTransientStorage()
+{
+    for (auto& [address, account] : m_accounts)
+    {
+        (void)address;
+        account.transientStorage.clear();
+    }
+}
+
 bool State::warm_up_address(const evmc_address& address)
 {
     auto const inserted = m_warmAccounts.insert(address).second;

@@ -73,6 +73,8 @@ public:
     void clear_storage(const evmc_address& address);
     void set_transient_storage(
         const evmc_address& address, const evmc_bytes32& key, const evmc_bytes32& value);
+    /// Clears in-memory transient slots for all overlay accounts (geth Prepare parity).
+    void clearAllTransientStorage();
 
     [[nodiscard]] bool warm_up_address(const evmc_address& address);
     [[nodiscard]] bool warm_up_storage(const evmc_address& address, const evmc_bytes32& key);
