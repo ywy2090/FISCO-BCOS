@@ -3,24 +3,28 @@
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
+#include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 
 namespace bcos::evm
 {
 namespace
 {
+struct NormalSettleOutcome
+{
+    OpStackSettlementResult settled;
+    OpStackPostSettlementPlan feePlan;
+};
+
 void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackSettlementView& view,
-    OpStackFeeParams const& feeParams, OpStackSettlementResult const& settled)
+    OpStackFeeParams const& feeParams, OpStackSettlementResult const& settled,
+    OpStackPostSettlementPlan const& feePlan)
 {
     auto const& input = view.input;
-    auto const& sidecar = view.feeSidecar();
-
-    output.receiptMeta.l1Fee = sidecar.l1CostCharged;
+    output.receiptMeta.l1Fee = feePlan.l1FeeRouted;
     if (isOpStackIsthmus(input.forkSchedule, view.blockInfo().timestamp) &&
         input.opTxExecutor.m_operatorCostFunc)
     {
-        auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed));
-        output.receiptMeta.operatorFee =
-            input.opTxExecutor.m_operatorCostFunc(gasUsed, view.blockInfo().timestamp);
+        output.receiptMeta.operatorFee = feePlan.operatorFeeCharged;
         if (feeParams.operatorFeeScalar != 0 || feeParams.operatorFeeConstant != 0)
         {
             output.receiptMeta.operatorFeeScalar = feeParams.operatorFeeScalar;
@@ -29,18 +33,18 @@ void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackSettlementV
     }
 }
 
-task::Task<OpStackSettlementResult> settleNormal(OpStackSettlementView view,
+task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementView view,
     TxPipelineExitKind exitKind, OpStackTxFeeLedger& ledger, GasPoolHooks const& gasPool)
 {
     auto& ctx = view.pipelineContext();
     auto settled = finalizeNormal(ctx, view.feeSidecar(), exitKind);
-    co_await ledger.refundGas(view, settled);
+    auto feePlan = co_await ledger.refundGas(view, settled);
     if (gasPool.returnGas)
     {
         gasPool.returnGas(
             settled.gasRemaining, static_cast<uint64_t>(std::max<int64_t>(0, settled.gasUsed)));
     }
-    co_return settled;
+    co_return NormalSettleOutcome{.settled = settled, .feePlan = feePlan};
 }
 }  // namespace
 
@@ -70,9 +74,9 @@ task::Task<void> OpStackNormalFeeSettlement::completeAfterPipeline(OpStackSettle
 
     ctx.state.commit();
 
-    auto settled = co_await settleNormal(view, ctx.exitKind, ledger, gasPool);
-    output.gasUsed = settled.gasUsed;
-    projectNormalReceiptMeta(output, view, feeParams, settled);
+    auto outcome = co_await settleNormal(view, ctx.exitKind, ledger, gasPool);
+    output.gasUsed = outcome.settled.gasUsed;
+    projectNormalReceiptMeta(output, view, feeParams, outcome.settled, outcome.feePlan);
     output.stateDiff = ctx.state.build_diff();
 }
 
