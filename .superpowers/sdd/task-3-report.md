@@ -6,7 +6,7 @@
 
 ## Commit
 
-`9e3067176f46933896db4fed6b62cc4fc481e582` — `feat(opstack): delegate refundGas to OpStackPostSettlementPlan`
+`346719e5041764c5e1c8e80698f8ae9290606ddd` — `feat(opstack): delegate refundGas to OpStackPostSettlementPlan`
 
 ## Test summary
 
