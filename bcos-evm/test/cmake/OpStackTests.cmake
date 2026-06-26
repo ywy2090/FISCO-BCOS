@@ -28,6 +28,7 @@ add_executable(OpStackIntrinsicGasSyncTest
     ../opstack/OpStackOrchestrationProfile.cpp
     ../opstack/OpStackPrecheckPolicy.cpp
     ../opstack/OpStackTxFeeLedger.cpp
+    ../opstack/fee/OpStackPreDebitPlan.cpp
     ../opstack/OpStackSettlementView.cpp
     ../opstack/OpStackChainCallTargetAdapter.cpp
     ../opstack/fee/RollupCost.cpp
@@ -382,6 +383,12 @@ target_include_directories(OpStackNormalFeeSettlementTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackNormalFeeSettlementTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackNormalFeeSettlement COMMAND OpStackNormalFeeSettlementTest)
+
+add_executable(OpStackPreDebitCharacterizationTest opstack/OpStackPreDebitCharacterizationTest.cpp)
+target_include_directories(OpStackPreDebitCharacterizationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStackPreDebitCharacterizationTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackPreDebitCharacterization COMMAND OpStackPreDebitCharacterizationTest)
 
 add_executable(OpStackSettlementCharacterizationTest
     opstack/OpStackSettlementCharacterizationTest.cpp

@@ -244,6 +244,7 @@ settlement.completeAfterPipeline(view, gasPool, feeParams, output)
 
 ## 8. 未来延伸（不在本 spec）
 
+- **OpStack pre-debit composition** — 见 [ADR-026 Appendix B](../../bcos-evm/docs/adr/026-tx-fee-settlement-deepening.md#appendix-b--opstack-pre-debit-composition-post-pr4)（`planOpStackPreDebit`；grilling 2026-06-26）
 - `OpStackDepositSettlement` 对称 deep module（若 deposit 摩擦上升）
 - `ExecutionSession` 注入 RAII（port 迁移类）
 - `TxFeeSettlement` Eth TE vs 参考路径统一

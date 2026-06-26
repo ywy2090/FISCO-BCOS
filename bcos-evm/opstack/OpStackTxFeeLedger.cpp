@@ -3,6 +3,8 @@
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
+#include "bcos-evm/opstack/fee/OpStackPreDebitInputs.h"
+#include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 
 namespace bcos::evm
 {
@@ -32,59 +34,29 @@ task::Task<bool> OpStackTxFeeLedger::buyGas(OpStackSettlementView view)
         co_return true;
     }
 
-    auto const baseFee = view.blockInfo().baseFee;
-    sidecar.baseFee = baseFee;
-
-    auto const feeInputs = gas::toFeeInputs(ctx.revisionConfig, view.blockInfo(),
-        gas::FeeCapsView{ctx.gasPrice, view.gasTipCap(), view.gasFeeCap(), view.web3TypedTxKind(),
-            view.hasGasFeeCap()},
-        ctx.originalGasLimit);
-    auto const plan = gas::planPreExecution(feeInputs);
-    sidecar.effectiveGasPrice = plan.effectiveGasPrice;
-
-    auto const gasLimit = u256(ctx.originalGasLimit);
-    auto mgval = plan.preDebitAmount;
-    uint64_t const blockTime = view.blockInfo().timestamp;
-
-    sidecar.l1CostCharged = 0;
-    if (m_l1CostFunc && view.rollupCostData())
+    OpStackFeeHooks hooks{};
+    if (m_l1CostFunc)
     {
-        sidecar.l1CostCharged = m_l1CostFunc(*view.rollupCostData(), blockTime);
-        mgval += sidecar.l1CostCharged;
+        hooks.l1CostFunc = &m_l1CostFunc;
     }
-
-    sidecar.operatorCostLimit = 0;
     if (m_operatorCostFunc)
     {
-        sidecar.operatorCostLimit =
-            m_operatorCostFunc(static_cast<uint64_t>(ctx.originalGasLimit), blockTime);
-        mgval += sidecar.operatorCostLimit;
+        hooks.operatorCostFunc = &m_operatorCostFunc;
     }
 
-    u256 blobGasUsed{0};
-    u256 blobBalanceCheck{0};
-    if (!view.blobVersionedHashes().empty())
-    {
-        blobGasUsed = u256(view.blobVersionedHashes().size()) * OP_BLOB_GAS_PER_BLOB;
-        auto const blobCost = blobGasUsed * view.blockInfo().blobBaseFee;
-        mgval += blobCost;
-        blobBalanceCheck = blobGasUsed * view.blobGasFeeCap();
-    }
+    auto const plan = planOpStackPreDebit(toOpStackPreDebitInputs(view), hooks);
 
-    auto const txValue = state::fromEvmC(ctx.message.value);
-    auto balanceCheck = mgval + txValue;
-    if (view.hasGasFeeCap())
-    {
-        balanceCheck = plan.maxBalanceDebit + sidecar.l1CostCharged + sidecar.operatorCostLimit +
-                       blobBalanceCheck + txValue;
-    }
+    sidecar.effectiveGasPrice = plan.sidecar.effectiveGasPrice;
+    sidecar.baseFee = plan.sidecar.baseFee;
+    sidecar.l1CostCharged = plan.sidecar.l1CostCharged;
+    sidecar.operatorCostLimit = plan.sidecar.operatorCostLimit;
 
     auto const senderBalance = ctx.state.get_balance(ctx.message.sender);
-    if (senderBalance < balanceCheck)
+    if (senderBalance < plan.balanceCheck)
     {
         OP_TX_EXECUTOR_LOG(ERROR) << "buyGas: insufficient balance"
                                   << LOG_KV("balance", senderBalance)
-                                  << LOG_KV("required", balanceCheck);
+                                  << LOG_KV("required", plan.balanceCheck);
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
         failResult.gas_left = 0;
@@ -92,7 +64,7 @@ task::Task<bool> OpStackTxFeeLedger::buyGas(OpStackSettlementView view)
         co_return false;
     }
 
-    ctx.state.set_balance(ctx.message.sender, senderBalance - mgval);
+    ctx.state.set_balance(ctx.message.sender, senderBalance - plan.totalDebit);
     co_return true;
 }
 
