@@ -114,7 +114,7 @@ jobs:
           cmake --build build/bcos-evm/test -j$(nproc)
       - name: Run opstack CTest
         run: |
-          ctest -R 'OpStack|L1Block|Deposit|Blob|7702|RefundIsthmus|L1Attributes' \
+          ctest -R 'OpStack|L1Block|Deposit|Blob|7702|OpStackPostSettlementCharacterization|L1Attributes' \
             --test-dir build/bcos-evm/test -C Debug --output-on-failure
           ctest -R OpStackTransactionExecutorFixture \
             --test-dir build/transaction-executor/tests -C Debug --output-on-failure

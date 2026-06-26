@@ -299,26 +299,6 @@ add_test(
     COMMAND ${CALC_REFUND_TEST_BINARY_NAME}
 )
 
-set(REFUND_ISTHMUS_TEST_BINARY_NAME RefundIsthmusTest)
-
-add_executable(${REFUND_ISTHMUS_TEST_BINARY_NAME}
-    opstack/RefundIsthmusTest.cpp
-)
-
-target_include_directories(${REFUND_ISTHMUS_TEST_BINARY_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}
-)
-
-target_link_libraries(${REFUND_ISTHMUS_TEST_BINARY_NAME} PRIVATE
-    bcos-evm-op
-)
-
-add_test(
-    NAME RefundIsthmus
-    COMMAND ${REFUND_ISTHMUS_TEST_BINARY_NAME}
-)
-
 set(OPSTACK_SETTLEMENT_TEST_BINARY_NAME OpStackSettlementTest)
 
 add_executable(${OPSTACK_SETTLEMENT_TEST_BINARY_NAME}
