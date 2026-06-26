@@ -14,6 +14,12 @@ target_link_libraries(CallTargetCharacterizationTest PRIVATE
     bcos-evm-eth bcos-evm-bcos bcos-evm-op evmone::evmone)
 add_test(NAME CallTargetCharacterization COMMAND CallTargetCharacterizationTest)
 
+add_executable(FeeSettlementCharacterizationTest cross/FeeSettlementCharacterizationTest.cpp)
+target_include_directories(FeeSettlementCharacterizationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(FeeSettlementCharacterizationTest PRIVATE bcos-evm-eth bcos-utilities)
+add_test(NAME FeeSettlementCharacterization COMMAND FeeSettlementCharacterizationTest)
+
 add_executable(PrecompileRouterEquivalenceTest cross/PrecompileRouterEquivalenceTest.cpp)
 target_include_directories(PrecompileRouterEquivalenceTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

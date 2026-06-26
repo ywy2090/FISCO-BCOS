@@ -1,6 +1,5 @@
 #include "bcos-evm/opstack/OpStackTxLifecycle.h"
 
-#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
@@ -8,6 +7,7 @@
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
 #include <algorithm>
 #include <stdexcept>
@@ -24,28 +24,6 @@ bool acquireGasPool(GasPoolHooks const& gasPool, int64_t originalGasLimit)
     }
     auto const gasLimitForPool = static_cast<uint64_t>(std::max<int64_t>(0, originalGasLimit));
     return gasPool.subGas(gasLimitForPool);
-}
-
-void populateFeeContext(OpStackFeeContext& feeCtx, OpStackExecutionRequest const& input)
-{
-    feeCtx.m_call = input.call;
-    feeCtx.m_isDepositTx = isDepositTx(input);
-    feeCtx.m_gasTipCap = input.gasTipCap;
-    feeCtx.m_gasFeeCap = input.gasFeeCap;
-    feeCtx.m_hasGasFeeCap = true;
-    feeCtx.m_effectiveGasPrice =
-        gas::resolveEffectiveGasPrice(input.gasTipCap, input.gasFeeCap, input.blockInfo.baseFee);
-    feeCtx.m_blockInfo = input.blockInfo;
-    feeCtx.m_skipNonceChecks = input.skipNonceChecks;
-    feeCtx.m_skipTransactionChecks = input.skipTransactionChecks;
-    feeCtx.m_noBaseFee = input.noBaseFee;
-    feeCtx.m_floorDataGas = input.floorDataGas;
-    feeCtx.m_accessList = input.accessList;
-    feeCtx.m_web3TypedTxKind = input.web3TypedTxKind;
-    feeCtx.m_authTupleCount = static_cast<uint64_t>(input.authorizations.size());
-    feeCtx.m_blobGasFeeCap = input.blobGasFeeCap;
-    feeCtx.m_blobVersionedHashes = input.blobVersionedHashes;
-    feeCtx.m_rollupCostData = input.rollupCostData;
 }
 }  // namespace
 
@@ -75,10 +53,11 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     input.opTxExecutor.m_operatorCostFunc =
         wireOperatorCostFuncWithState(input.forkSchedule, ctx.state);
 
-    OpStackFeeContext feeCtx;
-    populateFeeContext(feeCtx, input);
+    OpStackFeeSidecar sidecar;
+    sidecar.floorDataGas = input.floorDataGas;
+    OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    OpStackOrchestrationProfile::Session session{input, view};
     auto bindings = OpStackOrchestrationProfile::bind(session);
 
     trace::logMessageContext(input.message);
@@ -95,7 +74,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
         .returnGas = input.gasPoolReturnGasHook,
     };
 
-    if (feeCtx.m_isDepositTx)
+    if (view.isDeposit())
     {
         if (!acquireGasPool(gasPool, ctx.originalGasLimit))
         {
@@ -139,7 +118,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     ctx.state.checkpoint();
 
-    auto buyGasOk = co_await input.opTxExecutor.buyGas(ctx, feeCtx);
+    auto buyGasOk = co_await input.opTxExecutor.buyGas(view);
     if (!buyGasOk)
     {
         abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
@@ -147,14 +126,14 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
         co_return output;
     }
 
-    ctx.gasPrice = feeCtx.m_effectiveGasPrice;
+    ctx.gasPrice = sidecar.effectiveGasPrice;
 
     runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
 
-    co_await completeNormalTxAfterPipeline(ctx, feeCtx, input, feeParams, gasPool, output);
+    co_await completeNormalTxAfterPipeline(view, input, feeParams, gasPool, output);
 
     if (isNormalPreExecutionReject(ctx.exitKind))
     {
@@ -168,7 +147,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
                        << LOG_KV("gasUsed", output.gasUsed)
-                       << LOG_KV("l1Fee", feeCtx.m_l1CostCharged);
+                       << LOG_KV("l1Fee", sidecar.l1CostCharged);
     }
 
     co_return output;

@@ -3,6 +3,8 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/gas/TxFeeSettlement.h"
+#include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/reference/EthTxPrecheck.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -73,6 +75,14 @@ BOOST_AUTO_TEST_CASE(normalize_gas_caps_respects_fee_market_gate)
     auto const berlinCaps = gas::normalizeGasCaps(0, 2, 100, 0x02, false, berlin);
     BOOST_CHECK(londonCaps.isEip1559Caps);
     BOOST_CHECK(!berlinCaps.isEip1559Caps);
+}
+
+BOOST_AUTO_TEST_CASE(precheck_effective_via_plan_pre_execution)
+{
+    auto const london = revisionConfigFromRevision(EVMC_LONDON);
+    auto input = makeMinimalRequest(london);
+    auto const plan = gas::planPreExecution(gas::toFeeInputs(input, 100'000));
+    BOOST_CHECK_EQUAL(plan.effectiveGasPrice, 12);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

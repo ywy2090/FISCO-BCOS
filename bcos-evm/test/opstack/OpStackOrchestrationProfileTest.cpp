@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryEvmStateReader.h"
@@ -30,9 +31,13 @@ bytesConstRef toRef(bytes const& data)
 BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
 {
     OpStackExecutionRequest input;
-    OpStackFeeContext feeCtx;
+    state::test::InMemoryEvmStateReader stateView;
+    evmc_message msg{};
+    TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    OpStackOrchestrationProfile::Session session{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
@@ -55,12 +60,13 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     message.gas = static_cast<int64_t>(floor - 1);
 
     OpStackExecutionRequest input;
-    OpStackFeeContext feeCtx;
-    feeCtx.m_skipTransactionChecks = false;
+    input.skipTransactionChecks = false;
 
     TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    OpStackOrchestrationProfile::Session session{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
     policy.checkGasAffordable(ctx);
 
@@ -71,9 +77,13 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
     OpStackExecutionRequest input;
-    OpStackFeeContext feeCtx;
+    state::test::InMemoryEvmStateReader stateView;
+    evmc_message msg{};
+    TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    OpStackOrchestrationProfile::Session session{input, view};
     auto bindings = OpStackOrchestrationProfile::bind(session);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasPolicy().mode),

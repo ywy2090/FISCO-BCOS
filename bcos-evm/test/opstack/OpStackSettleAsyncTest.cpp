@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE OpStackSettleAsyncTest
 
 #include "opstack/helpers/OpStackSettleTestHelpers.h"
+#include <bcos-framework/executor/OpStackTxType.h>
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -12,8 +13,8 @@ BOOST_AUTO_TEST_CASE(settle_normal_completed_wires_refund_and_gas_pool)
     fixture.buyGas();
     auto const senderAfterBuyGas = fixture.ctx.state.get_balance(fixture.sender);
 
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
 
     assertSettleNormalMatchesFinalizeOracle(fixture, settled);
     assertGasPoolMatchesSettled(fixture.spy, settled);
@@ -25,8 +26,8 @@ BOOST_AUTO_TEST_CASE(settle_normal_rules_rejected_wires_partial_refund)
     NormalSettleFixture fixture(100'000, TxPipelineExitKind::RulesRejected, 60'000, EVMC_REVERT);
     fixture.buyGas();
 
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
 
     BOOST_CHECK_GT(settled.gasUsed, int64_t{0});
     assertSettleNormalMatchesFinalizeOracle(fixture, settled);
@@ -38,8 +39,8 @@ BOOST_AUTO_TEST_CASE(settle_normal_exception_handled_wires_partial_refund)
     NormalSettleFixture fixture(100'000, TxPipelineExitKind::ExceptionHandled, 60'000, EVMC_REVERT);
     fixture.buyGas();
 
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
 
     BOOST_CHECK_GT(settled.gasUsed, int64_t{0});
     assertSettleNormalMatchesFinalizeOracle(fixture, settled);
@@ -51,8 +52,8 @@ BOOST_AUTO_TEST_CASE(settle_normal_intrinsic_reject_return_gas_full_limit)
     NormalSettleFixture fixture(50'000, TxPipelineExitKind::IntrinsicRejected, 0);
     fixture.buyGas();
 
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
 
     BOOST_CHECK_EQUAL(settled.gasUsed, int64_t{0});
     BOOST_CHECK_EQUAL(settled.gasRemaining, 50'000u);
@@ -64,8 +65,8 @@ BOOST_AUTO_TEST_CASE(settle_normal_gas_afford_reject_return_gas_full_limit)
     NormalSettleFixture fixture(50'000, TxPipelineExitKind::GasAffordRejected, 0);
     fixture.buyGas();
 
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
 
     BOOST_CHECK_EQUAL(settled.gasUsed, int64_t{0});
     BOOST_CHECK_EQUAL(settled.gasRemaining, 50'000u);
@@ -78,10 +79,10 @@ BOOST_AUTO_TEST_CASE(settle_normal_null_return_gas_hook_no_crash)
     fixture.buyGas();
 
     GasPoolHooks emptyHooks{};
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, emptyHooks));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, emptyHooks));
 
-    auto const oracle = finalizeNormal(fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind);
+    auto const oracle = finalizeNormal(fixture.ctx, fixture.sidecar, fixture.ctx.exitKind);
     BOOST_CHECK_EQUAL(settled.gasUsed, oracle.gasUsed);
     BOOST_CHECK_EQUAL(settled.gasRemaining, oracle.gasRemaining);
 }
@@ -89,16 +90,16 @@ BOOST_AUTO_TEST_CASE(settle_normal_null_return_gas_hook_no_crash)
 BOOST_AUTO_TEST_CASE(settle_normal_call_frame_skips_refund_routing)
 {
     NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
-    fixture.feeCtx.m_call = true;
-    fixture.feeCtx.m_skipTransactionChecks = true;
-    fixture.feeCtx.m_noBaseFee = true;
-    fixture.feeCtx.m_gasTipCap = 0;
-    fixture.feeCtx.m_gasFeeCap = 0;
+    fixture.input.call = true;
+    fixture.input.skipTransactionChecks = true;
+    fixture.input.noBaseFee = true;
+    fixture.input.gasTipCap = 0;
+    fixture.input.gasFeeCap = 0;
     fixture.buyGas();
 
     auto const senderAfterBuyGas = fixture.ctx.state.get_balance(fixture.sender);
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
 
     BOOST_CHECK_EQUAL(fixture.ctx.state.get_balance(fixture.sender), senderAfterBuyGas);
     assertGasPoolMatchesSettled(fixture.spy, settled);
@@ -107,12 +108,12 @@ BOOST_AUTO_TEST_CASE(settle_normal_call_frame_skips_refund_routing)
 BOOST_AUTO_TEST_CASE(settle_normal_deposit_flag_skips_refund_routing)
 {
     NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
-    fixture.feeCtx.m_isDepositTx = true;
+    fixture.input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     fixture.buyGas();
 
     auto const senderAfterBuyGas = fixture.ctx.state.get_balance(fixture.sender);
-    auto const settled = task::syncWait(settleNormal(
-        fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
+    auto const settled = task::syncWait(
+        settleNormal(fixture.view, fixture.ctx.exitKind, fixture.ledger, fixture.spy.hooks()));
 
     BOOST_CHECK_EQUAL(fixture.ctx.state.get_balance(fixture.sender), senderAfterBuyGas);
     assertGasPoolMatchesSettled(fixture.spy, settled);

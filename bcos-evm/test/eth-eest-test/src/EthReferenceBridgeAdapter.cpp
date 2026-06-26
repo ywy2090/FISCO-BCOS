@@ -6,6 +6,7 @@
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/gas/Eip4844.h"
+#include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/reference/EthReferenceBridge.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -104,7 +105,7 @@ std::vector<SetCodeAuthorization> materializeAuthorizations(
 
 void applyGstTransactionSettlement(state::StateDiff& stateDiff,
     std::vector<std::pair<evmc_address, state::Account>> const& preState, evmc_message const& msg,
-    evmc_address const& coinbase, bcos::u256 effectiveGasPrice, bcos::u256 baseFee, int64_t gasUsed,
+    evmc_address const& coinbase, gas::FeeInputs const& feeInputs, int64_t gasUsed,
     bcos::u256 blobFee = 0)
 {
     auto resolveAccount = [&](evmc_address const& address) -> state::Account& {
@@ -124,21 +125,19 @@ void applyGstTransactionSettlement(state::StateDiff& stateDiff,
         return inserted->second;
     };
 
+    auto const plan = gas::planPostExecution(feeInputs, gasUsed, 0);
     auto& sender = resolveAccount(msg.sender);
 
-    bcos::u256 const gasCost = effectiveGasPrice * static_cast<bcos::u256>(gasUsed);
-    bcos::u256 const totalCost = gasCost + blobFee;
+    bcos::u256 const totalCost = plan.senderNetDebit + blobFee;
     if (totalCost != 0)
     {
         sender.balance = sender.balance > totalCost ? sender.balance - totalCost : 0;
     }
 
-    bcos::u256 const tipPerGas = gas::tipPerGas(effectiveGasPrice, baseFee);
-    bcos::u256 const coinbaseCredit = tipPerGas * static_cast<bcos::u256>(gasUsed);
-    if (coinbaseCredit != 0)
+    if (plan.coinbaseTip != 0)
     {
         auto& miner = resolveAccount(coinbase);
-        miner.balance += coinbaseCredit;
+        miner.balance += plan.coinbaseTip;
     }
 }
 
@@ -265,10 +264,16 @@ task::Task<ExecutionResult> EthReferenceBridgeAdapter::execute(
 
     if (result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty())
     {
-        auto const effectiveGasPrice =
-            gas::isEip1559GasCapsTx(web3TypedTxKind, hasExplicitFeeCaps, m_profile.revision) ?
-                gas::resolveEffectiveGasPrice(gasTipCap, gasFeeCap, testCase.env.baseFee) :
-                tx.gasPrice;
+        gas::FeeInputs const feeInputs{
+            .revision = m_profile.revision,
+            .baseFee = testCase.env.baseFee,
+            .gasLimit = msg.gas,
+            .gasPrice = tx.gasPrice,
+            .gasTipCap = gasTipCap,
+            .gasFeeCap = gasFeeCap,
+            .web3TypedTxKind = web3TypedTxKind,
+            .hasExplicitFeeCaps = hasExplicitFeeCaps,
+        };
         bcos::u256 blobFee{0};
         if (m_profile.revision.eip4844 && !testCase.transaction.blobVersionedHashes.empty())
         {
@@ -276,7 +281,7 @@ task::Task<ExecutionResult> EthReferenceBridgeAdapter::execute(
                       static_cast<bcos::u256>(gas::BLOB_GAS_PER_BLOB) * testCase.env.blobBaseFee;
         }
         applyGstTransactionSettlement(result.stateDiff, testCase.preState, msg,
-            testCase.env.coinbase, effectiveGasPrice, testCase.env.baseFee, finalGasUsed, blobFee);
+            testCase.env.coinbase, feeInputs, finalGasUsed, blobFee);
     }
 
     auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty();

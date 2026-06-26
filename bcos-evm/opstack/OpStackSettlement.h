@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackFeeSidecar.h"
 #include <bcos-task/Task.h>
 #include <evmc/evmc.h>
 #include <functional>
@@ -8,7 +9,6 @@
 namespace bcos::evm
 {
 
-struct OpStackFeeContext;
 struct OpStackFeeParams;
 struct OpStackExecutionRequest;
 struct OpStackExecutionResult;
@@ -32,24 +32,23 @@ bool isNormalPreExecutionReject(TxPipelineExitKind exitKind) noexcept;
 void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
     OpStackExecutionResult& output, int64_t originalGasLimit);
 
-void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackExecutionRequest const& input,
-    OpStackFeeContext const& feeCtx, OpStackFeeParams const& feeParams,
-    OpStackSettlementResult const& settled);
+void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackSettlementView& view,
+    OpStackFeeParams const& feeParams, OpStackSettlementResult const& settled);
 
 OpStackSettlementResult finalizeNormal(
-    TxPipelineContext const& ctx, OpStackFeeContext const& feeCtx, TxPipelineExitKind exitKind);
+    TxPipelineContext const& ctx, OpStackFeeSidecar const& sidecar, TxPipelineExitKind exitKind);
 
 OpStackSettlementResult finalizeDeposit(
     TxPipelineContext& ctx, TxPipelineExitKind exitKind, evmc_status_code evmStatus);
 
-task::Task<OpStackSettlementResult> settleNormal(TxPipelineContext& ctx, OpStackFeeContext& feeCtx,
+task::Task<OpStackSettlementResult> settleNormal(OpStackSettlementView view,
     TxPipelineExitKind exitKind, OpStackTxFeeLedger& ledger, GasPoolHooks const& gasPool);
 
 task::Task<OpStackSettlementResult> settleDeposit(TxPipelineContext& ctx,
     TxPipelineExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool);
 
 /// ADR-025: abort (Intrinsic/GasAfford reject) or commit + settle + receipt meta projection.
-task::Task<void> completeNormalTxAfterPipeline(TxPipelineContext& ctx, OpStackFeeContext& feeCtx,
+task::Task<void> completeNormalTxAfterPipeline(OpStackSettlementView view,
     OpStackExecutionRequest& input, OpStackFeeParams const& feeParams, GasPoolHooks const& gasPool,
     OpStackExecutionResult& output);
 

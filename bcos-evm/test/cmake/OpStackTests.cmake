@@ -27,6 +27,8 @@ add_executable(OpStackIntrinsicGasSyncTest
     ../opstack/OpStackOrchestrationProfile.cpp
     ../opstack/OpStackPrecheckPolicy.cpp
     ../opstack/OpStackTxFeeLedger.cpp
+    ../opstack/OpStackSettlementView.cpp
+    ../opstack/OpStackChainCallTargetAdapter.cpp
     ../opstack/fee/RollupCost.cpp
     ../opstack/fee/OpStackFee.cpp
     ../opstack/fee/OpStackFloorGas.cpp

@@ -2,7 +2,9 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "helpers/InMemoryEvmStateReader.h"
@@ -33,14 +35,16 @@ BOOST_AUTO_TEST_CASE(buyGas_failure_records_result_on_ctx_not_fee_context)
     auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
-    OpStackFeeContext feeCtx;
-    feeCtx.m_gasTipCap = 1;
-    feeCtx.m_gasFeeCap = 10;
-    feeCtx.m_hasGasFeeCap = true;
-    feeCtx.m_blockInfo.baseFee = 0;
+    OpStackExecutionRequest input;
+    input.gasTipCap = 1;
+    input.gasFeeCap = 10;
+    input.blockInfo.baseFee = 0;
+
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
     OpStackTxFeeLedger ledger;
-    BOOST_REQUIRE(!task::syncWait(ledger.buyGas(ctx, feeCtx)));
+    BOOST_REQUIRE(!task::syncWait(ledger.buyGas(view)));
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
 }
@@ -57,14 +61,16 @@ BOOST_AUTO_TEST_CASE(buyGas_uses_ctx_message_not_fee_context_copy)
     auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
-    OpStackFeeContext feeCtx;
-    feeCtx.m_gasTipCap = 1;
-    feeCtx.m_gasFeeCap = 10;
-    feeCtx.m_hasGasFeeCap = true;
-    feeCtx.m_blockInfo.baseFee = 0;
+    OpStackExecutionRequest input;
+    input.gasTipCap = 1;
+    input.gasFeeCap = 10;
+    input.blockInfo.baseFee = 0;
+
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
     OpStackTxFeeLedger ledger;
-    auto ok = task::syncWait(ledger.buyGas(ctx, feeCtx));
+    auto ok = task::syncWait(ledger.buyGas(view));
     BOOST_REQUIRE(ok);
     BOOST_CHECK(ctx.state.get_balance(sender) < u256(1'000'000));
 }
@@ -89,22 +95,24 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(100); };
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 10); };
 
-    OpStackFeeContext feeCtx;
-    feeCtx.m_gasTipCap = 5;
-    feeCtx.m_gasFeeCap = 10;
-    feeCtx.m_hasGasFeeCap = true;
-    feeCtx.m_blockInfo.timestamp = 1;
-    feeCtx.m_blockInfo.baseFee = 2;
-    feeCtx.m_blockInfo.coinbase = coinbase;
-    feeCtx.m_rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
+    OpStackExecutionRequest input;
+    input.gasTipCap = 5;
+    input.gasFeeCap = 10;
+    input.blockInfo.timestamp = 1;
+    input.blockInfo.baseFee = 2;
+    input.blockInfo.coinbase = coinbase;
+    input.rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
 
-    BOOST_REQUIRE(task::syncWait(executor.buyGas(ctx, feeCtx)));
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
+
+    BOOST_REQUIRE(task::syncWait(executor.buyGas(view)));
 
     OpStackSettlementResult settled;
     settled.gasUsed = 400;
     settled.gasRemaining = 600;
 
-    task::syncWait(executor.refundGas(ctx, feeCtx, settled));
+    task::syncWait(executor.refundGas(view, settled));
 
     BOOST_CHECK_EQUAL(ctx.state.get_balance(coinbase), u256(2'000));
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_BASE_FEE_RECIPIENT), u256(800));
@@ -133,23 +141,25 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(60); };
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 50); };
 
-    OpStackFeeContext feeCtx;
-    feeCtx.m_gasTipCap = 2;
-    feeCtx.m_gasFeeCap = 4;
-    feeCtx.m_hasGasFeeCap = true;
-    feeCtx.m_blockInfo.timestamp = 10;
-    feeCtx.m_blockInfo.baseFee = 1;
-    feeCtx.m_blockInfo.coinbase = coinbase;
-    feeCtx.m_rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
+    OpStackExecutionRequest input;
+    input.gasTipCap = 2;
+    input.gasFeeCap = 4;
+    input.blockInfo.timestamp = 10;
+    input.blockInfo.baseFee = 1;
+    input.blockInfo.coinbase = coinbase;
+    input.rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
 
-    BOOST_REQUIRE(task::syncWait(executor.buyGas(ctx, feeCtx)));
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
+
+    BOOST_REQUIRE(task::syncWait(executor.buyGas(view)));
 
     auto const settlement = postExecuteGasSettlement(500, 120, 0, 0);
     OpStackSettlementResult settled;
     settled.gasUsed = static_cast<int64_t>(settlement.gasUsed);
     settled.gasRemaining = settlement.gasRemaining;
 
-    task::syncWait(executor.refundGas(ctx, feeCtx, settled));
+    task::syncWait(executor.refundGas(view, settled));
 
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_L1_FEE_RECIPIENT), u256(60));
     BOOST_CHECK_EQUAL(ctx.state.get_balance(OP_OPERATOR_FEE_RECIPIENT), u256(430));

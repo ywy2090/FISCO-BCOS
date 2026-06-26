@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryEvmStateReader.h"
@@ -77,12 +78,13 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
     message.gas = static_cast<int64_t>(floor - 1);
 
     OpStackExecutionRequest input;
-    OpStackFeeContext feeCtx;
-    feeCtx.m_skipTransactionChecks = false;
+    input.skipTransactionChecks = false;
 
     TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    OpStackOrchestrationProfile::Session session{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
     policy.checkGasAffordable(ctx);
 
@@ -94,10 +96,15 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
 {
     OpStackExecutionRequest input;
     input.nonce = 42;
-    OpStackFeeContext feeCtx;
-    feeCtx.m_authTupleCount = 2;
+    input.authorizations.resize(2);
 
-    OpStackOrchestrationProfile::Session session{input, feeCtx};
+    state::test::InMemoryEvmStateReader stateView;
+    evmc_message msg{};
+    TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
+
+    OpStackOrchestrationProfile::Session session{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(session);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),

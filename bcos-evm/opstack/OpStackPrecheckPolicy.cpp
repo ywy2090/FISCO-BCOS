@@ -46,23 +46,23 @@ EVMCResult makePreCheckError(
 }
 }  // namespace
 
-OpStackPrecheckPolicy::OpStackPrecheckPolicy(
-    OpStackExecutionRequest const& input, OpStackFeeContext& feeCtx)
-  : m_input(input), m_feeCtx(feeCtx)
+OpStackPrecheckPolicy::OpStackPrecheckPolicy(OpStackSettlementView& view)
+  : m_view(view), m_sidecar(view.mutableSidecar())
 {
     m_intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
-    m_intrinsicPolicy.authTupleCount = feeCtx.m_authTupleCount;
-    m_intrinsicPolicy.accessList = feeCtx.m_accessList;
-    m_intrinsicPolicy.web3TypedTxKind = feeCtx.m_web3TypedTxKind;
+    m_intrinsicPolicy.authTupleCount = view.authTupleCount();
+    m_intrinsicPolicy.accessList = view.accessList();
+    m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();
 }
 
 void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
 {
-    auto const deposit = isDepositTx(m_input);
+    auto const& input = m_view.input;
+    auto const deposit = m_view.isDeposit();
 
     if (deposit)
     {
-        if (m_input.depositTx.has_value() && m_input.depositTx->isSystemTransaction)
+        if (input.depositTx.has_value() && input.depositTx->isSystemTransaction)
         {
             ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
             ctx.earlyExit = true;
@@ -70,10 +70,10 @@ void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
         return;
     }
 
-    if (!m_input.skipNonceChecks)
+    if (!input.skipNonceChecks)
     {
-        auto const stateNonce = ctx.state.get_nonce(m_input.message.sender);
-        if (stateNonce != m_input.nonce)
+        auto const stateNonce = ctx.state.get_nonce(input.message.sender);
+        if (stateNonce != input.nonce)
         {
             ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::NonceCheckFail);
             ctx.earlyExit = true;
@@ -81,9 +81,9 @@ void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
         }
     }
 
-    if (!m_input.skipTransactionChecks)
+    if (!input.skipTransactionChecks)
     {
-        auto const senderCode = ctx.state.get_code(m_input.message.sender);
+        auto const senderCode = ctx.state.get_code(input.message.sender);
         if (!senderCode.empty() &&
             !parseDelegationTarget(bcos::bytesConstRef{senderCode.data(), senderCode.size()})
                  .has_value())
@@ -93,10 +93,9 @@ void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
             return;
         }
 
-        if (gas::isEip1559FeeMarketActive(m_input.revisionConfig))
+        if (gas::isEip1559FeeMarketActive(input.revisionConfig))
         {
-            if (m_input.gasFeeCap < m_input.gasTipCap ||
-                m_input.gasFeeCap < m_input.blockInfo.baseFee)
+            if (input.gasFeeCap < input.gasTipCap || input.gasFeeCap < input.blockInfo.baseFee)
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
                 ctx.earlyExit = true;
@@ -104,27 +103,27 @@ void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
             }
         }
 
-        if (hasBlobTxIntent(m_input))
+        if (hasBlobTxIntent(input))
         {
-            if (!m_input.revisionConfig.eip4844)
+            if (!input.revisionConfig.eip4844)
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
                 ctx.earlyExit = true;
                 return;
             }
-            if (isCreateKind(m_input.message.kind))
+            if (isCreateKind(input.message.kind))
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
                 ctx.earlyExit = true;
                 return;
             }
-            if (m_input.blobVersionedHashes.empty())
+            if (input.blobVersionedHashes.empty())
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
                 ctx.earlyExit = true;
                 return;
             }
-            for (auto const& hash : m_input.blobVersionedHashes)
+            for (auto const& hash : input.blobVersionedHashes)
             {
                 if (!isValidVersionedHash(hash))
                 {
@@ -133,7 +132,7 @@ void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
                     return;
                 }
             }
-            if (m_input.blobGasFeeCap < m_input.blockInfo.blobBaseFee)
+            if (input.blobGasFeeCap < input.blockInfo.blobBaseFee)
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::InsufficientFunds);
                 ctx.earlyExit = true;
@@ -141,13 +140,13 @@ void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
             }
         }
 
-        if (!m_input.authorizations.empty() && isCreateKind(m_input.message.kind))
+        if (!input.authorizations.empty() && isCreateKind(input.message.kind))
         {
             ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
             ctx.earlyExit = true;
             return;
         }
-        if (m_input.authorizationListPresent && m_input.authorizations.empty())
+        if (input.authorizationListPresent && input.authorizations.empty())
         {
             ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
             ctx.earlyExit = true;
@@ -162,9 +161,9 @@ void OpStackPrecheckPolicy::checkGasAffordable(TxPipelineContext& ctx) const
     if (auto preDebitError = opStackFloorGasPrecheck({.message = ctx.message,
             .state = ctx.state,
             .gasLimit = gasLimit,
-            .skipTransactionChecks = m_feeCtx.m_skipTransactionChecks,
+            .skipTransactionChecks = m_view.skipTransactionChecks(),
             .inputData = inputData,
-            .floorDataGasOut = m_feeCtx.m_floorDataGas});
+            .floorDataGasOut = m_sidecar.floorDataGas});
         preDebitError.has_value())
     {
         ctx.evmcResult = std::move(*preDebitError);
@@ -174,7 +173,7 @@ void OpStackPrecheckPolicy::checkGasAffordable(TxPipelineContext& ctx) const
 
 void OpStackPrecheckPolicy::tuneExecutionInput(ExecuteMessageInput& execInput) const
 {
-    if (m_feeCtx.m_isDepositTx)
+    if (m_view.isDeposit())
     {
         execInput.skipTopLevelSenderNonceBump = true;
     }

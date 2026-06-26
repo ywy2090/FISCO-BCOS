@@ -29,10 +29,10 @@ BOOST_AUTO_TEST_CASE(finalize_normal_completed_matches_post_execute_settlement)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
     ctx.exitKind = TxPipelineExitKind::Completed;
 
-    OpStackFeeContext feeCtx;
-    feeCtx.m_floorDataGas = 0;
+    OpStackFeeSidecar sidecar;
+    sidecar.floorDataGas = 0;
 
-    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind);
+    auto result = finalizeNormal(ctx, sidecar, ctx.exitKind);
 
     auto const stateRefund = gas::isEip1559GasRefundEnabled(revision) ? 5'000u : 0u;
     auto const expected = postExecuteGasSettlement(100'000u, 80'000u, stateRefund, 0u);
@@ -49,9 +49,9 @@ BOOST_AUTO_TEST_CASE(finalize_normal_intrinsic_reject_gas_used_zero)
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
     ctx.exitKind = TxPipelineExitKind::IntrinsicRejected;
 
-    OpStackFeeContext feeCtx;
+    OpStackFeeSidecar sidecar;
 
-    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind);
+    auto result = finalizeNormal(ctx, sidecar, ctx.exitKind);
 
     BOOST_CHECK_EQUAL(result.gasUsed, int64_t{0});
     BOOST_CHECK_EQUAL(result.gasRemaining, 50'000u);
@@ -72,10 +72,10 @@ BOOST_AUTO_TEST_CASE(finalize_normal_rules_rejected_applies_settlement)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
     ctx.exitKind = TxPipelineExitKind::RulesRejected;
 
-    OpStackFeeContext feeCtx;
-    feeCtx.m_floorDataGas = 0;
+    OpStackFeeSidecar sidecar;
+    sidecar.floorDataGas = 0;
 
-    auto result = finalizeNormal(ctx, feeCtx, ctx.exitKind);
+    auto result = finalizeNormal(ctx, sidecar, ctx.exitKind);
 
     auto const expected = postExecuteGasSettlement(100'000u, 60'000u, 0u, 0u);
     BOOST_CHECK_EQUAL(result.gasUsed, static_cast<int64_t>(expected.gasUsed));

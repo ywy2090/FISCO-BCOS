@@ -1,7 +1,8 @@
 #pragma once
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
+#include "bcos-evm/eth/gas/TxFeeSettlement.h"
+#include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
 #include "bcos-evm/eth/policy/EthPolicy.h"
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/protocol/Transaction.h>
@@ -30,19 +31,21 @@ struct EthTxFeeLedger
         if (data.m_call)
             co_return true;
 
-        const auto caps = gas::normalizeGasCaps(data.m_gasPriceLegacy, data.m_gasTipCap,
-            data.m_gasFeeCap, data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps,
-            data.m_executionContext.revisionConfig);
-        data.m_effectiveGasPrice =
-            gas::resolveEffectiveGasPrice(caps.gasTipCap, caps.gasFeeCap, data.m_blockInfo.baseFee);
+        auto const feeInputs =
+            gas::toFeeInputs(data.m_executionContext.revisionConfig, data.m_blockInfo,
+                gas::FeeCapsView{data.m_gasPriceLegacy, data.m_gasTipCap, data.m_gasFeeCap,
+                    data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps},
+                data.m_gasLimit);
+        auto const plan = gas::planPreExecution(feeInputs);
+        data.m_effectiveGasPrice = plan.effectiveGasPrice;
         if (data.m_effectiveGasPrice == 0)
             co_return true;
         if (data.m_gasLimit <= 0)
             co_return true;
 
-        const auto maxGasCost = u256(data.m_gasLimit) * data.m_effectiveGasPrice;
+        const auto maxGasCost = plan.preDebitAmount;
         const auto txValue = u256(data.m_transaction.get().value());
-        const auto totalRequired = gas::maxBalanceGasDebit(data.m_gasLimit, caps) + txValue;
+        const auto totalRequired = plan.maxBalanceDebit + txValue;
 
         auto& msg = data.m_executionContext.message;
         ledger::account::EVMAccount senderAccount(data.m_rollbackableStorage, msg.sender, false);
@@ -100,19 +103,24 @@ struct EthTxFeeLedger
             co_await data.m_rollbackableStorage.rollback(data.m_afterBuyGasSavepoint);
         }
 
+        auto const feeInputs =
+            gas::toFeeInputs(data.m_executionContext.revisionConfig, data.m_blockInfo,
+                gas::FeeCapsView{data.m_gasPriceLegacy, data.m_gasTipCap, data.m_gasFeeCap,
+                    data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps},
+                data.m_gasLimit);
         const int64_t refundGasUnits = std::max<int64_t>(0, data.m_gasLimit - data.m_gasUsed);
-        if (refundGasUnits > 0)
+        auto const plan = gas::planPostExecution(feeInputs, data.m_gasUsed, refundGasUnits);
+
+        if (plan.unusedRefund > 0)
         {
             auto& msg = data.m_executionContext.message;
             ledger::account::EVMAccount senderAccount(
                 data.m_rollbackableStorage, msg.sender, false);
-            auto refund = u256(refundGasUnits) * data.m_effectiveGasPrice;
             auto balance = co_await senderAccount.balance();
-            co_await senderAccount.setBalance(balance + refund);
+            co_await senderAccount.setBalance(balance + plan.unusedRefund);
         }
 
-        auto const tipPerGas = gas::tipPerGas(data.m_effectiveGasPrice, data.m_blockInfo.baseFee);
-        if (data.m_gasUsed > 0 && tipPerGas > 0)
+        if (plan.coinbaseTip > 0)
         {
             ledger::account::EVMAccount coinbaseAccount(
                 data.m_rollbackableStorage, data.m_blockInfo.coinbase, false);
@@ -121,7 +129,7 @@ struct EthTxFeeLedger
                 co_await coinbaseAccount.create();
             }
             auto balance = co_await coinbaseAccount.balance();
-            co_await coinbaseAccount.setBalance(balance + u256(data.m_gasUsed) * tipPerGas);
+            co_await coinbaseAccount.setBalance(balance + plan.coinbaseTip);
         }
     }
 

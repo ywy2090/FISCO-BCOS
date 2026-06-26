@@ -20,14 +20,14 @@
 
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 
 namespace bcos::evm
 {
 
 struct OpStackPrecheckPolicy : ChainPrecheckPolicy
 {
-    OpStackPrecheckPolicy(OpStackExecutionRequest const& input, OpStackFeeContext& feeCtx);
+    explicit OpStackPrecheckPolicy(OpStackSettlementView& view);
 
     IntrinsicGasPolicy intrinsicGasPolicy() const override { return m_intrinsicPolicy; }
 
@@ -41,8 +41,8 @@ struct OpStackPrecheckPolicy : ChainPrecheckPolicy
     ExecuteMessageOutput runEvmExecution(ExecuteMessageInput&& input) const override;
 
 private:
-    OpStackExecutionRequest const& m_input;
-    OpStackFeeContext& m_feeCtx;
+    OpStackSettlementView& m_view;
+    OpStackFeeSidecar& m_sidecar;
     IntrinsicGasPolicy m_intrinsicPolicy{};
 };
 

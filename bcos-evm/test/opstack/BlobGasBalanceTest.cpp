@@ -6,6 +6,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include "helpers/OpStackEntryPrecheck.h"
@@ -157,20 +158,22 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackTxFeeLedger executor;
-    OpStackFeeContext feeCtx;
-    feeCtx.m_gasTipCap = 1;
-    feeCtx.m_gasFeeCap = 2;
-    feeCtx.m_hasGasFeeCap = true;
-    feeCtx.m_blockInfo.baseFee = 1;
-    feeCtx.m_blockInfo.blobBaseFee = 10;
-    feeCtx.m_blobGasFeeCap = 20;
-    feeCtx.m_blobVersionedHashes.push_back(makeVersionedHash());
+    OpStackExecutionRequest input;
+    input.gasTipCap = 1;
+    input.gasFeeCap = 2;
+    input.blockInfo.baseFee = 1;
+    input.blockInfo.blobBaseFee = 10;
+    input.blobGasFeeCap = 20;
+    input.blobVersionedHashes.push_back(makeVersionedHash());
+
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
     auto const executionGasCost = u256(1'000) * u256(2);
     auto const blobGasCost = u256(OP_BLOB_GAS_PER_BLOB) * u256(10);
     auto const expectedDeduction = executionGasCost + blobGasCost;
 
-    BOOST_REQUIRE(task::syncWait(executor.buyGas(ctx, feeCtx)));
+    BOOST_REQUIRE(task::syncWait(executor.buyGas(view)));
     BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), initialBalance - expectedDeduction);
 }
 
@@ -187,17 +190,19 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackTxFeeLedger executor;
-    OpStackFeeContext feeCtx;
-    feeCtx.m_gasTipCap = 1;
-    feeCtx.m_gasFeeCap = 2;
-    feeCtx.m_hasGasFeeCap = true;
-    feeCtx.m_blockInfo.baseFee = 1;
-    feeCtx.m_blockInfo.blobBaseFee = 10;
-    feeCtx.m_blobGasFeeCap = 20;
-    feeCtx.m_blobVersionedHashes.push_back(makeVersionedHash());
+    OpStackExecutionRequest input;
+    input.gasTipCap = 1;
+    input.gasFeeCap = 2;
+    input.blockInfo.baseFee = 1;
+    input.blockInfo.blobBaseFee = 10;
+    input.blobGasFeeCap = 20;
+    input.blobVersionedHashes.push_back(makeVersionedHash());
+
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view{ctx, input, sidecar};
 
     auto const balanceBefore = ctx.state.get_balance(sender);
-    BOOST_REQUIRE(!task::syncWait(executor.buyGas(ctx, feeCtx)));
+    BOOST_REQUIRE(!task::syncWait(executor.buyGas(view)));
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
     BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), balanceBefore);
 }

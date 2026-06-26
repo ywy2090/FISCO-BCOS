@@ -21,7 +21,7 @@
 #include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
-#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 
 namespace bcos::evm
 {
@@ -31,7 +31,7 @@ struct OpStackOrchestrationProfile
     struct Session
     {
         OpStackExecutionRequest const& input;
-        OpStackFeeContext& feeCtx;
+        OpStackSettlementView view;
     };
 
     struct Bindings

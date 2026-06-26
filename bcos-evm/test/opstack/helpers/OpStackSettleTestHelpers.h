@@ -4,7 +4,9 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackExecutionBridge.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
+#include "bcos-evm/opstack/OpStackSettlementView.h"
 #include "bcos-evm/opstack/OpStackTxFeeLedger.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "helpers/InMemoryEvmStateReader.h"
@@ -54,7 +56,9 @@ struct NormalSettleFixture
     evmc_address coinbase{};
     evmc_message message{};
     TxPipelineContext ctx;
-    OpStackFeeContext feeCtx;
+    OpStackExecutionRequest input;
+    OpStackFeeSidecar sidecar;
+    OpStackSettlementView view;
     OpStackTxFeeLedger ledger;
     GasPoolSpy spy;
 
@@ -63,7 +67,8 @@ struct NormalSettleFixture
       : sender(addressFromLastByte(0x01)),
         coinbase(addressFromLastByte(0x02)),
         message(makeMessage(sender, gasLimit)),
-        ctx(stateView, message, bcos::evm_standard::makeIsthmusRevisionConfig(), bcos::u256(0))
+        ctx(stateView, message, bcos::evm_standard::makeIsthmusRevisionConfig(), bcos::u256(0)),
+        view(ctx, input, sidecar)
     {
         stateView.insert_account(sender, state::Account{.balance = u256(2'000'000)});
 
@@ -74,13 +79,12 @@ struct NormalSettleFixture
         ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
         ctx.exitKind = exitKind;
 
-        feeCtx.m_gasTipCap = 5;
-        feeCtx.m_gasFeeCap = 10;
-        feeCtx.m_hasGasFeeCap = true;
-        feeCtx.m_blockInfo.timestamp = 1;
-        feeCtx.m_blockInfo.baseFee = 2;
-        feeCtx.m_blockInfo.coinbase = coinbase;
-        feeCtx.m_rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
+        input.gasTipCap = 5;
+        input.gasFeeCap = 10;
+        input.blockInfo.timestamp = 1;
+        input.blockInfo.baseFee = 2;
+        input.blockInfo.coinbase = coinbase;
+        input.rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
 
         ledger.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(100); };
         ledger.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 10); };
@@ -88,7 +92,7 @@ struct NormalSettleFixture
 
     void buyGas()
     {
-        auto ok = task::syncWait(ledger.buyGas(ctx, feeCtx));
+        auto ok = task::syncWait(ledger.buyGas(view));
         BOOST_REQUIRE(ok);
     }
 };
@@ -104,7 +108,7 @@ inline void assertGasPoolMatchesSettled(
 inline void assertSettleNormalMatchesFinalizeOracle(
     NormalSettleFixture const& fixture, OpStackSettlementResult const& settled)
 {
-    auto const oracle = finalizeNormal(fixture.ctx, fixture.feeCtx, fixture.ctx.exitKind);
+    auto const oracle = finalizeNormal(fixture.ctx, fixture.sidecar, fixture.ctx.exitKind);
     BOOST_CHECK_EQUAL(settled.gasUsed, oracle.gasUsed);
     BOOST_CHECK_EQUAL(settled.gasRemaining, oracle.gasRemaining);
     BOOST_CHECK_EQUAL(settled.maxUsedGas, oracle.maxUsedGas);

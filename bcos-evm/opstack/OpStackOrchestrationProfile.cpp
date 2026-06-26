@@ -23,7 +23,7 @@ namespace bcos::evm
 
 OpStackPrecheckPolicy OpStackOrchestrationProfile::buildPrecheckPolicy(Session& session)
 {
-    return OpStackPrecheckPolicy{session.input, session.feeCtx};
+    return OpStackPrecheckPolicy{session.view};
 }
 
 OpStackOrchestrationErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(

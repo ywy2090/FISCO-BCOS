@@ -96,6 +96,11 @@ target_include_directories(Eip1559AccessTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(Eip1559AccessTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME Eip1559Access COMMAND Eip1559AccessTest)
+add_executable(TxFeeSettlementTest eth/TxFeeSettlementTest.cpp)
+target_include_directories(TxFeeSettlementTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(TxFeeSettlementTest PRIVATE bcos-evm-eth bcos-utilities)
+add_test(NAME TxFeeSettlement COMMAND TxFeeSettlementTest)
 add_executable(Web3TypedTxKindTest eth/Web3TypedTxKindTest.cpp)
 target_include_directories(Web3TypedTxKindTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

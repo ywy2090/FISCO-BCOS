@@ -20,6 +20,8 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/gas/TxFeeSettlement.h"
+#include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
 #include "bcos-evm/eth/reference/EthTxPrecheck.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
@@ -52,12 +54,11 @@ void EthPrecheckPolicy::checkTransactionRules(TxPipelineContext& ctx) const
         return;
     }
 
-    auto const caps = gas::normalizeGasCaps(m_input.gasPrice, m_input.gasTipCap, m_input.gasFeeCap,
-        m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps, m_input.revisionConfig);
-    if (caps.isEip1559Caps)
+    if (gas::isEip1559GasCapsTx(
+            m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps, m_input.revisionConfig))
     {
-        ctx.gasPrice = gas::resolveEffectiveGasPrice(
-            caps.gasTipCap, caps.gasFeeCap, m_input.blockInfo.baseFee);
+        auto const plan = gas::planPreExecution(gas::toFeeInputs(m_input, ctx.originalGasLimit));
+        ctx.gasPrice = plan.effectiveGasPrice;
     }
 }
 
