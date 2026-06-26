@@ -136,6 +136,7 @@ BOOST_AUTO_TEST_CASE(characterize_intrinsic_reject_gas_used_is_zero)
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
+    BOOST_CHECK(!output.receiptMeta.l1Fee.has_value());
 }
 
 BOOST_AUTO_TEST_CASE(characterize_completed_call_gas_used_positive)

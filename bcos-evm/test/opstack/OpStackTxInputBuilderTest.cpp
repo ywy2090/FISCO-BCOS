@@ -233,14 +233,15 @@ BOOST_AUTO_TEST_CASE(buildRollupCostData_uses_signed_web3_rlp_not_encodeForSign)
     BOOST_CHECK_EQUAL(fromBuilder->zeroes, fromSignedGolden.zeroes);
 }
 
-BOOST_AUTO_TEST_CASE(buildRollupCostData_deposit_uses_extra_bytes_unchanged)
+BOOST_AUTO_TEST_CASE(buildRollupCostData_deposit_returns_empty_rollup_cost_data)
 {
     auto depositExtra = buildDepositExtra();
     auto tx = makeWeb3Tx(depositExtra, bcos::executor::DEPOSIT_TX_TYPE);
-    auto const direct = newRollupCostData(bcos::ref(depositExtra));
     auto const fromBuilder = opstack_tx::buildRollupCostData(tx);
     BOOST_REQUIRE(fromBuilder.has_value());
-    BOOST_CHECK_EQUAL(fromBuilder->fastLzSize, direct.fastLzSize);
+    BOOST_CHECK(fromBuilder->isEmpty());
+    // Deposit extra is non-empty; builder must not mirror newRollupCostData(extra).
+    BOOST_CHECK(!newRollupCostData(bcos::ref(depositExtra)).isEmpty());
 }
 
 BOOST_AUTO_TEST_CASE(decodes_eip4844_blob_fields_from_extra_bytes)

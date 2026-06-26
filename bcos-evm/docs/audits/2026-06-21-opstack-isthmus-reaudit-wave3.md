@@ -42,8 +42,8 @@
 | **R3-ORCH-1** | Task 1 | ~~🟡~~ **CLOSED** | `resolveOpStackBaseFee(header)` 读 OPF1 extraData；无 Legacy fallback | `evm.Context.BaseFee` | `OpStackBlockHeaderExtension.h`; `OpStackTxInputBuilder.h` |
 | **R3-ORCH-2** | Task 1 | ~~🟡~~ **CLOSED** | `blobBaseFee` 来自 `calcOpStackBlobBaseFee(excess=0)=1`；**不再读 L1Block slot 7** | `evm.Context.BlobBaseFee` | `OpStackBlockHeaderExtension.h`; `BlobGasBalanceTest` 解耦 |
 | **R3-ORCH-3** | Task 1/2 | ~~🟡~~ **CLOSED** | `OpStackForkSchedule` + per-block cache factories；Bedrock/Ecotone intentional unsupported（ADR-014） | `rollup_cost.go:157-192` | `OpStackFee.*`, ADR-014 |
-| **R3-7623-1** | Task 6 | 🟡 | 非 deposit entry 失败仍执行 settlement + refundGas；TE 层 entry 失败不 `applyStateDiff` 但 receipt 可能带 settlement `gasUsed` | geth entry 失败早返回 | `OpStackExecuteViaHost.cpp:203-245` |
-| **R3-T2-1** | Task 2 | 🟡 | deposit `buildRollupCostData` 对 extra 计 rollup 字节；op-geth 对 deposit 类型返回空 struct | `transaction.go:399-400` | `OpStackTxInputBuilder.h:115-117`（无 fee 影响） |
+| **R3-7623-1** | Task 6 | ~~🟡~~ **CLOSED** | 非 deposit entry 失败 abort（revert buyGas，无 settle/refundGas）；ADR-025 | geth entry 早返回 | `OpStackTxLifecycle.cpp`; characterization #2/#8 |
+| **R3-T2-1** | Task 2 | ~~🟡~~ **CLOSED** | deposit `buildRollupCostData` 返回空 struct（对齐 op-geth） | `transaction.go:399-400` | `OpStackTxInputBuilder.h`; `OpStackTxInputBuilderTest` |
 | **R3-T3-1** | Task 3 | 🟡 | 无 Jovian `operator-fee-fix`（×100）；Isthmus 范围外 | `rollup_cost.go:271-286` | 未实现 |
 
 ### Wave 2 闭合项 — Wave 3 再验证
@@ -80,7 +80,7 @@
 | 2 | `flzCompressLen` | `rollup_cost.go:667-743` | `RollupCost.cpp:12-105` | ✅ |
 | 3 | `l1CostFjord` 公式 | `rollup_cost.go:607-627` | `OpStackFee.cpp:36-56` | ✅ FIX-04 105484/2463 |
 | 4 | signed RLP 字节源 | `MarshalBinary()` | `encodeWeb3SignedMarshalBinary` | ✅ |
-| 5 | deposit rollup 字节 | 空 struct | extra → `newRollupCostData` | 🟡 R3-T2-1 |
+| 5 | deposit rollup 字节 | 空 struct | 空 struct | ✅ **CLOSED R3-T2-1** |
 | 6 | `calldataGasUsed` / L1GasUsed | 第二返回值 | 未暴露 | 🟡 已知 intentional |
 
 ### Task 3 — Operator Fee (Isthmus)
@@ -126,7 +126,7 @@
 | 2 | entry floor vs gasLimit | `IsPrague` + `:552` | `executeEntryFloorDataGasCheck` | ✅ |
 | 3 | post-exec floor bump | `:650-661` | `OpStackGasSettlement.h:35-40` | ✅ |
 | 4 | operator 基于 post-floor gasUsed | `:731` | settlement 后 operator | ✅ |
-| 5 | entry 失败路径 | 早返回无 refund | 仍 settlement+refundGas | 🟡 R3-7623-1 |
+| 5 | entry 失败路径 | 早返回无 refund | abort + revert buyGas（ADR-025） | ✅ **CLOSED R3-7623-1** |
 | 6 | floor E2E receipt | — | 仍缺 | 🟡 |
 
 ### Task 7 — 7702 + 4844
@@ -168,8 +168,8 @@
 | ~~R3-DEP-1~~ | ~~🟡~~ **CLOSED** | CREATE deposit nonce 时序 | `DepositCreateNonceTest`（零 prod 改动） |
 | ~~R3-ORCH-1/2~~ | ~~🟡~~ **CLOSED** | header OPF1 fee 扩展 | `OpStackBlockHeaderExtensionTest`; TE fixture OPF1 header |
 | ~~R3-ORCH-3~~ | ~~🟡~~ **CLOSED** | fork schedule + ADR-014 | `OpStackForkScheduleTest`, `OpStackFeeTest`, smoke E2E |
-| R3-7623-1 | 🟡 | entry 失败仍 refundGas | 对齐 geth 早返回或文档化 TE receipt 语义 |
-| R3-T2-1 | 🟡 | deposit rollup 字节 | 可选 `isDepositTx → empty RollupCostData` |
+| R3-7623-1 | ~~🟡~~ **CLOSED** | entry 失败 abort（ADR-025）；无 phantom refundGas / receipt fee | `OpStackTxLifecycle.cpp`; characterization #2/#8 |
+| R3-T2-1 | ~~🟡~~ **CLOSED** | deposit rollup 字节 | `buildRollupCostData` → `RollupCostData{}` |
 
 **Wave 2 CLOSED 项：** 无 reopen。
 

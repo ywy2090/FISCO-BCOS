@@ -130,7 +130,8 @@ inline std::optional<RollupCostData> buildRollupCostData(protocol::Transaction c
     {
         if (static_cast<uint8_t>(extra[0]) == bcos::executor::DEPOSIT_TX_TYPE)
         {
-            return newRollupCostData(extra);
+            // op-geth transaction.go RollupCostData(): DepositTxType → empty struct.
+            return RollupCostData{};
         }
         if (tx.type() == static_cast<uint8_t>(bcos::protocol::TransactionType::Web3Transaction))
         {

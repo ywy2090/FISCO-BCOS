@@ -5,6 +5,7 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackTxLifecycle.h"
+#include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "opstack/helpers/OpStackLifecycleTestHelpers.h"
 #include <bcos-task/Wait.h>
@@ -107,9 +108,48 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_gas_used_zero_and_returns
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
+    BOOST_CHECK(!output.receiptMeta.l1Fee.has_value());
+    BOOST_CHECK_EQUAL(lifecycleBalanceFromDiff(output.stateDiff, sender), u256(300'000));
     BOOST_REQUIRE_EQUAL(gasPoolSpy.subGasCallCount, 1);
     BOOST_REQUIRE_EQUAL(gasPoolSpy.returnGasCallCount, 1);
     BOOST_CHECK_EQUAL(gasPoolSpy.lastReturnRemaining, static_cast<uint64_t>(gasBelowIntrinsic));
+    BOOST_CHECK_EQUAL(gasPoolSpy.lastReturnUsed, 0u);
+}
+
+BOOST_AUTO_TEST_CASE(lifecycle_normal_gas_afford_reject_aborts_without_settle_or_receipt_fees)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto const sender = lifecycleAddressFromLastByte(0x07);
+    auto const recipient = lifecycleAddressFromLastByte(0x08);
+    setLifecycleOpFeeParams(stateView);
+
+    auto const initialBalance = u256(300'000);
+    stateView.insert_account(sender, state::Account{.balance = initialBalance, .nonce = 0});
+    stateView.insert_account(recipient, state::Account{});
+
+    bcos::bytes calldata(100, 0xff);
+    auto const floor = floorDataGas(bcos::ref(calldata));
+    auto const gasBelowFloor = static_cast<int64_t>(floor - 1);
+
+    evmc::VM vm{evmc_create_evmone()};
+    LifecycleFakeHash hash;
+    LifecycleGasPoolSpy gasPoolSpy;
+
+    auto input =
+        makeLifecycleNormalInput(stateView, vm, hash, sender, recipient, gasBelowFloor, gasPoolSpy);
+    input.message.input_data = calldata.data();
+    input.message.input_size = calldata.size();
+    input.message.gas = gasBelowFloor;
+
+    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
+    BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
+    BOOST_CHECK(!output.receiptMeta.l1Fee.has_value());
+    BOOST_CHECK_EQUAL(lifecycleBalanceFromDiff(output.stateDiff, sender), initialBalance);
+    BOOST_REQUIRE_EQUAL(gasPoolSpy.subGasCallCount, 1);
+    BOOST_REQUIRE_EQUAL(gasPoolSpy.returnGasCallCount, 1);
+    BOOST_CHECK_EQUAL(gasPoolSpy.lastReturnRemaining, static_cast<uint64_t>(gasBelowFloor));
     BOOST_CHECK_EQUAL(gasPoolSpy.lastReturnUsed, 0u);
 }
 

@@ -35,6 +35,24 @@ bool acquireGasPool(GasPoolHooks const& gasPool, int64_t originalGasLimit)
     return gasPool.subGas(gasLimitForPool);
 }
 
+bool isNormalPreExecutionReject(TxPipelineExitKind exitKind) noexcept
+{
+    return exitKind == TxPipelineExitKind::IntrinsicRejected ||
+           exitKind == TxPipelineExitKind::GasAffordRejected;
+}
+
+void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
+    OpStackExecutionResult& output, int64_t originalGasLimit)
+{
+    if (ctx.state.has_checkpoint())
+    {
+        ctx.state.revert();
+    }
+    releaseGasPoolFullLimit(gasPool, originalGasLimit);
+    output.gasUsed = 0;
+    output.stateDiff = ctx.state.build_diff();
+}
+
 void populateFeeContext(OpStackFeeContext& feeCtx, OpStackExecutionRequest const& input)
 {
     feeCtx.m_call = input.call;
@@ -165,10 +183,12 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
         co_return output;
     }
 
+    ctx.state.checkpoint();
+
     auto buyGasOk = co_await input.opTxExecutor.buyGas(ctx, feeCtx);
     if (!buyGasOk)
     {
-        releaseGasPoolFullLimit(gasPool, ctx.originalGasLimit);
+        abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
         output.evmcResult = std::move(ctx.evmcResult);
         co_return output;
     }
@@ -179,6 +199,17 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
+
+    if (isNormalPreExecutionReject(ctx.exitKind))
+    {
+        abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
+        EVM_LOG(DEBUG) << LOG_DESC("opStackTxLifecycle entry reject abort")
+                       << LOG_KV("exit", trace::exitKind(ctx.exitKind))
+                       << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code));
+        co_return output;
+    }
+
+    ctx.state.commit();
 
     auto settled = co_await settleNormal(ctx, feeCtx, ctx.exitKind, input.opTxExecutor, gasPool);
 

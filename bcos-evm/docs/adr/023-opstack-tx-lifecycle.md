@@ -106,8 +106,11 @@ Lifecycle **inlines** `OpStackOrchestrationProfile::bind(session)` — hooks are
 | Path | Guaranteed fields | Not guaranteed |
 | --- | --- | --- |
 | precheck failure | `evmcResult` | `gasUsed`, `stateDiff`, `receiptMeta`, `logs` |
-| buyGas / subGas failure | `evmcResult`; gasPool released | same as above |
+| buyGas / subGas failure | `evmcResult`; gasPool released; `gasUsed = 0` | `receiptMeta`, fee routing in `stateDiff` |
+| normal pre-execution reject (`IntrinsicRejected`, `GasAffordRejected`) | `evmcResult`; `gasUsed = 0`; gasPool released; **no fee meta**; **unchanged sender balance in `stateDiff`** | `logs` |
 | full path | all via `projectOutput` | — |
+
+See **ADR-025** for R3-7623-1 abort semantics (`buyGas` checkpoint + revert, no `settleNormal` on entry reject).
 
 ### 8. Phased delivery
 
@@ -123,8 +126,9 @@ Lifecycle **inlines** `OpStackOrchestrationProfile::bind(session)` — hooks are
 | # | Scenario | Key assertions |
 | --- | --- | --- |
 | 1 | Normal SUCCESS | fee routing (sender/coinbase/L1/operator), `gasUsed`, `l1Fee`, gasPool once |
-| 2 | Normal IntrinsicRejected | `gasUsed == 0`, gasPool `returnGas(fullLimit, 0)` |
+| 2 | Normal IntrinsicRejected | `gasUsed == 0`, gasPool `returnGas(fullLimit, 0)`; sender balance unchanged; no `receiptMeta.l1Fee` |
 | 3 | Normal buyGas fail | `NotEnoughCash`, gasPool `returnGas(limit, 0)`, no settle |
+| 8 | Normal GasAffordRejected | same abort contract as #2 (ADR-025) |
 | 4 | Deposit SUCCESS + mint | mint retained, `depositNonce`, nonce +1 |
 | 5 | Deposit REVERT | balance revert, nonce +1, actual `gasUsed` |
 | 6 | Deposit IntrinsicRejected | `gasUsed == gasLimit`, balance revert, nonce +1 |
