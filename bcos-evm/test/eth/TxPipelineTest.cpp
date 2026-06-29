@@ -7,6 +7,7 @@
 #include "bcos-evm/eth/pipeline/ExecutionSession.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
+#include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <evmone/evmone.h>
@@ -206,6 +207,10 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
+// GAP-006 characterization: checkBalanceAndValue failure defaults exitKind to GasAffordRejected
+// even when evmc status is INSUFFICIENT_BALANCE (balance, not gas affordability).
+// TxPipeline.cpp:89-94 assigns GasAffordRejected when earlyExit without explicit exitKind.
+// CURRENT_ORACLE: GasAffordRejected + InsufficientFunds; GETH_ORACLE: ErrInsufficientFunds reject.
 BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_execution)
 {
     state::test::InMemoryEvmStateReader stateView;
@@ -224,7 +229,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
         failResult.gas_left = 0;
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
         c.earlyExit = true;
-        c.exitKind = TxPipelineExitKind::GasAffordRejected;
+        // Deliberately omit exitKind to exercise TxPipeline.cpp:92-94 default.
     };
     precheckPolicy.onTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
@@ -234,7 +239,38 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::GasAffordRejected));
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::InsufficientFunds));
     BOOST_CHECK_EQUAL(tuneExecutionInputCalls, 0);
+}
+
+// GAP-003 E-PEX-PIPE: full runTxPipeline path maps BCOS exception via EthOrchestrationErrorPolicy.
+// GETH_ORACLE: go-ethereum/core/state_transition.go:550-552 — unexpected err rejects tx at block
+// level. CURRENT_ORACLE: ExceptionHandled + EVMC_INTERNAL_ERROR + Unknown; no throw escapes
+// runTxPipeline.
+BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto ctx = makeContext(stateView);
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
+
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    precheckPolicy.onSetupMessage = [](TxPipelineContext&) { throw protocol::PrecompiledError{}; };
+
+    EthOrchestrationErrorPolicy errorPolicy;
+    BOOST_REQUIRE_NO_THROW(runTxPipeline(ctx, precheckPolicy, errorPolicy));
+
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::ExceptionHandled));
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INTERNAL_ERROR);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 0);
+    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::Unknown));
 }
 
 BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_revert)

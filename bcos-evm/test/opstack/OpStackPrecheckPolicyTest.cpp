@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE OpStackPrecheckPolicyTest
 
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
@@ -47,6 +48,11 @@ BOOST_AUTO_TEST_CASE(entry_rules_rejects_nonce_mismatch)
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::NonceCheckFail);
 }
 
+// GAP-007: system deposit tx rejected at entry precheck.
+// CURRENT_ORACLE: TransactionStatus::Malformed (OpStackPrecheckPolicy.cpp:67).
+// OPGETH_ORACLE: op-geth/core/state_transition.go:354-357 ErrSystemTxNotSupported (Regolith+);
+//               op-geth/core/error.go:153-154 — not included; whole tx reject (not deposit failure
+//               path).
 BOOST_AUTO_TEST_CASE(entry_rules_deposit_system_tx_rejected)
 {
     state::test::InMemoryEvmStateReader stateView;
@@ -56,10 +62,12 @@ BOOST_AUTO_TEST_CASE(entry_rules_deposit_system_tx_rejected)
     input.message.sender = sender;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
+    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
 
     auto error = runOpStackEntryPrecheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+    BOOST_CHECK_EQUAL(error->status_code, EVMC_FAILURE);
 }
 
 BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)

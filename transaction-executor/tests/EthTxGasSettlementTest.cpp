@@ -224,6 +224,78 @@ BOOST_AUTO_TEST_CASE(EffectiveRefundEip3529_cap)
     BOOST_CHECK_EQUAL(effectiveRefundEip3529(100, 0), 0);
 }
 
+// GAP-008: pipeline-level EIP-3529 refund cap via settleTopLevelTransactionGas (not pure helper
+// only). GETH_ORACLE: go-ethereum/core/state_transition.go:778 RefundQuotientEIP3529=5;
+//              state_transition.go:807-816 min(stateRefund, gasUsed/5).
+// No named geth unit test — math alignment with TxIntrinsicGas.h:113-119.
+BOOST_AUTO_TEST_CASE(Eip3529RefundCapBoundary_exactCap)
+{
+    int64_t const gasLimit = 100'000;
+    int64_t const gasLeft = 90'000;
+    int64_t const peakGasUsed = gasLimit - gasLeft;
+    int64_t const stateRefund = 2'000;
+
+    BOOST_CHECK_EQUAL(peakGasUsed, 10'000);
+    BOOST_CHECK_EQUAL(effectiveRefundEip3529(stateRefund, peakGasUsed), 2'000);
+    BOOST_CHECK_EQUAL(settleTopLevelTransactionGas(gasLimit, gasLeft, stateRefund, 0), 8'000);
+}
+
+BOOST_AUTO_TEST_CASE(Eip3529RefundCapBoundary_stateRefundExceedsCap)
+{
+    int64_t const gasLimit = 1'000;
+    int64_t const gasLeft = 900;
+    int64_t const peakGasUsed = gasLimit - gasLeft;
+    int64_t const stateRefund = 1'000;
+
+    // cap = peakGasUsed / 5 = 20; stateRefund 1000 exceeds cap.
+    BOOST_CHECK_EQUAL(effectiveRefundEip3529(stateRefund, peakGasUsed), 20);
+    BOOST_CHECK_EQUAL(settleTopLevelTransactionGas(gasLimit, gasLeft, stateRefund, 0), 80);
+}
+
+BOOST_AUTO_TEST_CASE(Eip3529RefundCapBoundary_zeroPeakGasUsed)
+{
+    int64_t const gasLimit = 100'000;
+    int64_t const gasLeft = 100'000;
+    int64_t const stateRefund = 50'000;
+
+    BOOST_CHECK_EQUAL(effectiveRefundEip3529(stateRefund, 0), 0);
+    BOOST_CHECK_EQUAL(settleTopLevelTransactionGas(gasLimit, gasLeft, stateRefund, 0), 0);
+}
+
+// GAP-TE-002: mirrors EthTransactionExecutorImpl::settleGasUsedFromEvmResult — no
+// topLevelIncludedTxVmError parameter. GETH_ORACLE: ADR-015 peak gas on included vmerr.
+int64_t mirrorSettleGasUsedFromEvmResult(int64_t gasLimit, evmc_result const& evmcResult,
+    bcos::evm::gas::Eip7623Components const& calldata, uint8_t calldataFloorPerToken,
+    int64_t evmGasRefund, bool /*topLevelIncludedTxVmError*/)
+{
+    return settleTopLevelTransactionGas(
+        gasLimit, evmcResult.gas_left, evmGasRefund, calldataFloorPerToken, calldata);
+}
+
+BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_te_mirror_ignores_flag)
+{
+    auto const calldata = calcEip7623Components({});
+    constexpr int64_t gasLimit = 10'000'000;
+    constexpr int64_t gasLeft = 12'500;
+    constexpr int64_t kGethGasUsed = 9'987'500;
+
+    evmc_result normalizedSuccess{};
+    normalizedSuccess.status_code = EVMC_SUCCESS;
+    normalizedSuccess.gas_left = gasLeft;
+
+    int64_t const withFlagTrue = mirrorSettleGasUsedFromEvmResult(
+        gasLimit, normalizedSuccess, calldata, 10, 0, /*topLevelIncludedTxVmError=*/true);
+    int64_t const withFlagFalse = mirrorSettleGasUsedFromEvmResult(
+        gasLimit, normalizedSuccess, calldata, 10, 0, /*topLevelIncludedTxVmError=*/false);
+
+    // CURRENT_ORACLE: flag does not affect TE settlement mirror.
+    BOOST_CHECK_EQUAL(withFlagTrue, withFlagFalse);
+    BOOST_CHECK_EQUAL(withFlagTrue, kGethGasUsed);
+#if 0  // flip after GAP-TE-002 fix if flag must alter settlement
+    BOOST_CHECK_NE(withFlagTrue, withFlagFalse);
+#endif
+}
+
 BOOST_AUTO_TEST_CASE(SettleTopLevelTransactionGas_postEvmOOG_chargesFullGasLimit)
 {
     auto const mixed = mixedCalldata100();

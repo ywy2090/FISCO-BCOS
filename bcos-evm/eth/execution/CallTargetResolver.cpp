@@ -10,11 +10,6 @@ namespace bcos::evm::execution
 {
 namespace
 {
-inline bool isDelegated7702Message(evmc_message const& msg) noexcept
-{
-    return (msg.flags & EVMC_DELEGATED) != 0;
-}
-
 bool is7702DelegationDesignator(
     bcos::evm_standard::RevisionConfig const& revision, bcos::bytes const& code)
 {
@@ -27,10 +22,6 @@ bool isActiveEmptyPrecompileTarget(state::State const& state,
     evmc_message const& message)
 {
     if (state::isZeroAddress(target))
-    {
-        return false;
-    }
-    if (isDelegated7702Message(message) && message.kind != EVMC_CALL)
     {
         return false;
     }

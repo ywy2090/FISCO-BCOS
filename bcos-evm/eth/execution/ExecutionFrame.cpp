@@ -98,10 +98,6 @@ std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope sco
     {
         return std::nullopt;
     }
-    if ((work.originalMsg.flags & EVMC_DELEGATED) != 0 && callMessage.kind != EVMC_CALL)
-    {
-        return std::nullopt;
-    }
 
     bool const skipVt =
         work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer();
@@ -273,20 +269,23 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
     return FrameResult{.result = std::move(result)};
 }
 
-void postFinalizeNestedCreate(FrameWork& work)
+/// geth evm.create: SetNonce(caller, nonce+1) before Snapshot(). The bump sits outside the
+/// frame checkpoint journal, so it survives CREATE failure/revert like geth.
+void bumpNestedCreateSenderNonce(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
-    if (isCreateKind(callMessage.kind) && !state::isZeroAddress(callMessage.sender) &&
-        work.originalMsg.depth > 0)
+    if (!isCreateKind(callMessage.kind) || state::isZeroAddress(callMessage.sender) ||
+        work.originalMsg.depth == 0)
     {
-        work.ctx.state.set_nonce(
-            callMessage.sender, work.ctx.state.get_nonce(callMessage.sender) + 1);
-        if (work.ctx.extension != nullptr &&
-            std::memcmp(callMessage.sender.bytes, work.ctx.txOrigin.bytes,
-                sizeof(callMessage.sender.bytes)) != 0)
-        {
-            work.ctx.extension->bumpContractCreateNonce(callMessage.sender);
-        }
+        return;
+    }
+
+    work.ctx.state.set_nonce(callMessage.sender, work.ctx.state.get_nonce(callMessage.sender) + 1);
+    if (work.ctx.extension != nullptr &&
+        std::memcmp(callMessage.sender.bytes, work.ctx.txOrigin.bytes,
+            sizeof(callMessage.sender.bytes)) != 0)
+    {
+        work.ctx.extension->bumpContractCreateNonce(callMessage.sender);
     }
 }
 
@@ -309,6 +308,7 @@ FrameResult runFrameSteps(
     if (isCreateKind(work.callMessage().kind) && scope == FrameScope::Nested)
     {
         bindCreateForInit(work);
+        bumpNestedCreateSenderNonce(work);
     }
 
     checkpointFrame(work);
@@ -339,14 +339,7 @@ FrameResult runFrameSteps(
     }
 
     auto result = runVm(work);
-    auto fr = finalizeFrame(work, scope, std::move(result));
-
-    if (scope == FrameScope::Nested)
-    {
-        postFinalizeNestedCreate(work);
-    }
-
-    return fr;
+    return finalizeFrame(work, scope, std::move(result));
 }
 }  // namespace
 

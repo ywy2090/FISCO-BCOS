@@ -7,6 +7,8 @@
 #define BOOST_TEST_MODULE ExecutionFrameTest
 
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -158,7 +160,7 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_precompile_blocked)
     BOOST_REQUIRE(!frame.precompileHit);
 }
 
-BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_precompile_guard)
+BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_direct_precompile_hits_envelope)
 {
     auto const sender = addressFromLastByte(0x01);
     auto const caller = addressFromLastByte(0x02);
@@ -181,8 +183,9 @@ BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_precompile_guard)
     state.set_balance(sender, 1'000'000);
 
     auto frame = runFrameNested(state, message);
-    BOOST_REQUIRE(!frame.precompileHit);
-    BOOST_REQUIRE(frame.status != EVMC_PRECOMPILE_FAILURE);
+    BOOST_REQUIRE(frame.precompileHit);
+    BOOST_REQUIRE_EQUAL(frame.status, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(frame.gasLeft, 500'000 - 18);
 }
 
 BOOST_AUTO_TEST_CASE(top_level_precompile_hit_sets_precompileHit)
@@ -391,6 +394,105 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_hit_skips_finalize_self_destructs)
     BOOST_REQUIRE(victimIt != output.stateDiff.accounts.end());
     BOOST_CHECK(victimIt->second.selfDestructed);
     BOOST_CHECK_GT(victimIt->second.balance, 0U);
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_failed_still_increments_sender_nonce)
+{
+    auto const sender = addressFromLastByte(0x01);
+    static uint8_t invalidInit[] = {0xfe};
+
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.depth = 1;
+    message.gas = 500'000;
+    message.sender = sender;
+    message.input_data = invalidInit;
+    message.input_size = sizeof(invalidInit);
+
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 7);
+
+    auto frame = runFrameNested(state, message);
+    BOOST_REQUIRE(frame.status != EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 8U);
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)
+{
+    auto const sender = addressFromLastByte(0x01);
+    auto const firstChild = state::predictLegacyCreateAddress(sender, 7);
+    auto const secondChild = state::predictLegacyCreateAddress(sender, 8);
+    static uint8_t emptyInit[] = {0x60, 0x00, 0x60, 0x00, 0xf3};
+
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 7);
+
+    FrameTestHost fixture(state);
+    execution::FrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+        fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
+
+    evmc_message create1{};
+    create1.kind = EVMC_CREATE;
+    create1.depth = 1;
+    create1.gas = 500'000;
+    create1.sender = sender;
+    create1.input_data = emptyInit;
+    create1.input_size = sizeof(emptyInit);
+
+    auto fr1 = execution::runExecutionFrame(
+        frameCtx, create1, execution::FrameScope::Nested, fixture.ethHost());
+    BOOST_REQUIRE_EQUAL(fr1.result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(state.get_nonce(firstChild), 1U);
+
+    evmc_message create2 = create1;
+    create2.recipient = {};
+    create2.code_address = {};
+    auto fr2 = execution::runExecutionFrame(
+        frameCtx, create2, execution::FrameScope::Nested, fixture.ethHost());
+    BOOST_REQUIRE_EQUAL(fr2.result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(state.get_nonce(secondChild), 1U);
+    BOOST_CHECK(std::memcmp(firstChild.bytes, secondChild.bytes, sizeof(firstChild.bytes)) != 0);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 9U);
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_reentrant_address_derivation_sees_pre_checkpoint_bump)
+{
+    auto const deployer = addressFromLastByte(0x01);
+    auto const firstChild = state::predictLegacyCreateAddress(deployer, 7);
+    auto const secondChild = state::predictLegacyCreateAddress(deployer, 8);
+    static uint8_t emptyInit[] = {0x60, 0x00, 0x60, 0x00, 0xf3};
+
+    state::test::InMemoryEvmStateReader view;
+    state::State state(view);
+    state.set_nonce(deployer, 7);
+
+    FrameTestHost fixture(state);
+    auto& host = fixture.ethHost();
+
+    evmc_message outer{};
+    outer.kind = EVMC_CREATE;
+    outer.sender = deployer;
+    outer.input_data = emptyInit;
+    outer.input_size = sizeof(emptyInit);
+
+    execution::bindCreateMessageForInit(
+        host, outer, bcos::bytesConstRef(outer.input_data, outer.input_size), state);
+    BOOST_REQUIRE(
+        std::memcmp(outer.recipient.bytes, firstChild.bytes, sizeof(firstChild.bytes)) == 0);
+
+    state.set_nonce(deployer, state.get_nonce(deployer) + 1);
+
+    evmc_message inner = outer;
+    inner.recipient = {};
+    inner.code_address = {};
+    execution::bindCreateMessageForInit(
+        host, inner, bcos::bytesConstRef(inner.input_data, inner.input_size), state);
+    BOOST_REQUIRE(
+        std::memcmp(inner.recipient.bytes, secondChild.bytes, sizeof(secondChild.bytes)) == 0);
 }
 
 }  // namespace bcos::evm::test

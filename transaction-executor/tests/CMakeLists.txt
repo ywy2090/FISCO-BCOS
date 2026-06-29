@@ -6,6 +6,7 @@ list(REMOVE_ITEM SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/FIB88_92_ErrorHandlingTest.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Web3AccessListResolverTest.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/EthTxFeeLedger1559Test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/EthTxGasSettlementTest.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/TestEthTransactionExecutorFixture.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/TestOpStackTransactionExecutorFixture.cpp"
 )
@@ -130,3 +131,26 @@ add_dependencies(EthTxFeeLedger1559Test executor)
 add_test(NAME EthTxFeeLedger1559
     WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     COMMAND EthTxFeeLedger1559Test -t EthTxFeeLedger1559)
+
+add_executable(EthTxGasSettlementTest
+    main.cpp
+    EthTxGasSettlementTest.cpp
+)
+target_include_directories(EthTxGasSettlementTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
+)
+target_link_libraries(EthTxGasSettlementTest PRIVATE
+    transaction-executor
+    executor
+    ledger
+    protocol-tars
+    bcos-framework
+    rpc
+    evmone::evmone
+    bcos-evm
+    Boost::unit_test_framework
+)
+add_dependencies(EthTxGasSettlementTest executor)
+add_test(NAME EthTxGasSettlement
+    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    COMMAND EthTxGasSettlementTest -t EthTxGasSettlementTest)

@@ -7,6 +7,7 @@
 #include "bcos-evm/opstack/OpStackTxLifecycle.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-protocol/TransactionStatus.h"
 #include "opstack/helpers/OpStackLifecycleTestHelpers.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -277,5 +278,62 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_intrinsic_reject_uses_gas_limit_and_rever
     BOOST_REQUIRE_EQUAL(gasPoolSpy.returnGasCallCount, 1);
     BOOST_CHECK_EQUAL(gasPoolSpy.lastReturnRemaining, 0u);
     BOOST_CHECK_EQUAL(gasPoolSpy.lastReturnUsed, static_cast<uint64_t>(gasBelowIntrinsic));
+}
+
+// GAP-002 / GAP-TE-005 — entry failure inclusion oracle (receipt existence at TE; not settlement).
+// CURRENT_ORACLE: lifecycle returns failed outcome → TE emits failed receipt (included tx).
+// GETH_ORACLE: block processor rejects; no receipt (state_processor_test.go:181-186).
+BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_inclusion_failed_receipt_oracle)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto const sender = lifecycleAddressFromLastByte(0x0a);
+    auto const recipient = lifecycleAddressFromLastByte(0x0b);
+    setLifecycleOpFeeParams(stateView);
+
+    stateView.insert_account(sender, state::Account{.balance = u256(300'000), .nonce = 0});
+    stateView.insert_account(recipient, state::Account{});
+
+    evmc::VM vm{evmc_create_evmone()};
+    LifecycleFakeHash hash;
+    LifecycleGasPoolSpy gasPoolSpy;
+
+    evmc_message probe{};
+    probe.kind = EVMC_CALL;
+    auto const gasBelowIntrinsic = lifecycleGasBelowIntrinsic(probe);
+
+    auto input = makeLifecycleNormalInput(
+        stateView, vm, hash, sender, recipient, gasBelowIntrinsic, gasPoolSpy);
+    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
+    BOOST_CHECK_NE(static_cast<int>(output.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::None));
+    BOOST_CHECK(!output.receiptMeta.l1Fee.has_value());
+    BOOST_CHECK_EQUAL(lifecycleBalanceFromDiff(output.stateDiff, sender), u256(300'000));
+}
+
+// GAP-TE-005 — buyGas entry failure still yields includable failed receipt at TE.
+// CURRENT_ORACLE: NotEnoughCash lifecycle result (included); ADR-025 settlement abort (gasUsed=0).
+// GETH_ORACLE: ErrInsufficientFunds reject (state_processor_test.go:171-176).
+BOOST_AUTO_TEST_CASE(lifecycle_normal_buy_gas_fail_inclusion_failed_receipt_oracle)
+{
+    state::test::InMemoryEvmStateReader stateView;
+    auto const sender = lifecycleAddressFromLastByte(0x0c);
+    auto const recipient = lifecycleAddressFromLastByte(0x0d);
+    stateView.insert_account(sender, state::Account{.balance = u256(10), .nonce = 0});
+    stateView.insert_account(recipient, state::Account{});
+
+    evmc::VM vm{evmc_create_evmone()};
+    LifecycleFakeHash hash;
+    LifecycleGasPoolSpy gasPoolSpy;
+
+    auto input =
+        makeLifecycleNormalInput(stateView, vm, hash, sender, recipient, 100'000, gasPoolSpy);
+    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+
+    BOOST_CHECK_EQUAL(output.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
+    BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
+    BOOST_CHECK(!output.receiptMeta.l1Fee.has_value());
+    BOOST_REQUIRE_EQUAL(gasPoolSpy.returnGasCallCount, 1);
 }
 }  // namespace bcos::evm::test

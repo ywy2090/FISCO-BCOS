@@ -85,6 +85,65 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_generic_exception)
         static_cast<int>(protocol::TransactionStatus::Unknown));
 }
 
+// GAP-003 E-PEX-05: non-OutOfGas BCOS exception maps to INTERNAL_ERROR + Unknown without rethrow.
+// GETH_ORACLE: go-ethereum/core/state_transition.go:550-552 preCheck err -> block reject (no EVMC
+// layer). CURRENT_ORACLE: EVMC_INTERNAL_ERROR + TransactionStatus::Unknown; handler must not
+// propagate throw.
+BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_non_out_of_gas_bcos_exception)
+{
+    state::test::InMemoryEvmStateReader stateView;
+
+    evmc_message message{};
+    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    EthOrchestrationErrorPolicy errorPolicy;
+    BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::GasOverflow{}));
+
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INTERNAL_ERROR);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 0);
+    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::Unknown));
+}
+
+// GAP-003 E-PEX-05b: plain std::runtime_error currently escapes onPipelineException
+// (characterization). CURRENT_ORACLE (observed): exception propagates — differs from
+// PrecompiledError/GasOverflow path. GETH_ORACLE target: map to EVMC_INTERNAL_ERROR + Unknown
+// without throw (see eth_pipeline_exception_maps_generic_exception).
+BOOST_AUTO_TEST_CASE(eth_pipeline_exception_runtime_error_currently_propagates)
+{
+    state::test::InMemoryEvmStateReader stateView;
+
+    evmc_message message{};
+    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    EthOrchestrationErrorPolicy errorPolicy;
+    bool caught = false;
+    try
+    {
+        invokePipelineException(errorPolicy, ctx, std::runtime_error{"infrastructure fault"});
+    }
+    catch (std::runtime_error const& e)
+    {
+        caught = true;
+        BOOST_CHECK_EQUAL(std::string{e.what()}, "infrastructure fault");
+    }
+    BOOST_CHECK(caught);
+}
+
+// GAP-003 E-PEX-06: policy handler swallows mapped BCOS exceptions (no escape to caller).
+BOOST_AUTO_TEST_CASE(eth_pipeline_exception_handler_does_not_rethrow)
+{
+    state::test::InMemoryEvmStateReader stateView;
+
+    evmc_message message{};
+    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    EthOrchestrationErrorPolicy errorPolicy;
+    BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::PrecompiledError{}));
+    BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::GasOverflow{}));
+    BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{}));
+}
+
 // E-PEX-04: pipeline exception without checkpoint does not revert state.
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_without_checkpoint_leaves_state)
 {

@@ -308,6 +308,12 @@ target_include_directories(ExecutionFrameTest PRIVATE
 target_link_libraries(ExecutionFrameTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME ExecutionFrame COMMAND ExecutionFrameTest)
 
+add_executable(EthDelegateCallPrecompileTest eth/EthDelegateCallPrecompileTest.cpp)
+target_include_directories(EthDelegateCallPrecompileTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EthDelegateCallPrecompileTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME EthDelegateCallPrecompile COMMAND EthDelegateCallPrecompileTest)
+
 add_executable(ResolveExecutionCodeTest eth/ResolveExecutionCodeTest.cpp)
 target_include_directories(ResolveExecutionCodeTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
