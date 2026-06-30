@@ -46,13 +46,10 @@ struct NoopErrorPolicy : OrchestrationErrorPolicy
 
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(executeMessage_deprecated_alias_forwards_to_innerExecute)
+BOOST_AUTO_TEST_CASE(innerExecute_is_canonical_kernel_entry)
 {
     BOOST_CHECK(
         (std::is_same_v<decltype(&innerExecute), ExecuteMessageOutput (*)(ExecuteMessageInput)>));
-    BOOST_CHECK(
-        (std::is_same_v<std::invoke_result_t<decltype(&executeMessage), ExecuteMessageInput>,
-            ExecuteMessageOutput>));
 }
 
 BOOST_AUTO_TEST_CASE(preCheckRules_forwards_to_pipelineCheckRules)
@@ -93,24 +90,6 @@ BOOST_AUTO_TEST_CASE(stateTransitionExecute_is_canonical_pipeline_driver)
     CountingPrecheckPolicy policy;
     NoopErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, policy, errorPolicy);
-
-    BOOST_CHECK_EQUAL(policy.rulesCallCount, 1);
-    BOOST_CHECK(ctx.earlyExit);
-}
-
-BOOST_AUTO_TEST_CASE(runTxPipeline_deprecated_alias_forwards_to_stateTransitionExecute)
-{
-    state::test::InMemoryStateView stateView;
-    evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
-    static evmc::VM vm{evmc_create_evmone()};
-    static bcos::crypto::Keccak256 hashImpl;
-    ctx.inputs.vm = &vm;
-    ctx.inputs.hashImpl = &hashImpl;
-
-    CountingPrecheckPolicy policy;
-    NoopErrorPolicy errorPolicy;
-    runTxPipeline(ctx, policy, errorPolicy);
 
     BOOST_CHECK_EQUAL(policy.rulesCallCount, 1);
     BOOST_CHECK(ctx.earlyExit);

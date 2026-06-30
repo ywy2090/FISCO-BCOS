@@ -10,10 +10,4 @@ namespace bcos::evm
 void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
     OrchestrationErrorPolicy const& errorPolicy);
 
-[[deprecated("Use stateTransitionExecute")]] inline void runTxPipeline(TxPipelineContext& ctx,
-    ChainPrecheckPolicy const& precheckPolicy, OrchestrationErrorPolicy const& errorPolicy)
-{
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
-}
-
 }  // namespace bcos::evm

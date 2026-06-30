@@ -160,7 +160,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | --- | --- | --- | --- |
 | Chain bridges call `stateTransitionExecute` | ✅ ADR-031 | — | `FiscoExecute.cpp`, `EthReferenceExecute.cpp`, OP lifecycle |
 | `ChainPrecheckPolicy::pipelineInvokeEvmKernel` default calls `innerExecute` | ✅ ADR-031 | — | |
-| bcos-evm production code avoids `runTxPipeline` / `executeMessage` | ☐ audit | 2 | `rg` `bcos-evm/{bcos,eth,opstack}` excluding headers/tests |
+| bcos-evm production code avoids `runTxPipeline` / `executeMessage` | ✅ Wave 2 | 2 | `rg` `bcos-evm/{bcos,eth,opstack}` excluding headers/tests |
 | Tests prefer canonical names; deprecated coverage in `GethNamingAliasesTest` | ✅ partial | 1–2 | Expand as Wave 1 aliases drop |
 | OP `lifecycleCheckEntryRules` used in production; `checkEntryRules` test-only or gone | ☐ | 1 | `OpStackTxLifecycle.cpp` |
 | `debitIntrinsicGas` absent from production paths | ☐ | 1 | Prefer `deductIntrinsicGas` |
@@ -187,7 +187,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | 2026-06-30 | P4: `lifecycleCheckEntryRules` canonical; `checkEntryRules` deprecated |
 | 2026-06-30 | **ADR-032 P5:** retirement schedule accepted (this document) |
 | 2026-06-30 | **Wave 1:** internal transitional aliases removed (§1 Wave 1) |
-| TBD Wave 2 | Remove `runTxPipeline` / `executeMessage` forwards |
+| 2026-06-30 | **Wave 2:** `runTxPipeline` / `executeMessage` kernel Tier E forwards removed |
 | TBD Wave 3 | Promote `apply*Message` to exported symbols; deprecate `*Execute` |
 | TBD Wave 4 | Remove `*Execute` forwards |
 | TBD Wave 5 | Doc + aggregate header cleanup |
@@ -198,8 +198,8 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 
 | Tier E symbol | Canonical | Deprecated since | Removal wave |
 | --- | --- | --- | --- |
-| `runTxPipeline` | `stateTransitionExecute` | ADR-031 (2026-06-30) | 2 |
-| `executeMessage` | `innerExecute` | ADR-031 (2026-06-30) | 2 |
+| ~~`runTxPipeline`~~ | `stateTransitionExecute` | ADR-031 (2026-06-30) | ~~2~~ removed 2026-06-30 |
+| ~~`executeMessage`~~ | `innerExecute` | ADR-031 (2026-06-30) | ~~2~~ removed 2026-06-30 |
 | `fiscoExecute` | `applyFiscoMessage` | TBD (Wave 3) | 4 |
 | `ethReferenceExecute` | `applyReferenceMessage` | TBD (Wave 3) | 4 |
 | `opStackExecute` | `applyOpStackMessage` | TBD (Wave 3) | 4 |

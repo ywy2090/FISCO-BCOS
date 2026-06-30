@@ -27,9 +27,9 @@
  *     applyOpStackMessage   → opStackExecute        (OpStackExecute.h)
  *
  *   Tier E stable ABI (deprecated inline forwards; remove per ADR-032 schedule):
- *     executeMessage → innerExecute
- *     runTxPipeline → stateTransitionExecute
  *     ethReferenceExecute, fiscoExecute, opStackExecute
+ *   ADR-032 Wave 2 removed: executeMessage, runTxPipeline (use innerExecute /
+ * stateTransitionExecute)
  */
 
 #pragma once
@@ -87,7 +87,7 @@ namespace execution
 [[nodiscard]] inline FrameResult evmStaticCall(
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
-    assert(message.kind == EVMC_STATICCALL);
+    assert(message.kind == EVMC_CALL && (message.flags & EVMC_STATIC) != 0);
     return runCallFrame(ctx, message, scope, host);
 }
 

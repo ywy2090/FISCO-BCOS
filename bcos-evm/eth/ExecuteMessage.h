@@ -68,10 +68,4 @@ struct ExecuteMessageOutput
 // geth: innerExecute (post-Prepare evm.Call/Create) — ADR-030 / ADR-031 canonical
 ExecuteMessageOutput innerExecute(ExecuteMessageInput input);
 
-[[deprecated("Use innerExecute")]] inline ExecuteMessageOutput executeMessage(
-    ExecuteMessageInput input)
-{
-    return innerExecute(std::move(input));
-}
-
 }  // namespace bcos::evm
