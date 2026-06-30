@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/state-transition/FeeInputsMapping.h"
+#include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"

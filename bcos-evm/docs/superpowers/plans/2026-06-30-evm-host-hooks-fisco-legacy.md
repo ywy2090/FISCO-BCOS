@@ -28,10 +28,10 @@
 | `eth/state/EvmHostHooks.h` | Hook interface + forward declare `State` |
 | `eth/state/EvmHostHooks.cpp` | **New.** EIP-3529 refund + precise classify defaults; virtual method bodies |
 | `eth/state/EthHost.hpp/cpp` | SSTORE orchestration via hooks; drop bool |
-| `eth/execution/EvmCallFrame.h/cpp` | Top-level CREATE → `finalizeTopLevelCreateNonce` |
-| `eth/execution/TxExecutionRunner.cpp` | Simpler `EthHost` / `FrameExecutionEnv` wiring |
-| `eth/execution/InnerExecute.h` | Remove fix* fields |
-| `eth/state-transition/EvmTxContextView.h` | Remove fix* fields |
+| `eth/kernel/execution/EvmCallFrame.h/cpp` | Top-level CREATE → `finalizeTopLevelCreateNonce` |
+| `eth/kernel/execution/TxExecutionRunner.cpp` | Simpler `EthHost` / `FrameExecutionEnv` wiring |
+| `eth/kernel/execution/InnerExecute.h` | Remove fix* fields |
+| `eth/kernel/state-transition/EvmTxContextView.h` | Remove fix* fields |
 | `bcos/FiscoVmHostPolicy.h/cpp` | FISCO overrides + `RevisionFlags.fix_storage_status` |
 | `bcos/FiscoExecutionBundle.h` | Stop projecting fix* to view; inject flags into policy deps |
 | `bcos/FiscoPrecheckPolicy.cpp` | Remove executeInput fix* copies |
@@ -450,9 +450,9 @@ EOF
 ### Task 4: `ExecutionFrame` top-level CREATE nonce hook
 
 **Files:**
-- Modify: `bcos-evm/eth/execution/EvmCallFrame.h`
-- Modify: `bcos-evm/eth/execution/ExecutionFrame.cpp`
-- Modify: `bcos-evm/eth/execution/TxExecutionRunner.cpp` (partial — only `FrameExecutionEnv` ctor args)
+- Modify: `bcos-evm/eth/kernel/execution/EvmCallFrame.h`
+- Modify: `bcos-evm/eth/kernel/execution/ExecutionFrame.cpp`
+- Modify: `bcos-evm/eth/kernel/execution/TxExecutionRunner.cpp` (partial — only `FrameExecutionEnv` ctor args)
 
 **Interfaces:**
 - **Consumes:** `EvmHostHooks::finalizeTopLevelCreateNonce`
@@ -528,8 +528,8 @@ Expected: **PASS**
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/execution/EvmCallFrame.h bcos-evm/eth/execution/ExecutionFrame.cpp \
-  bcos-evm/eth/execution/TxExecutionRunner.cpp
+rtk git add bcos-evm/eth/kernel/execution/EvmCallFrame.h bcos-evm/eth/kernel/execution/ExecutionFrame.cpp \
+  bcos-evm/eth/kernel/execution/TxExecutionRunner.cpp
 rtk git commit -m "$(cat <<'EOF'
 refactor(evm): top-level CREATE nonce via EvmHostHooks
 
@@ -543,8 +543,8 @@ EOF
 ### Task 5: Remove eth pipeline bool fields + bcos propagation
 
 **Files:**
-- Modify: `bcos-evm/eth/execution/InnerExecute.h`
-- Modify: `bcos-evm/eth/state-transition/EvmTxContextView.h`
+- Modify: `bcos-evm/eth/kernel/execution/InnerExecute.h`
+- Modify: `bcos-evm/eth/kernel/state-transition/EvmTxContextView.h`
 - Modify: `bcos-evm/bcos/FiscoExecutionBundle.h`
 - Modify: `bcos-evm/bcos/FiscoPrecheckPolicy.cpp`
 - Modify: `bcos-evm/test/state/SstoreRefundTest.cpp`
@@ -618,7 +618,7 @@ Expected: only `FiscoRevisionConfig` / test variable names like `fix_storage_sta
 - [ ] **Step 8: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/execution/InnerExecute.h bcos-evm/eth/state-transition/EvmTxContextView.h \
+rtk git add bcos-evm/eth/kernel/execution/InnerExecute.h bcos-evm/eth/kernel/state-transition/EvmTxContextView.h \
   bcos-evm/bcos/FiscoExecutionBundle.h bcos-evm/bcos/FiscoPrecheckPolicy.cpp \
   bcos-evm/test/state/SstoreRefundTest.cpp bcos-evm/test/eth/EvmTxContextViewTest.cpp
 rtk git commit -m "$(cat <<'EOF'

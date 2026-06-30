@@ -1,5 +1,13 @@
 #pragma once
 
+/*
+ * @brief Legacy registry API: executor/pricer lookup by address suffix.
+ *
+ * Populated by EthBuiltinRegistry.cpp (macro-registered impls). Consumed by
+ * PrecompiledContract and transaction-executor adapters; the kernel hot path
+ * uses EthPrecompiles + kPrecompileTable instead.
+ */
+
 #include "bcos-utilities/Common.h"
 #include <evmc/evmc.h>
 #include <cstdint>

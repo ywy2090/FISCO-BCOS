@@ -21,7 +21,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
-#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
+#include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"

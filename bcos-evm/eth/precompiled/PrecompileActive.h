@@ -1,7 +1,10 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief Single-source active precompile set (warm + dispatch).
+ *  @brief Single-source active precompile set (warm + dispatch gating).
+ *
+ * Used by CallTargetResolver and tx-entry warming so classification and
+ * EIP-2929 warm rules share the same fork/EIP activation logic.
  */
 
 #pragma once
@@ -14,6 +17,7 @@
 namespace bcos::evm::precompiled
 {
 
+/// True when @p addr is a known low-byte precompile index (0x01–0x11).
 inline bool isLowPrecompile(evmc_address const& addr) noexcept
 {
     auto const suffix = precompileSuffix(addr);
@@ -26,6 +30,7 @@ inline bool isP256Precompile(evmc_address const& addr) noexcept
     return suffix.has_value() && *suffix == static_cast<uint16_t>(P256VERIFY_PRECOMPILE_INDEX);
 }
 
+/// Fork/EIP gate: must pass before EthPrecompiles dispatch in production.
 inline bool isActivePrecompile(
     bcos::evm_standard::RevisionConfig const& cfg, evmc_address const& addr) noexcept
 {
@@ -53,6 +58,7 @@ inline bool isActivePrecompile(
     return false;
 }
 
+/// Iterate all precompiles active at @p cfg (tx warm-up, access-list helpers).
 template <typename Consumer>
 void forEachActivePrecompile(bcos::evm_standard::RevisionConfig const& cfg, Consumer&& consume)
 {

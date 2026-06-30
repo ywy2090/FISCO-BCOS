@@ -15,7 +15,7 @@
  */
 
 #define BOOST_TEST_MODULE WarmTransactionEntryTest
-#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
+#include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"

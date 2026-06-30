@@ -3,6 +3,9 @@
  *  SPDX-License-Identifier: Apache-2.0
  *  @brief Modexp (0x05) precompile gas and EIP-7823 validation.
  *  @file ModexpGas.h
+ *
+ *  Gas: EIP-198 (< Berlin), EIP-2565 (Berlin+), EIP-7883 (Osaka+).
+ *  Reject helpers enforce EIP-7823 max field length when enabled.
  */
 #pragma once
 
@@ -23,6 +26,7 @@ struct ModexpLengths
     size_t modLen = 0;
 };
 
+/// EIP-7823: each of base/exp/mod must be ≤ 1024 bytes when enabled.
 constexpr size_t MODEXP_MAX_FIELD_LEN_EIP7823 = 1024;
 
 ModexpLengths parseModexpLengths(bcos::bytesConstRef input);

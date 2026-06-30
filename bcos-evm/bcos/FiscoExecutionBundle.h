@@ -3,7 +3,7 @@
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include <cassert>
 #include <optional>
 

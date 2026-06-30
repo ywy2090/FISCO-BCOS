@@ -16,7 +16,7 @@
 
 #define BOOST_TEST_MODULE FrameValueTransferTest
 
-#include "bcos-evm/eth/execution/FrameValueTransfer.h"
+#include "bcos-evm/eth/kernel/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

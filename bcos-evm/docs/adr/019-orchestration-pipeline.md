@@ -41,16 +41,16 @@ Three chain orchestrators (`ethReferenceExecute`, `fiscoExecute`, `opStackExecut
 
 ## Decision
 
-### 1. Shared deep module: `eth/state-transition/`
+### 1. Shared deep module: `eth/kernel/state-transition/`
 
 Introduce synchronous `runTxPipeline(TxPipelineContext& ctx, TxPipelineHooks const& hooks)` as the **only** fixed orchestration pipeline. Three execution-bridge entry points become thin wrappers: map input → fill hooks → call pipeline → map output.
 
-**Seam discipline (extends ADR-005):** `eth/state-transition/` and all portable orchestration headers under `eth/` **must not** `#include` `bcos/` or `opstack/` headers. Chain-specific behavior enters only through `TxPipelineHooks` or wrapper code outside the kernel.
+**Seam discipline (extends ADR-005):** `eth/kernel/state-transition/` and all portable orchestration headers under `eth/` **must not** `#include` `bcos/` or `opstack/` headers. Chain-specific behavior enters only through `TxPipelineHooks` or wrapper code outside the kernel.
 
 **File layout:**
 
 ```text
-bcos-evm/eth/state-transition/
+bcos-evm/eth/kernel/state-transition/
   TxPipelineContext.h
   TxPipelineHooks.h
   TxPipeline.h / .cpp
@@ -173,7 +173,7 @@ OpStack balance/floor logic lives in `opstack/OpStackFloorGasPrecheck.*` and ent
 - Three anonymous `adoptResult` copies replaced by single `adoptEvmcResult`.
 - `ExecuteMessageInput` 13-field assembly is single-point via `buildExecuteMessageInput`.
 - `capability-matrix.md` TE baseline column semantics note orchestration via `runTxPipeline`.
-- ADR-005 §4 documents the `eth/state-transition/` boundary and wrapper-out fee/state-machine rule.
+- ADR-005 §4 documents the `eth/kernel/state-transition/` boundary and wrapper-out fee/state-machine rule.
 - Eth/Fisco behavioral equivalence expected; OpStack intrinsic path documents expected gas delta (fix).
 - New orchestration behavior must extend hooks or wrapper code, not add chain includes under `eth/`.
 
@@ -182,7 +182,7 @@ OpStack balance/floor logic lives in `opstack/OpStackFloorGasPrecheck.*` and ent
 ## Compliance checklist
 
 - [ ] New orchestration step added only inside `runTxPipeline` or documented hook phase.
-- [ ] No `bcos/` or `opstack/` includes under `eth/state-transition/`.
+- [ ] No `bcos/` or `opstack/` includes under `eth/kernel/state-transition/`.
 - [ ] Intrinsic failure uses structured outcome + `mapIntrinsicFailure`, not inline `EVMCResult` in kernel.
 - [ ] Exception path uses `mapException(std::exception_ptr)`; Fisco rethrow/catch stays in `FiscoExecute.cpp`.
 - [ ] OpStack fee/state machine changes stay in wrapper, not pipeline steps.

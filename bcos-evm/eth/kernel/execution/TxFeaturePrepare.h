@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/execution/CreateContract.h"
+#include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <evmc/evmc.h>
 

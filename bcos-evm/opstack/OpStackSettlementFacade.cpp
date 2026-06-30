@@ -1,6 +1,6 @@
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
-#include "bcos-evm/eth/state-transition/FeeInputsMapping.h"
+#include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 
 namespace bcos::evm

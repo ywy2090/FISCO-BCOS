@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
-#include "bcos-evm/eth/execution/FrameScope.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include <evmc/evmc.h>
 #include <functional>
 

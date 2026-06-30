@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE PrecompileEnvelopeTest
 
-#include "bcos-evm/eth/execution/CallTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

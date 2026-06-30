@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <array>

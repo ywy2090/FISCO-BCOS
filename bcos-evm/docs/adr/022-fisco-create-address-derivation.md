@@ -2,7 +2,7 @@
 
 **Status:** Proposed  
 **Date:** 2026-06-25  
-**Related:** ADR-005, ADR-017, ADR-019, `eth/execution/CreateContract.h`, `architecture-review-post-orchestration-2026-06-23.md` (候选 6)
+**Related:** ADR-005, ADR-017, ADR-019, `eth/kernel/execution/CreateContract.h`, `architecture-review-post-orchestration-2026-06-23.md` (候选 6)
 
 ---
 
@@ -26,7 +26,7 @@ Today the logic is **copy-pasted across four seams**:
 | VmHostPolicy (nested) | `bcos/FiscoVmHostPolicy.cpp::deriveNestedCreateAddress()` | `prepareMessage` inside kernel call tree |
 | Post-execute patch | `bcos/FiscoStateTransitionErrorPolicy::onFinalizeGasUsed()` | Fill empty `create_address` from `recipient` (not re-derivation) |
 
-ETH reference path already converged on `eth/execution/CreateContract.h` (`predictCreateAddress`, `bindCreateMessageForInit`). FISCO has no equivalent.
+ETH reference path already converged on `eth/kernel/execution/CreateContract.h` (`predictCreateAddress`, `bindCreateMessageForInit`). FISCO has no equivalent.
 
 ### Observed drift (2026-06-25 audit)
 

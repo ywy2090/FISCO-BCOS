@@ -6,8 +6,8 @@
 
 #define BOOST_TEST_MODULE PrecompileRouterEquivalenceTest
 
-#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"

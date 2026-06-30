@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE EthStateTransitionBindingsTest
 
 #include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
-#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

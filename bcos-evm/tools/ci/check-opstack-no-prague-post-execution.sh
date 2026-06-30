@@ -8,7 +8,7 @@ cd "$ROOT"
 
 SCAN_DIRS=(
     opstack/
-    eth/state-transition/
+    eth/kernel/state-transition/
     eth/apply/
 )
 

@@ -2,6 +2,10 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  @brief Ethereum builtin precompile registration (EIP-198..7212).
+ *
+ *  ETH_REGISTER_PRECOMPILED / ETH_REGISTER_PRECOMPILED_PRICER macros define
+ *  static execute/pricer functions; suffix-indexed tables at file end expose
+ *  builtinExecutorBySuffix / builtinPricerBySuffix for PrecompiledContract.
  */
 
 #include "EthBuiltinRegistry.h"

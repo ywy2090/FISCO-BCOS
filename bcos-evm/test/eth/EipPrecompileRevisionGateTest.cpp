@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE EipPrecompileRevisionGateTest
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/execution/InnerExecute.h"
-#include "bcos-evm/eth/execution/WarmTransactionEntry.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthStateFixtureLoader.h"

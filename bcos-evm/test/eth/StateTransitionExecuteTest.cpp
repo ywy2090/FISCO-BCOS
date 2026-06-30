@@ -1,11 +1,11 @@
 #define BOOST_TEST_MODULE StateTransitionExecuteTest
 
-#include "bcos-evm/eth/state-transition/StateTransitionExecute.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/eth/eip/ProtocolGas.h"
-#include "bcos-evm/eth/state-transition/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"

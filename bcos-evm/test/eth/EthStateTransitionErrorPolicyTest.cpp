@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE EthStateTransitionErrorPolicyTest
 
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
-#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
-#include "bcos-evm/eth/state-transition/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"

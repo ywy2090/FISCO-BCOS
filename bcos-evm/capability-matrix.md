@@ -17,7 +17,7 @@ This file is the **single authoritative capability matrix** for the `bcos-evm` i
 | BCOS (TE baseline) | `TransactionExecutorImpl` → `applyFiscoMessage` → **`stateTransitionExecute`** → `innerExecute` | FISCO production inheritance contract |
 | OPStack (TE baseline) | `OpStackTransactionExecutorImpl` → `applyOpStackMessage` → `runOpStackTxLifecycle` → **`stateTransitionExecute`** → `innerExecute` | OPStack production inheritance contract |
 
-**Orchestration pipeline (ADR-019):** All three chain L1 adapters converge on sync `stateTransitionExecute` in `eth/state-transition/StateTransitionExecute.*`. Chain-specific precheck, intrinsic policy, fee routing (`buyGas`/`refundGas`), deposit state machine, and final `stateDiff`/`logs` mapping remain in thin wrappers per ADR-005.
+**Orchestration pipeline (ADR-019):** All three chain L1 adapters converge on sync `stateTransitionExecute` in `eth/kernel/state-transition/StateTransitionExecute.*`. Chain-specific precheck, intrinsic policy, fee routing (`buyGas`/`refundGas`), deposit state machine, and final `stateDiff`/`logs` mapping remain in thin wrappers per ADR-005.
 
 Legacy `bcos-executor` / DAG / `HostContext` is **out of scope** unless a future ADR brings it in.
 

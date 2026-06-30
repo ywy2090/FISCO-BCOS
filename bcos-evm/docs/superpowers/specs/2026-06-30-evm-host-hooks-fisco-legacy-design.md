@@ -216,11 +216,11 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 | `eth/state/EvmHostHooks.cpp` | **新增** — 默认 SSTORE 实现 |
 | `eth/state/EthHost.hpp` | 删除 `fixStorageStatus` 构造参数、`m_fixStorageStatus`、`classifyStorageStatus` static |
 | `eth/state/EthHost.cpp` | `set_storage` 调 hooks；删除 FISCO 注释 |
-| `eth/execution/EvmCallFrame.h` | 删除 `fixNonceInit` |
-| `eth/execution/ExecutionFrame.cpp` | 调 `finalizeTopLevelCreateNonce` |
-| `eth/execution/TxExecutionRunner.cpp` | 简化 `EthHost` / `FrameExecutionEnv` 构造 |
-| `eth/execution/InnerExecute.h` | 删除 `fixStorageStatus`, `fixNonceInit` |
-| `eth/state-transition/EvmTxContextView.h` | 删除同上 + `toExecuteMessageInput` 拷贝 |
+| `eth/kernel/execution/EvmCallFrame.h` | 删除 `fixNonceInit` |
+| `eth/kernel/execution/ExecutionFrame.cpp` | 调 `finalizeTopLevelCreateNonce` |
+| `eth/kernel/execution/TxExecutionRunner.cpp` | 简化 `EthHost` / `FrameExecutionEnv` 构造 |
+| `eth/kernel/execution/InnerExecute.h` | 删除 `fixStorageStatus`, `fixNonceInit` |
+| `eth/kernel/state-transition/EvmTxContextView.h` | 删除同上 + `toExecuteMessageInput` 拷贝 |
 | `eth/CMakeLists.txt`（或等效） | 添加 `EvmHostHooks.cpp` |
 
 ### 5.2 bcos/

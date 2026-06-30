@@ -2,7 +2,11 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  @file EvmPrecompiledAddress.h
- *  @brief Ethereum-style precompile address constants and helpers.
+ *  @brief Ethereum-style precompile address constants and suffix helpers.
+ *
+ * All standard precompiles share prefix 0x00…00 and encode their index in the
+ * last two address bytes (bytes[18:19]). Classic uses a single byte (0x01–0x11);
+ * p256verify uses 0x0100.
  */
 #pragma once
 

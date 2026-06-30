@@ -7,8 +7,8 @@
 #define BOOST_TEST_MODULE ResolveExecutionCodeTest
 
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/execution/CreateContract.h"
-#include "bcos-evm/eth/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/CreateContract.h"
+#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"

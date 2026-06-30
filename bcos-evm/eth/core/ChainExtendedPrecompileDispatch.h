@@ -38,8 +38,8 @@
 
 #pragma once
 
-#include "bcos-evm/eth/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/execution/FrameScope.h"
+#include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include <evmc/evmc.h>
 #include <functional>
 #include <optional>

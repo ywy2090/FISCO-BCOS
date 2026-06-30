@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7702DelegatedCallGasTest
 
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/execution/InnerExecute.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"

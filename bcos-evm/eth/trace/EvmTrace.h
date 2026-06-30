@@ -1,7 +1,7 @@
 #pragma once
 
-#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"

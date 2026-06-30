@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/state-transition/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 
 namespace bcos::evm

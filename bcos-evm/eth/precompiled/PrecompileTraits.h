@@ -1,5 +1,12 @@
 #pragma once
 
+/*
+ * @brief Compile-time precompile metadata (address suffix, fork, base gas).
+ *
+ * Used by transaction-executor PrecompileTraits lookup; gas_base/per_word == -1
+ * marks entries with revision-specific pricers (modexp, BLS MSM, etc.).
+ */
+
 #include <evmc/evmc.h>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +23,7 @@ struct PrecompileTraits
     int64_t gas_per_word;
 };
 
+/// Static catalog aligned with Ethereum fork schedule; -1 gas fields → custom pricer.
 inline constexpr PrecompileTraits ALL_ETHEREUM_PRECOMPILES[] = {
     {0x0001, EVMC_FRONTIER, EVMC_MAX_REVISION, 3000, 0},
     {0x0002, EVMC_FRONTIER, EVMC_MAX_REVISION, 60, 12},

@@ -3,6 +3,8 @@
  *  SPDX-License-Identifier: Apache-2.0
  *  @brief EIP-2537 BLS12-381 MSM gas (G1/G2 discount tables).
  *  @file BlsGas.h
+ *
+ *  MSM gas = unit_cost * k * discount(k)/1000; tables from EIP-2537 spec.
  */
 #pragma once
 

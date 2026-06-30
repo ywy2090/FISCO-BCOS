@@ -1,8 +1,8 @@
 #pragma once
 
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/state-transition/IncludedTxVmerrNormalize.h"
-#include "bcos-evm/eth/state-transition/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/kernel/state-transition/IncludedTxVmerrNormalize.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <evmc/evmc.h>
 

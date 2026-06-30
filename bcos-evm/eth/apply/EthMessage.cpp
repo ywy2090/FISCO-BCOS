@@ -1,7 +1,7 @@
 #include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
-#include "bcos-evm/eth/state-transition/StateTransitionExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"

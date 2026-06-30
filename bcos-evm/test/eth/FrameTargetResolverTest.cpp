@@ -16,7 +16,7 @@
 
 #define BOOST_TEST_MODULE FrameTargetResolverTest
 
-#include "bcos-evm/eth/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

@@ -15,6 +15,8 @@
  *
  * @brief evm precompiled contract wrapper
  * @file PrecompiledContract.cpp
+ *
+ * Delegates cost()/execute() to stored functors; modexp uses revision-aware path.
  * @author: xingqiangbai
  * @date: 2021-05-24
  */

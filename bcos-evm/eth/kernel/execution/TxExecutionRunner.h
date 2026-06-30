@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/execution/InnerExecute.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 
 namespace bcos::evm::execution
 {

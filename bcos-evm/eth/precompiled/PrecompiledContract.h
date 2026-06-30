@@ -13,8 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief evm precompiled contract wrapper
+ * @brief Precompiled contract wrapper (cost + execute + activation block).
  * @file PrecompiledContract.h
+ *
+ * Thin facade over EthBuiltinRegistry executors/pricers. Prefer EthPrecompiles
+ * on the state-transition kernel path; this type remains for legacy executor
+ * integration and modexp revision-aware pricing.
  * @author: xingqiangbai
  * @date: 2021-05-24
  */
@@ -36,6 +40,7 @@ public:
     PrecompiledContract(PrecompiledPricer const& _cost, PrecompiledExecutor const& _exec,
         u256 const& _startingBlock = 0);
 
+    /// Convenience ctor: gas = base + ceil32(input) * word.
     PrecompiledContract(unsigned _base, unsigned _word, PrecompiledExecutor const& _exec,
         u256 const& _startingBlock = 0);
 
@@ -51,6 +56,7 @@ public:
 
 private:
     PrecompiledPricer m_cost;
+    /// When set, overrides m_cost (modexp across EIP-198/2565/7883).
     RevisionAwarePricer m_revisionAwareCost;
     PrecompiledExecutor m_execute;
     u256 m_startingBlock = 0;

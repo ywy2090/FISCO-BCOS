@@ -25,7 +25,7 @@ ADR-029 introduced **layer prefixes** (`pipeline*`, `runEvmKernel*`, `runCallFra
 
 - Mass rename of all types/files in a single PR.
 - Replacing ADR-029 layer prefixes in code immediately (both vocabularies coexist; comments and docs use §3).
-- 1:1 file layout parity with geth (`core/` vs `eth/state-transition/`).
+- 1:1 file layout parity with geth (`core/` vs `eth/kernel/state-transition/`).
 
 ---
 

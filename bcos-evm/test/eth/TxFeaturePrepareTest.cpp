@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE TxFeaturePrepareTest
 
-#include "bcos-evm/eth/execution/TxFeaturePrepare.h"
+#include "bcos-evm/eth/kernel/execution/TxFeaturePrepare.h"
 #include <boost/test/included/unit_test.hpp>
 
 using namespace bcos::evm;

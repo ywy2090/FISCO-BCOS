@@ -18,7 +18,7 @@
  *
  * Kernel-neutral seam (ADR-005 Rule 1): `stateTransitionExecute` drives a fixed
  * transaction-level pipeline; chains inject policy through this virtual table instead
- * of branching inside `eth/state-transition/`.
+ * of branching inside `eth/kernel/state-transition/`.
  *
  * Scope spans **precheck through EVM entry** — not only pre-execution:
  *   - `onPreCheck*` hooks may set `ctx.earlyExit` before `innerExecute`
@@ -41,9 +41,9 @@
 
 #pragma once
 
-#include "bcos-evm/eth/execution/InnerExecute.h"
-#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 
 namespace bcos::evm
 {

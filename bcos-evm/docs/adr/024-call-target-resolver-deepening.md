@@ -3,7 +3,7 @@
 **Status:** Accepted  
 **Date:** 2026-06-26  
 **Last revised:** 2026-06-26 (v1.1 — subagent review patches)  
-**Related:** ADR-005, ADR-017, ADR-018, ADR-019, `docs/superpowers/specs/2026-06-26-call-target-resolver-design.md`, `eth/execution/FrameTargetResolver.*`, `eth/precompiled/PrecompileRouter.*`, `eth/precompiled/PrecompileActive.h`, `eth/execution/WarmTransactionEntry.h`, `docs/superpowers/specs/2026-06-24-execution-frame-design.md`
+**Related:** ADR-005, ADR-017, ADR-018, ADR-019, `docs/superpowers/specs/2026-06-26-call-target-resolver-design.md`, `eth/kernel/execution/FrameTargetResolver.*`, `eth/precompiled/PrecompileRouter.*`, `eth/precompiled/PrecompileActive.h`, `eth/kernel/execution/WarmTransactionEntry.h`, `docs/superpowers/specs/2026-06-24-execution-frame-design.md`
 
 ---
 
@@ -46,7 +46,7 @@ Grilling outcomes (2026-06-26):
 | D4 | Router input | **4a.** `executePrecompileEnvelope` trusts pre-classified descriptor; no re-classification. |
 | D5 | Tests | **5b.** Three test modules + one cross-chain characterization matrix. |
 
-### 1. New deep module: `eth/execution/CallTargetResolver`
+### 1. New deep module: `eth/kernel/execution/CallTargetResolver`
 
 ```cpp
 namespace bcos::evm::execution {

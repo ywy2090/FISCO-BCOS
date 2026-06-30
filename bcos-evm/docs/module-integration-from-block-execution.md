@@ -195,7 +195,7 @@ BaselineScheduler::coExecuteBlock
 ethReferenceExecute / fiscoExecute / opStackExecute
         │
         ▼
-  runTxPipeline(ctx, hooks, errorPolicy)   ← eth/state-transition/TxPipeline.cpp
+  runTxPipeline(ctx, hooks, errorPolicy)   ← eth/kernel/state-transition/TxPipeline.cpp
         │
         ├─ hooks: TxPipelineHooks（链特有 precheck / settlement）
         ├─ errorPolicy: StateTransitionErrorPolicy（链特有异常映射）
@@ -302,7 +302,7 @@ executeMessage → kernelOutput.stateDiff
 
 ### 6.2 `TxPipelineHooks` — 编排阶段 hook
 
-[`eth/state-transition/TxPipelineHooks.h`](../eth/state-transition/TxPipelineHooks.h) 通过 `std::function` 注入编排各步骤：
+[`eth/kernel/state-transition/TxPipelineHooks.h`](../eth/kernel/state-transition/TxPipelineHooks.h) 通过 `std::function` 注入编排各步骤：
 
 | Hook | 典型用途 |
 |---|---|

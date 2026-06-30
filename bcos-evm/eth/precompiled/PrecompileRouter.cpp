@@ -31,6 +31,8 @@ evmc::Result makePrecompileFailureResult(int64_t gasLeft) noexcept
     return evmc::Result(result);
 }
 
+// Success commits the checkpoint (value transfer + any state touched by dispatch);
+// failure reverts the whole envelope.
 void finalizeEnvelope(state::State& state, PrecompileRouterOutput& output)
 {
     if (output.result.status_code == EVMC_SUCCESS)
@@ -60,6 +62,7 @@ std::optional<evmc::Result> tryEnvelopeValueTransfer(state::State& state,
     return std::nullopt;
 }
 
+// Shared skeleton: checkpoint → value transfer → dispatchFn → finalize.
 PrecompileRouterOutput envelopeAfterValueTransfer(
     PrecompileEnvelopeInput const& input, std::function<evmc::Result()> dispatchFn)
 {

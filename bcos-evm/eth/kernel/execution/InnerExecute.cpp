@@ -16,8 +16,8 @@
  * @file execution/InnerExecute.cpp
  */
 
-#include "bcos-evm/eth/execution/InnerExecute.h"
-#include "bcos-evm/eth/execution/TxExecutionRunner.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/kernel/execution/TxExecutionRunner.h"
 
 namespace bcos::evm
 {

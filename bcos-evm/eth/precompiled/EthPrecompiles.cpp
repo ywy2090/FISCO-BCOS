@@ -14,6 +14,9 @@
  *  limitations under the License.
  *
  * @file EthPrecompiles.cpp
+ *
+ * Native implementations delegate to evmone_precompiles where possible.
+ * Table-driven dispatch: address suffix → {execute, gas, optional reject}.
  */
 
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
@@ -540,9 +543,11 @@ bool rejectModexp7823(evmc_address const& address, bcos::bytesConstRef input,
 
 using ExecuteFn = std::pair<bool, bcos::bytes> (*)(bcos::bytesConstRef);
 using GasFn = int64_t (*)(bcos::bytesConstRef, evmc_revision);
+/// Optional policy gate (e.g. modexp EIP-7823 field limits); failure → PRECOMPILE_FAILURE.
 using RejectFn = bool (*)(evmc_address const&, bcos::bytesConstRef,
     bcos::evm_standard::RevisionConfig const&, evmc_revision);
 
+/// One row per Ethereum builtin precompile; keyed by address suffix (bytes[18:19]).
 struct PrecompileEntry
 {
     uint16_t suffix;
@@ -551,6 +556,7 @@ struct PrecompileEntry
     RejectFn reject;
 };
 
+/// Canonical builtin set: 0x0001–0x0011 (classic + Cancun + Prague) and 0x0100 (Osaka p256).
 constexpr PrecompileEntry kPrecompileTable[] = {
     {0x0001, executeEcrecover, gasEcrecover, nullptr},
     {0x0002, executeSha256, gasSha256, nullptr},
@@ -590,6 +596,7 @@ bool EthPrecompiles::isAddressInRange(const evmc_address& address) noexcept
     return bcos::evm::precompileSuffix(address).has_value();
 }
 
+// Core dispatch: suffix lookup → gas check → optional reject → execute.
 std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& address,
     bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision,
     bcos::evm_standard::RevisionConfig const& cfg)
@@ -629,6 +636,7 @@ std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& 
     return result;
 }
 
+// Adapter for PrecompileRouter: dispatch + map to evmc::Result (gas_left, owned output).
 std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(const evmc_address& address,
     const evmc_message& msg, evmc_revision revision, bcos::evm_standard::RevisionConfig const& cfg)
 {

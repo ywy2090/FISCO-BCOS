@@ -11,10 +11,11 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch` 等 ADR-019/024 seam） |
-| `state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019） |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
-| `execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |
+| `kernel/` | 可移植执行内核（Tier 2–3；三链共用，不含链策略） |
+| `kernel/state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019；geth `stateTransition.execute`） |
+| `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |
+| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch` 等 ADR-019/024 seam） |
 | `eip/` | EIP 实现（1559/2930/4844/7623/7702 等 gas 与 access 语义） |
 | `policy/` | `VmHostPolicy` / `EthVmHostPolicy` / `EthChainPolicy`（revision 策略） |
 | `precompiled/` | `PrecompileRouter`、builtin registry |
@@ -23,16 +24,16 @@
 | `vm/` | evmone 实例封装 |
 | `trace/` | EVM 追踪 |
 
-## 根目录文件（内核）
+## `kernel/` — 可移植内核文件
 
 | 文件 | 角色 |
 | --- | --- |
-| `execution/InnerExecute.*` | 内核执行入口 `innerExecute()`（geth innerExecute） |
-| `state-transition/StateTransitionExecute.*` | `stateTransitionExecute()`（geth stateTransition.execute） |
-| `state-transition/StateTransitionContext.h` | 交易级上下文 |
-| `state-transition/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
-| `state-transition/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
-| `execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
+| `kernel/execution/InnerExecute.*` | 内核执行入口 `innerExecute()`（geth innerExecute） |
+| `kernel/state-transition/StateTransitionExecute.*` | `stateTransitionExecute()`（geth stateTransition.execute） |
+| `kernel/state-transition/StateTransitionContext.h` | 交易级上下文 |
+| `kernel/state-transition/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
+| `kernel/state-transition/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
+| `kernel/execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
 | `RevisionConfig.h` | EIP 开关位域 |
 | `EVMCResult.*` | EVMC 结果封装 |
 
@@ -68,10 +69,10 @@
 ## 执行流
 
 ```text
-applyEthMessage()  // geth: ApplyMessage — ADR-030 文档名
+eth/apply/applyEthMessage()  // geth: ApplyMessage — ADR-030 文档名
   └─ EthStateTransitionBindings::bind
-       └─ stateTransitionExecute()   // geth: stateTransition.execute
-            └─ onInvokeInnerExecute → innerExecute()   // geth: innerExecute
+       └─ eth/kernel/state-transition/stateTransitionExecute()
+            └─ onInvokeInnerExecute → eth/kernel/execution/innerExecute()
 ```
 
 详见 `docs/architecture-overview.md`、`docs/adr/019-orchestration-pipeline.md`、`docs/adr/030-geth-naming-map.md`、**ADR-033**（磁盘文件名波次）。

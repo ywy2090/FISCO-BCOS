@@ -135,7 +135,7 @@ TxPipelineContext ctx
 
 `Context`（policy 绑定输入）≠ `EvmTxContextView`（内核执行环境注入 View）。
 
-共享步骤（intrinsic debit、`EvmTxContextView::toExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/state-transition/` 单点 enforcement。`stateTransitionExecute(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onComplete`。
+共享步骤（intrinsic debit、`EvmTxContextView::toExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/kernel/state-transition/` 单点 enforcement。`stateTransitionExecute(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onComplete`。
 
 **内核入口分层：**
 
@@ -150,10 +150,10 @@ EthHost::call(msg)
 `TxExecutionRunner::runEvmKernelTopLevel` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `VmHostPolicy*` 注入。
 
 ```cpp
-// eth/execution/InnerExecute.h — 对外接口
+// eth/kernel/execution/InnerExecute.h — 对外接口
 ExecuteMessageOutput innerExecute(ExecuteMessageInput input);
 
-// eth/execution/TxExecutionRunner.h — 实现体
+// eth/kernel/execution/TxExecutionRunner.h — 实现体
 namespace bcos::evm::execution {
 struct TxExecutionRunner {
     static ExecuteMessageOutput runEvmKernelTopLevel(ExecuteMessageInput input);
@@ -290,7 +290,7 @@ struct VmHostPolicy {
 
 ### 4.3 `StateTransitionHooks` + `StateTransitionErrorPolicy` —— state-transition 注入（ADR-019）
 
-文件：`eth/core/StateTransitionHooks.h`、`eth/state-transition/StateTransitionErrorPolicy.h`
+文件：`eth/core/StateTransitionHooks.h`、`eth/kernel/state-transition/StateTransitionErrorPolicy.h`
 
 链特有编排通过 **`*StateTransitionBindings::bind(Context)`** 产出 `{ hooks, errorPolicy }`，再传入 `stateTransitionExecute`。三链 bindings：
 
@@ -300,7 +300,7 @@ struct VmHostPolicy {
 | `FiscoStateTransitionBindings` | `bcos/FiscoStateTransitionBindings.h` | `FiscoStateTransitionErrorPolicy` |
 | `OpStackStateTransitionBindings` | `opstack/OpStackStateTransitionBindings.h` | `OpStackStateTransitionErrorPolicy` |
 
-典型 hook（由 profile 填充，**不得**在 `eth/state-transition/` 内 `#include bcos/` 或 `opstack/`）：
+典型 hook（由 profile 填充，**不得**在 `eth/kernel/state-transition/` 内 `#include bcos/` 或 `opstack/`）：
 
 | Hook | Eth | Fisco | OpStack |
 | --- | --- | --- | --- |
@@ -416,23 +416,23 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | --- | --- |
 | 外部 review 入口 | `docs/review-pack.md` |
 | 库划分 / 依赖 | `bcos-evm/CMakeLists.txt` |
-| 共享 state-transition 内核 | `eth/state-transition/StateTransitionExecute.cpp` |
-| 交易级上下文 | `eth/state-transition/StateTransitionContext.h` |
+| 共享 state-transition 内核 | `eth/kernel/state-transition/StateTransitionExecute.cpp` |
+| 交易级上下文 | `eth/kernel/state-transition/StateTransitionContext.h` |
 | 链策略钩子（接口） | `eth/core/StateTransitionHooks.h` |
-| 错误策略（基类） | `eth/state-transition/StateTransitionErrorPolicy.h` |
+| 错误策略（基类） | `eth/kernel/state-transition/StateTransitionErrorPolicy.h` |
 | ETH bindings | `eth/apply/EthStateTransitionBindings.h` |
 | FISCO Profile | `bcos/FiscoStateTransitionBindings.h` |
 | OP Profile | `opstack/OpStackStateTransitionBindings.h` |
-| 内核入口（符号） | `eth/execution/InnerExecute.h` / `.cpp` (`innerExecute`) |
-| Tx 级 adapter | `eth/execution/TxExecutionRunner.h` / `.cpp` |
-| Call target 分类 | `eth/execution/CallTargetResolver.h` / `.cpp`（ADR-024） |
-| ExecutionFrame | `eth/execution/EvmCallFrame.h` / `.cpp` |
+| 内核入口（符号） | `eth/kernel/execution/InnerExecute.h` / `.cpp` (`innerExecute`) |
+| Tx 级 adapter | `eth/kernel/execution/TxExecutionRunner.h` / `.cpp` |
+| Call target 分类 | `eth/kernel/execution/CallTargetResolver.h` / `.cpp`（ADR-024） |
+| ExecutionFrame | `eth/kernel/execution/EvmCallFrame.h` / `.cpp` |
 | Precompile 单源 | `eth/precompiled/PrecompileActive.h` |
 | Precompile envelope | `eth/precompiled/PrecompileRouter.cpp`（`executePrecompileEnvelope`） |
-| 2929 warm gate | `eth/execution/Eip2929Access.h` |
-| Tx-entry warm | `eth/execution/WarmTransactionEntry.h` |
-| Frame target resolver | `eth/execution/FrameTargetResolver.h` / `.cpp` |
-| Frame helpers | `eth/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |
+| 2929 warm gate | `eth/kernel/execution/Eip2929Access.h` |
+| Tx-entry warm | `eth/kernel/execution/WarmTransactionEntry.h` |
+| Frame target resolver | `eth/kernel/execution/FrameTargetResolver.h` / `.cpp` |
+| Frame helpers | `eth/kernel/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |
 | 内核扩展点 | `eth/policy/VmHostPolicy.h` |
 | EIP 开关 | `eth/RevisionConfig.h` |
 | FISCO 编排 | `bcos/ApplyFiscoMessage.cpp` |

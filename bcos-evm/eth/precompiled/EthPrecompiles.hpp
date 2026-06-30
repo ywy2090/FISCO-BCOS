@@ -13,8 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Builtin ethereum precompile dispatcher (0x01..0x11, 0x0100).
+ * @brief Builtin Ethereum precompile dispatcher (0x01..0x11, 0x0100).
  * @file EthPrecompiles.hpp
+ *
+ * Pure execute layer: lookup kPrecompileTable, charge gas, run native impl.
+ * Does NOT handle value transfer or state journal — that is PrecompileRouter.
+ * Fork activation is the caller's duty (PrecompileActive::isActivePrecompile).
  */
 
 #pragma once
@@ -27,6 +31,7 @@
 
 namespace bcos::evm::precompiled
 {
+/// Intermediate result from dispatch(); converted to evmc::Result by tryDispatchInCall.
 struct EthPrecompileResult
 {
     evmc_status_code status{EVMC_SUCCESS};
