@@ -9,7 +9,7 @@ cd "$ROOT"
 SCAN_DIRS=(
     opstack/
     eth/pipeline/
-    eth/reference/
+    eth/apply/
 )
 
 FORBIDDEN=(

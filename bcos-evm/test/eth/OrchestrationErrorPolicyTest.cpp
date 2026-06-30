@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE OrchestrationErrorPolicyTest
 
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
-#include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"

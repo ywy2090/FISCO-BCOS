@@ -67,7 +67,7 @@ flowchart TB
 | ADR-001 旧名 | 当前入口函数 | 模块路径 |
 |---|---|---|
 | `executeViaHost` | `fiscoExecute` | `bcos-evm/bcos/FiscoExecute.h` |
-| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/reference/EthReferenceExecute.h` |
+| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/apply/EthReferenceExecute.h` |
 | `opStackExecuteViaHost` | `opStackExecute` | `bcos-evm/opstack/OpStackExecute.h` |
 
 ---
@@ -351,7 +351,7 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 | 用途 | 头文件 | 说明 |
 |---|---|---|
 | FISCO 生产执行 | `bcos-evm/bcos/FiscoExecute.h` | `fiscoExecute(FiscoExecutionRequest)` |
-| ETH 参考执行 | `bcos-evm/eth/reference/EthReferenceExecute.h` | `ethReferenceExecute` |
+| ETH 参考执行 | `bcos-evm/eth/apply/EthReferenceExecute.h` | `ethReferenceExecute` |
 | ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `EthReferenceExecute.h` |
 | OP Stack 执行 | `bcos-evm/opstack/OpStackExecute.h` | `opStackExecute` |
 | 状态读 | `bcos-evm/bcos/FiscoStateView.h` | TE 层构造 |

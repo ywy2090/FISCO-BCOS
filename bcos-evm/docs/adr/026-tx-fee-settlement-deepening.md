@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/gas/Eip1559.h`, `eth/gas/Eip1559Access.h`, `eth/reference/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
+**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/gas/Eip1559.h`, `eth/gas/Eip1559Access.h`, `eth/apply/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
 
 ---
 

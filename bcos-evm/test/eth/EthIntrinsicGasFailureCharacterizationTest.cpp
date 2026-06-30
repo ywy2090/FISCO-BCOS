@@ -13,9 +13,9 @@
 #define BOOST_TEST_MODULE EthIntrinsicGasFailureCharacterizationTest
 
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/eth/apply/EthReferenceExecute.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
-#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

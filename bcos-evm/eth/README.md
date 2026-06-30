@@ -46,7 +46,7 @@
 
 | geth | ADR-030 文档名（Tier C） | ADR-029 / 稳定 ABI（Tier E） | 头文件 |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/reference/EthReferenceExecute.h` |
+| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/apply/EthReferenceExecute.h` |
 | `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` |
 

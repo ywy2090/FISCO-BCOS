@@ -2,11 +2,11 @@
 
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"

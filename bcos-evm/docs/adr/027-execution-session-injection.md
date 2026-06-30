@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-019, ADR-024, `eth/pipeline/TxPipelineContext.h`, `eth/pipeline/BuildExecuteMessageInput.h`, `eth/ExecuteMessage.h`, `eth/execution/ExecutionFrame.h`, `eth/state/EthHost.hpp`, `bcos/FiscoExecute.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/reference/EthReferenceExecute.cpp`
+**Related:** ADR-005, ADR-019, ADR-024, `eth/pipeline/TxPipelineContext.h`, `eth/pipeline/BuildExecuteMessageInput.h`, `eth/ExecuteMessage.h`, `eth/execution/ExecutionFrame.h`, `eth/state/EthHost.hpp`, `bcos/FiscoExecute.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/apply/EthReferenceExecute.cpp`
 
 ---
 
@@ -97,7 +97,7 @@ struct EvmTxContextView {
 
 | Bundle | Location | Owns | `chainPort` in view |
 | --- | --- | --- | --- |
-| `EthExecutionBundle` | `eth/reference/` | `EthVmHostPolicy` | `nullptr` (valid) |
+| `EthExecutionBundle` | `eth/apply/` | `EthVmHostPolicy` | `nullptr` (valid) |
 | `FiscoExecutionBundle` | `bcos/` | `FiscoVmHostPolicy`, `optional<FiscoChainCallTargetAdapter>` | non-null iff `input.chainDispatchPort != nullptr` |
 | `OpStackExecutionBundle` | `opstack/` | `OpStackChainCallTargetAdapter` | always non-null |
 

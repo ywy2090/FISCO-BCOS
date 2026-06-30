@@ -186,7 +186,7 @@ evmone callback → EthHost::call (nested adapter)
 
 | geth | ADR-030 文档名 | 稳定 ABI（Tier E） | 文件 | Profile / 外圈 | 能力矩阵列语义 |
 | --- | --- | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/reference/EthReferenceExecute.h` | `EthOrchestrationProfile::bind` | ETH = **接线审计**（非生产继承证明） |
+| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/apply/EthReferenceExecute.h` | `EthOrchestrationProfile::bind` | ETH = **接线审计**（非生产继承证明） |
 | `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | BCOS = **FISCO 生产继承契约** |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` | validate → `runOpStackTxLifecycle`（ADR-023） | OPStack = **OP 生产继承契约** |
 | — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | ADR-023 characterization 主面 |
@@ -297,7 +297,7 @@ struct VmHostPolicy {
 
 | Profile | 文件 | ErrorPolicy |
 | --- | --- | --- |
-| `EthOrchestrationProfile` | `eth/reference/EthOrchestrationProfile.h` | `EthOrchestrationErrorPolicy` |
+| `EthOrchestrationProfile` | `eth/apply/EthOrchestrationProfile.h` | `EthOrchestrationErrorPolicy` |
 | `FiscoOrchestrationProfile` | `bcos/FiscoOrchestrationProfile.h` | `FiscoOrchestrationErrorPolicy` |
 | `OpStackOrchestrationProfile` | `opstack/OpStackOrchestrationProfile.h` | `OpStackOrchestrationErrorPolicy` |
 
@@ -421,7 +421,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 编排上下文 | `eth/pipeline/TxPipelineContext.h` |
 | 编排钩子 | `eth/pipeline/TxPipelineHooks.h` |
 | 编排错误策略（基类） | `eth/pipeline/OrchestrationErrorPolicy.h` |
-| ETH Profile | `eth/reference/EthOrchestrationProfile.h` |
+| ETH Profile | `eth/apply/EthOrchestrationProfile.h` |
 | FISCO Profile | `bcos/FiscoOrchestrationProfile.h` |
 | OP Profile | `opstack/OpStackOrchestrationProfile.h` |
 | 内核入口（符号） | `eth/ExecuteMessage.h` / `.cpp` |

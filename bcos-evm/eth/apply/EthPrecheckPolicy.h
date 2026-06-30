@@ -18,8 +18,8 @@
 
 #pragma once
 
+#include "bcos-evm/eth/apply/EthReferenceExecute.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 
 namespace bcos::evm
 {

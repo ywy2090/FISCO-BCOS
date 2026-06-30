@@ -16,7 +16,7 @@
  * @file EthOrchestrationProfile.cpp
  */
 
-#include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
+#include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
 
 namespace bcos::evm
 {
