@@ -42,7 +42,7 @@ Grilling outcomes (2026-06-26):
 | --- | --- | --- |
 | D1 | Deep module boundary | **Merge A+B only.** `CallTargetResolver` owns address resolution + classification. `PrecompileRouter` keeps envelope. |
 | D2 | Warm rules | **2b+.** `CallTargetDescriptor` includes `WarmPolicy`; `enumerateTxEntryWarmTargets` shares classification engine. |
-| D3 | Chain precompile seam | **3b.** Neutral `ChainCallTargetDispatcher` in `eth/ports/`; FISCO + OpStack adapters. Retire `tryChainPrecompile` from main path. |
+| D3 | Chain precompile seam | **3b.** Neutral `ChainCallTargetDispatcher` in `eth/core/`; FISCO + OpStack adapters. Retire `tryChainPrecompile` from main path. |
 | D4 | Router input | **4a.** `executePrecompileEnvelope` trusts pre-classified descriptor; no re-classification. |
 | D5 | Tests | **5b.** Three test modules + one cross-chain characterization matrix. |
 
@@ -113,7 +113,7 @@ void enumerateTxEntryWarmTargets(
 
 `warmTransactionEntry` replaces the direct `forEachActivePrecompile` call with `enumerateTxEntryWarmTargets`. Sender / destination / coinbase / access-list sub-steps are unchanged; only the **source** of precompile-address warming changes.
 
-### 3. Neutral chain port: `eth/ports/ChainCallTargetDispatcher`
+### 3. Neutral chain port: `eth/core/ChainCallTargetDispatcher`
 
 Extends ADR-017. Interface in kernel-neutral location; FISCO implementation stays in `transaction-executor` / `bcos-executor`.
 
@@ -151,7 +151,7 @@ struct ChainCallTargetDispatcher {
 | `OpStackChainCallTargetAdapter` | `opstack/` | Full port; holds `State*`, `l2BaseFee`, `OpStackForkSchedule`, `blockTimestamp` (today in `OpStackVmHostPolicy` ctor) |
 | Null | Eth reference | `nullptr` |
 
-**PR1 `ChainPrecompilePort` transition:** Add `eth/ports/ChainCallTargetDispatcher.h`. Keep `bcos/ports/ChainPrecompilePort.h` as `[[deprecated]]` alias inheriting or typedef-forwarding until PR6. `ExecutorPrecompileAdapter` continues including deprecated header in PR1–PR3; switches to `eth/ports/` in PR3.
+**PR1 `ChainPrecompilePort` transition:** Add `eth/core/ChainCallTargetDispatcher.h`. Keep `bcos/ports/ChainPrecompilePort.h` as `[[deprecated]]` alias inheriting or typedef-forwarding until PR6. `ExecutorPrecompileAdapter` continues including deprecated header in PR1–PR3; switches to `eth/core/` in PR3.
 
 **`VmHostPolicy`:** retains `skipHostValueTransfer`, `prepareMessage`, `allowDelegateCallToPrecompile`, CREATE hooks. `tryChainPrecompile` removed from main path; deprecated shim PR4–PR6 only.
 
@@ -245,7 +245,7 @@ PR2: debug dual-run should cover R1–R8 before PR4.
 
 | PR | Scope | Behavior change |
 | --- | --- | --- |
-| **PR1** | Types + `eth/ports/ChainCallTargetDispatcher.h`; deprecated `bcos/ports/ChainPrecompilePort` alias | None |
+| **PR1** | Types + `eth/core/ChainCallTargetDispatcher.h`; deprecated `bcos/ports/ChainPrecompilePort` alias | None |
 | **PR2** | `CallTargetResolver` + tests; optional dual-run | None |
 | **PR3** | `FiscoChainCallTargetAdapter`, `OpStackChainCallTargetAdapter`; wire `chainPort` field, old path still default | None |
 | **PR4** | `ExecutionFrame` delta; `executePrecompileEnvelope`; characterization baselines | **Yes** |
