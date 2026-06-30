@@ -21,8 +21,15 @@ namespace
 struct CountingPrecheckPolicy : ChainPrecheckPolicy
 {
     mutable int rulesCallCount{0};
+    mutable int setupCallCount{0};
 
     IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return {}; }
+
+    void pipelineSetupMessage(TxPipelineContext& ctx) const override
+    {
+        ++setupCallCount;
+        (void)ctx;
+    }
 
     void pipelineCheckRules(TxPipelineContext& ctx) const override
     {
@@ -65,17 +72,29 @@ BOOST_AUTO_TEST_CASE(innerExecute_resolves_as_executeMessage_forward)
     BOOST_CHECK((std::is_same_v<decltype(&innerExecute), decltype(&executeMessage)>));
 }
 
-BOOST_AUTO_TEST_CASE(checkTransactionRules_forwards_to_pipelineCheckRules)
+BOOST_AUTO_TEST_CASE(preCheckRules_forwards_to_pipelineCheckRules)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     CountingPrecheckPolicy policy;
-    policy.checkTransactionRules(ctx);
+    policy.preCheckRules(ctx);
 
     BOOST_CHECK_EQUAL(policy.rulesCallCount, 1);
     BOOST_CHECK(ctx.earlyExit);
+}
+
+BOOST_AUTO_TEST_CASE(normalizeMessage_forwards_to_pipelineSetupMessage)
+{
+    state::test::InMemoryStateView stateView;
+    evmc_message message{};
+    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    CountingPrecheckPolicy policy;
+    policy.normalizeMessage(ctx);
+
+    BOOST_CHECK_EQUAL(policy.setupCallCount, 1);
 }
 
 BOOST_AUTO_TEST_CASE(stateTransitionExecute_forwards_to_runTxPipeline)

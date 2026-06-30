@@ -12,8 +12,8 @@
  *
  *   Tier A (this header — eth kernel):
  *     stateTransitionExecute → runTxPipeline
- *     ChainPrecheckPolicy — pipelineCheckRules, preCheckGasAffordable, preCheckCanTransfer,
- *                           pipelineSetupMessage, pipelineInvokeEvmKernel
+ *     ChainPrecheckPolicy — preCheckRules, preCheckGasAffordable, preCheckCanTransfer,
+ *                           normalizeMessage, pipelineInvokeEvmKernel
  *     deductIntrinsicGas (canonical; debitIntrinsicGas deprecated)
  *     innerExecute → executeMessage
  *     prepareState → execution::warmTransactionEntry
@@ -27,7 +27,7 @@
  *
  *   Tier E stable ABI (retain; no [[deprecated]] until TE migrates):
  *     executeMessage, ethReferenceExecute, fiscoExecute, opStackExecute,
- *     runTxPipeline, runCallFrame (deprecated alias: runExecutionFrame)
+ *     runTxPipeline, runExecutionFrame (deprecated alias of runCallFrame)
  */
 
 #pragma once

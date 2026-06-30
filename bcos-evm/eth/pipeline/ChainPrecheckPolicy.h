@@ -66,9 +66,14 @@ struct ChainPrecheckPolicy
     }
 
     // geth: preCheck slices — ADR-030 Tier A aliases (forward to ADR-029 canonical names)
+    void preCheckRules(TxPipelineContext& ctx) const { pipelineCheckRules(ctx); }
+
     void preCheckGasAffordable(TxPipelineContext& ctx) const { pipelineCheckGasAffordable(ctx); }
 
     void preCheckCanTransfer(TxPipelineContext& ctx) const { pipelineCheckBalance(ctx); }
+
+    // geth: TransactionToMessage — ADR-030
+    void normalizeMessage(TxPipelineContext& ctx) const { pipelineSetupMessage(ctx); }
 };
 
 }  // namespace bcos::evm
