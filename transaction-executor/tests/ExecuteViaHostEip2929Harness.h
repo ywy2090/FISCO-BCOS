@@ -12,6 +12,7 @@
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
+#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -258,11 +259,23 @@ public:
                 }
                 evmc_tx_context ctx{};
                 ctx.tx_origin = m_message.sender;
-                bool const fixStorageStatus = m_revisionConfig.fix_storage_status;
-                bool const warmAccess = m_revisionConfig.eth().warm_access;
-                static_cast<void>(warmAccess);
+
+                bcos::evm::FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+                deps.state = m_state.get();
+                deps.blockNumber = m_fixture.blockHeader.number();
+                deps.ledgerConfig = &m_fixture.ledgerConfig;
+                deps.hashImpl = m_fixture.hashImpl.get();
+                deps.origin = m_message.sender;
+                deps.seq = &m_fixture.seq;
+                deps.revisionFlags.fix_storage_status = m_revisionConfig.fix_storage_status;
+                deps.revisionFlags.fix_nonce_init = m_revisionConfig.fix_nonce_init;
+                deps.revisionFlags.fix_auth_check = m_revisionConfig.fix_auth_check;
+                deps.revisionFlags.use_raw_address = m_revisionConfig.use_raw_address;
+                deps.revisionFlags.web3Tx = m_web3Kind != 0;
+
+                m_extension.emplace(m_revisionConfig.enable_balance_transfer, std::move(deps));
                 m_host.emplace(*m_state, ctx, m_revisionConfig.eth(), m_fixture.evm(),
-                    bcos::evm::state::BlockHashes{}, nullptr, fixStorageStatus);
+                    bcos::evm::state::BlockHashes{}, &(*m_extension));
             }
             return *m_host;
         }
@@ -291,6 +304,7 @@ public:
         uint8_t m_web3Kind{0};
         evmc_message m_message{};
         std::unique_ptr<bcos::evm::state::State> m_state;
+        std::optional<bcos::evm::FiscoVmHostPolicy> m_extension;
         std::optional<bcos::evm::state::EthHost> m_host;
     };
 
