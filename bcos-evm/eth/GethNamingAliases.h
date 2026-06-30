@@ -26,10 +26,8 @@
  *     applyFiscoMessage       (FiscoExecute.h)
  *     applyOpStackMessage     (OpStackExecute.h)
  *
- *   ADR-032 Wave 4 (2026-06-30): removed Tier E *Execute forwards
- *     (fiscoExecute, ethReferenceExecute, opStackExecute → apply*Message)
- *   ADR-032 Wave 2 removed: executeMessage, runTxPipeline (use innerExecute /
- * stateTransitionExecute)
+ *   ADR-032 Wave 5 (2026-06-30): Tier E retirement doc sweep complete
+ *   Wave 1–4 symbols removed from code; index documents historical removals only
  */
 
 #pragma once

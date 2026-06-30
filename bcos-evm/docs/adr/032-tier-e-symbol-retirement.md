@@ -116,16 +116,16 @@ Search entire monorepo for remaining `*Execute(` call sites before merge. Aggreg
 
 **All waves:**
 
-- [ ] `rg` monorepo for symbol name returns zero non-doc, non-ADR hits (or only intentional test of deprecated forward).
-- [ ] `GethNamingAliasesTest` updated; no deleted-alias cases unless testing removal PR itself.
-- [ ] ADR-030 / ADR-031 / this ADR appendix date row added.
-- [ ] No new Tier E symbols introduced without ADR.
+- [x] `rg` monorepo for symbol name returns zero non-doc, non-ADR hits (or only intentional test of deprecated forward). *(Waves 1–4 verified 2026-06-30)*
+- [x] `GethNamingAliasesTest` updated; no deleted-alias cases unless testing removal PR itself. *(Waves 1–4)*
+- [x] ADR-030 / ADR-031 / this ADR appendix date row added. *(Wave 5: 2026-06-30)*
+- [x] No new Tier E symbols introduced without ADR.
 
 **Wave 3–4 additional:**
 
-- [ ] TE migration checklist (§4) complete.
-- [ ] `transaction-executor` tests green (`CompatExecuteViaHost*`, OP fixture).
-- [ ] Downstream services (`bcos-executor`, Tars executor) audited for direct `*Execute` includes.
+- [x] TE migration checklist (§4) complete.
+- [x] `transaction-executor` tests green (`CompatExecuteViaHost*`, OP fixture).
+- [x] Downstream services (`bcos-executor`, Tars executor) audited for direct `*Execute` includes.
 
 ---
 
@@ -145,10 +145,10 @@ OpStackTransactionExecutorImpl    → applyOpStackMessage    (was opStackExecute
 | TE ETH reference path calls `applyReferenceMessage` | ✅ P2 | — | `EthTransactionExecutorImpl.h` |
 | TE OP path calls `applyOpStackMessage` | ✅ P2 | — | `OpStackTransactionExecutorImpl.h` |
 | TE compat tests use `applyFiscoMessage` | ✅ | — | `ExecuteViaHostCompatTest.cpp`, harness headers |
-| Rename local helpers `*ExecuteTx()` → `*ApplyMessage()` (optional hygiene) | ☐ | 3 | Comments only; not blocking |
-| TE comments / log strings cite `apply*Message` not `*Execute` | ☐ | 3 | Search `transaction-executor/` |
-| TE includes only canonical headers after Wave 3 | ☐ | 4 | No `#include` dependency on deprecated forward |
-| TE release notes document `*Execute` removal | ☐ | 4 | One release before Wave 4 |
+| Rename local helpers `*ExecuteTx()` → `*ApplyMessage()` (optional hygiene) | ☐ optional | 3 | Comments only; not blocking |
+| TE comments / log strings cite `apply*Message` not `*Execute` | ✅ Wave 5 | 3 | `Initializer.cpp` log strings; TE local helper names unchanged |
+| TE includes only canonical headers after Wave 3 | ✅ Wave 4 | 4 | No `#include` dependency on deprecated forward |
+| TE release notes document `*Execute` removal | ✅ Wave 4 | 4 | ADR-032 inventory + ADR-030 §8 removal dates |
 
 TE **never** required migration for `runTxPipeline` / `executeMessage` (chain adapters call `stateTransitionExecute` / `innerExecute` internally since ADR-031).
 
@@ -161,10 +161,10 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | Chain bridges call `stateTransitionExecute` | ✅ ADR-031 | — | `FiscoExecute.cpp`, `EthReferenceExecute.cpp`, OP lifecycle |
 | `ChainPrecheckPolicy::pipelineInvokeEvmKernel` default calls `innerExecute` | ✅ ADR-031 | — | |
 | bcos-evm production code avoids `runTxPipeline` / `executeMessage` | ✅ Wave 2 | 2 | `rg` `bcos-evm/{bcos,eth,opstack}` excluding headers/tests |
-| Tests prefer canonical names; deprecated coverage in `GethNamingAliasesTest` | ✅ partial | 1–2 | Expand as Wave 1 aliases drop |
-| OP `lifecycleCheckEntryRules` used in production; `checkEntryRules` test-only or gone | ☐ | 1 | `OpStackTxLifecycle.cpp` |
-| `debitIntrinsicGas` absent from production paths | ☐ | 1 | Prefer `deductIntrinsicGas` |
-| `runExecutionFrame` absent from production paths | ☐ | 1 | Prefer `runCallFrame` or `evmCall` aliases |
+| Tests prefer canonical names; deprecated coverage in `GethNamingAliasesTest` | ✅ Wave 2 | 1–2 | Deprecated-alias tests removed with symbols |
+| OP `lifecycleCheckEntryRules` used in production; `checkEntryRules` test-only or gone | ✅ Wave 1 | 1 | `OpStackTxLifecycle.cpp` |
+| `debitIntrinsicGas` absent from production paths | ✅ Wave 1 | 1 | Prefer `deductIntrinsicGas` |
+| `runExecutionFrame` absent from production paths | ✅ Wave 1 | 1 | Prefer `runCallFrame` or `evmCall` aliases |
 
 ---
 
@@ -190,7 +190,17 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | 2026-06-30 | **Wave 2:** `runTxPipeline` / `executeMessage` kernel Tier E forwards removed |
 | 2026-06-30 | **Wave 3:** `apply*Message` promoted to exported symbols; `*Execute` deprecated inline forwards |
 | 2026-06-30 | **Wave 4:** `fiscoExecute` / `ethReferenceExecute` / `opStackExecute` Tier E forwards removed |
-| TBD Wave 5 | Doc + aggregate header cleanup |
+| 2026-06-30 | **Wave 5:** Doc + aggregate header cleanup; ADR-030 §8 removal dates; CI confirmation |
+
+---
+
+## Appendix — CI confirmation (Wave 5)
+
+```bash
+cd build && ctest -R 'GethNaming|FiscoExecute|EthReference|OpStackExecute|TxPipeline' --output-on-failure
+```
+
+Aggregate headers (`include/bcos-evm/*_executor.hpp`) re-export canonical chain entry headers only (`apply*Message`).
 
 ---
 
@@ -203,10 +213,10 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | ~~`fiscoExecute`~~ | `applyFiscoMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
 | ~~`ethReferenceExecute`~~ | `applyReferenceMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
 | ~~`opStackExecute`~~ | `applyOpStackMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
-| `debitIntrinsicGas` | `deductIntrinsicGas` | Phase 3 batch 1 | 1 |
-| `runExecutionFrame` | `runCallFrame` | ADR-029 L4 | 1 |
-| `checkEntryRules` | `lifecycleCheckEntryRules` | P4 (2026-06-30) | 1 |
-| `buildExecuteMessageInput` | `EvmTxContextView` | ADR-027 | 1 |
-| `dispatchPrecompile` | envelope API | ADR-024 | 1 |
-| ChainPrecheckPolicy legacy virtuals | `pipeline*` | ADR-029 | 1 |
-| `TxExecutionRunner::run` | `runEvmKernelTopLevel` | ADR-029 L3 | 1 |
+| ~~`debitIntrinsicGas`~~ | `deductIntrinsicGas` | Phase 3 batch 1 | ~~1~~ removed 2026-06-30 |
+| ~~`runExecutionFrame`~~ | `runCallFrame` | ADR-029 L4 | ~~1~~ removed 2026-06-30 |
+| ~~`checkEntryRules`~~ | `lifecycleCheckEntryRules` | P4 (2026-06-30) | ~~1~~ removed 2026-06-30 |
+| ~~`buildExecuteMessageInput`~~ | `EvmTxContextView` | ADR-027 | ~~1~~ removed 2026-06-30 |
+| ~~`dispatchPrecompile`~~ | envelope API | ADR-024 | ~~1~~ removed 2026-06-30 |
+| ~~ChainPrecheckPolicy legacy virtuals~~ | `pipeline*` | ADR-029 | ~~1~~ removed 2026-06-30 |
+| ~~`TxExecutionRunner::run`~~ | `runEvmKernelTopLevel` | ADR-029 L3 | ~~1~~ removed 2026-06-30 |

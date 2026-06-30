@@ -28,8 +28,8 @@ Chain ApplyMessage adapters (`fiscoExecute`, `ethReferenceExecute`, `opStackExec
 
 | Symbol | Header | Implementation | Deprecated alias |
 | --- | --- | --- | --- |
-| `stateTransitionExecute` | `eth/pipeline/TxPipeline.h` | `TxPipeline.cpp` | `[[deprecated]] inline runTxPipeline` |
-| `innerExecute` | `eth/ExecuteMessage.h` | `ExecuteMessage.cpp` | `[[deprecated]] inline executeMessage` |
+| `stateTransitionExecute` | `eth/pipeline/TxPipeline.h` | `TxPipeline.cpp` | ~~`[[deprecated]] inline runTxPipeline`~~ removed Wave 2 (2026-06-30) |
+| `innerExecute` | `eth/ExecuteMessage.h` | `ExecuteMessage.cpp` | ~~`[[deprecated]] inline executeMessage`~~ removed Wave 2 (2026-06-30) |
 
 **Rules:**
 
@@ -50,15 +50,15 @@ Log strings in `TxPipeline.cpp` / `TxExecutionRunner.cpp` use canonical names wh
 
 ### 3. Transaction executor (TE)
 
-TE does **not** call `runTxPipeline` / `executeMessage` directly today; it enters via Tier E chain adapters:
+TE does **not** call `runTxPipeline` / `executeMessage` directly; it enters via chain L1 adapters (ADR-032 Waves 3–4 complete):
 
 ```text
-TransactionExecutorImpl  → fiscoExecute
-EthTransactionExecutorImpl → ethReferenceExecute
-OpStackTransactionExecutorImpl → opStackExecute
+TransactionExecutorImpl  → applyFiscoMessage
+EthTransactionExecutorImpl → applyReferenceMessage
+OpStackTransactionExecutorImpl → applyOpStackMessage
 ```
 
-**Phase 3b TE action:** none required for direct kernel symbols. TE continues using `*Execute` until Phase 4+ documents `apply*Message` promotion.
+**Phase 3b TE action:** none required for direct kernel symbols. TE uses `apply*Message` at the execute boundary since P2; Tier E `*Execute` forwards removed Wave 4 (2026-06-30).
 
 **Future TE schedule:** see **ADR-032** (Tier E retirement waves 1–5). Summary:
 
@@ -93,7 +93,7 @@ Both ADR-029 and geth names appear in comments during transition.
 
 - [x] `stateTransitionExecute` canonical in `TxPipeline.h/.cpp`
 - [x] `innerExecute` canonical in `ExecuteMessage.h/.cpp`
-- [x] `[[deprecated]]` inline `runTxPipeline` / `executeMessage` retained
+- [x] `[[deprecated]]` inline `runTxPipeline` / `executeMessage` retained *(removed Wave 2, 2026-06-30)*
 - [x] `GethNamingAliases.h` — removed duplicate forwards for promoted symbols
 - [x] bcos-evm internal call sites updated
 - [x] TE audited — no direct kernel calls; no TE code change required
@@ -107,4 +107,8 @@ Both ADR-029 and geth names appear in comments during transition.
 | --- | --- |
 | 2026-06-29 | ADR-030: geth aliases forward **to** legacy names |
 | 2026-06-30 | ADR-031 Phase 3b: legacy aliases forward **to** geth canonical names |
-| 2026-06-30 | ADR-032: Tier E retirement schedule (waves 1–5); see ADR-032 appendix |
+| 2026-06-30 | ADR-032 Wave 1: internal transitional aliases removed |
+| 2026-06-30 | ADR-032 Wave 2: `runTxPipeline` / `executeMessage` kernel Tier E forwards removed |
+| 2026-06-30 | ADR-032 Wave 3: `apply*Message` promoted to exported link symbols |
+| 2026-06-30 | ADR-032 Wave 4: `fiscoExecute` / `ethReferenceExecute` / `opStackExecute` removed |
+| 2026-06-30 | ADR-032 Wave 5: documentation + aggregate header cleanup (this wave) |

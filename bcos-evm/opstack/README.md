@@ -14,7 +14,7 @@
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
-| 执行桥 | `OpStackExecute.*` | TE 稳定入口 `opStackExecute()` → 委托 lifecycle |
+| 执行桥 | `OpStackExecute.*` | TE 入口 `applyOpStackMessage()` → 委托 lifecycle |
 | 生命周期 | `OpStackTxLifecycle.*` | Deep module `runOpStackTxLifecycle`（gasPool、分支、settlement 编排） |
 | 费用投影 | `OpStackSettlementFacade.*`, `OpStackFeeSidecar.h` | `ctx` + `input` + sidecar 只读投影；无 request 镜像 |
 | Normal 结算 | `OpStackNormalTxFeeCoordinator.*` | `buyGas` + `completeAfterPipeline`（ADR-025 内聚） |
@@ -35,7 +35,7 @@
 
 ```text
 OpStackTransactionExecutorImpl
-  → opStackExecute()
+  → applyOpStackMessage()
   → runOpStackTxLifecycle
       ├─ OpStackSettlementFacade { ctx, input, sidecar }
       ├─ OpStackOrchestrationProfile::bind(bindingsCtx)

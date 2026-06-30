@@ -11,7 +11,7 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| `pipeline/` | `runTxPipeline` 共享管线步骤（ADR-019） |
+| `pipeline/` | `stateTransitionExecute` 共享管线步骤（ADR-019） |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
 | `execution/` | 交易入口预热、BlockInfo、EIP-2929 access gate、ExecutionFrame |
 | `gas/` | 1559/4844/7623 等纯 gas 数学 |
@@ -25,7 +25,7 @@
 
 | 文件 | 角色 |
 | --- | --- |
-| `ExecuteMessage.*` | 内核执行入口 `executeMessage()` |
+| `ExecuteMessage.*` | 内核执行入口 `innerExecute()` |
 | `RevisionConfig.h` | EIP 开关位域 |
 | `Eip7702.*` | EIP-7702 单点实现 |
 | `EVMCResult.*` | EVMC 结果封装 |
@@ -35,33 +35,30 @@
 
 | 文件 | 角色 |
 | --- | --- |
-| `EthReferenceExecute.*` | 链入口：`applyReferenceMessage()`（ADR-030 Tier C 文档名）/ `ethReferenceExecute()`（Tier E 稳定 ABI；TE 调用 `applyReferenceMessage`） |
+| `EthReferenceExecute.*` | 链入口 `applyReferenceMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
 | `EthOrchestrationProfile.*` | `OrchestrationProfile::bind` → 填充 `ChainPrecheckPolicy` + `OrchestrationErrorPolicy` |
 | `EthTxPrecheck.*` | 参考路径交易预检 |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
 
-## 链入口命名（ADR-029 + ADR-030 双标签）
+## 链入口命名（ADR-029 + ADR-030）
 
-三条链的 L1 入口均映射 geth `ApplyMessage`（ADR-030 §2）。**文档与注释优先使用 `apply*Message`**；`*Execute` 保留为 Tier E 稳定 ABI（`transaction-executor` 已改用 `apply*Message`），暂不标记 `[[deprecated]]`。
+三条链的 L1 入口均映射 geth `ApplyMessage`（ADR-030 §2）。Tier E `*Execute` 符号已于 ADR-032 Wave 4（2026-06-30）移除；`transaction-executor` 调用 `apply*Message`。
 
-| geth | ADR-030 文档名（Tier C） | Tier E 稳定 ABI | 头文件 | TE 调用 |
-| --- | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/apply/EthReferenceExecute.h` | `applyReferenceMessage` |
-| `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` | `applyFiscoMessage` |
-| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` | `applyOpStackMessage` |
+| geth | ADR-030 文档名（Tier C） | 头文件 | TE 调用 |
+| --- | --- | --- | --- |
+| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/EthReferenceExecute.h` | `applyReferenceMessage` |
+| `ApplyMessage` | `applyFiscoMessage` | `bcos/FiscoExecute.h` | `applyFiscoMessage` |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/OpStackExecute.h` | `applyOpStackMessage` |
 
-**阅读规则：** `*Execute` = 该链的 ApplyMessage 适配器，不是泛指的“跑 EVM”。内核 tx 级执行见 `executeMessage`（geth `innerExecute` 别名，ADR-030 §3 step 6）。
-
-Tier A geth 别名索引见 `GethNamingAliases.h`（`stateTransitionExecute`、`innerExecute`、`evmCall` 等）。
+内核 tx 级执行见 `innerExecute`（geth post-`Prepare` 路径；ADR-030 §3 step 6）。Tier A geth 别名索引见 `GethNamingAliases.h`（`stateTransitionExecute`、`innerExecute`、`evmCall` 等）。
 
 ## 执行流
 
 ```text
 applyReferenceMessage()  // geth: ApplyMessage — ADR-030 文档名
-  └─ ethReferenceExecute()   // Tier E 稳定 ABI（等价转发）
-       └─ EthOrchestrationProfile::bind
-            └─ runTxPipeline()   // geth: stateTransition.execute — ADR-030 stateTransitionExecute
-                 └─ pipelineInvokeEvmKernel → executeMessage()   // geth: innerExecute
+  └─ EthOrchestrationProfile::bind
+       └─ stateTransitionExecute()   // geth: stateTransition.execute
+            └─ pipelineInvokeEvmKernel → innerExecute()   // geth: innerExecute
 ```
 
 详见 `docs/architecture-overview.md`、`docs/adr/019-orchestration-pipeline.md`、`docs/adr/030-geth-naming-map.md`。

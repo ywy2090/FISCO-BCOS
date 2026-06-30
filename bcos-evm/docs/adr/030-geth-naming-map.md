@@ -57,19 +57,19 @@ ApplyMessage(evm, msg, gp)                    // core/state_transition.go
 | **B — geth VM** | Align frame entry with `evm.Call` / `Create` | `evmCall`, `evmCreate`, nested `evmCall` |
 | **C — chain extension** | `apply{Chain}Message` + lifecycle/settlement; not forced into geth names | `applyOpStackMessage`, `lifecycleCheckEntryRules` |
 | **D — FISCO injection** | Document as extension; no geth symbol | `AuthPort`, `EvmHostContext` bundle |
-| **E — stable ABI** | Keep until TE explicitly migrates | `executeMessage`, `fiscoExecute` |
+| **E — stable ABI** | ~~Retained until TE migrates~~ **retired ADR-032 Waves 2–4 (2026-06-30)** | ~~`executeMessage`, `fiscoExecute`~~ → canonical only |
 
 New **eth kernel** code: use Tier A/B names in function and log strings. Tier E remains as `inline` forwarders or documented aliases.
 
-### 2. Entry points (Tier C + E)
+### 2. Entry points (Tier C — canonical since ADR-032 Wave 3)
 
-| geth | bcos-evm (current) | ADR-030 canonical (chain) | Stable ABI (retain) |
+| geth | bcos-evm (canonical) | Header | Removed Tier E (Wave) |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `ethReferenceExecute` | `applyReferenceMessage` | `ethReferenceExecute` |
-| `ApplyMessage` | `fiscoExecute` | `applyFiscoMessage` | `fiscoExecute` |
-| `ApplyMessage` + op lifecycle | `opStackExecute` → `runOpStackTxLifecycle` | `applyOpStackMessage` | `opStackExecute` |
+| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/EthReferenceExecute.h` | ~~`ethReferenceExecute`~~ (4, 2026-06-30) |
+| `ApplyMessage` | `applyFiscoMessage` | `bcos/FiscoExecute.h` | ~~`fiscoExecute`~~ (4, 2026-06-30) |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` → `runOpStackTxLifecycle` | `opstack/OpStackExecute.h` | ~~`opStackExecute`~~ (4, 2026-06-30) |
 
-**Reading rule:** `*Execute` in code = **ApplyMessage adapter** for that chain, not “run EVM” generically.
+**Reading rule:** chain L1 entry = **ApplyMessage adapter** for that chain (`apply*Message`), not “run EVM” generically.
 
 ### 3. `stateTransition.execute` step map (Tier A)
 
@@ -83,9 +83,9 @@ Maps **current ADR-029 code** (as of 2026-06-29) to geth. Use the **geth column*
 | 3 | `FloorDataGas` | Eip7623 mode in `deductIntrinsicGas` + `captureSettlementSnapshot` | `checkFloorDataGas` / `floorDataGas` |
 | 4 | `CanTransfer` | `pipelineCheckBalance` | `canTransfer` (`CanTransfer.h`) + `preCheckCanTransfer` (pipeline slice) |
 | 5 | `state.Prepare` | `warmTransactionEntry`, transient clear in `TxExecutionRunner` | `prepareState` |
-| 6 | `evm.Create` / `evm.Call` | `pipelineInvokeEvmKernel` → `executeMessage` → `runEvmKernelTopLevel` | `innerExecute` |
+| 6 | `evm.Create` / `evm.Call` | `pipelineInvokeEvmKernel` → `innerExecute` → `runEvmKernelTopLevel` | `innerExecute` |
 | 7 | post-execution refund / 7623 uplift | `captureSettlementSnapshot`, `onPostExecuteNormalize` | `finalizeGasUsed` (geth: end of `execute`) |
-| — | `execute()` wrapper | `runTxPipeline` | `StateTransition::execute` (optional rename of pipeline driver) |
+| — | `execute()` wrapper | `stateTransitionExecute` | `StateTransition::execute` (canonical pipeline driver) |
 
 **`pipelineSetupMessage`:** FISCO CREATE derivation / message normalization — maps to geth `TransactionToMessage` + chain address rules, **before** `stateTransition`; keep as `normalizeMessage` or chain hook, not a geth `execute` step.
 
@@ -156,16 +156,17 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 void FiscoPrecheckPolicy::pipelineCheckRules(TxPipelineContext& ctx) const
 ```
 
-### 8. Stable aliases (Tier E — do not break without TE ADR)
+### 8. Stable aliases (Tier E — **removed ADR-032 Waves 1–4, 2026-06-30**)
 
-| Stable symbol | Forwards to (current) | ADR-030 canonical |
+| ~~Stable symbol~~ | Canonical replacement | Removed |
 | --- | --- | --- |
-| `executeMessage` | `TxExecutionRunner::runEvmKernelTopLevel` | `innerExecute` / `applyMessage` kernel |
-| `fiscoExecute` | FISCO bridge + `runTxPipeline` | `applyFiscoMessage` |
-| `ethReferenceExecute` | Eth bridge + `runTxPipeline` | `applyReferenceMessage` |
-| `opStackExecute` | `runOpStackTxLifecycle` | `applyOpStackMessage` |
-| `runTxPipeline` | L2 driver | `StateTransition::execute` |
-| `runExecutionFrame` | deprecated → `runCallFrame` | `evmCall` / `evmCreate` |
+| ~~`executeMessage`~~ | `innerExecute` | Wave 2 (2026-06-30) |
+| ~~`fiscoExecute`~~ | `applyFiscoMessage` | Wave 4 (2026-06-30) |
+| ~~`ethReferenceExecute`~~ | `applyReferenceMessage` | Wave 4 (2026-06-30) |
+| ~~`opStackExecute`~~ | `applyOpStackMessage` | Wave 4 (2026-06-30) |
+| ~~`runTxPipeline`~~ | `stateTransitionExecute` | Wave 2 (2026-06-30) |
+| ~~`runExecutionFrame`~~ | `runCallFrame` / `evmCall` | Wave 1 (2026-06-30) |
+| ~~`debitIntrinsicGas`~~ | `deductIntrinsicGas` | Wave 1 (2026-06-30) |
 
 Optional type aliases — **not used in code**; keep canonical C++ names (`ExecuteMessageOutput`, `TxPipelineContext`). geth prose map in §5 / Appendix A.
 
@@ -181,15 +182,13 @@ Tier A inline aliases (implemented 2026-06-29, coexist with ADR-029 `pipeline*`)
 | --- | --- | --- |
 | `preCheck` slices | `preCheckRules`, `preCheckGasAffordable`, `preCheckCanTransfer` | `pipelineCheck*` on `ChainPrecheckPolicy` |
 | `normalizeMessage` | `normalizeMessage` | `pipelineSetupMessage` |
-| `innerExecute` | `innerExecute` | `pipelineInvokeEvmKernel` / `executeMessage` |
+| `innerExecute` | `innerExecute` | `pipelineInvokeEvmKernel` |
 | `IntrinsicGas` | `deductIntrinsicGas` | canonical (`IntrinsicGasDebit.h`) |
-| `IntrinsicGas` (deprecated) | `debitIntrinsicGas` | `deductIntrinsicGas` |
 | `state.Prepare` | `prepareState` | `warmTransactionEntry` |
-| `execute` | `stateTransitionExecute` | `runTxPipeline` |
+| `execute` | `stateTransitionExecute` | canonical pipeline driver (`TxPipeline.cpp`) |
 | `finalizeGasUsed` | `finalizeGasUsed` | `onPostExecuteNormalize` |
-| `ApplyMessage` | `applyReferenceMessage`, `applyFiscoMessage`, `applyOpStackMessage` | `*Execute` |
+| `ApplyMessage` | `applyReferenceMessage`, `applyFiscoMessage`, `applyOpStackMessage` | canonical chain L1 exports |
 | `evm.Call` / `Create` | `evmCall`, `evmCreate`, `evmDelegateCall`, `evmStaticCall` | `runCallFrame` |
-| Bridge driver | `stateTransitionExecute` | `runTxPipeline` (used in `*ExecutionBridge` / lifecycle) |
 
 ### 9. Parity reading guide
 
@@ -225,7 +224,7 @@ Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
 - [x] `GethNamingAliasesTest` registered and passing; geth step case names where applicable; TxPipeline geth comments (Task 1).
 - [x] Parity PR description lists geth file:line anchor alongside bcos-evm symbol (§9 parity PR note).
 - [ ] Chain-only behavior labeled extension in §6, not claimed as geth parity without op-geth cite (ongoing review discipline).
-- [x] No removal of Tier E symbols without explicit TE/ADR follow-up.
+- [x] No removal of Tier E symbols without explicit TE/ADR follow-up *(ADR-032 Waves 1–4 complete; Wave 5 doc sweep)*
 - [x] `architecture-overview.md` flow diagrams dual-label critical steps (ADR-029 + geth) when updated.
 - [x] `eth/apply/` path documented (Phase 4b); no stale `eth/reference/` in `eth/README.md`.
 
@@ -235,18 +234,18 @@ Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
 
 | If you are in… | Think geth… |
 | --- | --- |
-| `fiscoExecute` / `ethReferenceExecute` | `ApplyMessage` |
+| `applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage` | `ApplyMessage` |
 | `runOpStackTxLifecycle` | `ApplyMessage` + op-geth outer `execute` |
 | `TxPipelineContext` | `stateTransition` fields |
-| `runTxPipeline` | `stateTransition.execute` |
+| `stateTransitionExecute` | `stateTransition.execute` |
 | `pipelineCheck*` | `preCheck` |
 | `deductIntrinsicGas` | `IntrinsicGas` + `Charge` |
 | `pipelineCheckBalance` | `CanTransfer` |
 | `warmTransactionEntry` | `state.Prepare` |
-| `executeMessage` | after `Prepare`: `evm.Call`/`Create` |
+| `innerExecute` | after `Prepare`: `evm.Call`/`Create` |
 | `runCallFrame` | `evm.Call` / `Create` |
 | `EthHost::call` | nested `evm.Call` |
-| `ExecutionBundle` / `ExecutionSession` | `SetTxContext` + host injection (no geth type) |
+| `ExecutionBundle` / `EvmTxContextView` | `SetTxContext` + host injection (no geth type) |
 | `buyGas` / `refundGas` | `buyGas` + settlement (chain-timed) |
 
 ---
