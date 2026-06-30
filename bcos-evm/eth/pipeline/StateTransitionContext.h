@@ -7,8 +7,8 @@
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
+#include "bcos-evm/eth/host/EvmHostHooks.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>

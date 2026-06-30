@@ -24,8 +24,8 @@
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/execution/ResolveExecutionCode.h"
+#include "bcos-evm/eth/host/EthHost.hpp"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <cstring>

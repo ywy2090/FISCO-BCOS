@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/state/EvmHostHooks.h"
+#include "bcos-evm/eth/host/EvmHostHooks.h"
 
 namespace bcos::evm::state
 {

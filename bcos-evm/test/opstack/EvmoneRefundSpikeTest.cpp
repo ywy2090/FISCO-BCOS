@@ -19,7 +19,7 @@
 
 #define BOOST_TEST_MODULE EvmoneRefundSpikeTest
 
-#include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>

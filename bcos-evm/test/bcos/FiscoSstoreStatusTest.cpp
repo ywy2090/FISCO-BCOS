@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE FiscoSstoreStatusTest
 
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"

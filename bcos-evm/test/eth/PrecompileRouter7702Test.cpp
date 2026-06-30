@@ -11,9 +11,9 @@
 #include "bcos-evm/eth/execution/FrameScope.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
+#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EvmHostHooks.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

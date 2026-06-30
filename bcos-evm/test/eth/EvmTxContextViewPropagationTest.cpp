@@ -2,8 +2,8 @@
 
 #include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
+#include "bcos-evm/eth/host/EthHost.hpp"
 #include "bcos-evm/eth/ports/ChainCallTargetDispatcher.h"
-#include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"

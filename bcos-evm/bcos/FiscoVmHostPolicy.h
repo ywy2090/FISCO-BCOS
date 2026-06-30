@@ -23,7 +23,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/state/EvmHostHooks.h"
+#include "bcos-evm/eth/host/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"

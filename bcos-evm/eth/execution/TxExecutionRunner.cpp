@@ -10,7 +10,7 @@
 #include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
-#include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <optional>
 #include <stdexcept>
