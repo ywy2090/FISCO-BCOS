@@ -86,11 +86,4 @@ struct FiscoExecutionResult
 // ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
 task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input);
 
-// Tier E stable ABI — [[deprecated]] inline forward (removed ADR-032 Wave 4)
-[[deprecated("Use applyFiscoMessage")]] [[nodiscard]] inline task::Task<FiscoExecutionResult>
-fiscoExecute(FiscoExecutionRequest input)
-{
-    return applyFiscoMessage(std::move(input));
-}
-
 }  // namespace bcos::evm

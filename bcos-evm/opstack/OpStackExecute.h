@@ -65,13 +65,6 @@ struct OpStackExecutionResult
 // ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
 task::Task<OpStackExecutionResult> applyOpStackMessage(OpStackExecutionRequest input);
 
-// Tier E stable ABI — [[deprecated]] inline forward (removed ADR-032 Wave 4)
-[[deprecated("Use applyOpStackMessage")]] [[nodiscard]] inline task::Task<OpStackExecutionResult>
-opStackExecute(OpStackExecutionRequest input)
-{
-    return applyOpStackMessage(std::move(input));
-}
-
 inline bool isDepositTx(OpStackExecutionRequest const& input) noexcept
 {
     return input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE || input.depositTx.has_value();

@@ -189,7 +189,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | 2026-06-30 | **Wave 1:** internal transitional aliases removed (§1 Wave 1) |
 | 2026-06-30 | **Wave 2:** `runTxPipeline` / `executeMessage` kernel Tier E forwards removed |
 | 2026-06-30 | **Wave 3:** `apply*Message` promoted to exported symbols; `*Execute` deprecated inline forwards |
-| TBD Wave 4 | Remove `*Execute` forwards |
+| 2026-06-30 | **Wave 4:** `fiscoExecute` / `ethReferenceExecute` / `opStackExecute` Tier E forwards removed |
 | TBD Wave 5 | Doc + aggregate header cleanup |
 
 ---
@@ -200,9 +200,9 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | --- | --- | --- | --- |
 | ~~`runTxPipeline`~~ | `stateTransitionExecute` | ADR-031 (2026-06-30) | ~~2~~ removed 2026-06-30 |
 | ~~`executeMessage`~~ | `innerExecute` | ADR-031 (2026-06-30) | ~~2~~ removed 2026-06-30 |
-| `fiscoExecute` | `applyFiscoMessage` | 2026-06-30 (Wave 3) | 4 |
-| `ethReferenceExecute` | `applyReferenceMessage` | 2026-06-30 (Wave 3) | 4 |
-| `opStackExecute` | `applyOpStackMessage` | 2026-06-30 (Wave 3) | 4 |
+| ~~`fiscoExecute`~~ | `applyFiscoMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
+| ~~`ethReferenceExecute`~~ | `applyReferenceMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
+| ~~`opStackExecute`~~ | `applyOpStackMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
 | `debitIntrinsicGas` | `deductIntrinsicGas` | Phase 3 batch 1 | 1 |
 | `runExecutionFrame` | `runCallFrame` | ADR-029 L4 | 1 |
 | `checkEntryRules` | `lifecycleCheckEntryRules` | P4 (2026-06-30) | 1 |
