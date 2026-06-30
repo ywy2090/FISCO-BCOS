@@ -37,8 +37,8 @@ add_library(bcos-evm ALIAS bcos-evm-bcos)
 graph TD
     subgraph kernel["bcos-evm-eth（共享内核）"]
         RO["runTxPipeline(hooks, errorPolicy)"]
-        TEA["TxExecutionRunner::run"]
-        EF["runExecutionFrame()"]
+        TEA["runEvmKernelTopLevel"]
+        EF["runCallFrame()"]
         PA["PrecompileActive / PrecompileRouter"]
         EH["EthHost::call()"]
         VHP["VmHostPolicy"]
@@ -94,8 +94,8 @@ graph TD
             │                  bcos-evm-eth （共享内核）                   │
             │  ───────────────────────────────────────────────────────   │
             │   runTxPipeline()      共享编排管线 + OrchestrationErrorPolicy│
-            │   executeMessage()     → TxExecutionRunner（tx 级 adapter）  │
-            │   runExecutionFrame()  统一帧 deep module（PR1–4）           │
+            │   executeMessage()     → runEvmKernelTopLevel（tx 级 adapter）│
+            │   runCallFrame()       统一帧 deep module（PR1–4）           │
             │   EthHost::call()      嵌套帧 adapter → Nested               │
             │   PrecompileActive.h   warm/dispatch 单源                    │
             │   PrecompileRouter     checkpoint→transfer→dispatch envelope │
@@ -140,14 +140,14 @@ TxPipelineContext ctx
 **内核入口分层：**
 
 ```text
-executeMessage(input)                    // 稳定 TE 符号
-    └─ TxExecutionRunner::run(input)    // warm / 7702 tx auth / trace
-           └─ runExecutionFrame(TopLevel)
+executeMessage(input)                         // 稳定 TE 符号
+    └─ runEvmKernelTopLevel(input)           // warm / 7702 tx auth / trace
+           └─ runCallFrame(TopLevel)
 EthHost::call(msg)
-    └─ runExecutionFrame(Nested)
+    └─ runCallFrame(Nested)
 ```
 
-`TxExecutionRunner` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runExecutionFrame` 内；链行为通过 `VmHostPolicy*` 注入。
+`TxExecutionRunner::runEvmKernelTopLevel` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `VmHostPolicy*` 注入。
 
 ```cpp
 // eth/ExecuteMessage.h — 对外接口不变
@@ -156,7 +156,7 @@ ExecuteMessageOutput executeMessage(ExecuteMessageInput input);
 // eth/execution/TxExecutionRunner.h — 实现体
 namespace bcos::evm::execution {
 struct TxExecutionRunner {
-    static ExecuteMessageOutput run(ExecuteMessageInput input);
+    static ExecuteMessageOutput runEvmKernelTopLevel(ExecuteMessageInput input);
 };
 }
 ```
@@ -166,10 +166,10 @@ struct TxExecutionRunner {
 ### 3.1 Frame execution (ExecutionFrame)
 
 ```text
-runTxPipeline → executeMessage → TxExecutionRunner::run
-                                    └─ runExecutionFrame(TopLevel)
+runTxPipeline → executeMessage → runEvmKernelTopLevel
+                                    └─ runCallFrame(TopLevel)
 evmone callback → EthHost::call (nested adapter)
-                    └─ runExecutionFrame(Nested)
+                    └─ runCallFrame(Nested)
                          ├─ FrameTargetResolver (7702 / CREATE address normalization)
                          └─ PrecompileRouter::dispatchPrecompile (envelope 唯一 dispatch 点)
 ```

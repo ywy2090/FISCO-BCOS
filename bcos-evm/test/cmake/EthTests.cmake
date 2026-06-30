@@ -272,11 +272,11 @@ add_test(
     COMMAND ${PRECOMPILE_ROUTER_7702_TEST_BINARY_NAME}
 )
 
-add_executable(DebitIntrinsicGasTest eth/DebitIntrinsicGasTest.cpp)
-target_include_directories(DebitIntrinsicGasTest PRIVATE
+add_executable(DeductIntrinsicGasTest eth/DeductIntrinsicGasTest.cpp)
+target_include_directories(DeductIntrinsicGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(DebitIntrinsicGasTest PRIVATE bcos-evm-eth)
-add_test(NAME DebitIntrinsicGas COMMAND DebitIntrinsicGasTest)
+target_link_libraries(DeductIntrinsicGasTest PRIVATE bcos-evm-eth)
+add_test(NAME DeductIntrinsicGas COMMAND DeductIntrinsicGasTest)
 
 add_executable(FrameTargetResolverTest eth/FrameTargetResolverTest.cpp)
 target_include_directories(FrameTargetResolverTest PRIVATE

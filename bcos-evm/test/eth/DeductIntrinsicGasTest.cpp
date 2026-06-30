@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE DebitIntrinsicGasTest
+#define BOOST_TEST_MODULE DeductIntrinsicGasTest
 
 #include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"

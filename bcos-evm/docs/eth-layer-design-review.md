@@ -318,7 +318,7 @@ Eip7702     FiscoTransactionPrepare       OpStackReceiptMeta
 | `EthHost` | `test/eth/EthHostExtensionHooksTest.cpp` | Hook coverage good. Error paths in `call()` are exercised indirectly. |
 | `precompiled/` | `test/eth/PrecompileRouter*` (4 files), `test/eth/Eip2537KernelTest.cpp`, `test/eth/Eip7212KernelTest.cpp`, `test/eth/EipPrecompileRevisionGateTest.cpp` | Thorough. Precedence ordering, revision gating, and equivalence all covered. |
 | `gas/` | `test/eth/Eip7623PrecheckTest.cpp` | Gas functions are pure and well-tested. |
-| `orchestration/` | `test/eth/TxPipelineTest.cpp`, `test/eth/DebitIntrinsicGasTest.cpp`, `test/opstack/OpStackIntrinsicGasSyncTest.cpp` | Pipeline step order covered; OpStack message-gas sync via test spy seam |
+| `orchestration/` | `test/eth/TxPipelineTest.cpp`, `test/eth/DeductIntrinsicGasTest.cpp`, `test/opstack/OpStackIntrinsicGasSyncTest.cpp` | Pipeline step order covered; OpStack message-gas sync via test spy seam |
 | `executeMessage` | `test/ExecuteMessageSmokeTest.cpp` | Smoke only. Edge cases in the main flow body tested via spec tests. |
 | `executeViaEth` | `test/eth/EthExecuteViaEth*.cpp` | Good coverage through spec test fixtures. |
 | `RevisionConfig` | `test/eth/RevisionConfigProfileTest.cpp` | Comprehensive profile test covering all fields. |
