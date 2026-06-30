@@ -46,25 +46,6 @@ struct NoopErrorPolicy : OrchestrationErrorPolicy
 
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(debitIntrinsicGas_deprecated_alias_matches_deductIntrinsicGas_none_mode)
-{
-    IntrinsicGasDebitParams policy{};
-    policy.mode = IntrinsicDebitMode::None;
-
-    evmc_message debitMsg{};
-    evmc_message deductMsg{};
-    debitMsg.gas = 50'000;
-    deductMsg.gas = 50'000;
-
-    auto const debitOutcome = debitIntrinsicGas(debitMsg, policy);
-    auto const deductOutcome = deductIntrinsicGas(deductMsg, policy);
-
-    BOOST_CHECK(debitOutcome.ok);
-    BOOST_CHECK(deductOutcome.ok);
-    BOOST_CHECK_EQUAL(debitOutcome.debitAmount, deductOutcome.debitAmount);
-    BOOST_CHECK_EQUAL(debitMsg.gas, deductMsg.gas);
-}
-
 BOOST_AUTO_TEST_CASE(executeMessage_deprecated_alias_forwards_to_innerExecute)
 {
     BOOST_CHECK(

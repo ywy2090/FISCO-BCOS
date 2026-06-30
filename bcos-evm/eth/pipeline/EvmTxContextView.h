@@ -58,17 +58,4 @@ struct EvmTxContextView
     }
 };
 
-[[deprecated(
-    "Use EvmTxContextView::toExecuteMessageInput via "
-    "ctx.txContextView")]] inline ExecuteMessageInput
-buildExecuteMessageInput(TxPipelineContext& ctx)
-{
-    if (ctx.txContextView == nullptr)
-    {
-        throw std::invalid_argument(
-            "buildExecuteMessageInput requires wired EvmTxContextView on ctx.txContextView");
-    }
-    return ctx.txContextView->toExecuteMessageInput(ctx);
-}
-
 }  // namespace bcos::evm

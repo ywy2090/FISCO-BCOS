@@ -61,7 +61,4 @@ struct PrecompileRouterOutput
 PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& input);
 PrecompileRouterOutput executeEmptyAccountEnvelope(PrecompileEnvelopeInput const& input);
 
-[[deprecated("Use resolveCallTarget + executePrecompileEnvelope")]] PrecompileRouterOutput
-dispatchPrecompile(PrecompileRouterInput const& input);
-
 }  // namespace bcos::evm::precompiled

@@ -8,6 +8,7 @@
 
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
@@ -46,6 +47,39 @@ evmc_message delegatedCallToAuthority(evmc_address authority, evmc_address deleg
     return message;
 }
 
+precompiled::PrecompileRouterOutput routePrecompileAtSeam(state::State& state,
+    bcos::evm_standard::RevisionConfig const& revision, evmc_message const& message,
+    execution::FrameScope scope, state::EvmHostHooks* extension,
+    ChainCallTargetDispatcher* chainPort = nullptr, bool skipValueTransfer = false)
+{
+    auto const desc =
+        execution::resolveCallTarget(state, revision, message, scope, chainPort, extension);
+
+    precompiled::PrecompileEnvelopeInput envInput{.state = state,
+        .revision = revision,
+        .target = desc,
+        .message = message,
+        .skipValueTransfer = skipValueTransfer,
+        .chainPort = chainPort};
+
+    precompiled::PrecompileRouterOutput output;
+    switch (desc.kind)
+    {
+    case execution::CallTargetKind::PolicyRejected:
+        output.outcome = precompiled::PrecompileDispatchOutcome::PolicyRejected;
+        output.result.status_code = EVMC_PRECOMPILE_FAILURE;
+        output.result.gas_left = message.gas;
+        return output;
+    case execution::CallTargetKind::EmptyAccount:
+        return precompiled::executeEmptyAccountEnvelope(envInput);
+    case execution::CallTargetKind::BuiltinPrecompile:
+    case execution::CallTargetKind::ChainPrecompile:
+        return precompiled::executePrecompileEnvelope(envInput);
+    case execution::CallTargetKind::EvmContract:
+        return output;
+    }
+}
+
 FrameBalanceOutcome runDepth0With7702(state::State& state, evmc_message message)
 {
     auto input = makeBaseInput(&state, message);
@@ -64,7 +98,7 @@ FrameBalanceOutcome runDepth1With7702(state::State& state, evmc_message message)
     txContext.block_gas_limit = 30'000'000;
     bcos::evm_standard::RevisionConfig cfg{
         .revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
-    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
+    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, nullptr);
     message.depth = 1;
     auto result = host.call(message);
     return {.status = result.status_code,
@@ -125,15 +159,9 @@ BOOST_AUTO_TEST_CASE(delegatecall_to_precompile_blocked_at_router_seam)
     DenyDelegatePrecompilePolicy policy;
     state::test::InMemoryStateView view;
     state::State state(view);
-    auto const resolved =
-        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::Nested);
 
-    auto output = precompiled::dispatchPrecompile({.state = state,
-        .revision = pragueCfg(),
-        .extension = &policy,
-        .message = resolved.routed,
-        .target = resolved.executionAddress,
-        .skipValueTransfer = false});
+    auto output =
+        routePrecompileAtSeam(state, pragueCfg(), message, execution::FrameScope::Nested, &policy);
 
     BOOST_REQUIRE_EQUAL(static_cast<int>(output.outcome),
         static_cast<int>(precompiled::PrecompileDispatchOutcome::PolicyRejected));
@@ -153,15 +181,9 @@ BOOST_AUTO_TEST_CASE(dispatch_not_applicable_for_7702_delegation_to_precompile)
         state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
 
     auto message = delegatedCallToAuthority(authority, identity);
-    auto const resolved =
-        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::TopLevel);
 
-    auto output = precompiled::dispatchPrecompile({.state = state,
-        .revision = pragueCfg(),
-        .extension = nullptr,
-        .message = resolved.routed,
-        .target = resolved.executionAddress,
-        .skipValueTransfer = false});
+    auto output = routePrecompileAtSeam(
+        state, pragueCfg(), message, execution::FrameScope::TopLevel, nullptr);
 
     BOOST_REQUIRE_EQUAL(static_cast<int>(output.outcome),
         static_cast<int>(precompiled::PrecompileDispatchOutcome::NotApplicable));

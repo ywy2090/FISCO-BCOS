@@ -131,10 +131,4 @@ inline IntrinsicGasDebitOutcome deductIntrinsicGas(
     }
 }
 
-[[deprecated("Use deductIntrinsicGas")]] inline IntrinsicGasDebitOutcome debitIntrinsicGas(
-    evmc_message& message, IntrinsicGasDebitParams const& policy)
-{
-    return deductIntrinsicGas(message, policy);
-}
-
 }  // namespace bcos::evm

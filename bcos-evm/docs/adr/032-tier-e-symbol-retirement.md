@@ -186,7 +186,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | 2026-06-30 | P2: TE prefers `apply*Message`; `*Execute` still exported |
 | 2026-06-30 | P4: `lifecycleCheckEntryRules` canonical; `checkEntryRules` deprecated |
 | 2026-06-30 | **ADR-032 P5:** retirement schedule accepted (this document) |
-| TBD Wave 1 | Remove internal transitional aliases (§1 Wave 1) |
+| 2026-06-30 | **Wave 1:** internal transitional aliases removed (§1 Wave 1) |
 | TBD Wave 2 | Remove `runTxPipeline` / `executeMessage` forwards |
 | TBD Wave 3 | Promote `apply*Message` to exported symbols; deprecate `*Execute` |
 | TBD Wave 4 | Remove `*Execute` forwards |

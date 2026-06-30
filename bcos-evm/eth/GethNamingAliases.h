@@ -15,7 +15,7 @@
  *     stateTransitionExecute — canonical (geth stateTransition.execute; ADR-031)
  *     ChainPrecheckPolicy — preCheckRules, preCheckGasAffordable, preCheckCanTransfer,
  *                           normalizeMessage, pipelineInvokeEvmKernel
- *     deductIntrinsicGas (canonical; debitIntrinsicGas deprecated)
+ *     deductIntrinsicGas — canonical (ADR-032 Wave 1 retired debitIntrinsicGas)
  *     innerExecute — canonical (geth innerExecute; ADR-031)
  *     prepareState → execution::warmTransactionEntry
  *     finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
@@ -26,11 +26,10 @@
  *     applyFiscoMessage     → fiscoExecute          (FiscoExecute.h)
  *     applyOpStackMessage   → opStackExecute        (OpStackExecute.h)
  *
- *   Tier E stable ABI (deprecated inline forwards; remove per ADR-031 schedule):
+ *   Tier E stable ABI (deprecated inline forwards; remove per ADR-032 schedule):
  *     executeMessage → innerExecute
  *     runTxPipeline → stateTransitionExecute
- *     ethReferenceExecute, fiscoExecute, opStackExecute,
- *     runExecutionFrame (deprecated alias of runCallFrame)
+ *     ethReferenceExecute, fiscoExecute, opStackExecute
  */
 
 #pragma once

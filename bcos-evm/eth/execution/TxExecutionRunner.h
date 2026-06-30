@@ -17,12 +17,6 @@ namespace bcos::evm::execution
 struct TxExecutionRunner
 {
     static ExecuteMessageOutput runEvmKernelTopLevel(ExecuteMessageInput input);
-
-    [[deprecated("Use runEvmKernelTopLevel")]] static ExecuteMessageOutput run(
-        ExecuteMessageInput input)
-    {
-        return runEvmKernelTopLevel(std::move(input));
-    }
 };
 
 }  // namespace bcos::evm::execution

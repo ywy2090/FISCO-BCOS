@@ -32,7 +32,7 @@ EvmTxContextView makeTxContextView(evmc::VM& vm)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(toExecuteMessageInput_matches_legacy_build_fields)
+BOOST_AUTO_TEST_CASE(toExecuteMessageInput_projects_wired_context_fields)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
@@ -44,17 +44,16 @@ BOOST_AUTO_TEST_CASE(toExecuteMessageInput_matches_legacy_build_fields)
     auto session = makeTxContextView(vm);
     session.wire(ctx);
 
-    auto const fromSession = session.toExecuteMessageInput(ctx);
-    auto const fromLegacy = buildExecuteMessageInput(ctx);
+    auto const input = session.toExecuteMessageInput(ctx);
 
-    BOOST_CHECK(fromSession.state == fromLegacy.state);
-    BOOST_CHECK(fromSession.vm == fromLegacy.vm);
-    BOOST_CHECK_EQUAL(fromSession.message.gas, fromLegacy.message.gas);
-    BOOST_CHECK(fromSession.gasPrice == fromLegacy.gasPrice);
-    BOOST_CHECK(fromSession.blockInfo.number == fromLegacy.blockInfo.number);
-    BOOST_CHECK(fromSession.revisionConfig.revision == fromLegacy.revisionConfig.revision);
-    BOOST_CHECK(fromSession.extension == fromLegacy.extension);
-    BOOST_CHECK(fromSession.chainPort == fromLegacy.chainPort);
+    BOOST_CHECK(input.state == &ctx.state);
+    BOOST_CHECK(input.vm == &vm);
+    BOOST_CHECK_EQUAL(input.message.gas, 50'000);
+    BOOST_CHECK(input.gasPrice == bcos::u256(7));
+    BOOST_CHECK(input.blockInfo.number == 42);
+    BOOST_CHECK(input.revisionConfig.revision == EVMC_CANCUN);
+    BOOST_CHECK(input.extension == session.extension);
+    BOOST_CHECK(input.chainPort == session.chainPort);
 }
 
 BOOST_AUTO_TEST_CASE(wire_sets_session_pointer_on_context)

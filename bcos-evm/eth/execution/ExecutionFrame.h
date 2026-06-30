@@ -72,10 +72,4 @@ struct FrameResult
 FrameResult runCallFrame(
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host);
 
-[[deprecated("Use runCallFrame")]] inline FrameResult runExecutionFrame(
-    FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
-{
-    return runCallFrame(ctx, message, scope, host);
-}
-
 }  // namespace bcos::evm::execution

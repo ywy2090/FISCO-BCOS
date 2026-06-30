@@ -30,42 +30,6 @@ struct ChainPrecheckPolicy
         return innerExecute(std::move(input));
     }
 
-    // ADR-029 deprecated aliases (1 release)
-    [[deprecated("Use pipelineSetupMessage")]] void setupMessage(TxPipelineContext& ctx) const
-    {
-        pipelineSetupMessage(ctx);
-    }
-
-    [[deprecated("Use pipelineCheckRules")]] void checkTransactionRules(
-        TxPipelineContext& ctx) const
-    {
-        pipelineCheckRules(ctx);
-    }
-
-    [[deprecated("Use pipelineCheckGasAffordable")]] void checkGasAffordable(
-        TxPipelineContext& ctx) const
-    {
-        pipelineCheckGasAffordable(ctx);
-    }
-
-    [[deprecated("Use pipelineCheckBalance")]] void checkBalanceAndValue(
-        TxPipelineContext& ctx) const
-    {
-        pipelineCheckBalance(ctx);
-    }
-
-    [[deprecated("Use pipelineTuneKernelInput")]] void tuneExecutionInput(
-        ExecuteMessageInput& input) const
-    {
-        pipelineTuneKernelInput(input);
-    }
-
-    [[deprecated("Use pipelineInvokeEvmKernel")]] ExecuteMessageOutput runEvmExecution(
-        ExecuteMessageInput&& input) const
-    {
-        return pipelineInvokeEvmKernel(std::move(input));
-    }
-
     // geth: preCheck slices — ADR-030 Tier A aliases (forward to ADR-029 canonical names)
     void preCheckRules(TxPipelineContext& ctx) const { pipelineCheckRules(ctx); }
 

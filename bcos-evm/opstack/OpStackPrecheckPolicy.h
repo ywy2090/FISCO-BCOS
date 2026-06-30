@@ -34,12 +34,6 @@ struct OpStackPrecheckPolicy : ChainPrecheckPolicy
     /// Sync entry rules before buyGas (nonce, 7702, blob intent, fee caps). OpStack-only phase.
     void lifecycleCheckEntryRules(TxPipelineContext& ctx) const;
 
-    [[deprecated("Use lifecycleCheckEntryRules per ADR-029")]] void checkEntryRules(
-        TxPipelineContext& ctx) const
-    {
-        lifecycleCheckEntryRules(ctx);
-    }
-
     void pipelineCheckGasAffordable(TxPipelineContext& ctx) const override;
 
     void pipelineTuneKernelInput(ExecuteMessageInput& input) const override;

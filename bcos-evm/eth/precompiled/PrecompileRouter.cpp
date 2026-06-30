@@ -6,7 +6,6 @@
 
 #include "PrecompileRouter.h"
 #include "bcos-evm/eth/CanTransfer.h"
-#include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/ports/ChainCallTargetDispatcher.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -119,36 +118,6 @@ PrecompileRouterOutput executeEmptyAccountEnvelope(PrecompileEnvelopeInput const
     });
     output.outcome = PrecompileDispatchOutcome::EmptyAccountSuccess;
     return output;
-}
-
-PrecompileRouterOutput dispatchPrecompile(PrecompileRouterInput const& input)
-{
-    PrecompileRouterOutput output;
-
-    auto const desc = execution::resolveCallTarget(
-        input.state, input.revision, input.message, input.scope, input.chainPort, input.extension);
-
-    PrecompileEnvelopeInput envInput{.state = input.state,
-        .revision = input.revision,
-        .target = desc,
-        .message = input.message,
-        .skipValueTransfer = input.skipValueTransfer,
-        .chainPort = input.chainPort};
-
-    switch (desc.kind)
-    {
-    case execution::CallTargetKind::PolicyRejected:
-        output.outcome = PrecompileDispatchOutcome::PolicyRejected;
-        output.result = makePrecompileFailureResult(input.message.gas);
-        return output;
-    case execution::CallTargetKind::EmptyAccount:
-        return executeEmptyAccountEnvelope(envInput);
-    case execution::CallTargetKind::BuiltinPrecompile:
-    case execution::CallTargetKind::ChainPrecompile:
-        return executePrecompileEnvelope(envInput);
-    case execution::CallTargetKind::EvmContract:
-        return output;
-    }
 }
 
 }  // namespace bcos::evm::precompiled
