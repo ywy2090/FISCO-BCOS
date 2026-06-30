@@ -47,6 +47,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
 
     EthReferenceRequest input;
     input.message = message;
+    input.revisionConfig.eip1559 = true;
     input.gasTipCap = 3;
     input.gasFeeCap = 2;
     input.blockInfo.baseFee = 1;
