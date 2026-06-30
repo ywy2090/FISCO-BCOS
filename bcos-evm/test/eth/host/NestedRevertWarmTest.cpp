@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(parent_warm_address_survives_child_revert)
     txContext.block_gas_limit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true};
     EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
 
     evmc_message msg{};

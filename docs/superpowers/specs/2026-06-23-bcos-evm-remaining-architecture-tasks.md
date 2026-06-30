@@ -68,7 +68,7 @@ bcos-evm 分层重构 **Phase α（Step 1–4）骨架已落地**：`EthHost` �
 | **B-1** | PrecompileRouter **Phase 2 — Spine 合并** | P1 | `[ ]` | PrecompileRouter spec §2.3（Phase 1 排除） | 顶层仍走 `executeMessage` 独立 spine；嵌套走 `EthHost::call` |
 | **B-2** | **C7 不对称修复** — non-empty `[PRECOMPILED]` | P1 | `[—]` | C7 characterization | depth=0 走 EVM；depth>0 走 chain hook；**产品确认后再 spec** |
 | **B-3** | **三 orchestrator 去重** | P1 | `[ ]` | ADR-005 | `adoptResult`、7623 precheck、settlement 等分散于 eth/bcos/opstack |
-| **B-4** | **RevisionConfig 语义债务** | P1 | `[~]` | ADR-004；gap #37 | `warm_access` 等与 profile-only 文档不一致；部分字段无 TE consumer |
+| **B-4** | **RevisionConfig 语义债务** | P1 | `[~]` | ADR-004；gap #37 | `eip2929` 等与 profile-only 文档不一致；部分字段无 TE consumer |
 
 ---
 

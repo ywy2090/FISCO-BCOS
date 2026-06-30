@@ -32,7 +32,7 @@
 | `Eip2929AccessHostTest.cpp` | `access_account_cold_then_warm` | ✅ | EIP-2929 §Cold/warm | 生产 `EthHost::access_account` |
 | `Eip2929AccessHostTest.cpp` | `access_storage_cold_then_warm` | ✅ | EIP-2929 | 生产 `EthHost::access_storage` |
 | `Eip2929AccessHostTest.cpp` | `journal_revert_rolls_back_child_warm_address` | ✅ | geth journal revert 语义 | 含否定性 post-revert 断言 |
-| `Eip2929AccessHostTest.cpp` | `access_account_disabled_when_warm_access_off` | ✅ | flag OFF → 无 warm | 否定路径 |
+| `Eip2929AccessHostTest.cpp` | `access_account_disabled_when_eip2929_off` | ✅ | flag OFF → 无 warm | 否定路径 |
 | `WarmTransactionEntryTest.cpp` | `warms_sender_to_and_coinbase_for_call_transaction` | ✅ | geth `statedb.Prepare` + EIP-3651 | `@ EVMC_SHANGHAI` coinbase warm |
 | `WarmTransactionEntryTest.cpp` | `warms_access_list_address_and_storage_keys` | ✅ | EIP-2930 W2 warm | type-1 tx + 2 storage keys |
 | `WarmTransactionEntryTest.cpp` | `builds_block_info_with_expected_fields` | 🟡 | BlockInfoBuilder | 非 EIP 专项；smoke |

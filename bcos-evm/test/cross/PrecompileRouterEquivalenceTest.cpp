@@ -79,7 +79,7 @@ InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message
     input.blockInfo.number = 1;
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_PRAGUE;
-    input.revisionConfig.warm_access = true;
+    input.revisionConfig.eip2929 = true;
     input.txProps.warmDestination = true;
     input.chainPort = chainPort;
     return input;
@@ -104,7 +104,7 @@ struct Depth1HostFixture
     Depth1HostFixture(state::State& state, ChainCallTargetDispatcher* chainPort = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
-        cfg = {.revision = EVMC_PRAGUE, .warm_access = true};
+        cfg = {.revision = EVMC_PRAGUE, .eip2929 = true};
         host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false, chainPort);
     }
 

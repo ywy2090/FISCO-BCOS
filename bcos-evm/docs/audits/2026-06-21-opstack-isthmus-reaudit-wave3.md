@@ -150,7 +150,7 @@
 |-----|------|------|
 | 2537 MSM | ✅ | `BlsGas.h` + smoke |
 | 6780 SELFDESTRUCT | ✅ | `EthHost.cpp` |
-| 2929 warm | ✅ | `warm_access=true` |
+| 2929 warm | ✅ | `eip2929=true` |
 | 7212 / 7823 on Isthmus | ⚪ | PRAGUE profile，预期 unsupported |
 
 ### Task 9 — Unsupported

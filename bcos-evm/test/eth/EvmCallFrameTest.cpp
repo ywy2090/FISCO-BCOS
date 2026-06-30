@@ -40,7 +40,7 @@ struct FrameTestHost
 {
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true};
     std::optional<state::EthHost> host;
 
     explicit FrameTestHost(state::State& state, state::EvmHostHooks* extension = nullptr)

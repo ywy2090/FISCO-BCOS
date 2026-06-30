@@ -15,7 +15,7 @@
 | 字段 | Isthmus helper 赋值 | 默认（未赋值） |
 |------|---------------------|----------------|
 | `revision` | `EVMC_PRAGUE` | — |
-| `warm_access` | **`true`**（`revision >= EVMC_BERLIN`） | — |
+| `eip2929` | **`true`**（`revision >= EVMC_BERLIN`） | — |
 | `eip7623` | `true` | — |
 | `eip7702` | `true` | — |
 | `eip4844` | `true` | — |
@@ -30,7 +30,7 @@
 **测试锚点：**
 
 - `RevisionConfigProfileTest::isthmus_helper_dense_profile_all_fields`
-- `OpStackTxPropsTest::isthmus_revision_profile_enables_warm_access`
+- `OpStackTxPropsTest::isthmus_revision_profile_enables_eip2929`
 - `IsthmusPostExecutionPolicyTest` — Prague tx-level profile；`opstack/` 无 6110/7002/7251 hooks
 
 **生产注入：** `OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()` `input.revisionConfig = makeIsthmusRevisionConfig()`（`:197`）
@@ -83,12 +83,12 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 
 ---
 
-### #17 RevisionConfig `warm_access` — profile-only（**已设 true**）
+### #17 RevisionConfig `eip2929` — profile-only（**已设 true**）
 
 | 检查项 | 期望 | 证据 | 判定 |
 |--------|------|------|------|
 | Isthmus helper | **`true`** | `RevisionConfig.h:66`；`assertIsthmusHelperProfile` | ✅ |
-| TE 消费者 | `EthHost`、`warmTransactionEntry` | `warm_access=true` 时 full 2929 | ✅ |
+| TE 消费者 | `EthHost`、`warmTransactionEntry` | `eip2929=true` 时 full 2929 | ✅ |
 | 与 Task 8 张力 | 初审计 false 导致 2929 弱化 | **OP-09b 已闭合** | ✅ |
 
 **Part 1 状态：** ✅ — Isthmus 显式启用；与 EthChainPolicy Berlin+ 一致。
@@ -112,9 +112,9 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | 检查项 | 期望 | 证据 | 判定 |
 |--------|------|------|------|
 | Isthmus helper 未设 | `false` | 稀疏 profile | ✅ |
-| coinbase warm 实际路径 | `txProps.warmCoinbase` + `warm_access=true` | `WarmTransactionEntry.h:67-70` | ✅ |
+| coinbase warm 实际路径 | `txProps.warmCoinbase` + `eip2929=true` | `WarmTransactionEntry.h:67-70` | ✅ |
 
-**Part 1 状态：** ✅ — coinbase warm 不经 `eip3651` flag；`warm_access` 已启用。
+**Part 1 状态：** ✅ — coinbase warm 不经 `eip3651` flag；`eip2929` 已启用。
 
 ---
 
@@ -160,7 +160,7 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | 能力 | 清单 # | Matrix OPStack | 深度 | 状态 | FB 实现要点 | FB 测试 | 缺口 |
 |------|--------|----------------|------|------|-------------|---------|------|
 | EIP-7212 precompile (0x0100) | 11 | unsupported | ⚪ | ✅ | OSAKA+`eip7212` 门控；Isthmus PRAGUE + flag false | ETH `EipPrecompileRevisionGateTest` | OP 否定性测试可选 |
-| RevisionConfig `warm_access` | 17 | explicit on Isthmus | profile | ✅ | helper `warm_access=true` | `RevisionConfigProfileTest`；`OpStackTxPropsTest` | — |
+| RevisionConfig `eip2929` | 17 | explicit on Isthmus | profile | ✅ | helper `eip2929=true` | `RevisionConfigProfileTest`；`OpStackTxPropsTest` | — |
 | RevisionConfig `eip1559` | 22 | feature-gated (profile-only) | profile-only | ✅ | 未设；无 TE consumer | sparse profile | — |
 | RevisionConfig `eip3651` | 23 | feature-gated (profile-only) | profile-only | ✅ | 未设；coinbase 经 `txProps` | sparse profile | — |
 | RevisionConfig `prague_post_execution` | 24 | unsupported | ⚪ | ✅ | 显式 `false` | `IsthmusPostExecutionPolicyTest` | — |
@@ -188,7 +188,7 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | 7823 not set on Isthmus | ✅ helper 未设；modexp reject OFF |
 | `prague_post_execution` false | ✅ 显式 false + 测试 |
 | BCOS 行 OP 路径不活跃 | ✅ 四行 ⚪ 均无 OP 接线 |
-| `warm_access` Isthmus | ✅ 显式 true（OP-09b；#17 由 🟡→✅） |
+| `eip2929` Isthmus | ✅ 显式 true（OP-09b；#17 由 🟡→✅） |
 
 **Task 9 状态：** **DONE**
 

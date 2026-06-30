@@ -39,7 +39,7 @@ bcos::evm_standard::RevisionConfig pragueEip7623Config()
 {
     bcos::evm_standard::RevisionConfig cfg{};
     cfg.revision = EVMC_PRAGUE;
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     cfg.eip7623 = true;
     cfg.eip7702 = true;
     cfg.eip1153 = true;

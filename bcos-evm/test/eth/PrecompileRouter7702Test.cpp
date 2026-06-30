@@ -26,7 +26,7 @@ namespace
 {
 bcos::evm_standard::RevisionConfig pragueCfg()
 {
-    return {.revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
+    return {.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 }
 
 struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
@@ -97,7 +97,7 @@ FrameBalanceOutcome runDepth1With7702(state::State& state, evmc_message message)
     evmc_tx_context txContext{};
     txContext.block_gas_limit = 30'000'000;
     bcos::evm_standard::RevisionConfig cfg{
-        .revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
+        .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
     state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, nullptr);
     message.depth = 1;
     auto result = host.call(message);

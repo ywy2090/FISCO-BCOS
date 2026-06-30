@@ -73,7 +73,7 @@
 | `makeIsthmusRevisionConfig`(改) | 不变 | `return derive(PRAGUE)`(`prague_post_execution` 默认 false,无 overlay) |
 | `ForkProfileRegistry::makeReferenceRevisionConfig`(改) | 不变 | 删 11 行拷贝 → `return derive(rev)` |
 
-**A 类可门控集(盖全集,Q1)**:`warm_access`(flag `feature_evm_eip2929`)、`eip2537`/`eip7623`/`eip7702`(`feature_evm_prague`)、`eip7212`/`eip7823`(`feature_evm_osaka`)。其中 prague/osaka 组的 `&& feature` 在当前 `toFiscoRevision` 下**冗余但显式保留**(defense-in-depth + 兑现 ADR-006 书面门控);`warm_access` 的 `feature_evm_eip2929` 是唯一真正独立的 flag。
+**A 类可门控集(盖全集,Q1)**:`eip2929`(flag `feature_evm_eip2929`)、`eip2537`/`eip7623`/`eip7702`(`feature_evm_prague`)、`eip7212`/`eip7823`(`feature_evm_osaka`)。其中 prague/osaka 组的 `&& feature` 在当前 `toFiscoRevision` 下**冗余但显式保留**(defense-in-depth + 兑现 ADR-006 书面门控);`eip2929` 的 `feature_evm_eip2929` 是唯一真正独立的 flag。
 **B 类纯 revision**:`eip1153`/`eip4844`/`eip5656`/`eip6780`/`eip1559`/`eip3651`。`eip1559`/`eip3651` 由 `derive` 统一设(Q5),**不再由 FISCO overlay 补**。
 
 ## 5. 数据流
@@ -162,7 +162,7 @@ A 类读取归一仅在"revision 够高但 feature 关闭"时可能改变行为�
 
 | # | 议题 | 结论 |
 | --- | --- | --- |
-| Q1 | A 类 mask 范围 | 盖**全集**(warm_access + prague/osaka 组);prague/osaka 的 `&& feature` 冗余但显式保留 |
+| Q1 | A 类 mask 范围 | 盖**全集**(eip2929 + prague/osaka 组);prague/osaka 的 `&& feature` 冗余但显式保留 |
 | Q2 | field→flag 映射完整性 | `FISCO_GATED_FLAG_MAP(X)` X-macro 同时生成 mask + `static_assert`(键集==内核 GATED 集) |
 | Q3 | `prague_post_execution` | 删 `makeIsthmus` 的 `=false` overlay,依结构体默认;标注未来删除候选 |
 | Q4 | 单一真相源边界 | 只管"给定 revision 的 EIP 门控";`evmcRevisionFromBlockNumber`/`toFiscoRevision` 的 blockNum/features→revision 仍在各 policy,**不进 `derive`** |

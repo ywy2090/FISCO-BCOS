@@ -30,7 +30,7 @@ evmc_address precompileAddress(uint8_t lowByte, uint8_t highByte = 0x00)
 
 bcos::evm_standard::RevisionConfig warmEnabledCfg(bcos::evm_standard::RevisionConfig cfg)
 {
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     return cfg;
 }
 

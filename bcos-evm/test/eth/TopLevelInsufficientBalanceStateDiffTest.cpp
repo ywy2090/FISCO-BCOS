@@ -46,7 +46,7 @@ bcos::evm_standard::RevisionConfig prague7702Config()
     cfg.revision = EVMC_PRAGUE;
     cfg.eip7702 = true;
     cfg.eip7623 = true;
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     cfg.calldata_floor_per_token = 10;
     return cfg;
 }

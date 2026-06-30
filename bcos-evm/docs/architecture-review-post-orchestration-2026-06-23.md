@@ -105,11 +105,11 @@ P2  Speculative → Done
 
 **问题（已修复，归档）：** ADR-018 要求 gated EIP 消费 `RevisionConfig` bool；dispatch 已遵守（`PrecompileActive` 读 `cfg.eip2537`），但 tx-entry warm 曾按 `evmc_revision >= PRAGUE/OSAKA` 硬编码。FISCO 场景 `revision=PRAGUE` + `eip2537=false` 时，0x0b–0x11 曾被 warm 却不会 dispatch——与 geth `ActivePrecompiles(rules)` 分叉。
 
-**落地:** `isActivePrecompile` / `forEachActivePrecompile` 为唯一集合；`WarmTransactionEntry` warm 与 `PrecompileRouter` / `RouteMessage` dispatch 共用。FISCO `FISCO_GATED_FLAG_MAP` 一次 mask `eip2537` / `warm_access`。
+**落地:** `isActivePrecompile` / `forEachActivePrecompile` 为唯一集合；`WarmTransactionEntry` warm 与 `PrecompileRouter` / `RouteMessage` dispatch 共用。FISCO `FISCO_GATED_FLAG_MAP` 一次 mask `eip2537` / `eip2929`。
 
 **测试:** `EipPrecompileRevisionGateTest`（含 `fisco_mask_bls_not_warmed_when_eip2537_off`）、`BcosPrecompileRevisionGateTest`、`PrecompileRouterCharacterizationTest` C6。
 
-**ADR 张力（已文档化）:** ADR-004 Scheme A — `warm_access` 由 `Eip2929Access.h` 消费；FISCO `feature_evm_eip2929=OFF` 为相对 geth 的有意偏离。Gap 37 台账见 `architecture-known-gaps.md`（`warm_access` / `eip3651` 已闭合；`eip1559` 仍 profile-only；`prague_post_execution` 已删除）。
+**ADR 张力（已文档化）:** ADR-004 Scheme A — `eip2929` 由 `Eip2929Access.h` 消费；FISCO `feature_evm_eip2929=OFF` 为相对 geth 的有意偏离。Gap 37 台账见 `architecture-known-gaps.md`（`eip2929` / `eip3651` 已闭合；`eip1559` 仍 profile-only；`prague_post_execution` 已删除）。
 
 **可选后续:** `fiscoExecute(PRAGUE, eip2537=false)` + CALL 0x0b 端到端 gas characterization（warm 单测已覆盖）。
 

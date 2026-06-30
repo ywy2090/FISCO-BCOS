@@ -27,7 +27,7 @@ bcos::evm_standard::RevisionConfig makePrague7702Config()
 {
     bcos::evm_standard::RevisionConfig cfg;
     cfg.revision = EVMC_PRAGUE;
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     cfg.eip7702 = true;
     return cfg;
 }

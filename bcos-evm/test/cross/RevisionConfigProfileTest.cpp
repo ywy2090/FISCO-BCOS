@@ -47,7 +47,7 @@ inline void assertIsthmusHelperProfile(bcos::evm_standard::RevisionConfig const&
 {
     ExpectedRevisionConfig expected{};
     expected.revision = EVMC_PRAGUE;
-    expected.warm_access = true;
+    expected.eip2929 = true;
     expected.eip2537 = true;
     expected.eip7623 = true;
     expected.eip7702 = true;
@@ -77,12 +77,12 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
         ExpectedRevisionConfig expected;
     };
     std::vector<Row> const rows = {
-        {EVMC_LONDON, {.revision = EVMC_LONDON, .warm_access = true, .eip1559 = true}},
-        {EVMC_PARIS, {.revision = EVMC_PARIS, .warm_access = true, .eip1559 = true}},
+        {EVMC_LONDON, {.revision = EVMC_LONDON, .eip2929 = true, .eip1559 = true}},
+        {EVMC_PARIS, {.revision = EVMC_PARIS, .eip2929 = true, .eip1559 = true}},
         {EVMC_SHANGHAI,
-            {.revision = EVMC_SHANGHAI, .warm_access = true, .eip1559 = true, .eip3651 = true}},
+            {.revision = EVMC_SHANGHAI, .eip2929 = true, .eip1559 = true, .eip3651 = true}},
         {EVMC_CANCUN, {.revision = EVMC_CANCUN,
-                          .warm_access = true,
+                          .eip2929 = true,
                           .eip1153 = true,
                           .eip4844 = true,
                           .eip5656 = true,
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                           .eip1559 = true,
                           .eip3651 = true}},
         {EVMC_PRAGUE, {.revision = EVMC_PRAGUE,
-                          .warm_access = true,
+                          .eip2929 = true,
                           .eip2537 = true,
                           .eip7623 = true,
                           .eip1153 = true,
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                           .eip7702 = true,
                           .calldata_floor_per_token = 10}},
         {EVMC_OSAKA, {.revision = EVMC_OSAKA,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip2537 = true,
                          .eip7212 = true,
                          .eip7623 = true,
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
         auto cfg = revisionConfigFromRevision(EVMC_OSAKA);
         ledger::Features features;
         bcos::chain_policy::applyFiscoFeatureGates(cfg, features);
-        BOOST_CHECK(!cfg.warm_access);
+        BOOST_CHECK(!cfg.eip2929);
         BOOST_CHECK(!cfg.eip2537);
         BOOST_CHECK(!cfg.eip7212);
         BOOST_CHECK(!cfg.eip7623);
@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
         features.set(Flag::feature_evm_eip2929);
         features.set(Flag::feature_evm_prague);
         bcos::chain_policy::applyFiscoFeatureGates(cfg, features);
-        BOOST_CHECK(cfg.warm_access);
+        BOOST_CHECK(cfg.eip2929);
         BOOST_CHECK(cfg.eip2537);
         BOOST_CHECK(cfg.eip7623);
         BOOST_CHECK(cfg.eip7702);
@@ -176,11 +176,11 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
         ExpectedRevisionConfig expected;
     };
     std::vector<Row> const rows = {
-        {15'537'394, {.revision = EVMC_PARIS, .warm_access = true, .eip1559 = true}},
+        {15'537'394, {.revision = EVMC_PARIS, .eip2929 = true, .eip1559 = true}},
         {17'034'870,
-            {.revision = EVMC_SHANGHAI, .warm_access = true, .eip1559 = true, .eip3651 = true}},
+            {.revision = EVMC_SHANGHAI, .eip2929 = true, .eip1559 = true, .eip3651 = true}},
         {19'426'587, {.revision = EVMC_CANCUN,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip1153 = true,
                          .eip4844 = true,
                          .eip5656 = true,
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip1559 = true,
                          .eip3651 = true}},
         {22'000'000, {.revision = EVMC_PRAGUE,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip2537 = true,
                          .eip7623 = true,
                          .eip1153 = true,
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip7702 = true,
                          .calldata_floor_per_token = 10}},
         {25'000'000, {.revision = EVMC_OSAKA,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip2537 = true,
                          .eip7212 = true,
                          .eip7623 = true,
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
              f.set(Flag::feature_evm_eip2929);
          },
             {.revision = EVMC_CANCUN,
-                .warm_access = true,
+                .eip2929 = true,
                 .eip1153 = true,
                 .eip4844 = true,
                 .eip5656 = true,
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
              f.set(Flag::feature_evm_eip2929);
          },
             {.revision = EVMC_PRAGUE,
-                .warm_access = true,
+                .eip2929 = true,
                 .eip2537 = true,
                 .eip7623 = true,
                 .eip1153 = true,
@@ -270,7 +270,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
              f.set(Flag::feature_evm_eip2929);
          },
             {.revision = EVMC_OSAKA,
-                .warm_access = true,
+                .eip2929 = true,
                 .eip2537 = true,
                 .eip7212 = true,
                 .eip7623 = true,
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip7702 = true,
                 .calldata_floor_per_token = 10}},
         {[&](ledger::Features& /*unused*/) {}, {.revision = EVMC_CANCUN,
-                                                   .warm_access = false,
+                                                   .eip2929 = false,
                                                    .eip1153 = true,
                                                    .eip4844 = true,
                                                    .eip5656 = true,

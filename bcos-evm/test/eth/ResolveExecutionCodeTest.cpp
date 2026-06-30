@@ -29,7 +29,7 @@ evmc_address addr(uint8_t last)
 
 bcos::evm_standard::RevisionConfig pragueCfg()
 {
-    return {.revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
+    return {.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 }
 
 evmc_address resolveCodeAddress(evmc_message const& message) noexcept

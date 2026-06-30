@@ -43,7 +43,7 @@
 | `OpStackFloorGasTest.cpp` | 9 | EIP-7623 `floorDataGas` + entry check |
 | `OpStackSettlementTest.cpp` | 2 | buyGas/refundGas 全路由 + hard fail |
 | `OpStackTxInputBuilderTest.cpp` | 5 | deposit / 7702 / signed RLP rollup / 4844 decode（FIX-09） |
-| `OpStackTxPropsTest.cpp` | 3 | tx-entry warm + Isthmus warm_access |
+| `OpStackTxPropsTest.cpp` | 3 | tx-entry warm + Isthmus eip2929 |
 | `RefundIsthmusTest.cpp` | 1 | Isthmus operator refund |
 | `RollupCostTest.cpp` | 2 | FLZ / rollup cost data vs op-geth |
 | `TestOpStackTransactionExecutorFixture.cpp` | 13 | TE E2E（fee / deposit / warm / operator / FIX-05/06/07） |

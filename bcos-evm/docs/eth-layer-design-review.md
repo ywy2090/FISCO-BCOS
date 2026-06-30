@@ -222,7 +222,7 @@ runTxPipeline(ctx, hooks):
 `test/fixtures/BlockInfoBuilder.h` (test-only) builds `state::BlockInfo` for fixtures and warm-entry tests.
 
 **Points a reviewer should check:**
-1. Warm access depends on `evmc_revision >= EVMC_BERLIN` — the `warm_access` field in `RevisionConfig` is profile-only (ADR-004).
+1. Warm access depends on `evmc_revision >= EVMC_BERLIN` — the `eip2929` field in `RevisionConfig` is profile-only (ADR-004).
 2. The "prepare phase dead warm" (Gap 36) means warm sets from `prepareTransaction` are NOT persisted to execute.
 
 ---
@@ -348,7 +348,7 @@ When reviewing a PR that changes these files, check the corresponding items:
 | ADR | Topic | Impact on eth/ |
 |-----|-------|---------------|
 | ADR-001 | TE baseline vs reference path | `executeViaEth` is reference-only; not production inheritance proof |
-| ADR-004 | RevisionConfig field consumption | `warm_access`, `eip1559`, `eip3651` are profile-only (partial consumers) |
+| ADR-004 | RevisionConfig field consumption | `eip2929`, `eip1559`, `eip3651` are profile-only (partial consumers) |
 | ADR-005 | Orchestration domain boundaries | HostExtension runs in kernel; orchestrator / `runTxPipeline` runs before `executeMessage` |
 | ADR-015 | ETH reference 7702 gas + included-tx vmerr | `normalizeIncludedTxVmerr` in orchestration |
 | ADR-016 | ETH TE EIP-1559 settlement | `Eip1559.h`, `EthTxExecutor` |

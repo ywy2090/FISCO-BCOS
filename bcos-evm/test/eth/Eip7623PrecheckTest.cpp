@@ -23,7 +23,7 @@ bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
 {
     bcos::evm_standard::RevisionConfig cfg;
     cfg.revision = EVMC_PRAGUE;
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     cfg.eip1153 = true;
     cfg.eip4844 = true;
     cfg.eip5656 = true;

@@ -54,14 +54,14 @@ bool containsOsakaPrecompile(std::vector<evmc_address> const& addrs)
 bcos::evm_standard::RevisionConfig revWithEip2929On()
 {
     bcos::evm_standard::RevisionConfig rev;
-    rev.warm_access = true;
+    rev.eip2929 = true;
     return rev;
 }
 
 bcos::evm_standard::RevisionConfig revWithEip2929Off()
 {
     bcos::evm_standard::RevisionConfig rev;
-    rev.warm_access = false;
+    rev.eip2929 = false;
     return rev;
 }
 }  // namespace

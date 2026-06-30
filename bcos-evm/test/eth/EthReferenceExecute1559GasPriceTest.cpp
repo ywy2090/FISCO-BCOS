@@ -29,7 +29,7 @@ bcos::evm_standard::RevisionConfig london1559Config()
     bcos::evm_standard::RevisionConfig cfg{};
     cfg.revision = EVMC_LONDON;
     cfg.eip1559 = true;
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     return cfg;
 }
 

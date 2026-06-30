@@ -67,7 +67,7 @@ evmc_address precompileWithHigh(uint8_t lowByte, uint8_t highByte = 0x00)
 
 bcos::evm_standard::RevisionConfig cfgForSuffix(uint8_t lowByte, uint8_t highByte)
 {
-    bcos::evm_standard::RevisionConfig cfg{.warm_access = true, .eip7702 = true};
+    bcos::evm_standard::RevisionConfig cfg{.eip2929 = true, .eip7702 = true};
     if (highByte == 0x01 && lowByte == 0x00)
     {
         cfg.revision = EVMC_OSAKA;
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_top_level
 
     DenyDelegatePrecompilePolicy policy;
     bcos::evm_standard::RevisionConfig cfg{
-        .revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
+        .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 
     state::test::InMemoryStateView view;
     state::State state(view);
@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_nested)
 
     DenyDelegatePrecompilePolicy policy;
     bcos::evm_standard::RevisionConfig cfg{
-        .revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
+        .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 
     state::test::InMemoryStateView view;
     state::State state(view);

@@ -100,7 +100,7 @@ Result:
   - `transaction-executor/tests/Web3AccessListResolverTest.cpp`
     - `std::make_shared<bcos::evm::Eip2929AccessState>()` -> `std::make_shared<bcos::executor::Eip2929AccessState>()`
 - Synced EIP-2929 gate with current revision config field:
-  - `bcos-executor/src/vm/Eip2929Util.h`: `rev.eip2929` -> `rev.warm_access`
+  - `bcos-executor/src/vm/Eip2929Util.h`: `rev.eip2929` -> `rev.eip2929`
 
 ### 6) Re-scan after fix
 Command:

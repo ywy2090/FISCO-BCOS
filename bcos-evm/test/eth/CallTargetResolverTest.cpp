@@ -39,7 +39,7 @@ evmc_address addressFromValue(uint64_t value)
 
 bcos::evm_standard::RevisionConfig pragueCfg()
 {
-    return {.revision = EVMC_PRAGUE, .warm_access = true, .eip2537 = true, .eip7702 = true};
+    return {.revision = EVMC_PRAGUE, .eip2929 = true, .eip2537 = true, .eip7702 = true};
 }
 
 execution::CallTargetDescriptor resolveAt(state::State& state,

@@ -31,10 +31,10 @@ BOOST_AUTO_TEST_CASE(executor_build_order_clears_warm_destination_for_create)
     BOOST_CHECK(!input.txProps.warmDestination);
 }
 
-BOOST_AUTO_TEST_CASE(isthmus_revision_profile_enables_warm_access)
+BOOST_AUTO_TEST_CASE(isthmus_revision_profile_enables_eip2929)
 {
     auto const config = bcos::evm::makeIsthmusRevisionConfig();
-    BOOST_CHECK(config.warm_access);
+    BOOST_CHECK(config.eip2929);
     BOOST_CHECK_EQUAL(config.revision, EVMC_PRAGUE);
 }
 

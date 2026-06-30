@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - `eth/` must never include `bcos/` or `opstack/` headers (ADR-005). The FISCO `field -> flag` map and `applyFiscoFeatureGates` live in the FISCO layer, never in the kernel.
-- A-class gated fields (require explicit FISCO flag): `warm_access` (`feature_evm_eip2929`), `eip2537`/`eip7623`/`eip7702` (`feature_evm_prague`), `eip7212`/`eip7823` (`feature_evm_osaka`). All other bool fields are B-class (revision-only).
+- A-class gated fields (require explicit FISCO flag): `eip2929` (`feature_evm_eip2929`), `eip2537`/`eip7623`/`eip7702` (`feature_evm_prague`), `eip7212`/`eip7823` (`feature_evm_osaka`). All other bool fields are B-class (revision-only).
 - All snapshot deltas are profile-only / runtime-inert (ADR-004). No runtime behavior may change; equivalence is the acceptance bar.
 - `prague_post_execution` has no production consumer and stays `false` via struct default (no explicit overlay).
 - The single source covers "EIP gating given a revision" only. `evmcRevisionFromBlockNumber` (Eth) and `toFiscoRevision` (FISCO) — the blockNum/features -> revision translation — stay in their policies and are out of scope for `derive`.
@@ -60,12 +60,12 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
         ExpectedRevisionConfig expected;
     };
     std::vector<Row> const rows = {
-        {EVMC_LONDON, {.revision = EVMC_LONDON, .warm_access = true, .eip1559 = true}},
-        {EVMC_PARIS, {.revision = EVMC_PARIS, .warm_access = true, .eip1559 = true}},
+        {EVMC_LONDON, {.revision = EVMC_LONDON, .eip2929 = true, .eip1559 = true}},
+        {EVMC_PARIS, {.revision = EVMC_PARIS, .eip2929 = true, .eip1559 = true}},
         {EVMC_SHANGHAI,
-            {.revision = EVMC_SHANGHAI, .warm_access = true, .eip1559 = true, .eip3651 = true}},
+            {.revision = EVMC_SHANGHAI, .eip2929 = true, .eip1559 = true, .eip3651 = true}},
         {EVMC_CANCUN, {.revision = EVMC_CANCUN,
-                          .warm_access = true,
+                          .eip2929 = true,
                           .eip1153 = true,
                           .eip4844 = true,
                           .eip5656 = true,
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                           .eip1559 = true,
                           .eip3651 = true}},
         {EVMC_PRAGUE, {.revision = EVMC_PRAGUE,
-                          .warm_access = true,
+                          .eip2929 = true,
                           .eip2537 = true,
                           .eip7623 = true,
                           .eip1153 = true,
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                           .eip7702 = true,
                           .calldata_floor_per_token = 10}},
         {EVMC_OSAKA, {.revision = EVMC_OSAKA,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip2537 = true,
                          .eip7212 = true,
                          .eip7623 = true,
@@ -124,7 +124,7 @@ Expected: compile FAIL — `revisionConfigFromRevision`/`revisionConfigGatedFiel
 ```cpp
 // A-class feature-gated fields (FISCO requires an explicit flag ON for each).
 #define REVISION_CONFIG_GATED_FIELDS(X) \
-    X(warm_access)                      \
+    X(eip2929)                      \
     X(eip2537)                          \
     X(eip7212)                          \
     X(eip7623)                          \
@@ -150,7 +150,7 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
 {
     RevisionConfig cfg;
     cfg.revision = revision;
-    cfg.warm_access = revision >= EVMC_BERLIN;
+    cfg.eip2929 = revision >= EVMC_BERLIN;
     cfg.eip1559 = revision >= EVMC_LONDON;
     cfg.eip3651 = revision >= EVMC_SHANGHAI;
     cfg.eip1153 = revision >= EVMC_CANCUN;
@@ -204,7 +204,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
         auto cfg = revisionConfigFromRevision(EVMC_OSAKA);
         ledger::Features features;
         bcos::chain_policy::applyFiscoFeatureGates(cfg, features);
-        BOOST_CHECK(!cfg.warm_access);
+        BOOST_CHECK(!cfg.eip2929);
         BOOST_CHECK(!cfg.eip2537);
         BOOST_CHECK(!cfg.eip7212);
         BOOST_CHECK(!cfg.eip7623);
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
         features.set(Flag::feature_evm_eip2929);
         features.set(Flag::feature_evm_prague);
         bcos::chain_policy::applyFiscoFeatureGates(cfg, features);
-        BOOST_CHECK(cfg.warm_access);
+        BOOST_CHECK(cfg.eip2929);
         BOOST_CHECK(cfg.eip2537);
         BOOST_CHECK(cfg.eip7623);
         BOOST_CHECK(cfg.eip7702);
@@ -245,7 +245,7 @@ Expected: compile FAIL — `applyFiscoFeatureGates` not declared.
 // FISCO field -> feature flag map. X-macro keeps mask code and the completeness
 // assert in one place. Flag identity stays in the FISCO layer (never in eth/).
 #define FISCO_GATED_FLAG_MAP(X)            \
-    X(warm_access, feature_evm_eip2929)    \
+    X(eip2929, feature_evm_eip2929)    \
     X(eip2537, feature_evm_prague)         \
     X(eip7623, feature_evm_prague)         \
     X(eip7702, feature_evm_prague)         \
@@ -306,11 +306,11 @@ rtk git commit -m "feat(evm): add FISCO feature-gate mask with compile-time comp
 
 ```cpp
     std::vector<Row> const rows = {
-        {15'537'394, {.revision = EVMC_PARIS, .warm_access = true, .eip1559 = true}},
+        {15'537'394, {.revision = EVMC_PARIS, .eip2929 = true, .eip1559 = true}},
         {17'034'870,
-            {.revision = EVMC_SHANGHAI, .warm_access = true, .eip1559 = true, .eip3651 = true}},
+            {.revision = EVMC_SHANGHAI, .eip2929 = true, .eip1559 = true, .eip3651 = true}},
         {19'426'587, {.revision = EVMC_CANCUN,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip1153 = true,
                          .eip4844 = true,
                          .eip5656 = true,
@@ -318,7 +318,7 @@ rtk git commit -m "feat(evm): add FISCO feature-gate mask with compile-time comp
                          .eip1559 = true,
                          .eip3651 = true}},
         {22'000'000, {.revision = EVMC_PRAGUE,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip2537 = true,
                          .eip7623 = true,
                          .eip1153 = true,
@@ -330,7 +330,7 @@ rtk git commit -m "feat(evm): add FISCO feature-gate mask with compile-time comp
                          .eip7702 = true,
                          .calldata_floor_per_token = 10}},
         {25'000'000, {.revision = EVMC_OSAKA,
-                         .warm_access = true,
+                         .eip2929 = true,
                          .eip2537 = true,
                          .eip7212 = true,
                          .eip7623 = true,
@@ -397,7 +397,7 @@ rtk git commit -m "refactor(evm): derive EthPolicy and ForkProfileRegistry from 
 
 ```cpp
         // row 1 (CANCUN, eip2929):
-            {.revision = EVMC_CANCUN, .warm_access = true, .eip1153 = true, .eip4844 = true,
+            {.revision = EVMC_CANCUN, .eip2929 = true, .eip1153 = true, .eip4844 = true,
                 .eip5656 = true, .eip6780 = true, .eip1559 = true, .eip3651 = true}},
         // row 2 (PRAGUE): add .eip3651 = true alongside existing fields
         // row 3 (OSAKA): add .eip3651 = true alongside existing fields
@@ -407,7 +407,7 @@ rtk git commit -m "refactor(evm): derive EthPolicy and ForkProfileRegistry from 
 Apply concretely — row 1:
 ```cpp
             {.revision = EVMC_CANCUN,
-                .warm_access = true,
+                .eip2929 = true,
                 .eip1153 = true,
                 .eip4844 = true,
                 .eip5656 = true,
@@ -418,7 +418,7 @@ Apply concretely — row 1:
 row 2 (insert `.eip3651 = true,` after `.eip1559 = true,`):
 ```cpp
             {.revision = EVMC_PRAGUE,
-                .warm_access = true,
+                .eip2929 = true,
                 .eip2537 = true,
                 .eip7623 = true,
                 .eip1153 = true,
@@ -433,7 +433,7 @@ row 2 (insert `.eip3651 = true,` after `.eip1559 = true,`):
 row 3 (insert `.eip3651 = true,` after `.eip1559 = true,`):
 ```cpp
             {.revision = EVMC_OSAKA,
-                .warm_access = true,
+                .eip2929 = true,
                 .eip2537 = true,
                 .eip7212 = true,
                 .eip7623 = true,
@@ -450,7 +450,7 @@ row 3 (insert `.eip3651 = true,` after `.eip1559 = true,`):
 row 4:
 ```cpp
         {[&](ledger::Features& /*unused*/) {}, {.revision = EVMC_CANCUN,
-                                                   .warm_access = false,
+                                                   .eip2929 = false,
                                                    .eip1153 = true,
                                                    .eip4844 = true,
                                                    .eip5656 = true,
@@ -464,7 +464,7 @@ row 4:
 Run: `cmake --build build --target RevisionConfigProfileTest && ctest --test-dir build -R "^RevisionConfigProfile$" --output-on-failure 2>&1 | rtk err`
 Expected: FAIL on `fisco_policy_feature_gate_snapshots` — `eip3651` mismatch (FiscoPolicy still leaves it false).
 
-- [ ] **Step 3: Re-point FiscoPolicy** — in `FiscoPolicy::computeRevisionConfig` (`bcos-evm/bcos/FiscoPolicy.h:49-87`), replace the per-field EIP block (the lines setting `ethCfg.warm_access` through `ethCfg.calldata_floor_per_token`, i.e. lines 57-69) with:
+- [ ] **Step 3: Re-point FiscoPolicy** — in `FiscoPolicy::computeRevisionConfig` (`bcos-evm/bcos/FiscoPolicy.h:49-87`), replace the per-field EIP block (the lines setting `ethCfg.eip2929` through `ethCfg.calldata_floor_per_token`, i.e. lines 57-69) with:
 
 ```cpp
         ethCfg = revisionConfigFromRevision(
@@ -505,7 +505,7 @@ inline void assertIsthmusHelperProfile(bcos::evm_standard::RevisionConfig const&
 {
     ExpectedRevisionConfig expected{};
     expected.revision = EVMC_PRAGUE;
-    expected.warm_access = true;
+    expected.eip2929 = true;
     expected.eip2537 = true;
     expected.eip7623 = true;
     expected.eip7702 = true;
@@ -662,7 +662,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 # A-class fields (keep in sync with REVISION_CONFIG_GATED_FIELDS in eth/RevisionConfig.h).
-FIELDS=(warm_access eip2537 eip7212 eip7623 eip7823 eip7702)
+FIELDS=(eip2929 eip2537 eip7212 eip7623 eip7823 eip7702)
 
 status=0
 for field in "${FIELDS[@]}"; do
@@ -787,4 +787,4 @@ rtk git commit -m "docs(evm): record revision single-source decision (ADR-018) +
 
 **2. Placeholder scan:** No TBD/TODO/"handle edge cases"/"similar to Task N". All code steps carry full code. ✓
 
-**3. Type consistency:** `revisionConfigFromRevision` / `revisionConfigGatedFieldCount` / `REVISION_CONFIG_GATED_FIELDS` / `FISCO_GATED_FLAG_MAP` / `fiscoGatedFlagMapCount` / `applyFiscoFeatureGates` used identically across Tasks 1–8. Field names (`eip2537`, `eip7212`, `eip6780`, `eip1559`, `eip3651`, `warm_access`, `calldata_floor_per_token`) match `RevisionConfig` in `eth/RevisionConfig.h`. ✓
+**3. Type consistency:** `revisionConfigFromRevision` / `revisionConfigGatedFieldCount` / `REVISION_CONFIG_GATED_FIELDS` / `FISCO_GATED_FLAG_MAP` / `fiscoGatedFlagMapCount` / `applyFiscoFeatureGates` used identically across Tasks 1–8. Field names (`eip2537`, `eip7212`, `eip6780`, `eip1559`, `eip3651`, `eip2929`, `calldata_floor_per_token`) match `RevisionConfig` in `eth/RevisionConfig.h`. ✓

@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(ethereum_precise_sstore_status_matrix)
 
             State state(view);
             evmc::VM vm{evmc_create_evmone()};
-            bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+            bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
             EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr);
 
             auto const newValue = testCase.newIsZero ? zero : nonZero;
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(noop_sstore_returns_assigned_when_current_equals_value)
 
     State state(view);
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .warm_access = true};
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip2929 = true};
     EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr);
 
     BOOST_CHECK_EQUAL(
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(precise_uses_original_committed_value_for_status)
 
     State state(view);
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr);
 
     auto const firstStatus = host.set_storage(target, key, firstNonZero);

@@ -2,16 +2,16 @@
 
 **Commit:** `54e17a62c` (`feat(opstack): align L1Block IL1Block surface and close Isthmus remediation`)  
 **Prior audit:** `f989f073f` — 🔴 `m_isIsthmus` 未接线  
-**Remediation verified:** OP-01 (`m_isIsthmus` 生产接线), OP-09/OP-09b (`warm_access` + `applyDefaultTxProps`)
+**Remediation verified:** OP-01 (`m_isIsthmus` 生产接线), OP-09/OP-09b (`eip2929` + `applyDefaultTxProps`)
 
 ## Part 1 rows
 
 | 能力 | 层级 | 清单来源 | Matrix 状态 | 深度 | 状态 | Spec 依据 | FB 实现 | op-geth 对照 | FB 测试 | 缺口 |
 |------|------|----------|-------------|------|------|-----------|---------|--------------|---------|------|
-| makeIsthmusRevisionConfig | revision profile | matrix inherited | inherited | smoke | ✅ | Isthmus PRAGUE EVM | `RevisionConfig.h:62-72` | op-geth Isthmus EVM rules | `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields`; `OpStackTxPropsTest::isthmus_revision_profile_enables_warm_access` | — |
+| makeIsthmusRevisionConfig | revision profile | matrix inherited | inherited | smoke | ✅ | Isthmus PRAGUE EVM | `RevisionConfig.h:62-72` | op-geth Isthmus EVM rules | `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields`; `OpStackTxPropsTest::isthmus_revision_profile_enables_eip2929` | — |
 | Isthmus executor integration wiring (S3) | executor-integration | supplement | explicit | 深审 | ✅ | Isthmus operator fee MUST | `OpStackTransactionExecutorImpl.h:197-211`; `OpStackExecuteViaHost.cpp:79-82,249` | op-geth charges operator fee when Isthmus active | `TestOpStackTransactionExecutorFixture::operator_fee_recipient_gets_fee_on_success`; `OpStackExecuteViaHostSmokeTest::l1_fee_recipient_gets_fee_on_success` | 🟡 literal / revert 路径弱断言 |
 | EIP-2929 tx-entry destination warm | tx input | matrix inherited | inherited | smoke | ✅ | EIP-2929 tx warm | `OpStackTransactionExecutorImpl.h:206` `applyDefaultTxProps` | Berlin+ warm destination | `OpStackTxPropsTest::applyDefaultTxProps_sets_warm_destination_from_kind`; `TestOpStackTransactionExecutorFixture::executor_input_build_applies_warm_destination_for_call` | — |
-| RevisionConfig `warm_access` (Isthmus) | revision profile | matrix feature-gated (profile-only) | feature-gated | smoke | ✅ | ADR-004 profile-only; EthChainPolicy Berlin+ | `makeIsthmusRevisionConfig` `warm_access=true` (`RevisionConfig.h:66`) | runtime 2929 via revision + flag | `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields` | profile-only 语义仍适用 |
+| RevisionConfig `eip2929` (Isthmus) | revision profile | matrix feature-gated (profile-only) | feature-gated | smoke | ✅ | ADR-004 profile-only; EthChainPolicy Berlin+ | `makeIsthmusRevisionConfig` `eip2929=true` (`RevisionConfig.h:66`) | runtime 2929 via revision + flag | `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields` | profile-only 语义仍适用 |
 
 ## Part 2 — 偏差与接线核对
 
@@ -34,12 +34,12 @@
 
 **测试路径：** OP-15 已清理 opstack 直连 `opStackExecuteViaHost` 测试中冗余 `m_isIsthmus=true`；`isIsthmusOrchestrationProfile` 自动启用。`RefundIsthmusTest` 保留直连 `OpStackTxExecutor` 单元测的手动 flag（合理）。
 
-### ✅ OP-09: `applyDefaultTxProps` + `warm_access`（OP-09b）
+### ✅ OP-09: `applyDefaultTxProps` + `eip2929`（OP-09b）
 
 | 项 | 54e17a62c | 初审计 |
 |----|-----------|--------|
 | `applyDefaultTxProps` 生产调用 | ✅ `opStackExecuteViaHostTx` `:206` | ❌ 未调用 |
-| `warm_access` on Isthmus profile | ✅ `makeIsthmusRevisionConfig` `:66` | 🟡 未设 |
+| `eip2929` on Isthmus profile | ✅ `makeIsthmusRevisionConfig` `:66` | 🟡 未设 |
 | tx-entry warm destination | ✅ `applyDefaultTxProps` → `setWarmDestinationFromKind` | 仅测试 helper |
 
 ### Executor 输入 checklist（§3.6）
@@ -71,7 +71,7 @@
 | `TestOpStackTransactionExecutorFixture.cpp` | `hard_failure_status_propagates_without_state_commit` | 🟡 | L1 meta ✅；无 operator fee 断言 |
 | `OpStackExecuteViaHostSmokeTest.cpp` | `l1_fee_recipient_gets_fee_on_success` | ✅ | 编排 smoke：`receiptMeta.operatorFee > 0`；无手动 `m_isIsthmus` |
 | `OpStackTxPropsTest.cpp` | `applyDefaultTxProps_sets_warm_destination_from_kind` | ✅ | helper 契约 |
-| `OpStackTxPropsTest.cpp` | `isthmus_revision_profile_enables_warm_access` | ✅ | profile `warm_access` |
+| `OpStackTxPropsTest.cpp` | `isthmus_revision_profile_enables_eip2929` | ✅ | profile `eip2929` |
 | `RefundIsthmusTest.cpp` | `RefundIsthmus_refundsLimitMinusUsedCost` | ✅ | 单元：`refundIsthmusOperatorCost` 公式；手动 `m_isIsthmus`（直连 executor，非 wiring 缺口） |
 
 ### 🟡 剩余弱覆盖（非接线阻断）
@@ -85,7 +85,7 @@
 | 字段 | 值 | Matrix 期望 | 状态 |
 |------|-----|-------------|------|
 | `revision` | `EVMC_PRAGUE` | inherited (6780/1153/5656 via revision) | ✅ |
-| `warm_access` | `true` | feature-gated (profile-only; 现显式赋值) | ✅ |
+| `eip2929` | `true` | feature-gated (profile-only; 现显式赋值) | ✅ |
 | `eip7623` | `true` | explicit orchestration | ✅ |
 | `eip7702` | `true` | inherited | ✅ |
 | `eip4844` | `true` | inherited | ✅ |
@@ -98,10 +98,10 @@
 
 | 审计项 | 初审计 (f989f073f) | 54e17a62c |
 |--------|-------------------|-----------|
-| makeIsthmusRevisionConfig vs matrix | PASS ✅ | PASS ✅（+ `warm_access`) |
+| makeIsthmusRevisionConfig vs matrix | PASS ✅ | PASS ✅（+ `eip2929`) |
 | `m_isIsthmus` 生产路径 | FAIL 🔴 | PASS ✅ |
 | `applyDefaultTxProps` 生产接线 | FAIL 🔴 | PASS ✅ |
-| `warm_access` Isthmus profile | FAIL 🟡 | PASS ✅ |
+| `eip2929` Isthmus profile | FAIL 🟡 | PASS ✅ |
 | Executor input checklist | PARTIAL | PASS ✅ |
 | TE operator fee E2E | FAIL 🟡 | PASS ✅（弱 literal） |
 

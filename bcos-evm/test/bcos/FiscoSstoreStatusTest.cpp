@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(legacy_off_sstore_status_matrix)
 
             state::State state(view);
             evmc::VM vm{evmc_create_evmone()};
-            bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
+            bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
 
             FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
             deps.state = &state;

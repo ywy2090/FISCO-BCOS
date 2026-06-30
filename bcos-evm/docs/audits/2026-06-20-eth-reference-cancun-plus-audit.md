@@ -85,7 +85,7 @@
 | EIP-7702 revision enable (`eip7702`) | revision profile | 🔴 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) | **`EthChainPolicy.h` 未赋值**；default `false`；consumer `ExecuteMessage.cpp:173` | `enable7702` in `newPragueInstructionSet` (`jump_table.go:111`) | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 PRAGUE/OSAKA 仍为 false | Task 1 🔴：matrix 声称 PRAGUE+ inherited；FiscoPolicy/makeIsthmus 设 true；reference apply 不可达 |
 | RevisionConfig `eip7212` | revision profile | 🔴 | [EIP-7212](https://eips.ethereum.org/EIPS/eip-7212) | `EthChainPolicy.h:38` OSAKA+ → true | Osaka `PrecompiledContractsOsaka` + `p256Verify` (`contracts.go:171`) | `OsakaGasCalculator`; `P256VerifyPrecompiledContract` | `RevisionConfigProfileTest` block 25,000,000+ | Policy 启用但 TE 无 consumer；Host 仍认 0x0100 为 builtin（见 #16 🔴） |
 | RevisionConfig `eip7823` | revision profile | 🔴 | [EIP-7823](https://eips.ethereum.org/EIPS/eip-7823) | `EthChainPolicy.h:39` OSAKA+ → true | `bigModExp` `eip7823 && max(len)>1024` → error (`contracts.go:631-632`) | `BigIntegerModularExponentiationPrecompiledContract` upperBound=1024 | `RevisionConfigProfileTest` | ADR-004 profile-only；`validateModexpEip7823` 已实现但 TE `executeModexp` 未调用（见 Task 7） |
-| RevisionConfig `warm_access` | revision profile | 🟡 | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) | `EthChainPolicy.h:31` BERLIN+ → true | Berlin ACL via revision | `BerlinGasCalculator` | `RevisionConfigProfileTest` | ADR-004 profile-only；flag 传入 `ExecuteMessage.cpp:140,147` 但语义门控为 revision |
+| RevisionConfig `eip2929` | revision profile | 🟡 | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) | `EthChainPolicy.h:31` BERLIN+ → true | Berlin ACL via revision | `BerlinGasCalculator` | `RevisionConfigProfileTest` | ADR-004 profile-only；flag 传入 `ExecuteMessage.cpp:140,147` 但语义门控为 revision |
 | RevisionConfig `eip1559` | revision profile | 📋 | [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) | EthChainPolicy 未赋值（default false） | London fee market via revision | `LondonGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；`bcos-evm/eth/` 无 consumer |
 | RevisionConfig `eip3651` | revision profile | 📋 | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | EthChainPolicy 未赋值（default false） | Shanghai coinbase warm via `txProps` | `ShanghaiGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；coinbase warm 走 `txProps` 非 flag |
 | RevisionConfig `prague_post_execution` | revision profile | 📋 | Prague execution-spec | EthChainPolicy 未赋值（default false） | Prague post-exec hooks | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；无 TE consumer |
@@ -233,7 +233,7 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 #### 🟡 kernel `applyAuthorizations` — 已实现但 reference baseline 不可达
 
-**现象：** `Eip7702.cpp` 实现 chainId/nonce/code/refund/delegation 前缀规则，与 geth `validateAuthorization` + `applyAuthorization` 一致。`warmDelegationTarget` 在 `warm_access` 时预热 delegate target。
+**现象：** `Eip7702.cpp` 实现 chainId/nonce/code/refund/delegation 前缀规则，与 geth `validateAuthorization` + `applyAuthorization` 一致。`warmDelegationTarget` 在 `eip2929` 时预热 delegate target。
 
 **EthHost：** `resolveExecutionCode` 返回原始 code；delegation 执行语义由 evmone + `EVMC_PRAGUE` revision 委托（Host 无 `parseDelegationTarget` 于 call 路径）。
 
@@ -323,7 +323,7 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 | `Eip2929AccessHostTest.cpp` | `access_account_cold_then_warm` | ✅ | EIP-2929 | 生产 EthHost |
 | `Eip2929AccessHostTest.cpp` | `access_storage_cold_then_warm` | ✅ | EIP-2929 | 生产 EthHost |
 | `Eip2929AccessHostTest.cpp` | `journal_revert_rolls_back_child_warm_address` | ✅ | journal revert | 含否定断言 |
-| `Eip2929AccessHostTest.cpp` | `access_account_disabled_when_warm_access_off` | ✅ | flag OFF | 否定路径 |
+| `Eip2929AccessHostTest.cpp` | `access_account_disabled_when_eip2929_off` | ✅ | flag OFF | 否定路径 |
 | `WarmTransactionEntryTest.cpp` | `warms_sender_to_and_coinbase_for_call_transaction` | ✅ | geth Prepare + EIP-3651 | SHANGHAI coinbase |
 | `WarmTransactionEntryTest.cpp` | `warms_access_list_address_and_storage_keys` | ✅ | EIP-2930 W2 | type-1 + 2 keys |
 | `WarmTransactionEntryTest.cpp` | `builds_block_info_with_expected_fields` | 🟡 | BlockInfoBuilder | smoke |

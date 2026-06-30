@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOn)
     auto rev = policy.computeRevisionConfig(header);
     auto const& ethRev = rev.eth();
 
-    BOOST_CHECK(ethRev.warm_access);
+    BOOST_CHECK(ethRev.eip2929);
     BOOST_CHECK(ethRev.eip2537);
     BOOST_CHECK(ethRev.eip7212);
     BOOST_CHECK(ethRev.eip7623);
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigAllFlagsOff)
     auto rev = policy.computeRevisionConfig(header);
     auto const& ethRev = rev.eth();
 
-    BOOST_CHECK(!ethRev.warm_access);
+    BOOST_CHECK(!ethRev.eip2929);
     BOOST_CHECK(ethRev.eip1153);
     BOOST_CHECK(ethRev.eip4844);
     BOOST_CHECK(ethRev.eip5656);

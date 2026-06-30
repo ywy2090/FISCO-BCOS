@@ -31,7 +31,7 @@
 | get_block_hash | `m_blockHashes(number)` 回调。FISCO: 检查 number≥current 或 <0→0，**不强制 256 块窗口**（evmone 在 BLOCKHASH op 前检查） | `evm.Context.GetHash` 检查 `[current-256, current)` | evmone 在 op 层检查，常规路径无影响 | 低 |
 | emit_log | `LogEntry{address, topics, data}`，topic 数量由 evmone (LOG0-4) 限制 | `Log{Address, Topics, Data}`，由操作码限制 | 编码不同 (TARS vs RLP)，语义对齐 | 低 |
 | get_tx_context | 缓存 `evmc_tx_context` 含 txGasPrice, blobBaseFee, blobHashes, baseFee | `vm.TxContext{Origin, GasPrice}` | bcos-evm tx_context 更丰富 | 低 |
-| access_account / access_storage | EIP-2929 预热追踪：`EVMC_ACCESS_COLD/WARM`。`warm_access` 总开关 (ADR-004) 可禁用 | Berlin+ 始终启用 EIP-2929 | **`warm_access` 总开关是设计背离** | **中** |
+| access_account / access_storage | EIP-2929 预热追踪：`EVMC_ACCESS_COLD/WARM`。`eip2929` 总开关 (ADR-004) 可禁用 | Berlin+ 始终启用 EIP-2929 | **`eip2929` 总开关是设计背离** | **中** |
 
 ## 3. Gas 计算
 
@@ -87,7 +87,7 @@
 |-----|-------------------|---------------------|------|------|
 | EIP-155 (ChainID) | `evmc_tx_context.chain_id` 提供 | `evm.ChainConfig.ChainID` | 一致 | 低 |
 | EIP-1559 (Fee market) | London+ → `eip1559=true`，`resolveEffectiveGasPrice` | London fork → 完整支持 | 一致 | 低 |
-| EIP-2929 (Warm access) | Berlin+ → `warm_access=true` **但有总开关 (ADR-004)** | Berlin+ → 始终启用 | **可被禁用** | **中** |
+| EIP-2929 (Warm access) | Berlin+ → `eip2929=true` **但有总开关 (ADR-004)** | Berlin+ → 始终启用 | **可被禁用** | **中** |
 | EIP-2930 (AccessList) | 类型 0x01，gas: 2400/1900 | 同 | 一致 | 低 |
 | EIP-3529 (Refund reduction) | `effectiveRefundEip3529`: min(refund, gasUsed/5) | 同 | 一致 | 低 |
 | EIP-3651 (Warm COINBASE) | Shanghai+ → `eip3651=true`，coinbase 预热 | Shanghai+ → 同 | 一致 | 低 |
@@ -146,7 +146,7 @@
 | # | 差异 | 位置 | 说明 |
 |---|------|------|------|
 | 1 | **空账户存在性判定** | `EthHost::account_exists` | 不检查 EIP-158 空账户规则，依赖外部清理 |
-| 2 | **`warm_access` 总开关** | `RevisionConfig.h` | Berlin+ 可禁用 EIP-2929，导致 gas 计量偏差 |
+| 2 | **`eip2929` 总开关** | `RevisionConfig.h` | Berlin+ 可禁用 EIP-2929，导致 gas 计量偏差 |
 | 3 | **双类别 EIP 门控** | `RevisionConfig.h` | Feature-gated EIP 可独立禁用，误配置风险 |
 | 4 | **Modexp EIP-7883** | `ModexpGas.cpp` | Osaka 定价提前实现 |
 | 5 | **空账户清理** | `StateDiffApplier` | 依赖外部清理，可能导致状态膨胀 |

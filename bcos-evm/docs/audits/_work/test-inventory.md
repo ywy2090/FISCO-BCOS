@@ -99,7 +99,7 @@
 | 1 | `access_account_cold_then_warm` | 首次 `EVMC_ACCESS_COLD`，二次 `EVMC_ACCESS_WARM` |
 | 2 | `access_storage_cold_then_warm` | 同上（storage） |
 | 3 | `journal_revert_rolls_back_child_warm_address` | checkpoint/revert 后 `!is_address_warm` |
-| 4 | `access_account_disabled_when_warm_access_off` | `warmAccessEnabled=false` 时恒 COLD |
+| 4 | `access_account_disabled_when_eip2929_off` | `warmAccessEnabled=false` 时恒 COLD |
 
 ### `WarmTransactionEntryTest.cpp`
 

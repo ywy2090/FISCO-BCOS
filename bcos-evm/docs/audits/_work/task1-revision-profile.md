@@ -11,7 +11,7 @@
 
 | blockNum | revision | EthChainPolicy 显式赋值 true | 保持 default false |
 |----------|----------|-------------------------|-------------------|
-| 19,426,587 | CANCUN | `warm_access`, `eip1153`, `eip4844`, `eip5656`, `eip6780` | `eip2537`, `eip7623`, `eip7212`, `eip7823`, `eip1559`, `eip3651`, `eip7702`, `prague_post_execution` |
+| 19,426,587 | CANCUN | `eip2929`, `eip1153`, `eip4844`, `eip5656`, `eip6780` | `eip2537`, `eip7623`, `eip7212`, `eip7823`, `eip1559`, `eip3651`, `eip7702`, `prague_post_execution` |
 | 22,000,000 | PRAGUE | 上述 + `eip2537`, `eip7623`; `calldata_floor_per_token=10` | `eip7212`, `eip7823`, `eip1559`, `eip3651`, **`eip7702`**, `prague_post_execution` |
 | 25,000,000 | OSAKA | 上述 + `eip7212`, `eip7823` | `eip1559`, `eip3651`, **`eip7702`**, `prague_post_execution` |
 
@@ -43,7 +43,7 @@ cd build && ./bcos-evm/test/RevisionConfigProfileTest --log_level=test_suite
 
 | 字段 | EthChainPolicy 赋值 | TE consumer（`bcos-evm/eth/`） | ADR-004 分类 |
 |------|---------------|-------------------------------|-------------|
-| `warm_access` | `>= BERLIN` → true | `ExecuteMessage.cpp:140,147,177` 传入 `warmTransactionEntry` / `EthHost` | profile-only（语义门控为 revision；flag 仍被读取） |
+| `eip2929` | `>= BERLIN` → true | `ExecuteMessage.cpp:140,147,177` 传入 `warmTransactionEntry` / `EthHost` | profile-only（语义门控为 revision；flag 仍被读取） |
 | `eip1559` | 未赋值 | **无** grep 命中 | profile-only |
 | `eip3651` | 未赋值 | **无** grep 命中 | profile-only |
 | `prague_post_execution` | 未赋值 | **无** grep 命中 | profile-only |

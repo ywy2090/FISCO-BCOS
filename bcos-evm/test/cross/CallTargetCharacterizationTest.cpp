@@ -167,7 +167,7 @@ struct Depth1HostFixture
         evmc_revision revision = EVMC_PRAGUE, ChainCallTargetDispatcher* chainPort = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
-        cfg = {.revision = revision, .warm_access = true};
+        cfg = {.revision = revision, .eip2929 = true};
         host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, false, chainPort);
     }
 
@@ -185,7 +185,7 @@ InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message
     input.blockInfo.number = 1;
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_PRAGUE;
-    input.revisionConfig.warm_access = true;
+    input.revisionConfig.eip2929 = true;
     input.txProps.warmDestination = true;
     input.extension = extension;
     input.chainPort = chainPort;
@@ -503,7 +503,7 @@ BOOST_AUTO_TEST_CASE(pr5_op_l1block_chain_static_warm_tx_entry_oracle)
 
         bcos::evm_standard::RevisionConfig cfg{};
         cfg.revision = EVMC_PRAGUE;
-        cfg.warm_access = true;
+        cfg.eip2929 = true;
 
         state::Transaction tx{};
         state::BlockInfo block{};

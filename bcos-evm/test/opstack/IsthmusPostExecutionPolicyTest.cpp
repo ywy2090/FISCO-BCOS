@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(isthmus_revision_config_is_prague_tx_level)
     BOOST_CHECK_EQUAL(config.revision, EVMC_PRAGUE);
     BOOST_CHECK(config.eip7702);
     BOOST_CHECK(config.eip7623);
-    BOOST_CHECK(config.warm_access);
+    BOOST_CHECK(config.eip2929);
 }
 
 // prague_post_execution was removed from RevisionConfig (dead profile-only flag).

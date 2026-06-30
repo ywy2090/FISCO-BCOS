@@ -31,7 +31,7 @@
 | 14 | builtin precompiles 0x01–0x11 | kernel | inherited | smoke | Task 8 |
 | 15 | chain precompile routing (L1Block) | host extension | deviation | 深审 | Task 5 |
 | 16 | OPStack deposit tx | orchestration | explicit | 深审 | Task 4 |
-| 17 | RevisionConfig warm_access | revision profile | feature-gated | profile-only | Task 9 |
+| 17 | RevisionConfig eip2929 | revision profile | feature-gated | profile-only | Task 9 |
 | 18 | RevisionConfig eip1153 | revision profile | inherited | smoke/profile | Task 8/9 |
 | 19 | RevisionConfig eip5656 | revision profile | inherited | evmone-delegated | Task 8/9 |
 | 20 | RevisionConfig eip6780 | revision profile | inherited | smoke | Task 8 |

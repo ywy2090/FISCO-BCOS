@@ -24,17 +24,17 @@
 
 ```
 OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
-  → makeIsthmusRevisionConfig()          // RevisionConfig.h:62-72 — warm_access=true
+  → makeIsthmusRevisionConfig()          // RevisionConfig.h:62-72 — eip2929=true
   → fillWeb3Fields()                     // 0x04 auth decode
   → applyDefaultTxProps()                // tx-entry warm destination
   → opStackExecuteViaHost()
        → isIsthmusOrchestrationProfile → m_isIsthmus=true
        → executeMessage(..., revisionConfig, txProps, authorizations)
-            → warmTransactionEntry(...)  // revisionConfig.warm_access=true
+            → warmTransactionEntry(...)  // revisionConfig.eip2929=true
             → EthHost / EthPrecompiles   // 共享 eth/ 内核（P0 已闭合）
 ```
 
-**OP-08 / OP-09 闭合（work-list）：** 2537/6780 经共享内核验证 + `OpStack67802537KernelSmokeTest`；2929 经 `warm_access=true` + executor `applyDefaultTxProps` + `isIsthmusOrchestrationProfile` 自动接线。
+**OP-08 / OP-09 闭合（work-list）：** 2537/6780 经共享内核验证 + `OpStack67802537KernelSmokeTest`；2929 经 `eip2929=true` + executor `applyDefaultTxProps` + `isIsthmusOrchestrationProfile` 自动接线。
 
 ---
 
@@ -42,9 +42,9 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
 
 | Inv# | 能力 | 层级 | ETH 复审计 | OP 状态 | Spec 依据 | OP FB 实现 | op-geth 对照 | OP FB 测试 | 缺口 |
 |------|------|------|------------|---------|-----------|------------|--------------|------------|------|
-| 1 | EIP-2929 runtime warm | kernel | ✅ | ✅ | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) §Cold/warm | `makeIsthmusRevisionConfig` `warm_access=true`（`:66`）；`EthHost::access_account` 读 flag | Berlin ACL via revision | 共享 `Eip2929OpcodeGasTest`；OP Isthmus profile `OpStackTxPropsTest::isthmus_revision_profile_enables_warm_access` | — |
+| 1 | EIP-2929 runtime warm | kernel | ✅ | ✅ | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) §Cold/warm | `makeIsthmusRevisionConfig` `eip2929=true`（`:66`）；`EthHost::access_account` 读 flag | Berlin ACL via revision | 共享 `Eip2929OpcodeGasTest`；OP Isthmus profile `OpStackTxPropsTest::isthmus_revision_profile_enables_eip2929` | — |
 | 2 | EIP-2929 tx-entry destination warm | tx input | ✅ | ✅ | EIP-2929 tx access | `OpStackTransactionExecutorImpl.h:206` `applyDefaultTxProps`；`WarmTransactionEntry.h:62-65` | `statedb.Prepare` dst warm | `OpStackTxPropsTest`；TE `executor_input_build_applies_warm_destination_for_call` | — |
-| 3 | EIP-2929 tx-entry coinbase warm | tx input | ✅ | ✅ | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | `TransactionProperties::warmCoinbase{true}` + `warm_access=true` | Shanghai coinbase warm | 共享 `WarmTransactionEntryTest`；Isthmus profile 启用 warm | — |
+| 3 | EIP-2929 tx-entry coinbase warm | tx input | ✅ | ✅ | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | `TransactionProperties::warmCoinbase{true}` + `eip2929=true` | Shanghai coinbase warm | 共享 `WarmTransactionEntryTest`；Isthmus profile 启用 warm | — |
 | 4 | EIP-7702 authorization apply | kernel | ✅ | ✅ | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) §Set code | `ExecuteMessage.cpp` `applyAuthorizations`；Isthmus `eip7702=true` | `applyAuthorization` (`state_transition.go`) | `Eip7702ApplyAuthorizationTest`；`OpStack7702ExecuteViaHostPropagationTest` | — |
 | 5 | EIP-7702 tx field propagation | tx input | ✅ | ✅ | EIP-7702 type-4 | `OpStackTxInputBuilder.h` `fillWeb3Fields` → `authorizations` | type-4 RLP → `SetCodeAuthorizations` | `OpStackTxInputBuilderTest::decodes_eip7702_authorization_from_extra_bytes` | — |
 | 6 | EIP-7702 revision enable (`eip7702`) | revision profile | ✅ | ✅ | EIP-7702 | `makeIsthmusRevisionConfig()` `eip7702=true`（`:68`） | Isthmus EVM rules | `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields` | 初审计 ETH 🔴 已闭合 |
@@ -62,7 +62,7 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
 
 | 检查项 | 位置 | 结果 |
 |--------|------|------|
-| `makeIsthmusRevisionConfig` | `RevisionConfig.h:62-72` | ✅ `warm_access=true`；`eip7702` / `eip4844` / `eip7623` / `EVMC_PRAGUE` |
+| `makeIsthmusRevisionConfig` | `RevisionConfig.h:62-72` | ✅ `eip2929=true`；`eip7702` / `eip4844` / `eip7623` / `EVMC_PRAGUE` |
 | Isthmus profile 注入 | `OpStackTransactionExecutorImpl.h:197` | ✅ |
 | 2929 tx-entry helper | `OpStackTransactionExecutorImpl.h:206` | ✅ `applyDefaultTxProps` 已接 executor |
 | Isthmus operator / warm 自动启用 | `OpStackExecuteViaHost.cpp:79-82` | ✅ `isIsthmusOrchestrationProfile` → `m_isIsthmus=true` |
@@ -77,9 +77,9 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
 | 测试 | 覆盖 |
 |------|------|
 | `OpStack67802537KernelSmokeTest` | OP-08：2537 MSM gas + 6780 same-tx selfdestruct via Isthmus `makeIsthmusRevisionConfig` |
-| `OpStackTxPropsTest` | OP-09：`applyDefaultTxProps`；Isthmus `warm_access=true` |
+| `OpStackTxPropsTest` | OP-09：`applyDefaultTxProps`；Isthmus `eip2929=true` |
 | `TestOpStackTransactionExecutorFixture` | OP-09 E2E：`executor_input_build_*_warm_destination` |
-| `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields` | profile 字面量含 `warm_access=true` |
+| `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields` | profile 字面量含 `eip2929=true` |
 
 ---
 
@@ -107,7 +107,7 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
 
 - **继承 ETH 🔴（内核）：** **0** — P0 闭合后 OP 共享 `eth/` 无 Isthmus override 缺口。
 - **ETH ✅ + OP smoke 仍偏弱：** 3 行 🟡（#14 预编译 fixture 深度；#18/#20 profile flag 稀疏文档化）。
-- **OP-08 / OP-09：** **DONE** — `OpStack67802537KernelSmokeTest` + warm_access/applyDefaultTxProps 生产接线 ✅。
+- **OP-08 / OP-09：** **DONE** — `OpStack67802537KernelSmokeTest` + eip2929/applyDefaultTxProps 生产接线 ✅。
 
 **Task 8 状态：** **DONE** — inherited smoke 已交叉引用 ETH 复审计；2537/6780/2929 OP 路径验证闭合。
 

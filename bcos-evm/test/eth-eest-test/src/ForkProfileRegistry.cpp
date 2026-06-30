@@ -16,7 +16,7 @@ bcos::evm_standard::RevisionConfig makeReferenceRevisionConfig(evmc_revision rev
 std::vector<std::string> activatedEipsFor(bcos::evm_standard::RevisionConfig const& revision)
 {
     std::vector<std::string> eips;
-    if (revision.warm_access)
+    if (revision.eip2929)
     {
         eips.emplace_back("EIP-2929");
     }

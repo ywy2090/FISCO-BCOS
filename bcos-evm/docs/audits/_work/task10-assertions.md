@@ -141,7 +141,7 @@ BOOST_CHECK_LT(output.gasUsed, 50'000);
 | `OpStackTxInputBuilderTest.cpp` | `decodes_eip4844_blob_fields_from_extra_bytes` | ✅ | type-0x03 RLP | FIX-09 |
 | `OpStackTxPropsTest.cpp` | `applyDefaultTxProps_sets_warm_destination_from_kind` | ✅ | EIP-2929 tx-entry | |
 | `OpStackTxPropsTest.cpp` | `executor_build_order_clears_warm_destination_for_create` | ✅ | CREATE 不 warm | OP-09 |
-| `OpStackTxPropsTest.cpp` | `isthmus_revision_profile_enables_warm_access` | ✅ | `warm_access=true` | OP-09 |
+| `OpStackTxPropsTest.cpp` | `isthmus_revision_profile_enables_eip2929` | ✅ | `eip2929=true` | OP-09 |
 | `RefundIsthmusTest.cpp` | `RefundIsthmus_refundsLimitMinusUsedCost` | ✅ | operator refund 算术 | 直接单元测 |
 | `RollupCostTest.cpp` | `FlzCompressLen_matchesOpGethVectors` | ✅ | op-geth FLZ | |
 | `RollupCostTest.cpp` | `NewRollupCostData_countsBytesAndFastLz` | ✅ | empty tx rollup | |

@@ -112,7 +112,7 @@ ExecuteViaEthInput buildExecuteViaEthInput(
 void assertFixtureResult(FixtureCase const& fixture, ExecuteViaEthOutput const& output, int64_t gasBefore);
 ```
 
-- [ ] **Step 1:** 实现 `makePragueRevisionConfig()`（`EVMC_PRAGUE` + `eip2537/eip7623/eip7702/warm_access` 等同 `EthPolicy::computeRevisionConfig` 对 Prague 块的标志）
+- [ ] **Step 1:** 实现 `makePragueRevisionConfig()`（`EVMC_PRAGUE` + `eip2537/eip7623/eip7702/eip2929` 等同 `EthPolicy::computeRevisionConfig` 对 Prague 块的标志）
 
 - [ ] **Step 2:** 实现 `buildExecuteViaEthInput`：
   - `tx.to` 有值 → `EVMC_CALL`；无值 → `EVMC_CREATE`

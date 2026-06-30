@@ -275,7 +275,7 @@ The arrows above describe the profile model. **Live assignments** are verified b
 **Still open (profile-only or unwired consumers — see ADR-004):**
 
 - `eip3651`, `prague_post_execution`: not assigned in `EthPolicy`; coinbase warm uses `txProps` + revision, not `eip3651`.
-- `warm_access`, `eip1559`, `eip7823`: assigned in some builders but **no TE runtime consumer** — matrix rows use `feature-gated (profile-only)`.
+- `eip2929`, `eip1559`, `eip7823`: assigned in some builders but **no TE runtime consumer** — matrix rows use `feature-gated (profile-only)`.
 - Full-field X-Macro snapshot test (`REVISION_CONFIG_BOOL_FIELDS`) — **implemented** (field enumeration + `static_assert`); per-fork expected-value tables remain **open**.
 
 #### RevisionConfig field consumption (kernel runtime)
@@ -285,7 +285,7 @@ Profile builders must set each field explicitly, but **only consumed fields affe
 | Field | Read by kernel at runtime? | Actual gate |
 | --- | --- | --- |
 | `revision` | yes | evmone + address-based precompile tables |
-| `warm_access` | **no** | `warmTransactionEntry` uses `rev >= EVMC_BERLIN`; `EthHost` always journals warm access |
+| `eip2929` | **no** | `warmTransactionEntry` uses `rev >= EVMC_BERLIN`; `EthHost` always journals warm access |
 | `eip1153`, `eip4844`, `eip5656`, `eip6780` | via evmone revision | revision threshold in policy builders |
 | `eip2537`, `eip7212` | **partial** | `EthPrecompiles` uses `evmc_revision`; flags affect FISCO `PrecompiledManager`, not TE dispatch |
 | `eip7623`, `eip7702` | yes | orchestration + `executeMessage` / settlement helpers |

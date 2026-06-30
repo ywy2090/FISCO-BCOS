@@ -77,7 +77,7 @@ cd build && ./bcos-evm/test/EthTxInputBuilderTest --log_level=test_suite
 | warm authority | `warm_up_address(authority)` | `AddAddressToAccessList(authority)` |
 | refund | `CALL_NEW_ACCOUNT_GAS - TX_AUTH_TUPLE_GAS` if account exists | 同（`params.CallNewAccountGas - params.TxAuthTupleGas`） |
 | apply | nonce+1；zero addr → clear code；else `0xEF0100‖addr` | 同 |
-| post warm target | `warmDelegationTarget(codeAddress)` if `warm_access` | `ParseDelegation(GetCode(*msg.To))` warm（`state_transition.go:635-636`） |
+| post warm target | `warmDelegationTarget(codeAddress)` if `eip2929` | `ParseDelegation(GetCode(*msg.To))` warm（`state_transition.go:635-636`） |
 
 delegation 前缀：`0xEF 0x01 0x00` + 20-byte address（23 bytes），与 geth `AddressToDelegation` 一致。
 

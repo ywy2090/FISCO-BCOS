@@ -215,7 +215,7 @@ void initializeCreateAccount(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
     initializeCreateTargetAccount(work.ctx.state, callMessage.recipient,
-        work.ctx.revisionConfig.revision, work.ctx.revisionConfig.warm_access);
+        work.ctx.revisionConfig.revision, work.ctx.revisionConfig.eip2929);
 }
 ```
 

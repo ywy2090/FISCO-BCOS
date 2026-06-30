@@ -29,7 +29,7 @@ bcos::evm_standard::RevisionConfig makeBerlinRevisionConfig()
 {
     bcos::evm_standard::RevisionConfig cfg;
     cfg.revision = EVMC_BERLIN;
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     return cfg;
 }
 
@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(sload_second_access_charges_warm_increment_100)
     BOOST_CHECK_EQUAL(gasUsed(gasLimit, twiceOutput.result), expectedTwiceGas);
 }
 
-BOOST_AUTO_TEST_CASE(balance_always_cold_when_warm_access_disabled)
+BOOST_AUTO_TEST_CASE(balance_always_cold_when_eip2929_disabled)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_warm_access_disabled)
 
     bcos::evm_standard::RevisionConfig cfg;
     cfg.revision = EVMC_BERLIN;
-    cfg.warm_access = false;
+    cfg.eip2929 = false;
 
     InnerExecuteInput input;
     input.state = &state;
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_warm_access_disabled)
     auto output = innerExecute(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
-    // Host always reports COLD when warm_access=false; evmone charges cold surcharge each time.
+    // Host always reports COLD when eip2929=false; evmone charges cold surcharge each time.
     int64_t const expectedTwiceGas =
         kPush20Cost + kColdAccountAccessCost + kPush20Cost + kColdAccountAccessCost;
     BOOST_CHECK_EQUAL(gasUsed(gasLimit, output.result), expectedTwiceGas);

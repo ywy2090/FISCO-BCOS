@@ -34,12 +34,12 @@ inline evmc_revision toFiscoRevision(const ledger::Features& features, uint32_t 
 
 // FISCO field -> feature flag map. X-macro keeps mask code and the completeness
 // assert in one place. Flag identity stays in the FISCO layer (never in eth/).
-#define FISCO_GATED_FLAG_MAP(X)         \
-    X(warm_access, feature_evm_eip2929) \
-    X(eip2537, feature_evm_prague)      \
-    X(eip7623, feature_evm_prague)      \
-    X(eip7702, feature_evm_prague)      \
-    X(eip7212, feature_evm_osaka)       \
+#define FISCO_GATED_FLAG_MAP(X)     \
+    X(eip2929, feature_evm_eip2929) \
+    X(eip2537, feature_evm_prague)  \
+    X(eip7623, feature_evm_prague)  \
+    X(eip7702, feature_evm_prague)  \
+    X(eip7212, feature_evm_osaka)   \
     X(eip7823, feature_evm_osaka)
 
 inline constexpr std::size_t fiscoGatedFlagMapCount() noexcept

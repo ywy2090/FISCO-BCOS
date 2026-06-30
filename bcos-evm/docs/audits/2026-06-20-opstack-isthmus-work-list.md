@@ -35,9 +35,9 @@ Legend: `[x]` done · `[~]` partial · `[ ]` open
 | OP-06 | orchestration | Blob buyGas 扣款 + type-0x03 字段传播 | B1 | `OpStackTxExecutor.cpp`, `OpStackTxInputBuilder.h` | `BlobGasBalanceTest` | ✓ | ✓ | — | [x] |
 | OP-07 | orchestration | 7702 intrinsic 25000×n + existence refund | A1 | `OpStackExecuteViaHost.cpp`, `Eip7702.h` | `OpStack7702ExecuteViaHostPropagationTest` | ✓ | ✓ | — | [x] |
 | OP-08 | kernel-verify | OP 路径验证 6780 + 2537（ETH P0 已闭合） | task8 #10,#21 | 共享内核（只读验证） | Isthmus smoke + `Eip2537KernelTest` | — | ✓ | — | [x] |
-| OP-09 | kernel-verify | OP 路径 2929 tx-entry（warm_access / txProps） | task8 #1-3 | `RevisionConfig.h`, `OpStackTransactionExecutorImpl.h` | `OpStackTxPropsTest` + executor E2E | ✓ | ✓ | — | [x] |
+| OP-09 | kernel-verify | OP 路径 2929 tx-entry（eip2929 / txProps） | task8 #1-3 | `RevisionConfig.h`, `OpStackTransactionExecutorImpl.h` | `OpStackTxPropsTest` + executor E2E | ✓ | ✓ | — | [x] |
 
-**OP-09b（2026-06-20）：** 决策 A — `makeIsthmusRevisionConfig()` 现设 `warm_access=true`（对齐 `EthChainPolicy` Berlin+），启用 tx-entry warm 与 `EthHost` runtime 2929。
+**OP-09b（2026-06-20）：** 决策 A — `makeIsthmusRevisionConfig()` 现设 `eip2929=true`（对齐 `EthChainPolicy` Berlin+），启用 tx-entry warm 与 `EthHost` runtime 2929。
 
 ---
 

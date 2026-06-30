@@ -22,7 +22,7 @@
 | 📋 设计选择 | 4 | 4 | 4 | 4 |
 | **合并判定** | **❌** | **⚠️** | **⚠️** | **⚠️ 有条件通过** |
 
-> 仍 ⚠️ 的原因：`warm_access` 等 ADR-004 profile-only 文档化、fixture `gas_used` 断言强化——均非 CANCUN+ 内核阻断。
+> 仍 ⚠️ 的原因：`eip2929` 等 ADR-004 profile-only 文档化、fixture `gas_used` 断言强化——均非 CANCUN+ 内核阻断。
 
 ### 原 🔴 → 状态（P0）
 
@@ -48,7 +48,7 @@
 
 | 能力 | 测试 |
 |------|------|
-| EIP-2929 opcode gas | `Eip2929OpcodeGasTest`（5 cases）：`BALANCE` cold **2600** / warm **100**；`SLOAD` cold **2100** / warm **100**；`warm_access=false` 双 cold **5206** |
+| EIP-2929 opcode gas | `Eip2929OpcodeGasTest`（5 cases）：`BALANCE` cold **2600** / warm **100**；`SLOAD` cold **2100** / warm **100**；`eip2929=false` 双 cold **5206** |
 
 与 `Eip2929AccessHostTest`（Host COLD/WARM 回调）互补，覆盖 evmone 经 Host 的端到端 gas literal。
 
@@ -56,7 +56,7 @@
 
 | 能力 | 说明 | 建议 |
 |------|------|------|
-| `warm_access` profile | ADR-004 profile-only；runtime 用 revision | 文档 |
+| `eip2929` profile | ADR-004 profile-only；runtime 用 revision | 文档 |
 | Part 3 fixture 断言 | 部分 `gas_used=0` 跳过、2930 名实不符 | P2 余项 |
 
 ### 📋 设计选择（非缺口）

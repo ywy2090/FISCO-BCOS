@@ -37,7 +37,7 @@ inline bool eip2929Enabled(evmc_revision revision, ledger::Features const& featu
 /// True when warm access semantics apply in RevisionConfig (executeViaHost / bcos-evm kernel).
 inline bool eip2929Enabled(const bcos::evm_standard::RevisionConfig& rev) noexcept
 {
-    return rev.warm_access;
+    return rev.eip2929;
 }
 
 /// Top-level transaction entry (W1/W2) prewarm applies only at CALL depth 0.

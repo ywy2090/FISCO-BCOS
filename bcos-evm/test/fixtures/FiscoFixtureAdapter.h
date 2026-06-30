@@ -28,7 +28,7 @@ inline bcos::evm_standard::RevisionConfig revisionConfigFromFixtureRevision(
     {
         BOOST_FAIL("unsupported fixture revision: " << revision);
     }
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     cfg.eip1153 = cfg.revision >= EVMC_CANCUN;
     cfg.eip4844 = cfg.revision >= EVMC_CANCUN;
     cfg.eip5656 = cfg.revision >= EVMC_CANCUN;

@@ -112,7 +112,7 @@
 |------|------|
 | S1 Operator fee (Isthmus) | ✅ explicit（wiring + 公式 + buy/refund/route） |
 | S2 L1 attributes system deposit | ✅ explicit（OP-14 IL1Block + OP-12 literal fee E2E） |
-| S3 Executor Isthmus wiring | ✅ explicit（`m_isIsthmus` + `applyDefaultTxProps` + `warm_access`） |
+| S3 Executor Isthmus wiring | ✅ explicit（`m_isIsthmus` + `applyDefaultTxProps` + `eip2929`） |
 
 ---
 
@@ -165,7 +165,7 @@
 | OP-06 | blob buyGas + 0x03 传播 | ✅ |
 | OP-07 | 7702 intrinsic 25000×n | ✅ |
 | OP-08 | 2537/6780 内核 | ✅ |
-| OP-09 | 2929 warm_access + applyDefaultTxProps | ✅ |
+| OP-09 | 2929 eip2929 + applyDefaultTxProps | ✅ |
 
 ### P1 补测 / 协议 parity（🟡）— Wave 2 闭合
 

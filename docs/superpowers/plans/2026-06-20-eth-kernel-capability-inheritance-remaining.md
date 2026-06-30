@@ -204,14 +204,14 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
     EthPolicy policy;
     struct Row { int64_t block; ExpectedRevisionConfig expected; };
     std::vector<Row> const rows = {
-        {15'537'394, {.revision = EVMC_PARIS, .warm_access = true, .eip1559 = true}},
-        {17'034'870, {.revision = EVMC_SHANGHAI, .warm_access = true, .eip1559 = true}},
-        {19'426'587, {.revision = EVMC_CANCUN, .warm_access = true, .eip1153 = true,
+        {15'537'394, {.revision = EVMC_PARIS, .eip2929 = true, .eip1559 = true}},
+        {17'034'870, {.revision = EVMC_SHANGHAI, .eip2929 = true, .eip1559 = true}},
+        {19'426'587, {.revision = EVMC_CANCUN, .eip2929 = true, .eip1153 = true,
              .eip4844 = true, .eip5656 = true, .eip6780 = true, .eip1559 = true}},
-        {22'000'000, {.revision = EVMC_PRAGUE, .warm_access = true, .eip1153 = true,
+        {22'000'000, {.revision = EVMC_PRAGUE, .eip2929 = true, .eip1153 = true,
              .eip4844 = true, .eip5656 = true, .eip6780 = true, .eip2537 = true,
              .eip7623 = true, .eip7702 = true, .eip1559 = true, .calldata_floor_per_token = 10}},
-        {25'000'000, {.revision = EVMC_OSAKA, .warm_access = true, .eip1153 = true,
+        {25'000'000, {.revision = EVMC_OSAKA, .eip2929 = true, .eip1153 = true,
              .eip4844 = true, .eip5656 = true, .eip6780 = true, .eip2537 = true,
              .eip7623 = true, .eip7702 = true, .eip7212 = true, .eip7823 = true,
              .eip1559 = true, .calldata_floor_per_token = 10}},
@@ -233,22 +233,22 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
     struct Row { std::function<void(ledger::Features&)> setup; ExpectedRevisionConfig expected; };
     std::vector<Row> const rows = {
         {[&](ledger::Features& f) { f.set(Flag::feature_evm_cancun); },
-            {.revision = EVMC_CANCUN, .warm_access = true, .eip1153 = true, .eip4844 = true,
+            {.revision = EVMC_CANCUN, .eip2929 = true, .eip1153 = true, .eip4844 = true,
                 .eip5656 = true, .eip6780 = true, .eip1559 = true}},
         {[&](ledger::Features& f) { f.set(Flag::feature_evm_cancun); f.set(Flag::feature_evm_prague); },
-            {.revision = EVMC_PRAGUE, .warm_access = true, .eip1153 = true, .eip4844 = true,
+            {.revision = EVMC_PRAGUE, .eip2929 = true, .eip1153 = true, .eip4844 = true,
                 .eip5656 = true, .eip6780 = true, .eip2537 = true, .eip7623 = true,
                 .eip7702 = true, .eip1559 = true, .calldata_floor_per_token = 10}},
         {[&](ledger::Features& f) {
              f.set(Flag::feature_evm_cancun); f.set(Flag::feature_evm_prague);
              f.set(Flag::feature_evm_osaka);
          },
-            {.revision = EVMC_OSAKA, .warm_access = true, .eip1153 = true, .eip4844 = true,
+            {.revision = EVMC_OSAKA, .eip2929 = true, .eip1153 = true, .eip4844 = true,
                 .eip5656 = true, .eip6780 = true, .eip2537 = true, .eip7623 = true,
                 .eip7702 = true, .eip7212 = true, .eip7823 = true, .eip1559 = true,
                 .calldata_floor_per_token = 10}},
         {[&](ledger::Features& /*unused*/) {},
-            {.revision = EVMC_CANCUN, .warm_access = true, .eip1153 = true, .eip4844 = true,
+            {.revision = EVMC_CANCUN, .eip2929 = true, .eip1153 = true, .eip4844 = true,
                 .eip5656 = true, .eip6780 = true, .eip1559 = true}},
     };
     for (auto const& row : rows)
@@ -462,7 +462,7 @@ inline bcos::evm_standard::RevisionConfig revisionConfigFromFixtureRevision(std:
     {
         BOOST_FAIL("unsupported fixture revision: " << revision);
     }
-    cfg.warm_access = true;
+    cfg.eip2929 = true;
     cfg.eip1153 = cfg.revision >= EVMC_CANCUN;
     cfg.eip4844 = cfg.revision >= EVMC_CANCUN;
     cfg.eip5656 = cfg.revision >= EVMC_CANCUN;

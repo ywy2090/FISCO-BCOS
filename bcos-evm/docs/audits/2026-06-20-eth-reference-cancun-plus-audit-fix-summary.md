@@ -67,7 +67,7 @@ ctest -R "Eip7702ApplyAuthorizationEth|EipPrecompileRevisionGate|BcosPrecompileR
 
 | 项 | 测试 | 断言 |
 |----|------|------|
-| EIP-2929 opcode gas | `Eip2929OpcodeGasTest`（5 cases） | `BALANCE` cold 2600 / warm 100；`SLOAD` cold 2100 / warm 100；`warm_access=false` 双 cold 5206 |
+| EIP-2929 opcode gas | `Eip2929OpcodeGasTest`（5 cases） | `BALANCE` cold 2600 / warm 100；`SLOAD` cold 2100 / warm 100；`eip2929=false` 双 cold 5206 |
 
 ```bash
 cd build
