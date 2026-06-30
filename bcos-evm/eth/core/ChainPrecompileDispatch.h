@@ -13,8 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Chain-owned call-target plugin (classify, dispatch, tx-entry warm).
- * @file ChainCallTargetDispatcher.h
+ * @brief Chain-owned precompile seam (classify, dispatch, tx-entry warm).
+ * @file ChainPrecompileDispatch.h
  *
  * Kernel-neutral injection port (ADR-024, ADR-005 Rule 1): `eth/` classifies and
  * routes CALL/STATICCALL via `execution::resolveCallTarget`, but chain-specific
@@ -26,7 +26,7 @@
  * Eth reference path passes `nullptr` (builtin precompiles only).
  *
  * Implementations: `FiscoChainCallTargetAdapter`, `OpStackChainCallTargetAdapter`.
- * See ADR-024 §3 and ADR-030 §6 (`ChainPrecompileDispatch`).
+ * See ADR-024 §3 and ADR-030 §6.
  */
 
 #pragma once
@@ -43,9 +43,9 @@ namespace bcos::evm
 
 /// Chain extension for non-builtin call targets. Classification pairs with
 /// `execution::resolveCallTarget`; execution pairs with `executePrecompileEnvelope`.
-struct ChainCallTargetDispatcher
+struct ChainPrecompileDispatch
 {
-    virtual ~ChainCallTargetDispatcher() = default;
+    virtual ~ChainPrecompileDispatch() = default;
 
     /// Chain hook during classification. Called when account code is empty or the
     /// frame is nested (`emptyCode || scope == Nested`). Return a descriptor with

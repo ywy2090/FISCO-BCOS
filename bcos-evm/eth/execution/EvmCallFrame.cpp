@@ -20,7 +20,6 @@
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
-#include "bcos-evm/eth/execution/FrameCaller.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/execution/ResolveExecutionCode.h"
@@ -79,6 +78,16 @@ void logFrameDoneIfNested(evmc_message const& originalMsg, evmc::Result const& r
                        << LOG_KV("status", trace::evmcStatus(result.status_code))
                        << LOG_KV("gasLeft", result.gas_left);
     }
+}
+
+evmc_address resolveCallerAddress(
+    evmc_address const& executionAddress, evmc_message const& msg) noexcept
+{
+    if (!state::isZeroAddress(executionAddress))
+    {
+        return executionAddress;
+    }
+    return msg.sender;
 }
 
 std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope scope)

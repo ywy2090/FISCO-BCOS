@@ -49,7 +49,7 @@ graph TD
         FOP["FiscoOrchestrationProfile::bind"]
         FVP["FiscoVmHostPolicy"]
         FP["FiscoPolicy"]
-        PORTS["AuthPort / ChainCallTargetDispatcher"]
+        PORTS["AuthPort / ChainPrecompileDispatch"]
     end
     subgraph op["bcos-evm-op（OP Stack）"]
         OEB["applyOpStackMessage()"]
@@ -439,7 +439,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | FISCO 扩展 | `bcos/FiscoVmHostPolicy.h` |
 | FISCO CREATE 地址 | `bcos/FiscoAddressDerivation.h`（ADR-022） |
 | FISCO Policy | `bcos/FiscoPolicy.h` |
-| 依赖倒置端口 | `bcos/ports/AuthPort.h`、`eth/core/ChainCallTargetDispatcher.h` |
+| 依赖倒置端口 | `bcos/ports/AuthPort.h`、`eth/core/ChainPrecompileDispatch.h` |
 | OP 入口 | `opstack/ApplyOpStackMessage.cpp` |
 | OP lifecycle | `opstack/OpStackTxLifecycle.h` / `.cpp`（ADR-023） |
 | OP settlement | `opstack/OpStackSettlement.h` / `.cpp`（ADR-021） |

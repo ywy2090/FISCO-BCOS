@@ -49,7 +49,7 @@ inline evmc_bytes32 toEvmcBytes32(const h256& value)
 }  // namespace detail
 
 inline void warmTransactionEntry(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
-    ChainCallTargetDispatcher const* chainPort, const state::Transaction& tx,
+    ChainPrecompileDispatch const* chainPort, const state::Transaction& tx,
     const state::BlockInfo& block, const state::TransactionProperties& props,
     const Eip2930AccessList* accessList = nullptr, uint8_t web3TypedTxKind = 0,
     std::optional<evmc_address> createCodeAddress = std::nullopt)

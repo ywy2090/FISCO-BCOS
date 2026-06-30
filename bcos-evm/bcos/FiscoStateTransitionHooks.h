@@ -19,7 +19,7 @@
 #pragma once
 
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
-#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
+#include "bcos-evm/eth/core/StateTransitionHooks.h"
 
 namespace bcos::evm
 {

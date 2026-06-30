@@ -32,7 +32,7 @@
 
 namespace bcos::evm
 {
-struct ChainCallTargetDispatcher;
+struct ChainPrecompileDispatch;
 using LogEntry = state::LogEntry;
 
 struct InnerExecuteInput
@@ -51,7 +51,7 @@ struct InnerExecuteInput
     std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
     state::EvmHostHooks* extension{nullptr};
-    ChainCallTargetDispatcher* chainPort{nullptr};
+    ChainPrecompileDispatch* chainPort{nullptr};
     /// When true, orchestration owns top-level sender nonce bump (kernel skips it).
     bool skipTopLevelSenderNonceBump{false};
     std::optional<bcos::h256> txHash;

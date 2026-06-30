@@ -2,10 +2,10 @@
 
 #include "bcos-evm/opstack/OpStackStateTransitionErrorPolicy.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
-#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"

@@ -164,7 +164,7 @@ struct Depth1HostFixture
     std::optional<state::EthHost> host;
 
     Depth1HostFixture(state::State& state, state::EvmHostHooks* extension = nullptr,
-        evmc_revision revision = EVMC_PRAGUE, ChainCallTargetDispatcher* chainPort = nullptr)
+        evmc_revision revision = EVMC_PRAGUE, ChainPrecompileDispatch* chainPort = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = revision, .eip2929 = true};
@@ -175,7 +175,7 @@ struct Depth1HostFixture
 };
 
 InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message,
-    state::EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr)
+    state::EvmHostHooks* extension = nullptr, ChainPrecompileDispatch* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     InnerExecuteInput input;

@@ -26,7 +26,7 @@
 
 namespace bcos::evm
 {
-struct ChainCallTargetDispatcher;
+struct ChainPrecompileDispatch;
 }
 
 namespace bcos::evm::state
@@ -44,14 +44,14 @@ struct FrameExecutionEnv
     evmc::VM& vm;
     bcos::evm_standard::RevisionConfig const& revisionConfig;
     state::EvmHostHooks* extension{nullptr};
-    ChainCallTargetDispatcher* chainPort{nullptr};
+    ChainPrecompileDispatch* chainPort{nullptr};
     evmc_address txOrigin{};
     evmc_address& executionAddress;
 
     FrameExecutionEnv(state::State& state_, evmc::VM& vm_,
         bcos::evm_standard::RevisionConfig const& revisionConfig_, state::EvmHostHooks* extension_,
         evmc_address txOrigin_, evmc_address& executionAddress_,
-        ChainCallTargetDispatcher* chainPort_ = nullptr) noexcept
+        ChainPrecompileDispatch* chainPort_ = nullptr) noexcept
       : state(state_),
         vm(vm_),
         revisionConfig(revisionConfig_),

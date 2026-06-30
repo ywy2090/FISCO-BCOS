@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
+#include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 

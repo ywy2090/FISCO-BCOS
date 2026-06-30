@@ -32,7 +32,7 @@
 
 namespace bcos::evm
 {
-struct ChainCallTargetDispatcher;
+struct ChainPrecompileDispatch;
 }
 
 namespace bcos::evm::state
@@ -47,7 +47,7 @@ public:
 
     EthHost(State& state, evmc_tx_context txContext,
         bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-        EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr);
+        EvmHostHooks* extension = nullptr, ChainPrecompileDispatch* chainPort = nullptr);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -88,7 +88,7 @@ private:
     evmc::VM& m_vm;
     BlockHashes m_blockHashes;
     EvmHostHooks* m_extension{nullptr};
-    ChainCallTargetDispatcher* m_chainPort{nullptr};
+    ChainPrecompileDispatch* m_chainPort{nullptr};
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_storageOriginalValues;

@@ -1,15 +1,15 @@
 #pragma once
 
-#include "bcos-evm/eth/core/ChainCallTargetDispatcher.h"
+#include "bcos-evm/eth/core/ChainPrecompileDispatch.h"
 #include <functional>
 #include <optional>
 
 namespace bcos::evm::test
 {
 
-/// Test double: dispatch-only `ChainCallTargetDispatcher` (classification via
+/// Test double: dispatch-only `ChainPrecompileDispatch` (classification via
 /// `FiscoChainCallTargetAdapter`).
-class InMemoryChainPrecompileAdapter final : public ChainCallTargetDispatcher
+class InMemoryChainPrecompileAdapter final : public ChainPrecompileDispatch
 {
 public:
     using Handler = std::function<std::optional<evmc_result>(evmc_revision, evmc_message const&)>;

@@ -9,8 +9,8 @@
  */
 #pragma once
 
+#include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
-#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 
 namespace bcos::evm
 {

@@ -19,7 +19,7 @@
 #pragma once
 
 #include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
-#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
+#include "bcos-evm/eth/core/StateTransitionHooks.h"
 
 namespace bcos::evm
 {
