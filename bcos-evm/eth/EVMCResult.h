@@ -22,6 +22,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include <evmc/evmc.h>
+#include <evmc/evmc.hpp>
 #include <gsl/pointers>
 #include <tuple>
 
@@ -53,6 +54,14 @@ std::tuple<bcos::protocol::TransactionStatus, bcos::bytes> evmcStatusToErrorMess
 EVMCResult makeErrorEVMCResult(crypto::Hash const& hashImpl, protocol::TransactionStatus status,
     evmc_status_code evmStatus, int64_t gas, const std::string& errorInfo,
     bool clampGasLeft = false);
+
+inline EVMCResult adoptEvmcResult(evmc::Result&& result, crypto::Hash const& hashImpl)
+{
+    auto raw = result.release_raw();
+    auto [status, ignored] = evmcStatusToErrorMessage(hashImpl, raw.status_code);
+    (void)ignored;
+    return EVMCResult(raw, status);
+}
 
 }  // namespace bcos::evm
 

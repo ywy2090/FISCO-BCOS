@@ -1,13 +1,28 @@
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
-#include "bcos-evm/eth/pipeline/AdoptEvmcResult.h"
-#include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
+#include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <stdexcept>
 
 namespace bcos::evm
 {
+namespace
+{
+void captureSettlementSnapshot(StateTransitionContext& ctx, InnerExecuteOutput const& kernelOutput)
+{
+    if (ctx.intrinsicDebitMode != IntrinsicDebitMode::Eip7623)
+    {
+        return;
+    }
+
+    ctx.snapshot.gasLimit = ctx.originalGasLimit;
+    ctx.snapshot.calldata =
+        gas::calcEip7623Components(bytesConstRef(ctx.message.input_data, ctx.message.input_size));
+    ctx.snapshot.evmGasRefund = kernelOutput.gasRefund;
+}
+}  // namespace
 
 // geth: stateTransition.execute — ADR-030 / ADR-031 canonical
 void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy const& precheckPolicy,

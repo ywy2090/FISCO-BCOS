@@ -3,7 +3,6 @@
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
@@ -323,19 +322,37 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
     BOOST_CHECK(ctx.state.has_checkpoint());
 }
 
-BOOST_AUTO_TEST_CASE(capture_snapshot_non_eip7623_keeps_existing_values)
+BOOST_AUTO_TEST_CASE(completed_path_non_eip7623_keeps_snapshot_values)
 {
     state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
-    ctx.intrinsicDebitMode = IntrinsicDebitMode::None;
     ctx.snapshot.gasLimit = 123;
     ctx.snapshot.evmGasRefund = 456;
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
 
-    InnerExecuteOutput kernelOutput;
-    kernelOutput.gasRefund = 789;
+    EvmTxContextView session;
+    wireMinimalEvmTxContextView(ctx, session);
 
-    captureSettlementSnapshot(ctx, kernelOutput);
+    CallbackPrecheckPolicy precheckPolicy;
+    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    precheckPolicy.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
+        InnerExecuteOutput output;
+        output.gasRefund = 789;
+        evmc_result raw{};
+        raw.status_code = EVMC_SUCCESS;
+        raw.gas_left = 90'000;
+        output.result = evmc::Result(raw);
+        return output;
+    };
 
+    EthOrchestrationErrorPolicy errorPolicy;
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(ctx.exitKind), static_cast<int>(StateTransitionExitKind::Completed));
     BOOST_CHECK_EQUAL(ctx.snapshot.gasLimit, 123);
     BOOST_CHECK_EQUAL(ctx.snapshot.evmGasRefund, 456);
 }
