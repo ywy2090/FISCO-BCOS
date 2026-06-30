@@ -25,7 +25,7 @@ add_executable(OpStackIntrinsicGasSyncTest
     ../opstack/OpStackTxLifecycle.cpp
     ../opstack/OpStackSettlement.cpp
     ../opstack/OpStackNormalTxFeeCoordinator.cpp
-    ../opstack/OpStackOrchestrationProfile.cpp
+    ../opstack/OpStackStateTransitionBindings.cpp
     ../opstack/OpStackStateTransitionHooks.cpp
     ../opstack/OpStackFeeSettlement.cpp
     ../opstack/fee/OpStackPreDebitPlan.cpp
@@ -51,11 +51,11 @@ target_include_directories(OpStackFloorGasPrecheckOrderTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackFloorGasPrecheckOrderTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackPreDebitOrder COMMAND OpStackFloorGasPrecheckOrderTest)
-add_executable(OpStackOrchestrationProfileTest opstack/OpStackOrchestrationProfileTest.cpp)
-target_include_directories(OpStackOrchestrationProfileTest PRIVATE
+add_executable(OpStackStateTransitionBindingsTest opstack/OpStackStateTransitionBindingsTest.cpp)
+target_include_directories(OpStackStateTransitionBindingsTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStackOrchestrationProfileTest PRIVATE bcos-evm-op)
-add_test(NAME OpStackOrchestrationProfile COMMAND OpStackOrchestrationProfileTest)
+target_link_libraries(OpStackStateTransitionBindingsTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackStateTransitionBindings COMMAND OpStackStateTransitionBindingsTest)
 add_executable(OpStackStateTransitionHooksTest opstack/OpStackStateTransitionHooksTest.cpp)
 target_include_directories(OpStackStateTransitionHooksTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

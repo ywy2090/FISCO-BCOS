@@ -5,8 +5,8 @@
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"
-#include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
@@ -93,8 +93,8 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto policy = OpStackOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    OpStackStateTransitionBindings::Context bindingsCtx{input, view};
+    auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
     policy.onPreCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -113,8 +113,8 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto policy = OpStackOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    OpStackStateTransitionBindings::Context bindingsCtx{input, view};
+    auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));

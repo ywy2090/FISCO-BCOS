@@ -1,5 +1,5 @@
 #include "bcos-evm/eth/apply/EthMessage.h"
-#include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
+#include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -62,8 +62,8 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
     state::EthVmHostPolicy extension;
     ctx.wireExecutionEnvironment(input.vm, &extension, nullptr);
 
-    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
+    EthStateTransitionBindings::Context bindingsCtx{input, output};
+    auto bindings = EthStateTransitionBindings::bind(bindingsCtx);
 
     stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 

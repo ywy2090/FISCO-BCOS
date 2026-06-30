@@ -13,7 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file OpStackOrchestrationProfile.h
+ * @brief Binds OpStack chain policy for `stateTransitionExecute` at `runOpStackTxLifecycle`.
+ * @file OpStackStateTransitionBindings.h
  */
 
 #pragma once
@@ -26,24 +27,24 @@
 namespace bcos::evm
 {
 
-struct OpStackOrchestrationProfile
+/// Factory for `{hooks, errorPolicy}` injected into `stateTransitionExecute`.
+struct OpStackStateTransitionBindings
 {
-    /// Orchestration policy bind input (not execution environment wiring).
-    struct BindingsContext
+    struct Context
     {
         OpStackExecutionRequest const& input;
         OpStackSettlementFacade view;
     };
 
-    struct Bindings
+    struct Result
     {
         OpStackStateTransitionHooks hooks;
         OpStackStateTransitionErrorPolicy errorPolicy;
     };
 
-    static OpStackStateTransitionHooks buildStateTransitionHooks(BindingsContext& bindingsCtx);
-    static OpStackStateTransitionErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
-    static Bindings bind(BindingsContext& bindingsCtx);
+    static OpStackStateTransitionHooks buildStateTransitionHooks(Context& ctx);
+    static OpStackStateTransitionErrorPolicy buildErrorPolicy(Context const& ctx);
+    static Result bind(Context& ctx);
 };
 
 }  // namespace bcos::evm

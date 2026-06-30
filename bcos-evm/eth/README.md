@@ -49,7 +49,7 @@
 | 文件 | 角色 |
 | --- | --- |
 | `EthMessage.*` | 链入口 `applyEthMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
-| `EthOrchestrationProfile.*` | `OrchestrationProfile::bind` → 填充 `StateTransitionHooks` + `StateTransitionErrorPolicy` |
+| `EthStateTransitionBindings.*` | `bind()` → 填充 `StateTransitionHooks` + `StateTransitionErrorPolicy` |
 | `EthTxPrecheck.*` | 参考路径交易预检 |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
 
@@ -69,7 +69,7 @@
 
 ```text
 applyEthMessage()  // geth: ApplyMessage — ADR-030 文档名
-  └─ EthOrchestrationProfile::bind
+  └─ EthStateTransitionBindings::bind
        └─ stateTransitionExecute()   // geth: stateTransition.execute
             └─ onInvokeInnerExecute → innerExecute()   // geth: innerExecute
 ```

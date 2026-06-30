@@ -4,10 +4,10 @@
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackNormalTxFeeCoordinator.h"
-#include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
 #include <algorithm>
 #include <stdexcept>
@@ -60,8 +60,8 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     // chainAdapter + wireExecutionEnvironment inject vm/chainPort into ctx.
     // bindingsCtx is orchestration policy bind input only.
-    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
+    OpStackStateTransitionBindings::Context bindingsCtx{input, view};
+    auto bindings = OpStackStateTransitionBindings::bind(bindingsCtx);
 
     trace::logMessageContext(input.message);
 

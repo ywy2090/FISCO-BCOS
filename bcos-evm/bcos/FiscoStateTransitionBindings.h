@@ -13,7 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file FiscoOrchestrationProfile.h
+ * @brief Binds FISCO chain policy for `stateTransitionExecute` at `applyFiscoMessage`.
+ * @file FiscoStateTransitionBindings.h
  */
 
 #pragma once
@@ -25,10 +26,10 @@
 namespace bcos::evm
 {
 
-struct FiscoOrchestrationProfile
+/// Factory for `{hooks, errorPolicy}` injected into `stateTransitionExecute`.
+struct FiscoStateTransitionBindings
 {
-    /// Orchestration policy bind input (not execution environment wiring).
-    struct BindingsContext
+    struct Context
     {
         FiscoExecutionRequest const& input;
         FiscoExecutionResult& output;
@@ -36,15 +37,15 @@ struct FiscoOrchestrationProfile
         bool eip7623Enabled{false};
     };
 
-    struct Bindings
+    struct Result
     {
         FiscoStateTransitionHooks hooks;
         FiscoStateTransitionErrorPolicy errorPolicy;
     };
 
-    static FiscoStateTransitionHooks buildStateTransitionHooks(BindingsContext& bindingsCtx);
-    static FiscoStateTransitionErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
-    static Bindings bind(BindingsContext& bindingsCtx);
+    static FiscoStateTransitionHooks buildStateTransitionHooks(Context& ctx);
+    static FiscoStateTransitionErrorPolicy buildErrorPolicy(Context const& ctx);
+    static Result bind(Context& ctx);
 };
 
 }  // namespace bcos::evm

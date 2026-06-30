@@ -197,7 +197,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 ## Appendix — CI confirmation (Wave 5)
 
 ```bash
-cd build && ctest -R 'EthOrchestrationProfile|TxPipeline|TxExecution|Precompile|OpStackPrecheck|DeductIntrinsic|ExecuteViaHost|GethNaming|FiscoExecute|EthReference|OpStackExecute' --output-on-failure
+cd build && ctest -R 'EthStateTransitionBindings|TxPipeline|TxExecution|Precompile|OpStackPrecheck|DeductIntrinsic|ExecuteViaHost|GethNaming|FiscoExecute|EthReference|OpStackExecute' --output-on-failure
 ```
 
 Aggregate headers (`include/bcos-evm/*_executor.hpp`) re-export canonical chain entry headers only (`apply*Message`).

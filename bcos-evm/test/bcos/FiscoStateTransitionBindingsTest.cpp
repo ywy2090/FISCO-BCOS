@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE FiscoOrchestrationProfileTest
+#define BOOST_TEST_MODULE FiscoStateTransitionBindingsTest
 
-#include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
+#include "bcos-evm/bcos/FiscoStateTransitionBindings.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
@@ -40,10 +40,10 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
 
     FiscoExecutionResult output;
 
-    FiscoOrchestrationProfile::BindingsContext bindingsCtx{
+    FiscoStateTransitionBindings::Context bindingsCtx{
         input, output, false, true /* eip7623Enabled */};
 
-    auto policy = FiscoOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    auto policy = FiscoStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
@@ -68,8 +68,8 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
-    auto policy = FiscoOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    FiscoStateTransitionBindings::Context bindingsCtx{input, output, false, false};
+    auto policy = FiscoStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
     policy.onPreCheckRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -98,8 +98,8 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
 
     StateTransitionContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
 
-    FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
-    auto policy = FiscoOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    FiscoStateTransitionBindings::Context bindingsCtx{input, output, false, false};
+    auto policy = FiscoStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
     policy.onNormalizeMessage(ctx);
 
     BOOST_CHECK(ctx.message.kind == EVMC_CREATE);
@@ -126,8 +126,8 @@ BOOST_AUTO_TEST_CASE(bind_wires_error_policy_from_bindings_context)
 
     FiscoExecutionResult output;
 
-    FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, true, false};
-    auto bindings = FiscoOrchestrationProfile::bind(bindingsCtx);
+    FiscoStateTransitionBindings::Context bindingsCtx{input, output, true, false};
+    auto bindings = FiscoStateTransitionBindings::bind(bindingsCtx);
 
     BOOST_CHECK(bindings.errorPolicy.fixErrorHandling);
     BOOST_CHECK(bindings.errorPolicy.fixRevertLogs);

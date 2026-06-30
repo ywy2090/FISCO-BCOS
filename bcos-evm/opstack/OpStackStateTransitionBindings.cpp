@@ -13,30 +13,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file OpStackOrchestrationProfile.cpp
+ * @file OpStackStateTransitionBindings.cpp
  */
 
-#include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
+#include "bcos-evm/opstack/OpStackStateTransitionBindings.h"
 
 namespace bcos::evm
 {
 
-OpStackStateTransitionHooks OpStackOrchestrationProfile::buildStateTransitionHooks(
-    BindingsContext& bindingsCtx)
+OpStackStateTransitionHooks OpStackStateTransitionBindings::buildStateTransitionHooks(Context& ctx)
 {
-    return OpStackStateTransitionHooks{bindingsCtx.view};
+    return OpStackStateTransitionHooks{ctx.view};
 }
 
-OpStackStateTransitionErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
-    BindingsContext const& /*bindingsCtx*/)
+OpStackStateTransitionErrorPolicy OpStackStateTransitionBindings::buildErrorPolicy(
+    Context const& /*ctx*/)
 {
     return OpStackStateTransitionErrorPolicy{};
 }
 
-OpStackOrchestrationProfile::Bindings OpStackOrchestrationProfile::bind(
-    BindingsContext& bindingsCtx)
+OpStackStateTransitionBindings::Result OpStackStateTransitionBindings::bind(Context& ctx)
 {
-    return Bindings{buildStateTransitionHooks(bindingsCtx), buildErrorPolicy(bindingsCtx)};
+    return Result{buildStateTransitionHooks(ctx), buildErrorPolicy(ctx)};
 }
 
 }  // namespace bcos::evm

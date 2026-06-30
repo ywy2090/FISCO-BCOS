@@ -13,29 +13,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file EthOrchestrationProfile.cpp
+ * @file EthStateTransitionBindings.cpp
  */
 
-#include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
+#include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
 
 namespace bcos::evm
 {
 
-EthStateTransitionHooks EthOrchestrationProfile::buildStateTransitionHooks(
-    BindingsContext& bindingsCtx)
+EthStateTransitionHooks EthStateTransitionBindings::buildStateTransitionHooks(Context& ctx)
 {
-    return EthStateTransitionHooks{bindingsCtx.input};
+    return EthStateTransitionHooks{ctx.input};
 }
 
-EthStateTransitionErrorPolicy EthOrchestrationProfile::buildErrorPolicy(
-    BindingsContext const& /*bindingsCtx*/)
+EthStateTransitionErrorPolicy EthStateTransitionBindings::buildErrorPolicy(Context const& /*ctx*/)
 {
     return EthStateTransitionErrorPolicy{};
 }
 
-EthOrchestrationProfile::Bindings EthOrchestrationProfile::bind(BindingsContext& bindingsCtx)
+EthStateTransitionBindings::Result EthStateTransitionBindings::bind(Context& ctx)
 {
-    return Bindings{buildStateTransitionHooks(bindingsCtx), buildErrorPolicy(bindingsCtx)};
+    return Result{buildStateTransitionHooks(ctx), buildErrorPolicy(ctx)};
 }
 
 }  // namespace bcos::evm

@@ -33,7 +33,7 @@ Introduce `runOpStackTxLifecycle(OpStackExecutionRequest)` as the **OpStack oute
 
 | Module | Responsibility | Lifecycle relationship |
 | --- | --- | --- |
-| `runTxPipeline` (eth) | Fixed 12-step kernel | lifecycle calls via `OpStackOrchestrationProfile::bind` |
+| `runTxPipeline` (eth) | Fixed 12-step kernel | lifecycle calls via `OpStackStateTransitionBindings::bind` |
 | `finalizeNormal` / `finalizeDeposit` | Sync gas/journal math | normal: internal to `OpStackNormalTxFeeCoordinator`; deposit: via `settleDeposit` |
 | `OpStackNormalTxFeeCoordinator` | `buyGas` + `completeAfterPipeline` (ADR-025 tree) | lifecycle sole normal settlement interface |
 | `settleDeposit` | Async: `finalizeDeposit` + gasPool | lifecycle sole deposit post-pipeline entry |
@@ -43,7 +43,7 @@ ADR-021 invariants unchanged.
 
 ### 3. Internal bindings context (not interface)
 
-`OpStackOrchestrationProfile::BindingsContext` (internal; renamed from `Session`, ADR-027 naming follow-up):
+`OpStackStateTransitionBindings::Context` (internal; renamed from `Session`, ADR-027 naming follow-up):
 
 - `OpStackExecutionRequest& input`
 - `OpStackSettlementFacade view` (`ctx` + `input` + `sidecar`)
@@ -91,7 +91,7 @@ Private helpers: `acquireGasPool`, `releaseGasPool`.
 
 ### 6. Profile wiring
 
-Lifecycle **inlines** `OpStackOrchestrationProfile::bind(bindingsCtx)` — hooks are not injected through the external interface (D13).
+Lifecycle **inlines** `OpStackStateTransitionBindings::bind(bindingsCtx)` — hooks are not injected through the external interface (D13).
 
 ### 7. Early-exit result contract (D18)
 

@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE EthOrchestrationProfileTest
+#define BOOST_TEST_MODULE EthStateTransitionBindingsTest
 
-#include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
+#include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -16,8 +16,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
     input.revisionConfig.eip7623 = true;
 
     EthMessageResult output;
-    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    EthStateTransitionBindings::Context ctx{input, output};
+    auto policy = EthStateTransitionBindings::buildStateTransitionHooks(ctx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
@@ -31,8 +31,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
     input.authorizations.push_back({});
 
     EthMessageResult output;
-    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    EthStateTransitionBindings::Context ctx{input, output};
+    auto policy = EthStateTransitionBindings::buildStateTransitionHooks(ctx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::AuthOnly));
@@ -53,14 +53,14 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     input.blockInfo.baseFee = 1;
 
     EthMessageResult output;
-    StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext stCtx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
-    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
-    policy.onPreCheckRules(ctx);
+    EthStateTransitionBindings::Context ctx{input, output};
+    auto policy = EthStateTransitionBindings::buildStateTransitionHooks(ctx);
+    policy.onPreCheckRules(stCtx);
 
-    BOOST_CHECK(ctx.earlyExit);
-    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
+    BOOST_CHECK(stCtx.earlyExit);
+    BOOST_CHECK_EQUAL(static_cast<int>(stCtx.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::Malformed));
 }
 
@@ -68,8 +68,8 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
     EthMessageRequest input;
     EthMessageResult output;
-    EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
+    EthStateTransitionBindings::Context ctx{input, output};
+    auto bindings = EthStateTransitionBindings::bind(ctx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::None));

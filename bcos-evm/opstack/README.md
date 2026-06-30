@@ -6,7 +6,7 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| 根目录 | Bridge、Lifecycle、Settlement、OrchestrationProfile、Precheck、常量 |
+| 根目录 | Bridge、Lifecycle、Settlement、StateTransitionBindings、Precheck、常量 |
 | `fee/` | L1 fee、rollup cost、floor gas、gas settlement |
 | `l1/` | L1Block 与 GasPriceOracle 预部署 |
 
@@ -20,7 +20,7 @@
 | Normal 结算 | `OpStackNormalTxFeeCoordinator.*` | `buyGas` + `completeAfterPipeline`（ADR-025 内聚） |
 | 同步结算 | `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort helpers |
 | 费用账本 | `OpStackFeeSettlement.*` | Adapter：`buyGas` / `refundGas`（读 `OpStackSettlementFacade`） |
-| 编排 | `OpStackOrchestrationProfile.*` | `BindingsContext` `{ input, view }`；`bind` → pipeline hooks |
+| 编排 | `OpStackStateTransitionBindings.*` | `Context` `{ input, view }`；`bind` → pipeline hooks |
 | 预检 | `OpStackPrecheckPolicy.*` | `lifecycleCheckEntryRules` + `onPreCheckGasAffordable` |
 | 链 call target | `OpStackChainCallTargetAdapter.*` | L1Block / GasPriceOracle classify + dispatch |
 
@@ -38,7 +38,7 @@ OpStackTransactionExecutorImpl
   → applyOpStackMessage()
   → runOpStackTxLifecycle
       ├─ OpStackSettlementFacade { ctx, input, sidecar }
-      ├─ OpStackOrchestrationProfile::bind(bindingsCtx)
+      ├─ OpStackStateTransitionBindings::bind(bindingsCtx)
       ├─ lifecycleCheckEntryRules
       ├─ deposit: gasPool → mint → pipeline → settleDeposit
       └─ normal:  gasPool → checkpoint → NormalFeeSettlement.buyGas

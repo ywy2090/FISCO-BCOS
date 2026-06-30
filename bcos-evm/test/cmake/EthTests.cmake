@@ -143,12 +143,12 @@ target_include_directories(EvmTxContextViewPropagationTest PRIVATE
 target_link_libraries(EvmTxContextViewPropagationTest PRIVATE
     bcos-evm-eth bcos-evm-op evmone::evmone bcos-task bcos-crypto)
 add_test(NAME EvmTxContextViewPropagation COMMAND EvmTxContextViewPropagationTest)
-add_executable(EthOrchestrationProfileTest eth/EthOrchestrationProfileTest.cpp)
-target_include_directories(EthOrchestrationProfileTest PRIVATE
+add_executable(EthStateTransitionBindingsTest eth/EthStateTransitionBindingsTest.cpp)
+target_include_directories(EthStateTransitionBindingsTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(EthOrchestrationProfileTest PRIVATE
+target_link_libraries(EthStateTransitionBindingsTest PRIVATE
     bcos-evm-eth bcos-protocol)
-add_test(NAME EthOrchestrationProfile COMMAND EthOrchestrationProfileTest)
+add_test(NAME EthStateTransitionBindings COMMAND EthStateTransitionBindingsTest)
 add_executable(EthStateTransitionErrorPolicyTest eth/EthStateTransitionErrorPolicyTest.cpp)
 target_include_directories(EthStateTransitionErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

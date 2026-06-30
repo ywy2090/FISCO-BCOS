@@ -20,8 +20,8 @@
 #include "bcos-evm/bcos/FiscoAddressDerivation.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoExecutionBundle.h"
-#include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
+#include "bcos-evm/bcos/FiscoStateTransitionBindings.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
@@ -105,9 +105,9 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
     // bindingsCtx is orchestration policy bind input only.
     FiscoExecutionBundle execBundle{ctx, input};
 
-    FiscoOrchestrationProfile::BindingsContext bindingsCtx{
+    FiscoStateTransitionBindings::Context bindingsCtx{
         input, output, fixErrorHandling, eip7623Enabled};
-    auto bindings = FiscoOrchestrationProfile::bind(bindingsCtx);
+    auto bindings = FiscoStateTransitionBindings::bind(bindingsCtx);
     stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("applyFiscoMessage done")

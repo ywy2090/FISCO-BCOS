@@ -21,7 +21,7 @@ Today the logic is **copy-pasted across four seams**:
 
 | Seam | Location | Role |
 | --- | --- | --- |
-| Orchestration (top-level) | `bcos/ApplyFiscoMessage.cpp::deriveMessage()` | `FiscoOrchestrationProfile::txSetupMessage` |
+| Orchestration (top-level) | `bcos/ApplyFiscoMessage.cpp::deriveMessage()` | `FiscoStateTransitionBindings::txSetupMessage` |
 | Policy duplicate | `bcos/FiscoPolicy.h::deriveMessageImpl()` | Compat tests only; byte-identical to above |
 | VmHostPolicy (nested) | `bcos/FiscoVmHostPolicy.cpp::deriveNestedCreateAddress()` | `prepareMessage` inside kernel call tree |
 | Post-execute patch | `bcos/FiscoStateTransitionErrorPolicy::onFinalizeGasUsed()` | Fill empty `create_address` from `recipient` (not re-derivation) |
@@ -94,7 +94,7 @@ void bindFiscoCreateMessage(evmc_message& message, evmc_address const& addr);
 
 | Frame | Condition | Entry point | Caller |
 | --- | --- | --- | --- |
-| Top-level | `depth == 0` && EOA sender (`sender == origin`) | `predictFiscoTopLevelCreateAddress` | `FiscoOrchestrationProfile::txSetupMessage` via `deriveMessage()` wrapper |
+| Top-level | `depth == 0` && EOA sender (`sender == origin`) | `predictFiscoTopLevelCreateAddress` | `FiscoStateTransitionBindings::txSetupMessage` via `deriveMessage()` wrapper |
 | Nested | `depth > 0` OR `sender != origin` | `predictFiscoNestedCreateAddress` | `FiscoVmHostPolicy::prepareMessage` |
 | Post-execute | CREATE success && empty `create_address` | **No derivation** — copy `message.recipient` | `FiscoStateTransitionErrorPolicy::onFinalizeGasUsed` (unchanged) |
 
@@ -207,7 +207,7 @@ Add row:
 
 1. Add `FiscoAddressDerivation.h` + characterization tests (no call-site moves). **Done (PR-A).**
 2. Rewire `deriveMessage()` and `deriveNestedCreateAddress()` to delegate. **Done (PR-A).**
-3. Fix D1 at top-level (`featureEvmAddress` in `FiscoOrchestrationProfile` session / bridge input).
+3. Fix D1 at top-level (`featureEvmAddress` in `FiscoStateTransitionBindings` session / bridge input).
 4. Remove `FiscoPolicy::deriveMessageImpl`; update compat tests.
 5. Update `capability-matrix.md`, `architecture-known-gaps.md` (new Gap or close candidate 6 footnote).
 

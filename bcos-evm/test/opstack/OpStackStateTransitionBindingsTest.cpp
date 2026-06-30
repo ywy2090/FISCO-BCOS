@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE OpStackOrchestrationProfileTest
+#define BOOST_TEST_MODULE OpStackStateTransitionBindingsTest
 
-#include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
+#include "bcos-evm/opstack/OpStackStateTransitionBindings.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
@@ -37,8 +37,8 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto policy = OpStackOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    OpStackStateTransitionBindings::Context bindingsCtx{input, view};
+    auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
@@ -66,8 +66,8 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto policy = OpStackOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
+    OpStackStateTransitionBindings::Context bindingsCtx{input, view};
+    auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
     policy.onPreCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -83,8 +83,8 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
-    OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
+    OpStackStateTransitionBindings::Context bindingsCtx{input, view};
+    auto bindings = OpStackStateTransitionBindings::bind(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));

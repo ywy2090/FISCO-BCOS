@@ -46,7 +46,7 @@ graph TD
     end
     subgraph bcos["bcos-evm-bcos（FISCO）"]
         FEB["applyFiscoMessage()"]
-        FOP["FiscoOrchestrationProfile::bind"]
+        FOP["FiscoStateTransitionBindings::bind"]
         FVP["FiscoVmHostPolicy"]
         FP["FiscoPolicy"]
         PORTS["AuthPort / ChainExtendedPrecompileDispatch"]
@@ -54,11 +54,11 @@ graph TD
     subgraph op["bcos-evm-op（OP Stack）"]
         OEB["applyOpStackMessage()"]
         OTL["runOpStackTxLifecycle()"]
-        OOP["OpStackOrchestrationProfile::bind"]
+        OOP["OpStackStateTransitionBindings::bind"]
         OSET["OpStackSettlement settle*"]
         OVP["OpStackVmHostPolicy"]
     end
-    ETH["applyEthMessage()"] --> EOP["EthOrchestrationProfile::bind"]
+    ETH["applyEthMessage()"] --> EOP["EthStateTransitionBindings::bind"]
     EOP --> RO
     FEB --> FOP --> RO
     OEB --> OTL
@@ -82,7 +82,7 @@ graph TD
             │   bcos-evm-bcos (FISCO)   │   │   bcos-evm-op (OP Stack)  │
             │  ──────────────────────   │   │  ──────────────────────   │
             │  applyFiscoMessage()      │   │  applyOpStackMessage()    │
-            │  FiscoOrchestrationProfile│   │  runOpStackTxLifecycle()  │
+            │  FiscoStateTransitionBindings│   │  runOpStackTxLifecycle()  │
             │  FiscoVmHostPolicy        │   │  OpStackOrchestrationProf.│
             │  FiscoPolicy              │   │  OpStackSettlement        │
             │  AuthPort /               │   │  OpStackVmHostPolicy      │
@@ -121,19 +121,19 @@ graph TD
 
 **双标签约定（ADR-029 + ADR-030 + ADR-032）：** 链 L1 入口使用 **geth 文档名** `apply{Chain}Message`（Tier C）；Tier E `*Execute` 已于 ADR-032 Wave 4（2026-06-30）移除。L2 步骤用 ADR-029 `pipeline*` 前缀；与 geth `stateTransition.execute` 对齐的步骤用 ADR-030/031 规范名（`stateTransitionExecute`、`innerExecute`）。完整映射见 ADR-030 §2–§8。
 
-自 ADR-019 起，三条链在 **`stateTransitionExecute` 之前**各自装配 `TxPipelineHooks` + `StateTransitionErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(BindingsContext)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
+自 ADR-019 起，三条链在 **`stateTransitionExecute` 之前**各自装配 `StateTransitionHooks` + `StateTransitionErrorPolicy`；装配收敛为具名 **`*StateTransitionBindings::bind(Context)`**（Eth / Fisco / Op 各一份）。
 
 **双上下文（ADR-027 naming follow-up）：** 每个 bridge / lifecycle 入口并行维护两类上下文，**不合并**：
 
 ```text
 TxPipelineContext ctx
   → *ExecutionBundle{ctx, input}        // wire() → ctx.txContextView
-  → BindingsContext bindingsCtx         // orchestration policy bind input
-  → Profile::bind(bindingsCtx)          // → { precheckPolicy, errorPolicy }
+  → Context bindingsCtx                  // policy bind input
+  → *StateTransitionBindings::bind      // → { hooks, errorPolicy }
   → stateTransitionExecute(ctx, ...)
 ```
 
-`BindingsContext`（编排 policy 绑定输入）≠ `EvmTxContextView`（内核执行环境注入 View）。
+`Context`（policy 绑定输入）≠ `EvmTxContextView`（内核执行环境注入 View）。
 
 共享步骤（intrinsic debit、`EvmTxContextView::toExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/pipeline/` 单点 enforcement。`stateTransitionExecute(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onComplete`。
 
@@ -161,7 +161,7 @@ struct TxExecutionRunner {
 }
 ```
 
-**编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `deductIntrinsicGas` 修改它，步骤 ⑦ `innerExecute` 使用同一引用。三路径内核调用点：`EthReferenceExecute.cpp`、`FiscoExecute.cpp`、`OpStackTxLifecycle.cpp`（经 `OpStackOrchestrationProfile::bind`）。
+**编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `deductIntrinsicGas` 修改它，步骤 ⑦ `innerExecute` 使用同一引用。三路径内核调用点：`EthReferenceExecute.cpp`、`FiscoExecute.cpp`、`OpStackTxLifecycle.cpp`（经 `OpStackStateTransitionBindings::bind`）。
 
 ### 3.1 Frame execution (ExecutionFrame)
 
@@ -186,8 +186,8 @@ evmone callback → EthHost::call (nested adapter)
 
 | geth | ADR-030 文档名 | 文件 | Profile / 外圈 | TE 调用 | 能力矩阵列语义 |
 | --- | --- | --- | --- | --- | --- |
-| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | `EthOrchestrationProfile::bind` | `applyEthMessage` | ETH = **接线审计**（非生产继承证明） |
-| `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | `applyFiscoMessage` | BCOS = **FISCO 生产继承契约** |
+| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | `EthStateTransitionBindings::bind` | `applyEthMessage` | ETH = **接线审计**（非生产继承证明） |
+| `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `FiscoStateTransitionBindings::bind`；`AuthPort*` / `ChainPrecompilePort*` | `applyFiscoMessage` | BCOS = **FISCO 生产继承契约** |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | validate → `runOpStackTxLifecycle`（ADR-023） | `applyOpStackMessage` | OPStack = **OP 生产继承契约** |
 | — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | — | ADR-023 characterization 主面 |
 
@@ -211,7 +211,7 @@ evmone callback → EthHost::call (nested adapter)
 ⑪ （guard）errorPolicy.onComplete(ctx)
 ```
 
-异常路径：`errorPolicy.onException`。链特有 hook 逻辑由 `*OrchestrationProfile` 填充，不再散落在 bridge cpp 匿名 namespace。
+异常路径：`errorPolicy.onException`。链特有 hook 逻辑由 `*StateTransitionBindings` 填充，不再散落在 bridge cpp 匿名 namespace。
 
 **执行环境注入（ADR-027）：** 三入口在 `stateTransitionExecute` 前构造链侧 `*ExecutionBundle`（拥有 `VmHostPolicy` / `ChainCallTargetAdapter`），暴露 kernel `EvmTxContextView`；`wire()` 一次写入 `ctx.txContextView` / `ctx.chainPort` / `ctx.extension`；pipeline ⑥ 经 `toExecuteMessageInput(ctx)` 投影，nested `EthHost::call` 与 top-level 共享同一 `chainPort*`。
 
@@ -229,7 +229,7 @@ branch:
             → completeAfterPipeline（ADR-025 决策树内聚）
 ```
 
-Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `completeAfterPipeline`）；内部经 `finalizeNormal` + `refundGas` + receipt meta。Deposit 仍用 `settleDeposit`（`finalizeDeposit` + gasPool）。`OpStackOrchestrationProfile::bind` 在 lifecycle 内联调用（D13）。详见 ADR-021 Appendix A / ADR-023 / ADR-025。
+Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `completeAfterPipeline`）；内部经 `finalizeNormal` + `refundGas` + receipt meta。Deposit 仍用 `settleDeposit`（`finalizeDeposit` + gasPool）。`OpStackStateTransitionBindings::bind` 在 lifecycle 内联调用（D13）。详见 ADR-021 Appendix A / ADR-023 / ADR-025。
 
 ### 3.4 三路径调用流（总览）
 
@@ -238,10 +238,10 @@ Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `comple
   ──────────────           ─────────────────              ───────────────────
   applyEthMessage    applyFiscoMessage              applyOpStackMessage
        │                        │                              │
-       │                   FiscoOrchestrationProfile          runOpStackTxLifecycle
+       │                   FiscoStateTransitionBindings          runOpStackTxLifecycle
        │                   .bind(hooks, errorPolicy)          (precheck, gasPool, settle*)
        │                        │                              │
-       │                        │                        OpStackOrchestrationProfile
+       │                        │                        OpStackStateTransitionBindings
        │                        │                        .bind → stateTransitionExecute
        └───────────┬────────────┴──────────────┬───────────────┘
                    ▼                           ▼
@@ -292,13 +292,13 @@ struct VmHostPolicy {
 
 文件：`eth/pipeline/TxPipelineHooks.h`、`eth/pipeline/StateTransitionErrorPolicy.h`
 
-链特有编排通过 **`OrchestrationProfile::bind(BindingsContext)`** 产出 `{ precheckPolicy, errorPolicy }`，再传入 `stateTransitionExecute`。三链 profile：
+链特有编排通过 **`*StateTransitionBindings::bind(Context)`** 产出 `{ hooks, errorPolicy }`，再传入 `stateTransitionExecute`。三链 bindings：
 
-| Profile | 文件 | ErrorPolicy |
+| Bindings | 文件 | ErrorPolicy |
 | --- | --- | --- |
-| `EthOrchestrationProfile` | `eth/apply/EthOrchestrationProfile.h` | `EthStateTransitionErrorPolicy` |
-| `FiscoOrchestrationProfile` | `bcos/FiscoOrchestrationProfile.h` | `FiscoStateTransitionErrorPolicy` |
-| `OpStackOrchestrationProfile` | `opstack/OpStackOrchestrationProfile.h` | `OpStackStateTransitionErrorPolicy` |
+| `EthStateTransitionBindings` | `eth/apply/EthStateTransitionBindings.h` | `EthStateTransitionErrorPolicy` |
+| `FiscoStateTransitionBindings` | `bcos/FiscoStateTransitionBindings.h` | `FiscoStateTransitionErrorPolicy` |
+| `OpStackStateTransitionBindings` | `opstack/OpStackStateTransitionBindings.h` | `OpStackStateTransitionErrorPolicy` |
 
 典型 hook（由 profile 填充，**不得**在 `eth/pipeline/` 内 `#include bcos/` 或 `opstack/`）：
 
@@ -420,9 +420,9 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 编排上下文 | `eth/pipeline/StateTransitionContext.h` |
 | 编排钩子 | `eth/pipeline/TxPipelineHooks.h` |
 | 编排错误策略（基类） | `eth/pipeline/StateTransitionErrorPolicy.h` |
-| ETH Profile | `eth/apply/EthOrchestrationProfile.h` |
-| FISCO Profile | `bcos/FiscoOrchestrationProfile.h` |
-| OP Profile | `opstack/OpStackOrchestrationProfile.h` |
+| ETH bindings | `eth/apply/EthStateTransitionBindings.h` |
+| FISCO Profile | `bcos/FiscoStateTransitionBindings.h` |
+| OP Profile | `opstack/OpStackStateTransitionBindings.h` |
 | 内核入口（符号） | `eth/execution/InnerExecute.h` / `.cpp` (`innerExecute`) |
 | Tx 级 adapter | `eth/execution/TxExecutionRunner.h` / `.cpp` |
 | Call target 分类 | `eth/execution/CallTargetResolver.h` / `.cpp`（ADR-024） |

@@ -13,7 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file EthOrchestrationProfile.h
+ * @brief Binds Eth chain policy for `stateTransitionExecute` at `applyEthMessage`.
+ * @file EthStateTransitionBindings.h
  */
 
 #pragma once
@@ -25,24 +26,24 @@
 namespace bcos::evm
 {
 
-struct EthOrchestrationProfile
+/// Factory for `{hooks, errorPolicy}` injected into `stateTransitionExecute`.
+struct EthStateTransitionBindings
 {
-    /// Orchestration policy bind input (not execution environment wiring).
-    struct BindingsContext
+    struct Context
     {
         EthMessageRequest const& input;
         EthMessageResult& output;
     };
 
-    struct Bindings
+    struct Result
     {
         EthStateTransitionHooks hooks;
         EthStateTransitionErrorPolicy errorPolicy;
     };
 
-    static EthStateTransitionHooks buildStateTransitionHooks(BindingsContext& bindingsCtx);
-    static EthStateTransitionErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
-    static Bindings bind(BindingsContext& bindingsCtx);
+    static EthStateTransitionHooks buildStateTransitionHooks(Context& ctx);
+    static EthStateTransitionErrorPolicy buildErrorPolicy(Context const& ctx);
+    static Result bind(Context& ctx);
 };
 
 }  // namespace bcos::evm

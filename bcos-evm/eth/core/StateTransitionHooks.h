@@ -25,7 +25,9 @@
  *   - `onInvokeInnerExecute` is the default gateway into `innerExecute()` (full EVM)
  *
  * Paired symbols: `StateTransitionContext`, `StateTransitionErrorPolicy` (failure mapping),
- * `stateTransitionExecute`. Bound at each chain's `apply*Message` via `*OrchestrationProfile`.
+ * `stateTransitionExecute`. Bound at each chain's `apply*Message` (e.g.
+ * `EthStateTransitionBindings::bind`, `FiscoStateTransitionBindings::bind`,
+ * `OpStackStateTransitionBindings::bind`).
  *
  * Implementations: `EthStateTransitionHooks`, `FiscoStateTransitionHooks`,
  * `OpStackStateTransitionHooks`.

@@ -206,7 +206,7 @@ P2  Speculative → Done
 
 **文件:** `eth/pipeline/TxPipelineHooks.h` · `eth/ExecuteViaEth.cpp` · `bcos/ExecuteViaHost.cpp` · `test/eth/TxPipelineTest.cpp`
 
-**问题:** `runTxPipeline` 已是深 module，但链差异仍通过 10 个 default-noop `std::function` 注入；每个 wrapper 内联完整策略，无 `EthOrchestrationProfile` / `FiscoOrchestrationProfile` 具名 implementation。新增 hook 需改 3 个 cpp + 默认值 + 测试矩阵。
+**问题:** `runTxPipeline` 已是深 module，但链差异仍通过 10 个 default-noop `std::function` 注入；每个 wrapper 内联完整策略，无 `EthStateTransitionBindings` / `FiscoStateTransitionBindings` 具名 implementation。新增 hook 需改 3 个 cpp + 默认值 + 测试矩阵。
 
 **方案:** 链侧提供 named profile struct；wrapper 仅 `runTxPipeline(ctx, EthProfile::hooks(input))`；或与候选 4（ErrorPolicy）合并。
 
