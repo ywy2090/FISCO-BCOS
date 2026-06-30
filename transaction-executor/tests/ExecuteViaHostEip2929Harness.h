@@ -10,7 +10,7 @@
 #include "Eip2929TestHelpers.h"
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/bcos/FiscoTransactionPrepare.h"
+#include "bcos-evm/bcos/FiscoPrepareTransaction.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/EVMCResult.h"
@@ -205,7 +205,7 @@ public:
             }
 
             bcos::evm::prepareTransaction(*m_state, tx, blockInfo(),
-                bcos::evm::FiscoTransactionPrepareInput{.revisionConfig = m_revisionConfig.eth(),
+                bcos::evm::FiscoPrepareTransactionInput{.revisionConfig = m_revisionConfig.eth(),
                     .properties = props,
                     .accessList = listPtr,
                     .web3TypedTxKind = m_web3Kind,

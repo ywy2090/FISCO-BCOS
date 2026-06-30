@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
-#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip2930AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/gas/Eip4844.h"

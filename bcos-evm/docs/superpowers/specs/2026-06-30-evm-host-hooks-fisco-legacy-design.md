@@ -5,7 +5,7 @@
 **Priority:** P0（链特有逻辑从 `eth/` 内核移除）  
 **Related:** ADR-005, ADR-027, `eth/state/EvmHostHooks.h`, `eth/state/EthHost.hpp`, `bcos/FiscoVmHostPolicy.h`, `bcos/FiscoRevisionConfig.h`, capability-matrix `bugfix_evm_storage_status` / CREATE nonce rows
 
-**Prerequisite:** P2 已完成 — `makeIsthmusRevisionConfig()` 已迁出 `eth/RevisionConfig.h` 至 `opstack/OpStackChainPolicy.h`。
+**Prerequisite:** P2 已完成 — `makeIsthmusRevisionConfig()` 已迁出 `eth/RevisionConfig.h` 至 `opstack/OpStackIsthmusRevision.h`。
 
 ---
 
@@ -219,7 +219,7 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 | `eth/execution/EvmCallFrame.h` | 删除 `fixNonceInit` |
 | `eth/execution/ExecutionFrame.cpp` | 调 `finalizeTopLevelCreateNonce` |
 | `eth/execution/TxExecutionRunner.cpp` | 简化 `EthHost` / `FrameExecutionEnv` 构造 |
-| `eth/InnerExecute.h` | 删除 `fixStorageStatus`, `fixNonceInit` |
+| `eth/execution/InnerExecute.h` | 删除 `fixStorageStatus`, `fixNonceInit` |
 | `eth/pipeline/EvmTxContextView.h` | 删除同上 + `toExecuteMessageInput` 拷贝 |
 | `eth/CMakeLists.txt`（或等效） | 添加 `EvmHostHooks.cpp` |
 
@@ -366,4 +366,4 @@ ctest -R 'SstoreStatus|SstoreRefund|FiscoVmHost|FiscoExecute|EvmTxContextView' -
 
 ## Appendix B — Related Completed Work
 
-- **P2（2026-06-30）：** `makeIsthmusRevisionConfig()` → `opstack/OpStackChainPolicy.h`
+- **P2（2026-06-30）：** `makeIsthmusRevisionConfig()` → `opstack/OpStackIsthmusRevision.h`

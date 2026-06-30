@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file InnerExecute.cpp
+ * @file execution/InnerExecute.cpp
  */
 
-#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/execution/TxExecutionRunner.h"
 
 namespace bcos::evm

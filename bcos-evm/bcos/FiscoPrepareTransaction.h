@@ -13,13 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Thin prepare wrapper for transaction-entry warm set.
- * @file FiscoTransactionPrepare.h
+ * @brief FISCO transaction-entry warm set wrapper (geth state.Prepare).
+ * @file FiscoPrepareTransaction.h
  */
 
 #pragma once
 
-#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip2930AccessList.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
@@ -31,7 +31,7 @@
 namespace bcos::evm
 {
 
-struct FiscoTransactionPrepareInput
+struct FiscoPrepareTransactionInput
 {
     bcos::evm_standard::RevisionConfig revisionConfig{};
     state::TransactionProperties properties{};
@@ -41,7 +41,7 @@ struct FiscoTransactionPrepareInput
 };
 
 inline void prepareTransaction(state::State& state, const state::Transaction& transaction,
-    const state::BlockInfo& blockInfo, const FiscoTransactionPrepareInput& input = {})
+    const state::BlockInfo& blockInfo, const FiscoPrepareTransactionInput& input = {})
 {
     execution::warmTransactionEntry(state, input.revisionConfig, nullptr, transaction, blockInfo,
         input.properties, input.accessList, input.web3TypedTxKind, input.createCodeAddress);

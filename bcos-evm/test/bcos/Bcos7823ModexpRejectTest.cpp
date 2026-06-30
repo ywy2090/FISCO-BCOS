@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos7823ModexpRejectTest
 
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-framework/ledger/Features.h>

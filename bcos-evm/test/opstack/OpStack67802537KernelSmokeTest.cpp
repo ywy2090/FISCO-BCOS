@@ -4,8 +4,8 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

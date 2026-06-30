@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip7702ApplyAuthorizationTest
 
-#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"

@@ -8,7 +8,7 @@
  */
 #pragma once
 
-#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip2930AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"

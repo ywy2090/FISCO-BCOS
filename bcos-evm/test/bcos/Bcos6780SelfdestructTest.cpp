@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Bcos6780SelfdestructTest
 
-#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"

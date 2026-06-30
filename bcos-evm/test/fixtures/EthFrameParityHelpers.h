@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>

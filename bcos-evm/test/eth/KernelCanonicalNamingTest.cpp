@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE KernelCanonicalNamingTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"

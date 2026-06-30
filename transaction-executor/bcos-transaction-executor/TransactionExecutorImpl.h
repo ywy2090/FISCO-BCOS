@@ -10,8 +10,8 @@
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
+#include "bcos-evm/bcos/FiscoPrepareTransaction.h"
 #include "bcos-evm/bcos/FiscoStateView.h"
-#include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxFeeSettlement.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
@@ -174,7 +174,7 @@ public:
                 tx.gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
                 tx.gasLimit = msg.gas;
                 prepareTransaction(state, tx, blockInfo,
-                    FiscoTransactionPrepareInput{
+                    FiscoPrepareTransactionInput{
                         .revisionConfig = m_data->m_executionContext.revisionConfig.eth(),
                         .properties = {},
                         .accessList = m_data->m_web3AccessListResolved.accessList.get()});

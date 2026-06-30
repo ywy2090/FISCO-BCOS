@@ -9,7 +9,7 @@
 #define BOOST_TEST_MODULE TxExecutionRunnerTest
 
 #include "bcos-evm/eth/execution/TxExecutionRunner.h"
-#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"

@@ -16,7 +16,7 @@ ADR-031 Phase 3b (P1) promoted two **portable eth kernel** symbols to canonical 
 | ~~Tier E~~ | Canonical (ADR-031) | Header |
 | --- | --- | --- |
 | ~~`runTxPipeline`~~ | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` |
-| ~~`executeMessage`~~ | `innerExecute` | `eth/InnerExecute.h` |
+| ~~`executeMessage`~~ | `innerExecute` | `eth/execution/InnerExecute.h` |
 
 Phase 4c (P2) documented **`apply*Message`** as the geth-aligned chain entry name; TE impls call `applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage` at the syscall boundary. Wave 3 promoted those to exported link symbols; Wave 4 removed `*Execute` forwards.
 
@@ -66,7 +66,7 @@ TE does **not** call these directly (verified ADR-031 §3); removal is gated on 
 | Order | Remove | Canonical replacement | Location |
 | --- | --- | --- | --- |
 | 2.1 | `runTxPipeline` | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` |
-| 2.2 | `executeMessage` | `innerExecute` | `eth/InnerExecute.h` |
+| 2.2 | `executeMessage` | `innerExecute` | `eth/execution/InnerExecute.h` |
 
 After Wave 2: delete `GethNamingAliasesTest` cases `runTxPipeline_deprecated_alias_*` and `executeMessage_deprecated_alias_*`; retain canonical driver tests.
 

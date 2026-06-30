@@ -160,7 +160,7 @@ These remain **outside** `runTxPipeline`:
 
 ### 7. Test-only OpStack spy seam
 
-`OpStackExecuteMessageTestHook.h` (guarded by `BCOS_EVM_TESTING`) provides `setExecuteMessageSpy` / `maybeCallExecuteMessageSpy` so tests can assert `ExecuteMessageInput.message.gas == originalGasLimit - intrinsicDebit`.
+`ApplyOpStackMessageTestHook.h` (guarded by `BCOS_EVM_TESTING`) provides `setExecuteMessageSpy` / `maybeCallExecuteMessageSpy` so tests can assert `ExecuteMessageInput.message.gas == originalGasLimit - intrinsicDebit`.
 
 `OpStackIntrinsicGasSyncTest` compiles OpStack sources with `BCOS_EVM_TESTING` and does **not** link ordinary `bcos-evm-op`, avoiding production library pollution.
 

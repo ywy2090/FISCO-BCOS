@@ -27,7 +27,7 @@ Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyReferenceMessage` 
 | Symbol | Header | Implementation | Deprecated alias |
 | --- | --- | --- | --- |
 | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` | `TxPipeline.cpp` | ~~`[[deprecated]] inline runTxPipeline`~~ removed Wave 2 (2026-06-30) |
-| `innerExecute` | `eth/InnerExecute.h` | `ExecuteMessage.cpp` | ~~`[[deprecated]] inline executeMessage`~~ removed Wave 2 (2026-06-30) |
+| `innerExecute` | `eth/execution/InnerExecute.h` | `ExecuteMessage.cpp` | ~~`[[deprecated]] inline executeMessage`~~ removed Wave 2 (2026-06-30) |
 
 **Rules:**
 

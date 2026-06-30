@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
-#include "bcos-evm/opstack/OpStackChainPolicy.h"
+#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "bcos-protocol/TransactionStatus.h"

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE IsthmusPostExecutionPolicyTest
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/opstack/OpStackChainPolicy.h"
+#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include <boost/test/included/unit_test.hpp>
 #include <filesystem>
 #include <fstream>

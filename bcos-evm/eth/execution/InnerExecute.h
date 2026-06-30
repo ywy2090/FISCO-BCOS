@@ -13,13 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Top-level message execution over eth::state::EthHost.
- * @file InnerExecute.h
+ * @brief Top-level message execution over eth::state::EthHost (geth innerExecute).
+ * @file execution/InnerExecute.h
  */
 
 #pragma once
 
-#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip2930AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"

@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief EIP-2930 access list type for eth gas settlement.
- * @file AccessList.h
+ * @file Eip2930AccessList.h
  */
 
 #pragma once

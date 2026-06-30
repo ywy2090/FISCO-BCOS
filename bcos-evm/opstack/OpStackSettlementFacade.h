@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip2930AccessList.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/opstack/OpStackFeeSidecar.h"

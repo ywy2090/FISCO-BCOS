@@ -150,7 +150,7 @@ EthHost::call(msg)
 `TxExecutionRunner::runEvmKernelTopLevel` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `VmHostPolicy*` 注入。
 
 ```cpp
-// eth/InnerExecute.h — 对外接口
+// eth/execution/InnerExecute.h — 对外接口
 ExecuteMessageOutput innerExecute(ExecuteMessageInput input);
 
 // eth/execution/TxExecutionRunner.h — 实现体
@@ -423,7 +423,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | ETH Profile | `eth/apply/EthOrchestrationProfile.h` |
 | FISCO Profile | `bcos/FiscoOrchestrationProfile.h` |
 | OP Profile | `opstack/OpStackOrchestrationProfile.h` |
-| 内核入口（符号） | `eth/InnerExecute.h` / `.cpp` (`innerExecute`) |
+| 内核入口（符号） | `eth/execution/InnerExecute.h` / `.cpp` (`innerExecute`) |
 | Tx 级 adapter | `eth/execution/TxExecutionRunner.h` / `.cpp` |
 | Call target 分类 | `eth/execution/CallTargetResolver.h` / `.cpp`（ADR-024） |
 | ExecutionFrame | `eth/execution/EvmCallFrame.h` / `.cpp` |

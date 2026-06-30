@@ -23,7 +23,7 @@
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
 #ifdef BCOS_EVM_TESTING
-#include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
+#include "bcos-evm/opstack/ApplyOpStackMessageTestHook.h"
 #endif
 #include <algorithm>
 
@@ -182,7 +182,8 @@ void OpStackPrecheckPolicy::pipelineTuneKernelInput(InnerExecuteInput& execInput
 InnerExecuteOutput OpStackPrecheckPolicy::pipelineInvokeEvmKernel(InnerExecuteInput&& input) const
 {
 #ifdef BCOS_EVM_TESTING
-    if (auto spyOutput = opstack::test::maybeCallExecuteMessageSpy(input); spyOutput.has_value())
+    if (auto spyOutput = opstack::test::maybeCallApplyOpStackMessageSpy(input);
+        spyOutput.has_value())
     {
         return std::move(*spyOutput);
     }

@@ -1,3 +1,8 @@
+/*
+ * @brief Isthmus EVM revision binding (Prague at tx granularity).
+ * @file OpStackIsthmusRevision.h
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"

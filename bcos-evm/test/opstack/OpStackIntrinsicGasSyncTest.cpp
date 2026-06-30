@@ -1,12 +1,12 @@
 #define BOOST_TEST_MODULE OpStackIntrinsicGasSyncTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackChainPolicy.h"
-#include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
+#include "bcos-evm/opstack/ApplyOpStackMessageTestHook.h"
+#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
     input.blockInfo.gasLimit = 30'000'000;
 
     int64_t capturedGas = -1;
-    opstack::test::setExecuteMessageSpy([&](InnerExecuteInput const& execInput) {
+    opstack::test::setApplyOpStackMessageSpy([&](InnerExecuteInput const& execInput) {
         capturedGas = execInput.message.gas;
         evmc_result raw{};
         raw.status_code = EVMC_SUCCESS;
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
     });
 
     auto output = task::syncWait(applyOpStackMessage(input));
-    opstack::test::clearExecuteMessageSpy();
+    opstack::test::clearApplyOpStackMessageSpy();
 
     auto const intrinsic =
         gas::computeTxIntrinsicGas(message, input.accessList, input.web3TypedTxKind);
