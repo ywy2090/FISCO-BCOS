@@ -2,7 +2,7 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief ADR-026 Appendix B: OpStackPreDebitPlan vs pre-refactor buyGas inline oracle.
+ * @brief OpStackPreDebitPlan vs pre-refactor buyGas inline oracle.
  * @file OpStackPreDebitCharacterizationTest.cpp
  */
 #define BOOST_TEST_MODULE OpStackPreDebitCharacterizationTest

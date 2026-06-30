@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/ports/ChainCallTargetPort.h"
+#include "bcos-evm/eth/ports/ChainCallTargetDispatcher.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include <bcos-utilities/Common.h>
 #include <functional>
@@ -8,7 +8,7 @@
 namespace bcos::evm
 {
 
-class OpStackChainCallTargetAdapter final : public ChainCallTargetPort
+class OpStackChainCallTargetAdapter final : public ChainCallTargetDispatcher
 {
 public:
     OpStackChainCallTargetAdapter(state::State* state, bcos::u256 l2BaseFee,

@@ -17,7 +17,7 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
@@ -65,7 +65,7 @@ bcos::bytes copyOutput(evmc::Result const& result)
 }
 
 DelegatePrecompileOutcome runNestedExecutionFrame(
-    state::State& state, evmc_message message, state::VmHostPolicy* extension = nullptr)
+    state::State& state, evmc_message message, state::EvmHostHooks* extension = nullptr)
 {
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
@@ -74,7 +74,7 @@ DelegatePrecompileOutcome runNestedExecutionFrame(
     state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), extension, false);
 
     message.depth = 1;
-    execution::FrameContext frameCtx{state, vm, cfg, extension, txContext.tx_origin,
+    execution::FrameExecutionEnv frameCtx{state, vm, cfg, extension, txContext.tx_origin,
         host.execution_address_ref()};
     auto fr = execution::runExecutionFrame(
         frameCtx, message, execution::FrameScope::Nested, host);
@@ -190,7 +190,7 @@ BOOST_AUTO_TEST_CASE(top_level_executeMessage_delegatecall_identity_allowed)
         inputBytes);
 }
 
-struct DenyDelegatePrecompilePolicy : state::VmHostPolicy
+struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
 {
     bool allowDelegateCallToPrecompile() override { return false; }
 };

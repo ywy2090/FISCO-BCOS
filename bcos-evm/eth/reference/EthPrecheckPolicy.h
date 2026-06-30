@@ -19,7 +19,7 @@
 #pragma once
 
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 
 namespace bcos::evm
 {
@@ -28,7 +28,7 @@ struct EthPrecheckPolicy : ChainPrecheckPolicy
 {
     explicit EthPrecheckPolicy(EthReferenceRequest const& input);
 
-    IntrinsicGasPolicy intrinsicGasPolicy() const override { return m_intrinsicPolicy; }
+    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
 
     void checkTransactionRules(TxPipelineContext& ctx) const override;
 
@@ -36,7 +36,7 @@ struct EthPrecheckPolicy : ChainPrecheckPolicy
 
 private:
     EthReferenceRequest const& m_input;
-    IntrinsicGasPolicy m_intrinsicPolicy{};
+    IntrinsicGasDebitParams m_intrinsicPolicy{};
 };
 
 }  // namespace bcos::evm

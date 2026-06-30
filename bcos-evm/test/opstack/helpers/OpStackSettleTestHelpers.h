@@ -4,11 +4,11 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackNormalFeeSettlement.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/OpStackFeeSettlement.h"
+#include "bcos-evm/opstack/OpStackNormalTxFeeCoordinator.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackSettlementView.h"
-#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
@@ -59,9 +59,9 @@ struct NormalSettleFixture
     TxPipelineContext ctx;
     OpStackExecutionRequest input;
     OpStackFeeSidecar sidecar;
-    OpStackSettlementView view;
-    OpStackTxFeeLedger ledger;
-    OpStackNormalFeeSettlement settlement;
+    OpStackSettlementFacade view;
+    OpStackFeeSettlement ledger;
+    OpStackNormalTxFeeCoordinator settlement;
     OpStackFeeParams feeParams{};
     GasPoolSpy spy;
 

@@ -31,7 +31,7 @@ struct CallOutcome
     bool precompileHit{false};
 };
 
-struct DenyDelegatePrecompilePolicy : state::VmHostPolicy
+struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
 {
     bool allowDelegateCallToPrecompile() override { return false; }
 };
@@ -43,7 +43,7 @@ struct FrameTestHost
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
     std::optional<state::EthHost> host;
 
-    explicit FrameTestHost(state::State& state, state::VmHostPolicy* extension = nullptr)
+    explicit FrameTestHost(state::State& state, state::EvmHostHooks* extension = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
         host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, false);
@@ -53,11 +53,11 @@ struct FrameTestHost
 };
 
 CallOutcome runFrameNested(
-    state::State& state, evmc_message message, state::VmHostPolicy* extension = nullptr)
+    state::State& state, evmc_message message, state::EvmHostHooks* extension = nullptr)
 {
     FrameTestHost fixture(state, extension);
     message.depth = 1;
-    execution::FrameContext frameCtx{state, fixture.vm, fixture.cfg, extension,
+    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, extension,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runExecutionFrame(
         frameCtx, message, execution::FrameScope::Nested, fixture.ethHost());
@@ -71,7 +71,7 @@ CallOutcome runFrameNested(
 CallOutcome runFrameTopLevel(state::State& state, evmc_message message)
 {
     FrameTestHost fixture(state);
-    execution::FrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runExecutionFrame(
         frameCtx, message, execution::FrameScope::TopLevel, fixture.ethHost());
@@ -227,7 +227,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_does_not_commit_before_adapter_nonce_bump)
     message.input_size = 0;
 
     FrameTestHost fixture(state);
-    execution::FrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runExecutionFrame(
         frameCtx, message, execution::FrameScope::TopLevel, fixture.ethHost());
@@ -432,7 +432,7 @@ BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)
     state.set_nonce(sender, 7);
 
     FrameTestHost fixture(state);
-    execution::FrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
 
     evmc_message create1{};

@@ -1,15 +1,15 @@
 # Task 1 — Revision Profile 审计笔记
 
 **日期：** 2026-06-20  
-**范围：** `EthPolicy::computeRevisionConfig` vs matrix / ADR-004 / `RevisionConfigProfileTest`
+**范围：** `EthChainPolicy::computeRevisionConfig` vs matrix / ADR-004 / `RevisionConfigProfileTest`
 
 ---
 
-## Step 1 — EthPolicy 逐 fork 快照
+## Step 1 — EthChainPolicy 逐 fork 快照
 
-来源：`bcos-evm/eth/vm/EthPolicy.h:27-41`
+来源：`bcos-evm/eth/vm/EthChainPolicy.h:27-41`
 
-| blockNum | revision | EthPolicy 显式赋值 true | 保持 default false |
+| blockNum | revision | EthChainPolicy 显式赋值 true | 保持 default false |
 |----------|----------|-------------------------|-------------------|
 | 19,426,587 | CANCUN | `warm_access`, `eip1153`, `eip4844`, `eip5656`, `eip6780` | `eip2537`, `eip7623`, `eip7212`, `eip7823`, `eip1559`, `eip3651`, `eip7702`, `prague_post_execution` |
 | 22,000,000 | PRAGUE | 上述 + `eip2537`, `eip7623`; `calldata_floor_per_token=10` | `eip7212`, `eip7823`, `eip1559`, `eip3651`, **`eip7702`**, `prague_post_execution` |
@@ -18,12 +18,12 @@
 ### eip7702 重点
 
 - `RevisionConfig` 有 `eip7702` 字段（`RevisionConfig.h:27`），`ExecuteMessage.cpp:173` 以该 flag 门控 `applyAuthorizations`。
-- **`EthPolicy::computeRevisionConfig` 从未赋值 `eip7702`** → PRAGUE/OSAKA 区块仍为 `false`。
-- Matrix 声明：`EIP-7702 revision enable | inherited (EthPolicy at PRAGUE+)`（`capability-matrix.md:53`）——与实现不符。
+- **`EthChainPolicy::computeRevisionConfig` 从未赋值 `eip7702`** → PRAGUE/OSAKA 区块仍为 `false`。
+- Matrix 声明：`EIP-7702 revision enable | inherited (EthChainPolicy at PRAGUE+)`（`capability-matrix.md:53`）——与实现不符。
 - 对照：`FiscoPolicy` 在 `feature_evm_prague` 时设 `eip7702=true`（`FiscoPolicy.h:66`）；`makeIsthmusRevisionConfig` 亦设 true（`RevisionConfig.h:67`）。
-- 测试：`RevisionConfigProfileTest` ETH 路径 PRAGUE/OSAKA 期望 `eip7702=false`（与 EthPolicy 一致，但与 matrix 声明冲突）。
+- 测试：`RevisionConfigProfileTest` ETH 路径 PRAGUE/OSAKA 期望 `eip7702=false`（与 EthChainPolicy 一致，但与 matrix 声明冲突）。
 
-**判定：🔴** — matrix 声称 PRAGUE+ inherited，EthPolicy 未启用；7702 kernel 行 baseline 不可达。
+**判定：🔴** — matrix 声称 PRAGUE+ inherited，EthChainPolicy 未启用；7702 kernel 行 baseline 不可达。
 
 ---
 
@@ -41,7 +41,7 @@ cd build && ./bcos-evm/test/RevisionConfigProfileTest --log_level=test_suite
 
 ## Step 3 — ADR-004 profile-only grep（`bcos-evm/eth/`）
 
-| 字段 | EthPolicy 赋值 | TE consumer（`bcos-evm/eth/`） | ADR-004 分类 |
+| 字段 | EthChainPolicy 赋值 | TE consumer（`bcos-evm/eth/`） | ADR-004 分类 |
 |------|---------------|-------------------------------|-------------|
 | `warm_access` | `>= BERLIN` → true | `ExecuteMessage.cpp:140,147,177` 传入 `warmTransactionEntry` / `EthHost` | profile-only（语义门控为 revision；flag 仍被读取） |
 | `eip1559` | 未赋值 | **无** grep 命中 | profile-only |
@@ -73,6 +73,6 @@ cd build && ./bcos-evm/test/RevisionConfigProfileTest --log_level=test_suite
 
 ## 缺口汇总
 
-1. **🔴 eip7702**：EthPolicy 未在 PRAGUE+ 设 flag；matrix 声称 inherited；7702 auth apply 在 reference 路径不可达。
+1. **🔴 eip7702**：EthChainPolicy 未在 PRAGUE+ 设 flag；matrix 声称 inherited；7702 auth apply 在 reference 路径不可达。
 2. **🟡 eip7212**：profile 在 OSAKA+ 设 true，但 `EthPrecompiles` 无 0x0100 实现（kernel unsupported）。
 3. **📋 eip7823/eip1559/eip3651/prague_post_execution**：profile-only，Eth reference 无 TE consumer（或仅有 header 未 wired）。

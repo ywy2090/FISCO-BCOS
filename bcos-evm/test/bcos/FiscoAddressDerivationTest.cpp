@@ -2,11 +2,11 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief Characterization tests for FISCO CREATE address derivation (ADR-022).
+ * @brief Characterization tests for FISCO CREATE address derivation.
  * @file FiscoAddressDerivationTest.cpp
  *
  * Documents current seam behavior and open-question oracles before FiscoAddressDerivation
- * consolidation. See bcos-evm/docs/adr/022-fisco-create-address-derivation.md §4 + OQ1–OQ3.
+ * consolidation.
  */
 
 #define BOOST_TEST_MODULE FiscoAddressDerivationTest
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(top_level_create_skips_when_code_address_prefilled)
     BOOST_CHECK(addressEqual(resolved.code_address, message.code_address));
 }
 
-// ADR-022 D1: top-level honors feature_evm_address (aligned with nested).
+// D1: top-level honors feature_evm_address (aligned with nested).
 BOOST_AUTO_TEST_CASE(top_level_feature_evm_address_enables_legacy_without_web3_tx)
 {
     auto const sender = addressFromTailByte(0x51);
@@ -369,11 +369,11 @@ BOOST_AUTO_TEST_CASE(top_level_depth_zero_skips_nested_prepare_derivation)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-// --- Open question oracles (ADR-022 OQ1–OQ3) ---------------------------------
+// --- Open question oracles ---------------------------------
 
 BOOST_AUTO_TEST_SUITE(FiscoAddressDerivationOpenQuestions)
 
-// OQ1: nested legacy nonce — VmHostPolicy(state) vs Policy::deriveMessage(tx nonce).
+// OQ1: nested legacy nonce — EvmHostHooks(state) vs Policy::deriveMessage(tx nonce).
 BOOST_AUTO_TEST_CASE(oq1_nested_legacy_nonce_oracle_diverges_from_policy_derive)
 {
     state::test::InMemoryEvmStateReader view;

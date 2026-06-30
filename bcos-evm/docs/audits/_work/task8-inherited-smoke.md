@@ -15,7 +15,7 @@
 | ETH Part 1 🔴 → OP 继承 🔴 | 共享内核缺口（6780 Host、2537 MSM gas 等） |
 | ETH Part 1 ✅ + OP 缺测 / 生产 wiring 未接 → OP 🟡 | 2929 tx-entry、预编译 smoke 等 |
 | ETH Part 1 🟡 → OP 按 wiring + 测试独立判定 | 7702 apply 在 OP 有 E2E |
-| ETH Part 1 🔴（EthPolicy 基线）+ OP helper 已修复 → OP 单列 ✅，ETH 列保留初审计 🔴 | #6 初快照；**复审计 ETH 亦 ✅** |
+| ETH Part 1 🔴（EthChainPolicy 基线）+ OP helper 已修复 → OP 单列 ✅，ETH 列保留初审计 🔴 | #6 初快照；**复审计 ETH 亦 ✅** |
 | ETH 审计存在 | 所有行均可交叉引用；**无** `blocked: ETH audit pending` |
 
 ---

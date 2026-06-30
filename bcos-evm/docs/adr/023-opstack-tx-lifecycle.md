@@ -8,9 +8,9 @@
 
 ## Context
 
-ADR-021 deepened **settlement math** (`finalizeNormal` / `finalizeDeposit`) and async settlement. **ADR-021 Appendix A (2026-06-26)** replaced `OpStackFeeContext` / `populateFeeContext` with `OpStackSettlementView` + `OpStackFeeSidecar` and moved normal post-pipeline wiring into **`OpStackNormalFeeSettlement`** (`buyGas` + `completeAfterPipeline`). `TxPipelineContext` remains the gas/message/state single source.
+ADR-021 deepened **settlement math** (`finalizeNormal` / `finalizeDeposit`) and async settlement. **ADR-021 Appendix A (2026-06-26)** replaced `OpStackFeeContext` / `populateFeeContext` with `OpStackSettlementFacade` + `OpStackFeeSidecar` and moved normal post-pipeline wiring into **`OpStackNormalTxFeeCoordinator`** (`buyGas` + `completeAfterPipeline`). `TxPipelineContext` remains the gas/message/state single source.
 
-Historical context (pre–Appendix A): outer-ring wiring lived in `OpStackExecutionBridge` with manual `OpStackFeeContext` initialization and public `settleNormal`.
+Historical context (pre–Appendix A): outer-ring wiring lived in `OpStackExecute` with manual `OpStackFeeContext` initialization and public `settleNormal`.
 
 Grilling decisions D12–D18 (2026-06-25) resolved interface shape and delivery phasing.
 
@@ -27,17 +27,17 @@ Introduce `runOpStackTxLifecycle(OpStackExecutionRequest)` as the **OpStack oute
 | Export | Role |
 | --- | --- |
 | `OpStackTxLifecycle.h` → `runOpStackTxLifecycle` | Deep module interface; primary characterization test surface after C1 |
-| `OpStackExecutionBridge.h` → `opStackExecute` | Stable TE seam |
+| `OpStackExecute.h` → `opStackExecute` | Stable TE seam |
 
 ### 2. Compose ADR-021 — do not merge
 
 | Module | Responsibility | Lifecycle relationship |
 | --- | --- | --- |
 | `runTxPipeline` (eth) | Fixed 12-step kernel | lifecycle calls via `OpStackOrchestrationProfile::bind` |
-| `finalizeNormal` / `finalizeDeposit` | Sync gas/journal math | normal: internal to `OpStackNormalFeeSettlement`; deposit: via `settleDeposit` |
-| `OpStackNormalFeeSettlement` | `buyGas` + `completeAfterPipeline` (ADR-025 tree) | lifecycle sole normal settlement interface |
+| `finalizeNormal` / `finalizeDeposit` | Sync gas/journal math | normal: internal to `OpStackNormalTxFeeCoordinator`; deposit: via `settleDeposit` |
+| `OpStackNormalTxFeeCoordinator` | `buyGas` + `completeAfterPipeline` (ADR-025 tree) | lifecycle sole normal settlement interface |
 | `settleDeposit` | Async: `finalizeDeposit` + gasPool | lifecycle sole deposit post-pipeline entry |
-| `OpStackTxFeeLedger` | buyGas / refundGas adapter | called via settlement module / `settleDeposit`; not on bridge |
+| `OpStackFeeSettlement` | buyGas / refundGas adapter | called via settlement module / `settleDeposit`; not on bridge |
 
 ADR-021 invariants unchanged.
 
@@ -46,7 +46,7 @@ ADR-021 invariants unchanged.
 `OpStackOrchestrationProfile::BindingsContext` (internal; renamed from `Session`, ADR-027 naming follow-up):
 
 - `OpStackExecutionRequest& input`
-- `OpStackSettlementView view` (`ctx` + `input` + `sidecar`)
+- `OpStackSettlementFacade view` (`ctx` + `input` + `sidecar`)
 
 `sidecar` / `view` do not cross the lifecycle external seam.
 

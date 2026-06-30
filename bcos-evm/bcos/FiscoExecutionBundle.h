@@ -1,16 +1,16 @@
 #pragma once
 
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/pipeline/ExecutionSession.h"
+#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include <cassert>
 #include <optional>
 
 namespace bcos::evm
 {
 
-/// Owns FISCO VmHostPolicy + optional chain call-target adapter (ADR-027).
+/// Owns FISCO EvmHostHooks + optional chain call-target adapter.
 struct FiscoExecutionBundle
 {
     FiscoExecutionBundle(TxPipelineContext& ctx, FiscoExecutionRequest& input)
@@ -34,7 +34,7 @@ struct FiscoExecutionBundle
         m_view.wire(ctx);
     }
 
-    ExecutionSession const& view() const noexcept { return m_view; }
+    EvmTxContextView const& view() const noexcept { return m_view; }
     FiscoVmHostPolicy& extension() noexcept { return m_extension; }
 
 private:
@@ -59,7 +59,7 @@ private:
 
     FiscoVmHostPolicy m_extension;
     std::optional<FiscoChainCallTargetAdapter> m_chainAdapter;
-    ExecutionSession m_view;
+    EvmTxContextView m_view;
 };
 
 }  // namespace bcos::evm

@@ -1,0 +1,80 @@
+#define BOOST_TEST_MODULE Bcos7702ExecuteViaHostPropagationTest
+
+#include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/SetCodeAuthorizationTestHelper.h"
+#include <bcos-task/Wait.h>
+#include <evmone/evmone.h>
+#include <boost/test/included/unit_test.hpp>
+
+namespace bcos::evm::test
+{
+namespace
+{
+class FakeHash final : public crypto::Hash
+{
+public:
+    crypto::HashType hash(bytesConstRef /*unused*/) const override { return crypto::HashType{}; }
+    bcos::crypto::hasher::AnyHasher hasher() const override { return {}; }
+};
+
+evmc_address addressFromLastByte(uint8_t value)
+{
+    evmc_address address{};
+    address.bytes[19] = value;
+    return address;
+}
+}  // namespace
+
+BOOST_AUTO_TEST_CASE(fiscoExecute_propagates_authorizations_to_executeMessage)
+{
+    auto const authKey = TestAuthKeyPair::generate();
+    auto const sender = authKey.address();
+    auto const recipient = addressFromLastByte(0x32);
+    auto const delegationTarget = addressFromLastByte(0x42);
+
+    state::test::InMemoryEvmStateReader stateView;
+    stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
+    stateView.insert_account(recipient, state::Account{});
+
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 200'000;
+    message.sender = sender;
+    message.recipient = recipient;
+    message.code_address = recipient;
+
+    state::BlockInfo blockInfo;
+    blockInfo.number = 1;
+    blockInfo.chainId = 1;
+    blockInfo.gasLimit = 30'000'000;
+
+    evmc::VM vm{evmc_create_evmone()};
+    FakeHash hash;
+    FiscoExecutionRequest input;
+    input.stateView = &stateView;
+    input.vm = &vm;
+    input.hashImpl = &hash;
+    input.message = message;
+    input.blockInfo = blockInfo;
+    input.revisionConfig.eth().revision = EVMC_PRAGUE;
+    input.revisionConfig.eth().eip7702 = true;
+    input.authorizationListPresent = true;
+    input.authorizations.push_back(authKey.sign(delegationTarget, 1));
+
+    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+
+    auto const it = output.stateDiff.accounts.find(sender);
+    BOOST_REQUIRE(it != output.stateDiff.accounts.end());
+    auto const& installedCode = it->second.code;
+    BOOST_CHECK_EQUAL(installedCode.size(), size_t(23));
+    BOOST_CHECK_EQUAL(installedCode[0], 0xEF);
+    BOOST_CHECK_EQUAL(installedCode[1], 0x01);
+    BOOST_CHECK_EQUAL(installedCode[2], 0x00);
+    BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
+}
+
+}  // namespace bcos::evm::test

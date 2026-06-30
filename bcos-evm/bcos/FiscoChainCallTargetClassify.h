@@ -12,7 +12,7 @@ bool isFiscoPrecompileAddress(evmc_address const& address) noexcept;
 
 std::optional<evmc_address> parseDynamicPrecompileTarget(std::string_view code) noexcept;
 
-/// Resolve FISCO chain precompile dispatch address from executionAddress (ADR-024 §4.3).
+/// Resolve FISCO chain precompile dispatch address from executionAddress.
 std::optional<evmc_address> resolveFiscoChainDispatchAddress(
     state::State& state, evmc_address const& executionAddress);
 

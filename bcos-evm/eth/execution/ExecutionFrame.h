@@ -21,12 +21,12 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include <evmc/evmc.hpp>
 
 namespace bcos::evm
 {
-struct ChainCallTargetPort;
+struct ChainCallTargetDispatcher;
 }
 
 namespace bcos::evm::state
@@ -38,21 +38,21 @@ class EthHost;
 namespace bcos::evm::execution
 {
 
-struct FrameContext
+struct FrameExecutionEnv
 {
     state::State& state;
     evmc::VM& vm;
     bcos::evm_standard::RevisionConfig const& revisionConfig;
-    state::VmHostPolicy* extension{nullptr};
-    ChainCallTargetPort* chainPort{nullptr};
+    state::EvmHostHooks* extension{nullptr};
+    ChainCallTargetDispatcher* chainPort{nullptr};
     evmc_address txOrigin{};
     evmc_address& executionAddress;
     bool fixNonceInit{false};
 
-    FrameContext(state::State& state_, evmc::VM& vm_,
-        bcos::evm_standard::RevisionConfig const& revisionConfig_, state::VmHostPolicy* extension_,
+    FrameExecutionEnv(state::State& state_, evmc::VM& vm_,
+        bcos::evm_standard::RevisionConfig const& revisionConfig_, state::EvmHostHooks* extension_,
         evmc_address txOrigin_, evmc_address& executionAddress_, bool fixNonceInit_ = false,
-        ChainCallTargetPort* chainPort_ = nullptr) noexcept
+        ChainCallTargetDispatcher* chainPort_ = nullptr) noexcept
       : state(state_),
         vm(vm_),
         revisionConfig(revisionConfig_),
@@ -72,6 +72,6 @@ struct FrameResult
 };
 
 FrameResult runExecutionFrame(
-    FrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host);
+    FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host);
 
 }  // namespace bcos::evm::execution

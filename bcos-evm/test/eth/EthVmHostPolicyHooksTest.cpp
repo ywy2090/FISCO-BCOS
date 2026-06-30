@@ -16,8 +16,8 @@
 
 #define BOOST_TEST_MODULE EthVmHostPolicyHooksTest
 #include "bcos-evm/eth/state/EthHost.hpp"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -60,7 +60,7 @@ public:
     }
 };
 
-class MockExtension : public VmHostPolicy
+class MockExtension : public EvmHostHooks
 {
 public:
     bool allowSelfdestructResult = true;

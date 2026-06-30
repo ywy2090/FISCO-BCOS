@@ -1,9 +1,9 @@
 # bcos-evm opstack tests.
 
-set(OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME OpStackExecutionBridgeSmokeTest)
+set(OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME OpStackExecuteSmokeTest)
 
 add_executable(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
-    opstack/OpStackExecutionBridgeSmokeTest.cpp
+    opstack/OpStackExecuteSmokeTest.cpp
 )
 
 target_include_directories(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
@@ -16,21 +16,21 @@ target_link_libraries(${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME OpStackExecutionBridgeSmoke
+    NAME OpStackExecuteSmoke
     COMMAND ${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 add_executable(OpStackIntrinsicGasSyncTest
     opstack/OpStackIntrinsicGasSyncTest.cpp
-    ../opstack/OpStackExecutionBridge.cpp
+    ../opstack/OpStackExecute.cpp
     ../opstack/OpStackTxLifecycle.cpp
     ../opstack/OpStackSettlement.cpp
-    ../opstack/OpStackNormalFeeSettlement.cpp
+    ../opstack/OpStackNormalTxFeeCoordinator.cpp
     ../opstack/OpStackOrchestrationProfile.cpp
     ../opstack/OpStackPrecheckPolicy.cpp
-    ../opstack/OpStackTxFeeLedger.cpp
+    ../opstack/OpStackFeeSettlement.cpp
     ../opstack/fee/OpStackPreDebitPlan.cpp
     ../opstack/fee/OpStackPostSettlementPlan.cpp
-    ../opstack/OpStackSettlementView.cpp
+    ../opstack/OpStackSettlementFacade.cpp
     ../opstack/OpStackChainCallTargetAdapter.cpp
     ../opstack/fee/RollupCost.cpp
     ../opstack/fee/OpStackFee.cpp
@@ -359,11 +359,11 @@ add_test(
     COMMAND ${OPSTACK_SETTLE_ASYNC_TEST_BINARY_NAME}
 )
 
-add_executable(OpStackNormalFeeSettlementTest opstack/OpStackNormalFeeSettlementTest.cpp)
-target_include_directories(OpStackNormalFeeSettlementTest PRIVATE
+add_executable(OpStackNormalTxFeeCoordinatorTest opstack/OpStackNormalTxFeeCoordinatorTest.cpp)
+target_include_directories(OpStackNormalTxFeeCoordinatorTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStackNormalFeeSettlementTest PRIVATE bcos-evm-op)
-add_test(NAME OpStackNormalFeeSettlement COMMAND OpStackNormalFeeSettlementTest)
+target_link_libraries(OpStackNormalTxFeeCoordinatorTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackNormalTxFeeCoordinator COMMAND OpStackNormalTxFeeCoordinatorTest)
 
 add_executable(OpStackPreDebitCharacterizationTest opstack/OpStackPreDebitCharacterizationTest.cpp)
 target_include_directories(OpStackPreDebitCharacterizationTest PRIVATE
@@ -415,10 +415,10 @@ add_test(
     COMMAND ${OPSTACK_TX_LIFECYCLE_CHARACTERIZATION_TEST_BINARY_NAME}
 )
 
-set(OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME OpStackTxFeeLedgerCtxTest)
+set(OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME OpStackFeeSettlementCtxTest)
 
 add_executable(${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME}
-    opstack/OpStackTxFeeLedgerCtxTest.cpp
+    opstack/OpStackFeeSettlementCtxTest.cpp
 )
 
 target_include_directories(${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME} PRIVATE
@@ -431,7 +431,7 @@ target_link_libraries(${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME OpStackTxFeeLedgerCtx
+    NAME OpStackFeeSettlementCtx
     COMMAND ${OPSTACK_TX_FEE_LEDGER_CTX_TEST_BINARY_NAME}
 )
 
@@ -738,12 +738,12 @@ add_test(
     NAME L1BlockGetter
     COMMAND ${L1BLOCK_GETTER_TEST_BINARY_NAME}
 )
-add_executable(OpStack7702ExecutionBridgePropagationTest opstack/OpStack7702ExecutionBridgePropagationTest.cpp)
-target_include_directories(OpStack7702ExecutionBridgePropagationTest PRIVATE
+add_executable(OpStack7702ExecutePropagationTest opstack/OpStack7702ExecutePropagationTest.cpp)
+target_include_directories(OpStack7702ExecutePropagationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStack7702ExecutionBridgePropagationTest PRIVATE
+target_link_libraries(OpStack7702ExecutePropagationTest PRIVATE
     bcos-evm-op bcos-task evmone::evmone)
-add_test(NAME OpStack7702ExecutionBridgePropagation COMMAND OpStack7702ExecutionBridgePropagationTest)
+add_test(NAME OpStack7702ExecutePropagation COMMAND OpStack7702ExecutePropagationTest)
 add_executable(OpStack67802537KernelSmokeTest opstack/OpStack67802537KernelSmokeTest.cpp)
 target_include_directories(OpStack67802537KernelSmokeTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

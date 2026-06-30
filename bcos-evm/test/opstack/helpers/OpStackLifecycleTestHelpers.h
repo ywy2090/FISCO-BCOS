@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryEvmStateReader.h"

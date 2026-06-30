@@ -10,8 +10,8 @@
 
 | 对比点 | A (bcos-evm) | B (go-ethereum) | 差异 | 风险 |
 |--------|-------------|-----------------|------|------|
-| 入口函数 | `executeMessage(ExecuteMessageInput)` → `TxExecutionAdapter::run()` | `ApplyMessage` / `TransitionDb` → `evm.Call/Create` | bcos-evm 多一层管线抽象 (TxPipelineContext→ExecuteMessageInput) | 低 |
-| 帧模型 | `runExecutionFrame(FrameContext, msg, FrameScope, host)` — 统一帧执行，scope=TopLevel/Nested | `evm.interpreter.Run` 递归，`evm.depth` 跟踪 | 显式 scope vs 隐式 depth，语义等价 | 低 |
+| 入口函数 | `executeMessage(ExecuteMessageInput)` → `TxExecutionRunner::run()` | `ApplyMessage` / `TransitionDb` → `evm.Call/Create` | bcos-evm 多一层管线抽象 (TxPipelineContext→ExecuteMessageInput) | 低 |
+| 帧模型 | `runExecutionFrame(FrameExecutionEnv, msg, FrameScope, host)` — 统一帧执行，scope=TopLevel/Nested | `evm.interpreter.Run` 递归，`evm.depth` 跟踪 | 显式 scope vs 隐式 depth，语义等价 | 低 |
 | 6 种调用分派 | 无显式 switch — `isCreateKind()` 二分，CALL/DELEGATECALL 等差异由 evmone 内部处理 | `evm.Call/CallCode/DelegateCall/StaticCall/Create/Create2` 独立方法 | bcos-evm 依赖 evmone 实现调用类型语义差异 | 低 |
 | evmc_message.kind 映射 | 直接使用 evmc_call_kind 枚举 (EVMC_CALL=0, EVMC_CREATE=1, …) | `vm.CallType` 枚举 → invoke 前设 msg kind | 6 种类型全覆盖 | 低 |
 | 返回值 | `evmc::Result` (status_code, gas_left, output_data, create_address) + `ExecuteMessageOutput`(含 stateDiff, logs, gasRefund) | `ExecutionResult` (UsedGas, Err, ReturnData, Reverted) | 结构不同，语义对齐 | 低 |

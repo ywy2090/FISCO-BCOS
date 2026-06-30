@@ -28,7 +28,7 @@
 
 | # | 能力 | 初 | 现 | 验证依据 |
 |---|------|----|----|----------|
-| 1 | EIP-7702 revision enable | 🔴 | ✅ | `EthPolicy.h:38`；`RevisionConfigProfileTest` |
+| 1 | EIP-7702 revision enable | 🔴 | ✅ | `EthChainPolicy.h:38`；`RevisionConfigProfileTest` |
 | 2 | EIP-6780 SELFDESTRUCT | 🔴 | ✅ | `EthHost.cpp`；`stSelfDestruct_basic.json`；`Bcos6780SelfdestructTest` |
 | 3 | EIP-2537 MSM gas | 🔴 | ✅ | `BlsGas.h`；k=2 → **22776** |
 | 4 | EIP-7212 (0x0100) | 🔴 | ✅ | `Eip7212KernelTest`；`Bcos7212ExecuteViaHostTest` |

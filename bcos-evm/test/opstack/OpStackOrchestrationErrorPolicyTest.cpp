@@ -3,7 +3,7 @@
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_treats_out_of_gas_like_generic)
         static_cast<int>(protocol::TransactionStatus::Unknown));
 }
 
-// O-PEX-03: pipeline exception reverts an open checkpoint (ADR-019 Q20).
+// O-PEX-03: pipeline exception reverts an open checkpoint.
 BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
 {
     state::test::InMemoryEvmStateReader stateView;
@@ -190,9 +190,9 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
 
     struct OpStackEntryPrecheckPolicy : ChainPrecheckPolicy
     {
-        IntrinsicGasPolicy intrinsicGasPolicy() const override
+        IntrinsicGasDebitParams intrinsicGasDebitParams() const override
         {
-            IntrinsicGasPolicy policy;
+            IntrinsicGasDebitParams policy;
             policy.mode = IntrinsicDebitMode::OpStackEntry;
             return policy;
         }

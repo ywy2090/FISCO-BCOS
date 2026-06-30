@@ -11,7 +11,7 @@
 
 | 符号 | 含义 |
 |------|------|
-| ✅ | 期望值与金标准 / EthPolicy / EIP MUST 一致；路径有效 |
+| ✅ | 期望值与金标准 / EthChainPolicy / EIP MUST 一致；路径有效 |
 | 🟡 | 方向对但偏弱：helper-only、缺 post-state/gas、名实不符 smoke |
 | 🔴 | 期望值错误、测错 API、revision 组合使断言无约束力 |
 
@@ -22,9 +22,9 @@
 | 测试文件 | 用例 | 判定 | 金标准来源 | 备注 |
 |----------|------|------|------------|------|
 | `RevisionConfigProfileTest.cpp` | `revision_config_bool_field_macro_count` | ✅ | `RevisionConfig.h` 宏 | 结构完整性 |
-| `RevisionConfigProfileTest.cpp` | `eth_policy_full_fork_snapshots` | ✅ | `EthPolicy.h:27-41` | 5 分叉 × 全字段；PRAGUE 无 `eip7702` 与源码一致 |
-| `RevisionConfigProfileTest.cpp` | `fisco_policy_feature_gate_snapshots` | 🟡 | `FiscoPolicy.h` | 测 FiscoPolicy 非 EthPolicy baseline；PRAGUE 行 `eip7702=true` 记录路径分裂 |
-| `RevisionConfigProfileTest.cpp` | `isthmus_helper_sparse_profile_all_fields` | 🟡 | `makeIsthmusRevisionConfig()` | OPStack helper；`eip7702=true` 与 EthPolicy 不同 |
+| `RevisionConfigProfileTest.cpp` | `eth_policy_full_fork_snapshots` | ✅ | `EthChainPolicy.h:27-41` | 5 分叉 × 全字段；PRAGUE 无 `eip7702` 与源码一致 |
+| `RevisionConfigProfileTest.cpp` | `fisco_policy_feature_gate_snapshots` | 🟡 | `FiscoPolicy.h` | 测 FiscoPolicy 非 EthChainPolicy baseline；PRAGUE 行 `eip7702=true` 记录路径分裂 |
+| `RevisionConfigProfileTest.cpp` | `isthmus_helper_sparse_profile_all_fields` | 🟡 | `makeIsthmusRevisionConfig()` | OPStack helper；`eip7702=true` 与 EthChainPolicy 不同 |
 | `EthTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | ✅ | EIP-7702 type-4 RLP + ecrecover | 仅 input 层；不测 apply/post-state |
 | `FiscoTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | 🟡 | 同上 | 重复覆盖 FISCO builder；非 ETH reference |
 | `Eip2537KernelTest.cpp` | `stBLS_add_precompile_0x0b_via_executeMessage` | ✅ | geth `blsG1Add.json` case `bls_g1add_(inf+g1=g1)` | `executeMessage` + `eip2537=true`；output 128B 一致 |

@@ -2,7 +2,7 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief ADR-026 Appendix C: OpStack post-settlement fee plan (State-free).
+ * @brief OpStack post-settlement fee plan (State-free).
  * @file OpStackPostSettlementPlan.h
  */
 #pragma once

@@ -17,14 +17,14 @@
  */
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/execution/TxExecutionAdapter.h"
+#include "bcos-evm/eth/execution/TxExecutionRunner.h"
 
 namespace bcos::evm
 {
 
 ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
 {
-    return execution::TxExecutionAdapter::run(std::move(input));
+    return execution::TxExecutionRunner::run(std::move(input));
 }
 
 }  // namespace bcos::evm

@@ -10,7 +10,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/executor/OpStackTxType.h"

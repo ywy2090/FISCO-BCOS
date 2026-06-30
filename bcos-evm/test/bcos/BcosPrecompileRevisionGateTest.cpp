@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>

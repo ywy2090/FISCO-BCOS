@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ExecutorSessionContext.h"
+#include "FiscoPortAdapterContext.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/AuthCheck.h"
 #include <bcos-task/Wait.h>
@@ -9,34 +9,36 @@
 namespace bcos::transaction_executor
 {
 
-template <class SessionContext>
+template <class PortAdapterContext>
 class ExecutorAuthAdapter final : public evm::AuthPort
 {
 public:
-    explicit ExecutorAuthAdapter(SessionContext& sessionContext) : m_sessionContext(sessionContext)
+    explicit ExecutorAuthAdapter(PortAdapterContext& portAdapterContext)
+      : m_portAdapterContext(portAdapterContext)
     {}
 
     std::optional<evm::EVMCResult> checkAuth(evmc_message const& msg) override
     {
-        return evm::checkAuth(m_sessionContext.storage, m_sessionContext.blockHeader, msg,
-            m_sessionContext.origin, m_sessionContext.precompiledManager,
-            m_sessionContext.contextID, m_sessionContext.seq, m_sessionContext.hashImpl,
-            m_sessionContext.revisionConfig.fix_auth_check);
+        return evm::checkAuth(m_portAdapterContext.storage, m_portAdapterContext.blockHeader, msg,
+            m_portAdapterContext.origin, m_portAdapterContext.precompiledManager,
+            m_portAdapterContext.contextID, m_portAdapterContext.seq, m_portAdapterContext.hashImpl,
+            m_portAdapterContext.revisionConfig.fix_auth_check);
     }
 
     void createAuthTable(evmc_message const& msg, std::string_view tablePath) override
     {
-        task::syncWait(evm::createAuthTable(m_sessionContext.storage, m_sessionContext.blockHeader,
-            msg, m_sessionContext.origin, tablePath, evm::noOpExternalCaller(),
-            m_sessionContext.precompiledManager, m_sessionContext.contextID, m_sessionContext.seq,
-            m_sessionContext.ledgerConfig));
+        task::syncWait(
+            evm::createAuthTable(m_portAdapterContext.storage, m_portAdapterContext.blockHeader,
+                msg, m_portAdapterContext.origin, tablePath, evm::noOpExternalCaller(),
+                m_portAdapterContext.precompiledManager, m_portAdapterContext.contextID,
+                m_portAdapterContext.seq, m_portAdapterContext.ledgerConfig));
     }
 
 private:
-    SessionContext& m_sessionContext;
+    PortAdapterContext& m_portAdapterContext;
 };
 
-template <class SessionContext>
-ExecutorAuthAdapter(SessionContext&) -> ExecutorAuthAdapter<SessionContext>;
+template <class PortAdapterContext>
+ExecutorAuthAdapter(PortAdapterContext&) -> ExecutorAuthAdapter<PortAdapterContext>;
 
 }  // namespace bcos::transaction_executor

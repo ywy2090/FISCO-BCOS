@@ -12,7 +12,7 @@
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
@@ -28,7 +28,7 @@ bcos::evm_standard::RevisionConfig pragueCfg()
     return {.revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
 }
 
-struct DenyDelegatePrecompilePolicy : state::VmHostPolicy
+struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
 {
     bool allowDelegateCallToPrecompile() override { return false; }
 };

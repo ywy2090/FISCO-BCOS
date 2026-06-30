@@ -13,18 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Default HostExtension for eth vector / transition() path (spec §5.3)
+ * @brief Default EvmHostHooks for eth vector / transition() path.
  * @file EthVmHostPolicy.h
  */
 
 #pragma once
 
-#include "bcos-evm/eth/state/VmHostPolicy.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 
 namespace bcos::evm::state
 {
-/// Pure-ethereum defaults: all HostExtension hooks use base-class behavior.
-struct EthVmHostPolicy : VmHostPolicy
+/// Pure-ethereum defaults: all EvmHostHooks use base-class behavior.
+struct EthVmHostPolicy : EvmHostHooks
 {
 };
 }  // namespace bcos::evm::state

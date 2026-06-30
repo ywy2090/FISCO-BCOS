@@ -79,7 +79,7 @@ static_assert(revisionConfigGatedFieldCount() == 6,
     "Keep REVISION_CONFIG_GATED_FIELDS in sync with the A-class field set");
 
 // Single source of truth: EIP gating for a given revision. Canonical (maximal) config.
-// Chains translate blockNum/features -> revision elsewhere (EthPolicy/FiscoPolicy), then
+// Chains translate blockNum/features -> revision elsewhere (EthChainPolicy/FiscoPolicy), then
 // optionally mask A-class fields. Never read `revision >= EVMC_xxx` for a gated EIP outside here.
 inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
 {

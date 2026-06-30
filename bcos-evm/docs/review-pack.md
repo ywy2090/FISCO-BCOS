@@ -226,7 +226,7 @@ opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
 ```text
 revisionConfigFromRevision(evmc_revision)     ←  canonical maximal config（eth/RevisionConfig.h）
         │
-        ├── EthPolicy          ← 直接使用 derive(rev)
+        ├── EthChainPolicy          ← 直接使用 derive(rev)
         ├── FiscoPolicy        ← derive(rev) + applyFiscoFeatureGates（X-macro 掩码）
         └── makeIsthmusRevisionConfig ← derive(EVMC_PRAGUE)  【dense，非 sparse】
 ```
@@ -242,7 +242,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 
 | Policy | 门控依据 | 特点 |
 | --- | --- | --- |
-| `EthPolicy` | 块号 → `evmc_revision` | 以太坊主网时间线 |
+| `EthChainPolicy` | 块号 → `evmc_revision` | 以太坊主网时间线 |
 | `FiscoPolicy` | `Features::Flag` + `bugfix_*` | `revision >= X && features.get(flag)` 双重门控 |
 | `makeIsthmusRevisionConfig` | 固定 Prague dense profile | Isthmus 运行时与 derive(PRAGUE) 对齐 |
 
@@ -402,8 +402,8 @@ P0 内核候选**已闭合**。当前 open work：
 | 库划分 | `bcos-evm/CMakeLists.txt` |
 | 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
 | 编排上下文 / 钩子 | `eth/pipeline/TxPipelineContext.h`、`TxPipelineHooks.h` |
-| intrinsic 扣减 | `eth/pipeline/DebitIntrinsicGas.h` |
-| 内核入口 | `eth/ExecuteMessage.h` / `.cpp` → `TxExecutionAdapter` |
+| intrinsic 扣减 | `eth/pipeline/IntrinsicGasDebit.h` |
+| 内核入口 | `eth/ExecuteMessage.h` / `.cpp` → `TxExecutionRunner` |
 | 内核精编译路由 | `eth/precompiled/PrecompileActive.h`、`PrecompileRouter.cpp` |
 | 内核扩展点 | `eth/policy/HostExtension.h` |
 | EIP 开关位域 | `eth/RevisionConfig.h` |
@@ -413,7 +413,7 @@ P0 内核候选**已闭合**。当前 open work：
 | FISCO 扩展 | `bcos/FiscoHostExtension.h` |
 | FISCO Policy | `bcos/FiscoPolicy.h` |
 | 依赖倒置端口 | `bcos/ports/AuthPort.h`、`ChainPrecompilePort.h` |
-| OP 编排 | `opstack/OpStackExecutionBridge.cpp` → `OpStackTxLifecycle.cpp` |
+| OP 编排 | `opstack/OpStackExecute.cpp` → `OpStackTxLifecycle.cpp` |
 | OP settlement | `opstack/OpStackSettlement.cpp`（ADR-021） |
 | OP 扩展 | `opstack/OpHostExtension.h` |
 | 能力契约 | `capability-matrix.md` |

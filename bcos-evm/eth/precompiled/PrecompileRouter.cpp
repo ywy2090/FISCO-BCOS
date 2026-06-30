@@ -1,13 +1,13 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief Precompile dispatch router (ADR-024 envelope-only).
+ * @brief Precompile dispatch router.
  */
 
 #include "PrecompileRouter.h"
-#include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/CanTransfer.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/ports/ChainCallTargetPort.h"
+#include "bcos-evm/eth/ports/ChainCallTargetDispatcher.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include <functional>

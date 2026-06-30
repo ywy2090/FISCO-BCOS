@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE EthOrchestrationProfileTest
 
 #include "bcos-evm/eth/reference/EthOrchestrationProfile.h"
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryEvmStateReader.h"
@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
 
@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
         static_cast<int>(IntrinsicDebitMode::AuthOnly));
 }
 
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasPolicy().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasDebitParams().mode),
         static_cast<int>(IntrinsicDebitMode::None));
 }
 

@@ -47,6 +47,6 @@ struct OpStackPreDebitPlan
 };
 
 OpStackPreDebitPlan planOpStackPreDebit(
-    OpStackPreDebitInputs const& inputs, OpStackFeeHooks const& hooks) noexcept;
+    OpStackPreDebitInputs const& inputs, OpStackFeeHooks const& hooks);
 
 }  // namespace bcos::evm

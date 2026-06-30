@@ -2,27 +2,27 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-019, ADR-024, `eth/pipeline/TxPipelineContext.h`, `eth/pipeline/BuildExecuteMessageInput.h`, `eth/ExecuteMessage.h`, `eth/execution/ExecutionFrame.h`, `eth/state/EthHost.hpp`, `bcos/FiscoExecutionBridge.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/reference/EthReferenceBridge.cpp`
+**Related:** ADR-005, ADR-019, ADR-024, `eth/pipeline/TxPipelineContext.h`, `eth/pipeline/BuildExecuteMessageInput.h`, `eth/ExecuteMessage.h`, `eth/execution/ExecutionFrame.h`, `eth/state/EthHost.hpp`, `bcos/FiscoExecute.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/reference/EthReferenceExecute.cpp`
 
 ---
 
 ## Context
 
-ADR-024 §6 documents per-tx injection of `ChainCallTargetPort*` and `VmHostPolicy* extension` from orchestration into `ExecuteMessageInput` → `FrameContext` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
+ADR-024 §6 documents per-tx injection of `ChainCallTargetDispatcher*` and `VmHostPolicy* extension` from orchestration into `ExecuteMessageInput` → `FrameExecutionEnv` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
 
 ```text
 bridge/lifecycle → TxPipelineContext.{extension, chainPort}
                 → buildExecuteMessageInput(ctx)   // ~15 field copy
-                → TxExecutionAdapter
+                → TxExecutionRunner
                 → EthHost(m_extension, m_chainPort)
-                → FrameContext.{extension, chainPort}
+                → FrameExecutionEnv.{extension, chainPort}
 ```
 
 **Observed friction:**
 
 1. **No locality for injection.** Each new port field requires edits at bridge, `TxPipelineContext`, `BuildExecuteMessageInput`, and test fixtures. Omission of `chainPort` (e.g. `nullptr` when FISCO dispatch is configured) silently routes chain targets through builtin/EVM paths.
 
-2. **Ownership scattered in bridges.** `FiscoVmHostPolicy` and `std::optional<FiscoChainCallTargetAdapter>` live as separate stack locals in `FiscoExecutionBridge`; OpStack mirrors with `OpStackChainCallTargetAdapter`. Lifetime must span `runTxPipeline` **and** nested `EthHost::call`, but nothing groups the bundle.
+2. **Ownership scattered in bridges.** `FiscoVmHostPolicy` and `std::optional<FiscoChainCallTargetAdapter>` live as separate stack locals in `FiscoExecute`; OpStack mirrors with `OpStackChainCallTargetAdapter`. Lifetime must span `runTxPipeline` **and** nested `EthHost::call`, but nothing groups the bundle.
 
 3. **`OrchestrationProfile::Session` is the wrong seam.** FISCO / Eth / OpStack already have policy-binding `Session` types (precheck + error policy). Injection is a **kernel execution-environment** concern, not orchestration policy.
 
@@ -31,7 +31,7 @@ bridge/lifecycle → TxPipelineContext.{extension, chainPort}
 **Non-goals (v1):**
 
 - Removing duplicate `ctx.extension` / `ctx.chainPort` fields from `TxPipelineContext` (follow-up after `wire()` is stable).
-- Changing `ExecuteMessageInput` or `FrameContext` field shapes.
+- Changing `ExecuteMessageInput` or `FrameExecutionEnv` field shapes.
 - TE `TransactionExecutorImpl` changes (injection stays inside `fiscoExecute` bridge).
 - Replacing `OrchestrationProfile::Session` or merging it with execution injection.
 - Prepare-phase warm (Gap 36); see separate product decision.
@@ -66,7 +66,7 @@ Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain out
 namespace bcos::evm {
 
 struct ExecutionSession {
-    ChainCallTargetPort* chainPort{nullptr};
+    ChainCallTargetDispatcher* chainPort{nullptr};
     state::VmHostPolicy* extension{nullptr};
     evmc::VM* vm{nullptr};
     state::BlockHashes blockHashes{};

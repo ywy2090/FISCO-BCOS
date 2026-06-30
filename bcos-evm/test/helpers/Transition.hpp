@@ -23,9 +23,9 @@
 #pragma once
 
 #include "bcos-evm/eth/state/BlockInfo.hpp"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include "helpers/BloomFilter.hpp"
 #include <evmc/evmc.hpp>
 #include <vector>
@@ -44,5 +44,5 @@ struct TransactionReceipt
 
 TransactionReceipt transition(const EvmStateReader& state_view, const BlockInfo& block,
     const BlockHashes& block_hashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
-    const TransactionProperties& tx_props, VmHostPolicy* ext = nullptr);
+    const TransactionProperties& tx_props, EvmHostHooks* ext = nullptr);
 }  // namespace bcos::evm::state

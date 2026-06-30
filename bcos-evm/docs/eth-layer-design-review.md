@@ -25,7 +25,7 @@ opstack/ ──►  eth/
 |---|-----------|------|-------------|----------------|
 | 1 | `eth/state/` | Copy-on-write state engine | `State`, `StateView`, `EthHost`, `Account`, `StateDiff` | `test/state/` |
 | 2 | `eth/policy/` | Extension point base class | `HostExtension`, `EthHostExtension` | `test/eth/` (indirect) |
-| 3 | `eth/vm/` | EVM lifecycle (policy, factory, instance) | `EthPolicy`, `VMFactory`, `VMInstance` | `test/eth/` |
+| 3 | `eth/vm/` | EVM lifecycle (policy, factory, instance) | `EthChainPolicy`, `VMFactory`, `VMInstance` | `test/eth/` |
 | 4 | `eth/precompiled/` | Precompile dispatch and gas | `PrecompileRouter`, `EthBuiltinRegistry`, `BlsGas`, `ModexpGas` | `test/eth/` |
 | 5 | `eth/gas/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
 | 6 | `eth/pipeline/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `debitIntrinsicGas` | `test/eth/` |
@@ -102,16 +102,16 @@ This is the **single injection point** for chain-specific behavior into the kern
 
 ### 3.3 `eth/vm/` — EVM lifecycle
 
-**Files:** `EthPolicy.h`, `VMFactory.h`, `VMInstance.h` / `.cpp`
+**Files:** `EthChainPolicy.h`, `VMFactory.h`, `VMInstance.h` / `.cpp`
 
 **Design:**
 
-`EthPolicy` is the simplest policy: it maps block numbers to `evmc_revision` using the standard Ethereum fork schedule, then calls `revisionConfigFromRevision()` to produce a `RevisionConfig`. No feature flags, no masking — this is the pure Ethereum reference.
+`EthChainPolicy` is the simplest policy: it maps block numbers to `evmc_revision` using the standard Ethereum fork schedule, then calls `revisionConfigFromRevision()` to produce a `RevisionConfig`. No feature flags, no masking — this is the pure Ethereum reference.
 
 `VMFactory` creates and caches evmone VM instances. `VMInstance` wraps a single VM with thread-local storage.
 
 **Points a reviewer should check:**
-1. `EthPolicy` must stay simple — no FISCO feature flags, no OP fork schedules.
+1. `EthChainPolicy` must stay simple — no FISCO feature flags, no OP fork schedules.
 2. VM creation is expensive; the factory's caching logic should not regress.
 
 ---
@@ -165,7 +165,7 @@ PrecompileRouter (top-level dispatch)
 
 ### 3.6 `eth/pipeline/` — Shared orchestration pipeline (ADR-019)
 
-**Files:** `TxPipeline.h` / `.cpp`, `TxPipelineContext.h`, `TxPipelineHooks.h`, `DebitIntrinsicGas.h`, `AdoptEvmcResult.h`, `BuildExecuteMessageInput.h`, `CaptureSettlementSnapshot.h`, `NormalizeIncludedTxVmerr.h`
+**Files:** `TxPipeline.h` / `.cpp`, `TxPipelineContext.h`, `TxPipelineHooks.h`, `IntrinsicGasDebit.h`, `AdoptEvmcResult.h`, `BuildExecuteMessageInput.h`, `CaptureSettlementSnapshot.h`, `NormalizeIncludedTxVmerr.h`
 
 **Design:**
 
@@ -228,7 +228,7 @@ runTxPipeline(ctx, hooks):
 
 ### 3.8 `eth/` root — Entry points and cross-cutting types
 
-**Files:** `ExecuteMessage.h` / `.cpp`, `ExecuteViaEth.h` / `.cpp`, `ExecuteViaEthPreCheck.h` / `.cpp`, `RevisionConfig.h`, `EVMCResult.h` / `.cpp`, `Eip7702.h` / `.cpp`, `AccessList.h`, `EthExecutionContext.h`, `EthTxExecutor.h`, `Transfer.h`, `Web3TypedTxKind.h`
+**Files:** `ExecuteMessage.h` / `.cpp`, `ExecuteViaEth.h` / `.cpp`, `ExecuteViaEthPreCheck.h` / `.cpp`, `RevisionConfig.h`, `EVMCResult.h` / `.cpp`, `Eip7702.h` / `.cpp`, `AccessList.h`, `EthExecutionArtifacts.h`, `EthTxExecutor.h`, `Transfer.h`, `Web3TypedTxKind.h`
 
 **Design:**
 
@@ -282,9 +282,9 @@ EthHost     FiscoPolicy                  OpStackFee
 HostExt.    FiscoRevisionConfig          OpStackForkSchedule
 RevConfig   ExecuteViaHost               OpStackExecuteViaHost
 executeMsg  FiscoTxExecutor              OpStackTxExecutor
-EthPolicy   AuthPort / ChainPrecompPort  OpStackPreCheck
+EthChainPolicy   AuthPort / ChainPrecompPort  OpStackPreCheck
 Precompile  StateDiffApplier             OpStackFloorGas
-gas/*       FiscoExecutionContext         L1Block*
+gas/*       FiscoExecutionArtifacts         L1Block*
 orchestr.   FiscoBlockInfo               RollupCost
 execution/* FiscoTxAdapter               OpStackDepositTx
 Eip7702     FiscoTransactionPrepare       OpStackReceiptMeta

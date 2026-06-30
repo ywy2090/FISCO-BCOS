@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip7702PreCheckTest
 
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include "helpers/OpStackEntryPrecheck.h"
 #include <boost/test/included/unit_test.hpp>

@@ -2,7 +2,7 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief ADR-026 Appendix C: OpStackPostSettlementPlan vs pre-refactor refundGas oracle.
+ * @brief OpStackPostSettlementPlan vs pre-refactor refundGas oracle.
  * @file OpStackPostSettlementCharacterizationTest.cpp
  */
 #define BOOST_TEST_MODULE OpStackPostSettlementCharacterizationTest

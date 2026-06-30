@@ -39,7 +39,7 @@ constexpr int64_t TOTAL_COST_FLOOR_PER_TOKEN = 10;
 
 与 geth `params.TxTokenPerNonZeroByte=4`、`TxCostFloorPerToken=10` 及 Besu `TOTAL_COST_FLOOR_PER_TOKEN=10`、`tokensInCallData()` 一致 ✅
 
-Profile：`EthPolicy.h:37-40` — PRAGUE+ 设 `eip7623=true`，`calldata_floor_per_token=10`。
+Profile：`EthChainPolicy.h:37-40` — PRAGUE+ 设 `eip7623=true`，`calldata_floor_per_token=10`。
 
 ### Entry precheck — `ExecuteViaEth.cpp:64-78`
 

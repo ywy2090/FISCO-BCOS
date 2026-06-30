@@ -5,12 +5,12 @@
 #include "bcos-evm/bcos/FiscoEvmStateReader.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/EthExecutionContext.h"
+#include "bcos-evm/eth/EthExecutionArtifacts.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
-#include "bcos-evm/eth/policy/EthPolicy.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
-#include "bcos-evm/eth/reference/EthTxFeeLedger.h"
+#include "bcos-evm/eth/policy/EthChainPolicy.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
+#include "bcos-evm/eth/reference/EthTxFeeSettlement.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
@@ -39,7 +39,7 @@ evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
 
 /// Pure-ethereum transaction executor — geth-aligned gas + ethReferenceExecute, no FISCO
 /// extensions.
-template <class TxExec = EthTxFeeLedger>
+template <class TxExec = EthTxFeeSettlement>
 class EthTransactionExecutorImpl
 {
 public:
@@ -89,8 +89,8 @@ public:
             bool m_topLevelIncludedTxVmError{false};
             bool m_gasFieldsFilled{false};
             evmc::VM m_vm;
-            bcos::evm_standard::EthPolicy m_policy;
-            EthExecutionContext m_executionContext;
+            bcos::evm_standard::EthChainPolicy m_policy;
+            EthExecutionArtifacts m_executionContext;
             std::optional<EVMCResult> m_evmcResult;
 
             Data(EthTransactionExecutorImpl& executor, Storage& storage,

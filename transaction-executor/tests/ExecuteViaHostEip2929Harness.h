@@ -8,7 +8,7 @@
 
 #include "../../bcos-evm/test/state/InMemoryEvmStateReader.h"
 #include "Eip2929TestHelpers.h"
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"

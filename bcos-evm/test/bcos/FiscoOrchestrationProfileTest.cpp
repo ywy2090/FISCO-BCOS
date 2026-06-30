@@ -3,7 +3,7 @@
 #include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryEvmStateReader.h"
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
         input, output, false, true /* eip7623Enabled */};
 
     auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasPolicy().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
 

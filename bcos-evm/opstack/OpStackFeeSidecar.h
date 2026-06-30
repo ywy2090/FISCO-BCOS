@@ -6,7 +6,7 @@
 namespace bcos::evm
 {
 
-/// Lifecycle-mutable OpStack fee state (ADR-021 Appendix A).
+/// Lifecycle-mutable OpStack fee state.
 struct OpStackFeeSidecar
 {
     bcos::u256 effectiveGasPrice{0};

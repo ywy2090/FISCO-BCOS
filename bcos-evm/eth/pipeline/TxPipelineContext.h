@@ -7,9 +7,9 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
@@ -22,8 +22,8 @@ class Hash;
 namespace bcos::evm
 {
 
-struct ChainCallTargetPort;
-struct ExecutionSession;
+struct ChainCallTargetDispatcher;
+struct EvmTxContextView;
 
 enum class TxPipelineExitKind
 {
@@ -82,9 +82,9 @@ public:
     int64_t originalGasLimit{0};
     state::State state;
     bcos::u256 gasPrice{0};
-    state::VmHostPolicy* extension{nullptr};
-    ChainCallTargetPort* chainPort{nullptr};
-    ExecutionSession const* session{nullptr};
+    state::EvmHostHooks* extension{nullptr};
+    ChainCallTargetDispatcher* chainPort{nullptr};
+    EvmTxContextView const* txContextView{nullptr};
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};

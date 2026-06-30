@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief Precompile dispatch router (ADR-024 envelope-only).
+ * @brief Precompile dispatch router.
  */
 
 #pragma once
@@ -9,13 +9,13 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmc/evmc.hpp>
 
 namespace bcos::evm
 {
-struct ChainCallTargetPort;
+struct ChainCallTargetDispatcher;
 }
 
 namespace bcos::evm::precompiled
@@ -36,19 +36,19 @@ struct PrecompileEnvelopeInput
     execution::CallTargetDescriptor const& target;
     evmc_message const& message;
     bool skipValueTransfer;
-    ChainCallTargetPort* chainPort;
+    ChainCallTargetDispatcher* chainPort;
 };
 
 struct PrecompileRouterInput
 {
     state::State& state;
     bcos::evm_standard::RevisionConfig const& revision;
-    state::VmHostPolicy* extension;
+    state::EvmHostHooks* extension;
     evmc_message const& message;
     evmc_address target;
     bool skipValueTransfer;
     execution::FrameScope scope{execution::FrameScope::TopLevel};
-    ChainCallTargetPort* chainPort{nullptr};
+    ChainCallTargetDispatcher* chainPort{nullptr};
 };
 
 struct PrecompileRouterOutput
@@ -61,7 +61,7 @@ struct PrecompileRouterOutput
 PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& input);
 PrecompileRouterOutput executeEmptyAccountEnvelope(PrecompileEnvelopeInput const& input);
 
-[[deprecated("Use resolveCallTarget + executePrecompileEnvelope (ADR-024)")]] PrecompileRouterOutput
+[[deprecated("Use resolveCallTarget + executePrecompileEnvelope")]] PrecompileRouterOutput
 dispatchPrecompile(PrecompileRouterInput const& input);
 
 }  // namespace bcos::evm::precompiled

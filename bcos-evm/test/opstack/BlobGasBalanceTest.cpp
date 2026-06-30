@@ -5,9 +5,9 @@
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackSettlementView.h"
-#include "bcos-evm/opstack/OpStackTxFeeLedger.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/OpStackFeeSettlement.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include "helpers/OpStackEntryPrecheck.h"
 #include <bcos-task/Wait.h>
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
-    OpStackTxFeeLedger executor;
+    OpStackFeeSettlement executor;
     OpStackExecutionRequest input;
     input.gasTipCap = 1;
     input.gasFeeCap = 2;
@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     input.blobVersionedHashes.push_back(makeVersionedHash());
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementView view{ctx, input, sidecar};
+    OpStackSettlementFacade view{ctx, input, sidecar};
 
     auto const executionGasCost = u256(1'000) * u256(2);
     auto const blobGasCost = u256(OP_BLOB_GAS_PER_BLOB) * u256(10);
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
-    OpStackTxFeeLedger executor;
+    OpStackFeeSettlement executor;
     OpStackExecutionRequest input;
     input.gasTipCap = 1;
     input.gasFeeCap = 2;
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     input.blobVersionedHashes.push_back(makeVersionedHash());
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementView view{ctx, input, sidecar};
+    OpStackSettlementFacade view{ctx, input, sidecar};
 
     auto const balanceBefore = ctx.state.get_balance(sender);
     BOOST_REQUIRE(!task::syncWait(executor.buyGas(view)));

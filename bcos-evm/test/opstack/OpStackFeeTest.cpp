@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE(FjordL1_contractCallShape_fastLz202_matchesFormula)
     BOOST_CHECK_EQUAL(l1CostFjord(data, params), u256(4'048'188));
 }
 
-// FIX-04 (ADR-012 Task 4): Fjord L1 fee + calldataGasUsed parity with op-geth Solidity reference.
+// FIX-04: Fjord L1 fee + calldataGasUsed parity with op-geth Solidity reference.
 // Pin: ethereum-optimism/op-geth @ e8800cffe
 //   core/types/rollup_cost_test.go TestFjordL1CostSolidityParity (L102-117)
 //   core/types/rollup_cost.go NewL1CostFuncFjord (L607-627)

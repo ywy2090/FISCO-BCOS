@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include <exception>
 
@@ -19,7 +19,7 @@ struct OrchestrationErrorPolicy
         TxPipelineContext& ctx, std::exception_ptr exceptionPtr) const = 0;
 
     /// Post-EVM execution result normalization (included-vmerr, CREATE address, revert logs, etc.).
-    /// ADR-015: interface is shared; chain semantics live in Eth/Fisco/OpStack adapters only.
+    /// interface is shared; chain semantics live in Eth/Fisco/OpStack adapters only.
     virtual void onPostExecuteNormalize(TxPipelineContext& ctx) const { (void)ctx; }
 
     /// Optional post-pipeline normalization (e.g. FISCO negative gas_left clamp).

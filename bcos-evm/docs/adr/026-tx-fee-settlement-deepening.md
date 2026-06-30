@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/gas/Eip1559.h`, `eth/gas/Eip1559Access.h`, `eth/reference/EthTxFeeLedger.h`, `opstack/OpStackTxFeeLedger.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceBridgeAdapter.cpp`
+**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/gas/Eip1559.h`, `eth/gas/Eip1559Access.h`, `eth/reference/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
 
 ---
 
@@ -12,17 +12,17 @@ EIP-1559 formulas live in `eth/gas/Eip1559.h` (`normalizeGasCaps`, `resolveEffec
 
 **Observed friction:**
 
-1. **Math is shared; composition is not.** `EthTxFeeLedger`, `OpStackTxFeeLedger`, and `applyGstTransactionSettlement` each re-compose caps, effective price, refund, and tip at independent call sites. OpStack `refundGas` hand-rolls `effectiveTip` instead of `tipPerGas()`.
+1. **Math is shared; composition is not.** `EthTxFeeSettlement`, `OpStackFeeSettlement`, and `applyGstTransactionSettlement` each re-compose caps, effective price, refund, and tip at independent call sites. OpStack `refundGas` hand-rolls `effectiveTip` instead of `tipPerGas()`.
 
 2. **No single test oracle.** `Eip1559AccessTest` gates fork flags; unit tests on `Eip1559.h` cover formulas. No cross-path characterization asserts that TE buyGas/refund, GST post-hoc, and OpStack 1559 routing produce identical **plan amounts** for the same inputs.
 
 3. **Call-site bugs hide behind pure functions.** ADR-025 phantom fee (pre-execution abort × `refundGas`) is a lifecycle composition error, not an `Eip1559.h` math error. Tighter projection locality reduces drift class.
 
-4. **OpStack cap normalization diverges.** `OpStackTxFeeLedger::buyGas` applies a legacy fallback (`!m_hasGasFeeCap → gasPrice`) without calling `normalizeGasCaps` — ADR-016 deferred debt.
+4. **OpStack cap normalization diverges.** `OpStackFeeSettlement::buyGas` applies a legacy fallback (`!m_hasGasFeeCap → gasPrice`) without calling `normalizeGasCaps` — ADR-016 deferred debt.
 
 **Non-goals (v1):**
 
-- FISCO `FiscoTxFeeLedger` migration (legacy `protocol::effectiveGasPrice`; matrix deviation).
+- FISCO `FiscoTxFeeSettlement` migration (legacy `protocol::effectiveGasPrice`; matrix deviation).
 - OpStack L1 / operator / blob fee math (remain sidecar in `opstack/` adapter).
 - TE `buyGas` insufficient-balance **penalty** (TE production policy, not EIP-1559).
 - Replacing `Eip1559.h` primitives or `Eip1559Access.h` fork gates.
@@ -38,9 +38,9 @@ Grilling outcomes (2026-06-26):
 | --- | --- | --- |
 | D1 | Scope | **B.** Eth reference + Eth TE + OpStack **1559 core**; OpStack L1/operator/blob as adapter sidecar. FISCO out of v1. |
 | D2 | Interface shape | **A.** Projection-only sync core; no State mutation. |
-| D3 | `FeeInputs` | **B+C.** Primitive struct; `normalizeGasCaps` inside core; optional `eth/pipeline/FeeInputsProjection.h` mapper. |
+| D3 | `FeeInputs` | **B+C.** Primitive struct; `normalizeGasCaps` inside core; optional `eth/pipeline/FeeInputsMapping.h` mapper. |
 | D4 | Base fee | **A.** Plan outputs `baseFeeAmount`; adapter decides burn (Eth/GST) vs route (OpStack). |
-| D5 | buyGas penalty | **A.** Stays in `EthTxFeeLedger` adapter; may read `plan.effectiveGasPrice`. |
+| D5 | buyGas penalty | **A.** Stays in `EthTxFeeSettlement` adapter; may read `plan.effectiveGasPrice`. |
 | D6 | PR order | **A.** Core-first + characterization, then adapters PR2–PR5. |
 
 ### 1. New deep module: `eth/gas/TxFeeSettlement.h`
@@ -90,13 +90,13 @@ Invariant (1559 active): `senderNetDebit == coinbaseTip + baseFeeAmount` (base d
 
 | Path | Reads plan | Applies (timing + backend) |
 | --- | --- | --- |
-| `EthTxFeeLedger` | pre + post | async `EVMAccount`; burn `baseFeeAmount`; penalty on buyGas fail (adapter-only) |
+| `EthTxFeeSettlement` | pre + post | async `EVMAccount`; burn `baseFeeAmount`; penalty on buyGas fail (adapter-only) |
 | `applyGstTransactionSettlement` | post | `StateDiff` post-hoc; burn base |
-| `OpStackTxFeeLedger` | pre + post | sync `ctx.state`; route `baseFeeAmount` → `m_baseFeeRecipient`; pre-debit via **Appendix B** `planOpStackPreDebit`; post-debit via **Appendix C** `planOpStackPostSettlement` |
+| `OpStackFeeSettlement` | pre + post | sync `ctx.state`; route `baseFeeAmount` → `m_baseFeeRecipient`; pre-debit via **Appendix B** `planOpStackPreDebit`; post-debit via **Appendix C** `planOpStackPostSettlement` |
 
 Core **never** credits accounts. Routing policy stays at orchestration seam.
 
-### 3. Optional pipeline mapper (`eth/pipeline/FeeInputsProjection.h`)
+### 3. Optional pipeline mapper (`eth/pipeline/FeeInputsMapping.h`)
 
 Convenience only; core does not include `TxPipelineContext.h`.
 
@@ -125,9 +125,9 @@ Adapters without pipeline context (EEST GST) construct `FeeInputs` manually.
 | --- | --- | --- |
 | **PR1** | `TxFeeSettlement.h` + `TxFeeSettlementTest` + `FeeSettlementCharacterizationTest` (oracle vs current ledger math) | characterization green |
 | **PR2** | `applyGstTransactionSettlement` → `planPostExecution` | EEST smoke |
-| **PR3** | `EthTxFeeLedger` buyGas/refund → plan; penalty stays in adapter | existing Eth TE tests |
-| **PR4** | `OpStackTxFeeLedger` 1559 → plan; delete hand-rolled `effectiveTip`; sidecar unchanged | `OpStackSettlementTest` |
-| **PR5** | `FeeInputsProjection.h` + `EthPrecheckPolicy` effective from plan | `Eip1559AccessTest` extended |
+| **PR3** | `EthTxFeeSettlement` buyGas/refund → plan; penalty stays in adapter | existing Eth TE tests |
+| **PR4** | `OpStackFeeSettlement` 1559 → plan; delete hand-rolled `effectiveTip`; sidecar unchanged | `OpStackSettlementTest` |
+| **PR5** | `FeeInputsMapping.h` + `EthPrecheckPolicy` effective from plan | `Eip1559AccessTest` extended |
 
 ---
 
@@ -154,11 +154,11 @@ Adapters without pipeline context (EEST GST) construct `FeeInputs` manually.
 
 **Status:** Accepted (grilling 2026-06-26)  
 **Extends:** ADR-026 §1 non-goals — L1 / operator / blob math stays in `opstack/`; this appendix deepens **composition** above `TxFeeSettlement`, not kernel math.  
-**Builds on:** ADR-021 Appendix A (`OpStackSettlementView`, `OpStackFeeSidecar`, `OpStackNormalFeeSettlement` — Done per `2026-06-26-opstack-fee-projection-design.md`).
+**Builds on:** ADR-021 Appendix A (`OpStackSettlementFacade`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator` — Done per `2026-06-26-opstack-fee-projection-design.md`).
 
 ### B.1 Context
 
-ADR-026 PR4 routes OpStack **1559 core** through `TxFeeSettlement::planPreExecution` / `planPostExecution`. Remaining friction: `OpStackTxFeeLedger::buyGas` still hand-composes L1 cost, operator limit, blob debit, and `hasGasFeeCap` balance-check bifurcation (~45–80 lines) at the adapter call site.
+ADR-026 PR4 routes OpStack **1559 core** through `TxFeeSettlement::planPreExecution` / `planPostExecution`. Remaining friction: `OpStackFeeSettlement::buyGas` still hand-composes L1 cost, operator limit, blob debit, and `hasGasFeeCap` balance-check bifurcation (~45–80 lines) at the adapter call site.
 
 `FeeSettlementCharacterizationTest` covers 1559 amounts only. No single oracle asserts full OpStack **pre-debit** totals (`totalDebit`, `balanceCheck`, sidecar snapshot fields).
 
@@ -166,12 +166,12 @@ ADR-026 PR4 routes OpStack **1559 core** through `TxFeeSettlement::planPreExecut
 
 | # | Question | Choice |
 | --- | --- | --- |
-| B-D1 | v1 scope | **Pre-debit only.** Post stays on `planPostExecution` + `OpStackTxFeeLedger::refundGas` routing. |
-| B-D2 | Interface shape | **Primitive struct + mapper** (mirror `FeeInputs` + `FeeInputsProjection.h`). |
+| B-D1 | v1 scope | **Pre-debit only.** Post stays on `planPostExecution` + `OpStackFeeSettlement::refundGas` routing. |
+| B-D2 | Interface shape | **Primitive struct + mapper** (mirror `FeeInputs` + `FeeInputsMapping.h`). |
 | B-D3 | Sidecar writes | **Embedded `OpStackFeeSidecarWrite` snapshot** in plan output. |
 | B-D4 | Migration | **Single PR** — plan module + characterization + `buyGas` wiring. |
 | B-D5 | Documentation | **This appendix** (not a separate ADR). |
-| B-D6 | Skip guards | **`call` / `deposit` / `gasLimit ≤ 0` stay in `OpStackTxFeeLedger::buyGas`**; plan not invoked. |
+| B-D6 | Skip guards | **`call` / `deposit` / `gasLimit ≤ 0` stay in `OpStackFeeSettlement::buyGas`**; plan not invoked. |
 
 ### B.3 New deep module: `opstack/fee/OpStackPreDebitPlan.h`
 
@@ -213,15 +213,15 @@ OpStackPreDebitPlan planOpStackPreDebit(
 
 ### B.4 Mapper: `opstack/fee/OpStackPreDebitInputs.h`
 
-Convenience only; plan does not include `OpStackSettlementView.h` if inputs are constructed manually in tests.
+Convenience only; plan does not include `OpStackSettlementFacade.h` if inputs are constructed manually in tests.
 
 ```cpp
-OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementView const& view);
+OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementFacade const& view);
 ```
 
 `OpStackPreDebitInputs` bundles `gas::FeeInputs` fields plus `txValue`, blob hashes/feeCap, `rollupCostData`, `blockTime`, and `hasGasFeeCap` (from view accessors).
 
-### B.5 Adapter contract (`OpStackTxFeeLedger::buyGas`)
+### B.5 Adapter contract (`OpStackFeeSettlement::buyGas`)
 
 ```text
 if isCall || isDeposit || originalGasLimit <= 0:
@@ -247,8 +247,8 @@ return true
 
 | Module | Role |
 | --- | --- |
-| `OpStackNormalFeeSettlement` | Lifecycle + ADR-025 abort tree; `projectNormalReceiptMeta` reads plan from `refundGas` |
-| `OpStackTxFeeLedger::refundGas` | Post: delegate to **Appendix C**; apply credits; return plan |
+| `OpStackNormalTxFeeCoordinator` | Lifecycle + ADR-025 abort tree; `projectNormalReceiptMeta` reads plan from `refundGas` |
+| `OpStackFeeSettlement::refundGas` | Post: delegate to **Appendix C**; apply credits; return plan |
 | `TxFeeSettlement` | 1559 core only (`eth/gas/`) |
 
 ### B.6 Non-goals (Appendix B)
@@ -257,7 +257,7 @@ return true
 - Deposit path symmetry.
 - FISCO fee migration.
 - Moving L1/operator/blob **primitives** into `eth/` kernel.
-- Changing `OpStackNormalFeeSettlement` or ADR-025 abort semantics.
+- Changing `OpStackNormalTxFeeCoordinator` or ADR-025 abort semantics.
 
 ### B.7 Delivery (single PR)
 
@@ -265,11 +265,11 @@ return true
 | --- | --- |
 | Add | `opstack/fee/OpStackPreDebitPlan.h` (+ `.cpp` if needed) |
 | Add | `opstack/fee/OpStackPreDebitInputs.h` |
-| Modify | `opstack/OpStackTxFeeLedger.cpp` — delegate to plan |
+| Modify | `opstack/OpStackFeeSettlement.cpp` — delegate to plan |
 | Add | `test/opstack/OpStackPreDebitCharacterizationTest.cpp` |
 | Update | `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md` §8 → pointer here |
 
-**Gate:** full OpStack ctest green; `OpStackNormalFeeSettlementTest` (ADR-025) green; characterization matrix covers legacy gasPrice, type-2 1559, L1 hook, operator hook, blob tx, null hooks.
+**Gate:** full OpStack ctest green; `OpStackNormalTxFeeCoordinatorTest` (ADR-025) green; characterization matrix covers legacy gasPrice, type-2 1559, L1 hook, operator hook, blob tx, null hooks.
 
 ### B.8 Appendix B compliance checklist
 
@@ -285,11 +285,11 @@ return true
 
 **Status:** Accepted (grilling 2026-06-26)  
 **Extends:** ADR-026 Appendix B — mirrors pre-debit deepening for the post-execute fee seam.  
-**Builds on:** ADR-021 Appendix A (`OpStackSettlementView`, `OpStackFeeSidecar`, `OpStackNormalFeeSettlement`), Appendix B (`OpStackPreDebitPlan`, sidecar snapshots).
+**Builds on:** ADR-021 Appendix A (`OpStackSettlementFacade`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator`), Appendix B (`OpStackPreDebitPlan`, sidecar snapshots).
 
 ### C.1 Context
 
-Appendix B deepened **pre-debit** (`planOpStackPreDebit`). Remaining friction: `OpStackTxFeeLedger::refundGas` hand-composes 1559 post amounts, recipient routing, Isthmus operator refund, and operator fee charge at the adapter call site (~40 lines). `projectNormalReceiptMeta` in `OpStackNormalFeeSettlement.cpp` **re-invokes** `m_operatorCostFunc(gasUsed)` for receipt metadata — a locality leak (same hook, two call sites).
+Appendix B deepened **pre-debit** (`planOpStackPreDebit`). Remaining friction: `OpStackFeeSettlement::refundGas` hand-composes 1559 post amounts, recipient routing, Isthmus operator refund, and operator fee charge at the adapter call site (~40 lines). `projectNormalReceiptMeta` in `OpStackNormalTxFeeCoordinator.cpp` **re-invokes** `m_operatorCostFunc(gasUsed)` for receipt metadata — a locality leak (same hook, two call sites).
 
 `FeeSettlementCharacterizationTest` covers 1559 post core via `planPostExecution` only. No single oracle asserts full OpStack **post-settlement** amounts (`senderOperatorRefund`, `l1FeeRouted`, `operatorFeeCharged`) or the operator refund formula.
 
@@ -298,7 +298,7 @@ Appendix B deepened **pre-debit** (`planOpStackPreDebit`). Remaining friction: `
 | # | Question | Choice |
 | --- | --- | --- |
 | C-D1 | Plan output boundary | **A.** Pure amount oracle; receipt reads `l1FeeRouted` / `operatorFeeCharged` from plan; `operatorFeeScalar` / `operatorFeeConstant` still from `OpStackFeeParams`. |
-| C-D2 | Input shape | **A.** `OpStackPostSettlementInputs` + `toOpStackPostSettlementInputs(view, settled)` mapper (mirror Appendix B). Plan does not include `OpStackSettlementView.h`. |
+| C-D2 | Input shape | **A.** `OpStackPostSettlementInputs` + `toOpStackPostSettlementInputs(view, settled)` mapper (mirror Appendix B). Plan does not include `OpStackSettlementFacade.h`. |
 | C-D3 | Isthmus fork gating | **A.** Plan does not read fork schedule. State routing unchanged. `isOpStackIsthmus` gates receipt `operatorFee` write only (orchestration policy). |
 | C-D4 | `refundIsthmusOperatorCost` | **A.** Delete public method; Isthmus refund covered by `plan.senderOperatorRefund` + characterization (migrate `RefundIsthmusTest`). |
 | C-D5 | Delivery | **A.** Single PR + this appendix. |
@@ -343,11 +343,11 @@ OpStackPostSettlementPlan planOpStackPostSettlement(
 
 ### C.4 Mapper: `opstack/fee/OpStackPostSettlementInputs.h`
 
-Convenience only; plan does not include `OpStackSettlementView.h` if inputs are constructed manually in tests.
+Convenience only; plan does not include `OpStackSettlementFacade.h` if inputs are constructed manually in tests.
 
 ```cpp
 OpStackPostSettlementInputs toOpStackPostSettlementInputs(
-    OpStackSettlementView const& view,
+    OpStackSettlementFacade const& view,
     OpStackSettlementResult const& settled) noexcept;
 ```
 
@@ -355,7 +355,7 @@ Mapper projects `gas::FeeInputs` from view/ctx (same caps path as pre-debit), `g
 
 **FeeInputs vs sidecar invariant:** Post mapper uses `toFeeInputs(ctx.revisionConfig, view.blockInfo(), FeeCapsView{...}, ctx.originalGasLimit)` — the same projection as `toOpStackPreDebitInputs`. It does **not** feed `sidecar.effectiveGasPrice` into `planPostExecution` (1559 math is recomputed from caps). After successful `buyGas`, characterization must assert `plan.core1559.effectiveGasPrice == sidecar.effectiveGasPrice` for the same view inputs.
 
-### C.5 Adapter contract (`OpStackTxFeeLedger::refundGas`)
+### C.5 Adapter contract (`OpStackFeeSettlement::refundGas`)
 
 Signature change: `task::Task<OpStackPostSettlementPlan> refundGas(...)`.
 
@@ -383,11 +383,11 @@ return plan
 
 Delete `refundIsthmusOperatorCost` (public method removed; logic absorbed into plan).
 
-### C.6 Receipt projection (`OpStackNormalFeeSettlement`)
+### C.6 Receipt projection (`OpStackNormalTxFeeCoordinator`)
 
 #### C.6.1 `settleNormal` return type
 
-Introduce an anonymous-namespace aggregate in `OpStackNormalFeeSettlement.cpp` (not a public header — internal seam only):
+Introduce an anonymous-namespace aggregate in `OpStackNormalTxFeeCoordinator.cpp` (not a public header — internal seam only):
 
 ```cpp
 struct NormalSettleOutcome {
@@ -400,9 +400,9 @@ struct NormalSettleOutcome {
 
 ```cpp
 task::Task<NormalSettleOutcome> settleNormal(
-    OpStackSettlementView view,
+    OpStackSettlementFacade view,
     TxPipelineExitKind exitKind,
-    OpStackTxFeeLedger& ledger,
+    OpStackFeeSettlement& ledger,
     GasPoolHooks const& gasPool);
 ```
 
@@ -440,13 +440,13 @@ Skip paths (empty `feePlan`): `l1Fee` and `operatorFee` remain zero; Isthmus gat
 
 #### C.6.3 ADR-025 abort boundary (negative)
 
-`completeAfterPipeline` **does not** call `settleNormal` / `refundGas` when `isNormalPreExecutionReject(ctx.exitKind)` — only `abortNormalAfterBuyGas`. No `NormalSettleOutcome` is produced on that path. Regression guard: existing `OpStackNormalFeeSettlementTest` ADR-025 matrix (phantom fee).
+`completeAfterPipeline` **does not** call `settleNormal` / `refundGas` when `isNormalPreExecutionReject(ctx.exitKind)` — only `abortNormalAfterBuyGas`. No `NormalSettleOutcome` is produced on that path. Regression guard: existing `OpStackNormalTxFeeCoordinatorTest` ADR-025 matrix (phantom fee).
 
 ### C.7 Unchanged modules
 
 | Module | Role |
 | --- | --- |
-| `OpStackNormalFeeSettlement` | ADR-025 abort tree unchanged; only receipt reads plan |
+| `OpStackNormalTxFeeCoordinator` | ADR-025 abort tree unchanged; only receipt reads plan |
 | `planOpStackPreDebit` / `buyGas` | Appendix B unchanged |
 | `finalizeNormal` / `postExecuteGasSettlement` | Gas **units** only; amounts from plan |
 | `TxFeeSettlement` | 1559 core only (`eth/gas/`) |
@@ -459,7 +459,7 @@ Skip paths (empty `feePlan`): `l1Fee` and `operatorFee` remain zero; Isthmus gat
 - Moving L1/operator **primitives** into `eth/` kernel.
 - Fork policy inside plan (Isthmus gating stays in orchestration).
 - Receipt scalar fields in plan output (`OpStackFeeParams` remains source).
-- Changing `OpStackNormalFeeSettlement` ADR-025 decision tree.
+- Changing `OpStackNormalTxFeeCoordinator` ADR-025 decision tree.
 
 ### C.9 Delivery (single PR)
 
@@ -467,9 +467,9 @@ Skip paths (empty `feePlan`): `l1Fee` and `operatorFee` remain zero; Isthmus gat
 | --- | --- |
 | Add | `opstack/fee/OpStackPostSettlementPlan.h` (+ `.cpp` if needed) |
 | Add | `opstack/fee/OpStackPostSettlementInputs.h` |
-| Modify | `opstack/OpStackTxFeeLedger.h` — `refundGas` returns plan; delete `refundIsthmusOperatorCost` |
-| Modify | `opstack/OpStackTxFeeLedger.cpp` — delegate to plan |
-| Modify | `opstack/OpStackNormalFeeSettlement.cpp` — `NormalSettleOutcome`, `settleNormal`, `projectNormalReceiptMeta` |
+| Modify | `opstack/OpStackFeeSettlement.h` — `refundGas` returns plan; delete `refundIsthmusOperatorCost` |
+| Modify | `opstack/OpStackFeeSettlement.cpp` — delegate to plan |
+| Modify | `opstack/OpStackNormalTxFeeCoordinator.cpp` — `NormalSettleOutcome`, `settleNormal`, `projectNormalReceiptMeta` |
 | Add | `test/opstack/OpStackPostSettlementCharacterizationTest.cpp` |
 | Delete | `test/opstack/RefundIsthmusTest.cpp` — cases migrated to characterization (see below) |
 | Modify | `test/cmake/OpStackTests.cmake` — drop `RefundIsthmusTest` target |
@@ -483,9 +483,9 @@ operatorCostLimit = 2618, gasUsed = 500, hook(g) = g + 1000
 → senderOperatorRefund = 1118
 ```
 
-Integration routing for operator recipient remains in `OpStackTxFeeLedgerCtxTest`.
+Integration routing for operator recipient remains in `OpStackFeeSettlementCtxTest`.
 
-**Gate:** full OpStack ctest green; `OpStackNormalFeeSettlementTest` (ADR-025) green; `OpStackTxFeeLedgerCtxTest` routing green; characterization matrix covers:
+**Gate:** full OpStack ctest green; `OpStackNormalTxFeeCoordinatorTest` (ADR-025) green; `OpStackFeeSettlementCtxTest` routing green; characterization matrix covers:
 
 | Case | Oracle |
 | --- | --- |
@@ -497,7 +497,7 @@ Integration routing for operator recipient remains in `OpStackTxFeeLedgerCtxTest
 | Null hooks | OP fields zero |
 | Isthmus refund | `limit - used` formula (ex-`RefundIsthmusTest`; plan fields only) |
 | Skip deposit / zero-fee call | Empty plan, no state change |
-| **ADR-025 pre-exec abort** | `refundGas` not invoked; `OpStackNormalFeeSettlementTest` phantom-fee matrix |
+| **ADR-025 pre-exec abort** | `refundGas` not invoked; `OpStackNormalTxFeeCoordinatorTest` phantom-fee matrix |
 
 ### C.10 Appendix C compliance checklist
 
@@ -510,7 +510,7 @@ Integration routing for operator recipient remains in `OpStackTxFeeLedgerCtxTest
 - [x] `settleNormal` returns `NormalSettleOutcome`; `completeAfterPipeline` passes `feePlan` to `projectNormalReceiptMeta`.
 - [x] Post `effectiveGasPrice` characterization matches sidecar after `buyGas`.
 - [x] `RefundIsthmusTest.cpp` deleted; Isthmus refund covered in `OpStackPostSettlementCharacterizationTest`.
-- [x] ADR-025 abort path does not call `refundGas` (`OpStackNormalFeeSettlementTest` green).
+- [x] ADR-025 abort path does not call `refundGas` (`OpStackNormalTxFeeCoordinatorTest` green).
 
 ---
 

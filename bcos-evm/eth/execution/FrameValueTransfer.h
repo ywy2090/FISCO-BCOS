@@ -19,13 +19,13 @@
 
 #pragma once
 
+#include "bcos-evm/eth/CanTransfer.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmc/evmc.h>
 
 namespace bcos::evm::execution
@@ -44,7 +44,7 @@ evmc_address resolveCodeAddress(evmc_message const& message) noexcept
 }  // namespace
 
 inline bool transferFrameValue(state::State& state,
-    bcos::evm_standard::RevisionConfig const& revisionConfig, state::VmHostPolicy* extension,
+    bcos::evm_standard::RevisionConfig const& revisionConfig, state::EvmHostHooks* extension,
     evmc_message const& msg, FrameScope scope) noexcept
 {
     (void)revisionConfig;

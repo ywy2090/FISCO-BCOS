@@ -2,7 +2,7 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief ADR-026: EIP-1559 fee settlement projection (sync, State-free).
+ * @brief EIP-1559 fee settlement projection (sync, State-free).
  * @file TxFeeSettlement.h
  */
 

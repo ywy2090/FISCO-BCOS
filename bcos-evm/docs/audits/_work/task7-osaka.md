@@ -12,7 +12,7 @@
 
 | 符号 / 路径 | 内容 |
 |-------------|------|
-| `EthPolicy.h:38` | `cfg.eip7212 = cfg.revision >= EVMC_OSAKA` |
+| `EthChainPolicy.h:38` | `cfg.eip7212 = cfg.revision >= EVMC_OSAKA` |
 | `RevisionConfig.h:16` | `bool eip7212` profile 字段 |
 | `PrecompileTraits.h:37` | `{0x0100, EVMC_OSAKA, …, 6900, 0}` — FISCO `findPrecompile` 表 |
 | `EthBuiltinRegistry.cpp:491-518` | `p256verify` 完整实现（160B 输入、6900 gas、`evmmax::secp256r1::verify`） |
@@ -55,7 +55,7 @@ rtk grep -rn "7212\|p256\|0x0100" bcos-evm/test/
 
 | 层 | 状态 | 理由 |
 |----|------|------|
-| profile `eip7212` | 🔴 | EthPolicy OSAKA+ 设 true，暗示已启用；ADR-004 称 partial；无 TE consumer |
+| profile `eip7212` | 🔴 | EthChainPolicy OSAKA+ 设 true，暗示已启用；ADR-004 称 partial；无 TE consumer |
 | kernel 0x0100 | 🔴 | matrix unsupported 正确，但 Host 误认 builtin → **静默错误**（非 PRECOMPILE_FAILURE） |
 | matrix | ✅ 文档一致 | 建议 P2 更新为强调 Host/Policy 分裂风险 |
 
@@ -82,7 +82,7 @@ rtk grep -rn "7212\|p256\|0x0100" bcos-evm/test/
 | TE `EthPrecompiles::executeModexp` | ❌ **无** 调用；`EthPrecompiles.cpp:116-152` 直接 `evmone::crypto::modexp` |
 | TE gas | `calcModexpGas` 无 7823 拒绝（仅 EIP-7883/2565/198 定价） |
 
-`EthPolicy.h:39` OSAKA+ 设 `eip7823=true`；profile 与 FISCO 路径就绪，**TE reference 未 wired**。
+`EthChainPolicy.h:39` OSAKA+ 设 `eip7823=true`；profile 与 FISCO 路径就绪，**TE reference 未 wired**。
 
 ### geth / Besu 对照
 
@@ -118,7 +118,7 @@ FB `validateModexpEip7823` 逻辑等价；**TE 0x05 路径未调用**。
 | #16 | EIP-7212 precompile 0x0100 | 🔴 | Registry 有实现；TE `EthPrecompiles` 无；Host 误路由 |
 | #17 | RevisionConfig `eip7823` | 🔴 | `ModexpGas` 验证存在；TE `executeModexp` 未 wired |
 
-**共同模式：** Osaka profile flags 在 `EthPolicy` 已开启，但 TE baseline（`EthPrecompiles` / `executeMessage`）未接入；FISCO `PrecompiledImpl` 路径已部分 wired（7823）或仅有 Registry（7212）。
+**共同模式：** Osaka profile flags 在 `EthChainPolicy` 已开启，但 TE baseline（`EthPrecompiles` / `executeMessage`）未接入；FISCO `PrecompiledImpl` 路径已部分 wired（7823）或仅有 Registry（7212）。
 
 **建议（P0）：**
 

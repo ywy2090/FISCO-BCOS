@@ -4,15 +4,15 @@
 #include "adapters/AuthCheck.h"
 #include "adapters/ExecutorAuthAdapter.h"
 #include "adapters/ExecutorPrecompileAdapter.h"
-#include "adapters/ExecutorSessionContext.h"
+#include "adapters/FiscoPortAdapterContext.h"
 #include "adapters/PrecompiledImpl.h"
 #include "adapters/PrecompiledManager.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/bcos/FiscoEvmStateReader.h"
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"
-#include "bcos-evm/bcos/FiscoTxFeeLedger.h"
+#include "bcos-evm/bcos/FiscoTxFeeSettlement.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
@@ -50,7 +50,7 @@ enum class ExecutePhase : uint8_t
 evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin);
 
-template <class TxExec = FiscoTxFeeLedger>
+template <class TxExec = FiscoTxFeeSettlement>
 class TransactionExecutorImpl
 {
 public:
@@ -100,7 +100,7 @@ public:
             std::string m_gasPriceStr;
 
             bcos::chain_policy::FiscoPolicy m_policy;
-            bcos::evm::FiscoExecutionContext m_executionContext;
+            bcos::evm::FiscoExecutionArtifacts m_executionContext;
             int64_t m_gasLimit;
             int64_t m_seq = 0;
             evmc_address m_origin;
@@ -301,14 +301,14 @@ public:
                 *m_data->m_executor.get().m_hashImpl);
             input.stateView = std::addressof(stateView);
 
-            transaction_executor::ExecutorSessionContext sessionCtx{m_data->m_rollbackableStorage,
+            transaction_executor::FiscoPortAdapterContext portCtx{m_data->m_rollbackableStorage,
                 m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get(), m_data->m_origin,
                 m_data->m_contextID, m_data->m_seq, m_data->m_executionContext.revisionConfig,
                 *m_data->m_executor.get().m_hashImpl,
                 m_data->m_executor.get().m_precompiledManager.get()};
 
-            transaction_executor::ExecutorAuthAdapter authAdapter{sessionCtx};
-            transaction_executor::ExecutorPrecompileAdapter precompileAdapter{sessionCtx};
+            transaction_executor::ExecutorAuthAdapter authAdapter{portCtx};
+            transaction_executor::ExecutorPrecompileAdapter precompileAdapter{portCtx};
 
             input.authPort = &authAdapter;
             input.chainDispatchPort = &precompileAdapter;

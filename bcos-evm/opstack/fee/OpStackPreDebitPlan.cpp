@@ -5,7 +5,7 @@ namespace bcos::evm
 {
 
 OpStackPreDebitPlan planOpStackPreDebit(
-    OpStackPreDebitInputs const& inputs, OpStackFeeHooks const& hooks) noexcept
+    OpStackPreDebitInputs const& inputs, OpStackFeeHooks const& hooks)
 {
     OpStackPreDebitPlan plan;
     plan.core1559 = gas::planPreExecution(inputs.fee);

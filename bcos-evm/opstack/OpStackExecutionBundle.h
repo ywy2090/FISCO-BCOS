@@ -1,14 +1,14 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/ExecutionSession.h"
+#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
 #include <stdexcept>
 
 namespace bcos::evm
 {
 
-/// Owns OpStack chain call-target adapter for one tx lifecycle (ADR-027).
+/// Owns OpStack chain call-target adapter for one tx lifecycle.
 struct OpStackExecutionBundle
 {
     OpStackExecutionBundle(TxPipelineContext& ctx, OpStackExecutionRequest const& input)
@@ -26,12 +26,12 @@ struct OpStackExecutionBundle
         m_view.wire(ctx);
     }
 
-    ExecutionSession const& view() const noexcept { return m_view; }
+    EvmTxContextView const& view() const noexcept { return m_view; }
     OpStackChainCallTargetAdapter const& chainAdapter() const noexcept { return m_chainAdapter; }
 
 private:
     OpStackChainCallTargetAdapter m_chainAdapter;
-    ExecutionSession m_view;
+    EvmTxContextView m_view;
 };
 
 }  // namespace bcos::evm

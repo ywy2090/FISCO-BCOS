@@ -1,5 +1,5 @@
 #include "bcos-evm/eth-eest-test/EestStateTestLoader.h"
-#include "bcos-evm/eth-eest-test/EthReferenceBridgeAdapter.h"
+#include "bcos-evm/eth-eest-test/EthReferenceExecuteAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/ManifestLoader.h"
@@ -107,7 +107,7 @@ bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatch
         return false;
     }
 
-    EthReferenceBridgeAdapter adapter(*profile, hashImpl, vm);
+    EthReferenceExecuteAdapter adapter(*profile, hashImpl, vm);
     for (auto const& jsonPath : resolveCasePaths(options.eestRoot, entry))
     {
         std::vector<StateTestCase> cases;

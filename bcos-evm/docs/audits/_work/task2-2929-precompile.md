@@ -10,7 +10,7 @@
 ### FB 实现
 
 - `EthHost::access_account` / `access_storage`（`EthHost.cpp:310–326`）在 `m_warmAccess=true` 时调用 `State::warm_up_address` / `warm_up_storage`，首次返回 `EVMC_ACCESS_COLD`，再次 `EVMC_ACCESS_WARM`；`m_warmAccess=false` 时恒返回 COLD（Berlin 前行为）。
-- `m_warmAccess` 来自 `ExecuteMessageInput.revisionConfig.warm_access`（`ExecuteMessage.cpp:147`），CANCUN+ profile 为 true（`EthPolicy.h:31`）。
+- `m_warmAccess` 来自 `ExecuteMessageInput.revisionConfig.warm_access`（`ExecuteMessage.cpp:147`），CANCUN+ profile 为 true（`EthChainPolicy.h:31`）。
 - **FB 源码不含 cold/warm gas 常量**；gas 由 evmone 在 Host 返回 COLD/WARM 后按 EIP-2929 计费。
 
 ### geth 对照

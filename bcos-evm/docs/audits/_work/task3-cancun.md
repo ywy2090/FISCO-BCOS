@@ -12,7 +12,7 @@
 
 | 组件 | 位置 | 行为 |
 |------|------|------|
-| Profile | `EthPolicy.h:32` | `eip1153 = revision >= EVMC_CANCUN` |
+| Profile | `EthChainPolicy.h:32` | `eip1153 = revision >= EVMC_CANCUN` |
 | Host read | `EthHost.cpp:328-341` | `get_transient_storage` → `Account::transientStorage`；无账户返回零 |
 | Host write | `EthHost.cpp:344-347` → `State.cpp:225-229` | `set_transient_storage` journal 后写入 `transientStorage` |
 | 数据模型 | `Account.hpp:38` | `StorageMap transientStorage` |
@@ -51,7 +51,7 @@ bool EthHost::selfdestruct(...) {
 }
 ```
 
-- `EthPolicy::selfdestruct`（`EthPolicy.h:53-55`）返回 `false` = EIP-3529 无 selfdestruct refund；**EthHost 未调用**该 policy 方法。
+- `EthChainPolicy::selfdestruct`（`EthChainPolicy.h:53-55`）返回 `false` = EIP-3529 无 selfdestruct refund；**EthHost 未调用**该 policy 方法。
 - evmone `selfdestruct`（`instructions.hpp:981-1013`）：gas 计费后调用 `host.selfdestruct()`；**不在 evmone 内实现 6780 状态变更**；返回值仅用于 `rev < LONDON` 的 24000 refund。
 
 ### geth 对照 — `opSelfdestruct6780`（`instructions.go:908-949`）
@@ -85,7 +85,7 @@ Profile flag `eip6780` ✅（Task 1）；**kernel 不可声称 compliant**。
 
 ### #6 Revision profile
 
-- `EthPolicy.h:33`：`eip4844 = revision >= EVMC_CANCUN` ✅
+- `EthChainPolicy.h:33`：`eip4844 = revision >= EVMC_CANCUN` ✅
 - `RevisionConfigProfileTest` CANCUN+ 断言 ✅
 - geth `enable4844`（`eips.go:302-308`）：BLOBHASH opcode；Besu `CancunGasCalculator`
 
@@ -111,7 +111,7 @@ Profile flag `eip6780` ✅（Task 1）；**kernel 不可声称 compliant**。
 
 ### FB 实现
 
-- Profile：`EthPolicy.h:34` CANCUN+ ✅
+- Profile：`EthChainPolicy.h:34` CANCUN+ ✅
 - evmone `mcopy`（`instructions.hpp:896-915`）：memory copy + dynamic gas
 - Revision 证据链：
   - `ExecuteMessage.cpp:145-147,227-228`：`EthHost(..., input.revisionConfig.revision, ...)` + `vm->execute(..., revision, ...)`

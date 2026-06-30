@@ -14,12 +14,12 @@
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
-| 执行桥 | `OpStackExecutionBridge.*` | TE 稳定入口 `opStackExecute()` → 委托 lifecycle |
+| 执行桥 | `OpStackExecute.*` | TE 稳定入口 `opStackExecute()` → 委托 lifecycle |
 | 生命周期 | `OpStackTxLifecycle.*` | Deep module `runOpStackTxLifecycle`（gasPool、分支、settlement 编排） |
-| 费用投影 | `OpStackSettlementView.*`, `OpStackFeeSidecar.h` | `ctx` + `input` + sidecar 只读投影；无 request 镜像 |
-| Normal 结算 | `OpStackNormalFeeSettlement.*` | `buyGas` + `completeAfterPipeline`（ADR-025 内聚） |
+| 费用投影 | `OpStackSettlementFacade.*`, `OpStackFeeSidecar.h` | `ctx` + `input` + sidecar 只读投影；无 request 镜像 |
+| Normal 结算 | `OpStackNormalTxFeeCoordinator.*` | `buyGas` + `completeAfterPipeline`（ADR-025 内聚） |
 | 同步结算 | `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort helpers |
-| 费用账本 | `OpStackTxFeeLedger.*` | Adapter：`buyGas` / `refundGas`（读 `OpStackSettlementView`） |
+| 费用账本 | `OpStackFeeSettlement.*` | Adapter：`buyGas` / `refundGas`（读 `OpStackSettlementFacade`） |
 | 编排 | `OpStackOrchestrationProfile.*` | `BindingsContext` `{ input, view }`；`bind` → pipeline hooks |
 | 预检 | `OpStackPrecheckPolicy.*` | `checkEntryRules` + `checkGasAffordable` |
 | 链 call target | `OpStackChainCallTargetAdapter.*` | L1Block / GasPriceOracle classify + dispatch |
@@ -37,7 +37,7 @@
 OpStackTransactionExecutorImpl
   → opStackExecute()
   → runOpStackTxLifecycle
-      ├─ OpStackSettlementView { ctx, input, sidecar }
+      ├─ OpStackSettlementFacade { ctx, input, sidecar }
       ├─ OpStackOrchestrationProfile::bind(bindingsCtx)
       ├─ checkEntryRules
       ├─ deposit: gasPool → mint → pipeline → settleDeposit

@@ -2,7 +2,7 @@
 ///
 /// Same manifest-driven architecture as EthExecutionSpecStateTests,
 /// but uses OpStackManifestAdapter → opStackExecute() instead of
-/// EthReferenceBridgeAdapter → ethReferenceExecute().
+/// EthReferenceExecuteAdapter → ethReferenceExecute().
 ///
 /// Usage:
 ///   OpStackEestManifestStateTests \

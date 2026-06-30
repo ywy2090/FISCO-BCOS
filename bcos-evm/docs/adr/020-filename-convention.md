@@ -30,7 +30,7 @@ Function identifiers (e.g. `debitIntrinsicGas()`) remain camelCase per C++ conve
 | --- | --- | --- |
 | EIP-specific | `Eip<N>.h` | `Eip7702.h` |
 | Chain shell | Layer prefix + domain | `FiscoPolicy.h`, `OpStackFee.h` |
-| Orchestration step | PascalCase verb phrase | `DebitIntrinsicGas.h` |
+| Orchestration step | PascalCase verb phrase | `IntrinsicGasDebit.h` |
 | Domain model | No prefix | `RevisionConfig.h` |
 
 ### 3. Basename uniqueness

@@ -93,7 +93,7 @@ std::shared_ptr<bcostars::protocol::TransactionImpl> makeWeb3Type2Transaction(
 }
 }  // namespace
 
-class EthTxFeeLedger1559Fixture
+class EthTxFeeSettlement1559Fixture
 {
 public:
     MutableStorage storage;
@@ -108,7 +108,7 @@ public:
     evmc_address coinbase = addressFromLastByte(0xcb);
     int contextId = 0;
 
-    EthTxFeeLedger1559Fixture()
+    EthTxFeeSettlement1559Fixture()
     {
         executor::GlobalHashImpl::g_hashImpl = cryptoSuite->hashImpl();
         setPragueFeatures(ledgerConfig);
@@ -172,7 +172,7 @@ public:
     }
 };
 
-BOOST_FIXTURE_TEST_SUITE(EthTxFeeLedger1559, EthTxFeeLedger1559Fixture)
+BOOST_FIXTURE_TEST_SUITE(EthTxFeeSettlement1559, EthTxFeeSettlement1559Fixture)
 
 BOOST_AUTO_TEST_CASE(buy_gas_debits_effective_times_limit)
 {

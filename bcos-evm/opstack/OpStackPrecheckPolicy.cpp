@@ -46,7 +46,7 @@ EVMCResult makePreCheckError(
 }
 }  // namespace
 
-OpStackPrecheckPolicy::OpStackPrecheckPolicy(OpStackSettlementView& view)
+OpStackPrecheckPolicy::OpStackPrecheckPolicy(OpStackSettlementFacade& view)
   : m_view(view), m_sidecar(view.mutableSidecar())
 {
     m_intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;

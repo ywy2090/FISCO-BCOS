@@ -8,7 +8,7 @@
 
 ## Context
 
-EIP-to-revision derivation was duplicated across `EthPolicy`, `FiscoPolicy`, `ForkProfileRegistry`, and `makeIsthmusRevisionConfig`, and re-derived at read sites (`PrecompileActive.h`, `EthHost::selfdestruct`). Drift had already produced a sparse Isthmus profile inconsistent with canonical Prague gates.
+EIP-to-revision derivation was duplicated across `EthChainPolicy`, `FiscoPolicy`, `ForkProfileRegistry`, and `makeIsthmusRevisionConfig`, and re-derived at read sites (`PrecompileActive.h`, `EthHost::selfdestruct`). Drift had already produced a sparse Isthmus profile inconsistent with canonical Prague gates.
 
 ---
 
@@ -30,7 +30,7 @@ EIP-to-revision derivation was duplicated across `EthPolicy`, `FiscoPolicy`, `Fo
 
 ## Consequences
 
-- EthPolicy / FiscoPolicy / Isthmus / ForkProfileRegistry snapshots densify (`eip1559`/`eip3651`, full Prague set for Isthmus); changes are profile-only / runtime-inert per ADR-004.
+- EthChainPolicy / FiscoPolicy / Isthmus / ForkProfileRegistry snapshots densify (`eip1559`/`eip3651`, full Prague set for Isthmus); changes are profile-only / runtime-inert per ADR-004.
 - New A-class fields require updating `REVISION_CONFIG_GATED_FIELDS`, `FISCO_GATED_FLAG_MAP`, and the CI grep field list together.
 
 ---

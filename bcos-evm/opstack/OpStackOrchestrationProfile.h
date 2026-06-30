@@ -18,21 +18,21 @@
 
 #pragma once
 
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
-#include "bcos-evm/opstack/OpStackSettlementView.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 
 namespace bcos::evm
 {
 
 struct OpStackOrchestrationProfile
 {
-    /// Orchestration policy bind input (not kernel ExecutionSession; ADR-027 naming follow-up).
+    /// Orchestration policy bind input (not kernel EvmTxContextView).
     struct BindingsContext
     {
         OpStackExecutionRequest const& input;
-        OpStackSettlementView view;
+        OpStackSettlementFacade view;
     };
 
     struct Bindings

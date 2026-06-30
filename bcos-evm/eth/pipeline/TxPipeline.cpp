@@ -2,7 +2,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/pipeline/AdoptEvmcResult.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
-#include "bcos-evm/eth/pipeline/ExecutionSession.h"
+#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <stdexcept>
 
@@ -24,7 +24,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
         throw std::invalid_argument("runTxPipeline requires vm/hashImpl");
     }
 
-    auto const intrinsicPolicy = precheckPolicy.intrinsicGasPolicy();
+    auto const intrinsicPolicy = precheckPolicy.intrinsicGasDebitParams();
 
     ctx.earlyExit = false;
     ctx.exitKind = TxPipelineExitKind::None;
@@ -103,11 +103,11 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
         EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "runEvmExecution")
                        << LOG_KV("gas", ctx.message.gas);
 
-        if (ctx.session == nullptr)
+        if (ctx.txContextView == nullptr)
         {
-            throw std::invalid_argument("runTxPipeline requires wired ExecutionSession");
+            throw std::invalid_argument("runTxPipeline requires wired EvmTxContextView");
         }
-        auto executeInput = ctx.session->toExecuteMessageInput(ctx);
+        auto executeInput = ctx.txContextView->toExecuteMessageInput(ctx);
         precheckPolicy.tuneExecutionInput(executeInput);
 
         ctx.kernelOutput = precheckPolicy.runEvmExecution(std::move(executeInput));

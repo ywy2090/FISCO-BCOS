@@ -5,7 +5,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/eth/state/Account.hpp"
@@ -513,9 +513,9 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
 
     struct ThrowBalancePrecheckPolicy : ChainPrecheckPolicy
     {
-        IntrinsicGasPolicy intrinsicGasPolicy() const override
+        IntrinsicGasDebitParams intrinsicGasDebitParams() const override
         {
-            IntrinsicGasPolicy policy;
+            IntrinsicGasDebitParams policy;
             policy.mode = IntrinsicDebitMode::None;
             return policy;
         }

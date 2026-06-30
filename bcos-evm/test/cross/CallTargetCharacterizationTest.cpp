@@ -2,7 +2,7 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief ADR-024 characterization baseline: depth=0 vs depth=1 call-target dispatch (C1–C7).
+ * @brief characterization baseline: depth=0 vs depth=1 call-target dispatch (C1–C7).
  * @file CallTargetCharacterizationTest.cpp
  */
 #define BOOST_TEST_MODULE CallTargetCharacterizationTest
@@ -163,8 +163,8 @@ struct Depth1HostFixture
     bcos::evm_standard::RevisionConfig cfg{};
     std::optional<state::EthHost> host;
 
-    Depth1HostFixture(state::State& state, state::VmHostPolicy* extension = nullptr,
-        evmc_revision revision = EVMC_PRAGUE, ChainCallTargetPort* chainPort = nullptr)
+    Depth1HostFixture(state::State& state, state::EvmHostHooks* extension = nullptr,
+        evmc_revision revision = EVMC_PRAGUE, ChainCallTargetDispatcher* chainPort = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = revision, .warm_access = true};
@@ -175,7 +175,7 @@ struct Depth1HostFixture
 };
 
 ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message,
-    state::VmHostPolicy* extension = nullptr, ChainCallTargetPort* chainPort = nullptr)
+    state::EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;

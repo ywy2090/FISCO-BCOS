@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>

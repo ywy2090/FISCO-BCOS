@@ -1,13 +1,13 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/ExecutionSession.h"
+#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 
 namespace bcos::evm
 {
 
-/// Owns Eth reference-path VmHostPolicy; exposes kernel ExecutionSession view (ADR-027).
+/// Owns Eth reference-path EvmHostHooks; exposes kernel EvmTxContextView view.
 struct EthExecutionBundle
 {
     EthExecutionBundle(TxPipelineContext& ctx, EthReferenceRequest const& input) : m_extension()
@@ -19,11 +19,11 @@ struct EthExecutionBundle
         m_view.wire(ctx);
     }
 
-    ExecutionSession const& view() const noexcept { return m_view; }
+    EvmTxContextView const& view() const noexcept { return m_view; }
 
 private:
     state::EthVmHostPolicy m_extension;
-    ExecutionSession m_view;
+    EvmTxContextView m_view;
 };
 
 }  // namespace bcos::evm

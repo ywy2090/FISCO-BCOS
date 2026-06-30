@@ -61,7 +61,7 @@ evmc_address resolveCreateAddress(evmc_message const& message, evmc_result const
 
 struct FrameWork
 {
-    FrameContext& ctx;
+    FrameExecutionEnv& ctx;
     evmc_message const& originalMsg;
     FrameTarget target;
     bcos::bytes code;
@@ -290,7 +290,7 @@ void bumpNestedCreateSenderNonce(FrameWork& work)
 }
 
 FrameResult runFrameSteps(
-    FrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
+    FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     FrameWork work{
         ctx, message, resolveFrameTarget(ctx.state, ctx.revisionConfig, message, scope), {}, host};
@@ -344,7 +344,7 @@ FrameResult runFrameSteps(
 }  // namespace
 
 FrameResult runExecutionFrame(
-    FrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
+    FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     return runFrameSteps(ctx, message, scope, host);
 }

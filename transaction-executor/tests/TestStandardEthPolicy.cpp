@@ -1,15 +1,15 @@
-#include "bcos-evm/eth/policy/EthPolicy.h"
+#include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <evmc/evmc.h>
 #include <boost/test/unit_test.hpp>
 
 using namespace bcos::evm_standard;
 
-BOOST_AUTO_TEST_SUITE(EthPolicyTest)
+BOOST_AUTO_TEST_SUITE(EthChainPolicyTest)
 
 BOOST_AUTO_TEST_CASE(computeRevisionConfigPrague)
 {
-    EthPolicy policy;
+    EthChainPolicy policy;
     bcostars::protocol::BlockHeaderImpl header(
         [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
     header.setNumber(23000000);
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigPrague)
 
 BOOST_AUTO_TEST_CASE(computeRevisionConfigLondon)
 {
-    EthPolicy policy;
+    EthChainPolicy policy;
     bcostars::protocol::BlockHeaderImpl header(
         [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
     header.setNumber(13000000);
@@ -45,13 +45,13 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigLondon)
 
 BOOST_AUTO_TEST_CASE(allowDelegateCallToPrecompile)
 {
-    EthPolicy policy;
+    EthChainPolicy policy;
     BOOST_CHECK(policy.allowDelegateCallToPrecompile());
 }
 
 BOOST_AUTO_TEST_CASE(convertTimestamp)
 {
-    EthPolicy policy;
+    EthChainPolicy policy;
     BOOST_CHECK_EQUAL(policy.convertTimestamp(1000), 1);
     BOOST_CHECK_EQUAL(policy.convertTimestamp(1500), 1);
     BOOST_CHECK_EQUAL(policy.convertTimestamp(0), 0);

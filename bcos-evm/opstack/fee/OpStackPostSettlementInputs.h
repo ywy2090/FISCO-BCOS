@@ -1,15 +1,15 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
+#include "bcos-evm/eth/pipeline/FeeInputsMapping.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackSettlementView.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 
 namespace bcos::evm
 {
 
 inline OpStackPostSettlementInputs toOpStackPostSettlementInputs(
-    OpStackSettlementView const& view, OpStackSettlementResult const& settled) noexcept
+    OpStackSettlementFacade const& view, OpStackSettlementResult const& settled) noexcept
 {
     auto const& ctx = view.pipelineContext();
     auto const& sidecar = view.feeSidecar();

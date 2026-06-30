@@ -59,7 +59,7 @@ inline evmc_address balanceTarget(evmc_message const& msg)
 }
 
 inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message,
-    state::VmHostPolicy* extension = nullptr, ChainCallTargetPort* chainPort = nullptr)
+    state::EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     ExecuteMessageInput input;
@@ -77,7 +77,7 @@ inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const
 }
 
 inline ExecuteMessageInput makeBaseInput(state::State* state, evmc_message const& message,
-    state::VmHostPolicy* extension = nullptr, ChainCallTargetPort* chainPort = nullptr)
+    state::EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr)
 {
     return makeBaseInput(*state, message, extension, chainPort);
 }

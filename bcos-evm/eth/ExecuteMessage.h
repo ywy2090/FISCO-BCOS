@@ -23,21 +23,21 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
 #include <vector>
 
 namespace bcos::evm
 {
-struct ChainCallTargetPort;
+struct ChainCallTargetDispatcher;
 using LogEntry = state::LogEntry;
 
 struct ExecuteMessageInput
 {
-    /// Mutable execution journal; pipeline passes &TxPipelineContext::state (ADR-019 Q14).
+    /// Mutable execution journal; pipeline passes &TxPipelineContext::state.
     state::State* state{nullptr};
     evmc::VM* vm{nullptr};
     evmc_message message{};
@@ -50,8 +50,8 @@ struct ExecuteMessageInput
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
-    state::VmHostPolicy* extension{nullptr};
-    ChainCallTargetPort* chainPort{nullptr};
+    state::EvmHostHooks* extension{nullptr};
+    ChainCallTargetDispatcher* chainPort{nullptr};
     bool fixStorageStatus{true};
     bool fixNonceInit{false};
     /// When true, orchestration (e.g. OpStack deposit finalizeDeposit) owns sender nonce bump.

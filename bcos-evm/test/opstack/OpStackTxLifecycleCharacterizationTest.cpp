@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackTxLifecycleCharacterizationTest
 
-// ADR-023 C1: characterization oracles via runOpStackTxLifecycle (deep module interface).
+// C1: characterization oracles via runOpStackTxLifecycle (deep module interface).
 
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
@@ -313,7 +313,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_inclusion_failed_receipt_
 }
 
 // GAP-TE-005 — buyGas entry failure still yields includable failed receipt at TE.
-// CURRENT_ORACLE: NotEnoughCash lifecycle result (included); ADR-025 settlement abort (gasUsed=0).
+// CURRENT_ORACLE: NotEnoughCash lifecycle result (included).
 // GETH_ORACLE: ErrInsufficientFunds reject (state_processor_test.go:171-176).
 BOOST_AUTO_TEST_CASE(lifecycle_normal_buy_gas_fail_inclusion_failed_receipt_oracle)
 {

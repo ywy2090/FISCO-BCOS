@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Common.h"

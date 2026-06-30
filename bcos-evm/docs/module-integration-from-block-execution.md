@@ -66,9 +66,9 @@ flowchart TB
 
 | ADR-001 旧名 | 当前入口函数 | 模块路径 |
 |---|---|---|
-| `executeViaHost` | `fiscoExecute` | `bcos-evm/bcos/FiscoExecutionBridge.h` |
-| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/reference/EthReferenceBridge.h` |
-| `opStackExecuteViaHost` | `opStackExecute` | `bcos-evm/opstack/OpStackExecutionBridge.h` |
+| `executeViaHost` | `fiscoExecute` | `bcos-evm/bcos/FiscoExecute.h` |
+| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/reference/EthReferenceExecute.h` |
+| `opStackExecuteViaHost` | `opStackExecute` | `bcos-evm/opstack/OpStackExecute.h` |
 
 ---
 
@@ -80,8 +80,8 @@ flowchart TB
 
 | `executionPath` | TE 实现 | bcos-evm 入口 | 费用账本 |
 |---|---|---|---|
-| `Fisco`（默认） | `TransactionExecutorImpl` | `fiscoExecute` | `FiscoTxFeeLedger` |
-| `Eth` | `EthTransactionExecutorImpl` | `ethReferenceExecute` | `EthTxFeeLedger` |
+| `Fisco`（默认） | `TransactionExecutorImpl` | `fiscoExecute` | `FiscoTxFeeSettlement` |
+| `Eth` | `EthTransactionExecutorImpl` | `ethReferenceExecute` | `EthTxFeeSettlement` |
 | `OpStack` | `OpStackTransactionExecutorImpl` | `opStackExecute` | 内置于 `opStackExecute` |
 
 ```cpp
@@ -160,7 +160,7 @@ BaselineScheduler::coExecuteBlock
        │    └─ prepareTransaction(...)   // EIP-2929 warm 等（本地 State，不持久化）
        ├─ Stage 3: ExecuteContext::executeStep<1>  [Execute]
        │    ├─ updateNonce()（可选）
-       │    ├─ FiscoTxFeeLedger::buyGas()（fix_gas_precheck 时）
+       │    ├─ FiscoTxFeeSettlement::buyGas()（fix_gas_precheck 时）
        │    ├─ fiscoExecuteTx()
        │    │    ├─ 组装 FiscoExecutionRequest
        │    │    ├─ ExecutorAuthAdapter / ExecutorPrecompileAdapter 注入 Port
@@ -171,7 +171,7 @@ BaselineScheduler::coExecuteBlock
        │    ├─ applyStateDiff(storage, output.stateDiff)  // EVMC_SUCCESS 时
        │    └─ refundGas() / consumeBalance()
        └─ Stage 4: ExecuteContext::executeStep<2>  [Finalize]
-            └─ FiscoTxFeeLedger::makeReceipt(...)
+            └─ FiscoTxFeeSettlement::makeReceipt(...)
 ```
 
 ### 3.1 TE 三路径对比
@@ -181,8 +181,8 @@ BaselineScheduler::coExecuteBlock
 | TE 类 | `TransactionExecutorImpl` | `EthTransactionExecutorImpl` | `OpStackTransactionExecutorImpl` |
 | Bridge | `fiscoExecute` | `ethReferenceExecute` | `opStackExecute` |
 | 权限 / 预编译 | `AuthPort` + `ChainPrecompilePort` | 无 | 无（L1Block 经 `OpStackVmHostPolicy`） |
-| Gas 外圈 | `FiscoTxFeeLedger` buy/refund | `EthTxFeeLedger` buy/refund | bridge 内部 + `BlockGasPool` |
-| Revision | `FiscoPolicy::computeRevisionConfig` | `EthPolicy::computeRevisionConfig` | `makeIsthmusRevisionConfig` 等 |
+| Gas 外圈 | `FiscoTxFeeSettlement` buy/refund | `EthTxFeeSettlement` buy/refund | bridge 内部 + `BlockGasPool` |
+| Revision | `FiscoPolicy::computeRevisionConfig` | `EthChainPolicy::computeRevisionConfig` | `makeIsthmusRevisionConfig` 等 |
 | 生产角色 | **FISCO 生产默认** | **接线审计 / EEST**（ADR-001） | **OP Stack 生产** |
 
 ---
@@ -228,7 +228,7 @@ ethReferenceExecute / fiscoExecute / opStackExecute
 
 ### 4.3 `fiscoExecute` 接线要点
 
-[`FiscoExecutionBridge.cpp`](../bcos/FiscoExecutionBridge.cpp) L125-203：
+[`FiscoExecute.cpp`](../bcos/FiscoExecute.cpp) L125-203：
 
 1. 构造 `TxPipelineContext`（持有 `State`、原始 `message`、`RevisionConfig`）
 2. 构造 `FiscoVmHostPolicy`，注入 `authPort` / `chainPrecompilePort` / `persistContractCreateNonce`
@@ -339,7 +339,7 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 在 TE **Prepare** 阶段由链策略计算，传入 bridge request：
 
 - FISCO：`FiscoPolicy::computeRevisionConfig(blockHeader)` → `FiscoRevisionConfig`
-- ETH：`EthPolicy::computeRevisionConfig(blockHeader)` → `RevisionConfig`
+- ETH：`EthChainPolicy::computeRevisionConfig(blockHeader)` → `RevisionConfig`
 - OP：`makeIsthmusRevisionConfig()` 等
 
 **依赖规则：** `eth/` 永不 include `bcos/` 或 `opstack/`；链差异只能向下注入（ADR-005 Rule 1）。
@@ -350,10 +350,10 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 
 | 用途 | 头文件 | 说明 |
 |---|---|---|
-| FISCO 生产执行 | `bcos-evm/bcos/FiscoExecutionBridge.h` | `fiscoExecute(FiscoExecutionRequest)` |
-| ETH 参考执行 | `bcos-evm/eth/reference/EthReferenceBridge.h` | `ethReferenceExecute` |
-| ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `EthReferenceBridge.h` |
-| OP Stack 执行 | `bcos-evm/opstack/OpStackExecutionBridge.h` | `opStackExecute` |
+| FISCO 生产执行 | `bcos-evm/bcos/FiscoExecute.h` | `fiscoExecute(FiscoExecutionRequest)` |
+| ETH 参考执行 | `bcos-evm/eth/reference/EthReferenceExecute.h` | `ethReferenceExecute` |
+| ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `EthReferenceExecute.h` |
+| OP Stack 执行 | `bcos-evm/opstack/OpStackExecute.h` | `opStackExecute` |
 | 状态读 | `bcos-evm/bcos/FiscoEvmStateReader.h` | TE 层构造 |
 | 状态写 | `bcos-evm/bcos/StateDiffApplier.h` | `applyStateDiff` |
 | TE 概念约束 | `bcos-framework/.../TransactionExecutor.h` | 新 executor 必须实现此 concept |

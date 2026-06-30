@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include <boost/test/unit_test.hpp>
 

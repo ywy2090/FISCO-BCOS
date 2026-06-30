@@ -2,7 +2,7 @@
 
 **Status:** Implemented (PR1 + PR2 + Appendix A PR1–PR3)  
 **Date:** 2026-06-25 (PR2 section added 2026-06-25; Appendix A 2026-06-26)  
-**Implementation:** `OpStackSettlementView`, `OpStackFeeSidecar`, `OpStackNormalFeeSettlement`, `finalizeNormal(sidecar)`  
+**Implementation:** `OpStackSettlementFacade`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator`, `finalizeNormal(sidecar)`  
 **Spec (PR2):** `docs/superpowers/specs/2026-06-25-opstack-settlement-pr2-design.md`  
 **Spec (Appendix A):** `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`  
 **Deciders:** bcos-evm architecture  
@@ -16,7 +16,7 @@ ADR-019 fixed OpStack intrinsic gas dual-track (`txData.m_message` vs `executeMe
 
 `OpStackTxExecutionData` duplicated `m_message`, `m_gasLimit`, and `m_state` for `buyGas`, `applySettlement`, and `refundGas`. Settlement read frozen snapshots while the pipeline mutated `ctx.message`. ADR-019 Q14 (`ctx.state` sole owner) was only half satisfied for gas state.
 
-**PR1 delivered** ctx gas/message single-source and sync gas math (`finalizeNormal`). **PR1 did not fully close** settlement locality: `refundGas` and gas pool return remain in `OpStackExecutionBridge.cpp`; deposit post-pipeline remains inline. PR2 completes the deep module.
+**PR1 delivered** ctx gas/message single-source and sync gas math (`finalizeNormal`). **PR1 did not fully close** settlement locality: `refundGas` and gas pool return remain in `OpStackExecute.cpp`; deposit post-pipeline remains inline. PR2 completes the deep module.
 
 ---
 
@@ -157,7 +157,7 @@ Mint is never rolled back on failure.
 | Sync `finalizeNormal` | `OpStackSettlementTest` |
 | Sync `finalizeDeposit` | `OpStackDepositSettlementTest` |
 | Async `settleNormal` / `settleDeposit` | `OpStackSettleAsyncTest` |
-| Fee ledger routing | `OpStackTxFeeLedgerCtxTest` |
+| Fee ledger routing | `OpStackFeeSettlementCtxTest` |
 | E2E oracle | `OpStackSettlementCharacterizationTest`, deposit integration tests |
 
 ---
@@ -173,23 +173,23 @@ Mint is never rolled back on failure.
 
 | # | Question | Choice |
 | --- | --- | --- |
-| 1 | Deepening boundary | **A** — `OpStackSettlementView` (read-only projection) + `OpStackFeeSidecar` (mutable lifecycle state) |
+| 1 | Deepening boundary | **A** — `OpStackSettlementFacade` (read-only projection) + `OpStackFeeSidecar` (mutable lifecycle state) |
 | 2 | Sidecar contents | **A2** — five fields: `effectiveGasPrice`, `baseFee`, `l1CostCharged`, `operatorCostLimit`, `floorDataGas` |
 | 3 | View lifecycle | **B3** — view always holds `ctx` + `input` + `sidecar&`; accessors fall back to input when sidecar unset |
-| 4 | Fee module shape | **C2** — `OpStackNormalFeeSettlement` deep module: `buyGas` + `completeAfterPipeline` |
+| 4 | Fee module shape | **C2** — `OpStackNormalTxFeeCoordinator` deep module: `buyGas` + `completeAfterPipeline` |
 | 5 | Deposit | **D1** — unchanged; view shared for precheck only |
 | 6 | `OrchestrationProfile::BindingsContext` | **E2** — `{ input, view }`; precheck writes via `view.mutableSidecar()` |
-| 7 | Test migration | **F3** — keep `finalizeNormal` as internal sync seam; adapter tests on `OpStackTxFeeLedger`; ADR-025 tree on `completeAfterPipeline` |
+| 7 | Test migration | **F3** — keep `finalizeNormal` as internal sync seam; adapter tests on `OpStackFeeSettlement`; ADR-025 tree on `completeAfterPipeline` |
 | 8 | Delivery | **Three PRs** — projection → deep module → cleanup |
 
 ### A.2 Module layout (target)
 
 | Module | Role |
 | --- | --- |
-| `OpStackSettlementView` | Projection over `TxPipelineContext` + `OpStackExecutionRequest` + `OpStackFeeSidecar&`; **no mirrored storage** of request fields |
+| `OpStackSettlementFacade` | Projection over `TxPipelineContext` + `OpStackExecutionRequest` + `OpStackFeeSidecar&`; **no mirrored storage** of request fields |
 | `OpStackFeeSidecar` | Lifecycle-mutable fee state only (see A.1 #2) |
-| `OpStackNormalFeeSettlement` | Deep module: `buyGas(view)` → pipeline → `completeAfterPipeline(view, …)`; **ADR-025 abort tree internal** |
-| `OpStackTxFeeLedger` | **Adapter seam** (L1/operator hooks, recipients); not lifecycle's direct interface |
+| `OpStackNormalTxFeeCoordinator` | Deep module: `buyGas(view)` → pipeline → `completeAfterPipeline(view, …)`; **ADR-025 abort tree internal** |
+| `OpStackFeeSettlement` | **Adapter seam** (L1/operator hooks, recipients); not lifecycle's direct interface |
 | `finalizeNormal` | **Sync internal seam** (ADR-021 §2.2 invariant preserved); unit-testable gas math |
 
 Delete: `populateFeeContext`. Removed in Appendix A PR3: `OpStackFeeContext`, public `settleNormal`, `completeNormalTxAfterPipeline`.
@@ -216,8 +216,8 @@ settlement.completeAfterPipeline(view, gasPool, feeParams, output)
 
 | Phase | Scope | Behavior change |
 | --- | --- | --- |
-| **PR1** | `OpStackSettlementView`, `OpStackFeeSidecar`; Session E2; ledger/precheck read view; delete `populateFeeContext` | None |
-| **PR2** | `OpStackNormalFeeSettlement`; lifecycle convergence; ADR-025 tests on `completeAfterPipeline` | Abort/settle locality only (no semantic drift) |
+| **PR1** | `OpStackSettlementFacade`, `OpStackFeeSidecar`; Session E2; ledger/precheck read view; delete `populateFeeContext` | None |
+| **PR2** | `OpStackNormalTxFeeCoordinator`; lifecycle convergence; ADR-025 tests on `completeAfterPipeline` | Abort/settle locality only (no semantic drift) |
 | **PR3** | Remove `OpStackFeeContext`; drop public `settleNormal` / `completeNormalTxAfterPipeline`; doc sync | Implemented |
 
 ### A.6 Compliance (Appendix A — reviewers)
@@ -240,14 +240,14 @@ settlement.completeAfterPipeline(view, gasPool, feeParams, output)
 
 - [x] `OpStackFeeContext` removed
 - [x] Public async helpers removed from `OpStackSettlement.h` (internal to settlement module)
-- [x] `OpStackTxFeeLedgerCtxTest` still covers adapter routing
+- [x] `OpStackFeeSettlementCtxTest` still covers adapter routing
 
 ### A.7 Test surface (Appendix A)
 
 | Layer | Tests |
 | --- | --- |
 | Sync `finalizeNormal` | `OpStackSettlementTest` (retained) |
-| Adapter routing | `OpStackTxFeeLedgerCtxTest` (retained) |
-| Deep module + ADR-025 | `OpStackNormalFeeSettlementTest` (new), `OpStackTxLifecycleCharacterizationTest` (extended) |
+| Adapter routing | `OpStackFeeSettlementCtxTest` (retained) |
+| Deep module + ADR-025 | `OpStackNormalTxFeeCoordinatorTest` (new), `OpStackTxLifecycleCharacterizationTest` (extended) |
 | Async wiring | `OpStackSettleAsyncTest` (via settlement module, not raw `settleNormal`) |
 | Deposit | `OpStackDepositSettlementTest`, `Deposit*` (unchanged) |

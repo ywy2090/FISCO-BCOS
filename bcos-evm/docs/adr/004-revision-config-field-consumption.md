@@ -40,7 +40,7 @@
 
 ### 3. Profile builder contract (Phase 3)
 
-For **every** `RevisionConfig` field, each builder (`EthPolicy`, `FiscoPolicy`, `makeIsthmusRevisionConfig`) must either:
+For **every** `RevisionConfig` field, each builder (`EthChainPolicy`, `FiscoPolicy`, `makeIsthmusRevisionConfig`) must either:
 
 1. **Assign explicitly** (`true`/`false`/derived), or  
 2. Document in matrix as **intentionally default-off** with `unsupported` / `feature-gated`.

@@ -12,7 +12,7 @@
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *
- * @brief Single module for FISCO CREATE / CREATE2 address derivation (ADR-022).
+ * @brief Single module for FISCO CREATE / CREATE2 address derivation.
  * @file FiscoAddressDerivation.h
  */
 
@@ -126,7 +126,7 @@ inline void bindCreateAddressFields(evmc_message& message, evmc_address const& a
     message.recipient = address;
 }
 
-/// Top-level orchestration path (ADR-022 §2.1). Legacy when web3Tx || featureEvmAddress.
+/// Top-level orchestration path. Legacy when web3Tx || featureEvmAddress.
 inline void applyTopLevelCreateDerivation(
     evmc_message& message, FiscoTopLevelCreateParams const& params)
 {
@@ -167,7 +167,7 @@ inline void applyTopLevelCreateDerivation(
     }
 }
 
-/// Nested VmHostPolicy path (ADR-022 §2.1). Caller must skip via shouldSkipNestedCreateDerivation.
+/// Nested EvmHostHooks path. Caller must skip via shouldSkipNestedCreateDerivation.
 inline void applyNestedCreateDerivation(
     evmc_message& message, FiscoNestedCreateParams const& params)
 {

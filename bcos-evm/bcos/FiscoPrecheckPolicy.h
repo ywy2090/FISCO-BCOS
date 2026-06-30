@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 
 namespace bcos::evm
@@ -28,7 +28,7 @@ struct FiscoPrecheckPolicy : ChainPrecheckPolicy
 {
     FiscoPrecheckPolicy(FiscoExecutionRequest const& input, bool eip7623Enabled);
 
-    IntrinsicGasPolicy intrinsicGasPolicy() const override { return m_intrinsicPolicy; }
+    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
 
     void setupMessage(TxPipelineContext& ctx) const override;
 
@@ -41,7 +41,7 @@ struct FiscoPrecheckPolicy : ChainPrecheckPolicy
 private:
     FiscoExecutionRequest const& m_input;
     bool m_eip7623Enabled{false};
-    IntrinsicGasPolicy m_intrinsicPolicy{};
+    IntrinsicGasDebitParams m_intrinsicPolicy{};
 };
 
 }  // namespace bcos::evm

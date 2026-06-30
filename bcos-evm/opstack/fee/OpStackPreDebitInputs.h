@@ -1,14 +1,14 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
+#include "bcos-evm/eth/pipeline/FeeInputsMapping.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/opstack/OpStackSettlementView.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 
 namespace bcos::evm
 {
 
-inline OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementView const& view) noexcept
+inline OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementFacade const& view) noexcept
 {
     auto const& ctx = view.pipelineContext();
     std::optional<RollupCostData> const* rollupPtr = nullptr;

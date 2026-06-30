@@ -4,7 +4,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/ExecutionSession.h"
+#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
@@ -36,7 +36,7 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-void wireMinimalExecutionSession(TxPipelineContext& ctx, ExecutionSession& session)
+void wireMinimalEvmTxContextView(TxPipelineContext& ctx, EvmTxContextView& session)
 {
     session.vm = ctx.inputs.vm;
     session.extension = ctx.extension;
@@ -47,7 +47,7 @@ void wireMinimalExecutionSession(TxPipelineContext& ctx, ExecutionSession& sessi
 
 struct CallbackPrecheckPolicy : ChainPrecheckPolicy
 {
-    IntrinsicGasPolicy intrinsicPolicy{};
+    IntrinsicGasDebitParams intrinsicPolicy{};
 
     std::function<void(TxPipelineContext&)> onSetupMessage;
     std::function<void(TxPipelineContext&)> onCheckTransactionRules;
@@ -56,7 +56,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
     std::function<void(ExecuteMessageInput&)> onTuneExecutionInput;
     std::function<ExecuteMessageOutput(ExecuteMessageInput&&)> onRunEvmExecution;
 
-    IntrinsicGasPolicy intrinsicGasPolicy() const override { return intrinsicPolicy; }
+    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return intrinsicPolicy; }
 
     void setupMessage(TxPipelineContext& ctx) const override
     {
@@ -344,8 +344,8 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    ExecutionSession session;
-    wireMinimalExecutionSession(ctx, session);
+    EvmTxContextView session;
+    wireMinimalEvmTxContextView(ctx, session);
 
     CallbackPrecheckPolicy precheckPolicy;
     precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
@@ -381,8 +381,8 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    ExecutionSession session;
-    wireMinimalExecutionSession(ctx, session);
+    EvmTxContextView session;
+    wireMinimalEvmTxContextView(ctx, session);
 
     auto const warmAddr = ctx.message.recipient;
     ctx.state.pin_warm_create_address(warmAddr);

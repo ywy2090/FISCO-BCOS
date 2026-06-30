@@ -1,11 +1,11 @@
 /*
- * ADR-015: included top-level vmerr settlement and ethReferenceExecute normalization.
+ * included top-level vmerr settlement and ethReferenceExecute normalization.
  */
 #define BOOST_TEST_MODULE EthIncludedTxVmerrTest
 
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_top_level_invalid_is_included_with_succ
 
 // GAP-TE-002 / Plan Task 3: TE settleGasUsedFromEvmResult does not consult
 // topLevelIncludedTxVmError — settlement is purely gasLimit/gas_left/refund.
-// GETH_ORACLE: included top-level vmerr bills peak gas (ADR-015); EEST invalid
+// GETH_ORACLE: included top-level vmerr bills peak gas; EEST invalid
 // self_sponsored tx_value_0 → gasUsed=9_987_500 (geth state_transition refund/finalize).
 BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_vector)
 {
@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_
     BOOST_CHECK_EQUAL(teMirrorGasUsed, gasLimit);
 
     // GETH_ORACLE: EEST self_sponsored invalid tx_value_0 → gasUsed=9_987_500
-    // (go-ethereum/core/state_transition.go refund/finalize; ADR-015 peak semantics).
+    // (go-ethereum/core/state_transition.go refund/finalize peak semantics).
     constexpr int64_t kGethGasUsed = 9'987'500;
     BOOST_CHECK_NE(teMirrorGasUsed, kGethGasUsed);
 #if 0  // flip after GAP-TE-002 fix when TE consumes included-tx vmerr for settlement

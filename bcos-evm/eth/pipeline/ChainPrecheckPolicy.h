@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/pipeline/DebitIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 
 namespace bcos::evm
@@ -12,7 +12,7 @@ struct ChainPrecheckPolicy
 {
     virtual ~ChainPrecheckPolicy() = default;
 
-    virtual IntrinsicGasPolicy intrinsicGasPolicy() const = 0;
+    virtual IntrinsicGasDebitParams intrinsicGasDebitParams() const = 0;
 
     virtual void setupMessage(TxPipelineContext& ctx) const { (void)ctx; }
 

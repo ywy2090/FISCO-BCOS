@@ -21,7 +21,7 @@
 
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::test::fixtures

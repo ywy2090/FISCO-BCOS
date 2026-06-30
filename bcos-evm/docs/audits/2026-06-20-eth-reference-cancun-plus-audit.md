@@ -5,7 +5,7 @@
 **复审计 commit：** `f989f073f`（P0 修复后）  
 **geth：** v1.17.3 @ `117e067f0`  
 **Besu：** 26.6.0 @ `de8d3f0e20`  
-**范围：** `executeViaEth` → `executeMessage()` → `EthHost` / `State` / evmone；`EVMC_CANCUN`–`EVMC_OSAKA`（区块阈值 19,426,587 / 22,000,000 / 25,000,000，`EthPolicy.h`）  
+**范围：** `executeViaEth` → `executeMessage()` → `EthHost` / `State` / evmone；`EVMC_CANCUN`–`EVMC_OSAKA`（区块阈值 19,426,587 / 22,000,000 / 25,000,000，`EthChainPolicy.h`）  
 **审计清单：** `bcos-evm/docs/audits/_work/inventory.md`（22 行，含 4 条 profile-only）
 
 > **复审计（2026-06-20）：** 见 [`2026-06-20-eth-reference-cancun-plus-audit-reaudit.md`](2026-06-20-eth-reference-cancun-plus-audit-reaudit.md)。**合并判定 ⚠️ 有条件通过**（0×🔴，2×🟡：profile 文档化、fixture 断言深度）。下文 Part 0–4 保留**初审计快照**供对比。
@@ -39,13 +39,13 @@
 
 | # | EIP / 能力 | 层级 | 根因 | 指针 |
 |---|-----------|------|------|------|
-| 1 | **EIP-7702 revision enable** | revision profile | `EthPolicy` PRAGUE/OSAKA 未设 `eip7702=true` → `applyAuthorizations` 永不执行 | `EthPolicy.h:27-41`；`ExecuteMessage.cpp:173` |
+| 1 | **EIP-7702 revision enable** | revision profile | `EthChainPolicy` PRAGUE/OSAKA 未设 `eip7702=true` → `applyAuthorizations` 永不执行 | `EthChainPolicy.h:27-41`；`ExecuteMessage.cpp:173` |
 | 2 | **EIP-6780 SELFDESTRUCT** | kernel | `EthHost::selfdestruct` 为 stub；evmone 委托 Host 做状态变更但未实现 | `EthHost.cpp:145-156` |
 | 3 | **EIP-2537 MSM gas** | kernel | TE `precompileGasCost` 线性 `12000×k` / `22500×k`，未用 128 项折扣表 | `EthPrecompiles.cpp:449-462` |
 | 4 | **EIP-7212 (0x0100)** | kernel | TE 无 dispatch；Host 仍认 0x0100 为 builtin → 静默成功（非 6900 gas + verify） | `EthPrecompiles.cpp:55-66`；`EthHost.cpp:378-382` |
 | 5 | **EIP-7823 modexp bounds** | kernel | `validateModexpEip7823` 仅 FISCO 路径；TE `executeModexp` 无长度门控 | `ModexpGas.cpp:170-194`；`EthPrecompiles.cpp:116-152` |
 
-另 2 条 🔴 为 profile 层与 kernel 缺口交叉引用：`RevisionConfig eip7212` / `eip7823`（`EthPolicy` 已启用，TE consumer 缺失，见 Task 7）。
+另 2 条 🔴 为 profile 层与 kernel 缺口交叉引用：`RevisionConfig eip7212` / `eip7823`（`EthChainPolicy` 已启用，TE consumer 缺失，见 Task 7）。
 
 ### 测试断言（Part 3 摘要）
 
@@ -70,25 +70,25 @@
 
 | EIP | 层级 | 状态 | Spec 依据 | FB 实现 | geth 对照 | Besu 对照 | FB 测试 | 缺口 |
 |-----|------|------|-----------|---------|-----------|-----------|---------|------|
-| RevisionConfig `eip1153` | revision profile | ✅ | [EIP-1153](https://eips.ethereum.org/EIPS/eip-1153) | `EthPolicy.h:32` CANCUN+ | `enable1153` in `newCancunInstructionSet` (`jump_table.go:119`) | `CancunGasCalculator` | `RevisionConfigProfileTest` block 19,426,587+ | evmone 经 `revision` 生效；flag 为 profile 快照 |
-| EIP-4844 revision profile (`eip4844`) | revision profile | ✅ | [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) | `EthPolicy.h:33` CANCUN+ | `enable4844` in `newCancunInstructionSet` (`jump_table.go:117`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | blob orchestration 另见 inventory #7（📋 unsupported） |
-| RevisionConfig `eip5656` | revision profile | ✅ | [EIP-5656](https://eips.ethereum.org/EIPS/eip-5656) | `EthPolicy.h:34` CANCUN+ | `enable5656` in `newCancunInstructionSet` (`jump_table.go:120`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | MCOPY 由 evmone revision 委托 |
-| RevisionConfig `eip6780` | revision profile | ✅ | [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) | `EthPolicy.h:35` CANCUN+ | `enable6780` in `newCancunInstructionSet` (`jump_table.go:121`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | profile flag only；kernel 见下行 🔴 |
+| RevisionConfig `eip1153` | revision profile | ✅ | [EIP-1153](https://eips.ethereum.org/EIPS/eip-1153) | `EthChainPolicy.h:32` CANCUN+ | `enable1153` in `newCancunInstructionSet` (`jump_table.go:119`) | `CancunGasCalculator` | `RevisionConfigProfileTest` block 19,426,587+ | evmone 经 `revision` 生效；flag 为 profile 快照 |
+| EIP-4844 revision profile (`eip4844`) | revision profile | ✅ | [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) | `EthChainPolicy.h:33` CANCUN+ | `enable4844` in `newCancunInstructionSet` (`jump_table.go:117`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | blob orchestration 另见 inventory #7（📋 unsupported） |
+| RevisionConfig `eip5656` | revision profile | ✅ | [EIP-5656](https://eips.ethereum.org/EIPS/eip-5656) | `EthChainPolicy.h:34` CANCUN+ | `enable5656` in `newCancunInstructionSet` (`jump_table.go:120`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | MCOPY 由 evmone revision 委托 |
+| RevisionConfig `eip6780` | revision profile | ✅ | [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) | `EthChainPolicy.h:35` CANCUN+ | `enable6780` in `newCancunInstructionSet` (`jump_table.go:121`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | profile flag only；kernel 见下行 🔴 |
 | EIP-1153 transient storage (TLOAD/TSTORE) | kernel | ✅ | [EIP-1153](https://eips.ethereum.org/EIPS/eip-1153) §Transient | `EthHost.cpp:328-347` + `State.cpp:225-229` Host 回调；`Account.hpp:38` | `enable1153` TLOAD/TSTORE (`eips.go:184-196`) | `CancunGasCalculator` | `RevisionConfigProfileTest`（profile）；**无** 1153 runtime fixture | opcode gas evmone-delegated；🟡 tx 末 transient 未在 `eth/State` purge |
 | EIP-4844 blob orchestration | orchestration | 📋 | [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) §Tx | matrix `unsupported`；`ExecuteViaEth.cpp` 无 blob precheck/gas | blob tx validation in `state_transition.go` | blob fee market | N/A（by design） | `ExecuteMessage.cpp:71` 仅填 `blob_base_fee` 供 opcode；OPStack 另路径 |
 | EIP-5656 MCOPY | kernel | ✅ | [EIP-5656](https://eips.ethereum.org/EIPS/eip-5656) | revision → `VMInstance.cpp:23-24` → evmone `mcopy` | `enable5656` (`eips.go:252-260`) | `CancunGasCalculator` | `RevisionConfigProfileTest` | evmone-delegated；`ExecuteMessage.cpp:227-228` 传 `revision` |
 | EIP-6780 SELFDESTRUCT (kernel) | kernel | 🔴 | [EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) | `EthHost.cpp:145-156` stub（return true；无 transfer/delete/IsNewContract） | `opSelfdestruct6780` + `IsNewContract` (`instructions.go:908-949`) | Cancun SELFDESTRUCT semantics | `stSelfDestruct_basic.json` PASS（仅 gas/status） | evmone 委托 Host 做状态变更；fixture 无 post-state |
-| RevisionConfig `eip2537` | revision profile | ✅ | [EIP-2537](https://eips.ethereum.org/EIPS/eip-2537) | `EthPolicy.h:36` PRAGUE+ | Prague precompiles via `evm.go:158` `IsPrague` | `PragueGasCalculator` | `RevisionConfigProfileTest` block 22,000,000+ | flag 仅 FISCO manager；TE 用 `revision` |
-| RevisionConfig `eip7623` | revision profile | ✅ | [EIP-7623](https://eips.ethereum.org/EIPS/eip-7623) | `EthPolicy.h:37-40` PRAGUE+; `calldata_floor_per_token=10` | Prague rules + floor gas in `state_transition.go` | `PragueGasCalculator` | `RevisionConfigProfileTest`; orchestration 见 Task 5 | consumed by `ExecuteViaEth.cpp:64` |
-| EIP-7702 authorization apply | kernel | 🟡 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) §Set code | `Eip7702.cpp:53-96` `applyAuthorizations`；门控 `ExecuteMessage.cpp:173-181` | `applyAuthorization` (`state_transition.go:743-767`) | Prague tx validation + apply | `Eip7702ApplyAuthorizationTest`（opstack，manual `eip7702=true`）；**无** ETH reference E2E | 逻辑与 geth 对齐；EthPolicy 未设 flag → reference 不可达；`EthHost` 无 delegation 解析（evmone PRAGUE 委托） |
+| RevisionConfig `eip2537` | revision profile | ✅ | [EIP-2537](https://eips.ethereum.org/EIPS/eip-2537) | `EthChainPolicy.h:36` PRAGUE+ | Prague precompiles via `evm.go:158` `IsPrague` | `PragueGasCalculator` | `RevisionConfigProfileTest` block 22,000,000+ | flag 仅 FISCO manager；TE 用 `revision` |
+| RevisionConfig `eip7623` | revision profile | ✅ | [EIP-7623](https://eips.ethereum.org/EIPS/eip-7623) | `EthChainPolicy.h:37-40` PRAGUE+; `calldata_floor_per_token=10` | Prague rules + floor gas in `state_transition.go` | `PragueGasCalculator` | `RevisionConfigProfileTest`; orchestration 见 Task 5 | consumed by `ExecuteViaEth.cpp:64` |
+| EIP-7702 authorization apply | kernel | 🟡 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) §Set code | `Eip7702.cpp:53-96` `applyAuthorizations`；门控 `ExecuteMessage.cpp:173-181` | `applyAuthorization` (`state_transition.go:743-767`) | Prague tx validation + apply | `Eip7702ApplyAuthorizationTest`（opstack，manual `eip7702=true`）；**无** ETH reference E2E | 逻辑与 geth 对齐；EthChainPolicy 未设 flag → reference 不可达；`EthHost` 无 delegation 解析（evmone PRAGUE 委托） |
 | EIP-7702 tx field propagation | tx input | ✅ | EIP-7702 type-4 tx | `Web3Eip7702Decoder.h` + `EthTxInputBuilder.h:34-44` → `ExecuteViaEth.cpp:112-113` | `SetCodeAuthorizations` on Message (`state_transition.go:222`) | Besu type-4 decode | `EthTxInputBuilderTest` PASS | 解码/recover authority ✅；无 builder→executeViaEth post-state E2E（profile 阻断） |
-| EIP-7702 revision enable (`eip7702`) | revision profile | 🔴 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) | **`EthPolicy.h` 未赋值**；default `false`；consumer `ExecuteMessage.cpp:173` | `enable7702` in `newPragueInstructionSet` (`jump_table.go:111`) | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 PRAGUE/OSAKA 仍为 false | Task 1 🔴：matrix 声称 PRAGUE+ inherited；FiscoPolicy/makeIsthmus 设 true；reference apply 不可达 |
-| RevisionConfig `eip7212` | revision profile | 🔴 | [EIP-7212](https://eips.ethereum.org/EIPS/eip-7212) | `EthPolicy.h:38` OSAKA+ → true | Osaka `PrecompiledContractsOsaka` + `p256Verify` (`contracts.go:171`) | `OsakaGasCalculator`; `P256VerifyPrecompiledContract` | `RevisionConfigProfileTest` block 25,000,000+ | Policy 启用但 TE 无 consumer；Host 仍认 0x0100 为 builtin（见 #16 🔴） |
-| RevisionConfig `eip7823` | revision profile | 🔴 | [EIP-7823](https://eips.ethereum.org/EIPS/eip-7823) | `EthPolicy.h:39` OSAKA+ → true | `bigModExp` `eip7823 && max(len)>1024` → error (`contracts.go:631-632`) | `BigIntegerModularExponentiationPrecompiledContract` upperBound=1024 | `RevisionConfigProfileTest` | ADR-004 profile-only；`validateModexpEip7823` 已实现但 TE `executeModexp` 未调用（见 Task 7） |
-| RevisionConfig `warm_access` | revision profile | 🟡 | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) | `EthPolicy.h:31` BERLIN+ → true | Berlin ACL via revision | `BerlinGasCalculator` | `RevisionConfigProfileTest` | ADR-004 profile-only；flag 传入 `ExecuteMessage.cpp:140,147` 但语义门控为 revision |
-| RevisionConfig `eip1559` | revision profile | 📋 | [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) | EthPolicy 未赋值（default false） | London fee market via revision | `LondonGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；`bcos-evm/eth/` 无 consumer |
-| RevisionConfig `eip3651` | revision profile | 📋 | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | EthPolicy 未赋值（default false） | Shanghai coinbase warm via `txProps` | `ShanghaiGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；coinbase warm 走 `txProps` 非 flag |
-| RevisionConfig `prague_post_execution` | revision profile | 📋 | Prague execution-spec | EthPolicy 未赋值（default false） | Prague post-exec hooks | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；无 TE consumer |
+| EIP-7702 revision enable (`eip7702`) | revision profile | 🔴 | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) | **`EthChainPolicy.h` 未赋值**；default `false`；consumer `ExecuteMessage.cpp:173` | `enable7702` in `newPragueInstructionSet` (`jump_table.go:111`) | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 PRAGUE/OSAKA 仍为 false | Task 1 🔴：matrix 声称 PRAGUE+ inherited；FiscoPolicy/makeIsthmus 设 true；reference apply 不可达 |
+| RevisionConfig `eip7212` | revision profile | 🔴 | [EIP-7212](https://eips.ethereum.org/EIPS/eip-7212) | `EthChainPolicy.h:38` OSAKA+ → true | Osaka `PrecompiledContractsOsaka` + `p256Verify` (`contracts.go:171`) | `OsakaGasCalculator`; `P256VerifyPrecompiledContract` | `RevisionConfigProfileTest` block 25,000,000+ | Policy 启用但 TE 无 consumer；Host 仍认 0x0100 为 builtin（见 #16 🔴） |
+| RevisionConfig `eip7823` | revision profile | 🔴 | [EIP-7823](https://eips.ethereum.org/EIPS/eip-7823) | `EthChainPolicy.h:39` OSAKA+ → true | `bigModExp` `eip7823 && max(len)>1024` → error (`contracts.go:631-632`) | `BigIntegerModularExponentiationPrecompiledContract` upperBound=1024 | `RevisionConfigProfileTest` | ADR-004 profile-only；`validateModexpEip7823` 已实现但 TE `executeModexp` 未调用（见 Task 7） |
+| RevisionConfig `warm_access` | revision profile | 🟡 | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) | `EthChainPolicy.h:31` BERLIN+ → true | Berlin ACL via revision | `BerlinGasCalculator` | `RevisionConfigProfileTest` | ADR-004 profile-only；flag 传入 `ExecuteMessage.cpp:140,147` 但语义门控为 revision |
+| RevisionConfig `eip1559` | revision profile | 📋 | [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) | EthChainPolicy 未赋值（default false） | London fee market via revision | `LondonGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；`bcos-evm/eth/` 无 consumer |
+| RevisionConfig `eip3651` | revision profile | 📋 | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | EthChainPolicy 未赋值（default false） | Shanghai coinbase warm via `txProps` | `ShanghaiGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；coinbase warm 走 `txProps` 非 flag |
+| RevisionConfig `prague_post_execution` | revision profile | 📋 | Prague execution-spec | EthChainPolicy 未赋值（default false） | Prague post-exec hooks | `PragueGasCalculator` | `RevisionConfigProfileTest` 期望 false | ADR-004 profile-only；无 TE consumer |
 | EIP-2929 runtime warm | kernel | ✅ | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) §Cold/warm | `EthHost.cpp:310-326` → `State::warm_up_*`；gas 无 FB 常量 | `operations_acl.go` + `ColdAccountAccessCostEIP2929=2600` 等 (`protocol_params.go:68-70`) | `BerlinGasCalculator` | `Eip2929AccessHostTest`（COLD/WARM 状态）；`StateJournalRevertTest` | gas 由 evmone 委托；FB 无 opcode 级 gas 断言 |
 | EIP-2929 tx-entry destination warm | tx input | ✅ | EIP-2929 tx access list | `ExecuteViaEth.cpp:58` `setWarmDestinationFromKind`；`WarmTransactionEntry.h:62-65` | `statedb.Prepare` dst warm when non-create (`statedb.go:1417-1419`) | Berlin+ Prepare | `WarmTransactionEntryTest`; `TxFeaturePrepareTest` | CREATE/CREATE2 跳过 destination warm，与 geth 一致 |
 | EIP-2929 tx-entry coinbase warm | tx input | ✅ | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | `TransactionProperties::warmCoinbase{true}` 默认；`WarmTransactionEntry.h:67-70` `rev>=SHANGHAI` | `Prepare` `rules.IsShanghai` coinbase warm (`statedb.go:1430-1432`) | `ShanghaiGasCalculator` | `WarmTransactionEntryTest` @ `EVMC_SHANGHAI` | orchestrator 未显式赋值；implicit-default（ADR-002） |
@@ -219,17 +219,17 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 ### Task 6 — EIP-7702（authorization / tx-input / revision）
 
-#### 🔴 revision enable — EthPolicy 未设 `eip7702`（交叉引用 Task 1）
+#### 🔴 revision enable — EthChainPolicy 未设 `eip7702`（交叉引用 Task 1）
 
-**现象：** `RevisionConfig.eip7702` 在 `ExecuteMessage.cpp:173` 门控 `applyAuthorizations` + `warmDelegationTarget`。`EthPolicy::computeRevisionConfig`（`EthPolicy.h:27-41`）PRAGUE/OSAKA 区块从未赋值 → 恒为 `false`。
+**现象：** `RevisionConfig.eip7702` 在 `ExecuteMessage.cpp:173` 门控 `applyAuthorizations` + `warmDelegationTarget`。`EthChainPolicy::computeRevisionConfig`（`EthChainPolicy.h:27-41`）PRAGUE/OSAKA 区块从未赋值 → 恒为 `false`。
 
 **对照：** geth Prague 经 `newPragueInstructionSet` → `enable7702`；`FiscoPolicy.h:66` 在 `feature_evm_prague` 时设 true；`makeIsthmusRevisionConfig()` 设 true。
 
-**影响：** ETH reference `executeViaEth` 路径即使 `fillWeb3Fields` 传入 authorization list，也不会 apply delegation。Matrix 行「inherited (`EthPolicy` at PRAGUE+)」与实现不符。
+**影响：** ETH reference `executeViaEth` 路径即使 `fillWeb3Fields` 传入 authorization list，也不会 apply delegation。Matrix 行「inherited (`EthChainPolicy` at PRAGUE+)」与实现不符。
 
-**测试：** `RevisionConfigProfileTest` ETH 行 PRAGUE/OSAKA 期望 `eip7702=false`（与 EthPolicy 一致，与 matrix 冲突）。
+**测试：** `RevisionConfigProfileTest` ETH 行 PRAGUE/OSAKA 期望 `eip7702=false`（与 EthChainPolicy 一致，与 matrix 冲突）。
 
-**建议：** EthPolicy PRAGUE+ 设 `eip7702=true`，或更新 matrix + profile test 为 intentional off。
+**建议：** EthChainPolicy PRAGUE+ 设 `eip7702=true`，或更新 matrix + profile test 为 intentional off。
 
 #### 🟡 kernel `applyAuthorizations` — 已实现但 reference baseline 不可达
 
@@ -237,7 +237,7 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 **EthHost：** `resolveExecutionCode` 返回原始 code；delegation 执行语义由 evmone + `EVMC_PRAGUE` revision 委托（Host 无 `parseDelegationTarget` 于 call 路径）。
 
-**测试：** `Eip7702ApplyAuthorizationTest` / `Bcos7702ExecuteViaHostPropagationTest` 在 **手动** `eip7702=true` 下 PASS；无 `executeViaEth` + EthPolicy 集成测试。
+**测试：** `Eip7702ApplyAuthorizationTest` / `Bcos7702ExecuteViaHostPropagationTest` 在 **手动** `eip7702=true` 下 PASS；无 `executeViaEth` + EthChainPolicy 集成测试。
 
 #### 🟡 `stEIP7702_delegation.json` — plain CALL smoke，非 7702 E2E
 
@@ -259,7 +259,7 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 #### 🔴 EIP-7212 — profile 启用 + Host 误认，TE 无 dispatch
 
-**现象：** `EthPolicy.h:38` OSAKA+ 设 `eip7212=true`。`capability-matrix.md:59` 正确标 TE `unsupported`。完整实现在 `EthBuiltinRegistry.cpp:491-518`（6900 gas、`evmmax::secp256r1::verify`，与 geth `p256Verify` 一致），但 TE 路径 `EthPrecompiles.cpp:55-66` `toSuffix` 上限 `0x0011`，`dispatch` 无 `0x0100` case。
+**现象：** `EthChainPolicy.h:38` OSAKA+ 设 `eip7212=true`。`capability-matrix.md:59` 正确标 TE `unsupported`。完整实现在 `EthBuiltinRegistry.cpp:491-518`（6900 gas、`evmmax::secp256r1::verify`，与 geth `p256Verify` 一致），但 TE 路径 `EthPrecompiles.cpp:55-66` `toSuffix` 上限 `0x0011`，`dispatch` 无 `0x0100` case。
 
 **Host 分裂：** `EthHost::isBuiltinPrecompileAddress`（`EthHost.cpp:378-382`）将 `0x0100` 视为 builtin → `routeCall` / `executeMessage` 调用 `tryDispatchInCall` → 返回 `nullopt` → 嵌套 CALL 落回空 code；顶层直调走 `makeSuccessResult`。**静默成功**，非 geth 6900 gas + p256 输出语义。
 
@@ -271,7 +271,7 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 #### 🔴 EIP-7823 — `ModexpGas` 验证已实现，TE modexp 未 wired
 
-**现象：** `EthPolicy.h:39` OSAKA+ 设 `eip7823=true`。`ModexpGas.cpp:170-194` 实现 `validateModexpEip7823`（各 field ≤1024，与 EIP MUST 一致）。`shouldRejectModexpEip7823` 仅在 FISCO `PrecompiledImpl.h:78-82`（`callBuiltinPrecompiled`）调用；TE `EthPrecompiles::executeModexp`（`EthPrecompiles.cpp:116-152`）**无**长度检查，直接 `evmone::crypto::modexp`。
+**现象：** `EthChainPolicy.h:39` OSAKA+ 设 `eip7823=true`。`ModexpGas.cpp:170-194` 实现 `validateModexpEip7823`（各 field ≤1024，与 EIP MUST 一致）。`shouldRejectModexpEip7823` 仅在 FISCO `PrecompiledImpl.h:78-82`（`callBuiltinPrecompiled`）调用；TE `EthPrecompiles::executeModexp`（`EthPrecompiles.cpp:116-152`）**无**长度检查，直接 `evmone::crypto::modexp`。
 
 **geth 对照：** Osaka `bigModExp.Run`（`contracts.go:631-632`）：`eip7823 && max(baseLen,expLen,modLen) > 1024` → error。
 
@@ -313,8 +313,8 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 | 测试文件 | 用例 | 断言状态 | 金标准来源 | 备注 |
 |----------|------|----------|------------|------|
 | `RevisionConfigProfileTest.cpp` | `revision_config_bool_field_macro_count` | ✅ | `RevisionConfig.h` 宏 | 13 个 bool 字段 |
-| `RevisionConfigProfileTest.cpp` | `eth_policy_full_fork_snapshots` | ✅ | `EthPolicy.h` | 5 分叉全字段；PRAGUE `eip7623`+`calldata_floor_per_token=10` |
-| `RevisionConfigProfileTest.cpp` | `fisco_policy_feature_gate_snapshots` | 🟡 | `FiscoPolicy.h` | FISCO 路径；PRAGUE `eip7702=true` 与 EthPolicy 分裂 |
+| `RevisionConfigProfileTest.cpp` | `eth_policy_full_fork_snapshots` | ✅ | `EthChainPolicy.h` | 5 分叉全字段；PRAGUE `eip7623`+`calldata_floor_per_token=10` |
+| `RevisionConfigProfileTest.cpp` | `fisco_policy_feature_gate_snapshots` | 🟡 | `FiscoPolicy.h` | FISCO 路径；PRAGUE `eip7702=true` 与 EthChainPolicy 分裂 |
 | `RevisionConfigProfileTest.cpp` | `isthmus_helper_sparse_profile_all_fields` | 🟡 | `makeIsthmusRevisionConfig()` | OPStack helper |
 | `EthTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | ✅ | EIP-7702 type-4 RLP | 仅 input 层 |
 | `FiscoTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | 🟡 | 同上 | FISCO builder 重复 |
@@ -384,7 +384,7 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 | 优先级 | 动作 | 文件 / 符号 | 验收 |
 |--------|------|-------------|------|
-| P0-1 | PRAGUE+ 启用 `eip7702`（或 intentional off 则改 matrix + 测试） | `EthPolicy.h:27-41` | `RevisionConfigProfileTest` PRAGUE/OSAKA `eip7702=true`；`executeViaEth` auth apply 可达 |
+| P0-1 | PRAGUE+ 启用 `eip7702`（或 intentional off 则改 matrix + 测试） | `EthChainPolicy.h:27-41` | `RevisionConfigProfileTest` PRAGUE/OSAKA `eip7702=true`；`executeViaEth` auth apply 可达 |
 | P0-2 | 实现 Cancun SELFDESTRUCT 语义：`IsNewContract`、余额转移、条件删码 | `EthHost.cpp:145-156`；tx 内 CREATE 地址集跟踪 | geth `opSelfdestruct6780` 对照；post-state fixture |
 | P0-3 | TE MSM gas 接入 128 项折扣表（复用 `EthBuiltinRegistry` 或共享常量） | `EthPrecompiles.cpp:449-462` | k≥2 G1MSM/G2MSM gas 与 geth `contracts.go` 一致 |
 | P0-4 | OSAKA+ 接入 `0x0100` p256verify（6900 gas、`evmmax::secp256r1::verify`） | `EthPrecompiles.cpp` dispatch；`EthHost.cpp:378-382` active-set | 160B 输入向量；拒绝非 OSAKA revision 调用 |
@@ -409,7 +409,7 @@ CANCUN revision 下 `executeMessage` 仍 dispatch 0x0b–0x11；geth 仅 `IsPrag
 
 | Matrix 行 | 当前 ETH 列 | 建议 | 触发条件 |
 |-----------|-------------|------|----------|
-| EIP-7702 revision enable | inherited (`EthPolicy` PRAGUE+) | 改为 **explicit off** 直至 P0-1，或 P0-1 后保持 inherited | P0-1 合并 |
+| EIP-7702 revision enable | inherited (`EthChainPolicy` PRAGUE+) | 改为 **explicit off** 直至 P0-1，或 P0-1 后保持 inherited | P0-1 合并 |
 | EIP-7212 precompile | unsupported | 保持 unsupported 直至 P0-4；P0-4 后改为 **inherited** | P0-4 合并 |
 | RevisionConfig `eip7212` | （implicit profile） | ADR-004 注明 profile 启用 ≠ TE dispatch | 文档同步 |
 | RevisionConfig `eip7823` | feature-gated (profile-only) | P0-5 后改为 **inherited**（TE consumer wired） | P0-5 合并 |

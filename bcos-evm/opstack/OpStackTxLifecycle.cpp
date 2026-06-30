@@ -3,11 +3,11 @@
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-evm/opstack/OpStackExecutionBundle.h"
-#include "bcos-evm/opstack/OpStackNormalFeeSettlement.h"
+#include "bcos-evm/opstack/OpStackNormalTxFeeCoordinator.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackSettlementView.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
 #include <algorithm>
 #include <stdexcept>
@@ -53,10 +53,10 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     OpStackFeeSidecar sidecar;
     sidecar.floorDataGas = input.floorDataGas;
-    OpStackSettlementView view{ctx, input, sidecar};
+    OpStackSettlementFacade view{ctx, input, sidecar};
 
-    // Dual context (ADR-027 naming): execBundle wires kernel ExecutionSession into ctx;
-    // bindingsCtx is orchestration policy bind input only — not merged with ExecutionSession.
+    // Dual context: execBundle wires kernel EvmTxContextView into ctx;
+    // bindingsCtx is orchestration policy bind input only — not merged with EvmTxContextView.
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
 
@@ -118,7 +118,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     ctx.state.checkpoint();
 
-    OpStackNormalFeeSettlement settlement{input.opTxExecutor};
+    OpStackNormalTxFeeCoordinator settlement{input.opTxExecutor};
     if (!co_await settlement.buyGas(view, gasPool, output))
     {
         co_return output;

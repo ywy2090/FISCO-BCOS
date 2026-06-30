@@ -9,7 +9,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/pipeline/NormalizeIncludedTxVmerr.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryEvmStateReader.h"
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE(setcode_auth_applied_then_top_level_balance_failure_state_d
         raw, bcos::protocol::TransactionStatus::NotEnoughCash);
     normalizeIncludedTxVmerr(normalized, /*depth=*/0);
 
-    // normalizeIncludedTxVmerr does NOT map INSUFFICIENT_BALANCE to SUCCESS (ADR-015 exclusion).
+    // normalizeIncludedTxVmerr does NOT map INSUFFICIENT_BALANCE to SUCCESS.
     BOOST_CHECK_EQUAL(normalized.status_code, EVMC_INSUFFICIENT_BALANCE);
     BOOST_CHECK_EQUAL(static_cast<int>(normalized.status),
         static_cast<int>(bcos::protocol::TransactionStatus::NotEnoughCash));

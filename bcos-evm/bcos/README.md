@@ -6,10 +6,10 @@
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
-| 执行桥 | `FiscoExecutionBridge.*` | 入口 `fiscoExecute()`：组装上下文 → `runTxPipeline` |
+| 执行桥 | `FiscoExecute.*` | 入口 `fiscoExecute()`：组装上下文 → `runTxPipeline` |
 | 钩子绑定 | `FiscoPipelineHookBinder.*` | 填充 `TxPipelineHooks` |
 | VM 策略 | `FiscoVmHostPolicy.*` | 实现 `VmHostPolicy`（selfdestruct、precompile、nonce 等） |
-| 费用账本 | `FiscoTxFeeLedger.h` | `buyGas` / `refundGas` / `makeReceipt` / `consumeBalance` |
+| 费用账本 | `FiscoTxFeeSettlement.h` | `buyGas` / `refundGas` / `makeReceipt` / `consumeBalance` |
 
 ## 扩展点
 

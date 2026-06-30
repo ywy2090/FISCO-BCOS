@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/bcos/FiscoExecutionBridge.h"
+#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/bcos/FiscoOrchestrationErrorPolicy.h"
 #include "bcos-evm/bcos/FiscoPrecheckPolicy.h"
 
@@ -27,7 +27,7 @@ namespace bcos::evm
 
 struct FiscoOrchestrationProfile
 {
-    /// Orchestration policy bind input (not kernel ExecutionSession; ADR-027 naming follow-up).
+    /// Orchestration policy bind input (not kernel EvmTxContextView).
     struct BindingsContext
     {
         FiscoExecutionRequest const& input;

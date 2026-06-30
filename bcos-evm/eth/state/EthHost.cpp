@@ -17,7 +17,7 @@
  */
 
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/Transfer.h"
+#include "bcos-evm/eth/CanTransfer.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
 #include "bcos-evm/eth/gas/Eip2929StorageGas.h"
@@ -87,7 +87,7 @@ void applySstoreRefundEip3529(State& state, const evmc_bytes32& current,
 
 EthHost::EthHost(State& state, evmc_tx_context txContext,
     bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-    VmHostPolicy* extension, bool fixStorageStatus, ChainCallTargetPort* chainPort)
+    EvmHostHooks* extension, bool fixStorageStatus, ChainCallTargetDispatcher* chainPort)
   : m_state(state),
     m_txContext(txContext),
     m_revisionConfig(revisionConfig),
@@ -263,7 +263,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     };
     ExecutionAddressGuard guard{m_executionAddress};
 
-    execution::FrameContext frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
+    execution::FrameExecutionEnv frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
         m_txContext.tx_origin, m_executionAddress, false, m_chainPort};
     auto fr = execution::runExecutionFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
     return Result(std::move(fr.result));

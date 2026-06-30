@@ -2,7 +2,7 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief ADR-026 characterization: FeeSettlementPlan vs legacy path oracles.
+ * @brief characterization: FeeSettlementPlan vs legacy path oracles.
  * @file FeeSettlementCharacterizationTest.cpp
  */
 #define BOOST_TEST_MODULE FeeSettlementCharacterizationTest
@@ -24,7 +24,7 @@ namespace
 {
 auto const kLondon = revisionConfigFromRevision(EVMC_LONDON);
 
-/// Oracle: EthTxFeeLedger buyGas cap path (pre-ADR-026 inline math).
+/// Oracle: EthTxFeeSettlement buyGas cap path (pre-refactor inline math).
 FeeSettlementPlan oracleEthTePre(FeeInputs const& inputs)
 {
     auto const caps = gas::normalizeGasCaps(inputs.gasPrice, inputs.gasTipCap, inputs.gasFeeCap,
@@ -40,7 +40,7 @@ FeeSettlementPlan oracleEthTePre(FeeInputs const& inputs)
     return oracle;
 }
 
-/// Oracle: EthTxFeeLedger refundGas + applyGstTransactionSettlement post amounts.
+/// Oracle: EthTxFeeSettlement refundGas + applyGstTransactionSettlement post amounts.
 FeeSettlementPlan oracleEthTePost(FeeInputs const& inputs, int64_t gasUsed, int64_t gasRemaining)
 {
     auto const pre = oracleEthTePre(inputs);
@@ -64,7 +64,7 @@ FeeSettlementPlan oracleEthTePost(FeeInputs const& inputs, int64_t gasUsed, int6
     return oracle;
 }
 
-/// Oracle: OpStackTxFeeLedger refundGas 1559 portion (before sidecar routing).
+/// Oracle: OpStackFeeSettlement refundGas 1559 portion (before sidecar routing).
 FeeSettlementPlan oracleOpStackPost1559(
     FeeInputs const& inputs, int64_t gasUsed, int64_t gasRemaining)
 {

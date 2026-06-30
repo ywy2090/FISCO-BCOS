@@ -35,7 +35,7 @@ struct CallOutcome
     bool precompileHit{false};
 };
 
-struct DenyDelegatePrecompilePolicy : state::VmHostPolicy
+struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
 {
     bool allowDelegateCallToPrecompile() override { return false; }
 };
@@ -90,14 +90,14 @@ bcos::evm_standard::RevisionConfig cfgForSuffix(uint8_t lowByte, uint8_t highByt
 }
 
 CallOutcome runFrame(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
-    evmc_message message, execution::FrameScope scope, state::VmHostPolicy* extension = nullptr)
+    evmc_message message, execution::FrameScope scope, state::EvmHostHooks* extension = nullptr)
 {
     FrameTestHost fixture(state, cfg);
     if (scope == execution::FrameScope::Nested)
     {
         message.depth = 1;
     }
-    execution::FrameContext frameCtx{state, fixture.vm, fixture.cfg, extension,
+    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, extension,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runExecutionFrame(frameCtx, message, scope, fixture.ethHost());
     return {.status = fr.result.status_code,

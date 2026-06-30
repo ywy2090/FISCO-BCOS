@@ -3,7 +3,7 @@
  *
  * CURRENT_ORACLE (bridge + TE settlement projection):
  *   intrinsic gas too low → OutOfGasLimit(2), gas_left=0, TE gasUsed=gasLimit, receipt emitted.
- *   buyGas insufficient balance → NotEnoughCash(10015) at TE (see EthTxFeeLedger.h); receipt
+ *   buyGas insufficient balance → NotEnoughCash(10015) at TE (see EthTxFeeSettlement.h); receipt
  * emitted.
  *
  * GETH_ORACLE:
@@ -15,7 +15,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <bcos-task/Wait.h>
@@ -26,8 +26,7 @@ namespace bcos::evm::test
 {
 namespace
 {
-constexpr int64_t kIntrinsicGasTooLowLimit =
-    gas::TX_BASE_GAS - 1'000;  // geth: params.TxGas-1000 → 20000
+constexpr int64_t kIntrinsicGasTooLowLimit = gas::TX_BASE_GAS - 1'000;  // params.TxGas-1000 → 20000
 
 evmc_address addressFromLastByte(uint8_t value)
 {
@@ -136,11 +135,11 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_failure_te_gas_used_equal
 }
 
 // Scenario B — buyGas insufficient balance (TE layer; intrinsic gas sufficient).
-// Bridge-layer oracle: EthTxFeeLedger documents NotEnoughCash + partial penalty gasUsed.
+// Bridge-layer oracle: EthTxFeeSettlement documents NotEnoughCash + partial penalty gasUsed.
 BOOST_AUTO_TEST_CASE(eth_buy_gas_insufficient_balance_te_oracle_not_enough_cash)
 {
     // Effective cost > balance while gasLimit >= TX_BASE_GAS (intrinsic satisfied).
-    // CURRENT_ORACLE (EthTxFeeLedger.h buyGas): NotEnoughCash, gas_left=0,
+    // CURRENT_ORACLE (EthTxFeeSettlement.h buyGas): NotEnoughCash, gas_left=0,
     //   gasUsed = min(balance, TX_BASE_GAS * effectiveGasPrice) / effectiveGasPrice; Finalize
     //   makeReceipt.
     // GETH_ORACLE: ErrInsufficientFunds (state_processor_test.go:171-176,217-226); reject, no

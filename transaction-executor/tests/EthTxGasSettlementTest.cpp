@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_accessList_cost)
 
 BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_gasLimitMinimum_gethAligned_accessList)
 {
-    // geth: max(21000+floor, 21000+access+normal). Single non-zero byte "x": floor=40, normal=16.
+    // max(21000+floor, 21000+access+normal). Single non-zero byte "x": floor=40, normal=16.
     executor::Eip2930AccessList list;
     list.emplace_back(
         Address("0x00000000000000000000000000000000000000aa"), std::vector<h256>{h256(1), h256(2)});
@@ -263,7 +263,7 @@ BOOST_AUTO_TEST_CASE(Eip3529RefundCapBoundary_zeroPeakGasUsed)
 }
 
 // GAP-TE-002: mirrors EthTransactionExecutorImpl::settleGasUsedFromEvmResult — no
-// topLevelIncludedTxVmError parameter. GETH_ORACLE: ADR-015 peak gas on included vmerr.
+// topLevelIncludedTxVmError parameter. GETH_ORACLE: peak gas on included vmerr.
 int64_t mirrorSettleGasUsedFromEvmResult(int64_t gasLimit, evmc_result const& evmcResult,
     bcos::evm::gas::Eip7623Components const& calldata, uint8_t calldataFloorPerToken,
     int64_t evmGasRefund, bool /*topLevelIncludedTxVmError*/)

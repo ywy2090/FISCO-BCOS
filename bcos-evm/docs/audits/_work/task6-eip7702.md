@@ -11,8 +11,8 @@
 ### 调用链
 
 ```
-EthPolicy::computeRevisionConfig(header)
-  → RevisionConfig.eip7702 (default false; EthPolicy 未赋值)
+EthChainPolicy::computeRevisionConfig(header)
+  → RevisionConfig.eip7702 (default false; EthChainPolicy 未赋值)
 executeViaEth(input)
   → executeMessage(..., revisionConfig, authorizationListPresent, authorizations)
 ExecuteMessage.cpp:173
@@ -24,13 +24,13 @@ ExecuteMessage.cpp:173
 
 | 来源 | PRAGUE+ `eip7702` |
 |------|-------------------|
-| `EthPolicy.h:27-41` | **未赋值** → false |
+| `EthChainPolicy.h:27-41` | **未赋值** → false |
 | `FiscoPolicy.h:66` | `feature_evm_prague` → true |
 | `makeIsthmusRevisionConfig()` | true |
 | `RevisionConfigProfileTest` ETH 行 | PRAGUE/OSAKA 期望 false |
-| `capability-matrix.md:53` | 声称 `EthPolicy at PRAGUE+` inherited |
+| `capability-matrix.md:53` | 声称 `EthChainPolicy at PRAGUE+` inherited |
 
-**Task 1 交叉引用：** `_work/task1-revision-profile.md` Step 1 — matrix 与 EthPolicy 不符；7702 kernel apply 在 reference baseline 不可达。
+**Task 1 交叉引用：** `_work/task1-revision-profile.md` Step 1 — matrix 与 EthChainPolicy 不符；7702 kernel apply 在 reference baseline 不可达。
 
 **判定：🔴** — profile 未启用；`ExecuteViaEth.cpp` / `TxFeaturePrepare.h` 无额外赋值。
 
@@ -100,7 +100,7 @@ delegation 前缀：`0xEF 0x01 0x00` + 20-byte address（23 bytes），与 geth 
 | `EthTxInputBuilderTest` | 仅 builder 解码 | 无 apply |
 | `ExecuteViaEthFixtureTest` | `executeViaEth` + `makePragueRevisionConfig()`（**无 eip7702**） | 无 auth apply |
 
-**ETH reference baseline：** kernel 代码存在，**不可达**（EthPolicy `eip7702=false`）；无 `executeViaEth` + auth list 集成测试。
+**ETH reference baseline：** kernel 代码存在，**不可达**（EthChainPolicy `eip7702=false`）；无 `executeViaEth` + auth list 集成测试。
 
 **判定：🟡** — kernel 实现与 geth 对齐（opstack 单测验证）；reference 路径不可达 🔴（profile）；无 delegation **执行** E2E fixture。
 
@@ -139,15 +139,15 @@ cd build && ./bcos-evm/test/ExecuteViaEthFixtureTest --log_level=test_suite
 
 | inventory | 能力 | 状态 | 要点 |
 |-----------|------|------|------|
-| #13 | authorization apply | 🟡 | 内核与 geth 对齐；EthPolicy 阻断 reference 路径 |
+| #13 | authorization apply | 🟡 | 内核与 geth 对齐；EthChainPolicy 阻断 reference 路径 |
 | #14 | tx field propagation | ✅ | `EthTxInputBuilder` + `ExecuteViaEth` 传递正确 |
-| #15 | revision enable | 🔴 | EthPolicy 未设 `eip7702`；matrix 声明不符（Task 1） |
+| #15 | revision enable | 🔴 | EthChainPolicy 未设 `eip7702`；matrix 声明不符（Task 1） |
 
 **Task 状态：** **DONE_WITH_CONCERNS**
 
 **建议：**
 
-1. `EthPolicy::computeRevisionConfig` 在 `revision >= EVMC_PRAGUE` 设 `eip7702=true`（或更新 matrix 为 feature-gated/unreachable）。
+1. `EthChainPolicy::computeRevisionConfig` 在 `revision >= EVMC_PRAGUE` 设 `eip7702=true`（或更新 matrix 为 feature-gated/unreachable）。
 2. `makePragueRevisionConfig()` / fixture 路径同步 `eip7702=true` 以便 reference 测试可达。
 3. 替换 `stEIP7702_delegation.json` 为真 7702 向量（auth list + delegation code + 经 delegatee 执行）或新增 `ExecuteViaEth` auth apply 集成测试。
 4. 7702 intrinsic gas / precheck 在 reference 路径为 `unsupported`（matrix 行）；OPStack 另有 `OpStackPreCheck`。

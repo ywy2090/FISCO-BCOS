@@ -47,10 +47,10 @@ add_test(
     COMMAND ${FISCO_ADDRESS_DERIVATION_TEST_BINARY_NAME}
 )
 
-set(EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME FiscoExecutionBridgeSmokeTest)
+set(EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME FiscoExecuteSmokeTest)
 
 add_executable(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
-    bcos/FiscoExecutionBridgeSmokeTest.cpp
+    bcos/FiscoExecuteSmokeTest.cpp
 )
 
 target_include_directories(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
@@ -63,7 +63,7 @@ target_link_libraries(${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME FiscoExecutionBridgeSmoke
+    NAME FiscoExecuteSmoke
     COMMAND ${EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
 
@@ -73,11 +73,11 @@ target_include_directories(Bcos21000GasDeviationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(Bcos21000GasDeviationTest PRIVATE bcos-evm bcos-task evmone::evmone)
 add_test(NAME Bcos21000GasDeviation COMMAND Bcos21000GasDeviationTest)
-add_executable(Bcos7702FiscoExecutionBridgePropagationTest bcos/Bcos7702FiscoExecutionBridgePropagationTest.cpp)
-target_include_directories(Bcos7702FiscoExecutionBridgePropagationTest PRIVATE
+add_executable(Bcos7702FiscoExecutePropagationTest bcos/Bcos7702FiscoExecutePropagationTest.cpp)
+target_include_directories(Bcos7702FiscoExecutePropagationTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(Bcos7702FiscoExecutionBridgePropagationTest PRIVATE bcos-evm bcos-task evmone::evmone)
-add_test(NAME Bcos7702FiscoExecutionBridgePropagation COMMAND Bcos7702FiscoExecutionBridgePropagationTest)
+target_link_libraries(Bcos7702FiscoExecutePropagationTest PRIVATE bcos-evm bcos-task evmone::evmone)
+add_test(NAME Bcos7702FiscoExecutePropagation COMMAND Bcos7702FiscoExecutePropagationTest)
 add_executable(Bcos7623PrecheckTest bcos/Bcos7623PrecheckTest.cpp)
 target_include_directories(Bcos7623PrecheckTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -102,14 +102,14 @@ target_include_directories(FiscoOrchestrationErrorPolicyTest PRIVATE
 target_link_libraries(FiscoOrchestrationErrorPolicyTest PRIVATE
     bcos-evm bcos-protocol bcos-crypto evmone::evmone)
 add_test(NAME FiscoOrchestrationErrorPolicy COMMAND FiscoOrchestrationErrorPolicyTest)
-add_executable(FiscoExecutionBridgeImportedFixtureTest bcos/FiscoExecutionBridgeImportedFixtureTest.cpp)
-target_include_directories(FiscoExecutionBridgeImportedFixtureTest PRIVATE
+add_executable(FiscoExecuteImportedFixtureTest bcos/FiscoExecuteImportedFixtureTest.cpp)
+target_include_directories(FiscoExecuteImportedFixtureTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_compile_definitions(FiscoExecutionBridgeImportedFixtureTest PRIVATE
+target_compile_definitions(FiscoExecuteImportedFixtureTest PRIVATE
     ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
-target_link_libraries(FiscoExecutionBridgeImportedFixtureTest PRIVATE
+target_link_libraries(FiscoExecuteImportedFixtureTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-crypto)
-add_test(NAME FiscoExecutionBridgeImportedFixture COMMAND FiscoExecutionBridgeImportedFixtureTest)
+add_test(NAME FiscoExecuteImportedFixture COMMAND FiscoExecuteImportedFixtureTest)
 add_executable(BcosPrecompileRevisionGateTest bcos/BcosPrecompileRevisionGateTest.cpp)
 target_include_directories(BcosPrecompileRevisionGateTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -123,12 +123,12 @@ target_include_directories(Bcos7823ModexpRejectTest PRIVATE
 target_link_libraries(Bcos7823ModexpRejectTest PRIVATE
     bcos-evm bcos-evm-eth evmone::evmone bcos-framework protocol-tars)
 add_test(NAME Bcos7823ModexpReject COMMAND Bcos7823ModexpRejectTest)
-add_executable(Bcos7212FiscoExecutionBridgeTest bcos/Bcos7212FiscoExecutionBridgeTest.cpp)
-target_include_directories(Bcos7212FiscoExecutionBridgeTest PRIVATE
+add_executable(Bcos7212FiscoExecuteTest bcos/Bcos7212FiscoExecuteTest.cpp)
+target_include_directories(Bcos7212FiscoExecuteTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(Bcos7212FiscoExecutionBridgeTest PRIVATE
+target_link_libraries(Bcos7212FiscoExecuteTest PRIVATE
     bcos-evm bcos-evm-eth evmone::evmone bcos-framework protocol-tars)
-add_test(NAME Bcos7212FiscoExecutionBridge COMMAND Bcos7212FiscoExecutionBridgeTest)
+add_test(NAME Bcos7212FiscoExecute COMMAND Bcos7212FiscoExecuteTest)
 add_executable(Bcos2537MsmGasTest bcos/Bcos2537MsmGasTest.cpp)
 target_include_directories(Bcos2537MsmGasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

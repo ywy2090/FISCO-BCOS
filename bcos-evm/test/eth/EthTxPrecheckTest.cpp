@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/reference/EthTxPrecheck.h"
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>
 #include <limits>

@@ -91,7 +91,7 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | TE 消费者 | `EthHost`、`warmTransactionEntry` | `warm_access=true` 时 full 2929 | ✅ |
 | 与 Task 8 张力 | 初审计 false 导致 2929 弱化 | **OP-09b 已闭合** | ✅ |
 
-**Part 1 状态：** ✅ — Isthmus 显式启用；与 EthPolicy Berlin+ 一致。
+**Part 1 状态：** ✅ — Isthmus 显式启用；与 EthChainPolicy Berlin+ 一致。
 
 ---
 

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7702DelegationSenderTest
 
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
 #include "helpers/OpStackEntryPrecheck.h"
 #include "helpers/InMemoryEvmStateReader.h"
 #include <boost/test/included/unit_test.hpp>

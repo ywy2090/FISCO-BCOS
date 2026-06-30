@@ -2,7 +2,7 @@
 
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/policy/EthPolicy.h"
+#include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <boost/test/included/unit_test.hpp>
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
 
 BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
 {
-    EthPolicy policy;
+    EthChainPolicy policy;
     struct Row
     {
         int64_t block;

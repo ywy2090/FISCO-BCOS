@@ -2,13 +2,13 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include <evmc/evmc.h>
 #include <functional>
 
 namespace bcos::evm
 {
-struct ChainCallTargetPort;
+struct ChainCallTargetDispatcher;
 }
 
 namespace bcos::evm::state
@@ -52,9 +52,10 @@ struct CallTargetDescriptor
 
 CallTargetDescriptor resolveCallTarget(state::State& state,
     bcos::evm_standard::RevisionConfig const& revision, evmc_message msg, FrameScope scope,
-    ChainCallTargetPort* chainPort, state::VmHostPolicy* extension);
+    ChainCallTargetDispatcher* chainPort, state::EvmHostHooks* extension);
 
 void enumerateTxEntryWarmTargets(bcos::evm_standard::RevisionConfig const& cfg,
-    ChainCallTargetPort const* chainPort, std::function<void(evmc_address const&)> const& consume);
+    ChainCallTargetDispatcher const* chainPort,
+    std::function<void(evmc_address const&)> const& consume);
 
 }  // namespace bcos::evm::execution

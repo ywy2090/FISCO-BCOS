@@ -22,7 +22,7 @@ Part 1 全部 **7 项 🔴 阻断** 已通过 `bcos-evm/eth/**` 内核修复关�
 
 | # | 能力 | 修复 | ETH 测试 | BCOS 继承测试 |
 |---|------|------|----------|---------------|
-| P0-1 | EIP-7702 revision enable | `EthPolicy` PRAGUE+ 设 `eip7702=true` | `Eip7702ApplyAuthorizationEthTest` | `Bcos7702ExecuteViaHostPropagationTest` |
+| P0-1 | EIP-7702 revision enable | `EthChainPolicy` PRAGUE+ 设 `eip7702=true` | `Eip7702ApplyAuthorizationEthTest` | `Bcos7702ExecuteViaHostPropagationTest` |
 | P0-2 | EIP-6780 SELFDESTRUCT | `EthHost::selfdestruct` + same-tx CREATE 跟踪 | `ExecuteViaEthFixtureTest` | `Bcos6780SelfdestructTest` |
 | P0-3 | EIP-2537 MSM gas | `BlsGas.h` 128 项折扣表 wired 到 TE dispatch | `Eip2537KernelTest` (k=2 → 22776) | `Bcos2537MsmGasTest` |
 | P0-4 | EIP-7212 (0x0100) | `executeP256Verify` in `EthPrecompiles` | `Eip7212KernelTest` | `Bcos7212ExecuteViaHostTest` |

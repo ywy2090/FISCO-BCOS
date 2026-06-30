@@ -341,7 +341,7 @@ BOOST_AUTO_TEST_CASE(signed_rlp_rollup_matches_l1_cost_formula)
     BOOST_CHECK_GT(signedL1, u256(0));
 }
 
-// ADR-012 FIX-05 / Task 5: TE E2E — signed RLP → buildRollupCostData → l1CostFjord
+// FIX-05 / Task 5: TE E2E — signed RLP → buildRollupCostData → l1CostFjord
 // → receipt.l1Fee literal + OP_L1_FEE_RECIPIENT balance delta (R4 / D2-2 closure).
 BOOST_AUTO_TEST_CASE(FIX05_signed_rlp_rollup_execute_e2e)
 {
@@ -475,7 +475,7 @@ BOOST_AUTO_TEST_CASE(revert_keeps_l1_fee_and_operator_fee)
     }());
 }
 
-// ADR-011 FIX-06 / D5-4: TE E2E — isthmus L1 attributes system deposit through
+// FIX-06 / D5-4: TE E2E — isthmus L1 attributes system deposit through
 // OpStackTransactionExecutorImpl::executeTransaction (not fiscoExecute-only).
 BOOST_AUTO_TEST_CASE(l1_attributes_deposit_via_te)
 {

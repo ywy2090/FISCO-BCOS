@@ -10,7 +10,7 @@
 
 | 文件 | 用例数 | 关联 EIP / 场景 |
 |------|--------|-----------------|
-| `RevisionConfigProfileTest.cpp` | 4 | RevisionConfig profile / EthPolicy 分叉阶梯 |
+| `RevisionConfigProfileTest.cpp` | 4 | RevisionConfig profile / EthChainPolicy 分叉阶梯 |
 | `ExecuteViaEthFixtureTest.cpp` | 1（驱动 21 个 JSON fixture） | 端到端 `executeViaEth` |
 | `EthTxInputBuilderTest.cpp` | 1 | EIP-7702 type-4 tx 字段解码 |
 | `FiscoTxInputBuilderTest.cpp` | 1 | 同上（FISCO `executeViaHost` 路径） |

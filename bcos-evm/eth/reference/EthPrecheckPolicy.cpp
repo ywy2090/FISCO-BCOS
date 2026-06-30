@@ -17,11 +17,11 @@
  */
 
 #include "bcos-evm/eth/reference/EthPrecheckPolicy.h"
+#include "bcos-evm/eth/CanTransfer.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/Transfer.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/eth/pipeline/FeeInputsProjection.h"
+#include "bcos-evm/eth/pipeline/FeeInputsMapping.h"
 #include "bcos-evm/eth/reference/EthTxPrecheck.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 

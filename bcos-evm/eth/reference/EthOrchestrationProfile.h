@@ -20,14 +20,14 @@
 
 #include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/reference/EthPrecheckPolicy.h"
-#include "bcos-evm/eth/reference/EthReferenceBridge.h"
+#include "bcos-evm/eth/reference/EthReferenceExecute.h"
 
 namespace bcos::evm
 {
 
 struct EthOrchestrationProfile
 {
-    /// Orchestration policy bind input (not kernel ExecutionSession; ADR-027 naming follow-up).
+    /// Orchestration policy bind input (not kernel EvmTxContextView).
     struct BindingsContext
     {
         EthReferenceRequest const& input;

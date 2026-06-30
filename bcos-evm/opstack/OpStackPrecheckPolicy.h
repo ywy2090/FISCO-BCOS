@@ -19,17 +19,17 @@
 #pragma once
 
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/opstack/OpStackExecutionBridge.h"
-#include "bcos-evm/opstack/OpStackSettlementView.h"
+#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 
 namespace bcos::evm
 {
 
 struct OpStackPrecheckPolicy : ChainPrecheckPolicy
 {
-    explicit OpStackPrecheckPolicy(OpStackSettlementView& view);
+    explicit OpStackPrecheckPolicy(OpStackSettlementFacade& view);
 
-    IntrinsicGasPolicy intrinsicGasPolicy() const override { return m_intrinsicPolicy; }
+    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
 
     /// Sync entry rules before buyGas (nonce, 7702, blob intent, fee caps). OpStack-only phase.
     void checkEntryRules(TxPipelineContext& ctx) const;
@@ -41,9 +41,9 @@ struct OpStackPrecheckPolicy : ChainPrecheckPolicy
     ExecuteMessageOutput runEvmExecution(ExecuteMessageInput&& input) const override;
 
 private:
-    OpStackSettlementView& m_view;
+    OpStackSettlementFacade& m_view;
     OpStackFeeSidecar& m_sidecar;
-    IntrinsicGasPolicy m_intrinsicPolicy{};
+    IntrinsicGasDebitParams m_intrinsicPolicy{};
 };
 
 }  // namespace bcos::evm

@@ -21,9 +21,9 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
 #include <evmc/evmc.hpp>
 #include <optional>
 #include <unordered_map>
@@ -32,7 +32,7 @@
 
 namespace bcos::evm
 {
-struct ChainCallTargetPort;
+struct ChainCallTargetDispatcher;
 }
 
 namespace bcos::evm::state
@@ -47,8 +47,8 @@ public:
 
     EthHost(State& state, evmc_tx_context txContext,
         bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-        VmHostPolicy* extension = nullptr, bool fixStorageStatus = true,
-        ChainCallTargetPort* chainPort = nullptr);
+        EvmHostHooks* extension = nullptr, bool fixStorageStatus = true,
+        ChainCallTargetDispatcher* chainPort = nullptr);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -92,8 +92,8 @@ private:
     bcos::evm_standard::RevisionConfig m_revisionConfig{};
     evmc::VM& m_vm;
     BlockHashes m_blockHashes;
-    VmHostPolicy* m_extension{nullptr};
-    ChainCallTargetPort* m_chainPort{nullptr};
+    EvmHostHooks* m_extension{nullptr};
+    ChainCallTargetDispatcher* m_chainPort{nullptr};
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_storageOriginalValues;

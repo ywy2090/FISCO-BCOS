@@ -40,10 +40,10 @@ add_test(
     COMMAND ${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
 )
 
-set(TX_EXECUTION_ADAPTER_TEST_BINARY_NAME TxExecutionAdapterTest)
+set(TX_EXECUTION_ADAPTER_TEST_BINARY_NAME TxExecutionRunnerTest)
 
 add_executable(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME}
-    eth/TxExecutionAdapterTest.cpp
+    eth/TxExecutionRunnerTest.cpp
 )
 
 target_include_directories(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME} PRIVATE
@@ -56,7 +56,7 @@ target_link_libraries(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME TxExecutionAdapter
+    NAME TxExecutionRunner
     COMMAND ${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME}
 )
 
@@ -72,14 +72,14 @@ target_include_directories(Eip7702DelegatedCallGasTest PRIVATE
 target_link_libraries(Eip7702DelegatedCallGasTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip7702DelegatedCallGas COMMAND Eip7702DelegatedCallGasTest)
 
-add_executable(EthReferenceBridgeFixtureTest eth/EthReferenceBridgeFixtureTest.cpp)
-target_include_directories(EthReferenceBridgeFixtureTest PRIVATE
+add_executable(EthReferenceExecuteFixtureTest eth/EthReferenceExecuteFixtureTest.cpp)
+target_include_directories(EthReferenceExecuteFixtureTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_compile_definitions(EthReferenceBridgeFixtureTest PRIVATE
+target_compile_definitions(EthReferenceExecuteFixtureTest PRIVATE
     ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
-target_link_libraries(EthReferenceBridgeFixtureTest PRIVATE
+target_link_libraries(EthReferenceExecuteFixtureTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME EthReferenceBridgeFixture COMMAND EthReferenceBridgeFixtureTest)
+add_test(NAME EthReferenceExecuteFixture COMMAND EthReferenceExecuteFixtureTest)
 add_executable(EthIncludedTxVmerrTest eth/EthIncludedTxVmerrTest.cpp)
 target_include_directories(EthIncludedTxVmerrTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -113,30 +113,36 @@ target_include_directories(Web3TypedTxKindTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(Web3TypedTxKindTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME Web3TypedTxKind COMMAND Web3TypedTxKindTest)
-add_executable(EthReferenceBridge1559GasPriceTest eth/EthReferenceBridge1559GasPriceTest.cpp)
-target_include_directories(EthReferenceBridge1559GasPriceTest PRIVATE
+add_executable(EthReferenceExecute1559GasPriceTest eth/EthReferenceExecute1559GasPriceTest.cpp)
+target_include_directories(EthReferenceExecute1559GasPriceTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(EthReferenceBridge1559GasPriceTest PRIVATE
+target_link_libraries(EthReferenceExecute1559GasPriceTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME EthReferenceBridge1559GasPrice COMMAND EthReferenceBridge1559GasPriceTest)
+add_test(NAME EthReferenceExecute1559GasPrice COMMAND EthReferenceExecute1559GasPriceTest)
 add_executable(TxPipelineTest eth/TxPipelineTest.cpp)
 target_include_directories(TxPipelineTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(TxPipelineTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME TxPipeline COMMAND TxPipelineTest)
-add_executable(ExecutionSessionTest eth/ExecutionSessionTest.cpp)
-target_include_directories(ExecutionSessionTest PRIVATE
+add_executable(GethNamingAliasesTest eth/GethNamingAliasesTest.cpp)
+target_include_directories(GethNamingAliasesTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(ExecutionSessionTest PRIVATE
+target_link_libraries(GethNamingAliasesTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME ExecutionSession COMMAND ExecutionSessionTest)
-add_executable(ExecutionSessionPropagationTest eth/ExecutionSessionPropagationTest.cpp)
-target_include_directories(ExecutionSessionPropagationTest PRIVATE
+add_test(NAME GethNamingAliases COMMAND GethNamingAliasesTest)
+add_executable(EvmTxContextViewTest eth/EvmTxContextViewTest.cpp)
+target_include_directories(EvmTxContextViewTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(ExecutionSessionPropagationTest PRIVATE
+target_link_libraries(EvmTxContextViewTest PRIVATE
+    bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
+add_test(NAME EvmTxContextView COMMAND EvmTxContextViewTest)
+add_executable(EvmTxContextViewPropagationTest eth/EvmTxContextViewPropagationTest.cpp)
+target_include_directories(EvmTxContextViewPropagationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EvmTxContextViewPropagationTest PRIVATE
     bcos-evm-eth bcos-evm-op evmone::evmone bcos-task bcos-crypto)
-add_test(NAME ExecutionSessionPropagation COMMAND ExecutionSessionPropagationTest)
+add_test(NAME EvmTxContextViewPropagation COMMAND EvmTxContextViewPropagationTest)
 add_executable(EthOrchestrationProfileTest eth/EthOrchestrationProfileTest.cpp)
 target_include_directories(EthOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

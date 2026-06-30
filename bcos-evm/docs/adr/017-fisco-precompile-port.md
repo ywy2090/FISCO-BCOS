@@ -6,7 +6,7 @@
 
 ## Decision
 
-FISCO chain precompile 执行与 auth 经 `ChainCallTargetPort` / `AuthPort` 注入（ADR-024 扩展 ADR-017，取代 `ChainPrecompilePort` + `tryChainPrecompile`）；
+FISCO chain precompile 执行与 auth 经 `ChainCallTargetDispatcher` / `AuthPort` 注入（ADR-024 扩展 ADR-017，取代 `ChainPrecompilePort` + `tryChainPrecompile`）；
 implementation 驻 `transaction-executor/adapters/` + `bcos-executor` precompiled TU；
 `bcos-evm` 源码零 `bcos-executor` include。
 

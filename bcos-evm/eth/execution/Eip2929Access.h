@@ -6,7 +6,7 @@
  * @file Eip2929Access.h
  *
  * FISCO may mask warm_access via feature_evm_eip2929 while revision stays high.
- * That is an intentional deviation from geth (ADR-004); do not read cfg.warm_access
+ * That is an intentional deviation from geth; do not read cfg.warm_access
  * outside this header in eth/ production code.
  */
 
