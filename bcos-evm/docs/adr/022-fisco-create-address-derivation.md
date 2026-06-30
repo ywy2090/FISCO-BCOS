@@ -21,7 +21,7 @@ Today the logic is **copy-pasted across four seams**:
 
 | Seam | Location | Role |
 | --- | --- | --- |
-| Orchestration (top-level) | `bcos/FiscoExecute.cpp::deriveMessage()` | `FiscoOrchestrationProfile::txSetupMessage` |
+| Orchestration (top-level) | `bcos/ApplyFiscoMessage.cpp::deriveMessage()` | `FiscoOrchestrationProfile::txSetupMessage` |
 | Policy duplicate | `bcos/FiscoPolicy.h::deriveMessageImpl()` | Compat tests only; byte-identical to above |
 | VmHostPolicy (nested) | `bcos/FiscoVmHostPolicy.cpp::deriveNestedCreateAddress()` | `prepareMessage` inside kernel call tree |
 | Post-execute patch | `bcos/FiscoOrchestrationErrorPolicy::onPostExecuteNormalize()` | Fill empty `create_address` from `recipient` (not re-derivation) |

@@ -18,9 +18,9 @@
 
 #pragma once
 
+#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
 #include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/apply/EthPrecheckPolicy.h"
-#include "bcos-evm/eth/apply/EthReferenceExecute.h"
 
 namespace bcos::evm
 {

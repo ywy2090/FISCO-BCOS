@@ -21,7 +21,7 @@ add_test(
 )
 add_executable(OpStackIntrinsicGasSyncTest
     opstack/OpStackIntrinsicGasSyncTest.cpp
-    ../opstack/OpStackExecute.cpp
+    ../opstack/ApplyOpStackMessage.cpp
     ../opstack/OpStackTxLifecycle.cpp
     ../opstack/OpStackSettlement.cpp
     ../opstack/OpStackNormalTxFeeCoordinator.cpp

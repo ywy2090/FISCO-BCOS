@@ -1,8 +1,8 @@
 #pragma once
 
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
-#include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include <optional>

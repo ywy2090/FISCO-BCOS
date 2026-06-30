@@ -66,9 +66,9 @@ flowchart TB
 
 | ADR-001 旧名 | 当前入口函数 | 模块路径 |
 |---|---|---|
-| `executeViaHost` | `fiscoExecute` | `bcos-evm/bcos/FiscoExecute.h` |
-| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/apply/EthReferenceExecute.h` |
-| `opStackExecuteViaHost` | `opStackExecute` | `bcos-evm/opstack/OpStackExecute.h` |
+| `executeViaHost` | `fiscoExecute` | `bcos-evm/bcos/ApplyFiscoMessage.h` |
+| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/apply/ApplyReferenceMessage.h` |
+| `opStackExecuteViaHost` | `opStackExecute` | `bcos-evm/opstack/ApplyOpStackMessage.h` |
 
 ---
 
@@ -228,7 +228,7 @@ ethReferenceExecute / fiscoExecute / opStackExecute
 
 ### 4.3 `fiscoExecute` 接线要点
 
-[`FiscoExecute.cpp`](../bcos/FiscoExecute.cpp) L125-203：
+[`ApplyFiscoMessage.cpp`](../bcos/ApplyFiscoMessage.cpp) L125-203：
 
 1. 构造 `TxPipelineContext`（持有 `State`、原始 `message`、`RevisionConfig`）
 2. 构造 `FiscoVmHostPolicy`，注入 `authPort` / `chainPrecompilePort` / `persistContractCreateNonce`
@@ -350,10 +350,10 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 
 | 用途 | 头文件 | 说明 |
 |---|---|---|
-| FISCO 生产执行 | `bcos-evm/bcos/FiscoExecute.h` | `fiscoExecute(FiscoExecutionRequest)` |
-| ETH 参考执行 | `bcos-evm/eth/apply/EthReferenceExecute.h` | `ethReferenceExecute` |
-| ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `EthReferenceExecute.h` |
-| OP Stack 执行 | `bcos-evm/opstack/OpStackExecute.h` | `opStackExecute` |
+| FISCO 生产执行 | `bcos-evm/bcos/ApplyFiscoMessage.h` | `applyFiscoMessage` |
+| ETH 参考执行 | `bcos-evm/eth/apply/ApplyReferenceMessage.h` | `applyReferenceMessage` |
+| ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `ApplyReferenceMessage.h` |
+| OP Stack 执行 | `bcos-evm/opstack/ApplyOpStackMessage.h` | `applyOpStackMessage` |
 | 状态读 | `bcos-evm/bcos/FiscoStateView.h` | TE 层构造 |
 | 状态写 | `bcos-evm/bcos/StateDiffApplier.h` | `applyStateDiff` |
 | TE 概念约束 | `bcos-framework/.../TransactionExecutor.h` | 新 executor 必须实现此 concept |

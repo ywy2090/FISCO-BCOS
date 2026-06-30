@@ -65,9 +65,9 @@ New **eth kernel** code: use Tier A/B names in function and log strings. ~~Tier 
 
 | geth | bcos-evm (canonical) | Header | Removed Tier E (Wave) |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/EthReferenceExecute.h` | ~~`ethReferenceExecute`~~ (4, 2026-06-30) |
-| `ApplyMessage` | `applyFiscoMessage` | `bcos/FiscoExecute.h` | ~~`fiscoExecute`~~ (4, 2026-06-30) |
-| `ApplyMessage` + op lifecycle | `applyOpStackMessage` → `runOpStackTxLifecycle` | `opstack/OpStackExecute.h` | ~~`opStackExecute`~~ (4, 2026-06-30) |
+| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/ApplyReferenceMessage.h` | ~~`ethReferenceExecute`~~ (4, 2026-06-30) |
+| `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | ~~`fiscoExecute`~~ (4, 2026-06-30) |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` → `runOpStackTxLifecycle` | `opstack/ApplyOpStackMessage.h` | ~~`opStackExecute`~~ (4, 2026-06-30) |
 
 **Reading rule:** chain L1 entry = **ApplyMessage adapter** for that chain (`apply*Message`), not “run EVM” generically.
 
@@ -221,7 +221,7 @@ When reviewing geth parity, walk this checklist in order:
 Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
 
 - [x] New `eth/` pipeline/kernel functions: comment with `geth: <symbol>` (§3–4).
-- [x] `GethNamingAliasesTest` registered and passing; geth step case names where applicable; TxPipeline geth comments (Task 1).
+- [x] `KernelCanonicalNamingTest` registered and passing; geth step case names where applicable (replaces `GethNamingAliasesTest`, 2026-06-30).
 - [x] Parity PR description lists geth file:line anchor alongside bcos-evm symbol (§9 parity PR note).
 - [ ] Chain-only behavior labeled extension in §6, not claimed as geth parity without op-geth cite (ongoing review discipline).
 - [x] No removal of Tier E symbols without explicit TE/ADR follow-up *(ADR-032 Waves 1–4 complete; Wave 5 doc sweep)*

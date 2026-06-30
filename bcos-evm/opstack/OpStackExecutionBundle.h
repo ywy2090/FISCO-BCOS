@@ -1,8 +1,8 @@
 #pragma once
 
 #include "bcos-evm/eth/pipeline/EvmTxContextView.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
-#include "bcos-evm/opstack/OpStackExecute.h"
 #include <stdexcept>
 
 namespace bcos::evm

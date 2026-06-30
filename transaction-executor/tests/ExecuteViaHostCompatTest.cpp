@@ -6,7 +6,7 @@
  */
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"

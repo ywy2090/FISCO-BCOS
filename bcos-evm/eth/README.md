@@ -26,7 +26,6 @@
 | 文件 | 角色 |
 | --- | --- |
 | `InnerExecute.*` | 内核执行入口 `innerExecute()`（geth innerExecute） |
-| `GethNamingAliases.h` | geth 符号 inline 别名索引 |
 | `pipeline/StateTransitionExecute.*` | `stateTransitionExecute()`（geth stateTransition.execute） |
 | `pipeline/StateTransitionContext.h` | 管线上下文 |
 | `pipeline/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
@@ -37,13 +36,11 @@
 | `EVMCResult.*` | EVMC 结果封装 |
 | `EthExecutionArtifacts.h` | 参考路径执行上下文（TE 消费） |
 
-`ExecuteMessage.h`、`TxPipeline.h` 等为 ADR-033 兼容 shim，勿在新代码中使用。
-
 ## `apply/` — ETH 参考路径
 
 | 文件 | 角色 |
 | --- | --- |
-| `EthReferenceExecute.*` | 链入口 `applyReferenceMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
+| `ApplyReferenceMessage.*` | 链入口 `applyReferenceMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
 | `EthOrchestrationProfile.*` | `OrchestrationProfile::bind` → 填充 `ChainPrecheckPolicy` + `OrchestrationErrorPolicy` |
 | `EthTxPrecheck.*` | 参考路径交易预检 |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
@@ -54,11 +51,11 @@
 
 | geth | ADR-030 文档名（Tier C） | 头文件 | TE 调用 |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/EthReferenceExecute.h` | `applyReferenceMessage` |
-| `ApplyMessage` | `applyFiscoMessage` | `bcos/FiscoExecute.h` | `applyFiscoMessage` |
-| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/OpStackExecute.h` | `applyOpStackMessage` |
+| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/ApplyReferenceMessage.h` | `applyReferenceMessage` |
+| `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `applyFiscoMessage` |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | `applyOpStackMessage` |
 
-内核 tx 级执行见 `innerExecute`（geth post-`Prepare` 路径；ADR-030 §3 step 6）。Tier A geth 别名索引见 `GethNamingAliases.h`（`stateTransitionExecute`、`innerExecute`、`evmCall` 等）。
+内核 tx 级执行见 `innerExecute`（geth post-`Prepare` 路径；ADR-030 §3 step 6）。geth 词汇对照见 ADR-030 §3–§8（canonical 符号：`stateTransitionExecute`、`innerExecute`、`runCallFrame`、`warmTransactionEntry` 等）。
 
 ## 执行流
 

@@ -6,7 +6,7 @@
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/EthExecutionArtifacts.h"
-#include "bcos-evm/eth/apply/EthReferenceExecute.h"
+#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
 #include "bcos-evm/eth/apply/EthTxFeeSettlement.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"

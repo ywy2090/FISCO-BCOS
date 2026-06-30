@@ -22,9 +22,9 @@
  *     evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
  *
  *   Tier C (chain headers — geth ApplyMessage; exported apply*Message):
- *     applyReferenceMessage   (EthReferenceExecute.h)
- *     applyFiscoMessage       (FiscoExecute.h)
- *     applyOpStackMessage     (OpStackExecute.h)
+ *     applyReferenceMessage   (ApplyReferenceMessage.h)
+ *     applyFiscoMessage       (ApplyFiscoMessage.h)
+ *     applyOpStackMessage     (ApplyOpStackMessage.h)
  *
  *   ADR-033 (2026-06-30): disk paths aligned — InnerExecute, StateTransitionExecute,
  *     EvmCallFrame, DeductIntrinsicGas, IncludedTxVmerrNormalize (shims at old paths).

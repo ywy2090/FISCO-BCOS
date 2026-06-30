@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos7702ExecuteViaHostPropagationTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"

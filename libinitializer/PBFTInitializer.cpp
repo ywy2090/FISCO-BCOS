@@ -63,8 +63,7 @@ PBFTInitializer::PBFTInitializer(bcos::protocol::NodeArchitectureType _nodeArchT
     bcos::scheduler::SchedulerInterface::Ptr _scheduler,
     bcos::storage::StorageInterface::Ptr _storage,
     std::shared_ptr<bcos::front::FrontServiceInterface> _frontService,
-    bcos::tool::NodeTimeMaintenance::Ptr _nodeTimeMaintenance,
-    boost::asio::io_context& _ioContext)
+    bcos::tool::NodeTimeMaintenance::Ptr _nodeTimeMaintenance, boost::asio::io_context& _ioContext)
   : m_nodeArchType(_nodeArchType),
     m_nodeConfig(std::move(_nodeConfig)),
     m_protocolInitializer(std::move(_protocolInitializer)),

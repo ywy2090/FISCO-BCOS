@@ -6,7 +6,7 @@
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
-| 执行桥 | `FiscoExecute.*` | 入口 `applyFiscoMessage()`：组装上下文 → `stateTransitionExecute` |
+| 链入口 | `ApplyFiscoMessage.*` | 入口 `applyFiscoMessage()`：组装上下文 → `stateTransitionExecute` |
 | 编排 | `FiscoOrchestrationProfile.*` | `OrchestrationProfile::bind` → pipeline hooks + error policy |
 | VM 策略 | `FiscoVmHostPolicy.*` | 实现 `VmHostPolicy`（selfdestruct、precompile、nonce 等） |
 | 费用结算 | `FiscoTxFeeSettlement.h` | `buyGas` / `refundGas` / `makeReceipt` / `consumeBalance` |

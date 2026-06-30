@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE ExecuteViaHostImportedFixtureTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FiscoFixtureAdapter.h"
 #include "fixtures/HostFixtureAssert.h"

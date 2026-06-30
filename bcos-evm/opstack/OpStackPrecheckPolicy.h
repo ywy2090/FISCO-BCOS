@@ -19,7 +19,7 @@
 #pragma once
 
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 
 namespace bcos::evm

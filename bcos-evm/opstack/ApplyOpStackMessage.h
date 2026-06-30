@@ -1,3 +1,8 @@
+/*
+ * @brief Chain entry applyOpStackMessage (geth ApplyMessage; ADR-030 Tier C).
+ * @file ApplyOpStackMessage.h
+ */
+
 #pragma once
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"

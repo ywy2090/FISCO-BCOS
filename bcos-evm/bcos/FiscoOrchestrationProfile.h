@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoOrchestrationErrorPolicy.h"
 #include "bcos-evm/bcos/FiscoPrecheckPolicy.h"
 

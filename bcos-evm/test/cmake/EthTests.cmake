@@ -125,12 +125,12 @@ target_include_directories(StateTransitionExecuteTest PRIVATE
 target_link_libraries(StateTransitionExecuteTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME StateTransitionExecute COMMAND StateTransitionExecuteTest)
-add_executable(GethNamingAliasesTest eth/GethNamingAliasesTest.cpp)
-target_include_directories(GethNamingAliasesTest PRIVATE
+add_executable(KernelCanonicalNamingTest eth/KernelCanonicalNamingTest.cpp)
+target_include_directories(KernelCanonicalNamingTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(GethNamingAliasesTest PRIVATE
+target_link_libraries(KernelCanonicalNamingTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME GethNamingAliases COMMAND GethNamingAliasesTest)
+add_test(NAME KernelCanonicalNaming COMMAND KernelCanonicalNamingTest)
 add_executable(EvmTxContextViewTest eth/EvmTxContextViewTest.cpp)
 target_include_directories(EvmTxContextViewTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

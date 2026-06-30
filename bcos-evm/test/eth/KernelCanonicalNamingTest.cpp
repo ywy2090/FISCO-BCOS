@@ -1,9 +1,7 @@
-#define BOOST_TEST_MODULE GethNamingAliasesTest
+#define BOOST_TEST_MODULE KernelCanonicalNamingTest
 
-#include "bcos-evm/eth/GethNamingAliases.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/InnerExecute.h"
-#include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
@@ -123,16 +121,6 @@ BOOST_AUTO_TEST_CASE(finalizeGasUsed_forwards_to_onPostExecuteNormalize)
     errorPolicy.finalizeGasUsed(ctx);
 
     BOOST_CHECK_EQUAL(errorPolicy.normalizeCount, 1);
-}
-
-BOOST_AUTO_TEST_CASE(evm_frame_aliases_share_runCallFrame_signature)
-{
-    using FrameFn = execution::FrameResult (*)(
-        execution::FrameExecutionEnv&, evmc_message, execution::FrameScope, state::EthHost&);
-    BOOST_CHECK((std::is_same_v<decltype(&execution::evmCall), FrameFn>));
-    BOOST_CHECK((std::is_same_v<decltype(&execution::evmCreate), FrameFn>));
-    BOOST_CHECK((std::is_same_v<decltype(&execution::evmDelegateCall), FrameFn>));
-    BOOST_CHECK((std::is_same_v<decltype(&execution::evmStaticCall), FrameFn>));
 }
 
 }  // namespace bcos::evm::test

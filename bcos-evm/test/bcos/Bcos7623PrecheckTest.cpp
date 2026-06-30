@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos7623PrecheckTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"

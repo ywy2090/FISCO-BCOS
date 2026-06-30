@@ -2,7 +2,7 @@
 
 #include "EthStateFixtureLoader.h"
 #include "FiscoFixtureAdapter.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
 #include <boost/test/unit_test.hpp>
 

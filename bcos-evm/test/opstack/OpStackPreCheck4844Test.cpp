@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackPreCheck4844Test
 
-#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryPrecheck.h"
 #include <boost/test/included/unit_test.hpp>

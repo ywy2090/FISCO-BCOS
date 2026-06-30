@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE DepositMintTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

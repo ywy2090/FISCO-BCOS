@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE DepositTxPreCheckTest
 
-#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryPrecheck.h"

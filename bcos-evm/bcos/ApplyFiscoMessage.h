@@ -13,8 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief applyFiscoMessage orchestration layer.
- * @file FiscoExecute.h
+ * @brief Chain entry applyFiscoMessage (geth ApplyMessage; ADR-030 Tier C).
+ * @file ApplyFiscoMessage.h
  */
 
 #pragma once

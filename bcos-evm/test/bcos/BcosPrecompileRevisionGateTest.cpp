@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE BcosPrecompileRevisionGateTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

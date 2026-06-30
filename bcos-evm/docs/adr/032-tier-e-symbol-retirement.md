@@ -2,7 +2,7 @@
 
 **Status:** Accepted — **executed** (Waves 1–5 complete, 2026-06-30)  
 **Date:** 2026-06-30  
-**Related:** ADR-030, ADR-031, ADR-029, `GethNamingAliases.h`, `transaction-executor/`  
+**Related:** ADR-030, ADR-031, ADR-029, `transaction-executor/`  
 **Phase:** P5 (geth naming P0–P6 plan)
 
 ---
@@ -57,7 +57,7 @@ These symbols are `[[deprecated]]` today and are **not** TE entry points. Safe t
 | 1.6 | `checkEntryRules` | `lifecycleCheckEntryRules` | `opstack/OpStackPrecheckPolicy.h` |
 | 1.7 | `dispatchPrecompile` | `resolveCallTarget` + `executePrecompileEnvelope` | `eth/precompiled/PrecompileRouter.h` |
 
-**Note:** Tier A geth inline aliases in `GethNamingAliases.h` (`prepareState`, `evmCall`, `preCheckRules`, …) are **not** Tier E and are **out of scope** for this retirement schedule unless a future ADR promotes them to canonical renames.
+**Note:** Tier A geth inline aliases formerly in `GethNamingAliases.h` (`prepareState`, `evmCall`, …) were removed 2026-06-30; call `warmTransactionEntry` / `runCallFrame` directly. Policy-level forwards (`preCheckRules`, `finalizeGasUsed`) remain on `ChainPrecheckPolicy` / `OrchestrationErrorPolicy`.
 
 #### Wave 2 — Eth kernel Tier E forwards
 
@@ -76,9 +76,9 @@ Flip which symbol is the **exported** function vs inline forward. TE already inv
 
 | Order | Action | geth analogue | Headers |
 | --- | --- | --- | --- |
-| 3.1 | Rename implementation `fiscoExecute` → keep body; export as `applyFiscoMessage`; add `[[deprecated]] inline fiscoExecute` forward | `ApplyMessage` | `bcos/FiscoExecute.h` |
-| 3.2 | Same for `ethReferenceExecute` → `applyReferenceMessage` | `ApplyMessage` | `eth/apply/EthReferenceExecute.h` |
-| 3.3 | Same for `opStackExecute` → `applyOpStackMessage` | `ApplyMessage` + op lifecycle | `opstack/OpStackExecute.h` |
+| 3.1 | Rename implementation `fiscoExecute` → keep body; export as `applyFiscoMessage`; add `[[deprecated]] inline fiscoExecute` forward | `ApplyMessage` | `bcos/ApplyFiscoMessage.h` |
+| 3.2 | Same for `ethReferenceExecute` → `applyReferenceMessage` | `ApplyMessage` | `eth/apply/ApplyReferenceMessage.h` |
+| 3.3 | Same for `opStackExecute` → `applyOpStackMessage` | `ApplyMessage` + op lifecycle | `opstack/ApplyOpStackMessage.h` |
 
 Update log strings and `@brief` tags to canonical names; retain `*Execute` in release notes for one minimum release.
 
@@ -96,7 +96,7 @@ Search entire monorepo for remaining `*Execute(` call sites before merge. Aggreg
 
 - Remove stale Tier E rows from ADR-030 §8 stable-alias table (or mark removed with date).
 - Update `architecture-overview.md`, chain READMEs, and ADR-031 appendix timeline.
-- Drop `GethNamingAliases.h` Tier E index comments for removed symbols.
+- Drop stale `GethNamingAliases.h` (removed 2026-06-30); `KernelCanonicalNamingTest` covers canonical kernel drivers.
 - Confirm CI: `ctest -R 'GethNaming|FiscoExecute|EthReference|OpStackExecute|TxPipeline'`.
 
 ---

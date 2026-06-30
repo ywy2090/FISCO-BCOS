@@ -31,8 +31,7 @@ using namespace bcos::initializer;
 TxPoolInitializer::TxPoolInitializer(bcos::tool::NodeConfig::Ptr _nodeConfig,
     ProtocolInitializer::Ptr _protocolInitializer,
     bcos::front::FrontServiceInterface::Ptr _frontService,
-    bcos::ledger::LedgerInterface::Ptr _ledger,
-    boost::asio::io_context& _ioContext)
+    bcos::ledger::LedgerInterface::Ptr _ledger, boost::asio::io_context& _ioContext)
   : m_nodeConfig(std::move(_nodeConfig)),
     m_protocolInitializer(std::move(_protocolInitializer)),
     m_frontService(std::move(_frontService)),

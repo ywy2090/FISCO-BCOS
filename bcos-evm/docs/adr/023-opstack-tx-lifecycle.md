@@ -27,7 +27,7 @@ Introduce `runOpStackTxLifecycle(OpStackExecutionRequest)` as the **OpStack oute
 | Export | Role |
 | --- | --- |
 | `OpStackTxLifecycle.h` → `runOpStackTxLifecycle` | Deep module interface; primary characterization test surface after C1 |
-| `OpStackExecute.h` → `opStackExecute` | Stable TE seam |
+| `ApplyOpStackMessage.h` → `applyOpStackMessage` | Stable TE seam |
 
 ### 2. Compose ADR-021 — do not merge
 

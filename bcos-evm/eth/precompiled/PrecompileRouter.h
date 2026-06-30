@@ -8,8 +8,6 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/execution/FrameScope.h"
-#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.hpp>
 
@@ -37,18 +35,6 @@ struct PrecompileEnvelopeInput
     evmc_message const& message;
     bool skipValueTransfer;
     ChainCallTargetDispatcher* chainPort;
-};
-
-struct PrecompileRouterInput
-{
-    state::State& state;
-    bcos::evm_standard::RevisionConfig const& revision;
-    state::EvmHostHooks* extension;
-    evmc_message const& message;
-    evmc_address target;
-    bool skipValueTransfer;
-    execution::FrameScope scope{execution::FrameScope::TopLevel};
-    ChainCallTargetDispatcher* chainPort{nullptr};
 };
 
 struct PrecompileRouterOutput

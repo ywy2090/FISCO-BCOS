@@ -8,7 +8,7 @@
 #define BOOST_TEST_MODULE TopLevelInsufficientBalanceStateDiffTest
 
 #include "bcos-evm/eth/InnerExecute.h"
-#include "bcos-evm/eth/apply/EthReferenceExecute.h"
+#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
 #include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE BcosAuthOrchestratorHookTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos/adapters/InMemoryAuthAdapter.h"
 #include "helpers/InMemoryStateView.h"

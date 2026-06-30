@@ -1,7 +1,7 @@
 #pragma once
 
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include <cassert>

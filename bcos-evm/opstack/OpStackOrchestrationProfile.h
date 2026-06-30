@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/opstack/OpStackExecute.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"

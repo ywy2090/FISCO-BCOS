@@ -184,7 +184,7 @@ Default for **GST / EEST / op-geth parity tests:** flag **off** → `Rejected`.
 | Phase | Deliverable | Primary files |
 | --- | --- | --- |
 | **A** | `TxConsensusOutcome` + `isConsensusRejected` | `eth/TxConsensusOutcome.h` |
-| **B** | Bridge/lifecycle sets `consensusOutcome` | `EthReferenceExecute.cpp`, `OpStackTxLifecycle.cpp` |
+| **B** | Bridge/lifecycle sets `consensusOutcome` | `ApplyReferenceMessage.cpp`, `OpStackTxLifecycle.cpp` |
 | **C** | TE Execute/Finalize gate | `EthTransactionExecutorImpl.h`, `OpStackTransactionExecutorImpl.h` |
 | **D** | Scheduler null-receipt → block error | `SchedulerSerialImpl.h`, parallel scheduler if applicable |
 | **E** | Flip characterization oracles + E2E receipt count | `EthIntrinsicGasFailureCharacterizationTest.cpp`, `OpStackTxLifecycleCharacterizationTest.cpp`, TE fixtures |

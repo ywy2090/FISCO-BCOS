@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/bcos/FiscoExecute.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 
 namespace bcos::evm

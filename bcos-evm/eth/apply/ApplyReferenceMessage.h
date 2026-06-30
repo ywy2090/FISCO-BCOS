@@ -1,3 +1,8 @@
+/*
+ * @brief Chain entry applyReferenceMessage (geth ApplyMessage; ADR-030 Tier C).
+ * @file ApplyReferenceMessage.h
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/AccessList.h"

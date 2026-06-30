@@ -102,7 +102,7 @@ graph TD
             │   Eip2929Access.h      2929 / coinbase / CREATE warm gate    │
             │   VmHostPolicy         扩展点基类 = 标准以太坊默认语义         │
             │   RevisionConfig       EIP 开关位域（13 bool + 参数）          │
-            │   EthReferenceExecute   以太坊参考路径（接线审计）              │
+            │   ApplyReferenceMessage   以太坊参考路径（接线审计）              │
             └───────────────────────────────────────────────────────────┘
                          │
                          ▼  仅依赖
@@ -119,7 +119,7 @@ graph TD
 
 ## 3. 执行流：三入口 → Profile 绑定 → 共享编排 → 内核
 
-**双标签约定（ADR-029 + ADR-030 + ADR-032）：** 链 L1 入口使用 **geth 文档名** `apply{Chain}Message`（Tier C）；Tier E `*Execute` 已于 ADR-032 Wave 4（2026-06-30）移除。L2 步骤用 ADR-029 `pipeline*` 前缀；与 geth `stateTransition.execute` 对齐的步骤用 ADR-030/031 规范名（`stateTransitionExecute`、`innerExecute`）。完整映射见 ADR-030 §2–§8 与 `GethNamingAliases.h`。
+**双标签约定（ADR-029 + ADR-030 + ADR-032）：** 链 L1 入口使用 **geth 文档名** `apply{Chain}Message`（Tier C）；Tier E `*Execute` 已于 ADR-032 Wave 4（2026-06-30）移除。L2 步骤用 ADR-029 `pipeline*` 前缀；与 geth `stateTransition.execute` 对齐的步骤用 ADR-030/031 规范名（`stateTransitionExecute`、`innerExecute`）。完整映射见 ADR-030 §2–§8。
 
 自 ADR-019 起，三条链在 **`stateTransitionExecute` 之前**各自装配 `TxPipelineHooks` + `OrchestrationErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(BindingsContext)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
 
@@ -186,9 +186,9 @@ evmone callback → EthHost::call (nested adapter)
 
 | geth | ADR-030 文档名 | 文件 | Profile / 外圈 | TE 调用 | 能力矩阵列语义 |
 | --- | --- | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/EthReferenceExecute.h` | `EthOrchestrationProfile::bind` | `applyReferenceMessage` | ETH = **接线审计**（非生产继承证明） |
-| `ApplyMessage` | `applyFiscoMessage` | `bcos/FiscoExecute.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | `applyFiscoMessage` | BCOS = **FISCO 生产继承契约** |
-| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/OpStackExecute.h` | validate → `runOpStackTxLifecycle`（ADR-023） | `applyOpStackMessage` | OPStack = **OP 生产继承契约** |
+| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/ApplyReferenceMessage.h` | `EthOrchestrationProfile::bind` | `applyReferenceMessage` | ETH = **接线审计**（非生产继承证明） |
+| `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | `applyFiscoMessage` | BCOS = **FISCO 生产继承契约** |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | validate → `runOpStackTxLifecycle`（ADR-023） | `applyOpStackMessage` | OPStack = **OP 生产继承契约** |
 | — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | — | ADR-023 characterization 主面 |
 
 > 评审提醒：ETH 列测试通过 **不等于** BCOS/OP 通过。矩阵中标 `inherited` 且 baseline-reachable 的行必须有 TE 路径测试。
@@ -435,12 +435,12 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | Frame helpers | `eth/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |
 | 内核扩展点 | `eth/policy/VmHostPolicy.h` |
 | EIP 开关 | `eth/RevisionConfig.h` |
-| FISCO 编排 | `bcos/FiscoExecute.cpp` |
+| FISCO 编排 | `bcos/ApplyFiscoMessage.cpp` |
 | FISCO 扩展 | `bcos/FiscoVmHostPolicy.h` |
 | FISCO CREATE 地址 | `bcos/FiscoAddressDerivation.h`（ADR-022） |
 | FISCO Policy | `bcos/FiscoPolicy.h` |
 | 依赖倒置端口 | `bcos/ports/AuthPort.h`、`eth/ports/ChainCallTargetDispatcher.h` |
-| OP 入口 | `opstack/OpStackExecute.cpp` |
+| OP 入口 | `opstack/ApplyOpStackMessage.cpp` |
 | OP lifecycle | `opstack/OpStackTxLifecycle.h` / `.cpp`（ADR-023） |
 | OP settlement | `opstack/OpStackSettlement.h` / `.cpp`（ADR-021） |
 | OP 扩展 | `opstack/OpStackVmHostPolicy.h` |

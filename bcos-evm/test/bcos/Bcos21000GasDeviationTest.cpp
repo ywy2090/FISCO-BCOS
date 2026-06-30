@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE Bcos21000GasDeviationTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
-#include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

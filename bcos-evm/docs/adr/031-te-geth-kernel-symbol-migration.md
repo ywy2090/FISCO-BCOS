@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-30  
-**Related:** ADR-030, ADR-029, ADR-032, ADR-019, `GethNamingAliases.h`, `transaction-executor/`  
+**Related:** ADR-030, ADR-029, ADR-032, ADR-019, `transaction-executor/`  
 **Phase:** P1 / Phase 3b (geth naming P0–P6 plan)
 
 ---
@@ -33,7 +33,7 @@ Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyReferenceMessage` 
 
 - New `bcos-evm` code **must** call canonical names (`stateTransitionExecute`, `innerExecute`, `apply*Message`).
 - ~~Tier E aliases remain one release minimum~~ — **removed ADR-032 Waves 2–4 (2026-06-30)**.
-- `GethNamingAliases.h` keeps Tier A aliases that still forward (`prepareState`, `evmCall`, …); promoted kernel symbols have no duplicate forwards.
+- ~~`GethNamingAliases.h`~~ removed 2026-06-30; use canonical symbols (`warmTransactionEntry`, `runCallFrame`, …) per ADR-030 §3.
 
 ### 2. Internal migration (bcos-evm)
 
@@ -82,7 +82,7 @@ Both ADR-029 and geth names appear in comments during transition.
 ## Consequences
 
 - Parity reviews cite `stateTransitionExecute` / `innerExecute` / `apply*Message` as primary symbols; Tier E names are historical only (ADR-032).
-- `GethNamingAliasesTest` verifies Tier A forwards and canonical kernel drivers; deprecated-forward cases removed with symbols.
+- `KernelCanonicalNamingTest` verifies canonical kernel drivers and policy-level geth forwards.
 - Documentation (`architecture-overview.md`, ADR-030 §8) reflects post-retirement canonical names.
 
 ---
@@ -92,10 +92,10 @@ Both ADR-029 and geth names appear in comments during transition.
 - [x] `stateTransitionExecute` canonical in `TxPipeline.h/.cpp`
 - [x] `innerExecute` canonical in `ExecuteMessage.h/.cpp`
 - [x] `[[deprecated]]` inline `runTxPipeline` / `executeMessage` retained *(removed Wave 2, 2026-06-30)*
-- [x] `GethNamingAliases.h` — removed duplicate forwards for promoted symbols
+- [x] `GethNamingAliases.h` removed 2026-06-30; canonical symbols only
 - [x] bcos-evm internal call sites updated
 - [x] TE audited — no direct kernel calls; no TE code change required
-- [x] `GethNamingAliasesTest` + pipeline/orchestration tests green
+- [x] `KernelCanonicalNamingTest` + pipeline/orchestration tests green
 
 ---
 
