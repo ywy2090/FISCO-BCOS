@@ -14,7 +14,7 @@
  *     stateTransitionExecute → runTxPipeline
  *     ChainPrecheckPolicy — pipelineCheckRules, preCheckGasAffordable, preCheckCanTransfer,
  *                           pipelineSetupMessage, pipelineInvokeEvmKernel
- *     deductIntrinsicGas → debitIntrinsicGas
+ *     deductIntrinsicGas (canonical; debitIntrinsicGas deprecated)
  *     innerExecute → executeMessage
  *     prepareState → execution::warmTransactionEntry
  *     finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
@@ -48,13 +48,6 @@ inline void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy c
     OrchestrationErrorPolicy const& errorPolicy)
 {
     runTxPipeline(ctx, precheck, errorPolicy);
-}
-
-// geth: IntrinsicGas — ADR-030
-[[nodiscard]] inline IntrinsicGasDebitOutcome deductIntrinsicGas(
-    evmc_message& message, IntrinsicGasDebitParams const& policy)
-{
-    return debitIntrinsicGas(message, policy);
 }
 
 // geth: innerExecute — ADR-030 Tier E forward to executeMessage

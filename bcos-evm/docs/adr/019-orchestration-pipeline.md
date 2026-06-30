@@ -20,7 +20,7 @@ Three chain orchestrators (`ethReferenceExecute`, `fiscoExecute`, `opStackExecut
 | Q2 | Kernel covers through settlement snapshot (adopt + snapshot) |
 | Q3 | Shared gas math in kernel; fee routing stays in hooks/wrapper |
 | Q4 | `TxPipeline` + sync `TxPipelineHooks` |
-| Q5 | `debitIntrinsicGas` is portable intrinsic only; OpStack floor/balance in `preDebitEntry` |
+| Q5 | `deductIntrinsicGas` is portable intrinsic only; OpStack floor/balance in `preDebitEntry` |
 | Q6 | State machine / RAII outside kernel; kernel catch is not a revert owner |
 | Q7 | `buyGas`/`refundGas` in wrapper; `runTxPipeline` is sync `void` |
 | Q8 | Explicit `IntrinsicDebitMode` |
@@ -68,7 +68,7 @@ bcos-evm/eth/pipeline/
 ② hooks.prepareMessage(ctx)
 ③ hooks.preExecute(ctx) → earlyExit?
 ③½ hooks.preDebitEntry(ctx) → earlyExit?
-④ debitIntrinsicGas(ctx.message, hooks.intrinsicPolicy) → earlyExit?
+④ deductIntrinsicGas(ctx.message, hooks.intrinsicPolicy) → earlyExit?
 ⑤ hooks.preKernel(ctx)        // may mutate ctx.state; failure via throw
 ⑥ buildExecuteMessageInput(ctx) + hooks.tuneKernelInput
 ⑦ executeMessage(input)       // input.message == ctx.message (post-debit)
@@ -91,7 +91,7 @@ Steps ②–⑪ are inside `try/catch`. On exception: `exitKind = ExceptionMappe
 | `Eip7623` | gasLimit minimum + calldata checks + `preExecutionDebit` + auth | Eth 7623; Fisco web3+7623 |
 | `OpStackEntry` | `availableGas >= intrinsicDebit` then subtract; no floor/balance here | OpStack normal/deposit |
 
-`debitIntrinsicGas` returns `DebitIntrinsicGasOutcome{ok, failure, gasLeftOnFailure, debitAmount}`. Failure enum includes `GasLimitMinimum`, `CalldataOutOfGas`, `AuthTupleOutOfGas`, `OpStackIntrinsicOutOfGas`. It **must not** construct chain-final `EVMCResult`; `mapIntrinsicFailure` hook maps to chain status.
+`deductIntrinsicGas` returns `DebitIntrinsicGasOutcome{ok, failure, gasLeftOnFailure, debitAmount}`. Failure enum includes `GasLimitMinimum`, `CalldataOutOfGas`, `AuthTupleOutOfGas`, `OpStackIntrinsicOutOfGas`. It **must not** construct chain-final `EVMCResult`; `mapIntrinsicFailure` hook maps to chain status.
 
 **Order discipline (not unified across chains):**
 

@@ -22,7 +22,7 @@ All new and migrated source files under `eth/`, `bcos/`, `opstack/`, `test/`, an
 - **`.h`** for headers, **`.cpp`** for translation units (target state)
 - Names reflect **modules/concepts**, not camelCase function names
 
-Function identifiers (e.g. `debitIntrinsicGas()`) remain camelCase per C++ convention.
+Function identifiers (e.g. `deductIntrinsicGas()`) remain camelCase per C++ convention.
 
 ### 2. EIP and layer prefixes
 

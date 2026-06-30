@@ -71,7 +71,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
 
         // geth: IntrinsicGas — ADR-030
         auto const gasBeforeDebit = ctx.message.gas;
-        auto const debitOutcome = debitIntrinsicGas(ctx.message, intrinsicPolicy);
+        auto const debitOutcome = deductIntrinsicGas(ctx.message, intrinsicPolicy);
         if (!debitOutcome.ok)
         {
             ctx.earlyExit = true;

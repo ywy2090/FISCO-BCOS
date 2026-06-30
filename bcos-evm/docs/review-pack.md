@@ -90,7 +90,7 @@ opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
                          （intrinsic 扣减的唯一可变 owner）
 ```
 
-**核心不变量：** 步骤 ④ `debitIntrinsicGas` 修改 `ctx.message`；步骤 ⑦ `executeMessage` 使用同一引用。OpStack 曾出现 `txData.m_message` 与 `input.message` 双轨不同步缺陷，已通过 ADR-019 结构性修复（回归：`test/opstack/OpStackIntrinsicGasSyncTest.cpp`）。
+**核心不变量：** 步骤 ④ `deductIntrinsicGas` 修改 `ctx.message`；步骤 ⑦ `executeMessage` 使用同一引用。OpStack 曾出现 `txData.m_message` 与 `input.message` 双轨不同步缺陷，已通过 ADR-019 结构性修复（回归：`test/opstack/OpStackIntrinsicGasSyncTest.cpp`）。
 
 ### 2.2 固定 12 步管线
 
@@ -101,7 +101,7 @@ opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
 ② hooks.prepareMessage(ctx)
 ③ hooks.preExecute(ctx)       → earlyExit?
 ③½ hooks.preDebitEntry(ctx)  → earlyExit?        （OpStack floor/balance）
-④ debitIntrinsicGas(ctx.message, intrinsicPolicy) → earlyExit?
+④ deductIntrinsicGas(ctx.message, intrinsicPolicy) → earlyExit?
 ⑤ hooks.preKernel(ctx)        — 可 mutate state；失败 via throw
 ⑥ buildExecuteMessageInput(ctx) + hooks.tuneKernelInput
 ⑦ executeMessage(input)       — input.message == ctx.message

@@ -14,7 +14,7 @@
 | 项 | 状态 |
 | --- | --- |
 | `runTxPipeline` 固定 12 步管线 | ✅ |
-| `debitIntrinsicGas` / `adoptEvmcResult` / `buildExecuteMessageInput` 单点 | ✅ |
+| `deductIntrinsicGas` / `adoptEvmcResult` / `buildExecuteMessageInput` 单点 | ✅ |
 | OpStack intrinsic 与 `ctx.message` 同步 | ✅ 结构性修复 |
 | 三份 `adoptResult` 匿名副本 | ✅ 合并为 `AdoptEvmcResult.h` |
 | `ExecuteMessageInput` 13 字段三处手工填充 | ✅ 合并为 `BuildExecuteMessageInput.h` |

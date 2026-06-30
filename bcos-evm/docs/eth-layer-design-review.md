@@ -28,7 +28,7 @@ opstack/ ──►  eth/
 | 3 | `eth/vm/` | EVM lifecycle (policy, factory, instance) | `EthChainPolicy`, `VMFactory`, `VMInstance` | `test/eth/` |
 | 4 | `eth/precompiled/` | Precompile dispatch and gas | `PrecompileRouter`, `EthBuiltinRegistry`, `BlsGas`, `ModexpGas` | `test/eth/` |
 | 5 | `eth/gas/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
-| 6 | `eth/pipeline/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `debitIntrinsicGas` | `test/eth/` |
+| 6 | `eth/pipeline/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `deductIntrinsicGas` | `test/eth/` |
 | 7 | `eth/execution/` | Warm-up and feature preparation | `warmTransactionEntry`, `TxFeaturePrepare`, `BlockInfoBuilder`, `Eip2929PrecompileWarm` | `test/eth/` |
 | 8 | `eth/` (root) | Entry points, types, cross-cutting | `executeMessage`, `executeViaEth`, `RevisionConfig`, `Eip7702`, `EVMCResult` | `test/eth/`, `test/` (root) |
 
@@ -183,7 +183,7 @@ runTxPipeline(ctx, hooks):
     1. hooks.prepareMessage(ctx)
     2. hooks.preExecute(ctx)        ← early exit → PreExecuteRejected
     3. hooks.preDebitEntry(ctx)     ← early exit → PreDebitRejected (OpStack)
-    4. debitIntrinsicGas(ctx.message, intrinsicPolicy)  ← shared; mutates ctx.message
+    4. deductIntrinsicGas(ctx.message, intrinsicPolicy)  ← shared; mutates ctx.message
     5. hooks.preKernel(ctx)         ← may throw; balance/21000/canTransfer
     6. buildExecuteMessageInput(ctx) + hooks.tuneKernelInput
     7. executeMessage(input)        ← input.message == ctx.message (post-debit invariant)
@@ -203,7 +203,7 @@ runTxPipeline(ctx, hooks):
 1. New shared orchestration steps belong in `runTxPipeline` or a portable header under `eth/pipeline/`, not duplicated in three wrappers.
 2. New hooks must have sensible no-op defaults in `TxPipelineHooks`.
 3. `earlyExit` / `TxPipelineExitKind` must be set after `preExecute`, `preDebitEntry`, intrinsic failure, and `preKernel`.
-4. Intrinsic failure uses `DebitIntrinsicGasOutcome` + `mapIntrinsicFailure`; do not construct chain-final `EVMCResult` inside `debitIntrinsicGas`.
+4. Intrinsic failure uses `DebitIntrinsicGasOutcome` + `mapIntrinsicFailure`; do not construct chain-final `EVMCResult` inside `deductIntrinsicGas`.
 5. Exception path: each chain's `mapException` owns checkpoint revert policy (Eth/Fisco revert when checkpoint exists; OpStack maps to internal error).
 
 ---

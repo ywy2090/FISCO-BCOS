@@ -215,7 +215,7 @@ ethReferenceExecute / fiscoExecute / opStackExecute
 | ② | `txSetupMessage` | 消息派生（CREATE 地址等） |
 | ③ | `txCheckTransactionRules` | 规则预检 → `earlyExit` |
 | ③½ | `txCheckGasAffordable` | OpStack floor/balance → `earlyExit` |
-| ④ | `debitIntrinsicGas` | 修改 `ctx.message.gas` |
+| ④ | `deductIntrinsicGas` | 修改 `ctx.message.gas` |
 | ⑤ | `txCheckBalanceAndValue` | 余额 / 21000 等 |
 | ⑥ | `buildExecuteMessageInput` + `txTuneExecutionInput` | 组装内核输入 |
 | ⑦ | `executeMessage` | **input.message == ctx.message**（post-debit） |

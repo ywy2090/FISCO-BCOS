@@ -12,7 +12,7 @@ BOOST_AUTO_TEST_CASE(none_mode_does_not_debit)
     message.kind = EVMC_CALL;
     message.gas = 100'000;
 
-    auto const out = debitIntrinsicGas(message, {.mode = IntrinsicDebitMode::None});
+    auto const out = deductIntrinsicGas(message, {.mode = IntrinsicDebitMode::None});
     BOOST_REQUIRE(out.ok);
     BOOST_CHECK_EQUAL(out.debitAmount, 0);
     BOOST_CHECK_EQUAL(message.gas, 100'000);
@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE(auth_only_mode_debits_auth_cost)
     message.kind = EVMC_CALL;
     message.gas = 100'000;
 
-    auto const out = debitIntrinsicGas(message, {.mode = IntrinsicDebitMode::AuthOnly,
+    auto const out = deductIntrinsicGas(message, {.mode = IntrinsicDebitMode::AuthOnly,
                                                     .authorizationListPresent = true,
                                                     .authTupleCount = 1});
     BOOST_REQUIRE(out.ok);
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(eip7623_mode_reports_structured_gas_limit_minimum_failure)
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    auto const out = debitIntrinsicGas(message, {.mode = IntrinsicDebitMode::Eip7623});
+    auto const out = deductIntrinsicGas(message, {.mode = IntrinsicDebitMode::Eip7623});
     BOOST_REQUIRE(!out.ok);
     BOOST_CHECK_EQUAL(
         static_cast<int>(out.failure), static_cast<int>(IntrinsicDebitFailure::GasLimitMinimum));
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(opstack_entry_mode_debits_intrinsic_without_floor_mapping)
     message.kind = EVMC_CALL;
     message.gas = 100'000;
 
-    auto const out = debitIntrinsicGas(message, {.mode = IntrinsicDebitMode::OpStackEntry});
+    auto const out = deductIntrinsicGas(message, {.mode = IntrinsicDebitMode::OpStackEntry});
     BOOST_REQUIRE(out.ok);
     BOOST_CHECK_EQUAL(out.debitAmount, gas::TX_BASE_GAS);
     BOOST_CHECK_EQUAL(message.gas, 100'000 - gas::TX_BASE_GAS);

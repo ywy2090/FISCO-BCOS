@@ -79,8 +79,8 @@ Maps **current ADR-029 code** (as of 2026-06-29) to geth. Use the **geth column*
 | --- | --- | --- | --- |
 | — | `newStateTransition` | `TxPipelineContext` ctor + bridge setup | `StateTransition` context object |
 | 1 | `preCheck` (incl. `buyGas` on ETH) | `pipelineCheckRules`, `pipelineCheckGasAffordable`, OP `lifecycleCheckEntryRules` | `preCheck` (+ chain hooks inside) |
-| 2 | `IntrinsicGas` + `Charge` | `debitIntrinsicGas` | `deductIntrinsicGas` or `intrinsicGas` |
-| 3 | `FloorDataGas` | Eip7623 mode in `debitIntrinsicGas` + `captureSettlementSnapshot` | `checkFloorDataGas` / `floorDataGas` |
+| 2 | `IntrinsicGas` + `Charge` | `deductIntrinsicGas` | `deductIntrinsicGas` (Phase 3 batch 1 ✅) |
+| 3 | `FloorDataGas` | Eip7623 mode in `deductIntrinsicGas` + `captureSettlementSnapshot` | `checkFloorDataGas` / `floorDataGas` |
 | 4 | `CanTransfer` | `pipelineCheckBalance` | `canTransfer` (`CanTransfer.h`) + `preCheckCanTransfer` (pipeline slice) |
 | 5 | `state.Prepare` | `warmTransactionEntry`, transient clear in `TxExecutionRunner` | `prepareState` |
 | 6 | `evm.Create` / `evm.Call` | `pipelineInvokeEvmKernel` → `executeMessage` → `runEvmKernelTopLevel` | `innerExecute` |
@@ -182,7 +182,8 @@ Tier A inline aliases (implemented 2026-06-29, coexist with ADR-029 `pipeline*`)
 | `preCheck` slices | `preCheckRules`, `preCheckGasAffordable`, `preCheckCanTransfer` | `pipelineCheck*` on `ChainPrecheckPolicy` |
 | `normalizeMessage` | `normalizeMessage` | `pipelineSetupMessage` |
 | `innerExecute` | `innerExecute` | `pipelineInvokeEvmKernel` / `executeMessage` |
-| `IntrinsicGas` | `deductIntrinsicGas` | `debitIntrinsicGas` |
+| `IntrinsicGas` | `deductIntrinsicGas` | canonical (`IntrinsicGasDebit.h`) |
+| `IntrinsicGas` (deprecated) | `debitIntrinsicGas` | `deductIntrinsicGas` |
 | `state.Prepare` | `prepareState` | `warmTransactionEntry` |
 | `execute` | `stateTransitionExecute` | `runTxPipeline` |
 | `finalizeGasUsed` | `finalizeGasUsed` | `onPostExecuteNormalize` |
@@ -196,7 +197,7 @@ When reviewing geth parity, walk this checklist in order:
 
 1. **Reject vs included** — geth `preCheck` / intrinsic failure → `return nil, err` vs bcos `earlyExit` + `OrchestrationErrorPolicy` (see error-handling parity reports).
 2. **`preCheck`** — map `pipelineCheck*` + OP `lifecycleCheckEntryRules`.
-3. **`IntrinsicGas` / `FloorDataGas`** — map `debitIntrinsicGas` + `IntrinsicDebitMode`.
+3. **`IntrinsicGas` / `FloorDataGas`** — map `deductIntrinsicGas` + `IntrinsicDebitMode`.
 4. **`CanTransfer`** — map `pipelineCheckBalance`.
 5. **`Prepare`** — map warm + transient + 7702 auth apply timing vs geth `execute` block.
 6. **`innerExecute`** — map `executeMessage` path through `runCallFrame`.
@@ -234,7 +235,7 @@ When reviewing geth parity, walk this checklist in order:
 | `TxPipelineContext` | `stateTransition` fields |
 | `runTxPipeline` | `stateTransition.execute` |
 | `pipelineCheck*` | `preCheck` |
-| `debitIntrinsicGas` | `IntrinsicGas` + `Charge` |
+| `deductIntrinsicGas` | `IntrinsicGas` + `Charge` |
 | `pipelineCheckBalance` | `CanTransfer` |
 | `warmTransactionEntry` | `state.Prepare` |
 | `executeMessage` | after `Prepare`: `evm.Call`/`Create` |

@@ -39,7 +39,7 @@ struct NoopErrorPolicy : OrchestrationErrorPolicy
 
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(deductIntrinsicGas_alias_matches_debitIntrinsicGas_none_mode)
+BOOST_AUTO_TEST_CASE(debitIntrinsicGas_deprecated_alias_matches_deductIntrinsicGas_none_mode)
 {
     IntrinsicGasDebitParams policy{};
     policy.mode = IntrinsicDebitMode::None;

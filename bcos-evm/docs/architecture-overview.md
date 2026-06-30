@@ -161,7 +161,7 @@ struct TxExecutionRunner {
 }
 ```
 
-**编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `debitIntrinsicGas` 修改它，步骤 ⑦ `executeMessage` 使用同一引用。三路径内核调用点：`EthReferenceExecute.cpp`、`FiscoExecute.cpp`、`OpStackTxLifecycle.cpp`（经 `OpStackOrchestrationProfile::bind`）。
+**编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `deductIntrinsicGas` 修改它，步骤 ⑦ `executeMessage` 使用同一引用。三路径内核调用点：`EthReferenceExecute.cpp`、`FiscoExecute.cpp`、`OpStackTxLifecycle.cpp`（经 `OpStackOrchestrationProfile::bind`）。
 
 ### 3.1 Frame execution (ExecutionFrame)
 
@@ -200,7 +200,7 @@ evmone callback → EthHost::call (nested adapter)
 ② hooks.txSetupMessage(ctx)
 ③ hooks.txCheckTransactionRules(ctx)      → earlyExit?
 ③½ hooks.txCheckGasAffordable(ctx)       → earlyExit?   （OpStack floor/balance）
-④ debitIntrinsicGas(ctx.message, intrinsicPolicy) → earlyExit?
+④ deductIntrinsicGas(ctx.message, intrinsicPolicy) → earlyExit?
     └─ on failure: errorPolicy.onIntrinsicGasFailure
 ⑤ hooks.txCheckBalanceAndValue(ctx)
 ⑥ ctx.session->toExecuteMessageInput(ctx) + hooks.txTuneExecutionInput   （ADR-027；`BuildExecuteMessageInput` deprecated）

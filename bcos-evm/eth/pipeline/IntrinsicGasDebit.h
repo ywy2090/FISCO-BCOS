@@ -42,7 +42,7 @@ struct IntrinsicGasDebitOutcome
     int64_t debitAmount{0};
 };
 
-inline IntrinsicGasDebitOutcome debitIntrinsicGas(
+inline IntrinsicGasDebitOutcome deductIntrinsicGas(
     evmc_message& message, IntrinsicGasDebitParams const& policy)
 {
     IntrinsicGasDebitOutcome outcome{};
@@ -129,6 +129,12 @@ inline IntrinsicGasDebitOutcome debitIntrinsicGas(
         return outcome;
     }
     }
+}
+
+[[deprecated("Use deductIntrinsicGas")]] inline IntrinsicGasDebitOutcome debitIntrinsicGas(
+    evmc_message& message, IntrinsicGasDebitParams const& policy)
+{
+    return deductIntrinsicGas(message, policy);
 }
 
 }  // namespace bcos::evm
