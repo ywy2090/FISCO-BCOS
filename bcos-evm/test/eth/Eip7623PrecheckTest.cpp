@@ -36,7 +36,7 @@ bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_oog_when_gas_below_normal_cost)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_eip7623_oog_when_gas_below_normal_cost)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_oog_when_gas_below_normal_cost)
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_skips_precheck_when_normal_cost_zero)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_eip7623_skips_precheck_when_normal_cost_zero)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x03);

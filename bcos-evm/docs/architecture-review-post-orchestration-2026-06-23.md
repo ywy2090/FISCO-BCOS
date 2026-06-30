@@ -137,7 +137,7 @@ P2  Speculative → Done
 
 **强度:** Strong · **类别:** in-process
 
-**文件:** `eth/ExecuteViaEth.cpp` · `eth/pipeline/NormalizeIncludedTxVmerr.h` · `bcos/ExecuteViaHost.cpp` · `opstack/OpStackExecuteViaHost.cpp` · ADR-015
+**文件:** `eth/ExecuteViaEth.cpp` · `eth/pipeline/IncludedTxVmerrNormalize.h` · `bcos/ExecuteViaHost.cpp` · `opstack/OpStackExecuteViaHost.cpp` · ADR-015
 
 **问题（无 locality）：** 管线共享 gas 数学，但错误语义仍分散在三个 wrapper 的 `mapException` / `postAdopt` / `postSettle` lambda（各 ~100–180 行）。Eth 有 included-tx vmerr；Fisco 有 `fixErrorHandling` 矩阵；OpStack 用 `postExecuteGasSettlement`。理解「同一 `EVMC_REVERT` 在三链含义」需读三份 cpp。
 

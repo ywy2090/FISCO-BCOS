@@ -1,7 +1,7 @@
 #pragma once
 
-#include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/ports/ChainCallTargetDispatcher.h"
 #include "bcos-evm/eth/state/EvmHostHooks.h"
 #include <cassert>
@@ -18,7 +18,7 @@ struct EvmTxContextView
     evmc::VM* vm{nullptr};
     state::BlockHashes blockHashes{};
 
-    void wire(TxPipelineContext& ctx) const
+    void wire(StateTransitionContext& ctx) const
     {
         if (vm == nullptr)
         {
@@ -37,9 +37,9 @@ struct EvmTxContextView
 #endif
     }
 
-    ExecuteMessageInput toExecuteMessageInput(TxPipelineContext const& ctx) const
+    InnerExecuteInput toInnerExecuteInput(StateTransitionContext const& ctx) const
     {
-        ExecuteMessageInput input;
+        InnerExecuteInput input;
         input.state = const_cast<state::State*>(&ctx.state);
         input.vm = vm;
         input.message = ctx.message;

@@ -9,7 +9,7 @@
 
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
@@ -124,7 +124,7 @@ bytes setterSelector()
     return {0x09, 0x89, 0x99, 0xbe};
 }
 
-CallOutcome runDepth0EmptyCall(ExecuteMessageInput input)
+CallOutcome runDepth0EmptyCall(InnerExecuteInput input)
 {
     auto const recipient = std::memcmp(input.message.code_address.bytes, evmc_address{}.bytes,
                                sizeof(evmc_address{}.bytes)) != 0 ?
@@ -174,11 +174,11 @@ struct Depth1HostFixture
     state::EthHost& ethHost() { return *host; }
 };
 
-ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message,
+InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message,
     state::EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

@@ -2,8 +2,8 @@
 
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -33,14 +33,14 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     OpStackExecutionRequest input;
     state::test::InMemoryStateView stateView;
     evmc_message msg{};
-    TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
 }
 
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     OpStackExecutionRequest input;
     input.skipTransactionChecks = false;
 
-    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
@@ -79,14 +79,14 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     OpStackExecutionRequest input;
     state::test::InMemoryStateView stateView;
     evmc_message msg{};
-    TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasDebitParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.deductIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
 }
 

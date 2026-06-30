@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     msg.sender = sender;
     msg.gas = 1'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
     OpStackExecutionRequest input;
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     msg.sender = sender;
     msg.gas = 1'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
     OpStackExecutionRequest input;
@@ -227,7 +227,7 @@ BOOST_AUTO_TEST_CASE(l1_blob_base_fee_slot_does_not_set_execution_blob_base_fee)
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
 
-BOOST_AUTO_TEST_CASE(opStackExecute_deducts_blob_fee_on_success)
+BOOST_AUTO_TEST_CASE(applyOpStackMessage_deducts_blob_fee_on_success)
 {
     auto const initialBalance = u256(50'000'000'000);
     auto runCase = [&](bool withBlobVersionedHashes) -> u256 {

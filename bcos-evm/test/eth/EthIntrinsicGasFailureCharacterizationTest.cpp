@@ -100,7 +100,7 @@ bool stateDiffPreservesBalance(
 }  // namespace
 
 // Scenario A — intrinsic gas below TxGas (geth ErrIntrinsicGas matrix).
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_too_low_maps_to_out_of_gas_limit)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_too_low_maps_to_out_of_gas_limit)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_too_low_maps_to_out_of_ga
 }
 
 // Scenario A — TE settlement projection: gasUsed consumes full gasLimit when gas_left=0.
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_failure_te_gas_used_equals_gas_limit)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_failure_te_gas_used_equals_gas_limit)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(eth_buy_gas_insufficient_balance_te_oracle_not_enough_cash)
 }
 
 // Task 2 — inclusion / receipt existence oracle at bridge layer (TE still makeReceipt).
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_failure_inclusion_failed_receipt_oracle)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_failure_inclusion_failed_receipt_oracle)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};

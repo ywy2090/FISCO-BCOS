@@ -150,7 +150,7 @@ EthHost::call(msg)
 `TxExecutionRunner::runEvmKernelTopLevel` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `VmHostPolicy*` 注入。
 
 ```cpp
-// eth/ExecuteMessage.h — 对外接口
+// eth/InnerExecute.h — 对外接口
 ExecuteMessageOutput innerExecute(ExecuteMessageInput input);
 
 // eth/execution/TxExecutionRunner.h — 实现体
@@ -417,16 +417,16 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 外部 review 入口 | `docs/review-pack.md` |
 | 库划分 / 依赖 | `bcos-evm/CMakeLists.txt` |
 | 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
-| 编排上下文 | `eth/pipeline/TxPipelineContext.h` |
+| 编排上下文 | `eth/pipeline/StateTransitionContext.h` |
 | 编排钩子 | `eth/pipeline/TxPipelineHooks.h` |
 | 编排错误策略（基类） | `eth/pipeline/OrchestrationErrorPolicy.h` |
 | ETH Profile | `eth/apply/EthOrchestrationProfile.h` |
 | FISCO Profile | `bcos/FiscoOrchestrationProfile.h` |
 | OP Profile | `opstack/OpStackOrchestrationProfile.h` |
-| 内核入口（符号） | `eth/ExecuteMessage.h` / `.cpp` (`innerExecute`) |
+| 内核入口（符号） | `eth/InnerExecute.h` / `.cpp` (`innerExecute`) |
 | Tx 级 adapter | `eth/execution/TxExecutionRunner.h` / `.cpp` |
 | Call target 分类 | `eth/execution/CallTargetResolver.h` / `.cpp`（ADR-024） |
-| ExecutionFrame | `eth/execution/ExecutionFrame.h` / `.cpp` |
+| ExecutionFrame | `eth/execution/EvmCallFrame.h` / `.cpp` |
 | Precompile 单源 | `eth/precompiled/PrecompileActive.h` |
 | Precompile envelope | `eth/precompiled/PrecompileRouter.cpp`（`executePrecompileEnvelope`） |
 | 2929 warm gate | `eth/execution/Eip2929Access.h` |

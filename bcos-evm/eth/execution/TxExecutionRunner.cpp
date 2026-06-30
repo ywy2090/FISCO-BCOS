@@ -8,7 +8,7 @@
 #include "bcos-evm/eth/execution/TxExecutionRunner.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
-#include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
@@ -59,7 +59,7 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
 }
 
 void apply7702TxAuthorizationsIfNeeded(
-    state::State& state, ExecuteMessageInput const& input, evmc_address const& codeAddress)
+    state::State& state, InnerExecuteInput const& input, evmc_address const& codeAddress)
 {
     if (isCreateKind(input.message.kind))
     {
@@ -84,7 +84,7 @@ void apply7702TxAuthorizationsIfNeeded(
     state.commit();
 }
 
-void logEntry(ExecuteMessageInput const& input)
+void logEntry(InnerExecuteInput const& input)
 {
     if (input.message.depth == 0)
     {
@@ -97,7 +97,7 @@ void logEntry(ExecuteMessageInput const& input)
                    << LOG_KV("code", trace::evmcAddress(input.message.code_address));
 }
 
-void prepareTxEntry(state::State& state, ExecuteMessageInput const& input)
+void prepareTxEntry(state::State& state, InnerExecuteInput const& input)
 {
     if (input.message.depth == 0)
     {
@@ -114,7 +114,7 @@ void prepareTxEntry(state::State& state, ExecuteMessageInput const& input)
 }
 
 void setupHostExecutionTarget(
-    state::EthHost& host, state::State& state, ExecuteMessageInput const& input)
+    state::EthHost& host, state::State& state, InnerExecuteInput const& input)
 {
     if (isCreateKind(input.message.kind))
     {
@@ -129,10 +129,10 @@ void setupHostExecutionTarget(
     apply7702TxAuthorizationsIfNeeded(state, input, codeAddress);
 }
 
-ExecuteMessageOutput finalizePrecompileHit(
+InnerExecuteOutput finalizePrecompileHit(
     state::State& state, FrameResult&& fr, state::EthHost& host)
 {
-    ExecuteMessageOutput output;
+    InnerExecuteOutput output;
     output.result = std::move(fr.result);
     output.logs = host.take_logs();
     EVM_LOG(TRACE) << LOG_DESC("innerExecute precompile")
@@ -143,10 +143,10 @@ ExecuteMessageOutput finalizePrecompileHit(
     return output;
 }
 
-ExecuteMessageOutput finalizeAfterFrame(
-    state::State& state, ExecuteMessageInput const& input, FrameResult&& fr, state::EthHost& host)
+InnerExecuteOutput finalizeAfterFrame(
+    state::State& state, InnerExecuteInput const& input, FrameResult&& fr, state::EthHost& host)
 {
-    ExecuteMessageOutput output;
+    InnerExecuteOutput output;
     output.result = std::move(fr.result);
     output.logs = host.take_logs();
 
@@ -191,7 +191,7 @@ ExecuteMessageOutput finalizeAfterFrame(
 }
 }  // namespace
 
-ExecuteMessageOutput TxExecutionRunner::runEvmKernelTopLevel(ExecuteMessageInput input)
+InnerExecuteOutput TxExecutionRunner::runEvmKernelTopLevel(InnerExecuteInput input)
 {
     if (input.state == nullptr || input.vm == nullptr)
     {

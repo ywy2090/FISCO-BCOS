@@ -1,6 +1,6 @@
 # ADR-032: Tier E Symbol Retirement Schedule
 
-**Status:** Accepted (plan only — no symbol removal in this ADR)  
+**Status:** Accepted — **executed** (Waves 1–5 complete, 2026-06-30)  
 **Date:** 2026-06-30  
 **Related:** ADR-030, ADR-031, ADR-029, `GethNamingAliases.h`, `transaction-executor/`  
 **Phase:** P5 (geth naming P0–P6 plan)
@@ -9,22 +9,22 @@
 
 ## Context
 
-ADR-030 defined **Tier E — stable ABI**: legacy FISCO entry names (`executeMessage`, `fiscoExecute`, `runTxPipeline`, …) that external consumers—primarily `transaction-executor` (TE)—link against while `bcos-evm/eth/` adopts geth vocabulary.
+ADR-030 defined **Tier E — stable ABI**: legacy FISCO entry names (`executeMessage`, `fiscoExecute`, `runTxPipeline`, …) that external consumers—primarily `transaction-executor` (TE)—linked against while `bcos-evm/eth/` adopted geth vocabulary. **All Tier E symbols were removed in Waves 1–4 (2026-06-30).**
 
-ADR-031 Phase 3b (P1) promoted two **portable eth kernel** symbols to canonical C++ identifiers and added `[[deprecated]]` inline forwards:
+ADR-031 Phase 3b (P1) promoted two **portable eth kernel** symbols to canonical C++ identifiers; deprecated inline forwards were removed in Wave 2:
 
-| Tier E (deprecated forward) | Canonical (ADR-031) | Header |
+| ~~Tier E~~ | Canonical (ADR-031) | Header |
 | --- | --- | --- |
-| `runTxPipeline` | `stateTransitionExecute` | `eth/pipeline/TxPipeline.h` |
-| `executeMessage` | `innerExecute` | `eth/ExecuteMessage.h` |
+| ~~`runTxPipeline`~~ | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` |
+| ~~`executeMessage`~~ | `innerExecute` | `eth/InnerExecute.h` |
 
-Phase 4c (P2) documented **`apply*Message`** as the geth-aligned chain entry name; TE impls now call `applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage` at the syscall boundary while `*Execute` remains the exported function symbol (no `[[deprecated]]` yet).
+Phase 4c (P2) documented **`apply*Message`** as the geth-aligned chain entry name; TE impls call `applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage` at the syscall boundary. Wave 3 promoted those to exported link symbols; Wave 4 removed `*Execute` forwards.
 
-This ADR is the **authoritative removal schedule** for all Tier E and ADR-029 transitional aliases. **No symbol is removed until its wave gate checklist is complete.**
+This ADR was the **authoritative removal schedule** for all Tier E and ADR-029 transitional aliases. **Execution complete** — see appendix timeline.
 
-**Non-goals (this ADR):**
+**Non-goals (historical — unchanged):**
 
-- Deleting deprecated forwards or renaming `*Execute` implementations.
+- ~~Deleting deprecated forwards or renaming `*Execute` implementations.~~ **Done** (Waves 1–4).
 - Changing ADR-029 layer prefixes (`pipeline*`, `runCallFrame`) — those remain valid parallel vocabulary until a separate rename ADR.
 
 ---
@@ -49,8 +49,8 @@ These symbols are `[[deprecated]]` today and are **not** TE entry points. Safe t
 
 | Order | Remove | Canonical replacement | Location |
 | --- | --- | --- | --- |
-| 1.1 | `debitIntrinsicGas` | `deductIntrinsicGas` | `eth/pipeline/IntrinsicGasDebit.h` |
-| 1.2 | `runExecutionFrame` | `runCallFrame` | `eth/execution/ExecutionFrame.h` |
+| 1.1 | `debitIntrinsicGas` | `deductIntrinsicGas` | `eth/pipeline/DeductIntrinsicGas.h` |
+| 1.2 | `runExecutionFrame` | `runCallFrame` | `eth/execution/EvmCallFrame.h` |
 | 1.3 | `TxExecutionRunner::run` | `runEvmKernelTopLevel` | `eth/execution/TxExecutionRunner.h` |
 | 1.4 | `buildExecuteMessageInput` | `EvmTxContextView::toExecuteMessageInput` via `ctx.txContextView` | `eth/pipeline/EvmTxContextView.h` |
 | 1.5 | `ChainPrecheckPolicy` legacy virtuals: `setupMessage`, `checkTransactionRules`, `checkGasAffordable`, `checkBalanceAndValue`, `tuneExecutionInput`, `runEvmExecution` | `pipelineSetupMessage`, `pipelineCheckRules`, `pipelineCheckGasAffordable`, `pipelineCheckBalance`, `pipelineTuneKernelInput`, `pipelineInvokeEvmKernel` | `eth/pipeline/ChainPrecheckPolicy.h` |
@@ -65,8 +65,8 @@ TE does **not** call these directly (verified ADR-031 §3); removal is gated on 
 
 | Order | Remove | Canonical replacement | Location |
 | --- | --- | --- | --- |
-| 2.1 | `runTxPipeline` | `stateTransitionExecute` | `eth/pipeline/TxPipeline.h` |
-| 2.2 | `executeMessage` | `innerExecute` | `eth/ExecuteMessage.h` |
+| 2.1 | `runTxPipeline` | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` |
+| 2.2 | `executeMessage` | `innerExecute` | `eth/InnerExecute.h` |
 
 After Wave 2: delete `GethNamingAliasesTest` cases `runTxPipeline_deprecated_alias_*` and `executeMessage_deprecated_alias_*`; retain canonical driver tests.
 
@@ -145,7 +145,7 @@ OpStackTransactionExecutorImpl    → applyOpStackMessage    (was opStackExecute
 | TE ETH reference path calls `applyReferenceMessage` | ✅ P2 | — | `EthTransactionExecutorImpl.h` |
 | TE OP path calls `applyOpStackMessage` | ✅ P2 | — | `OpStackTransactionExecutorImpl.h` |
 | TE compat tests use `applyFiscoMessage` | ✅ | — | `ExecuteViaHostCompatTest.cpp`, harness headers |
-| Rename local helpers `*ExecuteTx()` → `*ApplyMessage()` (optional hygiene) | ☐ optional | 3 | Comments only; not blocking |
+| Rename local helpers `*ExecuteTx()` → `*ApplyMessageTx()` | ✅ optional hygiene | 5 | `applyFiscoMessageTx` etc. in TE impl headers |
 | TE comments / log strings cite `apply*Message` not `*Execute` | ✅ Wave 5 | 3 | `Initializer.cpp` log strings; TE local helper names unchanged |
 | TE includes only canonical headers after Wave 3 | ✅ Wave 4 | 4 | No `#include` dependency on deprecated forward |
 | TE release notes document `*Execute` removal | ✅ Wave 4 | 4 | ADR-032 inventory + ADR-030 §8 removal dates |
@@ -170,7 +170,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 
 ## Consequences
 
-- Tier E removal is **sequenced and gated**; P5 documents the plan; P6+ executes waves.
+- Tier E removal **complete** (ADR-032 Waves 1–5); P6+ executes waves.
 - Wave 1 can proceed independently of TE once bcos-evm grep is clean.
 - Wave 3–4 are the only TE-blocking removals; P2 already satisfied the syscall boundary.
 - CI keeps deprecated-forward tests until the wave that removes the symbol merges.
@@ -197,7 +197,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 ## Appendix — CI confirmation (Wave 5)
 
 ```bash
-cd build && ctest -R 'GethNaming|FiscoExecute|EthReference|OpStackExecute|TxPipeline' --output-on-failure
+cd build && ctest -R 'EthOrchestrationProfile|TxPipeline|TxExecution|Precompile|OpStackPrecheck|DeductIntrinsic|ExecuteViaHost|GethNaming|FiscoExecute|EthReference|OpStackExecute' --output-on-failure
 ```
 
 Aggregate headers (`include/bcos-evm/*_executor.hpp`) re-export canonical chain entry headers only (`apply*Message`).

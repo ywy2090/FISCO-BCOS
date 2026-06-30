@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip7212KernelTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_innerExecute)
     blockInfo.gasLimit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
-    ExecuteMessageInput execInput;
+    InnerExecuteInput execInput;
     execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;

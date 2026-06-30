@@ -19,7 +19,7 @@ ADR-029 introduced **layer prefixes** (`pipeline*`, `runEvmKernel*`, `runCallFra
 
 1. One canonical table: bcos-evm symbol → geth symbol → file anchor.
 2. Distinguish **portable eth kernel** (should use geth names when we rename) vs **chain extensions** (keep chain suffix).
-3. Preserve **stable external ABI** (`executeMessage`, `fiscoExecute`, …) via aliases until TE migrates.
+3. ~~Preserve stable external ABI~~ — **Tier E retired ADR-032 (2026-06-30)**; new code uses canonical names (`apply*Message`, `stateTransitionExecute`, `innerExecute`).
 
 **Non-goals (v1):**
 
@@ -59,7 +59,7 @@ ApplyMessage(evm, msg, gp)                    // core/state_transition.go
 | **D — FISCO injection** | Document as extension; no geth symbol | `AuthPort`, `EvmHostContext` bundle |
 | **E — stable ABI** | ~~Retained until TE migrates~~ **retired ADR-032 Waves 2–4 (2026-06-30)** | ~~`executeMessage`, `fiscoExecute`~~ → canonical only |
 
-New **eth kernel** code: use Tier A/B names in function and log strings. Tier E remains as `inline` forwarders or documented aliases.
+New **eth kernel** code: use Tier A/B names in function and log strings. ~~Tier E~~ — **removed**; see ADR-032 §8.
 
 ### 2. Entry points (Tier C — canonical since ADR-032 Wave 3)
 
@@ -212,7 +212,7 @@ When reviewing geth parity, walk this checklist in order:
 - Architecture docs and PR descriptions should use **geth names** when discussing portable semantics, and **chain suffix** for FISCO/OP-only behavior.
 - ADR-029 remains the code-level phase-prefix standard until refactors; ADR-030 is the **geth Rosetta stone**.
 - New tests that cite geth should name cases after geth steps (`preCheck_rejects`, `intrinsic_gas_OOG`, `prepare_warms_precompile`, `innerExecute_call`).
-- Renames follow Tier A/B first (`eth/`), then Tier C chain entry points; Tier E aliases removed only with TE migration plan.
+- Renames follow Tier A/B first (`eth/`), then Tier C chain entry points. ~~Tier E~~ retired ADR-032 Waves 1–4 (2026-06-30).
 
 ---
 
@@ -225,7 +225,7 @@ Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
 - [x] Parity PR description lists geth file:line anchor alongside bcos-evm symbol (§9 parity PR note).
 - [ ] Chain-only behavior labeled extension in §6, not claimed as geth parity without op-geth cite (ongoing review discipline).
 - [x] No removal of Tier E symbols without explicit TE/ADR follow-up *(ADR-032 Waves 1–4 complete; Wave 5 doc sweep)*
-- [x] `architecture-overview.md` flow diagrams dual-label critical steps (ADR-029 + geth) when updated.
+- [x] `architecture-overview.md` flow diagrams use canonical names (ADR-029 layer + geth vocabulary in comments).
 - [x] `eth/apply/` path documented (Phase 4b); no stale `eth/reference/` in `eth/README.md`.
 
 ---

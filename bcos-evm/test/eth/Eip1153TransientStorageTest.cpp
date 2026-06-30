@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip1153TransientStorageTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/ApplyStateDiffToView.h"
@@ -35,7 +35,7 @@ bcos::evm_standard::RevisionConfig makeCancunRevisionConfig()
     return cfg;
 }
 
-ExecuteMessageInput makeCallInput(state::State& state, evmc::VM& vm, evmc_address sender,
+InnerExecuteInput makeCallInput(state::State& state, evmc::VM& vm, evmc_address sender,
     evmc_address target, bcos::bytes const& code, int64_t gas = 200'000)
 {
     state::BlockInfo blockInfo;
@@ -50,7 +50,7 @@ ExecuteMessageInput makeCallInput(state::State& state, evmc::VM& vm, evmc_addres
     message.recipient = target;
     message.code_address = target;
 
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
@@ -58,11 +58,11 @@ inline evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message,
+inline InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message,
     state::EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;
@@ -76,7 +76,7 @@ inline ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const
     return input;
 }
 
-inline ExecuteMessageInput makeBaseInput(state::State* state, evmc_message const& message,
+inline InnerExecuteInput makeBaseInput(state::State* state, evmc_message const& message,
     state::EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr)
 {
     return makeBaseInput(*state, message, extension, chainPort);

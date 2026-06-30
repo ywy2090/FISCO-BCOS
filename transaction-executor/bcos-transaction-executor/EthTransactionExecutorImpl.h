@@ -172,7 +172,7 @@ public:
                     }
                 }
 
-                auto output = co_await ethReferenceExecuteTx();
+                auto output = co_await applyReferenceMessageTx();
                 m_data->m_executionContext = std::move(output.executionContext);
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
 
@@ -221,7 +221,7 @@ public:
             m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
         }
 
-        task::Task<EthReferenceResult> ethReferenceExecuteTx()
+        task::Task<EthReferenceResult> applyReferenceMessageTx()
         {
             state::FiscoStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);

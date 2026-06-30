@@ -13,16 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file ExecuteMessage.cpp
+ * @file InnerExecute.cpp
  */
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/execution/TxExecutionRunner.h"
 
 namespace bcos::evm
 {
 
-ExecuteMessageOutput innerExecute(ExecuteMessageInput input)
+InnerExecuteOutput innerExecute(InnerExecuteInput input)
 {
     return execution::TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
 }

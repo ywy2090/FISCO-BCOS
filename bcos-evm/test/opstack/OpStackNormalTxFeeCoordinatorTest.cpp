@@ -19,7 +19,7 @@ void zeroSenderBalance(NormalSettleFixture& fixture)
 
 BOOST_AUTO_TEST_CASE(buy_gas_failure_aborts_without_commit)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
+    NormalSettleFixture fixture(100'000, StateTransitionExitKind::Completed, 80'000);
     zeroSenderBalance(fixture);
 
     fixture.checkpointBeforeBuyGas();
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_failure_aborts_without_commit)
 
 BOOST_AUTO_TEST_CASE(complete_after_pipeline_intrinsic_reject_aborts_adr025)
 {
-    NormalSettleFixture fixture(50'000, TxPipelineExitKind::IntrinsicRejected, 0);
+    NormalSettleFixture fixture(50'000, StateTransitionExitKind::IntrinsicRejected, 0);
     auto const initialBalance = fixture.ctx.state.get_balance(fixture.sender);
     fixture.prepareAndComplete();
 
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(complete_after_pipeline_intrinsic_reject_aborts_adr025)
 
 BOOST_AUTO_TEST_CASE(complete_after_pipeline_gas_afford_reject_aborts_adr025)
 {
-    NormalSettleFixture fixture(50'000, TxPipelineExitKind::GasAffordRejected, 0);
+    NormalSettleFixture fixture(50'000, StateTransitionExitKind::GasAffordRejected, 0);
     auto const initialBalance = fixture.ctx.state.get_balance(fixture.sender);
     fixture.prepareAndComplete();
 
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(complete_after_pipeline_gas_afford_reject_aborts_adr025)
 
 BOOST_AUTO_TEST_CASE(complete_after_pipeline_completed_projects_receipt_meta)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
+    NormalSettleFixture fixture(100'000, StateTransitionExitKind::Completed, 80'000);
     fixture.prepareAndComplete();
 
     auto const output = fixture.completeAfterPipeline();
@@ -81,7 +81,8 @@ BOOST_AUTO_TEST_CASE(complete_after_pipeline_completed_projects_receipt_meta)
 
 BOOST_AUTO_TEST_CASE(complete_after_pipeline_rules_rejected_still_settles)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::RulesRejected, 60'000, EVMC_REVERT);
+    NormalSettleFixture fixture(
+        100'000, StateTransitionExitKind::RulesRejected, 60'000, EVMC_REVERT);
     fixture.prepareAndComplete();
 
     auto const output = fixture.completeAfterPipeline();

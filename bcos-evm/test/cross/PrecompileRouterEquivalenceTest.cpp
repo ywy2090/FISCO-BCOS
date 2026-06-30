@@ -6,7 +6,7 @@
 
 #define BOOST_TEST_MODULE PrecompileRouterEquivalenceTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
@@ -68,11 +68,11 @@ evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& message,
+InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message,
     ChainCallTargetDispatcher* chainPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

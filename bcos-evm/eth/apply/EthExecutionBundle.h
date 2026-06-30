@@ -10,7 +10,8 @@ namespace bcos::evm
 /// Owns Eth reference-path EvmHostHooks; exposes kernel EvmTxContextView view.
 struct EthExecutionBundle
 {
-    EthExecutionBundle(TxPipelineContext& ctx, EthReferenceRequest const& input) : m_extension()
+    EthExecutionBundle(StateTransitionContext& ctx, EthReferenceRequest const& input)
+      : m_extension()
     {
         m_view.vm = input.vm;
         m_view.blockHashes = input.blockHashes;

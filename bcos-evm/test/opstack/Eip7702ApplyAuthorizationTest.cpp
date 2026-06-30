@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip7702ApplyAuthorizationTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(valid_auth_installs_delegation_invalid_is_ignored_and_refun
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(stateView);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(unsigned_authorization_is_ignored)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(stateView);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

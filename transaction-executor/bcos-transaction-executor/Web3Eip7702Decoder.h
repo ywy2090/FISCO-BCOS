@@ -28,9 +28,9 @@ inline bool decodeU256Bytes(bcos::bytes const& raw, bcos::u256& value)
     return true;
 }
 
-inline std::optional<evmc_address> recoverAuthorizationAuthority(
-    bcos::u256 const& chainId, evmc_address const& target, uint64_t nonce, uint64_t yParity,
-    bcos::bytes const& rRaw, bcos::bytes const& sRaw)
+inline std::optional<evmc_address> recoverAuthorizationAuthority(bcos::u256 const& chainId,
+    evmc_address const& target, uint64_t nonce, uint64_t yParity, bcos::bytes const& rRaw,
+    bcos::bytes const& sRaw)
 {
     if (yParity > 1)
     {
@@ -58,8 +58,8 @@ inline std::optional<evmc_address> recoverAuthorizationAuthority(
     bcos::crypto::Keccak256 hashImpl;
     auto hash = bcos::crypto::keccak256Hash(bcos::ref(signPayload));
     bcos::crypto::Secp256k1Crypto signatureImpl;
-    auto [recoverOk, recovered] =
-        signatureImpl.recoverAddress(hashImpl, hash, bcos::bytesConstRef{signature.data(), signature.size()});
+    auto [recoverOk, recovered] = signatureImpl.recoverAddress(
+        hashImpl, hash, bcos::bytesConstRef{signature.data(), signature.size()});
     if (!recoverOk || recovered.size() != sizeof(evmc_address))
     {
         return std::nullopt;
@@ -90,7 +90,8 @@ inline std::optional<std::vector<SetCodeAuthorization>> decodeEip7702Authorizati
     payload = payload.getCroppedData(txHeader.payloadLength);
     (void)payload;
 
-    // Skip: chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList
+    // Skip: chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data,
+    // accessList
     for (size_t i = 0; i < 9; ++i)
     {
         if (!skipRlpItem(txItems))
@@ -143,8 +144,8 @@ inline std::optional<std::vector<SetCodeAuthorization>> decodeEip7702Authorizati
         std::copy(addressRaw.begin(), addressRaw.end(), authorization.address.bytes);
         authorization.nonce = nonce;
 
-        auto authority = recoverAuthorizationAuthority(
-            chainId, authorization.address, nonce, yParity, r, s);
+        auto authority =
+            recoverAuthorizationAuthority(chainId, authorization.address, nonce, yParity, r, s);
         if (!authority.has_value())
         {
             continue;

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7702DelegatedCallGasTest
 
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -82,7 +82,7 @@ int64_t gasUsed(int64_t gasLimit, evmc::Result const& result)
     return gasLimit - result.gas_left;
 }
 
-ExecuteMessageOutput runCallerContract(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+InnerExecuteOutput runCallerContract(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     evmc_address const& sender, evmc_address const& caller, bcos::bytes const& callerCode,
     int64_t gasLimit = 500'000)
 {
@@ -101,7 +101,7 @@ ExecuteMessageOutput runCallerContract(state::test::InMemoryStateView& stateView
     message.code_address = caller;
 
     state::State execState(stateView);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &execState;
     input.vm = &vm;
     input.message = message;
@@ -112,18 +112,17 @@ ExecuteMessageOutput runCallerContract(state::test::InMemoryStateView& stateView
     return innerExecute(std::move(input));
 }
 
-void installDelegation(state::test::InMemoryStateView& stateView,
-    evmc_address const& authority, evmc_address const& implementation)
+void installDelegation(state::test::InMemoryStateView& stateView, evmc_address const& authority,
+    evmc_address const& implementation)
 {
     auto const delegation = addressToDelegation(implementation);
-    stateView.insert_account(authority,
-        state::Account{.code = delegation,
-            .codeHash = state::keccak256Code(
-                bcos::bytesConstRef{delegation.data(), delegation.size()})});
+    stateView.insert_account(authority, state::Account{.code = delegation,
+                                            .codeHash = state::keccak256Code(bcos::bytesConstRef{
+                                                delegation.data(), delegation.size()})});
 }
 
-void installStopImplementation(state::test::InMemoryStateView& stateView,
-    evmc_address const& implementation)
+void installStopImplementation(
+    state::test::InMemoryStateView& stateView, evmc_address const& implementation)
 {
     stateView.insert_account(implementation, state::Account{.code = bcos::bytes{0x00}});
 }
@@ -144,8 +143,8 @@ BOOST_AUTO_TEST_CASE(delegated_call_cold_charges_2600_over_direct_call)
     evmc::VM vm{evmc_create_evmone()};
     int64_t const gasLimit = 500'000;
 
-    auto const directOutput =
-        runCallerContract(stateView, vm, sender, caller, makeSingleCallCode(implementation), gasLimit);
+    auto const directOutput = runCallerContract(
+        stateView, vm, sender, caller, makeSingleCallCode(implementation), gasLimit);
     BOOST_REQUIRE_EQUAL(directOutput.result.status_code, EVMC_SUCCESS);
 
     auto const delegatedOutput =
@@ -172,10 +171,10 @@ BOOST_AUTO_TEST_CASE(delegated_call_second_charges_warm_100_over_direct_second_c
     evmc::VM vm{evmc_create_evmone()};
     int64_t const gasLimit = 500'000;
 
-    auto const directOnce =
-        runCallerContract(stateView, vm, sender, caller, makeSingleCallCode(implementation), gasLimit);
-    auto const directTwice =
-        runCallerContract(stateView, vm, sender, caller, makeDoubleCallCode(implementation), gasLimit);
+    auto const directOnce = runCallerContract(
+        stateView, vm, sender, caller, makeSingleCallCode(implementation), gasLimit);
+    auto const directTwice = runCallerContract(
+        stateView, vm, sender, caller, makeDoubleCallCode(implementation), gasLimit);
     BOOST_REQUIRE_EQUAL(directOnce.result.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(directTwice.result.status_code, EVMC_SUCCESS);
 

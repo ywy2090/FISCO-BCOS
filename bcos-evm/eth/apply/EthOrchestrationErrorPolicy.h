@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/pipeline/NormalizeIncludedTxVmerr.h"
+#include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <evmc/evmc.h>
@@ -12,7 +12,7 @@ namespace bcos::evm
 struct EthOrchestrationErrorPolicy : OrchestrationErrorPolicy
 {
     void onIntrinsicGasFailure(
-        TxPipelineContext& ctx, IntrinsicDebitFailure /*failure*/) const override
+        StateTransitionContext& ctx, IntrinsicDebitFailure /*failure*/) const override
     {
         evmc_result failResult{};
         failResult.status_code = EVMC_OUT_OF_GAS;
@@ -20,7 +20,8 @@ struct EthOrchestrationErrorPolicy : OrchestrationErrorPolicy
         ctx.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     }
 
-    void onPipelineException(TxPipelineContext& ctx, std::exception_ptr exceptionPtr) const override
+    void onPipelineException(
+        StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
     {
         try
         {
@@ -47,7 +48,7 @@ struct EthOrchestrationErrorPolicy : OrchestrationErrorPolicy
         }
     }
 
-    void onPostExecuteNormalize(TxPipelineContext& ctx) const override
+    void onPostExecuteNormalize(StateTransitionContext& ctx) const override
     {
         normalizeSetCodeTransactionVmerr(
             ctx.evmcResult, ctx.message.depth, ctx.inputs.authorizationListPresent);

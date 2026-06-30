@@ -401,9 +401,9 @@ P0 内核候选**已闭合**。当前 open work：
 | --- | --- |
 | 库划分 | `bcos-evm/CMakeLists.txt` |
 | 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
-| 编排上下文 / 钩子 | `eth/pipeline/TxPipelineContext.h`、`TxPipelineHooks.h` |
-| intrinsic 扣减 | `eth/pipeline/IntrinsicGasDebit.h` |
-| 内核入口 | `eth/ExecuteMessage.h` / `.cpp` → `TxExecutionRunner` |
+| 编排上下文 / 钩子 | `eth/pipeline/StateTransitionContext.h`、`TxPipelineHooks.h` |
+| intrinsic 扣减 | `eth/pipeline/DeductIntrinsicGas.h` |
+| 内核入口 | `eth/InnerExecute.h` / `.cpp` → `TxExecutionRunner` |
 | 内核精编译路由 | `eth/precompiled/PrecompileActive.h`、`PrecompileRouter.cpp` |
 | 内核扩展点 | `eth/policy/HostExtension.h` |
 | EIP 开关位域 | `eth/RevisionConfig.h` |

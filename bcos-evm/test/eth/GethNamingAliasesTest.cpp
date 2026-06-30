@@ -2,12 +2,12 @@
 
 #include "bcos-evm/eth/GethNamingAliases.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/pipeline/TxPipeline.h"
+#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -23,15 +23,15 @@ struct CountingPrecheckPolicy : ChainPrecheckPolicy
     mutable int rulesCallCount{0};
     mutable int setupCallCount{0};
 
-    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return {}; }
+    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return {}; }
 
-    void pipelineSetupMessage(TxPipelineContext& ctx) const override
+    void pipelineSetupMessage(StateTransitionContext& ctx) const override
     {
         ++setupCallCount;
         (void)ctx;
     }
 
-    void pipelineCheckRules(TxPipelineContext& ctx) const override
+    void pipelineCheckRules(StateTransitionContext& ctx) const override
     {
         ++rulesCallCount;
         ctx.earlyExit = true;
@@ -40,8 +40,8 @@ struct CountingPrecheckPolicy : ChainPrecheckPolicy
 
 struct NoopErrorPolicy : OrchestrationErrorPolicy
 {
-    void onIntrinsicGasFailure(TxPipelineContext&, IntrinsicDebitFailure) const override {}
-    void onPipelineException(TxPipelineContext&, std::exception_ptr) const override {}
+    void onIntrinsicGasFailure(StateTransitionContext&, IntrinsicDebitFailure) const override {}
+    void onPipelineException(StateTransitionContext&, std::exception_ptr) const override {}
 };
 
 }  // namespace
@@ -49,14 +49,15 @@ struct NoopErrorPolicy : OrchestrationErrorPolicy
 BOOST_AUTO_TEST_CASE(innerExecute_is_canonical_kernel_entry)
 {
     BOOST_CHECK(
-        (std::is_same_v<decltype(&innerExecute), ExecuteMessageOutput (*)(ExecuteMessageInput)>));
+        (std::is_same_v<decltype(&innerExecute), InnerExecuteOutput (*)(InnerExecuteInput)>));
 }
 
 BOOST_AUTO_TEST_CASE(preCheckRules_forwards_to_pipelineCheckRules)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     CountingPrecheckPolicy policy;
     policy.preCheckRules(ctx);
@@ -69,7 +70,8 @@ BOOST_AUTO_TEST_CASE(normalizeMessage_forwards_to_pipelineSetupMessage)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     CountingPrecheckPolicy policy;
     policy.normalizeMessage(ctx);
@@ -81,7 +83,8 @@ BOOST_AUTO_TEST_CASE(stateTransitionExecute_is_canonical_pipeline_driver)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
     static evmc::VM vm{evmc_create_evmone()};
     static bcos::crypto::Keccak256 hashImpl;
     ctx.inputs.vm = &vm;
@@ -101,10 +104,10 @@ BOOST_AUTO_TEST_CASE(finalizeGasUsed_forwards_to_onPostExecuteNormalize)
     {
         mutable int normalizeCount{0};
 
-        void onIntrinsicGasFailure(TxPipelineContext&, IntrinsicDebitFailure) const override {}
-        void onPipelineException(TxPipelineContext&, std::exception_ptr) const override {}
+        void onIntrinsicGasFailure(StateTransitionContext&, IntrinsicDebitFailure) const override {}
+        void onPipelineException(StateTransitionContext&, std::exception_ptr) const override {}
 
-        void onPostExecuteNormalize(TxPipelineContext& ctx) const override
+        void onPostExecuteNormalize(StateTransitionContext& ctx) const override
         {
             ++normalizeCount;
             OrchestrationErrorPolicy::onPostExecuteNormalize(ctx);
@@ -113,7 +116,8 @@ BOOST_AUTO_TEST_CASE(finalizeGasUsed_forwards_to_onPostExecuteNormalize)
 
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     CountingErrorPolicy errorPolicy;
     errorPolicy.finalizeGasUsed(ctx);

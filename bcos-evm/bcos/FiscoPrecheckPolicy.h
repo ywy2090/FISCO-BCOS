@@ -28,20 +28,20 @@ struct FiscoPrecheckPolicy : ChainPrecheckPolicy
 {
     FiscoPrecheckPolicy(FiscoExecutionRequest const& input, bool eip7623Enabled);
 
-    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
+    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
-    void pipelineSetupMessage(TxPipelineContext& ctx) const override;
+    void pipelineSetupMessage(StateTransitionContext& ctx) const override;
 
-    void pipelineCheckRules(TxPipelineContext& ctx) const override;
+    void pipelineCheckRules(StateTransitionContext& ctx) const override;
 
-    void pipelineCheckBalance(TxPipelineContext& ctx) const override;
+    void pipelineCheckBalance(StateTransitionContext& ctx) const override;
 
-    void pipelineTuneKernelInput(ExecuteMessageInput& input) const override;
+    void pipelineTuneKernelInput(InnerExecuteInput& input) const override;
 
 private:
     FiscoExecutionRequest const& m_input;
     bool m_eip7623Enabled{false};
-    IntrinsicGasDebitParams m_intrinsicPolicy{};
+    DeductIntrinsicGasParams m_intrinsicPolicy{};
 };
 
 }  // namespace bcos::evm

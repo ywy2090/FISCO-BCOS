@@ -1,7 +1,7 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -212,21 +212,21 @@ inline std::string_view evmcStatus(evmc_status_code status) noexcept
     }
 }
 
-inline std::string_view exitKind(TxPipelineExitKind kind) noexcept
+inline std::string_view exitKind(StateTransitionExitKind kind) noexcept
 {
     switch (kind)
     {
-    case TxPipelineExitKind::None:
+    case StateTransitionExitKind::None:
         return "none";
-    case TxPipelineExitKind::RulesRejected:
+    case StateTransitionExitKind::RulesRejected:
         return "rules_rejected";
-    case TxPipelineExitKind::GasAffordRejected:
+    case StateTransitionExitKind::GasAffordRejected:
         return "gas_afford_rejected";
-    case TxPipelineExitKind::IntrinsicRejected:
+    case StateTransitionExitKind::IntrinsicRejected:
         return "intrinsic_rejected";
-    case TxPipelineExitKind::Completed:
+    case StateTransitionExitKind::Completed:
         return "completed";
-    case TxPipelineExitKind::ExceptionHandled:
+    case StateTransitionExitKind::ExceptionHandled:
         return "exception_handled";
     default:
         return "unknown";

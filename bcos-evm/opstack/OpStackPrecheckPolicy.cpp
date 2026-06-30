@@ -55,7 +55,7 @@ OpStackPrecheckPolicy::OpStackPrecheckPolicy(OpStackSettlementFacade& view)
     m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();
 }
 
-void OpStackPrecheckPolicy::lifecycleCheckEntryRules(TxPipelineContext& ctx) const
+void OpStackPrecheckPolicy::lifecycleCheckEntryRules(StateTransitionContext& ctx) const
 {
     auto const& input = m_view.input;
     auto const deposit = m_view.isDeposit();
@@ -154,7 +154,7 @@ void OpStackPrecheckPolicy::lifecycleCheckEntryRules(TxPipelineContext& ctx) con
     }
 }
 
-void OpStackPrecheckPolicy::pipelineCheckGasAffordable(TxPipelineContext& ctx) const
+void OpStackPrecheckPolicy::pipelineCheckGasAffordable(StateTransitionContext& ctx) const
 {
     auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
     bcos::bytesConstRef inputData{ctx.message.input_data, ctx.message.input_size};
@@ -171,7 +171,7 @@ void OpStackPrecheckPolicy::pipelineCheckGasAffordable(TxPipelineContext& ctx) c
     }
 }
 
-void OpStackPrecheckPolicy::pipelineTuneKernelInput(ExecuteMessageInput& execInput) const
+void OpStackPrecheckPolicy::pipelineTuneKernelInput(InnerExecuteInput& execInput) const
 {
     if (m_view.isDeposit())
     {
@@ -179,8 +179,7 @@ void OpStackPrecheckPolicy::pipelineTuneKernelInput(ExecuteMessageInput& execInp
     }
 }
 
-ExecuteMessageOutput OpStackPrecheckPolicy::pipelineInvokeEvmKernel(
-    ExecuteMessageInput&& input) const
+InnerExecuteOutput OpStackPrecheckPolicy::pipelineInvokeEvmKernel(InnerExecuteInput&& input) const
 {
 #ifdef BCOS_EVM_TESTING
     if (auto spyOutput = opstack::test::maybeCallExecuteMessageSpy(input); spyOutput.has_value())

@@ -1,13 +1,13 @@
 #pragma once
 
 #include "bcos-evm/eth/gas/Eip7623.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 
 namespace bcos::evm
 {
 
 inline void captureSettlementSnapshot(
-    TxPipelineContext& ctx, ExecuteMessageOutput const& kernelOutput)
+    StateTransitionContext& ctx, InnerExecuteOutput const& kernelOutput)
 {
     if (ctx.intrinsicDebitMode != IntrinsicDebitMode::Eip7623)
     {

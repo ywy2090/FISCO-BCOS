@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Bcos7823ModexpRejectTest
 
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-framework/ledger/Features.h>
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(innerExecute_feature_evm_osaka_modexp_field_1025_rejected)
     BOOST_CHECK_EQUAL(revisionConfig.revision, EVMC_OSAKA);
 
     evmc::VM vm{evmc_create_evmone()};
-    ExecuteMessageInput execInput;
+    InnerExecuteInput execInput;
     execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;

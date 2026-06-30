@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackFeeSettlementCtxTest
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(buyGas_failure_records_result_on_ctx_not_fee_context)
     msg.sender = sender;
     msg.gas = 50'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackExecutionRequest input;
     input.gasTipCap = 1;
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(buyGas_uses_ctx_message_not_fee_context_copy)
     msg.sender = sender;
     msg.gas = 50'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackExecutionRequest input;
     input.gasTipCap = 1;
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
     msg.sender = sender;
     msg.gas = 1'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(100); };
@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     msg.sender = sender;
     msg.gas = 500;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(60); };

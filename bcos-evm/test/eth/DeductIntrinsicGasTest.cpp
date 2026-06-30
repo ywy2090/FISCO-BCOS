@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE DeductIntrinsicGasTest
 
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include <boost/test/included/unit_test.hpp>
 
@@ -25,8 +25,8 @@ BOOST_AUTO_TEST_CASE(auth_only_mode_debits_auth_cost)
     message.gas = 100'000;
 
     auto const out = deductIntrinsicGas(message, {.mode = IntrinsicDebitMode::AuthOnly,
-                                                    .authorizationListPresent = true,
-                                                    .authTupleCount = 1});
+                                                     .authorizationListPresent = true,
+                                                     .authTupleCount = 1});
     BOOST_REQUIRE(out.ok);
     BOOST_CHECK_EQUAL(out.debitAmount, gas::calcAuthTupleIntrinsicGas(1));
     BOOST_CHECK_EQUAL(message.gas, 100'000 - gas::calcAuthTupleIntrinsicGas(1));

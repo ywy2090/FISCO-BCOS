@@ -11,7 +11,7 @@ namespace bcos::evm
 /// Owns OpStack chain call-target adapter for one tx lifecycle.
 struct OpStackExecutionBundle
 {
-    OpStackExecutionBundle(TxPipelineContext& ctx, OpStackExecutionRequest const& input)
+    OpStackExecutionBundle(StateTransitionContext& ctx, OpStackExecutionRequest const& input)
       : m_chainAdapter(
             &ctx.state, input.blockInfo.baseFee, input.forkSchedule, input.blockInfo.timestamp)
     {

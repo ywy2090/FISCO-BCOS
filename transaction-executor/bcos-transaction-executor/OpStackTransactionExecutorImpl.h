@@ -166,7 +166,7 @@ public:
             }
             else if constexpr (phase == static_cast<int>(OpStackExecutePhase::Execute))
             {
-                auto output = co_await opStackExecuteTx();
+                auto output = co_await applyOpStackMessageTx();
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
                 m_data->m_gasUsed = output.gasUsed;
                 m_data->m_receiptMeta = output.receiptMeta;
@@ -191,7 +191,7 @@ public:
             co_return {};
         }
 
-        task::Task<OpStackExecutionResult> opStackExecuteTx()
+        task::Task<OpStackExecutionResult> applyOpStackMessageTx()
         {
             evmc_message message = newEVMCMessage(m_data->m_blockHeader.get().number(),
                 m_data->m_transaction.get(), m_data->m_gasLimit, m_data->m_origin);

@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
@@ -57,7 +57,7 @@ struct NormalSettleFixture
     evmc_address sender{};
     evmc_address coinbase{};
     evmc_message message{};
-    TxPipelineContext ctx;
+    StateTransitionContext ctx;
     OpStackExecutionRequest input;
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view;
@@ -66,7 +66,7 @@ struct NormalSettleFixture
     OpStackFeeParams feeParams{};
     GasPoolSpy spy;
 
-    NormalSettleFixture(int64_t gasLimit, TxPipelineExitKind exitKind, int64_t gasLeft,
+    NormalSettleFixture(int64_t gasLimit, StateTransitionExitKind exitKind, int64_t gasLeft,
         evmc_status_code status = EVMC_SUCCESS, int64_t gasRefund = 0)
       : sender(addressFromLastByte(0x01)),
         coinbase(addressFromLastByte(0x02)),
@@ -139,11 +139,11 @@ struct DepositSettleFixture
     state::test::InMemoryStateView stateView;
     evmc_address sender{};
     evmc_message message{};
-    TxPipelineContext ctx;
+    StateTransitionContext ctx;
     GasPoolSpy spy;
 
-    DepositSettleFixture(
-        int64_t gasLimit, TxPipelineExitKind exitKind, evmc_status_code evmStatus, int64_t gasLeft)
+    DepositSettleFixture(int64_t gasLimit, StateTransitionExitKind exitKind,
+        evmc_status_code evmStatus, int64_t gasLeft)
       : sender(addressFromLastByte(0x61)),
         message(makeMessage(sender, gasLimit)),
         ctx(stateView, message, bcos::evm::makeIsthmusRevisionConfig(), bcos::u256(0))

@@ -17,7 +17,7 @@
  */
 
 #include "helpers/Transition.hpp"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include <algorithm>
@@ -69,7 +69,7 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
     // Keep transition() as a thin adapter: warm-up + execution + commit/revert
     // are centralized in innerExecute().
     State state(state_view);
-    auto executeOutput = innerExecute(ExecuteMessageInput{.state = &state,
+    auto executeOutput = innerExecute(InnerExecuteInput{.state = &state,
         .vm = &vm,
         .message = msg,
         .gasPrice = tx.gasPrice,

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 
 namespace bcos::evm::execution
 {
@@ -16,7 +16,7 @@ namespace bcos::evm::execution
 /// Tx-level story between stateTransitionExecute and runCallFrame (PR-A deep module).
 struct TxExecutionRunner
 {
-    static ExecuteMessageOutput runEvmKernelTopLevel(ExecuteMessageInput input);
+    static InnerExecuteOutput runEvmKernelTopLevel(InnerExecuteInput input);
 };
 
 }  // namespace bcos::evm::execution

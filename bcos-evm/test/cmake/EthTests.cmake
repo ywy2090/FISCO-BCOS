@@ -20,10 +20,10 @@ add_test(
     COMMAND ${HOOKS_TEST_BINARY_NAME}
 )
 
-set(EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME ExecuteMessageSmokeTest)
+set(EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME InnerExecuteSmokeTest)
 
 add_executable(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
-    eth/ExecuteMessageSmokeTest.cpp
+    eth/InnerExecuteSmokeTest.cpp
 )
 
 target_include_directories(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
@@ -36,7 +36,7 @@ target_link_libraries(${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME ExecuteMessageSmoke
+    NAME InnerExecuteSmoke
     COMMAND ${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
 )
 
@@ -119,12 +119,12 @@ target_include_directories(EthReferenceExecute1559GasPriceTest PRIVATE
 target_link_libraries(EthReferenceExecute1559GasPriceTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
 add_test(NAME EthReferenceExecute1559GasPrice COMMAND EthReferenceExecute1559GasPriceTest)
-add_executable(TxPipelineTest eth/TxPipelineTest.cpp)
-target_include_directories(TxPipelineTest PRIVATE
+add_executable(StateTransitionExecuteTest eth/StateTransitionExecuteTest.cpp)
+target_include_directories(StateTransitionExecuteTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(TxPipelineTest PRIVATE
+target_link_libraries(StateTransitionExecuteTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME TxPipeline COMMAND TxPipelineTest)
+add_test(NAME StateTransitionExecute COMMAND StateTransitionExecuteTest)
 add_executable(GethNamingAliasesTest eth/GethNamingAliasesTest.cpp)
 target_include_directories(GethNamingAliasesTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -308,11 +308,11 @@ target_include_directories(FrameValueTransferTest PRIVATE
 target_link_libraries(FrameValueTransferTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME FrameValueTransfer COMMAND FrameValueTransferTest)
 
-add_executable(ExecutionFrameTest eth/ExecutionFrameTest.cpp)
-target_include_directories(ExecutionFrameTest PRIVATE
+add_executable(EvmCallFrameTest eth/EvmCallFrameTest.cpp)
+target_include_directories(EvmCallFrameTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(ExecutionFrameTest PRIVATE bcos-evm-eth evmone::evmone)
-add_test(NAME ExecutionFrame COMMAND ExecutionFrameTest)
+target_link_libraries(EvmCallFrameTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME EvmCallFrame COMMAND EvmCallFrameTest)
 
 add_executable(EthDelegateCallPrecompileTest eth/EthDelegateCallPrecompileTest.cpp)
 target_include_directories(EthDelegateCallPrecompileTest PRIVATE

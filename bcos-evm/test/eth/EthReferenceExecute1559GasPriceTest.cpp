@@ -39,7 +39,7 @@ bcos::bytes const kGasPriceBaseFeeSumBytecode = bcos::fromHex("3a480160005260206
 
 BOOST_AUTO_TEST_SUITE(EthExecuteViaEth1559GasPriceTest)
 
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_type2_normalizes_gas_price_for_gasprice_opcode)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_type2_normalizes_gas_price_for_gasprice_opcode)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};

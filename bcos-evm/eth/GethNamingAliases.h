@@ -32,11 +32,11 @@
 
 #pragma once
 
-#include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
-#include "bcos-evm/eth/pipeline/TxPipeline.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include <evmc/evmc.h>
 #include <cassert>
 

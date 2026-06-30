@@ -3,8 +3,8 @@
 #include "bcos-evm/bcos/FiscoOrchestrationProfile.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
         input, output, false, true /* eip7623Enabled */};
 
     auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
 
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
 
     FiscoExecutionResult output;
 
-    TxPipelineContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
-        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::RulesRejected));
+        static_cast<int>(ctx.exitKind), static_cast<int>(StateTransitionExitKind::RulesRejected));
 }
 
 BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
 
     FiscoExecutionResult output;
 
-    TxPipelineContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
 
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
     auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);

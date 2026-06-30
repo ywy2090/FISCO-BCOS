@@ -20,7 +20,7 @@ void releaseGasPoolFullLimit(GasPoolHooks const& gasPool, int64_t originalGasLim
 }
 
 void applyPostExecuteSettlement(
-    TxPipelineContext const& ctx, uint64_t floorDataGas, OpStackSettlementResult& out)
+    StateTransitionContext const& ctx, uint64_t floorDataGas, OpStackSettlementResult& out)
 {
     auto const stateRefund =
         gas::isEip1559GasRefundEnabled(ctx.revisionConfig) ?
@@ -35,19 +35,20 @@ void applyPostExecuteSettlement(
     out.maxUsedGas = settlement.maxUsedGas;
 }
 
-void applyDepositPostExecuteSettlement(TxPipelineContext const& ctx, OpStackSettlementResult& out)
+void applyDepositPostExecuteSettlement(
+    StateTransitionContext const& ctx, OpStackSettlementResult& out)
 {
     applyPostExecuteSettlement(ctx, 0, out);
 }
 }  // namespace
 
-bool isNormalPreExecutionReject(TxPipelineExitKind exitKind) noexcept
+bool isNormalPreExecutionReject(StateTransitionExitKind exitKind) noexcept
 {
-    return exitKind == TxPipelineExitKind::IntrinsicRejected ||
-           exitKind == TxPipelineExitKind::GasAffordRejected;
+    return exitKind == StateTransitionExitKind::IntrinsicRejected ||
+           exitKind == StateTransitionExitKind::GasAffordRejected;
 }
 
-void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
+void abortNormalAfterBuyGas(StateTransitionContext& ctx, GasPoolHooks const& gasPool,
     OpStackExecutionResult& output, int64_t originalGasLimit)
 {
     if (ctx.state.has_checkpoint())
@@ -59,22 +60,22 @@ void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
     output.stateDiff = ctx.state.build_diff();
 }
 
-OpStackSettlementResult finalizeNormal(
-    TxPipelineContext const& ctx, OpStackFeeSidecar const& sidecar, TxPipelineExitKind exitKind)
+OpStackSettlementResult finalizeNormal(StateTransitionContext const& ctx,
+    OpStackFeeSidecar const& sidecar, StateTransitionExitKind exitKind)
 {
     OpStackSettlementResult out{};
 
-    if (exitKind == TxPipelineExitKind::IntrinsicRejected ||
-        exitKind == TxPipelineExitKind::GasAffordRejected)
+    if (exitKind == StateTransitionExitKind::IntrinsicRejected ||
+        exitKind == StateTransitionExitKind::GasAffordRejected)
     {
         out.gasUsed = 0;
         out.gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
         return out;
     }
 
-    if (exitKind == TxPipelineExitKind::Completed ||
-        exitKind == TxPipelineExitKind::RulesRejected ||
-        exitKind == TxPipelineExitKind::ExceptionHandled)
+    if (exitKind == StateTransitionExitKind::Completed ||
+        exitKind == StateTransitionExitKind::RulesRejected ||
+        exitKind == StateTransitionExitKind::ExceptionHandled)
     {
         applyPostExecuteSettlement(ctx, sidecar.floorDataGas, out);
         return out;
@@ -84,12 +85,12 @@ OpStackSettlementResult finalizeNormal(
 }
 
 OpStackSettlementResult finalizeDeposit(
-    TxPipelineContext& ctx, TxPipelineExitKind exitKind, evmc_status_code evmStatus)
+    StateTransitionContext& ctx, StateTransitionExitKind exitKind, evmc_status_code evmStatus)
 {
     OpStackSettlementResult out{};
     auto const sender = ctx.message.sender;
 
-    if (exitKind == TxPipelineExitKind::Completed && evmStatus == EVMC_SUCCESS)
+    if (exitKind == StateTransitionExitKind::Completed && evmStatus == EVMC_SUCCESS)
     {
         applyDepositPostExecuteSettlement(ctx, out);
         ctx.state.set_nonce(sender, ctx.state.get_nonce(sender) + 1);
@@ -97,7 +98,7 @@ OpStackSettlementResult finalizeDeposit(
         return out;
     }
 
-    if (exitKind == TxPipelineExitKind::Completed)
+    if (exitKind == StateTransitionExitKind::Completed)
     {
         applyDepositPostExecuteSettlement(ctx, out);
         if (ctx.state.has_checkpoint())
@@ -118,8 +119,8 @@ OpStackSettlementResult finalizeDeposit(
     return out;
 }
 
-task::Task<OpStackSettlementResult> settleDeposit(TxPipelineContext& ctx,
-    TxPipelineExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool)
+task::Task<OpStackSettlementResult> settleDeposit(StateTransitionContext& ctx,
+    StateTransitionExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool)
 {
     auto settled = finalizeDeposit(ctx, exitKind, evmStatus);
     if (gasPool.returnGas)

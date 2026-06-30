@@ -24,7 +24,7 @@
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
-#include "bcos-evm/eth/pipeline/TxPipeline.h"
+#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <boost/throw_exception.hpp>
@@ -88,7 +88,7 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
     auto const fixErrorHandling = input.revisionConfig.fix_error_handling;
     auto const eip7623Enabled = input.web3Tx && input.revisionConfig.eth().eip7623;
 
-    TxPipelineContext ctx{
+    StateTransitionContext ctx{
         *input.stateView, input.message, input.revisionConfig.eth(), input.gasPrice};
     ctx.inputs.vm = input.vm;
     ctx.inputs.hashImpl = input.hashImpl;
@@ -119,7 +119,7 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
     output.executionContext.message = ctx.message;
 
-    if (bindings.precheckPolicy.intrinsicGasDebitParams().mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.precheckPolicy.deductIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

@@ -157,8 +157,9 @@ BOOST_AUTO_TEST_CASE(matches_oracle_l1_hook)
 
 BOOST_AUTO_TEST_CASE(matches_oracle_operator_hook)
 {
-    std::function<bcos::u256(uint64_t, uint64_t)> operatorFunc =
-        [](uint64_t gasLimit, uint64_t) { return bcos::u256(gasLimit * 2); };
+    std::function<bcos::u256(uint64_t, uint64_t)> operatorFunc = [](uint64_t gasLimit, uint64_t) {
+        return bcos::u256(gasLimit * 2);
+    };
     OpStackFeeHooks hooks{.operatorCostFunc = &operatorFunc};
 
     OpStackPreDebitInputs inputs{.fee = makeType2FeeInputs(), .blockTime = 77};

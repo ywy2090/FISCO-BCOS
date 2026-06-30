@@ -16,7 +16,7 @@
 
 #define BOOST_TEST_MODULE SstoreRefundTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(EthHost_sstoreClear_accumulates4800)
 
     evmc::VM vm{evmc_create_evmone()};
 
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

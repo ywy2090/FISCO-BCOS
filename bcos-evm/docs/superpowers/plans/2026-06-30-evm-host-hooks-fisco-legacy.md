@@ -28,9 +28,9 @@
 | `eth/state/EvmHostHooks.h` | Hook interface + forward declare `State` |
 | `eth/state/EvmHostHooks.cpp` | **New.** EIP-3529 refund + precise classify defaults; virtual method bodies |
 | `eth/state/EthHost.hpp/cpp` | SSTORE orchestration via hooks; drop bool |
-| `eth/execution/ExecutionFrame.h/cpp` | Top-level CREATE → `finalizeTopLevelCreateNonce` |
+| `eth/execution/EvmCallFrame.h/cpp` | Top-level CREATE → `finalizeTopLevelCreateNonce` |
 | `eth/execution/TxExecutionRunner.cpp` | Simpler `EthHost` / `FrameExecutionEnv` wiring |
-| `eth/ExecuteMessage.h` | Remove fix* fields |
+| `eth/InnerExecute.h` | Remove fix* fields |
 | `eth/pipeline/EvmTxContextView.h` | Remove fix* fields |
 | `bcos/FiscoVmHostPolicy.h/cpp` | FISCO overrides + `RevisionFlags.fix_storage_status` |
 | `bcos/FiscoExecutionBundle.h` | Stop projecting fix* to view; inject flags into policy deps |
@@ -450,7 +450,7 @@ EOF
 ### Task 4: `ExecutionFrame` top-level CREATE nonce hook
 
 **Files:**
-- Modify: `bcos-evm/eth/execution/ExecutionFrame.h`
+- Modify: `bcos-evm/eth/execution/EvmCallFrame.h`
 - Modify: `bcos-evm/eth/execution/ExecutionFrame.cpp`
 - Modify: `bcos-evm/eth/execution/TxExecutionRunner.cpp` (partial — only `FrameExecutionEnv` ctor args)
 
@@ -528,7 +528,7 @@ Expected: **PASS**
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/execution/ExecutionFrame.h bcos-evm/eth/execution/ExecutionFrame.cpp \
+rtk git add bcos-evm/eth/execution/EvmCallFrame.h bcos-evm/eth/execution/ExecutionFrame.cpp \
   bcos-evm/eth/execution/TxExecutionRunner.cpp
 rtk git commit -m "$(cat <<'EOF'
 refactor(evm): top-level CREATE nonce via EvmHostHooks
@@ -543,7 +543,7 @@ EOF
 ### Task 5: Remove eth pipeline bool fields + bcos propagation
 
 **Files:**
-- Modify: `bcos-evm/eth/ExecuteMessage.h`
+- Modify: `bcos-evm/eth/InnerExecute.h`
 - Modify: `bcos-evm/eth/pipeline/EvmTxContextView.h`
 - Modify: `bcos-evm/bcos/FiscoExecutionBundle.h`
 - Modify: `bcos-evm/bcos/FiscoPrecheckPolicy.cpp`
@@ -618,7 +618,7 @@ Expected: only `FiscoRevisionConfig` / test variable names like `fix_storage_sta
 - [ ] **Step 8: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/ExecuteMessage.h bcos-evm/eth/pipeline/EvmTxContextView.h \
+rtk git add bcos-evm/eth/InnerExecute.h bcos-evm/eth/pipeline/EvmTxContextView.h \
   bcos-evm/bcos/FiscoExecutionBundle.h bcos-evm/bcos/FiscoPrecheckPolicy.cpp \
   bcos-evm/test/state/SstoreRefundTest.cpp bcos-evm/test/eth/EvmTxContextViewTest.cpp
 rtk git commit -m "$(cat <<'EOF'

@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_cancun_rejects_prague_bls)
     BOOST_CHECK(!precompiled::isActivePrecompile(cfg, blsAddr));
 }
 
-BOOST_AUTO_TEST_CASE(fiscoExecute_cancun_call_0x0b_not_precompile_dispatch)
+BOOST_AUTO_TEST_CASE(applyFiscoMessage_cancun_call_0x0b_not_precompile_dispatch)
 {
     state::test::InMemoryStateView view;
     auto const sender = precompileAddress(0x01);

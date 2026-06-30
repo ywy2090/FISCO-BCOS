@@ -3,9 +3,9 @@
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
-#include "bcos-evm/eth/pipeline/TxPipeline.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -20,7 +20,7 @@ namespace
 {
 template <typename Exception>
 void invokePipelineException(
-    OrchestrationErrorPolicy const& errorPolicy, TxPipelineContext& ctx, Exception exception)
+    OrchestrationErrorPolicy const& errorPolicy, StateTransitionContext& ctx, Exception exception)
 {
     try
     {
@@ -41,7 +41,8 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_maps_to_out_of_gas_limit)
     evmc_message message{};
     message.gas = 21'000;
 
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     OpStackOrchestrationErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::OpStackIntrinsicOutOfGas);
@@ -60,7 +61,8 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_ignores_failure_kind)
     evmc_message message{};
     message.gas = 21'000;
 
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     OpStackOrchestrationErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
@@ -76,7 +78,8 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_maps_to_internal_error)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     OpStackOrchestrationErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, std::runtime_error{"boom"});
@@ -92,7 +95,8 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_treats_out_of_gas_like_generic)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     OpStackOrchestrationErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
@@ -117,7 +121,8 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
     message.sender = sender;
     message.gas = 100'000;
 
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     ctx.state.checkpoint();
     ctx.state.set_balance(sender, 200);
@@ -138,7 +143,8 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
     evmc_message message{};
     message.depth = 0;
 
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_INVALID_INSTRUCTION;
@@ -159,7 +165,8 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_complete_is_noop)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -182,7 +189,8 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
     message.kind = EVMC_CALL;
     message.gas = 1;
 
-    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
     ctx.inputs.vm = &vm;
@@ -190,9 +198,9 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
 
     struct OpStackEntryPrecheckPolicy : ChainPrecheckPolicy
     {
-        IntrinsicGasDebitParams intrinsicGasDebitParams() const override
+        DeductIntrinsicGasParams deductIntrinsicGasParams() const override
         {
-            IntrinsicGasDebitParams policy;
+            DeductIntrinsicGasParams policy;
             policy.mode = IntrinsicDebitMode::OpStackEntry;
             return policy;
         }
@@ -204,8 +212,8 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
     stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
-    BOOST_CHECK_EQUAL(
-        static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::IntrinsicRejected));
+    BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),
+        static_cast<int>(StateTransitionExitKind::IntrinsicRejected));
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::OutOfGasLimit));

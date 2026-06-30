@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Bcos6780SelfdestructTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"
@@ -23,10 +23,10 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-ExecuteMessageInput buildExecuteMessageInput(
+InnerExecuteInput buildInnerExecuteInput(
     FixtureCase const& fixture, state::State& state, evmc::VM& vm)
 {
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
 
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(imported_selfdestruct_fixture_via_execute_message)
     }
 
     state::State state(view);
-    auto input = buildExecuteMessageInput(fixture, state, vm);
+    auto input = buildInnerExecuteInput(fixture, state, vm);
     int64_t const gasBefore = input.message.gas;
     auto output = innerExecute(std::move(input));
 
@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(created_in_tx_selfdestruct_clears_code_via_execute_message)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(stateView);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

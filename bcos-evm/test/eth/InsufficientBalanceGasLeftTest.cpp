@@ -4,7 +4,7 @@
  *  @brief GAP-004: nested CALL insufficient balance preserves gas_left (geth parity).
  *
  *  Reference anchors:
- *  - ExecutionFrame.cpp transferOrFail → makeFrameResult(..., message.gas)
+ *  - EvmCallFrame.cpp transferOrFail → makeFrameResult(..., message.gas)
  *  - GETH_ORACLE: go-ethereum/core/vm/evm.go:262-264 → return (nil, gas, ErrInsufficientBalance)
  */
 

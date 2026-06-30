@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -111,7 +111,7 @@ OpStackExecutionRequest make7702Input(TestAuthKeyPair const& authKey, evmc_addre
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_innerExecute)
+BOOST_AUTO_TEST_CASE(applyOpStackMessage_propagates_authorizations_to_innerExecute)
 {
     auto const authKey = TestAuthKeyPair::generate();
     auto const sender = authKey.address();
@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_innerExecute)
     BOOST_CHECK_EQUAL(it->second.nonce, uint64_t(2));
 }
 
-BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple)
+BOOST_AUTO_TEST_CASE(applyOpStackMessage_rejects_7702_intrinsic_below_25000_per_tuple)
 {
     auto const authKey = TestAuthKeyPair::generate();
     auto const sender = authKey.address();
@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
+BOOST_AUTO_TEST_CASE(applyOpStackMessage_charges_7702_intrinsic_25000_per_tuple)
 {
     auto const authKey = TestAuthKeyPair::generate();
     auto const sender = authKey.address();
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_already_exists)
+BOOST_AUTO_TEST_CASE(applyOpStackMessage_refunds_existence_cost_when_authority_already_exists)
 {
     constexpr uint64_t kExistenceRefund = PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST;
     BOOST_CHECK_EQUAL(kExistenceRefund, 12'500u);
@@ -298,7 +298,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         evmc::VM vm{evmc_create_evmone()};
         state::State state(stateView);
 
-        ExecuteMessageInput input;
+        InnerExecuteInput input;
         input.state = &state;
         input.vm = &vm;
         input.message = message;

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE EvmTxContextViewPropagationTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/InnerExecute.h"
+#include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/ports/ChainCallTargetDispatcher.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(opstack_adapter_propagates_through_execute_message)
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

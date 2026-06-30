@@ -29,21 +29,21 @@ struct OpStackPrecheckPolicy : ChainPrecheckPolicy
 {
     explicit OpStackPrecheckPolicy(OpStackSettlementFacade& view);
 
-    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
+    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
     /// Sync entry rules before buyGas (nonce, 7702, blob intent, fee caps). OpStack-only phase.
-    void lifecycleCheckEntryRules(TxPipelineContext& ctx) const;
+    void lifecycleCheckEntryRules(StateTransitionContext& ctx) const;
 
-    void pipelineCheckGasAffordable(TxPipelineContext& ctx) const override;
+    void pipelineCheckGasAffordable(StateTransitionContext& ctx) const override;
 
-    void pipelineTuneKernelInput(ExecuteMessageInput& input) const override;
+    void pipelineTuneKernelInput(InnerExecuteInput& input) const override;
 
-    ExecuteMessageOutput pipelineInvokeEvmKernel(ExecuteMessageInput&& input) const override;
+    InnerExecuteOutput pipelineInvokeEvmKernel(InnerExecuteInput&& input) const override;
 
 private:
     OpStackSettlementFacade& m_view;
     OpStackFeeSidecar& m_sidecar;
-    IntrinsicGasDebitParams m_intrinsicPolicy{};
+    DeductIntrinsicGasParams m_intrinsicPolicy{};
 };
 
 }  // namespace bcos::evm

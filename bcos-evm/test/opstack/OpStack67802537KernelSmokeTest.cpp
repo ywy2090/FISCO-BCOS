@@ -105,7 +105,7 @@ OpStackExecutionRequest makeIsthmusBaseInput(
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(opStackExecute_g1msm_k2_gas_matches_geth_isthmus)
+BOOST_AUTO_TEST_CASE(applyOpStackMessage_g1msm_k2_gas_matches_geth_isthmus)
 {
     state::test::InMemoryStateView stateView;
     evmc::VM vm{evmc_create_evmone()};
@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_g1msm_k2_gas_matches_geth_isthmus)
     BOOST_CHECK_EQUAL(txGas - output.evmcResult.gas_left, 45056);
 }
 
-BOOST_AUTO_TEST_CASE(opStackExecute_created_in_tx_selfdestruct_clears_code_isthmus)
+BOOST_AUTO_TEST_CASE(applyOpStackMessage_created_in_tx_selfdestruct_clears_code_isthmus)
 {
     state::test::InMemoryStateView stateView;
     evmc::VM vm{evmc_create_evmone()};

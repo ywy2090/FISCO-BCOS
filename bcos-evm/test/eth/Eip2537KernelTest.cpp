@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip2537KernelTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthStateFixtureLoader.h"
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(stBLS_add_precompile_0x0b_via_innerExecute)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(view);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = msg;

@@ -7,9 +7,9 @@
  */
 #define BOOST_TEST_MODULE TopLevelInsufficientBalanceStateDiffTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
-#include "bcos-evm/eth/pipeline/NormalizeIncludedTxVmerr.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/apply/EthReferenceExecute.h"
+#include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(setcode_auth_applied_then_top_level_balance_failure_state_d
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(stateView);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;
@@ -115,8 +115,7 @@ BOOST_AUTO_TEST_CASE(setcode_auth_applied_then_top_level_balance_failure_state_d
     BOOST_CHECK(has7702DelegationCode(output.stateDiff, sender));
 
     auto raw = output.result.release_raw();
-    EVMCResult normalized(
-        raw, bcos::protocol::TransactionStatus::NotEnoughCash);
+    EVMCResult normalized(raw, bcos::protocol::TransactionStatus::NotEnoughCash);
     normalizeIncludedTxVmerr(normalized, /*depth=*/0);
 
     // normalizeIncludedTxVmerr does NOT map INSUFFICIENT_BALANCE to SUCCESS.

@@ -11,13 +11,13 @@
 
 #define BOOST_TEST_MODULE EthDelegateCallPrecompileTest
 
-#include "bcos-evm/eth/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/execution/ExecutionFrame.h"
-#include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/execution/CallTargetResolver.h"
+#include "bcos-evm/eth/execution/EvmCallFrame.h"
+#include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/EvmHostHooks.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -70,14 +70,14 @@ DelegatePrecompileOutcome runNestedExecutionFrame(
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
     txContext.block_gas_limit = 30'000'000;
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
-    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), extension, false);
+    bcos::evm_standard::RevisionConfig cfg{
+        .revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
+    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), extension);
 
     message.depth = 1;
-    execution::FrameExecutionEnv frameCtx{state, vm, cfg, extension, txContext.tx_origin,
-        host.execution_address_ref()};
-    auto fr = execution::runCallFrame(
-        frameCtx, message, execution::FrameScope::Nested, host);
+    execution::FrameExecutionEnv frameCtx{
+        state, vm, cfg, extension, txContext.tx_origin, host.execution_address_ref()};
+    auto fr = execution::runCallFrame(frameCtx, message, execution::FrameScope::Nested, host);
 
     return {.status = fr.result.status_code,
         .gasLeft = fr.result.gas_left,
@@ -96,8 +96,8 @@ DelegatePrecompileOutcome runNestedEthHostCall(state::State& state, evmc_message
         .output = copyOutput(result)};
 }
 
-void assertIdentityDelegateCallSuccess(DelegatePrecompileOutcome const& outcome,
-    std::array<uint8_t, 4> const& inputBytes)
+void assertIdentityDelegateCallSuccess(
+    DelegatePrecompileOutcome const& outcome, std::array<uint8_t, 4> const& inputBytes)
 {
     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(outcome.gasLeft, kExpectedGasLeft);
@@ -113,20 +113,22 @@ BOOST_AUTO_TEST_CASE(resolver_delegatecall_to_identity_is_builtin_precompile_eth
     auto const caller = addressFromLastByte(0x02);
     auto const identity = precompileAddress(0x04);
 
-    evmc_message msg = delegateCallIdentityMessage(addressFromLastByte(0x01), caller, {0x01, 0x02, 0x03, 0x04});
+    evmc_message msg =
+        delegateCallIdentityMessage(addressFromLastByte(0x01), caller, {0x01, 0x02, 0x03, 0x04});
     msg.depth = 1;
 
     state::test::InMemoryStateView base;
     state::State state{base};
 
-    auto frame = execution::resolveFrameTarget(state, {.revision = EVMC_PRAGUE, .warm_access = true},
-        msg, execution::FrameScope::Nested);
+    auto frame = execution::resolveFrameTarget(
+        state, {.revision = EVMC_PRAGUE, .warm_access = true}, msg, execution::FrameScope::Nested);
     auto desc = execution::resolveCallTarget(state,
         {.revision = EVMC_PRAGUE, .warm_access = true, .eip2537 = true}, frame.routed,
         execution::FrameScope::Nested, nullptr, nullptr);
 
     BOOST_CHECK(desc.kind == execution::CallTargetKind::BuiltinPrecompile);
-    BOOST_CHECK(std::memcmp(desc.dispatchAddress.bytes, identity.bytes, sizeof(identity.bytes)) == 0);
+    BOOST_CHECK(
+        std::memcmp(desc.dispatchAddress.bytes, identity.bytes, sizeof(identity.bytes)) == 0);
 }
 
 BOOST_AUTO_TEST_CASE(nested_delegatecall_identity_hits_precompile_envelope)
@@ -183,10 +185,9 @@ BOOST_AUTO_TEST_CASE(top_level_innerExecute_delegatecall_identity_allowed)
     state.set_balance(sender, 1'000'000);
 
     auto output = innerExecute(makeBaseInput(&state, message));
-    assertIdentityDelegateCallSuccess(
-        {.status = output.result.status_code,
-            .gasLeft = output.result.gas_left,
-            .output = copyOutput(output.result)},
+    assertIdentityDelegateCallSuccess({.status = output.result.status_code,
+                                          .gasLeft = output.result.gas_left,
+                                          .output = copyOutput(output.result)},
         inputBytes);
 }
 

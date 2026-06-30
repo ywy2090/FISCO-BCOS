@@ -28,7 +28,7 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(fiscoExecute_web3Tx_eip7623_oog_when_gas_below_normal_cost)
+BOOST_AUTO_TEST_CASE(applyFiscoMessage_web3Tx_eip7623_oog_when_gas_below_normal_cost)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(fiscoExecute_web3Tx_eip7623_oog_when_gas_below_normal_cost)
         static_cast<int>(protocol::TransactionStatus::OutOfGas));
 }
 
-BOOST_AUTO_TEST_CASE(fiscoExecute_web3Tx_eip7623_skips_precheck_when_normal_cost_zero)
+BOOST_AUTO_TEST_CASE(applyFiscoMessage_web3Tx_eip7623_skips_precheck_when_normal_cost_zero)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x03);

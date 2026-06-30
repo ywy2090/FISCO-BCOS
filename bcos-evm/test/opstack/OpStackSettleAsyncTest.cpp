@@ -9,7 +9,7 @@ namespace bcos::evm::test
 {
 BOOST_AUTO_TEST_CASE(settle_normal_completed_wires_refund_and_gas_pool)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
+    NormalSettleFixture fixture(100'000, StateTransitionExitKind::Completed, 80'000);
     fixture.prepareAndComplete();
     auto const senderAfterBuyGas = fixture.ctx.state.get_balance(fixture.sender);
 
@@ -21,7 +21,8 @@ BOOST_AUTO_TEST_CASE(settle_normal_completed_wires_refund_and_gas_pool)
 
 BOOST_AUTO_TEST_CASE(settle_normal_rules_rejected_wires_partial_refund)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::RulesRejected, 60'000, EVMC_REVERT);
+    NormalSettleFixture fixture(
+        100'000, StateTransitionExitKind::RulesRejected, 60'000, EVMC_REVERT);
     fixture.prepareAndComplete();
 
     auto const output = fixture.completeAfterPipeline();
@@ -32,7 +33,8 @@ BOOST_AUTO_TEST_CASE(settle_normal_rules_rejected_wires_partial_refund)
 
 BOOST_AUTO_TEST_CASE(settle_normal_exception_handled_wires_partial_refund)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::ExceptionHandled, 60'000, EVMC_REVERT);
+    NormalSettleFixture fixture(
+        100'000, StateTransitionExitKind::ExceptionHandled, 60'000, EVMC_REVERT);
     fixture.prepareAndComplete();
 
     auto const output = fixture.completeAfterPipeline();
@@ -43,7 +45,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_exception_handled_wires_partial_refund)
 
 BOOST_AUTO_TEST_CASE(settle_normal_intrinsic_reject_return_gas_full_limit)
 {
-    NormalSettleFixture fixture(50'000, TxPipelineExitKind::IntrinsicRejected, 0);
+    NormalSettleFixture fixture(50'000, StateTransitionExitKind::IntrinsicRejected, 0);
     auto const balanceBeforeBuyGas = fixture.ctx.state.get_balance(fixture.sender);
     fixture.prepareAndComplete();
 
@@ -59,7 +61,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_intrinsic_reject_return_gas_full_limit)
 
 BOOST_AUTO_TEST_CASE(settle_normal_gas_afford_reject_return_gas_full_limit)
 {
-    NormalSettleFixture fixture(50'000, TxPipelineExitKind::GasAffordRejected, 0);
+    NormalSettleFixture fixture(50'000, StateTransitionExitKind::GasAffordRejected, 0);
     auto const balanceBeforeBuyGas = fixture.ctx.state.get_balance(fixture.sender);
     fixture.prepareAndComplete();
 
@@ -75,7 +77,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_gas_afford_reject_return_gas_full_limit)
 
 BOOST_AUTO_TEST_CASE(settle_normal_null_return_gas_hook_no_crash)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
+    NormalSettleFixture fixture(100'000, StateTransitionExitKind::Completed, 80'000);
     fixture.checkpointBeforeBuyGas();
     BOOST_REQUIRE(fixture.buyGas());
 
@@ -90,7 +92,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_null_return_gas_hook_no_crash)
 
 BOOST_AUTO_TEST_CASE(settle_normal_call_frame_skips_refund_routing)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
+    NormalSettleFixture fixture(100'000, StateTransitionExitKind::Completed, 80'000);
     fixture.input.call = true;
     fixture.input.skipTransactionChecks = true;
     fixture.input.noBaseFee = true;
@@ -110,7 +112,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_call_frame_skips_refund_routing)
 
 BOOST_AUTO_TEST_CASE(settle_normal_deposit_flag_skips_refund_routing)
 {
-    NormalSettleFixture fixture(100'000, TxPipelineExitKind::Completed, 80'000);
+    NormalSettleFixture fixture(100'000, StateTransitionExitKind::Completed, 80'000);
     fixture.input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     fixture.prepareAndComplete();
 
@@ -126,7 +128,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_deposit_flag_skips_refund_routing)
 
 BOOST_AUTO_TEST_CASE(settle_deposit_success_commits_and_returns_gas_pool)
 {
-    DepositSettleFixture fixture(100'000, TxPipelineExitKind::Completed, EVMC_SUCCESS, 80'000);
+    DepositSettleFixture fixture(100'000, StateTransitionExitKind::Completed, EVMC_SUCCESS, 80'000);
 
     auto const settled = task::syncWait(
         settleDeposit(fixture.ctx, fixture.ctx.exitKind, EVMC_SUCCESS, fixture.spy.hooks()));
@@ -142,7 +144,7 @@ BOOST_AUTO_TEST_CASE(settle_deposit_success_commits_and_returns_gas_pool)
 
 BOOST_AUTO_TEST_CASE(settle_deposit_revert_returns_actual_gas)
 {
-    DepositSettleFixture fixture(50'000, TxPipelineExitKind::Completed, EVMC_REVERT, 29'000);
+    DepositSettleFixture fixture(50'000, StateTransitionExitKind::Completed, EVMC_REVERT, 29'000);
 
     auto const settled = task::syncWait(
         settleDeposit(fixture.ctx, fixture.ctx.exitKind, EVMC_REVERT, fixture.spy.hooks()));
@@ -156,10 +158,11 @@ BOOST_AUTO_TEST_CASE(settle_deposit_revert_returns_actual_gas)
 
 BOOST_AUTO_TEST_CASE(settle_deposit_entry_failure_uses_gas_limit)
 {
-    DepositSettleFixture fixture(20'999, TxPipelineExitKind::IntrinsicRejected, EVMC_OUT_OF_GAS, 0);
+    DepositSettleFixture fixture(
+        20'999, StateTransitionExitKind::IntrinsicRejected, EVMC_OUT_OF_GAS, 0);
 
-    auto const settled = task::syncWait(settleDeposit(
-        fixture.ctx, TxPipelineExitKind::IntrinsicRejected, EVMC_OUT_OF_GAS, fixture.spy.hooks()));
+    auto const settled = task::syncWait(settleDeposit(fixture.ctx,
+        StateTransitionExitKind::IntrinsicRejected, EVMC_OUT_OF_GAS, fixture.spy.hooks()));
 
     BOOST_CHECK_EQUAL(settled.gasUsed, 20'999);
     BOOST_CHECK_EQUAL(settled.gasRemaining, 0u);
@@ -173,10 +176,11 @@ BOOST_AUTO_TEST_CASE(settle_deposit_entry_failure_uses_gas_limit)
 
 BOOST_AUTO_TEST_CASE(settle_deposit_gas_afford_reject_entry_failure)
 {
-    DepositSettleFixture fixture(20'999, TxPipelineExitKind::GasAffordRejected, EVMC_OUT_OF_GAS, 0);
+    DepositSettleFixture fixture(
+        20'999, StateTransitionExitKind::GasAffordRejected, EVMC_OUT_OF_GAS, 0);
 
-    auto const settled = task::syncWait(settleDeposit(
-        fixture.ctx, TxPipelineExitKind::GasAffordRejected, EVMC_OUT_OF_GAS, fixture.spy.hooks()));
+    auto const settled = task::syncWait(settleDeposit(fixture.ctx,
+        StateTransitionExitKind::GasAffordRejected, EVMC_OUT_OF_GAS, fixture.spy.hooks()));
 
     BOOST_CHECK_EQUAL(settled.gasUsed, 20'999);
     BOOST_CHECK_EQUAL(settled.gasRemaining, 0u);
@@ -187,7 +191,7 @@ BOOST_AUTO_TEST_CASE(settle_deposit_gas_afford_reject_entry_failure)
 
 BOOST_AUTO_TEST_CASE(settle_deposit_null_return_gas_hook_no_crash)
 {
-    DepositSettleFixture fixture(100'000, TxPipelineExitKind::Completed, EVMC_SUCCESS, 80'000);
+    DepositSettleFixture fixture(100'000, StateTransitionExitKind::Completed, EVMC_SUCCESS, 80'000);
 
     GasPoolHooks emptyHooks{};
     auto const settled =
@@ -201,10 +205,11 @@ BOOST_AUTO_TEST_CASE(settle_deposit_null_return_gas_hook_no_crash)
 
 BOOST_AUTO_TEST_CASE(settle_deposit_exception_handled_entry_failure)
 {
-    DepositSettleFixture fixture(20'999, TxPipelineExitKind::ExceptionHandled, EVMC_OUT_OF_GAS, 0);
+    DepositSettleFixture fixture(
+        20'999, StateTransitionExitKind::ExceptionHandled, EVMC_OUT_OF_GAS, 0);
 
-    auto const settled = task::syncWait(settleDeposit(
-        fixture.ctx, TxPipelineExitKind::ExceptionHandled, EVMC_OUT_OF_GAS, fixture.spy.hooks()));
+    auto const settled = task::syncWait(settleDeposit(fixture.ctx,
+        StateTransitionExitKind::ExceptionHandled, EVMC_OUT_OF_GAS, fixture.spy.hooks()));
 
     BOOST_CHECK_EQUAL(settled.gasUsed, 20'999);
     BOOST_CHECK_EQUAL(settled.gasRemaining, 0u);

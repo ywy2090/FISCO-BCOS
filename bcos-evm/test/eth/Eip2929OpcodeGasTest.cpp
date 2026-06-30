@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip2929OpcodeGasTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
@@ -46,7 +46,7 @@ int64_t gasUsed(int64_t gasLimit, evmc::Result const& result)
     return gasLimit - result.gas_left;
 }
 
-ExecuteMessageOutput runContractCode(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+InnerExecuteOutput runContractCode(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     evmc_address const& sender, evmc_address const& contract, bcos::bytes const& code,
     int64_t gasLimit = 500'000)
 {
@@ -64,7 +64,7 @@ ExecuteMessageOutput runContractCode(state::test::InMemoryStateView& stateView, 
     message.recipient = contract;
     message.code_address = contract;
 
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;
@@ -213,7 +213,7 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_warm_access_disabled)
     cfg.revision = EVMC_BERLIN;
     cfg.warm_access = false;
 
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

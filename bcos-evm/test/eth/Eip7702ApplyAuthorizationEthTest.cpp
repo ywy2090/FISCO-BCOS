@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Eip7702ApplyAuthorizationEthTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_innerExecute_prague)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(stateView);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

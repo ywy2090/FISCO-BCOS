@@ -1,5 +1,5 @@
-#include "bcos-evm/eth/pipeline/TxPipeline.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/pipeline/AdoptEvmcResult.h"
 #include "bcos-evm/eth/pipeline/CaptureSettlementSnapshot.h"
 #include "bcos-evm/eth/pipeline/EvmTxContextView.h"
@@ -10,12 +10,12 @@ namespace bcos::evm
 {
 
 // geth: stateTransition.execute — ADR-030 / ADR-031 canonical
-void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
+void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
     OrchestrationErrorPolicy const& errorPolicy)
 {
     struct PipelineCompleteGuard
     {
-        TxPipelineContext& ctx;
+        StateTransitionContext& ctx;
         OrchestrationErrorPolicy const& errorPolicy;
         ~PipelineCompleteGuard() { errorPolicy.onPipelineComplete(ctx); }
     } completeGuard{ctx, errorPolicy};
@@ -25,10 +25,10 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
         throw std::invalid_argument("stateTransitionExecute requires vm/hashImpl");
     }
 
-    auto const intrinsicPolicy = precheckPolicy.intrinsicGasDebitParams();
+    auto const intrinsicPolicy = precheckPolicy.deductIntrinsicGasParams();
 
     ctx.earlyExit = false;
-    ctx.exitKind = TxPipelineExitKind::None;
+    ctx.exitKind = StateTransitionExitKind::None;
     ctx.intrinsicDebitMode = intrinsicPolicy.mode;
 
     EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute begin")
@@ -51,7 +51,7 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
         precheckPolicy.pipelineCheckRules(ctx);
         if (ctx.earlyExit)
         {
-            ctx.exitKind = TxPipelineExitKind::RulesRejected;
+            ctx.exitKind = StateTransitionExitKind::RulesRejected;
             EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                            << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code));
@@ -62,7 +62,7 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
         precheckPolicy.pipelineCheckGasAffordable(ctx);
         if (ctx.earlyExit)
         {
-            ctx.exitKind = TxPipelineExitKind::GasAffordRejected;
+            ctx.exitKind = StateTransitionExitKind::GasAffordRejected;
             EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                            << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code));
@@ -75,7 +75,7 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
         if (!debitOutcome.ok)
         {
             ctx.earlyExit = true;
-            ctx.exitKind = TxPipelineExitKind::IntrinsicRejected;
+            ctx.exitKind = StateTransitionExitKind::IntrinsicRejected;
             EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute intrinsic rejected")
                            << LOG_KV("failure", trace::intrinsicDebitFailure(debitOutcome.failure))
                            << LOG_KV("gasBefore", gasBeforeDebit)
@@ -95,9 +95,9 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
         precheckPolicy.pipelineCheckBalance(ctx);
         if (ctx.earlyExit)
         {
-            if (ctx.exitKind == TxPipelineExitKind::None)
+            if (ctx.exitKind == StateTransitionExitKind::None)
             {
-                ctx.exitKind = TxPipelineExitKind::GasAffordRejected;
+                ctx.exitKind = StateTransitionExitKind::GasAffordRejected;
             }
             EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute early-exit")
                            << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -115,7 +115,7 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
         {
             throw std::invalid_argument("stateTransitionExecute requires wired EvmTxContextView");
         }
-        auto executeInput = ctx.txContextView->toExecuteMessageInput(ctx);
+        auto executeInput = ctx.txContextView->toInnerExecuteInput(ctx);
         precheckPolicy.pipelineTuneKernelInput(executeInput);
 
         ctx.kernelOutput = precheckPolicy.pipelineInvokeEvmKernel(std::move(executeInput));
@@ -124,7 +124,7 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
         captureSettlementSnapshot(ctx, ctx.kernelOutput);
 
         errorPolicy.onPostExecuteNormalize(ctx);
-        ctx.exitKind = TxPipelineExitKind::Completed;
+        ctx.exitKind = StateTransitionExitKind::Completed;
 
         EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute done")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -135,7 +135,7 @@ void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& p
     }
     catch (...)
     {
-        ctx.exitKind = TxPipelineExitKind::ExceptionHandled;
+        ctx.exitKind = StateTransitionExitKind::ExceptionHandled;
         EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute exception")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind));
         errorPolicy.onPipelineException(ctx, std::current_exception());

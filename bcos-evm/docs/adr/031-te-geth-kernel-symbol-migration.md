@@ -9,16 +9,14 @@
 
 ## Context
 
-ADR-030 introduced geth vocabulary as **Tier A inline aliases** forwarding to legacy FISCO names (`runTxPipeline`, `executeMessage`). That let reviewers use geth terms in comments and new code without breaking the **Tier E stable ABI** consumed by `transaction-executor` (TE).
+ADR-030 introduced geth vocabulary as **Tier A inline aliases** (`prepareState`, `evmCall`, …) alongside ADR-029 layer prefixes. During Phase 3b (2026-06-30), two **portable eth kernel** entry points were promoted to canonical C++ identifiers; Tier E forwards were removed in ADR-032 Waves 2–4.
 
-Phase 3b promotes two **portable eth kernel** entry points to canonical C++ identifiers inside `bcos-evm/eth/`:
-
-| Legacy (Tier E) | geth analogue | ADR-031 canonical |
+| ~~Legacy (Tier E)~~ | geth analogue | ADR-031 canonical |
 | --- | --- | --- |
-| `runTxPipeline` | `stateTransition.execute` | `stateTransitionExecute` |
-| `executeMessage` | `innerExecute` (post-`Prepare` EVM) | `innerExecute` |
+| ~~`runTxPipeline`~~ | `stateTransition.execute` | `stateTransitionExecute` |
+| ~~`executeMessage`~~ | `innerExecute` (post-`Prepare` EVM) | `innerExecute` |
 
-Chain ApplyMessage adapters (`fiscoExecute`, `ethReferenceExecute`, `opStackExecute`) remain Tier E until a separate TE-facing ADR schedules their rename to `apply*Message`.
+Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage`** (exported since ADR-032 Wave 3; `*Execute` removed Wave 4).
 
 ---
 
@@ -28,14 +26,14 @@ Chain ApplyMessage adapters (`fiscoExecute`, `ethReferenceExecute`, `opStackExec
 
 | Symbol | Header | Implementation | Deprecated alias |
 | --- | --- | --- | --- |
-| `stateTransitionExecute` | `eth/pipeline/TxPipeline.h` | `TxPipeline.cpp` | ~~`[[deprecated]] inline runTxPipeline`~~ removed Wave 2 (2026-06-30) |
-| `innerExecute` | `eth/ExecuteMessage.h` | `ExecuteMessage.cpp` | ~~`[[deprecated]] inline executeMessage`~~ removed Wave 2 (2026-06-30) |
+| `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` | `TxPipeline.cpp` | ~~`[[deprecated]] inline runTxPipeline`~~ removed Wave 2 (2026-06-30) |
+| `innerExecute` | `eth/InnerExecute.h` | `ExecuteMessage.cpp` | ~~`[[deprecated]] inline executeMessage`~~ removed Wave 2 (2026-06-30) |
 
 **Rules:**
 
-- New `bcos-evm` code **must** call canonical names.
-- Tier E aliases remain **one release minimum** for TE and external callers; removal requires explicit TE migration + ADR update.
-- `GethNamingAliases.h` drops redundant forwards for promoted symbols; keep Tier A aliases that still forward (`prepareState`, `evmCall`, …).
+- New `bcos-evm` code **must** call canonical names (`stateTransitionExecute`, `innerExecute`, `apply*Message`).
+- ~~Tier E aliases remain one release minimum~~ — **removed ADR-032 Waves 2–4 (2026-06-30)**.
+- `GethNamingAliases.h` keeps Tier A aliases that still forward (`prepareState`, `evmCall`, …); promoted kernel symbols have no duplicate forwards.
 
 ### 2. Internal migration (bcos-evm)
 
@@ -44,7 +42,7 @@ Chain ApplyMessage adapters (`fiscoExecute`, `ethReferenceExecute`, `opStackExec
 | Chain bridges | `FiscoExecute`, `EthReferenceExecute`, `OpStackTxLifecycle` call `stateTransitionExecute` |
 | `ChainPrecheckPolicy::pipelineInvokeEvmKernel` default | calls `innerExecute` |
 | `OpStackPrecheckPolicy` override | calls `innerExecute` |
-| Tests | Prefer canonical names; retain deprecated-alias coverage in `GethNamingAliasesTest` |
+| Tests | Prefer canonical names; deprecated-alias tests removed with symbols (ADR-032) |
 
 Log strings in `TxPipeline.cpp` / `TxExecutionRunner.cpp` use canonical names where they name the kernel step.
 
@@ -60,21 +58,21 @@ OpStackTransactionExecutorImpl → applyOpStackMessage
 
 **Phase 3b TE action:** none required for direct kernel symbols. TE uses `apply*Message` at the execute boundary since P2; Tier E `*Execute` forwards removed Wave 4 (2026-06-30).
 
-**Future TE schedule:** see **ADR-032** (Tier E retirement waves 1–5). Summary:
+**TE schedule (complete):** see **ADR-032** Waves 1–5. Summary:
 
-| Phase | TE change | bcos-evm alias removal |
+| Phase | TE change | bcos-evm |
 | --- | --- | --- |
-| P2 ✅ | TE calls `apply*Message` at execute boundary | retain `*Execute` exported symbols |
-| Wave 3 | `apply*Message` becomes exported link symbol; `*Execute` deprecated | ADR-032 §1 Wave 3 |
-| Wave 4 | TE on canonical names only | remove `fiscoExecute`, `ethReferenceExecute`, `opStackExecute` |
-| Wave 2 | (no TE action) | remove `runTxPipeline`, `executeMessage` |
+| P2 ✅ | TE calls `apply*Message` at execute boundary | `*Execute` still exported |
+| Wave 3 ✅ | `apply*Message` exported link symbol | `*Execute` deprecated inline |
+| Wave 4 ✅ | TE on canonical names only | `*Execute` forwards removed |
+| Wave 2 ✅ | (no TE action) | `runTxPipeline`, `executeMessage` removed |
 
 ### 4. ADR-029 coexistence
 
 ADR-029 layer prefixes (`pipeline*`, `runEvmKernelTopLevel`, `runCallFrame`) are unchanged. ADR-031 only renames the **L2 driver** and **L3 stable facade**:
 
 ```text
-*Execute (L1) → stateTransitionExecute (L2 driver) → innerExecute (L3 facade) → runEvmKernelTopLevel (L3 body)
+apply*Message (L1) → stateTransitionExecute (L2 driver) → innerExecute (L3 facade) → runEvmKernelTopLevel (L3 body)
 ```
 
 Both ADR-029 and geth names appear in comments during transition.
@@ -83,9 +81,9 @@ Both ADR-029 and geth names appear in comments during transition.
 
 ## Consequences
 
-- Parity reviews cite `stateTransitionExecute` / `innerExecute` as primary kernel symbols; `runTxPipeline` / `executeMessage` are legacy ABI.
-- CI must keep `GethNamingAliasesTest` verifying deprecated forwards until alias removal.
-- Documentation (`architecture-overview.md`, ADR-030 §8) should note Phase 3b completion; Tier E table lists deprecated forwards explicitly.
+- Parity reviews cite `stateTransitionExecute` / `innerExecute` / `apply*Message` as primary symbols; Tier E names are historical only (ADR-032).
+- `GethNamingAliasesTest` verifies Tier A forwards and canonical kernel drivers; deprecated-forward cases removed with symbols.
+- Documentation (`architecture-overview.md`, ADR-030 §8) reflects post-retirement canonical names.
 
 ---
 

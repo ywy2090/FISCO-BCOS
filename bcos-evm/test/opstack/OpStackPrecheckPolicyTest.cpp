@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
     OpStackExecutionRequest input;
     input.skipTransactionChecks = false;
 
-    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
@@ -109,16 +109,16 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
 
     state::test::InMemoryStateView stateView;
     evmc_message msg{};
-    TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
-    BOOST_CHECK_EQUAL(policy.intrinsicGasDebitParams().authTupleCount, 2U);
+    BOOST_CHECK_EQUAL(policy.deductIntrinsicGasParams().authTupleCount, 2U);
 }
 
 }  // namespace bcos::evm::test

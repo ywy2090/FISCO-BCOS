@@ -103,11 +103,8 @@ OpStackExecutionRequest makeCreateDepositInput(state::test::InMemoryStateView& s
     input.revisionConfig.revision = EVMC_CANCUN;
     input.txProps.warmDestination = true;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
-    input.depositTx = OpStackDepositTx{.from = sender,
-        .to = std::nullopt,
-        .value = 0,
-        .gas = gasLimit,
-        .data = initCode};
+    input.depositTx = OpStackDepositTx{
+        .from = sender, .to = std::nullopt, .value = 0, .gas = gasLimit, .data = initCode};
     return input;
 }
 }  // namespace
@@ -155,8 +152,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_revert_bumps_sender_nonce_exactly_once)
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
     BOOST_CHECK_LT(output.gasUsed, static_cast<int64_t>(gasLimit));
-    BOOST_CHECK_EQUAL(
-        nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
+    BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, initialNonce);
 }
@@ -179,8 +175,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_intrinsic_reject_bumps_sender_nonce_exactly_
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, static_cast<int64_t>(gasLimit));
-    BOOST_CHECK_EQUAL(
-        nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
+    BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, initialNonce);
 }
@@ -203,8 +198,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_oog_bumps_sender_nonce_exactly_once)
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, static_cast<int64_t>(gasLimit));
-    BOOST_CHECK_EQUAL(
-        nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
+    BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, initialNonce);
 }

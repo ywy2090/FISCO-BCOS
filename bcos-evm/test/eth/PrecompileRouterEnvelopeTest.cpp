@@ -4,7 +4,7 @@
  *  @brief Precompile router value-transfer envelope tests.
  *
  *  GAP-004 / Plan Task 1 gas preservation (geth parity):
- *  - ExecutionFrame.cpp transferOrFail + PrecompileRouter preserve message.gas on balance fail
+ *  - EvmCallFrame.cpp transferOrFail + PrecompileRouter preserve message.gas on balance fail
  *  - GETH_ORACLE: go-ethereum/core/vm/evm.go:262-264 → return (nil, gas, ErrInsufficientBalance)
  */
 

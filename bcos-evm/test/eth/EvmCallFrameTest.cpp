@@ -4,10 +4,10 @@
  *  @brief ExecutionFrame PR1 gate tests — nested parity + TopLevel characterization.
  */
 
-#define BOOST_TEST_MODULE ExecutionFrameTest
+#define BOOST_TEST_MODULE EvmCallFrameTest
 
-#include "bcos-evm/eth/execution/ExecutionFrame.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/execution/EvmCallFrame.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -46,7 +46,7 @@ struct FrameTestHost
     explicit FrameTestHost(state::State& state, state::EvmHostHooks* extension = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
-        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, false);
+        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension);
     }
 
     state::EthHost& ethHost() { return *host; }

@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/Eip1559Access.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
@@ -21,14 +21,14 @@ BOOST_AUTO_TEST_CASE(finalize_normal_completed_matches_post_execute_settlement)
     evmc_message msg{};
     msg.gas = 100'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
     raw.gas_left = 80'000;
     raw.gas_refund = 5'000;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
-    ctx.exitKind = TxPipelineExitKind::Completed;
+    ctx.exitKind = StateTransitionExitKind::Completed;
 
     OpStackFeeSidecar sidecar;
     sidecar.floorDataGas = 0;
@@ -47,8 +47,8 @@ BOOST_AUTO_TEST_CASE(finalize_normal_intrinsic_reject_gas_used_zero)
     evmc_message msg{};
     msg.gas = 50'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
-    ctx.exitKind = TxPipelineExitKind::IntrinsicRejected;
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
+    ctx.exitKind = StateTransitionExitKind::IntrinsicRejected;
 
     OpStackFeeSidecar sidecar;
 
@@ -64,14 +64,14 @@ BOOST_AUTO_TEST_CASE(finalize_normal_rules_rejected_applies_settlement)
     evmc_message msg{};
     msg.gas = 100'000;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
-    TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_REVERT;
     raw.gas_left = 60'000;
     raw.gas_refund = 0;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
-    ctx.exitKind = TxPipelineExitKind::RulesRejected;
+    ctx.exitKind = StateTransitionExitKind::RulesRejected;
 
     OpStackFeeSidecar sidecar;
     sidecar.floorDataGas = 0;
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(abort_after_buy_gas_reverts_checkpoint_and_releases_gas_poo
     msg.sender = sender;
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
     state::State state{stateView};
-    TxPipelineContext ctx{state, msg, revision, bcos::u256(0)};
+    StateTransitionContext ctx{state, msg, revision, bcos::u256(0)};
 
     ctx.state.checkpoint();
     ctx.state.set_balance(sender, u256(200));
@@ -120,8 +120,8 @@ BOOST_AUTO_TEST_CASE(abort_after_buy_gas_reverts_checkpoint_and_releases_gas_poo
 
 BOOST_AUTO_TEST_CASE(is_normal_pre_execution_reject_covers_intrinsic_and_gas_afford)
 {
-    BOOST_CHECK(isNormalPreExecutionReject(TxPipelineExitKind::IntrinsicRejected));
-    BOOST_CHECK(isNormalPreExecutionReject(TxPipelineExitKind::GasAffordRejected));
-    BOOST_CHECK(!isNormalPreExecutionReject(TxPipelineExitKind::Completed));
+    BOOST_CHECK(isNormalPreExecutionReject(StateTransitionExitKind::IntrinsicRejected));
+    BOOST_CHECK(isNormalPreExecutionReject(StateTransitionExitKind::GasAffordRejected));
+    BOOST_CHECK(!isNormalPreExecutionReject(StateTransitionExitKind::Completed));
 }
 }  // namespace bcos::evm::test

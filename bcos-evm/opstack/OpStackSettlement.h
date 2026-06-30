@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackFeeSidecar.h"
 #include <bcos-task/Task.h>
 #include <evmc/evmc.h>
@@ -25,18 +25,18 @@ struct OpStackSettlementResult
     uint64_t maxUsedGas{0};
 };
 
-bool isNormalPreExecutionReject(TxPipelineExitKind exitKind) noexcept;
+bool isNormalPreExecutionReject(StateTransitionExitKind exitKind) noexcept;
 
-void abortNormalAfterBuyGas(TxPipelineContext& ctx, GasPoolHooks const& gasPool,
+void abortNormalAfterBuyGas(StateTransitionContext& ctx, GasPoolHooks const& gasPool,
     OpStackExecutionResult& output, int64_t originalGasLimit);
 
-OpStackSettlementResult finalizeNormal(
-    TxPipelineContext const& ctx, OpStackFeeSidecar const& sidecar, TxPipelineExitKind exitKind);
+OpStackSettlementResult finalizeNormal(StateTransitionContext const& ctx,
+    OpStackFeeSidecar const& sidecar, StateTransitionExitKind exitKind);
 
 OpStackSettlementResult finalizeDeposit(
-    TxPipelineContext& ctx, TxPipelineExitKind exitKind, evmc_status_code evmStatus);
+    StateTransitionContext& ctx, StateTransitionExitKind exitKind, evmc_status_code evmStatus);
 
-task::Task<OpStackSettlementResult> settleDeposit(TxPipelineContext& ctx,
-    TxPipelineExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool);
+task::Task<OpStackSettlementResult> settleDeposit(StateTransitionContext& ctx,
+    StateTransitionExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool);
 
 }  // namespace bcos::evm

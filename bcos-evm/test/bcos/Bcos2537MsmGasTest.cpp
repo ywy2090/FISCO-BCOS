@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Bcos2537MsmGasTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/BlsGas.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_innerExecute_prague)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(view);
-    ExecuteMessageInput execInput;
+    InnerExecuteInput execInput;
     execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_innerExecute_isthmus_profile)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(view);
-    ExecuteMessageInput execInput;
+    InnerExecuteInput execInput;
     execInput.state = &state;
     execInput.vm = &vm;
     execInput.message = message;

@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_applies_eip7623_floor)
     BOOST_CHECK_EQUAL(gasUsed, 21'000);
 }
 
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_top_level_invalid_is_included_with_success_status)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_top_level_invalid_is_included_with_success_status)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -244,7 +244,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
     BOOST_CHECK_EQUAL(teMirrorGasUsed, gasLimit);
 }
 
-BOOST_AUTO_TEST_CASE(ethReferenceExecute_nested_invalid_is_not_included_tx_vmerr)
+BOOST_AUTO_TEST_CASE(applyReferenceMessage_nested_invalid_is_not_included_tx_vmerr)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};

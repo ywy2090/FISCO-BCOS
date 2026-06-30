@@ -1,6 +1,6 @@
 #include "bcos-evm/opstack/OpStackTxLifecycle.h"
 
-#include "bcos-evm/eth/pipeline/TxPipeline.h"
+#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-evm/opstack/OpStackExecutionBundle.h"
 #include "bcos-evm/opstack/OpStackNormalTxFeeCoordinator.h"
@@ -33,7 +33,8 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
         trace::makeTraceContext("opstack", input.blockInfo.number, input.txHash));
 
     OpStackExecutionResult output;
-    TxPipelineContext ctx{*input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext ctx{
+        *input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
     ctx.txProps = input.txProps;
     ctx.inputs.vm = input.vm;
     ctx.inputs.hashImpl = input.hashImpl;

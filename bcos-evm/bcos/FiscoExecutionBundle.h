@@ -13,7 +13,7 @@ namespace bcos::evm
 /// Owns FISCO EvmHostHooks + optional chain call-target adapter.
 struct FiscoExecutionBundle
 {
-    FiscoExecutionBundle(TxPipelineContext& ctx, FiscoExecutionRequest& input)
+    FiscoExecutionBundle(StateTransitionContext& ctx, FiscoExecutionRequest& input)
       : m_extension(input.revisionConfig.enable_balance_transfer, makeDeps(ctx, input))
     {
         m_view.vm = input.vm;
@@ -37,7 +37,7 @@ struct FiscoExecutionBundle
 
 private:
     static FiscoVmHostPolicy::FiscoVmHostPolicyDeps makeDeps(
-        TxPipelineContext& ctx, FiscoExecutionRequest& input)
+        StateTransitionContext& ctx, FiscoExecutionRequest& input)
     {
         FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
         deps.state = &ctx.state;

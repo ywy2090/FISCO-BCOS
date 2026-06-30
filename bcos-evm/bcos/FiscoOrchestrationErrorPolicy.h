@@ -19,7 +19,8 @@ struct FiscoOrchestrationErrorPolicy : OrchestrationErrorPolicy
     bool fixErrorHandling{false};
     bool fixRevertLogs{false};
 
-    void onIntrinsicGasFailure(TxPipelineContext& ctx, IntrinsicDebitFailure failure) const override
+    void onIntrinsicGasFailure(
+        StateTransitionContext& ctx, IntrinsicDebitFailure failure) const override
     {
         std::string reason = "EIP-7623 intrinsic OOG";
         switch (failure)
@@ -40,7 +41,8 @@ struct FiscoOrchestrationErrorPolicy : OrchestrationErrorPolicy
             EVMC_OUT_OF_GAS, fixErrorHandling ? 0 : ctx.message.gas, reason, fixErrorHandling);
     }
 
-    void onPipelineException(TxPipelineContext& ctx, std::exception_ptr exceptionPtr) const override
+    void onPipelineException(
+        StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
     {
         try
         {
@@ -85,7 +87,7 @@ struct FiscoOrchestrationErrorPolicy : OrchestrationErrorPolicy
         }
     }
 
-    void onPostExecuteNormalize(TxPipelineContext& ctx) const override
+    void onPostExecuteNormalize(StateTransitionContext& ctx) const override
     {
         if ((ctx.message.kind == EVMC_CREATE || ctx.message.kind == EVMC_CREATE2) &&
             ctx.evmcResult.status_code == EVMC_SUCCESS &&
@@ -101,7 +103,7 @@ struct FiscoOrchestrationErrorPolicy : OrchestrationErrorPolicy
         }
     }
 
-    void onPipelineComplete(TxPipelineContext& ctx) const override
+    void onPipelineComplete(StateTransitionContext& ctx) const override
     {
         if (ctx.evmcResult.gas_left < 0)
         {

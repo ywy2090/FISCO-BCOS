@@ -2,14 +2,14 @@
 
 #ifdef BCOS_EVM_TESTING
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include <functional>
 #include <optional>
 
 namespace bcos::evm::opstack::test
 {
 using ExecuteMessageSpy =
-    std::function<std::optional<ExecuteMessageOutput>(ExecuteMessageInput const&)>;
+    std::function<std::optional<InnerExecuteOutput>(InnerExecuteInput const&)>;
 
 inline ExecuteMessageSpy& executeMessageSpySlot()
 {
@@ -27,8 +27,7 @@ inline void clearExecuteMessageSpy()
     executeMessageSpySlot() = {};
 }
 
-inline std::optional<ExecuteMessageOutput> maybeCallExecuteMessageSpy(
-    ExecuteMessageInput const& input)
+inline std::optional<InnerExecuteOutput> maybeCallExecuteMessageSpy(InnerExecuteInput const& input)
 {
     auto& spy = executeMessageSpySlot();
     if (spy)

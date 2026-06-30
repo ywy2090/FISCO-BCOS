@@ -190,7 +190,7 @@ public:
                     if (!co_await m_data->m_executor.get().m_txExecutor.buyGas(*m_data))
                         co_return {};
                 }
-                auto output = co_await fiscoExecuteTx();
+                auto output = co_await applyFiscoMessageTx();
                 m_data->m_executionContext = std::move(output.executionContext);
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
                 if (m_data->m_evmcResult->status_code == EVMC_SUCCESS)
@@ -261,7 +261,7 @@ public:
             }
         }
 
-        task::Task<FiscoExecutionResult> fiscoExecuteTx()
+        task::Task<FiscoExecutionResult> applyFiscoMessageTx()
         {
             FiscoExecutionRequest input;
             input.vm = std::addressof(m_data->m_vm);

@@ -34,7 +34,7 @@ void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackSettlementF
 }
 
 task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementFacade view,
-    TxPipelineExitKind exitKind, OpStackFeeSettlement& ledger, GasPoolHooks const& gasPool)
+    StateTransitionExitKind exitKind, OpStackFeeSettlement& ledger, GasPoolHooks const& gasPool)
 {
     auto& ctx = view.pipelineContext();
     auto settled = finalizeNormal(ctx, view.feeSidecar(), exitKind);

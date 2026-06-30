@@ -28,15 +28,15 @@ struct EthPrecheckPolicy : ChainPrecheckPolicy
 {
     explicit EthPrecheckPolicy(EthReferenceRequest const& input);
 
-    IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
+    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
-    void pipelineCheckRules(TxPipelineContext& ctx) const override;
+    void pipelineCheckRules(StateTransitionContext& ctx) const override;
 
-    void pipelineCheckBalance(TxPipelineContext& ctx) const override;
+    void pipelineCheckBalance(StateTransitionContext& ctx) const override;
 
 private:
     EthReferenceRequest const& m_input;
-    IntrinsicGasDebitParams m_intrinsicPolicy{};
+    DeductIntrinsicGasParams m_intrinsicPolicy{};
 };
 
 }  // namespace bcos::evm

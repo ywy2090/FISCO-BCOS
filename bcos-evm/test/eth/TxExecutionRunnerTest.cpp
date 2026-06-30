@@ -9,7 +9,7 @@
 #define BOOST_TEST_MODULE TxExecutionRunnerTest
 
 #include "bcos-evm/eth/execution/TxExecutionRunner.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
@@ -23,12 +23,12 @@ namespace bcos::evm::test
 {
 namespace
 {
-using bcos::evm::ExecuteMessageInput;
-using bcos::evm::ExecuteMessageOutput;
+using bcos::evm::InnerExecuteInput;
+using bcos::evm::InnerExecuteOutput;
 using bcos::evm::SetCodeAuthorization;
 using bcos::evm::execution::TxExecutionRunner;
 
-ExecuteMessageInput makePragueCallInput(
+InnerExecuteInput makePragueCallInput(
     state::State& state, evmc_message message, bcos::evm_standard::RevisionConfig cfg = {})
 {
     auto input = makeBaseInput(state, message);
@@ -55,7 +55,7 @@ evmc_message callMessage(evmc_address sender, evmc_address target, int64_t depth
 BOOST_AUTO_TEST_CASE(null_state_throws_invalid_argument)
 {
     evmc::VM vm{evmc_create_evmone()};
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = nullptr;
     input.vm = &vm;
     BOOST_CHECK_THROW(

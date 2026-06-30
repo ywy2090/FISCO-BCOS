@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE EipPrecompileRevisionGateTest
 
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(cancun_call_0x0b_not_precompile_dispatch)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(view);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = msg;

@@ -6,7 +6,7 @@
 
 #define BOOST_TEST_MODULE FrameTargetRoutingCharacterizationTest
 
-#include "bcos-evm/eth/execution/ExecutionFrame.h"
+#include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"

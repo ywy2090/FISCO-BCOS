@@ -1,7 +1,7 @@
 #include "bcos-evm/eth/apply/EthReferenceExecute.h"
 #include "bcos-evm/eth/apply/EthExecutionBundle.h"
 #include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
-#include "bcos-evm/eth/pipeline/TxPipeline.h"
+#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
@@ -47,7 +47,8 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
     output.executionContext.message = input.message;
     output.executionContext.revisionConfig = input.revisionConfig;
 
-    TxPipelineContext ctx{*input.stateView, input.message, input.revisionConfig, input.gasPrice};
+    StateTransitionContext ctx{
+        *input.stateView, input.message, input.revisionConfig, input.gasPrice};
     ctx.inputs.vm = input.vm;
     ctx.inputs.hashImpl = input.hashImpl;
     ctx.inputs.blockInfo = input.blockInfo;
@@ -81,7 +82,7 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
     output.executionContext.message = ctx.message;
     output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
 
-    if (bindings.precheckPolicy.intrinsicGasDebitParams().mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.precheckPolicy.deductIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7702ClearDelegationTest
 
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/ExecuteMessage.h"
+#include "bcos-evm/eth/InnerExecute.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
 
     evmc::VM vm{evmc_create_evmone()};
     state::State state(stateView);
-    ExecuteMessageInput input;
+    InnerExecuteInput input;
     input.state = &state;
     input.vm = &vm;
     input.message = message;

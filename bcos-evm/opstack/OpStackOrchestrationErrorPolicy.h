@@ -9,13 +9,13 @@ namespace bcos::evm
 struct OpStackOrchestrationErrorPolicy : OrchestrationErrorPolicy
 {
     void onIntrinsicGasFailure(
-        TxPipelineContext& ctx, IntrinsicDebitFailure /*failure*/) const override
+        StateTransitionContext& ctx, IntrinsicDebitFailure /*failure*/) const override
     {
         ctx.evmcResult = makeOutOfGasLimitResult();
     }
 
     void onPipelineException(
-        TxPipelineContext& ctx, std::exception_ptr /*exceptionPtr*/) const override
+        StateTransitionContext& ctx, std::exception_ptr /*exceptionPtr*/) const override
     {
         ctx.evmcResult = makeInternalErrorResult();
 

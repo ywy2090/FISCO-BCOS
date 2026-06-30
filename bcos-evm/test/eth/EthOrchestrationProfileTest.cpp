@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE EthOrchestrationProfileTest
 
 #include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
-#include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
 
@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.intrinsicGasDebitParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::AuthOnly));
 }
 
@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     input.blockInfo.baseFee = 1;
 
     EthReferenceResult output;
-    TxPipelineContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.intrinsicGasDebitParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.deductIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::None));
 }
 

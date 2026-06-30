@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/AccessList.h"
-#include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/opstack/OpStackFeeSidecar.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
@@ -17,12 +17,12 @@ struct OpStackExecutionRequest;
 /// Read-only projection over pipeline ctx + execution request + fee sidecar.
 struct OpStackSettlementFacade
 {
-    TxPipelineContext& ctx;
+    StateTransitionContext& ctx;
     OpStackExecutionRequest const& input;
     OpStackFeeSidecar& sidecar;
 
-    TxPipelineContext& pipelineContext() noexcept { return ctx; }
-    TxPipelineContext const& pipelineContext() const noexcept { return ctx; }
+    StateTransitionContext& pipelineContext() noexcept { return ctx; }
+    StateTransitionContext const& pipelineContext() const noexcept { return ctx; }
 
     OpStackFeeSidecar& mutableSidecar() noexcept { return sidecar; }
     OpStackFeeSidecar const& feeSidecar() const noexcept { return sidecar; }

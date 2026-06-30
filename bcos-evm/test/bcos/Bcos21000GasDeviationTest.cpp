@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(balance_transfer_gas_constant_documents_deviation)
     BOOST_CHECK_EQUAL(BALANCE_TRANSFER_GAS, gas::TX_BASE_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(fiscoExecute_debits_balance_transfer_gas_before_evm)
+BOOST_AUTO_TEST_CASE(applyFiscoMessage_debits_balance_transfer_gas_before_evm)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);

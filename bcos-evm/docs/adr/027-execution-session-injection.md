@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-019, ADR-024, `eth/pipeline/TxPipelineContext.h`, `eth/pipeline/BuildExecuteMessageInput.h`, `eth/ExecuteMessage.h`, `eth/execution/ExecutionFrame.h`, `eth/state/EthHost.hpp`, `bcos/FiscoExecute.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/apply/EthReferenceExecute.cpp`
+**Related:** ADR-005, ADR-019, ADR-024, `eth/pipeline/StateTransitionContext.h`, `eth/pipeline/BuildExecuteMessageInput.h`, `eth/InnerExecute.h`, `eth/execution/EvmCallFrame.h`, `eth/state/EthHost.hpp`, `bcos/FiscoExecute.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/apply/EthReferenceExecute.cpp`
 
 ---
 
