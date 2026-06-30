@@ -229,7 +229,7 @@ runTxPipeline(ctx, hooks):
 
 ### 3.8 `eth/` root — Entry points and cross-cutting types
 
-**Files:** `ExecuteMessage.h` / `.cpp`, `ExecuteViaEth.h` / `.cpp`, `ExecuteViaEthPreCheck.h` / `.cpp`, `RevisionConfig.h`, `EVMCResult.h` / `.cpp`, `Eip7702.h` / `.cpp`, `AccessList.h`, `EthExecutionArtifacts.h`, `EthTxExecutor.h`, `Transfer.h`, `Web3TypedTxKind.h`
+**Files:** `ExecuteMessage.h` / `.cpp`, `ExecuteViaEth.h` / `.cpp`, `ExecuteViaEthPreCheck.h` / `.cpp`, `RevisionConfig.h`, `EVMCResult.h` / `.cpp`, `Eip7702.h` / `.cpp`, `AccessList.h`, `EthTxExecutor.h`, `Transfer.h`, `Web3TypedTxKind.h`
 
 **Design:**
 

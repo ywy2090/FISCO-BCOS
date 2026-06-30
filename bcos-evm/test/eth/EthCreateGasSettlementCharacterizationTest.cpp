@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  * @brief End-to-end characterization net for CREATE gas settlement.
  *
  * Pins the *settled* gasUsed produced by the real production path
- * (ethReferenceExecute on real evmone -> settleTopLevelTransactionGas) against geth/EEST
+ * (applyEthMessage on real evmone -> settleTopLevelTransactionGas) against geth/EEST
  * goldens, so the Lean settlement model (full intrinsic pre-debit incl. createTerm +
  * host-refund single source) preserves observable gasUsed.
  * counter (state.get_refund(), surfaced as snapshot.evmGasRefund) must equal the
@@ -26,7 +26,7 @@
  */
 #define BOOST_TEST_MODULE EthCreateGasSettlementCharacterizationTest
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -72,7 +72,7 @@ evmc_bytes32 makeBytes32(uint8_t lastByte)
 }
 
 // Mirrors EthTransactionExecutorImpl::settleGasUsedFromEvmResult for the
-// web3 + eip7623 Lean path: full intrinsic pre-debit in ethReferenceExecute, then
+// web3 + eip7623 Lean path: full intrinsic pre-debit in applyEthMessage, then
 // settleTopLevelTransactionGas with host refund from snapshot.
 CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipient,
     bytes const& data, int64_t gasLimit,
@@ -86,7 +86,7 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
         view.insert_account(addr, account);
     }
 
-    EthReferenceRequest input;
+    EthMessageRequest input;
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -119,9 +119,9 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
     input.gasFeeCap = 0;
     input.web3TypedTxKind = kWeb3TypedTxKind;
 
-    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
 
-    auto const& snap = output.executionContext.gasSettlementSnapshot;
+    auto const& snap = output.gasSettlementSnapshot;
     CreateCharacterization result;
     result.status = output.evmcResult.status_code;
     result.hostRefund = snap.evmGasRefund;

@@ -35,7 +35,6 @@
 | `execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
 | `RevisionConfig.h` | EIP 开关位域 |
 | `EVMCResult.*` | EVMC 结果封装 |
-| `EthExecutionArtifacts.h` | 参考路径执行上下文（TE 消费） |
 
 ## `eip/` — EIP 实现
 
@@ -49,7 +48,7 @@
 
 | 文件 | 角色 |
 | --- | --- |
-| `ApplyReferenceMessage.*` | 链入口 `applyReferenceMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
+| `EthMessage.*` | 链入口 `applyEthMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
 | `EthOrchestrationProfile.*` | `OrchestrationProfile::bind` → 填充 `StateTransitionHooks` + `StateTransitionErrorPolicy` |
 | `EthTxPrecheck.*` | 参考路径交易预检 |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
@@ -60,7 +59,7 @@
 
 | geth | ADR-030 文档名（Tier C） | 头文件 | TE 调用 |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/ApplyReferenceMessage.h` | `applyReferenceMessage` |
+| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | `applyEthMessage` |
 | `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `applyFiscoMessage` |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | `applyOpStackMessage` |
 
@@ -69,7 +68,7 @@
 ## 执行流
 
 ```text
-applyReferenceMessage()  // geth: ApplyMessage — ADR-030 文档名
+applyEthMessage()  // geth: ApplyMessage — ADR-030 文档名
   └─ EthOrchestrationProfile::bind
        └─ stateTransitionExecute()   // geth: stateTransition.execute
             └─ onInvokeInnerExecute → innerExecute()   // geth: innerExecute

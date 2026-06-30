@@ -5,14 +5,14 @@
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/EthExecutionArtifacts.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/apply/EthTxFeeSettlement.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/protocol/BlockHeader.h"
+#include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"
@@ -37,7 +37,7 @@ enum class EthExecutePhase : uint8_t
 evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin);
 
-/// Pure-ethereum transaction executor — geth-aligned gas + applyReferenceMessage, no FISCO
+/// Pure-ethereum transaction executor — geth-aligned gas + applyEthMessage, no FISCO
 /// extensions.
 template <class TxExec = EthTxFeeSettlement>
 class EthTransactionExecutorImpl
@@ -90,7 +90,10 @@ public:
             bool m_gasFieldsFilled{false};
             evmc::VM m_vm;
             bcos::evm_standard::EthChainPolicy m_policy;
-            EthExecutionArtifacts m_executionContext;
+            evmc_message m_message{};
+            bcos::evm_standard::RevisionConfig m_revisionConfig{};
+            std::vector<protocol::LogEntry> m_receiptLogs;
+            gas::TxGasSettlementContext m_gasSettlementSnapshot{};
             std::optional<EVMCResult> m_evmcResult;
 
             Data(EthTransactionExecutorImpl& executor, Storage& storage,
@@ -112,10 +115,9 @@ public:
                              evmc_address{}),
                 m_nonce(hex2u(transaction.nonce())),
                 m_web3AccessListResolved(executor::resolveWeb3AccessList(transaction)),
-                m_vm(evmc_create_evmone()),
-                m_executionContext()
+                m_vm(evmc_create_evmone())
             {
-                m_executionContext.revisionConfig = m_policy.computeRevisionConfig(blockHeader);
+                m_revisionConfig = m_policy.computeRevisionConfig(blockHeader);
             }
         };
         std::unique_ptr<Data> m_data;
@@ -140,7 +142,7 @@ public:
                 state::State state(stateView);
 
                 state::Transaction tx;
-                auto const& msg = m_data->m_executionContext.message;
+                auto const& msg = m_data->m_message;
                 tx.from = msg.sender;
                 if (msg.kind != EVMC_CREATE && msg.kind != EVMC_CREATE2)
                 {
@@ -153,9 +155,9 @@ public:
 
                 state::TransactionProperties props;
                 props.warmDestination = !isCreateKind(msg.kind);
-                execution::warmTransactionEntry(state, m_data->m_executionContext.revisionConfig,
-                    nullptr, tx, m_data->m_blockInfo, props,
-                    m_data->m_web3AccessListResolved.accessList.get(), m_data->m_web3TypedTxKind);
+                execution::warmTransactionEntry(state, m_data->m_revisionConfig, nullptr, tx,
+                    m_data->m_blockInfo, props, m_data->m_web3AccessListResolved.accessList.get(),
+                    m_data->m_web3TypedTxKind);
             }
             else if constexpr (phase == static_cast<int>(EthExecutePhase::Execute))
             {
@@ -172,8 +174,11 @@ public:
                     }
                 }
 
-                auto output = co_await applyReferenceMessageTx();
-                m_data->m_executionContext = std::move(output.executionContext);
+                auto output = co_await applyEthMessageTx();
+                m_data->m_message = std::move(output.message);
+                m_data->m_revisionConfig = std::move(output.revisionConfig);
+                m_data->m_receiptLogs = std::move(output.receiptLogs);
+                m_data->m_gasSettlementSnapshot = output.gasSettlementSnapshot;
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
 
                 if (m_data->m_evmcResult->status_code == EVMC_SUCCESS ||
@@ -204,36 +209,35 @@ public:
         void settleGasUsedFromEvmResult()
         {
             auto& evmcResult = *m_data->m_evmcResult;
-            auto const& snapshot = m_data->m_executionContext.gasSettlementSnapshot;
+            auto const& snapshot = m_data->m_gasSettlementSnapshot;
             auto const isWeb3 =
                 m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction;
-            auto const eip7623 = m_data->m_executionContext.revisionConfig.eip7623;
+            auto const eip7623 = m_data->m_revisionConfig.eip7623;
 
             if (snapshot.gasLimit > 0 && isWeb3 && eip7623)
             {
                 m_data->m_gasUsed = gas::settleTopLevelTransactionGas(m_data->m_gasLimit,
                     evmcResult.gas_left, snapshot.evmGasRefund,
-                    m_data->m_executionContext.revisionConfig.calldata_floor_per_token,
-                    snapshot.calldata);
+                    m_data->m_revisionConfig.calldata_floor_per_token, snapshot.calldata);
                 return;
             }
 
             m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
         }
 
-        task::Task<EthReferenceResult> applyReferenceMessageTx()
+        task::Task<EthMessageResult> applyEthMessageTx()
         {
             state::FiscoStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
-            EthReferenceRequest input;
+            EthMessageRequest input;
             input.stateView = std::addressof(stateView);
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
-            input.message = m_data->m_executionContext.message;
+            input.message = m_data->m_message;
             input.blockHashes = state::buildFiscoBlockHashes(
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
-            input.revisionConfig = m_data->m_executionContext.revisionConfig;
+            input.revisionConfig = m_data->m_revisionConfig;
             input.gasPrice = m_data->m_gasPriceLegacy;
             input.gasTipCap = m_data->m_gasTipCap;
             input.gasFeeCap = m_data->m_gasFeeCap;
@@ -248,7 +252,7 @@ public:
             input.txNonce = m_data->m_nonce.convert_to<uint64_t>();
             input.txHash = m_data->m_transaction.get().hash();
 
-            auto output = co_await applyReferenceMessage(std::move(input));
+            auto output = co_await applyEthMessage(std::move(input));
             m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
             co_return output;
         }
@@ -268,7 +272,7 @@ public:
         ETH_TRANSACTION_EXECUTOR_LOG(TRACE) << "Create eth transaction context";
         auto ctx = ExecuteContext<Storage>{
             *this, storage, blockHeader, transaction, contextID, ledgerConfig, call};
-        ctx.m_data->m_executionContext.message = newEVMCMessage(
+        ctx.m_data->m_message = newEVMCMessage(
             blockHeader.number(), transaction, ctx.m_data->m_gasLimit, ctx.m_data->m_origin);
         co_return ctx;
     }

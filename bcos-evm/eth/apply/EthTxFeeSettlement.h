@@ -30,11 +30,10 @@ struct EthTxFeeSettlement
         if (data.m_call)
             co_return true;
 
-        auto const feeInputs =
-            gas::toFeeInputs(data.m_executionContext.revisionConfig, data.m_blockInfo,
-                gas::FeeCapsView{data.m_gasPriceLegacy, data.m_gasTipCap, data.m_gasFeeCap,
-                    data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps},
-                data.m_gasLimit);
+        auto const feeInputs = gas::toFeeInputs(data.m_revisionConfig, data.m_blockInfo,
+            gas::FeeCapsView{data.m_gasPriceLegacy, data.m_gasTipCap, data.m_gasFeeCap,
+                data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps},
+            data.m_gasLimit);
         auto const plan = gas::planPreExecution(feeInputs);
         data.m_effectiveGasPrice = plan.effectiveGasPrice;
         if (data.m_effectiveGasPrice == 0)
@@ -46,7 +45,7 @@ struct EthTxFeeSettlement
         const auto txValue = u256(data.m_transaction.get().value());
         const auto totalRequired = plan.maxBalanceDebit + txValue;
 
-        auto& msg = data.m_executionContext.message;
+        auto& msg = data.m_message;
         ledger::account::EVMAccount senderAccount(data.m_rollbackableStorage, msg.sender, false);
         auto senderBalance = co_await senderAccount.balance();
 
@@ -102,17 +101,16 @@ struct EthTxFeeSettlement
             co_await data.m_rollbackableStorage.rollback(data.m_afterBuyGasSavepoint);
         }
 
-        auto const feeInputs =
-            gas::toFeeInputs(data.m_executionContext.revisionConfig, data.m_blockInfo,
-                gas::FeeCapsView{data.m_gasPriceLegacy, data.m_gasTipCap, data.m_gasFeeCap,
-                    data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps},
-                data.m_gasLimit);
+        auto const feeInputs = gas::toFeeInputs(data.m_revisionConfig, data.m_blockInfo,
+            gas::FeeCapsView{data.m_gasPriceLegacy, data.m_gasTipCap, data.m_gasFeeCap,
+                data.m_web3TypedTxKind, data.m_hasExplicitFeeCaps},
+            data.m_gasLimit);
         const int64_t refundGasUnits = std::max<int64_t>(0, data.m_gasLimit - data.m_gasUsed);
         auto const plan = gas::planPostExecution(feeInputs, data.m_gasUsed, refundGasUnits);
 
         if (plan.unusedRefund > 0)
         {
-            auto& msg = data.m_executionContext.message;
+            auto& msg = data.m_message;
             ledger::account::EVMAccount senderAccount(
                 data.m_rollbackableStorage, msg.sender, false);
             auto balance = co_await senderAccount.balance();
@@ -136,7 +134,7 @@ struct EthTxFeeSettlement
     task::Task<protocol::TransactionReceipt::Ptr> makeReceipt(Data& data)
     {
         auto& evmcResult = *data.m_evmcResult;
-        auto& msg = data.m_executionContext.message;
+        auto& msg = data.m_message;
 
         std::string newContractAddress;
         if (msg.kind == EVMC_CREATE && evmcResult.status_code == EVMC_SUCCESS)
@@ -162,7 +160,7 @@ struct EthTxFeeSettlement
         }
 
         co_return data.m_executor.get().m_receiptFactory.get().createReceipt2(data.m_gasUsed,
-            std::move(newContractAddress), data.m_executionContext.logs,
+            std::move(newContractAddress), data.m_receiptLogs,
             static_cast<int32_t>(evmcResult.status),
             {evmcResult.output_data, evmcResult.output_size}, data.m_blockHeader.get().number(),
             std::move(data.m_gasPriceStr), bcos::protocol::TransactionVersion::V2_VERSION);

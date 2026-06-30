@@ -1,10 +1,10 @@
 /*
- * included top-level vmerr settlement and ethReferenceExecute normalization.
+ * included top-level vmerr settlement and applyEthMessage normalization.
  */
 #define BOOST_TEST_MODULE EthIncludedTxVmerrTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_applies_eip7623_floor)
     BOOST_CHECK_EQUAL(gasUsed, 21'000);
 }
 
-BOOST_AUTO_TEST_CASE(applyReferenceMessage_top_level_invalid_is_included_with_success_status)
+BOOST_AUTO_TEST_CASE(applyEthMessage_top_level_invalid_is_included_with_success_status)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_top_level_invalid_is_included_with_su
     blockInfo.number = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -103,11 +103,11 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_top_level_invalid_is_included_with_su
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
 
     BOOST_CHECK(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
-    BOOST_CHECK_GT(output.executionContext.gasSettlementSnapshot.gasLimit, 0);
+    BOOST_CHECK_GT(output.gasSettlementSnapshot.gasLimit, 0);
 }
 
 // GAP-TE-002 / Plan Task 3: TE settleGasUsedFromEvmResult does not consult
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_
     blockInfo.number = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -154,13 +154,13 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_
     input.revisionConfig = osakaReferenceConfig();
     // legacy tx (default kind=0) — type-2 without fee caps hits rules_rejected before EVM.
 
-    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
 
     BOOST_REQUIRE(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, 0);
 
-    auto const& snap = output.executionContext.gasSettlementSnapshot;
+    auto const& snap = output.gasSettlementSnapshot;
     BOOST_REQUIRE_GT(snap.gasLimit, 0);
 
     // CURRENT_ORACLE: TE mirror path (EthTransactionExecutorImpl::settleGasUsedFromEvmResult)
@@ -221,7 +221,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
     blockInfo.number = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -229,13 +229,13 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
 
     BOOST_REQUIRE(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, 0);
 
-    auto const& snap = output.executionContext.gasSettlementSnapshot;
+    auto const& snap = output.gasSettlementSnapshot;
     int64_t const teMirrorGasUsed =
         settleTopLevelTransactionGas(snap.gasLimit, output.evmcResult.gas_left, snap.evmGasRefund,
             input.revisionConfig.calldata_floor_per_token, snap.calldata);
@@ -244,7 +244,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
     BOOST_CHECK_EQUAL(teMirrorGasUsed, gasLimit);
 }
 
-BOOST_AUTO_TEST_CASE(applyReferenceMessage_nested_invalid_is_not_included_tx_vmerr)
+BOOST_AUTO_TEST_CASE(applyEthMessage_nested_invalid_is_not_included_tx_vmerr)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -279,7 +279,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_nested_invalid_is_not_included_tx_vme
     blockInfo.number = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_nested_invalid_is_not_included_tx_vme
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
 
     BOOST_CHECK(!output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);

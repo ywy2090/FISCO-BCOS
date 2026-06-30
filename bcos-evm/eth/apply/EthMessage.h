@@ -1,19 +1,20 @@
 /*
- * @brief Chain entry applyReferenceMessage.
- * @file ApplyReferenceMessage.h
+ * @brief Eth chain entry (`applyEthMessage`).
+ * @file EthMessage.h
  */
 
 #pragma once
 
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/EthExecutionArtifacts.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-task/Task.h"
+#include <bcos-framework/protocol/LogEntry.h>
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
 #include <functional>
@@ -28,7 +29,7 @@ namespace bcos::evm
 {
 
 /// Pure-ethereum orchestration: innerExecute + EthVmHostPolicy (reference path only).
-struct EthReferenceRequest
+struct EthMessageRequest
 {
     state::StateView const* stateView{nullptr};
     evmc::VM* vm{nullptr};
@@ -50,16 +51,19 @@ struct EthReferenceRequest
     std::optional<bcos::h256> txHash;
 };
 
-struct EthReferenceResult
+struct EthMessageResult
 {
     EVMCResult evmcResult{evmc_result{}};
     state::StateDiff stateDiff;
     std::vector<state::LogEntry> logs;
-    EthExecutionArtifacts executionContext;
+    evmc_message message{};
+    bcos::evm_standard::RevisionConfig revisionConfig{};
+    std::vector<protocol::LogEntry> receiptLogs;
+    gas::TxGasSettlementContext gasSettlementSnapshot{};
     bool topLevelIncludedTxVmError{false};
 };
 
 // ── Chain entry ───────────────────────────────────────────────────────────────
-task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input);
+task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input);
 
 }  // namespace bcos::evm

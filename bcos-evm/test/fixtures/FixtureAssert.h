@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,14 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Shared assertions for ethReferenceExecute fixture validation.
+ * @brief Shared assertions for applyEthMessage fixture validation.
  * @file FixtureAssert.h
  */
 
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/state/StateView.hpp"
@@ -31,11 +31,11 @@ namespace bcos::evm::test::fixtures
 {
 
 inline void assertFixtureResult(
-    FixtureCase const& fixture, EthReferenceResult const& output, int64_t gasBefore)
+    FixtureCase const& fixture, EthMessageResult const& output, int64_t gasBefore)
 {
     (void)gasBefore;
     evmc_status_code expectedStatus = fixture.expected.status;
-    if (isTopLevelIncludedTxVmError(expectedStatus, output.executionContext.message.depth))
+    if (isTopLevelIncludedTxVmError(expectedStatus, output.message.depth))
     {
         expectedStatus = EVMC_SUCCESS;
     }
@@ -46,9 +46,9 @@ inline void assertFixtureResult(
     BOOST_CHECK_MESSAGE(sameBytes(actual, fixture.expected.output),
         "output mismatch actual=0x" << bcos::toHex(actual) << " expected=0x"
                                     << bcos::toHex(fixture.expected.output));
-    BOOST_CHECK_EQUAL(output.executionContext.logs.size(), fixture.expected.logs);
-    auto const& message = output.executionContext.message;
-    auto const& revision = output.executionContext.revisionConfig;
+    BOOST_CHECK_EQUAL(output.receiptLogs.size(), fixture.expected.logs);
+    auto const& message = output.message;
+    auto const& revision = output.revisionConfig;
     int64_t const actualExecutorGas = message.gas - output.evmcResult.gas_left;
     int64_t reportedGas = actualExecutorGas;
     if (revision.eip7623)

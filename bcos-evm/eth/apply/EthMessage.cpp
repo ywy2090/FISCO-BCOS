@@ -1,5 +1,4 @@
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
-#include "bcos-evm/eth/apply/EthExecutionBundle.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
@@ -33,19 +32,19 @@ std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& logs)
 }
 }  // namespace
 
-task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
+task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
 {
     if (input.stateView == nullptr || input.vm == nullptr || input.hashImpl == nullptr)
     {
-        throw std::invalid_argument("applyReferenceMessage requires stateView/vm/hashImpl");
+        throw std::invalid_argument("applyEthMessage requires stateView/vm/hashImpl");
     }
 
     trace::EvmTraceScope traceScope(
         trace::makeTraceContext("eth", input.blockInfo.number, input.txHash));
 
-    EthReferenceResult output;
-    output.executionContext.message = input.message;
-    output.executionContext.revisionConfig = input.revisionConfig;
+    EthMessageResult output;
+    output.message = input.message;
+    output.revisionConfig = input.revisionConfig;
 
     StateTransitionContext ctx{
         *input.stateView, input.message, input.revisionConfig, input.gasPrice};
@@ -60,16 +59,15 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
 
     trace::logMessageContext(input.message);
 
-    // execBundle wires execution environment (vm, extension, chainPort) into ctx;
-    // bindingsCtx is orchestration policy bind input only.
-    EthExecutionBundle execBundle{ctx, input};
+    state::EthVmHostPolicy extension;
+    ctx.wireExecutionEnvironment(input.vm, &extension, nullptr);
 
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
     stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 
-    EVM_LOG(DEBUG) << LOG_DESC("applyReferenceMessage done")
+    EVM_LOG(DEBUG) << LOG_DESC("applyEthMessage done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                    << LOG_KV("gasLeft", ctx.evmcResult.gas_left)
@@ -77,14 +75,14 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.topLevelIncludedTxVmError = ctx.topLevelIncludedTxVmError;
-    output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
+    output.receiptLogs = convertLogs(ctx.kernelOutput.logs);
     output.logs = std::move(ctx.kernelOutput.logs);
-    output.executionContext.message = ctx.message;
+    output.message = ctx.message;
     output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
 
     if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {
-        output.executionContext.gasSettlementSnapshot = ctx.snapshot;
+        output.gasSettlementSnapshot = ctx.snapshot;
     }
 
     co_return output;
