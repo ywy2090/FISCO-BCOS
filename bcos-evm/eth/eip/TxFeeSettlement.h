@@ -9,7 +9,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-utilities/Common.h"
 #include <algorithm>
 

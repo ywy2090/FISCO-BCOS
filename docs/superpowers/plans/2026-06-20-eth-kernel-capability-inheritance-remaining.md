@@ -297,7 +297,7 @@ EOF
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/ExecuteViaHost.h"
-#include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "state/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

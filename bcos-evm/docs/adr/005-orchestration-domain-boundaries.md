@@ -24,14 +24,14 @@ Chain-specific behavior spans nonce management, auth checks, value transfer, blo
 | **Blob gas (EIP-4844)** | revision profile + orchestration | `feature-gated` until Web3 blob tx on BCOS | `OpStackPrecheckPolicy::checkEntryRules` + `eip4844` | no blob tx in kernel |
 | **Receipt metadata** | orchestration | FISCO receipt fields via executor | `OpStackReceiptMeta` | logs in `ExecuteMessageOutput` only |
 | **Deposit / L1 fee** | orchestration | unsupported | `OpStackExecute`, fee modules | never |
-| **Gas settlement / refund** | orchestration | `FiscoExecute` + TE settlement | `postExecuteGasSettlement`, floor gas | shared helpers in `eth/gas/` |
+| **Gas settlement / refund** | orchestration | `FiscoExecute` + TE settlement | `postExecuteGasSettlement`, floor gas | shared helpers in `eth/eip/` |
 
 ### 2. Rules
 
 1. **Never** add BCOS/OPStack includes to `bcos-evm/eth` for these domains.  
 2. Each domain gets **at least one matrix row** when active on a chain (see capability matrix orchestration section).  
 3. **`deviation`** requires a positive test on that chain (ADR-002).  
-4. Shared math/helpers live in `eth/gas/` or neutral headers; **policy** stays in orchestrators.
+4. Shared math/helpers live in `eth/eip/` or neutral headers; **policy** stays in orchestrators.
 
 ### 3. VmHostPolicy vs orchestrator
 

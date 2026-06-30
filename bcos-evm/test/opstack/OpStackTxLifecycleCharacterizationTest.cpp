@@ -2,7 +2,7 @@
 
 // C1: characterization oracles via runOpStackTxLifecycle (deep module interface).
 
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackTxLifecycle.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"

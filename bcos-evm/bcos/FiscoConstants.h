@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/gas/ProtocolGas.h"
+#include "bcos-evm/eth/eip/ProtocolGas.h"
 #include <evmc/evmc.h>
 #include <string_view>
 

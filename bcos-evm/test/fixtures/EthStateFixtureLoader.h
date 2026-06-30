@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"

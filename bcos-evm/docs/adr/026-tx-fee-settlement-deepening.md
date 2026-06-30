@@ -2,13 +2,13 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/gas/Eip1559.h`, `eth/gas/Eip1559Access.h`, `eth/apply/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
+**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/eip/Eip1559.h`, `eth/eip/Eip1559Access.h`, `eth/apply/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
 
 ---
 
 ## Context
 
-EIP-1559 formulas live in `eth/gas/Eip1559.h` (`normalizeGasCaps`, `resolveEffectiveGasPrice`, `tipPerGas`, `maxBalanceGasDebit`). ADR-016 documents TE pre-debit vs GST post-hoc **equivalence** when `finalGasUsed` matches.
+EIP-1559 formulas live in `eth/eip/Eip1559.h` (`normalizeGasCaps`, `resolveEffectiveGasPrice`, `tipPerGas`, `maxBalanceGasDebit`). ADR-016 documents TE pre-debit vs GST post-hoc **equivalence** when `finalGasUsed` matches.
 
 **Observed friction:**
 
@@ -43,7 +43,7 @@ Grilling outcomes (2026-06-26):
 | D5 | buyGas penalty | **A.** Stays in `EthTxFeeSettlement` adapter; may read `plan.effectiveGasPrice`. |
 | D6 | PR order | **A.** Core-first + characterization, then adapters PR2–PR5. |
 
-### 1. New deep module: `eth/gas/TxFeeSettlement.h`
+### 1. New deep module: `eth/eip/TxFeeSettlement.h`
 
 Sync, State-free. Calls `Eip1559.h` internally; does not duplicate formulas.
 
@@ -249,7 +249,7 @@ return true
 | --- | --- |
 | `OpStackNormalTxFeeCoordinator` | Lifecycle + ADR-025 abort tree; `projectNormalReceiptMeta` reads plan from `refundGas` |
 | `OpStackFeeSettlement::refundGas` | Post: delegate to **Appendix C**; apply credits; return plan |
-| `TxFeeSettlement` | 1559 core only (`eth/gas/`) |
+| `TxFeeSettlement` | 1559 core only (`eth/eip/`) |
 
 ### B.6 Non-goals (Appendix B)
 
@@ -449,7 +449,7 @@ Skip paths (empty `feePlan`): `l1Fee` and `operatorFee` remain zero; Isthmus gat
 | `OpStackNormalTxFeeCoordinator` | ADR-025 abort tree unchanged; only receipt reads plan |
 | `planOpStackPreDebit` / `buyGas` | Appendix B unchanged |
 | `finalizeNormal` / `postExecuteGasSettlement` | Gas **units** only; amounts from plan |
-| `TxFeeSettlement` | 1559 core only (`eth/gas/`) |
+| `TxFeeSettlement` | 1559 core only (`eth/eip/`) |
 | ADR-025 abort semantics | Unchanged |
 
 ### C.8 Non-goals (Appendix C)

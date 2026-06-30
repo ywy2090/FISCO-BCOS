@@ -101,7 +101,7 @@
 ```
 bcos-evm/eth/ExecuteViaEth.cpp          # 主入口：precheck → intrinsic → executeMessage → settlement
 bcos-evm/eth/ExecuteViaEthPreCheck.cpp  # W1–W4 precheck
-bcos-evm/eth/gas/EthTxGasSettlement.h   # finalizeEthereumGasUsed / settleIncludedTopLevelTransactionGas
+bcos-evm/eth/eip/EthTxGasSettlement.h   # finalizeEthereumGasUsed / settleIncludedTopLevelTransactionGas
 bcos-evm/eth/state/EthHost.cpp          # EIP-3529 SSTORE refund（P1）
 bcos-evm/eth/state/State.cpp            # storage no-op（P0）
 ```

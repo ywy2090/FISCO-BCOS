@@ -3,7 +3,7 @@
  */
 #include "../bcos-transaction-executor/TransactionExecutorImpl.h"
 #include "TestMemoryStorage.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"

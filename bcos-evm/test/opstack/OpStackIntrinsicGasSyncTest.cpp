@@ -2,8 +2,8 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/ApplyOpStackMessageTestHook.h"
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"

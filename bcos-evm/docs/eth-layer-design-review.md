@@ -27,7 +27,7 @@ opstack/ ──►  eth/
 | 2 | `eth/policy/` | Extension point base class | `HostExtension`, `EthHostExtension` | `test/eth/` (indirect) |
 | 3 | `eth/vm/` | EVM lifecycle (policy, factory, instance) | `EthChainPolicy`, `VMFactory`, `VMInstance` | `test/eth/` |
 | 4 | `eth/precompiled/` | Precompile dispatch and gas | `PrecompileRouter`, `EthBuiltinRegistry`, `BlsGas`, `ModexpGas` | `test/eth/` |
-| 5 | `eth/gas/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
+| 5 | `eth/eip/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
 | 6 | `eth/pipeline/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `deductIntrinsicGas` | `test/eth/` |
 | 7 | `eth/execution/` | Warm-up and feature preparation | `warmTransactionEntry`, `TxFeaturePrepare`, `Eip2929PrecompileWarm` | `test/eth/` |
 | 8 | `test/fixtures/` | Test fixture helpers | `BlockInfoBuilder`, `EthStateFixtureLoader` | `test/eth/`, `test/state/` |
@@ -143,7 +143,7 @@ PrecompileRouter (top-level dispatch)
 
 ---
 
-### 3.5 `eth/gas/` — Gas settlement
+### 3.5 `eth/eip/` — Gas settlement
 
 **Files:** `EthTxGasSettlement.h`, `Eip7623.h`, `Eip1559.h`, `Eip4844.h`
 

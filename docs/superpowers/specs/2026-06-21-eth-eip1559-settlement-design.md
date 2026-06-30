@@ -52,7 +52,7 @@
 
 ### 2.1 在范围内
 
-- 新增 `bcos-evm/eth/gas/Eip1559.h`
+- 新增 `bcos-evm/eth/eip/Eip1559.h`
 - `ExecuteViaEth`：`gasPrice` normalization（含 **`eth_call`**）
 - `EthTxInputBuilder` + `ExecuteContext::Data`：caps 与 `blockInfo`
 - `EthTxExecutor::{buyGas,refundGas}` + **insufficient balance penalty**

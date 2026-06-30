@@ -8,10 +8,10 @@
  */
 #pragma once
 
-#include "bcos-evm/eth/Eip2930AccessList.h"
-#include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/gas/Eip7623.h"
-#include "bcos-evm/eth/gas/ProtocolGas.h"
+#include "bcos-evm/eth/eip/Eip2930AccessList.h"
+#include "bcos-evm/eth/eip/Eip7623.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/eip/ProtocolGas.h"
 #include <evmc/evmc.h>
 #include <algorithm>
 

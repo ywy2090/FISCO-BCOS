@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-framework/protocol/LogEntry.h"
 #include <evmc/evmc.h>
 #include <vector>

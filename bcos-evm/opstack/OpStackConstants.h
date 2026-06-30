@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/gas/Eip4844.h"
+#include "bcos-evm/eth/eip/Eip4844.h"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 

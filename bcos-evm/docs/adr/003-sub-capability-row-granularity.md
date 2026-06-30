@@ -165,7 +165,7 @@ Do not merge into one “EIP-2929 warm access” row.
 | EIP-7623 entry precheck | orchestration |
 | EIP-7623 settlement / floor gas | orchestration |
 
-Shared helpers in `eth/gas/` do not get separate rows unless gated independently.
+Shared helpers in `eth/eip/` do not get separate rows unless gated independently.
 
 ### EIP-2537 vs EIP-7212 — two kernel rows
 

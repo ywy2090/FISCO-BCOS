@@ -44,7 +44,7 @@
 | `bcos-evm/eth/state/State.hpp/.cpp` | `m_gasRefund`, `add_refund/get_refund/clear_refund` |
 | `bcos-evm/eth/state/EthHost.cpp` | SSTORE refund accumulation; `canTransfer` on CALL |
 | `bcos-evm/eth/Transfer.h` | `canTransfer`, `transfer` |
-| `bcos-evm/eth/Eip7702.h/.cpp` | Delegation codec, `applyAuthorization` |
+| `bcos-evm/eth/eip/Eip7702.h/.cpp` | Delegation codec, `applyAuthorization` |
 | `bcos-evm/eth/RevisionConfig.h` | `prague_post_execution`, `makeIsthmusRevisionConfig()` |
 | `bcos-evm/eth/executeMessage.cpp` | Empty-code hook, `clear_refund`, EIP-7702 apply |
 | `bcos-framework/.../OpStackTxType.h` | `DEPOSIT_TX_TYPE = 0x7E` |
@@ -447,7 +447,7 @@ git commit -m "feat(eth): empty-code HostExtension hook for L1Block"
 ### Task 12: EIP-7702
 
 **Files:**
-- Create: `bcos-evm/eth/Eip7702.h/.cpp`
+- Create: `bcos-evm/eth/eip/Eip7702.h/.cpp`
 - Modify: `bcos-evm/eth/executeMessage.cpp`, `OpStackPreCheck.cpp`
 - Create: `bcos-evm/test/opstack/Eip7702PreCheckTest.cpp`, `Eip7702ApplyAuthorizationTest.cpp`
 

@@ -98,7 +98,7 @@ bcos-evm/
 │
 ├── bcos/
 │   ├── FiscoExecutionContext.h   # 替代 HostContext（Log-B）
-│   ├── FiscoTransactionPrepare.h # Prepare 阶段（Prep-A）
+│   ├── FiscoPrepareTransaction.h # Prepare 阶段（Prep-A）
 │   ├── FiscoStateView.h/.cpp     # 每次 syncWait 穿透 storage（§5.1）
 │   ├── FiscoBlockInfo.h
 │   ├── FiscoHostExtension.h/.cpp
@@ -462,7 +462,7 @@ updateNonce
 
 | 符号 | 现位置 | 性质 | 目标位置 |
 |------|--------|------|---------|
-| `Eip7623Components`（struct） | `bcos-executor/src/Common.h:237` | 纯 POD | `bcos-evm/eth/gas/`（新 `Eip7623.h`，`namespace bcos::evm::gas`） |
+| `Eip7623Components`（struct） | `bcos-executor/src/Common.h:237` | 纯 POD | `bcos-evm/eth/eip/`（新 `Eip7623.h`，`namespace bcos::evm::gas`） |
 | `calcEip7623Components(bytesConstRef)` | `Common.h:244`（`inline`） | 纯计算 | 同上 |
 | `Eip2930AccessList`（`using`） | `bcos-executor/src/CallParameters.h:13` | 纯 typedef | `bcos-evm/eth/`（新 `AccessList.h` 或并入 gas 头） |
 | `EMPTY_EVM_BYTES32` / `VMSchedule` | `Common.h:59 / :172` | 常量/表 | 仅 `ModexpGas.cpp` 确认需要时再迁；否则不动 |

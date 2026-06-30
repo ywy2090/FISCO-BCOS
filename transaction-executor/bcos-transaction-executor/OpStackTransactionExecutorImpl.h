@@ -5,7 +5,7 @@
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"

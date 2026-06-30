@@ -1,7 +1,7 @@
 #pragma once
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/gas/ProtocolGas.h"
-#include "bcos-evm/eth/gas/TxFeeSettlement.h"
+#include "bcos-evm/eth/eip/ProtocolGas.h"
+#include "bcos-evm/eth/eip/TxFeeSettlement.h"
 #include "bcos-evm/eth/pipeline/FeeInputsMapping.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include <bcos-framework/ledger/EVMAccount.h>

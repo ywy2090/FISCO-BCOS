@@ -182,7 +182,7 @@ op-geth 同样在 refund 后、fee routing 前应用 floor top-up，再用最终
 
 **54e17a62c：** 见 Step 5 与 `task1-executor-wiring.md`。operator fee buy/refund/receipt 生产路径已可达。
 
-**位置：** `OpStackFloorGas.cpp` vs `eth/gas/Eip7623.h`
+**位置：** `OpStackFloorGas.cpp` vs `eth/eip/Eip7623.h`
 
 **影响：** 常量/公式 drift 风险；当前数值一致。
 

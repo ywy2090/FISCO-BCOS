@@ -9,7 +9,7 @@
 #pragma once
 
 #include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
-#include "bcos-evm/eth/gas/TxFeeSettlement.h"
+#include "bcos-evm/eth/eip/TxFeeSettlement.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 
 namespace bcos::evm::gas

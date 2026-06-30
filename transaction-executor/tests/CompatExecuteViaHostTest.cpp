@@ -9,7 +9,7 @@
 #include "Eip2929TestHelpers.h"
 #include "ExecuteViaHostEip2929Harness.h"
 #include "bcos-evm/bcos/FiscoPrepareTransaction.h"
-#include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"

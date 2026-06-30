@@ -27,7 +27,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `bcos-evm/eth/gas/Eip1559.h` | `isEip1559GasCapsTx`、`resolveEffectiveGasPrice`、`tipPerGas`、`normalizeGasCaps`、`maxBalanceGasDebit` |
+| `bcos-evm/eth/eip/Eip1559.h` | `isEip1559GasCapsTx`、`resolveEffectiveGasPrice`、`tipPerGas`、`normalizeGasCaps`、`maxBalanceGasDebit` |
 | `bcos-evm/eth/ExecuteViaEth.h` | `ExecuteViaEthInput::hasExplicitFeeCaps` |
 | `bcos-evm/eth/ExecuteViaEth.cpp` | preCheck 后 gasPrice normalization |
 | `transaction-executor/.../EthTransactionExecutorImpl.h` | Prepare 缓存 caps/blockInfo；vmerr settle；`m_topLevelIncludedTxVmError` |
@@ -83,7 +83,7 @@ EOF
 ### Task 1: `Eip1559.h` + 公式单元测试
 
 **Files:**
-- Create: `bcos-evm/eth/gas/Eip1559.h`
+- Create: `bcos-evm/eth/eip/Eip1559.h`
 - Create: `bcos-evm/test/eth/EthEip1559GasTest.cpp`
 - Modify: `bcos-evm/test/CMakeLists.txt`（在 `EthIncludedTxVmerrTest` 块后追加）
 
@@ -107,7 +107,7 @@ Create `bcos-evm/test/eth/EthEip1559GasTest.cpp`:
 
 ```cpp
 #define BOOST_TEST_MODULE EthEip1559GasTest
-#include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/eip/Eip1559.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -196,7 +196,7 @@ Expected: FAIL（`Eip1559.h` 不存在）
 
 - [ ] **Step 3: 实现 `Eip1559.h`**
 
-Create `bcos-evm/eth/gas/Eip1559.h`:
+Create `bcos-evm/eth/eip/Eip1559.h`:
 
 ```cpp
 #pragma once
@@ -268,7 +268,7 @@ Expected: PASS（8 cases）
 - [ ] **Step 5: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/gas/Eip1559.h bcos-evm/test/eth/EthEip1559GasTest.cpp bcos-evm/test/CMakeLists.txt
+rtk git add bcos-evm/eth/eip/Eip1559.h bcos-evm/test/eth/EthEip1559GasTest.cpp bcos-evm/test/CMakeLists.txt
 rtk git commit -m "$(cat <<'EOF'
 feat(eth): add shared EIP-1559 gas formula helpers
 
@@ -381,7 +381,7 @@ bool hasExplicitFeeCaps{false};
 
 - [ ] **Step 4: 修改 `ExecuteViaEth.cpp`**
 
-在 `#include` 区增加 `#include "bcos-evm/eth/gas/Eip1559.h"`。
+在 `#include` 区增加 `#include "bcos-evm/eth/eip/Eip1559.h"`。
 
 在 `ethExecuteViaEthPreCheck` 成功返回后、intrinsic gas 计算前插入：
 
@@ -654,7 +654,7 @@ Expected: FAIL
 - [ ] **Step 3: 重写 `EthTxExecutor::buyGas`**
 
 ```cpp
-#include "bcos-evm/eth/gas/Eip1559.h"
+#include "bcos-evm/eth/eip/Eip1559.h"
 
 template <class Data>
 task::Task<bool> buyGas(Data& data)
@@ -780,7 +780,7 @@ Create `bcos-evm/test/eth/EthAdapter1559FormulaTest.cpp` 或 inline 在现有测
 
 删除 `effectiveGasPriceForSettlement` 函数。
 
-`#include "bcos-evm/eth/gas/Eip1559.h"`
+`#include "bcos-evm/eth/eip/Eip1559.h"`
 
 在构建 input 处：
 ```cpp

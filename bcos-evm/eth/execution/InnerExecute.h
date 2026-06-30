@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "bcos-evm/eth/Eip2930AccessList.h"
-#include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2930AccessList.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/State.hpp"

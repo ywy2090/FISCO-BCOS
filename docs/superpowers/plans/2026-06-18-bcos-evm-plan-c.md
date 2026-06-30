@@ -120,8 +120,8 @@ Plan 4 (C3 → C4 → C5)  生产路径回归 → 删旧 Host → TransactionExe
 ### Task C1-0: T2 — gas 符号迁出 `bcos-executor`（前置）
 
 **Files:**
-- Create: `bcos-evm/eth/gas/Eip7623.h`, `bcos-evm/eth/AccessList.h`
-- Modify: `bcos-evm/eth/gas/EthTxGasSettlement.h`, `bcos-executor/src/Common.h`, `bcos-executor/src/CallParameters.h`（`using` 回兼）
+- Create: `bcos-evm/eth/eip/Eip7623.h`, `bcos-evm/eth/eip/Eip2930AccessList.h`
+- Modify: `bcos-evm/eth/eip/EthTxGasSettlement.h`, `bcos-executor/src/Common.h`, `bcos-executor/src/CallParameters.h`（`using` 回兼）
 - Modify: `bcos-evm/eth/precompiled/ModexpGas.cpp`（删冗余 include；必要时 `#include "bcos-utilities/DataConvertUtility.h"`）
 
 - [x] **Step 1:** 抽取 `Eip7623Components`/`calcEip7623Components`/`Eip2930AccessList` 到 `bcos-evm`
@@ -217,7 +217,7 @@ Plan 4 (C3 → C4 → C5)  生产路径回归 → 删旧 Host → TransactionExe
 **Files:**
 - Create: `bcos-evm/bcos/ExecuteViaHost.h/.cpp`
 - Create: `bcos-evm/bcos/FiscoTxAdapter.h`（`deriveMessage`，CR-A）
-- Create: `bcos-evm/bcos/FiscoTransactionPrepare.h`（Prep-A）
+- Create: `bcos-evm/bcos/FiscoPrepareTransaction.h`（Prep-A）
 
 **编排顺序（spec §8，目标架构）：**
 ```cpp

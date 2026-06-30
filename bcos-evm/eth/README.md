@@ -14,7 +14,7 @@
 | `pipeline/` | `stateTransitionExecute` 共享管线步骤（ADR-019） |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
 | `execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |
-| `gas/` | 1559/4844/7623 等纯 gas 数学 |
+| `eip/` | EIP 实现（1559/2930/4844/7623/7702 等 gas 与 access 语义） |
 | `policy/` | `VmHostPolicy` / `EthVmHostPolicy` / `EthChainPolicy`（revision 策略） |
 | `precompiled/` | `PrecompileRouter`、builtin registry |
 | `state/` | State/Host/Transition（Legacy Enclave，见 ADR-020） |
@@ -26,16 +26,22 @@
 | 文件 | 角色 |
 | --- | --- |
 | `execution/InnerExecute.*` | 内核执行入口 `innerExecute()`（geth innerExecute） |
-| `Eip2930AccessList.h` | EIP-2930 access list 类型 |
 | `pipeline/StateTransitionExecute.*` | `stateTransitionExecute()`（geth stateTransition.execute） |
 | `pipeline/StateTransitionContext.h` | 管线上下文 |
 | `pipeline/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
 | `pipeline/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
 | `execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
 | `RevisionConfig.h` | EIP 开关位域 |
-| `Eip7702.*` | EIP-7702 单点实现 |
 | `EVMCResult.*` | EVMC 结果封装 |
 | `EthExecutionArtifacts.h` | 参考路径执行上下文（TE 消费） |
+
+## `eip/` — EIP 实现
+
+| 文件 | 角色 |
+| --- | --- |
+| `Eip2930AccessList.h` | EIP-2930 access list 类型 |
+| `Eip7702.*` | EIP-7702 单点实现 |
+| `Eip1559.h` / `Eip4844.h` / `Eip7623.h` 等 | gas 数学与 intrinsic 结算 |
 
 ## `apply/` — ETH 参考路径
 

@@ -11,7 +11,7 @@
 
 #define BOOST_TEST_MODULE EthDelegateCallPrecompileTest
 
-#include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"

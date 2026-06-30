@@ -35,7 +35,7 @@ Function identifiers (e.g. `deductIntrinsicGas()`) remain camelCase per C++ conv
 
 ### 3. Basename uniqueness
 
-No two files in `bcos-evm/` may share the same basename. `opstack/OpStackBlobTxIntent.h` is renamed to `OpStackBlobTxIntent.h` to disambiguate from `eth/gas/Eip4844.h`.
+No two files in `bcos-evm/` may share the same basename. `opstack/OpStackBlobTxIntent.h` is renamed to `OpStackBlobTxIntent.h` to disambiguate from `eth/eip/Eip4844.h`.
 
 ### 4. `eth/state/` Legacy Enclave — dual-track
 

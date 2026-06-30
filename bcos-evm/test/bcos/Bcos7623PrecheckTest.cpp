@@ -2,7 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
-#include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

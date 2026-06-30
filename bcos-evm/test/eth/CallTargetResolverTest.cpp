@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE CallTargetResolverTest
 
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"

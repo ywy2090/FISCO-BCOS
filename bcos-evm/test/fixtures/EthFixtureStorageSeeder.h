@@ -20,7 +20,7 @@
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/eth/Eip7702.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/storage2/MemoryStorage.h"

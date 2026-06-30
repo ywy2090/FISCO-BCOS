@@ -15,7 +15,7 @@
 #include "bcos-evm/bcos/FiscoTxFeeSettlement.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/BlockHeader.h"

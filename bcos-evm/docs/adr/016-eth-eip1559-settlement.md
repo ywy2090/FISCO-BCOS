@@ -16,7 +16,7 @@ EEST `stExample/eip1559` exercises `GASPRICE` and `BASEFEE` under a non-zero `cu
 
 ## Decision
 
-### Shared formulas (`eth/gas/Eip1559.h`)
+### Shared formulas (`eth/eip/Eip1559.h`)
 
 **1559 tx recognition** — sole criterion `isEip1559GasCapsTx(web3TypedTxKind, hasExplicitFeeCaps)`:
 
@@ -81,7 +81,7 @@ Per ADR-005 gas-settlement domain:
 
 | Responsibility | Layer |
 | --- | --- |
-| Formulas, `isEip1559GasCapsTx` | `eth/gas/Eip1559.h` |
+| Formulas, `isEip1559GasCapsTx` | `eth/eip/Eip1559.h` |
 | Sender pre-debit / refund, coinbase tip | orchestration (`EthTxExecutor`, GST adapter) |
 | `GASPRICE` / `BASEFEE` EVM context | `ExecuteViaEth` → `executeMessage` |
 | Fee-cap precheck | `ExecuteViaEthPreCheck` (existing W4) |
@@ -106,7 +106,7 @@ This ADR does **not** change `bcos-framework::protocol::effectiveGasPrice()`. ET
 ## References
 
 - geth `core/state_transition.go` — `buyGas`, `refundGas`, `EffectiveGasTip`
-- `bcos-evm/eth/gas/Eip1559.h`, `EthTxExecutor.h`, `ExecuteViaEth.cpp`, `ExecuteViaEthAdapter.cpp`
+- `bcos-evm/eth/eip/Eip1559.h`, `EthTxExecutor.h`, `ExecuteViaEth.cpp`, `ExecuteViaEthAdapter.cpp`
 - ADR-005, ADR-015
 - Spec v1.2: `docs/superpowers/specs/2026-06-21-eth-eip1559-settlement-design.md`
 - EEST probe: `manifests/eth-eest-1559-gasprice-probe.json`

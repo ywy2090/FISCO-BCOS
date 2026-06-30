@@ -48,7 +48,7 @@
 | `bcos-evm/eth/orchestration/normalizeIncludedTxVmerr.h` | Eth ADR-015 normalize helper |
 | `bcos-evm/eth/orchestration/OrchestrationPipeline.h/.cpp` | Sync 12-step `runOrchestration` |
 | `bcos-evm/opstack/OpStackPreDebitEntry.h/.cpp` | OpStack ③½ balance/floor check |
-| `bcos-evm/opstack/OpStackExecuteMessageTestHook.h` | Test-only `executeMessage` spy seam |
+| `bcos-evm/opstack/ApplyOpStackMessageTestHook.h` | Test-only `executeMessage` spy seam |
 
 ---
 
@@ -79,7 +79,7 @@ Create `bcos-evm/test/eth/DebitIntrinsicGasTest.cpp`:
 #define BOOST_TEST_MODULE DebitIntrinsicGasTest
 
 #include "bcos-evm/eth/orchestration/debitIntrinsicGas.h"
-#include "bcos-evm/eth/gas/EthTxGasSettlement.h"
+#include "bcos-evm/eth/eip/EthTxGasSettlement.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -218,7 +218,7 @@ rtk git commit -m "feat(evm): add orchestration gas and result helpers"
 
 - Create: `bcos-evm/opstack/OpStackPreDebitEntry.h`
 - Create: `bcos-evm/opstack/OpStackPreDebitEntry.cpp`
-- Create: `bcos-evm/opstack/OpStackExecuteMessageTestHook.h`
+- Create: `bcos-evm/opstack/ApplyOpStackMessageTestHook.h`
 - Create: `bcos-evm/test/opstack/OpStackIntrinsicGasSyncTest.cpp`
 - Create: `bcos-evm/test/opstack/OpStackPreDebitOrderTest.cpp`
 - Modify: `bcos-evm/opstack/OpStackExecuteViaHost.cpp`
@@ -238,7 +238,7 @@ Move only balance and floor checks from `executeEntryChecks` into `OpStackPreDeb
 
 - [ ] **Step 2: Add test-only executeMessage hook**
 
-Create `OpStackExecuteMessageTestHook.h` guarded by `#ifdef BCOS_EVM_TESTING`. In `OpStackExecuteViaHost.cpp`, route calls through:
+Create `ApplyOpStackMessageTestHook.h` guarded by `#ifdef BCOS_EVM_TESTING`. In `OpStackExecuteViaHost.cpp`, route calls through:
 
 ```cpp
 ExecuteMessageOutput callExecuteMessage(ExecuteMessageInput input)
@@ -316,7 +316,7 @@ Expected: PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-rtk git add bcos-evm/opstack/OpStackPreDebitEntry.* bcos-evm/opstack/OpStackExecuteMessageTestHook.h bcos-evm/opstack/OpStackExecuteViaHost.cpp bcos-evm/CMakeLists.txt bcos-evm/test/
+rtk git add bcos-evm/opstack/OpStackPreDebitEntry.* bcos-evm/opstack/ApplyOpStackMessageTestHook.h bcos-evm/opstack/OpStackExecuteViaHost.cpp bcos-evm/CMakeLists.txt bcos-evm/test/
 rtk git commit -m "fix(evm): pass debited OpStack message into executeMessage"
 ```
 

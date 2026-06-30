@@ -763,7 +763,7 @@ EOF
 **Policy:** Tasks 1–8 skip per-task `cmake`/`ctest`; tests must be written. Task 9 compiles everything and fixes integration failures.
 
 **Files:**
-- Modify: `bcos-evm/eth/InnerExecute.h`, `bcos-evm/eth/ExecuteMessage.cpp`
+- Modify: `bcos-evm/eth/execution/InnerExecute.h`, `bcos-evm/eth/ExecuteMessage.cpp`
 - Modify: `bcos-evm/opstack/OpStackPipelineHookBinder.cpp`
 - Modify: `bcos-evm/docs/adr/021-opstack-settlement-ctx-single-source.md`
 

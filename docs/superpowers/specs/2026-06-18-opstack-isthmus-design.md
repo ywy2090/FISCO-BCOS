@@ -324,7 +324,7 @@ Deposit txs do not carry authorization lists (type `0x7E`).
 
 **Delegation target warming** (`state_transition.go:617–618`): after applying auths, if `to` has delegation code, warm the delegation target in access list before CALL.
 
-**Implementation location:** `bcos-evm/eth/Eip7702.h/.cpp`; invoked from `executeMessage` non-create path after sender nonce increment, before `vm->execute`.
+**Implementation location:** `bcos-evm/eth/eip/Eip7702.h/.cpp`; invoked from `executeMessage` non-create path after sender nonce increment, before `vm->execute`.
 
 ### 5.11 Prague postExecution policy (Q8: A)
 
@@ -742,7 +742,7 @@ In `executeMessage`, after execute-entry checks and **before** `vm->execute` / c
 
 Authorizations apply inside `executeMessage` journal: reverted on REVERT/hard failure within EVM checkpoint; buyGas remains outside journal.
 
-**eth layer files:** `bcos-evm/eth/Eip7702.h/.cpp` (delegation codec + validate/apply); wired from `executeMessage.cpp` and `OpStackPreCheck` (auth list shape).
+**eth layer files:** `bcos-evm/eth/eip/Eip7702.h/.cpp` (delegation codec + validate/apply); wired from `executeMessage.cpp` and `OpStackPreCheck` (auth list shape).
 
 ---
 
@@ -1066,7 +1066,7 @@ Isthmus binds to Prague. Caller sets `revisionConfig.revision = EVMC_PRAGUE` whe
 - `bcos-evm/eth/state/EthHost.cpp`: accumulate refunds from `set_storage` status + selfdestruct (mirror geth `operations_acl.go`)
 - `bcos-evm/eth/Transfer.h`: `canTransfer` / `transfer` mirroring `core/evm.go` (§5.12); used in execute entry + `EthHost::call`
 - `bcos-evm/eth/RevisionConfig.h`: add `prague_post_execution` flag; `makeIsthmusRevisionConfig()` sets `false` (§5.11)
-- `bcos-evm/eth/Eip7702.h/.cpp`: delegation codec, `validateAuthorization`, `applyAuthorization` (§5.10, §7.8)
+- `bcos-evm/eth/eip/Eip7702.h/.cpp`: delegation codec, `validateAuthorization`, `applyAuthorization` (§5.10, §7.8)
 - `bcos-evm/eth/executeMessage.cpp`: empty-code path `checkpoint/commit/revert` + `extension->tryChainPrecompile`; **`clear_refund()` at tx entry** (sole call site); EIP-7702 auth apply before CALL (§7.8)
 - Guard: only when `input.extension != nullptr`; FISCO/eth callers unaffected for §8.4; refund counter benefits all eth-track tests
 - `bcos-evm-eth` `EthHost::call()` nested path unchanged (refunds accumulate via same `set_storage` hook)

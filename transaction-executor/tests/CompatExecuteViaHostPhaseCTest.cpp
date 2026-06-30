@@ -6,7 +6,7 @@
  */
 
 #include "../../bcos-executor/test/unittest/evmone/compat/CompatTestFixture.h"
-#include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"

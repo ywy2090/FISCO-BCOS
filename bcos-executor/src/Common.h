@@ -27,7 +27,7 @@
 
 #include "bcos-concepts/ByteBuffer.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/gas/Eip7623.h"
+#include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-framework/ledger/LedgerTypeDef.h"
 #include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-framework/storage/LegacyStorageMethods.h"
