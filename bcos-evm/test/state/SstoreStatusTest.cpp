@@ -33,27 +33,20 @@ BlockHashes emptyBlockHashes()
 
 BOOST_AUTO_TEST_SUITE(SstoreStatusTest)
 
-BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
+BOOST_AUTO_TEST_CASE(ethereum_precise_sstore_status_matrix)
 {
     struct Case
     {
-        bool fixStorageStatus;
         bool existingIsZero;
         bool newIsZero;
         evmc_storage_status expected;
     };
 
     std::vector<Case> const cases = {
-        // fix_storage_status = ON (4-state); same-value writes return ASSIGNED.
-        {true, true, true, EVMC_STORAGE_ASSIGNED},
-        {true, false, true, EVMC_STORAGE_DELETED},
-        {true, true, false, EVMC_STORAGE_ADDED},
-        {true, false, false, EVMC_STORAGE_ASSIGNED},
-        // fix_storage_status = OFF (2-state)
-        {false, true, true, EVMC_STORAGE_ASSIGNED},
-        {false, false, true, EVMC_STORAGE_DELETED},
-        {false, true, false, EVMC_STORAGE_MODIFIED},
-        {false, false, false, EVMC_STORAGE_ASSIGNED},
+        {true, true, EVMC_STORAGE_ASSIGNED},
+        {false, true, EVMC_STORAGE_DELETED},
+        {true, false, EVMC_STORAGE_ADDED},
+        {false, false, EVMC_STORAGE_ASSIGNED},
     };
 
     auto const target = addressFromLastByte(0x33);
@@ -63,9 +56,8 @@ BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
 
     for (auto const& testCase : cases)
     {
-        BOOST_TEST_CONTEXT("fixStorageStatus=" << testCase.fixStorageStatus
-                                               << ", existingIsZero=" << testCase.existingIsZero
-                                               << ", newIsZero=" << testCase.newIsZero)
+        BOOST_TEST_CONTEXT(
+            "existingIsZero=" << testCase.existingIsZero << ", newIsZero=" << testCase.newIsZero)
         {
             InMemoryStateView view;
             Account account;
@@ -78,8 +70,7 @@ BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
             State state(view);
             evmc::VM vm{evmc_create_evmone()};
             bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
-            EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr,
-                testCase.fixStorageStatus);
+            EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr);
 
             auto const newValue = testCase.newIsZero ? zero : nonZero;
             auto const status = host.set_storage(target, key, newValue);
@@ -103,7 +94,7 @@ BOOST_AUTO_TEST_CASE(noop_sstore_returns_assigned_when_current_equals_value)
     State state(view);
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .warm_access = true};
-    EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr, true);
+    EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr);
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(host.set_storage(target, key, one)), static_cast<int>(EVMC_STORAGE_ADDED));
@@ -111,7 +102,7 @@ BOOST_AUTO_TEST_CASE(noop_sstore_returns_assigned_when_current_equals_value)
         static_cast<int>(EVMC_STORAGE_ASSIGNED));
 }
 
-BOOST_AUTO_TEST_CASE(fix_on_uses_original_committed_value_for_status)
+BOOST_AUTO_TEST_CASE(precise_uses_original_committed_value_for_status)
 {
     auto const target = addressFromLastByte(0x44);
     auto const key = valueFromLastByte(0x02);
@@ -127,7 +118,7 @@ BOOST_AUTO_TEST_CASE(fix_on_uses_original_committed_value_for_status)
     State state(view);
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .warm_access = true};
-    EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr, true);
+    EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), nullptr);
 
     auto const firstStatus = host.set_storage(target, key, firstNonZero);
     auto const secondStatus = host.set_storage(target, key, secondNonZero);

@@ -91,8 +91,6 @@ void FiscoPrecheckPolicy::checkBalanceAndValue(TxPipelineContext& ctx) const
 
 void FiscoPrecheckPolicy::tuneExecutionInput(ExecuteMessageInput& executeInput) const
 {
-    executeInput.fixStorageStatus = m_input.revisionConfig.fix_storage_status;
-    executeInput.fixNonceInit = m_input.revisionConfig.fix_nonce_init;
     executeInput.revisionConfig = m_input.revisionConfig.eth();
 }
 

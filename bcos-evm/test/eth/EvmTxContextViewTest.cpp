@@ -55,8 +55,6 @@ BOOST_AUTO_TEST_CASE(toExecuteMessageInput_matches_legacy_build_fields)
     BOOST_CHECK(fromSession.revisionConfig.revision == fromLegacy.revisionConfig.revision);
     BOOST_CHECK(fromSession.extension == fromLegacy.extension);
     BOOST_CHECK(fromSession.chainPort == fromLegacy.chainPort);
-    BOOST_CHECK_EQUAL(fromSession.fixStorageStatus, fromLegacy.fixStorageStatus);
-    BOOST_CHECK_EQUAL(fromSession.fixNonceInit, fromLegacy.fixNonceInit);
 }
 
 BOOST_AUTO_TEST_CASE(wire_sets_session_pointer_on_context)

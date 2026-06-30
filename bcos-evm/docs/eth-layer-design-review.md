@@ -58,12 +58,12 @@ EthHost     (evmone Host implementation — 669 lines, implements the Host C++ i
 
 - **`call()`** (lines 252-375): routes through precompile check, extension hooks, CREATE binding, checkpoint, value transfer, EVM execute, and result handling. This is the single most complex function in the kernel.
 - **`selfdestruct()`**: encodes EIP-6780 semantics (same-tx CREATE tracking).
-- **`get_storage()`**: has a `fixStorageStatus` flag that changes cold-access status reporting.
+- **`set_storage()`**: dispatches SSTORE refund/status through `EvmHostHooks` (`applySstoreRefund`, `classifyStorageStatus`); FISCO legacy paths override in `FiscoVmHostPolicy`.
 
 **Points a reviewer should check:**
 1. New state mutations go through `State`, not directly to `StateView`.
-2. `Account` currently carries `std::string abi` — this is a FISCO-specific leak (tracked separately).
-3. `EthHost` changes should not add new public methods; use `HostExtension` hooks instead.
+2. `Account` has no FISCO-specific fields in the current tree.
+3. `EthHost` changes should not add new public methods; use `EvmHostHooks` overrides instead.
 
 ---
 

@@ -1,6 +1,6 @@
 # Design Spec: EvmHostHooks 承载 FISCO Legacy SSTORE / CREATE Nonce 语义
 
-**Status:** Draft — pending review  
+**Status:** Accepted  
 **Date:** 2026-06-30  
 **Priority:** P0（链特有逻辑从 `eth/` 内核移除）  
 **Related:** ADR-005, ADR-027, `eth/state/EvmHostHooks.h`, `eth/state/EthHost.hpp`, `bcos/FiscoVmHostPolicy.h`, `bcos/FiscoRevisionConfig.h`, capability-matrix `bugfix_evm_storage_status` / CREATE nonce rows

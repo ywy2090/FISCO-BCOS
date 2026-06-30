@@ -55,8 +55,10 @@ Grilling outcomes (2026-06-26):
 | Tier | Fields | Owner |
 | --- | --- | --- |
 | **1 — injection seam** | `chainPort*`, `extension*` | Chain Bundle (owned objects); View borrows |
-| **2 — execution infra** | `vm*`, `blockHashes`, `fixStorageStatus`, `fixNonceInit` | Set in Bundle factory from request/revision; copied via `wire()` |
+| **2 — execution infra** | `vm*`, `blockHashes` | Set in Bundle factory from request/revision; copied via `wire()` |
 | **3 — tx mutable** | `state`, `message`, `gasPrice`, `revisionConfig`, `txProps`, `authorizations`, pipeline outputs | `TxPipelineContext` only; merged in `toExecuteMessageInput(ctx)` |
+
+FISCO legacy `fix_storage_status` / `fix_nonce_init` (from `FiscoRevisionConfig`) are **not** Tier-2 kernel fields. They configure `FiscoVmHostPolicy::RevisionFlags` and flow through Tier-1 `extension*` hook overrides (`applySstoreRefund`, `classifyStorageStatus`, `finalizeTopLevelCreateNonce`). See `docs/superpowers/specs/2026-06-30-evm-host-hooks-fisco-legacy-design.md`.
 
 Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain outside the session; `ChainPrecheckPolicy::tuneExecutionInput` applies them after projection (ADR-019 unchanged).
 
@@ -65,13 +67,11 @@ Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain out
 ```cpp
 namespace bcos::evm {
 
-struct ExecutionSession {
+struct EvmTxContextView {
     ChainCallTargetDispatcher* chainPort{nullptr};
-    state::VmHostPolicy* extension{nullptr};
+    state::EvmHostHooks* extension{nullptr};
     evmc::VM* vm{nullptr};
     state::BlockHashes blockHashes{};
-    bool fixStorageStatus{true};
-    bool fixNonceInit{false};
 
     /// Write Tier 1+2 into ctx; set ctx.session = this.
     void wire(TxPipelineContext& ctx) const;

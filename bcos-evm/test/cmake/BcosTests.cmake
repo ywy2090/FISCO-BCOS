@@ -20,6 +20,26 @@ add_test(
     COMMAND ${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
 )
 
+set(FISCO_SSTORE_STATUS_TEST_BINARY_NAME FiscoSstoreStatusTest)
+
+add_executable(${FISCO_SSTORE_STATUS_TEST_BINARY_NAME}
+    bcos/FiscoSstoreStatusTest.cpp
+)
+
+target_include_directories(${FISCO_SSTORE_STATUS_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${FISCO_SSTORE_STATUS_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
+)
+
+add_test(
+    NAME FiscoSstoreStatus
+    COMMAND ${FISCO_SSTORE_STATUS_TEST_BINARY_NAME}
+)
+
 add_executable(FiscoChainCallTargetAdapterTest bcos/FiscoChainCallTargetAdapterTest.cpp)
 target_include_directories(FiscoChainCallTargetAdapterTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
