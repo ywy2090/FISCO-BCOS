@@ -19,8 +19,8 @@
 #pragma once
 
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
-#include "bcos-evm/bcos/FiscoPrecheckPolicy.h"
 #include "bcos-evm/bcos/FiscoStateTransitionErrorPolicy.h"
+#include "bcos-evm/bcos/FiscoStateTransitionHooks.h"
 
 namespace bcos::evm
 {
@@ -38,11 +38,11 @@ struct FiscoOrchestrationProfile
 
     struct Bindings
     {
-        FiscoPrecheckPolicy precheckPolicy;
+        FiscoStateTransitionHooks hooks;
         FiscoStateTransitionErrorPolicy errorPolicy;
     };
 
-    static FiscoPrecheckPolicy buildPrecheckPolicy(BindingsContext& bindingsCtx);
+    static FiscoStateTransitionHooks buildStateTransitionHooks(BindingsContext& bindingsCtx);
     static FiscoStateTransitionErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
     static Bindings bind(BindingsContext& bindingsCtx);
 };

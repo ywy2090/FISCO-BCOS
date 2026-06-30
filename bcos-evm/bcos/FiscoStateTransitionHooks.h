@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file FiscoPrecheckPolicy.h
+ * @file FiscoStateTransitionHooks.h
  */
 
 #pragma once
@@ -24,9 +24,9 @@
 namespace bcos::evm
 {
 
-struct FiscoPrecheckPolicy : StateTransitionHooks
+struct FiscoStateTransitionHooks : StateTransitionHooks
 {
-    FiscoPrecheckPolicy(FiscoExecutionRequest const& input, bool eip7623Enabled);
+    FiscoStateTransitionHooks(FiscoExecutionRequest const& input, bool eip7623Enabled);
 
     DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 

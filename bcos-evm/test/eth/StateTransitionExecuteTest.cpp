@@ -34,7 +34,7 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-struct CallbackPrecheckPolicy : StateTransitionHooks
+struct CallbackStateTransitionHooks : StateTransitionHooks
 {
     DeductIntrinsicGasParams intrinsicPolicy{};
 
@@ -137,23 +137,19 @@ BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
     int checkGasAffordableCalls = 0;
     int checkBalanceAndValueCalls = 0;
     int tuneExecutionInputCalls = 0;
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.onCheckTransactionRules = [](StateTransitionContext& c) {
+    CallbackStateTransitionHooks hooks;
+    hooks.onCheckTransactionRules = [](StateTransitionContext& c) {
         c.earlyExit = true;
         evmc_result failResult{};
         failResult.status_code = EVMC_REJECTED;
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
     };
-    precheckPolicy.onCheckGasAffordable = [&](StateTransitionContext&) {
-        ++checkGasAffordableCalls;
-    };
-    precheckPolicy.onCheckBalanceAndValue = [&](StateTransitionContext&) {
-        ++checkBalanceAndValueCalls;
-    };
-    precheckPolicy.onTuneExecutionInput = [&](InnerExecuteInput&) { ++tuneExecutionInputCalls; };
+    hooks.onCheckGasAffordable = [&](StateTransitionContext&) { ++checkGasAffordableCalls; };
+    hooks.onCheckBalanceAndValue = [&](StateTransitionContext&) { ++checkBalanceAndValueCalls; };
+    hooks.onTuneExecutionInput = [&](InnerExecuteInput&) { ++tuneExecutionInputCalls; };
 
     EthStateTransitionErrorPolicy errorPolicy;
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -173,10 +169,10 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
     ctx.inputs.hashImpl = &hashImpl;
 
     bool mapped = false;
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::AuthOnly;
-    precheckPolicy.intrinsicPolicy.authorizationListPresent = true;
-    precheckPolicy.intrinsicPolicy.authTupleCount = 2;
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::AuthOnly;
+    hooks.intrinsicPolicy.authorizationListPresent = true;
+    hooks.intrinsicPolicy.authTupleCount = 2;
     ctx.message.gas = 1;
 
     CallbackStateTransitionErrorPolicy errorPolicy;
@@ -191,7 +187,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     };
 
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(mapped);
     BOOST_CHECK(ctx.earlyExit);
@@ -215,9 +211,9 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
     ctx.inputs.hashImpl = &hashImpl;
 
     int tuneExecutionInputCalls = 0;
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    precheckPolicy.onCheckBalanceAndValue = [](StateTransitionContext& c) {
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.onCheckBalanceAndValue = [](StateTransitionContext& c) {
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
         failResult.gas_left = 0;
@@ -225,10 +221,10 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
         c.earlyExit = true;
         // Deliberately omit exitKind to exercise StateTransitionExecute.cpp:92-94 default.
     };
-    precheckPolicy.onTuneExecutionInput = [&](InnerExecuteInput&) { ++tuneExecutionInputCalls; };
+    hooks.onTuneExecutionInput = [&](InnerExecuteInput&) { ++tuneExecutionInputCalls; };
 
     EthStateTransitionErrorPolicy errorPolicy;
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),
@@ -252,14 +248,12 @@ BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    precheckPolicy.onSetupMessage = [](StateTransitionContext&) {
-        throw protocol::PrecompiledError{};
-    };
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.onSetupMessage = [](StateTransitionContext&) { throw protocol::PrecompiledError{}; };
 
     EthStateTransitionErrorPolicy errorPolicy;
-    BOOST_REQUIRE_NO_THROW(stateTransitionExecute(ctx, precheckPolicy, errorPolicy));
+    BOOST_REQUIRE_NO_THROW(stateTransitionExecute(ctx, hooks, errorPolicy));
 
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),
         static_cast<int>(StateTransitionExitKind::ExceptionHandled));
@@ -280,9 +274,9 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
 
     bool mapCalled = false;
     ctx.state.checkpoint();
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    precheckPolicy.onCheckBalanceAndValue = [](StateTransitionContext&) {
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.onCheckBalanceAndValue = [](StateTransitionContext&) {
         throw std::runtime_error("boom");
     };
 
@@ -304,7 +298,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
     };
 
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(mapCalled);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),
@@ -323,9 +317,9 @@ BOOST_AUTO_TEST_CASE(completed_path_non_eip7623_keeps_snapshot_values)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    precheckPolicy.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
         InnerExecuteOutput output;
         output.gasRefund = 789;
         evmc_result raw{};
@@ -336,7 +330,7 @@ BOOST_AUTO_TEST_CASE(completed_path_non_eip7623_keeps_snapshot_values)
     };
 
     EthStateTransitionErrorPolicy errorPolicy;
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(StateTransitionExitKind::Completed));
@@ -355,9 +349,9 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    precheckPolicy.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
         InnerExecuteOutput output;
         evmc_result raw{};
         raw.status_code = EVMC_INVALID_INSTRUCTION;
@@ -367,7 +361,7 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     };
 
     EthStateTransitionErrorPolicy errorPolicy;
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(StateTransitionExitKind::Completed));
@@ -394,9 +388,9 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     BOOST_REQUIRE(ctx.state.is_address_warm(warmAddr));
 
     state::State* capturedState = nullptr;
-    CallbackPrecheckPolicy precheckPolicy;
-    precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
-    precheckPolicy.onRunEvmExecution = [&](InnerExecuteInput&& execInput) {
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.onRunEvmExecution = [&](InnerExecuteInput&& execInput) {
         capturedState = execInput.state;
         BOOST_CHECK(execInput.state == &ctx.state);
         InnerExecuteOutput output;
@@ -408,7 +402,7 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     };
 
     EthStateTransitionErrorPolicy errorPolicy;
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_REQUIRE(capturedState != nullptr);
     BOOST_CHECK(capturedState == &ctx.state);

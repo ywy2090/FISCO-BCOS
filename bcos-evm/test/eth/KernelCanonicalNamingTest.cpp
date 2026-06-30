@@ -16,7 +16,7 @@ namespace bcos::evm::test
 namespace
 {
 
-struct CountingPrecheckPolicy : StateTransitionHooks
+struct CountingStateTransitionHooks : StateTransitionHooks
 {
     mutable int rulesCallCount{0};
     mutable int setupCallCount{0};
@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(onPreCheckRules_is_hook_override_point)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    CountingPrecheckPolicy policy;
+    CountingStateTransitionHooks policy;
     policy.onPreCheckRules(ctx);
 
     BOOST_CHECK_EQUAL(policy.rulesCallCount, 1);
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(onNormalizeMessage_is_hook_override_point)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    CountingPrecheckPolicy policy;
+    CountingStateTransitionHooks policy;
     policy.onNormalizeMessage(ctx);
 
     BOOST_CHECK_EQUAL(policy.setupCallCount, 1);
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(stateTransitionExecute_is_canonical_pipeline_driver)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    CountingPrecheckPolicy policy;
+    CountingStateTransitionHooks policy;
     NoopErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, policy, errorPolicy);
 

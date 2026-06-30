@@ -108,7 +108,7 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{
         input, output, fixErrorHandling, eip7623Enabled};
     auto bindings = FiscoOrchestrationProfile::bind(bindingsCtx);
-    stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
+    stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("applyFiscoMessage done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -119,7 +119,7 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
     output.executionContext.message = ctx.message;
 
-    if (bindings.precheckPolicy.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

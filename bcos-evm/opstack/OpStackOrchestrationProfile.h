@@ -19,9 +19,9 @@
 #pragma once
 
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/OpStackStateTransitionErrorPolicy.h"
+#include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
 
 namespace bcos::evm
 {
@@ -37,11 +37,11 @@ struct OpStackOrchestrationProfile
 
     struct Bindings
     {
-        OpStackPrecheckPolicy precheckPolicy;
+        OpStackStateTransitionHooks hooks;
         OpStackStateTransitionErrorPolicy errorPolicy;
     };
 
-    static OpStackPrecheckPolicy buildPrecheckPolicy(BindingsContext& bindingsCtx);
+    static OpStackStateTransitionHooks buildStateTransitionHooks(BindingsContext& bindingsCtx);
     static OpStackStateTransitionErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
     static Bindings bind(BindingsContext& bindingsCtx);
 };

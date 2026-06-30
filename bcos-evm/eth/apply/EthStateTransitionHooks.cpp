@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file EthPrecheckPolicy.cpp
+ * @file EthStateTransitionHooks.cpp
  */
 
-#include "bcos-evm/eth/apply/EthPrecheckPolicy.h"
+#include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
 #include "bcos-evm/eth/CanTransfer.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
@@ -28,7 +28,7 @@
 namespace bcos::evm
 {
 
-EthPrecheckPolicy::EthPrecheckPolicy(EthReferenceRequest const& input) : m_input(input)
+EthStateTransitionHooks::EthStateTransitionHooks(EthReferenceRequest const& input) : m_input(input)
 {
     m_intrinsicPolicy.mode = IntrinsicDebitMode::None;
     if (input.revisionConfig.eip7623)
@@ -45,7 +45,7 @@ EthPrecheckPolicy::EthPrecheckPolicy(EthReferenceRequest const& input) : m_input
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
 }
 
-void EthPrecheckPolicy::onPreCheckRules(StateTransitionContext& ctx) const
+void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
 {
     if (auto preCheckError = ethTxPrecheck(m_input, ctx.state))
     {
@@ -62,7 +62,7 @@ void EthPrecheckPolicy::onPreCheckRules(StateTransitionContext& ctx) const
     }
 }
 
-void EthPrecheckPolicy::onPreCheckCanTransfer(StateTransitionContext& ctx) const
+void EthStateTransitionHooks::onPreCheckCanTransfer(StateTransitionContext& ctx) const
 {
     auto const txValue = state::fromEvmC(ctx.message.value);
     if (txValue != 0 && !canTransfer(ctx.state, ctx.message.sender, txValue))

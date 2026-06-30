@@ -21,9 +21,10 @@
 namespace bcos::evm
 {
 
-EthPrecheckPolicy EthOrchestrationProfile::buildPrecheckPolicy(BindingsContext& bindingsCtx)
+EthStateTransitionHooks EthOrchestrationProfile::buildStateTransitionHooks(
+    BindingsContext& bindingsCtx)
 {
-    return EthPrecheckPolicy{bindingsCtx.input};
+    return EthStateTransitionHooks{bindingsCtx.input};
 }
 
 EthStateTransitionErrorPolicy EthOrchestrationProfile::buildErrorPolicy(
@@ -34,7 +35,7 @@ EthStateTransitionErrorPolicy EthOrchestrationProfile::buildErrorPolicy(
 
 EthOrchestrationProfile::Bindings EthOrchestrationProfile::bind(BindingsContext& bindingsCtx)
 {
-    return Bindings{buildPrecheckPolicy(bindingsCtx), buildErrorPolicy(bindingsCtx)};
+    return Bindings{buildStateTransitionHooks(bindingsCtx), buildErrorPolicy(bindingsCtx)};
 }
 
 }  // namespace bcos::evm

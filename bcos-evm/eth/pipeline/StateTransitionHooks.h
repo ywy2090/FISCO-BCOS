@@ -1,8 +1,8 @@
 /*
  * Chain-specific pre-execution hooks for stateTransitionExecute (ADR-019 / ADR-030).
  *
- * Portable kernel interface: Eth/Fisco/OpStack supply concrete policies
- * (EthPrecheckPolicy, FiscoPrecheckPolicy, OpStackPrecheckPolicy) bound at
+ * Portable kernel interface: Eth/Fisco/OpStack supply concrete hooks
+ * (EthStateTransitionHooks, FiscoStateTransitionHooks, OpStackStateTransitionHooks) bound at
  * each chain's ApplyMessage entry. Error mapping lives in StateTransitionErrorPolicy.
  *
  * @file StateTransitionHooks.h

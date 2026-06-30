@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    struct OpStackEntryPrecheckPolicy : StateTransitionHooks
+    struct OpStackEntryStateTransitionHooks : StateTransitionHooks
     {
         DeductIntrinsicGasParams getIntrinsicGasParams() const override
         {
@@ -206,10 +206,10 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
         }
     };
 
-    OpStackEntryPrecheckPolicy precheckPolicy;
+    OpStackEntryStateTransitionHooks hooks;
 
     OpStackStateTransitionErrorPolicy errorPolicy;
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),

@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "helpers/InMemoryStateView.h"
-#include "helpers/OpStackEntryPrecheck.h"
+#include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(rejects_authorization_list_on_create)
     input.message.kind = EVMC_CREATE;
     input.authorizations.push_back({});
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
     input.authorizationListPresent = true;
     input.authorizations.clear();
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }

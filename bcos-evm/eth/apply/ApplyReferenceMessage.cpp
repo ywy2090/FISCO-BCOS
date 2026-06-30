@@ -67,7 +67,7 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
-    stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
+    stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("applyReferenceMessage done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
@@ -82,7 +82,7 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
     output.executionContext.message = ctx.message;
     output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
 
-    if (bindings.precheckPolicy.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

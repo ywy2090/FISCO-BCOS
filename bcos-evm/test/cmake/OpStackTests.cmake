@@ -26,7 +26,7 @@ add_executable(OpStackIntrinsicGasSyncTest
     ../opstack/OpStackSettlement.cpp
     ../opstack/OpStackNormalTxFeeCoordinator.cpp
     ../opstack/OpStackOrchestrationProfile.cpp
-    ../opstack/OpStackPrecheckPolicy.cpp
+    ../opstack/OpStackStateTransitionHooks.cpp
     ../opstack/OpStackFeeSettlement.cpp
     ../opstack/fee/OpStackPreDebitPlan.cpp
     ../opstack/fee/OpStackPostSettlementPlan.cpp
@@ -56,11 +56,11 @@ target_include_directories(OpStackOrchestrationProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackOrchestrationProfileTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackOrchestrationProfile COMMAND OpStackOrchestrationProfileTest)
-add_executable(OpStackPrecheckPolicyTest opstack/OpStackPrecheckPolicyTest.cpp)
-target_include_directories(OpStackPrecheckPolicyTest PRIVATE
+add_executable(OpStackStateTransitionHooksTest opstack/OpStackStateTransitionHooksTest.cpp)
+target_include_directories(OpStackStateTransitionHooksTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStackPrecheckPolicyTest PRIVATE bcos-evm-op)
-add_test(NAME OpStackPrecheckPolicy COMMAND OpStackPrecheckPolicyTest)
+target_link_libraries(OpStackStateTransitionHooksTest PRIVATE bcos-evm-op)
+add_test(NAME OpStackStateTransitionHooks COMMAND OpStackStateTransitionHooksTest)
 add_executable(OpStackStateTransitionErrorPolicyTest opstack/OpStackStateTransitionErrorPolicyTest.cpp)
 target_include_directories(OpStackStateTransitionErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

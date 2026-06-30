@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file FiscoPrecheckPolicy.cpp
+ * @file FiscoStateTransitionHooks.cpp
  */
 
-#include "bcos-evm/bcos/FiscoPrecheckPolicy.h"
+#include "bcos-evm/bcos/FiscoStateTransitionHooks.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
@@ -27,7 +27,8 @@
 namespace bcos::evm
 {
 
-FiscoPrecheckPolicy::FiscoPrecheckPolicy(FiscoExecutionRequest const& input, bool eip7623Enabled)
+FiscoStateTransitionHooks::FiscoStateTransitionHooks(
+    FiscoExecutionRequest const& input, bool eip7623Enabled)
   : m_input(input), m_eip7623Enabled(eip7623Enabled)
 {
     m_intrinsicPolicy.mode =
@@ -38,7 +39,7 @@ FiscoPrecheckPolicy::FiscoPrecheckPolicy(FiscoExecutionRequest const& input, boo
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
 }
 
-void FiscoPrecheckPolicy::onNormalizeMessage(StateTransitionContext& ctx) const
+void FiscoStateTransitionHooks::onNormalizeMessage(StateTransitionContext& ctx) const
 {
     ctx.message = deriveMessage(FiscoTxAdapterInput{.web3Tx = m_input.web3Tx,
         .featureEvmAddress = m_input.revisionConfig.feature_evm_address,
@@ -50,7 +51,7 @@ void FiscoPrecheckPolicy::onNormalizeMessage(StateTransitionContext& ctx) const
         .hashImpl = m_input.hashImpl});
 }
 
-void FiscoPrecheckPolicy::onPreCheckRules(StateTransitionContext& ctx) const
+void FiscoStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
 {
     if (m_input.revisionConfig.enable_auth_check && m_input.authPort != nullptr)
     {
@@ -64,7 +65,7 @@ void FiscoPrecheckPolicy::onPreCheckRules(StateTransitionContext& ctx) const
     }
 }
 
-void FiscoPrecheckPolicy::onPreCheckCanTransfer(StateTransitionContext& ctx) const
+void FiscoStateTransitionHooks::onPreCheckCanTransfer(StateTransitionContext& ctx) const
 {
     if (m_input.revisionConfig.enable_balance_transfer)
     {
@@ -89,7 +90,7 @@ void FiscoPrecheckPolicy::onPreCheckCanTransfer(StateTransitionContext& ctx) con
     }
 }
 
-void FiscoPrecheckPolicy::onTuneInnerExecuteInput(InnerExecuteInput& executeInput) const
+void FiscoStateTransitionHooks::onTuneInnerExecuteInput(InnerExecuteInput& executeInput) const
 {
     executeInput.revisionConfig = m_input.revisionConfig.eth();
 }

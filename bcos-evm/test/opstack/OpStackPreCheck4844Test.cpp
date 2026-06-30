@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "helpers/InMemoryStateView.h"
-#include "helpers/OpStackEntryPrecheck.h"
+#include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(rejects_blob_create)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 10;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(rejects_type03_with_empty_hashes)
     input.web3TypedTxKind = 0x03;
     input.blobGasFeeCap = 10;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(rejects_invalid_versioned_hash_prefix)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x02));
     input.blobGasFeeCap = 10;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(rejects_blob_when_eip4844_disabled)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 10;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(rejects_low_blob_fee_cap)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 2;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(accepts_valid_blob_precheck)
     input.blobVersionedHashes.push_back(makeVersionedHash(0x01));
     input.blobGasFeeCap = 10;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_CHECK(!error.has_value());
 }
 }  // namespace bcos::evm::test

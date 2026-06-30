@@ -10,7 +10,7 @@
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "helpers/InMemoryStateView.h"
-#include "helpers/OpStackEntryPrecheck.h"
+#include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_without_blob_gas_fee_cap_is_rejected)
     // blobGasFeeCap left at default 0 — orchestration treats as under blobBaseFee (op-geth
     // ErrInsufficientFunds).
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_rejected_when_eip4844_disabled)
     input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 200;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
     input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 0;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     // op-geth preCheck: maxFeePerBlobGas < blobBaseFee → ErrInsufficientFunds
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE(l1_blob_base_fee_slot_does_not_set_execution_blob_base_fee)
     input.blobVersionedHashes.push_back(makeVersionedHash());
     input.blobGasFeeCap = 0;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
 }

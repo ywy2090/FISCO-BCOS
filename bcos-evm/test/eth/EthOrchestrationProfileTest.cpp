@@ -17,7 +17,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
 
     EthReferenceResult output;
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
 
     EthReferenceResult output;
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::AuthOnly));
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
-    auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
     policy.onPreCheckRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.getIntrinsicGasParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::None));
 }
 

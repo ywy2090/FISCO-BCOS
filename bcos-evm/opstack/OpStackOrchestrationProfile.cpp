@@ -21,9 +21,10 @@
 namespace bcos::evm
 {
 
-OpStackPrecheckPolicy OpStackOrchestrationProfile::buildPrecheckPolicy(BindingsContext& bindingsCtx)
+OpStackStateTransitionHooks OpStackOrchestrationProfile::buildStateTransitionHooks(
+    BindingsContext& bindingsCtx)
 {
-    return OpStackPrecheckPolicy{bindingsCtx.view};
+    return OpStackStateTransitionHooks{bindingsCtx.view};
 }
 
 OpStackStateTransitionErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
@@ -35,7 +36,7 @@ OpStackStateTransitionErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
 OpStackOrchestrationProfile::Bindings OpStackOrchestrationProfile::bind(
     BindingsContext& bindingsCtx)
 {
-    return Bindings{buildPrecheckPolicy(bindingsCtx), buildErrorPolicy(bindingsCtx)};
+    return Bindings{buildStateTransitionHooks(bindingsCtx), buildErrorPolicy(bindingsCtx)};
 }
 
 }  // namespace bcos::evm

@@ -13,29 +13,36 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file EthPrecheckPolicy.h
+ * @file OpStackStateTransitionHooks.h
  */
 
 #pragma once
 
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
 #include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
+#include "bcos-evm/opstack/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 
 namespace bcos::evm
 {
 
-struct EthPrecheckPolicy : StateTransitionHooks
+struct OpStackStateTransitionHooks : StateTransitionHooks
 {
-    explicit EthPrecheckPolicy(EthReferenceRequest const& input);
+    explicit OpStackStateTransitionHooks(OpStackSettlementFacade& view);
 
     DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
-    void onPreCheckRules(StateTransitionContext& ctx) const override;
+    /// Sync entry rules before buyGas (nonce, 7702, blob intent, fee caps). OpStack-only phase.
+    void lifecycleCheckEntryRules(StateTransitionContext& ctx) const;
 
-    void onPreCheckCanTransfer(StateTransitionContext& ctx) const override;
+    void onPreCheckGasAffordable(StateTransitionContext& ctx) const override;
+
+    void onTuneInnerExecuteInput(InnerExecuteInput& input) const override;
+
+    InnerExecuteOutput onInvokeInnerExecute(InnerExecuteInput&& input) const override;
 
 private:
-    EthReferenceRequest const& m_input;
+    OpStackSettlementFacade& m_view;
+    OpStackFeeSidecar& m_sidecar;
     DeductIntrinsicGasParams m_intrinsicPolicy{};
 };
 

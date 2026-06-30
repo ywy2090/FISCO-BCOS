@@ -19,8 +19,8 @@
 #pragma once
 
 #include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
-#include "bcos-evm/eth/apply/EthPrecheckPolicy.h"
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
 
 namespace bcos::evm
 {
@@ -36,11 +36,11 @@ struct EthOrchestrationProfile
 
     struct Bindings
     {
-        EthPrecheckPolicy precheckPolicy;
+        EthStateTransitionHooks hooks;
         EthStateTransitionErrorPolicy errorPolicy;
     };
 
-    static EthPrecheckPolicy buildPrecheckPolicy(BindingsContext& bindingsCtx);
+    static EthStateTransitionHooks buildStateTransitionHooks(BindingsContext& bindingsCtx);
     static EthStateTransitionErrorPolicy buildErrorPolicy(BindingsContext const& bindingsCtx);
     static Bindings bind(BindingsContext& bindingsCtx);
 };

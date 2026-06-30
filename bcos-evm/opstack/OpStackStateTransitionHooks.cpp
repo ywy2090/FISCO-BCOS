@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file OpStackPrecheckPolicy.cpp
+ * @file OpStackStateTransitionHooks.cpp
  */
 
-#include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
+#include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/opstack/OpStackBlobTxIntent.h"
@@ -46,7 +46,7 @@ EVMCResult makePreCheckError(
 }
 }  // namespace
 
-OpStackPrecheckPolicy::OpStackPrecheckPolicy(OpStackSettlementFacade& view)
+OpStackStateTransitionHooks::OpStackStateTransitionHooks(OpStackSettlementFacade& view)
   : m_view(view), m_sidecar(view.mutableSidecar())
 {
     m_intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
@@ -55,7 +55,7 @@ OpStackPrecheckPolicy::OpStackPrecheckPolicy(OpStackSettlementFacade& view)
     m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();
 }
 
-void OpStackPrecheckPolicy::lifecycleCheckEntryRules(StateTransitionContext& ctx) const
+void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContext& ctx) const
 {
     auto const& input = m_view.input;
     auto const deposit = m_view.isDeposit();
@@ -154,7 +154,7 @@ void OpStackPrecheckPolicy::lifecycleCheckEntryRules(StateTransitionContext& ctx
     }
 }
 
-void OpStackPrecheckPolicy::onPreCheckGasAffordable(StateTransitionContext& ctx) const
+void OpStackStateTransitionHooks::onPreCheckGasAffordable(StateTransitionContext& ctx) const
 {
     auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
     bcos::bytesConstRef inputData{ctx.message.input_data, ctx.message.input_size};
@@ -171,7 +171,7 @@ void OpStackPrecheckPolicy::onPreCheckGasAffordable(StateTransitionContext& ctx)
     }
 }
 
-void OpStackPrecheckPolicy::onTuneInnerExecuteInput(InnerExecuteInput& execInput) const
+void OpStackStateTransitionHooks::onTuneInnerExecuteInput(InnerExecuteInput& execInput) const
 {
     if (m_view.isDeposit())
     {
@@ -179,7 +179,8 @@ void OpStackPrecheckPolicy::onTuneInnerExecuteInput(InnerExecuteInput& execInput
     }
 }
 
-InnerExecuteOutput OpStackPrecheckPolicy::onInvokeInnerExecute(InnerExecuteInput&& input) const
+InnerExecuteOutput OpStackStateTransitionHooks::onInvokeInnerExecute(
+    InnerExecuteInput&& input) const
 {
 #ifdef BCOS_EVM_TESTING
     if (auto spyOutput = opstack::test::maybeCallApplyOpStackMessageSpy(input);

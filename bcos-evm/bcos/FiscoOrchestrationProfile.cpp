@@ -21,9 +21,10 @@
 namespace bcos::evm
 {
 
-FiscoPrecheckPolicy FiscoOrchestrationProfile::buildPrecheckPolicy(BindingsContext& bindingsCtx)
+FiscoStateTransitionHooks FiscoOrchestrationProfile::buildStateTransitionHooks(
+    BindingsContext& bindingsCtx)
 {
-    return FiscoPrecheckPolicy{bindingsCtx.input, bindingsCtx.eip7623Enabled};
+    return FiscoStateTransitionHooks{bindingsCtx.input, bindingsCtx.eip7623Enabled};
 }
 
 FiscoStateTransitionErrorPolicy FiscoOrchestrationProfile::buildErrorPolicy(
@@ -38,7 +39,7 @@ FiscoStateTransitionErrorPolicy FiscoOrchestrationProfile::buildErrorPolicy(
 
 FiscoOrchestrationProfile::Bindings FiscoOrchestrationProfile::bind(BindingsContext& bindingsCtx)
 {
-    return Bindings{buildPrecheckPolicy(bindingsCtx), buildErrorPolicy(bindingsCtx)};
+    return Bindings{buildStateTransitionHooks(bindingsCtx), buildErrorPolicy(bindingsCtx)};
 }
 
 }  // namespace bcos::evm

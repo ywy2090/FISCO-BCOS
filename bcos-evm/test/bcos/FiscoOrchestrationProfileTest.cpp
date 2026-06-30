@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{
         input, output, false, true /* eip7623Enabled */};
 
-    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = FiscoOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
     ctx.inputs.hashImpl = &hashImpl;
 
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
-    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = FiscoOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
     policy.onPreCheckRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
     StateTransitionContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
 
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
-    auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = FiscoOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
     policy.onNormalizeMessage(ctx);
 
     BOOST_CHECK(ctx.message.kind == EVMC_CREATE);

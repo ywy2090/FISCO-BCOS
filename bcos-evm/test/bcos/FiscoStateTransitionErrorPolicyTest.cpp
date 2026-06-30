@@ -534,7 +534,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    struct ThrowBalancePrecheckPolicy : StateTransitionHooks
+    struct ThrowBalanceStateTransitionHooks : StateTransitionHooks
     {
         DeductIntrinsicGasParams getIntrinsicGasParams() const override
         {
@@ -549,10 +549,10 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
         }
     };
 
-    ThrowBalancePrecheckPolicy precheckPolicy;
+    ThrowBalanceStateTransitionHooks hooks;
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, hooks, errorPolicy);
 
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),
         static_cast<int>(StateTransitionExitKind::ExceptionHandled));

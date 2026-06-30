@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE OpStackPrecheckPolicyTest
+#define BOOST_TEST_MODULE OpStackStateTransitionHooksTest
 
-#include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
+#include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
@@ -10,7 +10,7 @@
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
-#include "helpers/OpStackEntryPrecheck.h"
+#include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
 
@@ -44,13 +44,13 @@ BOOST_AUTO_TEST_CASE(entry_rules_rejects_nonce_mismatch)
     input.gasFeeCap = 1;
     input.blockInfo.baseFee = 1;
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::NonceCheckFail);
 }
 
 // GAP-007: system deposit tx rejected at entry precheck.
-// CURRENT_ORACLE: TransactionStatus::Malformed (OpStackPrecheckPolicy.cpp:67).
+// CURRENT_ORACLE: TransactionStatus::Malformed (OpStackStateTransitionHooks.cpp:67).
 // OPGETH_ORACLE: op-geth/core/state_transition.go:354-357 ErrSystemTxNotSupported (Regolith+);
 //               op-geth/core/error.go:153-154 — not included; whole tx reject (not deposit failure
 //               path).
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(entry_rules_deposit_system_tx_rejected)
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
 
-    auto error = runOpStackEntryPrecheck(input, stateView);
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
     BOOST_CHECK_EQUAL(error->status_code, EVMC_FAILURE);
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
     OpStackSettlementFacade view{ctx, input, sidecar};
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = OpStackOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
     policy.onPreCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
     OpStackSettlementFacade view{ctx, input, sidecar};
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
-    auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
+    auto policy = OpStackOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
