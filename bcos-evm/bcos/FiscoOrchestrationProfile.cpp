@@ -26,10 +26,10 @@ FiscoPrecheckPolicy FiscoOrchestrationProfile::buildPrecheckPolicy(BindingsConte
     return FiscoPrecheckPolicy{bindingsCtx.input, bindingsCtx.eip7623Enabled};
 }
 
-FiscoOrchestrationErrorPolicy FiscoOrchestrationProfile::buildErrorPolicy(
+FiscoStateTransitionErrorPolicy FiscoOrchestrationProfile::buildErrorPolicy(
     BindingsContext const& bindingsCtx)
 {
-    FiscoOrchestrationErrorPolicy errorPolicy;
+    FiscoStateTransitionErrorPolicy errorPolicy;
     errorPolicy.hashImpl = bindingsCtx.input.hashImpl;
     errorPolicy.fixErrorHandling = bindingsCtx.fixErrorHandling;
     errorPolicy.fixRevertLogs = bindingsCtx.input.revisionConfig.fix_revert_logs;

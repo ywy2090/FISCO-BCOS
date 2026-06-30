@@ -95,7 +95,7 @@ TxConsensusOutcome consensusOutcome{TxConsensusOutcome::Executed};
 
 **OpStack deposit:** always `Executed` at lifecycle boundary (inclusion intentional); existing deposit settlement matrix unchanged.
 
-**ErrorPolicy mapping unchanged:** `EthOrchestrationErrorPolicy::onIntrinsicGasFailure` may continue to populate `OutOfGasLimit` on `ctx.evmcResult` for trace/tests. Inclusion gating is **`consensusOutcome`**, not `evmcResult.status_code`.
+**ErrorPolicy mapping unchanged:** `EthStateTransitionErrorPolicy::onIntrinsicGasFailure` may continue to populate `OutOfGasLimit` on `ctx.evmcResult` for trace/tests. Inclusion gating is **`consensusOutcome`**, not `evmcResult.status_code`.
 
 ### 3. TE executor contract
 
@@ -252,7 +252,7 @@ Existing tests that assert `OutOfGasLimit` receipt on entry failure flip to **`E
 
 - geth `core/state_transition.go` — `preCheck`, `execute`, nonce increment ordering
 - geth `core/state_processor.go` — `ApplyTransaction` err handling
-- `EthOrchestrationErrorPolicy.h`, `EthTransactionExecutorImpl.h:169-199`
+- `EthStateTransitionErrorPolicy.h`, `EthTransactionExecutorImpl.h:169-199`
 - `OpStackTxLifecycle.cpp`, `OpStackSettlement.cpp` `isNormalPreExecutionReject`
 - `SchedulerSerialImpl.h:117-118`
 - Parity review: `docs/superpowers/reviews/error-handling-geth-parity-report-2026-06-26-v2.md` § GAP-001, GAP-002

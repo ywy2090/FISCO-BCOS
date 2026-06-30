@@ -116,12 +116,12 @@ target_include_directories(FiscoOrchestrationProfileTest PRIVATE
 target_link_libraries(FiscoOrchestrationProfileTest PRIVATE
     bcos-evm bcos-task evmone::evmone bcos-protocol)
 add_test(NAME FiscoOrchestrationProfile COMMAND FiscoOrchestrationProfileTest)
-add_executable(FiscoOrchestrationErrorPolicyTest bcos/FiscoOrchestrationErrorPolicyTest.cpp)
-target_include_directories(FiscoOrchestrationErrorPolicyTest PRIVATE
+add_executable(FiscoStateTransitionErrorPolicyTest bcos/FiscoStateTransitionErrorPolicyTest.cpp)
+target_include_directories(FiscoStateTransitionErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(FiscoOrchestrationErrorPolicyTest PRIVATE
+target_link_libraries(FiscoStateTransitionErrorPolicyTest PRIVATE
     bcos-evm bcos-protocol bcos-crypto evmone::evmone)
-add_test(NAME FiscoOrchestrationErrorPolicy COMMAND FiscoOrchestrationErrorPolicyTest)
+add_test(NAME FiscoStateTransitionErrorPolicy COMMAND FiscoStateTransitionErrorPolicyTest)
 add_executable(FiscoExecuteImportedFixtureTest bcos/FiscoExecuteImportedFixtureTest.cpp)
 target_include_directories(FiscoExecuteImportedFixtureTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

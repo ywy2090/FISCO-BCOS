@@ -2,8 +2,8 @@
 
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -97,25 +97,25 @@ struct CallbackPrecheckPolicy : StateTransitionHooks
     }
 };
 
-struct CallbackOrchestrationErrorPolicy : OrchestrationErrorPolicy
+struct CallbackStateTransitionErrorPolicy : StateTransitionErrorPolicy
 {
-    std::function<void(StateTransitionContext&, IntrinsicDebitFailure)> onIntrinsic;
-    std::function<void(StateTransitionContext&, std::exception_ptr)> onException;
+    std::function<void(StateTransitionContext&, IntrinsicDebitFailure)> onIntrinsicCallback;
+    std::function<void(StateTransitionContext&, std::exception_ptr)> onExceptionCallback;
 
     void onIntrinsicGasFailure(
         StateTransitionContext& ctx, IntrinsicDebitFailure failure) const override
     {
-        if (onIntrinsic)
+        if (onIntrinsicCallback)
         {
-            onIntrinsic(ctx, failure);
+            onIntrinsicCallback(ctx, failure);
         }
     }
 
     void onException(StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
     {
-        if (onException)
+        if (onExceptionCallback)
         {
-            onException(ctx, exceptionPtr);
+            onExceptionCallback(ctx, exceptionPtr);
         }
     }
 };
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
     };
     precheckPolicy.onTuneExecutionInput = [&](InnerExecuteInput&) { ++tuneExecutionInputCalls; };
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -179,8 +179,9 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
     precheckPolicy.intrinsicPolicy.authTupleCount = 2;
     ctx.message.gas = 1;
 
-    CallbackOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onIntrinsic = [&](StateTransitionContext& c, IntrinsicDebitFailure failure) {
+    CallbackStateTransitionErrorPolicy errorPolicy;
+    errorPolicy.onIntrinsicCallback = [&](StateTransitionContext& c,
+                                          IntrinsicDebitFailure failure) {
         mapped = true;
         BOOST_CHECK_EQUAL(
             static_cast<int>(failure), static_cast<int>(IntrinsicDebitFailure::AuthTupleOutOfGas));
@@ -226,7 +227,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
     };
     precheckPolicy.onTuneExecutionInput = [&](InnerExecuteInput&) { ++tuneExecutionInputCalls; };
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
@@ -239,7 +240,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
 }
 
 // GAP-003 E-PEX-PIPE: full stateTransitionExecute path maps BCOS exception via
-// EthOrchestrationErrorPolicy. GETH_ORACLE: go-ethereum/core/state_transition.go:550-552 —
+// EthStateTransitionErrorPolicy. GETH_ORACLE: go-ethereum/core/state_transition.go:550-552 —
 // unexpected err rejects tx at block level. CURRENT_ORACLE: ExceptionHandled + EVMC_INTERNAL_ERROR
 // + Unknown; no throw escapes stateTransitionExecute.
 BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
@@ -257,7 +258,7 @@ BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
         throw protocol::PrecompiledError{};
     };
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     BOOST_REQUIRE_NO_THROW(stateTransitionExecute(ctx, precheckPolicy, errorPolicy));
 
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.exitKind),
@@ -285,8 +286,8 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
         throw std::runtime_error("boom");
     };
 
-    CallbackOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onException = [&](StateTransitionContext& c, std::exception_ptr ex) {
+    CallbackStateTransitionErrorPolicy errorPolicy;
+    errorPolicy.onExceptionCallback = [&](StateTransitionContext& c, std::exception_ptr ex) {
         mapCalled = true;
         BOOST_REQUIRE(ex != nullptr);
         try
@@ -334,7 +335,7 @@ BOOST_AUTO_TEST_CASE(completed_path_non_eip7623_keeps_snapshot_values)
         return output;
     };
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK_EQUAL(
@@ -365,7 +366,7 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
         return output;
     };
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK_EQUAL(
@@ -406,7 +407,7 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
         return output;
     };
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_REQUIRE(capturedState != nullptr);

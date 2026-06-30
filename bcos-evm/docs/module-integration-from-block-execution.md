@@ -198,7 +198,7 @@ ethReferenceExecute / fiscoExecute / opStackExecute
   runTxPipeline(ctx, hooks, errorPolicy)   ← eth/pipeline/TxPipeline.cpp
         │
         ├─ hooks: TxPipelineHooks（链特有 precheck / settlement）
-        ├─ errorPolicy: OrchestrationErrorPolicy（链特有异常映射）
+        ├─ errorPolicy: StateTransitionErrorPolicy（链特有异常映射）
         │
         ▼
   executeMessage(input)                    ← eth/ExecuteMessage.cpp
@@ -276,7 +276,7 @@ executeMessage → kernelOutput.stateDiff
 
 - TE 为每笔交易维护 `m_startSavepoint` / `m_afterBuyGasSavepoint`（`RollbackableStorage`）
 - FIB-75：`fix_gas_precheck` 开启时，EVM 失败可回滚状态变更但保留 `buyGas` 预扣余额
-- `runTxPipeline` 内异常由 `OrchestrationErrorPolicy::mapException` 处理；内核不拥有 state revert 所有权（ADR-019 Q20）
+- `runTxPipeline` 内异常由 `StateTransitionErrorPolicy::mapException` 处理；内核不拥有 state revert 所有权（ADR-019 Q20）
 
 ---
 

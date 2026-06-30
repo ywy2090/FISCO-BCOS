@@ -26,10 +26,10 @@ EthPrecheckPolicy EthOrchestrationProfile::buildPrecheckPolicy(BindingsContext& 
     return EthPrecheckPolicy{bindingsCtx.input};
 }
 
-EthOrchestrationErrorPolicy EthOrchestrationProfile::buildErrorPolicy(
+EthStateTransitionErrorPolicy EthOrchestrationProfile::buildErrorPolicy(
     BindingsContext const& /*bindingsCtx*/)
 {
-    return EthOrchestrationErrorPolicy{};
+    return EthStateTransitionErrorPolicy{};
 }
 
 EthOrchestrationProfile::Bindings EthOrchestrationProfile::bind(BindingsContext& bindingsCtx)

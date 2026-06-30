@@ -21,7 +21,7 @@
 | 同步结算 | `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort helpers |
 | 费用账本 | `OpStackFeeSettlement.*` | Adapter：`buyGas` / `refundGas`（读 `OpStackSettlementFacade`） |
 | 编排 | `OpStackOrchestrationProfile.*` | `BindingsContext` `{ input, view }`；`bind` → pipeline hooks |
-| 预检 | `OpStackPrecheckPolicy.*` | `lifecycleCheckEntryRules` + `pipelineCheckGasAffordable` |
+| 预检 | `OpStackPrecheckPolicy.*` | `lifecycleCheckEntryRules` + `onPreCheckGasAffordable` |
 | 链 call target | `OpStackChainCallTargetAdapter.*` | L1Block / GasPriceOracle classify + dispatch |
 
 ## 子目录模块

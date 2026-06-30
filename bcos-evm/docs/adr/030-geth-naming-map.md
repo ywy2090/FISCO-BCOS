@@ -78,16 +78,16 @@ Maps **current ADR-029 code** (as of 2026-06-29) to geth. Use the **geth column*
 | Order | geth (`state_transition.go`) | bcos-evm (current) | ADR-030 target name (eth kernel) |
 | --- | --- | --- | --- |
 | — | `newStateTransition` | `TxPipelineContext` ctor + bridge setup | `StateTransition` context object |
-| 1 | `preCheck` (incl. `buyGas` on ETH) | `pipelineCheckRules`, `pipelineCheckGasAffordable`, OP `lifecycleCheckEntryRules` | `preCheck` (+ chain hooks inside) |
+| 1 | `preCheck` (incl. `buyGas` on ETH) | `onPreCheckRules`, `onPreCheckGasAffordable`, OP `lifecycleCheckEntryRules` | `preCheck` (+ chain hooks inside) |
 | 2 | `IntrinsicGas` + `Charge` | `deductIntrinsicGas` | `deductIntrinsicGas` (Phase 3 batch 1 ✅) |
 | 3 | `FloorDataGas` | Eip7623 mode in `deductIntrinsicGas` + `captureSettlementSnapshot` | `checkFloorDataGas` / `floorDataGas` |
-| 4 | `CanTransfer` | `pipelineCheckBalance` | `canTransfer` (`CanTransfer.h`) + `preCheckCanTransfer` (pipeline slice) |
+| 4 | `CanTransfer` | `onPreCheckCanTransfer` | `canTransfer` (`CanTransfer.h`) + `onPreCheckCanTransfer` (pipeline slice) |
 | 5 | `state.Prepare` | `warmTransactionEntry`, transient clear in `TxExecutionRunner` | `prepareState` |
-| 6 | `evm.Create` / `evm.Call` | `pipelineInvokeEvmKernel` → `innerExecute` → `runEvmKernelTopLevel` | `innerExecute` |
-| 7 | post-execution refund / 7623 uplift | `captureSettlementSnapshot`, `onPostExecuteNormalize` | `finalizeGasUsed` (geth: end of `execute`) |
+| 6 | `evm.Create` / `evm.Call` | `onInvokeInnerExecute` → `innerExecute` → `runEvmKernelTopLevel` | `innerExecute` |
+| 7 | post-execution refund / 7623 uplift | `captureSettlementSnapshot`, `onFinalizeGasUsed` | `onFinalizeGasUsed` (geth: end of `execute`) |
 | — | `execute()` wrapper | `stateTransitionExecute` | `StateTransition::execute` (canonical pipeline driver) |
 
-**`pipelineSetupMessage`:** FISCO CREATE derivation / message normalization — maps to geth `TransactionToMessage` + chain address rules, **before** `stateTransition`; keep as `normalizeMessage` or chain hook, not a geth `execute` step.
+**`onNormalizeMessage`:** FISCO CREATE derivation / message normalization — maps to geth `TransactionToMessage` + chain address rules, **before** `stateTransition`; keep as `onNormalizeMessage` or chain hook, not a geth `execute` step.
 
 **`buyGas` / `refundGas`:** geth `stateTransition.buyGas` inside `preCheck`. In bcos-evm:
 
@@ -129,10 +129,10 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 | `FiscoExecute` | — | `FiscoMessageApplier` (doc) | ApplyMessage + FISCO fields |
 | `ExecutionBundle` | — | `EvmHostContext` / `ChainHostBundle` | owns `EvmHostHooks` + adapter lifetime |
 | `ExecutionSession` *(renamed ADR-030)* | `evm.SetTxContext` + host injection | **`EvmTxContextView`** | borrows into `TxPipelineContext.txContextView` |
-| `OrchestrationProfile` | `preCheck` hook table | `StateTransitionHooks` | chain `preCheck` / error mapping |
+| `OrchestrationProfile` | `preCheck` hook table | `OrchestrationBindProfile` | chain hook bind table |
 | `BindingsContext` | — | `HookBindInputs` | inputs to build hooks |
-| `ChainPrecheckPolicy` | `preCheck` slices | `PreCheckPolicy` | virtual preCheck steps |
-| `OrchestrationErrorPolicy` | `execute` return `error` vs vmerr | `ExecutionResultMapper` | included-tx vs reject |
+| `StateTransitionHooks` | `preCheck` slices + `innerExecute` | `StateTransitionHooks` | portable hook interface |
+| `StateTransitionErrorPolicy` | `execute` return `error` vs vmerr | `ExecutionResultMapper` | included-tx vs reject |
 | `EvmHostHooks` | host hooks inside `evm.Call` | `EvmHostHooks` | in-call semantics |
 | `AuthPort` | — | `AuthCheck` (FISCO) | ADR-017 |
 | `ChainCallTargetDispatcher` | `ActivePrecompiles` + dispatch | `ChainPrecompileDispatch` | ADR-024 |
@@ -143,8 +143,8 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 
 | ADR-029 (layer prefix) | ADR-030 (geth) | When to use which |
 | --- | --- | --- |
-| `pipelineCheckRules` | `preCheck` (rules slice) | Code/logs migrating to geth: prefer `preCheck`; layer docs: `pipeline*` |
-| `pipelineInvokeEvmKernel` | `innerExecute` | Same |
+| `onPreCheckRules` | `preCheck` (rules slice) | Code/logs migrating to geth: prefer `preCheck`; layer docs: `pipeline*` |
+| `onInvokeInnerExecute` | `innerExecute` | Same |
 | `runEvmKernelTopLevel` | `innerExecute` body / post-`Prepare` | Same |
 | `runCallFrame` | `evm.Call` | Both valid; cite geth in comment |
 | `lifecycleCheckEntryRules` | op-geth pre-`innerExecute` | Keep `lifecycle*` (no geth core name) |
@@ -153,7 +153,7 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 
 ```cpp
 // geth: stateTransition.preCheck — ADR-030
-void FiscoPrecheckPolicy::pipelineCheckRules(TxPipelineContext& ctx) const
+void FiscoPrecheckPolicy::onPreCheckRules(TxPipelineContext& ctx) const
 ```
 
 ### 8. Stable aliases (Tier E — **removed ADR-032 Waves 1–4, 2026-06-30**)
@@ -180,13 +180,13 @@ Tier A inline aliases (implemented 2026-06-29, coexist with ADR-029 `pipeline*`)
 
 | geth / ADR-030 | Alias symbol | Forwards to |
 | --- | --- | --- |
-| `preCheck` slices | `preCheckRules`, `preCheckGasAffordable`, `preCheckCanTransfer` | `pipelineCheck*` on `ChainPrecheckPolicy` |
-| `normalizeMessage` | `normalizeMessage` | `pipelineSetupMessage` |
-| `innerExecute` | `innerExecute` | `pipelineInvokeEvmKernel` |
+| `preCheck` slices | `onPreCheckRules`, `onPreCheckGasAffordable`, `onPreCheckCanTransfer` | `pipelineCheck*` on `StateTransitionHooks` |
+| `onNormalizeMessage` | `onNormalizeMessage` | `onNormalizeMessage` |
+| `innerExecute` | `innerExecute` | `onInvokeInnerExecute` |
 | `IntrinsicGas` | `deductIntrinsicGas` | canonical (`IntrinsicGasDebit.h`) |
 | `state.Prepare` | `prepareState` | `warmTransactionEntry` |
 | `execute` | `stateTransitionExecute` | canonical pipeline driver (`TxPipeline.cpp`) |
-| `finalizeGasUsed` | `finalizeGasUsed` | `onPostExecuteNormalize` |
+| `onFinalizeGasUsed` | `onFinalizeGasUsed` | `onFinalizeGasUsed` |
 | `ApplyMessage` | `applyReferenceMessage`, `applyFiscoMessage`, `applyOpStackMessage` | canonical chain L1 exports |
 | `evm.Call` / `Create` | `evmCall`, `evmCreate`, `evmDelegateCall`, `evmStaticCall` | `runCallFrame` |
 
@@ -194,10 +194,10 @@ Tier A inline aliases (implemented 2026-06-29, coexist with ADR-029 `pipeline*`)
 
 When reviewing geth parity, walk this checklist in order:
 
-1. **Reject vs included** — geth `preCheck` / intrinsic failure → `return nil, err` vs bcos `earlyExit` + `OrchestrationErrorPolicy` (see error-handling parity reports).
+1. **Reject vs included** — geth `preCheck` / intrinsic failure → `return nil, err` vs bcos `earlyExit` + `StateTransitionErrorPolicy` (see error-handling parity reports).
 2. **`preCheck`** — map `pipelineCheck*` + OP `lifecycleCheckEntryRules`.
 3. **`IntrinsicGas` / `FloorDataGas`** — map `deductIntrinsicGas` + `IntrinsicDebitMode`.
-4. **`CanTransfer`** — map `pipelineCheckBalance`.
+4. **`CanTransfer`** — map `onPreCheckCanTransfer`.
 5. **`Prepare`** — map warm + transient + 7702 auth apply timing vs geth `execute` block.
 6. **`innerExecute`** — map `executeMessage` path through `runCallFrame`.
 7. **Nested calls** — map `EthHost::call` to recursive `evm.Call`.
@@ -240,7 +240,7 @@ Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
 | `stateTransitionExecute` | `stateTransition.execute` |
 | `pipelineCheck*` | `preCheck` |
 | `deductIntrinsicGas` | `IntrinsicGas` + `Charge` |
-| `pipelineCheckBalance` | `CanTransfer` |
+| `onPreCheckCanTransfer` | `CanTransfer` |
 | `warmTransactionEntry` | `state.Prepare` |
 | `innerExecute` | after `Prepare`: `evm.Call`/`Create` |
 | `runCallFrame` | `evm.Call` / `Create` |

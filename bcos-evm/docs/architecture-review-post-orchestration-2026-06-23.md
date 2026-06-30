@@ -55,7 +55,7 @@ P0  Strong — 内核帧 / precompile（2026-06-25 已闭合）
   ├─ 1. ExecutionFrame 统一 executeMessage + EthHost::call     ✅ Done (PR1–4)
   ├─ 2. ActivePrecompileSet 统一 warm + dispatch               ✅ Done
   ├─ 3. PrecompileRouter checkpoint 信封                       ✅ Done
-  └─ 4. OrchestrationErrorPolicy                               ✅ Done（三链 adapter + 对称测试）
+  └─ 4. StateTransitionErrorPolicy                               ✅ Done（三链 adapter + 对称测试）
 
 P1  Worth exploring
   ├─ 5. AuthPort 全生命周期
@@ -131,7 +131,7 @@ P2  Speculative → Done
 
 ---
 
-### 候选 4 — OrchestrationErrorPolicy：跨链错误 typed seam
+### 候选 4 — StateTransitionErrorPolicy：跨链错误 typed seam
 
 **Status:** ✅ Done (`58bfb9db6` policy 抽取；`738f30e8b` 三链 `OrchestrationProfile::bind`；`1ec290a81` 对称单测）。
 
@@ -141,7 +141,7 @@ P2  Speculative → Done
 
 **问题（无 locality）：** 管线共享 gas 数学，但错误语义仍分散在三个 wrapper 的 `mapException` / `postAdopt` / `postSettle` lambda（各 ~100–180 行）。Eth 有 included-tx vmerr；Fisco 有 `fixErrorHandling` 矩阵；OpStack 用 `postExecuteGasSettlement`。理解「同一 `EVMC_REVERT` 在三链含义」需读三份 cpp。
 
-**方案:** 引入 `OrchestrationErrorPolicy` interface；Eth / Fisco / Op 各一个 adapter；`runTxPipeline` 只调用 policy 方法。内核修复（候选 3）自动惠及三链。
+**方案:** 引入 `StateTransitionErrorPolicy` interface；Eth / Fisco / Op 各一个 adapter；`runTxPipeline` 只调用 policy 方法。内核修复（候选 3）自动惠及三链。
 
 **收益:**
 

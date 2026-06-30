@@ -93,7 +93,7 @@ graph TD
             ┌───────────────────────────────────────────────────────────┐
             │                  bcos-evm-eth （共享内核）                   │
             │  ───────────────────────────────────────────────────────   │
-            │   stateTransitionExecute()  共享编排管线 + OrchestrationErrorPolicy│
+            │   stateTransitionExecute()  共享编排管线 + StateTransitionErrorPolicy│
             │   innerExecute()           → runEvmKernelTopLevel（tx 级 adapter）│
             │   runCallFrame()       统一帧 deep module（PR1–4）           │
             │   EthHost::call()      嵌套帧 adapter → Nested               │
@@ -121,7 +121,7 @@ graph TD
 
 **双标签约定（ADR-029 + ADR-030 + ADR-032）：** 链 L1 入口使用 **geth 文档名** `apply{Chain}Message`（Tier C）；Tier E `*Execute` 已于 ADR-032 Wave 4（2026-06-30）移除。L2 步骤用 ADR-029 `pipeline*` 前缀；与 geth `stateTransition.execute` 对齐的步骤用 ADR-030/031 规范名（`stateTransitionExecute`、`innerExecute`）。完整映射见 ADR-030 §2–§8。
 
-自 ADR-019 起，三条链在 **`stateTransitionExecute` 之前**各自装配 `TxPipelineHooks` + `OrchestrationErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(BindingsContext)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
+自 ADR-019 起，三条链在 **`stateTransitionExecute` 之前**各自装配 `TxPipelineHooks` + `StateTransitionErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(BindingsContext)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
 
 **双上下文（ADR-027 naming follow-up）：** 每个 bridge / lifecycle 入口并行维护两类上下文，**不合并**：
 
@@ -135,7 +135,7 @@ TxPipelineContext ctx
 
 `BindingsContext`（编排 policy 绑定输入）≠ `EvmTxContextView`（内核执行环境注入 View）。
 
-共享步骤（intrinsic debit、`EvmTxContextView::toExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/pipeline/` 单点 enforcement。`stateTransitionExecute(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onPipelineComplete`。
+共享步骤（intrinsic debit、`EvmTxContextView::toExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/pipeline/` 单点 enforcement。`stateTransitionExecute(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onComplete`。
 
 **内核入口分层：**
 
@@ -207,11 +207,11 @@ evmone callback → EthHost::call (nested adapter)
 ⑦ innerExecute(input)      — input.message == ctx.message
 ⑧ adoptEvmcResult(...)
 ⑨ captureSettlementSnapshot    — Eip7623 mode only
-⑩ errorPolicy.onPostExecuteNormalize(ctx)
-⑪ （guard）errorPolicy.onPipelineComplete(ctx)
+⑩ errorPolicy.onFinalizeGasUsed(ctx)
+⑪ （guard）errorPolicy.onComplete(ctx)
 ```
 
-异常路径：`errorPolicy.onPipelineException`。链特有 hook 逻辑由 `*OrchestrationProfile` 填充，不再散落在 bridge cpp 匿名 namespace。
+异常路径：`errorPolicy.onException`。链特有 hook 逻辑由 `*OrchestrationProfile` 填充，不再散落在 bridge cpp 匿名 namespace。
 
 **执行环境注入（ADR-027）：** 三入口在 `stateTransitionExecute` 前构造链侧 `*ExecutionBundle`（拥有 `VmHostPolicy` / `ChainCallTargetAdapter`），暴露 kernel `EvmTxContextView`；`wire()` 一次写入 `ctx.txContextView` / `ctx.chainPort` / `ctx.extension`；pipeline ⑥ 经 `toExecuteMessageInput(ctx)` 投影，nested `EthHost::call` 与 top-level 共享同一 `chainPort*`。
 
@@ -251,7 +251,7 @@ Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `comple
         └──────────────────────────┬───────────────────────────┘
                                    ▼
         ┌──────────────────────────────────────────────────────┐
-        │  pipelineInvokeEvmKernel → innerExecute              │
+        │  onInvokeInnerExecute → innerExecute              │
         │  warm / 7702 → runCallFrame(TopLevel)                  │
         │  nonce bump → commit → finalize_self_destructs         │
         │                                                        │
@@ -288,17 +288,17 @@ struct VmHostPolicy {
 - `OpStackVmHostPolicy`：占位 extension；链 call target 经 `OpStackChainCallTargetAdapter` + `chainPort`（ADR-024）。
 - 这些钩子在**内核调用树内部**触发（ADR-005 §3：`VmHostPolicy` 在 kernel 内运行；Orchestrator / `stateTransitionExecute` 在 `innerExecute` 之前运行）。
 
-### 4.3 `TxPipelineHooks` + `OrchestrationErrorPolicy` —— 编排管线注入（ADR-019）
+### 4.3 `TxPipelineHooks` + `StateTransitionErrorPolicy` —— 编排管线注入（ADR-019）
 
-文件：`eth/pipeline/TxPipelineHooks.h`、`eth/pipeline/OrchestrationErrorPolicy.h`
+文件：`eth/pipeline/TxPipelineHooks.h`、`eth/pipeline/StateTransitionErrorPolicy.h`
 
 链特有编排通过 **`OrchestrationProfile::bind(BindingsContext)`** 产出 `{ precheckPolicy, errorPolicy }`，再传入 `stateTransitionExecute`。三链 profile：
 
 | Profile | 文件 | ErrorPolicy |
 | --- | --- | --- |
-| `EthOrchestrationProfile` | `eth/apply/EthOrchestrationProfile.h` | `EthOrchestrationErrorPolicy` |
-| `FiscoOrchestrationProfile` | `bcos/FiscoOrchestrationProfile.h` | `FiscoOrchestrationErrorPolicy` |
-| `OpStackOrchestrationProfile` | `opstack/OpStackOrchestrationProfile.h` | `OpStackOrchestrationErrorPolicy` |
+| `EthOrchestrationProfile` | `eth/apply/EthOrchestrationProfile.h` | `EthStateTransitionErrorPolicy` |
+| `FiscoOrchestrationProfile` | `bcos/FiscoOrchestrationProfile.h` | `FiscoStateTransitionErrorPolicy` |
+| `OpStackOrchestrationProfile` | `opstack/OpStackOrchestrationProfile.h` | `OpStackStateTransitionErrorPolicy` |
 
 典型 hook（由 profile 填充，**不得**在 `eth/pipeline/` 内 `#include bcos/` 或 `opstack/`）：
 
@@ -309,7 +309,7 @@ struct VmHostPolicy {
 | `txCheckBalanceAndValue` | `canTransfer` | 21000 gas、value xfer | — |
 | `intrinsicPolicy.mode` | standard / Eip7623 | Eip7623（web3） | `opstack_entry` |
 
-错误语义（included-tx vmerr、Fisco `fixErrorHandling`、OpStack gas settlement）由 **`OrchestrationErrorPolicy`** 方法承载：`onIntrinsicGasFailure`、`onPostExecuteNormalize`、`onPipelineException`、`onPipelineComplete`——替代原 `txPatchExecutionResult` / `txFinalizeGasSettlement` 中分散的 lambda。
+错误语义（included-tx vmerr、Fisco `fixErrorHandling`、OpStack gas settlement）由 **`StateTransitionErrorPolicy`** 方法承载：`onIntrinsicGasFailure`、`onFinalizeGasUsed`、`onException`、`onComplete`——替代原 `txPatchExecutionResult` / `txFinalizeGasSettlement` 中分散的 lambda。
 
 与 `VmHostPolicy` 的分界：hooks / errorPolicy 在 `innerExecute` **之前/之后**的管线步骤运行；`VmHostPolicy` 在 evmone 调用树**内部**运行。
 
@@ -419,7 +419,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
 | 编排上下文 | `eth/pipeline/StateTransitionContext.h` |
 | 编排钩子 | `eth/pipeline/TxPipelineHooks.h` |
-| 编排错误策略（基类） | `eth/pipeline/OrchestrationErrorPolicy.h` |
+| 编排错误策略（基类） | `eth/pipeline/StateTransitionErrorPolicy.h` |
 | ETH Profile | `eth/apply/EthOrchestrationProfile.h` |
 | FISCO Profile | `bcos/FiscoOrchestrationProfile.h` |
 | OP Profile | `opstack/OpStackOrchestrationProfile.h` |

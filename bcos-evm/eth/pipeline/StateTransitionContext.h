@@ -126,7 +126,7 @@ public:
     bool earlyExit{false};
     StateTransitionExitKind exitKind{StateTransitionExitKind::None};
     IntrinsicDebitMode intrinsicDebitMode{IntrinsicDebitMode::None};
-    /// Eth-only: set by EthOrchestrationErrorPolicy when top-level vmerr is included in block.
+    /// Eth-only: set by EthStateTransitionErrorPolicy when top-level vmerr is included in block.
     bool topLevelIncludedTxVmError{false};
 
 private:

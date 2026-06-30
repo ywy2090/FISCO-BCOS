@@ -3,7 +3,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 #include "helpers/InMemoryStateView.h"
@@ -36,7 +36,7 @@ struct CountingPrecheckPolicy : StateTransitionHooks
     }
 };
 
-struct NoopErrorPolicy : OrchestrationErrorPolicy
+struct NoopErrorPolicy : StateTransitionErrorPolicy
 {
     void onIntrinsicGasFailure(StateTransitionContext&, IntrinsicDebitFailure) const override {}
     void onException(StateTransitionContext&, std::exception_ptr) const override {}
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(stateTransitionExecute_is_canonical_pipeline_driver)
 
 BOOST_AUTO_TEST_CASE(onFinalizeGasUsed_is_error_policy_hook)
 {
-    struct CountingErrorPolicy : OrchestrationErrorPolicy
+    struct CountingErrorPolicy : StateTransitionErrorPolicy
     {
         mutable int normalizeCount{0};
 
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(onFinalizeGasUsed_is_error_policy_hook)
         void onFinalizeGasUsed(StateTransitionContext& ctx) const override
         {
             ++normalizeCount;
-            OrchestrationErrorPolicy::onFinalizeGasUsed(ctx);
+            StateTransitionErrorPolicy::onFinalizeGasUsed(ctx);
         }
     };
 

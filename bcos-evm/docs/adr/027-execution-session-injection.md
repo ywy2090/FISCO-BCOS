@@ -60,7 +60,7 @@ Grilling outcomes (2026-06-26):
 
 FISCO legacy `fix_storage_status` / `fix_nonce_init` (from `FiscoRevisionConfig`) are **not** Tier-2 kernel fields. They configure `FiscoVmHostPolicy::RevisionFlags` and flow through Tier-1 `extension*` hook overrides (`applySstoreRefund`, `classifyStorageStatus`, `finalizeTopLevelCreateNonce`). See `docs/superpowers/specs/2026-06-30-evm-host-hooks-fisco-legacy-design.md`.
 
-Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain outside the session; `ChainPrecheckPolicy::tuneExecutionInput` applies them after projection (ADR-019 unchanged).
+Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain outside the session; `StateTransitionHooks::onTuneInnerExecuteInput` applies them after projection (ADR-019 unchanged).
 
 ### 2. Kernel module: `eth/pipeline/ExecutionSession.h`
 

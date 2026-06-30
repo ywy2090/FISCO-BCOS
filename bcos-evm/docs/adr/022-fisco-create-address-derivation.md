@@ -24,7 +24,7 @@ Today the logic is **copy-pasted across four seams**:
 | Orchestration (top-level) | `bcos/ApplyFiscoMessage.cpp::deriveMessage()` | `FiscoOrchestrationProfile::txSetupMessage` |
 | Policy duplicate | `bcos/FiscoPolicy.h::deriveMessageImpl()` | Compat tests only; byte-identical to above |
 | VmHostPolicy (nested) | `bcos/FiscoVmHostPolicy.cpp::deriveNestedCreateAddress()` | `prepareMessage` inside kernel call tree |
-| Post-execute patch | `bcos/FiscoOrchestrationErrorPolicy::onPostExecuteNormalize()` | Fill empty `create_address` from `recipient` (not re-derivation) |
+| Post-execute patch | `bcos/FiscoStateTransitionErrorPolicy::onFinalizeGasUsed()` | Fill empty `create_address` from `recipient` (not re-derivation) |
 
 ETH reference path already converged on `eth/execution/CreateContract.h` (`predictCreateAddress`, `bindCreateMessageForInit`). FISCO has no equivalent.
 
@@ -96,7 +96,7 @@ void bindFiscoCreateMessage(evmc_message& message, evmc_address const& addr);
 | --- | --- | --- | --- |
 | Top-level | `depth == 0` && EOA sender (`sender == origin`) | `predictFiscoTopLevelCreateAddress` | `FiscoOrchestrationProfile::txSetupMessage` via `deriveMessage()` wrapper |
 | Nested | `depth > 0` OR `sender != origin` | `predictFiscoNestedCreateAddress` | `FiscoVmHostPolicy::prepareMessage` |
-| Post-execute | CREATE success && empty `create_address` | **No derivation** — copy `message.recipient` | `FiscoOrchestrationErrorPolicy::onPostExecuteNormalize` (unchanged) |
+| Post-execute | CREATE success && empty `create_address` | **No derivation** — copy `message.recipient` | `FiscoStateTransitionErrorPolicy::onFinalizeGasUsed` (unchanged) |
 
 #### 2.2 Legacy vs FISCO-hash gate (**resolves D1**)
 
@@ -151,7 +151,7 @@ Nested CREATE always overwrites preserves current VmHostPolicy behavior for inne
 | `deriveMessage()` | Thin wrapper: fill `FiscoTopLevelCreateParams` → `predictFiscoTopLevelCreateAddress` → `bindFiscoCreateMessage` |
 | `FiscoPolicy::deriveMessageImpl` | **Removed**; compat tests call `deriveMessage()` or `predictFiscoTopLevelCreateAddress` directly |
 | `deriveNestedCreateAddress()` | Thin wrapper around `predictFiscoNestedCreateAddress` + depth/origin early exit |
-| `onPostExecuteNormalize` CREATE patch | Unchanged (not derivation) |
+| `onFinalizeGasUsed` CREATE patch | Unchanged (not derivation) |
 
 `FiscoPolicy` remains **RevisionConfig + auth + timestamp** only; no address math (extends ADR-005 / ADR-017 port direction).
 

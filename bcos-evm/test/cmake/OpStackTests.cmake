@@ -61,11 +61,11 @@ target_include_directories(OpStackPrecheckPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackPrecheckPolicyTest PRIVATE bcos-evm-op)
 add_test(NAME OpStackPrecheckPolicy COMMAND OpStackPrecheckPolicyTest)
-add_executable(OpStackOrchestrationErrorPolicyTest opstack/OpStackOrchestrationErrorPolicyTest.cpp)
-target_include_directories(OpStackOrchestrationErrorPolicyTest PRIVATE
+add_executable(OpStackStateTransitionErrorPolicyTest opstack/OpStackStateTransitionErrorPolicyTest.cpp)
+target_include_directories(OpStackStateTransitionErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OpStackOrchestrationErrorPolicyTest PRIVATE bcos-evm-op bcos-protocol evmone::evmone)
-add_test(NAME OpStackOrchestrationErrorPolicy COMMAND OpStackOrchestrationErrorPolicyTest)
+target_link_libraries(OpStackStateTransitionErrorPolicyTest PRIVATE bcos-evm-op bcos-protocol evmone::evmone)
+add_test(NAME OpStackStateTransitionErrorPolicy COMMAND OpStackStateTransitionErrorPolicyTest)
 
 set(DEPOSIT_TX_PRECHECK_TEST_BINARY_NAME DepositTxPreCheckTest)
 

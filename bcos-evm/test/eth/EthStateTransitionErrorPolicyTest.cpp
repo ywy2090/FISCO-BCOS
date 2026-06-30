@@ -1,9 +1,9 @@
-#define BOOST_TEST_MODULE OrchestrationErrorPolicyTest
+#define BOOST_TEST_MODULE EthStateTransitionErrorPolicyTest
 
-#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -17,7 +17,7 @@ namespace
 {
 template <typename Exception>
 void invokePipelineException(
-    OrchestrationErrorPolicy const& errorPolicy, StateTransitionContext& ctx, Exception exception)
+    StateTransitionErrorPolicy const& errorPolicy, StateTransitionContext& ctx, Exception exception)
 {
     try
     {
@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_maps_to_out_of_gas_limit)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_ignores_failure_kind)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::CalldataOutOfGas);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_generic_exception)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::PrecompiledError{});
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INTERNAL_ERROR);
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_non_out_of_gas_bcos_exception)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::GasOverflow{}));
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INTERNAL_ERROR);
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_runtime_error_currently_propagates)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     bool caught = false;
     try
     {
@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_handler_does_not_rethrow)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::PrecompiledError{}));
     BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::GasOverflow{}));
     BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{}));
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_without_checkpoint_leaves_state)
     ctx.state.set_balance(sender, 250);
     BOOST_CHECK(!ctx.state.has_checkpoint());
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
 
     BOOST_CHECK(!ctx.state.has_checkpoint());
@@ -191,7 +191,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_complete_is_noop)
     raw.gas_left = -5;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onComplete(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, -5);
@@ -207,7 +207,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_out_of_gas)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_reverts_open_checkpoint)
     BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), 100);
     BOOST_CHECK(ctx.state.has_checkpoint());
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
 
     BOOST_CHECK(!ctx.state.has_checkpoint());
@@ -260,7 +260,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_included_top_level_vmerr)
     raw.status_code = EVMC_INVALID_INSTRUCTION;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(ctx.topLevelIncludedTxVmError);
@@ -283,7 +283,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_skips_nested_vmerr_normalization)
     raw.status_code = EVMC_INVALID_INSTRUCTION;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
@@ -305,7 +305,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_set_code_revert_at_top_level)
     raw.status_code = EVMC_REVERT;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
@@ -329,7 +329,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_top_level_revert_without_auth_list)
     raw.status_code = EVMC_REVERT;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
@@ -354,7 +354,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_leaves_success_unchanged)
     raw.gas_left = 42'000;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
@@ -377,7 +377,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_insufficient_balance_at_top_level)
     raw.status_code = EVMC_INSUFFICIENT_BALANCE;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::NotEnoughCash);
 
-    EthOrchestrationErrorPolicy errorPolicy;
+    EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);

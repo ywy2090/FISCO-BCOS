@@ -26,10 +26,10 @@ OpStackPrecheckPolicy OpStackOrchestrationProfile::buildPrecheckPolicy(BindingsC
     return OpStackPrecheckPolicy{bindingsCtx.view};
 }
 
-OpStackOrchestrationErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
+OpStackStateTransitionErrorPolicy OpStackOrchestrationProfile::buildErrorPolicy(
     BindingsContext const& /*bindingsCtx*/)
 {
-    return OpStackOrchestrationErrorPolicy{};
+    return OpStackStateTransitionErrorPolicy{};
 }
 
 OpStackOrchestrationProfile::Bindings OpStackOrchestrationProfile::bind(

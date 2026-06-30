@@ -28,16 +28,16 @@ Single-tx execution spans bridge → orchestration pipeline → EVM kernel → c
 
 `runTxPipeline` stays — it is the L2 deep module name (ADR-019).
 
-### 2. `ChainPrecheckPolicy` virtual API (L2)
+### 2. `StateTransitionHooks` virtual API (L2)
 
 | Old | New |
 | --- | --- |
-| `setupMessage` | `pipelineSetupMessage` |
-| `checkTransactionRules` | `pipelineCheckRules` |
-| `checkGasAffordable` | `pipelineCheckGasAffordable` |
-| `checkBalanceAndValue` | `pipelineCheckBalance` |
-| `tuneExecutionInput` | `pipelineTuneKernelInput` |
-| `runEvmExecution` | `pipelineInvokeEvmKernel` |
+| `setupMessage` | `onNormalizeMessage` |
+| `checkTransactionRules` | `onPreCheckRules` |
+| `checkGasAffordable` | `onPreCheckGasAffordable` |
+| `checkBalanceAndValue` | `onPreCheckCanTransfer` |
+| `tuneExecutionInput` | `onTuneInnerExecuteInput` |
+| `runEvmExecution` | `onInvokeInnerExecute` |
 
 ### 3. Kernel entry (L3)
 
@@ -60,13 +60,13 @@ Single-tx execution spans bridge → orchestration pipeline → EVM kernel → c
 
 ### 6. Logging
 
-`TxPipeline` trace keys use step names aligned with §2 (`pipelineSetupMessage`, …, `pipelineInvokeEvmKernel`).
+`TxPipeline` trace keys use step names aligned with §2 (`onNormalizeMessage`, …, `onInvokeInnerExecute`).
 
 ---
 
 ## Consequences
 
-- Call stacks encode phase: `fiscoExecute → runTxPipeline → pipelineInvokeEvmKernel → runEvmKernelTopLevel → runCallFrame`.
+- Call stacks encode phase: `fiscoExecute → runTxPipeline → onInvokeInnerExecute → runEvmKernelTopLevel → runCallFrame`.
 - `executeMessage` name retained for external linkage; documented as L3 alias.
 - ADR-029 / ADR-023 prose may still mention old names in historical context; code uses §2–5.
 - **geth vocabulary:** see ADR-030 for `ApplyMessage` / `stateTransition.execute` equivalents (`preCheck`, `innerExecute`, `evm.Call`).

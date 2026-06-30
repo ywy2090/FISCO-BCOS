@@ -114,7 +114,7 @@
 | buyGas / refundGas | Eth 路径: 管线内 intrinsic debit。OpStack: 外部 buyGas (含 L1/operator cost) | 内联在一处 | 顺序不同语义等价 | 低 |
 | 失败交易 gas | 不退还已消耗 gas: `gasUsed = gasLimit - gasLeft` | 同 | 一致 | 低 |
 | Receipt 生成 | 不在 bcos-evm 中，由外部从 `ExecuteMessageOutput` 构建 | 在 StateTransition 中直接生成 | 架构差异 | 低 |
-| 钩子注入点 | VmHostPolicy(6), ChainPrecheckPolicy(7), OrchestrationErrorPolicy(4) | 无等价物 | **FISCO 独有可扩展性，但钩子可能改变 EVM 语义** | **中** |
+| 钩子注入点 | VmHostPolicy(6), StateTransitionHooks(7), StateTransitionErrorPolicy(4) | 无等价物 | **FISCO 独有可扩展性，但钩子可能改变 EVM 语义** | **中** |
 
 ## 8. 边界情况 & 安全性
 
@@ -150,7 +150,7 @@
 | 3 | **双类别 EIP 门控** | `RevisionConfig.h` | Feature-gated EIP 可独立禁用，误配置风险 |
 | 4 | **Modexp EIP-7883** | `ModexpGas.cpp` | Osaka 定价提前实现 |
 | 5 | **空账户清理** | `StateDiffApplier` | 依赖外部清理，可能导致状态膨胀 |
-| 6 | **钩子语义泄漏** | `VmHostPolicy` / `ChainPrecheckPolicy` | 钩子可改变标准 EVM 行为 |
+| 6 | **钩子语义泄漏** | `VmHostPolicy` / `StateTransitionHooks` | 钩子可改变标准 EVM 行为 |
 
 ### 架构优势
 

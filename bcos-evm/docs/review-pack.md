@@ -377,7 +377,7 @@ P0 内核候选**已闭合**。当前 open work：
 | ~~P0~~ | ExecutionFrame | ✅ Done (PR1–4) |
 | ~~P0~~ | PrecompileRouter envelope | ✅ Done + `PrecompileRouterEnvelopeTest` |
 | ~~P0~~ | ActivePrecompileSet | ✅ Done (`PrecompileActive.h` 单源) |
-| ~~P0~~ | OrchestrationErrorPolicy | ✅ Done（三链 adapter + 对称测试） |
+| ~~P0~~ | StateTransitionErrorPolicy | ✅ Done（三链 adapter + 对称测试） |
 | **P1** | AuthPort 全生命周期 | `FiscoPolicy` 仍 include TE adapter |
 | ~~P1~~ | FiscoAddressDerivation | ✅ Done (ADR-022) |
 | **P1** | OpStackSettlementContext | ⚠️ bcos-evm 内 ADR-021/023；TE 层待审计 |

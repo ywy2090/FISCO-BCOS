@@ -2,14 +2,14 @@
 
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
-#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <evmc/evmc.h>
 
 namespace bcos::evm
 {
 
-struct EthOrchestrationErrorPolicy : OrchestrationErrorPolicy
+struct EthStateTransitionErrorPolicy : StateTransitionErrorPolicy
 {
     void onIntrinsicGasFailure(
         StateTransitionContext& ctx, IntrinsicDebitFailure /*failure*/) const override

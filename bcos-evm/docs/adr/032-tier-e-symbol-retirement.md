@@ -53,11 +53,11 @@ These symbols are `[[deprecated]]` today and are **not** TE entry points. Safe t
 | 1.2 | `runExecutionFrame` | `runCallFrame` | `eth/execution/EvmCallFrame.h` |
 | 1.3 | `TxExecutionRunner::run` | `runEvmKernelTopLevel` | `eth/execution/TxExecutionRunner.h` |
 | 1.4 | `buildExecuteMessageInput` | `EvmTxContextView::toExecuteMessageInput` via `ctx.txContextView` | `eth/pipeline/EvmTxContextView.h` |
-| 1.5 | `ChainPrecheckPolicy` legacy virtuals: `setupMessage`, `checkTransactionRules`, `checkGasAffordable`, `checkBalanceAndValue`, `tuneExecutionInput`, `runEvmExecution` | `pipelineSetupMessage`, `pipelineCheckRules`, `pipelineCheckGasAffordable`, `pipelineCheckBalance`, `pipelineTuneKernelInput`, `pipelineInvokeEvmKernel` | `eth/pipeline/ChainPrecheckPolicy.h` |
+| 1.5 | `StateTransitionHooks` legacy virtuals: `setupMessage`, `checkTransactionRules`, `checkGasAffordable`, `checkBalanceAndValue`, `tuneExecutionInput`, `runEvmExecution` | `onNormalizeMessage`, `onPreCheckRules`, `onPreCheckGasAffordable`, `onPreCheckCanTransfer`, `onTuneInnerExecuteInput`, `onInvokeInnerExecute` | `eth/pipeline/StateTransitionHooks.h` |
 | 1.6 | `checkEntryRules` | `lifecycleCheckEntryRules` | `opstack/OpStackPrecheckPolicy.h` |
 | 1.7 | `dispatchPrecompile` | `resolveCallTarget` + `executePrecompileEnvelope` | `eth/precompiled/PrecompileRouter.h` |
 
-**Note:** Tier A geth inline aliases formerly in `GethNamingAliases.h` (`prepareState`, `evmCall`, …) were removed 2026-06-30; call `warmTransactionEntry` / `runCallFrame` directly. Policy-level forwards (`preCheckRules`, `finalizeGasUsed`) remain on `ChainPrecheckPolicy` / `OrchestrationErrorPolicy`.
+**Note:** Tier A geth inline aliases formerly in `GethNamingAliases.h` (`prepareState`, `evmCall`, …) were removed 2026-06-30; call `warmTransactionEntry` / `runCallFrame` directly. Policy-level forwards (`onPreCheckRules`, `onFinalizeGasUsed`) remain on `StateTransitionHooks` / `StateTransitionErrorPolicy`.
 
 #### Wave 2 — Eth kernel Tier E forwards
 
@@ -159,7 +159,7 @@ TE **never** required migration for `runTxPipeline` / `executeMessage` (chain ad
 | Step | Status (2026-06-30) | Wave | Action |
 | --- | --- | --- | --- |
 | Chain bridges call `stateTransitionExecute` | ✅ ADR-031 | — | `FiscoExecute.cpp`, `EthReferenceExecute.cpp`, OP lifecycle |
-| `ChainPrecheckPolicy::pipelineInvokeEvmKernel` default calls `innerExecute` | ✅ ADR-031 | — | |
+| `StateTransitionHooks::onInvokeInnerExecute` default calls `innerExecute` | ✅ ADR-031 | — | |
 | bcos-evm production code avoids `runTxPipeline` / `executeMessage` | ✅ Wave 2 | 2 | `rg` `bcos-evm/{bcos,eth,opstack}` excluding headers/tests |
 | Tests prefer canonical names; deprecated coverage in `GethNamingAliasesTest` | ✅ Wave 2 | 1–2 | Deprecated-alias tests removed with symbols |
 | OP `lifecycleCheckEntryRules` used in production; `checkEntryRules` test-only or gone | ✅ Wave 1 | 1 | `OpStackTxLifecycle.cpp` |
@@ -218,5 +218,5 @@ Aggregate headers (`include/bcos-evm/*_executor.hpp`) re-export canonical chain 
 | ~~`checkEntryRules`~~ | `lifecycleCheckEntryRules` | P4 (2026-06-30) | ~~1~~ removed 2026-06-30 |
 | ~~`buildExecuteMessageInput`~~ | `EvmTxContextView` | ADR-027 | ~~1~~ removed 2026-06-30 |
 | ~~`dispatchPrecompile`~~ | envelope API | ADR-024 | ~~1~~ removed 2026-06-30 |
-| ~~ChainPrecheckPolicy legacy virtuals~~ | `pipeline*` | ADR-029 | ~~1~~ removed 2026-06-30 |
+| ~~StateTransitionHooks legacy virtuals~~ | `pipeline*` | ADR-029 | ~~1~~ removed 2026-06-30 |
 | ~~`TxExecutionRunner::run`~~ | `runEvmKernelTopLevel` | ADR-029 L3 | ~~1~~ removed 2026-06-30 |

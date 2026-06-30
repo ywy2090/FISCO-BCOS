@@ -25,12 +25,12 @@ void captureSettlementSnapshot(StateTransitionContext& ctx, InnerExecuteOutput c
 
 // geth: stateTransition.execute — ADR-030 / ADR-031 canonical
 void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks const& hooks,
-    OrchestrationErrorPolicy const& errorPolicy)
+    StateTransitionErrorPolicy const& errorPolicy)
 {
     struct PipelineCompleteGuard
     {
         StateTransitionContext& ctx;
-        OrchestrationErrorPolicy const& errorPolicy;
+        StateTransitionErrorPolicy const& errorPolicy;
         ~PipelineCompleteGuard() { errorPolicy.onComplete(ctx); }
     } completeGuard{ctx, errorPolicy};
 

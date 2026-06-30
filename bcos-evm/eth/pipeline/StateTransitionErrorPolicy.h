@@ -8,9 +8,9 @@ namespace bcos::evm
 {
 
 /// Chain-specific error mapping for stateTransitionExecute early-exit and exception paths.
-struct OrchestrationErrorPolicy
+struct StateTransitionErrorPolicy
 {
-    virtual ~OrchestrationErrorPolicy() = default;
+    virtual ~StateTransitionErrorPolicy() = default;
 
     virtual void onIntrinsicGasFailure(
         StateTransitionContext& ctx, IntrinsicDebitFailure failure) const = 0;
@@ -19,7 +19,7 @@ struct OrchestrationErrorPolicy
         StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const = 0;
 
     /// Post-EVM execution result normalization (included-vmerr, CREATE address, revert logs, etc.).
-    /// geth: onFinalizeGasUsed — ADR-030
+    /// geth: finalizeGasUsed — ADR-030
     virtual void onFinalizeGasUsed(StateTransitionContext& ctx) const { (void)ctx; }
 
     /// Optional post-pipeline normalization (e.g. gas_left clamp on error paths).

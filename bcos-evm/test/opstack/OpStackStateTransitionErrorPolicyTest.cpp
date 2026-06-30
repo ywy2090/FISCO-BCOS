@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE OpStackOrchestrationErrorPolicyTest
+#define BOOST_TEST_MODULE OpStackStateTransitionErrorPolicyTest
 
-#include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
+#include "bcos-evm/opstack/OpStackStateTransitionErrorPolicy.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
@@ -20,7 +20,7 @@ namespace
 {
 template <typename Exception>
 void invokePipelineException(
-    OrchestrationErrorPolicy const& errorPolicy, StateTransitionContext& ctx, Exception exception)
+    StateTransitionErrorPolicy const& errorPolicy, StateTransitionContext& ctx, Exception exception)
 {
     try
     {
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_maps_to_out_of_gas_limit)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::OpStackIntrinsicOutOfGas);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_ignores_failure_kind)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_maps_to_internal_error)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, std::runtime_error{"boom"});
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INTERNAL_ERROR);
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_treats_out_of_gas_like_generic)
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INTERNAL_ERROR);
@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
     ctx.state.set_balance(sender, 200);
     BOOST_CHECK(ctx.state.has_checkpoint());
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
 
     BOOST_CHECK(!ctx.state.has_checkpoint());
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
     ctx.kernelOutput.logs.push_back(state::LogEntry{});
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_complete_is_noop)
     raw.gas_left = -5;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onComplete(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, -5);
@@ -208,7 +208,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
 
     OpStackEntryPrecheckPolicy precheckPolicy;
 
-    OpStackOrchestrationErrorPolicy errorPolicy;
+    OpStackStateTransitionErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
 
 namespace bcos::evm
 {
 
-struct OpStackOrchestrationErrorPolicy : OrchestrationErrorPolicy
+struct OpStackStateTransitionErrorPolicy : StateTransitionErrorPolicy
 {
     void onIntrinsicGasFailure(
         StateTransitionContext& ctx, IntrinsicDebitFailure /*failure*/) const override

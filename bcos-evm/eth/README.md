@@ -42,7 +42,7 @@
 | 文件 | 角色 |
 | --- | --- |
 | `ApplyReferenceMessage.*` | 链入口 `applyReferenceMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
-| `EthOrchestrationProfile.*` | `OrchestrationProfile::bind` → 填充 `ChainPrecheckPolicy` + `OrchestrationErrorPolicy` |
+| `EthOrchestrationProfile.*` | `OrchestrationProfile::bind` → 填充 `StateTransitionHooks` + `StateTransitionErrorPolicy` |
 | `EthTxPrecheck.*` | 参考路径交易预检 |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
 
@@ -64,7 +64,7 @@
 applyReferenceMessage()  // geth: ApplyMessage — ADR-030 文档名
   └─ EthOrchestrationProfile::bind
        └─ stateTransitionExecute()   // geth: stateTransition.execute
-            └─ pipelineInvokeEvmKernel → innerExecute()   // geth: innerExecute
+            └─ onInvokeInnerExecute → innerExecute()   // geth: innerExecute
 ```
 
 详见 `docs/architecture-overview.md`、`docs/adr/019-orchestration-pipeline.md`、`docs/adr/030-geth-naming-map.md`、**ADR-033**（磁盘文件名波次）。

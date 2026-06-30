@@ -149,12 +149,12 @@ target_include_directories(EthOrchestrationProfileTest PRIVATE
 target_link_libraries(EthOrchestrationProfileTest PRIVATE
     bcos-evm-eth bcos-protocol)
 add_test(NAME EthOrchestrationProfile COMMAND EthOrchestrationProfileTest)
-add_executable(OrchestrationErrorPolicyTest eth/OrchestrationErrorPolicyTest.cpp)
-target_include_directories(OrchestrationErrorPolicyTest PRIVATE
+add_executable(EthStateTransitionErrorPolicyTest eth/EthStateTransitionErrorPolicyTest.cpp)
+target_include_directories(EthStateTransitionErrorPolicyTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(OrchestrationErrorPolicyTest PRIVATE
+target_link_libraries(EthStateTransitionErrorPolicyTest PRIVATE
     bcos-evm-eth bcos-protocol)
-add_test(NAME OrchestrationErrorPolicy COMMAND OrchestrationErrorPolicyTest)
+add_test(NAME EthStateTransitionErrorPolicy COMMAND EthStateTransitionErrorPolicyTest)
 add_te_input_builder_test(EthTxInputBuilderTest eth/EthTxInputBuilderTest.cpp)
 add_executable(Eip7702ApplyAuthorizationEthTest eth/Eip7702ApplyAuthorizationEthTest.cpp)
 target_include_directories(Eip7702ApplyAuthorizationEthTest PRIVATE

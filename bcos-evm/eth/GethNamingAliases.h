@@ -13,13 +13,13 @@
  *
  *   Tier A (this header — eth kernel):
  *     stateTransitionExecute — canonical (geth stateTransition.execute; ADR-031)
- *     ChainPrecheckPolicy — preCheckRules, preCheckGasAffordable, preCheckCanTransfer,
- *                           normalizeMessage, pipelineInvokeEvmKernel
+ *     StateTransitionHooks — onPreCheckRules, onPreCheckGasAffordable, onPreCheckCanTransfer,
+ *                           onNormalizeMessage, onInvokeInnerExecute, getIntrinsicGasParams
  *     deductIntrinsicGas — canonical (ADR-032 Wave 1 retired debitIntrinsicGas)
  *     innerExecute — canonical (geth innerExecute; ADR-031)
  *     prepareState → execution::warmTransactionEntry
- *     finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
- *     evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
+ *     StateTransitionErrorPolicy — onIntrinsicGasFailure, onException, onFinalizeGasUsed,
+ * onComplete evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
  *
  *   Tier C (chain headers — geth ApplyMessage; exported apply*Message):
  *     applyReferenceMessage   (ApplyReferenceMessage.h)

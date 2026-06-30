@@ -49,8 +49,8 @@ jobs:
           head="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$base" "$head" || true)
           surfaces=$(echo "$changed" | rg -e '^bcos-evm/eth/' \
-            -e '^bcos-evm/bcos/(ExecuteViaHost|FiscoPolicy)' \
-            -e '^bcos-evm/opstack/OpStackExecuteViaHost' \
+            -e '^bcos-evm/bcos/(ApplyFiscoMessage|FiscoPolicy)' \
+            -e '^bcos-evm/opstack/(ApplyOpStackMessage|OpStackTxLifecycle)' \
             -e '^transaction-executor/bcos-transaction-executor/.*(TxInputBuilder|Policy|TransactionExecutorImpl)' \
             || true)
           if [[ -n "$surfaces" ]]; then

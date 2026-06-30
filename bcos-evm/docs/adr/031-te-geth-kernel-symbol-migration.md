@@ -40,7 +40,7 @@ Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyReferenceMessage` 
 | Area | Change |
 | --- | --- |
 | Chain bridges | `FiscoExecute`, `EthReferenceExecute`, `OpStackTxLifecycle` call `stateTransitionExecute` |
-| `ChainPrecheckPolicy::pipelineInvokeEvmKernel` default | calls `innerExecute` |
+| `StateTransitionHooks::onInvokeInnerExecute` default | calls `innerExecute` |
 | `OpStackPrecheckPolicy` override | calls `innerExecute` |
 | Tests | Prefer canonical names; deprecated-alias tests removed with symbols (ADR-032) |
 

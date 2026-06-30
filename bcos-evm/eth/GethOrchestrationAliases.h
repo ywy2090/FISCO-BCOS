@@ -5,8 +5,8 @@
  * @brief ADR-030 §6 documentation-only orchestration type aliases.
  * @file GethOrchestrationAliases.h
  *
- * geth vocabulary for OrchestrationProfile / ChainPrecheckPolicy /
- * OrchestrationErrorPolicy / ExecutionBundle — not used in production code;
+ * geth vocabulary for OrchestrationProfile / StateTransitionHooks /
+ * StateTransitionErrorPolicy / ExecutionBundle — not used in production code;
  * canonical C++ names remain on disk (see ADR-030 §6, Tier C/D).
  *
  * Eth reference-path types are aliased here (eth/ includes only). FISCO and
@@ -17,36 +17,32 @@
 #pragma once
 
 #include "bcos-evm/eth/apply/EthExecutionBundle.h"
-#include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/apply/EthOrchestrationProfile.h"
 #include "bcos-evm/eth/apply/EthPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
 
 namespace bcos::evm
 {
 
 // --- eth kernel interfaces (Tier A — portable preCheck / error mapping) ---
 
-/// geth: preCheck slices — ADR-030 §6
-using PreCheckPolicy = ChainPrecheckPolicy;
-
 /// geth: execute return error vs included vmerr — ADR-030 §6
-using ExecutionResultMapper = OrchestrationErrorPolicy;
+using ExecutionResultMapper = StateTransitionErrorPolicy;
 
-// --- eth reference chain (Tier C — StateTransitionHooks / host bundle) ---
+// --- eth reference chain (Tier C — orchestration bind / host bundle) ---
 
-/// geth: preCheck hook table — ADR-030 §6 (eth reference path)
-using StateTransitionHooks = EthOrchestrationProfile;
+/// geth: hook bind table — ADR-030 §6 (eth reference path)
+using OrchestrationBindProfile = EthOrchestrationProfile;
 
-/// geth: inputs to build StateTransitionHooks — ADR-030 §6
+/// geth: inputs to build OrchestrationBindProfile — ADR-030 §6
 using HookBindInputs = EthOrchestrationProfile::BindingsContext;
 
 /// geth: chain preCheck binding — ADR-030 §6 (eth reference path)
 using ReferencePreCheckPolicy = EthPrecheckPolicy;
 
 /// geth: chain execution result mapping — ADR-030 §6 (eth reference path)
-using ReferenceExecutionResultMapper = EthOrchestrationErrorPolicy;
+using ReferenceExecutionResultMapper = EthStateTransitionErrorPolicy;
 
 /// geth: EvmHostHooks + adapter lifetime — ADR-030 §6 (eth reference path)
 using EvmHostContext = EthExecutionBundle;
@@ -58,20 +54,20 @@ using ChainHostBundle = EthExecutionBundle;
 
 struct FiscoOrchestrationProfile;
 struct FiscoPrecheckPolicy;
-struct FiscoOrchestrationErrorPolicy;
+struct FiscoStateTransitionErrorPolicy;
 struct FiscoExecutionBundle;
 
 struct OpStackOrchestrationProfile;
 struct OpStackPrecheckPolicy;
-struct OpStackOrchestrationErrorPolicy;
+struct OpStackStateTransitionErrorPolicy;
 struct OpStackExecutionBundle;
 struct OpStackSettlementFacade;
 
-// geth StateTransitionHooks  ↔ FiscoOrchestrationProfile / OpStackOrchestrationProfile
+// geth OrchestrationBindProfile ↔ FiscoOrchestrationProfile / OpStackOrchestrationProfile
 // geth HookBindInputs        ↔ FiscoOrchestrationProfile::BindingsContext /
 //                              OpStackOrchestrationProfile::BindingsContext
-// geth PreCheckPolicy        ↔ FiscoPrecheckPolicy / OpStackPrecheckPolicy
-// geth ExecutionResultMapper ↔ FiscoOrchestrationErrorPolicy / OpStackOrchestrationErrorPolicy
+// geth StateTransitionHooks  ↔ FiscoPrecheckPolicy / OpStackPrecheckPolicy / EthPrecheckPolicy
+// geth ExecutionResultMapper ↔ FiscoStateTransitionErrorPolicy / OpStackStateTransitionErrorPolicy
 // geth EvmHostContext        ↔ FiscoExecutionBundle / OpStackExecutionBundle
 // geth SettlementProjection  ↔ OpStackSettlementFacade
 
