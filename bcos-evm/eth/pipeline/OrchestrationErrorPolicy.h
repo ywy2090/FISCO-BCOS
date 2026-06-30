@@ -7,7 +7,7 @@
 namespace bcos::evm
 {
 
-/// Chain-specific error mapping for runTxPipeline early-exit and exception paths.
+/// Chain-specific error mapping for stateTransitionExecute early-exit and exception paths.
 struct OrchestrationErrorPolicy
 {
     virtual ~OrchestrationErrorPolicy() = default;

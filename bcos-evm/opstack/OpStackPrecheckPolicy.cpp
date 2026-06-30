@@ -188,7 +188,7 @@ ExecuteMessageOutput OpStackPrecheckPolicy::pipelineInvokeEvmKernel(
         return std::move(*spyOutput);
     }
 #endif
-    return executeMessage(std::move(input));
+    return innerExecute(std::move(input));
 }
 
 }  // namespace bcos::evm

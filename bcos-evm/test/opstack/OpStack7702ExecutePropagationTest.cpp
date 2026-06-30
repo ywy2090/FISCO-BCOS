@@ -111,7 +111,7 @@ OpStackExecutionRequest make7702Input(TestAuthKeyPair const& authKey, evmc_addre
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_executeMessage)
+BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_innerExecute)
 {
     auto const authKey = TestAuthKeyPair::generate();
     auto const sender = authKey.address();
@@ -313,7 +313,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
             gas::TX_BASE_GAS + gas::calcAuthTupleIntrinsicGas(input.authorizations.size()));
         input.message.gas -= intrinsicGas;
 
-        auto output = executeMessage(std::move(input));
+        auto output = innerExecute(std::move(input));
         BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
         BOOST_CHECK_EQUAL(state.get_refund(), preSeedAuthority ? kExistenceRefund : 0u);
     };

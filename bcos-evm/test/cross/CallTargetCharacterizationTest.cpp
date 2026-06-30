@@ -31,7 +31,7 @@ namespace bcos::evm::test
 {
 namespace
 {
-// BASELINE(call-target-resolver): C1 identity 0x04 — depth=0 via executeMessage
+// BASELINE(call-target-resolver): C1 identity 0x04 — depth=0 via innerExecute
 constexpr evmc_status_code kC1Depth0Status = EVMC_SUCCESS;
 constexpr int64_t kC1Depth0GasLeft = 499'982;
 
@@ -131,7 +131,7 @@ CallOutcome runDepth0EmptyCall(ExecuteMessageInput input)
                                input.message.code_address :
                                input.message.recipient;
     auto* statePtr = input.state;
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
     CallOutcome outcome;
     outcome.status = output.result.status_code;
     outcome.gasLeft = output.result.gas_left;

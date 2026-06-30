@@ -22,7 +22,7 @@ class Hash;
 namespace bcos::evm
 {
 
-/// Pure-ethereum orchestration: executeMessage + EthVmHostPolicy (reference path only).
+/// Pure-ethereum orchestration: innerExecute + EthVmHostPolicy (reference path only).
 struct EthReferenceRequest
 {
     state::StateView const* stateView{nullptr};

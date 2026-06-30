@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(opstack_adapter_propagates_through_execute_message)
     input.txProps.warmDestination = true;
     input.chainPort = &chainAdapter;
 
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_REVERT);
     BOOST_CHECK(input.chainPort == &chainAdapter);
 }

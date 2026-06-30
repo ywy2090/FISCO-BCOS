@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_identity_matches_eth_host_call)
         hostOutcome.output.begin(), hostOutcome.output.end());
 }
 
-BOOST_AUTO_TEST_CASE(top_level_executeMessage_delegatecall_identity_allowed)
+BOOST_AUTO_TEST_CASE(top_level_innerExecute_delegatecall_identity_allowed)
 {
     std::array<uint8_t, 4> inputBytes{0x10, 0x20, 0x30, 0x40};
     auto const sender = addressFromLastByte(0x01);
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(top_level_executeMessage_delegatecall_identity_allowed)
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
-    auto output = executeMessage(makeBaseInput(&state, message));
+    auto output = innerExecute(makeBaseInput(&state, message));
     assertIdentityDelegateCallSuccess(
         {.status = output.result.status_code,
             .gasLeft = output.result.gas_left,

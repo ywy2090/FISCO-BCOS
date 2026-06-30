@@ -66,7 +66,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 
-    runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
+    stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("ethReferenceExecute done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))

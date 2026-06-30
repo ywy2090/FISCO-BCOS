@@ -91,7 +91,7 @@ void logEntry(ExecuteMessageInput const& input)
         trace::logMessageContext(input.message);
         return;
     }
-    EVM_LOG(TRACE) << LOG_DESC("executeMessage nested")
+    EVM_LOG(TRACE) << LOG_DESC("innerExecute nested")
                    << LOG_KV("kind", trace::callKind(input.message.kind))
                    << LOG_KV("depth", input.message.depth) << LOG_KV("gas", input.message.gas)
                    << LOG_KV("code", trace::evmcAddress(input.message.code_address));
@@ -135,7 +135,7 @@ ExecuteMessageOutput finalizePrecompileHit(
     ExecuteMessageOutput output;
     output.result = std::move(fr.result);
     output.logs = host.take_logs();
-    EVM_LOG(TRACE) << LOG_DESC("executeMessage precompile")
+    EVM_LOG(TRACE) << LOG_DESC("innerExecute precompile")
                    << LOG_KV("status", trace::evmcStatus(output.result.status_code))
                    << LOG_KV("gasLeft", output.result.gas_left);
     output.gasRefund = fr.gasRefund;
@@ -175,7 +175,7 @@ ExecuteMessageOutput finalizeAfterFrame(
 
     if (input.message.depth == 0)
     {
-        EVM_LOG(DEBUG) << LOG_DESC("executeMessage done")
+        EVM_LOG(DEBUG) << LOG_DESC("innerExecute done")
                        << LOG_KV("status", trace::evmcStatus(output.result.status_code))
                        << LOG_KV("gasLeft", output.result.gas_left)
                        << LOG_KV("gasRefund", output.gasRefund)
@@ -183,7 +183,7 @@ ExecuteMessageOutput finalizeAfterFrame(
     }
     else
     {
-        EVM_LOG(TRACE) << LOG_DESC("executeMessage nested done")
+        EVM_LOG(TRACE) << LOG_DESC("innerExecute nested done")
                        << LOG_KV("status", trace::evmcStatus(output.result.status_code))
                        << LOG_KV("gasLeft", output.result.gas_left);
     }
@@ -195,7 +195,7 @@ ExecuteMessageOutput TxExecutionRunner::runEvmKernelTopLevel(ExecuteMessageInput
 {
     if (input.state == nullptr || input.vm == nullptr)
     {
-        throw std::invalid_argument("executeMessage requires State owner and vm");
+        throw std::invalid_argument("innerExecute requires State owner and vm");
     }
 
     std::optional<trace::EvmTraceScope> traceScope;

@@ -364,7 +364,7 @@ BOOST_AUTO_TEST_CASE(top_level_sender_nonce_bump_on_success)
     message.input_data = nullptr;
     message.input_size = 0;
 
-    auto const output = executeMessage(makeBaseInput(&state, message));
+    auto const output = innerExecute(makeBaseInput(&state, message));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(state.get_nonce(sender), 6U);
 }
@@ -384,7 +384,7 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_hit_skips_finalize_self_destructs)
     state.set_code(victim, bcos::bytes{0x60, 0x00}, {});
     state.mark_self_destructed(victim);
 
-    auto const output = executeMessage(makeBaseInput(&state, message));
+    auto const output = innerExecute(makeBaseInput(&state, message));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE(state.has_self_destructed(victim));
     BOOST_REQUIRE_EQUAL(state.get_balance(victim), 500U);

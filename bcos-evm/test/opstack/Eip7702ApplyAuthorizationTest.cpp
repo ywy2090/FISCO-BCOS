@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(valid_auth_installs_delegation_invalid_is_ignored_and_refun
     input.authorizations.push_back(authKey.sign(delegationTarget, 1));
     input.authorizations.push_back(authKey.sign(delegationTarget, 99));
 
-    auto output = executeMessage(input);
+    auto output = innerExecute(input);
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(unsigned_authorization_is_ignored)
     input.authorizations.push_back(
         {.chainId = u256(1), .authority = sender, .address = delegationTarget, .nonce = 1});
 
-    auto output = executeMessage(input);
+    auto output = innerExecute(input);
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);

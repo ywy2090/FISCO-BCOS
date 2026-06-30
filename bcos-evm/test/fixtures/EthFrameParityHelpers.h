@@ -84,7 +84,7 @@ inline ExecuteMessageInput makeBaseInput(state::State* state, evmc_message const
 
 inline FrameBalanceOutcome runDepth0(state::State& state, evmc_message const& message)
 {
-    auto output = executeMessage(makeBaseInput(state, message));
+    auto output = innerExecute(makeBaseInput(state, message));
     return {.status = output.result.status_code,
         .gasLeft = output.result.gas_left,
         .senderBalance = state.get_balance(message.sender),

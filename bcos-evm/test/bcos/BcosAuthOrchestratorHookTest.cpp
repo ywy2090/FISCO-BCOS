@@ -28,7 +28,7 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(auth_checker_hook_short_circuits_before_executeMessage)
+BOOST_AUTO_TEST_CASE(auth_checker_hook_short_circuits_before_innerExecute)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);

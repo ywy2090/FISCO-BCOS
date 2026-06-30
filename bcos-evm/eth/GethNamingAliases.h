@@ -11,11 +11,11 @@
  * Kernel alias index (ADR-029 layer prefixes + ADR-030 geth names coexist):
  *
  *   Tier A (this header — eth kernel):
- *     stateTransitionExecute → runTxPipeline
+ *     stateTransitionExecute — canonical (geth stateTransition.execute; ADR-031)
  *     ChainPrecheckPolicy — preCheckRules, preCheckGasAffordable, preCheckCanTransfer,
  *                           normalizeMessage, pipelineInvokeEvmKernel
  *     deductIntrinsicGas (canonical; debitIntrinsicGas deprecated)
- *     innerExecute → executeMessage
+ *     innerExecute — canonical (geth innerExecute; ADR-031)
  *     prepareState → execution::warmTransactionEntry
  *     finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
  *     evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
@@ -25,9 +25,11 @@
  *     applyFiscoMessage     → fiscoExecute          (FiscoExecute.h)
  *     applyOpStackMessage   → opStackExecute        (OpStackExecute.h)
  *
- *   Tier E stable ABI (retain; no [[deprecated]] until TE migrates):
- *     executeMessage, ethReferenceExecute, fiscoExecute, opStackExecute,
- *     runTxPipeline, runExecutionFrame (deprecated alias of runCallFrame)
+ *   Tier E stable ABI (deprecated inline forwards; remove per ADR-031 schedule):
+ *     executeMessage → innerExecute
+ *     runTxPipeline → stateTransitionExecute
+ *     ethReferenceExecute, fiscoExecute, opStackExecute,
+ *     runExecutionFrame (deprecated alias of runCallFrame)
  */
 
 #pragma once
@@ -42,19 +44,6 @@
 
 namespace bcos::evm
 {
-
-// geth: stateTransition.execute — ADR-030
-inline void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheck,
-    OrchestrationErrorPolicy const& errorPolicy)
-{
-    runTxPipeline(ctx, precheck, errorPolicy);
-}
-
-// geth: innerExecute — ADR-030 Tier E forward to executeMessage
-[[nodiscard]] inline ExecuteMessageOutput innerExecute(ExecuteMessageInput input)
-{
-    return executeMessage(std::move(input));
-}
 
 // geth: state.Prepare — ADR-030
 inline void prepareState(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,

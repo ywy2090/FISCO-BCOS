@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(setcode_auth_applied_then_top_level_balance_failure_state_d
     input.authorizationListPresent = true;
     input.authorizations.push_back(authKey.sign(delegationTarget, 1));
 
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
 
     // CURRENT_ORACLE: execution returns INSUFFICIENT_BALANCE after auth path ran.
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_INSUFFICIENT_BALANCE);

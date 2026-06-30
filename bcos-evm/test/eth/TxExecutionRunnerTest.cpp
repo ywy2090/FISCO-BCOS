@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE(nested_success_skips_top_level_sender_nonce_bump)
     }
 }
 
-// Matrix: T09 — executeMessage delegator matches TxExecutionRunner::runEvmKernelTopLevel.
+// Matrix: T09 — innerExecute delegator matches TxExecutionRunner::runEvmKernelTopLevel.
 BOOST_AUTO_TEST_CASE(execute_message_delegates_to_runner)
 {
     state::test::InMemoryStateView stateView;
@@ -269,7 +269,7 @@ BOOST_AUTO_TEST_CASE(execute_message_delegates_to_runner)
 
     state::State stateAgain(stateView);
     auto input = makePragueCallInput(stateAgain, message);
-    auto const viaFacade = bcos::evm::executeMessage(std::move(input));
+    auto const viaFacade = bcos::evm::innerExecute(std::move(input));
 
     BOOST_CHECK_EQUAL(viaRunner.result.status_code, viaFacade.result.status_code);
     BOOST_CHECK_EQUAL(viaRunner.gasRefund, viaFacade.gasRefund);

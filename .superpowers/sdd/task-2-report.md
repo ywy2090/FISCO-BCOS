@@ -1,48 +1,63 @@
-# Task 2 Report — EthFixtureAdapter + FixtureAssert
+# Task 2 Report: Phase 3b — Kernel Canonical Names + TE ADR
 
-**Status:** Done  
-**Commit:** `66b8839cd4d85654508b5a076c20ea32be17f170`  
-**Message:** `feat(test): add EthFixtureAdapter and fixture assertion helpers`
+**Status:** Complete  
+**Start:** `a290c486fd761cbae2da4a152790819a1fab91f8`  
+**Date:** 2026-06-30
 
 ## Summary
 
-Added two header-only helpers under `bcos-evm/test/fixtures/` for T-09 `executeViaEth` fixture validation:
+Promoted geth kernel symbols to canonical C++ identifiers in `bcos-evm/eth/`: `stateTransitionExecute` (was `runTxPipeline`) and `innerExecute` (was `executeMessage`). Tier E deprecated inline aliases retained for TE compatibility. Added ADR-031 documenting TE migration schedule.
 
-1. **`EthFixtureAdapter.h`**
-   - `makePragueRevisionConfig()` — inline Prague `RevisionConfig` matching `EthPolicy::computeRevisionConfig` for block ≥ 22M (`EVMC_PRAGUE`, `warm_access`, Cancun EIPs, `eip2537`, `eip7623`, `calldata_floor_per_token=10`).
-   - `buildExecuteViaEthInput()` — maps `FixtureCase` → `ExecuteViaEthInput`:
-     - `tx.to` present → `EVMC_CALL`; absent → `EVMC_CREATE`
-     - `evmc_message` from `fixture.tx` + `fixture.txProps.isStatic`
-     - `blockInfo` from `fixture.block`
-     - empty `blockHashes` lambda (same as `PragueStateTest`)
-     - `gasPrice` from `fixture.tx.gasPrice`
+## Renames Applied
 
-2. **`FixtureAssert.h`**
-   - `assertFixtureResult()` — compares `evmcResult.status`, output bytes (`sameBytes`), logs count, and gas used with tolerance when `expected.gasUsed != 0`.
+| Legacy (Tier E) | Canonical (ADR-031) | Deprecated alias location |
+| --- | --- | --- |
+| `runTxPipeline` | `stateTransitionExecute` | `TxPipeline.h` |
+| `executeMessage` | `innerExecute` | `ExecuteMessage.h` |
 
-## Files Created
+## GethNamingAliases.h
 
-| File | Purpose |
-|------|---------|
-| `bcos-evm/test/fixtures/EthFixtureAdapter.h` | Fixture → `ExecuteViaEthInput` adapter |
-| `bcos-evm/test/fixtures/FixtureAssert.h` | Shared result assertions |
+- Removed redundant `stateTransitionExecute` / `innerExecute` forwards (now canonical in kernel headers).
+- Updated index comments to reflect Tier E → canonical direction.
 
-## Verification
+## Internal call sites updated
 
-| Check | Result |
-|-------|--------|
-| Header compile (via temporary `#include` in `PragueStateTest.cpp`) | PASS |
-| Dedicated test target | N/A — Task 2 is headers only; Task 3 adds `ExecuteViaEthFixtureTest` |
-| Runtime tests | N/A |
+| Area | Change |
+| --- | --- |
+| `FiscoExecute.cpp` | `stateTransitionExecute` |
+| `EthReferenceExecute.cpp` | `stateTransitionExecute` |
+| `OpStackTxLifecycle.cpp` | `stateTransitionExecute` (×2) |
+| `ChainPrecheckPolicy.h` default | `innerExecute` |
+| `OpStackPrecheckPolicy.cpp` | `innerExecute` |
+| `TxExecutionRunner.cpp` logs | `innerExecute` |
+| bcos-evm tests (~35 files) | canonical names |
 
-## Concerns / Notes
+## Transaction executor
 
-1. **`EthPolicy.h` not included** — Including `EthPolicy.h` pulls in `protocol::BlockHeader`, which is unavailable in lightweight test TU link contexts. Prague flags are inlined from `RevisionConfig.h` instead; values mirror `EthPolicy::computeRevisionConfig` for Prague.
-2. **`eip7702` default false** — `EthPolicy` does not set `eip7702`; flag left at default. EIP-7702 fixture cases (Task 4+) may need explicit config extension.
-3. **Gas assertion vs EIP-7623** — `assertFixtureResult` uses `gasBefore - gas_left`. Callers should pass `fixture.tx.gasLimit` as `gasBefore`; EIP-7623 intrinsic deduction inside `executeViaEth` may require non-zero `gas_used_tolerance` on imported fixtures.
-4. **`evmc_message` data lifetime** — `input.message.input_data` points into `fixture.tx.data`; caller must keep `fixture` alive for the duration of `executeViaEth`.
+Audited `transaction-executor/` — **no direct** `runTxPipeline` / `executeMessage` calls. TE enters via Tier E adapters (`fiscoExecute`, `ethReferenceExecute`, `opStackExecute`). No TE code changes required for Phase 3b (documented in ADR-031 §3).
 
-## Next (Task 3)
+## ADR
 
-- `ExecuteViaEthFixtureTest.cpp` consuming these headers
-- CMake target + ctest registration
+Added `bcos-evm/docs/adr/031-te-geth-kernel-symbol-migration.md`.
+
+## Test Results
+
+```text
+ctest -R 'GethNaming|TxPipeline|TxExecutionRunner|EthOrchestrationProfile'
+4/4 passed (build/)
+```
+
+| Test | Result |
+| --- | --- |
+| GethNamingAliases | Passed |
+| TxPipeline | Passed |
+| TxExecutionRunner | Passed |
+| EthOrchestrationProfile | Passed |
+
+## Commit
+
+`refactor(bcos-evm): promote stateTransitionExecute and innerExecute to canonical kernel names`
+
+## Concerns
+
+None blocking. Deprecated aliases must remain until TE Phase 4–6 migration per ADR-031.

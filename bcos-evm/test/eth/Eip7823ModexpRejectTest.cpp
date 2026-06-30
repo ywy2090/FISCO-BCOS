@@ -41,7 +41,7 @@ bcos::bytes modexpHeaderBaseLen1025()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_executeMessage)
+BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_innerExecute)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = senderAddress();
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_executeMessage)
     execInput.revisionConfig.revision = EVMC_OSAKA;
     execInput.revisionConfig.eip7823 = true;
 
-    auto output = executeMessage(std::move(execInput));
+    auto output = innerExecute(std::move(execInput));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_PRECOMPILE_FAILURE);
 }
 

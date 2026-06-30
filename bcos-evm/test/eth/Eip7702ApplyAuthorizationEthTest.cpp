@@ -11,7 +11,7 @@
 namespace bcos::evm::test
 {
 
-BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
+BOOST_AUTO_TEST_CASE(apply_authorization_via_innerExecute_prague)
 {
     auto const authKey = TestAuthKeyPair::generate();
     auto const sender = authKey.address();
@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
     input.authorizationListPresent = true;
     input.authorizations.push_back(authKey.sign(delegationTarget, 1));
 
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);

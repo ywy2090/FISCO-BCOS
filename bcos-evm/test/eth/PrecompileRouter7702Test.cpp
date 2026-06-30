@@ -50,7 +50,7 @@ FrameBalanceOutcome runDepth0With7702(state::State& state, evmc_message message)
 {
     auto input = makeBaseInput(&state, message);
     input.revisionConfig.eip7702 = true;
-    auto output = executeMessage(input);
+    auto output = innerExecute(input);
     return {.status = output.result.status_code,
         .gasLeft = output.result.gas_left,
         .senderBalance = state.get_balance(message.sender),

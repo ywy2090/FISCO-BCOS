@@ -28,7 +28,7 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(fiscoExecute_propagates_authorizations_to_executeMessage)
+BOOST_AUTO_TEST_CASE(fiscoExecute_propagates_authorizations_to_innerExecute)
 {
     auto const authKey = TestAuthKeyPair::generate();
     auto const sender = authKey.address();

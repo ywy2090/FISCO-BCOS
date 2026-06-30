@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(EthHost_sstoreClear_accumulates4800)
     input.blockInfo = blockInfo;
     input.revisionConfig.revision = EVMC_LONDON;
 
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK(Bytes32Equal{}(state.get_storage(contract, slotKey), evmc_bytes32{}));
     BOOST_CHECK_EQUAL(state.get_refund(), 4800u);

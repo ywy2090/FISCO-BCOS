@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
     input.txProps.warmDestination = true;
     input.chainPort = &chainAdapter;
 
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_REVERT);
 }
 }  // namespace bcos::evm::test

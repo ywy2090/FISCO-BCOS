@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(imported_selfdestruct_fixture_via_execute_message)
     state::State state(view);
     auto input = buildExecuteMessageInput(fixture, state, vm);
     int64_t const gasBefore = input.message.gas;
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(output.result.status_code), static_cast<int>(fixture.expected.status));
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(created_in_tx_selfdestruct_clears_code_via_execute_message)
     input.gasPrice = 0;
 
     auto const predictedAddr = state::predictLegacyCreateAddress(sender, 0);
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     applyStateDiffToView(output.stateDiff, stateView);

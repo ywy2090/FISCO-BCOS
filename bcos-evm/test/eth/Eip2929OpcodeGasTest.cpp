@@ -72,7 +72,7 @@ ExecuteMessageOutput runContractCode(state::test::InMemoryStateView& stateView, 
     input.revisionConfig = makeBerlinRevisionConfig();
     input.txProps.warmDestination = true;
 
-    return executeMessage(std::move(input));
+    return innerExecute(std::move(input));
 }
 
 bcos::bytes balanceOnceCode(evmc_address const& target)
@@ -221,7 +221,7 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_warm_access_disabled)
     input.revisionConfig = cfg;
     input.txProps.warmDestination = true;
 
-    auto output = executeMessage(std::move(input));
+    auto output = innerExecute(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     // Host always reports COLD when warm_access=false; evmone charges cold surcharge each time.

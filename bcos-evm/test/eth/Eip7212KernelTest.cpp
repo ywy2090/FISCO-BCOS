@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_dispatch)
     BOOST_CHECK_EQUAL(result->output[31], 0x01);
 }
 
-BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_executeMessage)
+BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_innerExecute)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = senderAddress();
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_executeMessage)
     execInput.revisionConfig.revision = EVMC_OSAKA;
     execInput.revisionConfig.eip7212 = true;
 
-    auto output = executeMessage(std::move(execInput));
+    auto output = innerExecute(std::move(execInput));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(output.result.output_size, 32u);
     BOOST_CHECK_EQUAL(output.result.output_data[31], 0x01);

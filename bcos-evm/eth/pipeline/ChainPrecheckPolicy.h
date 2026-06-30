@@ -7,7 +7,8 @@
 namespace bcos::evm
 {
 
-/// Chain-specific pre-execution checks for runTxPipeline (setup, rules, gas, balance, tuning).
+/// Chain-specific pre-execution checks for stateTransitionExecute (setup, rules, gas, balance,
+/// tuning).
 struct ChainPrecheckPolicy
 {
     virtual ~ChainPrecheckPolicy() = default;
@@ -26,7 +27,7 @@ struct ChainPrecheckPolicy
 
     virtual ExecuteMessageOutput pipelineInvokeEvmKernel(ExecuteMessageInput&& input) const
     {
-        return executeMessage(std::move(input));
+        return innerExecute(std::move(input));
     }
 
     // ADR-029 deprecated aliases (1 release)

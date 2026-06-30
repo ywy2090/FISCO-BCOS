@@ -92,7 +92,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
         ctx.state.checkpoint();
 
-        runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
+        stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
         output.evmcResult = std::move(ctx.evmcResult);
         output.logs = std::move(ctx.kernelOutput.logs);
@@ -126,7 +126,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     ctx.gasPrice = sidecar.effectiveGasPrice;
 
-    runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
+    stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);

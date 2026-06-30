@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
     input.authorizationListPresent = true;
     input.authorizations.push_back(authKey.sign(evmc_address{}, 1));
 
-    auto output = executeMessage(input);
+    auto output = innerExecute(input);
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);

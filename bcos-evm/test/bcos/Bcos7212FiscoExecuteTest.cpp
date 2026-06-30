@@ -57,7 +57,7 @@ bcos::evm_standard::RevisionConfig osakaEthRevisionConfig()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(executeMessage_feature_evm_osaka_p256verify_success)
+BOOST_AUTO_TEST_CASE(innerExecute_feature_evm_osaka_p256verify_success)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = senderAddress();
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(executeMessage_feature_evm_osaka_p256verify_success)
     execInput.blockInfo = blockInfo;
     execInput.revisionConfig = revisionConfig;
 
-    auto output = executeMessage(std::move(execInput));
+    auto output = innerExecute(std::move(execInput));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(output.result.output_size, 32u);
     BOOST_CHECK_EQUAL(output.result.output_data[31], 0x01);

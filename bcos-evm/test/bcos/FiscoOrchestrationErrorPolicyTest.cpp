@@ -496,7 +496,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_revert_without_fix_revert_
     BOOST_CHECK_EQUAL(ctx.kernelOutput.logs.size(), 1U);
 }
 
-// INT-02: runTxPipeline routes balance exceptions through Fisco error policy.
+// INT-02: stateTransitionExecute routes balance exceptions through Fisco error policy.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
 {
     state::test::InMemoryStateView stateView;
@@ -529,7 +529,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
     ThrowBalancePrecheckPolicy precheckPolicy;
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::ExceptionHandled));

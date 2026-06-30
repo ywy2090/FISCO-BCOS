@@ -67,9 +67,9 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
     TransactionReceipt receipt{};
     auto msg = buildTopLevelMessage(tx, tx_props);
     // Keep transition() as a thin adapter: warm-up + execution + commit/revert
-    // are centralized in executeMessage().
+    // are centralized in innerExecute().
     State state(state_view);
-    auto executeOutput = executeMessage(ExecuteMessageInput{.state = &state,
+    auto executeOutput = innerExecute(ExecuteMessageInput{.state = &state,
         .vm = &vm,
         .message = msg,
         .gasPrice = tx.gasPrice,

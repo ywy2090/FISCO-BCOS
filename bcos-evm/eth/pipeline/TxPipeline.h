@@ -6,7 +6,14 @@
 namespace bcos::evm
 {
 
-void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
+// geth: stateTransition.execute — ADR-030 / ADR-031 canonical
+void stateTransitionExecute(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
     OrchestrationErrorPolicy const& errorPolicy);
+
+[[deprecated("Use stateTransitionExecute")]] inline void runTxPipeline(TxPipelineContext& ctx,
+    ChainPrecheckPolicy const& precheckPolicy, OrchestrationErrorPolicy const& errorPolicy)
+{
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
+}
 
 }  // namespace bcos::evm

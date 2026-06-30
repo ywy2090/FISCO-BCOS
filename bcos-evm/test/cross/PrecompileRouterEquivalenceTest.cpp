@@ -88,7 +88,7 @@ ExecuteMessageInput makeBaseInput(state::State& state, evmc_message const& messa
 CallOutcome runDepth0(state::State& state, evmc_message const& message,
     ChainCallTargetDispatcher* chainPort = nullptr)
 {
-    auto output = executeMessage(makeBaseInput(state, message, chainPort));
+    auto output = innerExecute(makeBaseInput(state, message, chainPort));
     return {.status = output.result.status_code,
         .gasLeft = output.result.gas_left,
         .recipientBalance = state.get_balance(balanceTarget(message))};

@@ -13,7 +13,7 @@
 namespace bcos::evm::execution
 {
 
-/// Tx-level story between runTxPipeline and runCallFrame (PR-A deep module).
+/// Tx-level story between stateTransitionExecute and runCallFrame (PR-A deep module).
 struct TxExecutionRunner
 {
     static ExecuteMessageOutput runEvmKernelTopLevel(ExecuteMessageInput input);

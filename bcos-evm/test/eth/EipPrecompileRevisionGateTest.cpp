@@ -205,7 +205,7 @@ BOOST_AUTO_TEST_CASE(cancun_call_0x0b_not_precompile_dispatch)
     input.blockInfo = fixture.block;
     input.revisionConfig.revision = EVMC_CANCUN;
 
-    auto output = executeMessage(input);
+    auto output = innerExecute(input);
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(output.result.gas_left, initialGas);
     BOOST_CHECK_EQUAL(output.result.output_size, size_t(0));

@@ -108,7 +108,7 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{
         input, output, fixErrorHandling, eip7623Enabled};
     auto bindings = FiscoOrchestrationProfile::bind(bindingsCtx);
-    runTxPipeline(ctx, bindings.precheckPolicy, bindings.errorPolicy);
+    stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))

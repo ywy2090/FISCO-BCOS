@@ -109,7 +109,7 @@ ExecuteMessageOutput runCallerContract(state::test::InMemoryStateView& stateView
     input.revisionConfig = makePrague7702Config();
     input.txProps.warmDestination = true;
 
-    return executeMessage(std::move(input));
+    return innerExecute(std::move(input));
 }
 
 void installDelegation(state::test::InMemoryStateView& stateView,

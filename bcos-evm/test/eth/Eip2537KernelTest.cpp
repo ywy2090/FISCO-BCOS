@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth)
     BOOST_CHECK_EQUAL(r->gasCost, 22776);
 }
 
-BOOST_AUTO_TEST_CASE(stBLS_add_precompile_0x0b_via_executeMessage)
+BOOST_AUTO_TEST_CASE(stBLS_add_precompile_0x0b_via_innerExecute)
 {
 #ifdef ETH_STATE_FIXTURES_DIR
     auto const path = std::filesystem::path(ETH_STATE_FIXTURES_DIR) / "imported" / "stBLS_add.json";
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(stBLS_add_precompile_0x0b_via_executeMessage)
     input.revisionConfig.revision = EVMC_PRAGUE;
     input.revisionConfig.eip2537 = true;
 
-    auto output = executeMessage(input);
+    auto output = innerExecute(input);
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
     bcos::bytes actual(
         output.result.output_data, output.result.output_data + output.result.output_size);

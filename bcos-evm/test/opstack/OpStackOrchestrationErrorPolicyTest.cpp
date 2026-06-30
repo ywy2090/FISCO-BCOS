@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_complete_is_noop)
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
 }
 
-// INT-03: runTxPipeline routes OpStack intrinsic failures through error policy.
+// INT-03: stateTransitionExecute routes OpStack intrinsic failures through error policy.
 BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
 {
     state::test::InMemoryStateView stateView;
@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
     OpStackEntryPrecheckPolicy precheckPolicy;
 
     OpStackOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(

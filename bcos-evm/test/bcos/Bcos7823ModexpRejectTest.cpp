@@ -53,7 +53,7 @@ bcos::evm_standard::RevisionConfig osakaEthRevisionConfig()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(executeMessage_feature_evm_osaka_modexp_field_1025_rejected)
+BOOST_AUTO_TEST_CASE(innerExecute_feature_evm_osaka_modexp_field_1025_rejected)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = senderAddress();
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(executeMessage_feature_evm_osaka_modexp_field_1025_rejected
     execInput.blockInfo = blockInfo;
     execInput.revisionConfig = revisionConfig;
 
-    auto output = executeMessage(std::move(execInput));
+    auto output = innerExecute(std::move(execInput));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_PRECOMPILE_FAILURE);
 }
 

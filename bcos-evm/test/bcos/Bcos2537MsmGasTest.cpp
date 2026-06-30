@@ -34,8 +34,8 @@ BOOST_AUTO_TEST_CASE(g1msm_k200_uses_max_discount)
     BOOST_CHECK_EQUAL(bcos::evm::precompiled::blsG2MsmGas(200), 2358000);
 }
 
-// fiscoExecute delegates to executeMessage for kernel precompiles; assert MSM gas on that path.
-BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
+// fiscoExecute delegates to innerExecute for kernel precompiles; assert MSM gas on that path.
+BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_innerExecute_prague)
 {
     state::test::InMemoryStateView view;
     auto const sender = precompileAddress(0x01);
@@ -70,12 +70,12 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
     execInput.revisionConfig.revision = EVMC_PRAGUE;
     execInput.revisionConfig.eip2537 = true;
 
-    auto output = executeMessage(execInput);
+    auto output = innerExecute(execInput);
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(initialGas - output.result.gas_left, 22776);
 }
 
-BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_isthmus_profile)
+BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_innerExecute_isthmus_profile)
 {
     state::test::InMemoryStateView view;
     auto const sender = precompileAddress(0x01);
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_isthmus_profil
     execInput.blockInfo = blockInfo;
     execInput.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
 
-    auto output = executeMessage(execInput);
+    auto output = innerExecute(execInput);
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(initialGas - output.result.gas_left, 22776);
 }

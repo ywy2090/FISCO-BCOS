@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
     precheckPolicy.onTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     };
 
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(mapped);
     BOOST_CHECK(ctx.earlyExit);
@@ -234,7 +234,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
     precheckPolicy.onTuneExecutionInput = [&](ExecuteMessageInput&) { ++tuneExecutionInputCalls; };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -245,10 +245,10 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
     BOOST_CHECK_EQUAL(tuneExecutionInputCalls, 0);
 }
 
-// GAP-003 E-PEX-PIPE: full runTxPipeline path maps BCOS exception via EthOrchestrationErrorPolicy.
-// GETH_ORACLE: go-ethereum/core/state_transition.go:550-552 — unexpected err rejects tx at block
-// level. CURRENT_ORACLE: ExceptionHandled + EVMC_INTERNAL_ERROR + Unknown; no throw escapes
-// runTxPipeline.
+// GAP-003 E-PEX-PIPE: full stateTransitionExecute path maps BCOS exception via
+// EthOrchestrationErrorPolicy. GETH_ORACLE: go-ethereum/core/state_transition.go:550-552 —
+// unexpected err rejects tx at block level. CURRENT_ORACLE: ExceptionHandled + EVMC_INTERNAL_ERROR
+// + Unknown; no throw escapes stateTransitionExecute.
 BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
 {
     state::test::InMemoryStateView stateView;
@@ -263,7 +263,7 @@ BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
     precheckPolicy.onSetupMessage = [](TxPipelineContext&) { throw protocol::PrecompiledError{}; };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    BOOST_REQUIRE_NO_THROW(runTxPipeline(ctx, precheckPolicy, errorPolicy));
+    BOOST_REQUIRE_NO_THROW(stateTransitionExecute(ctx, precheckPolicy, errorPolicy));
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::ExceptionHandled));
@@ -308,7 +308,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
         c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
     };
 
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK(mapCalled);
     BOOST_CHECK_EQUAL(
@@ -359,7 +359,7 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(TxPipelineExitKind::Completed));
@@ -403,7 +403,7 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     };
 
     EthOrchestrationErrorPolicy errorPolicy;
-    runTxPipeline(ctx, precheckPolicy, errorPolicy);
+    stateTransitionExecute(ctx, precheckPolicy, errorPolicy);
 
     BOOST_REQUIRE(capturedState != nullptr);
     BOOST_CHECK(capturedState == &ctx.state);
