@@ -45,20 +45,20 @@ graph TD
         RC["RevisionConfig + Eip2929Access"]
     end
     subgraph bcos["bcos-evm-bcos（FISCO）"]
-        FEB["fiscoExecute()"]
+        FEB["applyFiscoMessage / fiscoExecute()"]
         FOP["FiscoOrchestrationProfile::bind"]
         FVP["FiscoVmHostPolicy"]
         FP["FiscoPolicy"]
         PORTS["AuthPort / ChainCallTargetDispatcher"]
     end
     subgraph op["bcos-evm-op（OP Stack）"]
-        OEB["opStackExecute()"]
+        OEB["applyOpStackMessage / opStackExecute()"]
         OTL["runOpStackTxLifecycle()"]
         OOP["OpStackOrchestrationProfile::bind"]
         OSET["OpStackSettlement settle*"]
         OVP["OpStackVmHostPolicy"]
     end
-    ETH["ethReferenceExecute()"] --> EOP["EthOrchestrationProfile::bind"]
+    ETH["applyReferenceMessage / ethReferenceExecute()"] --> EOP["EthOrchestrationProfile::bind"]
     EOP --> RO
     FEB --> FOP --> RO
     OEB --> OTL
@@ -81,7 +81,7 @@ graph TD
             ┌──────────────────────────┐   ┌──────────────────────────┐
             │   bcos-evm-bcos (FISCO)   │   │   bcos-evm-op (OP Stack)  │
             │  ──────────────────────   │   │  ──────────────────────   │
-            │  fiscoExecute()           │   │  opStackExecute()         │
+            │  applyFiscoMessage / fiscoExecute()  │   │  applyOpStackMessage / opStackExecute() │
             │  FiscoOrchestrationProfile│   │  runOpStackTxLifecycle()  │
             │  FiscoVmHostPolicy        │   │  OpStackOrchestrationProf.│
             │  FiscoPolicy              │   │  OpStackSettlement        │
@@ -118,6 +118,8 @@ graph TD
 ---
 
 ## 3. 执行流：三入口 → Profile 绑定 → 共享编排 → 内核
+
+**双标签约定（ADR-029 + ADR-030）：** 链 L1 入口在文档与注释中优先写 **geth 文档名** `apply{Chain}Message`（Tier C）；代码与 TE 链接仍用 `*Execute`（Tier E，暂不 `[[deprecated]]`）。L2 步骤用 ADR-029 `pipeline*` 前缀；与 geth `stateTransition.execute` 对齐的步骤另附 ADR-030 别名（如 `stateTransitionExecute` → `runTxPipeline`，`innerExecute` → `executeMessage`）。完整映射见 ADR-030 §2–§8 与 `GethNamingAliases.h`。
 
 自 ADR-019 起，三条链在 **`runTxPipeline` 之前**各自装配 `TxPipelineHooks` + `OrchestrationErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(BindingsContext)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
 
@@ -180,14 +182,14 @@ evmone callback → EthHost::call (nested adapter)
 
 **PR4：** `ExecutionFrame.cpp` 内部为 `runTopLevelSteps` / `runNestedSteps` + 命名 step；RR6/RR7 执行序冻结。
 
-三个编排入口签名风格一致，但各自携带链特有字段：
+三个编排入口签名风格一致，但各自携带链特有字段。**L1 双标签：** ADR-030 文档名 / Tier E 稳定 ABI。
 
-| 入口 | 文件 | Profile / 外圈 | 能力矩阵列语义 |
-| --- | --- | --- | --- |
-| `ethReferenceExecute` | `eth/reference/EthReferenceExecute.h` | `EthOrchestrationProfile::bind` | ETH = **接线审计**（非生产继承证明） |
-| `fiscoExecute` | `bcos/FiscoExecute.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | BCOS = **FISCO 生产继承契约** |
-| `opStackExecute` | `opstack/OpStackExecute.h` | validate → `runOpStackTxLifecycle`（ADR-023） | OPStack = **OP 生产继承契约** |
-| `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | ADR-023 characterization 主面 |
+| geth | ADR-030 文档名 | 稳定 ABI（Tier E） | 文件 | Profile / 外圈 | 能力矩阵列语义 |
+| --- | --- | --- | --- | --- | --- |
+| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/reference/EthReferenceExecute.h` | `EthOrchestrationProfile::bind` | ETH = **接线审计**（非生产继承证明） |
+| `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | BCOS = **FISCO 生产继承契约** |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` | validate → `runOpStackTxLifecycle`（ADR-023） | OPStack = **OP 生产继承契约** |
+| — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | ADR-023 characterization 主面 |
 
 > 评审提醒：ETH 列测试通过 **不等于** BCOS/OP 通过。矩阵中标 `inherited` 且 baseline-reachable 的行必须有 TE 路径测试。
 
@@ -215,7 +217,7 @@ evmone callback → EthHost::call (nested adapter)
 
 ### 3.3 OpStack 外圈（ADR-021 + ADR-023）
 
-`opStackExecute` 仅校验 `stateView` / `vm` / `hashImpl`，委托 **`runOpStackTxLifecycle`**：
+`applyOpStackMessage` / `opStackExecute` 仅校验 `stateView` / `vm` / `hashImpl`，委托 **`runOpStackTxLifecycle`**：
 
 ```text
 OpStackPrecheckPolicy::checkEntryRules（buyGas 前 sync 规则）
@@ -232,32 +234,33 @@ Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `comple
 ### 3.4 三路径调用流（总览）
 
 ```text
-   ETH 参考路径        FISCO 生产路径            OP Stack 生产路径
-  ──────────────     ─────────────────        ───────────────────
-  ethReferenceExecute  fiscoExecute             opStackExecute
-       │                  │                          │
-       │             FiscoOrchestrationProfile      runOpStackTxLifecycle
-       │             .bind(hooks, errorPolicy)      (precheck, gasPool, settle*)
-       │                  │                          │
-       │                  │                    OpStackOrchestrationProfile
-       │                  │                    .bind → runTxPipeline
-       └───────┬──────────┴────────────┬─────────────┘
-               ▼                        ▼
-        ┌──────────────────────────────────────────────┐
-        │    runTxPipeline(ctx, hooks, errorPolicy)   │
-        │    ctx.message = intrinsic 唯一 owner        │
-        └──────────────────────┬───────────────────────┘
-                               ▼
-        ┌──────────────────────────────────────────────┐
-        │  executeMessage → TxExecutionRunner::run    │
-        │  warm / 7702 → runExecutionFrame(TopLevel)   │
-        │  nonce bump → commit → finalize_self_destructs│
-        │                                              │
-        │  evmone → EthHost::call → runExecutionFrame  │
-        │            (Nested) + VmHostPolicy 回调       │
-        └──────────────────────────────────────────────┘
-               │
-               ▼
+   ETH 参考路径              FISCO 生产路径                  OP Stack 生产路径
+  ──────────────           ─────────────────              ───────────────────
+  applyReferenceMessage    applyFiscoMessage              applyOpStackMessage
+  (ethReferenceExecute)    (fiscoExecute)                 (opStackExecute)
+       │                        │                              │
+       │                   FiscoOrchestrationProfile          runOpStackTxLifecycle
+       │                   .bind(hooks, errorPolicy)          (precheck, gasPool, settle*)
+       │                        │                              │
+       │                        │                        OpStackOrchestrationProfile
+       │                        │                        .bind → runTxPipeline
+       └───────────┬────────────┴──────────────┬───────────────┘
+                   ▼                           ▼
+        ┌──────────────────────────────────────────────────────┐
+        │  runTxPipeline / stateTransitionExecute (ADR-030)   │
+        │  ctx.message = intrinsic 唯一 owner                  │
+        └──────────────────────────┬───────────────────────────┘
+                                   ▼
+        ┌──────────────────────────────────────────────────────┐
+        │  pipelineInvokeEvmKernel → executeMessage / innerExecute │
+        │  warm / 7702 → runCallFrame(TopLevel)                  │
+        │  nonce bump → commit → finalize_self_destructs         │
+        │                                                        │
+        │  evmone → EthHost::call → runCallFrame(Nested)         │
+        │            + VmHostPolicy 回调                          │
+        └──────────────────────────────────────────────────────┘
+                   │
+                   ▼
         ExecuteMessageOutput / OpStackExecutionResult
         （OpStack：lifecycle 内 build_diff + receiptMeta）
 ```

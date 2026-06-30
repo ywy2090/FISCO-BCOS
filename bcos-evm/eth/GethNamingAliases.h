@@ -8,19 +8,26 @@
  * Portable eth/ symbols and their geth analogues — see ADR-030 for the full
  * bcos-evm ↔ go-ethereum map, including chain extension entry points.
  *
- * Kernel alias index (coexist with ADR-029 canonical names):
- *   stateTransitionExecute → runTxPipeline
- *   ChainPrecheckPolicy — pipelineCheckRules, preCheckGasAffordable, preCheckCanTransfer,
- *                         pipelineSetupMessage, pipelineInvokeEvmKernel
- *   deductIntrinsicGas → debitIntrinsicGas
- *   innerExecute → executeMessage
- *   prepareState → execution::warmTransactionEntry
- *   finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
- *   applyReferenceMessage / applyFiscoMessage / applyOpStackMessage — chain headers
- *   evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
+ * Kernel alias index (ADR-029 layer prefixes + ADR-030 geth names coexist):
  *
- * Stable ABI (Tier E — retain): executeMessage, fiscoExecute, ethReferenceExecute,
- *   opStackExecute, runTxPipeline, runExecutionFrame
+ *   Tier A (this header — eth kernel):
+ *     stateTransitionExecute → runTxPipeline
+ *     ChainPrecheckPolicy — pipelineCheckRules, preCheckGasAffordable, preCheckCanTransfer,
+ *                           pipelineSetupMessage, pipelineInvokeEvmKernel
+ *     deductIntrinsicGas → debitIntrinsicGas
+ *     innerExecute → executeMessage
+ *     prepareState → execution::warmTransactionEntry
+ *     finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
+ *     evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
+ *
+ *   Tier C (chain headers — geth ApplyMessage; document as apply*Message):
+ *     applyReferenceMessage → ethReferenceExecute   (EthReferenceExecute.h)
+ *     applyFiscoMessage     → fiscoExecute          (FiscoExecute.h)
+ *     applyOpStackMessage   → opStackExecute        (OpStackExecute.h)
+ *
+ *   Tier E stable ABI (retain; no [[deprecated]] until TE migrates):
+ *     executeMessage, ethReferenceExecute, fiscoExecute, opStackExecute,
+ *     runTxPipeline, runCallFrame (deprecated alias: runExecutionFrame)
  */
 
 #pragma once
