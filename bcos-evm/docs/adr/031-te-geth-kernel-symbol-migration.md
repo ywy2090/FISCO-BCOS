@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-30  
-**Related:** ADR-030, ADR-029, ADR-019, `GethNamingAliases.h`, `transaction-executor/`  
+**Related:** ADR-030, ADR-029, ADR-032, ADR-019, `GethNamingAliases.h`, `transaction-executor/`  
 **Phase:** P1 / Phase 3b (geth naming P0–P6 plan)
 
 ---
@@ -60,13 +60,14 @@ OpStackTransactionExecutorImpl → opStackExecute
 
 **Phase 3b TE action:** none required for direct kernel symbols. TE continues using `*Execute` until Phase 4+ documents `apply*Message` promotion.
 
-**Future TE schedule (proposed — not in 3b scope):**
+**Future TE schedule:** see **ADR-032** (Tier E retirement waves 1–5). Summary:
 
 | Phase | TE change | bcos-evm alias removal |
 | --- | --- | --- |
-| 4 | TE adopts `applyFiscoMessage` / `applyReferenceMessage` names in new code; keep `*Execute` deprecated forwards | retain `fiscoExecute`, `ethReferenceExecute` |
-| 5 | OP TE adopts `applyOpStackMessage` | retain `opStackExecute` |
-| 6 | TE drops all Tier E kernel + adapter aliases | remove `runTxPipeline`, `executeMessage`, `*Execute` |
+| P2 ✅ | TE calls `apply*Message` at execute boundary | retain `*Execute` exported symbols |
+| Wave 3 | `apply*Message` becomes exported link symbol; `*Execute` deprecated | ADR-032 §1 Wave 3 |
+| Wave 4 | TE on canonical names only | remove `fiscoExecute`, `ethReferenceExecute`, `opStackExecute` |
+| Wave 2 | (no TE action) | remove `runTxPipeline`, `executeMessage` |
 
 ### 4. ADR-029 coexistence
 
@@ -106,4 +107,4 @@ Both ADR-029 and geth names appear in comments during transition.
 | --- | --- |
 | 2026-06-29 | ADR-030: geth aliases forward **to** legacy names |
 | 2026-06-30 | ADR-031 Phase 3b: legacy aliases forward **to** geth canonical names |
-| TBD Phase 6 | Remove Tier E aliases after TE migration |
+| 2026-06-30 | ADR-032: Tier E retirement schedule (waves 1–5); see ADR-032 appendix |
