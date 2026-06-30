@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(imported_fixture_plain_call_via_execute_via_host)
         view.insert_account(addr, acct);
     auto input = buildFiscoExecutionRequest(fixture, view, vm, hashImpl);
     int64_t const gasBefore = input.message.gas;
-    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    auto output = task::syncWait(applyFiscoMessage(std::move(input)));
     assertHostFixtureResult(fixture, output, gasBefore);
 }
 

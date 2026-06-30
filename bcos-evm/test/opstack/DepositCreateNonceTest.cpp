@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_bumps_sender_nonce_exactly_once)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeCreateDepositInput(stateView, vm, hash, sender, initCode);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_revert_bumps_sender_nonce_exactly_once)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeCreateDepositInput(stateView, vm, hash, sender, initCode, gasLimit);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
     BOOST_CHECK_LT(output.gasUsed, static_cast<int64_t>(gasLimit));
@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_intrinsic_reject_bumps_sender_nonce_exactly_
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeCreateDepositInput(stateView, vm, hash, sender, initCode, gasLimit);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, static_cast<int64_t>(gasLimit));
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_oog_bumps_sender_nonce_exactly_once)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeCreateDepositInput(stateView, vm, hash, sender, initCode, gasLimit);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, static_cast<int64_t>(gasLimit));

@@ -106,8 +106,8 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_too_low_maps_to_out_of_ga
     evmc::VM vm{evmc_create_evmone()};
     state::test::InMemoryStateView stateView;
 
-    auto output =
-        task::syncWait(ethReferenceExecute(makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl)));
+    auto output = task::syncWait(
+        applyReferenceMessage(makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl)));
 
     // CURRENT_ORACLE: GAP-001
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_failure_te_gas_used_equal
 
     auto const input = makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl);
     auto const gasLimit = input.message.gas;
-    auto output = task::syncWait(ethReferenceExecute(EthReferenceRequest{input}));
+    auto output = task::syncWait(applyReferenceMessage(EthReferenceRequest{input}));
 
     auto const projectedGasUsed = teProjectedGasUsed(gasLimit, output.evmcResult.gas_left);
     BOOST_CHECK_EQUAL(projectedGasUsed, gasLimit);
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_failure_inclusion_failed_
     auto const sender = input.message.sender;
     auto const initialBalance = stateView.get_balance(sender);
 
-    auto output = task::syncWait(ethReferenceExecute(EthReferenceRequest{input}));
+    auto output = task::syncWait(applyReferenceMessage(EthReferenceRequest{input}));
 
     // CURRENT_ORACLE (GAP-002 / GAP-TE-004): execution returns a failed outcome suitable for
     // inclusion + receipt at TE Finalize (not a block-level reject).

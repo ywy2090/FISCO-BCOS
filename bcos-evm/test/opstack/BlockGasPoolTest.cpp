@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(opstack_execute_subgas_and_return_on_success)
         pool.returnGas(gasRemaining, gasUsed);
     };
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_GT(pool.cumulativeUsed(), 0u);

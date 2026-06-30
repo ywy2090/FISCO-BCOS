@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(fiscoExecute_cancun_call_0x0b_not_precompile_dispatch)
     input.blockInfo = blockInfo;
     input.revisionConfig.eth().revision = EVMC_CANCUN;
 
-    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    auto output = task::syncWait(applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, initialGas - BALANCE_TRANSFER_GAS);
     BOOST_CHECK_EQUAL(output.evmcResult.output_size, size_t(0));

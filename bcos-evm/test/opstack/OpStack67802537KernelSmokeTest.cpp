@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_g1msm_k2_gas_matches_geth_isthmus)
     input.message.input_data = msmInput.data();
     input.message.input_size = msmInput.size();
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(txGas - output.evmcResult.gas_left, 45056);
 }
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_created_in_tx_selfdestruct_clears_code_isthm
     input.message.value = {};
 
     auto const predictedAddr = state::predictLegacyCreateAddress(sender, 0);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 
     applyStateDiffToView(output.stateDiff, stateView);

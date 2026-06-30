@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(eth_reference_precheck_rejects_before_auth_when_value_excee
     input.authorizations.push_back(authKey.sign(delegationTarget, 1));
     input.web3TypedTxKind = 4;
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
 
     // CURRENT_ORACLE: precheck maps to InsufficientFunds (10015), auth never applied.
     BOOST_CHECK(!output.topLevelIncludedTxVmError);

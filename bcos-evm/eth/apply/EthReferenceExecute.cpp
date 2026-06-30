@@ -33,11 +33,11 @@ std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& logs)
 }
 }  // namespace
 
-task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
+task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
 {
     if (input.stateView == nullptr || input.vm == nullptr || input.hashImpl == nullptr)
     {
-        throw std::invalid_argument("ethReferenceExecute requires stateView/vm/hashImpl");
+        throw std::invalid_argument("applyReferenceMessage requires stateView/vm/hashImpl");
     }
 
     trace::EvmTraceScope traceScope(
@@ -68,7 +68,7 @@ task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input)
 
     stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
-    EVM_LOG(DEBUG) << LOG_DESC("ethReferenceExecute done")
+    EVM_LOG(DEBUG) << LOG_DESC("applyReferenceMessage done")
                    << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                    << LOG_KV("gasLeft", ctx.evmcResult.gas_left)

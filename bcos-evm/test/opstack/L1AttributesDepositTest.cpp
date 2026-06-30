@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     depositInput.depositTx =
         OpStackDepositTx{.from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
 
-    auto depositOutput = task::syncWait(opStackExecute(depositInput));
+    auto depositOutput = task::syncWait(applyOpStackMessage(depositInput));
     BOOST_REQUIRE_EQUAL(depositOutput.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE(depositOutput.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*depositOutput.receiptMeta.depositNonce, 0);
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     userInput.txProps.warmDestination = true;
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
 
-    auto userOutput = task::syncWait(opStackExecute(userInput));
+    auto userOutput = task::syncWait(applyOpStackMessage(userInput));
     BOOST_REQUIRE_EQUAL(userOutput.evmcResult.status_code, EVMC_SUCCESS);
 
     state::State feeState(stateView);
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_opera
         OpStackDepositTx{.from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
     depositInput.forkSchedule = makeJovianPlusForkSchedule();
 
-    auto depositOutput = task::syncWait(opStackExecute(depositInput));
+    auto depositOutput = task::syncWait(applyOpStackMessage(depositInput));
     BOOST_REQUIRE_EQUAL(depositOutput.evmcResult.status_code, EVMC_SUCCESS);
     applyStateDiffToView(depositOutput.stateDiff, stateView);
 
@@ -193,7 +193,7 @@ BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_opera
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
     userInput.forkSchedule = makeJovianPlusForkSchedule();
 
-    auto userOutput = task::syncWait(opStackExecute(userInput));
+    auto userOutput = task::syncWait(applyOpStackMessage(userInput));
     BOOST_REQUIRE_EQUAL(userOutput.evmcResult.status_code, EVMC_SUCCESS);
 
     state::State feeState(stateView);

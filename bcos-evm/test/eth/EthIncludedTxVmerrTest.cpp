@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_top_level_invalid_is_included_with_succ
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
 
     BOOST_CHECK(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_
     input.revisionConfig = osakaReferenceConfig();
     // legacy tx (default kind=0) — type-2 without fee caps hits rules_rejected before EVM.
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
 
     BOOST_REQUIRE(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
@@ -229,7 +229,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
 
     BOOST_REQUIRE(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_nested_invalid_is_not_included_tx_vmerr
     input.blockInfo = blockInfo;
     input.revisionConfig = osakaReferenceConfig();
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
 
     BOOST_CHECK(!output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);

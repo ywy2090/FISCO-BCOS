@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief fiscoExecute harness for EIP-2929 compat tests (replaces ExecuteFrame).
+ *  @brief applyFiscoMessage harness for EIP-2929 compat tests (replaces ExecuteFrame).
  */
 
 #pragma once

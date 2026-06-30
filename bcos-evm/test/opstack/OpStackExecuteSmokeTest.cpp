@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(l1_fee_recipient_gets_fee_on_success)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeBaseInput(stateView, vm, hash, sender, target);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, l1FeeRecipient), u256(50));
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(insufficient_balance_fails_before_execution)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeBaseInput(stateView, vm, hash, sender, target);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, l1FeeRecipient), u256(0));
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(revert_refunds_unused_gas_and_keeps_l1_fee)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeBaseInput(stateView, vm, hash, sender, target);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
     BOOST_CHECK_GT(output.gasUsed, 0);
@@ -219,7 +219,7 @@ BOOST_AUTO_TEST_CASE(hard_failure_still_refunds_unused_gas_and_routes_fees)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeBaseInput(stateView, vm, hash, sender, target);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK(output.evmcResult.status_code != EVMC_SUCCESS);
     BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, sender), u256(0));
@@ -243,7 +243,7 @@ BOOST_AUTO_TEST_CASE(pre_fjord_schedule_throws_on_user_tx)
     input.forkSchedule = OpStackForkSchedule{.fjordTime = 100, .isthmusTime = 0};
     input.blockInfo.timestamp = 50;
 
-    BOOST_CHECK_THROW(task::syncWait(opStackExecute(std::move(input))), std::invalid_argument);
+    BOOST_CHECK_THROW(task::syncWait(applyOpStackMessage(std::move(input))), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(deposit_pre_fjord_schedule_no_throw)
@@ -266,7 +266,7 @@ BOOST_AUTO_TEST_CASE(deposit_pre_fjord_schedule_no_throw)
     input.forkSchedule = OpStackForkSchedule{.fjordTime = 100, .isthmusTime = 0};
     input.blockInfo.timestamp = 50;
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 }
 
@@ -288,7 +288,7 @@ BOOST_AUTO_TEST_CASE(host_pre_isthmus_operator_recipient_zero)
     input.forkSchedule = OpStackForkSchedule{.fjordTime = 0, .isthmusTime = 100};
     input.blockInfo.timestamp = 50;
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, operatorFeeRecipient), u256(0));
@@ -314,7 +314,7 @@ BOOST_AUTO_TEST_CASE(orthogonality_non_isthmus_revision_with_isthmus_fork_schedu
     input.revisionConfig.revision = EVMC_CANCUN;
     input.forkSchedule = makeIsthmusPlusForkSchedule();
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_GT(balanceFromDiff(output.stateDiff, operatorFeeRecipient), u256(0));

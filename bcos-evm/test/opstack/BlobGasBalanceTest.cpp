@@ -264,7 +264,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_deducts_blob_fee_on_success)
             input.blobVersionedHashes.push_back(makeVersionedHash());
         }
 
-        auto const output = task::syncWait(opStackExecute(input));
+        auto const output = task::syncWait(applyOpStackMessage(input));
         BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
         return balanceFromDiff(output.stateDiff, sender, initialBalance);
     };

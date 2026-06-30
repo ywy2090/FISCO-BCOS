@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(characterize_intrinsic_reject_gas_used_is_zero)
         static_cast<int64_t>(intrinsic.preExecutionDebit() + gas::calcAuthTupleIntrinsicGas(0)) - 1;
 
     auto input = makeNormalL2Input(stateView, vm, hash, sender, recipient, gasBelowIntrinsic);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(characterize_completed_call_gas_used_positive)
     FakeHash hash;
 
     auto input = makeNormalL2Input(stateView, vm, hash, sender, recipient, 50'000);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_GT(output.gasUsed, int64_t{0});

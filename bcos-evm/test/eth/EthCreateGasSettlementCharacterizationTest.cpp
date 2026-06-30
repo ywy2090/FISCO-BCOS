@@ -119,7 +119,7 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
     input.gasFeeCap = 0;
     input.web3TypedTxKind = kWeb3TypedTxKind;
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
 
     auto const& snap = output.executionContext.gasSettlementSnapshot;
     CreateCharacterization result;

@@ -71,11 +71,11 @@ evmc_message deriveMessage(const FiscoTxAdapterInput& input)
     return message;
 }
 
-task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
+task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
 {
     if (input.stateView == nullptr || input.vm == nullptr || input.hashImpl == nullptr)
     {
-        throw std::invalid_argument("fiscoExecute requires stateView/vm/hashImpl");
+        throw std::invalid_argument("applyFiscoMessage requires stateView/vm/hashImpl");
     }
 
     trace::EvmTraceScope traceScope(
@@ -110,7 +110,8 @@ task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input)
     auto bindings = FiscoOrchestrationProfile::bind(bindingsCtx);
     stateTransitionExecute(ctx, bindings.precheckPolicy, bindings.errorPolicy);
 
-    EVM_LOG(DEBUG) << LOG_DESC("fiscoExecute done") << LOG_KV("exit", trace::exitKind(ctx.exitKind))
+    EVM_LOG(DEBUG) << LOG_DESC("applyFiscoMessage done")
+                   << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                    << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                    << LOG_KV("gasLeft", ctx.evmcResult.gas_left) << LOG_KV("web3Tx", input.web3Tx);
 

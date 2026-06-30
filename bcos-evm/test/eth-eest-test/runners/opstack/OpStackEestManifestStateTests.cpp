@@ -1,8 +1,8 @@
 /// OPStack EEST Manifest-Driven State Test Runner
 ///
 /// Same manifest-driven architecture as EthExecutionSpecStateTests,
-/// but uses OpStackManifestAdapter → opStackExecute() instead of
-/// EthReferenceExecuteAdapter → ethReferenceExecute().
+/// but uses OpStackManifestAdapter → applyOpStackMessage() instead of
+/// EthReferenceExecuteAdapter → applyReferenceMessage().
 ///
 /// Usage:
 ///   OpStackEestManifestStateTests \

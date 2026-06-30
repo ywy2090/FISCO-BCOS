@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_innerExecute)
     input.vm = &vm;
     input.hashImpl = &hash;
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple
     input.vm = &vm;
     input.hashImpl = &hash;
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
     input.vm = &vm;
     input.hashImpl = &hash;
 
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         input.vm = &vm;
         input.hashImpl = &hash;
 
-        auto output = task::syncWait(opStackExecute(std::move(input)));
+        auto output = task::syncWait(applyOpStackMessage(std::move(input)));
         BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
         auto const authIt = output.stateDiff.accounts.find(authorityAddr);
         BOOST_REQUIRE(authIt != output.stateDiff.accounts.end());

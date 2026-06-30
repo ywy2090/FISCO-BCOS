@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_type2_normalizes_gas_price_for_gasprice
     input.web3TypedTxKind = 0x02;
     input.hasExplicitFeeCaps = true;
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
 
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(output.evmcResult.output_size, size_t(32));

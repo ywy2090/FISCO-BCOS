@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
         return ExecuteMessageOutput{.result = evmc::Result{raw}};
     });
 
-    auto output = task::syncWait(opStackExecute(input));
+    auto output = task::syncWait(applyOpStackMessage(input));
     opstack::test::clearExecuteMessageSpy();
 
     auto const intrinsic =

@@ -194,7 +194,7 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
                         input.forkSchedule = bcos::evm::makeIsthmusPlusForkSchedule();
 
                         auto output =
-                            bcos::task::syncWait(bcos::evm::opStackExecute(std::move(input)));
+                            bcos::task::syncWait(bcos::evm::applyOpStackMessage(std::move(input)));
 
                         // Blockchain tests expect cumulative gas
                         // For now, just check that execution didn't crash

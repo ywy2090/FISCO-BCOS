@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
     FakeHash hash;
 
     auto valid = loadFixture("isthmus_l1_attributes.bin");
-    auto okOutput = task::syncWait(opStackExecute(makeDepositInput(stateView, vm, hash, valid)));
+    auto okOutput = task::syncWait(applyOpStackMessage(makeDepositInput(stateView, vm, hash, valid)));
     BOOST_REQUIRE_EQUAL(okOutput.evmcResult.status_code, EVMC_SUCCESS);
     applyStateDiffToView(okOutput.stateDiff, stateView);
 
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
 
     bytes invalid = {0x09, 0x89, 0x99, 0xbe};
     auto failOutput =
-        task::syncWait(opStackExecute(makeDepositInput(stateView, vm, hash, invalid)));
+        task::syncWait(applyOpStackMessage(makeDepositInput(stateView, vm, hash, invalid)));
     BOOST_REQUIRE_EQUAL(failOutput.evmcResult.status_code, EVMC_REVERT);
     BOOST_REQUIRE(failOutput.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*failOutput.receiptMeta.depositNonce, 1);

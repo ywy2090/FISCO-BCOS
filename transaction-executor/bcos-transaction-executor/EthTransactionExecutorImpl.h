@@ -37,7 +37,7 @@ enum class EthExecutePhase : uint8_t
 evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
     protocol::Transaction const& transaction, int64_t gasLimit, const evmc_address& origin);
 
-/// Pure-ethereum transaction executor — geth-aligned gas + ethReferenceExecute, no FISCO
+/// Pure-ethereum transaction executor — geth-aligned gas + applyReferenceMessage, no FISCO
 /// extensions.
 template <class TxExec = EthTxFeeSettlement>
 class EthTransactionExecutorImpl

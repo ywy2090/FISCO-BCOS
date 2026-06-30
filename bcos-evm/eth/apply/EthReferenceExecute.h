@@ -54,15 +54,14 @@ struct EthReferenceResult
     bool topLevelIncludedTxVmError{false};
 };
 
-// ── Chain entry: geth ApplyMessage (ADR-030 dual-label) ─────────────────────
-// Tier C canonical — document and prefer in new call sites: applyReferenceMessage
-// Tier E stable ABI — retain for existing links; no [[deprecated]] yet: ethReferenceExecute
-task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input);
+// ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
+task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input);
 
-// geth: ApplyMessage — ADR-030 Tier C canonical (forwards to ethReferenceExecute)
-[[nodiscard]] inline task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
+// Tier E stable ABI — [[deprecated]] inline forward (removed ADR-032 Wave 4)
+[[deprecated("Use applyReferenceMessage")]] [[nodiscard]] inline task::Task<EthReferenceResult>
+ethReferenceExecute(EthReferenceRequest input)
 {
-    return ethReferenceExecute(std::move(input));
+    return applyReferenceMessage(std::move(input));
 }
 
 }  // namespace bcos::evm

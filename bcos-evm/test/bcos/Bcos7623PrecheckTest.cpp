@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(fiscoExecute_web3Tx_eip7623_oog_when_gas_below_normal_cost)
     input.revisionConfig.eth().revision = EVMC_PRAGUE;
     input.revisionConfig.eth().eip7623 = true;
 
-    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    auto output = task::syncWait(applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(static_cast<int>(output.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::OutOfGas));
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(fiscoExecute_web3Tx_eip7623_skips_precheck_when_normal_cost
     input.revisionConfig.eth().revision = EVMC_PRAGUE;
     input.revisionConfig.eth().eip7623 = true;
 
-    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    auto output = task::syncWait(applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 }
 

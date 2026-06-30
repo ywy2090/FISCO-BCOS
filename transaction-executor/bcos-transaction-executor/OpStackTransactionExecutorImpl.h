@@ -64,12 +64,12 @@ inline std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& 
 }
 }  // namespace opstack_executor_detail
 
-/// Isthmus OP-Stack transaction executor — integrates `opStackExecute` with
+/// Isthmus OP-Stack transaction executor — integrates `applyOpStackMessage` with
 /// baseline scheduler / Engine API via the executor_v1::TransactionExecutor concept.
 ///
 /// Compared to TransactionExecutorImpl:
 /// - No FISCO auth/precompile hooks (L1Block via OpStackChainCallTargetAdapter + chainPort).
-/// - Gas buy/refund/settlement is internal to opStackExecute.
+/// - Gas buy/refund/settlement is internal to applyOpStackMessage.
 /// - Uses gasTipCap/gasFeeCap (EIP-1559) instead of legacy gasPrice.
 class OpStackTransactionExecutorImpl
 {
@@ -162,7 +162,7 @@ public:
         {
             if constexpr (phase == static_cast<int>(OpStackExecutePhase::Prepare))
             {
-                // OP path has no separate prepare; preCheck/warm live in opStackExecute.
+                // OP path has no separate prepare; preCheck/warm live in applyOpStackMessage.
             }
             else if constexpr (phase == static_cast<int>(OpStackExecutePhase::Execute))
             {

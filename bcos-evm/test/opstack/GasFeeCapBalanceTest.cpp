@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(gas_fee_cap_balance_check_rejects_insufficient_sender)
     input.blockInfo.baseFee = 1;
     input.txProps.warmDestination = true;
 
-    auto output = task::syncWait(opStackExecute(input));
+    auto output = task::syncWait(applyOpStackMessage(input));
     BOOST_CHECK_EQUAL(output.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
 }
 }  // namespace bcos::evm::test

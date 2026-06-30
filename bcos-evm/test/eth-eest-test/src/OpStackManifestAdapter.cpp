@@ -192,7 +192,7 @@ task::Task<ExecutionResult> OpStackManifestAdapter::execute(
     input.message = msg;
 
     int64_t const gasBefore = msg.gas;
-    auto output = co_await opStackExecute(std::move(input));
+    auto output = co_await applyOpStackMessage(std::move(input));
 
     ExecutionResult result;
     result.status = output.evmcResult.status_code;

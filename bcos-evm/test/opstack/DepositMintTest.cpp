@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(deposit_mint_is_applied_before_execution)
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
     auto input = makeDepositInput(stateView, vm, hash, sender, target);
-    auto output = task::syncWait(opStackExecute(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, sender), u256(100));

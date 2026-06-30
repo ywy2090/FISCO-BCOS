@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(auth_checker_hook_short_circuits_before_innerExecute)
     });
     input.authPort = &authPort;
 
-    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    auto output = task::syncWait(applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REJECTED);
     BOOST_CHECK(output.stateDiff.accounts.find(target) == output.stateDiff.accounts.end());
 }

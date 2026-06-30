@@ -370,7 +370,7 @@ void runFixtures(fs::path const& fixturesDir, bool smokeOnly, size_t limit,
 
                 // Execute
                 auto output =
-                    bcos::task::syncWait(bcos::evm::opStackExecute(std::move(fixture.input)));
+                    bcos::task::syncWait(bcos::evm::applyOpStackMessage(std::move(fixture.input)));
 
                 ++executed;
                 bool ok = true;

@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_oog_when_gas_below_normal_cost)
     input.blockInfo.chainId = 1;
     input.blockInfo.gasLimit = 30'000'000;
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
 }
 
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_eip7623_skips_precheck_when_normal_cost
     input.blockInfo.chainId = 1;
     input.blockInfo.gasLimit = 30'000'000;
 
-    auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 }
 

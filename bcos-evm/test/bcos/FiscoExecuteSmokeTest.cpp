@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
     input.blockInfo = blockInfo;
     input.revisionConfig.eth().revision = EVMC_CANCUN;
 
-    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    auto output = task::syncWait(applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK(output.executionContext.logs.empty());
 }

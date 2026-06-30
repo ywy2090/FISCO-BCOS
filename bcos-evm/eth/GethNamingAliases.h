@@ -21,13 +21,16 @@
  *     finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
  *     evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
  *
- *   Tier C (chain headers — geth ApplyMessage; document as apply*Message):
- *     applyReferenceMessage → ethReferenceExecute   (EthReferenceExecute.h)
- *     applyFiscoMessage     → fiscoExecute          (FiscoExecute.h)
- *     applyOpStackMessage   → opStackExecute        (OpStackExecute.h)
+ *   Tier C (chain headers — geth ApplyMessage; exported apply*Message):
+ *     applyReferenceMessage   (EthReferenceExecute.h)
+ *     applyFiscoMessage       (FiscoExecute.h)
+ *     applyOpStackMessage     (OpStackExecute.h)
  *
- *   Tier E stable ABI (deprecated inline forwards; remove per ADR-032 schedule):
- *     ethReferenceExecute, fiscoExecute, opStackExecute
+ *   Tier E stable ABI ([[deprecated]] inline forwards; remove per ADR-032 Wave 4):
+ *     ethReferenceExecute → applyReferenceMessage
+ *     fiscoExecute        → applyFiscoMessage
+ *     opStackExecute      → applyOpStackMessage
+ *   ADR-032 Wave 3 (2026-06-30): apply*Message promoted to exported symbols
  *   ADR-032 Wave 2 removed: executeMessage, runTxPipeline (use innerExecute /
  * stateTransitionExecute)
  */

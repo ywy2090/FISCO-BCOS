@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief fiscoExecute compatibility regression harness.
+ *  @brief applyFiscoMessage compatibility regression harness.
  *  @file ExecuteViaHostCompatTest.cpp
  */
 
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(fib88_not_found_code_revert_preserves_gas)
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
     BOOST_CHECK_EQUAL(
         output.evmcResult.status, bcos::protocol::TransactionStatus::RevertInstruction);
-    // fiscoExecute deducts BALANCE_TRANSFER_GAS before the NotFoundCode check.
+    // applyFiscoMessage deducts BALANCE_TRANSFER_GAS before the NotFoundCode check.
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, message.gas - 21'000);
 }
 

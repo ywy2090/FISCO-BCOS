@@ -5,11 +5,11 @@
 namespace bcos::evm
 {
 
-task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input)
+task::Task<OpStackExecutionResult> applyOpStackMessage(OpStackExecutionRequest input)
 {
     if (input.stateView == nullptr || input.vm == nullptr || input.hashImpl == nullptr)
     {
-        throw std::invalid_argument("opStackExecute requires stateView/vm/hashImpl");
+        throw std::invalid_argument("applyOpStackMessage requires stateView/vm/hashImpl");
     }
 
     co_return co_await runOpStackTxLifecycle(std::move(input));

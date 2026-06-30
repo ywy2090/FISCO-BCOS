@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(fiscoExecute_propagates_authorizations_to_innerExecute)
     input.authorizationListPresent = true;
     input.authorizations.push_back(authKey.sign(delegationTarget, 1));
 
-    auto output = task::syncWait(fiscoExecute(std::move(input)));
+    auto output = task::syncWait(applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);

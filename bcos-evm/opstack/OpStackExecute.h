@@ -62,16 +62,14 @@ struct OpStackExecutionResult
     OpStackReceiptMeta receiptMeta;
 };
 
-// ── Chain entry: geth ApplyMessage (ADR-030 dual-label) ─────────────────────
-// Tier C canonical — document and prefer in new call sites: applyOpStackMessage
-// Tier E stable ABI — retain for existing links; no [[deprecated]] yet: opStackExecute
-task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input);
+// ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
+task::Task<OpStackExecutionResult> applyOpStackMessage(OpStackExecutionRequest input);
 
-// geth: ApplyMessage — ADR-030 Tier C canonical (forwards to opStackExecute)
-[[nodiscard]] inline task::Task<OpStackExecutionResult> applyOpStackMessage(
-    OpStackExecutionRequest input)
+// Tier E stable ABI — [[deprecated]] inline forward (removed ADR-032 Wave 4)
+[[deprecated("Use applyOpStackMessage")]] [[nodiscard]] inline task::Task<OpStackExecutionResult>
+opStackExecute(OpStackExecutionRequest input)
 {
-    return opStackExecute(std::move(input));
+    return applyOpStackMessage(std::move(input));
 }
 
 inline bool isDepositTx(OpStackExecutionRequest const& input) noexcept

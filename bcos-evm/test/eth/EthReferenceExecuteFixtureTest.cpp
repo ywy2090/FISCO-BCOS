@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(existing_prague_fixtures_via_execute_via_eth)
                 view.insert_account(addr, acct);
             auto input = buildEthReferenceRequest(fixture, view, vm, hashImpl);
             int64_t const gasBefore = input.message.gas;
-            auto output = task::syncWait(ethReferenceExecute(std::move(input)));
+            auto output = task::syncWait(applyReferenceMessage(std::move(input)));
             assertFixtureResult(fixture, output, gasBefore);
             if (!fixture.expected.post.empty())
             {

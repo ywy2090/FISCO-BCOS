@@ -13,8 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief fiscoExecute orchestration layer.
- * @file ExecuteViaHost.h
+ * @brief applyFiscoMessage orchestration layer.
+ * @file FiscoExecute.h
  */
 
 #pragma once
@@ -83,15 +83,14 @@ struct FiscoExecutionResult
     FiscoExecutionArtifacts executionContext;
 };
 
-// ── Chain entry: geth ApplyMessage (ADR-030 dual-label) ─────────────────────
-// Tier C canonical — document and prefer in new call sites: applyFiscoMessage
-// Tier E stable ABI — retain for existing links; no [[deprecated]] yet: fiscoExecute
-task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input);
+// ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
+task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input);
 
-// geth: ApplyMessage — ADR-030 Tier C canonical (forwards to fiscoExecute)
-[[nodiscard]] inline task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
+// Tier E stable ABI — [[deprecated]] inline forward (removed ADR-032 Wave 4)
+[[deprecated("Use applyFiscoMessage")]] [[nodiscard]] inline task::Task<FiscoExecutionResult>
+fiscoExecute(FiscoExecutionRequest input)
 {
-    return fiscoExecute(std::move(input));
+    return applyFiscoMessage(std::move(input));
 }
 
 }  // namespace bcos::evm

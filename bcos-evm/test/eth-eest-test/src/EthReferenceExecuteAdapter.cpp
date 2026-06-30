@@ -224,7 +224,7 @@ task::Task<ExecutionResult> EthReferenceExecuteAdapter::execute(
     auto const hasExplicitFeeCaps = input.hasExplicitFeeCaps;
     auto const gasTipCap = input.gasTipCap;
     auto const gasFeeCap = input.gasFeeCap;
-    auto output = co_await ethReferenceExecute(std::move(input));
+    auto output = co_await applyReferenceMessage(std::move(input));
 
     ExecutionResult result;
     result.status = output.evmcResult.status_code;
