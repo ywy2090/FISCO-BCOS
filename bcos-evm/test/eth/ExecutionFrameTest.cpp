@@ -59,7 +59,7 @@ CallOutcome runFrameNested(
     message.depth = 1;
     execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, extension,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
-    auto fr = execution::runExecutionFrame(
+    auto fr = execution::runCallFrame(
         frameCtx, message, execution::FrameScope::Nested, fixture.ethHost());
     return {.status = fr.result.status_code,
         .gasLeft = fr.result.gas_left,
@@ -73,7 +73,7 @@ CallOutcome runFrameTopLevel(state::State& state, evmc_message message)
     FrameTestHost fixture(state);
     execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
-    auto fr = execution::runExecutionFrame(
+    auto fr = execution::runCallFrame(
         frameCtx, message, execution::FrameScope::TopLevel, fixture.ethHost());
     return {.status = fr.result.status_code,
         .gasLeft = fr.result.gas_left,
@@ -229,7 +229,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_does_not_commit_before_adapter_nonce_bump)
     FrameTestHost fixture(state);
     execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
-    auto fr = execution::runExecutionFrame(
+    auto fr = execution::runCallFrame(
         frameCtx, message, execution::FrameScope::TopLevel, fixture.ethHost());
 
     BOOST_REQUIRE_EQUAL(fr.result.status_code, EVMC_SUCCESS);
@@ -443,7 +443,7 @@ BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)
     create1.input_data = emptyInit;
     create1.input_size = sizeof(emptyInit);
 
-    auto fr1 = execution::runExecutionFrame(
+    auto fr1 = execution::runCallFrame(
         frameCtx, create1, execution::FrameScope::Nested, fixture.ethHost());
     BOOST_REQUIRE_EQUAL(fr1.result.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(state.get_nonce(firstChild), 1U);
@@ -451,7 +451,7 @@ BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)
     evmc_message create2 = create1;
     create2.recipient = {};
     create2.code_address = {};
-    auto fr2 = execution::runExecutionFrame(
+    auto fr2 = execution::runCallFrame(
         frameCtx, create2, execution::FrameScope::Nested, fixture.ethHost());
     BOOST_REQUIRE_EQUAL(fr2.result.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(state.get_nonce(secondChild), 1U);

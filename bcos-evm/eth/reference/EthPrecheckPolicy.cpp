@@ -45,7 +45,7 @@ EthPrecheckPolicy::EthPrecheckPolicy(EthReferenceRequest const& input) : m_input
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
 }
 
-void EthPrecheckPolicy::checkTransactionRules(TxPipelineContext& ctx) const
+void EthPrecheckPolicy::pipelineCheckRules(TxPipelineContext& ctx) const
 {
     if (auto preCheckError = ethTxPrecheck(m_input, ctx.state))
     {
@@ -62,7 +62,7 @@ void EthPrecheckPolicy::checkTransactionRules(TxPipelineContext& ctx) const
     }
 }
 
-void EthPrecheckPolicy::checkBalanceAndValue(TxPipelineContext& ctx) const
+void EthPrecheckPolicy::pipelineCheckBalance(TxPipelineContext& ctx) const
 {
     auto const txValue = state::fromEvmC(ctx.message.value);
     if (txValue != 0 && !canTransfer(ctx.state, ctx.message.sender, txValue))

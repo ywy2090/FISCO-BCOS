@@ -24,7 +24,7 @@ namespace bcos::evm
 
 ExecuteMessageOutput executeMessage(ExecuteMessageInput input)
 {
-    return execution::TxExecutionRunner::run(std::move(input));
+    return execution::TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
 }
 
 }  // namespace bcos::evm

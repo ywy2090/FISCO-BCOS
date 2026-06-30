@@ -58,7 +58,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
 
     IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return intrinsicPolicy; }
 
-    void setupMessage(TxPipelineContext& ctx) const override
+    void pipelineSetupMessage(TxPipelineContext& ctx) const override
     {
         if (onSetupMessage)
         {
@@ -66,7 +66,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void checkTransactionRules(TxPipelineContext& ctx) const override
+    void pipelineCheckRules(TxPipelineContext& ctx) const override
     {
         if (onCheckTransactionRules)
         {
@@ -74,7 +74,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void checkGasAffordable(TxPipelineContext& ctx) const override
+    void pipelineCheckGasAffordable(TxPipelineContext& ctx) const override
     {
         if (onCheckGasAffordable)
         {
@@ -82,7 +82,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void checkBalanceAndValue(TxPipelineContext& ctx) const override
+    void pipelineCheckBalance(TxPipelineContext& ctx) const override
     {
         if (onCheckBalanceAndValue)
         {
@@ -90,7 +90,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void tuneExecutionInput(ExecuteMessageInput& input) const override
+    void pipelineTuneKernelInput(ExecuteMessageInput& input) const override
     {
         if (onTuneExecutionInput)
         {
@@ -98,13 +98,13 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    ExecuteMessageOutput runEvmExecution(ExecuteMessageInput&& input) const override
+    ExecuteMessageOutput pipelineInvokeEvmKernel(ExecuteMessageInput&& input) const override
     {
         if (onRunEvmExecution)
         {
             return onRunEvmExecution(std::move(input));
         }
-        return ChainPrecheckPolicy::runEvmExecution(std::move(input));
+        return ChainPrecheckPolicy::pipelineInvokeEvmKernel(std::move(input));
     }
 };
 

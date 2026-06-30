@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    policy.checkGasAffordable(ctx);
+    policy.pipelineCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);

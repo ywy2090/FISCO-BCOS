@@ -58,7 +58,8 @@ BOOST_AUTO_TEST_CASE(null_state_throws_invalid_argument)
     ExecuteMessageInput input;
     input.state = nullptr;
     input.vm = &vm;
-    BOOST_CHECK_THROW(TxExecutionRunner::run(std::move(input)), std::invalid_argument);
+    BOOST_CHECK_THROW(
+        TxExecutionRunner::runEvmKernelTopLevel(std::move(input)), std::invalid_argument);
 }
 
 // Matrix: T02 — state ownership contract: mutations visible on caller's State (VM frame path).
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE(top_level_success_bumps_sender_nonce)
 
     auto input = makePragueCallInput(state, callMessage(sender, target));
 
-    auto const output = TxExecutionRunner::run(std::move(input));
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(state.get_nonce(sender), 4U);
 }
@@ -99,7 +100,7 @@ BOOST_AUTO_TEST_CASE(skip_top_level_sender_nonce_bump_flag)
     auto input = makePragueCallInput(state, callMessage(sender, target));
     input.skipTopLevelSenderNonceBump = true;
 
-    auto const output = TxExecutionRunner::run(std::move(input));
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(state.get_nonce(sender), 5U);
 }
@@ -123,7 +124,7 @@ BOOST_AUTO_TEST_CASE(eip7702_auth_prebump_characterization)
     input.authorizationListPresent = true;
     input.authorizations.push_back(authKey.sign(delegationTarget, 1));
 
-    auto const output = TxExecutionRunner::run(std::move(input));
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);
@@ -149,7 +150,7 @@ BOOST_AUTO_TEST_CASE(precompile_hit_returns_state_diff)
     message.value = weiValue(100);
 
     auto input = makePragueCallInput(state, message);
-    auto const output = TxExecutionRunner::run(std::move(input));
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const recipientIt = output.stateDiff.accounts.find(identity);
@@ -176,7 +177,7 @@ BOOST_AUTO_TEST_CASE(top_level_revert_nonce_characterization)
     state::State state(stateView);
     auto input = makePragueCallInput(state, callMessage(sender, target));
 
-    auto const output = TxExecutionRunner::run(std::move(input));
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_REVERT);
 
     auto const diffIt = output.stateDiff.accounts.find(sender);
@@ -213,7 +214,7 @@ BOOST_AUTO_TEST_CASE(create_skips_eip7702_tx_auth_apply)
     input.authorizationListPresent = true;
     input.authorizations.push_back(authKey.sign(addressFromLastByte(0x99), 1));
 
-    auto const output = TxExecutionRunner::run(std::move(input));
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
     auto const it = output.stateDiff.accounts.find(sender);
@@ -238,7 +239,7 @@ BOOST_AUTO_TEST_CASE(nested_success_skips_top_level_sender_nonce_bump)
     state::State state(stateView);
     auto input = makePragueCallInput(state, callMessage(sender, target, /*depth=*/1));
 
-    auto const output = TxExecutionRunner::run(std::move(input));
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(state.get_nonce(sender), 7U);
 
@@ -249,7 +250,7 @@ BOOST_AUTO_TEST_CASE(nested_success_skips_top_level_sender_nonce_bump)
     }
 }
 
-// Matrix: T09 — executeMessage delegator matches TxExecutionRunner::run.
+// Matrix: T09 — executeMessage delegator matches TxExecutionRunner::runEvmKernelTopLevel.
 BOOST_AUTO_TEST_CASE(execute_message_delegates_to_runner)
 {
     state::test::InMemoryStateView stateView;
@@ -263,7 +264,8 @@ BOOST_AUTO_TEST_CASE(execute_message_delegates_to_runner)
 
     state::State state(stateView);
     auto message = callMessage(sender, target);
-    auto const viaRunner = TxExecutionRunner::run(makePragueCallInput(state, message));
+    auto const viaRunner =
+        TxExecutionRunner::runEvmKernelTopLevel(makePragueCallInput(state, message));
 
     state::State stateAgain(stateView);
     auto input = makePragueCallInput(stateAgain, message);

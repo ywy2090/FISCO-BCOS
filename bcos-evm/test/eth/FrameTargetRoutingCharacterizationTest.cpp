@@ -99,7 +99,7 @@ CallOutcome runFrame(state::State& state, bcos::evm_standard::RevisionConfig con
     }
     execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, extension,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
-    auto fr = execution::runExecutionFrame(frameCtx, message, scope, fixture.ethHost());
+    auto fr = execution::runCallFrame(frameCtx, message, scope, fixture.ethHost());
     return {.status = fr.result.status_code,
         .gasLeft = fr.result.gas_left,
         .precompileHit = fr.precompileHit};

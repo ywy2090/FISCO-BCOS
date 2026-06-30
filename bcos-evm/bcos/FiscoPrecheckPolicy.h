@@ -30,13 +30,13 @@ struct FiscoPrecheckPolicy : ChainPrecheckPolicy
 
     IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
 
-    void setupMessage(TxPipelineContext& ctx) const override;
+    void pipelineSetupMessage(TxPipelineContext& ctx) const override;
 
-    void checkTransactionRules(TxPipelineContext& ctx) const override;
+    void pipelineCheckRules(TxPipelineContext& ctx) const override;
 
-    void checkBalanceAndValue(TxPipelineContext& ctx) const override;
+    void pipelineCheckBalance(TxPipelineContext& ctx) const override;
 
-    void tuneExecutionInput(ExecuteMessageInput& input) const override;
+    void pipelineTuneKernelInput(ExecuteMessageInput& input) const override;
 
 private:
     FiscoExecutionRequest const& m_input;

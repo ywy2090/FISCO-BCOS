@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_context_shares_chain_port_pointer)
     state::EthHost host(state, makeTxContext(), cfg, vm, {}, nullptr, true, &port);
     execution::FrameExecutionEnv frameCtx{
         state, vm, cfg, nullptr, top.sender, host.execution_address_ref(), false, &port};
-    (void)execution::runExecutionFrame(frameCtx, top, execution::FrameScope::TopLevel, host);
+    (void)execution::runCallFrame(frameCtx, top, execution::FrameScope::TopLevel, host);
 
     BOOST_REQUIRE(port.topLevelPort != nullptr);
     BOOST_CHECK_EQUAL(port.topLevelPort, &port);

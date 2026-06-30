@@ -34,11 +34,11 @@ struct OpStackPrecheckPolicy : ChainPrecheckPolicy
     /// Sync entry rules before buyGas (nonce, 7702, blob intent, fee caps). OpStack-only phase.
     void checkEntryRules(TxPipelineContext& ctx) const;
 
-    void checkGasAffordable(TxPipelineContext& ctx) const override;
+    void pipelineCheckGasAffordable(TxPipelineContext& ctx) const override;
 
-    void tuneExecutionInput(ExecuteMessageInput& input) const override;
+    void pipelineTuneKernelInput(ExecuteMessageInput& input) const override;
 
-    ExecuteMessageOutput runEvmExecution(ExecuteMessageInput&& input) const override;
+    ExecuteMessageOutput pipelineInvokeEvmKernel(ExecuteMessageInput&& input) const override;
 
 private:
     OpStackSettlementFacade& m_view;

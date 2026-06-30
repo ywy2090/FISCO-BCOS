@@ -340,7 +340,7 @@ FrameResult runFrameSteps(
 }
 }  // namespace
 
-FrameResult runExecutionFrame(
+FrameResult runCallFrame(
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     return runFrameSteps(ctx, message, scope, host);

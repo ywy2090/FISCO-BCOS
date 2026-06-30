@@ -42,13 +42,13 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
 
     try
     {
-        // geth: preCheck (normalizeMessage) — ADR-030
-        precheckPolicy.setupMessage(ctx);
-        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "setupMessage")
+        // geth: preCheck (pipelineSetupMessage) — ADR-030
+        precheckPolicy.pipelineSetupMessage(ctx);
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "pipelineSetupMessage")
                        << LOG_KV("gas", ctx.message.gas);
 
         // geth: preCheck (rules) — ADR-030
-        precheckPolicy.checkTransactionRules(ctx);
+        precheckPolicy.pipelineCheckRules(ctx);
         if (ctx.earlyExit)
         {
             ctx.exitKind = TxPipelineExitKind::RulesRejected;
@@ -59,7 +59,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
         }
 
         // geth: preCheck (buyGas / gas affordable) — ADR-030
-        precheckPolicy.checkGasAffordable(ctx);
+        precheckPolicy.pipelineCheckGasAffordable(ctx);
         if (ctx.earlyExit)
         {
             ctx.exitKind = TxPipelineExitKind::GasAffordRejected;
@@ -92,7 +92,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
         }
 
         // geth: CanTransfer — ADR-030
-        precheckPolicy.checkBalanceAndValue(ctx);
+        precheckPolicy.pipelineCheckBalance(ctx);
         if (ctx.earlyExit)
         {
             if (ctx.exitKind == TxPipelineExitKind::None)
@@ -107,7 +107,8 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
         }
 
         // geth: innerExecute — ADR-030
-        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "runEvmExecution")
+        EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step")
+                       << LOG_KV("step", "pipelineInvokeEvmKernel")
                        << LOG_KV("gas", ctx.message.gas);
 
         if (ctx.txContextView == nullptr)
@@ -115,9 +116,9 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
             throw std::invalid_argument("runTxPipeline requires wired EvmTxContextView");
         }
         auto executeInput = ctx.txContextView->toExecuteMessageInput(ctx);
-        precheckPolicy.tuneExecutionInput(executeInput);
+        precheckPolicy.pipelineTuneKernelInput(executeInput);
 
-        ctx.kernelOutput = precheckPolicy.runEvmExecution(std::move(executeInput));
+        ctx.kernelOutput = precheckPolicy.pipelineInvokeEvmKernel(std::move(executeInput));
         ctx.evmcResult = adoptEvmcResult(std::move(ctx.kernelOutput.result), *ctx.inputs.hashImpl);
 
         captureSettlementSnapshot(ctx, ctx.kernelOutput);

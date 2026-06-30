@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
 
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    policy.checkTransactionRules(ctx);
+    policy.pipelineCheckRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),

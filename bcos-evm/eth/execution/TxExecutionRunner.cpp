@@ -191,7 +191,7 @@ ExecuteMessageOutput finalizeAfterFrame(
 }
 }  // namespace
 
-ExecuteMessageOutput TxExecutionRunner::run(ExecuteMessageInput input)
+ExecuteMessageOutput TxExecutionRunner::runEvmKernelTopLevel(ExecuteMessageInput input)
 {
     if (input.state == nullptr || input.vm == nullptr)
     {
@@ -220,7 +220,7 @@ ExecuteMessageOutput TxExecutionRunner::run(ExecuteMessageInput input)
         txContext.tx_origin, host.execution_address_ref(), input.chainPort};
 
     auto const scope = input.message.depth == 0 ? FrameScope::TopLevel : FrameScope::Nested;
-    auto fr = runExecutionFrame(frameCtx, input.message, scope, host);
+    auto fr = runCallFrame(frameCtx, input.message, scope, host);
 
     if (fr.precompileHit)
     {

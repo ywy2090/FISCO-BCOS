@@ -220,7 +220,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 
     execution::FrameExecutionEnv frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
         m_txContext.tx_origin, m_executionAddress, m_chainPort};
-    auto fr = execution::runExecutionFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
+    auto fr = execution::runCallFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
     return Result(std::move(fr.result));
 }
 

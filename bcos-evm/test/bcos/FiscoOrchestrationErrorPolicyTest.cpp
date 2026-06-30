@@ -520,7 +520,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
             return policy;
         }
 
-        void checkBalanceAndValue(TxPipelineContext&) const override
+        void pipelineCheckBalance(TxPipelineContext&) const override
         {
             throw protocol::NotEnoughCashError{};
         }

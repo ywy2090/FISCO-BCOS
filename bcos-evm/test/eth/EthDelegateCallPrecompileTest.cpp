@@ -76,7 +76,7 @@ DelegatePrecompileOutcome runNestedExecutionFrame(
     message.depth = 1;
     execution::FrameExecutionEnv frameCtx{state, vm, cfg, extension, txContext.tx_origin,
         host.execution_address_ref()};
-    auto fr = execution::runExecutionFrame(
+    auto fr = execution::runCallFrame(
         frameCtx, message, execution::FrameScope::Nested, host);
 
     return {.status = fr.result.status_code,

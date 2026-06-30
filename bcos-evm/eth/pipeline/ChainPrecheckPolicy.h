@@ -14,34 +14,61 @@ struct ChainPrecheckPolicy
 
     virtual IntrinsicGasDebitParams intrinsicGasDebitParams() const = 0;
 
-    virtual void setupMessage(TxPipelineContext& ctx) const { (void)ctx; }
+    virtual void pipelineSetupMessage(TxPipelineContext& ctx) const { (void)ctx; }
 
-    virtual void checkTransactionRules(TxPipelineContext& ctx) const { (void)ctx; }
+    virtual void pipelineCheckRules(TxPipelineContext& ctx) const { (void)ctx; }
 
-    virtual void checkGasAffordable(TxPipelineContext& ctx) const { (void)ctx; }
+    virtual void pipelineCheckGasAffordable(TxPipelineContext& ctx) const { (void)ctx; }
 
-    virtual void checkBalanceAndValue(TxPipelineContext& ctx) const { (void)ctx; }
+    virtual void pipelineCheckBalance(TxPipelineContext& ctx) const { (void)ctx; }
 
-    virtual void tuneExecutionInput(ExecuteMessageInput& input) const { (void)input; }
+    virtual void pipelineTuneKernelInput(ExecuteMessageInput& input) const { (void)input; }
 
-    virtual ExecuteMessageOutput runEvmExecution(ExecuteMessageInput&& input) const
+    virtual ExecuteMessageOutput pipelineInvokeEvmKernel(ExecuteMessageInput&& input) const
     {
         return executeMessage(std::move(input));
     }
 
-    // geth: preCheck slices — ADR-030 Tier A aliases (forward to ADR-029 canonical names)
-    void preCheckRules(TxPipelineContext& ctx) const { checkTransactionRules(ctx); }
-
-    void preCheckGasAffordable(TxPipelineContext& ctx) const { checkGasAffordable(ctx); }
-
-    void preCheckCanTransfer(TxPipelineContext& ctx) const { checkBalanceAndValue(ctx); }
-
-    void normalizeMessage(TxPipelineContext& ctx) const { setupMessage(ctx); }
-
-    [[nodiscard]] ExecuteMessageOutput pipelineInvokeEvmKernel(ExecuteMessageInput&& input) const
+    // ADR-029 deprecated aliases (1 release)
+    [[deprecated("Use pipelineSetupMessage")]] void setupMessage(TxPipelineContext& ctx) const
     {
-        return runEvmExecution(std::move(input));
+        pipelineSetupMessage(ctx);
     }
+
+    [[deprecated("Use pipelineCheckRules")]] void checkTransactionRules(
+        TxPipelineContext& ctx) const
+    {
+        pipelineCheckRules(ctx);
+    }
+
+    [[deprecated("Use pipelineCheckGasAffordable")]] void checkGasAffordable(
+        TxPipelineContext& ctx) const
+    {
+        pipelineCheckGasAffordable(ctx);
+    }
+
+    [[deprecated("Use pipelineCheckBalance")]] void checkBalanceAndValue(
+        TxPipelineContext& ctx) const
+    {
+        pipelineCheckBalance(ctx);
+    }
+
+    [[deprecated("Use pipelineTuneKernelInput")]] void tuneExecutionInput(
+        ExecuteMessageInput& input) const
+    {
+        pipelineTuneKernelInput(input);
+    }
+
+    [[deprecated("Use pipelineInvokeEvmKernel")]] ExecuteMessageOutput runEvmExecution(
+        ExecuteMessageInput&& input) const
+    {
+        return pipelineInvokeEvmKernel(std::move(input));
+    }
+
+    // geth: preCheck slices — ADR-030 Tier A aliases (forward to ADR-029 canonical names)
+    void preCheckGasAffordable(TxPipelineContext& ctx) const { pipelineCheckGasAffordable(ctx); }
+
+    void preCheckCanTransfer(TxPipelineContext& ctx) const { pipelineCheckBalance(ctx); }
 };
 
 }  // namespace bcos::evm

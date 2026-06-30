@@ -24,7 +24,7 @@ struct CountingPrecheckPolicy : ChainPrecheckPolicy
 
     IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return {}; }
 
-    void checkTransactionRules(TxPipelineContext& ctx) const override
+    void pipelineCheckRules(TxPipelineContext& ctx) const override
     {
         ++rulesCallCount;
         ctx.earlyExit = true;
@@ -65,14 +65,14 @@ BOOST_AUTO_TEST_CASE(innerExecute_resolves_as_executeMessage_forward)
     BOOST_CHECK((std::is_same_v<decltype(&innerExecute), decltype(&executeMessage)>));
 }
 
-BOOST_AUTO_TEST_CASE(preCheckRules_forwards_to_checkTransactionRules)
+BOOST_AUTO_TEST_CASE(checkTransactionRules_forwards_to_pipelineCheckRules)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
     CountingPrecheckPolicy policy;
-    policy.preCheckRules(ctx);
+    policy.checkTransactionRules(ctx);
 
     BOOST_CHECK_EQUAL(policy.rulesCallCount, 1);
     BOOST_CHECK(ctx.earlyExit);
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(finalizeGasUsed_forwards_to_onPostExecuteNormalize)
     BOOST_CHECK_EQUAL(errorPolicy.normalizeCount, 1);
 }
 
-BOOST_AUTO_TEST_CASE(evm_frame_aliases_share_runExecutionFrame_signature)
+BOOST_AUTO_TEST_CASE(evm_frame_aliases_share_runCallFrame_signature)
 {
     using FrameFn = execution::FrameResult (*)(
         execution::FrameExecutionEnv&, evmc_message, execution::FrameScope, state::EthHost&);

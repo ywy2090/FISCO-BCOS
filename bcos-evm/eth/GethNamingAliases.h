@@ -10,14 +10,14 @@
  *
  * Kernel alias index (coexist with ADR-029 canonical names):
  *   stateTransitionExecute → runTxPipeline
- *   ChainPrecheckPolicy — preCheckRules, preCheckGasAffordable, preCheckCanTransfer,
- *                         normalizeMessage, pipelineInvokeEvmKernel
+ *   ChainPrecheckPolicy — pipelineCheckRules, preCheckGasAffordable, preCheckCanTransfer,
+ *                         pipelineSetupMessage, pipelineInvokeEvmKernel
  *   deductIntrinsicGas → debitIntrinsicGas
  *   innerExecute → executeMessage
  *   prepareState → execution::warmTransactionEntry
  *   finalizeGasUsed → onPostExecuteNormalize (OrchestrationErrorPolicy)
  *   applyReferenceMessage / applyFiscoMessage / applyOpStackMessage — chain headers
- *   evmCall / evmCreate / evmDelegateCall / evmStaticCall → runExecutionFrame
+ *   evmCall / evmCreate / evmDelegateCall / evmStaticCall → runCallFrame
  *
  * Stable ABI (Tier E — retain): executeMessage, fiscoExecute, ethReferenceExecute,
  *   opStackExecute, runTxPipeline, runExecutionFrame
@@ -75,7 +75,7 @@ namespace execution
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     assert(message.kind == EVMC_CALL);
-    return runExecutionFrame(ctx, message, scope, host);
+    return runCallFrame(ctx, message, scope, host);
 }
 
 // geth: evm.Create / Create2 — ADR-030
@@ -83,7 +83,7 @@ namespace execution
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     assert(message.kind == EVMC_CREATE || message.kind == EVMC_CREATE2);
-    return runExecutionFrame(ctx, message, scope, host);
+    return runCallFrame(ctx, message, scope, host);
 }
 
 // geth: evm.DelegateCall — ADR-030
@@ -91,7 +91,7 @@ namespace execution
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     assert(message.kind == EVMC_DELEGATECALL);
-    return runExecutionFrame(ctx, message, scope, host);
+    return runCallFrame(ctx, message, scope, host);
 }
 
 // geth: evm.StaticCall — ADR-030
@@ -99,7 +99,7 @@ namespace execution
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     assert(message.kind == EVMC_STATICCALL);
-    return runExecutionFrame(ctx, message, scope, host);
+    return runCallFrame(ctx, message, scope, host);
 }
 
 }  // namespace execution

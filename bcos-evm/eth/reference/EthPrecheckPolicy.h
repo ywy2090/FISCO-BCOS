@@ -30,9 +30,9 @@ struct EthPrecheckPolicy : ChainPrecheckPolicy
 
     IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
 
-    void checkTransactionRules(TxPipelineContext& ctx) const override;
+    void pipelineCheckRules(TxPipelineContext& ctx) const override;
 
-    void checkBalanceAndValue(TxPipelineContext& ctx) const override;
+    void pipelineCheckBalance(TxPipelineContext& ctx) const override;
 
 private:
     EthReferenceRequest const& m_input;
