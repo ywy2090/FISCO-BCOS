@@ -19,7 +19,7 @@
  * @date 2021-05-11
  */
 #include "TxValidator.h"
-#include "bcos-evm/eth/AccessList.h"
+#include "bcos-evm/eth/Eip2930AccessList.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/vm/VMInstance.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
