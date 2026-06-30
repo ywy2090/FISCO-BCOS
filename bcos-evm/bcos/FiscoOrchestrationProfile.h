@@ -27,7 +27,7 @@ namespace bcos::evm
 
 struct FiscoOrchestrationProfile
 {
-    /// Orchestration policy bind input (not kernel EvmTxContextView).
+    /// Orchestration policy bind input (not execution environment wiring).
     struct BindingsContext
     {
         FiscoExecutionRequest const& input;

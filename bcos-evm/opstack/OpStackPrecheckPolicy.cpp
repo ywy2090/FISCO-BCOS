@@ -154,7 +154,7 @@ void OpStackPrecheckPolicy::lifecycleCheckEntryRules(StateTransitionContext& ctx
     }
 }
 
-void OpStackPrecheckPolicy::pipelineCheckGasAffordable(StateTransitionContext& ctx) const
+void OpStackPrecheckPolicy::onPreCheckGasAffordable(StateTransitionContext& ctx) const
 {
     auto const gasLimit = static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
     bcos::bytesConstRef inputData{ctx.message.input_data, ctx.message.input_size};
@@ -171,7 +171,7 @@ void OpStackPrecheckPolicy::pipelineCheckGasAffordable(StateTransitionContext& c
     }
 }
 
-void OpStackPrecheckPolicy::pipelineTuneKernelInput(InnerExecuteInput& execInput) const
+void OpStackPrecheckPolicy::onTuneInnerExecuteInput(InnerExecuteInput& execInput) const
 {
     if (m_view.isDeposit())
     {
@@ -179,7 +179,7 @@ void OpStackPrecheckPolicy::pipelineTuneKernelInput(InnerExecuteInput& execInput
     }
 }
 
-InnerExecuteOutput OpStackPrecheckPolicy::pipelineInvokeEvmKernel(InnerExecuteInput&& input) const
+InnerExecuteOutput OpStackPrecheckPolicy::onInvokeInnerExecute(InnerExecuteInput&& input) const
 {
 #ifdef BCOS_EVM_TESTING
     if (auto spyOutput = opstack::test::maybeCallApplyOpStackMessageSpy(input);

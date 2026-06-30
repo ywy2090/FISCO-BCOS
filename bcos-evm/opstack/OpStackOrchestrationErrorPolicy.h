@@ -14,7 +14,7 @@ struct OpStackOrchestrationErrorPolicy : OrchestrationErrorPolicy
         ctx.evmcResult = makeOutOfGasLimitResult();
     }
 
-    void onPipelineException(
+    void onException(
         StateTransitionContext& ctx, std::exception_ptr /*exceptionPtr*/) const override
     {
         ctx.evmcResult = makeInternalErrorResult();

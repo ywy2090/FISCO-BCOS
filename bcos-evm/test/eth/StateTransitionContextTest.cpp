@@ -1,7 +1,6 @@
-#define BOOST_TEST_MODULE EvmTxContextViewTest
+#define BOOST_TEST_MODULE StateTransitionContextTest
 
-#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
-#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -12,7 +11,6 @@ namespace
 {
 void populateContext(StateTransitionContext& ctx, evmc::VM& vm)
 {
-    ctx.inputs.vm = &vm;
     ctx.inputs.blockInfo.number = 42;
     ctx.inputs.blockHashes = [](int64_t n) {
         evmc_bytes32 out{};
@@ -21,18 +19,11 @@ void populateContext(StateTransitionContext& ctx, evmc::VM& vm)
     };
     ctx.revisionConfig.revision = EVMC_CANCUN;
     ctx.gasPrice = 7;
-}
-
-EvmTxContextView makeTxContextView(evmc::VM& vm)
-{
-    EvmTxContextView session;
-    session.vm = &vm;
-    session.blockHashes = [](int64_t) { return evmc_bytes32{}; };
-    return session;
+    ctx.wireExecutionEnvironment(&vm, nullptr, nullptr);
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(toInnerExecuteInput_projects_wired_context_fields)
+BOOST_AUTO_TEST_CASE(toInnerExecuteInput_projects_context_fields)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
@@ -42,10 +33,7 @@ BOOST_AUTO_TEST_CASE(toInnerExecuteInput_projects_wired_context_fields)
     evmc::VM vm{evmc_create_evmone()};
     populateContext(ctx, vm);
 
-    auto session = makeTxContextView(vm);
-    session.wire(ctx);
-
-    auto const input = session.toInnerExecuteInput(ctx);
+    auto const input = ctx.toInnerExecuteInput();
 
     BOOST_CHECK(input.state == &ctx.state);
     BOOST_CHECK(input.vm == &vm);
@@ -53,24 +41,23 @@ BOOST_AUTO_TEST_CASE(toInnerExecuteInput_projects_wired_context_fields)
     BOOST_CHECK(input.gasPrice == bcos::u256(7));
     BOOST_CHECK(input.blockInfo.number == 42);
     BOOST_CHECK(input.revisionConfig.revision == EVMC_CANCUN);
-    BOOST_CHECK(input.extension == session.extension);
-    BOOST_CHECK(input.chainPort == session.chainPort);
+    BOOST_CHECK(input.extension == ctx.extension);
+    BOOST_CHECK(input.chainPort == ctx.chainPort);
 }
 
-BOOST_AUTO_TEST_CASE(wire_sets_session_pointer_on_context)
+BOOST_AUTO_TEST_CASE(wireExecutionEnvironment_sets_vm_and_ports)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
     StateTransitionContext ctx{
         stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
     evmc::VM vm{evmc_create_evmone()};
-    ctx.inputs.vm = &vm;
 
-    auto session = makeTxContextView(vm);
-    session.wire(ctx);
+    ctx.wireExecutionEnvironment(&vm, nullptr, nullptr);
 
-    BOOST_CHECK(ctx.txContextView == &session);
     BOOST_CHECK_EQUAL(ctx.inputs.vm, &vm);
+    BOOST_CHECK(ctx.extension == nullptr);
+    BOOST_CHECK(ctx.chainPort == nullptr);
 }
 
 }  // namespace bcos::evm::test

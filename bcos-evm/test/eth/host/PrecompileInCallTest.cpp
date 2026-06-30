@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(contract_call_identity_precompile_returns_input)
 
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
-    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;

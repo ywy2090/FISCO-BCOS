@@ -18,27 +18,27 @@
 
 #pragma once
 
-#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 
 namespace bcos::evm
 {
 
-struct OpStackPrecheckPolicy : ChainPrecheckPolicy
+struct OpStackPrecheckPolicy : StateTransitionHooks
 {
     explicit OpStackPrecheckPolicy(OpStackSettlementFacade& view);
 
-    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return m_intrinsicPolicy; }
+    DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
     /// Sync entry rules before buyGas (nonce, 7702, blob intent, fee caps). OpStack-only phase.
     void lifecycleCheckEntryRules(StateTransitionContext& ctx) const;
 
-    void pipelineCheckGasAffordable(StateTransitionContext& ctx) const override;
+    void onPreCheckGasAffordable(StateTransitionContext& ctx) const override;
 
-    void pipelineTuneKernelInput(InnerExecuteInput& input) const override;
+    void onTuneInnerExecuteInput(InnerExecuteInput& input) const override;
 
-    InnerExecuteOutput pipelineInvokeEvmKernel(InnerExecuteInput&& input) const override;
+    InnerExecuteOutput onInvokeInnerExecute(InnerExecuteInput&& input) const override;
 
 private:
     OpStackSettlementFacade& m_view;

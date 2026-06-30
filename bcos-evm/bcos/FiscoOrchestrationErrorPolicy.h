@@ -41,8 +41,7 @@ struct FiscoOrchestrationErrorPolicy : OrchestrationErrorPolicy
             EVMC_OUT_OF_GAS, fixErrorHandling ? 0 : ctx.message.gas, reason, fixErrorHandling);
     }
 
-    void onPipelineException(
-        StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
+    void onException(StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
     {
         try
         {
@@ -87,7 +86,7 @@ struct FiscoOrchestrationErrorPolicy : OrchestrationErrorPolicy
         }
     }
 
-    void onPostExecuteNormalize(StateTransitionContext& ctx) const override
+    void onFinalizeGasUsed(StateTransitionContext& ctx) const override
     {
         if ((ctx.message.kind == EVMC_CREATE || ctx.message.kind == EVMC_CREATE2) &&
             ctx.evmcResult.status_code == EVMC_SUCCESS &&
@@ -103,7 +102,7 @@ struct FiscoOrchestrationErrorPolicy : OrchestrationErrorPolicy
         }
     }
 
-    void onPipelineComplete(StateTransitionContext& ctx) const override
+    void onComplete(StateTransitionContext& ctx) const override
     {
         if (ctx.evmcResult.gas_left < 0)
         {

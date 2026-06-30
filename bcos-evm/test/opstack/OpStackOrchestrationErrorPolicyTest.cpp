@@ -2,10 +2,10 @@
 
 #include "bcos-evm/opstack/OpStackOrchestrationErrorPolicy.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -28,7 +28,7 @@ void invokePipelineException(
     }
     catch (...)
     {
-        errorPolicy.onPipelineException(ctx, std::current_exception());
+        errorPolicy.onException(ctx, std::current_exception());
     }
 }
 }  // namespace
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
     ctx.kernelOutput.logs.push_back(state::LogEntry{});
 
     OpStackOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INVALID_INSTRUCTION);
@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_complete_is_noop)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     OpStackOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPipelineComplete(ctx);
+    errorPolicy.onComplete(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, -5);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
@@ -196,9 +196,9 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    struct OpStackEntryPrecheckPolicy : ChainPrecheckPolicy
+    struct OpStackEntryPrecheckPolicy : StateTransitionHooks
     {
-        DeductIntrinsicGasParams deductIntrinsicGasParams() const override
+        DeductIntrinsicGasParams getIntrinsicGasParams() const override
         {
             DeductIntrinsicGasParams policy;
             policy.mode = IntrinsicDebitMode::OpStackEntry;

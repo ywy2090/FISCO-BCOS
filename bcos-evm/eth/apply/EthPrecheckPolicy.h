@@ -19,20 +19,20 @@
 #pragma once
 
 #include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
-#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 
 namespace bcos::evm
 {
 
-struct EthPrecheckPolicy : ChainPrecheckPolicy
+struct EthPrecheckPolicy : StateTransitionHooks
 {
     explicit EthPrecheckPolicy(EthReferenceRequest const& input);
 
-    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return m_intrinsicPolicy; }
+    DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
-    void pipelineCheckRules(StateTransitionContext& ctx) const override;
+    void onPreCheckRules(StateTransitionContext& ctx) const override;
 
-    void pipelineCheckBalance(StateTransitionContext& ctx) const override;
+    void onPreCheckCanTransfer(StateTransitionContext& ctx) const override;
 
 private:
     EthReferenceRequest const& m_input;

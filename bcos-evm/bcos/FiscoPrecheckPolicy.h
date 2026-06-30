@@ -19,24 +19,24 @@
 #pragma once
 
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
-#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 
 namespace bcos::evm
 {
 
-struct FiscoPrecheckPolicy : ChainPrecheckPolicy
+struct FiscoPrecheckPolicy : StateTransitionHooks
 {
     FiscoPrecheckPolicy(FiscoExecutionRequest const& input, bool eip7623Enabled);
 
-    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return m_intrinsicPolicy; }
+    DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
-    void pipelineSetupMessage(StateTransitionContext& ctx) const override;
+    void onNormalizeMessage(StateTransitionContext& ctx) const override;
 
-    void pipelineCheckRules(StateTransitionContext& ctx) const override;
+    void onPreCheckRules(StateTransitionContext& ctx) const override;
 
-    void pipelineCheckBalance(StateTransitionContext& ctx) const override;
+    void onPreCheckCanTransfer(StateTransitionContext& ctx) const override;
 
-    void pipelineTuneKernelInput(InnerExecuteInput& input) const override;
+    void onTuneInnerExecuteInput(InnerExecuteInput& input) const override;
 
 private:
     FiscoExecutionRequest const& m_input;

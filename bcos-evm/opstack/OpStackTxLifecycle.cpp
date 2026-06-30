@@ -56,8 +56,8 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     sidecar.floorDataGas = input.floorDataGas;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
-    // Dual context: execBundle wires kernel EvmTxContextView into ctx;
-    // bindingsCtx is orchestration policy bind input only — not merged with EvmTxContextView.
+    // execBundle wires execution environment (vm, extension, chainPort) into ctx;
+    // bindingsCtx is orchestration policy bind input only.
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
 

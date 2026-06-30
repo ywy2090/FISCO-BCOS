@@ -3,7 +3,7 @@
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include <cassert>
 #include <optional>
 
@@ -16,23 +16,18 @@ struct FiscoExecutionBundle
     FiscoExecutionBundle(StateTransitionContext& ctx, FiscoExecutionRequest& input)
       : m_extension(input.revisionConfig.enable_balance_transfer, makeDeps(ctx, input))
     {
-        m_view.vm = input.vm;
-        m_view.blockHashes = input.blockHashes;
-        m_view.extension = &m_extension;
-
+        ChainCallTargetDispatcher* chainPort = nullptr;
         if (input.chainDispatchPort != nullptr)
         {
             m_chainAdapter.emplace(ctx.state, *input.chainDispatchPort);
-            m_view.chainPort = std::addressof(*m_chainAdapter);
+            chainPort = std::addressof(*m_chainAdapter);
 #ifndef NDEBUG
-            assert(m_view.chainPort != nullptr);
+            assert(chainPort != nullptr);
 #endif
         }
-
-        m_view.wire(ctx);
+        ctx.wireExecutionEnvironment(input.vm, &m_extension, chainPort);
     }
 
-    EvmTxContextView const& view() const noexcept { return m_view; }
     FiscoVmHostPolicy& extension() noexcept { return m_extension; }
 
 private:
@@ -58,7 +53,6 @@ private:
 
     FiscoVmHostPolicy m_extension;
     std::optional<FiscoChainCallTargetAdapter> m_chainAdapter;
-    EvmTxContextView m_view;
 };
 
 }  // namespace bcos::evm

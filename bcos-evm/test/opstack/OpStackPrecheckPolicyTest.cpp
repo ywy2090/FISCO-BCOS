@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    policy.pipelineCheckGasAffordable(ctx);
+    policy.onPreCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -116,9 +116,9 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
-    BOOST_CHECK_EQUAL(policy.deductIntrinsicGasParams().authTupleCount, 2U);
+    BOOST_CHECK_EQUAL(policy.getIntrinsicGasParams().authTupleCount, 2U);
 }
 
 }  // namespace bcos::evm::test

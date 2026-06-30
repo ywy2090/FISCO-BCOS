@@ -20,8 +20,7 @@ struct EthOrchestrationErrorPolicy : OrchestrationErrorPolicy
         ctx.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
     }
 
-    void onPipelineException(
-        StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
+    void onException(StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
     {
         try
         {
@@ -48,7 +47,7 @@ struct EthOrchestrationErrorPolicy : OrchestrationErrorPolicy
         }
     }
 
-    void onPostExecuteNormalize(StateTransitionContext& ctx) const override
+    void onFinalizeGasUsed(StateTransitionContext& ctx) const override
     {
         normalizeSetCodeTransactionVmerr(
             ctx.evmcResult, ctx.message.depth, ctx.inputs.authorizationListPresent);

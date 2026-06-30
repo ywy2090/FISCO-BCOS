@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(parent_warm_address_survives_child_revert)
 
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
-    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;

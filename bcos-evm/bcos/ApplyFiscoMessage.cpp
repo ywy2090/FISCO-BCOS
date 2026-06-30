@@ -101,8 +101,8 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
 
     trace::logMessageContext(input.message);
 
-    // Dual context: execBundle wires kernel EvmTxContextView into ctx;
-    // bindingsCtx is orchestration policy bind input only — not merged with EvmTxContextView.
+    // execBundle wires execution environment (vm, extension, chainPort) into ctx;
+    // bindingsCtx is orchestration policy bind input only.
     FiscoExecutionBundle execBundle{ctx, input};
 
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{
@@ -119,7 +119,7 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
     output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
     output.executionContext.message = ctx.message;
 
-    if (bindings.precheckPolicy.deductIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.precheckPolicy.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

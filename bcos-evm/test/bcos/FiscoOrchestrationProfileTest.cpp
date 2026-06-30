@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
         input, output, false, true /* eip7623Enabled */};
 
     auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::Eip7623));
 }
 
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
 
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
     auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    policy.pipelineCheckRules(ctx);
+    policy.onPreCheckRules(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
 
     FiscoOrchestrationProfile::BindingsContext bindingsCtx{input, output, false, false};
     auto policy = FiscoOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    policy.pipelineSetupMessage(ctx);
+    policy.onNormalizeMessage(ctx);
 
     BOOST_CHECK(ctx.message.kind == EVMC_CREATE);
     BOOST_CHECK(std::memcmp(ctx.message.recipient.bytes, ctx.message.code_address.bytes,

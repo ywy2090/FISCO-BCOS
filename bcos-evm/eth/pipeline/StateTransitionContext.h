@@ -13,6 +13,7 @@
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
+#include <stdexcept>
 
 namespace bcos::crypto
 {
@@ -23,7 +24,6 @@ namespace bcos::evm
 {
 
 struct ChainCallTargetDispatcher;
-struct EvmTxContextView;
 
 enum class StateTransitionExitKind
 {
@@ -77,6 +77,40 @@ public:
     StateTransitionContext(StateTransitionContext&&) = delete;
     StateTransitionContext& operator=(StateTransitionContext&&) = delete;
 
+    /// Chain Bundle injection: vm (required), host hooks, call-target port (optional).
+    void wireExecutionEnvironment(
+        evmc::VM* vm, state::EvmHostHooks* extension, ChainCallTargetDispatcher* chainPort)
+    {
+        if (vm == nullptr)
+        {
+            throw std::invalid_argument(
+                "StateTransitionContext::wireExecutionEnvironment requires vm");
+        }
+        inputs.vm = vm;
+        this->extension = extension;
+        this->chainPort = chainPort;
+    }
+
+    InnerExecuteInput toInnerExecuteInput() const
+    {
+        InnerExecuteInput input;
+        input.state = const_cast<state::State*>(&state);
+        input.vm = inputs.vm;
+        input.message = message;
+        input.gasPrice = gasPrice;
+        input.blockInfo = inputs.blockInfo;
+        input.blockHashes = inputs.blockHashes;
+        input.revisionConfig = revisionConfig;
+        input.txProps = txProps;
+        input.accessList = inputs.accessList;
+        input.authorizationListPresent = inputs.authorizationListPresent;
+        input.authorizations = inputs.authorizations;
+        input.web3TypedTxKind = inputs.web3TypedTxKind;
+        input.extension = extension;
+        input.chainPort = chainPort;
+        return input;
+    }
+
     StateTransitionInputs inputs;
     evmc_message message{};
     int64_t originalGasLimit{0};
@@ -84,7 +118,6 @@ public:
     bcos::u256 gasPrice{0};
     state::EvmHostHooks* extension{nullptr};
     ChainCallTargetDispatcher* chainPort{nullptr};
-    EvmTxContextView const* txContextView{nullptr};
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};

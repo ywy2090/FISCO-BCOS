@@ -38,7 +38,7 @@ FiscoPrecheckPolicy::FiscoPrecheckPolicy(FiscoExecutionRequest const& input, boo
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
 }
 
-void FiscoPrecheckPolicy::pipelineSetupMessage(StateTransitionContext& ctx) const
+void FiscoPrecheckPolicy::onNormalizeMessage(StateTransitionContext& ctx) const
 {
     ctx.message = deriveMessage(FiscoTxAdapterInput{.web3Tx = m_input.web3Tx,
         .featureEvmAddress = m_input.revisionConfig.feature_evm_address,
@@ -50,7 +50,7 @@ void FiscoPrecheckPolicy::pipelineSetupMessage(StateTransitionContext& ctx) cons
         .hashImpl = m_input.hashImpl});
 }
 
-void FiscoPrecheckPolicy::pipelineCheckRules(StateTransitionContext& ctx) const
+void FiscoPrecheckPolicy::onPreCheckRules(StateTransitionContext& ctx) const
 {
     if (m_input.revisionConfig.enable_auth_check && m_input.authPort != nullptr)
     {
@@ -64,7 +64,7 @@ void FiscoPrecheckPolicy::pipelineCheckRules(StateTransitionContext& ctx) const
     }
 }
 
-void FiscoPrecheckPolicy::pipelineCheckBalance(StateTransitionContext& ctx) const
+void FiscoPrecheckPolicy::onPreCheckCanTransfer(StateTransitionContext& ctx) const
 {
     if (m_input.revisionConfig.enable_balance_transfer)
     {
@@ -89,7 +89,7 @@ void FiscoPrecheckPolicy::pipelineCheckBalance(StateTransitionContext& ctx) cons
     }
 }
 
-void FiscoPrecheckPolicy::pipelineTuneKernelInput(InnerExecuteInput& executeInput) const
+void FiscoPrecheckPolicy::onTuneInnerExecuteInput(InnerExecuteInput& executeInput) const
 {
     executeInput.revisionConfig = m_input.revisionConfig.eth();
 }

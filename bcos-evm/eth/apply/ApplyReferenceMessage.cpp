@@ -60,8 +60,8 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
 
     trace::logMessageContext(input.message);
 
-    // Dual context: execBundle wires kernel EvmTxContextView into ctx;
-    // bindingsCtx is orchestration policy bind input only — not merged with EvmTxContextView.
+    // execBundle wires execution environment (vm, extension, chainPort) into ctx;
+    // bindingsCtx is orchestration policy bind input only.
     EthExecutionBundle execBundle{ctx, input};
 
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
@@ -82,7 +82,7 @@ task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
     output.executionContext.message = ctx.message;
     output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
 
-    if (bindings.precheckPolicy.deductIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.precheckPolicy.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

@@ -25,7 +25,7 @@ void invokePipelineException(
     }
     catch (...)
     {
-        errorPolicy.onPipelineException(ctx, std::current_exception());
+        errorPolicy.onException(ctx, std::current_exception());
     }
 }
 }  // namespace
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_non_out_of_gas_bcos_exception)
         static_cast<int>(protocol::TransactionStatus::Unknown));
 }
 
-// GAP-003 E-PEX-05b: plain std::runtime_error currently escapes onPipelineException
+// GAP-003 E-PEX-05b: plain std::runtime_error currently escapes onException
 // (characterization). CURRENT_ORACLE (observed): exception propagates — differs from
 // PrecompiledError/GasOverflow path. GETH_ORACLE target: map to EVMC_INTERNAL_ERROR + Unknown
 // without throw (see eth_pipeline_exception_maps_generic_exception).
@@ -192,7 +192,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_complete_is_noop)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     EthOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPipelineComplete(ctx);
+    errorPolicy.onComplete(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, -5);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_included_top_level_vmerr)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
 
     EthOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_skips_nested_vmerr_normalization)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
 
     EthOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INVALID_INSTRUCTION);
@@ -306,7 +306,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_set_code_revert_at_top_level)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
 
     EthOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
@@ -330,7 +330,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_top_level_revert_without_auth_list)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
 
     EthOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_REVERT);
@@ -355,7 +355,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_leaves_success_unchanged)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     EthOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
@@ -378,7 +378,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_insufficient_balance_at_top_level)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::NotEnoughCash);
 
     EthOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);

@@ -136,7 +136,7 @@ RunOutcome runSstoreClear(bool prefillNonZero)
 
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .warm_access = true};
-    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, true);
+    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;

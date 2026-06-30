@@ -3,9 +3,8 @@
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/apply/EthOrchestrationErrorPolicy.h"
-#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
-#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
+#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
@@ -35,16 +34,7 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-void wireMinimalEvmTxContextView(StateTransitionContext& ctx, EvmTxContextView& session)
-{
-    session.vm = ctx.inputs.vm;
-    session.extension = ctx.extension;
-    session.chainPort = ctx.chainPort;
-    session.blockHashes = ctx.inputs.blockHashes;
-    session.wire(ctx);
-}
-
-struct CallbackPrecheckPolicy : ChainPrecheckPolicy
+struct CallbackPrecheckPolicy : StateTransitionHooks
 {
     DeductIntrinsicGasParams intrinsicPolicy{};
 
@@ -55,9 +45,9 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
     std::function<void(InnerExecuteInput&)> onTuneExecutionInput;
     std::function<InnerExecuteOutput(InnerExecuteInput&&)> onRunEvmExecution;
 
-    DeductIntrinsicGasParams deductIntrinsicGasParams() const override { return intrinsicPolicy; }
+    DeductIntrinsicGasParams getIntrinsicGasParams() const override { return intrinsicPolicy; }
 
-    void pipelineSetupMessage(StateTransitionContext& ctx) const override
+    void onNormalizeMessage(StateTransitionContext& ctx) const override
     {
         if (onSetupMessage)
         {
@@ -65,7 +55,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void pipelineCheckRules(StateTransitionContext& ctx) const override
+    void onPreCheckRules(StateTransitionContext& ctx) const override
     {
         if (onCheckTransactionRules)
         {
@@ -73,7 +63,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void pipelineCheckGasAffordable(StateTransitionContext& ctx) const override
+    void onPreCheckGasAffordable(StateTransitionContext& ctx) const override
     {
         if (onCheckGasAffordable)
         {
@@ -81,7 +71,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void pipelineCheckBalance(StateTransitionContext& ctx) const override
+    void onPreCheckCanTransfer(StateTransitionContext& ctx) const override
     {
         if (onCheckBalanceAndValue)
         {
@@ -89,7 +79,7 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    void pipelineTuneKernelInput(InnerExecuteInput& input) const override
+    void onTuneInnerExecuteInput(InnerExecuteInput& input) const override
     {
         if (onTuneExecutionInput)
         {
@@ -97,13 +87,13 @@ struct CallbackPrecheckPolicy : ChainPrecheckPolicy
         }
     }
 
-    InnerExecuteOutput pipelineInvokeEvmKernel(InnerExecuteInput&& input) const override
+    InnerExecuteOutput onInvokeInnerExecute(InnerExecuteInput&& input) const override
     {
         if (onRunEvmExecution)
         {
             return onRunEvmExecution(std::move(input));
         }
-        return ChainPrecheckPolicy::pipelineInvokeEvmKernel(std::move(input));
+        return StateTransitionHooks::onInvokeInnerExecute(std::move(input));
     }
 };
 
@@ -121,8 +111,7 @@ struct CallbackOrchestrationErrorPolicy : OrchestrationErrorPolicy
         }
     }
 
-    void onPipelineException(
-        StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
+    void onException(StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
     {
         if (onException)
         {
@@ -333,9 +322,6 @@ BOOST_AUTO_TEST_CASE(completed_path_non_eip7623_keeps_snapshot_values)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    EvmTxContextView session;
-    wireMinimalEvmTxContextView(ctx, session);
-
     CallbackPrecheckPolicy precheckPolicy;
     precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
     precheckPolicy.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
@@ -367,9 +353,6 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     evmc::VM vm{evmc_create_evmone()};
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
-
-    EvmTxContextView session;
-    wireMinimalEvmTxContextView(ctx, session);
 
     CallbackPrecheckPolicy precheckPolicy;
     precheckPolicy.intrinsicPolicy.mode = IntrinsicDebitMode::None;
@@ -404,9 +387,6 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     evmc::VM vm{evmc_create_evmone()};
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
-
-    EvmTxContextView session;
-    wireMinimalEvmTxContextView(ctx, session);
 
     auto const warmAddr = ctx.message.recipient;
     ctx.state.pin_warm_create_address(warmAddr);

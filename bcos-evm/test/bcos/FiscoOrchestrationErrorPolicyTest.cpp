@@ -4,10 +4,10 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
-#include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/pipeline/StateTransitionHooks.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
@@ -31,7 +31,7 @@ void invokePipelineException(
     }
     catch (...)
     {
-        errorPolicy.onPipelineException(ctx, std::current_exception());
+        errorPolicy.onException(ctx, std::current_exception());
     }
 }
 
@@ -266,7 +266,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_preserves_message_gas_without_fix)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    errorPolicy.onPipelineComplete(ctx);
+    errorPolicy.onComplete(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 100'000);
@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_leaves_positive_gas_left)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    errorPolicy.onPipelineComplete(ctx);
+    errorPolicy.onComplete(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 88'000);
@@ -375,7 +375,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_clamps_negative_gas_left)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     auto errorPolicy = makeFiscoErrorPolicy(true);
-    errorPolicy.onPipelineComplete(ctx);
+    errorPolicy.onComplete(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 0);
@@ -399,7 +399,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create_address)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     FiscoOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(std::memcmp(ctx.evmcResult.create_address.bytes, message.recipient.bytes,
                     sizeof(message.recipient.bytes)) == 0);
@@ -422,7 +422,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create2_address)
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
 
     FiscoOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(std::memcmp(ctx.evmcResult.create_address.bytes, message.recipient.bytes,
                     sizeof(message.recipient.bytes)) == 0);
@@ -446,7 +446,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_nonempty_create_address)
     ctx.evmcResult.create_address.bytes[19] = 0x42;
 
     FiscoOrchestrationErrorPolicy errorPolicy;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.create_address.bytes[19], 0x42);
 }
@@ -469,7 +469,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_success_with_fix_revert_lo
 
     FiscoOrchestrationErrorPolicy errorPolicy;
     errorPolicy.fixRevertLogs = true;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK_EQUAL(ctx.kernelOutput.logs.size(), 1U);
 }
@@ -491,7 +491,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_clears_logs_on_revert_when_fix_revert_lo
 
     FiscoOrchestrationErrorPolicy errorPolicy;
     errorPolicy.fixRevertLogs = true;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(ctx.kernelOutput.logs.empty());
 }
@@ -513,7 +513,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_revert_without_fix_revert_
 
     FiscoOrchestrationErrorPolicy errorPolicy;
     errorPolicy.fixRevertLogs = false;
-    errorPolicy.onPostExecuteNormalize(ctx);
+    errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK_EQUAL(ctx.kernelOutput.logs.size(), 1U);
 }
@@ -534,16 +534,16 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    struct ThrowBalancePrecheckPolicy : ChainPrecheckPolicy
+    struct ThrowBalancePrecheckPolicy : StateTransitionHooks
     {
-        DeductIntrinsicGasParams deductIntrinsicGasParams() const override
+        DeductIntrinsicGasParams getIntrinsicGasParams() const override
         {
             DeductIntrinsicGasParams policy;
             policy.mode = IntrinsicDebitMode::None;
             return policy;
         }
 
-        void pipelineCheckBalance(StateTransitionContext&) const override
+        void onPreCheckCanTransfer(StateTransitionContext&) const override
         {
             throw protocol::NotEnoughCashError{};
         }

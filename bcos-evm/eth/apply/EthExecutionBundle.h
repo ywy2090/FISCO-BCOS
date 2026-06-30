@@ -1,30 +1,23 @@
 #pragma once
 
 #include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
-#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
+#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
 #include "bcos-evm/eth/policy/EthVmHostPolicy.h"
 
 namespace bcos::evm
 {
 
-/// Owns Eth reference-path EvmHostHooks; exposes kernel EvmTxContextView view.
+/// Owns Eth reference-path EvmHostHooks; wires execution environment into ctx.
 struct EthExecutionBundle
 {
     EthExecutionBundle(StateTransitionContext& ctx, EthReferenceRequest const& input)
       : m_extension()
     {
-        m_view.vm = input.vm;
-        m_view.blockHashes = input.blockHashes;
-        m_view.extension = &m_extension;
-        m_view.chainPort = nullptr;
-        m_view.wire(ctx);
+        ctx.wireExecutionEnvironment(input.vm, &m_extension, nullptr);
     }
-
-    EvmTxContextView const& view() const noexcept { return m_view; }
 
 private:
     state::EthVmHostPolicy m_extension;
-    EvmTxContextView m_view;
 };
 
 }  // namespace bcos::evm

@@ -2,7 +2,6 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/gas/Eip7623.h"
-#include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <stdexcept>
 
@@ -25,14 +24,14 @@ void captureSettlementSnapshot(StateTransitionContext& ctx, InnerExecuteOutput c
 }  // namespace
 
 // geth: stateTransition.execute — ADR-030 / ADR-031 canonical
-void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
+void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks const& hooks,
     OrchestrationErrorPolicy const& errorPolicy)
 {
     struct PipelineCompleteGuard
     {
         StateTransitionContext& ctx;
         OrchestrationErrorPolicy const& errorPolicy;
-        ~PipelineCompleteGuard() { errorPolicy.onPipelineComplete(ctx); }
+        ~PipelineCompleteGuard() { errorPolicy.onComplete(ctx); }
     } completeGuard{ctx, errorPolicy};
 
     if (ctx.inputs.vm == nullptr || ctx.inputs.hashImpl == nullptr)
@@ -40,7 +39,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy con
         throw std::invalid_argument("stateTransitionExecute requires vm/hashImpl");
     }
 
-    auto const intrinsicPolicy = precheckPolicy.deductIntrinsicGasParams();
+    auto const intrinsicPolicy = hooks.getIntrinsicGasParams();
 
     ctx.earlyExit = false;
     ctx.exitKind = StateTransitionExitKind::None;
@@ -57,13 +56,13 @@ void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy con
 
     try
     {
-        // geth: preCheck (pipelineSetupMessage) — ADR-030
-        precheckPolicy.pipelineSetupMessage(ctx);
+        // geth: preCheck (onNormalizeMessage) — ADR-030
+        hooks.onNormalizeMessage(ctx);
         EVM_LOG(TRACE) << LOG_DESC("stateTransitionExecute step")
-                       << LOG_KV("step", "pipelineSetupMessage") << LOG_KV("gas", ctx.message.gas);
+                       << LOG_KV("step", "onNormalizeMessage") << LOG_KV("gas", ctx.message.gas);
 
         // geth: preCheck (rules) — ADR-030
-        precheckPolicy.pipelineCheckRules(ctx);
+        hooks.onPreCheckRules(ctx);
         if (ctx.earlyExit)
         {
             ctx.exitKind = StateTransitionExitKind::RulesRejected;
@@ -74,7 +73,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy con
         }
 
         // geth: preCheck (buyGas / gas affordable) — ADR-030
-        precheckPolicy.pipelineCheckGasAffordable(ctx);
+        hooks.onPreCheckGasAffordable(ctx);
         if (ctx.earlyExit)
         {
             ctx.exitKind = StateTransitionExitKind::GasAffordRejected;
@@ -107,7 +106,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy con
         }
 
         // geth: CanTransfer — ADR-030
-        precheckPolicy.pipelineCheckBalance(ctx);
+        hooks.onPreCheckCanTransfer(ctx);
         if (ctx.earlyExit)
         {
             if (ctx.exitKind == StateTransitionExitKind::None)
@@ -123,22 +122,17 @@ void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy con
 
         // geth: innerExecute — ADR-030
         EVM_LOG(TRACE) << LOG_DESC("stateTransitionExecute step")
-                       << LOG_KV("step", "pipelineInvokeEvmKernel")
-                       << LOG_KV("gas", ctx.message.gas);
+                       << LOG_KV("step", "onInvokeInnerExecute") << LOG_KV("gas", ctx.message.gas);
 
-        if (ctx.txContextView == nullptr)
-        {
-            throw std::invalid_argument("stateTransitionExecute requires wired EvmTxContextView");
-        }
-        auto executeInput = ctx.txContextView->toInnerExecuteInput(ctx);
-        precheckPolicy.pipelineTuneKernelInput(executeInput);
+        auto executeInput = ctx.toInnerExecuteInput();
+        hooks.onTuneInnerExecuteInput(executeInput);
 
-        ctx.kernelOutput = precheckPolicy.pipelineInvokeEvmKernel(std::move(executeInput));
+        ctx.kernelOutput = hooks.onInvokeInnerExecute(std::move(executeInput));
         ctx.evmcResult = adoptEvmcResult(std::move(ctx.kernelOutput.result), *ctx.inputs.hashImpl);
 
         captureSettlementSnapshot(ctx, ctx.kernelOutput);
 
-        errorPolicy.onPostExecuteNormalize(ctx);
+        errorPolicy.onFinalizeGasUsed(ctx);
         ctx.exitKind = StateTransitionExitKind::Completed;
 
         EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute done")
@@ -153,7 +147,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, ChainPrecheckPolicy con
         ctx.exitKind = StateTransitionExitKind::ExceptionHandled;
         EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute exception")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind));
-        errorPolicy.onPipelineException(ctx, std::current_exception());
+        errorPolicy.onException(ctx, std::current_exception());
         EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute mapped")
                        << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                        << LOG_KV("gasLeft", ctx.evmcResult.gas_left);

@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(policy.deductIntrinsicGasParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
 }
 
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto policy = OpStackOrchestrationProfile::buildPrecheckPolicy(bindingsCtx);
-    policy.pipelineCheckGasAffordable(ctx);
+    policy.onPreCheckGasAffordable(ctx);
 
     BOOST_CHECK(ctx.earlyExit);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);
 
-    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.deductIntrinsicGasParams().mode),
+    BOOST_CHECK_EQUAL(static_cast<int>(bindings.precheckPolicy.getIntrinsicGasParams().mode),
         static_cast<int>(IntrinsicDebitMode::OpStackEntry));
 }
 

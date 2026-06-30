@@ -28,7 +28,7 @@ namespace bcos::evm
 
 struct OpStackOrchestrationProfile
 {
-    /// Orchestration policy bind input (not kernel EvmTxContextView).
+    /// Orchestration policy bind input (not execution environment wiring).
     struct BindingsContext
     {
         OpStackExecutionRequest const& input;
