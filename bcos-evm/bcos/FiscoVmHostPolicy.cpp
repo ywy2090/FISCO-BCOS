@@ -18,8 +18,8 @@
 
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/bcos/FiscoAddressDerivation.h"
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip2929StorageGas.h"
-#include "bcos-evm/eth/host/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/ledger/Features.h"
 #include <algorithm>

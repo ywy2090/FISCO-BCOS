@@ -2,12 +2,12 @@
 
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
-#include "bcos-evm/eth/host/EvmHostHooks.h"
 #include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"

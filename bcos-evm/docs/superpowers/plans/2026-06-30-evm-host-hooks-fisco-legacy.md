@@ -48,8 +48,8 @@
 ### Task 1: `EvmHostHooks` interface + default SSTORE implementation
 
 **Files:**
-- Modify: `bcos-evm/eth/host/EvmHostHooks.h`
-- Create: `bcos-evm/eth/host/EvmHostHooks.cpp`
+- Modify: `bcos-evm/eth/core/EvmHostHooks.h`
+- Create: `bcos-evm/eth/core/EvmHostHooks.cpp`
 - Test: `bcos-evm/test/state/SstoreStatusTest.cpp` (still passes after Task 2)
 
 **Interfaces:**
@@ -96,7 +96,7 @@ Inside `struct EvmHostHooks`, after `bumpContractCreateNonce`:
 Move logic from `EthHost.cpp` anonymous namespace + `EthHost::classifyStorageStatus(..., true)`:
 
 ```cpp
-#include "bcos-evm/eth/host/EvmHostHooks.h"
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip2929StorageGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -159,7 +159,7 @@ Expected: **PASS** (no consumers changed yet; duplicate symbols in EthHost.cpp u
 - [ ] **Step 4: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/host/EvmHostHooks.h bcos-evm/eth/host/EvmHostHooks.cpp
+rtk git add bcos-evm/eth/core/EvmHostHooks.h bcos-evm/eth/core/EvmHostHooks.cpp
 rtk git commit -m "$(cat <<'EOF'
 refactor(evm): add EvmHostHooks SSTORE and CREATE nonce hook defaults
 
@@ -242,7 +242,7 @@ evmc_storage_status EthHost::set_storage(
 }
 ```
 
-Add `#include "bcos-evm/eth/host/EvmHostHooks.h"`.
+Add `#include "bcos-evm/eth/core/EvmHostHooks.h"`.
 
 - [ ] **Step 4: Delete moved/dead code from `EthHost.cpp`**
 
@@ -340,7 +340,7 @@ Declare overrides:
 
 ```cpp
 #include "bcos-evm/eth/eip/Eip2929StorageGas.h"
-#include "bcos-evm/eth/host/EvmHostHooks.h"
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 void FiscoVmHostPolicy::applySstoreRefund(state::State& state, evmc_bytes32 const& current,

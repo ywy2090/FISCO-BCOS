@@ -6,13 +6,13 @@
 
 #define BOOST_TEST_MODULE PrecompileRouter7702Test
 
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/host/EthHost.hpp"
-#include "bcos-evm/eth/host/EvmHostHooks.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"

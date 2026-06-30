@@ -16,7 +16,7 @@
 #include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/host/EthHost.hpp"
-#include "bcos-evm/eth/host/EvmHostHooks.h"
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"

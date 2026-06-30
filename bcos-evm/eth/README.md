@@ -11,14 +11,15 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| `core/` | 内核共享接口（`StateTransitionHooks`、`ChainPrecompileDispatch` 等 ADR-019/024 seam） |
+| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainPrecompileDispatch` 等 ADR-019/024 seam） |
 | `pipeline/` | `stateTransitionExecute` 共享管线步骤（ADR-019） |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
 | `execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |
 | `eip/` | EIP 实现（1559/2930/4844/7623/7702 等 gas 与 access 语义） |
 | `policy/` | `VmHostPolicy` / `EthVmHostPolicy` / `EthChainPolicy`（revision 策略） |
 | `precompiled/` | `PrecompileRouter`、builtin registry |
-| `state/` | State/Host/Transition（Legacy Enclave，见 ADR-020） |
+| `host/` | `EthHost` evmone host 实现（ADR-020 Legacy Enclave） |
+| `state/` | State/Transition 数据层 |
 | `vm/` | evmone 实例封装 |
 | `trace/` | EVM 追踪 |
 

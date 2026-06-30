@@ -1,8 +1,8 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
-#include "bcos-evm/eth/host/EvmHostHooks.h"
 #include <evmc/evmc.h>
 #include <functional>
 
