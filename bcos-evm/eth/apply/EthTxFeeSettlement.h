@@ -2,8 +2,8 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/eip/ProtocolGas.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
-#include "bcos-evm/eth/pipeline/FeeInputsMapping.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
+#include "bcos-evm/eth/state-transition/FeeInputsMapping.h"
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/protocol/Transaction.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>

@@ -2,10 +2,9 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/ProtocolGas.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
-#include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/ApplyOpStackMessageTestHook.h"
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
@@ -32,7 +31,7 @@ evmc_address addressFromLastByte(uint8_t value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
+BOOST_AUTO_TEST_CASE(apply_op_stack_message_records_gas_at_evm_entry)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
@@ -63,25 +62,16 @@ BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
     input.blockInfo.timestamp = 1;
     input.blockInfo.gasLimit = 30'000'000;
 
-    int64_t capturedGas = -1;
-    opstack::test::setApplyOpStackMessageSpy([&](InnerExecuteInput const& execInput) {
-        capturedGas = execInput.message.gas;
-        evmc_result raw{};
-        raw.status_code = EVMC_SUCCESS;
-        raw.gas_left = execInput.message.gas;
-        return InnerExecuteOutput{.result = evmc::Result{raw}};
-    });
-
     auto output = task::syncWait(applyOpStackMessage(input));
-    opstack::test::clearApplyOpStackMessageSpy();
 
     auto const intrinsic =
         gas::computeTxIntrinsicGas(message, input.accessList, input.web3TypedTxKind);
     auto const intrinsicDebit = static_cast<int64_t>(intrinsic.preExecutionDebit()) +
                                 gas::calcAuthTupleIntrinsicGas(input.authorizations.size());
 
-    BOOST_REQUIRE(capturedGas >= 0);
-    BOOST_CHECK_EQUAL(capturedGas, message.gas - intrinsicDebit);
-    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE(output.gasAccounting.reachedEvmEntry);
+    BOOST_CHECK_EQUAL(output.gasAccounting.intrinsicGasDebited, intrinsicDebit);
+    BOOST_CHECK_EQUAL(output.gasAccounting.gasAtEvmEntry, message.gas - intrinsicDebit);
+    BOOST_CHECK_EQUAL(output.gasAccounting.gasAfterIntrinsicDebit, message.gas - intrinsicDebit);
 }
 }  // namespace bcos::evm::test

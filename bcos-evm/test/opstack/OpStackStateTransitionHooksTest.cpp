@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"

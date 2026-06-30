@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackFeeSidecar.h"
 #include <bcos-task/Task.h>
 #include <evmc/evmc.h>

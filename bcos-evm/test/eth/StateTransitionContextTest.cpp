@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE StateTransitionContextTest
 
-#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

@@ -38,7 +38,7 @@ Grilling outcomes (2026-06-26):
 | --- | --- | --- |
 | D1 | Scope | **B.** Eth reference + Eth TE + OpStack **1559 core**; OpStack L1/operator/blob as adapter sidecar. FISCO out of v1. |
 | D2 | Interface shape | **A.** Projection-only sync core; no State mutation. |
-| D3 | `FeeInputs` | **B+C.** Primitive struct; `normalizeGasCaps` inside core; optional `eth/pipeline/FeeInputsMapping.h` mapper. |
+| D3 | `FeeInputs` | **B+C.** Primitive struct; `normalizeGasCaps` inside core; optional `eth/state-transition/FeeInputsMapping.h` mapper. |
 | D4 | Base fee | **A.** Plan outputs `baseFeeAmount`; adapter decides burn (Eth/GST) vs route (OpStack). |
 | D5 | buyGas penalty | **A.** Stays in `EthTxFeeSettlement` adapter; may read `plan.effectiveGasPrice`. |
 | D6 | PR order | **A.** Core-first + characterization, then adapters PR2–PR5. |
@@ -96,7 +96,7 @@ Invariant (1559 active): `senderNetDebit == coinbaseTip + baseFeeAmount` (base d
 
 Core **never** credits accounts. Routing policy stays at orchestration seam.
 
-### 3. Optional pipeline mapper (`eth/pipeline/FeeInputsMapping.h`)
+### 3. Optional pipeline mapper (`eth/state-transition/FeeInputsMapping.h`)
 
 Convenience only; core does not include `TxPipelineContext.h`.
 

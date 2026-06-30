@@ -22,7 +22,7 @@
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
-#include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
+#include "bcos-evm/eth/state-transition/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/state/StateView.hpp"
 #include <boost/test/unit_test.hpp>
 #include <cstdlib>

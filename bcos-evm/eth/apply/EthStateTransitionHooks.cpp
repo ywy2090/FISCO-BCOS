@@ -22,7 +22,7 @@
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
-#include "bcos-evm/eth/pipeline/FeeInputsMapping.h"
+#include "bcos-evm/eth/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm

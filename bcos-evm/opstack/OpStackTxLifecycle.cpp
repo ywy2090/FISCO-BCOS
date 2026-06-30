@@ -1,6 +1,6 @@
 #include "bcos-evm/opstack/OpStackTxLifecycle.h"
 
-#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/state-transition/StateTransitionExecute.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackNormalTxFeeCoordinator.h"
@@ -99,6 +99,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
         output.evmcResult = std::move(ctx.evmcResult);
         output.logs = std::move(ctx.kernelOutput.logs);
+        output.gasAccounting = ctx.gasAccounting;
 
         auto settled =
             co_await settleDeposit(ctx, ctx.exitKind, output.evmcResult.status_code, gasPool);
@@ -133,6 +134,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.logs = std::move(ctx.kernelOutput.logs);
+    output.gasAccounting = ctx.gasAccounting;
 
     co_await settlement.completeAfterPipeline(view, feeParams, gasPool, output);
 

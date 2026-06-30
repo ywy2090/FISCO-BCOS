@@ -19,31 +19,11 @@ add_test(
     NAME OpStackExecuteSmoke
     COMMAND ${OPSTACK_EXECUTE_VIA_HOST_SMOKE_TEST_BINARY_NAME}
 )
-add_executable(OpStackIntrinsicGasSyncTest
-    opstack/OpStackIntrinsicGasSyncTest.cpp
-    ../opstack/ApplyOpStackMessage.cpp
-    ../opstack/OpStackTxLifecycle.cpp
-    ../opstack/OpStackSettlement.cpp
-    ../opstack/OpStackNormalTxFeeCoordinator.cpp
-    ../opstack/OpStackStateTransitionBindings.cpp
-    ../opstack/OpStackStateTransitionHooks.cpp
-    ../opstack/OpStackFeeSettlement.cpp
-    ../opstack/fee/OpStackPreDebitPlan.cpp
-    ../opstack/fee/OpStackPostSettlementPlan.cpp
-    ../opstack/OpStackSettlementFacade.cpp
-    ../opstack/OpStackChainCallTargetAdapter.cpp
-    ../opstack/fee/RollupCost.cpp
-    ../opstack/fee/OpStackFee.cpp
-    ../opstack/fee/OpStackFloorGas.cpp
-    ../opstack/l1/L1BlockStorage.cpp
-    ../opstack/l1/L1BlockPredeploy.cpp
-    ../opstack/l1/GasPriceOraclePredeploy.cpp
-    ../opstack/fee/OpStackFloorGasPrecheck.cpp)
-target_compile_definitions(OpStackIntrinsicGasSyncTest PRIVATE BCOS_EVM_TESTING)
+add_executable(OpStackIntrinsicGasSyncTest opstack/OpStackIntrinsicGasSyncTest.cpp)
 target_include_directories(OpStackIntrinsicGasSyncTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(OpStackIntrinsicGasSyncTest PRIVATE
-    bcos-evm-eth bcos-task evmone::evmone bcos-framework ledger
+    bcos-evm-op bcos-task evmone::evmone bcos-framework ledger
     bcos-protocol bcos-utilities bcos-crypto codec)
 add_test(NAME OpStackIntrinsicGasSync COMMAND OpStackIntrinsicGasSyncTest)
 add_executable(OpStackFloorGasPrecheckOrderTest opstack/OpStackFloorGasPrecheckOrderTest.cpp)

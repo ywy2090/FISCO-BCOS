@@ -9,7 +9,7 @@
 
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/apply/EthMessage.h"
-#include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
+#include "bcos-evm/eth/state-transition/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"

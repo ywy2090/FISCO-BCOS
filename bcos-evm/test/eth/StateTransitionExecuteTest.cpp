@@ -1,10 +1,11 @@
 #define BOOST_TEST_MODULE StateTransitionExecuteTest
 
-#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/state-transition/StateTransitionExecute.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
-#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/eip/ProtocolGas.h"
+#include "bcos-evm/eth/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
@@ -407,6 +408,88 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     BOOST_REQUIRE(capturedState != nullptr);
     BOOST_CHECK(capturedState == &ctx.state);
     BOOST_CHECK(capturedState->is_address_warm(warmAddr));
+}
+
+BOOST_AUTO_TEST_CASE(opstack_entry_records_intrinsic_gas_accounting)
+{
+    state::test::InMemoryStateView stateView;
+    auto ctx = makeContext(stateView);
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
+
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+    hooks.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
+        InnerExecuteOutput output;
+        evmc_result raw{};
+        raw.status_code = EVMC_SUCCESS;
+        output.result = evmc::Result(raw);
+        return output;
+    };
+
+    EthStateTransitionErrorPolicy errorPolicy;
+    stateTransitionExecute(ctx, hooks, errorPolicy);
+
+    auto const expectedDebit = gas::TX_BASE_GAS;
+    BOOST_CHECK(ctx.gasAccounting.intrinsicDebitAttempted);
+    BOOST_CHECK(ctx.gasAccounting.intrinsicDebitSucceeded);
+    BOOST_CHECK_EQUAL(ctx.gasAccounting.intrinsicGasDebited, expectedDebit);
+    BOOST_CHECK_EQUAL(
+        ctx.gasAccounting.gasAfterIntrinsicDebit, ctx.originalGasLimit - expectedDebit);
+    BOOST_CHECK(ctx.gasAccounting.reachedEvmEntry);
+    BOOST_CHECK_EQUAL(ctx.gasAccounting.gasAtEvmEntry, ctx.originalGasLimit - expectedDebit);
+}
+
+BOOST_AUTO_TEST_CASE(intrinsic_failure_does_not_set_gas_at_evm_entry)
+{
+    state::test::InMemoryStateView stateView;
+    auto ctx = makeContext(stateView);
+    ctx.message.gas = 1;
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
+
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+
+    EthStateTransitionErrorPolicy errorPolicy;
+    stateTransitionExecute(ctx, hooks, errorPolicy);
+
+    BOOST_CHECK(ctx.gasAccounting.intrinsicDebitAttempted);
+    BOOST_CHECK(!ctx.gasAccounting.intrinsicDebitSucceeded);
+    BOOST_CHECK_EQUAL(ctx.gasAccounting.intrinsicGasDebited, 0);
+    BOOST_CHECK(!ctx.gasAccounting.reachedEvmEntry);
+    BOOST_CHECK_EQUAL(ctx.gasAccounting.gasAtEvmEntry, -1);
+}
+
+BOOST_AUTO_TEST_CASE(can_transfer_early_exit_records_intrinsic_but_not_evm_entry)
+{
+    state::test::InMemoryStateView stateView;
+    auto ctx = makeContext(stateView);
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    ctx.inputs.vm = &vm;
+    ctx.inputs.hashImpl = &hashImpl;
+
+    CallbackStateTransitionHooks hooks;
+    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+    hooks.onCheckBalanceAndValue = [](StateTransitionContext& c) {
+        c.earlyExit = true;
+        evmc_result failResult{};
+        failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
+        c.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
+    };
+
+    EthStateTransitionErrorPolicy errorPolicy;
+    stateTransitionExecute(ctx, hooks, errorPolicy);
+
+    BOOST_CHECK(ctx.gasAccounting.intrinsicDebitSucceeded);
+    BOOST_CHECK_EQUAL(ctx.gasAccounting.intrinsicGasDebited, gas::TX_BASE_GAS);
+    BOOST_CHECK(!ctx.gasAccounting.reachedEvmEntry);
+    BOOST_CHECK_EQUAL(ctx.gasAccounting.gasAtEvmEntry, -1);
 }
 
 }  // namespace bcos::evm::test

@@ -3,8 +3,8 @@
 #include "bcos-evm/bcos/FiscoStateTransitionBindings.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
-#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>

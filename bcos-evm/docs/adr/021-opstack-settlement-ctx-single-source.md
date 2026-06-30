@@ -196,7 +196,7 @@ Delete: `populateFeeContext`. Removed in Appendix A PR3: `OpStackFeeContext`, pu
 
 ### A.3 Invariants carried forward from §2
 
-1. **ctx single source** — gas/message/state truth remains `TxPipelineContext`; **no OP fields added to `eth/pipeline/StateTransitionContext.h`**.
+1. **ctx single source** — gas/message/state truth remains `TxPipelineContext`; **no OP fields added to `eth/state-transition/StateTransitionContext.h`**.
 2. **Sync vs async layering** — `finalizeNormal` stays sync, no `refundGas` / gas pool inside it.
 3. **Deposit** — `settleDeposit` / three-track table (§2.2) unchanged.
 4. **ADR-025** — pre-execution reject (`IntrinsicRejected`, `GasAffordRejected`) must not call `refundGas` / `projectNormalReceiptMeta`; enforced inside `completeAfterPipeline`, not lifecycle call sites.

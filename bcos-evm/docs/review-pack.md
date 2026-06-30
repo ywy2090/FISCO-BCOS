@@ -94,7 +94,7 @@ opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
 
 ### 2.2 固定 12 步管线
 
-实现：`eth/pipeline/TxPipeline.cpp`
+实现：`eth/state-transition/TxPipeline.cpp`
 
 ```text
 ① validate(vm, hashImpl)     — 在 try/catch 外；抛 std::invalid_argument
@@ -190,7 +190,7 @@ opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
 
 ### 3.3 TxPipelineHooks — 管线步骤注入
 
-文件：`eth/pipeline/TxPipelineHooks.h`
+文件：`eth/state-transition/TxPipelineHooks.h`
 
 | Hook | 典型用途 |
 | --- | --- |
@@ -203,7 +203,7 @@ opStackExecuteViaHost ─hooks──► runTxPipeline ──► executeMessage
 | `postSettle` | OpStack `postExecuteGasSettlement` |
 | `mapIntrinsicFailure` / `mapException` | 链特有错误映射 |
 
-**纪律：** `eth/pipeline/` 及 portable headers **不得** `#include bcos/` 或 `opstack/`。链代码通过 hook lambda 在 wrapper 翻译单元注入。
+**纪律：** `eth/state-transition/` 及 portable headers **不得** `#include bcos/` 或 `opstack/`。链代码通过 hook lambda 在 wrapper 翻译单元注入。
 
 ---
 
@@ -350,7 +350,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 
 ### 6.3 Red Flags
 
-1. `eth/pipeline/` 出现 chain include
+1. `eth/state-transition/` 出现 chain include
 2. 三份 `executeVia*.cpp` 重复 gas/adopt/buildInput 逻辑
 3. `OpStackTxExecutionData.m_message` 与 `ctx.message` 双轨维护
 4. 矩阵 `inherited` 但 Test ref 仅 ETH reference 测试
@@ -400,9 +400,9 @@ P0 内核候选**已闭合**。当前 open work：
 | 关注点 | 文件 |
 | --- | --- |
 | 库划分 | `bcos-evm/CMakeLists.txt` |
-| 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
-| 编排上下文 / 钩子 | `eth/pipeline/StateTransitionContext.h`、`TxPipelineHooks.h` |
-| intrinsic 扣减 | `eth/pipeline/DeductIntrinsicGas.h` |
+| 共享编排管线 | `eth/state-transition/TxPipeline.cpp` |
+| 编排上下文 / 钩子 | `eth/state-transition/StateTransitionContext.h`、`TxPipelineHooks.h` |
+| intrinsic 扣减 | `eth/state-transition/DeductIntrinsicGas.h` |
 | 内核入口 | `eth/execution/InnerExecute.h` / `.cpp` → `TxExecutionRunner` |
 | 内核精编译路由 | `eth/precompiled/PrecompileActive.h`、`PrecompileRouter.cpp` |
 | 内核扩展点 | `eth/policy/HostExtension.h` |

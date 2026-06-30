@@ -135,7 +135,7 @@ TxPipelineContext ctx
 
 `Context`（policy 绑定输入）≠ `EvmTxContextView`（内核执行环境注入 View）。
 
-共享步骤（intrinsic debit、`EvmTxContextView::toExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/pipeline/` 单点 enforcement。`stateTransitionExecute(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onComplete`。
+共享步骤（intrinsic debit、`EvmTxContextView::toExecuteMessageInput`、`AdoptEvmcResult`、settlement snapshot、错误归一化）在 `eth/state-transition/` 单点 enforcement。`stateTransitionExecute(ctx, hooks, errorPolicy)` 在 RAII guard 内调用 `errorPolicy.onComplete`。
 
 **内核入口分层：**
 
@@ -290,7 +290,7 @@ struct VmHostPolicy {
 
 ### 4.3 `TxPipelineHooks` + `StateTransitionErrorPolicy` —— 编排管线注入（ADR-019）
 
-文件：`eth/pipeline/TxPipelineHooks.h`、`eth/pipeline/StateTransitionErrorPolicy.h`
+文件：`eth/state-transition/TxPipelineHooks.h`、`eth/state-transition/StateTransitionErrorPolicy.h`
 
 链特有编排通过 **`*StateTransitionBindings::bind(Context)`** 产出 `{ hooks, errorPolicy }`，再传入 `stateTransitionExecute`。三链 bindings：
 
@@ -300,7 +300,7 @@ struct VmHostPolicy {
 | `FiscoStateTransitionBindings` | `bcos/FiscoStateTransitionBindings.h` | `FiscoStateTransitionErrorPolicy` |
 | `OpStackStateTransitionBindings` | `opstack/OpStackStateTransitionBindings.h` | `OpStackStateTransitionErrorPolicy` |
 
-典型 hook（由 profile 填充，**不得**在 `eth/pipeline/` 内 `#include bcos/` 或 `opstack/`）：
+典型 hook（由 profile 填充，**不得**在 `eth/state-transition/` 内 `#include bcos/` 或 `opstack/`）：
 
 | Hook | Eth | Fisco | OpStack |
 | --- | --- | --- | --- |
@@ -416,10 +416,10 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | --- | --- |
 | 外部 review 入口 | `docs/review-pack.md` |
 | 库划分 / 依赖 | `bcos-evm/CMakeLists.txt` |
-| 共享编排管线 | `eth/pipeline/TxPipeline.cpp` |
-| 编排上下文 | `eth/pipeline/StateTransitionContext.h` |
-| 编排钩子 | `eth/pipeline/TxPipelineHooks.h` |
-| 编排错误策略（基类） | `eth/pipeline/StateTransitionErrorPolicy.h` |
+| 共享编排管线 | `eth/state-transition/TxPipeline.cpp` |
+| 编排上下文 | `eth/state-transition/StateTransitionContext.h` |
+| 编排钩子 | `eth/state-transition/TxPipelineHooks.h` |
+| 编排错误策略（基类） | `eth/state-transition/StateTransitionErrorPolicy.h` |
 | ETH bindings | `eth/apply/EthStateTransitionBindings.h` |
 | FISCO Profile | `bcos/FiscoStateTransitionBindings.h` |
 | OP Profile | `opstack/OpStackStateTransitionBindings.h` |

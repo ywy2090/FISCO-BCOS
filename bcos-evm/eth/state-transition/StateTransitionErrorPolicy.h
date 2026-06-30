@@ -1,7 +1,7 @@
 #pragma once
 
-#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
 #include <exception>
 
 namespace bcos::evm

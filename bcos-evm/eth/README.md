@@ -5,14 +5,14 @@
 ## 依赖规则（硬约束）
 
 - **禁止** `#include` `bcos/` 或 `opstack/` 头文件（ADR-005 Rule 1）。
-- 链差异通过 `TxPipelineHooks`（管线前后）和 `VmHostPolicy`（evmone 调用树内）注入。
+- 链差异通过 `StateTransitionHooks`（state-transition 前后）和 `VmHostPolicy`（evmone 调用树内）注入。
 
 ## 子目录
 
 | 目录 | 职责 |
 | --- | --- |
 | `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch` 等 ADR-019/024 seam） |
-| `pipeline/` | `stateTransitionExecute` 共享管线步骤（ADR-019） |
+| `state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019） |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
 | `execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |
 | `eip/` | EIP 实现（1559/2930/4844/7623/7702 等 gas 与 access 语义） |
@@ -28,10 +28,10 @@
 | 文件 | 角色 |
 | --- | --- |
 | `execution/InnerExecute.*` | 内核执行入口 `innerExecute()`（geth innerExecute） |
-| `pipeline/StateTransitionExecute.*` | `stateTransitionExecute()`（geth stateTransition.execute） |
-| `pipeline/StateTransitionContext.h` | 管线上下文 |
-| `pipeline/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
-| `pipeline/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
+| `state-transition/StateTransitionExecute.*` | `stateTransitionExecute()`（geth stateTransition.execute） |
+| `state-transition/StateTransitionContext.h` | 交易级上下文 |
+| `state-transition/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
+| `state-transition/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
 | `execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
 | `RevisionConfig.h` | EIP 开关位域 |
 | `EVMCResult.*` | EVMC 结果封装 |

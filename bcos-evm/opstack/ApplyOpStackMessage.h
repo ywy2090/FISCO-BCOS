@@ -10,6 +10,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
+#include "bcos-evm/eth/state-transition/IntrinsicGasAccounting.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
@@ -65,6 +66,7 @@ struct OpStackExecutionResult
     std::vector<LogEntry> logs;
     int64_t gasUsed{0};
     OpStackReceiptMeta receiptMeta;
+    IntrinsicGasAccounting gasAccounting{};
 };
 
 // ── Chain entry ───────────────────────────────────────────────────────────────

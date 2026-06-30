@@ -8,7 +8,8 @@
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/execution/TxFeaturePrepare.h"
-#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/state-transition/IntrinsicGasAccounting.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>
@@ -126,6 +127,7 @@ public:
     bool earlyExit{false};
     StateTransitionExitKind exitKind{StateTransitionExitKind::None};
     IntrinsicDebitMode intrinsicDebitMode{IntrinsicDebitMode::None};
+    IntrinsicGasAccounting gasAccounting{};
     /// Eth-only: set by EthStateTransitionErrorPolicy when top-level vmerr is included in block.
     bool topLevelIncludedTxVmError{false};
 

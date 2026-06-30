@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE DeductIntrinsicGasTest
 
-#include "bcos-evm/eth/pipeline/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include <boost/test/included/unit_test.hpp>
 

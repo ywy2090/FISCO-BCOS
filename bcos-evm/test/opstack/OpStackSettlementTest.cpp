@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip1559Access.h"
-#include "bcos-evm/eth/pipeline/StateTransitionContext.h"
+#include "bcos-evm/eth/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"

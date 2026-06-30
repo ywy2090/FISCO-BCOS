@@ -220,7 +220,7 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 | `eth/execution/ExecutionFrame.cpp` | 调 `finalizeTopLevelCreateNonce` |
 | `eth/execution/TxExecutionRunner.cpp` | 简化 `EthHost` / `FrameExecutionEnv` 构造 |
 | `eth/execution/InnerExecute.h` | 删除 `fixStorageStatus`, `fixNonceInit` |
-| `eth/pipeline/EvmTxContextView.h` | 删除同上 + `toExecuteMessageInput` 拷贝 |
+| `eth/state-transition/EvmTxContextView.h` | 删除同上 + `toExecuteMessageInput` 拷贝 |
 | `eth/CMakeLists.txt`（或等效） | 添加 `EvmHostHooks.cpp` |
 
 ### 5.2 bcos/

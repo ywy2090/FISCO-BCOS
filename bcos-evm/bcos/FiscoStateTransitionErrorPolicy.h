@@ -3,7 +3,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <bcos-crypto/interfaces/crypto/Hash.h>
 #include <evmc/evmc.h>

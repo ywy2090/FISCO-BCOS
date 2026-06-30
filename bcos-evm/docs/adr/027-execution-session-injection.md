@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-019, ADR-024, `eth/pipeline/StateTransitionContext.h`, `eth/pipeline/BuildExecuteMessageInput.h`, `eth/execution/InnerExecute.h`, `eth/execution/EvmCallFrame.h`, `eth/state/EthHost.hpp`, `bcos/ApplyFiscoMessage.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/apply/EthMessage.cpp`
+**Related:** ADR-005, ADR-019, ADR-024, `eth/state-transition/StateTransitionContext.h`, `eth/state-transition/BuildExecuteMessageInput.h`, `eth/execution/InnerExecute.h`, `eth/execution/EvmCallFrame.h`, `eth/state/EthHost.hpp`, `bcos/ApplyFiscoMessage.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/apply/EthMessage.cpp`
 
 ---
 
@@ -44,7 +44,7 @@ Grilling outcomes (2026-06-26):
 
 | # | Question | Choice |
 | --- | --- | --- |
-| D1 | Seam placement | **A.** New kernel module `eth/pipeline/ExecutionSession` (not construction-valid `TxPipelineContext`, not `OrchestrationProfile::Session`). |
+| D1 | Seam placement | **A.** New kernel module `eth/state-transition/ExecutionSession` (not construction-valid `TxPipelineContext`, not `OrchestrationProfile::Session`). |
 | D2 | Lifetime | **2c.** Chain-side **Bundle** owns stack adapters/policies; kernel **View** borrows pointers. |
 | D3 | View fields | **3b.** Tier 1 (injection) + Tier 2 (execution infra); Tier 3 (tx mutable) stays in `TxPipelineContext`. |
 | D4 | Validation | **4c+4d+tests.** Bundle factory checks; debug dual-run after `wire()`; `ExecutionSessionPropagationTest` matrix. |
@@ -62,7 +62,7 @@ FISCO legacy `fix_storage_status` / `fix_nonce_init` (from `FiscoRevisionConfig`
 
 Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain outside the session; `StateTransitionHooks::onTuneInnerExecuteInput` applies them after projection (ADR-019 unchanged).
 
-### 2. Kernel module: `eth/pipeline/ExecutionSession.h`
+### 2. Kernel module: `eth/state-transition/ExecutionSession.h`
 
 ```cpp
 namespace bcos::evm {

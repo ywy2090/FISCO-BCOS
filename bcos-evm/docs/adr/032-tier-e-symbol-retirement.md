@@ -15,7 +15,7 @@ ADR-031 Phase 3b (P1) promoted two **portable eth kernel** symbols to canonical 
 
 | ~~Tier E~~ | Canonical (ADR-031) | Header |
 | --- | --- | --- |
-| ~~`runTxPipeline`~~ | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` |
+| ~~`runTxPipeline`~~ | `stateTransitionExecute` | `eth/state-transition/StateTransitionExecute.h` |
 | ~~`executeMessage`~~ | `innerExecute` | `eth/execution/InnerExecute.h` |
 
 Phase 4c (P2) documented **`apply*Message`** as the geth-aligned chain entry name; TE impls call `applyFiscoMessage` / `applyEthMessage` / `applyOpStackMessage` at the syscall boundary. Wave 3 promoted those to exported link symbols; Wave 4 removed `*Execute` forwards.
@@ -49,10 +49,10 @@ These symbols are `[[deprecated]]` today and are **not** TE entry points. Safe t
 
 | Order | Remove | Canonical replacement | Location |
 | --- | --- | --- | --- |
-| 1.1 | `debitIntrinsicGas` | `deductIntrinsicGas` | `eth/pipeline/DeductIntrinsicGas.h` |
+| 1.1 | `debitIntrinsicGas` | `deductIntrinsicGas` | `eth/state-transition/DeductIntrinsicGas.h` |
 | 1.2 | `runExecutionFrame` | `runCallFrame` | `eth/execution/EvmCallFrame.h` |
 | 1.3 | `TxExecutionRunner::run` | `runEvmKernelTopLevel` | `eth/execution/TxExecutionRunner.h` |
-| 1.4 | `buildExecuteMessageInput` | `EvmTxContextView::toExecuteMessageInput` via `ctx.txContextView` | `eth/pipeline/EvmTxContextView.h` |
+| 1.4 | `buildExecuteMessageInput` | `EvmTxContextView::toExecuteMessageInput` via `ctx.txContextView` | `eth/state-transition/EvmTxContextView.h` |
 | 1.5 | `StateTransitionHooks` legacy virtuals: `setupMessage`, `checkTransactionRules`, `checkGasAffordable`, `checkBalanceAndValue`, `tuneExecutionInput`, `runEvmExecution` | `onNormalizeMessage`, `onPreCheckRules`, `onPreCheckGasAffordable`, `onPreCheckCanTransfer`, `onTuneInnerExecuteInput`, `onInvokeInnerExecute` | `eth/core/StateTransitionHooks.h` |
 | 1.6 | `checkEntryRules` | `lifecycleCheckEntryRules` | `opstack/OpStackPrecheckPolicy.h` |
 | 1.7 | `dispatchPrecompile` | `resolveCallTarget` + `executePrecompileEnvelope` | `eth/precompiled/PrecompileRouter.h` |
@@ -65,7 +65,7 @@ TE does **not** call these directly (verified ADR-031 §3); removal is gated on 
 
 | Order | Remove | Canonical replacement | Location |
 | --- | --- | --- | --- |
-| 2.1 | `runTxPipeline` | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` |
+| 2.1 | `runTxPipeline` | `stateTransitionExecute` | `eth/state-transition/StateTransitionExecute.h` |
 | 2.2 | `executeMessage` | `innerExecute` | `eth/execution/InnerExecute.h` |
 
 After Wave 2: delete `GethNamingAliasesTest` cases `runTxPipeline_deprecated_alias_*` and `executeMessage_deprecated_alias_*`; retain canonical driver tests.

@@ -40,11 +40,11 @@
 
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
-#include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.h>
 #include <functional>
 #include <optional>
 
+class State;
 namespace bcos::evm
 {
 

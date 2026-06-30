@@ -10,7 +10,7 @@
 #pragma once
 
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
-#include "bcos-evm/eth/pipeline/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/state-transition/StateTransitionErrorPolicy.h"
 
 namespace bcos::evm
 {

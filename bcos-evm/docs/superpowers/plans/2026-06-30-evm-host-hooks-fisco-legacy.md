@@ -31,7 +31,7 @@
 | `eth/execution/EvmCallFrame.h/cpp` | Top-level CREATE → `finalizeTopLevelCreateNonce` |
 | `eth/execution/TxExecutionRunner.cpp` | Simpler `EthHost` / `FrameExecutionEnv` wiring |
 | `eth/execution/InnerExecute.h` | Remove fix* fields |
-| `eth/pipeline/EvmTxContextView.h` | Remove fix* fields |
+| `eth/state-transition/EvmTxContextView.h` | Remove fix* fields |
 | `bcos/FiscoVmHostPolicy.h/cpp` | FISCO overrides + `RevisionFlags.fix_storage_status` |
 | `bcos/FiscoExecutionBundle.h` | Stop projecting fix* to view; inject flags into policy deps |
 | `bcos/FiscoPrecheckPolicy.cpp` | Remove executeInput fix* copies |
@@ -544,7 +544,7 @@ EOF
 
 **Files:**
 - Modify: `bcos-evm/eth/execution/InnerExecute.h`
-- Modify: `bcos-evm/eth/pipeline/EvmTxContextView.h`
+- Modify: `bcos-evm/eth/state-transition/EvmTxContextView.h`
 - Modify: `bcos-evm/bcos/FiscoExecutionBundle.h`
 - Modify: `bcos-evm/bcos/FiscoPrecheckPolicy.cpp`
 - Modify: `bcos-evm/test/state/SstoreRefundTest.cpp`
@@ -618,7 +618,7 @@ Expected: only `FiscoRevisionConfig` / test variable names like `fix_storage_sta
 - [ ] **Step 8: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/execution/InnerExecute.h bcos-evm/eth/pipeline/EvmTxContextView.h \
+rtk git add bcos-evm/eth/execution/InnerExecute.h bcos-evm/eth/state-transition/EvmTxContextView.h \
   bcos-evm/bcos/FiscoExecutionBundle.h bcos-evm/bcos/FiscoPrecheckPolicy.cpp \
   bcos-evm/test/state/SstoreRefundTest.cpp bcos-evm/test/eth/EvmTxContextViewTest.cpp
 rtk git commit -m "$(cat <<'EOF'

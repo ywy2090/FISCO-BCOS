@@ -22,9 +22,6 @@
 #include "bcos-evm/opstack/OpStackBlobTxIntent.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
-#ifdef BCOS_EVM_TESTING
-#include "bcos-evm/opstack/ApplyOpStackMessageTestHook.h"
-#endif
 #include <algorithm>
 
 namespace bcos::evm
@@ -182,13 +179,6 @@ void OpStackStateTransitionHooks::onTuneInnerExecuteInput(InnerExecuteInput& exe
 InnerExecuteOutput OpStackStateTransitionHooks::onInvokeInnerExecute(
     InnerExecuteInput&& input) const
 {
-#ifdef BCOS_EVM_TESTING
-    if (auto spyOutput = opstack::test::maybeCallApplyOpStackMessageSpy(input);
-        spyOutput.has_value())
-    {
-        return std::move(*spyOutput);
-    }
-#endif
     return innerExecute(std::move(input));
 }
 

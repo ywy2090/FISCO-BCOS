@@ -1,4 +1,4 @@
-#include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
+#include "bcos-evm/eth/state-transition/StateTransitionExecute.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
@@ -43,6 +43,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
     ctx.earlyExit = false;
     ctx.exitKind = StateTransitionExitKind::None;
     ctx.intrinsicDebitMode = intrinsicPolicy.mode;
+    ctx.gasAccounting = {};
 
     EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute begin")
                    << LOG_KV("kind", trace::callKind(ctx.message.kind))
@@ -79,7 +80,8 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             return;
         }
 
-        auto const gasBeforeDebit = ctx.message.gas;
+        ctx.gasAccounting.gasBeforeIntrinsicDebit = ctx.message.gas;
+        ctx.gasAccounting.intrinsicDebitAttempted = true;
         auto const debitOutcome = deductIntrinsicGas(ctx.message, intrinsicPolicy);
         if (!debitOutcome.ok)
         {
@@ -87,17 +89,20 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             ctx.exitKind = StateTransitionExitKind::IntrinsicRejected;
             EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute intrinsic rejected")
                            << LOG_KV("failure", trace::intrinsicDebitFailure(debitOutcome.failure))
-                           << LOG_KV("gasBefore", gasBeforeDebit)
+                           << LOG_KV("gasBefore", ctx.gasAccounting.gasBeforeIntrinsicDebit)
                            << LOG_KV("gasLeft", debitOutcome.gasLeftOnFailure);
             errorPolicy.onIntrinsicGasFailure(ctx, debitOutcome.failure);
             return;
         }
+        ctx.gasAccounting.intrinsicDebitSucceeded = true;
+        ctx.gasAccounting.intrinsicGasDebited = debitOutcome.debitAmount;
+        ctx.gasAccounting.gasAfterIntrinsicDebit = ctx.message.gas;
         if (debitOutcome.debitAmount > 0)
         {
             EVM_LOG(TRACE) << LOG_DESC("stateTransitionExecute intrinsic debit")
                            << LOG_KV("debit", debitOutcome.debitAmount)
-                           << LOG_KV("gasBefore", gasBeforeDebit)
-                           << LOG_KV("gasAfter", ctx.message.gas);
+                           << LOG_KV("gasBefore", ctx.gasAccounting.gasBeforeIntrinsicDebit)
+                           << LOG_KV("gasAfter", ctx.gasAccounting.gasAfterIntrinsicDebit);
         }
 
         hooks.onPreCheckCanTransfer(ctx);
@@ -119,6 +124,9 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
 
         auto executeInput = ctx.toInnerExecuteInput();
         hooks.onTuneInnerExecuteInput(executeInput);
+
+        ctx.gasAccounting.gasAtEvmEntry = executeInput.message.gas;
+        ctx.gasAccounting.reachedEvmEntry = true;
 
         ctx.kernelOutput = hooks.onInvokeInnerExecute(std::move(executeInput));
         ctx.evmcResult = adoptEvmcResult(std::move(ctx.kernelOutput.result), *ctx.inputs.hashImpl);
