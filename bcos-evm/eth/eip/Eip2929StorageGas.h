@@ -2,7 +2,7 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief EIP-2929 / EIP-2200 / EIP-3529 storage gas constants (geth operations_acl.go).
+ * @brief EIP-2929 / EIP-2200 / EIP-3529 storage gas constants.
  * @file Eip2929StorageGas.h
  */
 #pragma once

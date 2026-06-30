@@ -264,8 +264,8 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
     return FrameResult{.result = std::move(result)};
 }
 
-/// geth evm.create: SetNonce(caller, nonce+1) before Snapshot(). The bump sits outside the
-/// frame checkpoint journal, so it survives CREATE failure/revert like geth.
+/// SetNonce(caller, nonce+1) before Snapshot(). The bump sits outside the
+/// frame checkpoint journal, so it survives CREATE failure/revert.
 void bumpNestedCreateSenderNonce(FrameWork& work)
 {
     auto& callMessage = work.callMessage();

@@ -644,8 +644,7 @@ std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(const evmc_address
     result.gas_refund = 0;
     result.create_address = {};
 
-    // Align with geth (evm.Call exhausts gas on non-revert failure) and evmone
-    // call_precompile (non-success => gas_left = 0).
+    // evm.Call exhausts gas on non-revert failure; evmone call_precompile sets gas_left = 0.
     if (dispatched->status == EVMC_SUCCESS)
     {
         result.gas_left = std::max<int64_t>(0, msg.gas - dispatched->gasCost);

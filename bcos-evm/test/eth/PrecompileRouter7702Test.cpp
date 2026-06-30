@@ -50,7 +50,7 @@ evmc_message delegatedCallToAuthority(evmc_address authority, evmc_address deleg
 precompiled::PrecompileRouterOutput routePrecompileAtSeam(state::State& state,
     bcos::evm_standard::RevisionConfig const& revision, evmc_message const& message,
     execution::FrameScope scope, state::EvmHostHooks* extension,
-    ChainPrecompileDispatch* chainPort = nullptr, bool skipValueTransfer = false)
+    ChainExtendedPrecompileDispatch* chainPort = nullptr, bool skipValueTransfer = false)
 {
     auto const desc =
         execution::resolveCallTarget(state, revision, message, scope, chainPort, extension);

@@ -1,5 +1,5 @@
 /*
- * @brief Chain entry applyOpStackMessage (geth ApplyMessage; ADR-030 Tier C).
+ * @brief Chain entry applyOpStackMessage.
  * @file ApplyOpStackMessage.h
  */
 
@@ -67,7 +67,7 @@ struct OpStackExecutionResult
     OpStackReceiptMeta receiptMeta;
 };
 
-// ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
+// ── Chain entry ───────────────────────────────────────────────────────────────
 task::Task<OpStackExecutionResult> applyOpStackMessage(OpStackExecutionRequest input);
 
 inline bool isDepositTx(OpStackExecutionRequest const& input) noexcept

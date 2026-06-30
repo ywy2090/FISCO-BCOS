@@ -11,7 +11,7 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainPrecompileDispatch` 等 ADR-019/024 seam） |
+| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch` 等 ADR-019/024 seam） |
 | `pipeline/` | `stateTransitionExecute` 共享管线步骤（ADR-019） |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
 | `execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |

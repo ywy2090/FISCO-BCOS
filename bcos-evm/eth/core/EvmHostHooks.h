@@ -34,7 +34,7 @@ evmc_storage_status classifyStorageStatusPrecise(evmc_bytes32 const& original,
     evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept;
 
 /// Injectable hooks for EthHost extension points inside evm.Call.
-/// Chain precompile dispatch is via `ChainPrecompileDispatch` on FrameExecutionEnv.
+/// Chain precompile dispatch is via `ChainExtendedPrecompileDispatch` on FrameExecutionEnv.
 struct EvmHostHooks
 {
     virtual ~EvmHostHooks() = default;

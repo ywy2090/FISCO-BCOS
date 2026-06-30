@@ -19,7 +19,6 @@ struct StateTransitionErrorPolicy
         StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const = 0;
 
     /// Post-EVM execution result normalization (included-vmerr, CREATE address, revert logs, etc.).
-    /// geth: finalizeGasUsed — ADR-030
     virtual void onFinalizeGasUsed(StateTransitionContext& ctx) const { (void)ctx; }
 
     /// Optional post-pipeline normalization (e.g. gas_left clamp on error paths).

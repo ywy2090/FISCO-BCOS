@@ -6,7 +6,6 @@
 namespace bcos::evm
 {
 
-// Mirrors op-geth types.RollupCostData (core/types/rollup_cost.go).
 struct RollupCostData
 {
     uint64_t zeroes{0};

@@ -8,7 +8,7 @@
 
 namespace bcos::evm
 {
-struct ChainPrecompileDispatch;
+struct ChainExtendedPrecompileDispatch;
 }
 
 namespace bcos::evm::state
@@ -52,10 +52,10 @@ struct CallTargetDescriptor
 
 CallTargetDescriptor resolveCallTarget(state::State& state,
     bcos::evm_standard::RevisionConfig const& revision, evmc_message msg, FrameScope scope,
-    ChainPrecompileDispatch* chainPort, state::EvmHostHooks* extension);
+    ChainExtendedPrecompileDispatch* chainPort, state::EvmHostHooks* extension);
 
 void enumerateTxEntryWarmTargets(bcos::evm_standard::RevisionConfig const& cfg,
-    ChainPrecompileDispatch const* chainPort,
+    ChainExtendedPrecompileDispatch const* chainPort,
     std::function<void(evmc_address const&)> const& consume);
 
 }  // namespace bcos::evm::execution

@@ -23,7 +23,6 @@ void captureSettlementSnapshot(StateTransitionContext& ctx, InnerExecuteOutput c
 }
 }  // namespace
 
-// geth: stateTransition.execute — ADR-030 / ADR-031 canonical
 void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks const& hooks,
     StateTransitionErrorPolicy const& errorPolicy)
 {
@@ -56,12 +55,10 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
 
     try
     {
-        // geth: preCheck (onNormalizeMessage) — ADR-030
         hooks.onNormalizeMessage(ctx);
         EVM_LOG(TRACE) << LOG_DESC("stateTransitionExecute step")
                        << LOG_KV("step", "onNormalizeMessage") << LOG_KV("gas", ctx.message.gas);
 
-        // geth: preCheck (rules) — ADR-030
         hooks.onPreCheckRules(ctx);
         if (ctx.earlyExit)
         {
@@ -72,7 +69,6 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             return;
         }
 
-        // geth: preCheck (buyGas / gas affordable) — ADR-030
         hooks.onPreCheckGasAffordable(ctx);
         if (ctx.earlyExit)
         {
@@ -83,7 +79,6 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             return;
         }
 
-        // geth: IntrinsicGas — ADR-030
         auto const gasBeforeDebit = ctx.message.gas;
         auto const debitOutcome = deductIntrinsicGas(ctx.message, intrinsicPolicy);
         if (!debitOutcome.ok)
@@ -105,7 +100,6 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
                            << LOG_KV("gasAfter", ctx.message.gas);
         }
 
-        // geth: CanTransfer — ADR-030
         hooks.onPreCheckCanTransfer(ctx);
         if (ctx.earlyExit)
         {
@@ -120,7 +114,6 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             return;
         }
 
-        // geth: innerExecute — ADR-030
         EVM_LOG(TRACE) << LOG_DESC("stateTransitionExecute step")
                        << LOG_KV("step", "onInvokeInnerExecute") << LOG_KV("gas", ctx.message.gas);
 

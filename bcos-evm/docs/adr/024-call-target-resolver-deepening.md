@@ -42,7 +42,7 @@ Grilling outcomes (2026-06-26):
 | --- | --- | --- |
 | D1 | Deep module boundary | **Merge A+B only.** `CallTargetResolver` owns address resolution + classification. `PrecompileRouter` keeps envelope. |
 | D2 | Warm rules | **2b+.** `CallTargetDescriptor` includes `WarmPolicy`; `enumerateTxEntryWarmTargets` shares classification engine. |
-| D3 | Chain precompile seam | **3b.** Neutral `ChainPrecompileDispatch` in `eth/core/`; FISCO + OpStack adapters. Retire `tryChainPrecompile` from main path. |
+| D3 | Chain precompile seam | **3b.** Neutral `ChainExtendedPrecompileDispatch` in `eth/core/`; FISCO + OpStack adapters. Retire `tryChainPrecompile` from main path. |
 | D4 | Router input | **4a.** `executePrecompileEnvelope` trusts pre-classified descriptor; no re-classification. |
 | D5 | Tests | **5b.** Three test modules + one cross-chain characterization matrix. |
 
@@ -78,12 +78,12 @@ CallTargetDescriptor resolveCallTarget(
     bcos::evm_standard::RevisionConfig const&,
     evmc_message,
     FrameScope,
-    ChainPrecompileDispatch*,
+    ChainExtendedPrecompileDispatch*,
     state::VmHostPolicy* extension);  // DELEGATECALL policy; skipHostValueTransfer read by caller
 
 void enumerateTxEntryWarmTargets(
     bcos::evm_standard::RevisionConfig const&,
-    ChainPrecompileDispatch const*,
+    ChainExtendedPrecompileDispatch const*,
     /* invocable<evmc_address const&> */ auto&& consume);
 
 }  // namespace bcos::evm::execution
@@ -113,15 +113,15 @@ void enumerateTxEntryWarmTargets(
 
 `warmTransactionEntry` replaces the direct `forEachActivePrecompile` call with `enumerateTxEntryWarmTargets`. Sender / destination / coinbase / access-list sub-steps are unchanged; only the **source** of precompile-address warming changes.
 
-### 3. Neutral chain port: `eth/core/ChainPrecompileDispatch`
+### 3. Neutral chain port: `eth/core/ChainExtendedPrecompileDispatch`
 
 Extends ADR-017. Interface in kernel-neutral location; FISCO implementation stays in `transaction-executor` / `bcos-executor`.
 
 ```cpp
 namespace bcos::evm {
 
-struct ChainPrecompileDispatch {
-    virtual ~ChainPrecompileDispatch() = default;
+struct ChainExtendedPrecompileDispatch {
+    virtual ~ChainExtendedPrecompileDispatch() = default;
 
     /// C7: scope required — chain hook runs when emptyCode || scope == Nested.
     virtual std::optional<execution::CallTargetDescriptor> classifyTarget(
@@ -146,12 +146,12 @@ struct ChainPrecompileDispatch {
 
 | Component | Location | Role |
 | --- | --- | --- |
-| `FiscoChainCallTargetAdapter` | `transaction-executor/adapters/` | Implements full `ChainPrecompileDispatch`: `classifyTarget`, `forEachStaticWarmTarget`, and `dispatch` via held `ExecutorPrecompileAdapter` (or inline dispatch delegate) |
+| `FiscoChainCallTargetAdapter` | `transaction-executor/adapters/` | Implements full `ChainExtendedPrecompileDispatch`: `classifyTarget`, `forEachStaticWarmTarget`, and `dispatch` via held `ExecutorPrecompileAdapter` (or inline dispatch delegate) |
 | `ExecutorPrecompileAdapter` | `transaction-executor/adapters/` | **Evolves** from dispatch-only to being the dispatch backend inside `FiscoChainCallTargetAdapter`; does not absorb `[PRECOMPILED]` routing (that moves out of `FiscoVmHostPolicy`) |
 | `OpStackChainCallTargetAdapter` | `opstack/` | Full port; holds `State*`, `l2BaseFee`, `OpStackForkSchedule`, `blockTimestamp` (today in `OpStackVmHostPolicy` ctor) |
 | Null | Eth reference | `nullptr` |
 
-**PR1 `ChainPrecompilePort` transition:** Add `eth/core/ChainPrecompileDispatch.h`. Keep `bcos/ports/ChainPrecompilePort.h` as `[[deprecated]]` alias inheriting or typedef-forwarding until PR6. `ExecutorPrecompileAdapter` continues including deprecated header in PR1–PR3; switches to `eth/core/` in PR3.
+**PR1 `ChainPrecompilePort` transition:** Add `eth/core/ChainExtendedPrecompileDispatch.h`. Keep `bcos/ports/ChainPrecompilePort.h` as `[[deprecated]]` alias inheriting or typedef-forwarding until PR6. `ExecutorPrecompileAdapter` continues including deprecated header in PR1–PR3; switches to `eth/core/` in PR3.
 
 **`VmHostPolicy`:** retains `skipHostValueTransfer`, `prepareMessage`, `allowDelegateCallToPrecompile`, CREATE hooks. `tryChainPrecompile` removed from main path; deprecated shim PR4–PR6 only.
 
@@ -164,7 +164,7 @@ struct PrecompileEnvelopeInput {
     execution::CallTargetDescriptor const& target;
     evmc_message const& message;
     bool skipValueTransfer;   // caller: extension != nullptr && extension->skipHostValueTransfer()
-    ChainPrecompileDispatch* chainPort;  // required when kind == ChainPrecompile
+    ChainExtendedPrecompileDispatch* chainPort;  // required when kind == ChainPrecompile
 };
 ```
 
@@ -217,17 +217,17 @@ Dispatch: `BuiltinPrecompile` → `EthPrecompiles::tryDispatchInCall`; `ChainPre
 | OpStack | `OpStackChainCallTargetAdapter(state, baseFee, fork, ts)` on stack in `OpStackTxLifecycle` | per `runOpStackTxLifecycle` call | `TxPipelineContext` or parallel field → `FrameExecutionEnv` |
 | Nested `EthHost::call` | **same pointer** as top-level tx | borrow | `FrameExecutionEnv.chainPort` (new field alongside `extension`) |
 
-`FrameExecutionEnv` and `ExecuteMessageInput` gain `ChainPrecompileDispatch* chainPort{nullptr}` in PR3–PR4.
+`FrameExecutionEnv` and `ExecuteMessageInput` gain `ChainExtendedPrecompileDispatch* chainPort{nullptr}` in PR3–PR4.
 
 ### 7. Seam discipline (extends ADR-005 Rule 1)
 
-- `CallTargetResolver.*` and `ChainPrecompileDispatch.h` must not `#include` `bcos/` or `opstack/`.
-- Chain behavior via `ChainPrecompileDispatch*` + `VmHostPolicy* extension`.
+- `CallTargetResolver.*` and `ChainExtendedPrecompileDispatch.h` must not `#include` `bcos/` or `opstack/`.
+- Chain behavior via `ChainExtendedPrecompileDispatch*` + `VmHostPolicy* extension`.
 - `PrecompileActive.h` remains builtin single source.
 
-**Execution Frame Design §2.2 amendment:** Frame-level chain customization is injected via **`ChainPrecompileDispatch*`** in addition to `VmHostPolicy* extension`. Update `2026-06-24-execution-frame-design.md` revision log in PR6.
+**Execution Frame Design §2.2 amendment:** Frame-level chain customization is injected via **`ChainExtendedPrecompileDispatch*`** in addition to `VmHostPolicy* extension`. Update `2026-06-24-execution-frame-design.md` revision log in PR6.
 
-**ADR-005 §3 table amendment (PR6):** chain precompile row moves from `VmHostPolicy::tryChainPrecompile` to `ChainPrecompileDispatch` + orchestrator injection.
+**ADR-005 §3 table amendment (PR6):** chain precompile row moves from `VmHostPolicy::tryChainPrecompile` to `ChainExtendedPrecompileDispatch` + orchestrator injection.
 
 ### 8. Test surface (5b)
 
@@ -245,7 +245,7 @@ PR2: debug dual-run should cover R1–R8 before PR4.
 
 | PR | Scope | Behavior change |
 | --- | --- | --- |
-| **PR1** | Types + `eth/core/ChainPrecompileDispatch.h`; deprecated `bcos/ports/ChainPrecompilePort` alias | None |
+| **PR1** | Types + `eth/core/ChainExtendedPrecompileDispatch.h`; deprecated `bcos/ports/ChainPrecompilePort` alias | None |
 | **PR2** | `CallTargetResolver` + tests; optional dual-run | None |
 | **PR3** | `FiscoChainCallTargetAdapter`, `OpStackChainCallTargetAdapter`; wire `chainPort` field, old path still default | None |
 | **PR4** | `ExecutionFrame` delta; `executePrecompileEnvelope`; characterization baselines | **Yes** |
@@ -281,11 +281,11 @@ PR2: debug dual-run should cover R1–R8 before PR4.
 - [x] FISCO adapter empty static warm enumerate; dynamic `[PRECOMPILED]` unchanged
 - [x] Adapter invariant tests (`OpStackChainCallTargetAdapterTest`, `FiscoChainCallTargetAdapterTest`)
 - [x] Characterization: `pr5_op_l1block_chain_static_warm_tx_entry_oracle` (state warm; chain-precompile envelope bypasses EIP-2929 access_account)
-- [ ] PR6: `forEachClassifiedTarget` replaces `forEachStaticWarmTarget` on `ChainPrecompileDispatch`
+- [ ] PR6: `forEachClassifiedTarget` replaces `forEachStaticWarmTarget` on `ChainExtendedPrecompileDispatch`
 
 ### PR6 gate (full)
 
-- [ ] `CallTargetResolver` + `ChainPrecompileDispatch` under `eth/`; no `bcos/` / `opstack/` includes in those TUs
+- [ ] `CallTargetResolver` + `ChainExtendedPrecompileDispatch` under `eth/`; no `bcos/` / `opstack/` includes in those TUs
 - [ ] Builtin gates only in `PrecompileActive.h`
 - [ ] `executePrecompileEnvelope` has no `isActivePrecompile` or `tryChainPrecompile`
 - [x] `warmTransactionEntry` uses `enumerateTxEntryWarmTargets`

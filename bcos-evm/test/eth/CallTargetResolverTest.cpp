@@ -44,7 +44,7 @@ bcos::evm_standard::RevisionConfig pragueCfg()
 
 execution::CallTargetDescriptor resolveAt(state::State& state,
     bcos::evm_standard::RevisionConfig const& cfg, evmc_message msg, execution::FrameScope scope,
-    ChainPrecompileDispatch* chainPort = nullptr, state::EvmHostHooks* extension = nullptr)
+    ChainExtendedPrecompileDispatch* chainPort = nullptr, state::EvmHostHooks* extension = nullptr)
 {
     auto frame = execution::resolveFrameTarget(state, cfg, msg, scope);
     return execution::resolveCallTarget(state, cfg, frame.routed, scope, chainPort, extension);

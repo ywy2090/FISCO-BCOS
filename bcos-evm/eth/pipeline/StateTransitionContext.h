@@ -23,7 +23,7 @@ class Hash;
 namespace bcos::evm
 {
 
-struct ChainPrecompileDispatch;
+struct ChainExtendedPrecompileDispatch;
 
 enum class StateTransitionExitKind
 {
@@ -79,7 +79,7 @@ public:
 
     /// Chain Bundle injection: vm (required), host hooks, call-target port (optional).
     void wireExecutionEnvironment(
-        evmc::VM* vm, state::EvmHostHooks* extension, ChainPrecompileDispatch* chainPort)
+        evmc::VM* vm, state::EvmHostHooks* extension, ChainExtendedPrecompileDispatch* chainPort)
     {
         if (vm == nullptr)
         {
@@ -117,7 +117,7 @@ public:
     state::State state;
     bcos::u256 gasPrice{0};
     state::EvmHostHooks* extension{nullptr};
-    ChainPrecompileDispatch* chainPort{nullptr};
+    ChainExtendedPrecompileDispatch* chainPort{nullptr};
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};

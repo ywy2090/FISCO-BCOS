@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE EvmTxContextViewPropagationTest
 
-#include "bcos-evm/eth/core/ChainPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 #include "bcos-evm/eth/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/execution/InnerExecute.h"
 #include "bcos-evm/eth/host/EthHost.hpp"
@@ -16,10 +16,10 @@ namespace bcos::evm::test
 namespace
 {
 
-struct IdentityChainPort final : ChainPrecompileDispatch
+struct IdentityChainPort final : ChainExtendedPrecompileDispatch
 {
-    ChainPrecompileDispatch* topLevelPort{nullptr};
-    ChainPrecompileDispatch* nestedPort{nullptr};
+    ChainExtendedPrecompileDispatch* topLevelPort{nullptr};
+    ChainExtendedPrecompileDispatch* nestedPort{nullptr};
 
     std::optional<execution::CallTargetDescriptor> classifyTarget(state::State&,
         evmc_address const&, evmc_message const&, execution::FrameScope scope) override

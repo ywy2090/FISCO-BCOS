@@ -1,7 +1,7 @@
 #pragma once
 
 #include "FiscoPortAdapterContext.h"
-#include "bcos-evm/eth/core/ChainPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledImpl.h"
 #include <optional>
 
@@ -9,7 +9,7 @@ namespace bcos::transaction_executor
 {
 
 template <class PortAdapterContext>
-class ExecutorPrecompileAdapter final : public evm::ChainPrecompileDispatch
+class ExecutorPrecompileAdapter final : public evm::ChainExtendedPrecompileDispatch
 {
 public:
     explicit ExecutorPrecompileAdapter(PortAdapterContext& portAdapterContext)

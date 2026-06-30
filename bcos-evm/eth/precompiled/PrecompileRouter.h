@@ -13,7 +13,7 @@
 
 namespace bcos::evm
 {
-struct ChainPrecompileDispatch;
+struct ChainExtendedPrecompileDispatch;
 }
 
 namespace bcos::evm::precompiled
@@ -34,7 +34,7 @@ struct PrecompileEnvelopeInput
     execution::CallTargetDescriptor const& target;
     evmc_message const& message;
     bool skipValueTransfer;
-    ChainPrecompileDispatch* chainPort;
+    ChainExtendedPrecompileDispatch* chainPort;
 };
 
 struct PrecompileRouterOutput

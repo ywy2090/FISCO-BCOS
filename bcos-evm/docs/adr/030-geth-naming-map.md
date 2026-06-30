@@ -135,7 +135,7 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 | `StateTransitionErrorPolicy` | `execute` return `error` vs vmerr | `ExecutionResultMapper` | included-tx vs reject |
 | `EvmHostHooks` | host hooks inside `evm.Call` | `EvmHostHooks` | in-call semantics |
 | `AuthPort` | — | `AuthCheck` (FISCO) | ADR-017 |
-| `ChainPrecompileDispatch` | `ActivePrecompiles` + dispatch | `ChainPrecompileDispatch` | ADR-024 |
+| `ChainExtendedPrecompileDispatch` | `ActivePrecompiles` + dispatch | `ChainExtendedPrecompileDispatch` | ADR-024 |
 | `runOpStackTxLifecycle` | op-geth outer `execute` | `OpStackMessageApplier` | gasPool, settle, deposit |
 | `OpStackSettlementFacade` | — | `SettlementProjection` | read-only fee view |
 

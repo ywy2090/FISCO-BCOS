@@ -34,7 +34,7 @@ namespace bcos::evm::state
 
 EthHost::EthHost(State& state, evmc_tx_context txContext,
     bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-    EvmHostHooks* extension, ChainPrecompileDispatch* chainPort)
+    EvmHostHooks* extension, ChainExtendedPrecompileDispatch* chainPort)
   : m_state(state),
     m_txContext(txContext),
     m_revisionConfig(revisionConfig),

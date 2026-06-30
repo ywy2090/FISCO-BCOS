@@ -29,7 +29,7 @@ constexpr uint64_t BLOB_GAS_PER_BLOB = 131'072;
 constexpr uint64_t MIN_BLOB_GAS_PRICE = 1;
 constexpr uint64_t BLOB_GASPRICE_UPDATE_FRACTION = 3'338'477;
 
-// geth params/forks.go fakeExponential for blob base fee from excess blob gas.
+// fakeExponential for blob base fee from excess blob gas.
 inline bcos::u256 calcBlobBaseFee(uint64_t excessBlobGas) noexcept
 {
     bcos::u256 price{MIN_BLOB_GAS_PRICE};

@@ -13,7 +13,7 @@ inline constexpr evmc_uint256be EMPTY_EVM_UINT256 = {};
 
 inline constexpr std::string_view USER_APPS_PREFIX = "/apps/";
 
-/// FIB-75: balance transfer debited before EVM on FISCO path (same numeric value as geth TxGas).
+/// FIB-75: balance transfer debited before EVM on FISCO path (same numeric value as TX_BASE_GAS).
 inline constexpr int64_t BALANCE_TRANSFER_GAS = gas::TX_BASE_GAS;
 
 /// FISCO chain precompile address range minimum (see PrecompiledManager lookup).

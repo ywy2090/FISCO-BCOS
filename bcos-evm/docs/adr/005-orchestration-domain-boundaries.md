@@ -39,7 +39,7 @@ Chain-specific behavior spans nonce management, auth checks, value transfer, blo
 | --- | --- | --- |
 | Skip value transfer inside CALL | `skipHostValueTransfer` | pre-tx value move |
 | CREATE nonce bump side effect | `bumpContractCreateNonce` | tx nonce validation |
-| Chain precompile | `ChainPrecompileDispatch`（ADR-024） | address routing policy |
+| Chain precompile | `ChainExtendedPrecompileDispatch`（ADR-024） | address routing policy |
 | Auth table / caller rewrite | `prepareMessage`, `setCallerAddress` | `authChecker` callback |
 
 Orchestrator runs **before** `executeMessage`; VmHostPolicy runs **inside** kernel call tree.

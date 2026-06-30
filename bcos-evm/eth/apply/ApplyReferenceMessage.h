@@ -1,5 +1,5 @@
 /*
- * @brief Chain entry applyReferenceMessage (geth ApplyMessage; ADR-030 Tier C).
+ * @brief Chain entry applyReferenceMessage.
  * @file ApplyReferenceMessage.h
  */
 
@@ -59,7 +59,7 @@ struct EthReferenceResult
     bool topLevelIncludedTxVmError{false};
 };
 
-// ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
+// ── Chain entry ───────────────────────────────────────────────────────────────
 task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input);
 
 }  // namespace bcos::evm

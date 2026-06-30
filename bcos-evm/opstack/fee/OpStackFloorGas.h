@@ -42,7 +42,6 @@ struct ExecuteEntryFloorCheck
     uint64_t gasLimit{0};
 };
 
-// Mirrors op-geth FloorDataGas (state_transition.go:120-133).
 FloorDataGasResult tryFloorDataGas(
     bcos::bytesConstRef data, std::optional<uint64_t> tokenOverride = std::nullopt);
 

@@ -1,5 +1,5 @@
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/core/ChainPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
@@ -36,7 +36,7 @@ bool isActiveEmptyPrecompileTarget(state::State const& state,
 
 CallTargetDescriptor resolveCallTarget(state::State& state,
     bcos::evm_standard::RevisionConfig const& revision, evmc_message msg, FrameScope scope,
-    ChainPrecompileDispatch* chainPort, state::EvmHostHooks* extension)
+    ChainExtendedPrecompileDispatch* chainPort, state::EvmHostHooks* extension)
 {
     if (isCreateKind(msg.kind))
     {
@@ -102,7 +102,7 @@ CallTargetDescriptor resolveCallTarget(state::State& state,
 }
 
 void enumerateTxEntryWarmTargets(bcos::evm_standard::RevisionConfig const& cfg,
-    ChainPrecompileDispatch const* chainPort,
+    ChainExtendedPrecompileDispatch const* chainPort,
     std::function<void(evmc_address const&)> const& consume)
 {
     // Builtin precompiles: resolveCallTarget assigns WarmPolicy::TxEntryAlways (PrecompileActive

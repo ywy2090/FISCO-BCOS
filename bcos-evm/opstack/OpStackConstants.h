@@ -7,7 +7,7 @@
 namespace bcos::evm
 {
 
-// Predeploy fee recipients (op-geth params/protocol_params.go)
+// Predeploy fee recipients
 inline constexpr evmc_address OP_BASE_FEE_RECIPIENT = {
     .bytes = {0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x19}};
@@ -32,7 +32,7 @@ inline constexpr evmc_address OP_DEPOSITOR_ACCOUNT = {
     .bytes = {0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad,
         0xde, 0xad, 0xde, 0xad, 0x00, 0x01}};
 
-// L1Block storage slots (op-geth core/types/rollup_cost.go)
+// L1Block storage slots
 inline constexpr u256 L1_NUMBER_TIMESTAMP_SLOT{0};
 inline constexpr u256 L1_BASE_FEE_SLOT{1};
 inline constexpr u256 L1_HASH_SLOT{2};
@@ -44,7 +44,7 @@ inline constexpr u256 L1_BLOB_BASE_FEE_SLOT{7};
 inline constexpr u256 OPERATOR_FEE_PARAMS_SLOT{8};
 inline constexpr u256 L1_FEATURE_ENABLED_MAPPING_SLOT{9};
 
-// Fjord L1 cost constants (op-geth core/types/rollup_cost.go)
+// Fjord L1 cost constants
 inline constexpr int64_t L1_COST_INTERCEPT = -42'585'600;
 inline constexpr int64_t L1_COST_FASTLZ_COEF = 836'500;
 inline constexpr int64_t MIN_TX_SIZE_SCALED = 100'000'000;

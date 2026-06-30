@@ -16,7 +16,7 @@ struct FiscoExecutionBundle
     FiscoExecutionBundle(StateTransitionContext& ctx, FiscoExecutionRequest& input)
       : m_extension(input.revisionConfig.enable_balance_transfer, makeDeps(ctx, input))
     {
-        ChainPrecompileDispatch* chainPort = nullptr;
+        ChainExtendedPrecompileDispatch* chainPort = nullptr;
         if (input.chainDispatchPort != nullptr)
         {
             m_chainAdapter.emplace(ctx.state, *input.chainDispatchPort);

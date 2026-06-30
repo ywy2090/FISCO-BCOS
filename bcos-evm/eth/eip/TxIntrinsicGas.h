@@ -1,7 +1,7 @@
 /*
  * Transaction intrinsic gas and top-level settlement (EIP-7623 + EIP-3529).
  *
- * Lean model (geth/op-geth aligned): full intrinsic pre-debit before EVM, then
+ * Lean model: full intrinsic pre-debit before EVM, then
  *   gasUsed = gasLimit - min(gasLimit, gasLeft + cappedRefund), EIP-7623 floor uplift.
  *
  * @file TxIntrinsicGas.h
@@ -125,7 +125,7 @@ inline int64_t calcFloorDataGas(
     return TX_BASE_GAS + calldata.tokenCount * calldataFloorPerToken;
 }
 
-/// geth state_transition settlement: peakGasUsed from gasLimit/gasLeft, EIP-3529 refund cap,
+/// Top-level settlement: peakGasUsed from gasLimit/gasLeft, EIP-3529 refund cap,
 /// EIP-7623 floor uplift. Authoritative refund counter is host state.get_refund().
 inline int64_t settleTopLevelTransactionGas(
     int64_t gasLimit, int64_t evmGasLeft, int64_t stateRefund, int64_t floorDataGas) noexcept

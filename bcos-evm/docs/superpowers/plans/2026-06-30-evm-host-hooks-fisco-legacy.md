@@ -180,7 +180,7 @@ EOF
 
 **Interfaces:**
 - **Consumes:** `applySstoreRefundEip3529`, `classifyStorageStatusPrecise`, `EvmHostHooks` virtuals from Task 1
-- **Produces:** `EthHost(..., EvmHostHooks* extension, ChainPrecompileDispatch* chainPort)` — no `fixStorageStatus`
+- **Produces:** `EthHost(..., EvmHostHooks* extension, ChainExtendedPrecompileDispatch* chainPort)` — no `fixStorageStatus`
 
 - [ ] **Step 1: Update `EthHost.hpp`**
 
@@ -191,7 +191,7 @@ Constructor becomes:
 ```cpp
     EthHost(State& state, evmc_tx_context txContext,
         bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-        EvmHostHooks* extension = nullptr, ChainPrecompileDispatch* chainPort = nullptr);
+        EvmHostHooks* extension = nullptr, ChainExtendedPrecompileDispatch* chainPort = nullptr);
 ```
 
 - [ ] **Step 2: Update `EthHost.cpp` constructor**
@@ -466,7 +466,7 @@ Remove `bool fixNonceInit{false};` and constructor parameter `fixNonceInit_`:
     FrameExecutionEnv(state::State& state_, evmc::VM& vm_,
         bcos::evm_standard::RevisionConfig const& revisionConfig_, state::EvmHostHooks* extension_,
         evmc_address txOrigin_, evmc_address& executionAddress_,
-        ChainPrecompileDispatch* chainPort_ = nullptr) noexcept
+        ChainExtendedPrecompileDispatch* chainPort_ = nullptr) noexcept
 ```
 
 - [ ] **Step 2: Update `ExecutionFrame.cpp` `finalizeFrame`**

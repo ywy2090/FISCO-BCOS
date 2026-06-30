@@ -1,7 +1,7 @@
 /*
- * Shared top-level transaction execution pipeline (ADR-019 / ADR-030).
+ * Shared top-level transaction execution pipeline.
  *
- * Canonical kernel entry for geth stateTransition.execute. Eth, Fisco, and
+ * Canonical kernel entry for stateTransitionExecute. Eth, Fisco, and
  * OpStack ApplyMessage paths converge here after constructing StateTransitionContext
  * and wiring execution environment via *ExecutionBundle.
  *
@@ -26,14 +26,14 @@ namespace bcos::evm
 ///   - *ExecutionBundle must have called ctx.wireExecutionEnvironment() before entry
 ///
 /// Flow:
-///   1. hooks.onNormalizeMessage          — geth: TransactionToMessage
+///   1. hooks.onNormalizeMessage
 ///   2. hooks.onPreCheckRules           — entry rules; earlyExit → RulesRejected
 ///   3. hooks.onPreCheckGasAffordable    — buyGas / gas pool; earlyExit → GasAffordRejected
 ///   4. deductIntrinsicGas                — kernel intrinsic debit; fail → IntrinsicRejected
-///   5. hooks.onPreCheckCanTransfer       — geth: CanTransfer; earlyExit → GasAffordRejected
+///   5. hooks.onPreCheckCanTransfer       — balance / value transfer; earlyExit → GasAffordRejected
 ///   6. ctx.toInnerExecuteInput()
 ///      → hooks.onTuneInnerExecuteInput
-///      → hooks.onInvokeInnerExecute      — geth: innerExecute
+///      → hooks.onInvokeInnerExecute
 ///   7. adoptEvmcResult + EIP-7623 snapshot (when applicable)
 ///   8. errorPolicy.onFinalizeGasUsed     — included-vmerr, receipt fields, etc.
 ///

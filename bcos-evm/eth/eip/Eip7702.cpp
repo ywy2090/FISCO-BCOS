@@ -14,7 +14,7 @@ constexpr uint8_t DELEGATION_PREFIX_1 = 0x01;
 constexpr uint8_t DELEGATION_PREFIX_2 = 0x00;
 constexpr size_t DELEGATION_CODE_SIZE = 23;
 
-// geth crypto/secp256k1 curve order N and lower-half bound (homestead=true).
+// secp256k1 curve order N and lower-half bound (homestead=true).
 bcos::u256 const SECP256K1_N{"0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"};
 bcos::u256 const SECP256K1_HALF_N{
     "0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0"};
@@ -160,7 +160,7 @@ void applyAuthorizations(state::State& state,
             continue;
         }
 
-        // EIP-2681: reject nonce increment overflow before signature recovery (geth ordering).
+        // EIP-2681: reject nonce increment overflow before signature recovery.
         if (authorization.nonce + 1 < authorization.nonce)
         {
             continue;

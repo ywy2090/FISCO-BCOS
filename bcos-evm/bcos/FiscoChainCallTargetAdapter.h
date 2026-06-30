@@ -1,14 +1,14 @@
 #pragma once
 
-#include "bcos-evm/eth/core/ChainPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 
 namespace bcos::evm
 {
 
-class FiscoChainCallTargetAdapter final : public ChainPrecompileDispatch
+class FiscoChainCallTargetAdapter final : public ChainExtendedPrecompileDispatch
 {
 public:
-    FiscoChainCallTargetAdapter(state::State& state, ChainPrecompileDispatch& dispatchPort)
+    FiscoChainCallTargetAdapter(state::State& state, ChainExtendedPrecompileDispatch& dispatchPort)
       : m_state(state), m_dispatchPort(dispatchPort)
     {}
 
@@ -23,7 +23,7 @@ public:
 
 private:
     state::State& m_state;
-    ChainPrecompileDispatch& m_dispatchPort;
+    ChainExtendedPrecompileDispatch& m_dispatchPort;
 };
 
 }  // namespace bcos::evm

@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Chain entry applyFiscoMessage (geth ApplyMessage; ADR-030 Tier C).
+ * @brief Chain entry applyFiscoMessage.
  * @file ApplyFiscoMessage.h
  */
 
@@ -24,7 +24,7 @@
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/core/ChainPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
@@ -70,7 +70,7 @@ struct FiscoExecutionRequest
 
     // Optional adapters for integration layering.
     AuthPort const* authPort{nullptr};
-    ChainPrecompileDispatch* chainDispatchPort{nullptr};
+    ChainExtendedPrecompileDispatch* chainDispatchPort{nullptr};
     std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
     FiscoVmHostPolicy::RecipientPathResolver recipientPathResolver;
     std::optional<bcos::h256> txHash;
@@ -83,7 +83,7 @@ struct FiscoExecutionResult
     FiscoExecutionArtifacts executionContext;
 };
 
-// ── Chain entry: geth ApplyMessage (ADR-030 Tier C canonical) ─────────────────
+// ── Chain entry ───────────────────────────────────────────────────────────────
 task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input);
 
 }  // namespace bcos::evm

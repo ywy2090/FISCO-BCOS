@@ -23,7 +23,7 @@ DERIVE_BCOS_EXCEPTION(InvalidReceiptVersion);
 struct FiscoTxFeeSettlement
 {
     using PolicyType = bcos::chain_policy::FiscoPolicy;
-    // FIB-75 (geth-style): Pre-deduct gasLimit * gasPrice from sender before EVM execution.
+    // FIB-75: Pre-deduct gasLimit * gasPrice from sender before EVM execution.
     // If balance is insufficient to cover gas + value, fail immediately (EVM does not run,
     // no balance deducted, nonce preserved as replay protection).
     // On success, balance -= gasLimit * gasPrice; EVM then runs with m_gasLimit as its
@@ -69,7 +69,7 @@ struct FiscoTxFeeSettlement
             // FIB-75: charge minimum penalty = min(balance, intrinsic_gas * gasPrice).
             // The transaction is already in a consensus-packed block and consumed
             // consensus/storage resources, so a sender who can't cover full gas cost
-            // still pays at least the base tx gas cost (geth's intrinsic gas for
+            // still pays at least the base tx gas cost (protocol intrinsic gas for
             // an empty tx). If balance < intrinsic cost, drain what's left. This
             // prevents free spam from repeatedly submitting under-funded transactions.
             const auto intrinsicCost = u256(gas::TX_BASE_GAS) * gasPrice;
@@ -102,7 +102,7 @@ struct FiscoTxFeeSettlement
         co_return true;
     }
 
-    // FIB-75 (geth-style): After EVM execution, refund (gasLimit - gasUsed) * gasPrice.
+    // FIB-75: After EVM execution, refund (gasLimit - gasUsed) * gasPrice.
     // If EVM failed (non-SUCCESS, non-REVERT), roll back state changes while preserving
     // the pre-deducted gas cost. gasUsed <= gasLimit is guaranteed because the EVM's
     // gas budget is m_gasLimit.

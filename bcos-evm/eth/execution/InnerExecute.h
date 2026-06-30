@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Top-level message execution over eth::state::EthHost (geth innerExecute).
+ * @brief Top-level message execution over eth::state::EthHost.
  * @file execution/InnerExecute.h
  */
 
@@ -32,7 +32,7 @@
 
 namespace bcos::evm
 {
-struct ChainPrecompileDispatch;
+struct ChainExtendedPrecompileDispatch;
 using LogEntry = state::LogEntry;
 
 struct InnerExecuteInput
@@ -51,7 +51,7 @@ struct InnerExecuteInput
     std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
     state::EvmHostHooks* extension{nullptr};
-    ChainPrecompileDispatch* chainPort{nullptr};
+    ChainExtendedPrecompileDispatch* chainPort{nullptr};
     /// When true, orchestration owns top-level sender nonce bump (kernel skips it).
     bool skipTopLevelSenderNonceBump{false};
     std::optional<bcos::h256> txHash;
@@ -65,7 +65,6 @@ struct InnerExecuteOutput
     int64_t gasRefund{0};
 };
 
-// geth: innerExecute (post-Prepare evm.Call/Create) — ADR-030 / ADR-031 canonical
 InnerExecuteOutput innerExecute(InnerExecuteInput input);
 
 }  // namespace bcos::evm

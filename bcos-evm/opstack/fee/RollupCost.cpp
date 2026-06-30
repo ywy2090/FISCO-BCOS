@@ -8,7 +8,7 @@ namespace bcos::evm
 {
 namespace
 {
-// Port of op-geth FlzCompressLen (core/types/rollup_cost.go:760-836).
+// FlzCompressLen implementation.
 uint32_t flzCompressLenImpl(bcos::bytesConstRef ib)
 {
     uint32_t n = 0;

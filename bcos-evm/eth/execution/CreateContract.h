@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief CREATE / CREATE2 contract deployment helpers (geth evm.create parity).
+ * @brief CREATE / CREATE2 contract deployment helpers.
  * @file CreateContract.h
  */
 
@@ -108,7 +108,7 @@ inline void initializeCreateTargetAccount(state::State& state, evmc_address cons
     }
 }
 
-/// geth CreateContract: set recipient/code_address, warm, and nonce=1 before initcode runs.
+/// Set recipient/code_address, warm, and nonce=1 before initcode runs.
 inline void prepareCreateTargetBeforeInit(state::State& state, state::EthHost& host,
     evmc_message& message, evmc_revision revision, bcos::bytesConstRef initCode,
     bool warmAccess) noexcept

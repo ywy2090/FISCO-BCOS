@@ -8,7 +8,7 @@
 
 ## Context
 
-ADR-024 §6 documents per-tx injection of `ChainPrecompileDispatch*` and `VmHostPolicy* extension` from orchestration into `ExecuteMessageInput` → `FrameExecutionEnv` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
+ADR-024 §6 documents per-tx injection of `ChainExtendedPrecompileDispatch*` and `VmHostPolicy* extension` from orchestration into `ExecuteMessageInput` → `FrameExecutionEnv` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
 
 ```text
 bridge/lifecycle → TxPipelineContext.{extension, chainPort}
@@ -68,7 +68,7 @@ Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain out
 namespace bcos::evm {
 
 struct EvmTxContextView {
-    ChainPrecompileDispatch* chainPort{nullptr};
+    ChainExtendedPrecompileDispatch* chainPort{nullptr};
     state::EvmHostHooks* extension{nullptr};
     evmc::VM* vm{nullptr};
     state::BlockHashes blockHashes{};

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/core/ChainPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include <functional>
 #include <optional>
@@ -9,7 +9,7 @@
 namespace bcos::evm::test
 {
 
-class InMemoryChainCallTargetAdapter final : public ChainPrecompileDispatch
+class InMemoryChainCallTargetAdapter final : public ChainExtendedPrecompileDispatch
 {
 public:
     using ClassifyFn = std::function<std::optional<execution::CallTargetDescriptor>(

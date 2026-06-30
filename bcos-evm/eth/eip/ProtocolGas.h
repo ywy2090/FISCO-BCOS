@@ -2,7 +2,7 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief Canonical Ethereum protocol gas constants (geth params.go aligned).
+ * @brief Canonical Ethereum protocol gas constants.
  * @file ProtocolGas.h
  */
 #pragma once
