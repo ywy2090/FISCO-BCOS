@@ -57,7 +57,7 @@ These symbols are `[[deprecated]]` today and are **not** TE entry points. Safe t
 | 1.6 | `checkEntryRules` | `lifecycleCheckEntryRules` | `opstack/OpStackPrecheckPolicy.h` |
 | 1.7 | `dispatchPrecompile` | `resolveCallTarget` + `executePrecompileEnvelope` | `eth/precompiled/PrecompileRouter.h` |
 
-**Note:** Tier A geth inline aliases formerly in `GethNamingAliases.h` (`prepareState`, `evmCall`, …) were removed 2026-06-30; call `warmTransactionEntry` / `runCallFrame` directly. Policy-level forwards (`onPreCheckRules`, `onFinalizeGasUsed`) remain on `StateTransitionHooks` / `StateTransitionErrorPolicy`.
+**Note:** Tier A geth inline aliases formerly in `GethNamingAliases.h` (`prepareState`, `evmCall`, …) and documentation-only orchestration aliases in `GethOrchestrationAliases.h` were removed 2026-06-30; use canonical symbols (`warmTransactionEntry`, `runCallFrame`, `StateTransitionHooks`, …) and ADR-030 §6 prose map. Policy hooks use `on*` / `get*` on `StateTransitionHooks` / `StateTransitionErrorPolicy` directly.
 
 #### Wave 2 — Eth kernel Tier E forwards
 
@@ -96,7 +96,7 @@ Search entire monorepo for remaining `*Execute(` call sites before merge. Aggreg
 
 - Remove stale Tier E rows from ADR-030 §8 stable-alias table (or mark removed with date).
 - Update `architecture-overview.md`, chain READMEs, and ADR-031 appendix timeline.
-- Drop stale `GethNamingAliases.h` (removed 2026-06-30); `KernelCanonicalNamingTest` covers canonical kernel drivers.
+- Drop stale `GethNamingAliases.h` and `GethOrchestrationAliases.h` (removed 2026-06-30); `KernelCanonicalNamingTest` covers canonical kernel drivers; ADR-030 §6 is the geth vocabulary SSOT.
 - Confirm CI: `ctest -R 'GethNaming|FiscoExecute|EthReference|OpStackExecute|TxPipeline'`.
 
 ---

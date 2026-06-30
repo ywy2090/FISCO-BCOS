@@ -20,12 +20,12 @@
 #pragma once
 
 #include "bcos-evm/eth/Eip7702.h"
-#include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
+#include "fixtures/BlockInfoBuilder.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <bcos-crypto/signature/key/KeyImpl.h>
 #include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
@@ -124,7 +124,7 @@ inline bcos::bytes parseBytes(const std::string& value)
 
 inline state::BlockInfo parseBlock(const pt::ptree& tree)
 {
-    auto builder = bcos::evm::execution::BlockInfoBuilder()
+    auto builder = BlockInfoBuilder()
                        .number(tree.get<int64_t>("number", 0))
                        .timestamp(tree.get<int64_t>("timestamp", 0))
                        .gasLimit(tree.get<int64_t>("gas_limit", 0))

@@ -27,11 +27,11 @@
 #define BOOST_TEST_MODULE EthCreateGasSettlementCharacterizationTest
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
-#include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
+#include "fixtures/BlockInfoBuilder.h"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "helpers/InMemoryStateView.h"
@@ -103,7 +103,7 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
     msg.value = evmc_uint256be{};
     input.message = msg;
 
-    input.blockInfo = bcos::evm::execution::BlockInfoBuilder()
+    input.blockInfo = bcos::evm::test::BlockInfoBuilder()
                           .number(1)
                           .timestamp(1)
                           .gasLimit(30'000'000)

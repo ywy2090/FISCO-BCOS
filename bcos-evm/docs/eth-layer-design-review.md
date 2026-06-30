@@ -29,8 +29,9 @@ opstack/ ──►  eth/
 | 4 | `eth/precompiled/` | Precompile dispatch and gas | `PrecompileRouter`, `EthBuiltinRegistry`, `BlsGas`, `ModexpGas` | `test/eth/` |
 | 5 | `eth/gas/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
 | 6 | `eth/pipeline/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `deductIntrinsicGas` | `test/eth/` |
-| 7 | `eth/execution/` | Warm-up and feature preparation | `warmTransactionEntry`, `TxFeaturePrepare`, `BlockInfoBuilder`, `Eip2929PrecompileWarm` | `test/eth/` |
-| 8 | `eth/` (root) | Entry points, types, cross-cutting | `executeMessage`, `executeViaEth`, `RevisionConfig`, `Eip7702`, `EVMCResult` | `test/eth/`, `test/` (root) |
+| 7 | `eth/execution/` | Warm-up and feature preparation | `warmTransactionEntry`, `TxFeaturePrepare`, `Eip2929PrecompileWarm` | `test/eth/` |
+| 8 | `test/fixtures/` | Test fixture helpers | `BlockInfoBuilder`, `EthStateFixtureLoader` | `test/eth/`, `test/state/` |
+| 9 | `eth/` (root) | Entry points, types, cross-cutting | `executeMessage`, `executeViaEth`, `RevisionConfig`, `Eip7702`, `EVMCResult` | `test/eth/`, `test/` (root) |
 
 ---
 
@@ -210,7 +211,7 @@ runTxPipeline(ctx, hooks):
 
 ### 3.7 `eth/execution/` — Warm-up and feature preparation
 
-**Files:** `WarmTransactionEntry.h`, `TxFeaturePrepare.h`, `BlockInfoBuilder.h`, `Eip2929PrecompileWarm.h`
+**Files:** `WarmTransactionEntry.h`, `TxFeaturePrepare.h`, `Eip2929PrecompileWarm.h`
 
 **Design:**
 
@@ -218,7 +219,7 @@ runTxPipeline(ctx, hooks):
 
 `TxFeaturePrepare.h` defines `TransactionProperties` (warm flags for sender, recipient, coinbase, create address, and 7702 delegation target) and `setWarmDestinationFromKind()`.
 
-`BlockInfoBuilder.h` converts `state::BlockInfo` to `evmc_tx_context`.
+`test/fixtures/BlockInfoBuilder.h` (test-only) builds `state::BlockInfo` for fixtures and warm-entry tests.
 
 **Points a reviewer should check:**
 1. Warm access depends on `evmc_revision >= EVMC_BERLIN` — the `warm_access` field in `RevisionConfig` is profile-only (ADR-004).

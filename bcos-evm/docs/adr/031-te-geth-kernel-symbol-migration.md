@@ -33,7 +33,7 @@ Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyReferenceMessage` 
 
 - New `bcos-evm` code **must** call canonical names (`stateTransitionExecute`, `innerExecute`, `apply*Message`).
 - ~~Tier E aliases remain one release minimum~~ — **removed ADR-032 Waves 2–4 (2026-06-30)**.
-- ~~`GethNamingAliases.h`~~ removed 2026-06-30; use canonical symbols (`warmTransactionEntry`, `runCallFrame`, …) per ADR-030 §3.
+- ~~`GethNamingAliases.h` / `GethOrchestrationAliases.h`~~ removed 2026-06-30; use canonical symbols (`warmTransactionEntry`, `runCallFrame`, …) and ADR-030 §6 for geth prose names.
 
 ### 2. Internal migration (bcos-evm)
 
@@ -92,7 +92,7 @@ Both ADR-029 and geth names appear in comments during transition.
 - [x] `stateTransitionExecute` canonical in `TxPipeline.h/.cpp`
 - [x] `innerExecute` canonical in `ExecuteMessage.h/.cpp`
 - [x] `[[deprecated]]` inline `runTxPipeline` / `executeMessage` retained *(removed Wave 2, 2026-06-30)*
-- [x] `GethNamingAliases.h` removed 2026-06-30; canonical symbols only
+- [x] `GethNamingAliases.h` and `GethOrchestrationAliases.h` removed 2026-06-30; canonical symbols only
 - [x] bcos-evm internal call sites updated
 - [x] TE audited — no direct kernel calls; no TE code change required
 - [x] `KernelCanonicalNamingTest` + pipeline/orchestration tests green

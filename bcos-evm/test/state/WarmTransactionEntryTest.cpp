@@ -17,9 +17,9 @@
 #define BOOST_TEST_MODULE WarmTransactionEntryTest
 #include "bcos-evm/eth/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
+#include "fixtures/BlockInfoBuilder.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
     tx.to = evmcAddressFromLastByte(0x02);
 
     auto const coinbase = evmcAddressFromLastByte(0x03);
-    auto const block = execution::BlockInfoBuilder().coinbase(coinbase).build();
+    auto const block = bcos::evm::test::BlockInfoBuilder().coinbase(coinbase).build();
 
     TransactionProperties props;
     auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_SHANGHAI);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(skips_coinbase_warm_when_eip3651_disabled)
 
     // Avoid low addresses that overlap active precompile slots warmed at BERLIN+.
     auto const coinbase = evmcAddressFromLastByte(0xFE);
-    auto const block = execution::BlockInfoBuilder().coinbase(coinbase).build();
+    auto const block = bcos::evm::test::BlockInfoBuilder().coinbase(coinbase).build();
 
     TransactionProperties props;
     auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_PARIS);
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
     tx.to = evmcAddressFromLastByte(0x12);
 
     auto const coinbase = evmcAddressFromLastByte(0x13);
-    auto const block = execution::BlockInfoBuilder().coinbase(coinbase).build();
+    auto const block = bcos::evm::test::BlockInfoBuilder().coinbase(coinbase).build();
 
     auto const accessAddress = bcosAddressFromLastByte(0x21);
     auto const keyA = h256FromLastByte(0xA1);
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(legacy_kind_zero_ignores_access_list)
     tx.from = evmcAddressFromLastByte(0x31);
     tx.to = evmcAddressFromLastByte(0x32);
 
-    auto const block = execution::BlockInfoBuilder().build();
+    auto const block = bcos::evm::test::BlockInfoBuilder().build();
     auto const accessAddress = bcosAddressFromLastByte(0x41);
     Eip2930AccessList accessList{{accessAddress, {}}};
 
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(builds_block_info_with_expected_fields)
 {
     auto const coinbase = evmcAddressFromLastByte(0x44);
     auto const prevRandao = bytes32FromLastByte(0x99);
-    auto const block = execution::BlockInfoBuilder()
+    auto const block = bcos::evm::test::BlockInfoBuilder()
                            .number(101)
                            .timestamp(202)
                            .gasLimit(303)

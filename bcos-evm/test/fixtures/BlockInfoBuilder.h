@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Builder for eth::state::BlockInfo test/runtime wiring.
+ * @brief Fluent builder for eth::state::BlockInfo in tests/fixtures.
  * @file BlockInfoBuilder.h
  */
 
@@ -21,7 +21,7 @@
 
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 
-namespace bcos::evm::execution
+namespace bcos::evm::test
 {
 struct BlockInfoFields
 {
@@ -112,4 +112,4 @@ public:
 private:
     BlockInfoFields m_fields;
 };
-}  // namespace bcos::evm::execution
+}  // namespace bcos::evm::test
