@@ -53,7 +53,7 @@ These symbols are `[[deprecated]]` today and are **not** TE entry points. Safe t
 | 1.2 | `runExecutionFrame` | `runCallFrame` | `eth/execution/EvmCallFrame.h` |
 | 1.3 | `TxExecutionRunner::run` | `runEvmKernelTopLevel` | `eth/execution/TxExecutionRunner.h` |
 | 1.4 | `buildExecuteMessageInput` | `EvmTxContextView::toExecuteMessageInput` via `ctx.txContextView` | `eth/pipeline/EvmTxContextView.h` |
-| 1.5 | `StateTransitionHooks` legacy virtuals: `setupMessage`, `checkTransactionRules`, `checkGasAffordable`, `checkBalanceAndValue`, `tuneExecutionInput`, `runEvmExecution` | `onNormalizeMessage`, `onPreCheckRules`, `onPreCheckGasAffordable`, `onPreCheckCanTransfer`, `onTuneInnerExecuteInput`, `onInvokeInnerExecute` | `eth/pipeline/StateTransitionHooks.h` |
+| 1.5 | `StateTransitionHooks` legacy virtuals: `setupMessage`, `checkTransactionRules`, `checkGasAffordable`, `checkBalanceAndValue`, `tuneExecutionInput`, `runEvmExecution` | `onNormalizeMessage`, `onPreCheckRules`, `onPreCheckGasAffordable`, `onPreCheckCanTransfer`, `onTuneInnerExecuteInput`, `onInvokeInnerExecute` | `eth/core/StateTransitionHooks.h` |
 | 1.6 | `checkEntryRules` | `lifecycleCheckEntryRules` | `opstack/OpStackPrecheckPolicy.h` |
 | 1.7 | `dispatchPrecompile` | `resolveCallTarget` + `executePrecompileEnvelope` | `eth/precompiled/PrecompileRouter.h` |
 
