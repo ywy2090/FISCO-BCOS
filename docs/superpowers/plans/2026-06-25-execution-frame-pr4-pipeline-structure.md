@@ -30,7 +30,7 @@
 | File | PR4 role |
 | --- | --- |
 | `bcos-evm/eth/execution/ExecutionFrame.cpp` | **Only production file modified** — step extract + sequences |
-| `bcos-evm/eth/execution/ExecutionFrame.h` | **No changes** |
+| `bcos-evm/eth/execution/EvmCallFrame.h` | **No changes** |
 | `bcos-evm/eth/ExecuteMessage.cpp` | **No changes** |
 | `bcos-evm/eth/state/EthHost.cpp` | **No changes** |
 | `docs/superpowers/specs/2026-06-24-execution-frame-design.md` | PR4 status note (Task 8) |
@@ -605,7 +605,7 @@ Confirm:
 - [ ] Exactly **one** `applyCreateCodeDepositGas` call site (inside `finalizeFrame`)
 - [ ] Exactly **one** `precompiled::dispatchPrecompile` call site (inside `tryPrecompileAtTarget`)
 - [ ] `runTopLevelSteps` / `runNestedSteps` each ≤ ~45 lines
-- [ ] `ExecutionFrame.h` unchanged (`git diff bcos-evm/eth/execution/ExecutionFrame.h` empty)
+- [ ] `ExecutionFrame.h` unchanged (`git diff bcos-evm/eth/execution/EvmCallFrame.h` empty)
 
 - [ ] **Step 2: Verify adapter files unchanged**
 

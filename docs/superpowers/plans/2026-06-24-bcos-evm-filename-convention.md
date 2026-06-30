@@ -32,7 +32,7 @@
 
 | Old | New |
 | --- | --- |
-| `eth/ExecuteMessage.h/.cpp` | `eth/ExecuteMessage.h/.cpp` |
+| `eth/InnerExecute.h/.cpp` | `eth/InnerExecute.h/.cpp` |
 | `eth/execution/WarmTransactionEntry.h` | `eth/execution/WarmTransactionEntry.h` |
 | `eth/orchestration/adoptEvmcResult.h` | `eth/orchestration/AdoptEvmcResult.h` |
 | `eth/orchestration/debitIntrinsicGas.h` | `eth/orchestration/DebitIntrinsicGas.h` |
@@ -141,13 +141,13 @@ Expected: FAIL listing `ExecuteMessage.h`, `debitIntrinsicGas.h`, `BloomFilter.h
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: new include paths e.g. `#include "bcos-evm/eth/ExecuteMessage.h"`
+- Produces: new include paths e.g. `#include "bcos-evm/eth/InnerExecute.h"`
 
 - [ ] **Step 1: Two-step git mv for case-only renames (macOS-safe)**
 
 ```bash
 cd bcos-evm
-git mv eth/ExecuteMessage.h eth/_ExecuteMessage.h && git mv eth/_ExecuteMessage.h eth/ExecuteMessage.h
+git mv eth/InnerExecute.h eth/_ExecuteMessage.h && git mv eth/_ExecuteMessage.h eth/InnerExecute.h
 git mv eth/executeMessage.cpp eth/_ExecuteMessage.cpp && git mv eth/_ExecuteMessage.cpp eth/ExecuteMessage.cpp
 git mv eth/execution/WarmTransactionEntry.h eth/execution/WarmTransactionEntry.h
 git mv eth/orchestration/adoptEvmcResult.h eth/orchestration/AdoptEvmcResult.h
@@ -193,7 +193,7 @@ In `bcos-evm/test/CMakeLists.txt`, replace all:
 
 - [ ] **Step 4: Update `@file` comments in renamed headers**
 
-In `eth/ExecuteMessage.h`, change `@file ExecuteMessage.h` → `@file ExecuteMessage.h`.
+In `eth/InnerExecute.h`, change `@file ExecuteMessage.h` → `@file ExecuteMessage.h`.
 
 - [ ] **Step 5: Build smoke test**
 

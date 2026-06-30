@@ -30,8 +30,8 @@
 | `bcos-evm/eth/execution/CallTargetResolver.h/.cpp` | Types, `resolveCallTarget`, `enumerateTxEntryWarmTargets`; absorbs classification from `PrecompileRouter.cpp` + address work from `FrameTargetResolver.cpp` |
 | `bcos-evm/bcos/ports/ChainPrecompilePort.h` | PR1–PR5: deprecated alias; PR6: delete |
 | `bcos-evm/eth/precompiled/PrecompileRouter.h/.cpp` | PR4+: `executePrecompileEnvelope`; envelope only |
-| `bcos-evm/eth/execution/ExecutionFrame.h/.cpp` | PR4: PR4 delta + `FrameContext::chainPort` |
-| `bcos-evm/eth/ExecuteMessage.h` | PR3–4: `ExecuteMessageInput::chainPort` |
+| `bcos-evm/eth/execution/EvmCallFrame.h/.cpp` | PR4: PR4 delta + `FrameContext::chainPort` |
+| `bcos-evm/eth/InnerExecute.h` | PR3–4: `ExecuteMessageInput::chainPort` |
 | `bcos-evm/eth/state/EthHost.cpp` | PR4: pass `chainPort` into nested `FrameContext` |
 | `bcos-evm/opstack/OpStackChainCallTargetAdapter.h/.cpp` | OpStack port impl |
 | `transaction-executor/.../FiscoChainCallTargetAdapter.h/.cpp` | FISCO classify + dispatch composition |
@@ -438,8 +438,8 @@ git commit -m "feat(bcos-evm): ADR-024 PR2 CallTargetResolver implementation and
 ### Task 6: Wire chainPort fields (unused in ExecutionFrame until PR4)
 
 **Files:**
-- Modify: `bcos-evm/eth/ExecuteMessage.h` — add `#include "bcos-evm/eth/ports/ChainCallTargetPort.h"` forward decl + `ChainCallTargetPort* chainPort{nullptr};`
-- Modify: `bcos-evm/eth/execution/ExecutionFrame.h` — add `ChainCallTargetPort* chainPort{nullptr};` to `FrameContext` ctor
+- Modify: `bcos-evm/eth/InnerExecute.h` — add `#include "bcos-evm/eth/ports/ChainCallTargetPort.h"` forward decl + `ChainCallTargetPort* chainPort{nullptr};`
+- Modify: `bcos-evm/eth/execution/EvmCallFrame.h` — add `ChainCallTargetPort* chainPort{nullptr};` to `FrameContext` ctor
 - Modify: `bcos-evm/bcos/FiscoExecutionBridge.cpp` — construct `FiscoChainCallTargetAdapter` on stack, set `input.chainPort`
 - Modify: `bcos-evm/opstack/OpStackTxLifecycle.cpp` — construct `OpStackChainCallTargetAdapter`, store on `TxPipelineContext` or parallel field (add `ChainCallTargetPort* chainPort` to context if needed)
 - Modify: `bcos-evm/eth/execution/TxExecutionAdapter.cpp` — pass `input.chainPort` when building `FrameContext` (still uses legacy `tryPrecompileDispatch` until PR4)

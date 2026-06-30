@@ -26,8 +26,8 @@
  *     applyFiscoMessage       (FiscoExecute.h)
  *     applyOpStackMessage     (OpStackExecute.h)
  *
- *   ADR-032 Wave 5 (2026-06-30): Tier E retirement doc sweep complete
- *   Wave 1–4 symbols removed from code; index documents historical removals only
+ *   ADR-033 (2026-06-30): disk paths aligned — InnerExecute, StateTransitionExecute,
+ *     EvmCallFrame, DeductIntrinsicGas, IncludedTxVmerrNormalize (shims at old paths).
  */
 
 #pragma once

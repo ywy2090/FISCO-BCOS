@@ -13,7 +13,7 @@
 | --- | --- |
 | `pipeline/` | `stateTransitionExecute` 共享管线步骤（ADR-019） |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
-| `execution/` | 交易入口预热、BlockInfo、EIP-2929 access gate、ExecutionFrame |
+| `execution/` | 交易入口预热、BlockInfo、EIP-2929 access gate、`EvmCallFrame` |
 | `gas/` | 1559/4844/7623 等纯 gas 数学 |
 | `policy/` | `VmHostPolicy` / `EthVmHostPolicy` / `EthChainPolicy`（revision 策略） |
 | `precompiled/` | `PrecompileRouter`、builtin registry |
@@ -25,11 +25,19 @@
 
 | 文件 | 角色 |
 | --- | --- |
-| `ExecuteMessage.*` | 内核执行入口 `innerExecute()` |
+| `InnerExecute.*` | 内核执行入口 `innerExecute()`（geth innerExecute） |
+| `GethNamingAliases.h` | geth 符号 inline 别名索引 |
+| `pipeline/StateTransitionExecute.*` | `stateTransitionExecute()`（geth stateTransition.execute） |
+| `pipeline/StateTransitionContext.h` | 管线上下文 |
+| `pipeline/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
+| `pipeline/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
+| `execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
 | `RevisionConfig.h` | EIP 开关位域 |
 | `Eip7702.*` | EIP-7702 单点实现 |
 | `EVMCResult.*` | EVMC 结果封装 |
 | `EthExecutionArtifacts.h` | 参考路径执行上下文（TE 消费） |
+
+`ExecuteMessage.h`、`TxPipeline.h` 等为 ADR-033 兼容 shim，勿在新代码中使用。
 
 ## `apply/` — ETH 参考路径
 
@@ -61,4 +69,4 @@ applyReferenceMessage()  // geth: ApplyMessage — ADR-030 文档名
             └─ pipelineInvokeEvmKernel → innerExecute()   // geth: innerExecute
 ```
 
-详见 `docs/architecture-overview.md`、`docs/adr/019-orchestration-pipeline.md`、`docs/adr/030-geth-naming-map.md`。
+详见 `docs/architecture-overview.md`、`docs/adr/019-orchestration-pipeline.md`、`docs/adr/030-geth-naming-map.md`、**ADR-033**（磁盘文件名波次）。

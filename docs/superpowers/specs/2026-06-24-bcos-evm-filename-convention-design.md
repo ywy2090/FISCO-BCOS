@@ -111,7 +111,7 @@ include/bcos-evm/*.hpp   # Phase 4：对外安装面
 
 | 现路径 | 新路径 | 引用面（约） |
 | --- | --- | --- |
-| `eth/executeMessage.h` | `eth/ExecuteMessage.h` | **33** 文件（全库最多） |
+| `eth/executeMessage.h` | `eth/InnerExecute.h` | **33** 文件（全库最多） |
 | `eth/executeMessage.cpp` | `eth/ExecuteMessage.cpp` | CMake + 多处 test 直编 |
 | `eth/execution/warmTransactionEntry.h` | `eth/execution/WarmTransactionEntry.h` | ~5 |
 | `eth/orchestration/adoptEvmcResult.h` | `eth/orchestration/AdoptEvmcResult.h` | ~3 |
@@ -296,7 +296,7 @@ for each *.h *.hpp *.cpp in SCOPED_DIRS (recursive):
 ## 附录 A：Phase 1 + 1b 完整文件对照
 
 ```
-eth/executeMessage.h                          → eth/ExecuteMessage.h
+eth/executeMessage.h                          → eth/InnerExecute.h
 eth/executeMessage.cpp                        → eth/ExecuteMessage.cpp
 eth/execution/warmTransactionEntry.h          → eth/execution/WarmTransactionEntry.h
 eth/orchestration/adoptEvmcResult.h          → eth/orchestration/AdoptEvmcResult.h

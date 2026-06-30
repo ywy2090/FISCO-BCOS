@@ -317,8 +317,8 @@ runExecutionFrame — 仅替换原 tryPrecompileDispatch 等价块：
 
 **PR3–PR4 必改文件：**
 
-- `bcos-evm/eth/execution/ExecutionFrame.h` — `FrameContext::chainPort`
-- `bcos-evm/eth/ExecuteMessage.h` — `ExecuteMessageInput::chainPort`
+- `bcos-evm/eth/execution/EvmCallFrame.h` — `FrameContext::chainPort`
+- `bcos-evm/eth/InnerExecute.h` — `ExecuteMessageInput::chainPort`
 - `bcos-evm/eth/state/EthHost.cpp` — nested 传递 `chainPort`
 - `bcos-evm/bcos/FiscoExecutionBridge.cpp` — FISCO 注入
 - `bcos-evm/opstack/OpStackTxLifecycle.cpp` — OpStack 注入
@@ -380,8 +380,8 @@ ctest -R 'CallTargetCharacterization|CallTargetResolver|PrecompileEnvelope|Execu
 
 | 路径 | PR | 要点 |
 | --- | --- | --- |
-| `bcos-evm/eth/execution/ExecutionFrame.h/.cpp` | 4 | PR4 delta；`FrameContext::chainPort` |
-| `bcos-evm/eth/ExecuteMessage.h` | 4 | `chainPort` 字段 |
+| `bcos-evm/eth/execution/EvmCallFrame.h/.cpp` | 4 | PR4 delta；`FrameContext::chainPort` |
+| `bcos-evm/eth/InnerExecute.h` | 4 | `chainPort` 字段 |
 | `bcos-evm/eth/state/EthHost.cpp` | 4 | nested `chainPort` |
 | `bcos-evm/eth/precompiled/PrecompileRouter.cpp` | 4 | envelope only |
 | `bcos-evm/eth/execution/WarmTransactionEntry.h` | 5 | enumerate |
