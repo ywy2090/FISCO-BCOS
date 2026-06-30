@@ -2,7 +2,7 @@
 #include "bcos-evm/eth/eip/Eip1559Access.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
@@ -23,9 +23,9 @@ state::State makeState()
     return state::State(baseState);
 }
 
-EthReferenceRequest makeMinimalRequest(bcos::evm_standard::RevisionConfig const& revision)
+EthMessageRequest makeMinimalRequest(bcos::evm_standard::RevisionConfig const& revision)
 {
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.revisionConfig = revision;
     input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::EIP1559);
     input.gasTipCap = 2;

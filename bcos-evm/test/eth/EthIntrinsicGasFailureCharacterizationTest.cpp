@@ -13,7 +13,7 @@
 #define BOOST_TEST_MODULE EthIntrinsicGasFailureCharacterizationTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/ProtocolGas.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -50,7 +50,7 @@ bcos::evm_standard::RevisionConfig pragueEip7623Config()
     return cfg;
 }
 
-EthReferenceRequest makeIntrinsicGasTooLowRequest(
+EthMessageRequest makeIntrinsicGasTooLowRequest(
     state::test::InMemoryStateView& stateView, evmc::VM& vm, crypto::Keccak256& hashImpl)
 {
     auto const sender = addressFromLastByte(0x01);
@@ -66,7 +66,7 @@ EthReferenceRequest makeIntrinsicGasTooLowRequest(
     message.recipient = target;
     message.code_address = target;
 
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -100,14 +100,14 @@ bool stateDiffPreservesBalance(
 }  // namespace
 
 // Scenario A — intrinsic gas below TxGas (geth ErrIntrinsicGas matrix).
-BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_too_low_maps_to_out_of_gas_limit)
+BOOST_AUTO_TEST_CASE(applyEthMessage_intrinsic_gas_too_low_maps_to_out_of_gas_limit)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
     state::test::InMemoryStateView stateView;
 
-    auto output = task::syncWait(
-        applyReferenceMessage(makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl)));
+    auto output =
+        task::syncWait(applyEthMessage(makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl)));
 
     // CURRENT_ORACLE: GAP-001
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_too_low_maps_to_out_of_
 }
 
 // Scenario A — TE settlement projection: gasUsed consumes full gasLimit when gas_left=0.
-BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_failure_te_gas_used_equals_gas_limit)
+BOOST_AUTO_TEST_CASE(applyEthMessage_intrinsic_gas_failure_te_gas_used_equals_gas_limit)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_failure_te_gas_used_equ
 
     auto const input = makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl);
     auto const gasLimit = input.message.gas;
-    auto output = task::syncWait(applyReferenceMessage(EthReferenceRequest{input}));
+    auto output = task::syncWait(applyEthMessage(EthMessageRequest{input}));
 
     auto const projectedGasUsed = teProjectedGasUsed(gasLimit, output.evmcResult.gas_left);
     BOOST_CHECK_EQUAL(projectedGasUsed, gasLimit);
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(eth_buy_gas_insufficient_balance_te_oracle_not_enough_cash)
 }
 
 // Task 2 — inclusion / receipt existence oracle at bridge layer (TE still makeReceipt).
-BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_failure_inclusion_failed_receipt_oracle)
+BOOST_AUTO_TEST_CASE(applyEthMessage_intrinsic_gas_failure_inclusion_failed_receipt_oracle)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_intrinsic_gas_failure_inclusion_faile
     auto const sender = input.message.sender;
     auto const initialBalance = stateView.get_balance(sender);
 
-    auto output = task::syncWait(applyReferenceMessage(EthReferenceRequest{input}));
+    auto output = task::syncWait(applyEthMessage(EthMessageRequest{input}));
 
     // CURRENT_ORACLE (GAP-002 / GAP-TE-004): execution returns a failed outcome suitable for
     // inclusion + receipt at TE Finalize (not a block-level reject).

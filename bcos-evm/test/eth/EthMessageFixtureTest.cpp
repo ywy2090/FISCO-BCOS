@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE ExecuteViaEthFixtureTest
+#define BOOST_TEST_MODULE EthMessageFixtureTest
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"
@@ -34,9 +34,9 @@ BOOST_AUTO_TEST_CASE(existing_prague_fixtures_via_execute_via_eth)
             state::test::InMemoryStateView view;
             for (auto const& [addr, acct] : fixture.preState)
                 view.insert_account(addr, acct);
-            auto input = buildEthReferenceRequest(fixture, view, vm, hashImpl);
+            auto input = buildEthMessageRequest(fixture, view, vm, hashImpl);
             int64_t const gasBefore = input.message.gas;
-            auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+            auto output = task::syncWait(applyEthMessage(std::move(input)));
             assertFixtureResult(fixture, output, gasBefore);
             if (!fixture.expected.post.empty())
             {

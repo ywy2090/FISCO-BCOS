@@ -80,7 +80,7 @@ inline bool isConsensusRejected(TxPipelineExitKind exitKind) noexcept
 Extend result structs:
 
 ```cpp
-// EthReferenceResult, OpStackExecutionResult
+// EthMessageResult, OpStackExecutionResult
 TxConsensusOutcome consensusOutcome{TxConsensusOutcome::Executed};
 ```
 
@@ -184,7 +184,7 @@ Default for **GST / EEST / op-geth parity tests:** flag **off** → `Rejected`.
 | Phase | Deliverable | Primary files |
 | --- | --- | --- |
 | **A** | `TxConsensusOutcome` + `isConsensusRejected` | `eth/TxConsensusOutcome.h` |
-| **B** | Bridge/lifecycle sets `consensusOutcome` | `ApplyReferenceMessage.cpp`, `OpStackTxLifecycle.cpp` |
+| **B** | Bridge/lifecycle sets `consensusOutcome` | `EthMessage.cpp`, `OpStackTxLifecycle.cpp` |
 | **C** | TE Execute/Finalize gate | `EthTransactionExecutorImpl.h`, `OpStackTransactionExecutorImpl.h` |
 | **D** | Scheduler null-receipt → block error | `SchedulerSerialImpl.h`, parallel scheduler if applicable |
 | **E** | Flip characterization oracles + E2E receipt count | `EthIntrinsicGasFailureCharacterizationTest.cpp`, `OpStackTxLifecycleCharacterizationTest.cpp`, TE fixtures |
@@ -237,7 +237,7 @@ Existing tests that assert `OutOfGasLimit` receipt on entry failure flip to **`E
 ## Compliance
 
 - [ ] `eth/TxConsensusOutcome.h` with `isConsensusRejected`
-- [ ] `EthReferenceResult` / `OpStackExecutionResult` carry `consensusOutcome`
+- [ ] `EthMessageResult` / `OpStackExecutionResult` carry `consensusOutcome`
 - [ ] `ethReferenceExecute` + `runOpStackTxLifecycleOwner` set `Rejected` on entry-failure paths
 - [ ] TE Finalize returns `nullptr` when rejected; Execute skips apply/settle/refund
 - [ ] Nonce unchanged on reject (characterization or state diff assert)

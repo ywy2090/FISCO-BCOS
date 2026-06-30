@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE EthExecuteViaEthPreCheckTest
 
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -18,9 +18,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-EthReferenceRequest makeInput(evmc_address sender)
+EthMessageRequest makeInput(evmc_address sender)
 {
-    EthReferenceRequest input;
+    EthMessageRequest input;
     input.message.kind = EVMC_CALL;
     input.message.sender = sender;
     input.message.gas = 50'000;

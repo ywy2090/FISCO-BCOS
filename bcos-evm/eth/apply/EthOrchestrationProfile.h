@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
 
@@ -30,8 +30,8 @@ struct EthOrchestrationProfile
     /// Orchestration policy bind input (not execution environment wiring).
     struct BindingsContext
     {
-        EthReferenceRequest const& input;
-        EthReferenceResult& output;
+        EthMessageRequest const& input;
+        EthMessageResult& output;
     };
 
     struct Bindings

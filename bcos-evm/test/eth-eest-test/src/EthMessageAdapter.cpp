@@ -1,9 +1,9 @@
-#include "bcos-evm/eth-eest-test/EthReferenceExecuteAdapter.h"
+#include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip4844.h"
@@ -143,13 +143,12 @@ void applyGstTransactionSettlement(state::StateDiff& stateDiff,
 
 }  // namespace
 
-EthReferenceExecuteAdapter::EthReferenceExecuteAdapter(
+EthMessageAdapter::EthMessageAdapter(
     ForkProfile profile, bcos::crypto::Hash& hashImpl, evmc::VM& vm) noexcept
   : m_profile(std::move(profile)), m_hashImpl(&hashImpl), m_vm(&vm)
 {}
 
-bool EthReferenceExecuteAdapter::supports(
-    ForkProfile const& profile, std::string_view capabilityRowId) const
+bool EthMessageAdapter::supports(ForkProfile const& profile, std::string_view capabilityRowId) const
 {
     static_cast<void>(capabilityRowId);
     for (auto const& pathProfile : profile.pathProfiles)
@@ -163,7 +162,7 @@ bool EthReferenceExecuteAdapter::supports(
     return false;
 }
 
-task::Task<ExecutionResult> EthReferenceExecuteAdapter::execute(
+task::Task<ExecutionResult> EthMessageAdapter::execute(
     StateTestCase const& testCase, StateSubtest const& subtest)
 {
     TestStateView view;
@@ -176,7 +175,7 @@ task::Task<ExecutionResult> EthReferenceExecuteAdapter::execute(
     auto const accessList = materializeAccessList(testCase.transaction, subtest);
     auto const authorizations = materializeAuthorizations(testCase.transaction);
 
-    EthReferenceRequest input;
+    EthMessageRequest input;
     input.stateView = &view;
     input.vm = m_vm;
     input.hashImpl = m_hashImpl;
@@ -224,7 +223,7 @@ task::Task<ExecutionResult> EthReferenceExecuteAdapter::execute(
     auto const hasExplicitFeeCaps = input.hasExplicitFeeCaps;
     auto const gasTipCap = input.gasTipCap;
     auto const gasFeeCap = input.gasFeeCap;
-    auto output = co_await applyReferenceMessage(std::move(input));
+    auto output = co_await applyEthMessage(std::move(input));
 
     ExecutionResult result;
     result.status = output.evmcResult.status_code;
@@ -240,7 +239,7 @@ task::Task<ExecutionResult> EthReferenceExecuteAdapter::execute(
     int64_t finalGasUsed = result.gasUsed;
     if (m_profile.revision.eip7623)
     {
-        auto const& snap = output.executionContext.gasSettlementSnapshot;
+        auto const& snap = output.gasSettlementSnapshot;
         if (snap.gasLimit > 0)
         {
             finalGasUsed = gas::settleTopLevelTransactionGas(gasBefore, output.evmcResult.gas_left,
@@ -292,7 +291,7 @@ task::Task<ExecutionResult> EthReferenceExecuteAdapter::execute(
 
     if (std::getenv("EEST_PROBE") != nullptr)
     {
-        auto const& snap = output.executionContext.gasSettlementSnapshot;
+        auto const& snap = output.gasSettlementSnapshot;
         int64_t const floorDataGas =
             gas::calcFloorDataGas(m_profile.revision.calldata_floor_per_token, snap.calldata);
         std::cerr << "=== EEST_PROBE ===\n"

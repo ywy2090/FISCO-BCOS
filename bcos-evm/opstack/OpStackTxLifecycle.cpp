@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/pipeline/StateTransitionExecute.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
-#include "bcos-evm/opstack/OpStackExecutionBundle.h"
+#include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackNormalTxFeeCoordinator.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackPipelineInternals.h"
@@ -45,7 +45,9 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
 
-    OpStackExecutionBundle execBundle{ctx, input};
+    OpStackChainCallTargetAdapter chainAdapter(
+        &ctx.state, input.blockInfo.baseFee, input.forkSchedule, input.blockInfo.timestamp);
+    ctx.wireExecutionEnvironment(input.vm, nullptr, &chainAdapter);
 
     auto const feeParams = loadOpStackFeeParams(ctx.state);
     input.opTxExecutor.m_l1CostFunc = wireL1CostFuncWithState(input.forkSchedule, ctx.state);
@@ -56,7 +58,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
     sidecar.floorDataGas = input.floorDataGas;
     OpStackSettlementFacade view{ctx, input, sidecar};
 
-    // execBundle wires execution environment (vm, extension, chainPort) into ctx;
+    // chainAdapter + wireExecutionEnvironment inject vm/chainPort into ctx.
     // bindingsCtx is orchestration policy bind input only.
     OpStackOrchestrationProfile::BindingsContext bindingsCtx{input, view};
     auto bindings = OpStackOrchestrationProfile::bind(bindingsCtx);

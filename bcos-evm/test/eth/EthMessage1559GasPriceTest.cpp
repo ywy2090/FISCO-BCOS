@@ -1,10 +1,10 @@
 /*
- * EIP-1559: ethReferenceExecute normalizes gasPrice before EVM so GASPRICE matches geth.
+ * EIP-1559: applyEthMessage normalizes gasPrice before EVM so GASPRICE matches geth.
  */
-#define BOOST_TEST_MODULE EthExecuteViaEth1559GasPriceTest
+#define BOOST_TEST_MODULE EthMessage1559GasPriceTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -37,9 +37,9 @@ bcos::evm_standard::RevisionConfig london1559Config()
 bcos::bytes const kGasPriceBaseFeeSumBytecode = bcos::fromHex("3a480160005260206000f3");
 }  // namespace
 
-BOOST_AUTO_TEST_SUITE(EthExecuteViaEth1559GasPriceTest)
+BOOST_AUTO_TEST_SUITE(EthMessage1559GasPriceTest)
 
-BOOST_AUTO_TEST_CASE(applyReferenceMessage_type2_normalizes_gas_price_for_gasprice_opcode)
+BOOST_AUTO_TEST_CASE(applyEthMessage_type2_normalizes_gas_price_for_gasprice_opcode)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_type2_normalizes_gas_price_for_gaspri
     blockInfo.gasLimit = 30'000'000;
     blockInfo.baseFee = 10;
 
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(applyReferenceMessage_type2_normalizes_gas_price_for_gaspri
     input.web3TypedTxKind = 0x02;
     input.hasExplicitFeeCaps = true;
 
-    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
 
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(output.evmcResult.output_size, size_t(32));

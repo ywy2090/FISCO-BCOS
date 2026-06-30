@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
  * @brief Frame-level execution target and bytecode resolution (7702 / CREATE).

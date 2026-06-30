@@ -18,7 +18,7 @@ ADR-031 Phase 3b (P1) promoted two **portable eth kernel** symbols to canonical 
 | ~~`runTxPipeline`~~ | `stateTransitionExecute` | `eth/pipeline/StateTransitionExecute.h` |
 | ~~`executeMessage`~~ | `innerExecute` | `eth/execution/InnerExecute.h` |
 
-Phase 4c (P2) documented **`apply*Message`** as the geth-aligned chain entry name; TE impls call `applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage` at the syscall boundary. Wave 3 promoted those to exported link symbols; Wave 4 removed `*Execute` forwards.
+Phase 4c (P2) documented **`apply*Message`** as the geth-aligned chain entry name; TE impls call `applyFiscoMessage` / `applyEthMessage` / `applyOpStackMessage` at the syscall boundary. Wave 3 promoted those to exported link symbols; Wave 4 removed `*Execute` forwards.
 
 This ADR was the **authoritative removal schedule** for all Tier E and ADR-029 transitional aliases. **Execution complete** — see appendix timeline.
 
@@ -77,7 +77,7 @@ Flip which symbol is the **exported** function vs inline forward. TE already inv
 | Order | Action | geth analogue | Headers |
 | --- | --- | --- | --- |
 | 3.1 | Rename implementation `fiscoExecute` → keep body; export as `applyFiscoMessage`; add `[[deprecated]] inline fiscoExecute` forward | `ApplyMessage` | `bcos/ApplyFiscoMessage.h` |
-| 3.2 | Same for `ethReferenceExecute` → `applyReferenceMessage` | `ApplyMessage` | `eth/apply/ApplyReferenceMessage.h` |
+| 3.2 | Same for `ethReferenceExecute` → `applyEthMessage` | `ApplyMessage` | `eth/apply/EthMessage.h` |
 | 3.3 | Same for `opStackExecute` → `applyOpStackMessage` | `ApplyMessage` + op lifecycle | `opstack/ApplyOpStackMessage.h` |
 
 Update log strings and `@brief` tags to canonical names; retain `*Execute` in release notes for one minimum release.
@@ -87,7 +87,7 @@ Update log strings and `@brief` tags to canonical names; retain `*Execute` in re
 | Order | Remove | Canonical replacement | Consumers |
 | --- | --- | --- | --- |
 | 4.1 | `fiscoExecute` deprecated forward | `applyFiscoMessage` | TE FISCO path (already on apply) |
-| 4.2 | `ethReferenceExecute` deprecated forward | `applyReferenceMessage` | TE ETH reference path |
+| 4.2 | `ethReferenceExecute` deprecated forward | `applyEthMessage` | TE ETH reference path |
 | 4.3 | `opStackExecute` deprecated forward | `applyOpStackMessage` | TE OP path |
 
 Search entire monorepo for remaining `*Execute(` call sites before merge. Aggregate headers (`include/bcos-evm/fisco_executor.hpp`, `eth_executor.hpp`, `op_executor.hpp`) must re-export canonical names only.
@@ -135,14 +135,14 @@ TE enters execution only through chain L1 adapters (not kernel Tier E):
 
 ```text
 TransactionExecutorImpl           → applyFiscoMessage      (was fiscoExecute)
-EthTransactionExecutorImpl        → applyReferenceMessage  (was ethReferenceExecute)
+EthTransactionExecutorImpl        → applyEthMessage  (was ethReferenceExecute)
 OpStackTransactionExecutorImpl    → applyOpStackMessage    (was opStackExecute)
 ```
 
 | Step | Status (2026-06-30) | Wave | Action |
 | --- | --- | --- | --- |
 | TE FISCO execute path calls `applyFiscoMessage` | ✅ P2 | — | `TransactionExecutorImpl.h` `fiscoExecuteTx()` |
-| TE ETH reference path calls `applyReferenceMessage` | ✅ P2 | — | `EthTransactionExecutorImpl.h` |
+| TE ETH reference path calls `applyEthMessage` | ✅ P2 | — | `EthTransactionExecutorImpl.h` |
 | TE OP path calls `applyOpStackMessage` | ✅ P2 | — | `OpStackTransactionExecutorImpl.h` |
 | TE compat tests use `applyFiscoMessage` | ✅ | — | `ExecuteViaHostCompatTest.cpp`, harness headers |
 | Rename local helpers `*ExecuteTx()` → `*ApplyMessageTx()` | ✅ optional hygiene | 5 | `applyFiscoMessageTx` etc. in TE impl headers |
@@ -211,7 +211,7 @@ Aggregate headers (`include/bcos-evm/*_executor.hpp`) re-export canonical chain 
 | ~~`runTxPipeline`~~ | `stateTransitionExecute` | ADR-031 (2026-06-30) | ~~2~~ removed 2026-06-30 |
 | ~~`executeMessage`~~ | `innerExecute` | ADR-031 (2026-06-30) | ~~2~~ removed 2026-06-30 |
 | ~~`fiscoExecute`~~ | `applyFiscoMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
-| ~~`ethReferenceExecute`~~ | `applyReferenceMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
+| ~~`ethReferenceExecute`~~ | `applyEthMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
 | ~~`opStackExecute`~~ | `applyOpStackMessage` | 2026-06-30 (Wave 3) | ~~4~~ removed 2026-06-30 |
 | ~~`debitIntrinsicGas`~~ | `deductIntrinsicGas` | Phase 3 batch 1 | ~~1~~ removed 2026-06-30 |
 | ~~`runExecutionFrame`~~ | `runCallFrame` | ADR-029 L4 | ~~1~~ removed 2026-06-30 |

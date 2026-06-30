@@ -291,7 +291,7 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
     // and guarded with a lock.
     // Executor selection (all satisfy executor_v1::TransactionExecutor concept):
     //   FISCO  → TransactionExecutorImpl  + applyFiscoMessage      + FiscoTxFeeSettlement
-    //   Eth    → EthTransactionExecutorImpl + applyReferenceMessage + EthTxFeeSettlement
+    //   Eth    → EthTransactionExecutorImpl + applyEthMessage + EthTxFeeSettlement
     //   OP     → OpStackTransactionExecutorImpl + applyOpStackMessage (gas internal)
     auto const& receiptFactory = *m_protocolInitializer->blockFactory()->receiptFactory();
     auto hashImpl = m_protocolInitializer->cryptoSuite()->hashImpl();
@@ -332,7 +332,7 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
     switch (m_nodeConfig->executionPath())
     {
     case tool::ExecutionPath::Eth:
-        INITIALIZER_LOG(INFO) << "Using EthTransactionExecutorImpl (applyReferenceMessage)";
+        INITIALIZER_LOG(INFO) << "Using EthTransactionExecutorImpl (applyEthMessage)";
         wireBaselineScheduler(
             std::make_shared<executor_v1::EthTransactionExecutorImpl>(receiptFactory, hashImpl));
         break;

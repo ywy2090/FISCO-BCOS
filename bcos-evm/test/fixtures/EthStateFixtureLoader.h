@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Shared JSON fixture loader for eth state / ethReferenceExecute tests.
+ * @brief Shared JSON fixture loader for eth state / applyEthMessage tests.
  * @file EthStateFixtureLoader.h
  */
 

@@ -12,10 +12,10 @@ namespace bcos::evm::test
 
 BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
 {
-    EthReferenceRequest input;
+    EthMessageRequest input;
     input.revisionConfig.eip7623 = true;
 
-    EthReferenceResult output;
+    EthMessageResult output;
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
 
@@ -25,12 +25,12 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
 
 BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
 {
-    EthReferenceRequest input;
+    EthMessageRequest input;
     input.revisionConfig.eip7623 = false;
     input.authorizationListPresent = true;
     input.authorizations.push_back({});
 
-    EthReferenceResult output;
+    EthMessageResult output;
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto policy = EthOrchestrationProfile::buildStateTransitionHooks(bindingsCtx);
 
@@ -45,14 +45,14 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     evmc_message message{};
     message.gas = 50'000;
 
-    EthReferenceRequest input;
+    EthMessageRequest input;
     input.message = message;
     input.revisionConfig.eip1559 = true;
     input.gasTipCap = 3;
     input.gasFeeCap = 2;
     input.blockInfo.baseFee = 1;
 
-    EthReferenceResult output;
+    EthMessageResult output;
     StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
 
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
@@ -66,8 +66,8 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
 
 BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
-    EthReferenceRequest input;
-    EthReferenceResult output;
+    EthMessageRequest input;
+    EthMessageResult output;
     EthOrchestrationProfile::BindingsContext bindingsCtx{input, output};
     auto bindings = EthOrchestrationProfile::bind(bindingsCtx);
 

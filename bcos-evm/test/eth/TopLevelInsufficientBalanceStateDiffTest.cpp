@@ -8,7 +8,7 @@
 #define BOOST_TEST_MODULE TopLevelInsufficientBalanceStateDiffTest
 
 #include "bcos-evm/eth/execution/InnerExecute.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/pipeline/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(setcode_auth_applied_then_top_level_balance_failure_state_d
 #endif
 }
 
-// Contrast: ethReferenceExecute precheck exits before auth when value exceeds balance.
+// Contrast: applyEthMessage precheck exits before auth when value exceeds balance.
 // GETH_ORACLE: same reject — go-ethereum/core/state_processor_test.go:165-170.
 BOOST_AUTO_TEST_CASE(eth_reference_precheck_rejects_before_auth_when_value_exceeds_balance)
 {
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(eth_reference_precheck_rejects_before_auth_when_value_excee
     blockInfo.chainId = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    EthReferenceRequest input{};
+    EthMessageRequest input{};
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hashImpl;
@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(eth_reference_precheck_rejects_before_auth_when_value_excee
     input.authorizations.push_back(authKey.sign(delegationTarget, 1));
     input.web3TypedTxKind = 4;
 
-    auto output = task::syncWait(applyReferenceMessage(std::move(input)));
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
 
     // CURRENT_ORACLE: precheck maps to InsufficientFunds (10015), auth never applied.
     BOOST_CHECK(!output.topLevelIncludedTxVmError);

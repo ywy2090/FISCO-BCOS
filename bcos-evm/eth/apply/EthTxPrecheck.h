@@ -5,11 +5,11 @@
 
 namespace bcos::evm
 {
-struct EthReferenceRequest;
+struct EthMessageRequest;
 namespace state
 {
 class State;
 }
 
-std::optional<EVMCResult> ethTxPrecheck(EthReferenceRequest const& input, state::State& state);
+std::optional<EVMCResult> ethTxPrecheck(EthMessageRequest const& input, state::State& state);
 }  // namespace bcos::evm

@@ -1,7 +1,7 @@
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 
 #include "bcos-evm/eth/Web3TypedTxKind.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/eip/Eip1559Access.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -27,7 +27,7 @@ std::optional<EVMCResult> makePreCheckError(
 }
 }  // namespace
 
-std::optional<EVMCResult> ethTxPrecheck(EthReferenceRequest const& input, state::State& state)
+std::optional<EVMCResult> ethTxPrecheck(EthMessageRequest const& input, state::State& state)
 {
     // EIP-2681: account nonce cannot exceed uint64 max; reject txs that cannot be incremented.
     if (input.txNonce == std::numeric_limits<uint64_t>::max())

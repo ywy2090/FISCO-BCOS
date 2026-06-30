@@ -11,11 +11,10 @@ class Hash;
 namespace bcos::evm::reference_tests
 {
 
-class EthReferenceExecuteAdapter : public PathAdapter
+class EthMessageAdapter : public PathAdapter
 {
 public:
-    EthReferenceExecuteAdapter(
-        ForkProfile profile, bcos::crypto::Hash& hashImpl, evmc::VM& vm) noexcept;
+    EthMessageAdapter(ForkProfile profile, bcos::crypto::Hash& hashImpl, evmc::VM& vm) noexcept;
 
     ExecutionPath path() const override { return ExecutionPath::Reference; }
 

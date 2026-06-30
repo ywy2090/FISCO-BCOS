@@ -58,7 +58,7 @@ graph TD
         OSET["OpStackSettlement settle*"]
         OVP["OpStackVmHostPolicy"]
     end
-    ETH["applyReferenceMessage()"] --> EOP["EthOrchestrationProfile::bind"]
+    ETH["applyEthMessage()"] --> EOP["EthOrchestrationProfile::bind"]
     EOP --> RO
     FEB --> FOP --> RO
     OEB --> OTL
@@ -102,7 +102,7 @@ graph TD
             │   Eip2929Access.h      2929 / coinbase / CREATE warm gate    │
             │   VmHostPolicy         扩展点基类 = 标准以太坊默认语义         │
             │   RevisionConfig       EIP 开关位域（13 bool + 参数）          │
-            │   ApplyReferenceMessage   以太坊参考路径（接线审计）              │
+            │   EthMessage              以太坊参考路径（接线审计）              │
             └───────────────────────────────────────────────────────────┘
                          │
                          ▼  仅依赖
@@ -186,7 +186,7 @@ evmone callback → EthHost::call (nested adapter)
 
 | geth | ADR-030 文档名 | 文件 | Profile / 外圈 | TE 调用 | 能力矩阵列语义 |
 | --- | --- | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/ApplyReferenceMessage.h` | `EthOrchestrationProfile::bind` | `applyReferenceMessage` | ETH = **接线审计**（非生产继承证明） |
+| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | `EthOrchestrationProfile::bind` | `applyEthMessage` | ETH = **接线审计**（非生产继承证明） |
 | `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | `applyFiscoMessage` | BCOS = **FISCO 生产继承契约** |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | validate → `runOpStackTxLifecycle`（ADR-023） | `applyOpStackMessage` | OPStack = **OP 生产继承契约** |
 | — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | — | ADR-023 characterization 主面 |
@@ -236,7 +236,7 @@ Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `comple
 ```text
    ETH 参考路径              FISCO 生产路径                  OP Stack 生产路径
   ──────────────           ─────────────────              ───────────────────
-  applyReferenceMessage    applyFiscoMessage              applyOpStackMessage
+  applyEthMessage    applyFiscoMessage              applyOpStackMessage
        │                        │                              │
        │                   FiscoOrchestrationProfile          runOpStackTxLifecycle
        │                   .bind(hooks, errorPolicy)          (precheck, gasPool, settle*)

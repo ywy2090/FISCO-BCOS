@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Maps EthStateFixtureLoader cases to EthReferenceRequest.
+ * @brief Maps EthStateFixtureLoader cases to EthMessageRequest.
  * @file EthFixtureAdapter.h
  */
 
@@ -21,7 +21,7 @@
 
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::test::fixtures
@@ -43,10 +43,10 @@ inline bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
     return cfg;
 }
 
-inline EthReferenceRequest buildEthReferenceRequest(FixtureCase const& fixture,
+inline EthMessageRequest buildEthMessageRequest(FixtureCase const& fixture,
     state::StateView const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
 {
-    EthReferenceRequest input;
+    EthMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;

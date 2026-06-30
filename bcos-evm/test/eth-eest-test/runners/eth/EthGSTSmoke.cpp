@@ -1,4 +1,4 @@
-#include "bcos-evm/eth-eest-test/EthReferenceExecuteAdapter.h"
+#include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/ManifestLoader.h"
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
                 continue;
             }
 
-            EthReferenceExecuteAdapter adapter(*profile, hashImpl, vm);
+            EthMessageAdapter adapter(*profile, hashImpl, vm);
             auto const gstPath = options.ethereumTestsRoot / entry.casePath;
             auto const testCase = loadGeneralStateTest(
                 gstPath, entry.variantKey ? std::optional<std::string_view>{*entry.variantKey} :

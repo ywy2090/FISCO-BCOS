@@ -13,7 +13,7 @@ This file is the **single authoritative capability matrix** for the `bcos-evm` i
 
 | Column | Execution path | Role |
 | --- | --- | --- |
-| ETH (reference) | `applyReferenceMessage` → **`stateTransitionExecute`** → `innerExecute` | Wiring audit and kernel-input contract tests; **not** BCOS/OPStack production inheritance proof |
+| ETH (reference) | `applyEthMessage` → **`stateTransitionExecute`** → `innerExecute` | Wiring audit and kernel-input contract tests; **not** BCOS/OPStack production inheritance proof |
 | BCOS (TE baseline) | `TransactionExecutorImpl` → `applyFiscoMessage` → **`stateTransitionExecute`** → `innerExecute` | FISCO production inheritance contract |
 | OPStack (TE baseline) | `OpStackTransactionExecutorImpl` → `applyOpStackMessage` → `runOpStackTxLifecycle` → **`stateTransitionExecute`** → `innerExecute` | OPStack production inheritance contract |
 

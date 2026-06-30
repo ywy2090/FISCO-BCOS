@@ -16,7 +16,7 @@ ADR-030 introduced geth vocabulary as **Tier A inline aliases** (`prepareState`,
 | ~~`runTxPipeline`~~ | `stateTransition.execute` | `stateTransitionExecute` |
 | ~~`executeMessage`~~ | `innerExecute` (post-`Prepare` EVM) | `innerExecute` |
 
-Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage`** (exported since ADR-032 Wave 3; `*Execute` removed Wave 4).
+Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyEthMessage` / `applyOpStackMessage`** (exported since ADR-032 Wave 3; `*Execute` removed Wave 4).
 
 ---
 
@@ -52,7 +52,7 @@ TE does **not** call `runTxPipeline` / `executeMessage` directly; it enters via 
 
 ```text
 TransactionExecutorImpl  → applyFiscoMessage
-EthTransactionExecutorImpl → applyReferenceMessage
+EthTransactionExecutorImpl → applyEthMessage
 OpStackTransactionExecutorImpl → applyOpStackMessage
 ```
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
 namespace bcos::evm
 {
 
-EthStateTransitionHooks::EthStateTransitionHooks(EthReferenceRequest const& input) : m_input(input)
+EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input) : m_input(input)
 {
     m_intrinsicPolicy.mode = IntrinsicDebitMode::None;
     if (input.revisionConfig.eip7623)

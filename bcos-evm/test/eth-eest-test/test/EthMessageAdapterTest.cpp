@@ -1,5 +1,5 @@
-#define BOOST_TEST_MODULE EthReferenceExecuteAdapterTest
-#include "bcos-evm/eth-eest-test/EthReferenceExecuteAdapter.h"
+#define BOOST_TEST_MODULE EthMessageAdapterTest
+#include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(runs_self_balance_via_execute_via_eth)
 
     bcos::crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
-    EthReferenceExecuteAdapter adapter(*profile, hashImpl, vm);
+    EthMessageAdapter adapter(*profile, hashImpl, vm);
 
     auto const result = bcos::task::syncWait(adapter.execute(testCase, subtests.front()));
     BOOST_CHECK(result.status != EVMC_INTERNAL_ERROR);
@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(add11_state_root_matches_fixture)
 
     bcos::crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
-    EthReferenceExecuteAdapter adapter(*profile, hashImpl, vm);
+    EthMessageAdapter adapter(*profile, hashImpl, vm);
 
     auto const result = bcos::task::syncWait(adapter.execute(testCase, subtests.front()));
     BOOST_REQUIRE_EQUAL(result.status, EVMC_SUCCESS);

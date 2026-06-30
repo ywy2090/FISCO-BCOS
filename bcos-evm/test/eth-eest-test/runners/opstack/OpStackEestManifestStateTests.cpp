@@ -2,7 +2,7 @@
 ///
 /// Same manifest-driven architecture as EthExecutionSpecStateTests,
 /// but uses OpStackManifestAdapter → applyOpStackMessage() instead of
-/// EthReferenceExecuteAdapter → applyReferenceMessage().
+/// EthMessageAdapter → applyEthMessage().
 ///
 /// Usage:
 ///   OpStackEestManifestStateTests \

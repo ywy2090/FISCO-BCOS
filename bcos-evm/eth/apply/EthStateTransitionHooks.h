@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 FISCO BCOS.
+ *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/apply/ApplyReferenceMessage.h"
+#include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
 
 namespace bcos::evm
@@ -26,7 +26,7 @@ namespace bcos::evm
 
 struct EthStateTransitionHooks : StateTransitionHooks
 {
-    explicit EthStateTransitionHooks(EthReferenceRequest const& input);
+    explicit EthStateTransitionHooks(EthMessageRequest const& input);
 
     DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
@@ -35,7 +35,7 @@ struct EthStateTransitionHooks : StateTransitionHooks
     void onPreCheckCanTransfer(StateTransitionContext& ctx) const override;
 
 private:
-    EthReferenceRequest const& m_input;
+    EthMessageRequest const& m_input;
     DeductIntrinsicGasParams m_intrinsicPolicy{};
 };
 

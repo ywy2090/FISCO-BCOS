@@ -38,7 +38,7 @@ target_link_libraries(bcos-evm-specs-tests-core PUBLIC
 )
 
 add_library(bcos-evm-specs-tests-eth STATIC
-    src/EthReferenceBridgeAdapter.cpp
+    src/EthMessageAdapter.cpp
 )
 
 target_link_libraries(bcos-evm-specs-tests-eth PUBLIC
@@ -86,10 +86,10 @@ add_reference_test(Eip7702StrictTxValidatorTest test/Eip7702StrictTxValidatorTes
 add_reference_test(StateTestMatcherTest test/StateTestMatcherTest.cpp)
 add_reference_test(StateTestAssertTest test/StateTestAssertTest.cpp)
 
-add_executable(EthReferenceBridgeAdapterTest test/EthReferenceBridgeAdapterTest.cpp)
-target_link_libraries(EthReferenceBridgeAdapterTest PRIVATE bcos-evm-specs-tests-eth)
-add_test(NAME EthReferenceBridgeAdapterTest COMMAND EthReferenceBridgeAdapterTest)
-set_tests_properties(EthReferenceBridgeAdapterTest PROPERTIES
+add_executable(EthMessageAdapterTest test/EthMessageAdapterTest.cpp)
+target_link_libraries(EthMessageAdapterTest PRIVATE bcos-evm-specs-tests-eth)
+add_test(NAME EthMessageAdapterTest COMMAND EthMessageAdapterTest)
+set_tests_properties(EthMessageAdapterTest PROPERTIES
     LABELS "specs-tests;specs-tests-smoke"
 )
 

@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_SUITE(EthTxInputBuilderTest)
 BOOST_AUTO_TEST_CASE(fillWeb3Fields_maps_eip7702_authorizations)
 {
     auto tx = makeWeb3Tx(buildEip7702Extra(), 0x04);
-    EthReferenceRequest input;
+    EthMessageRequest input;
     eth_tx::fillWeb3Fields(tx, input);
 
     BOOST_CHECK_EQUAL(input.web3TypedTxKind, 0x04);

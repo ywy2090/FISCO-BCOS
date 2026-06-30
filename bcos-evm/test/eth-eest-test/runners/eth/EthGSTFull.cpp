@@ -1,4 +1,4 @@
-#include "bcos-evm/eth-eest-test/EthReferenceExecuteAdapter.h"
+#include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/StateTestAssert.h"
@@ -116,7 +116,7 @@ ManifestEntry makeSyntheticEntry(std::string const& evidenceId, ForkProfile cons
     return entry;
 }
 
-bool runSubtest(ForkProfile const& profile, EthReferenceExecuteAdapter& adapter,
+bool runSubtest(ForkProfile const& profile, EthMessageAdapter& adapter,
     StateTestCase const& testCase, StateSubtest const& subtest, ManifestEntry const& entry,
     int& failures)
 {
@@ -210,7 +210,7 @@ int main(int argc, char** argv)
                     continue;
                 }
 
-                EthReferenceExecuteAdapter adapter(*profile, hashImpl, vm);
+                EthMessageAdapter adapter(*profile, hashImpl, vm);
                 auto const entry = makeSyntheticEntry(caseId + "@" + profileId, *profile);
 
                 for (auto const& testCase : cases)

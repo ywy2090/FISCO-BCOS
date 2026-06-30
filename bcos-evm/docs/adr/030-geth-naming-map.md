@@ -65,7 +65,7 @@ New **eth kernel** code: use Tier A/B names in function and log strings. ~~Tier 
 
 | geth | bcos-evm (canonical) | Header | Removed Tier E (Wave) |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `eth/apply/ApplyReferenceMessage.h` | ~~`ethReferenceExecute`~~ (4, 2026-06-30) |
+| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | ~~`ethReferenceExecute`~~ (4, 2026-06-30) |
 | `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | ~~`fiscoExecute`~~ (4, 2026-06-30) |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` → `runOpStackTxLifecycle` | `opstack/ApplyOpStackMessage.h` | ~~`opStackExecute`~~ (4, 2026-06-30) |
 
@@ -162,7 +162,7 @@ void FiscoPrecheckPolicy::onPreCheckRules(TxPipelineContext& ctx) const
 | --- | --- | --- |
 | ~~`executeMessage`~~ | `innerExecute` | Wave 2 (2026-06-30) |
 | ~~`fiscoExecute`~~ | `applyFiscoMessage` | Wave 4 (2026-06-30) |
-| ~~`ethReferenceExecute`~~ | `applyReferenceMessage` | Wave 4 (2026-06-30) |
+| ~~`ethReferenceExecute`~~ | `applyEthMessage` | Wave 4 (2026-06-30) |
 | ~~`opStackExecute`~~ | `applyOpStackMessage` | Wave 4 (2026-06-30) |
 | ~~`runTxPipeline`~~ | `stateTransitionExecute` | Wave 2 (2026-06-30) |
 | ~~`runExecutionFrame`~~ | `runCallFrame` / `evmCall` | Wave 1 (2026-06-30) |
@@ -187,7 +187,7 @@ Tier A inline aliases (implemented 2026-06-29, coexist with ADR-029 `pipeline*`)
 | `state.Prepare` | `prepareState` | `warmTransactionEntry` |
 | `execute` | `stateTransitionExecute` | canonical pipeline driver (`TxPipeline.cpp`) |
 | `onFinalizeGasUsed` | `onFinalizeGasUsed` | `onFinalizeGasUsed` |
-| `ApplyMessage` | `applyReferenceMessage`, `applyFiscoMessage`, `applyOpStackMessage` | canonical chain L1 exports |
+| `ApplyMessage` | `applyEthMessage`, `applyFiscoMessage`, `applyOpStackMessage` | canonical chain L1 exports |
 | `evm.Call` / `Create` | `evmCall`, `evmCreate`, `evmDelegateCall`, `evmStaticCall` | `runCallFrame` |
 
 ### 9. Parity reading guide
@@ -234,7 +234,7 @@ Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
 
 | If you are in… | Think geth… |
 | --- | --- |
-| `applyFiscoMessage` / `applyReferenceMessage` / `applyOpStackMessage` | `ApplyMessage` |
+| `applyFiscoMessage` / `applyEthMessage` / `applyOpStackMessage` | `ApplyMessage` |
 | `runOpStackTxLifecycle` | `ApplyMessage` + op-geth outer `execute` |
 | `TxPipelineContext` | `stateTransition` fields |
 | `stateTransitionExecute` | `stateTransition.execute` |

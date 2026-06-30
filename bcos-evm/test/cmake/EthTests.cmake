@@ -72,14 +72,14 @@ target_include_directories(Eip7702DelegatedCallGasTest PRIVATE
 target_link_libraries(Eip7702DelegatedCallGasTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip7702DelegatedCallGas COMMAND Eip7702DelegatedCallGasTest)
 
-add_executable(EthReferenceExecuteFixtureTest eth/EthReferenceExecuteFixtureTest.cpp)
-target_include_directories(EthReferenceExecuteFixtureTest PRIVATE
+add_executable(EthMessageFixtureTest eth/EthMessageFixtureTest.cpp)
+target_include_directories(EthMessageFixtureTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_compile_definitions(EthReferenceExecuteFixtureTest PRIVATE
+target_compile_definitions(EthMessageFixtureTest PRIVATE
     ETH_STATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/state")
-target_link_libraries(EthReferenceExecuteFixtureTest PRIVATE
+target_link_libraries(EthMessageFixtureTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME EthReferenceExecuteFixture COMMAND EthReferenceExecuteFixtureTest)
+add_test(NAME EthMessageFixture COMMAND EthMessageFixtureTest)
 add_executable(EthIncludedTxVmerrTest eth/EthIncludedTxVmerrTest.cpp)
 target_include_directories(EthIncludedTxVmerrTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
@@ -113,12 +113,12 @@ target_include_directories(Web3TypedTxKindTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(Web3TypedTxKindTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME Web3TypedTxKind COMMAND Web3TypedTxKindTest)
-add_executable(EthReferenceExecute1559GasPriceTest eth/EthReferenceExecute1559GasPriceTest.cpp)
-target_include_directories(EthReferenceExecute1559GasPriceTest PRIVATE
+add_executable(EthMessage1559GasPriceTest eth/EthMessage1559GasPriceTest.cpp)
+target_include_directories(EthMessage1559GasPriceTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(EthReferenceExecute1559GasPriceTest PRIVATE
+target_link_libraries(EthMessage1559GasPriceTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto)
-add_test(NAME EthReferenceExecute1559GasPrice COMMAND EthReferenceExecute1559GasPriceTest)
+add_test(NAME EthMessage1559GasPrice COMMAND EthMessage1559GasPriceTest)
 add_executable(StateTransitionExecuteTest eth/StateTransitionExecuteTest.cpp)
 target_include_directories(StateTransitionExecuteTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
