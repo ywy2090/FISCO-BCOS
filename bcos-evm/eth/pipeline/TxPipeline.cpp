@@ -9,6 +9,7 @@
 namespace bcos::evm
 {
 
+// geth: stateTransition.execute — ADR-030
 void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPolicy,
     OrchestrationErrorPolicy const& errorPolicy)
 {
@@ -41,10 +42,12 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
 
     try
     {
+        // geth: preCheck (normalizeMessage) — ADR-030
         precheckPolicy.setupMessage(ctx);
         EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "setupMessage")
                        << LOG_KV("gas", ctx.message.gas);
 
+        // geth: preCheck (rules) — ADR-030
         precheckPolicy.checkTransactionRules(ctx);
         if (ctx.earlyExit)
         {
@@ -55,6 +58,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
             return;
         }
 
+        // geth: preCheck (buyGas / gas affordable) — ADR-030
         precheckPolicy.checkGasAffordable(ctx);
         if (ctx.earlyExit)
         {
@@ -65,6 +69,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
             return;
         }
 
+        // geth: IntrinsicGas — ADR-030
         auto const gasBeforeDebit = ctx.message.gas;
         auto const debitOutcome = debitIntrinsicGas(ctx.message, intrinsicPolicy);
         if (!debitOutcome.ok)
@@ -86,6 +91,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
                            << LOG_KV("gasAfter", ctx.message.gas);
         }
 
+        // geth: CanTransfer — ADR-030
         precheckPolicy.checkBalanceAndValue(ctx);
         if (ctx.earlyExit)
         {
@@ -100,6 +106,7 @@ void runTxPipeline(TxPipelineContext& ctx, ChainPrecheckPolicy const& precheckPo
             return;
         }
 
+        // geth: innerExecute — ADR-030
         EVM_LOG(TRACE) << LOG_DESC("runTxPipeline step") << LOG_KV("step", "runEvmExecution")
                        << LOG_KV("gas", ctx.message.gas);
 

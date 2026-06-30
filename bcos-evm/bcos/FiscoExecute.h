@@ -85,4 +85,10 @@ struct FiscoExecutionResult
 
 task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input);
 
+// geth: ApplyMessage — ADR-030 Tier C alias (stable ABI: fiscoExecute)
+[[nodiscard]] inline task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
+{
+    return fiscoExecute(std::move(input));
+}
+
 }  // namespace bcos::evm

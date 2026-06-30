@@ -56,4 +56,10 @@ struct EthReferenceResult
 
 task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input);
 
+// geth: ApplyMessage — ADR-030 Tier C alias (stable ABI: ethReferenceExecute)
+[[nodiscard]] inline task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
+{
+    return ethReferenceExecute(std::move(input));
+}
+
 }  // namespace bcos::evm

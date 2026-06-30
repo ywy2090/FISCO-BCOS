@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE GethNamingAliasesTest
 
+#include "bcos-evm/eth/GethNamingAliases.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
-#include "bcos-evm/eth/execution/TxExecutionRunner.h"
 #include "bcos-evm/eth/pipeline/ChainPrecheckPolicy.h"
 #include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
@@ -18,20 +18,17 @@ namespace bcos::evm::test
 namespace
 {
 
-struct AliasProbePolicy : ChainPrecheckPolicy
+struct CountingPrecheckPolicy : ChainPrecheckPolicy
 {
-    mutable bool rulesCalled{false};
-    mutable bool balanceCalled{false};
+    mutable int rulesCallCount{0};
 
     IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return {}; }
 
     void checkTransactionRules(TxPipelineContext& ctx) const override
     {
-        rulesCalled = true;
+        ++rulesCallCount;
         ctx.earlyExit = true;
     }
-
-    void checkBalanceAndValue(TxPipelineContext& ctx) const override { balanceCalled = true; }
 };
 
 struct NoopErrorPolicy : OrchestrationErrorPolicy
@@ -42,7 +39,46 @@ struct NoopErrorPolicy : OrchestrationErrorPolicy
 
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(runTxPipeline_invokes_checkTransactionRules)
+BOOST_AUTO_TEST_CASE(deductIntrinsicGas_alias_matches_debitIntrinsicGas_none_mode)
+{
+    IntrinsicGasDebitParams policy{};
+    policy.mode = IntrinsicDebitMode::None;
+
+    evmc_message debitMsg{};
+    evmc_message deductMsg{};
+    debitMsg.gas = 50'000;
+    deductMsg.gas = 50'000;
+
+    auto const debitOutcome = debitIntrinsicGas(debitMsg, policy);
+    auto const deductOutcome = deductIntrinsicGas(deductMsg, policy);
+
+    BOOST_CHECK(debitOutcome.ok);
+    BOOST_CHECK(deductOutcome.ok);
+    BOOST_CHECK_EQUAL(debitOutcome.debitAmount, deductOutcome.debitAmount);
+    BOOST_CHECK_EQUAL(debitMsg.gas, deductMsg.gas);
+}
+
+BOOST_AUTO_TEST_CASE(innerExecute_resolves_as_executeMessage_forward)
+{
+    BOOST_CHECK(
+        (std::is_same_v<decltype(&innerExecute), ExecuteMessageOutput (*)(ExecuteMessageInput)>));
+    BOOST_CHECK((std::is_same_v<decltype(&innerExecute), decltype(&executeMessage)>));
+}
+
+BOOST_AUTO_TEST_CASE(preCheckRules_forwards_to_checkTransactionRules)
+{
+    state::test::InMemoryStateView stateView;
+    evmc_message message{};
+    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    CountingPrecheckPolicy policy;
+    policy.preCheckRules(ctx);
+
+    BOOST_CHECK_EQUAL(policy.rulesCallCount, 1);
+    BOOST_CHECK(ctx.earlyExit);
+}
+
+BOOST_AUTO_TEST_CASE(stateTransitionExecute_forwards_to_runTxPipeline)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
@@ -52,42 +88,48 @@ BOOST_AUTO_TEST_CASE(runTxPipeline_invokes_checkTransactionRules)
     ctx.inputs.vm = &vm;
     ctx.inputs.hashImpl = &hashImpl;
 
-    AliasProbePolicy policy;
+    CountingPrecheckPolicy policy;
     NoopErrorPolicy errorPolicy;
-    runTxPipeline(ctx, policy, errorPolicy);
+    stateTransitionExecute(ctx, policy, errorPolicy);
 
-    BOOST_CHECK(policy.rulesCalled);
+    BOOST_CHECK_EQUAL(policy.rulesCallCount, 1);
     BOOST_CHECK(ctx.earlyExit);
 }
 
-BOOST_AUTO_TEST_CASE(debitIntrinsicGas_auth_only_debits_tuple_gas)
+BOOST_AUTO_TEST_CASE(finalizeGasUsed_forwards_to_onPostExecuteNormalize)
 {
-    IntrinsicGasDebitParams policy{};
-    policy.mode = IntrinsicDebitMode::AuthOnly;
-    policy.authorizationListPresent = true;
-    policy.authTupleCount = 1;
+    struct CountingErrorPolicy : OrchestrationErrorPolicy
+    {
+        mutable int normalizeCount{0};
 
+        void onIntrinsicGasFailure(TxPipelineContext&, IntrinsicDebitFailure) const override {}
+        void onPipelineException(TxPipelineContext&, std::exception_ptr) const override {}
+
+        void onPostExecuteNormalize(TxPipelineContext& ctx) const override
+        {
+            ++normalizeCount;
+            OrchestrationErrorPolicy::onPostExecuteNormalize(ctx);
+        }
+    };
+
+    state::test::InMemoryStateView stateView;
     evmc_message message{};
-    message.gas = 100'000;
-    auto const outcome = debitIntrinsicGas(message, policy);
+    TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
 
-    BOOST_CHECK(outcome.ok);
-    BOOST_CHECK(outcome.debitAmount > 0);
+    CountingErrorPolicy errorPolicy;
+    errorPolicy.finalizeGasUsed(ctx);
+
+    BOOST_CHECK_EQUAL(errorPolicy.normalizeCount, 1);
 }
 
-BOOST_AUTO_TEST_CASE(executeMessage_and_tx_execution_adapter_exist)
+BOOST_AUTO_TEST_CASE(evm_frame_aliases_share_runExecutionFrame_signature)
 {
-    BOOST_CHECK(
-        (std::is_same_v<decltype(&executeMessage), ExecuteMessageOutput (*)(ExecuteMessageInput)>));
-    BOOST_CHECK((std::is_same_v<decltype(&execution::TxExecutionRunner::run),
-        ExecuteMessageOutput (*)(ExecuteMessageInput)>));
-}
-
-BOOST_AUTO_TEST_CASE(runExecutionFrame_is_callable)
-{
-    BOOST_CHECK((std::is_same_v<decltype(&execution::runExecutionFrame),
-        execution::FrameResult (*)(
-            execution::FrameExecutionEnv&, evmc_message, execution::FrameScope, state::EthHost&)>));
+    using FrameFn = execution::FrameResult (*)(
+        execution::FrameExecutionEnv&, evmc_message, execution::FrameScope, state::EthHost&);
+    BOOST_CHECK((std::is_same_v<decltype(&execution::evmCall), FrameFn>));
+    BOOST_CHECK((std::is_same_v<decltype(&execution::evmCreate), FrameFn>));
+    BOOST_CHECK((std::is_same_v<decltype(&execution::evmDelegateCall), FrameFn>));
+    BOOST_CHECK((std::is_same_v<decltype(&execution::evmStaticCall), FrameFn>));
 }
 
 }  // namespace bcos::evm::test

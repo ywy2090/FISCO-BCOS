@@ -28,6 +28,20 @@ struct ChainPrecheckPolicy
     {
         return executeMessage(std::move(input));
     }
+
+    // geth: preCheck slices — ADR-030 Tier A aliases (forward to ADR-029 canonical names)
+    void preCheckRules(TxPipelineContext& ctx) const { checkTransactionRules(ctx); }
+
+    void preCheckGasAffordable(TxPipelineContext& ctx) const { checkGasAffordable(ctx); }
+
+    void preCheckCanTransfer(TxPipelineContext& ctx) const { checkBalanceAndValue(ctx); }
+
+    void normalizeMessage(TxPipelineContext& ctx) const { setupMessage(ctx); }
+
+    [[nodiscard]] ExecuteMessageOutput pipelineInvokeEvmKernel(ExecuteMessageInput&& input) const
+    {
+        return runEvmExecution(std::move(input));
+    }
 };
 
 }  // namespace bcos::evm

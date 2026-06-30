@@ -24,6 +24,9 @@ struct OrchestrationErrorPolicy
 
     /// Optional post-pipeline normalization (e.g. gas_left clamp on error paths).
     virtual void onPipelineComplete(TxPipelineContext& ctx) const { (void)ctx; }
+
+    // geth: finalizeGasUsed — ADR-030 Tier A alias
+    void finalizeGasUsed(TxPipelineContext& ctx) const { onPostExecuteNormalize(ctx); }
 };
 
 }  // namespace bcos::evm

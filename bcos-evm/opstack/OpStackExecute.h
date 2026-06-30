@@ -64,6 +64,13 @@ struct OpStackExecutionResult
 
 task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input);
 
+// geth: ApplyMessage — ADR-030 Tier C alias (stable ABI: opStackExecute)
+[[nodiscard]] inline task::Task<OpStackExecutionResult> applyOpStackMessage(
+    OpStackExecutionRequest input)
+{
+    return opStackExecute(std::move(input));
+}
+
 inline bool isDepositTx(OpStackExecutionRequest const& input) noexcept
 {
     return input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE || input.depositTx.has_value();
