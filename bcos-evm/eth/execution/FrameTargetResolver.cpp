@@ -6,6 +6,7 @@
  */
 
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/execution/CreateContract.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -92,6 +93,31 @@ FrameTarget resolveFrameTarget(state::State& state,
 
     target.executionAddress = resolveExecutionAddress(target.routed);
     return target;
+}
+
+bcos::bytes resolveExecutionCode(state::State& state,
+    bcos::evm_standard::RevisionConfig const& revisionConfig, evmc_message const& msg,
+    evmc_address executionAddress)
+{
+    if (isCreateKind(msg.kind))
+    {
+        if (msg.input_data == nullptr || msg.input_size == 0)
+        {
+            return {};
+        }
+        return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
+    }
+
+    auto code = state.get_code(executionAddress);
+    if (revisionConfig.eip7702)
+    {
+        if (auto const delegate =
+                parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
+        {
+            return state.get_code(*delegate);
+        }
+    }
+    return code;
 }
 
 }  // namespace bcos::evm::execution
