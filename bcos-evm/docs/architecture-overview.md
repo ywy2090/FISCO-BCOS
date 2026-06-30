@@ -288,9 +288,9 @@ struct VmHostPolicy {
 - `OpStackVmHostPolicy`：占位 extension；链 call target 经 `OpStackChainCallTargetAdapter` + `chainPort`（ADR-024）。
 - 这些钩子在**内核调用树内部**触发（ADR-005 §3：`VmHostPolicy` 在 kernel 内运行；Orchestrator / `stateTransitionExecute` 在 `innerExecute` 之前运行）。
 
-### 4.3 `TxPipelineHooks` + `StateTransitionErrorPolicy` —— 编排管线注入（ADR-019）
+### 4.3 `StateTransitionHooks` + `StateTransitionErrorPolicy` —— state-transition 注入（ADR-019）
 
-文件：`eth/state-transition/TxPipelineHooks.h`、`eth/state-transition/StateTransitionErrorPolicy.h`
+文件：`eth/core/StateTransitionHooks.h`、`eth/state-transition/StateTransitionErrorPolicy.h`
 
 链特有编排通过 **`*StateTransitionBindings::bind(Context)`** 产出 `{ hooks, errorPolicy }`，再传入 `stateTransitionExecute`。三链 bindings：
 
@@ -416,10 +416,10 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | --- | --- |
 | 外部 review 入口 | `docs/review-pack.md` |
 | 库划分 / 依赖 | `bcos-evm/CMakeLists.txt` |
-| 共享编排管线 | `eth/state-transition/TxPipeline.cpp` |
-| 编排上下文 | `eth/state-transition/StateTransitionContext.h` |
-| 编排钩子 | `eth/state-transition/TxPipelineHooks.h` |
-| 编排错误策略（基类） | `eth/state-transition/StateTransitionErrorPolicy.h` |
+| 共享 state-transition 内核 | `eth/state-transition/StateTransitionExecute.cpp` |
+| 交易级上下文 | `eth/state-transition/StateTransitionContext.h` |
+| 链策略钩子（接口） | `eth/core/StateTransitionHooks.h` |
+| 错误策略（基类） | `eth/state-transition/StateTransitionErrorPolicy.h` |
 | ETH bindings | `eth/apply/EthStateTransitionBindings.h` |
 | FISCO Profile | `bcos/FiscoStateTransitionBindings.h` |
 | OP Profile | `opstack/OpStackStateTransitionBindings.h` |
