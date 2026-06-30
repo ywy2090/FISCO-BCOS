@@ -62,7 +62,7 @@ task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest
 
     trace::logMessageContext(input.message);
 
-    bindings.precheckPolicy.checkEntryRules(ctx);
+    bindings.precheckPolicy.lifecycleCheckEntryRules(ctx);
     if (ctx.earlyExit)
     {
         output.evmcResult = std::move(ctx.evmcResult);

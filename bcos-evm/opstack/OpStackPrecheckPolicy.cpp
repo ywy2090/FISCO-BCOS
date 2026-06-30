@@ -55,7 +55,7 @@ OpStackPrecheckPolicy::OpStackPrecheckPolicy(OpStackSettlementFacade& view)
     m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();
 }
 
-void OpStackPrecheckPolicy::checkEntryRules(TxPipelineContext& ctx) const
+void OpStackPrecheckPolicy::lifecycleCheckEntryRules(TxPipelineContext& ctx) const
 {
     auto const& input = m_view.input;
     auto const deposit = m_view.isDeposit();

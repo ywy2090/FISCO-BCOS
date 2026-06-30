@@ -21,7 +21,7 @@
 | 同步结算 | `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort helpers |
 | 费用账本 | `OpStackFeeSettlement.*` | Adapter：`buyGas` / `refundGas`（读 `OpStackSettlementFacade`） |
 | 编排 | `OpStackOrchestrationProfile.*` | `BindingsContext` `{ input, view }`；`bind` → pipeline hooks |
-| 预检 | `OpStackPrecheckPolicy.*` | `checkEntryRules` + `checkGasAffordable` |
+| 预检 | `OpStackPrecheckPolicy.*` | `lifecycleCheckEntryRules` + `pipelineCheckGasAffordable` |
 | 链 call target | `OpStackChainCallTargetAdapter.*` | L1Block / GasPriceOracle classify + dispatch |
 
 ## 子目录模块
@@ -39,7 +39,7 @@ OpStackTransactionExecutorImpl
   → runOpStackTxLifecycle
       ├─ OpStackSettlementFacade { ctx, input, sidecar }
       ├─ OpStackOrchestrationProfile::bind(bindingsCtx)
-      ├─ checkEntryRules
+      ├─ lifecycleCheckEntryRules
       ├─ deposit: gasPool → mint → pipeline → settleDeposit
       └─ normal:  gasPool → checkpoint → NormalFeeSettlement.buyGas
                   → pipeline → completeAfterPipeline

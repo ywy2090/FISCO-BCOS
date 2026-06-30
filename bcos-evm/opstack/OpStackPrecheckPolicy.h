@@ -32,7 +32,13 @@ struct OpStackPrecheckPolicy : ChainPrecheckPolicy
     IntrinsicGasDebitParams intrinsicGasDebitParams() const override { return m_intrinsicPolicy; }
 
     /// Sync entry rules before buyGas (nonce, 7702, blob intent, fee caps). OpStack-only phase.
-    void checkEntryRules(TxPipelineContext& ctx) const;
+    void lifecycleCheckEntryRules(TxPipelineContext& ctx) const;
+
+    [[deprecated("Use lifecycleCheckEntryRules per ADR-029")]] void checkEntryRules(
+        TxPipelineContext& ctx) const
+    {
+        lifecycleCheckEntryRules(ctx);
+    }
 
     void pipelineCheckGasAffordable(TxPipelineContext& ctx) const override;
 

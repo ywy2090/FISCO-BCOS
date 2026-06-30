@@ -17,7 +17,7 @@ inline std::optional<EVMCResult> runOpStackEntryPrecheck(
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view{ctx, input, sidecar};
     OpStackPrecheckPolicy policy(view);
-    policy.checkEntryRules(ctx);
+    policy.lifecycleCheckEntryRules(ctx);
     if (ctx.earlyExit)
     {
         return std::optional<EVMCResult>{std::move(ctx.evmcResult)};
