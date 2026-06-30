@@ -12,7 +12,7 @@
 | 目录 | 职责 |
 | --- | --- |
 | `pipeline/` | `runTxPipeline` 共享管线步骤（ADR-019） |
-| `reference/` | ETH 参考链编排（bridge、hooks、precheck、fee ledger） |
+| `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
 | `execution/` | 交易入口预热、BlockInfo、EIP-2929 access gate、ExecutionFrame |
 | `gas/` | 1559/4844/7623 等纯 gas 数学 |
 | `policy/` | `VmHostPolicy` / `EthVmHostPolicy` / `EthChainPolicy`（revision 策略） |
@@ -31,7 +31,7 @@
 | `EVMCResult.*` | EVMC 结果封装 |
 | `EthExecutionArtifacts.h` | 参考路径执行上下文（TE 消费） |
 
-## `reference/` — ETH 参考路径
+## `apply/` — ETH 参考路径
 
 | 文件 | 角色 |
 | --- | --- |

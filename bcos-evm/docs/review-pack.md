@@ -426,7 +426,13 @@ P0 内核候选**已闭合**。当前 open work：
 
 ---
 
-## 9. 文档同步状态
+## 9. geth parity PR 约定（ADR-030）
+
+提交 geth 语义对齐 PR 时，描述中应并列引用 **geth 锚点**（符号 + 文件 + 行号，如 `preCheck` → `core/state_transition.go:~433`）与 **bcos-evm 改动符号/路径**。默认 pin 见 ADR-030 Appendix B；OP 专有行为须引用 op-geth。详见 ADR-030 §9 parity PR note。
+
+---
+
+## 10. 文档同步状态
 
 | 文档 | 状态（2026-06-25） |
 | --- | --- |
@@ -438,7 +444,7 @@ P0 内核候选**已闭合**。当前 open work：
 
 ---
 
-## 10. 相关文档地图
+## 11. 相关文档地图
 
 ```text
 review-pack.md                    ← 你在这里（外部 reviewer 入口）

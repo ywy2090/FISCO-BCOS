@@ -93,7 +93,7 @@ Maps **current ADR-029 code** (as of 2026-06-29) to geth. Use the **geth column*
 
 | Chain | geth analogue | Location |
 | --- | --- | --- |
-| ETH reference | part of `preCheck` / fee ledger | `EthTxFeeSettlement`, orchestration |
+| ETH reference | part of `preCheck` / fee ledger | `eth/apply/EthTxFeeSettlement.h`, orchestration |
 | FISCO | TE + bridge | `TransactionExecutorImpl`, not always inside pipeline |
 | OP Stack | `preCheck` + async settlement | `OpStackNormalTxFeeCoordinator::buyGas`, lifecycle |
 
@@ -204,6 +204,8 @@ When reviewing geth parity, walk this checklist in order:
 7. **Nested calls** — map `EthHost::call` to recursive `evm.Call`.
 8. **OP only** — map lifecycle to op-geth `innerExecute` wrapper + `GasPool`.
 
+**Parity PR descriptions:** When opening a geth parity PR, cite the go-ethereum anchor in the description—symbol, file path, and line (e.g. `preCheck` in `core/state_transition.go:~433`) alongside the bcos-evm symbol and path being changed. Use Appendix B as the default pin; cite op-geth for OP-only behavior. Reviewers should not re-derive the ADR-030 mapping from scratch.
+
 ---
 
 ## Consequences
@@ -217,12 +219,15 @@ When reviewing geth parity, walk this checklist in order:
 
 ## Compliance checklist
 
+Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
+
 - [x] New `eth/` pipeline/kernel functions: comment with `geth: <symbol>` (§3–4).
-- [x] New tests that cite geth name cases after geth steps where applicable (`GethNamingAliasesTest`, TxPipeline geth comments).
-- [ ] Parity PR description lists geth file:line anchor alongside bcos-evm symbol.
-- [ ] Chain-only behavior labeled extension in §6, not claimed as geth parity without op-geth cite.
+- [x] `GethNamingAliasesTest` registered and passing; geth step case names where applicable; TxPipeline geth comments (Task 1).
+- [x] Parity PR description lists geth file:line anchor alongside bcos-evm symbol (§9 parity PR note).
+- [ ] Chain-only behavior labeled extension in §6, not claimed as geth parity without op-geth cite (ongoing review discipline).
 - [x] No removal of Tier E symbols without explicit TE/ADR follow-up.
 - [x] `architecture-overview.md` flow diagrams dual-label critical steps (ADR-029 + geth) when updated.
+- [x] `eth/apply/` path documented (Phase 4b); no stale `eth/reference/` in `eth/README.md`.
 
 ---
 
