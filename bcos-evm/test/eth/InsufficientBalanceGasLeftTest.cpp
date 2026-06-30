@@ -11,7 +11,7 @@
 #define BOOST_TEST_MODULE InsufficientBalanceGasLeftTest
 
 #include "fixtures/EthFrameParityHelpers.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE(NestedCallInsufficientBalanceGasLeft)
     message.code_address = recipient;
     message.value = weiValue(100);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 99);
 

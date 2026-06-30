@@ -28,7 +28,7 @@ bool bytes32Equal(evmc_bytes32 const& lhs, evmc_bytes32 const& rhs)
     return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
 }
 
-class MockStateView : public EvmStateReader
+class MockStateView : public StateView
 {
 public:
     std::optional<Account> get_account(const evmc_address& address) const override

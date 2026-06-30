@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(valid_auth_installs_delegation_invalid_is_ignored_and_refun
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     state::Account senderAccount;
     senderAccount.nonce = 0;
     senderAccount.balance = 100;
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(unsigned_authorization_is_ignored)
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     stateView.insert_account(sender, state::Account{.balance = 100, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 

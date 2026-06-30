@@ -14,19 +14,19 @@
  *  limitations under the License.
  *
  * @brief In-memory StateView for eth/state unit tests.
- * @file InMemoryEvmStateReader.h
+ * @file InMemoryStateView.h
  */
 
 #pragma once
 
 #include "bcos-evm/eth/state/Account.hpp"
-#include "bcos-evm/eth/state/EvmStateReader.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/StateView.hpp"
 #include <unordered_map>
 
 namespace bcos::evm::state::test
 {
-class InMemoryEvmStateReader : public EvmStateReader
+class InMemoryStateView : public StateView
 {
 public:
     void insert_account(const evmc_address& address, Account account = {})

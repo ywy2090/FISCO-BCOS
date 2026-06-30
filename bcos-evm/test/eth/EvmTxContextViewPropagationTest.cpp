@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -55,7 +55,7 @@ evmc_tx_context makeTxContext()
 
 BOOST_AUTO_TEST_CASE(eth_host_nested_call_shares_chain_port_pointer)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
     IdentityChainPort port;
     evmc::VM vm{evmc_create_evmone()};
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(eth_host_nested_call_shares_chain_port_pointer)
 
 BOOST_AUTO_TEST_CASE(top_level_frame_context_shares_chain_port_pointer)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
     IdentityChainPort port;
     evmc::VM vm{evmc_create_evmone()};
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_context_shares_chain_port_pointer)
 
 BOOST_AUTO_TEST_CASE(opstack_adapter_propagates_through_execute_message)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
     OpStackChainCallTargetAdapter chainAdapter(&state, 0, makeIsthmusPlusForkSchedule(), 0);
     evmc::VM vm{evmc_create_evmone()};

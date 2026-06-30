@@ -4,7 +4,7 @@
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -27,7 +27,7 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-OpStackExecutionRequest makeInput(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
+OpStackExecutionRequest makeInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     crypto::Hash const& hash, evmc_address sender, evmc_address recipient)
 {
     evmc_message message{};
@@ -58,7 +58,7 @@ OpStackExecutionRequest makeInput(state::test::InMemoryEvmStateReader& stateView
 
 BOOST_AUTO_TEST_CASE(value_transfer_rejected_when_sender_balance_insufficient)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x61);
     auto const target = addressFromLastByte(0x62);
     stateView.insert_account(sender, state::Account{.balance = u256(5), .nonce = 0});
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(value_transfer_rejected_when_sender_balance_insufficient)
 
 BOOST_AUTO_TEST_CASE(transfer_to_predeploy_allowed_if_funded)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x63);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, state::Account{});

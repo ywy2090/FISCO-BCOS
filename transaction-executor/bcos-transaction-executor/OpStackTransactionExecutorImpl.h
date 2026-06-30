@@ -2,11 +2,12 @@
 
 #include "OpStackTxInputBuilder.h"
 #include "RollbackableStorage.h"
-#include "bcos-evm/bcos/FiscoEvmStateReader.h"
+#include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
@@ -195,7 +196,7 @@ public:
             evmc_message message = newEVMCMessage(m_data->m_blockHeader.get().number(),
                 m_data->m_transaction.get(), m_data->m_gasLimit, m_data->m_origin);
 
-            state::FiscoEvmStateReader stateView(
+            state::FiscoStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
             OpStackExecutionRequest input;
@@ -205,7 +206,7 @@ public:
             input.message = message;
             input.nonce = m_data->m_nonce;
             input.call = m_data->m_call;
-            input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+            input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
             input.blockInfo = opstack_tx::buildOpStackBlockInfo(
                 m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get());
             input.blockHashes = state::buildFiscoBlockHashes(

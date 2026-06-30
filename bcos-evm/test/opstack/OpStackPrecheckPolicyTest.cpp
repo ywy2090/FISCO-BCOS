@@ -3,12 +3,13 @@
 #include "bcos-evm/opstack/OpStackPrecheckPolicy.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackOrchestrationProfile.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryPrecheck.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
@@ -32,7 +33,7 @@ bytesConstRef toRef(bytes const& data)
 
 BOOST_AUTO_TEST_CASE(entry_rules_rejects_nonce_mismatch)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
     stateView.insert_account(sender, state::Account{.nonce = 3});
 
@@ -55,14 +56,14 @@ BOOST_AUTO_TEST_CASE(entry_rules_rejects_nonce_mismatch)
 //               path).
 BOOST_AUTO_TEST_CASE(entry_rules_deposit_system_tx_rejected)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x02);
 
     OpStackExecutionRequest input;
     input.message.sender = sender;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
 
     auto error = runOpStackEntryPrecheck(input, stateView);
     BOOST_REQUIRE(error.has_value());
@@ -75,7 +76,7 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
     bytes data(100, 0xff);
     auto const floor = floorDataGas(toRef(data));
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x03);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
 
@@ -106,7 +107,7 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
     input.nonce = 42;
     input.authorizations.resize(2);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message msg{};
     TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;

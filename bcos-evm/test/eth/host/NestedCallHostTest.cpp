@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_SUITE(NestedCallHostTest)
 
 BOOST_AUTO_TEST_CASE(runner_call_callee_returns_0x42)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
 
     auto const runner = addressFromByte(0x01);
     auto const callee = addressFromByte(0x02);

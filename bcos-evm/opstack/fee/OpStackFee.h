@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/state/EvmStateReader.hpp"
+#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
@@ -24,7 +24,7 @@ u256 l1CostFjord(RollupCostData const& data, OpStackFeeParams const& params);
 u256 operatorCostIsthmus(uint64_t gas, OpStackFeeParams const& params);
 u256 operatorCostJovian(uint64_t gas, OpStackFeeParams const& params);
 
-OpStackFeeParams loadOpStackFeeParams(state::EvmStateReader const& state);
+OpStackFeeParams loadOpStackFeeParams(state::StateView const& state);
 
 using L1CostFunc = std::function<u256(RollupCostData const&, uint64_t blockTime)>;
 using OperatorCostFunc = std::function<u256(uint64_t gas, uint64_t blockTime)>;
@@ -33,8 +33,8 @@ L1CostFunc selectL1CostFunc(OpStackForkSchedule const& schedule, OpStackFeeParam
 OperatorCostFunc selectOperatorCostFunc(
     OpStackForkSchedule const& schedule, OpStackFeeParams const& params);
 L1CostFunc wireL1CostFuncWithState(
-    OpStackForkSchedule const& schedule, state::EvmStateReader const& state);
+    OpStackForkSchedule const& schedule, state::StateView const& state);
 OperatorCostFunc wireOperatorCostFuncWithState(
-    OpStackForkSchedule const& schedule, state::EvmStateReader const& state);
+    OpStackForkSchedule const& schedule, state::StateView const& state);
 
 }  // namespace bcos::evm

@@ -19,8 +19,6 @@ struct FiscoExecutionBundle
         m_view.vm = input.vm;
         m_view.blockHashes = input.blockHashes;
         m_view.extension = &m_extension;
-        m_view.fixStorageStatus = input.revisionConfig.fix_storage_status;
-        m_view.fixNonceInit = input.revisionConfig.fix_nonce_init;
 
         if (input.chainDispatchPort != nullptr)
         {
@@ -46,6 +44,7 @@ private:
         deps.blockNumber = input.blockInfo.number;
         deps.revisionFlags.fix_auth_check = input.revisionConfig.fix_auth_check;
         deps.revisionFlags.use_raw_address = input.revisionConfig.use_raw_address;
+        deps.revisionFlags.fix_storage_status = input.revisionConfig.fix_storage_status;
         deps.revisionFlags.fix_nonce_init = input.revisionConfig.fix_nonce_init;
         deps.revisionFlags.web3Tx = input.web3Tx;
         deps.hashImpl = input.hashImpl;

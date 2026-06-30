@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -30,7 +30,7 @@ public:
 
 BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message message{};
     message.gas = 100'000;
 
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
 
 BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
 
 BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     crypto::Keccak256 hashImpl;
 
     evmc_message message{};

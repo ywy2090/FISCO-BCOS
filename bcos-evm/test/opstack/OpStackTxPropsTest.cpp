@@ -2,6 +2,7 @@
 
 #include "../../../transaction-executor/bcos-transaction-executor/OpStackTxInputBuilder.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include <boost/test/included/unit_test.hpp>
 
 using namespace bcos::evm;
@@ -32,7 +33,7 @@ BOOST_AUTO_TEST_CASE(executor_build_order_clears_warm_destination_for_create)
 
 BOOST_AUTO_TEST_CASE(isthmus_revision_profile_enables_warm_access)
 {
-    auto const config = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto const config = bcos::evm::makeIsthmusRevisionConfig();
     BOOST_CHECK(config.warm_access);
     BOOST_CHECK_EQUAL(config.revision, EVMC_PRAGUE);
 }

@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE IsthmusPostExecutionPolicyTest
 
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include <boost/test/included/unit_test.hpp>
 #include <filesystem>
 #include <fstream>
@@ -70,7 +71,7 @@ BOOST_AUTO_TEST_SUITE(IsthmusPostExecutionPolicyTest)
 // bcos-evm OpStack executes at tx granularity; there is no block postExecution layer.
 BOOST_AUTO_TEST_CASE(isthmus_revision_config_is_prague_tx_level)
 {
-    auto const config = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto const config = bcos::evm::makeIsthmusRevisionConfig();
     BOOST_CHECK_EQUAL(config.revision, EVMC_PRAGUE);
     BOOST_CHECK(config.eip7702);
     BOOST_CHECK(config.eip7623);

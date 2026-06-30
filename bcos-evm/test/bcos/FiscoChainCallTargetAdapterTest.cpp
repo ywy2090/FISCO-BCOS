@@ -3,7 +3,7 @@
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 
@@ -35,7 +35,7 @@ evmc_address fiscoPrecompileAddress(uint16_t suffix)
 
 BOOST_AUTO_TEST_CASE(classify_and_dispatch_0x1003_hit)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     auto const target = addressFromValue(0x1003);
 
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(classify_and_dispatch_0x1003_hit)
 
 BOOST_AUTO_TEST_CASE(null_dispatch_port_skips_routing)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     InMemoryChainPrecompileAdapter dispatchPort;
     FiscoChainCallTargetAdapter adapter(state, dispatchPort);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(dispatch_port_invoked_for_fisco_address)
             return raw;
         });
 
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     FiscoChainCallTargetAdapter adapter(state, dispatchPort);
 
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_uses_callback_for_0x1000_plus)
             return result;
         });
 
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     FiscoChainCallTargetAdapter adapter(state, dispatchPort);
 
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_returns_nullopt_for_below_0x1000)
             return evmc_result{};
         });
 
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     FiscoChainCallTargetAdapter adapter(state, dispatchPort);
 
@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(fisco_precompile_dispatch_returns_nullopt_for_below_0x1000)
 
 BOOST_AUTO_TEST_CASE(dynamic_precompile_marker_is_resolved_by_adapter)
 {
-    state::test::InMemoryEvmStateReader baseView;
+    state::test::InMemoryStateView baseView;
     state::State state(baseView);
     auto markerContract = addressFromValue(0x2222);
     auto expectedTarget = addressFromValue(0x1003);
@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(dynamic_precompile_marker_is_resolved_by_adapter)
 
 BOOST_AUTO_TEST_CASE(static_warm_enumerate_is_empty)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     InMemoryChainPrecompileAdapter dispatchPort;
     FiscoChainCallTargetAdapter adapter(state, dispatchPort);

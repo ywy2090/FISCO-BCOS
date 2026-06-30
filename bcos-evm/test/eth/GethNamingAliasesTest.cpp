@@ -8,7 +8,7 @@
 #include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/OrchestrationErrorPolicy.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <evmc/evmc.hpp>
@@ -44,7 +44,7 @@ struct NoopErrorPolicy : OrchestrationErrorPolicy
 
 BOOST_AUTO_TEST_CASE(runTxPipeline_invokes_checkTransactionRules)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
     static evmc::VM vm{evmc_create_evmone()};

@@ -17,7 +17,7 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -51,7 +51,7 @@ bcos::evm_standard::RevisionConfig pragueEip7623Config()
 }
 
 EthReferenceRequest makeIntrinsicGasTooLowRequest(
-    state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm, crypto::Keccak256& hashImpl)
+    state::test::InMemoryStateView& stateView, evmc::VM& vm, crypto::Keccak256& hashImpl)
 {
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_too_low_maps_to_out_of_ga
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     auto output =
         task::syncWait(ethReferenceExecute(makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl)));
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_failure_te_gas_used_equal
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     auto const input = makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl);
     auto const gasLimit = input.message.gas;
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_intrinsic_gas_failure_inclusion_failed_
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     auto const input = makeIntrinsicGasTooLowRequest(stateView, vm, hashImpl);
     auto const sender = input.message.sender;

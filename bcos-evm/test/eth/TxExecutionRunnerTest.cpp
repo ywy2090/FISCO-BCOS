@@ -13,7 +13,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(null_state_throws_invalid_argument)
 // Matrix: T02 — state ownership contract: mutations visible on caller's State (VM frame path).
 BOOST_AUTO_TEST_CASE(top_level_success_bumps_sender_nonce)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x11);
     auto const target = addressFromLastByte(0x12);
     bcos::bytes stopCode{0x00};
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(top_level_success_bumps_sender_nonce)
 // Matrix: T04 — skipTopLevelSenderNonceBump preserves sender nonce (OpStack deposit path).
 BOOST_AUTO_TEST_CASE(skip_top_level_sender_nonce_bump_flag)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x21);
     auto const target = addressFromLastByte(0x22);
     bcos::bytes stopCode{0x00};
@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(eip7702_auth_prebump_characterization)
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(eip7702_auth_prebump_characterization)
 // Matrix: T01 — precompile hit returns diff without top-level commit finalize path.
 BOOST_AUTO_TEST_CASE(precompile_hit_returns_state_diff)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const identity = precompileAddress(0x04);
 
@@ -160,7 +160,7 @@ BOOST_AUTO_TEST_CASE(precompile_hit_returns_state_diff)
 // Matrix: T07 — REVERT characterization (included-tx nonce semantics under review).
 BOOST_AUTO_TEST_CASE(top_level_revert_nonce_characterization)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x51);
     auto const target = addressFromLastByte(0x52);
 
@@ -196,7 +196,7 @@ BOOST_AUTO_TEST_CASE(create_skips_eip7702_tx_auth_apply)
     auto const authKey = TestAuthKeyPair::generate();
     auto const sender = authKey.address();
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
 
     bcos::bytes initCode{0x60, 0x80, 0x60, 0x40, 0x52, 0x60, 0x04, 0x60, 0x1c, 0x60, 0x00, 0x39};
@@ -225,7 +225,7 @@ BOOST_AUTO_TEST_CASE(create_skips_eip7702_tx_auth_apply)
 // Matrix: T08 — nested depth does not apply top-level sender nonce bump.
 BOOST_AUTO_TEST_CASE(nested_success_skips_top_level_sender_nonce_bump)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x71);
     auto const target = addressFromLastByte(0x72);
 
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(nested_success_skips_top_level_sender_nonce_bump)
 // Matrix: T09 — executeMessage delegator matches TxExecutionRunner::run.
 BOOST_AUTO_TEST_CASE(execute_message_delegates_to_runner)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x81);
     auto const target = addressFromLastByte(0x82);
 

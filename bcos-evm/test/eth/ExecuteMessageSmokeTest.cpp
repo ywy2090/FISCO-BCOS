@@ -18,7 +18,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -36,7 +36,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
 
 BOOST_AUTO_TEST_CASE(top_level_revert_does_not_bump_sender_nonce)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x03);
     auto const target = addressFromLastByte(0x04);
 

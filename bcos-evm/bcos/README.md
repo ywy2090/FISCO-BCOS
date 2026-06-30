@@ -18,7 +18,7 @@
 | `ports/AuthPort.h` | 权限表检查（依赖倒置，ADR-017） |
 | `ports/ChainPrecompilePort.h` | 链精编译分发 |
 | `FiscoPolicy.h` | Revision + feature flag 掩码 |
-| `FiscoEvmStateReader.*` | FISCO 状态视图适配 |
+| `FiscoStateView.*` | FISCO 状态视图适配 |
 
 ## 执行流
 

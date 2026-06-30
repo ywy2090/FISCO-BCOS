@@ -5,7 +5,7 @@
  *  @file CompatExecuteViaHostTest.cpp
  */
 
-#include "../../bcos-evm/test/state/InMemoryEvmStateReader.h"
+#include "../../bcos-evm/test/state/InMemoryStateView.h"
 #include "Eip2929TestHelpers.h"
 #include "ExecuteViaHostEip2929Harness.h"
 #include "bcos-evm/bcos/FiscoTransactionPrepare.h"

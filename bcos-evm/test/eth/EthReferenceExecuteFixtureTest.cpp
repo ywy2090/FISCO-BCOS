@@ -5,7 +5,7 @@
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE(existing_prague_fixtures_via_execute_via_eth)
         auto fixture = loadFixture(path);
         BOOST_TEST_CONTEXT("fixture=" << fixture.name << " path=" << path.string())
         {
-            state::test::InMemoryEvmStateReader view;
+            state::test::InMemoryStateView view;
             for (auto const& [addr, acct] : fixture.preState)
                 view.insert_account(addr, acct);
             auto input = buildEthReferenceRequest(fixture, view, vm, hashImpl);

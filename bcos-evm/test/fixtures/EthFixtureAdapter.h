@@ -44,7 +44,7 @@ inline bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
 }
 
 inline EthReferenceRequest buildEthReferenceRequest(FixtureCase const& fixture,
-    state::EvmStateReader const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
+    state::StateView const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
 {
     EthReferenceRequest input;
     input.stateView = &stateView;

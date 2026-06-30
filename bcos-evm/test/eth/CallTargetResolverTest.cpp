@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "fixtures/EthFrameParityHelpers.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <cstring>
@@ -59,7 +59,7 @@ struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
 
 BOOST_AUTO_TEST_CASE(R1_empty_code_active_builtin)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
 
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(R1_empty_code_active_builtin)
 BOOST_AUTO_TEST_CASE(R2_inactive_precompile_empty_account)
 {
     auto const bls = precompileAddr(0x0b);
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
 
     evmc_message msg{};
@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(R2_inactive_precompile_empty_account)
 BOOST_AUTO_TEST_CASE(R3_chain_classify_empty_code_toplevel)
 {
     auto const chainAddr = addressFromValue(0x1000);
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
 
     InMemoryChainCallTargetAdapter adapter(
@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(R3_chain_classify_empty_code_toplevel)
 BOOST_AUTO_TEST_CASE(R4_chain_precompile_wins_over_active_builtin)
 {
     auto const identity = precompileAddr(0x04);
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
 
     InMemoryChainCallTargetAdapter adapter(
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(R5_7702_delegation_designator_is_evm_contract)
     auto const identity = precompileAddr(0x04);
     auto delegationCode = addressToDelegation(identity);
 
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     state.set_code(authority, delegationCode,
         state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
@@ -194,7 +194,7 @@ BOOST_AUTO_TEST_CASE(R6_delegatecall_to_precompile_policy_rejected)
     msg.code_address = identity;
 
     DenyDelegatePrecompilePolicy policy;
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
 
     auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::Nested, nullptr, &policy);
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
     auto const resolvedTarget = addressFromValue(0x1003);
     auto const markerCode = std::string("[PRECOMPILED],0000000000000000000000000000000000001003");
 
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     state.set_code(markerContract, bcos::bytes(markerCode.begin(), markerCode.end()), {});
 
@@ -269,7 +269,7 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
 BOOST_AUTO_TEST_CASE(R8_create_kind_returns_evm_contract)
 {
     auto const precompile = precompileAddr(0x04);
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
 
     evmc_message msg{};

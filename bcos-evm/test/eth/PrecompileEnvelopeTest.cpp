@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -19,7 +19,7 @@ evmc_address precompileAddr(uint8_t low)
 
 BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_ecrecover)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     bcos::evm_standard::RevisionConfig cfg{};
     cfg.revision = EVMC_CANCUN;
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_ecrecover)
 
 BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_identity)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_identity)
 
 BOOST_AUTO_TEST_CASE(empty_account_envelope_success_noop)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 

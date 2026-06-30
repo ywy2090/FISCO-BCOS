@@ -11,7 +11,7 @@
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -48,7 +48,7 @@ FiscoOrchestrationErrorPolicy makeFiscoErrorPolicy(bool fixErrorHandling = false
 // F-IGF-01: GasLimitMinimum preserves message gas when fixErrorHandling is off.
 BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_gas_limit_minimum)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 5'000;
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_gas_limit_minimum)
 // F-IGF-04: fixErrorHandling clamps gas_left to zero on intrinsic failure.
 BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_clamps_gas_when_fix_error_handling)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 5'000;
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_clamps_gas_when_fix_error_handl
 // F-IGF-02: CalldataOutOfGas carries calldata-specific reason in output.
 BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_calldata_out_of_gas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 5'000;
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_calldata_out_of_gas)
 // F-IGF-03: AuthTupleOutOfGas carries auth-tuple reason in output.
 BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_auth_tuple_out_of_gas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 5'000;
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_auth_tuple_out_of_gas)
 // F-PEX-01: OutOfGas exception maps with zero gas left.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_maps_out_of_gas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 40'000;
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_maps_out_of_gas)
 // F-PEX-02: NotEnoughCash preserves message gas when fixErrorHandling is off.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_maps_not_enough_cash)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 55'000;
@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_maps_not_enough_cash)
 // F-PEX-05: NotFoundCode on DELEGATECALL succeeds and keeps gas.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_delegatecall_succeeds)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_DELEGATECALL;
@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_delegatecall_suc
 // F-PEX-07: fixErrorHandling maps generic exceptions to Unknown with zero gas.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_generic_maps_to_unknown_with_fix)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 60'000;
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_generic_maps_to_unknown_with_fix)
 // F-PEX-08: fixErrorHandling clamps NotEnoughCash gas_left to zero.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_enough_cash_clamps_gas_with_fix)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 55'000;
@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_enough_cash_clamps_gas_with_fi
 // F-PEX-09: pipeline exception reverts an open checkpoint.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_reverts_open_checkpoint)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_address sender{};
     sender.bytes[19] = 0x03;
@@ -242,7 +242,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_reverts_open_checkpoint)
 // F-PCO-01: negative gas_left preserves message gas when fixErrorHandling is off.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_preserves_message_gas_without_fix)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 100'000;
@@ -264,7 +264,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_preserves_message_gas_without_fix)
 // F-PCO-03: normal gas_left is unchanged.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_leaves_positive_gas_left)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 100'000;
@@ -286,7 +286,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_leaves_positive_gas_left)
 // F-PEX-03: NotFoundCode on a plain CALL reverts with call-address error.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_call_reverts)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -306,7 +306,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_call_reverts)
 // F-PEX-04: NotFoundCode on STATICCALL succeeds and keeps gas.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_staticcall_succeeds)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -327,7 +327,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_staticcall_succe
 // F-PEX-06: legacy generic exception maps to OutOfGas when fixErrorHandling is off.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_generic_maps_to_out_of_gas_legacy)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 60'000;
@@ -346,7 +346,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_generic_maps_to_out_of_gas_legacy)
 // F-PCO-02: negative gas_left is clamped when fixErrorHandling is on.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_clamps_negative_gas_left)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 100'000;
@@ -369,7 +369,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_clamps_negative_gas_left)
 
 BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create_address)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CREATE;
@@ -391,7 +391,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create_address)
 // F-PEN-02: CREATE2 empty create_address is patched from recipient.
 BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create2_address)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CREATE2;
@@ -413,7 +413,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create2_address)
 // F-PEN-03: non-empty create_address is not overwritten.
 BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_nonempty_create_address)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CREATE;
@@ -435,7 +435,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_nonempty_create_address)
 // F-PEN-06: fixRevertLogs does not clear logs on SUCCESS.
 BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_success_with_fix_revert_logs)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -456,7 +456,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_success_with_fix_revert_lo
 
 BOOST_AUTO_TEST_CASE(fisco_post_execute_clears_logs_on_revert_when_fix_revert_logs)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -477,7 +477,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_clears_logs_on_revert_when_fix_revert_lo
 
 BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_revert_without_fix_revert_logs)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -499,7 +499,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_revert_without_fix_revert_
 // INT-02: runTxPipeline routes balance exceptions through Fisco error policy.
 BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CALL;

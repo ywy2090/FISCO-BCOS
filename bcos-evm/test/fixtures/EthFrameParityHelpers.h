@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/EthHost.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <array>
 #include <cstring>

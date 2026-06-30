@@ -2,7 +2,7 @@
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <vector>
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(fisco_sstore_status_matrix_matches_fix_flag)
                                                << ", existingIsZero=" << testCase.existingIsZero
                                                << ", newIsZero=" << testCase.newIsZero)
         {
-            InMemoryEvmStateReader view;
+            InMemoryStateView view;
             Account account;
             if (!testCase.existingIsZero)
             {
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(noop_sstore_returns_assigned_when_current_equals_value)
     auto const key = valueFromLastByte(0x03);
     auto const one = valueFromLastByte(0x01);
 
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     Account account;
     view.insert_account(target, account);
 
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE(fix_on_uses_original_committed_value_for_status)
     auto const firstNonZero = valueFromLastByte(0x05);
     auto const secondNonZero = valueFromLastByte(0x06);
 
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     Account account;
     account.storage[key] = zero;
     view.insert_account(target, account);

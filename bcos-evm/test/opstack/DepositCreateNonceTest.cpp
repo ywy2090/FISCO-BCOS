@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -76,7 +76,7 @@ uint64_t createDepositGasWithExecutionBudget(bcos::bytes const& initCode, int64_
     return static_cast<uint64_t>(createDepositIntrinsicDebit(initCode) + executionBudget);
 }
 
-OpStackExecutionRequest makeCreateDepositInput(state::test::InMemoryEvmStateReader& stateView,
+OpStackExecutionRequest makeCreateDepositInput(state::test::InMemoryStateView& stateView,
     evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender, bcos::bytes const& initCode,
     uint64_t gasLimit = 100'000)
 {
@@ -114,7 +114,7 @@ OpStackExecutionRequest makeCreateDepositInput(state::test::InMemoryEvmStateRead
 
 BOOST_AUTO_TEST_CASE(create_deposit_bumps_sender_nonce_exactly_once)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const initialNonce = uint64_t{3};
 
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_bumps_sender_nonce_exactly_once)
 
 BOOST_AUTO_TEST_CASE(create_deposit_revert_bumps_sender_nonce_exactly_once)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x42);
     auto const initialNonce = uint64_t{7};
     auto const gasLimit = uint64_t{100'000};
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_revert_bumps_sender_nonce_exactly_once)
 
 BOOST_AUTO_TEST_CASE(create_deposit_intrinsic_reject_bumps_sender_nonce_exactly_once)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x43);
     auto const initialNonce = uint64_t{5};
 
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_intrinsic_reject_bumps_sender_nonce_exactly_
 
 BOOST_AUTO_TEST_CASE(create_deposit_oog_bumps_sender_nonce_exactly_once)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x44);
     auto const initialNonce = uint64_t{9};
 

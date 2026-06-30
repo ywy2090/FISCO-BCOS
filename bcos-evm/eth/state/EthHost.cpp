@@ -20,7 +20,7 @@
 #include "bcos-evm/eth/CanTransfer.h"
 #include "bcos-evm/eth/execution/Eip2929Access.h"
 #include "bcos-evm/eth/execution/ExecutionFrame.h"
-#include "bcos-evm/eth/gas/Eip2929StorageGas.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <algorithm>
@@ -31,71 +31,17 @@
 
 namespace bcos::evm::state
 {
-namespace
-{
-using bcos::evm::gas::COLD_SLOAD_COST_EIP2929;
-using bcos::evm::gas::SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529;
-using bcos::evm::gas::SSTORE_RESET_GAS_EIP2200;
-using bcos::evm::gas::SSTORE_SET_GAS_EIP2200;
-using bcos::evm::gas::WARM_STORAGE_READ_COST_EIP2929;
-
-void applySstoreRefundEip3529(State& state, const evmc_bytes32& current,
-    const evmc_bytes32& original, const evmc_bytes32& value) noexcept
-{
-    if (Bytes32Equal{}(current, value))
-    {
-        return;
-    }
-    if (Bytes32Equal{}(original, current))
-    {
-        if (isZeroBytes32(original))
-        {
-            return;
-        }
-        if (isZeroBytes32(value))
-        {
-            state.add_refund(SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
-        }
-        return;
-    }
-    if (!isZeroBytes32(original))
-    {
-        if (isZeroBytes32(current))
-        {
-            state.sub_refund(SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
-        }
-        else if (isZeroBytes32(value))
-        {
-            state.add_refund(SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
-        }
-    }
-    if (Bytes32Equal{}(original, value))
-    {
-        if (isZeroBytes32(original))
-        {
-            state.add_refund(SSTORE_SET_GAS_EIP2200 - WARM_STORAGE_READ_COST_EIP2929);
-        }
-        else
-        {
-            state.add_refund((SSTORE_RESET_GAS_EIP2200 - COLD_SLOAD_COST_EIP2929) -
-                             WARM_STORAGE_READ_COST_EIP2929);
-        }
-    }
-}
-
-}  // namespace
 
 EthHost::EthHost(State& state, evmc_tx_context txContext,
     bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-    EvmHostHooks* extension, bool fixStorageStatus, ChainCallTargetDispatcher* chainPort)
+    EvmHostHooks* extension, ChainCallTargetDispatcher* chainPort)
   : m_state(state),
     m_txContext(txContext),
     m_revisionConfig(revisionConfig),
     m_vm(vm),
     m_blockHashes(std::move(blockHashes)),
     m_extension(extension),
-    m_chainPort(chainPort),
-    m_fixStorageStatus(fixStorageStatus)
+    m_chainPort(chainPort)
 {}
 
 bool EthHost::account_exists(const address& addr) const noexcept
@@ -115,7 +61,6 @@ evmc_storage_status EthHost::set_storage(
     auto [it, inserted] = m_storageOriginalValues.try_emplace(slot, evmc_bytes32{});
     if (inserted)
     {
-        // FISCO sstoreStatus reads committed storage directly for status classification.
         it->second = m_state.get_storage(addr, key);
     }
 
@@ -126,17 +71,27 @@ evmc_storage_status EthHost::set_storage(
         // Unchanged slot: evmone keeps ASSIGNED (100 gas) even when original was zero.
         return EVMC_STORAGE_ASSIGNED;
     }
-    if (m_fixStorageStatus)
+
+    if (m_extension != nullptr)
+    {
+        m_extension->applySstoreRefund(m_state, current, original, value);
+    }
+    else
     {
         applySstoreRefundEip3529(m_state, current, original, value);
     }
 
     m_state.set_storage(addr, key, value);
-    auto const status = classifyStorageStatus(original, current, value, m_fixStorageStatus);
-    if (!m_fixStorageStatus && status == EVMC_STORAGE_DELETED)
+
+    auto const status = m_extension != nullptr ?
+                            m_extension->classifyStorageStatus(original, current, value) :
+                            classifyStorageStatusPrecise(original, current, value);
+
+    if (m_extension != nullptr)
     {
-        m_state.add_refund(SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
+        m_extension->applyLegacySstoreDeletedRefund(m_state, status);
     }
+
     return status;
 }
 
@@ -264,7 +219,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     ExecutionAddressGuard guard{m_executionAddress};
 
     execution::FrameExecutionEnv frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
-        m_txContext.tx_origin, m_executionAddress, false, m_chainPort};
+        m_txContext.tx_origin, m_executionAddress, m_chainPort};
     auto fr = execution::runExecutionFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
     return Result(std::move(fr.result));
 }
@@ -343,64 +298,5 @@ void EthHost::set_transient_storage(
 std::vector<LogEntry> EthHost::take_logs()
 {
     return std::exchange(m_logs, {});
-}
-
-evmc_storage_status EthHost::classifyStorageStatus(const evmc_bytes32& oldValue,
-    const evmc_bytes32& currentValue, const evmc_bytes32& newValue, bool fixStorageStatus) noexcept
-{
-    if (!fixStorageStatus)
-    {
-        return isZeroBytes32(newValue) ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
-    }
-
-    // evmone test/state/host.cpp set_storage (EIP-2200 / EIP-3529 status mapping).
-    auto const dirty = !Bytes32Equal{}(oldValue, currentValue);
-    auto const restored = Bytes32Equal{}(oldValue, newValue);
-    auto const currentIsZero = isZeroBytes32(currentValue);
-    auto const valueIsZero = isZeroBytes32(newValue);
-
-    auto status = EVMC_STORAGE_ASSIGNED;
-    if (!dirty && !restored)
-    {
-        if (currentIsZero)
-        {
-            status = EVMC_STORAGE_ADDED;
-        }
-        else if (valueIsZero)
-        {
-            status = EVMC_STORAGE_DELETED;
-        }
-        else
-        {
-            status = EVMC_STORAGE_MODIFIED;
-        }
-    }
-    else if (dirty && !restored)
-    {
-        if (currentIsZero && !valueIsZero)
-        {
-            status = EVMC_STORAGE_DELETED_ADDED;
-        }
-        else if (!currentIsZero && valueIsZero)
-        {
-            status = EVMC_STORAGE_MODIFIED_DELETED;
-        }
-    }
-    else if (dirty && restored)
-    {
-        if (currentIsZero)
-        {
-            status = EVMC_STORAGE_DELETED_RESTORED;
-        }
-        else if (valueIsZero)
-        {
-            status = EVMC_STORAGE_ADDED_DELETED;
-        }
-        else
-        {
-            status = EVMC_STORAGE_MODIFIED_RESTORED;
-        }
-    }
-    return status;
 }
 }  // namespace bcos::evm::state

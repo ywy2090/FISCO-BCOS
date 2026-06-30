@@ -6,7 +6,7 @@
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(fisco_mask_bls_not_warmed_when_eip2537_off)
         warmEnabledCfg({.revision = EVMC_PRAGUE, .eip2537 = false});
     auto const bls = precompileAddress(0x0b);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     warmPrecompilesOnly(state, cfg);
 
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(fisco_mask_bls_warmed_when_eip2537_on)
         warmEnabledCfg({.revision = EVMC_PRAGUE, .eip2537 = true});
     auto const bls = precompileAddress(0x0b);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     warmPrecompilesOnly(state, cfg);
 
@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_CASE(p256_not_warmed_when_eip7212_off)
         warmEnabledCfg({.revision = EVMC_OSAKA, .eip7212 = false});
     auto const p256 = precompileAddress(0x00, 0x01);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     warmPrecompilesOnly(state, cfg);
 
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(cancun_call_0x0b_not_precompile_dispatch)
     auto const path = std::filesystem::path("fixtures/state/imported/stBLS_add.json");
 #endif
     auto fixture = loadFixture(path);
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     for (auto const& [addr, acct] : fixture.preState)
         view.insert_account(addr, acct);
 

@@ -155,7 +155,7 @@ BaselineScheduler::coExecuteBlock
        ├─ Stage 1: TransactionExecutorImpl::createExecuteContext
        │    └─ newEVMCMessage(blockNumber, tx, gasLimit, origin)
        ├─ Stage 2: ExecuteContext::executeStep<0>  [Prepare]
-       │    ├─ FiscoEvmStateReader + State
+       │    ├─ FiscoStateView + State
        │    ├─ buildFiscoBlockInfo(...)
        │    └─ prepareTransaction(...)   // EIP-2929 warm 等（本地 State，不持久化）
        ├─ Stage 3: ExecuteContext::executeStep<1>  [Execute]
@@ -244,7 +244,7 @@ bcos-evm 通过 **读适配器 + 写回 StateDiff** 与框架存储解耦，不�
 
 ### 5.1 读路径
 
-[`FiscoEvmStateReader`](../bcos/FiscoEvmStateReader.h) 实现 `EvmStateReader`：
+[`FiscoStateView`](../bcos/FiscoStateView.h) 实现 `StateView`：
 
 - 内部通过 lambda 调用 `ledger::account::EVMAccount`
 - 读取 balance / nonce / code / codeHash / storage
@@ -253,7 +253,7 @@ bcos-evm 通过 **读适配器 + 写回 StateDiff** 与框架存储解耦，不�
 
 ```text
 RollbackableStorage
-    → FiscoEvmStateReader::get_account / get_storage
+    → FiscoStateView::get_account / get_storage
         → EVMAccount::balance / nonce / code / storage
             → executeMessage / EthHost
 ```
@@ -354,7 +354,7 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 | ETH 参考执行 | `bcos-evm/eth/reference/EthReferenceExecute.h` | `ethReferenceExecute` |
 | ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `EthReferenceExecute.h` |
 | OP Stack 执行 | `bcos-evm/opstack/OpStackExecute.h` | `opStackExecute` |
-| 状态读 | `bcos-evm/bcos/FiscoEvmStateReader.h` | TE 层构造 |
+| 状态读 | `bcos-evm/bcos/FiscoStateView.h` | TE 层构造 |
 | 状态写 | `bcos-evm/bcos/StateDiffApplier.h` | `applyStateDiff` |
 | TE 概念约束 | `bcos-framework/.../TransactionExecutor.h` | 新 executor 必须实现此 concept |
 | 架构总览 | `bcos-evm/docs/architecture-overview.md` | 三层库 + 设计原则 |
@@ -379,7 +379,7 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 
 1. **确定路径：** FISCO / Eth / OpStack — 对应不同 TE 实现和 bridge
 2. **实现 `TransactionExecutor` concept：** `createExecuteContext` + 三阶段 `executeStep<0/1/2>`
-3. **状态：** `FiscoEvmStateReader` 读、`applyStateDiff` 写；包裹 `RollbackableStorage`
+3. **状态：** `FiscoStateView` 读、`applyStateDiff` 写；包裹 `RollbackableStorage`
 4. **链行为：** `VmHostPolicy` 子类或 `TxPipelineHooks` 注入；FISCO 额外用 Port
 5. **Revision：** Prepare 阶段计算并传入 bridge request
 6. **费用：** FISCO/Eth 用 `*TxFeeLedger`；OP 多数在 `opStackExecute` 内

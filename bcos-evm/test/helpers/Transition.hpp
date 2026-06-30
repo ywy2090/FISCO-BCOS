@@ -24,7 +24,7 @@
 
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/EvmHostHooks.h"
-#include "bcos-evm/eth/state/EvmStateReader.hpp"
+#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "helpers/BloomFilter.hpp"
 #include <evmc/evmc.hpp>
@@ -42,7 +42,7 @@ struct TransactionReceipt
     BloomFilter logsBloom;
 };
 
-TransactionReceipt transition(const EvmStateReader& state_view, const BlockInfo& block,
+TransactionReceipt transition(const StateView& state_view, const BlockInfo& block,
     const BlockHashes& block_hashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
     const TransactionProperties& tx_props, EvmHostHooks* ext = nullptr);
 }  // namespace bcos::evm::state

@@ -6,7 +6,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_type2_normalizes_gas_price_for_gasprice
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 

@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -43,7 +43,7 @@ bcos::bytes modexpHeaderBaseLen1025()
 
 BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_executeMessage)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = senderAddress();
     auto const modexp = modexpAddress();
 

@@ -34,7 +34,7 @@ u256 expectedSenderBalanceAfterNormalLifecycle(
 
 BOOST_AUTO_TEST_CASE(lifecycle_normal_success_routes_fees_and_gas_pool)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x01);
     auto const recipient = lifecycleAddressFromLastByte(0x02);
     auto const coinbase = lifecycleAddressFromLastByte(0x99);
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_success_routes_fees_and_gas_pool)
 
 BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_gas_used_zero_and_returns_full_gas_pool)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x03);
     auto const recipient = lifecycleAddressFromLastByte(0x04);
     setLifecycleOpFeeParams(stateView);
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_gas_used_zero_and_returns
 
 BOOST_AUTO_TEST_CASE(lifecycle_normal_gas_afford_reject_aborts_without_settle_or_receipt_fees)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x07);
     auto const recipient = lifecycleAddressFromLastByte(0x08);
     setLifecycleOpFeeParams(stateView);
@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_gas_afford_reject_aborts_without_settle_or
 
 BOOST_AUTO_TEST_CASE(lifecycle_normal_buy_gas_fail_releases_gas_pool_without_settle)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x05);
     auto const recipient = lifecycleAddressFromLastByte(0x06);
     stateView.insert_account(sender, state::Account{.balance = u256(10), .nonce = 0});
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_buy_gas_fail_releases_gas_pool_without_set
 
 BOOST_AUTO_TEST_CASE(lifecycle_deposit_success_mint_deposit_nonce_and_nonce_bump)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x31);
     auto const recipient = lifecycleAddressFromLastByte(0x32);
     stateView.insert_account(sender, state::Account{.balance = 0, .nonce = 3});
@@ -204,7 +204,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_success_mint_deposit_nonce_and_nonce_bump
 
 BOOST_AUTO_TEST_CASE(lifecycle_deposit_gas_pool_reject_skips_pipeline)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x33);
     auto const recipient = lifecycleAddressFromLastByte(0x34);
     stateView.insert_account(sender, state::Account{.balance = 0, .nonce = 1});
@@ -226,7 +226,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_gas_pool_reject_skips_pipeline)
 
 BOOST_AUTO_TEST_CASE(lifecycle_deposit_revert_keeps_mint_and_bumps_nonce)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x41);
     auto const recipient = lifecycleAddressFromLastByte(0x42);
     stateView.insert_account(sender, state::Account{.balance = 50, .nonce = 7});
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_revert_keeps_mint_and_bumps_nonce)
 
 BOOST_AUTO_TEST_CASE(lifecycle_deposit_intrinsic_reject_uses_gas_limit_and_reverts_journal)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x51);
     auto const recipient = lifecycleAddressFromLastByte(0x52);
     stateView.insert_account(sender, state::Account{.balance = 0, .nonce = 5});
@@ -285,7 +285,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_intrinsic_reject_uses_gas_limit_and_rever
 // GETH_ORACLE: block processor rejects; no receipt (state_processor_test.go:181-186).
 BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_inclusion_failed_receipt_oracle)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x0a);
     auto const recipient = lifecycleAddressFromLastByte(0x0b);
     setLifecycleOpFeeParams(stateView);
@@ -317,7 +317,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_inclusion_failed_receipt_
 // GETH_ORACLE: ErrInsufficientFunds reject (state_processor_test.go:171-176).
 BOOST_AUTO_TEST_CASE(lifecycle_normal_buy_gas_fail_inclusion_failed_receipt_oracle)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = lifecycleAddressFromLastByte(0x0c);
     auto const recipient = lifecycleAddressFromLastByte(0x0d);
     stateView.insert_account(sender, state::Account{.balance = u256(10), .nonce = 0});

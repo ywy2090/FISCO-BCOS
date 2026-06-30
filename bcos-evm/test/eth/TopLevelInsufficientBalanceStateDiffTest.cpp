@@ -12,7 +12,7 @@
 #include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(setcode_auth_applied_then_top_level_balance_failure_state_d
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     stateView.insert_account(sender, state::Account{.balance = 50, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 
@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(eth_reference_precheck_rejects_before_auth_when_value_excee
     auto const recipient = addressFromLastByte(0x55);
     auto const delegationTarget = addressFromLastByte(0x66);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     view.insert_account(sender, state::Account{.balance = 50, .nonce = 0});
     view.insert_account(recipient, state::Account{});
 

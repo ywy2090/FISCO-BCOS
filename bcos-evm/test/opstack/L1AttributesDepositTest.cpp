@@ -2,13 +2,14 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -43,7 +44,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following_user_tx)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const user = addressFromLastByte(0x71);
     auto const target = addressFromLastByte(0x72);
     stateView.insert_account(OP_DEPOSITOR_ACCOUNT, state::Account{.nonce = 0});
@@ -101,7 +102,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     userInput.blockInfo.baseFee = 1;
     userInput.gasTipCap = 1;
     userInput.gasFeeCap = 2;
-    userInput.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    userInput.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     userInput.txProps.warmDestination = true;
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
 
@@ -134,7 +135,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
 
 BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_operator_fee)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const user = addressFromLastByte(0x71);
     auto const target = addressFromLastByte(0x72);
     stateView.insert_account(OP_DEPOSITOR_ACCOUNT, state::Account{.nonce = 0});
@@ -187,7 +188,7 @@ BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_opera
     userInput.blockInfo.baseFee = 1;
     userInput.gasTipCap = 1;
     userInput.gasFeeCap = 2;
-    userInput.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    userInput.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     userInput.txProps.warmDestination = true;
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
     userInput.forkSchedule = makeJovianPlusForkSchedule();

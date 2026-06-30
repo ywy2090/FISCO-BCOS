@@ -5,7 +5,7 @@
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FiscoFixtureAdapter.h"
 #include "fixtures/HostFixtureAssert.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_CASE(imported_fixture_plain_call_via_execute_via_host)
 #endif
         ;
     auto fixture = loadFixture(path);
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     for (auto const& [addr, acct] : fixture.preState)
         view.insert_account(addr, acct);
     auto input = buildFiscoExecutionRequest(fixture, view, vm, hashImpl);

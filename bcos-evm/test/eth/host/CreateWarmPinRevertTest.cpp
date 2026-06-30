@@ -7,7 +7,7 @@
 #define BOOST_TEST_MODULE CreateWarmPinRevertTest
 
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::state::test
@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_SUITE(CreateWarmPinRevertTest)
 
 BOOST_AUTO_TEST_CASE(failed_create_reverts_warm_pin)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
     auto const createAddr = addressFromByte(0x42);
 
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(failed_create_reverts_warm_pin)
 
 BOOST_AUTO_TEST_CASE(create_pin_survives_nested_revert)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
     auto const createAddr = addressFromByte(0x42);
 

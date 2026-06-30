@@ -3,6 +3,7 @@
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <boost/test/included/unit_test.hpp>
@@ -303,7 +304,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
 
 BOOST_AUTO_TEST_CASE(isthmus_helper_dense_profile_all_fields)
 {
-    assertIsthmusHelperProfile(makeIsthmusRevisionConfig());
+    assertIsthmusHelperProfile(bcos::evm::makeIsthmusRevisionConfig());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -24,6 +24,14 @@
 namespace bcos::evm::state
 {
 struct Account;
+class State;
+
+/// Shared helpers used by default hooks and chain VmHostPolicy overrides (fix ON path).
+void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
+    evmc_bytes32 const& original, evmc_bytes32 const& newValue) noexcept;
+
+evmc_storage_status classifyStorageStatusPrecise(evmc_bytes32 const& original,
+    evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept;
 
 /// Injectable hooks for EthHost extension points inside evm.Call.
 /// Chain precompile dispatch is via `ChainCallTargetDispatcher` on FrameExecutionEnv.
@@ -47,5 +55,16 @@ struct EvmHostHooks
     {
         (void)contractAddress;
     }
+
+    virtual void applySstoreRefund(State& state, evmc_bytes32 const& current,
+        evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept;
+
+    virtual evmc_storage_status classifyStorageStatus(evmc_bytes32 const& original,
+        evmc_bytes32 const& current, evmc_bytes32 const& newValue) const noexcept;
+
+    virtual void applyLegacySstoreDeletedRefund(
+        State& state, evmc_storage_status status) const noexcept;
+
+    virtual void finalizeTopLevelCreateNonce(State& state, evmc_address const& createAddr) noexcept;
 };
 }  // namespace bcos::evm::state

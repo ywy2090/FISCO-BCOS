@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <algorithm>
 
@@ -31,7 +31,7 @@ bytesConstRef toRef(bytes const& data)
 BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
 {
     OpStackExecutionRequest input;
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message msg{};
     TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     bytes data(100, 0xff);
     auto const floor = floorDataGas(toRef(data));
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x71);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
 
@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
     OpStackExecutionRequest input;
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message msg{};
     TxPipelineContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;

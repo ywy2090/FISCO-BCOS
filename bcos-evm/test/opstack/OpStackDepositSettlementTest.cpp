@@ -2,11 +2,12 @@
 
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -23,14 +24,14 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(deposit_success_actual_gas_commits_and_bumps_nonce)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x61);
     stateView.insert_account(sender, state::Account{.balance = 0, .nonce = 5});
 
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 100'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     ctx.state.checkpoint();
@@ -54,14 +55,14 @@ BOOST_AUTO_TEST_CASE(deposit_success_actual_gas_commits_and_bumps_nonce)
 
 BOOST_AUTO_TEST_CASE(deposit_revert_actual_gas_reverts_state_but_bumps_nonce)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x62);
     stateView.insert_account(sender, state::Account{.balance = 50, .nonce = 7});
 
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 50'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     auto const balanceBefore = ctx.state.get_balance(sender);
@@ -86,14 +87,14 @@ BOOST_AUTO_TEST_CASE(deposit_revert_actual_gas_reverts_state_but_bumps_nonce)
 
 BOOST_AUTO_TEST_CASE(deposit_entry_failure_uses_gas_limit_and_bumps_nonce)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x63);
     stateView.insert_account(sender, state::Account{.balance = 0, .nonce = 5});
 
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 20'999;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     ctx.state.checkpoint();

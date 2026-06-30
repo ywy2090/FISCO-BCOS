@@ -4,7 +4,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_cancun_rejects_prague_bls)
 
 BOOST_AUTO_TEST_CASE(fiscoExecute_cancun_call_0x0b_not_precompile_dispatch)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = precompileAddress(0x01);
     auto const blsAddr = precompileAddress(0x0b);
 

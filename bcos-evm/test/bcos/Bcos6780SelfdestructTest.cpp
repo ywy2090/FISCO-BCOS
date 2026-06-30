@@ -6,7 +6,7 @@
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"
 #include "helpers/ApplyStateDiffToView.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(imported_selfdestruct_fixture_via_execute_message)
 #endif
         ;
     auto fixture = loadFixture(path);
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     for (auto const& [addr, acct] : fixture.preState)
     {
         view.insert_account(addr, acct);
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(imported_selfdestruct_fixture_via_execute_message)
 
 BOOST_AUTO_TEST_CASE(created_in_tx_selfdestruct_clears_code_via_execute_message)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const beneficiary = addressFromLastByte(0xbb);
 

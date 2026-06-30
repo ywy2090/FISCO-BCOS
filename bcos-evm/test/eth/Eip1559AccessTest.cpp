@@ -8,7 +8,7 @@
 #include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-evm/eth/reference/EthTxPrecheck.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -19,7 +19,7 @@ namespace
 {
 state::State makeState()
 {
-    static state::test::InMemoryEvmStateReader baseState;
+    static state::test::InMemoryStateView baseState;
     return state::State(baseState);
 }
 

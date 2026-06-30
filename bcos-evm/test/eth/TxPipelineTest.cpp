@@ -9,7 +9,7 @@
 #include "bcos-evm/eth/reference/EthOrchestrationErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <functional>
@@ -20,7 +20,7 @@ namespace bcos::evm::test
 {
 namespace
 {
-TxPipelineContext makeContext(state::test::InMemoryEvmStateReader const& stateView)
+TxPipelineContext makeContext(state::test::InMemoryStateView const& stateView)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -137,7 +137,7 @@ static_assert(!std::is_move_constructible_v<TxPipelineContext>);
 
 BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(tx_check_transaction_rules_early_exit_skips_later_hooks)
 
 BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -213,7 +213,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
 // CURRENT_ORACLE: GasAffordRejected + InsufficientFunds; GETH_ORACLE: ErrInsufficientFunds reject.
 BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_execution)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
 // runTxPipeline.
 BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -275,7 +275,7 @@ BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
 
 BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_revert)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -318,7 +318,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
 
 BOOST_AUTO_TEST_CASE(capture_snapshot_non_eip7623_keeps_existing_values)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     ctx.intrinsicDebitMode = IntrinsicDebitMode::None;
     ctx.snapshot.gasLimit = 123;
@@ -336,7 +336,7 @@ BOOST_AUTO_TEST_CASE(capture_snapshot_non_eip7623_keeps_existing_values)
 // INT-04: completed pipeline path invokes Eth post-execute normalization.
 BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     ctx.message.depth = 0;
     crypto::Keccak256 hashImpl;
@@ -371,7 +371,7 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
 
 BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto ctx = makeContext(stateView);
     ctx.message.sender = addressFromLastByte(0x01);
     ctx.message.recipient = addressFromLastByte(0x02);

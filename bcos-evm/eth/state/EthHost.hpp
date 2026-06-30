@@ -47,8 +47,7 @@ public:
 
     EthHost(State& state, evmc_tx_context txContext,
         bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-        EvmHostHooks* extension = nullptr, bool fixStorageStatus = true,
-        ChainCallTargetDispatcher* chainPort = nullptr);
+        EvmHostHooks* extension = nullptr, ChainCallTargetDispatcher* chainPort = nullptr);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -80,10 +79,6 @@ public:
     std::vector<LogEntry> take_logs();
 
 private:
-    static evmc_storage_status classifyStorageStatus(const evmc_bytes32& oldValue,
-        const evmc_bytes32& currentValue, const evmc_bytes32& newValue,
-        bool fixStorageStatus) noexcept;
-
     void destroyContractState(evmc_address const& addr) noexcept;
 
 private:
@@ -97,7 +92,6 @@ private:
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_storageOriginalValues;
-    bool m_fixStorageStatus{true};
     std::vector<LogEntry> m_logs;
     evmc_address m_executionAddress{};
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_createdInTx;

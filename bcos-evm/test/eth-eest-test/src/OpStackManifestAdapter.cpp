@@ -1,7 +1,7 @@
 #include "bcos-evm/eth-eest-test/OpStackManifestAdapter.h"
 
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
-#include "bcos-evm/eth-eest-test/TestEvmStateReader.h"
+#include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
@@ -127,7 +127,7 @@ bool OpStackManifestAdapter::supports(
 task::Task<ExecutionResult> OpStackManifestAdapter::execute(
     StateTestCase const& testCase, StateSubtest const& subtest)
 {
-    TestEvmStateReader view;
+    TestStateView view;
     for (auto const& [address, account] : testCase.preState)
     {
         view.insertAccount(address, account);

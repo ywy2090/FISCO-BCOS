@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE(apply_authorization_via_executeMessage_prague)
     evmc_address delegationTarget{};
     delegationTarget.bytes[19] = 0x42;
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
     stateView.insert_account(recipient, state::Account{});
 

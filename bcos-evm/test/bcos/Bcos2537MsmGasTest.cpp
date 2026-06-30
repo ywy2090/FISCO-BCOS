@@ -4,7 +4,8 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/BlsGas.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -36,7 +37,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k200_uses_max_discount)
 // fiscoExecute delegates to executeMessage for kernel precompiles; assert MSM gas on that path.
 BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = precompileAddress(0x01);
     auto const g1MsmAddr = precompileAddress(0x0c);
 
@@ -76,7 +77,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_prague)
 
 BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_isthmus_profile)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = precompileAddress(0x01);
     auto const g1MsmAddr = precompileAddress(0x0c);
 
@@ -106,7 +107,7 @@ BOOST_AUTO_TEST_CASE(g1msm_k2_gas_matches_geth_via_executeMessage_isthmus_profil
     execInput.vm = &vm;
     execInput.message = message;
     execInput.blockInfo = blockInfo;
-    execInput.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    execInput.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
 
     auto output = executeMessage(execInput);
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);

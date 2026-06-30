@@ -20,7 +20,7 @@
 #include "bcos-evm/eth/execution/BlockInfoBuilder.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_SUITE(WarmTransactionEntryTest)
 
 BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
 
     Transaction tx;
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
 
 BOOST_AUTO_TEST_CASE(skips_coinbase_warm_when_eip3651_disabled)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
 
     Transaction tx;
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(skips_coinbase_warm_when_eip3651_disabled)
 
 BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
 
     Transaction tx;
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
 
 BOOST_AUTO_TEST_CASE(legacy_kind_zero_ignores_access_list)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
 
     Transaction tx;
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(builds_block_info_with_expected_fields)
 
 BOOST_AUTO_TEST_CASE(W1_warms_active_builtin_precompiles)
 {
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
 
     Transaction tx{};
@@ -221,7 +221,7 @@ BOOST_AUTO_TEST_CASE(W2_warms_chain_static_targets)
     adapter.addStaticWarmTarget(l1Block);
     adapter.addStaticWarmTarget(gasOracle);
 
-    InMemoryEvmStateReader view;
+    InMemoryStateView view;
     State state(view);
 
     Transaction tx{};

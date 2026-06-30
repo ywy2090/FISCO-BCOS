@@ -10,7 +10,7 @@
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <cstring>
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(plain_precompile_routing_matrix)
             auto const scope = scopeFromNestedFlag(nested);
             for (auto callMode : kRoutingCallModes)
             {
-                state::test::InMemoryEvmStateReader view;
+                state::test::InMemoryStateView view;
                 state::State state(view);
                 state.set_balance(sender, 1'000'000);
                 auto message = makePlainPrecompileMessage(callMode, sender, precompile, inputBytes);
@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(delegated7702_precompile_routing_matrix)
                         callMode, sender, addressFromLastByte(0x02), precompile, inputBytes);
                 }
 
-                state::test::InMemoryEvmStateReader view;
+                state::test::InMemoryStateView view;
                 state::State state(view);
                 state.set_balance(sender, 1'000'000);
                 auto const outcome = runFrame(state, cfg, message, scope);
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_top_level
     bcos::evm_standard::RevisionConfig cfg{
         .revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
@@ -278,7 +278,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_nested)
     bcos::evm_standard::RevisionConfig cfg{
         .revision = EVMC_PRAGUE, .warm_access = true, .eip7702 = true};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 

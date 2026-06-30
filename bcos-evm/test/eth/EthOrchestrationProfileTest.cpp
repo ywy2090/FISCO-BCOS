@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/pipeline/IntrinsicGasDebit.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
 
 BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 50'000;

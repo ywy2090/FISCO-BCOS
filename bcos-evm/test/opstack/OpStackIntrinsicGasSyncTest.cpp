@@ -4,10 +4,11 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackExecuteMessageTestHook.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -33,7 +34,7 @@ evmc_address addressFromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const recipient = addressFromLastByte(0x02);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
@@ -57,7 +58,7 @@ BOOST_AUTO_TEST_CASE(execute_message_receives_debited_intrinsic_gas)
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{.from = sender, .to = recipient, .gas = 100'000};
     input.skipTransactionChecks = true;
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     input.blockInfo.number = 1;
     input.blockInfo.timestamp = 1;
     input.blockInfo.gasLimit = 30'000'000;

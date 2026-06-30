@@ -29,7 +29,7 @@ Three chain orchestrators (`ethReferenceExecute`, `fiscoExecute`, `opStackExecut
 | Q11 | `mapException(std::exception_ptr)`; chain rethrow/catch in own `.cpp` |
 | Q12 | `try/catch` covers steps ②–⑪; step ① validate outside catch |
 | Q13 | `TxPipelineExitKind` for early-exit; no automatic post-settle |
-| Q14 | `ctx.state` is sole tx-level `State` owner; `buildExecuteMessageInput` sets `ExecuteMessageInput.state = &ctx.state`; `TxExecutionRunner` rejects null `state` and **must not** copy from `EvmStateReader` |
+| Q14 | `ctx.state` is sole tx-level `State` owner; `buildExecuteMessageInput` sets `ExecuteMessageInput.state = &ctx.state`; `TxExecutionRunner` rejects null `state` and **must not** copy from `StateView` |
 | Q15 | No `buildExtension`; wrapper pre-constructs `HostExtension`, stores borrow in `ctx.extension`; ctx non-copyable/non-movable |
 | Q16 | `gasPrice` is constructor param; Eth `preExecute` / OpStack `buyGas` may overwrite |
 | Q17 | `captureSettlementSnapshot` only when `mode == Eip7623`; OpStack settlement in `opstack/` via `postSettle` |
@@ -141,16 +141,16 @@ These remain **outside** `runTxPipeline`:
 
 | Layer | Type | Role |
 | --- | --- | --- |
-| Wrapper / bridge request | `EvmStateReader const*` (`stateView`) | Cold account view passed into `TxPipelineContext` constructor |
+| Wrapper / bridge request | `StateView const*` (`stateView`) | Cold account view passed into `TxPipelineContext` constructor |
 | Pipeline | `TxPipelineContext::state` (`state::State`) | Sole mutable journal for the tx (warm, checkpoint, diff) |
 | Kernel step ⑦ | `ExecuteMessageInput::state` (`state::State*`) | **Must** point at `&ctx.state` when invoked from `runTxPipeline` |
 
 **Rules (Q14 enforcement):**
 
-- `TxPipelineContext` is constructed with `EvmStateReader const&`, initial `evmc_message`, `RevisionConfig`, `gasPrice`; it wraps the reader in `state::State`.
+- `TxPipelineContext` is constructed with `StateView const&`, initial `evmc_message`, `RevisionConfig`, `gasPrice`; it wraps the reader in `state::State`.
 - Explicit `= delete` copy/move; pipeline sole owner of `state::State` and mutable `evmc_message`.
 - `buildExecuteMessageInput(ctx)` sets `input.state = &ctx.state` (not the wrapper's cold `stateView` pointer).
-- `TxExecutionRunner::run` dereferences `input.state` directly; **`resolveState` / `dynamic_cast` / silent `State` copy from `EvmStateReader` is forbidden** — passing a bare reader pointer would mutate a discarded journal and break warm/nonce visibility.
+- `TxExecutionRunner::run` dereferences `input.state` directly; **`resolveState` / `dynamic_cast` / silent `State` copy from `StateView` is forbidden** — passing a bare reader pointer would mutate a discarded journal and break warm/nonce visibility.
 - Direct `executeMessage()` callers (tests, `transition()`) must construct `state::State{reader}` and pass `&state`.
 - Null `input.state` or `input.vm` → `throw std::invalid_argument("executeMessage requires State owner and vm")`.
 - `extension` is a borrow pointer set by wrapper before `runTxPipeline` (no `buildExtension` hook).
@@ -188,5 +188,5 @@ OpStack balance/floor logic lives in `opstack/OpStackFloorGasPrecheck.*` and ent
 - [ ] OpStack fee/state machine changes stay in wrapper, not pipeline steps.
 - [ ] `capability-matrix.md` updated when orchestration capability surfaces change.
 - [ ] OpStack tests use spy seam for message-gas sync when asserting intrinsic debit propagation.
-- [ ] `ExecuteMessageInput.state` is a `state::State*` journal owner; no `EvmStateReader`-only fallback in `TxExecutionRunner`.
+- [ ] `ExecuteMessageInput.state` is a `state::State*` journal owner; no `StateView`-only fallback in `TxExecutionRunner`.
 - [ ] Pipeline path: `buildExecuteMessageInput(ctx).state == &ctx.state`.

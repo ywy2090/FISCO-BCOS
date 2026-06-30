@@ -47,11 +47,10 @@ struct FrameExecutionEnv
     ChainCallTargetDispatcher* chainPort{nullptr};
     evmc_address txOrigin{};
     evmc_address& executionAddress;
-    bool fixNonceInit{false};
 
     FrameExecutionEnv(state::State& state_, evmc::VM& vm_,
         bcos::evm_standard::RevisionConfig const& revisionConfig_, state::EvmHostHooks* extension_,
-        evmc_address txOrigin_, evmc_address& executionAddress_, bool fixNonceInit_ = false,
+        evmc_address txOrigin_, evmc_address& executionAddress_,
         ChainCallTargetDispatcher* chainPort_ = nullptr) noexcept
       : state(state_),
         vm(vm_),
@@ -59,8 +58,7 @@ struct FrameExecutionEnv
         extension(extension_),
         chainPort(chainPort_),
         txOrigin(txOrigin_),
-        executionAddress(executionAddress_),
-        fixNonceInit(fixNonceInit_)
+        executionAddress(executionAddress_)
     {}
 };
 

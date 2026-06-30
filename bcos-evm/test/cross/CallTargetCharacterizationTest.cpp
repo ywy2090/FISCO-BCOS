@@ -20,7 +20,7 @@
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(c1_identity_precompile_depth0_and_depth1)
     auto const identity = precompileAddress(0x04);
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::Account senderAccount;
     senderAccount.balance = 1'000'000;
     view.insert_account(sender, senderAccount);
@@ -219,7 +219,7 @@ BOOST_AUTO_TEST_CASE(c1_identity_precompile_depth0_and_depth1)
     BOOST_CHECK_EQUAL(depth0.status, kC1Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC1Depth0GasLeft);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, senderAccount.balance);
     Depth1HostFixture fixture(state1, nullptr);
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
 {
     auto calldata = setterSelector();
 
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state0(baseState);
     OpStackChainCallTargetAdapter chainAdapter0(&state0, 0, makeIsthmusPlusForkSchedule(), 0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_CASE(c2_op_l1block_chain_hook_depth0_and_depth1)
     BOOST_CHECK_EQUAL(depth0.status, kC2Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC2Depth0GasLeft);
 
-    state::test::InMemoryEvmStateReader baseState1;
+    state::test::InMemoryStateView baseState1;
     state::State state1(baseState1);
     OpStackChainCallTargetAdapter chainAdapter1(&state1, 0, makeIsthmusPlusForkSchedule(), 0);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_and_depth1)
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::Account senderAccount;
     senderAccount.balance = 1'000'000;
     view.insert_account(sender, senderAccount);
@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_and_depth1)
     BOOST_CHECK_EQUAL(depth0.status, kC3Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC3Depth0GasLeft);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, senderAccount.balance);
     Depth1HostFixture fixture(state1, nullptr);
@@ -306,7 +306,7 @@ BOOST_AUTO_TEST_CASE(c4_delegatecall_to_precompile_blocked_at_depth1)
     auto const caller = addressFromLastByte(0x01);
     auto const identity = precompileAddress(0x04);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(caller, 1'000'000);
     FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, {});
@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(c5_call_with_value_to_identity_depth0_and_depth1)
     auto const value = oneWeiValue();
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
 
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state0(baseState);
     state0.set_balance(sender, 1'000'000);
 
@@ -351,7 +351,7 @@ BOOST_AUTO_TEST_CASE(c5_call_with_value_to_identity_depth0_and_depth1)
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC5Depth0GasLeft);
     BOOST_CHECK_EQUAL(depth0.recipientBalance, kC5Depth0RecipientBalance);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state(view1);
     state.set_balance(sender, 1'000'000);
     Depth1HostFixture fixture(state, nullptr);
@@ -372,7 +372,7 @@ BOOST_AUTO_TEST_CASE(c6_revision_gate_bls_inactive_at_cancun)
     cancunCfg.revision = EVMC_CANCUN;
     BOOST_CHECK(!precompiled::isActivePrecompile(cancunCfg, bls));
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::Account senderAccount;
     senderAccount.balance = 1'000'000;
     view.insert_account(sender, senderAccount);
@@ -392,7 +392,7 @@ BOOST_AUTO_TEST_CASE(c6_revision_gate_bls_inactive_at_cancun)
     BOOST_CHECK_EQUAL(depth0.status, kC6Depth0Status);
     BOOST_CHECK_EQUAL(depth0.gasLeft, kC6Depth0GasLeft);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, senderAccount.balance);
     Depth1HostFixture fixture(state1, nullptr, EVMC_CANCUN);
@@ -427,7 +427,7 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
         return result;
     };
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::Account senderAccount;
     senderAccount.balance = 1'000'000;
     view.insert_account(sender, senderAccount);
@@ -445,7 +445,7 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
     CallOutcome depth0Outcome;
     // depth=0: non-empty code bypasses chain classify → EVM executes marker bytecode
     {
-        state::test::InMemoryEvmStateReader depth0View;
+        state::test::InMemoryStateView depth0View;
         depth0View.insert_account(sender, senderAccount);
         depth0View.insert_account(markerContract, markerAccount);
         state::State depth0State(depth0View);
@@ -466,7 +466,7 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
 
     // depth=1: chain classify runs before EVM regardless of non-empty code
     callbackInvoked = false;
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state(view1);
     state.set_balance(sender, senderAccount.balance);
     state.set_code(markerContract, markerAccount.code, {});
@@ -486,7 +486,7 @@ BOOST_AUTO_TEST_CASE(c7_precompiled_marker_asymmetry_depth0_vs_depth1)
 BOOST_AUTO_TEST_CASE(pr5_op_l1block_chain_static_warm_tx_entry_oracle)
 {
     auto isL1BlockWarmAfterTxEntry = [](bool withStaticWarm) {
-        state::test::InMemoryEvmStateReader view;
+        state::test::InMemoryStateView view;
         state::State state(view);
 
         OpStackChainCallTargetAdapter opAdapter(&state, 0, makeIsthmusPlusForkSchedule(), 0);

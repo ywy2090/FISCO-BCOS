@@ -236,13 +236,10 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
 
         if (scope == FrameScope::TopLevel)
         {
-            if (work.ctx.fixNonceInit && isCreateKind(callMessage.kind))
+            if (isCreateKind(callMessage.kind) && work.ctx.extension != nullptr)
             {
-                auto createAddr = resolveCreateAddress(callMessage, result.raw());
-                if (!state::isZeroAddress(createAddr))
-                {
-                    work.ctx.state.set_nonce(createAddr, 1);
-                }
+                auto const createAddr = resolveCreateAddress(callMessage, result.raw());
+                work.ctx.extension->finalizeTopLevelCreateNonce(work.ctx.state, createAddr);
             }
         }
         else

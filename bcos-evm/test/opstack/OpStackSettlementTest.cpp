@@ -5,21 +5,22 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/Eip1559Access.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
 BOOST_AUTO_TEST_CASE(finalize_normal_completed_matches_post_execute_settlement)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message msg{};
     msg.gas = 100'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     evmc_result raw{};
@@ -42,10 +43,10 @@ BOOST_AUTO_TEST_CASE(finalize_normal_completed_matches_post_execute_settlement)
 
 BOOST_AUTO_TEST_CASE(finalize_normal_intrinsic_reject_gas_used_zero)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message msg{};
     msg.gas = 50'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
     ctx.exitKind = TxPipelineExitKind::IntrinsicRejected;
 
@@ -59,10 +60,10 @@ BOOST_AUTO_TEST_CASE(finalize_normal_intrinsic_reject_gas_used_zero)
 
 BOOST_AUTO_TEST_CASE(finalize_normal_rules_rejected_applies_settlement)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message msg{};
     msg.gas = 100'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     evmc_result raw{};
@@ -83,7 +84,7 @@ BOOST_AUTO_TEST_CASE(finalize_normal_rules_rejected_applies_settlement)
 
 BOOST_AUTO_TEST_CASE(abort_after_buy_gas_reverts_checkpoint_and_releases_gas_pool)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_address sender{};
     sender.bytes[19] = 0x42;
     stateView.insert_account(sender, state::Account{.balance = u256(1'000), .nonce = 0});
@@ -91,7 +92,7 @@ BOOST_AUTO_TEST_CASE(abort_after_buy_gas_reverts_checkpoint_and_releases_gas_poo
     evmc_message msg{};
     msg.gas = 50'000;
     msg.sender = sender;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     state::State state{stateView};
     TxPipelineContext ctx{state, msg, revision, bcos::u256(0)};
 

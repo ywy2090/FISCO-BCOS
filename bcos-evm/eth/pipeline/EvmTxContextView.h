@@ -17,8 +17,6 @@ struct EvmTxContextView
     state::EvmHostHooks* extension{nullptr};
     evmc::VM* vm{nullptr};
     state::BlockHashes blockHashes{};
-    bool fixStorageStatus{true};
-    bool fixNonceInit{false};
 
     void wire(TxPipelineContext& ctx) const
     {
@@ -56,8 +54,6 @@ struct EvmTxContextView
         input.web3TypedTxKind = ctx.inputs.web3TypedTxKind;
         input.extension = extension;
         input.chainPort = chainPort;
-        input.fixStorageStatus = fixStorageStatus;
-        input.fixNonceInit = fixNonceInit;
         return input;
     }
 };

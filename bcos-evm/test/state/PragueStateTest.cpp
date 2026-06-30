@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE PragueStateTest
 #include "bcos-utilities/DataConvertUtility.h"
 #include "fixtures/EthStateFixtureLoader.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/Transition.hpp"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(prague_minimal_vectors_gate)
 
         BOOST_TEST_CONTEXT("fixture=" << fixture.name)
         {
-            InMemoryEvmStateReader view;
+            InMemoryStateView view;
             for (auto const& [address, account] : fixture.preState)
             {
                 view.insert_account(address, account);

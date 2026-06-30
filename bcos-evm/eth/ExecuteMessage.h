@@ -52,8 +52,6 @@ struct ExecuteMessageInput
     uint8_t web3TypedTxKind{0};
     state::EvmHostHooks* extension{nullptr};
     ChainCallTargetDispatcher* chainPort{nullptr};
-    bool fixStorageStatus{true};
-    bool fixNonceInit{false};
     /// When true, orchestration (e.g. OpStack deposit finalizeDeposit) owns sender nonce bump.
     bool skipTopLevelSenderNonceBump{false};
     std::optional<bcos::h256> txHash;

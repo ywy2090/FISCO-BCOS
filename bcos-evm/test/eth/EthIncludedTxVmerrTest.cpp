@@ -7,7 +7,7 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/reference/EthReferenceExecute.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_top_level_invalid_is_included_with_succ
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 
@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 
@@ -194,7 +194,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = addressFromLastByte(0x11);
     auto const target = addressFromLastByte(0x22);
 
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(ethReferenceExecute_nested_invalid_is_not_included_tx_vmerr
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     auto const sender = addressFromLastByte(0x01);
     auto const callee = addressFromLastByte(0x02);
     auto const caller = addressFromLastByte(0x03);

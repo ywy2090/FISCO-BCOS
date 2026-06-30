@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7702PreCheckTest
 
 #include "bcos-evm/opstack/OpStackExecute.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryPrecheck.h"
 #include <boost/test/included/unit_test.hpp>
 
@@ -32,7 +32,7 @@ OpStackExecutionRequest makeInput(evmc_address sender)
 
 BOOST_AUTO_TEST_CASE(rejects_authorization_list_on_create)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x10);
     state::State state(stateView);
 
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(rejects_authorization_list_on_create)
 
 BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x11);
     state::State state(stateView);
 

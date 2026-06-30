@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/pipeline/EvmTxContextView.h"
 #include "bcos-evm/eth/pipeline/TxPipeline.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -34,7 +34,7 @@ EvmTxContextView makeTxContextView(evmc::VM& vm)
 
 BOOST_AUTO_TEST_CASE(toExecuteMessageInput_matches_legacy_build_fields)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message message{};
     message.gas = 50'000;
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(3)};
@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(toExecuteMessageInput_matches_legacy_build_fields)
 
 BOOST_AUTO_TEST_CASE(wire_sets_session_pointer_on_context)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
     evmc::VM vm{evmc_create_evmone()};

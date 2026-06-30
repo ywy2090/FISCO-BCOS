@@ -12,7 +12,7 @@
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 
@@ -80,7 +80,7 @@ void assertResolveParity(state::State& state, bcos::evm_standard::RevisionConfig
 
 BOOST_AUTO_TEST_CASE(create_returns_initcode)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
 
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(create_returns_initcode)
 
 BOOST_AUTO_TEST_CASE(identity_precompile_empty_code)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto const identity = addr(0x04);
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(identity_precompile_empty_code)
 
 BOOST_AUTO_TEST_CASE(regular_contract_bytecode)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto const contract = addr(0x42);
@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_CASE(regular_contract_bytecode)
 
 BOOST_AUTO_TEST_CASE(eip7702_delegation_bytecode)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto const delegateAccount = addr(0x50);

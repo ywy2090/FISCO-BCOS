@@ -11,7 +11,7 @@ namespace bcos::evm::test
 {
 
 inline std::optional<EVMCResult> runOpStackEntryPrecheck(
-    OpStackExecutionRequest const& input, state::EvmStateReader const& stateView)
+    OpStackExecutionRequest const& input, state::StateView const& stateView)
 {
     TxPipelineContext ctx{stateView, input.message, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;

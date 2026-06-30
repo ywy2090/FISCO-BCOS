@@ -18,6 +18,9 @@
 
 #include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/bcos/FiscoAddressDerivation.h"
+#include "bcos-evm/eth/gas/Eip2929StorageGas.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/ledger/Features.h"
 #include <algorithm>
 #include <cstring>
@@ -133,6 +136,43 @@ void FiscoVmHostPolicy::applyCreateNonceSemantics(const evmc_message& message)
     if (m_revisionFlags.fix_nonce_init)
     {
         m_state->set_nonce(createTarget(message), 1);
+    }
+}
+
+void FiscoVmHostPolicy::applySstoreRefund(state::State& state, evmc_bytes32 const& current,
+    evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept
+{
+    if (m_revisionFlags.fix_storage_status)
+    {
+        state::applySstoreRefundEip3529(state, current, original, newValue);
+    }
+}
+
+evmc_storage_status FiscoVmHostPolicy::classifyStorageStatus(evmc_bytes32 const& original,
+    evmc_bytes32 const& current, evmc_bytes32 const& newValue) const noexcept
+{
+    if (m_revisionFlags.fix_storage_status)
+    {
+        return state::classifyStorageStatusPrecise(original, current, newValue);
+    }
+    return state::isZeroBytes32(newValue) ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
+}
+
+void FiscoVmHostPolicy::applyLegacySstoreDeletedRefund(
+    state::State& state, evmc_storage_status status) const noexcept
+{
+    if (!m_revisionFlags.fix_storage_status && status == EVMC_STORAGE_DELETED)
+    {
+        state.add_refund(bcos::evm::gas::SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
+    }
+}
+
+void FiscoVmHostPolicy::finalizeTopLevelCreateNonce(
+    state::State& state, evmc_address const& createAddr) noexcept
+{
+    if (m_revisionFlags.fix_nonce_init && !state::isZeroAddress(createAddr))
+    {
+        state.set_nonce(createAddr, 1);
     }
 }
 

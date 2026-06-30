@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -24,7 +24,7 @@ bytesConstRef toRef(bytes const& data)
 
 BOOST_AUTO_TEST_CASE(insufficient_balance_returns_insufficient_balance)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x61);
     stateView.insert_account(sender, state::Account{.balance = u256(5), .nonce = 0});
     state::State state(stateView);
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(floor_failure_returns_out_of_gas)
     bytes data(100, 0xff);
     auto const floor = floorDataGas(toRef(data));
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x62);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
     state::State state(stateView);
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(floor_failure_returns_out_of_gas)
 
 BOOST_AUTO_TEST_CASE(success_writes_floor_without_subtracting_gas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x63);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
     state::State state(stateView);

@@ -38,7 +38,7 @@ opstack/ ──►  eth/
 
 ### 3.1 `eth/state/` — Copy-on-write state engine
 
-**Files:** `State.hpp` / `.cpp`, `EvmStateReader.hpp`, `EthHost.hpp` / `.cpp`, `Account.hpp`, `StateDiff.hpp`, `BlockInfo.hpp`, `Transaction.hpp`, `EthPrecompiles.hpp` / `.cpp`, `CreateExecution.h`, `Transition.hpp` / `.cpp`, `BloomFilter.hpp` / `.cpp`, `HashUtils.hpp`, `Errors.hpp`
+**Files:** `State.hpp` / `.cpp`, `StateView.hpp`, `EthHost.hpp` / `.cpp`, `Account.hpp`, `StateDiff.hpp`, `BlockInfo.hpp`, `Transaction.hpp`, `EthPrecompiles.hpp` / `.cpp`, `CreateExecution.h`, `Transition.hpp` / `.cpp`, `BloomFilter.hpp` / `.cpp`, `HashUtils.hpp`, `Errors.hpp`
 
 **Design:**
 
@@ -276,7 +276,7 @@ runTxPipeline(ctx, hooks):
 ```
 eth/        bcos/                        opstack/
 ─────       ──────                       ────────
-State       FiscoEvmStateReader (adapter)     OpStackBlockHeaderExtension
+State       FiscoStateView (adapter)     OpStackBlockHeaderExtension
 StateView   FiscoHostExtension           OpHostExtension
 EthHost     FiscoPolicy                  OpStackFee
 HostExt.    FiscoRevisionConfig          OpStackForkSchedule

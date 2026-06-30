@@ -13,7 +13,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <optional>
@@ -90,13 +90,13 @@ BOOST_AUTO_TEST_CASE(nested_precompile_insufficient_balance_matches_envelope_tes
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 99);
 
     auto depth1 = runDepth1(state, message);
 
-    state::test::InMemoryEvmStateReader viewFrame;
+    state::test::InMemoryStateView viewFrame;
     state::State stateFrame(viewFrame);
     stateFrame.set_balance(sender, 99);
     auto frame = runFrameNested(stateFrame, message);
@@ -116,12 +116,12 @@ BOOST_AUTO_TEST_CASE(nested_successful_value_transfer_matches_envelope_test)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state, message);
 
-    state::test::InMemoryEvmStateReader viewFrame;
+    state::test::InMemoryStateView viewFrame;
     state::State stateFrame(viewFrame);
     stateFrame.set_balance(sender, 1'000'000);
     auto frame = runFrameNested(stateFrame, message);
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_precompile_blocked)
     message.input_size = inputBytes.size();
 
     DenyDelegatePrecompilePolicy policy;
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_direct_precompile_hits_envelope)
     message.input_data = inputBytes.data();
     message.input_size = inputBytes.size();
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_hit_sets_precompileHit)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(0), inputBytes);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_does_not_commit_before_adapter_nonce_bump)
     auto const target = addressFromLastByte(0x20);
     bcos::bytes stopCode{0x00};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     state.set_nonce(sender, 5);
@@ -260,7 +260,7 @@ BOOST_AUTO_TEST_CASE(top_level_create_checkpoint_before_bind_order)
     message.input_data = nullptr;
     message.input_size = 0;
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 50);
 
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(nested_create_insufficient_balance_characterization)
     message.input_data = nullptr;
     message.input_size = 0;
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 50);
 
@@ -300,12 +300,12 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_insufficient_balance_matches_envelope_
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 99);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 99);
     auto depth1 = runDepth1(state1, message);
@@ -325,12 +325,12 @@ BOOST_AUTO_TEST_CASE(top_level_successful_value_transfer_matches_envelope_test)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);
@@ -348,7 +348,7 @@ BOOST_AUTO_TEST_CASE(top_level_sender_nonce_bump_on_success)
     auto const target = addressFromLastByte(0x20);
     bcos::bytes stopCode{0x00};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     state.set_nonce(sender, 5);
@@ -377,7 +377,7 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_hit_skips_finalize_self_destructs)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(0), inputBytes);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     state.set_balance(victim, 500);
@@ -409,7 +409,7 @@ BOOST_AUTO_TEST_CASE(nested_create_failed_still_increments_sender_nonce)
     message.input_data = invalidInit;
     message.input_size = sizeof(invalidInit);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     state.set_nonce(sender, 7);
@@ -426,7 +426,7 @@ BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)
     auto const secondChild = state::predictLegacyCreateAddress(sender, 8);
     static uint8_t emptyInit[] = {0x60, 0x00, 0x60, 0x00, 0xf3};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
     state.set_nonce(sender, 7);
@@ -466,7 +466,7 @@ BOOST_AUTO_TEST_CASE(nested_create_reentrant_address_derivation_sees_pre_checkpo
     auto const secondChild = state::predictLegacyCreateAddress(deployer, 8);
     static uint8_t emptyInit[] = {0x60, 0x00, 0x60, 0x00, 0xf3};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_nonce(deployer, 7);
 

@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/l1/GasPriceOracleSelectors.h"
 #include "bcos-evm/opstack/l1/L1BlockStorage.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 
@@ -53,7 +53,7 @@ void releaseResult(evmc_result const& result)
 
 BOOST_AUTO_TEST_CASE(proxy_getter_reads_l1block_slot)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
 
     state::Account l1Block;
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(proxy_getter_reads_l1block_slot)
 
 BOOST_AUTO_TEST_CASE(base_fee_returns_injected_l2_base_fee)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
 
     auto result = GasPriceOraclePredeploy::dispatch(
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(base_fee_returns_injected_l2_base_fee)
 
 BOOST_AUTO_TEST_CASE(decimals_and_fork_flags_match_isthmus_profile)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
     auto const schedule = makeIsthmusPlusForkSchedule();
 
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(decimals_and_fork_flags_match_isthmus_profile)
 
 BOOST_AUTO_TEST_CASE(jovian_schedule_is_jovian_and_operator_fee_use_jovian_formula)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
 
     state::Account l1Block;
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(jovian_schedule_is_jovian_and_operator_fee_use_jovian_formu
 
 BOOST_AUTO_TEST_CASE(legacy_overhead_and_scalar_revert_after_ecotone)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
 
     auto overhead =

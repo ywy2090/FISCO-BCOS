@@ -4,9 +4,10 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -67,7 +68,7 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
+void setOpFeeParams(state::test::InMemoryStateView& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -78,9 +79,9 @@ void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecutionRequest makeNormalL2Input(state::test::InMemoryEvmStateReader& stateView,
-    evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
-    const evmc_address& recipient, int64_t gasLimit)
+OpStackExecutionRequest makeNormalL2Input(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+    const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient,
+    int64_t gasLimit)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -101,7 +102,7 @@ OpStackExecutionRequest makeNormalL2Input(state::test::InMemoryEvmStateReader& s
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 1;
     input.blockInfo.coinbase = addressFromLastByte(0x99);
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
     input.opTxExecutor.m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
@@ -111,7 +112,7 @@ OpStackExecutionRequest makeNormalL2Input(state::test::InMemoryEvmStateReader& s
 
 BOOST_AUTO_TEST_CASE(characterize_intrinsic_reject_gas_used_is_zero)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const recipient = addressFromLastByte(0x02);
     setOpFeeParams(stateView);
@@ -141,7 +142,7 @@ BOOST_AUTO_TEST_CASE(characterize_intrinsic_reject_gas_used_is_zero)
 
 BOOST_AUTO_TEST_CASE(characterize_completed_call_gas_used_positive)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x11);
     auto const recipient = addressFromLastByte(0x12);
     setOpFeeParams(stateView);

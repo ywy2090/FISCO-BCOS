@@ -1,7 +1,7 @@
 #include "bcos-evm/eth-eest-test/EthReferenceExecuteAdapter.h"
 
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
-#include "bcos-evm/eth-eest-test/TestEvmStateReader.h"
+#include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "bcos-evm/eth/AccessList.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/gas/Eip1559.h"
@@ -166,7 +166,7 @@ bool EthReferenceExecuteAdapter::supports(
 task::Task<ExecutionResult> EthReferenceExecuteAdapter::execute(
     StateTestCase const& testCase, StateSubtest const& subtest)
 {
-    TestEvmStateReader view;
+    TestStateView view;
     for (auto const& [address, account] : testCase.preState)
     {
         view.insertAccount(address, account);

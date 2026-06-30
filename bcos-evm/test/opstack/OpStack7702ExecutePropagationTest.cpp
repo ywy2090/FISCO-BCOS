@@ -6,10 +6,11 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -66,7 +67,7 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
+void setOpFeeParams(state::test::InMemoryStateView& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -95,7 +96,7 @@ OpStackExecutionRequest make7702Input(TestAuthKeyPair const& authKey, evmc_addre
     input.blockInfo.baseFee = 1;
     input.blockInfo.chainId = 1;
     input.blockInfo.coinbase = addressFromLastByte(0x99);
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
     input.opTxExecutor.m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
@@ -116,7 +117,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_propagates_authorizations_to_executeMessage)
     auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x32);
     auto const delegationTarget = addressFromLastByte(0x42);
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     setOpFeeParams(stateView);
 
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
@@ -149,7 +150,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_rejects_7702_intrinsic_below_25000_per_tuple
     auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x34);
     auto const delegationTarget = addressFromLastByte(0x43);
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     setOpFeeParams(stateView);
 
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
@@ -177,7 +178,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_charges_7702_intrinsic_25000_per_tuple)
     auto const sender = authKey.address();
     auto const recipient = addressFromLastByte(0x36);
     auto const delegationTarget = addressFromLastByte(0x44);
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     setOpFeeParams(stateView);
 
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 0});
@@ -212,7 +213,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
     std::vector<SetCodeAuthorization> const auths = {authorityKey.sign(delegationTarget, 0)};
 
     {
-        state::test::InMemoryEvmStateReader seededView;
+        state::test::InMemoryStateView seededView;
         state::Account authorityAccount;
         authorityAccount.nonce = 0;
         seededView.insert_account(authority, authorityAccount);
@@ -221,7 +222,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         BOOST_CHECK_EQUAL(seededState.get_refund(), kExistenceRefund);
     }
     {
-        state::test::InMemoryEvmStateReader freshView;
+        state::test::InMemoryStateView freshView;
         state::State freshState(freshView);
         applyAuthorizations(freshState, auths, u256(1));
         BOOST_CHECK_EQUAL(freshState.get_refund(), 0u);
@@ -233,7 +234,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
     auto const runOpStackCase = [&](bool preSeedAuthority) {
         auto const authorityKey = TestAuthKeyPair::generate();
         auto const authorityAddr = authorityKey.address();
-        state::test::InMemoryEvmStateReader stateView;
+        state::test::InMemoryStateView stateView;
         auto const sender = addressFromLastByte(0x51);
         auto const recipient = addressFromLastByte(0x52);
         auto const delegationTargetAddr = addressFromLastByte(0x55);
@@ -270,7 +271,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
     auto const runExecuteMessageRefund = [&](bool preSeedAuthority) {
         auto const authorityKey = TestAuthKeyPair::generate();
         auto const authorityAddr = authorityKey.address();
-        state::test::InMemoryEvmStateReader stateView;
+        state::test::InMemoryStateView stateView;
         auto const sender = addressFromLastByte(0x61);
         auto const recipient = addressFromLastByte(0x62);
         auto const delegationTargetAddr = addressFromLastByte(0x65);
@@ -304,7 +305,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_refunds_existence_cost_when_authority_alread
         input.blockInfo.number = 1;
         input.blockInfo.chainId = 1;
         input.blockInfo.gasLimit = 30'000'000;
-        input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+        input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
         input.authorizationListPresent = true;
         input.authorizations.push_back(authorityKey.sign(delegationTargetAddr, 0));
 

@@ -42,12 +42,12 @@ BOOST_AUTO_TEST_CASE(c5_insufficient_balance_both_depths)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 99);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 99);
     auto depth1 = runDepth1(state1, message);
@@ -69,12 +69,12 @@ BOOST_AUTO_TEST_CASE(precompile_router_insufficient_balance_gas_preservation_cha
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 99);
     auto const depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 99);
     auto const depth1 = runDepth1(state1, message);
@@ -96,12 +96,12 @@ BOOST_AUTO_TEST_CASE(successful_value_transfer_balances_match_depth0_and_depth1)
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const message = valueTransferMessage(sender, identity, weiValue(100), inputBytes);
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);
@@ -126,12 +126,12 @@ BOOST_AUTO_TEST_CASE(value_transfer_then_precompile_failure_reverts_balances_bot
         weiValue(static_cast<uint8_t>(transferAmount)), invalidPairingInput.data(),
         invalidPairingInput.size());
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, initialSenderBalance);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, initialSenderBalance);
     auto depth1 = runDepth1(state1, message);

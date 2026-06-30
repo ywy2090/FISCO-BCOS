@@ -4,7 +4,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoExecute.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(balance_transfer_gas_constant_documents_deviation)
 
 BOOST_AUTO_TEST_CASE(fiscoExecute_debits_balance_transfer_gas_before_evm)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x01);
     auto const target = addressFromLastByte(0x02);
 

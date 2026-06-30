@@ -4,11 +4,12 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryPrecheck.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -47,7 +48,7 @@ evmc_bytes32 packFeeScalars(uint32_t baseFeeScalar, uint32_t blobBaseFeeScalar)
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
+void setOpFeeParams(state::test::InMemoryStateView& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -95,7 +96,7 @@ OpStackExecutionRequest makeBlobPreCheckInput(evmc_address sender)
 
 BOOST_AUTO_TEST_CASE(blob_hashes_without_blob_gas_fee_cap_is_rejected)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x90);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
     state::State state(stateView);
@@ -112,7 +113,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_without_blob_gas_fee_cap_is_rejected)
 
 BOOST_AUTO_TEST_CASE(blob_hashes_rejected_when_eip4844_disabled)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x8f);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
     state::State state(stateView);
@@ -129,7 +130,7 @@ BOOST_AUTO_TEST_CASE(blob_hashes_rejected_when_eip4844_disabled)
 
 BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x91);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
     state::State state(stateView);
@@ -146,7 +147,7 @@ BOOST_AUTO_TEST_CASE(blob_gas_fee_cap_under_blob_base_fee_is_rejected)
 
 BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x93);
     auto const initialBalance = u256(3'000'000);
     stateView.insert_account(sender, state::Account{.balance = initialBalance, .nonce = 0});
@@ -154,7 +155,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 1'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
@@ -179,14 +180,14 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
 
 BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x94);
     stateView.insert_account(sender, state::Account{.balance = u256(1'500'000), .nonce = 0});
 
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 1'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
@@ -209,7 +210,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
 
 BOOST_AUTO_TEST_CASE(l1_blob_base_fee_slot_does_not_set_execution_blob_base_fee)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x94);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000), .nonce = 0});
     state::Account l1BlockAccount;
@@ -230,7 +231,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_deducts_blob_fee_on_success)
 {
     auto const initialBalance = u256(50'000'000'000);
     auto runCase = [&](bool withBlobVersionedHashes) -> u256 {
-        state::test::InMemoryEvmStateReader stateView;
+        state::test::InMemoryStateView stateView;
         auto const sender = addressFromLastByte(0x95);
         auto const target = addressFromLastByte(0x96);
         setOpFeeParams(stateView);
@@ -252,7 +253,7 @@ BOOST_AUTO_TEST_CASE(opStackExecute_deducts_blob_fee_on_success)
         input.nonce = 0;
         input.gasTipCap = 1;
         input.gasFeeCap = 2;
-        input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+        input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
         input.blockInfo.baseFee = 1;
         input.blockInfo.blobBaseFee = 10;
         input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};

@@ -21,7 +21,7 @@
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-utilities/DataConvertUtility.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <fmt/compile.h>
 #include <fmt/format.h>
 #include <boost/test/included/unit_test.hpp>
@@ -263,7 +263,7 @@ BOOST_AUTO_TEST_SUITE(FiscoAddressDerivationNestedCharacterization)
 
 BOOST_AUTO_TEST_CASE(nested_fisco_hash_increments_nested_seq)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const origin = addressFromTailByte(0x61);
     auto const contract = addressFromTailByte(0x62);
@@ -291,7 +291,7 @@ BOOST_AUTO_TEST_CASE(nested_fisco_hash_increments_nested_seq)
 
 BOOST_AUTO_TEST_CASE(nested_legacy_web3_reads_state_nonce_not_tx_nonce_param)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const origin = addressFromTailByte(0x71);
     auto const contract = addressFromTailByte(0x72);
@@ -320,7 +320,7 @@ BOOST_AUTO_TEST_CASE(nested_legacy_web3_reads_state_nonce_not_tx_nonce_param)
 
 BOOST_AUTO_TEST_CASE(nested_feature_evm_address_enables_legacy_without_web3_tx)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const origin = addressFromTailByte(0x81);
     auto const contract = addressFromTailByte(0x82);
@@ -346,7 +346,7 @@ BOOST_AUTO_TEST_CASE(nested_feature_evm_address_enables_legacy_without_web3_tx)
 
 BOOST_AUTO_TEST_CASE(top_level_depth_zero_skips_nested_prepare_derivation)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const origin = addressFromTailByte(0x91);
     auto message = makeEmptyCreateMessage(origin, /*depth=*/0);
@@ -376,7 +376,7 @@ BOOST_AUTO_TEST_SUITE(FiscoAddressDerivationOpenQuestions)
 // OQ1: nested legacy nonce — EvmHostHooks(state) vs Policy::deriveMessage(tx nonce).
 BOOST_AUTO_TEST_CASE(oq1_nested_legacy_nonce_oracle_diverges_from_policy_derive)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const origin = addressFromTailByte(0xA1);
     auto const contract = addressFromTailByte(0xA2);
@@ -442,7 +442,7 @@ BOOST_AUTO_TEST_CASE(oq2_create2_deployer_top_level_uses_sender_only)
 
 BOOST_AUTO_TEST_CASE(oq2_create2_deployer_nested_prefers_caller_address)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const origin = addressFromTailByte(0xC1);
     auto const contract = addressFromTailByte(0xC2);

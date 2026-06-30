@@ -14,7 +14,7 @@
 #include "bcos-evm/eth/state/EthHost.hpp"
 #include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "fixtures/EthFrameParityHelpers.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <cstring>
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(resolve_frame_target_7702_call_uses_authority)
     auto const identity = precompileAddress(0x04);
     auto message = delegatedCallToAuthority(authority, identity);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const target =
         execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::Nested);
@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(resolve_frame_target_direct_identity_call)
     message.recipient = identity;
     message.code_address = identity;
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const target =
         execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::TopLevel);
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(delegatecall_to_precompile_blocked_at_router_seam)
     message.input_size = inputBytes.size();
 
     DenyDelegatePrecompilePolicy policy;
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto const resolved =
         execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::Nested);
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE(dispatch_not_applicable_for_7702_delegation_to_precompile)
     auto const identity = precompileAddress(0x04);
     auto delegationCode = addressToDelegation(identity);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_code(authority, delegationCode,
         state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
@@ -173,14 +173,14 @@ BOOST_AUTO_TEST_CASE(delegated_precompile_runs_empty_code_depth_parity)
     auto const identity = precompileAddress(0x04);
     auto delegationCode = addressToDelegation(identity);
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_code(authority, delegationCode,
         state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
     auto message0 = delegatedCallToAuthority(authority, identity);
     auto depth0 = runDepth0With7702(state0, message0);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_code(authority, delegationCode,
         state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));

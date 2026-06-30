@@ -9,7 +9,7 @@
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <stdexcept>
@@ -36,7 +36,7 @@ void invokePipelineException(
 // O-IGF-01: intrinsic failure maps to OutOfGasLimit regardless of failure kind.
 BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_maps_to_out_of_gas_limit)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 21'000;
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_maps_to_out_of_gas_limit)
 // O-IGF-02: failure reason is ignored (same result for GasLimitMinimum).
 BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_ignores_failure_kind)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 21'000;
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_ignores_failure_kind)
 // O-PEX-01 / O-PEX-02: any pipeline exception maps to internal error.
 BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_maps_to_internal_error)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_maps_to_internal_error)
 
 BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_treats_out_of_gas_like_generic)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_treats_out_of_gas_like_generic)
 // O-PEX-03: pipeline exception reverts an open checkpoint.
 BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_address sender{};
     sender.bytes[19] = 0x03;
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
 // O-PEN-01: OpStack inherits base noop post-execute normalization.
 BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.depth = 0;
@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
 // O-PCO-01: OpStack inherits base noop pipeline-complete hook.
 BOOST_AUTO_TEST_CASE(opstack_pipeline_complete_is_noop)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_complete_is_noop)
 // INT-03: runTxPipeline routes OpStack intrinsic failures through error policy.
 BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.kind = EVMC_CALL;

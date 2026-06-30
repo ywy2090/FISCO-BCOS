@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/SetCodeAuthorizationTestHelper.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(auth_with_zero_target_clears_existing_delegation_code)
     auto const recipient = addressFromLastByte(0x62);
     auto const previousTarget = addressFromLastByte(0x63);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     state::Account senderAccount;
     senderAccount.nonce = 0;
     senderAccount.balance = 100;

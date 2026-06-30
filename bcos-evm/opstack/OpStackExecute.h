@@ -22,7 +22,7 @@ namespace bcos::evm
 {
 struct OpStackExecutionRequest
 {
-    state::EvmStateReader const* stateView{nullptr};
+    state::StateView const* stateView{nullptr};
     evmc::VM* vm{nullptr};
     bcos::crypto::Hash const* hashImpl{nullptr};
     evmc_message message{};

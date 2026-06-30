@@ -3,7 +3,7 @@
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/eth/execution/CallTargetResolver.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 #include <set>
@@ -28,7 +28,7 @@ evmc_message makeCall(evmc_address target)
 
 BOOST_AUTO_TEST_CASE(classify_l1_block_and_gas_oracle)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     OpStackChainCallTargetAdapter adapter(&state, bcos::u256(0), makeIsthmusPlusForkSchedule(), 0);
 
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(enumerate_static_warm_targets)
 
 BOOST_AUTO_TEST_CASE(invariant_classify_warm_policy_matches_static_warm_enumerate)
 {
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
     OpStackChainCallTargetAdapter adapter(&state, bcos::u256(0), makeIsthmusPlusForkSchedule(), 0);
 

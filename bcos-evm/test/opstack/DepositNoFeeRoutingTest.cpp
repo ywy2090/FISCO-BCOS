@@ -5,7 +5,7 @@
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -49,7 +49,7 @@ uint64_t nonceFromDiff(
     return it->second.nonce;
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView,
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateView,
     evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
     const evmc_address& recipient)
 {
@@ -83,7 +83,7 @@ OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& st
 
 BOOST_AUTO_TEST_CASE(deposit_skips_fee_routing_recipients)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const target = addressFromLastByte(0x42);
     auto const coinbase = addressFromLastByte(0x99);
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(deposit_skips_fee_routing_recipients)
 
 BOOST_AUTO_TEST_CASE(deposit_failure_reverts_execution_but_keeps_mint_and_bumps_nonce)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x51);
     auto const target = addressFromLastByte(0x52);
 
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_execution_but_keeps_mint_and_bumps_
 
 BOOST_AUTO_TEST_CASE(deposit_entry_failure_bumps_nonce_and_uses_gas_limit)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x61);
     auto const target = addressFromLastByte(0x62);
 

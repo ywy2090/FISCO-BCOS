@@ -50,7 +50,7 @@ struct TxPipelineInputs
 class TxPipelineContext
 {
 public:
-    TxPipelineContext(state::EvmStateReader const& stateView, evmc_message inputMessage,
+    TxPipelineContext(state::StateView const& stateView, evmc_message inputMessage,
         bcos::evm_standard::RevisionConfig inputRevisionConfig, intx::uint256 inputGasPrice)
       : message(inputMessage),
         originalGasLimit(inputMessage.gas),
@@ -61,7 +61,7 @@ public:
         execution::setWarmDestinationFromKind(txProps, message.kind);
     }
 
-    TxPipelineContext(state::EvmStateReader const& stateView, evmc_message inputMessage,
+    TxPipelineContext(state::StateView const& stateView, evmc_message inputMessage,
         bcos::evm_standard::RevisionConfig inputRevisionConfig, bcos::u256 inputGasPrice)
       : message(inputMessage),
         originalGasLimit(inputMessage.gas),

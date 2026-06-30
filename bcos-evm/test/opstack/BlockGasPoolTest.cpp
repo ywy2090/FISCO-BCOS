@@ -4,9 +4,10 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -64,7 +65,7 @@ evmc_bytes32 packOperatorFeeParams(uint32_t operatorFeeScalar, uint64_t operator
     return out;
 }
 
-void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
+void setOpFeeParams(state::test::InMemoryStateView& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -75,9 +76,8 @@ void setOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecutionRequest makeExecuteInput(state::test::InMemoryEvmStateReader& stateView,
-    evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
-    const evmc_address& recipient)
+OpStackExecutionRequest makeExecuteInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+    const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -98,7 +98,7 @@ OpStackExecutionRequest makeExecuteInput(state::test::InMemoryEvmStateReader& st
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 1;
     input.blockInfo.coinbase = addressFromLastByte(0x99);
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
     input.opTxExecutor.m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(second_tx_fails_when_pool_exhausted)
 
 BOOST_AUTO_TEST_CASE(opstack_execute_subgas_and_return_on_success)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const target = addressFromLastByte(0x42);
     setOpFeeParams(stateView);

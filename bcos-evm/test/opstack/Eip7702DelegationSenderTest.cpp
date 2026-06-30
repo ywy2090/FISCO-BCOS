@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/Eip7702.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "helpers/OpStackEntryPrecheck.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
@@ -33,7 +33,7 @@ OpStackExecutionRequest makeInput(evmc_address sender)
 
 BOOST_AUTO_TEST_CASE(sender_with_delegation_code_passes_precheck)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const delegationTarget = addressFromLastByte(0x42);
 
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(sender_with_delegation_code_passes_precheck)
 
 BOOST_AUTO_TEST_CASE(sender_with_non_delegation_code_is_rejected)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x51);
 
     state::Account senderAccount;

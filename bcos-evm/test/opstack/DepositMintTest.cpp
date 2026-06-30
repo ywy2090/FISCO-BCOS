@@ -3,7 +3,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -47,7 +47,7 @@ uint64_t nonceFromDiff(
     return it->second.nonce;
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& stateView,
+OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateView,
     evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
     const evmc_address& recipient)
 {
@@ -83,7 +83,7 @@ OpStackExecutionRequest makeDepositInput(state::test::InMemoryEvmStateReader& st
 
 BOOST_AUTO_TEST_CASE(deposit_mint_is_applied_before_execution)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x31);
     auto const target = addressFromLastByte(0x32);
 

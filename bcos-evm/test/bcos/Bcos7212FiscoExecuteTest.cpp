@@ -3,7 +3,7 @@
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <evmone/evmone.h>
@@ -59,7 +59,7 @@ bcos::evm_standard::RevisionConfig osakaEthRevisionConfig()
 
 BOOST_AUTO_TEST_CASE(executeMessage_feature_evm_osaka_p256verify_success)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = senderAddress();
     auto const p256 = p256Address();
 

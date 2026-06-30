@@ -4,12 +4,13 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-framework/executor/OpStackTxType.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmc/evmc.h>
 #include <functional>
 
@@ -90,7 +91,7 @@ inline evmc_bytes32 packLifecycleOperatorFeeParams(
     return out;
 }
 
-inline void setLifecycleOpFeeParams(state::test::InMemoryEvmStateReader& stateView)
+inline void setLifecycleOpFeeParams(state::test::InMemoryStateView& stateView)
 {
     state::Account l1BlockAccount;
     l1BlockAccount.storage[state::toEvmC(L1_BASE_FEE_SLOT)] = state::toEvmC(u256(31'250));
@@ -123,17 +124,16 @@ inline uint64_t lifecycleNonceFromDiff(
 }
 
 inline void installAlwaysRevertCode(
-    state::test::InMemoryEvmStateReader& stateView, const evmc_address& recipient)
+    state::test::InMemoryStateView& stateView, const evmc_address& recipient)
 {
     // PUSH1 0 PUSH1 0 REVERT
     bcos::bytes revertCode{0x60, 0x00, 0x60, 0x00, 0xfd};
     stateView.insert_account(recipient, state::Account{.code = std::move(revertCode)});
 }
 
-inline OpStackExecutionRequest makeLifecycleNormalInput(
-    state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm, const crypto::Hash& hash,
-    const evmc_address& sender, const evmc_address& recipient, int64_t gasLimit,
-    LifecycleGasPoolSpy& gasPoolSpy)
+inline OpStackExecutionRequest makeLifecycleNormalInput(state::test::InMemoryStateView& stateView,
+    evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
+    const evmc_address& recipient, int64_t gasLimit, LifecycleGasPoolSpy& gasPoolSpy)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -155,7 +155,7 @@ inline OpStackExecutionRequest makeLifecycleNormalInput(
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 2;
     input.blockInfo.coinbase = lifecycleAddressFromLastByte(0x99);
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
     auto const poolHooks = gasPoolSpy.hooks();
@@ -164,10 +164,10 @@ inline OpStackExecutionRequest makeLifecycleNormalInput(
     return input;
 }
 
-inline OpStackExecutionRequest makeLifecycleDepositInput(
-    state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm, const crypto::Hash& hash,
-    const evmc_address& sender, const evmc_address& recipient, int64_t gasLimit,
-    LifecycleGasPoolSpy& gasPoolSpy, std::optional<u256> mint = std::nullopt)
+inline OpStackExecutionRequest makeLifecycleDepositInput(state::test::InMemoryStateView& stateView,
+    evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
+    const evmc_address& recipient, int64_t gasLimit, LifecycleGasPoolSpy& gasPoolSpy,
+    std::optional<u256> mint = std::nullopt)
 {
     evmc_message message{};
     message.kind = EVMC_CALL;
@@ -187,7 +187,7 @@ inline OpStackExecutionRequest makeLifecycleDepositInput(
     input.blockInfo.timestamp = 12345;
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 1;
-    input.revisionConfig = bcos::evm_standard::makeIsthmusRevisionConfig();
+    input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     input.txProps.warmDestination = true;
     input.skipTransactionChecks = true;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;

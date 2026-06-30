@@ -2,12 +2,13 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -25,14 +26,14 @@ evmc_address fromLastByte(uint8_t value)
 
 BOOST_AUTO_TEST_CASE(buyGas_failure_records_result_on_ctx_not_fee_context)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = fromLastByte(0x43);
     stateView.insert_account(sender, state::Account{.balance = u256(1)});
 
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 50'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackExecutionRequest input;
@@ -51,14 +52,14 @@ BOOST_AUTO_TEST_CASE(buyGas_failure_records_result_on_ctx_not_fee_context)
 
 BOOST_AUTO_TEST_CASE(buyGas_uses_ctx_message_not_fee_context_copy)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = fromLastByte(0x42);
     stateView.insert_account(sender, state::Account{.balance = u256(1'000'000)});
 
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 50'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackExecutionRequest input;
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE(buyGas_uses_ctx_message_not_fee_context_copy)
 
 BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = fromLastByte(0x01);
     auto const coinbase = fromLastByte(0x02);
 
@@ -88,7 +89,7 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 1'000;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
@@ -124,7 +125,7 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
 
 BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = fromLastByte(0x11);
     auto const coinbase = fromLastByte(0x12);
 
@@ -135,7 +136,7 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     evmc_message msg{};
     msg.sender = sender;
     msg.gas = 500;
-    auto revision = bcos::evm_standard::makeIsthmusRevisionConfig();
+    auto revision = bcos::evm::makeIsthmusRevisionConfig();
     TxPipelineContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;

@@ -18,14 +18,14 @@
 
 #include "bcos-evm/eth/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
 BOOST_AUTO_TEST_CASE(nested_insufficient_balance_returns_false)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN};
 

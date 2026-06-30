@@ -11,7 +11,7 @@
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <array>
@@ -144,12 +144,12 @@ BOOST_AUTO_TEST_CASE(c1_identity_depth0_equals_depth1)
     message.input_data = inputBytes.data();
     message.input_size = inputBytes.size();
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);
@@ -170,13 +170,13 @@ BOOST_AUTO_TEST_CASE(c2_chain_hook_depth0_equals_depth1)
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     OpStackChainCallTargetAdapter chainAdapter0(&state0, 0, makeIsthmusPlusForkSchedule(), 0);
     state0.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
     auto depth0 = runDepth0(state0, message, &chainAdapter0);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     OpStackChainCallTargetAdapter chainAdapter1(&state1, 0, makeIsthmusPlusForkSchedule(), 0);
     state1.set_balance(OP_DEPOSITOR_ACCOUNT, 1'000'000);
@@ -197,12 +197,12 @@ BOOST_AUTO_TEST_CASE(c3_empty_eoa_depth0_equals_depth1)
     message.recipient = target;
     message.code_address = target;
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);
@@ -227,12 +227,12 @@ BOOST_AUTO_TEST_CASE(c5_value_transfer_depth0_equals_depth1)
     message.input_data = inputBytes.data();
     message.input_size = inputBytes.size();
 
-    state::test::InMemoryEvmStateReader view0;
+    state::test::InMemoryStateView view0;
     state::State state0(view0);
     state0.set_balance(sender, 1'000'000);
     auto depth0 = runDepth0(state0, message);
 
-    state::test::InMemoryEvmStateReader view1;
+    state::test::InMemoryStateView view1;
     state::State state1(view1);
     state1.set_balance(sender, 1'000'000);
     auto depth1 = runDepth1(state1, message);

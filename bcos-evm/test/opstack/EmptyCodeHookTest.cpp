@@ -4,7 +4,7 @@
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackForkSchedule.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -20,7 +20,7 @@ bytes setterSelector()
 
 BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
 {
-    state::test::InMemoryEvmStateReader baseState;
+    state::test::InMemoryStateView baseState;
     state::State state(baseState);
     OpStackChainCallTargetAdapter chainAdapter(&state, 0, makeIsthmusPlusForkSchedule(), 0);
     evmc::VM vm{evmc_create_evmone()};

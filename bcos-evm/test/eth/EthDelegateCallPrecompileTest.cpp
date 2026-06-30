@@ -19,7 +19,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/EvmHostHooks.h"
 #include "fixtures/EthFrameParityHelpers.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <cstring>
@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(resolver_delegatecall_to_identity_is_builtin_precompile_eth
     evmc_message msg = delegateCallIdentityMessage(addressFromLastByte(0x01), caller, {0x01, 0x02, 0x03, 0x04});
     msg.depth = 1;
 
-    state::test::InMemoryEvmStateReader base;
+    state::test::InMemoryStateView base;
     state::State state{base};
 
     auto frame = execution::resolveFrameTarget(state, {.revision = EVMC_PRAGUE, .warm_access = true},
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_identity_hits_precompile_envelope)
     auto const caller = addressFromLastByte(0x02);
     auto const message = delegateCallIdentityMessage(sender, caller, inputBytes);
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
@@ -152,12 +152,12 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_identity_matches_eth_host_call)
     auto const caller = addressFromLastByte(0x02);
     auto const message = delegateCallIdentityMessage(sender, caller, inputBytes);
 
-    state::test::InMemoryEvmStateReader viewFrame;
+    state::test::InMemoryStateView viewFrame;
     state::State stateFrame(viewFrame);
     stateFrame.set_balance(sender, 1'000'000);
     auto frameOutcome = runNestedExecutionFrame(stateFrame, message);
 
-    state::test::InMemoryEvmStateReader viewHost;
+    state::test::InMemoryStateView viewHost;
     state::State stateHost(viewHost);
     stateHost.set_balance(sender, 1'000'000);
     auto hostOutcome = runNestedEthHostCall(stateHost, message);
@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(top_level_executeMessage_delegatecall_identity_allowed)
     auto message = delegateCallIdentityMessage(sender, caller, inputBytes);
     message.depth = 0;
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
@@ -205,7 +205,7 @@ BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_direct_precompile_with_evmc_dele
     auto message = delegateCallIdentityMessage(sender, caller, inputBytes);
     message.flags = EVMC_DELEGATED;
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 
@@ -225,7 +225,7 @@ BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_to_authority_runs_empty_code_not
     auto delegationCode = addressToDelegation(identity);
     std::array<uint8_t, 4> inputBytes{0x01, 0x02, 0x03, 0x04};
 
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(addressFromLastByte(0x01), 1'000'000);
     state.set_code(authority, delegationCode,
@@ -256,7 +256,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_rejects_delegatecall_precompile_even_with_dele
     message.flags = EVMC_DELEGATED;
 
     DenyDelegatePrecompilePolicy policy;
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(sender, 1'000'000);
 

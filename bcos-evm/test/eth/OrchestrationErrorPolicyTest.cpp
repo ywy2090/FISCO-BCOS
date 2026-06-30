@@ -7,7 +7,7 @@
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <stdexcept>
 
@@ -33,7 +33,7 @@ void invokePipelineException(
 // E-IGF-01: intrinsic failure maps to OutOfGasLimit with zero gas left.
 BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_maps_to_out_of_gas_limit)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 5'000;
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_maps_to_out_of_gas_limit)
 // E-IGF-02: intrinsic failure reason does not change the mapped result.
 BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_ignores_failure_kind)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.gas = 5'000;
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_ignores_failure_kind)
 // E-PEX-02: generic BCOS exception maps to internal error.
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_generic_exception)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_generic_exception)
 // propagate throw.
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_non_out_of_gas_bcos_exception)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_non_out_of_gas_bcos_exception)
 // without throw (see eth_pipeline_exception_maps_generic_exception).
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_runtime_error_currently_propagates)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_runtime_error_currently_propagates)
 // GAP-003 E-PEX-06: policy handler swallows mapped BCOS exceptions (no escape to caller).
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_handler_does_not_rethrow)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_handler_does_not_rethrow)
 // E-PEX-04: pipeline exception without checkpoint does not revert state.
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_without_checkpoint_leaves_state)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_address sender{};
     sender.bytes[19] = 0x02;
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_without_checkpoint_leaves_state)
 // E-PCO-01: Eth pipeline-complete hook is a noop.
 BOOST_AUTO_TEST_CASE(eth_pipeline_complete_is_noop)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -193,7 +193,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_complete_is_noop)
 // E-PEX-01: OutOfGas exception maps to OutOfGasLimit.
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_out_of_gas)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     TxPipelineContext ctx{stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_out_of_gas)
 // E-PEX-03: pipeline exception reverts an open checkpoint.
 BOOST_AUTO_TEST_CASE(eth_pipeline_exception_reverts_open_checkpoint)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_address sender{};
     sender.bytes[19] = 0x01;
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_reverts_open_checkpoint)
 
 BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_included_top_level_vmerr)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.depth = 0;
@@ -260,7 +260,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_included_top_level_vmerr)
 
 BOOST_AUTO_TEST_CASE(eth_post_execute_skips_nested_vmerr_normalization)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.depth = 1;
@@ -280,7 +280,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_skips_nested_vmerr_normalization)
 
 BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_set_code_revert_at_top_level)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.depth = 0;
@@ -303,7 +303,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_set_code_revert_at_top_level)
 // E-PEN-04: top-level REVERT without authorization list stays reverted.
 BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_top_level_revert_without_auth_list)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.depth = 0;
@@ -327,7 +327,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_top_level_revert_without_auth_list)
 // E-PEN-05: SUCCESS post-execute path is unchanged.
 BOOST_AUTO_TEST_CASE(eth_post_execute_leaves_success_unchanged)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.depth = 0;
@@ -350,7 +350,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_leaves_success_unchanged)
 // E-PEN-06: INSUFFICIENT_BALANCE is not treated as included top-level vmerr.
 BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_insufficient_balance_at_top_level)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
 
     evmc_message message{};
     message.depth = 0;

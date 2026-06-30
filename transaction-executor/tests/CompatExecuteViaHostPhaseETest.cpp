@@ -17,7 +17,7 @@
 #include "bcos-framework/protocol/Protocol.h"
 #include "bcos-tars-protocol/protocol/BlockHeaderImpl.h"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledManager.h"
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-task/Wait.h>
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(TE_FC_E_P_address_routing_prefix_overlap)
         return std::nullopt;
     };
     bcos::evm::test::InMemoryChainPrecompileAdapter port(std::move(callback));
-    bcos::evm::state::test::InMemoryEvmStateReader baseView;
+    bcos::evm::state::test::InMemoryStateView baseView;
     bcos::evm::state::State state(baseView);
     bcos::evm::FiscoChainCallTargetAdapter adapter(state, port);
 

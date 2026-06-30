@@ -40,6 +40,7 @@ public:
     {
         bool fix_auth_check{false};
         bool use_raw_address{false};
+        bool fix_storage_status{false};
         bool fix_nonce_init{false};
         bool web3Tx{false};
         int64_t createLevel{0};
@@ -73,6 +74,18 @@ public:
     void prepareMessage(evmc_revision rev, evmc_message& msg) override;
     void setCallerAddress(const evmc_address& caller) override;
     void bumpContractCreateNonce(const evmc_address& contractAddress) override;
+
+    void applySstoreRefund(state::State& state, evmc_bytes32 const& current,
+        evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept override;
+
+    evmc_storage_status classifyStorageStatus(evmc_bytes32 const& original,
+        evmc_bytes32 const& current, evmc_bytes32 const& newValue) const noexcept override;
+
+    void applyLegacySstoreDeletedRefund(
+        state::State& state, evmc_storage_status status) const noexcept override;
+
+    void finalizeTopLevelCreateNonce(
+        state::State& state, evmc_address const& createAddr) noexcept override;
 
 private:
     static bool isZeroAddress(const evmc_address& address) noexcept;

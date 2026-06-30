@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/ApplyStateDiffToView.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -62,7 +62,7 @@ ExecuteMessageInput makeCallInput(state::State& state, evmc::VM& vm, evmc_addres
 
 BOOST_AUTO_TEST_CASE(tstore_tload_returns_value_within_transaction)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x11);
     auto const contract = addressFromLastByte(0x22);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(tstore_tload_returns_value_within_transaction)
 
 BOOST_AUTO_TEST_CASE(transient_storage_does_not_persist_across_transactions)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x31);
     auto const contract = addressFromLastByte(0x32);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(transient_storage_does_not_persist_across_transactions)
 
 BOOST_AUTO_TEST_CASE(transient_storage_cleared_when_reusing_state_across_transactions)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x51);
     auto const contract = addressFromLastByte(0x52);
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_CASE(transient_storage_cleared_when_reusing_state_across_transac
 
 BOOST_AUTO_TEST_CASE(transient_storage_reverts_with_call_frame)
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x41);
     auto const contract = addressFromLastByte(0x42);
     // TSTORE slot 0 = 42, then REVERT with empty returndata

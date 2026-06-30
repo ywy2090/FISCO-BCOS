@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/pipeline/TxPipelineContext.h"
+#include "bcos-evm/opstack/OpStackChainPolicy.h"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "bcos-evm/opstack/OpStackExecute.h"
 #include "bcos-evm/opstack/OpStackFeeSettlement.h"
@@ -10,7 +11,7 @@
 #include "bcos-evm/opstack/OpStackSettlement.h"
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
@@ -52,7 +53,7 @@ inline evmc_message makeMessage(evmc_address const& sender, int64_t gasLimit)
 
 struct NormalSettleFixture
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_address sender{};
     evmc_address coinbase{};
     evmc_message message{};
@@ -70,7 +71,7 @@ struct NormalSettleFixture
       : sender(addressFromLastByte(0x01)),
         coinbase(addressFromLastByte(0x02)),
         message(makeMessage(sender, gasLimit)),
-        ctx(stateView, message, bcos::evm_standard::makeIsthmusRevisionConfig(), bcos::u256(0)),
+        ctx(stateView, message, bcos::evm::makeIsthmusRevisionConfig(), bcos::u256(0)),
         view(ctx, input, sidecar),
         settlement(ledger)
     {
@@ -135,7 +136,7 @@ inline void assertCompleteOutputMatchesFinalizeOracle(
 
 struct DepositSettleFixture
 {
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     evmc_address sender{};
     evmc_message message{};
     TxPipelineContext ctx;
@@ -145,7 +146,7 @@ struct DepositSettleFixture
         int64_t gasLimit, TxPipelineExitKind exitKind, evmc_status_code evmStatus, int64_t gasLeft)
       : sender(addressFromLastByte(0x61)),
         message(makeMessage(sender, gasLimit)),
-        ctx(stateView, message, bcos::evm_standard::makeIsthmusRevisionConfig(), bcos::u256(0))
+        ctx(stateView, message, bcos::evm::makeIsthmusRevisionConfig(), bcos::u256(0))
     {
         stateView.insert_account(sender, state::Account{.balance = 0, .nonce = 5});
 

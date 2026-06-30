@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/ExecuteMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <evmone/instructions_traits.hpp>
@@ -82,7 +82,7 @@ int64_t gasUsed(int64_t gasLimit, evmc::Result const& result)
     return gasLimit - result.gas_left;
 }
 
-ExecuteMessageOutput runCallerContract(state::test::InMemoryEvmStateReader& stateView, evmc::VM& vm,
+ExecuteMessageOutput runCallerContract(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     evmc_address const& sender, evmc_address const& caller, bcos::bytes const& callerCode,
     int64_t gasLimit = 500'000)
 {
@@ -112,7 +112,7 @@ ExecuteMessageOutput runCallerContract(state::test::InMemoryEvmStateReader& stat
     return executeMessage(std::move(input));
 }
 
-void installDelegation(state::test::InMemoryEvmStateReader& stateView,
+void installDelegation(state::test::InMemoryStateView& stateView,
     evmc_address const& authority, evmc_address const& implementation)
 {
     auto const delegation = addressToDelegation(implementation);
@@ -122,7 +122,7 @@ void installDelegation(state::test::InMemoryEvmStateReader& stateView,
                 bcos::bytesConstRef{delegation.data(), delegation.size()})});
 }
 
-void installStopImplementation(state::test::InMemoryEvmStateReader& stateView,
+void installStopImplementation(state::test::InMemoryStateView& stateView,
     evmc_address const& implementation)
 {
     stateView.insert_account(implementation, state::Account{.code = bcos::bytes{0x00}});
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(delegated_call_cold_charges_2600_over_direct_call)
     auto const authority = addressFromLastByte(0xFF);
     auto const implementation = addressFromLastByte(0xAA);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
     installStopImplementation(stateView, implementation);
     installDelegation(stateView, authority, implementation);
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(delegated_call_second_charges_warm_100_over_direct_second_c
     auto const authority = addressFromLastByte(0xFF);
     auto const implementation = addressFromLastByte(0xAA);
 
-    state::test::InMemoryEvmStateReader stateView;
+    state::test::InMemoryStateView stateView;
     stateView.insert_account(sender, state::Account{.balance = 1'000'000, .nonce = 1});
     installStopImplementation(stateView, implementation);
     installDelegation(stateView, authority, implementation);

@@ -18,7 +18,7 @@
 
 #include "bcos-evm/eth/execution/FrameTargetResolver.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
 
@@ -46,7 +46,7 @@ void requireAddressEqual(evmc_address const& actual, evmc_address const& expecte
 
 BOOST_AUTO_TEST_CASE(nested_create_fills_recipient_and_pins_warm)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
 
@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(nested_create_fills_recipient_and_pins_warm)
 
 BOOST_AUTO_TEST_CASE(nested_call_normalizes_code_address_for_identity)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto identity = addr(0x04);
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(nested_call_normalizes_code_address_for_identity)
 
 BOOST_AUTO_TEST_CASE(top_level_skips_create_warm_pin)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
 
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(top_level_skips_create_warm_pin)
 
 BOOST_AUTO_TEST_CASE(top_level_call_zero_code_address_fills_recipient)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto recipient = addr(0x77);
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_zero_code_address_fills_recipient)
 
 BOOST_AUTO_TEST_CASE(nested_7702_call_pins_authority_as_execution_address)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto const authority = addr(0xAA);
@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(nested_7702_call_pins_authority_as_execution_address)
 
 BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_keeps_delegate_in_execution_address)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto const caller = addr(0x02);
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_keeps_delegate_in_execution_addres
 
 BOOST_AUTO_TEST_CASE(top_level_7702_call_uses_authority_as_execution_address)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto const authority = addr(0xAB);
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(top_level_7702_call_uses_authority_as_execution_address)
 
 BOOST_AUTO_TEST_CASE(nested_7702_staticcall_delegated_uses_code_address)
 {
-    state::test::InMemoryEvmStateReader view;
+    state::test::InMemoryStateView view;
     state::State state(view);
     auto cfg = pragueCfg();
     auto const authority = addr(0xAC);

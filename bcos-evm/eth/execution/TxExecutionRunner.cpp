@@ -213,11 +213,11 @@ ExecuteMessageOutput TxExecutionRunner::run(ExecuteMessageInput input)
     auto txContext = buildTxContext(input.blockInfo, input.message);
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);
     state::EthHost host(state, txContext, input.revisionConfig, *input.vm, input.blockHashes,
-        input.extension, input.fixStorageStatus, input.chainPort);
+        input.extension, input.chainPort);
     setupHostExecutionTarget(host, state, input);
 
     execution::FrameExecutionEnv frameCtx{state, *input.vm, input.revisionConfig, input.extension,
-        txContext.tx_origin, host.execution_address_ref(), input.fixNonceInit, input.chainPort};
+        txContext.tx_origin, host.execution_address_ref(), input.chainPort};
 
     auto const scope = input.message.depth == 0 ? FrameScope::TopLevel : FrameScope::Nested;
     auto fr = runExecutionFrame(frameCtx, input.message, scope, host);

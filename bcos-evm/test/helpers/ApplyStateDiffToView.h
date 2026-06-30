@@ -1,12 +1,12 @@
 #pragma once
 
 #include "bcos-evm/eth/state/StateDiff.hpp"
-#include "helpers/InMemoryEvmStateReader.h"
+#include "helpers/InMemoryStateView.h"
 
 namespace bcos::evm::test
 {
 inline void applyStateDiffToView(
-    state::StateDiff const& stateDiff, state::test::InMemoryEvmStateReader& stateView)
+    state::StateDiff const& stateDiff, state::test::InMemoryStateView& stateView)
 {
     for (auto const& [address, account] : stateDiff.accounts)
     {
