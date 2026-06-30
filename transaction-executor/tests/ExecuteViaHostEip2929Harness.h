@@ -116,7 +116,7 @@ public:
         input.blockInfo = blockInfo;
         input.revisionConfig = revisionConfig;
 
-        auto output = bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
+        auto output = bcos::task::syncWait(bcos::evm::applyFiscoMessage(std::move(input)));
         if (output.evmcResult.status_code != EVMC_SUCCESS)
         {
             return -1;

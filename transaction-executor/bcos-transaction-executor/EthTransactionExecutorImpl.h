@@ -248,7 +248,7 @@ public:
             input.txNonce = m_data->m_nonce.convert_to<uint64_t>();
             input.txHash = m_data->m_transaction.get().hash();
 
-            auto output = co_await ethReferenceExecute(std::move(input));
+            auto output = co_await applyReferenceMessage(std::move(input));
             m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
             co_return output;
         }

@@ -35,20 +35,20 @@
 
 | 文件 | 角色 |
 | --- | --- |
-| `EthReferenceExecute.*` | 链入口：`applyReferenceMessage()`（ADR-030 文档名）/ `ethReferenceExecute()`（Tier E 稳定 ABI） |
+| `EthReferenceExecute.*` | 链入口：`applyReferenceMessage()`（ADR-030 Tier C 文档名）/ `ethReferenceExecute()`（Tier E 稳定 ABI；TE 调用 `applyReferenceMessage`） |
 | `EthOrchestrationProfile.*` | `OrchestrationProfile::bind` → 填充 `ChainPrecheckPolicy` + `OrchestrationErrorPolicy` |
 | `EthTxPrecheck.*` | 参考路径交易预检 |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
 
 ## 链入口命名（ADR-029 + ADR-030 双标签）
 
-三条链的 L1 入口均映射 geth `ApplyMessage`（ADR-030 §2）。**文档与注释优先使用 `apply*Message`**；`*Execute` 保留为 Tier E 稳定 ABI，供 TE / executor 链接，暂不标记 `[[deprecated]]`。
+三条链的 L1 入口均映射 geth `ApplyMessage`（ADR-030 §2）。**文档与注释优先使用 `apply*Message`**；`*Execute` 保留为 Tier E 稳定 ABI（`transaction-executor` 已改用 `apply*Message`），暂不标记 `[[deprecated]]`。
 
-| geth | ADR-030 文档名（Tier C） | ADR-029 / 稳定 ABI（Tier E） | 头文件 |
-| --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/apply/EthReferenceExecute.h` |
-| `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` |
-| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` |
+| geth | ADR-030 文档名（Tier C） | Tier E 稳定 ABI | 头文件 | TE 调用 |
+| --- | --- | --- | --- | --- |
+| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/apply/EthReferenceExecute.h` | `applyReferenceMessage` |
+| `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` | `applyFiscoMessage` |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` | `applyOpStackMessage` |
 
 **阅读规则：** `*Execute` = 该链的 ApplyMessage 适配器，不是泛指的“跑 EVM”。内核 tx 级执行见 `executeMessage`（geth `innerExecute` 别名，ADR-030 §3 step 6）。
 

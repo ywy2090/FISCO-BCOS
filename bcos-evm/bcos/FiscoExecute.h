@@ -83,9 +83,12 @@ struct FiscoExecutionResult
     FiscoExecutionArtifacts executionContext;
 };
 
+// ── Chain entry: geth ApplyMessage (ADR-030 dual-label) ─────────────────────
+// Tier C canonical — document and prefer in new call sites: applyFiscoMessage
+// Tier E stable ABI — retain for existing links; no [[deprecated]] yet: fiscoExecute
 task::Task<FiscoExecutionResult> fiscoExecute(FiscoExecutionRequest input);
 
-// geth: ApplyMessage — ADR-030 Tier C alias (stable ABI: fiscoExecute)
+// geth: ApplyMessage — ADR-030 Tier C canonical (forwards to fiscoExecute)
 [[nodiscard]] inline task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
 {
     return fiscoExecute(std::move(input));

@@ -119,7 +119,7 @@ graph TD
 
 ## 3. 执行流：三入口 → Profile 绑定 → 共享编排 → 内核
 
-**双标签约定（ADR-029 + ADR-030）：** 链 L1 入口在文档与注释中优先写 **geth 文档名** `apply{Chain}Message`（Tier C）；代码与 TE 链接仍用 `*Execute`（Tier E，暂不 `[[deprecated]]`）。L2 步骤用 ADR-029 `pipeline*` 前缀；与 geth `stateTransition.execute` 对齐的步骤另附 ADR-030 别名（如 `stateTransitionExecute` → `runTxPipeline`，`innerExecute` → `executeMessage`）。完整映射见 ADR-030 §2–§8 与 `GethNamingAliases.h`。
+**双标签约定（ADR-029 + ADR-030）：** 链 L1 入口在文档与注释中优先写 **geth 文档名** `apply{Chain}Message`（Tier C）；`transaction-executor` 已改用 `apply*Message` 调用链入口。Tier E `*Execute` 符号保留供既有链接，暂不 `[[deprecated]]`。L2 步骤用 ADR-029 `pipeline*` 前缀；与 geth `stateTransition.execute` 对齐的步骤另附 ADR-030 别名（如 `stateTransitionExecute` → `runTxPipeline`，`innerExecute` → `executeMessage`）。完整映射见 ADR-030 §2–§8 与 `GethNamingAliases.h`。
 
 自 ADR-019 起，三条链在 **`runTxPipeline` 之前**各自装配 `TxPipelineHooks` + `OrchestrationErrorPolicy`；自 profile 重构起，装配收敛为具名 **`OrchestrationProfile::bind(BindingsContext)`**（Eth / Fisco / Op 各一份），替代原 inline lambda / `*PipelineHookBinder` 文件。
 
@@ -184,12 +184,12 @@ evmone callback → EthHost::call (nested adapter)
 
 三个编排入口签名风格一致，但各自携带链特有字段。**L1 双标签：** ADR-030 文档名 / Tier E 稳定 ABI。
 
-| geth | ADR-030 文档名 | 稳定 ABI（Tier E） | 文件 | Profile / 外圈 | 能力矩阵列语义 |
-| --- | --- | --- | --- | --- | --- |
-| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/apply/EthReferenceExecute.h` | `EthOrchestrationProfile::bind` | ETH = **接线审计**（非生产继承证明） |
-| `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | BCOS = **FISCO 生产继承契约** |
-| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` | validate → `runOpStackTxLifecycle`（ADR-023） | OPStack = **OP 生产继承契约** |
-| — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | ADR-023 characterization 主面 |
+| geth | ADR-030 文档名 | 稳定 ABI（Tier E） | 文件 | Profile / 外圈 | TE 调用 | 能力矩阵列语义 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `ApplyMessage` | `applyReferenceMessage` | `ethReferenceExecute` | `eth/apply/EthReferenceExecute.h` | `EthOrchestrationProfile::bind` | `applyReferenceMessage` | ETH = **接线审计**（非生产继承证明） |
+| `ApplyMessage` | `applyFiscoMessage` | `fiscoExecute` | `bcos/FiscoExecute.h` | `FiscoOrchestrationProfile::bind`；`AuthPort*` / `ChainPrecompilePort*` | `applyFiscoMessage` | BCOS = **FISCO 生产继承契约** |
+| `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opStackExecute` | `opstack/OpStackExecute.h` | validate → `runOpStackTxLifecycle`（ADR-023） | `applyOpStackMessage` | OPStack = **OP 生产继承契约** |
+| — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | — | ADR-023 characterization 主面 |
 
 > 评审提醒：ETH 列测试通过 **不等于** BCOS/OP 通过。矩阵中标 `inherited` 且 baseline-reachable 的行必须有 TE 路径测试。
 

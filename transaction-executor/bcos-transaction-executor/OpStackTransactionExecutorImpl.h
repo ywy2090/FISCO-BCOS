@@ -225,7 +225,7 @@ public:
             input.forkSchedule = bcos::evm::makeIsthmusPlusForkSchedule();
             input.txHash = m_data->m_transaction.get().hash();
 
-            co_return co_await opStackExecute(std::move(input));
+            co_return co_await applyOpStackMessage(std::move(input));
         }
 
         task::Task<protocol::TransactionReceipt::Ptr> makeReceipt()

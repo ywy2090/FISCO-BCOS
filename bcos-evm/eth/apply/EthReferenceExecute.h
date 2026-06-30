@@ -54,9 +54,12 @@ struct EthReferenceResult
     bool topLevelIncludedTxVmError{false};
 };
 
+// ── Chain entry: geth ApplyMessage (ADR-030 dual-label) ─────────────────────
+// Tier C canonical — document and prefer in new call sites: applyReferenceMessage
+// Tier E stable ABI — retain for existing links; no [[deprecated]] yet: ethReferenceExecute
 task::Task<EthReferenceResult> ethReferenceExecute(EthReferenceRequest input);
 
-// geth: ApplyMessage — ADR-030 Tier C alias (stable ABI: ethReferenceExecute)
+// geth: ApplyMessage — ADR-030 Tier C canonical (forwards to ethReferenceExecute)
 [[nodiscard]] inline task::Task<EthReferenceResult> applyReferenceMessage(EthReferenceRequest input)
 {
     return ethReferenceExecute(std::move(input));

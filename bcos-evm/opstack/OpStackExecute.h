@@ -62,9 +62,12 @@ struct OpStackExecutionResult
     OpStackReceiptMeta receiptMeta;
 };
 
+// ── Chain entry: geth ApplyMessage (ADR-030 dual-label) ─────────────────────
+// Tier C canonical — document and prefer in new call sites: applyOpStackMessage
+// Tier E stable ABI — retain for existing links; no [[deprecated]] yet: opStackExecute
 task::Task<OpStackExecutionResult> opStackExecute(OpStackExecutionRequest input);
 
-// geth: ApplyMessage — ADR-030 Tier C alias (stable ABI: opStackExecute)
+// geth: ApplyMessage — ADR-030 Tier C canonical (forwards to opStackExecute)
 [[nodiscard]] inline task::Task<OpStackExecutionResult> applyOpStackMessage(
     OpStackExecutionRequest input)
 {

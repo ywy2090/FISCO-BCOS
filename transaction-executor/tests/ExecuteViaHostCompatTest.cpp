@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(auth_fail_path_returns_checker_result)
                     "auth denied", true);
             }};
         input.authPort = &authAdapter;
-        return bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
+        return bcos::task::syncWait(bcos::evm::applyFiscoMessage(std::move(input)));
     };
 
     auto const outputFixOff = runCase(false);
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(revert_logs_fix_gate_controls_revert_logs_visibility)
         bcos::crypto::Keccak256 hashImpl;
         evmc::VM vm{evmc_create_evmone()};
         auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
-        return bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
+        return bcos::task::syncWait(bcos::evm::applyFiscoMessage(std::move(input)));
     };
 
     auto noFixOutput = runCase(false);
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(empty_account_call_via_execute_via_host_returns_success)
     evmc::VM vm{evmc_create_evmone()};
     auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
 
-    auto output = bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
+    auto output = bcos::task::syncWait(bcos::evm::applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK(output.executionContext.logs.empty());
     BOOST_CHECK(output.stateDiff.empty());
@@ -220,7 +220,7 @@ BOOST_AUTO_TEST_CASE(fib88_insufficient_balance_consumes_all_gas)
     evmc::VM vm{evmc_create_evmone()};
     auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
 
-    auto output = bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
+    auto output = bcos::task::syncWait(bcos::evm::applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, 0);
     BOOST_CHECK_EQUAL(output.evmcResult.status, bcos::protocol::TransactionStatus::NotEnoughCash);
@@ -248,7 +248,7 @@ BOOST_AUTO_TEST_CASE(fib88_not_found_code_revert_preserves_gas)
     evmc::VM vm{evmc_create_evmone()};
     auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
 
-    auto output = bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
+    auto output = bcos::task::syncWait(bcos::evm::applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
     BOOST_CHECK_EQUAL(
         output.evmcResult.status, bcos::protocol::TransactionStatus::RevertInstruction);
@@ -278,7 +278,7 @@ BOOST_AUTO_TEST_CASE(fib88_not_found_code_static_call_returns_success)
     evmc::VM vm{evmc_create_evmone()};
     auto input = makeBaseInput(stateView, vm, hashImpl, message, revisionConfig);
 
-    auto output = bcos::task::syncWait(bcos::evm::fiscoExecute(std::move(input)));
+    auto output = bcos::task::syncWait(bcos::evm::applyFiscoMessage(std::move(input)));
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(output.evmcResult.status, bcos::protocol::TransactionStatus::None);
 }

@@ -313,7 +313,7 @@ public:
             input.authPort = &authAdapter;
             input.chainDispatchPort = &precompileAdapter;
 
-            co_return co_await fiscoExecute(std::move(input));
+            co_return co_await applyFiscoMessage(std::move(input));
         }
     };
 
