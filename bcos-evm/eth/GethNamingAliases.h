@@ -7,6 +7,7 @@
  *
  * Portable eth/ symbols and their geth analogues — see ADR-030 for the full
  * bcos-evm ↔ go-ethereum map, including chain extension entry points.
+ * Orchestration / host-bundle documentation type aliases: GethOrchestrationAliases.h.
  *
  * Kernel alias index (ADR-029 layer prefixes + ADR-030 geth names coexist):
  *
