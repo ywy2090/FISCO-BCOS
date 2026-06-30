@@ -28,7 +28,7 @@ inline bool isEip1559FeeMarketActive(bcos::evm_standard::RevisionConfig const& c
     return cfg.eip1559;
 }
 
-/// Post-execution state gas refund (OpStack settlement).
+/// Post-execution gas refund gate under fee market (EIP-3529 accounting).
 inline bool isEip1559GasRefundEnabled(bcos::evm_standard::RevisionConfig const& cfg) noexcept
 {
     return cfg.eip1559;

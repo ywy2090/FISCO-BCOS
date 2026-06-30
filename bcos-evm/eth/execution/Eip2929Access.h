@@ -5,9 +5,8 @@
  * @brief Single TE gate for EIP-2929 address/storage warm tracking (Scheme A).
  * @file Eip2929Access.h
  *
- * FISCO may mask warm_access via feature_evm_eip2929 while revision stays high.
- * That is an intentional deviation from geth; do not read cfg.warm_access
- * outside this header in eth/ production code.
+ * Chain policy may mask warm_access while revision stays high (Scheme A deviation).
+ * Do not read cfg.warm_access outside this header in eth/ production code.
  */
 
 #pragma once

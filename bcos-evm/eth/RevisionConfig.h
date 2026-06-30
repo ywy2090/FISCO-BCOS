@@ -10,7 +10,7 @@ struct RevisionConfig
 {
     evmc_revision revision = EVMC_CANCUN;
 
-    // A. Feature-gated EIPs (require explicit flag ON in FISCO)
+    // A. Feature-gated EIPs (chain policy may mask; see revisionConfigFromRevision)
     bool warm_access : 1 = false;
     bool eip2537 : 1 = false;
     bool eip7212 : 1 = false;
@@ -57,7 +57,7 @@ inline constexpr std::size_t revisionConfigBoolFieldCount() noexcept
 static_assert(revisionConfigBoolFieldCount() == 12,
     "Keep REVISION_CONFIG_BOOL_FIELDS in sync with RevisionConfig bool bitfields");
 
-// A-class feature-gated fields (FISCO requires an explicit flag ON for each).
+// A-class feature-gated fields (may be masked off per chain policy).
 #define REVISION_CONFIG_GATED_FIELDS(X) \
     X(warm_access)                      \
     X(eip2537)                          \
@@ -79,8 +79,8 @@ static_assert(revisionConfigGatedFieldCount() == 6,
     "Keep REVISION_CONFIG_GATED_FIELDS in sync with the A-class field set");
 
 // Single source of truth: EIP gating for a given revision. Canonical (maximal) config.
-// Chains translate blockNum/features -> revision elsewhere (EthChainPolicy/FiscoPolicy), then
-// optionally mask A-class fields. Never read `revision >= EVMC_xxx` for a gated EIP outside here.
+// Chain policy builders translate blockNum/features -> revision, then optionally mask A-class
+// fields. Never read `revision >= EVMC_xxx` for a gated EIP outside here.
 inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
 {
     RevisionConfig cfg;
@@ -99,15 +99,6 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
     cfg.eip7823 = revision >= EVMC_OSAKA;
     cfg.calldata_floor_per_token = cfg.eip7623 ? 10 : 0;
     return cfg;
-}
-
-// Isthmus binds to Prague EVM revision at tx granularity. Block-level Prague
-// postExecution (EIP-6110/7002/7251) is out of scope — op-geth skips it when
-// IsIsthmus (state_processor.go:141). Guarded by IsthmusPostExecutionPolicyTest
-// and check-opstack-no-prague-post-execution.sh.
-inline RevisionConfig makeIsthmusRevisionConfig()
-{
-    return revisionConfigFromRevision(EVMC_PRAGUE);
 }
 
 }  // namespace bcos::evm_standard

@@ -22,8 +22,7 @@ namespace bcos::evm
 struct EthTxFeeSettlement
 {
     using PolicyType = bcos::evm_standard::EthChainPolicy;
-    // Standard geth-style gas payment: no legacy consumeBalance, no L1Cost.
-    // Only the geth path (buyGas -> execute -> refundGas) without FISCO-specific paths.
+    // Standard geth-style gas payment: buyGas -> execute -> refundGas (reference path only).
 
     template <class Data>
     task::Task<bool> buyGas(Data& data)

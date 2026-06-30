@@ -2,10 +2,13 @@
  *  Copyright (C) 2021 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief Index of canonical execution pipeline symbols.
+ * @brief Index of canonical eth-kernel pipeline symbols (geth vocabulary).
  * @file GethNamingAliases.h
  *
- * Canonical names (post naming migration):
+ * Portable eth/ symbols and their geth analogues — see ADR-030 for the full
+ * bcos-evm ↔ go-ethereum map, including chain extension entry points.
+ *
+ * Kernel index (post naming migration):
  *   ChainPrecheckPolicy — setupMessage, checkTransactionRules, checkGasAffordable,
  *                         checkBalanceAndValue, runEvmExecution
  *   runTxPipeline
@@ -13,8 +16,7 @@
  *   executeMessage / TxExecutionRunner
  *   EvmTxContextView / *ExecutionBundle
  *   ChainCallTargetDispatcher
- *   EvmHostHooks / EthVmHostPolicy / FiscoVmHostPolicy
- *   fiscoExecute / ethReferenceExecute / opStackExecute / runOpStackTxLifecycle
+ *   EvmHostHooks / EthVmHostPolicy
  */
 
 #pragma once
