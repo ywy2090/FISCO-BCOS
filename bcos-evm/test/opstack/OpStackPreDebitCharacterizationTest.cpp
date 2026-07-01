@@ -23,6 +23,7 @@ using bcos::evm_standard::revisionConfigFromRevision;
 namespace
 {
 auto const kLondon = revisionConfigFromRevision(EVMC_LONDON);
+auto const kBerlin = revisionConfigFromRevision(EVMC_BERLIN);
 
 OpStackPreDebitPlan oraclePreRefactorBuyGas(
     OpStackPreDebitInputs const& inputs, OpStackFeeHooks const& hooks) noexcept
@@ -139,6 +140,29 @@ BOOST_AUTO_TEST_CASE(matches_oracle_legacy_gas_price)
         .hasGasFeeCap = false,
     };
     assertMatchesOracle(inputs, {});
+}
+
+BOOST_AUTO_TEST_CASE(berlin_legacy_uses_fee_cap_when_gas_price_unset)
+{
+    // Mirrors buyGas before ctx.gasPrice is assigned: legacy price lives in fee caps.
+    OpStackPreDebitInputs inputs{
+        .fee =
+            FeeInputs{
+                .revision = kBerlin,
+                .baseFee = 0,
+                .gasLimit = 21'000,
+                .gasPrice = 10,
+                .gasTipCap = 10,
+                .gasFeeCap = 10,
+                .web3TypedTxKind = 0,
+                .hasExplicitFeeCaps = false,
+            },
+        .hasGasFeeCap = true,
+    };
+    auto const plan = planOpStackPreDebit(inputs, {});
+    BOOST_CHECK_EQUAL(plan.core1559.effectiveGasPrice, 10);
+    BOOST_CHECK_EQUAL(plan.core1559.preDebitAmount, 210'000);
+    BOOST_CHECK_EQUAL(plan.totalDebit, 210'000);
 }
 
 BOOST_AUTO_TEST_CASE(matches_oracle_l1_hook)

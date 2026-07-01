@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/opstack/fee/OpStackFeeInputsMapping.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 
@@ -26,10 +26,7 @@ inline OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementProjection
         rollupPtr = std::addressof(rollup);
     }
     return OpStackPreDebitInputs{
-        .fee = gas::toFeeInputs(ctx.revisionConfig, view.blockInfo(),
-            gas::FeeCapsView{ctx.gasPrice, view.gasTipCap(), view.gasFeeCap(),
-                view.web3TypedTxKind(), view.hasGasFeeCap()},
-            ctx.originalGasLimit),
+        .fee = gas::toFeeInputs(view, ctx.originalGasLimit),
         .txValue = state::fromEvmC(ctx.message.value),
         .blockTime = static_cast<uint64_t>(view.blockInfo().timestamp),
         .hasGasFeeCap = view.hasGasFeeCap(),
