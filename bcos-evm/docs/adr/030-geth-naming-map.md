@@ -113,7 +113,7 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 
 | geth | bcos-evm (current) | ADR-030 documentation name | Notes |
 | --- | --- | --- | --- |
-| `Message` | fields in `*ExecutionRequest` + `evmc_message` | `TxMessage` | geth `Message` struct |
+| `Message` | fields in `*MessageRequest` + `evmc_message` | `TxMessage` | geth `Message` struct; ETH/FISCO/OP: `EthMessageRequest`, `FiscoMessageRequest`, `OpStackMessageRequest` |
 | `stateTransition` | `TxPipelineContext` | `StateTransition` | holds `msg`, gas, `state`, `evm` refs |
 | `ExecutionResult` | `ExecuteMessageOutput` + `EVMCResult` | `ExecutionResult` | geth: `UsedGas`, `ReturnData`, `Err` |
 | `GasPool` | OP block gas pool hooks | `GasPool` | already used in OP docs |

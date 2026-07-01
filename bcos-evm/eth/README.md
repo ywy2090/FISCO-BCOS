@@ -84,6 +84,8 @@
 | `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `applyFiscoMessage` |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | `applyOpStackMessage` |
 
+**ApplyMessage DTO（P1-2，方案 A）：** 三链统一 `*MessageRequest` / `*MessageResult` — `EthMessageRequest`、`FiscoMessageRequest`、`OpStackMessageRequest`（及对应 `*Result`）。geth `ExecutionResult` 语义由 Result 侧字段承载（ADR-030 §5）。
+
 内核 tx 级执行见 `innerExecute`（geth post-`Prepare` 路径；ADR-030 §3 step 6）。geth 词汇对照见 ADR-030 §3–§8（canonical 符号：`stateTransitionExecute`、`innerExecute`、`runCallFrame`、`warmTransactionEntry` 等）。
 
 ## 执行流

@@ -108,7 +108,7 @@ public:
         blockInfo.number = blockHeader.number();
         blockInfo.gasLimit = 30'000'000;
 
-        bcos::evm::FiscoExecutionRequest input;
+        bcos::evm::FiscoMessageRequest input;
         input.stateView = &stateView;
         input.vm = &vm();
         input.hashImpl = hashImpl.get();

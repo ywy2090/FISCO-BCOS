@@ -261,9 +261,9 @@ public:
             }
         }
 
-        task::Task<FiscoExecutionResult> applyFiscoMessageTx()
+        task::Task<FiscoMessageResult> applyFiscoMessageTx()
         {
-            FiscoExecutionRequest input;
+            FiscoMessageRequest input;
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
             input.message = m_data->m_executionContext.message;

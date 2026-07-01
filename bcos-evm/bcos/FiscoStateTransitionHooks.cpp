@@ -30,7 +30,7 @@ namespace bcos::evm
 {
 
 FiscoStateTransitionHooks::FiscoStateTransitionHooks(
-    FiscoExecutionRequest const& input, bool eip7623Enabled)
+    FiscoMessageRequest const& input, bool eip7623Enabled)
   : m_input(input), m_eip7623Enabled(eip7623Enabled)
 {
     m_intrinsicPolicy.mode =

@@ -18,12 +18,12 @@ struct OpStackNormalTxFeeCoordinator
 
     /// Debits sender via ledger. On failure runs abort contract and fills @p output; returns false.
     task::Task<bool> buyGas(
-        OpStackSettlementFacade view, GasPoolHooks const& gasPool, OpStackExecutionResult& output);
+        OpStackSettlementFacade view, GasPoolHooks const& gasPool, OpStackMessageResult& output);
 
     /// Pre-execution reject → abort; else commit, refund, gas pool, receipt meta, stateDiff.
     task::Task<void> completeAfterPipeline(OpStackSettlementFacade view,
         OpStackFeeParams const& feeParams, GasPoolHooks const& gasPool,
-        OpStackExecutionResult& output);
+        OpStackMessageResult& output);
 };
 
 }  // namespace bcos::evm

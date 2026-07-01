@@ -260,7 +260,7 @@ Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `comple
         └──────────────────────────────────────────────────────┘
                    │
                    ▼
-        ExecuteMessageOutput / OpStackExecutionResult
+        ExecuteMessageOutput / OpStackMessageResult
         （OpStack：lifecycle 内 build_diff + receiptMeta）
 ```
 

@@ -89,7 +89,7 @@ inline bcos::u256 parseU256Field(std::string_view field)
     }
 }
 
-inline void fillGasCaps(protocol::Transaction const& tx, OpStackExecutionRequest& input)
+inline void fillGasCaps(protocol::Transaction const& tx, OpStackMessageRequest& input)
 {
     input.gasTipCap = parseU256Field(tx.maxPriorityFeePerGas());
     input.gasFeeCap = parseU256Field(tx.maxFeePerGas());
@@ -209,7 +209,7 @@ inline std::optional<OpStackDepositTx> decodeOpStackDepositTx(bcos::bytesConstRe
     return deposit;
 }
 
-inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackExecutionRequest& input)
+inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackMessageRequest& input)
 {
     auto const resolved = executor::resolveWeb3AccessList(tx);
     input.web3TypedTxKind = resolved.web3TypedTxKind;
@@ -262,7 +262,7 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackExecutionRequ
     }
 }
 
-inline void applyDefaultTxProps(OpStackExecutionRequest& input)
+inline void applyDefaultTxProps(OpStackMessageRequest& input)
 {
     execution::setWarmDestinationFromKind(input.txProps, input.message.kind);
 }

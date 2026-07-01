@@ -15,7 +15,7 @@ struct NormalSettleOutcome
     OpStackPostSettlementPlan feePlan;
 };
 
-void projectNormalReceiptMeta(OpStackExecutionResult& output, OpStackSettlementFacade& view,
+void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementFacade& view,
     OpStackFeeParams const& feeParams, OpStackSettlementResult const& settled,
     OpStackPostSettlementPlan const& feePlan)
 {
@@ -49,7 +49,7 @@ task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementFacade view,
 }  // namespace
 
 task::Task<bool> OpStackNormalTxFeeCoordinator::buyGas(
-    OpStackSettlementFacade view, GasPoolHooks const& gasPool, OpStackExecutionResult& output)
+    OpStackSettlementFacade view, GasPoolHooks const& gasPool, OpStackMessageResult& output)
 {
     auto& ctx = view.pipelineContext();
     auto const ok = co_await ledger.buyGas(view);
@@ -63,7 +63,7 @@ task::Task<bool> OpStackNormalTxFeeCoordinator::buyGas(
 }
 
 task::Task<void> OpStackNormalTxFeeCoordinator::completeAfterPipeline(OpStackSettlementFacade view,
-    OpStackFeeParams const& feeParams, GasPoolHooks const& gasPool, OpStackExecutionResult& output)
+    OpStackFeeParams const& feeParams, GasPoolHooks const& gasPool, OpStackMessageResult& output)
 {
     auto& ctx = view.pipelineContext();
     if (isNormalPreExecutionReject(ctx.exitKind))

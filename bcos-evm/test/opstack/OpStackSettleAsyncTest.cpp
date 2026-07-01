@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_null_return_gas_hook_no_crash)
     BOOST_REQUIRE(fixture.buyGas());
 
     GasPoolHooks emptyHooks{};
-    OpStackExecutionResult output;
+    OpStackMessageResult output;
     task::syncWait(fixture.settlement.completeAfterPipeline(
         fixture.view, fixture.feeParams, emptyHooks, output));
 

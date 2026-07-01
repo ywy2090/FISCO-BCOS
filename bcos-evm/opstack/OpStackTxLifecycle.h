@@ -7,6 +7,6 @@ namespace bcos::evm
 {
 
 /// deep module: precheck → deposit|normal branch → pipeline → settle → receipt.
-task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest input);
+task::Task<OpStackMessageResult> runOpStackTxLifecycle(OpStackMessageRequest input);
 
 }  // namespace bcos::evm

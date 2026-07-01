@@ -76,7 +76,7 @@ uint64_t createDepositGasWithExecutionBudget(bcos::bytes const& initCode, int64_
     return static_cast<uint64_t>(createDepositIntrinsicDebit(initCode) + executionBudget);
 }
 
-OpStackExecutionRequest makeCreateDepositInput(state::test::InMemoryStateView& stateView,
+OpStackMessageRequest makeCreateDepositInput(state::test::InMemoryStateView& stateView,
     evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender, bcos::bytes const& initCode,
     uint64_t gasLimit = 100'000)
 {
@@ -89,7 +89,7 @@ OpStackExecutionRequest makeCreateDepositInput(state::test::InMemoryStateView& s
     message.input_data = initCode.data();
     message.input_size = initCode.size();
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

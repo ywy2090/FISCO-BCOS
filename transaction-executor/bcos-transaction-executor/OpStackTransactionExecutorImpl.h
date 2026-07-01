@@ -191,7 +191,7 @@ public:
             co_return {};
         }
 
-        task::Task<OpStackExecutionResult> applyOpStackMessageTx()
+        task::Task<OpStackMessageResult> applyOpStackMessageTx()
         {
             evmc_message message = newEVMCMessage(m_data->m_blockHeader.get().number(),
                 m_data->m_transaction.get(), m_data->m_gasLimit, m_data->m_origin);
@@ -199,7 +199,7 @@ public:
             state::FiscoStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
-            OpStackExecutionRequest input;
+            OpStackMessageRequest input;
             input.stateView = std::addressof(stateView);
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();

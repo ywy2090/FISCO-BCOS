@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

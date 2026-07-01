@@ -131,7 +131,7 @@ inline void installAlwaysRevertCode(
     stateView.insert_account(recipient, state::Account{.code = std::move(revertCode)});
 }
 
-inline OpStackExecutionRequest makeLifecycleNormalInput(state::test::InMemoryStateView& stateView,
+inline OpStackMessageRequest makeLifecycleNormalInput(state::test::InMemoryStateView& stateView,
     evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
     const evmc_address& recipient, int64_t gasLimit, LifecycleGasPoolSpy& gasPoolSpy)
 {
@@ -142,7 +142,7 @@ inline OpStackExecutionRequest makeLifecycleNormalInput(state::test::InMemorySta
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -164,7 +164,7 @@ inline OpStackExecutionRequest makeLifecycleNormalInput(state::test::InMemorySta
     return input;
 }
 
-inline OpStackExecutionRequest makeLifecycleDepositInput(state::test::InMemoryStateView& stateView,
+inline OpStackMessageRequest makeLifecycleDepositInput(state::test::InMemoryStateView& stateView,
     evmc::VM& vm, const crypto::Hash& hash, const evmc_address& sender,
     const evmc_address& recipient, int64_t gasLimit, LifecycleGasPoolSpy& gasPoolSpy,
     std::optional<u256> mint = std::nullopt)
@@ -176,7 +176,7 @@ inline OpStackExecutionRequest makeLifecycleDepositInput(state::test::InMemorySt
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

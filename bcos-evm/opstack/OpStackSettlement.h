@@ -10,7 +10,7 @@ namespace bcos::evm
 {
 
 struct OpStackFeeParams;
-struct OpStackExecutionResult;
+struct OpStackMessageResult;
 
 struct GasPoolHooks
 {
@@ -28,7 +28,7 @@ struct OpStackSettlementResult
 bool isNormalPreExecutionReject(StateTransitionExitKind exitKind) noexcept;
 
 void abortNormalAfterBuyGas(StateTransitionContext& ctx, GasPoolHooks const& gasPool,
-    OpStackExecutionResult& output, int64_t originalGasLimit);
+    OpStackMessageResult& output, int64_t originalGasLimit);
 
 OpStackSettlementResult finalizeNormal(StateTransitionContext const& ctx,
     OpStackFeeSidecar const& sidecar, StateTransitionExitKind exitKind);

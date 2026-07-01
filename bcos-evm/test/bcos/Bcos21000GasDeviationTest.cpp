@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(applyFiscoMessage_debits_balance_transfer_gas_before_evm)
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

@@ -34,11 +34,11 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
     evmc_message message{};
     message.gas = 100'000;
 
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.web3Tx = true;
     input.revisionConfig.eth().eip7623 = true;
 
-    FiscoExecutionResult output;
+    FiscoMessageResult output;
 
     FiscoStateTransitionBindings::Context bindingsCtx{
         input, output, false, true /* eip7623Enabled */};
@@ -57,12 +57,12 @@ BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)
     evmc_message message{};
     message.gas = 50'000;
 
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.revisionConfig.enable_auth_check = true;
     MockAuthPort authPort;
     input.authPort = &authPort;
 
-    FiscoExecutionResult output;
+    FiscoMessageResult output;
 
     StateTransitionContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
     ctx.inputs.vm = &vm;
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
     message.kind = EVMC_CREATE;
     message.sender.bytes[19] = 0xAA;
 
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.web3Tx = false;
     input.hashImpl = &hashImpl;
     input.blockInfo.number = 42;
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
     input.seq = 2;
     input.nonce = 0;
 
-    FiscoExecutionResult output;
+    FiscoMessageResult output;
 
     StateTransitionContext ctx{stateView, message, input.revisionConfig.eth(), bcos::u256(0)};
 
@@ -120,11 +120,11 @@ BOOST_AUTO_TEST_CASE(prepare_message_create_sets_recipient_for_legacy_tx)
 BOOST_AUTO_TEST_CASE(bind_wires_error_policy_from_bindings_context)
 {
     crypto::Keccak256 hashImpl;
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.hashImpl = &hashImpl;
     input.revisionConfig.fix_revert_logs = true;
 
-    FiscoExecutionResult output;
+    FiscoMessageResult output;
 
     FiscoStateTransitionBindings::Context bindingsCtx{input, output, true, false};
     auto bindings = FiscoStateTransitionBindings::bind(bindingsCtx);

@@ -32,7 +32,7 @@ struct OpStackStateTransitionBindings
 {
     struct Context
     {
-        OpStackExecutionRequest const& input;
+        OpStackMessageRequest const& input;
         OpStackSettlementFacade view;
     };
 

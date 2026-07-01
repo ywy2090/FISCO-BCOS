@@ -30,7 +30,7 @@ bytes loadFixture(std::string_view name)
     return {std::istreambuf_iterator<char>(input), {}};
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackMessageRequest makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     crypto::Hash const& hash, bytes const& calldata)
 {
     evmc_message message{};
@@ -42,7 +42,7 @@ OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateVi
     message.input_data = calldata.data();
     message.input_size = calldata.size();
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

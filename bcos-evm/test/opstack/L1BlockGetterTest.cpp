@@ -45,7 +45,7 @@ void runGetter(state::test::InMemoryStateView& stateView, bytes const& input, u2
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    OpStackExecutionRequest opInput;
+    OpStackMessageRequest opInput;
     opInput.stateView = &stateView;
     opInput.vm = &vm;
     opInput.hashImpl = &hash;

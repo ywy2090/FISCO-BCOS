@@ -180,7 +180,7 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
                         msg.input_data = data.data();
                         msg.input_size = data.size();
 
-                        bcos::evm::OpStackExecutionRequest input;
+                        bcos::evm::OpStackMessageRequest input;
                         input.stateView = &stateViewForTx;
                         input.vm = &vm;
                         input.hashImpl = &hashImpl;

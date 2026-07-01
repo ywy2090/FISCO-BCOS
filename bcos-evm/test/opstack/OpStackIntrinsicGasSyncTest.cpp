@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(apply_op_stack_message_records_gas_at_evm_entry)
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

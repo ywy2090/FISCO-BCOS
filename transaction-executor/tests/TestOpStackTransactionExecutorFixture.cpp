@@ -665,7 +665,7 @@ BOOST_AUTO_TEST_CASE(executor_input_build_applies_warm_destination_for_call)
     auto header = makeBlockHeader();
 
     evmc_message message = newEVMCMessage(header.number(), *tx, 50'000, sender);
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.message = message;
     opstack_tx::fillWeb3Fields(*tx, input);
     opstack_tx::applyDefaultTxProps(input);
@@ -684,7 +684,7 @@ BOOST_AUTO_TEST_CASE(executor_input_build_clears_warm_destination_for_create)
     message.kind = EVMC_CREATE;
     message.recipient = evmc_address{};
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.message = message;
     opstack_tx::fillWeb3Fields(*tx, input);
     opstack_tx::applyDefaultTxProps(input);

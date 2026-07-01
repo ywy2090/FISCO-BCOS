@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(auth_checker_hook_short_circuits_before_innerExecute)
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

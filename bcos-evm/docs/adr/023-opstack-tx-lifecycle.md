@@ -20,7 +20,7 @@ Grilling decisions D12–D18 (2026-06-25) resolved interface shape and delivery 
 
 ### 1. Deep module: `OpStackTxLifecycle`
 
-Introduce `runOpStackTxLifecycle(OpStackExecutionRequest)` as the **OpStack outer-ring deep module** in `opstack/`.
+Introduce `runOpStackTxLifecycle(OpStackMessageRequest)` as the **OpStack outer-ring deep module** in `opstack/`.
 
 `opStackExecute` remains the **TE-stable adapter**: validate `stateView` / `vm` / `hashImpl`, then delegate to lifecycle.
 
@@ -45,7 +45,7 @@ ADR-021 invariants unchanged.
 
 `OpStackStateTransitionBindings::Context` (internal; renamed from `Session`, ADR-027 naming follow-up):
 
-- `OpStackExecutionRequest& input`
+- `OpStackMessageRequest& input`
 - `OpStackSettlementFacade view` (`ctx` + `input` + `sidecar`)
 
 `sidecar` / `view` do not cross the lifecycle external seam.

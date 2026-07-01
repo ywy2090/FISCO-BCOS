@@ -24,7 +24,7 @@ Normal L2 路径的费用状态分散在三处：
 | --- | --- |
 | `TxPipelineContext` | `originalGasLimit`、`gasPrice`、`evmcResult`、`exitKind`、`state` |
 | `OpStackFeeContext` | 15+ 字段，多数为 `input`/`ctx` 镜像 |
-| `OpStackExecutionRequest` | `gasTipCap`、`rollupCostData`、fork hooks |
+| `OpStackMessageRequest` | `gasTipCap`、`rollupCostData`、fork hooks |
 
 `populateFeeContext` 手工复制 request → `feeCtx`；`buyGas` / `refundGas` / `finalizeNormal` 同时读 `ctx` 和 `feeCtx`。ADR-025 abort 契约依赖 lifecycle **call site 组合**，而非单一 module interface。
 
@@ -84,7 +84,7 @@ struct OpStackFeeSidecar {
 ```cpp
 struct OpStackSettlementView {
     TxPipelineContext& ctx;
-    OpStackExecutionRequest const& input;
+    OpStackMessageRequest const& input;
     OpStackFeeSidecar& sidecar;
 
     // 只读 accessor（从 input / ctx 投影，不镜像存储）
@@ -115,7 +115,7 @@ struct OpStackNormalFeeSettlement {
         OpStackSettlementView view,
         GasPoolHooks const& gasPool,
         OpStackFeeParams const& feeParams,
-        OpStackExecutionResult& output);
+        OpStackMessageResult& output);
 };
 ```
 
@@ -143,7 +143,7 @@ else:
 
 ```cpp
 struct Session {
-    OpStackExecutionRequest const& input;
+    OpStackMessageRequest const& input;
     OpStackSettlementView view;
 };
 ```

@@ -76,9 +76,9 @@ h256 makeVersionedHash()
     return hash;
 }
 
-OpStackExecutionRequest makeBlobPreCheckInput(evmc_address sender)
+OpStackMessageRequest makeBlobPreCheckInput(evmc_address sender)
 {
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.message.kind = EVMC_CALL;
     input.message.gas = 100'000;
     input.message.sender = sender;
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.gasTipCap = 1;
     input.gasFeeCap = 2;
     input.blockInfo.baseFee = 1;
@@ -191,7 +191,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
     OpStackFeeSettlement executor;
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.gasTipCap = 1;
     input.gasFeeCap = 2;
     input.blockInfo.baseFee = 1;
@@ -241,7 +241,7 @@ BOOST_AUTO_TEST_CASE(applyOpStackMessage_deducts_blob_fee_on_success)
         evmc::VM vm{evmc_create_evmone()};
         FakeHash hash;
 
-        OpStackExecutionRequest input;
+        OpStackMessageRequest input;
         input.stateView = &stateView;
         input.vm = &vm;
         input.hashImpl = &hash;

@@ -83,7 +83,7 @@ opStackExecute (normal)
   │     ├─ refundGas(ctx, feeCtx, ledger)
   │     └─ gasPoolReturn
   ├─ output.stateDiff = ctx.state.build_diff()
-  └─ map OpStackExecutionResult (gasUsed, receiptMeta from feeCtx)
+  └─ map OpStackMessageResult (gasUsed, receiptMeta from feeCtx)
 ```
 
 ### 4.2 分层

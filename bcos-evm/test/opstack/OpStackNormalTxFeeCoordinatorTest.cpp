@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_failure_aborts_without_commit)
     zeroSenderBalance(fixture);
 
     fixture.checkpointBeforeBuyGas();
-    OpStackExecutionResult output;
+    OpStackMessageResult output;
     auto const ok =
         task::syncWait(fixture.settlement.buyGas(fixture.view, fixture.spy.hooks(), output));
 

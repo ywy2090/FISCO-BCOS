@@ -137,7 +137,7 @@ task::Task<ExecutionResult> OpStackManifestAdapter::execute(
     auto const accessList = materializeAccessList(testCase.transaction, subtest);
     auto const authorizations = materializeAuthorizations(testCase.transaction);
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &view;
     input.vm = m_vm;
     input.hashImpl = m_hashImpl;

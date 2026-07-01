@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(entry_rules_rejects_nonce_mismatch)
     auto const sender = addressFromLastByte(0x01);
     stateView.insert_account(sender, state::Account{.nonce = 3});
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.message.sender = sender;
     input.nonce = 5;
     input.gasTipCap = 1;
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(entry_rules_deposit_system_tx_rejected)
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x02);
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.message.sender = sender;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
     message.input_size = data.size();
     message.gas = static_cast<int64_t>(floor - 1);
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.skipTransactionChecks = false;
 
     StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
 
 BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
 {
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.nonce = 42;
     input.authorizations.resize(2);
 

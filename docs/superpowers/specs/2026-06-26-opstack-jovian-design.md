@@ -85,7 +85,7 @@ inline bool isOpStackJovian(OpStackForkSchedule const& schedule, uint64_t blockT
 inline OpStackForkSchedule makeJovianPlusForkSchedule();
 ```
 
-`OpStackExecutionRequest::forkSchedule` 默认值不变（`makeIsthmusPlusForkSchedule()`）。
+`OpStackMessageRequest::forkSchedule` 默认值不变（`makeIsthmusPlusForkSchedule()`）。
 
 ### 3.2 Operator fee
 

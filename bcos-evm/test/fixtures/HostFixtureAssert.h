@@ -10,7 +10,7 @@ namespace bcos::evm::test::fixtures
 {
 
 inline void assertHostFixtureResult(
-    FixtureCase const& fixture, FiscoExecutionResult const& output, int64_t gasBefore)
+    FixtureCase const& fixture, FiscoMessageResult const& output, int64_t gasBefore)
 {
     (void)gasBefore;
     BOOST_CHECK_EQUAL(

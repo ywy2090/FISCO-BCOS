@@ -12,13 +12,13 @@
 namespace bcos::evm
 {
 
-struct OpStackExecutionRequest;
+struct OpStackMessageRequest;
 
 /// Read-only projection over pipeline ctx + execution request + fee sidecar.
 struct OpStackSettlementFacade
 {
     StateTransitionContext& ctx;
-    OpStackExecutionRequest const& input;
+    OpStackMessageRequest const& input;
     OpStackFeeSidecar& sidecar;
 
     StateTransitionContext& pipelineContext() noexcept { return ctx; }

@@ -11,7 +11,7 @@ namespace bcos::evm::test
 {
 
 inline std::optional<EVMCResult> runOpStackEntryLifecycleCheck(
-    OpStackExecutionRequest const& input, state::StateView const& stateView)
+    OpStackMessageRequest const& input, state::StateView const& stateView)
 {
     StateTransitionContext ctx{stateView, input.message, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;

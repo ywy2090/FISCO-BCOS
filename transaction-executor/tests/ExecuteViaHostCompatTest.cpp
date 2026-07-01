@@ -52,7 +52,7 @@ evmc_address addressFromByte(uint8_t value)
     return address;
 }
 
-bcos::evm::FiscoExecutionRequest makeBaseInput(InMemoryStateView const& stateView, evmc::VM& vm,
+bcos::evm::FiscoMessageRequest makeBaseInput(InMemoryStateView const& stateView, evmc::VM& vm,
     bcos::crypto::Hash const& hashImpl, evmc_message message,
     bcos::chain_policy::FiscoRevisionConfig revisionConfig)
 {
@@ -60,7 +60,7 @@ bcos::evm::FiscoExecutionRequest makeBaseInput(InMemoryStateView const& stateVie
     blockInfo.number = 1;
     blockInfo.gasLimit = 30'000'000;
 
-    bcos::evm::FiscoExecutionRequest input;
+    bcos::evm::FiscoMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;

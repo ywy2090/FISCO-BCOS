@@ -46,7 +46,7 @@ class Hash;
 namespace bcos::evm
 {
 
-struct FiscoExecutionRequest
+struct FiscoMessageRequest
 {
     state::StateView const* stateView{nullptr};
     evmc::VM* vm{nullptr};
@@ -76,7 +76,7 @@ struct FiscoExecutionRequest
     std::optional<bcos::h256> txHash;
 };
 
-struct FiscoExecutionResult
+struct FiscoMessageResult
 {
     EVMCResult evmcResult{evmc_result{}};
     state::StateDiff stateDiff;
@@ -84,6 +84,6 @@ struct FiscoExecutionResult
 };
 
 // ── Chain entry ───────────────────────────────────────────────────────────────
-task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input);
+task::Task<FiscoMessageResult> applyFiscoMessage(FiscoMessageRequest input);
 
 }  // namespace bcos::evm

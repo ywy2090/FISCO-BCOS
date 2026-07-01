@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(buyGas_failure_records_result_on_ctx_not_fee_context)
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
     StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.gasTipCap = 1;
     input.gasFeeCap = 10;
     input.blockInfo.baseFee = 0;
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(buyGas_uses_ctx_message_not_fee_context_copy)
     auto revision = bcos::evm::makeIsthmusRevisionConfig();
     StateTransitionContext ctx{stateView, msg, revision, bcos::u256(0)};
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.gasTipCap = 1;
     input.gasFeeCap = 10;
     input.blockInfo.baseFee = 0;
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(100); };
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 10); };
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.gasTipCap = 5;
     input.gasFeeCap = 10;
     input.blockInfo.timestamp = 1;
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     executor.m_l1CostFunc = [](RollupCostData const&, uint64_t) { return u256(60); };
     executor.m_operatorCostFunc = [](uint64_t gas, uint64_t) { return u256(gas + 50); };
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.gasTipCap = 2;
     input.gasFeeCap = 4;
     input.blockInfo.timestamp = 10;

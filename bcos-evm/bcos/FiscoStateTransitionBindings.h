@@ -31,8 +31,8 @@ struct FiscoStateTransitionBindings
 {
     struct Context
     {
-        FiscoExecutionRequest const& input;
-        FiscoExecutionResult& output;
+        FiscoMessageRequest const& input;
+        FiscoMessageResult& output;
         bool fixErrorHandling{false};
         bool eip7623Enabled{false};
     };

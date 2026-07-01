@@ -26,7 +26,7 @@
 
 namespace bcos::evm
 {
-struct OpStackExecutionRequest
+struct OpStackMessageRequest
 {
     state::StateView const* stateView{nullptr};
     evmc::VM* vm{nullptr};
@@ -59,7 +59,7 @@ struct OpStackExecutionRequest
     std::optional<bcos::h256> txHash;
 };
 
-struct OpStackExecutionResult
+struct OpStackMessageResult
 {
     EVMCResult evmcResult{evmc_result{}};
     state::StateDiff stateDiff;
@@ -70,9 +70,9 @@ struct OpStackExecutionResult
 };
 
 // ── Chain entry ───────────────────────────────────────────────────────────────
-task::Task<OpStackExecutionResult> applyOpStackMessage(OpStackExecutionRequest input);
+task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input);
 
-inline bool isDepositTx(OpStackExecutionRequest const& input) noexcept
+inline bool isDepositTx(OpStackMessageRequest const& input) noexcept
 {
     return input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE || input.depositTx.has_value();
 }

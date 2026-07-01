@@ -85,7 +85,7 @@ u256 balanceFromDiff(const state::StateDiff& diff, const evmc_address& address)
     return it->second.balance;
 }
 
-OpStackExecutionRequest makeBaseInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackMessageRequest makeBaseInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
 {
     evmc_message message{};
@@ -95,7 +95,7 @@ OpStackExecutionRequest makeBaseInput(state::test::InMemoryStateView& stateView,
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

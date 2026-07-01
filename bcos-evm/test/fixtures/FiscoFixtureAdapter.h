@@ -36,10 +36,10 @@ inline bcos::evm_standard::RevisionConfig revisionConfigFromFixtureRevision(
     return cfg;
 }
 
-inline FiscoExecutionRequest buildFiscoExecutionRequest(FixtureCase const& fixture,
+inline FiscoMessageRequest buildFiscoMessageRequest(FixtureCase const& fixture,
     state::StateView const& stateView, evmc::VM& vm, bcos::crypto::Hash const& hashImpl)
 {
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hashImpl;

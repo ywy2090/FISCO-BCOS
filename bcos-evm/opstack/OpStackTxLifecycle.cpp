@@ -27,12 +27,12 @@ bool acquireGasPool(GasPoolHooks const& gasPool, int64_t originalGasLimit)
 }
 }  // namespace
 
-task::Task<OpStackExecutionResult> runOpStackTxLifecycle(OpStackExecutionRequest input)
+task::Task<OpStackMessageResult> runOpStackTxLifecycle(OpStackMessageRequest input)
 {
     trace::EvmTraceScope traceScope(
         trace::makeTraceContext("opstack", input.blockInfo.number, input.txHash));
 
-    OpStackExecutionResult output;
+    OpStackMessageResult output;
     StateTransitionContext ctx{
         *input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
     ctx.txProps = input.txProps;

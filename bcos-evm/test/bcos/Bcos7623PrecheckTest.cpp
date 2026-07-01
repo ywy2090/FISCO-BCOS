@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(applyFiscoMessage_web3Tx_eip7623_oog_when_gas_below_normal_
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(applyFiscoMessage_web3Tx_eip7623_skips_precheck_when_normal
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

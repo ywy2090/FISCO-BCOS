@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(applyFiscoMessage_cancun_call_0x0b_not_precompile_dispatch)
 
     evmc::VM vm{evmc_create_evmone()};
     FakeHash hash;
-    FiscoExecutionRequest input;
+    FiscoMessageRequest input;
     input.stateView = &view;
     input.vm = &vm;
     input.hashImpl = &hash;

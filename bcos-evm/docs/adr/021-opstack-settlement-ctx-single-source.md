@@ -165,7 +165,7 @@ Mint is never rolled back on failure.
 ## Appendix A — Fee projection deepening (2026-06-26)
 
 **Status:** Accepted  
-**Motivation:** PR1+PR2 made `ctx` the single source for gas/message/state, but normal L2 fee wiring still maintained a **parallel mirror** in `OpStackFeeContext` (`populateFeeContext` copied 15+ fields from `OpStackExecutionRequest`). `buyGas` / `refundGas` / `finalizeNormal` read both `ctx` and `feeCtx`. ADR-025 entry-reject abort correctness depends on lifecycle **call-site composition** (`completeNormalTxAfterPipeline`), not a single deep module interface.
+**Motivation:** PR1+PR2 made `ctx` the single source for gas/message/state, but normal L2 fee wiring still maintained a **parallel mirror** in `OpStackFeeContext` (`populateFeeContext` copied 15+ fields from `OpStackMessageRequest`). `buyGas` / `refundGas` / `finalizeNormal` read both `ctx` and `feeCtx`. ADR-025 entry-reject abort correctness depends on lifecycle **call-site composition** (`completeNormalTxAfterPipeline`), not a single deep module interface.
 
 **Non-goals:** Deposit path (`settleDeposit`); fee math in `eth/` kernel (ADR-019 Q7); TE `OpStackTransactionExecutorImpl` reshape.
 
@@ -186,7 +186,7 @@ Mint is never rolled back on failure.
 
 | Module | Role |
 | --- | --- |
-| `OpStackSettlementFacade` | Projection over `TxPipelineContext` + `OpStackExecutionRequest` + `OpStackFeeSidecar&`; **no mirrored storage** of request fields |
+| `OpStackSettlementFacade` | Projection over `TxPipelineContext` + `OpStackMessageRequest` + `OpStackFeeSidecar&`; **no mirrored storage** of request fields |
 | `OpStackFeeSidecar` | Lifecycle-mutable fee state only (see A.1 #2) |
 | `OpStackNormalTxFeeCoordinator` | Deep module: `buyGas(view)` → pipeline → `completeAfterPipeline(view, …)`; **ADR-025 abort tree internal** |
 | `OpStackFeeSettlement` | **Adapter seam** (L1/operator hooks, recipients); not lifecycle's direct interface |

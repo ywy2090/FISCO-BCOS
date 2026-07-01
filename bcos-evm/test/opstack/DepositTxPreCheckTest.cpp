@@ -17,9 +17,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-OpStackExecutionRequest makeInput(const evmc_address& sender)
+OpStackMessageRequest makeInput(const evmc_address& sender)
 {
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.message.kind = EVMC_CALL;
     input.message.sender = sender;
     input.message.gas = 30'000;

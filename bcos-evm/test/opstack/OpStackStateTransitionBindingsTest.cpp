@@ -30,7 +30,7 @@ bytesConstRef toRef(bytes const& data)
 
 BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
 {
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     state::test::InMemoryStateView stateView;
     evmc_message msg{};
     StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
     message.input_size = data.size();
     message.gas = static_cast<int64_t>(floor - 1);
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.skipTransactionChecks = false;
 
     StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 
 BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
 {
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     state::test::InMemoryStateView stateView;
     evmc_message msg{};
     StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};

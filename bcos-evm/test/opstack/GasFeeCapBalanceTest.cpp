@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(gas_fee_cap_balance_check_rejects_insufficient_sender)
     message.recipient = target;
     message.code_address = target;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

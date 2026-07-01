@@ -394,7 +394,7 @@ OpStackEestFixture adaptStateFixture(pt::ptree const& fixtureJson, std::string c
     msg.input_size = data.size();
     msg.value = bcos::evm::state::toEvmC(value);
 
-    // 5. Build OpStackExecutionRequest
+    // 5. Build OpStackMessageRequest
     auto& input = fixture.input;
     input.stateView = &fixture.stateView;
     input.vm = &vm;

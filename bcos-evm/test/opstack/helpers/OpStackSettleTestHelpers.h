@@ -58,7 +58,7 @@ struct NormalSettleFixture
     evmc_address coinbase{};
     evmc_message message{};
     StateTransitionContext ctx;
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     OpStackFeeSidecar sidecar;
     OpStackSettlementFacade view;
     OpStackFeeSettlement ledger;
@@ -99,14 +99,14 @@ struct NormalSettleFixture
 
     bool buyGas()
     {
-        OpStackExecutionResult output;
+        OpStackMessageResult output;
         auto const ok = task::syncWait(settlement.buyGas(view, spy.hooks(), output));
         return ok;
     }
 
-    OpStackExecutionResult completeAfterPipeline()
+    OpStackMessageResult completeAfterPipeline()
     {
-        OpStackExecutionResult output;
+        OpStackMessageResult output;
         task::syncWait(settlement.completeAfterPipeline(view, feeParams, spy.hooks(), output));
         return output;
     }
@@ -127,7 +127,7 @@ inline void assertGasPoolMatchesSettled(
 }
 
 inline void assertCompleteOutputMatchesFinalizeOracle(
-    NormalSettleFixture const& fixture, OpStackExecutionResult const& output)
+    NormalSettleFixture const& fixture, OpStackMessageResult const& output)
 {
     auto const oracle = finalizeNormal(fixture.ctx, fixture.sidecar, fixture.ctx.exitKind);
     BOOST_CHECK_EQUAL(output.gasUsed, oracle.gasUsed);

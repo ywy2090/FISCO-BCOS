@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     depositMessage.input_data = calldata.data();
     depositMessage.input_size = calldata.size();
 
-    OpStackExecutionRequest depositInput;
+    OpStackMessageRequest depositInput;
     depositInput.stateView = &stateView;
     depositInput.vm = &vm;
     depositInput.hashImpl = &hash;
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     userMessage.recipient = target;
     userMessage.code_address = target;
 
-    OpStackExecutionRequest userInput;
+    OpStackMessageRequest userInput;
     userInput.stateView = &stateView;
     userInput.vm = &vm;
     userInput.hashImpl = &hash;
@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_opera
     depositMessage.input_data = calldata.data();
     depositMessage.input_size = calldata.size();
 
-    OpStackExecutionRequest depositInput;
+    OpStackMessageRequest depositInput;
     depositInput.stateView = &stateView;
     depositInput.vm = &vm;
     depositInput.hashImpl = &hash;
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_opera
     userMessage.recipient = target;
     userMessage.code_address = target;
 
-    OpStackExecutionRequest userInput;
+    OpStackMessageRequest userInput;
     userInput.stateView = &stateView;
     userInput.vm = &vm;
     userInput.hashImpl = &hash;

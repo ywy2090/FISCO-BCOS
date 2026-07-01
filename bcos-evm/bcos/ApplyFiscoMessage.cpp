@@ -71,7 +71,7 @@ evmc_message deriveMessage(const FiscoTxAdapterInput& input)
     return message;
 }
 
-task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
+task::Task<FiscoMessageResult> applyFiscoMessage(FiscoMessageRequest input)
 {
     if (input.stateView == nullptr || input.vm == nullptr || input.hashImpl == nullptr)
     {
@@ -81,7 +81,7 @@ task::Task<FiscoExecutionResult> applyFiscoMessage(FiscoExecutionRequest input)
     trace::EvmTraceScope traceScope(
         trace::makeTraceContext("fisco", input.blockInfo.number, input.txHash));
 
-    FiscoExecutionResult output;
+    FiscoMessageResult output;
     output.executionContext.message = input.message;
     output.executionContext.revisionConfig = input.revisionConfig;
 

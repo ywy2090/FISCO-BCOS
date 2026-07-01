@@ -26,7 +26,7 @@ namespace bcos::evm
 
 struct FiscoStateTransitionHooks : StateTransitionHooks
 {
-    FiscoStateTransitionHooks(FiscoExecutionRequest const& input, bool eip7623Enabled);
+    FiscoStateTransitionHooks(FiscoMessageRequest const& input, bool eip7623Enabled);
 
     DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
@@ -39,7 +39,7 @@ struct FiscoStateTransitionHooks : StateTransitionHooks
     void onTuneInnerExecuteInput(InnerExecuteInput& input) const override;
 
 private:
-    FiscoExecutionRequest const& m_input;
+    FiscoMessageRequest const& m_input;
     bool m_eip7623Enabled{false};
     DeductIntrinsicGasParams m_intrinsicPolicy{};
 };

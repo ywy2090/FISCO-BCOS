@@ -162,7 +162,7 @@ BaselineScheduler::coExecuteBlock
        │    ├─ updateNonce()（可选）
        │    ├─ FiscoTxFeeSettlement::buyGas()（fix_gas_precheck 时）
        │    ├─ fiscoExecuteTx()
-       │    │    ├─ 组装 FiscoExecutionRequest
+       │    │    ├─ 组装 FiscoMessageRequest
        │    │    ├─ ExecutorAuthAdapter / ExecutorPrecompileAdapter 注入 Port
        │    │    └─ fiscoExecute(input)
        │    │         ├─ FiscoEvmHostHooks + FiscoPipelineHookBinder::buildHooks
@@ -234,7 +234,7 @@ ethReferenceExecute / fiscoExecute / opStackExecute
 2. 构造 `FiscoEvmHostHooks`，注入 `authPort` / `chainPrecompilePort` / `persistContractCreateNonce`
 3. `FiscoPipelineHookBinder::buildHooks(session)` 绑定 FISCO 特有 hook
 4. `runTxPipeline(ctx, hooks, errorPolicy)`
-5. 成功时从 `ctx.kernelOutput.stateDiff` 映射到 `FiscoExecutionResult.stateDiff`
+5. 成功时从 `ctx.kernelOutput.stateDiff` 映射到 `FiscoMessageResult.stateDiff`
 
 ---
 
@@ -248,7 +248,7 @@ bcos-evm 通过 **读适配器 + 写回 StateDiff** 与框架存储解耦，不�
 
 - 内部通过 lambda 调用 `ledger::account::EVMAccount`
 - 读取 balance / nonce / code / codeHash / storage
-- 在 TE 的 `fiscoExecuteTx()` 中栈上构造，指针传入 `FiscoExecutionRequest.stateView`
+- 在 TE 的 `fiscoExecuteTx()` 中栈上构造，指针传入 `FiscoMessageRequest.stateView`
 - `executeMessage` 经 `EthHost` 回调使用该 reader
 
 ```text

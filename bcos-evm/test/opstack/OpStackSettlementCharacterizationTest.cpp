@@ -79,7 +79,7 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecutionRequest makeNormalL2Input(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackMessageRequest makeNormalL2Input(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient,
     int64_t gasLimit)
 {
@@ -90,7 +90,7 @@ OpStackExecutionRequest makeNormalL2Input(state::test::InMemoryStateView& stateV
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

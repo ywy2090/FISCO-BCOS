@@ -89,7 +89,7 @@ OP Stack post-Bedrock 要求所有 user tx 使用 EIP-1559 动态费用格式。
 
 **修复建议**（二选一）:
 1. **上游约定（推荐）**：TE 层在解码 legacy tx 时将 `gasPrice` 映射到 `gasFeeCap`/`gasTipCap`（EEST adapter 已采用此模式：`maxFeePerGas != 0 ? maxFeePerGas : tx.gasPrice`）。若 TE 已保证映射，**无需改 bcos-evm 代码**。
-2. **执行层回退**：在 `populateFeeContext` / `buyGas` 中，当 `gasFeeCap == 0 && gasTipCap == 0` 时使用 legacy `gasPrice` 计算 effectiveGasPrice。注意：`OpStackExecutionRequest` **当前没有 `gasPrice` 字段**，且 `populateFeeContext` 固定 `m_hasGasFeeCap = true`，导致 `buyGas` 中的 legacy 回退路径（`!m_hasGasFeeCap`）在 OpStack 主路径上不可达；若走方案 2，需先在 request 中新增 `gasPrice` 或在 populate 阶段正确设置 `m_hasGasFeeCap`。
+2. **执行层回退**：在 `populateFeeContext` / `buyGas` 中，当 `gasFeeCap == 0 && gasTipCap == 0` 时使用 legacy `gasPrice` 计算 effectiveGasPrice。注意：`OpStackMessageRequest` **当前没有 `gasPrice` 字段**，且 `populateFeeContext` 固定 `m_hasGasFeeCap = true`，导致 `buyGas` 中的 legacy 回退路径（`!m_hasGasFeeCap`）在 OpStack 主路径上不可达；若走方案 2，需先在 request 中新增 `gasPrice` 或在 populate 阶段正确设置 `m_hasGasFeeCap`。
 
 ---
 
@@ -410,7 +410,7 @@ bcos-evm/opstack 的实现与 op-geth **高度对齐**。核心执行逻辑（in
   ```
 - `bcos-framework/bcos-framework/protocol/Transaction.h:207-226`：`protocol::effectiveGasPrice(tx)` 对 legacy tx 读取 `tx.gasPrice()` → 正确填充
 
-**函数级漏洞**：`resolveEffectiveGasPrice(0, 0, baseFee)` = `min(0+baseFee, 0)` = **0**。对任何绕过 `fillGasCaps` 构造 `OpStackExecutionRequest` 的调用方，此漏洞确实存在。op-geth 通过 tx 类型自身保证 `gasFeeCap()`/`gasTipCap()` 对 legacy tx 返回正确的 gasPrice，而 bcos-evm 依赖外部预处理。
+**函数级漏洞**：`resolveEffectiveGasPrice(0, 0, baseFee)` = `min(0+baseFee, 0)` = **0**。对任何绕过 `fillGasCaps` 构造 `OpStackMessageRequest` 的调用方，此漏洞确实存在。op-geth 通过 tx 类型自身保证 `gasFeeCap()`/`gasTipCap()` 对 legacy tx 返回正确的 gasPrice，而 bcos-evm 依赖外部预处理。
 
 ---
 

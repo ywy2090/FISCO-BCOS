@@ -78,11 +78,11 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecutionRequest make7702Input(TestAuthKeyPair const& authKey, evmc_address recipient,
+OpStackMessageRequest make7702Input(TestAuthKeyPair const& authKey, evmc_address recipient,
     evmc_address delegationTarget, uint64_t gasLimit, uint64_t authTupleCount)
 {
     auto const sender = authKey.address();
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.message.kind = EVMC_CALL;
     input.message.gas = static_cast<int64_t>(gasLimit);
     input.message.sender = sender;

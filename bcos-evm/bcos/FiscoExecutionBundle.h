@@ -13,7 +13,7 @@ namespace bcos::evm
 /// Owns FISCO EvmHostHooks + optional chain call-target adapter.
 struct FiscoExecutionBundle
 {
-    FiscoExecutionBundle(StateTransitionContext& ctx, FiscoExecutionRequest& input)
+    FiscoExecutionBundle(StateTransitionContext& ctx, FiscoMessageRequest& input)
       : m_extension(input.revisionConfig.enable_balance_transfer, makeDeps(ctx, input))
     {
         ChainExtendedPrecompileDispatch* chainPort = nullptr;
@@ -32,7 +32,7 @@ struct FiscoExecutionBundle
 
 private:
     static FiscoEvmHostHooks::FiscoEvmHostHooksDeps makeDeps(
-        StateTransitionContext& ctx, FiscoExecutionRequest& input)
+        StateTransitionContext& ctx, FiscoMessageRequest& input)
     {
         FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
         deps.state = &ctx.state;

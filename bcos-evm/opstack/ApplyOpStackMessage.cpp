@@ -5,7 +5,7 @@
 namespace bcos::evm
 {
 
-task::Task<OpStackExecutionResult> applyOpStackMessage(OpStackExecutionRequest input)
+task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input)
 {
     if (input.stateView == nullptr || input.vm == nullptr || input.hashImpl == nullptr)
     {

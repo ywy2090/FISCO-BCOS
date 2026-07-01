@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Scope B only：不含 min base fee、DA footprint 区块限流、receipt/RPC 字段、预编译上限
-- `OpStackExecutionRequest::forkSchedule` 默认值保持 `makeIsthmusPlusForkSchedule()`；**不**改 `OpStackTransactionExecutorImpl`
+- `OpStackMessageRequest::forkSchedule` 默认值保持 `makeIsthmusPlusForkSchedule()`；**不**改 `OpStackTransactionExecutorImpl`
 - `isOpStackJovian(schedule, t) := schedule.jovianTime.has_value() && *jovianTime <= t`
 - Jovian operator fee：`fee = gas * operatorFeeScalar * 100 + operatorFeeConstant`（对齐 op-geth `newOperatorCostFuncOperatorFeeFix`）
 - Isthmus operator fee 公式与行为**零回归**

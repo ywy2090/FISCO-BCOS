@@ -4,7 +4,7 @@
 
 namespace bcos::evm
 {
-inline bool hasBlobTxIntent(OpStackExecutionRequest const& input) noexcept
+inline bool hasBlobTxIntent(OpStackMessageRequest const& input) noexcept
 {
     return input.web3TypedTxKind == 0x03 || !input.blobVersionedHashes.empty();
 }

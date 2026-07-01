@@ -74,7 +74,7 @@ void setOpFeeParams(state::test::InMemoryStateView& stateView)
     stateView.insert_account(OP_L1_BLOCK_PREDEPLOY, std::move(l1BlockAccount));
 }
 
-OpStackExecutionRequest makeIsthmusBaseInput(
+OpStackMessageRequest makeIsthmusBaseInput(
     state::test::InMemoryStateView& stateView, evmc::VM& vm, const crypto::Hash& hash)
 {
     auto const sender = addressFromLastByte(0x01);
@@ -83,7 +83,7 @@ OpStackExecutionRequest makeIsthmusBaseInput(
     stateView.insert_account(sender, senderAccount);
     setOpFeeParams(stateView);
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

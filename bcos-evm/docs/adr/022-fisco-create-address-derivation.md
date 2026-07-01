@@ -133,7 +133,7 @@ Nested deployer rule stays; top-level unchanged. Align CREATE2 top-level with ne
 | Top-level | Use `params.seq` as-is; increment is **caller's** responsibility before invoke |
 | Nested | `++*nestedSeq` inside `predictFiscoNestedCreateAddress` |
 
-Document contract: `FiscoExecutionRequest.seq` is the outer seq at tx entry; `nestedSeq` pointer is shared with EvmHostHooks for inner CREATE accounting.
+Document contract: `FiscoMessageRequest.seq` is the outer seq at tx entry; `nestedSeq` pointer is shared with EvmHostHooks for inner CREATE accounting.
 
 #### 2.6 EMPTY `code_address` guard (**resolves D5**)
 

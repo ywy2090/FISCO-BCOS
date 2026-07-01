@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(abort_after_buy_gas_reverts_checkpoint_and_releases_gas_poo
             },
     };
 
-    OpStackExecutionResult output;
+    OpStackMessageResult output;
     abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
 
     BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});

@@ -49,7 +49,7 @@ bool isNormalPreExecutionReject(StateTransitionExitKind exitKind) noexcept
 }
 
 void abortNormalAfterBuyGas(StateTransitionContext& ctx, GasPoolHooks const& gasPool,
-    OpStackExecutionResult& output, int64_t originalGasLimit)
+    OpStackMessageResult& output, int64_t originalGasLimit)
 {
     if (ctx.state.has_checkpoint())
     {

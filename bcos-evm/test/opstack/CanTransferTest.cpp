@@ -27,7 +27,7 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-OpStackExecutionRequest makeInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackMessageRequest makeInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     crypto::Hash const& hash, evmc_address sender, evmc_address recipient)
 {
     evmc_message message{};
@@ -37,7 +37,7 @@ OpStackExecutionRequest makeInput(state::test::InMemoryStateView& stateView, evm
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

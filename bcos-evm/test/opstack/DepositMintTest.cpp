@@ -47,7 +47,7 @@ uint64_t nonceFromDiff(
     return it->second.nonce;
 }
 
-OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
+OpStackMessageRequest makeDepositInput(state::test::InMemoryStateView& stateView, evmc::VM& vm,
     const crypto::Hash& hash, const evmc_address& sender, const evmc_address& recipient)
 {
     evmc_message message{};
@@ -57,7 +57,7 @@ OpStackExecutionRequest makeDepositInput(state::test::InMemoryStateView& stateVi
     message.recipient = recipient;
     message.code_address = recipient;
 
-    OpStackExecutionRequest input;
+    OpStackMessageRequest input;
     input.stateView = &stateView;
     input.vm = &vm;
     input.hashImpl = &hash;

@@ -80,7 +80,7 @@ inline bool isConsensusRejected(TxPipelineExitKind exitKind) noexcept
 Extend result structs:
 
 ```cpp
-// EthMessageResult, OpStackExecutionResult
+// EthMessageResult, OpStackMessageResult
 TxConsensusOutcome consensusOutcome{TxConsensusOutcome::Executed};
 ```
 
@@ -237,7 +237,7 @@ Existing tests that assert `OutOfGasLimit` receipt on entry failure flip to **`E
 ## Compliance
 
 - [ ] `eth/TxConsensusOutcome.h` with `isConsensusRejected`
-- [ ] `EthMessageResult` / `OpStackExecutionResult` carry `consensusOutcome`
+- [ ] `EthMessageResult` / `OpStackMessageResult` carry `consensusOutcome`
 - [ ] `ethReferenceExecute` + `runOpStackTxLifecycleOwner` set `Rejected` on entry-failure paths
 - [ ] TE Finalize returns `nullptr` when rejected; Execute skips apply/settle/refund
 - [ ] Nonce unchanged on reject (characterization or state diff assert)
