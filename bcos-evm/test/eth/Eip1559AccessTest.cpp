@@ -2,11 +2,11 @@
 #include "bcos-evm/eth/eip/Eip1559Access.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
+#include "bcos-evm/eth/apply/EthFeeInputsMapping.h"
 #include "bcos-evm/eth/apply/EthMessage.h"
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
-#include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

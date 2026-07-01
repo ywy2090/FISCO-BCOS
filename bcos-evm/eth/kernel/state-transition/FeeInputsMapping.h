@@ -2,13 +2,13 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief map orchestration fields to FeeInputs (convenience; core stays State-free).
+ * @brief Map revision/block/fee caps to FeeInputs (kernel-neutral; no apply types).
  * @file FeeInputsMapping.h
  */
 
 #pragma once
 
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 
@@ -37,14 +37,6 @@ inline FeeInputs toFeeInputs(bcos::evm_standard::RevisionConfig const& revision,
         .web3TypedTxKind = caps.web3TypedTxKind,
         .hasExplicitFeeCaps = caps.hasExplicitFeeCaps,
     };
-}
-
-inline FeeInputs toFeeInputs(EthMessageRequest const& input, int64_t gasLimit) noexcept
-{
-    return toFeeInputs(input.revisionConfig, input.blockInfo,
-        FeeCapsView{input.gasPrice, input.gasTipCap, input.gasFeeCap, input.web3TypedTxKind,
-            input.hasExplicitFeeCaps},
-        gasLimit);
 }
 
 }  // namespace bcos::evm::gas

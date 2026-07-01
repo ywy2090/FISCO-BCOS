@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "bcos-evm/eth/CanTransfer.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
+#include "bcos-evm/eth/kernel/execution/CanTransfer.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
