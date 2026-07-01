@@ -20,23 +20,24 @@ add_test(
     COMMAND ${SMOKE_TEST_BINARY_NAME}
 )
 
-set(EIP2929_ACCESS_HOST_TEST_BINARY_NAME Eip2929AccessHostTest)
+set(EIP2929_GATE_HOST_TEST_BINARY_NAME Eip2929GateHostTest)
 
-add_executable(${EIP2929_ACCESS_HOST_TEST_BINARY_NAME}
-    eth/host/Eip2929AccessHostTest.cpp
+add_executable(${EIP2929_GATE_HOST_TEST_BINARY_NAME}
+    eth/host/Eip2929GateHostTest.cpp
 )
 
-target_include_directories(${EIP2929_ACCESS_HOST_TEST_BINARY_NAME} PRIVATE
+target_include_directories(${EIP2929_GATE_HOST_TEST_BINARY_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(${EIP2929_ACCESS_HOST_TEST_BINARY_NAME} PRIVATE
-    bcos-evm
+target_link_libraries(${EIP2929_GATE_HOST_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
+    evmone::evmone
 )
 
 add_test(
-    NAME Eip2929AccessHost
-    COMMAND ${EIP2929_ACCESS_HOST_TEST_BINARY_NAME}
+    NAME Eip2929GateHost
+    COMMAND ${EIP2929_GATE_HOST_TEST_BINARY_NAME}
 )
 
 set(NESTED_CALL_HOST_TEST_BINARY_NAME NestedCallHostTest)

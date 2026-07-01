@@ -2,7 +2,7 @@
 
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include <cassert>
 #include <optional>
@@ -28,13 +28,13 @@ struct FiscoExecutionBundle
         ctx.wireExecutionEnvironment(input.vm, &m_extension, chainPort);
     }
 
-    FiscoVmHostPolicy& extension() noexcept { return m_extension; }
+    FiscoEvmHostHooks& extension() noexcept { return m_extension; }
 
 private:
-    static FiscoVmHostPolicy::FiscoVmHostPolicyDeps makeDeps(
+    static FiscoEvmHostHooks::FiscoEvmHostHooksDeps makeDeps(
         StateTransitionContext& ctx, FiscoExecutionRequest& input)
     {
-        FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+        FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
         deps.state = &ctx.state;
         deps.blockNumber = input.blockInfo.number;
         deps.revisionFlags.fix_auth_check = input.revisionConfig.fix_auth_check;
@@ -51,7 +51,7 @@ private:
         return deps;
     }
 
-    FiscoVmHostPolicy m_extension;
+    FiscoEvmHostHooks m_extension;
     std::optional<FiscoChainCallTargetAdapter> m_chainAdapter;
 };
 

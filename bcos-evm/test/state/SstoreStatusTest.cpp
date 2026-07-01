@@ -1,5 +1,5 @@
 #define BOOST_TEST_MODULE SstoreStatusTest
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"

@@ -14,9 +14,9 @@
  *  limitations under the License.
  */
 
-#define BOOST_TEST_MODULE EthVmHostPolicyHooksTest
+#define BOOST_TEST_MODULE EthEvmHostHooksTest
 #include "bcos-evm/eth/core/EvmHostHooks.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -91,7 +91,7 @@ BlockHashes emptyBlockHashes()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_SUITE(EthVmHostPolicyHooksTest)
+BOOST_AUTO_TEST_SUITE(EthEvmHostHooksTest)
 
 BOOST_AUTO_TEST_CASE(selfdestruct_hook_blocks_when_extension_denies)
 {

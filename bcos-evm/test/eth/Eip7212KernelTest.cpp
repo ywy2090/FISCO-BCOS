@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7212KernelTest
 
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
-#include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
+#include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>

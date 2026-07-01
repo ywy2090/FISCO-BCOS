@@ -15,7 +15,7 @@ A CALL to a precompile-like target today requires bouncing across four modules:
 | --- | --- | --- |
 | 1 | `FrameTargetResolver` | Address normalization (7702, CREATE, `executionAddress`) |
 | 2 | `PrecompileRouter` | Classification **and** execution envelope |
-| 3 | `VmHostPolicy::tryChainPrecompile` | Chain extension hook |
+| 3 | `EvmHostHooks::tryChainPrecompile` | Chain extension hook |
 | 4 | `ChainPrecompilePort` (FISCO) or inline logic (OpStack) | Chain dispatch |
 
 **Observed friction:**
@@ -24,7 +24,7 @@ A CALL to a precompile-like target today requires bouncing across four modules:
 
 2. **Warm and dispatch are split for chain targets.** `WarmTransactionEntry` enumerates builtin precompile addresses via `forEachActivePrecompile` only. FISCO small-address precompiles and OpStack L1 predeploys dispatch at frame time but are not in that tx-entry warm set.
 
-3. **Chain precompile seam shape is inconsistent (ADR-017 partial).** FISCO routes through `ChainPrecompilePort`; OpStack inlines L1Block / GasPriceOracle in `OpStackVmHostPolicy`.
+3. **Chain precompile seam shape is inconsistent (ADR-017 partial).** FISCO routes through `ChainPrecompilePort`; OpStack inlines L1Block / GasPriceOracle in `OpStack chain call-target adapter`.
 
 4. **`PrecompileRouter` mixes concerns.** Envelope logic is deep; classification inside the same function is shallow.
 
@@ -79,7 +79,7 @@ CallTargetDescriptor resolveCallTarget(
     evmc_message,
     FrameScope,
     ChainExtendedPrecompileDispatch*,
-    state::VmHostPolicy* extension);  // DELEGATECALL policy; skipHostValueTransfer read by caller
+    state::EvmHostHooks* extension);  // DELEGATECALL policy; skipHostValueTransfer read by caller
 
 void enumerateTxEntryWarmTargets(
     bcos::evm_standard::RevisionConfig const&,
@@ -147,13 +147,13 @@ struct ChainExtendedPrecompileDispatch {
 | Component | Location | Role |
 | --- | --- | --- |
 | `FiscoChainCallTargetAdapter` | `transaction-executor/adapters/` | Implements full `ChainExtendedPrecompileDispatch`: `classifyTarget`, `forEachStaticWarmTarget`, and `dispatch` via held `ExecutorPrecompileAdapter` (or inline dispatch delegate) |
-| `ExecutorPrecompileAdapter` | `transaction-executor/adapters/` | **Evolves** from dispatch-only to being the dispatch backend inside `FiscoChainCallTargetAdapter`; does not absorb `[PRECOMPILED]` routing (that moves out of `FiscoVmHostPolicy`) |
-| `OpStackChainCallTargetAdapter` | `opstack/` | Full port; holds `State*`, `l2BaseFee`, `OpStackForkSchedule`, `blockTimestamp` (today in `OpStackVmHostPolicy` ctor) |
+| `ExecutorPrecompileAdapter` | `transaction-executor/adapters/` | **Evolves** from dispatch-only to being the dispatch backend inside `FiscoChainCallTargetAdapter`; does not absorb `[PRECOMPILED]` routing (that moves out of `FiscoEvmHostHooks`) |
+| `OpStackChainCallTargetAdapter` | `opstack/` | Full port; holds `State*`, `l2BaseFee`, `OpStackForkSchedule`, `blockTimestamp` (today in `OpStack chain call-target adapter` ctor) |
 | Null | Eth reference | `nullptr` |
 
 **PR1 `ChainPrecompilePort` transition:** Add `eth/core/ChainExtendedPrecompileDispatch.h`. Keep `bcos/ports/ChainPrecompilePort.h` as `[[deprecated]]` alias inheriting or typedef-forwarding until PR6. `ExecutorPrecompileAdapter` continues including deprecated header in PR1–PR3; switches to `eth/core/` in PR3.
 
-**`VmHostPolicy`:** retains `skipHostValueTransfer`, `prepareMessage`, `allowDelegateCallToPrecompile`, CREATE hooks. `tryChainPrecompile` removed from main path; deprecated shim PR4–PR6 only.
+**`EvmHostHooks`:** retains `skipHostValueTransfer`, `prepareMessage`, `allowDelegateCallToPrecompile`, CREATE hooks. `tryChainPrecompile` removed from main path; deprecated shim PR4–PR6 only.
 
 ### 4. Envelope-only router (4a)
 
@@ -168,7 +168,7 @@ struct PrecompileEnvelopeInput {
 };
 ```
 
-**No `VmHostPolicy*` in envelope input** — policy is consumed in `resolveCallTarget` (DELEGATECALL) and by caller for `skipValueTransfer` before envelope.
+**No `EvmHostHooks*` in envelope input** — policy is consumed in `resolveCallTarget` (DELEGATECALL) and by caller for `skipValueTransfer` before envelope.
 
 Dispatch: `BuiltinPrecompile` → `EthPrecompiles::tryDispatchInCall`; `ChainPrecompile` → `chainPort->dispatch`.
 
@@ -222,12 +222,12 @@ Dispatch: `BuiltinPrecompile` → `EthPrecompiles::tryDispatchInCall`; `ChainPre
 ### 7. Seam discipline (extends ADR-005 Rule 1)
 
 - `CallTargetResolver.*` and `ChainExtendedPrecompileDispatch.h` must not `#include` `bcos/` or `opstack/`.
-- Chain behavior via `ChainExtendedPrecompileDispatch*` + `VmHostPolicy* extension`.
+- Chain behavior via `ChainExtendedPrecompileDispatch*` + `EvmHostHooks* extension`.
 - `PrecompileActive.h` remains builtin single source.
 
-**Execution Frame Design §2.2 amendment:** Frame-level chain customization is injected via **`ChainExtendedPrecompileDispatch*`** in addition to `VmHostPolicy* extension`. Update `2026-06-24-execution-frame-design.md` revision log in PR6.
+**Execution Frame Design §2.2 amendment:** Frame-level chain customization is injected via **`ChainExtendedPrecompileDispatch*`** in addition to `EvmHostHooks* extension`. Update `2026-06-24-execution-frame-design.md` revision log in PR6.
 
-**ADR-005 §3 table amendment (PR6):** chain precompile row moves from `VmHostPolicy::tryChainPrecompile` to `ChainExtendedPrecompileDispatch` + orchestrator injection.
+**ADR-005 §3 table amendment (PR6):** chain precompile row moves from `EvmHostHooks::tryChainPrecompile` to `ChainExtendedPrecompileDispatch` + orchestrator injection.
 
 ### 8. Test surface (5b)
 
@@ -293,7 +293,7 @@ PR2: debug dual-run should cover R1–R8 before PR4.
 - [ ] OpStack L1/GasOracle only in `OpStackChainCallTargetAdapter`
 - [ ] `CallTargetResolverTest` covers R1–R8, W1–W2; PR2 dual-run if enabled
 - [ ] TE smoke: `FiscoChainCallTargetAdapter` full port
-- [ ] `VmHostPolicy::tryChainPrecompile` removed from main path
+- [ ] `EvmHostHooks::tryChainPrecompile` removed from main path
 - [ ] FISCO: `OpStackTxLifecycle`, `FiscoExecute`, `EthHost.cpp` wired
 - [x] **PR5:** OpStack predeploy warm has gas-test evidence (`CallTargetCharacterizationTest` PR5 gate)
 - [ ] ADR-005 §3, ADR-017, Execution Frame Design §2.2, `architecture-overview.md` (ADR 001–024) updated

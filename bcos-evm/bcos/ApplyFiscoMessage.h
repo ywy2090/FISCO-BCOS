@@ -19,9 +19,9 @@
 
 #pragma once
 
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-evm/bcos/FiscoExecutionArtifacts.h"
 #include "bcos-evm/bcos/FiscoRevisionConfig.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
@@ -72,7 +72,7 @@ struct FiscoExecutionRequest
     AuthPort const* authPort{nullptr};
     ChainExtendedPrecompileDispatch* chainDispatchPort{nullptr};
     std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
-    FiscoVmHostPolicy::RecipientPathResolver recipientPathResolver;
+    FiscoEvmHostHooks::RecipientPathResolver recipientPathResolver;
     std::optional<bcos::h256> txHash;
 };
 

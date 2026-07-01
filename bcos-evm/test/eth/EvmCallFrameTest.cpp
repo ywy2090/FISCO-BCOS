@@ -7,7 +7,7 @@
 #define BOOST_TEST_MODULE EvmCallFrameTest
 
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

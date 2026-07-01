@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief FISCO EthHost extension with Hook#8 CREATE-frame side effects.
- * @file FiscoVmHostPolicy.h
+ * @file FiscoEvmHostHooks.h
  */
 
 #pragma once
@@ -33,7 +33,7 @@
 
 namespace bcos::evm
 {
-class FiscoVmHostPolicy final : public state::EvmHostHooks
+class FiscoEvmHostHooks final : public state::EvmHostHooks
 {
 public:
     struct RevisionFlags
@@ -48,7 +48,7 @@ public:
 
     using RecipientPathResolver = std::function<std::string(const evmc_message&)>;
 
-    struct FiscoVmHostPolicyDeps
+    struct FiscoEvmHostHooksDeps
     {
         void* storageRef{nullptr};
         protocol::BlockHeader const* blockHeader{nullptr};
@@ -65,7 +65,7 @@ public:
         AuthPort const* authPort{nullptr};
     };
 
-    explicit FiscoVmHostPolicy(bool skipEvmNativeValueTransfer, FiscoVmHostPolicyDeps deps);
+    explicit FiscoEvmHostHooks(bool skipEvmNativeValueTransfer, FiscoEvmHostHooksDeps deps);
 
     bool allowSelfdestruct(const state::Account& /*unused*/) override { return false; }
     bool allowDelegateCallToPrecompile() override { return false; }

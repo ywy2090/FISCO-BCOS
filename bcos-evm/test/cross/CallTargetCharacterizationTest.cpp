@@ -8,8 +8,8 @@
 #define BOOST_TEST_MODULE CallTargetCharacterizationTest
 
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
@@ -309,7 +309,7 @@ BOOST_AUTO_TEST_CASE(c4_delegatecall_to_precompile_blocked_at_depth1)
     state::test::InMemoryStateView view;
     state::State state(view);
     state.set_balance(caller, 1'000'000);
-    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, {});
+    FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, {});
     Depth1HostFixture fixture(state, &extension);
 
     evmc_message msg{};

@@ -6,7 +6,7 @@
 
 #include "PrecompileRouter.h"
 #include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
-#include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
+#include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include <functional>
 

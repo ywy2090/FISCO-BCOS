@@ -3,7 +3,7 @@
 **Status:** Accepted  
 **Date:** 2026-06-30  
 **Priority:** P0（链特有逻辑从 `eth/` 内核移除）  
-**Related:** ADR-005, ADR-027, `eth/state/EvmHostHooks.h`, `eth/state/EthHost.hpp`, `bcos/FiscoVmHostPolicy.h`, `bcos/FiscoRevisionConfig.h`, capability-matrix `bugfix_evm_storage_status` / CREATE nonce rows
+**Related:** ADR-005, ADR-027, `eth/state/EvmHostHooks.h`, `eth/state/EthHost.h`, `bcos/FiscoEvmHostHooks.h`, `bcos/FiscoRevisionConfig.h`, capability-matrix `bugfix_evm_storage_status` / CREATE nonce rows
 
 **Prerequisite:** P2 已完成 — `makeIsthmusRevisionConfig()` 已迁出 `eth/RevisionConfig.h` 至 `opstack/OpStackIsthmusRevision.h`。
 
@@ -31,18 +31,18 @@ FiscoPolicy
   → if (bool) { FISCO legacy ... }
 ```
 
-ADR-027 将 `fixStorageStatus` / `fixNonceInit` 列为 **Tier-2 execution infra**，与 `extension*` 并列——但二者本质是 **VmHostPolicy 行为**，不是中性 infra。
+ADR-027 将 `fixStorageStatus` / `fixNonceInit` 列为 **Tier-2 execution infra**，与 `extension*` 并列——但二者本质是 **EvmHostHooks 行为**，不是中性 infra。
 
 ### 1.2 目标
 
 1. **eth 内核** 仅实现标准 geth/evmone 语义（等价于 today `fixStorageStatus=true` 路径）。
-2. **FISCO legacy**（`fix_storage_status=false` / `fix_nonce_init=true`）通过 `EvmHostHooks` 虚方法 override，集中在 `bcos/FiscoVmHostPolicy`。
+2. **FISCO legacy**（`fix_storage_status=false` / `fix_nonce_init=true`）通过 `EvmHostHooks` 虚方法 override，集中在 `bcos/FiscoEvmHostHooks`。
 3. **零行为变更**：现有 `SstoreStatusTest`、`FiscoExecute*` characterization、EEST smoke 全绿。
 4. **删除** eth 层 bool 字段及 ADR-027 Tier-2 中对应项。
 
 ### 1.3 Non-Goals
 
-- 合并 `FiscoVmHostPolicy::applyCreateNonceSemantics`（nested CREATE）与 top-level `finalizeTopLevelCreateNonce`——可后续 follow-up。
+- 合并 `FiscoEvmHostHooks::applyCreateNonceSemantics`（nested CREATE）与 top-level `finalizeTopLevelCreateNonce`——可后续 follow-up。
 - 修改 `FiscoRevisionConfig` 字段名或 Features 映射。
 - OpStack / Eth reference 行为变更（二者使用默认 hook）。
 - P1（`IntrinsicDebitMode::OpStackEntry`）、P3（注释清理）不在本 spec 范围。
@@ -53,9 +53,9 @@ ADR-027 将 `fixStorageStatus` / `fixNonceInit` 列为 **Tier-2 execution infra*
 
 ### Approach A — 扩展 `EvmHostHooks` 多方法切片（推荐）
 
-在现有 `EvmHostHooks` 上增加 SSTORE / CREATE nonce 相关虚方法；默认实现 = 标准 Ethereum；`FiscoVmHostPolicy` 按 `RevisionFlags` override。
+在现有 `EvmHostHooks` 上增加 SSTORE / CREATE nonce 相关虚方法；默认实现 = 标准 Ethereum；`FiscoEvmHostHooks` 按 `RevisionFlags` override。
 
-**优点：** 与 ADR-005 §3 VmHostPolicy 分工一致；改动面可控；Eth/OpStack 零配置。  
+**优点：** 与 ADR-005 §3 EvmHostHooks 分工一致；改动面可控；Eth/OpStack 零配置。  
 **缺点：** 虚方法 +3~4，热路径多一次 indirect call（与现有 `allowSelfdestruct` 等同量级）。
 
 ### Approach B — 单一 `commitSstore()` 大 hook
@@ -90,7 +90,7 @@ eth 基类 + bcos 子类 override `set_storage`。
          ▲ extension* (Tier-1 only)
          │
 ┌────────┴──────────────────────────────────────────────────┐
-│ bcos/  FiscoVmHostPolicy                                  │
+│ bcos/  FiscoEvmHostHooks                                  │
 │   RevisionFlags.fix_storage_status / fix_nonce_init        │
 │   override SSTORE + top-level CREATE nonce hooks          │
 └───────────────────────────────────────────────────────────┘
@@ -170,7 +170,7 @@ struct EvmHostHooks
 
 `extension == nullptr` 时调用 **非虚** 自由函数或 `EvmHostHooks` 静态默认实现（与 today `extension=null, fixStorageStatus=true` 等价）。
 
-### 4.4 `FiscoVmHostPolicy` override 语义
+### 4.4 `FiscoEvmHostHooks` override 语义
 
 `RevisionFlags` 新增：
 
@@ -214,7 +214,7 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 | --- | --- |
 | `eth/state/EvmHostHooks.h` | 新增 4 个 virtual + forward declare `State` |
 | `eth/state/EvmHostHooks.cpp` | **新增** — 默认 SSTORE 实现 |
-| `eth/state/EthHost.hpp` | 删除 `fixStorageStatus` 构造参数、`m_fixStorageStatus`、`classifyStorageStatus` static |
+| `eth/state/EthHost.h` | 删除 `fixStorageStatus` 构造参数、`m_fixStorageStatus`、`classifyStorageStatus` static |
 | `eth/state/EthHost.cpp` | `set_storage` 调 hooks；删除 FISCO 注释 |
 | `eth/kernel/execution/EvmCallFrame.h` | 删除 `fixNonceInit` |
 | `eth/kernel/execution/ExecutionFrame.cpp` | 调 `finalizeTopLevelCreateNonce` |
@@ -227,8 +227,8 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 
 | File | Change |
 | --- | --- |
-| `bcos/FiscoVmHostPolicy.h` | `RevisionFlags.fix_storage_status`；declare overrides |
-| `bcos/FiscoVmHostPolicy.cpp` | implement overrides |
+| `bcos/FiscoEvmHostHooks.h` | `RevisionFlags.fix_storage_status`；declare overrides |
+| `bcos/FiscoEvmHostHooks.cpp` | implement overrides |
 | `bcos/FiscoExecutionBundle.h` | 删除 `m_view.fixStorageStatus/fixNonceInit`；deps 注入 `fix_storage_status` |
 | `bcos/FiscoPrecheckPolicy.cpp` | 删除 `executeInput.fixStorageStatus/fixNonceInit` |
 
@@ -236,10 +236,10 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 
 | File | Change |
 | --- | --- |
-| `test/state/SstoreStatusTest.cpp` | legacy OFF 矩阵改用 `FiscoVmHostPolicy` 或 test helper hook |
+| `test/state/SstoreStatusTest.cpp` | legacy OFF 矩阵改用 `FiscoEvmHostHooks` 或 test helper hook |
 | `test/state/SstoreRefundTest.cpp` | 删除 `input.fixStorageStatus` |
 | `test/eth/EvmTxContextViewTest.cpp` | 删除 fix* 断言 |
-| `test/bcos/FiscoVmHostPolicyTest.cpp` | 可选：增加 SSTORE / top-level nonce 覆盖 |
+| `test/bcos/FiscoEvmHostHooksTest.cpp` | 可选：增加 SSTORE / top-level nonce 覆盖 |
 | 建议新增 `test/bcos/FiscoSstoreStatusTest.cpp` | 从 eth test 迁 FISCO 特有矩阵 |
 
 ### 5.4 docs/
@@ -258,7 +258,7 @@ FiscoPolicy::computeRevisionConfig
   → FiscoRevisionConfig.fix_storage_status / fix_nonce_init
 
 FiscoExecutionBundle
-  → FiscoVmHostPolicy(deps.revisionFlags.{fix_storage_status, fix_nonce_init})
+  → FiscoEvmHostHooks(deps.revisionFlags.{fix_storage_status, fix_nonce_init})
   → EvmTxContextView.extension = &policy   // Tier-1 only
 
 runTxPipeline → executeMessage
@@ -270,7 +270,7 @@ ExecutionFrame (top-level CREATE ok)
   → extension->finalizeTopLevelCreateNonce
 ```
 
-Eth / OpStack：`EthVmHostPolicy` / `OpStackVmHostPolicy` 不 override → 标准语义。
+Eth / OpStack：`EthEvmHostHooks` / `OpStack chain call-target adapter` 不 override → 标准语义。
 
 ---
 
@@ -280,9 +280,9 @@ Eth / OpStack：`EthVmHostPolicy` / `OpStackVmHostPolicy` 不 override → 标�
 
 | Test | 验证点 |
 | --- | --- |
-| `SstoreStatusTest` | fix ON 矩阵（默认 hook）；OFF 矩阵迁 bcos + FiscoVmHostPolicy |
+| `SstoreStatusTest` | fix ON 矩阵（默认 hook）；OFF 矩阵迁 bcos + FiscoEvmHostHooks |
 | `SstoreRefundTest` | EIP-3529 refund 与 extension 路径 |
-| `FiscoVmHostPolicyTest` | 现有 + 新增 hook 覆盖 |
+| `FiscoEvmHostHooksTest` | 现有 + 新增 hook 覆盖 |
 | `FiscoExecute*` / `Bcos*` characterization | 无回归 |
 | `EvmTxContextViewTest` | 更新字段断言 |
 | `RevisionConfigProfileTest` | 不受影响（FiscoRevisionConfig 字段保留） |
@@ -295,7 +295,7 @@ Eth / OpStack：`EthVmHostPolicy` / `OpStackVmHostPolicy` 不 override → 标�
 ### 7.3 构建验证
 
 ```bash
-cmake --build build --target SstoreStatusTest FiscoVmHostPolicyTest FiscoExecuteSmokeTest -j
+cmake --build build --target SstoreStatusTest FiscoEvmHostHooksTest FiscoExecuteSmokeTest -j
 ctest -R 'SstoreStatus|SstoreRefund|FiscoVmHost|FiscoExecute|EvmTxContextView' --output-on-failure
 ```
 
@@ -307,7 +307,7 @@ ctest -R 'SstoreStatus|SstoreRefund|FiscoVmHost|FiscoExecute|EvmTxContextView' -
 | --- | --- | --- |
 | 1 | 添加 `EvmHostHooks.cpp` + virtual 声明 + 默认实现 | ✅ |
 | 2 | `EthHost::set_storage` 改调 hooks（extension=null 行为不变） | ✅ |
-| 3 | `FiscoVmHostPolicy` overrides + `RevisionFlags.fix_storage_status` | ✅ |
+| 3 | `FiscoEvmHostHooks` overrides + `RevisionFlags.fix_storage_status` | ✅ |
 | 4 | `ExecutionFrame` + `finalizeTopLevelCreateNonce` | ✅ |
 | 5 | 删除 eth 层 bool 字段 + bcos 传播 + 测试迁移 | ✅ |
 | 6 | ADR-027 / design-review 文档同步 | ✅ |

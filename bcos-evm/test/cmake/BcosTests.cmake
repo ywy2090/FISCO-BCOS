@@ -1,9 +1,9 @@
 # bcos-evm bcos tests.
 
-set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoVmHostPolicyTest)
+set(FISCO_HOST_EXTENSION_TEST_BINARY_NAME FiscoEvmHostHooksTest)
 
 add_executable(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
-    bcos/FiscoVmHostPolicyTest.cpp
+    bcos/FiscoEvmHostHooksTest.cpp
 )
 
 target_include_directories(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME} PRIVATE
@@ -16,7 +16,7 @@ target_link_libraries(${FISCO_HOST_EXTENSION_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME FiscoVmHostPolicy
+    NAME FiscoEvmHostHooks
     COMMAND ${FISCO_HOST_EXTENSION_TEST_BINARY_NAME}
 )
 

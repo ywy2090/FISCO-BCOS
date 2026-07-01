@@ -14,10 +14,10 @@
  *  limitations under the License.
  */
 
-#define BOOST_TEST_MODULE FiscoVmHostPolicyTest
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
+#define BOOST_TEST_MODULE FiscoEvmHostHooksTest
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryAuthAdapter.h"
 #include <evmone/evmone.h>
@@ -78,11 +78,11 @@ state::BlockHashes emptyBlockHashes()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_SUITE(FiscoVmHostPolicyTest)
+BOOST_AUTO_TEST_SUITE(FiscoEvmHostHooksTest)
 
 BOOST_AUTO_TEST_CASE(default_policy_matches_fisco_rules)
 {
-    FiscoVmHostPolicy ext(/*skipEvmNativeValueTransfer*/ true, {});
+    FiscoEvmHostHooks ext(/*skipEvmNativeValueTransfer*/ true, {});
 
     BOOST_CHECK(!ext.allowSelfdestruct(state::Account{}));
     BOOST_CHECK(!ext.allowDelegateCallToPrecompile());
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_ru
     std::string capturedAuthTablePath;
     bool createAuthTableCalled = false;
 
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.blockNumber = 1;
     deps.revisionFlags.fix_auth_check = true;
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_ru
     });
     deps.authPort = &authPort;
 
-    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
@@ -136,14 +136,14 @@ BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)
     static crypto::Keccak256 hashImpl;
 
     state.set_nonce(sender, 7);
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.hashImpl = &hashImpl;
     deps.origin = origin;
     deps.revisionFlags.web3Tx = true;
     deps.revisionFlags.createLevel = 1;
 
-    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
     evmc_bytes32 markerValue{};
     markerValue.bytes[31] = 0x5A;
 
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.blockNumber = 1;
     deps.revisionFlags.fix_nonce_init = true;
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
         state.set_storage(msg.code_address, markerKey, markerValue);
     });
     deps.authPort = &authPort;
-    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};

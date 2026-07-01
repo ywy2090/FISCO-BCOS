@@ -1,7 +1,7 @@
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
+#include "bcos-evm/eth/apply/EthEvmHostHooks.h"
 #include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
-#include "bcos-evm/eth/policy/EthVmHostPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
@@ -59,7 +59,7 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
 
     trace::logMessageContext(input.message);
 
-    state::EthVmHostPolicy extension;
+    state::EthEvmHostHooks extension;
     ctx.wireExecutionEnvironment(input.vm, &extension, nullptr);
 
     EthStateTransitionBindings::Context bindingsCtx{input, output};

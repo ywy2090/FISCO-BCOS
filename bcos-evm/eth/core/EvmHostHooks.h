@@ -26,7 +26,7 @@ namespace bcos::evm::state
 struct Account;
 class State;
 
-/// Shared helpers used by default hooks and chain VmHostPolicy overrides (fix ON path).
+/// Shared helpers used by default hooks and chain-specific EvmHostHooks overrides (fix ON path).
 void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
     evmc_bytes32 const& original, evmc_bytes32 const& newValue) noexcept;
 

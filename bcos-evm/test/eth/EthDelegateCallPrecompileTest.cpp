@@ -6,7 +6,7 @@
  *  GETH_ORACLE: go-ethereum/core/vm/evm.go:404
  *    "It is allowed to call precompiles, even via delegatecall"
  *
- *  Contrast: FiscoVmHostPolicy / DenyDelegatePrecompilePolicy → PolicyRejected (see C4 baseline).
+ *  Contrast: FiscoEvmHostHooks / DenyDelegatePrecompilePolicy → PolicyRejected (see C4 baseline).
  */
 
 #define BOOST_TEST_MODULE EthDelegateCallPrecompileTest
@@ -15,7 +15,7 @@
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "fixtures/EthFrameParityHelpers.h"

@@ -41,13 +41,13 @@ graph TD
         EF["runCallFrame()"]
         PA["PrecompileActive / PrecompileRouter"]
         EH["EthHost::call()"]
-        VHP["VmHostPolicy"]
+        VHP["EvmHostHooks"]
         RC["RevisionConfig + Eip2929Gate"]
     end
     subgraph bcos["bcos-evm-bcos（FISCO）"]
         FEB["applyFiscoMessage()"]
         FOP["FiscoStateTransitionBindings::bind"]
-        FVP["FiscoVmHostPolicy"]
+        FVP["FiscoEvmHostHooks"]
         FP["FiscoPolicy"]
         PORTS["AuthPort / ChainExtendedPrecompileDispatch"]
     end
@@ -56,7 +56,7 @@ graph TD
         OTL["runOpStackTxLifecycle()"]
         OOP["OpStackStateTransitionBindings::bind"]
         OSET["OpStackSettlement settle*"]
-        OVP["OpStackVmHostPolicy"]
+        OVP["OpStack chain call-target adapter"]
     end
     ETH["applyEthMessage()"] --> EOP["EthStateTransitionBindings::bind"]
     EOP --> RO
@@ -83,9 +83,9 @@ graph TD
             │  ──────────────────────   │   │  ──────────────────────   │
             │  applyFiscoMessage()      │   │  applyOpStackMessage()    │
             │  FiscoStateTransitionBindings│   │  runOpStackTxLifecycle()  │
-            │  FiscoVmHostPolicy        │   │  OpStackOrchestrationProf.│
+            │  FiscoEvmHostHooks        │   │  OpStackOrchestrationProf.│
             │  FiscoPolicy              │   │  OpStackSettlement        │
-            │  AuthPort /               │   │  OpStackVmHostPolicy      │
+            │  AuthPort /               │   │  OpStack chain call-target adapter      │
             │  ChainPrecompilePort      │   │                           │
             └────────────┬─────────────┘   └─────────────┬────────────┘
                          │   依赖（单向）                  │   依赖（单向）
@@ -100,7 +100,7 @@ graph TD
             │   PrecompileActive.h   warm/dispatch 单源                    │
             │   PrecompileRouter     resolveCallTarget→executePrecompileEnvelope │
             │   Eip2929Gate.h          2929 / coinbase / CREATE warm gate    │
-            │   VmHostPolicy         扩展点基类 = 标准以太坊默认语义         │
+            │   EvmHostHooks         扩展点基类 = 标准以太坊默认语义         │
             │   RevisionConfig       EIP 开关位域（13 bool + 参数）          │
             │   EthMessage              以太坊参考路径（接线审计）              │
             └───────────────────────────────────────────────────────────┘
@@ -147,7 +147,7 @@ EthHost::call(msg)
     └─ runCallFrame(Nested)
 ```
 
-`TxExecutionRunner::runEvmKernelTopLevel` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `VmHostPolicy*` 注入。
+`TxExecutionRunner::runEvmKernelTopLevel` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `EvmHostHooks*` 注入。
 
 ```cpp
 // eth/kernel/execution/InnerExecute.h — 对外接口
@@ -213,7 +213,7 @@ evmone callback → EthHost::call (nested adapter)
 
 异常路径：`errorPolicy.onException`。链特有 hook 逻辑由 `*StateTransitionBindings` 填充，不再散落在 bridge cpp 匿名 namespace。
 
-**执行环境注入（ADR-027）：** 三入口在 `stateTransitionExecute` 前构造链侧 `*ExecutionBundle`（拥有 `VmHostPolicy` / `ChainCallTargetAdapter`），暴露 kernel `EvmTxContextView`；`wire()` 一次写入 `ctx.txContextView` / `ctx.chainPort` / `ctx.extension`；pipeline ⑥ 经 `toExecuteMessageInput(ctx)` 投影，nested `EthHost::call` 与 top-level 共享同一 `chainPort*`。
+**执行环境注入（ADR-027）：** 三入口在 `stateTransitionExecute` 前构造链侧 `*ExecutionBundle`（拥有 `EvmHostHooks` / `ChainCallTargetAdapter`），暴露 kernel `EvmTxContextView`；`wire()` 一次写入 `ctx.txContextView` / `ctx.chainPort` / `ctx.extension`；pipeline ⑥ 经 `toExecuteMessageInput(ctx)` 投影，nested `EthHost::call` 与 top-level 共享同一 `chainPort*`。
 
 ### 3.3 OpStack 外圈（ADR-021 + ADR-023）
 
@@ -256,7 +256,7 @@ Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `comple
         │  nonce bump → commit → finalize_self_destructs         │
         │                                                        │
         │  evmone → EthHost::call → runCallFrame(Nested)         │
-        │            + VmHostPolicy 回调                          │
+        │            + EvmHostHooks 回调                          │
         └──────────────────────────────────────────────────────┘
                    │
                    ▼
@@ -268,11 +268,11 @@ Normal 路径：`OpStackNormalTxFeeCoordinator` deep module（`buyGas` + `comple
 
 ## 4. 两种扩展机制（核心设计）
 
-### 4.1 `VmHostPolicy` —— 内核**内部**的回调钩子
+### 4.1 `EvmHostHooks` —— 内核**内部**的回调钩子
 
 ```cpp
-// eth/policy/VmHostPolicy.h
-struct VmHostPolicy {
+// eth/policy/EvmHostHooks.h
+struct EvmHostHooks {
     virtual bool allowSelfdestruct(const Account&)        { return true; }   // 默认=标准以太坊
     virtual bool allowDelegateCallToPrecompile()          { return true; }
     virtual bool skipHostValueTransfer()                  { return false; }
@@ -284,9 +284,9 @@ struct VmHostPolicy {
 ```
 
 - **默认实现 = 标准以太坊语义**，链层只覆写差异。
-- `FiscoVmHostPolicy`：禁 selfdestruct、禁 delegatecall-to-precompile、CREATE nonce 持久化、FISCO precompile 优先级。
-- `OpStackVmHostPolicy`：占位 extension；链 call target 经 `OpStackChainCallTargetAdapter` + `chainPort`（ADR-024）。
-- 这些钩子在**内核调用树内部**触发（ADR-005 §3：`VmHostPolicy` 在 kernel 内运行；Orchestrator / `stateTransitionExecute` 在 `innerExecute` 之前运行）。
+- `FiscoEvmHostHooks`：禁 selfdestruct、禁 delegatecall-to-precompile、CREATE nonce 持久化、FISCO precompile 优先级。
+- `OpStack chain call-target adapter`：占位 extension；链 call target 经 `OpStackChainCallTargetAdapter` + `chainPort`（ADR-024）。
+- 这些钩子在**内核调用树内部**触发（ADR-005 §3：`EvmHostHooks` 在 kernel 内运行；Orchestrator / `stateTransitionExecute` 在 `innerExecute` 之前运行）。
 
 ### 4.3 `StateTransitionHooks` + `StateTransitionErrorPolicy` —— state-transition 注入（ADR-019）
 
@@ -311,7 +311,7 @@ struct VmHostPolicy {
 
 错误语义（included-tx vmerr、Fisco `fixErrorHandling`、OpStack gas settlement）由 **`StateTransitionErrorPolicy`** 方法承载：`onIntrinsicGasFailure`、`onFinalizeGasUsed`、`onException`、`onComplete`——替代原 `txPatchExecutionResult` / `txFinalizeGasSettlement` 中分散的 lambda。
 
-与 `VmHostPolicy` 的分界：hooks / errorPolicy 在 `innerExecute` **之前/之后**的管线步骤运行；`VmHostPolicy` 在 evmone 调用树**内部**运行。
+与 `EvmHostHooks` 的分界：hooks / errorPolicy 在 `innerExecute` **之前/之后**的管线步骤运行；`EvmHostHooks` 在 evmone 调用树**内部**运行。
 
 ### 4.2 `Port` —— 编排层对 `bcos-executor` 的依赖倒置（ADR-017，本次重构新增）
 
@@ -433,17 +433,17 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | Tx-entry warm | `eth/kernel/execution/WarmTransactionEntry.h` |
 | Frame target resolver | `eth/kernel/execution/FrameTargetResolver.h` / `.cpp` |
 | Frame helpers | `eth/kernel/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |
-| 内核扩展点 | `eth/policy/VmHostPolicy.h` |
+| 内核扩展点 | `eth/policy/EvmHostHooks.h` |
 | EIP 开关 | `eth/RevisionConfig.h` |
 | FISCO 编排 | `bcos/ApplyFiscoMessage.cpp` |
-| FISCO 扩展 | `bcos/FiscoVmHostPolicy.h` |
+| FISCO 扩展 | `bcos/FiscoEvmHostHooks.h` |
 | FISCO CREATE 地址 | `bcos/FiscoAddressDerivation.h`（ADR-022） |
 | FISCO Policy | `bcos/FiscoPolicy.h` |
 | 依赖倒置端口 | `bcos/ports/AuthPort.h`、`eth/core/ChainExtendedPrecompileDispatch.h` |
 | OP 入口 | `opstack/ApplyOpStackMessage.cpp` |
 | OP lifecycle | `opstack/OpStackTxLifecycle.h` / `.cpp`（ADR-023） |
 | OP settlement | `opstack/OpStackSettlement.h` / `.cpp`（ADR-021） |
-| OP 扩展 | `opstack/OpStackVmHostPolicy.h` |
+| OP 扩展 | `opstack/OpStack chain call-target adapter.h` |
 | 能力契约 | `capability-matrix.md` |
 | 决策记录 | `docs/adr/001–024` |
 | 技术债台账 | `docs/architecture-known-gaps.md` |

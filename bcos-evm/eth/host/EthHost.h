@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Lightweight evmc host over eth::state with extension hooks.
- * @file EthHost.hpp
+ * @file EthHost.h
  */
 
 #pragma once

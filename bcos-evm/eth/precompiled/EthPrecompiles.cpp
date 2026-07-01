@@ -19,7 +19,7 @@
  * Table-driven dispatch: address suffix → {execute, gas, optional reject}.
  */
 
-#include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
+#include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/precompiled/Eip2537Gas.h"
 #include "bcos-evm/eth/precompiled/ModexpGas.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"

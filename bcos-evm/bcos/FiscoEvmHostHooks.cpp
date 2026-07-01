@@ -13,10 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @file FiscoVmHostPolicy.cpp
+ * @file FiscoEvmHostHooks.cpp
  */
 
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-evm/bcos/FiscoAddressDerivation.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip2929StorageGas.h"
@@ -28,7 +28,7 @@
 namespace bcos::evm
 {
 
-FiscoVmHostPolicy::FiscoVmHostPolicy(bool skipEvmNativeValueTransfer, FiscoVmHostPolicyDeps deps)
+FiscoEvmHostHooks::FiscoEvmHostHooks(bool skipEvmNativeValueTransfer, FiscoEvmHostHooksDeps deps)
   : m_skipEvmNativeValueTransfer(skipEvmNativeValueTransfer)
 {
     m_storageRef = deps.storageRef;
@@ -56,7 +56,7 @@ FiscoVmHostPolicy::FiscoVmHostPolicy(bool skipEvmNativeValueTransfer, FiscoVmHos
     }
 }
 
-void FiscoVmHostPolicy::deriveNestedCreateAddress(evmc_message& message)
+void FiscoEvmHostHooks::deriveNestedCreateAddress(evmc_message& message)
 {
     if (shouldSkipNestedCreateDerivation(message, m_origin))
     {
@@ -77,7 +77,7 @@ void FiscoVmHostPolicy::deriveNestedCreateAddress(evmc_message& message)
                                              .hashImpl = m_hashImpl});
 }
 
-void FiscoVmHostPolicy::prepareMessage(evmc_revision rev, evmc_message& msg)
+void FiscoEvmHostHooks::prepareMessage(evmc_revision rev, evmc_message& msg)
 {
     (void)rev;
     if (m_state == nullptr)
@@ -94,23 +94,23 @@ void FiscoVmHostPolicy::prepareMessage(evmc_revision rev, evmc_message& msg)
     applyCreateNonceSemantics(msg);
 }
 
-bool FiscoVmHostPolicy::isZeroAddress(const evmc_address& address) noexcept
+bool FiscoEvmHostHooks::isZeroAddress(const evmc_address& address) noexcept
 {
     return std::all_of(
         std::begin(address.bytes), std::end(address.bytes), [](uint8_t byte) { return byte == 0; });
 }
 
-evmc_address FiscoVmHostPolicy::createTarget(const evmc_message& message) noexcept
+evmc_address FiscoEvmHostHooks::createTarget(const evmc_message& message) noexcept
 {
     return !isZeroAddress(message.code_address) ? message.code_address : message.recipient;
 }
 
-void FiscoVmHostPolicy::setCallerAddress(const evmc_address& caller)
+void FiscoEvmHostHooks::setCallerAddress(const evmc_address& caller)
 {
     m_callerAddress = caller;
 }
 
-void FiscoVmHostPolicy::bumpContractCreateNonce(const evmc_address& contractAddress)
+void FiscoEvmHostHooks::bumpContractCreateNonce(const evmc_address& contractAddress)
 {
     if (m_state == nullptr || state::isZeroAddress(contractAddress) ||
         !m_persistContractCreateNonce)
@@ -126,7 +126,7 @@ void FiscoVmHostPolicy::bumpContractCreateNonce(const evmc_address& contractAddr
     }
 }
 
-void FiscoVmHostPolicy::applyCreateNonceSemantics(const evmc_message& message)
+void FiscoEvmHostHooks::applyCreateNonceSemantics(const evmc_message& message)
 {
     if (m_state == nullptr)
     {
@@ -139,7 +139,7 @@ void FiscoVmHostPolicy::applyCreateNonceSemantics(const evmc_message& message)
     }
 }
 
-void FiscoVmHostPolicy::applySstoreRefund(state::State& state, evmc_bytes32 const& current,
+void FiscoEvmHostHooks::applySstoreRefund(state::State& state, evmc_bytes32 const& current,
     evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept
 {
     if (m_revisionFlags.fix_storage_status)
@@ -148,7 +148,7 @@ void FiscoVmHostPolicy::applySstoreRefund(state::State& state, evmc_bytes32 cons
     }
 }
 
-evmc_storage_status FiscoVmHostPolicy::classifyStorageStatus(evmc_bytes32 const& original,
+evmc_storage_status FiscoEvmHostHooks::classifyStorageStatus(evmc_bytes32 const& original,
     evmc_bytes32 const& current, evmc_bytes32 const& newValue) const noexcept
 {
     if (m_revisionFlags.fix_storage_status)
@@ -158,7 +158,7 @@ evmc_storage_status FiscoVmHostPolicy::classifyStorageStatus(evmc_bytes32 const&
     return state::isZeroBytes32(newValue) ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
 }
 
-void FiscoVmHostPolicy::applyLegacySstoreDeletedRefund(
+void FiscoEvmHostHooks::applyLegacySstoreDeletedRefund(
     state::State& state, evmc_storage_status status) const noexcept
 {
     if (!m_revisionFlags.fix_storage_status && status == EVMC_STORAGE_DELETED)
@@ -167,7 +167,7 @@ void FiscoVmHostPolicy::applyLegacySstoreDeletedRefund(
     }
 }
 
-void FiscoVmHostPolicy::finalizeTopLevelCreateNonce(
+void FiscoEvmHostHooks::finalizeTopLevelCreateNonce(
     state::State& state, evmc_address const& createAddr) noexcept
 {
     if (m_revisionFlags.fix_nonce_init && !state::isZeroAddress(createAddr))
@@ -176,7 +176,7 @@ void FiscoVmHostPolicy::finalizeTopLevelCreateNonce(
     }
 }
 
-std::string FiscoVmHostPolicy::resolveAuthTablePath(const evmc_message& message) const
+std::string FiscoEvmHostHooks::resolveAuthTablePath(const evmc_message& message) const
 {
     if (m_revisionFlags.fix_auth_check && m_revisionFlags.use_raw_address)
     {
@@ -189,7 +189,7 @@ std::string FiscoVmHostPolicy::resolveAuthTablePath(const evmc_message& message)
     return std::string(USER_APPS_PREFIX) + hexAddress(message.recipient);
 }
 
-std::string FiscoVmHostPolicy::hexAddress(const evmc_address& address)
+std::string FiscoEvmHostHooks::hexAddress(const evmc_address& address)
 {
     static constexpr char HEX[] = "0123456789abcdef";
     std::string out(sizeof(address.bytes) * 2, '0');

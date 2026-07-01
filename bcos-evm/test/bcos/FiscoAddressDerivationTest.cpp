@@ -15,7 +15,7 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-framework/ledger/Features.h"
@@ -110,11 +110,11 @@ struct NestedPrepareResult
     int64_t seqAfter{0};
 };
 
-NestedPrepareResult runNestedPrepare(FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps,
+NestedPrepareResult runNestedPrepare(FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps,
     evmc_message message, evmc_revision revision = EVMC_CANCUN)
 {
     NestedPrepareResult out{.message = message};
-    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     extension.prepareMessage(revision, out.message);
     if (deps.seq != nullptr)
     {
@@ -257,7 +257,7 @@ BOOST_AUTO_TEST_CASE(top_level_feature_evm_address_enables_legacy_without_web3_t
 
 BOOST_AUTO_TEST_SUITE_END()
 
-// --- Baseline: nested seam (FiscoVmHostPolicy::prepareMessage) ---------------
+// --- Baseline: nested seam (FiscoEvmHostHooks::prepareMessage) ---------------
 
 BOOST_AUTO_TEST_SUITE(FiscoAddressDerivationNestedCharacterization)
 
@@ -274,7 +274,7 @@ BOOST_AUTO_TEST_CASE(nested_fisco_hash_increments_nested_seq)
     auto const expected = fiscoHashAddress(hashImpl, 200, 3, 6);
 
     ledger::LedgerConfig ledgerConfig;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.blockNumber = 200;
     deps.contextID = 3;
@@ -305,7 +305,7 @@ BOOST_AUTO_TEST_CASE(nested_legacy_web3_reads_state_nonce_not_tx_nonce_param)
 
     int64_t nestedSeq = 0;
     ledger::LedgerConfig ledgerConfig;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.hashImpl = &hashImpl;
     deps.origin = origin;
@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(nested_feature_evm_address_enables_legacy_without_web3_tx)
 
     int64_t nestedSeq = 0;
     auto ledgerConfig = ledgerWithFeature(ledger::Features::Flag::feature_evm_address);
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.hashImpl = &hashImpl;
     deps.origin = origin;
@@ -354,7 +354,7 @@ BOOST_AUTO_TEST_CASE(top_level_depth_zero_skips_nested_prepare_derivation)
 
     int64_t nestedSeq = 0;
     ledger::LedgerConfig ledgerConfig;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.hashImpl = &hashImpl;
     deps.origin = origin;
@@ -387,7 +387,7 @@ BOOST_AUTO_TEST_CASE(oq1_nested_legacy_nonce_oracle_diverges_from_policy_derive)
 
     int64_t nestedSeq = 0;
     ledger::LedgerConfig ledgerConfig;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.hashImpl = &hashImpl;
     deps.origin = origin;
@@ -465,14 +465,14 @@ BOOST_AUTO_TEST_CASE(oq2_create2_deployer_nested_prefers_caller_address)
 
     int64_t nestedSeq = 0;
     ledger::LedgerConfig ledgerConfig;
-    FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
     deps.state = &state;
     deps.hashImpl = &hashImpl;
     deps.origin = origin;
     deps.seq = &nestedSeq;
     deps.ledgerConfig = &ledgerConfig;
 
-    FiscoVmHostPolicy extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
+    FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     extension.setCallerAddress(caller);
     extension.prepareMessage(EVMC_CANCUN, message);
 

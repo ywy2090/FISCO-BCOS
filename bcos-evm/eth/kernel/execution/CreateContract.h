@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmone_precompiles/keccak.hpp>

@@ -2,13 +2,13 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-019, ADR-024, `eth/kernel/state-transition/StateTransitionContext.h`, `eth/kernel/state-transition/BuildExecuteMessageInput.h`, `eth/kernel/execution/InnerExecute.h`, `eth/kernel/execution/EvmCallFrame.h`, `eth/state/EthHost.hpp`, `bcos/ApplyFiscoMessage.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/apply/EthMessage.cpp`
+**Related:** ADR-005, ADR-019, ADR-024, `eth/kernel/state-transition/StateTransitionContext.h`, `eth/kernel/state-transition/BuildExecuteMessageInput.h`, `eth/kernel/execution/InnerExecute.h`, `eth/kernel/execution/EvmCallFrame.h`, `eth/host/EthHost.h`, `bcos/ApplyFiscoMessage.cpp`, `opstack/OpStackTxLifecycle.cpp`, `eth/apply/ApplyEthMessage.cpp`
 
 ---
 
 ## Context
 
-ADR-024 §6 documents per-tx injection of `ChainExtendedPrecompileDispatch*` and `VmHostPolicy* extension` from orchestration into `ExecuteMessageInput` → `FrameExecutionEnv` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
+ADR-024 §6 documents per-tx injection of `ChainExtendedPrecompileDispatch*` and `EvmHostHooks* extension` from orchestration into `ExecuteMessageInput` → `FrameExecutionEnv` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
 
 ```text
 bridge/lifecycle → TxPipelineContext.{extension, chainPort}
@@ -22,7 +22,7 @@ bridge/lifecycle → TxPipelineContext.{extension, chainPort}
 
 1. **No locality for injection.** Each new port field requires edits at bridge, `TxPipelineContext`, `BuildExecuteMessageInput`, and test fixtures. Omission of `chainPort` (e.g. `nullptr` when FISCO dispatch is configured) silently routes chain targets through builtin/EVM paths.
 
-2. **Ownership scattered in bridges.** `FiscoVmHostPolicy` and `std::optional<FiscoChainCallTargetAdapter>` live as separate stack locals in `FiscoExecute`; OpStack mirrors with `OpStackChainCallTargetAdapter`. Lifetime must span `runTxPipeline` **and** nested `EthHost::call`, but nothing groups the bundle.
+2. **Ownership scattered in bridges.** `FiscoEvmHostHooks` and `std::optional<FiscoChainCallTargetAdapter>` live as separate stack locals in `FiscoExecute`; OpStack mirrors with `OpStackChainCallTargetAdapter`. Lifetime must span `runTxPipeline` **and** nested `EthHost::call`, but nothing groups the bundle.
 
 3. **`OrchestrationProfile::Session` is the wrong seam.** FISCO / Eth / OpStack already have policy-binding `Session` types (precheck + error policy). Injection is a **kernel execution-environment** concern, not orchestration policy.
 
@@ -58,7 +58,7 @@ Grilling outcomes (2026-06-26):
 | **2 — execution infra** | `vm*`, `blockHashes` | Set in Bundle factory from request/revision; copied via `wire()` |
 | **3 — tx mutable** | `state`, `message`, `gasPrice`, `revisionConfig`, `txProps`, `authorizations`, pipeline outputs | `TxPipelineContext` only; merged in `toExecuteMessageInput(ctx)` |
 
-FISCO legacy `fix_storage_status` / `fix_nonce_init` (from `FiscoRevisionConfig`) are **not** Tier-2 kernel fields. They configure `FiscoVmHostPolicy::RevisionFlags` and flow through Tier-1 `extension*` hook overrides (`applySstoreRefund`, `classifyStorageStatus`, `finalizeTopLevelCreateNonce`). See `docs/superpowers/specs/2026-06-30-evm-host-hooks-fisco-legacy-design.md`.
+FISCO legacy `fix_storage_status` / `fix_nonce_init` (from `FiscoRevisionConfig`) are **not** Tier-2 kernel fields. They configure `FiscoEvmHostHooks::RevisionFlags` and flow through Tier-1 `extension*` hook overrides (`applySstoreRefund`, `classifyStorageStatus`, `finalizeTopLevelCreateNonce`). See `docs/superpowers/specs/2026-06-30-evm-host-hooks-fisco-legacy-design.md`.
 
 Orchestration-only overlays (`skipTopLevelSenderNonceBump`, `txHash`) remain outside the session; `StateTransitionHooks::onTuneInnerExecuteInput` applies them after projection (ADR-019 unchanged).
 
@@ -97,8 +97,8 @@ struct EvmTxContextView {
 
 | Bundle | Location | Owns | `chainPort` in view |
 | --- | --- | --- | --- |
-| `EthExecutionBundle` | `eth/apply/` | `EthVmHostPolicy` | `nullptr` (valid) |
-| `FiscoExecutionBundle` | `bcos/` | `FiscoVmHostPolicy`, `optional<FiscoChainCallTargetAdapter>` | non-null iff `input.chainDispatchPort != nullptr` |
+| `EthExecutionBundle` | `eth/apply/` | `EthEvmHostHooks` | `nullptr` (valid) |
+| `FiscoExecutionBundle` | `bcos/` | `FiscoEvmHostHooks`, `optional<FiscoChainCallTargetAdapter>` | non-null iff `input.chainDispatchPort != nullptr` |
 | `OpStackExecutionBundle` | `opstack/` | `OpStackChainCallTargetAdapter` | always non-null |
 
 Construction order unchanged: `TxPipelineContext` first (Bundle needs `&ctx.state`), then Bundle, then `session.wire(ctx)`.

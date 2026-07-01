@@ -23,7 +23,7 @@ Today the logic is **copy-pasted across four seams**:
 | --- | --- | --- |
 | Orchestration (top-level) | `bcos/ApplyFiscoMessage.cpp::deriveMessage()` | `FiscoStateTransitionBindings::txSetupMessage` |
 | Policy duplicate | `bcos/FiscoPolicy.h::deriveMessageImpl()` | Compat tests only; byte-identical to above |
-| VmHostPolicy (nested) | `bcos/FiscoVmHostPolicy.cpp::deriveNestedCreateAddress()` | `prepareMessage` inside kernel call tree |
+| EvmHostHooks (nested) | `bcos/FiscoEvmHostHooks.cpp::deriveNestedCreateAddress()` | `prepareMessage` inside kernel call tree |
 | Post-execute patch | `bcos/FiscoStateTransitionErrorPolicy::onFinalizeGasUsed()` | Fill empty `create_address` from `recipient` (not re-derivation) |
 
 ETH reference path already converged on `eth/kernel/execution/CreateContract.h` (`predictCreateAddress`, `bindCreateMessageForInit`). FISCO has no equivalent.
@@ -49,7 +49,7 @@ Compat tests (`CompatExecuteViaHostTest`, `CompatHostContextTest`) predict neste
 
 ### 1. Introduce `bcos/FiscoAddressDerivation.h` (header-only or `.cpp` TU in `bcos-evm-bcos`)
 
-Single module owns **all address computation**. No CREATE address math in `FiscoPolicy`, `FiscoExecute`, or `FiscoVmHostPolicy` bodies after migration.
+Single module owns **all address computation**. No CREATE address math in `FiscoPolicy`, `FiscoExecute`, or `FiscoEvmHostHooks` bodies after migration.
 
 Two public entry points:
 
@@ -70,7 +70,7 @@ struct FiscoNestedCreateParams {
     bool featureEvmAddress;
     evmc_message const& message;
     evmc_address const& origin;
-    evmc_address const& callerAddress;  // from VmHostPolicy::setCallerAddress
+    evmc_address const& callerAddress;  // from EvmHostHooks::setCallerAddress
     protocol::BlockNumber blockNumber;
     int64_t contextID;
     int64_t* nestedSeq;                 // incremented in-place on FISCO-hash path
@@ -95,7 +95,7 @@ void bindFiscoCreateMessage(evmc_message& message, evmc_address const& addr);
 | Frame | Condition | Entry point | Caller |
 | --- | --- | --- | --- |
 | Top-level | `depth == 0` && EOA sender (`sender == origin`) | `predictFiscoTopLevelCreateAddress` | `FiscoStateTransitionBindings::txSetupMessage` via `deriveMessage()` wrapper |
-| Nested | `depth > 0` OR `sender != origin` | `predictFiscoNestedCreateAddress` | `FiscoVmHostPolicy::prepareMessage` |
+| Nested | `depth > 0` OR `sender != origin` | `predictFiscoNestedCreateAddress` | `FiscoEvmHostHooks::prepareMessage` |
 | Post-execute | CREATE success && empty `create_address` | **No derivation** — copy `message.recipient` | `FiscoStateTransitionErrorPolicy::onFinalizeGasUsed` (unchanged) |
 
 #### 2.2 Legacy vs FISCO-hash gate (**resolves D1**)
@@ -113,7 +113,7 @@ Rationale: matches legacy `TransactionExecutive` and removes top-level-only FISC
 | Top-level | `txNonce` from orchestration input (current `input.nonce`) | Tx not yet executed; matches TE Prepare path |
 | Nested | `state.get_nonce(deployer)` at `prepareMessage` time | Contract-initiated CREATE must observe deployer nonce after prior state changes in same tx |
 
-Document explicitly in module header: nested legacy **intentionally** differs from top-level nonce source (same as current VmHostPolicy, unlike stale `deriveMessage` copy used in compat tests).
+Document explicitly in module header: nested legacy **intentionally** differs from top-level nonce source (same as current EvmHostHooks, unlike stale `deriveMessage` copy used in compat tests).
 
 **Follow-up (optional):** if product requires strict `TransactionExecutive` parity for nested legacy, switch nested to caller-supplied nonce — requires TE to pass nested nonce through Host; defer unless regression found.
 
@@ -133,7 +133,7 @@ Nested deployer rule stays; top-level unchanged. Align CREATE2 top-level with ne
 | Top-level | Use `params.seq` as-is; increment is **caller's** responsibility before invoke |
 | Nested | `++*nestedSeq` inside `predictFiscoNestedCreateAddress` |
 
-Document contract: `FiscoExecutionRequest.seq` is the outer seq at tx entry; `nestedSeq` pointer is shared with VmHostPolicy for inner CREATE accounting.
+Document contract: `FiscoExecutionRequest.seq` is the outer seq at tx entry; `nestedSeq` pointer is shared with EvmHostHooks for inner CREATE accounting.
 
 #### 2.6 EMPTY `code_address` guard (**resolves D5**)
 
@@ -142,7 +142,7 @@ Document contract: `FiscoExecutionRequest.seq` is the outer seq at tx entry; `ne
 | CREATE | Derive only if `code_address == EMPTY_EVM_ADDRESS` | Always derive (overwrite) |
 | CREATE2 | Always derive | Always derive |
 
-Nested CREATE always overwrites preserves current VmHostPolicy behavior for inner frames where evmone may leave stale fields.
+Nested CREATE always overwrites preserves current EvmHostHooks behavior for inner frames where evmone may leave stale fields.
 
 ### 3. Seam ownership after migration
 
@@ -178,7 +178,7 @@ Add row:
 
 | Capability | Layer | ETH | BCOS | OP | Tests |
 | --- | --- | --- | --- | --- | --- |
-| FISCO CREATE address derivation | orchestration + VmHostPolicy | unsupported | explicit (`FiscoAddressDerivation`) | unsupported | `FiscoAddressDerivationTest`, Fisco execution smoke |
+| FISCO CREATE address derivation | orchestration + EvmHostHooks | unsupported | explicit (`FiscoAddressDerivation`) | unsupported | `FiscoAddressDerivationTest`, Fisco execution smoke |
 
 ---
 
@@ -198,7 +198,7 @@ Add row:
 | --- | --- |
 | Keep duplication; document only | D1/D2 drift remains; compat tests lie about nested behavior |
 | Single entry point with `isNested` flag | Hides legitimately different nonce/seq/deployer rules; harder to test |
-| Move all derivation into VmHostPolicy | Top-level CREATE runs before Host exists; violates ADR-005 orchestrator-before-kernel |
+| Move all derivation into EvmHostHooks | Top-level CREATE runs before Host exists; violates ADR-005 orchestrator-before-kernel |
 | Delete FISCO-hash scheme | Breaking change for non-Web3 deployments |
 
 ---
@@ -221,7 +221,7 @@ Add row:
 - [ ] `FiscoAddressDerivationTest` covers D1–D5 matrix.
 - [ ] Compat nested tests use nested helper, not top-level copy.
 - [ ] `capability-matrix.md` row added.
-- [ ] ADR-005 §3 VmHostPolicy table footnotes ADR-022 for CREATE address.
+- [ ] ADR-005 §3 EvmHostHooks table footnotes ADR-022 for CREATE address.
 
 ---
 

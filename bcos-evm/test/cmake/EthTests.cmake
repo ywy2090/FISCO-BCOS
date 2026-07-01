@@ -1,9 +1,9 @@
 # bcos-evm eth tests.
 
-set(HOOKS_TEST_BINARY_NAME EthVmHostPolicyHooksTest)
+set(HOOKS_TEST_BINARY_NAME EthEvmHostHooksTest)
 
 add_executable(${HOOKS_TEST_BINARY_NAME}
-    eth/EthVmHostPolicyHooksTest.cpp
+    eth/EthEvmHostHooksTest.cpp
 )
 
 target_include_directories(${HOOKS_TEST_BINARY_NAME} PRIVATE
@@ -16,7 +16,7 @@ target_link_libraries(${HOOKS_TEST_BINARY_NAME} PRIVATE
 )
 
 add_test(
-    NAME EthVmHostPolicyHooks
+    NAME EthEvmHostHooks
     COMMAND ${HOOKS_TEST_BINARY_NAME}
 )
 

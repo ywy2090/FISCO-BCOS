@@ -39,7 +39,7 @@ opstack/ ──►  eth/
 
 ### 3.1 `eth/state/` — Copy-on-write state engine
 
-**Files:** `State.hpp` / `.cpp`, `StateView.hpp`, `EthHost.hpp` / `.cpp`, `Account.hpp`, `StateDiff.hpp`, `BlockInfo.hpp`, `Transaction.hpp`, `EthPrecompiles.hpp` / `.cpp`, `CreateExecution.h`, `Transition.hpp` / `.cpp`, `BloomFilter.hpp` / `.cpp`, `HashUtils.hpp`, `Errors.hpp`
+**Files:** `State.hpp` / `.cpp`, `StateView.hpp`, `Account.hpp`, `StateDiff.hpp`, `BlockInfo.hpp`, `Transaction.hpp`, `CreateExecution.h`, `Transition.hpp` / `.cpp`, `BloomFilter.hpp` / `.cpp`, `HashUtils.hpp`, `Errors.hpp`
 
 **Design:**
 
@@ -59,7 +59,7 @@ EthHost     (evmone Host implementation — 669 lines, implements the Host C++ i
 
 - **`call()`** (lines 252-375): routes through precompile check, extension hooks, CREATE binding, checkpoint, value transfer, EVM execute, and result handling. This is the single most complex function in the kernel.
 - **`selfdestruct()`**: encodes EIP-6780 semantics (same-tx CREATE tracking).
-- **`set_storage()`**: dispatches SSTORE refund/status through `EvmHostHooks` (`applySstoreRefund`, `classifyStorageStatus`); FISCO legacy paths override in `FiscoVmHostPolicy`.
+- **`set_storage()`**: dispatches SSTORE refund/status through `EvmHostHooks` (`applySstoreRefund`, `classifyStorageStatus`); FISCO legacy paths override in `FiscoEvmHostHooks`.
 
 **Points a reviewer should check:**
 1. New state mutations go through `State`, not directly to `StateView`.
@@ -119,7 +119,7 @@ This is the **single injection point** for chain-specific behavior into the kern
 
 ### 3.4 `eth/precompiled/` — Precompile dispatch and gas
 
-**Files:** `PrecompileRouter.h` / `.cpp`, `EthBuiltinRegistry.h` / `.cpp`, `EthPrecompiles.hpp` / `.cpp`, `PrecompiledContract.h` / `.cpp`, `PrecompileTraits.h`, `PrecompileActive.h`, `PrecompiledAddress.h`, `BlsGas.h`, `ModexpGas.h` / `.cpp`
+**Files:** `PrecompileRouter.h` / `.cpp`, `EthBuiltinRegistry.h` / `.cpp`, `EthPrecompiles.h` / `.cpp`, `PrecompiledContract.h` / `.cpp`, `PrecompileTraits.h`, `PrecompileActive.h`, `PrecompiledAddress.h`, `Eip2537Gas.h`, `ModexpGas.h` / `.cpp`
 
 **Design:**
 

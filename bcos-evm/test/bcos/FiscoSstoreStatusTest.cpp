@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE FiscoSstoreStatusTest
 
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -75,10 +75,10 @@ BOOST_AUTO_TEST_CASE(legacy_off_sstore_status_matrix)
             evmc::VM vm{evmc_create_evmone()};
             bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
 
-            FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+            FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
             deps.state = &state;
             deps.revisionFlags.fix_storage_status = testCase.fixStorageStatus;
-            FiscoVmHostPolicy policy(false, std::move(deps));
+            FiscoEvmHostHooks policy(false, std::move(deps));
 
             state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &policy);
 

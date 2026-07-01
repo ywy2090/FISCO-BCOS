@@ -16,7 +16,7 @@
  * @file EthHost.cpp
  */
 
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip2929Gate.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"

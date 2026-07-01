@@ -365,7 +365,7 @@ CI：`tools/ci/check-revision-single-source.sh` 禁止在 consumer 侧用 `revis
 | Gap | 摘要 | 状态 |
 | --- | --- | --- |
 | 36 | Prepare 阶段 warm 未持久化到 Execute | 待产品决策 |
-| 37 | `RevisionConfig` profile-only 字段 | 部分闭合：`eip2929`/`eip3651` 已消费（`Eip2929Access`）；`eip1559` 仍 profile-only；`prague_post_execution` 已删除 |
+| 37 | `RevisionConfig` profile-only 字段 | 部分闭合：`eip2929`/`eip3651` 已消费（`Eip2929Gate`）；`eip1559` 仍 profile-only；`prague_post_execution` 已删除 |
 | 38 | eth/ 无 BCOS/OP include | 审计通过，新增 hook 时重跑 |
 
 ### 7.2 架构审查下一刀（2026-06-23，2026-06-25 更新）

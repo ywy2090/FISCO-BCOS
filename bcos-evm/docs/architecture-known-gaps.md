@@ -10,13 +10,13 @@ Tracked items from Phase 1 audit and grill review. Update when closed.
 
 ## 37 — RevisionConfig profile-only fields
 
-Fields such as `eip1559` are consumed via `Eip1559Gate.h` (typed-tx gate, fee-cap precheck, `normalizeGasCaps`, OpStack refund). `eip3651` and `eip2929` are wired: coinbase warm via `isCoinbaseWarmEnabled`; EIP-2929 TE gate via `Eip2929Access.h` (ADR-004 Scheme A — FISCO `feature_evm_eip2929=OFF` is intentional deviation).
+Fields such as `eip1559` are consumed via `Eip1559Gate.h` (typed-tx gate, fee-cap precheck, `normalizeGasCaps`, OpStack refund). `eip3651` and `eip2929` are wired: coinbase warm via `isCoinbaseWarmEnabled`; EIP-2929 TE gate via `Eip2929Gate.h` (ADR-004 Scheme A — FISCO `feature_evm_eip2929=OFF` is intentional deviation).
 
 **Status:** Partially closed (`eip3651`, `eip2929`, `eip1559` consumed). Removed: `prague_post_execution` (dead flag). Isthmus criteria 14 (no 6110/7002/7251 block postExecution) guarded by `IsthmusPostExecutionPolicyTest` + `check-opstack-no-prague-post-execution.sh`.
 
-## 38 — VmHostPolicy CMake / include audit
+## 38 — EvmHostHooks CMake / include audit
 
-`bcos-evm/eth` must not include BCOS/OP headers. Chain hooks live in `FiscoVmHostPolicy` / `OpStackVmHostPolicy` implementing `state::VmHostPolicy`.
+`bcos-evm/eth` must not include BCOS/OP headers. Chain hooks live in `FiscoEvmHostHooks` / `OpStack chain call-target adapter` implementing `state::EvmHostHooks`.
 
 **Status:** Audit complete for current tree — no BCOS/OP includes under `bcos-evm/eth`. Re-run when adding hooks.
 

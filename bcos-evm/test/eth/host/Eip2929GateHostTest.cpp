@@ -1,12 +1,12 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief EthHost EIP-2929 access_account/access_storage compat (replaces ExecuteFrame host API).
+ *  @brief EthHost EIP-2929 gate: access_account/access_storage (Eip2929Gate).
  */
 
-#define BOOST_TEST_MODULE Eip2929AccessHostTest
+#define BOOST_TEST_MODULE Eip2929GateHostTest
 
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
@@ -37,7 +37,7 @@ BlockHashes emptyBlockHashes()
 }
 }  // namespace
 
-BOOST_AUTO_TEST_SUITE(Eip2929AccessHostTest)
+BOOST_AUTO_TEST_SUITE(Eip2929GateHostTest)
 
 BOOST_AUTO_TEST_CASE(access_account_cold_then_warm)
 {
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(access_account_cold_then_warm)
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true};
-    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
     auto const addr = addressFromByte(0x11);
 
     BOOST_CHECK_EQUAL(host.access_account(addr), EVMC_ACCESS_COLD);
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(access_storage_cold_then_warm)
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true};
-    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
     auto const addr = addressFromByte(0x77);
     auto const key = bytes32FromByte(0x88);
 
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(journal_revert_rolls_back_child_warm_address)
     evmc::VM vm{evmc_create_evmone()};
     BlockHashes blockHashes = emptyBlockHashes();
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true};
-    EthHost host(state, txContext, cfg, vm, blockHashes, nullptr, false);
+    EthHost host(state, txContext, cfg, vm, blockHashes);
 
     auto const parentWarm = addressFromByte(0x75);
     auto const childCold = addressFromByte(0x74);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(access_account_disabled_when_eip2929_off)
     evmc_tx_context txContext{};
     evmc::VM vm{evmc_create_evmone()};
     bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = false};
-    EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
+    EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
     auto const addr = addressFromByte(0x22);
 
     BOOST_CHECK_EQUAL(host.access_account(addr), EVMC_ACCESS_COLD);

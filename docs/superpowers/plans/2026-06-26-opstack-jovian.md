@@ -4,7 +4,7 @@
 
 **Goal:** 在 `bcos-evm/opstack` 补齐 Jovian 执行层语义：operator fee fix、fork 门控、GPO `isJovian`/`getOperatorFee`、Jovian L1 attributes deposit（178B setter）。
 
-**Architecture:** 扩展 `OpStackForkSchedule` 增加 `jovianTime`；`makeCachedOperatorCostFunc` 按 `isOpStackJovian(schedule, blockTime)` 在 Isthmus/Jovian 公式间切换；L1Block 双 setter 按 selector 路由；GPO 通过 `OpStackVmHostPolicy` 接收 fork 上下文。TE 默认 schedule **不变**（`makeIsthmusPlusForkSchedule()`）。
+**Architecture:** 扩展 `OpStackForkSchedule` 增加 `jovianTime`；`makeCachedOperatorCostFunc` 按 `isOpStackJovian(schedule, blockTime)` 在 Isthmus/Jovian 公式间切换；L1Block 双 setter 按 selector 路由；GPO 通过 `OpStack chain call-target adapter` 接收 fork 上下文。TE 默认 schedule **不变**（`makeIsthmusPlusForkSchedule()`）。
 
 **Tech Stack:** C++17, Boost.Test, bcos-evm-op, evmc, CMake/CTest
 
@@ -46,7 +46,7 @@ Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6 → Task 7
 | `bcos-evm/test/opstack/L1AttributesDepositTest.cpp` | Modify |
 | `bcos-evm/opstack/l1/GasPriceOraclePredeploy.h` | Modify |
 | `bcos-evm/opstack/l1/GasPriceOraclePredeploy.cpp` | Modify |
-| `bcos-evm/opstack/OpStackVmHostPolicy.h` | Modify |
+| `bcos-evm/opstack/OpStack chain call-target adapter.h` | Modify |
 | `bcos-evm/opstack/OpStackTxLifecycle.cpp` | Modify |
 | `bcos-evm/test/opstack/GasPriceOraclePredeployTest.cpp` | Modify |
 | `docs/superpowers/plans/2026-06-25-opstack-op-geth-diff-report.md` | Modify |
@@ -414,19 +414,19 @@ rtk git commit -m "feat(opstack): add Jovian L1Block setter dispatch"
 
 ---
 
-### Task 5: GPO + VmHostPolicy fork 感知
+### Task 5: GPO + EvmHostHooks fork 感知
 
 **Files:**
 - Modify: `bcos-evm/opstack/l1/GasPriceOraclePredeploy.h`
 - Modify: `bcos-evm/opstack/l1/GasPriceOraclePredeploy.cpp`
-- Modify: `bcos-evm/opstack/OpStackVmHostPolicy.h`
+- Modify: `bcos-evm/opstack/OpStack chain call-target adapter.h`
 - Modify: `bcos-evm/opstack/OpStackTxLifecycle.cpp`
 - Modify: `bcos-evm/test/opstack/GasPriceOraclePredeployTest.cpp`
 
 **Interfaces:**
 - Consumes: `isOpStackJovian`, `operatorCostJovian`（Task 1–2）
 - Produces: `GasPriceOraclePredeploy::dispatch(state, msg, l2BaseFee, forkSchedule, blockTime)`
-- Produces: `OpStackVmHostPolicy(state*, l2BaseFee, forkSchedule, blockTimestamp)`
+- Produces: `OpStack chain call-target adapter(state*, l2BaseFee, forkSchedule, blockTimestamp)`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -467,7 +467,7 @@ BOOST_AUTO_TEST_CASE(jovian_schedule_is_jovian_and_operator_fee_use_jovian_formu
 }
 ```
 
-同步更新所有 `GasPriceOraclePredeploy::dispatch(...)` 调用点为 5 参数（测试文件内 + `OpStackVmHostPolicy`）。
+同步更新所有 `GasPriceOraclePredeploy::dispatch(...)` 调用点为 5 参数（测试文件内 + `OpStack chain call-target adapter`）。
 
 - [ ] **Step 2: 运行测试确认失败**
 
@@ -503,10 +503,10 @@ case gpo::kGetOperatorFee:
 }
 ```
 
-`OpStackVmHostPolicy.h` — 增加成员 `OpStackForkSchedule m_forkSchedule`、`uint64_t m_blockTimestamp`；构造：
+`OpStack chain call-target adapter.h` — 增加成员 `OpStackForkSchedule m_forkSchedule`、`uint64_t m_blockTimestamp`；构造：
 
 ```cpp
-explicit OpStackVmHostPolicy(state::State* state = nullptr, bcos::u256 l2BaseFee = 0,
+explicit OpStack chain call-target adapter(state::State* state = nullptr, bcos::u256 l2BaseFee = 0,
     OpStackForkSchedule forkSchedule = makeIsthmusPlusForkSchedule(), uint64_t blockTimestamp = 0)
 ```
 
@@ -520,11 +520,11 @@ return GasPriceOraclePredeploy::dispatch(
 `OpStackTxLifecycle.cpp`：
 
 ```cpp
-OpStackVmHostPolicy opHostExtension(
+OpStack chain call-target adapter opHostExtension(
     &ctx.state, input.blockInfo.baseFee, input.forkSchedule, input.blockInfo.timestamp);
 ```
 
-现有 `OpStackVmHostPolicy extension(&state)` 测试调用保持默认参数（pre-Jovian）。
+现有 `OpStack chain call-target adapter extension(&state)` 测试调用保持默认参数（pre-Jovian）。
 
 - [ ] **Step 4: 编译并运行 GPO + cross 测试**
 
@@ -540,9 +540,9 @@ Expected: PASS
 
 ```bash
 rtk git add bcos-evm/opstack/l1/GasPriceOraclePredeploy.h bcos-evm/opstack/l1/GasPriceOraclePredeploy.cpp \
-  bcos-evm/opstack/OpStackVmHostPolicy.h bcos-evm/opstack/OpStackTxLifecycle.cpp \
+  bcos-evm/opstack/OpStack chain call-target adapter.h bcos-evm/opstack/OpStackTxLifecycle.cpp \
   bcos-evm/test/opstack/GasPriceOraclePredeployTest.cpp
-rtk git commit -m "feat(opstack): wire Jovian fork context into GPO and VmHostPolicy"
+rtk git commit -m "feat(opstack): wire Jovian fork context into GPO and EvmHostHooks"
 ```
 
 ---

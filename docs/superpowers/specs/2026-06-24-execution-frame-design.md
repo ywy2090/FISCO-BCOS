@@ -11,8 +11,8 @@
 | Spec (grilling era) | Current code |
 | --- | --- |
 | `runOrchestration()` | `runTxPipeline()` (`eth/orchestration/TxPipeline.cpp`) |
-| `HostExtension*` | `state::VmHostPolicy*` (`eth/policy/VmHostPolicy.h`; FISCO/OpStack 子类) |
-| `FiscoHostExtension` | `FiscoVmHostPolicy` |
+| `HostExtension*` | `state::EvmHostHooks*` (`eth/policy/EvmHostHooks.h`; FISCO/OpStack 子类) |
+| `FiscoHostExtension` | `FiscoEvmHostHooks` |
 | `hooks.prepareMessage` (top-level CREATE) | FISCO：`txSetupMessage` → `deriveMessage()`；ETH ref：message 已在进 `executeMessage` 前就绪 |
 | `hooks.executeMessageOverride` | `TxPipelineHooks::txRunEvmExecutionOverride` |
 | `OrchestrationContext` | `TxPipelineContext` |
@@ -29,7 +29,7 @@ ADR-019 将三链编排收敛到 `runTxPipeline()`，但 **帧级 EVM 执行**�
 | Top-level frame (depth=0) | `executeMessage()` | `eth/ExecuteMessage.cpp` |
 | Nested frame (depth>0) | `EthHost::call()` | `eth/state/EthHost.cpp` |
 
-同一 CALL/CREATE 帧语义（precompile envelope、value transfer、CREATE finalize、7702 路由、`VmHostPolicy` hooks）在两处重复维护。`PrecompileRouterEnvelopeTest`（`test/eth/`）与 `PrecompileRouterCharacterizationTest` / `PrecompileRouterEquivalenceTest`（`test/cross/`）通过 `runDepth0` / `runDepth1` 手工对齐，说明团队已知双轨 drift 风险。
+同一 CALL/CREATE 帧语义（precompile envelope、value transfer、CREATE finalize、7702 路由、`EvmHostHooks` hooks）在两处重复维护。`PrecompileRouterEnvelopeTest`（`test/eth/`）与 `PrecompileRouterCharacterizationTest` / `PrecompileRouterEquivalenceTest`（`test/cross/`）通过 `runDepth0` / `runDepth1` 手工对齐，说明团队已知双轨 drift 风险。
 
 **2026-06-24 代码核对：** 双轨仍成立——`ExecuteMessage.cpp:229` 与 `EthHost.cpp:303` 各有一处 `precompiled::dispatchPrecompile`；Nested 路径 ③ 先于 ②（`tryPrecompile` 在 `prepareMessage` 之前，RR6 仍准确）。
 
@@ -55,7 +55,7 @@ executeMessage        FrameContext + FrameScope        evmone VM
 
 - 新增代码位于 `bcos-evm/eth/execution/`。
 - **`eth/execution/` 不得 `#include` `bcos/` 或 `opstack/`**（延续 ADR-005 / ADR-019）。
-- 链定制通过 `FrameContext::extension`（`state::VmHostPolicy*`）与 `FrameContext::chainPort`（`ChainCallTargetPort*`，ADR-024）注入。
+- 链定制通过 `FrameContext::extension`（`state::EvmHostHooks*`）与 `FrameContext::chainPort`（`ChainCallTargetPort*`，ADR-024）注入。
 - `PrecompileRouter::executePrecompileEnvelope` 为 envelope-only；分类由 `CallTargetResolver` 单源。
 
 ---
@@ -91,7 +91,7 @@ struct FrameContext {
     state::State& state;
     evmc::VM& vm;
     bcos::evm_standard::RevisionConfig const& revisionConfig;
-    state::VmHostPolicy* extension{nullptr};
+    state::EvmHostHooks* extension{nullptr};
     evmc_address txOrigin;
     evmc_address& executionAddress;
     bool fixNonceInit{false};
@@ -156,7 +156,7 @@ FrameResult runExecutionFrame(
 | --- | --- | --- |
 | ① routeMessage code_address 解析 + precompile target | **Run** — PR2 前现状用 `resolveCodeAddress()`（较 `routeCall` 简化，无 `isDirectDelegated7702` / `hasPrecompileTarget`）；PR2 迁 TopLevel 时须 parity 验证 | **Run** — 完整 `routeCall` 逻辑 |
 | ① routeMessage CREATE recipient 互填 + warm-pin | **Skip** — 顶层 CREATE 地址在进 Frame 前已就绪（FISCO：`txSetupMessage`→`deriveMessage()`；ETH ref：caller 已填 `message.recipient`） | **Run** |
-| ② `prepareMessage` | **Skip** — 顶层不调用 `VmHostPolicy::prepareMessage` | **Run** — `extension->prepareMessage()`（FISCO 嵌套 CREATE 走 `FiscoVmHostPolicy::deriveNestedCreateAddress`） |
+| ② `prepareMessage` | **Skip** — 顶层不调用 `EvmHostHooks::prepareMessage` | **Run** — `extension->prepareMessage()`（FISCO 嵌套 CREATE 走 `FiscoEvmHostHooks::deriveNestedCreateAddress`） |
 | ④/⑤ CREATE step order | **RR7：** ⑤ checkpoint **先于** ④ bindCreate | **RR7：** ④ bindCreate **先于** ⑤ checkpoint |
 | ⑦ transfer | CALL：原 `applyTopLevelValueTransfer` 语义；CREATE：endowment 检查 + transfer（`applyTopLevelValueTransfer` 对 CREATE skip） | 原 `transferValue` 语义（函数内 scope 分支） |
 | ⑨ `fixNonceInit` | 当 `ctx.fixNonceInit`：success 后 `set_nonce(createAddr, 1)` | Skip |
@@ -188,7 +188,7 @@ Frame ① `routeMessage` / ⑧ `resolveExecutionCode` 负责帧内 7702 delegati
 ### 4.4 FISCO CREATE 地址（本次不统一）
 
 - 顶层 CREATE：FISCO 在 `runTxPipeline` 的 `txSetupMessage` hook 内 `deriveMessage()` 决定地址；ETH ref 由 caller 预先构造 message。
-- 嵌套 CREATE：`FiscoVmHostPolicy::prepareMessage()`（Frame ② Nested 路径）。
+- 嵌套 CREATE：`FiscoEvmHostHooks::prepareMessage()`（Frame ② Nested 路径）。
 
 统一为 `FiscoAddressDerivation` module 留作后续 work；本 spec 仅固定 hook 触达点，不移动 FISCO 地址逻辑。
 
@@ -492,7 +492,7 @@ No blocking TBDs for PR1; apply R10/R11 before implementation.
 | 术语（orchestration/HostExtension） | ✅ 已修正 | 见文首 Terminology alignment |
 | `execution_address_ref()` | ⏳ 待 PR1 | spec 规划 API；当前仅有 `set_execution_address()` |
 | ActivePrecompileSet | ✅ 已完成 | 移出 §10 blocking scope |
-| 已知测试债务 | ℹ️ 非 Frame | `ExecuteMessageSmoke` / `FiscoVmHostPolicy` / `DepositCreateNonce` nonce 失败与 Frame 无关 |
+| 已知测试债务 | ℹ️ 非 Frame | `ExecuteMessageSmoke` / `FiscoEvmHostHooks` / `DepositCreateNonce` nonce 失败与 Frame 无关 |
 
 ### Second pass — gaps fixed in this revision
 

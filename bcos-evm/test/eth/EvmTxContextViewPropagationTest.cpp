@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE EvmTxContextViewPropagationTest
 
 #include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"

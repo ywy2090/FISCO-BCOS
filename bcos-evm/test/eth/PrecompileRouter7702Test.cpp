@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove `fixStorageStatus` / `fixNonceInit` bool fields from `eth/` kernel and implement FISCO legacy SSTORE / top-level CREATE nonce semantics via `EvmHostHooks` overrides in `FiscoVmHostPolicy`.
+**Goal:** Remove `fixStorageStatus` / `fixNonceInit` bool fields from `eth/` kernel and implement FISCO legacy SSTORE / top-level CREATE nonce semantics via `EvmHostHooks` overrides in `FiscoEvmHostHooks`.
 
-**Architecture:** Extend `EvmHostHooks` with four virtual methods (default = geth/evmone standard). `EthHost::set_storage` and `ExecutionFrame::finalizeFrame` dispatch through `extension*` when present, else call shared default free functions. FISCO reads `FiscoRevisionConfig.fix_*` into `FiscoVmHostPolicy::RevisionFlags` and overrides only when legacy behavior is required.
+**Architecture:** Extend `EvmHostHooks` with four virtual methods (default = geth/evmone standard). `EthHost::set_storage` and `ExecutionFrame::finalizeFrame` dispatch through `extension*` when present, else call shared default free functions. FISCO reads `FiscoRevisionConfig.fix_*` into `FiscoEvmHostHooks::RevisionFlags` and overrides only when legacy behavior is required.
 
 **Tech Stack:** C++20, Boost.Test, evmone, CMake (`bcos-evm-eth` / `bcos-evm-bcos` static libs; `eth/*.cpp` auto-globbed).
 
@@ -27,12 +27,12 @@
 | --- | --- |
 | `eth/state/EvmHostHooks.h` | Hook interface + forward declare `State` |
 | `eth/state/EvmHostHooks.cpp` | **New.** EIP-3529 refund + precise classify defaults; virtual method bodies |
-| `eth/state/EthHost.hpp/cpp` | SSTORE orchestration via hooks; drop bool |
+| `eth/state/EthHost.h/cpp` | SSTORE orchestration via hooks; drop bool |
 | `eth/kernel/execution/EvmCallFrame.h/cpp` | Top-level CREATE → `finalizeTopLevelCreateNonce` |
 | `eth/kernel/execution/TxExecutionRunner.cpp` | Simpler `EthHost` / `FrameExecutionEnv` wiring |
 | `eth/kernel/execution/InnerExecute.h` | Remove fix* fields |
 | `eth/kernel/state-transition/EvmTxContextView.h` | Remove fix* fields |
-| `bcos/FiscoVmHostPolicy.h/cpp` | FISCO overrides + `RevisionFlags.fix_storage_status` |
+| `bcos/FiscoEvmHostHooks.h/cpp` | FISCO overrides + `RevisionFlags.fix_storage_status` |
 | `bcos/FiscoExecutionBundle.h` | Stop projecting fix* to view; inject flags into policy deps |
 | `bcos/FiscoPrecheckPolicy.cpp` | Remove executeInput fix* copies |
 | `test/bcos/FiscoSstoreStatusTest.cpp` | **New.** Legacy OFF matrix |
@@ -67,7 +67,7 @@ namespace bcos::evm::state
 {
 class State;
 
-/// Shared helpers used by default hooks and FiscoVmHostPolicy (fix ON path).
+/// Shared helpers used by default hooks and FiscoEvmHostHooks (fix ON path).
 void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
     evmc_bytes32 const& original, evmc_bytes32 const& newValue) noexcept;
 
@@ -174,7 +174,7 @@ EOF
 ### Task 2: Wire `EthHost::set_storage` through hooks (remove bool param)
 
 **Files:**
-- Modify: `bcos-evm/eth/host/EthHost.hpp`
+- Modify: `bcos-evm/eth/host/EthHost.h`
 - Modify: `bcos-evm/eth/host/EthHost.cpp`
 - Test: `bcos-evm/test/state/SstoreStatusTest.cpp`
 
@@ -182,7 +182,7 @@ EOF
 - **Consumes:** `applySstoreRefundEip3529`, `classifyStorageStatusPrecise`, `EvmHostHooks` virtuals from Task 1
 - **Produces:** `EthHost(..., EvmHostHooks* extension, ChainExtendedPrecompileDispatch* chainPort)` — no `fixStorageStatus`
 
-- [ ] **Step 1: Update `EthHost.hpp`**
+- [ ] **Step 1: Update `EthHost.h`**
 
 Remove constructor `bool fixStorageStatus`, member `m_fixStorageStatus`, and private static `classifyStorageStatus(..., bool)`.
 
@@ -280,7 +280,7 @@ Expected: ON-matrix cases **PASS**; OFF cases removed or `@TODO` until Task 6.
 - [ ] **Step 6: Commit**
 
 ```bash
-rtk git add bcos-evm/eth/host/EthHost.hpp bcos-evm/eth/host/EthHost.cpp bcos-evm/test/state/SstoreStatusTest.cpp
+rtk git add bcos-evm/eth/host/EthHost.h bcos-evm/eth/host/EthHost.cpp bcos-evm/test/state/SstoreStatusTest.cpp
 rtk git commit -m "$(cat <<'EOF'
 refactor(evm): dispatch EthHost SSTORE through EvmHostHooks
 
@@ -292,11 +292,11 @@ EOF
 
 ---
 
-### Task 3: `FiscoVmHostPolicy` SSTORE overrides
+### Task 3: `FiscoEvmHostHooks` SSTORE overrides
 
 **Files:**
-- Modify: `bcos-evm/bcos/FiscoVmHostPolicy.h`
-- Modify: `bcos-evm/bcos/FiscoVmHostPolicy.cpp`
+- Modify: `bcos-evm/bcos/FiscoEvmHostHooks.h`
+- Modify: `bcos-evm/bcos/FiscoEvmHostHooks.cpp`
 - Modify: `bcos-evm/bcos/FiscoExecutionBundle.h`
 - Create: `bcos-evm/test/bcos/FiscoSstoreStatusTest.cpp`
 - Modify: `bcos-evm/test/cmake/BcosTests.cmake`
@@ -304,9 +304,9 @@ EOF
 
 **Interfaces:**
 - **Consumes:** `applySstoreRefundEip3529`, `classifyStorageStatusPrecise`, `EvmHostHooks` base methods
-- **Produces:** `FiscoVmHostPolicy` overrides; `RevisionFlags.fix_storage_status`
+- **Produces:** `FiscoEvmHostHooks` overrides; `RevisionFlags.fix_storage_status`
 
-- [ ] **Step 1: Add `fix_storage_status` to `RevisionFlags` in `FiscoVmHostPolicy.h`**
+- [ ] **Step 1: Add `fix_storage_status` to `RevisionFlags` in `FiscoEvmHostHooks.h`**
 
 ```cpp
     struct RevisionFlags
@@ -336,14 +336,14 @@ Declare overrides:
         state::State& state, evmc_address const& createAddr) noexcept override;
 ```
 
-- [ ] **Step 2: Implement overrides in `FiscoVmHostPolicy.cpp`**
+- [ ] **Step 2: Implement overrides in `FiscoEvmHostHooks.cpp`**
 
 ```cpp
 #include "bcos-evm/eth/eip/Eip2929StorageGas.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
-void FiscoVmHostPolicy::applySstoreRefund(state::State& state, evmc_bytes32 const& current,
+void FiscoEvmHostHooks::applySstoreRefund(state::State& state, evmc_bytes32 const& current,
     evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept
 {
     if (m_revisionFlags.fix_storage_status)
@@ -352,7 +352,7 @@ void FiscoVmHostPolicy::applySstoreRefund(state::State& state, evmc_bytes32 cons
     }
 }
 
-evmc_storage_status FiscoVmHostPolicy::classifyStorageStatus(evmc_bytes32 const& original,
+evmc_storage_status FiscoEvmHostHooks::classifyStorageStatus(evmc_bytes32 const& original,
     evmc_bytes32 const& current, evmc_bytes32 const& newValue) const noexcept
 {
     if (m_revisionFlags.fix_storage_status)
@@ -362,7 +362,7 @@ evmc_storage_status FiscoVmHostPolicy::classifyStorageStatus(evmc_bytes32 const&
     return state::isZeroBytes32(newValue) ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
 }
 
-void FiscoVmHostPolicy::applyLegacySstoreDeletedRefund(
+void FiscoEvmHostHooks::applyLegacySstoreDeletedRefund(
     state::State& state, evmc_storage_status status) const noexcept
 {
     if (!m_revisionFlags.fix_storage_status && status == EVMC_STORAGE_DELETED)
@@ -371,7 +371,7 @@ void FiscoVmHostPolicy::applyLegacySstoreDeletedRefund(
     }
 }
 
-void FiscoVmHostPolicy::finalizeTopLevelCreateNonce(
+void FiscoEvmHostHooks::finalizeTopLevelCreateNonce(
     state::State& state, evmc_address const& createAddr) noexcept
 {
     if (m_revisionFlags.fix_nonce_init && !state::isZeroAddress(createAddr))
@@ -396,16 +396,16 @@ In `makeDeps`:
 Copy OFF-matrix loop from `SstoreStatusTest.cpp` (`fixStorageStatus=false` rows) and use:
 
 ```cpp
-FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
 deps.state = &state;
 deps.revisionFlags.fix_storage_status = testCase.fixStorageStatus; // false for OFF rows
-FiscoVmHostPolicy policy(false, std::move(deps));
+FiscoEvmHostHooks policy(false, std::move(deps));
 EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &policy);
 ```
 
 - [ ] **Step 5: Register test in `test/cmake/BcosTests.cmake`**
 
-Mirror `FiscoVmHostPolicyTest` block:
+Mirror `FiscoEvmHostHooksTest` block:
 
 ```cmake
 set(FISCO_SSTORE_STATUS_TEST_BINARY_NAME FiscoSstoreStatusTest)
@@ -433,11 +433,11 @@ Expected: **All PASS**
 - [ ] **Step 8: Commit**
 
 ```bash
-rtk git add bcos-evm/bcos/FiscoVmHostPolicy.h bcos-evm/bcos/FiscoVmHostPolicy.cpp \
+rtk git add bcos-evm/bcos/FiscoEvmHostHooks.h bcos-evm/bcos/FiscoEvmHostHooks.cpp \
   bcos-evm/bcos/FiscoExecutionBundle.h bcos-evm/test/bcos/FiscoSstoreStatusTest.cpp \
   bcos-evm/test/cmake/BcosTests.cmake bcos-evm/test/state/SstoreStatusTest.cpp
 rtk git commit -m "$(cat <<'EOF'
-feat(bcos): FiscoVmHostPolicy SSTORE legacy hooks
+feat(bcos): FiscoEvmHostHooks SSTORE legacy hooks
 
 Implement fix_storage_status behavior via EvmHostHooks overrides;
 move OFF-matrix SSTORE tests to FiscoSstoreStatusTest.
@@ -624,7 +624,7 @@ rtk git add bcos-evm/eth/kernel/execution/InnerExecute.h bcos-evm/eth/kernel/sta
 rtk git commit -m "$(cat <<'EOF'
 refactor(evm): remove fixStorageStatus/fixNonceInit from eth pipeline
 
-FISCO legacy flags now flow only into FiscoVmHostPolicy RevisionFlags.
+FISCO legacy flags now flow only into FiscoEvmHostHooks RevisionFlags.
 EOF
 )"
 ```
@@ -647,7 +647,7 @@ Replace Tier-2 row:
 
 Remove `fixStorageStatus`, `fixNonceInit` from Tier-2 and from `ExecutionSession` code sample (~lines 73-74).
 
-Add footnote: FISCO `fix_storage_status` / `fix_nonce_init` live in `FiscoVmHostPolicy::RevisionFlags` (Tier-1 extension behavior).
+Add footnote: FISCO `fix_storage_status` / `fix_nonce_init` live in `FiscoEvmHostHooks::RevisionFlags` (Tier-1 extension behavior).
 
 - [ ] **Step 2: `eth-layer-design-review.md`**
 
@@ -660,7 +660,7 @@ rtk git add bcos-evm/docs/adr/027-execution-session-injection.md bcos-evm/docs/e
 rtk git commit -m "$(cat <<'EOF'
 docs: ADR-027 Tier-2 drops fixStorageStatus/fixNonceInit
 
-Document FISCO legacy SSTORE/nonce flags as VmHostPolicy hooks.
+Document FISCO legacy SSTORE/nonce flags as EvmHostHooks hooks.
 EOF
 )"
 ```
@@ -673,7 +673,7 @@ EOF
 
 ```bash
 cmake --build build --target bcos-evm-eth bcos-evm-bcos \
-  SstoreStatusTest SstoreRefundTest FiscoSstoreStatusTest FiscoVmHostPolicyTest \
+  SstoreStatusTest SstoreRefundTest FiscoSstoreStatusTest FiscoEvmHostHooksTest \
   FiscoExecuteSmokeTest EvmTxContextViewTest RevisionConfigProfileTest -j8
 ```
 
@@ -712,7 +712,7 @@ Expected: **0 matches**
 | §4.1 EvmHostHooks API | Task 1 |
 | §4.2 Default impl location | Task 1 |
 | §4.3 EthHost set_storage flow | Task 2 |
-| §4.4 FiscoVmHostPolicy overrides | Task 3 |
+| §4.4 FiscoEvmHostHooks overrides | Task 3 |
 | §4.5 ExecutionFrame | Task 4 |
 | §5 File list eth/bcos/test | Tasks 1-5 |
 | §7 Testing | Tasks 3, 5, 7 |

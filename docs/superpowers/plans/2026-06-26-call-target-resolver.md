@@ -96,7 +96,7 @@ Note: use `std::function` instead of `std::invocable` template in vtable for ABI
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/execution/FrameScope.h"
-#include "bcos-evm/eth/state/VmHostPolicy.h"
+#include "bcos-evm/eth/state/EvmHostHooks.h"
 #include <evmc/evmc.h>
 #include <functional>
 
@@ -127,7 +127,7 @@ CallTargetDescriptor resolveCallTarget(
     evmc_message msg,
     FrameScope scope,
     ChainCallTargetPort* chainPort,
-    state::VmHostPolicy* extension);
+    state::EvmHostHooks* extension);
 
 void enumerateTxEntryWarmTargets(
     bcos::evm_standard::RevisionConfig const& cfg,
@@ -146,7 +146,7 @@ namespace bcos::evm::execution {
 
 CallTargetDescriptor resolveCallTarget(
     state::State&, bcos::evm_standard::RevisionConfig const&, evmc_message msg,
-    FrameScope, ChainCallTargetPort*, state::VmHostPolicy*)
+    FrameScope, ChainCallTargetPort*, state::EvmHostHooks*)
 {
     return CallTargetDescriptor{.kind = CallTargetKind::EvmContract, .routed = msg};
 }
@@ -361,7 +361,7 @@ Include: `PrecompileRouter.cpp` private helpers (`is7702DelegationDesignator`, `
 Migrate cases from:
 - `test/eth/PrecompileRouterPrecedenceTest.cpp` → R4
 - `test/eth/PrecompileRouter7702Test.cpp` → R5 (classification parts only)
-- `test/bcos/FiscoVmHostPolicyTest.cpp` → R7 (via `InMemoryChainCallTargetAdapter`)
+- `test/bcos/FiscoEvmHostHooksTest.cpp` → R7 (via `InMemoryChainCallTargetAdapter`)
 
 - [ ] **Step 5: Implement `enumerateTxEntryWarmTargets`**
 
@@ -405,12 +405,12 @@ git commit -m "feat(bcos-evm): ADR-024 PR2 CallTargetResolver implementation and
 **Files:**
 - Create: `bcos-evm/opstack/OpStackChainCallTargetAdapter.h`
 - Create: `bcos-evm/opstack/OpStackChainCallTargetAdapter.cpp`
-- Reference: `bcos-evm/opstack/OpStackVmHostPolicy.h`
+- Reference: `bcos-evm/opstack/OpStack chain call-target adapter.h`
 
 **Interfaces:**
 - Produces: `OpStackChainCallTargetAdapter` with ctor `(state::State*, bcos::u256 l2BaseFee, OpStackForkSchedule, uint64_t blockTimestamp)`
 
-- [ ] **Step 1: Move dispatch + classify from `OpStackVmHostPolicy::tryChainPrecompile` into adapter**
+- [ ] **Step 1: Move dispatch + classify from `OpStack chain call-target adapter::tryChainPrecompile` into adapter**
 - [ ] **Step 2: `forEachStaticWarmTarget` emits `OP_L1_BLOCK_PREDEPLOY`, `OP_GAS_PRICE_ORACLE_PREDEPLOY`**
 - [ ] **Step 3: Unit test in `test/opstack/OpStackChainCallTargetAdapterTest.cpp` (new) — R8 classify + W2 enumerate**
 - [ ] **Step 4: Build `bcos-evm-op` — SUCCESS**
@@ -422,7 +422,7 @@ git commit -m "feat(bcos-evm): ADR-024 PR2 CallTargetResolver implementation and
 **Files:**
 - Create: `transaction-executor/bcos-transaction-executor/adapters/FiscoChainCallTargetAdapter.h`
 - Modify: `transaction-executor/bcos-transaction-executor/adapters/ExecutorPrecompileAdapter.h` (include path → `eth/ports/ChainCallTargetPort.h` optional PR3)
-- Reference: `bcos-evm/bcos/FiscoVmHostPolicy.cpp` (`tryChainPrecompile`, `parseDynamicPrecompileTarget`, `isFiscoPrecompileAddress`)
+- Reference: `bcos-evm/bcos/FiscoEvmHostHooks.cpp` (`tryChainPrecompile`, `parseDynamicPrecompileTarget`, `isFiscoPrecompileAddress`)
 
 **Interfaces:**
 - Produces: `FiscoChainCallTargetAdapter` composing `ExecutorPrecompileAdapter<SessionContext>&` for `dispatch`
@@ -565,7 +565,7 @@ ctest -R 'CallTargetCharacterization|CallTargetResolver|PrecompileEnvelope|Execu
 ```
 Expected: PASS including C7 depth asymmetry case.
 
-- [ ] **Step 5: Strip `tryChainPrecompile` bodies from `FiscoVmHostPolicy` / `OpStackVmHostPolicy` (keep deprecated forward if needed)**
+- [ ] **Step 5: Strip `tryChainPrecompile` bodies from `FiscoEvmHostHooks` / `OpStack chain call-target adapter` (keep deprecated forward if needed)**
 
 - [ ] **Step 6: Commit PR4**
 
@@ -611,7 +611,7 @@ inline void warmTransactionEntry(state::State& state,
 - Modify: `bcos-evm/docs/adr/017-fisco-precompile-port.md` — extended by ADR-024
 - Modify: `bcos-evm/docs/adr/024-call-target-resolver-deepening.md` — Status → Accepted
 
-- [ ] **Step 1: Remove `VmHostPolicy::tryChainPrecompile` default + overrides**
+- [ ] **Step 1: Remove `EvmHostHooks::tryChainPrecompile` default + overrides**
 - [ ] **Step 2: Remove deprecated `dispatchPrecompile` if envelope-only path stable**
 - [ ] **Step 3: Update CMake test registrations**
 - [ ] **Step 4: Run full bcos-evm + TE tests**

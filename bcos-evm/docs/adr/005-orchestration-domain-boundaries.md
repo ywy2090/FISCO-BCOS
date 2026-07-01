@@ -18,9 +18,9 @@ Chain-specific behavior spans nonce management, auth checks, value transfer, blo
 
 | Domain | Primary layer | BCOS location | OPStack location | Kernel (`eth`) |
 | --- | --- | --- | --- | --- |
-| **Nonce** (tx + CREATE) | orchestration + VmHostPolicy | `TransactionExecutorImpl`, `FiscoVmHostPolicy::bumpContractCreateNonce` | `OpStackPrecheckPolicy::checkEntryRules`, deposit rules | no tx nonce in kernel |
+| **Nonce** (tx + CREATE) | orchestration + EvmHostHooks | `TransactionExecutorImpl`, `FiscoEvmHostHooks::bumpContractCreateNonce` | `OpStackPrecheckPolicy::checkEntryRules`, deposit rules | no tx nonce in kernel |
 | **Auth check** | orchestration | `FiscoExecute` + `AuthCheck` before `executeMessage` | N/A (OP auth model differs) | never |
-| **Value transfer** | orchestration + VmHostPolicy | `FiscoExecute::maybeTransferValue`, `skipHostValueTransfer` | deposit mint + fee routing | `Transfer.h` helpers only |
+| **Value transfer** | orchestration + EvmHostHooks | `FiscoExecute::maybeTransferValue`, `skipHostValueTransfer` | deposit mint + fee routing | `Transfer.h` helpers only |
 | **Blob gas (EIP-4844)** | revision profile + orchestration | `feature-gated` until Web3 blob tx on BCOS | `OpStackPrecheckPolicy::checkEntryRules` + `eip4844` | no blob tx in kernel |
 | **Receipt metadata** | orchestration | FISCO receipt fields via executor | `OpStackReceiptMeta` | logs in `ExecuteMessageOutput` only |
 | **Deposit / L1 fee** | orchestration | unsupported | `OpStackExecute`, fee modules | never |
@@ -33,16 +33,16 @@ Chain-specific behavior spans nonce management, auth checks, value transfer, blo
 3. **`deviation`** requires a positive test on that chain (ADR-002).  
 4. Shared math/helpers live in `eth/eip/` or neutral headers; **policy** stays in orchestrators.
 
-### 3. VmHostPolicy vs orchestrator
+### 3. EvmHostHooks vs orchestrator
 
-| Concern | VmHostPolicy hook | Orchestrator |
+| Concern | EvmHostHooks hook | Orchestrator |
 | --- | --- | --- |
 | Skip value transfer inside CALL | `skipHostValueTransfer` | pre-tx value move |
 | CREATE nonce bump side effect | `bumpContractCreateNonce` | tx nonce validation |
 | Chain precompile | `ChainExtendedPrecompileDispatch`（ADR-024） | address routing policy |
 | Auth table / caller rewrite | `prepareMessage`, `setCallerAddress` | `authChecker` callback |
 
-Orchestrator runs **before** `executeMessage`; VmHostPolicy runs **inside** kernel call tree.
+Orchestrator runs **before** `executeMessage`; EvmHostHooks runs **inside** kernel call tree.
 
 ### 4. Shared orchestration pipeline (`eth/kernel/state-transition/`, ADR-019)
 

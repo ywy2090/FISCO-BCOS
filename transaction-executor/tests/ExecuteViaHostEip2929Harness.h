@@ -9,11 +9,11 @@
 #include "../../bcos-evm/test/state/InMemoryStateView.h"
 #include "Eip2929TestHelpers.h"
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
+#include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/bcos/FiscoPrepareTransaction.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
-#include "bcos-evm/bcos/FiscoVmHostPolicy.h"
-#include "bcos-evm/eth/host/EthHost.hpp"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-executor/src/Common.h"
@@ -260,7 +260,7 @@ public:
                 evmc_tx_context ctx{};
                 ctx.tx_origin = m_message.sender;
 
-                bcos::evm::FiscoVmHostPolicy::FiscoVmHostPolicyDeps deps;
+                bcos::evm::FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
                 deps.state = m_state.get();
                 deps.blockNumber = m_fixture.blockHeader.number();
                 deps.ledgerConfig = &m_fixture.ledgerConfig;
@@ -304,7 +304,7 @@ public:
         uint8_t m_web3Kind{0};
         evmc_message m_message{};
         std::unique_ptr<bcos::evm::state::State> m_state;
-        std::optional<bcos::evm::FiscoVmHostPolicy> m_extension;
+        std::optional<bcos::evm::FiscoEvmHostHooks> m_extension;
         std::optional<bcos::evm::state::EthHost> m_host;
     };
 

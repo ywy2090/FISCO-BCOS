@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Default EvmHostHooks for eth vector / transition() path.
- * @file EthVmHostPolicy.h
+ * @file EthEvmHostHooks.h
  */
 
 #pragma once
@@ -24,7 +24,7 @@
 namespace bcos::evm::state
 {
 /// Pure-ethereum defaults: all EvmHostHooks use base-class behavior.
-struct EthVmHostPolicy : EvmHostHooks
+struct EthEvmHostHooks : EvmHostHooks
 {
 };
 }  // namespace bcos::evm::state

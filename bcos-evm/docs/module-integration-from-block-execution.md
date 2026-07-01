@@ -165,7 +165,7 @@ BaselineScheduler::coExecuteBlock
        │    │    ├─ 组装 FiscoExecutionRequest
        │    │    ├─ ExecutorAuthAdapter / ExecutorPrecompileAdapter 注入 Port
        │    │    └─ fiscoExecute(input)
-       │    │         ├─ FiscoVmHostPolicy + FiscoPipelineHookBinder::buildHooks
+       │    │         ├─ FiscoEvmHostHooks + FiscoPipelineHookBinder::buildHooks
        │    │         └─ runTxPipeline(ctx, hooks, errorPolicy)
        │    │              └─ executeMessage(input)  // evmone
        │    ├─ applyStateDiff(storage, output.stateDiff)  // EVMC_SUCCESS 时
@@ -180,7 +180,7 @@ BaselineScheduler::coExecuteBlock
 |---|---|---|---|
 | TE 类 | `TransactionExecutorImpl` | `EthTransactionExecutorImpl` | `OpStackTransactionExecutorImpl` |
 | Bridge | `fiscoExecute` | `ethReferenceExecute` | `opStackExecute` |
-| 权限 / 预编译 | `AuthPort` + `ChainPrecompilePort` | 无 | 无（L1Block 经 `OpStackVmHostPolicy`） |
+| 权限 / 预编译 | `AuthPort` + `ChainPrecompilePort` | 无 | 无（L1Block 经 `OpStack chain call-target adapter`） |
 | Gas 外圈 | `FiscoTxFeeSettlement` buy/refund | `EthTxFeeSettlement` buy/refund | bridge 内部 + `BlockGasPool` |
 | Revision | `FiscoPolicy::computeRevisionConfig` | `EthChainPolicy::computeRevisionConfig` | `makeIsthmusRevisionConfig` 等 |
 | 生产角色 | **FISCO 生产默认** | **接线审计 / EEST**（ADR-001） | **OP Stack 生产** |
@@ -204,7 +204,7 @@ ethReferenceExecute / fiscoExecute / opStackExecute
   executeMessage(input)                    ← eth/ExecuteMessage.cpp
         │
         ├─ evmone VM 执行
-        └─ VmHostPolicy* 回调（链行为注入）
+        └─ EvmHostHooks* 回调（链行为注入）
 ```
 
 ### 4.2 固定编排步骤（ADR-019，当前 TxPipeline.cpp 实现）
@@ -231,7 +231,7 @@ ethReferenceExecute / fiscoExecute / opStackExecute
 [`ApplyFiscoMessage.cpp`](../bcos/ApplyFiscoMessage.cpp) L125-203：
 
 1. 构造 `TxPipelineContext`（持有 `State`、原始 `message`、`RevisionConfig`）
-2. 构造 `FiscoVmHostPolicy`，注入 `authPort` / `chainPrecompilePort` / `persistContractCreateNonce`
+2. 构造 `FiscoEvmHostHooks`，注入 `authPort` / `chainPrecompilePort` / `persistContractCreateNonce`
 3. `FiscoPipelineHookBinder::buildHooks(session)` 绑定 FISCO 特有 hook
 4. `runTxPipeline(ctx, hooks, errorPolicy)`
 5. 成功时从 `ctx.kernelOutput.stateDiff` 映射到 `FiscoExecutionResult.stateDiff`
@@ -282,9 +282,9 @@ executeMessage → kernelOutput.stateDiff
 
 ## 6. 扩展点：其他模块如何注入链行为
 
-### 6.1 `VmHostPolicy` — 内核**内部**回调
+### 6.1 `EvmHostHooks` — 内核**内部**回调
 
-[`eth/policy/VmHostPolicy.h`](../eth/policy/VmHostPolicy.h) 定义虚方法，在 `executeMessage` / `EthHost` 执行期间回调：
+[`eth/policy/EvmHostHooks.h`](../eth/policy/EvmHostHooks.h) 定义虚方法，在 `executeMessage` / `EthHost` 执行期间回调：
 
 | 方法 | 用途 |
 |---|---|
@@ -296,9 +296,9 @@ executeMessage → kernelOutput.stateDiff
 
 | 链 | 实现类 |
 |---|---|
-| 标准以太坊（默认） | `VmHostPolicy` 基类 |
-| FISCO | `FiscoVmHostPolicy` |
-| OP Stack | `OpStackVmHostPolicy` |
+| 标准以太坊（默认） | `EvmHostHooks` 基类 |
+| FISCO | `FiscoEvmHostHooks` |
+| OP Stack | `OpStack chain call-target adapter` |
 
 ### 6.2 `TxPipelineHooks` — 编排阶段 hook
 
@@ -380,7 +380,7 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 1. **确定路径：** FISCO / Eth / OpStack — 对应不同 TE 实现和 bridge
 2. **实现 `TransactionExecutor` concept：** `createExecuteContext` + 三阶段 `executeStep<0/1/2>`
 3. **状态：** `FiscoStateView` 读、`applyStateDiff` 写；包裹 `RollbackableStorage`
-4. **链行为：** `VmHostPolicy` 子类或 `TxPipelineHooks` 注入；FISCO 额外用 Port
+4. **链行为：** `EvmHostHooks` 子类或 `TxPipelineHooks` 注入；FISCO 额外用 Port
 5. **Revision：** Prepare 阶段计算并传入 bridge request
 6. **费用：** FISCO/Eth 用 `*TxFeeLedger`；OP 多数在 `opStackExecute` 内
 7. **测试：** ETH 参考测试通过 ≠ FISCO/OP 生产继承；需走对应 TE 路径 E2E 测试

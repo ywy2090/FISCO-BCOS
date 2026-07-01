@@ -40,8 +40,8 @@
 | --- | --- | --- |
 | 1 | `FrameTargetResolver` | 7702 / CREATE 地址归一化、`executionAddress` |
 | 2 | `PrecompileRouter::dispatchPrecompile` | **分类** + envelope |
-| 3 | `VmHostPolicy::tryChainPrecompile` | 链扩展 hook |
-| 4 | `ChainPrecompilePort`（FISCO）或 `OpStackVmHostPolicy` 内联 | 链 dispatch |
+| 3 | `EvmHostHooks::tryChainPrecompile` | 链扩展 hook |
+| 4 | `ChainPrecompilePort`（FISCO）或 `OpStack chain call-target adapter` 内联 | 链 dispatch |
 
 **摩擦：**
 
@@ -142,7 +142,7 @@ CallTargetDescriptor resolveCallTarget(
     evmc_message msg,
     FrameScope scope,
     ChainCallTargetPort* chainPort,
-    state::VmHostPolicy* extension);
+    state::EvmHostHooks* extension);
 
 void enumerateTxEntryWarmTargets(
     bcos::evm_standard::RevisionConfig const& cfg,
@@ -152,7 +152,7 @@ void enumerateTxEntryWarmTargets(
 }  // namespace bcos::evm::execution
 ```
 
-术语：`extension` 与现网 `FrameContext::extension` / `PrecompileRouterInput::extension` 同指 `VmHostPolicy*`。
+术语：`extension` 与现网 `FrameContext::extension` / `PrecompileRouterInput::extension` 同指 `EvmHostHooks*`。
 
 ### 4.3 ChainCallTargetPort
 
@@ -189,7 +189,7 @@ struct ChainCallTargetPort {
 
 ```text
 FiscoChainCallTargetAdapter : ChainCallTargetPort
-  ├─ classifyTarget()      # 自 FiscoVmHostPolicy::tryChainPrecompile 迁入
+  ├─ classifyTarget()      # 自 FiscoEvmHostHooks::tryChainPrecompile 迁入
   ├─ forEachStaticWarmTarget()  # 默认 no-op
   └─ dispatch()            # 委托 ExecutorPrecompileAdapter（或内联同等逻辑）
 
@@ -217,7 +217,7 @@ struct PrecompileEnvelopeInput {
 };
 ```
 
-**无 `VmHostPolicy*` in envelope** — DELEGATECALL 在 `resolveCallTarget`；`skipValueTransfer` 由 caller 镜像。
+**无 `EvmHostHooks*` in envelope** — DELEGATECALL 在 `resolveCallTarget`；`skipValueTransfer` 由 caller 镜像。
 
 Envelope 禁止：`isActivePrecompile`、`tryChainPrecompile`、`classifyTarget`。
 
@@ -386,9 +386,9 @@ ctest -R 'CallTargetCharacterization|CallTargetResolver|PrecompileEnvelope|Execu
 | `bcos-evm/eth/precompiled/PrecompileRouter.cpp` | 4 | envelope only |
 | `bcos-evm/eth/execution/WarmTransactionEntry.h` | 5 | enumerate |
 | `bcos-evm/bcos/FiscoExecutionBridge.cpp` | 3–4 | FISCO inject |
-| `bcos-evm/bcos/FiscoVmHostPolicy.cpp` | 3–4 | 删 tryChainPrecompile 主体 |
+| `bcos-evm/bcos/FiscoEvmHostHooks.cpp` | 3–4 | 删 tryChainPrecompile 主体 |
 | `bcos-evm/opstack/OpStackTxLifecycle.cpp` | 3–4 | OpStack inject |
-| `bcos-evm/opstack/OpStackVmHostPolicy.h` | 3–4 | 删内联 dispatch |
+| `bcos-evm/opstack/OpStack chain call-target adapter.h` | 3–4 | 删内联 dispatch |
 | `transaction-executor/.../FiscoChainCallTargetAdapter.*` | 3 | 全 port |
 | `transaction-executor/.../ExecutorPrecompileAdapter.*` | 3 | dispatch 后端 |
 | `bcos-evm/docs/architecture-overview.md` | 6 | ADR 001–024 |

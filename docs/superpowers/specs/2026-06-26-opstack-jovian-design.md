@@ -54,7 +54,7 @@
 | D3 | 默认策略 | **C** — 运行时按 `forkSchedule` + `blockInfo.timestamp` 动态分支；TE 默认仍为 Isthmus+ |
 | D4 | 实现路径 | **方案 2** — 集中 fork helper（`isOpStackJovian`），不引入 ForkContext 对象 |
 | D5 | L1 setter 路由 | 双 setter 按 **selector** 分发，不按 fork 拒绝 Isthmus setter |
-| D6 | GPO fork 感知 | 扩展 `GasPriceOraclePredeploy::dispatch` 与 `OpStackVmHostPolicy` 传 `forkSchedule` + `blockTime` |
+| D6 | GPO fork 感知 | 扩展 `GasPriceOraclePredeploy::dispatch` 与 `OpStack chain call-target adapter` 传 `forkSchedule` + `blockTime` |
 
 ---
 
@@ -139,13 +139,13 @@ static std::optional<evmc_result> dispatch(
 | `kIsJovian` (`0x105d0b81`) | 0 | 1 |
 | `kGetOperatorFee` (`0x275aedd2`) | `operatorCostIsthmus` | `operatorCostJovian` |
 
-`OpStackVmHostPolicy` 构造时接收 `forkSchedule` + `blockTimestamp`，由 `OpStackTxLifecycle` 从 `input` 传入。
+`OpStack chain call-target adapter` 构造时接收 `forkSchedule` + `blockTimestamp`，由 `OpStackTxLifecycle` 从 `input` 传入。
 
 ### 3.5 Data flow
 
 ```text
 L1 attributes deposit (type 0x7E)
-  → executeMessage → OpStackVmHostPolicy::tryChainPrecompile
+  → executeMessage → OpStack chain call-target adapter::tryChainPrecompile
     → L1BlockPredeploy::dispatch
       → [0x098999be] applySetterIsthmus  (176B, 不变)
       → [0x3db6be2b] applySetterJovian   (178B, 新增)
@@ -172,8 +172,8 @@ User tx
 | `L1BlockStorage.cpp` | parser + pack bytes[18:19] |
 | `L1BlockPredeploy.cpp` | +`applySetterJovian()`；dispatch case |
 | `GasPriceOraclePredeploy.h/.cpp` | dispatch 扩展 fork 参数；`kIsJovian` / `kGetOperatorFee` 分支 |
-| `OpStackVmHostPolicy.h` | 构造携带 `forkSchedule` + `blockTimestamp` |
-| `OpStackTxLifecycle.cpp` | 构造 VmHostPolicy 时传入 fork 上下文 |
+| `OpStack chain call-target adapter.h` | 构造携带 `forkSchedule` + `blockTimestamp` |
+| `OpStackTxLifecycle.cpp` | 构造 EvmHostHooks 时传入 fork 上下文 |
 
 **不改动：**
 
@@ -219,8 +219,8 @@ User tx
 1. OpStackForkSchedule (+jovianTime, helpers)
 2. operatorCostJovian + makeCachedOperatorCostFunc branch
 3. L1BlockStorage parser/packer + applySetterJovian
-4. GPO + OpStackVmHostPolicy parameter plumbing
-5. OpStackTxLifecycle VmHostPolicy wiring
+4. GPO + OpStack chain call-target adapter parameter plumbing
+5. OpStackTxLifecycle EvmHostHooks wiring
 6. Tests T1–T9
 7. 更新 op-geth diff 报告（差异 9 → 已对齐）
 ```

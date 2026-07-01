@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 链入口 | `ApplyFiscoMessage.*` | 入口 `applyFiscoMessage()`：组装上下文 → `stateTransitionExecute` |
 | 编排 | `FiscoStateTransitionBindings.*` | `bind()` → pipeline hooks + error policy |
-| VM 策略 | `FiscoVmHostPolicy.*` | 实现 `VmHostPolicy`（selfdestruct、precompile、nonce 等） |
+| VM 策略 | `FiscoEvmHostHooks.*` | 实现 `EvmHostHooks`（selfdestruct、precompile、nonce 等） |
 | 费用结算 | `FiscoTxFeeSettlement.h` | `buyGas` / `refundGas` / `makeReceipt` / `consumeBalance` |
 
 ## 扩展点

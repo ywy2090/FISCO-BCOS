@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @brief Builtin Ethereum precompile dispatcher (0x01..0x11, 0x0100).
- * @file EthPrecompiles.hpp
+ * @file EthPrecompiles.h
  *
  * Pure execute layer: lookup kPrecompileTable, charge gas, run native impl.
  * Does NOT handle value transfer or state journal — that is PrecompileRouter.
