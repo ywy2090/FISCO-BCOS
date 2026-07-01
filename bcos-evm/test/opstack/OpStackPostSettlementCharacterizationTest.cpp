@@ -8,7 +8,7 @@
 #define BOOST_TEST_MODULE OpStackPostSettlementCharacterizationTest
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/eip/TxFeeSettlement.h"
+#include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include <boost/test/included/unit_test.hpp>

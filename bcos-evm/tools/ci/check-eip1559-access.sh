@@ -7,7 +7,7 @@ cd "$ROOT"
 
 ALLOWLIST=(
     'eth/RevisionConfig.h'
-    'eth/gas/Eip1559Access.h'
+    'eth/eip/Eip1559Access.h'
 )
 
 status=0
@@ -40,7 +40,7 @@ fi
 if [[ $status -ne 0 ]]; then
     echo "ERROR: cfg.eip1559 read outside Eip1559Access.h / RevisionConfig.h:" >&2
     echo "$VIOLATIONS" >&2
-    echo "  -> Route through gas::isEip1559* helpers in eth/gas/Eip1559Access.h." >&2
+    echo "  -> Route through gas::isEip1559* helpers in eth/eip/Eip1559Access.h." >&2
 else
     echo "eip1559-access gate: OK (no direct cfg.eip1559 reads outside allowlist)"
 fi

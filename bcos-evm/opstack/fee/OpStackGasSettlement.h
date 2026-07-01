@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include <algorithm>
 #include <cstdint>
 

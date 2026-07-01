@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
-#include "bcos-evm/eth/precompiled/BlsGas.h"
+#include "bcos-evm/eth/precompiled/Eip2537Gas.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"
 #include "helpers/InMemoryStateView.h"

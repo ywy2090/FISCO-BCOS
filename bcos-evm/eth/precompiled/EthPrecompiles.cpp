@@ -20,7 +20,7 @@
  */
 
 #include "bcos-evm/eth/precompiled/EthPrecompiles.hpp"
-#include "bcos-evm/eth/precompiled/BlsGas.h"
+#include "bcos-evm/eth/precompiled/Eip2537Gas.h"
 #include "bcos-evm/eth/precompiled/ModexpGas.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include "bcos-utilities/DataConvertUtility.h"

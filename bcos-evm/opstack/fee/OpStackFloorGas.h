@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/eip/Eip7623.h"
-#include "bcos-evm/eth/eip/ProtocolGas.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include <bcos-utilities/Common.h>
 #include <cstdint>
 #include <optional>

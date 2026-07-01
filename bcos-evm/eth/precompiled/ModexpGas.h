@@ -4,7 +4,8 @@
  *  @brief Modexp (0x05) precompile gas and EIP-7823 validation.
  *  @file ModexpGas.h
  *
- *  Gas: EIP-198 (< Berlin), EIP-2565 (Berlin+), EIP-7883 (Osaka+).
+ *  Gas schedules: EIP-198 (pre-Berlin), EIP-2565 (Berlin+), EIP-7883 (Osaka+).
+ *  Filename stays `ModexpGas` because one module spans multiple EIPs.
  *  Reject helpers enforce EIP-7823 max field length when enabled.
  */
 #pragma once

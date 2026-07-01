@@ -21,7 +21,7 @@
 #include "bcos-evm/eth/apply/EthFeeInputsMapping.h"
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
-#include "bcos-evm/eth/eip/TxFeeSettlement.h"
+#include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 

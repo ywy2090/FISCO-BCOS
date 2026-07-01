@@ -14,9 +14,10 @@
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
 | `kernel/` | 可移植执行内核（Tier 2–3；三链共用，含 `EVMCResult` 边界类型） |
 | `kernel/state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019；geth `stateTransition.execute`） |
-| `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |
+| `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 warm pin |
 | `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch` 等 ADR-019/024 seam） |
-| `eip/` | EIP 实现（1559/2930/4844/7623/7702 等 gas 与 access 语义） |
+| `eip/` | 单 EIP 实现（1559/2930/4844/7623/7702 等）与 revision 门控 |
+| `gas/` | 跨 EIP 协议 gas（intrinsic、fee settlement、通用常量） |
 | `policy/` | `VmHostPolicy` / `EthVmHostPolicy` / `EthChainPolicy`（revision 策略） |
 | `precompiled/` | `PrecompileRouter`、builtin registry |
 | `host/` | `EthHost` evmone host 实现（ADR-020 Legacy Enclave） |
@@ -42,8 +43,25 @@
 | 文件 | 角色 |
 | --- | --- |
 | `Eip2930AccessList.h` | EIP-2930 access list 类型 |
+| `Eip2929Gate.h` | EIP-2929 / 3651 revision 门控（Scheme A；唯一读 `cfg.eip2929` 处） |
+| `Eip2929StorageGas.h` | EIP-2929 / 2200 / 3529 SLOAD/SSTORE gas 常量 |
 | `Eip7702.*` | EIP-7702 单点实现 |
-| `Eip1559.h` / `Eip4844.h` / `Eip7623.h` 等 | gas 数学与 intrinsic 结算 |
+| `Eip1559.h` / `Eip4844.h` / `Eip7623.h` 等 | 单 EIP gas 数学 |
+
+## `gas/` — 跨 EIP 协议 gas
+
+| 文件 | 角色 |
+| --- | --- |
+| `ProtocolGas.h` | 21000、CREATE、calldata、access list 等通用常量 |
+| `TxIntrinsicGas.h` | intrinsic gas 与 top-level settlement（7623/3529/2930/7702 组合） |
+| `TxFeeSettlement.h` | EIP-1559 费用投影（sync、State-free） |
+
+## `precompiled/` — 预编译 gas 命名
+
+| 文件 | 角色 |
+| --- | --- |
+| `Eip2537Gas.h` | EIP-2537 BLS12-381 MSM 折扣表 |
+| `ModexpGas.h` | modexp (0x05) 跨 EIP-198/2565/7883 gas + EIP-7823 校验 |
 
 ## `apply/` — ETH 参考路径
 

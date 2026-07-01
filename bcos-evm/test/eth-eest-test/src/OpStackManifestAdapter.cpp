@@ -7,7 +7,7 @@
 #include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 #include "bcos-utilities/DataConvertUtility.h"

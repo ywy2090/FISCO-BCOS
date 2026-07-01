@@ -1,5 +1,5 @@
 #include "bcos-evm/opstack/OpStackSettlementFacade.h"
-#include "bcos-evm/eth/eip/TxFeeSettlement.h"
+#include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/opstack/ApplyOpStackMessage.h"
 

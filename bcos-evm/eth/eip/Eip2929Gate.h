@@ -3,10 +3,12 @@
  *  SPDX-License-Identifier: Apache-2.0
  *
  * @brief Single TE gate for EIP-2929 address/storage warm tracking (Scheme A).
- * @file Eip2929Access.h
+ * @file Eip2929Gate.h
  *
  * Chain policy may mask eip2929 while revision stays high (Scheme A deviation).
  * Do not read cfg.eip2929 outside this header in eth/ production code.
+ *
+ * Storage opcode gas constants live in `eip/Eip2929StorageGas.h` (gas layer).
  */
 
 #pragma once

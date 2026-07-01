@@ -42,7 +42,7 @@ graph TD
         PA["PrecompileActive / PrecompileRouter"]
         EH["EthHost::call()"]
         VHP["VmHostPolicy"]
-        RC["RevisionConfig + Eip2929Access"]
+        RC["RevisionConfig + Eip2929Gate"]
     end
     subgraph bcos["bcos-evm-bcos（FISCO）"]
         FEB["applyFiscoMessage()"]
@@ -99,7 +99,7 @@ graph TD
             │   EthHost::call()      嵌套帧 adapter → Nested               │
             │   PrecompileActive.h   warm/dispatch 单源                    │
             │   PrecompileRouter     resolveCallTarget→executePrecompileEnvelope │
-            │   Eip2929Access.h      2929 / coinbase / CREATE warm gate    │
+            │   Eip2929Gate.h          2929 / coinbase / CREATE warm gate    │
             │   VmHostPolicy         扩展点基类 = 标准以太坊默认语义         │
             │   RevisionConfig       EIP 开关位域（13 bool + 参数）          │
             │   EthMessage              以太坊参考路径（接线审计）              │
@@ -366,7 +366,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 - **B 类 revision-derived**：`eip1153 / eip4844 / eip5656 / eip6780 / eip1559 / eip3651`
 - **C 类 fork 参数**：`calldata_floor_per_token`
 
-**单一推导源（ADR-018）：** `revisionConfigFromRevision(evmc_revision)` canonical 赋值；消费者读 `cfg` bool。**Precompile 集合**由 `PrecompileActive.h::isActivePrecompile` 单源（warm + dispatch）。**EIP-2929 TE gate** 由 `Eip2929Access.h::isEip2929Enabled` 读 `cfg.eip2929`（FISCO `feature_evm_eip2929=OFF` 为 ADR-004 有意偏离）。
+**单一推导源（ADR-018）：** `revisionConfigFromRevision(evmc_revision)` canonical 赋值；消费者读 `cfg` bool。**Precompile 集合**由 `PrecompileActive.h::isActivePrecompile` 单源（warm + dispatch）。**EIP-2929 TE gate** 由 `Eip2929Gate.h::isEip2929Enabled` 读 `cfg.eip2929`（FISCO `feature_evm_eip2929=OFF` 为 ADR-004 有意偏离）。
 
 由三套 Policy 生成：
 
@@ -399,7 +399,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 
 ## 7. 评审者应重点质疑的点
 
-1. **profile-only 字段**（Gap 37）：`eip1559` 仍无统一 TE 消费者（局部消费见 `Web3TypedTxKind` / OpStack settlement）。`eip2929`、`eip3651` 已接线（`Eip2929Access`、`WarmTransactionEntry`）。
+1. **profile-only 字段**（Gap 37）：`eip1559` 仍无统一 TE 消费者（局部消费见 `Web3TypedTxKind` / OpStack settlement）。`eip2929`、`eip3651` 已接线（`Eip2929Gate`、`WarmTransactionEntry`）。
 2. ~~**warm 与 dispatch 未单源**~~ **Done：** `PrecompileActive.h` + `EipPrecompileRevisionGateTest`。
 3. **`FiscoPolicy.h` include `transaction-executor/.../AuthCheck.h`**：与 ADR-017 Port 全生命周期方向仍有张力（候选 5）。
 4. **ETH 列定位**：矩阵明确 ETH 路径非生产继承证明。
@@ -429,7 +429,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | ExecutionFrame | `eth/kernel/execution/EvmCallFrame.h` / `.cpp` |
 | Precompile 单源 | `eth/precompiled/PrecompileActive.h` |
 | Precompile envelope | `eth/precompiled/PrecompileRouter.cpp`（`executePrecompileEnvelope`） |
-| 2929 warm gate | `eth/kernel/execution/Eip2929Access.h` |
+| 2929 warm gate | `eth/eip/Eip2929Gate.h` |
 | Tx-entry warm | `eth/kernel/execution/WarmTransactionEntry.h` |
 | Frame target resolver | `eth/kernel/execution/FrameTargetResolver.h` / `.cpp` |
 | Frame helpers | `eth/kernel/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |

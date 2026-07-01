@@ -9,7 +9,7 @@
  */
 
 #include "EthBuiltinRegistry.h"
-#include "BlsGas.h"
+#include "Eip2537Gas.h"
 #include "ModexpGas.h"
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
 #include "wedpr-crypto/WedprCrypto.h"

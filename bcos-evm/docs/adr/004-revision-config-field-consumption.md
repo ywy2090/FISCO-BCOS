@@ -33,7 +33,7 @@
 | `eip1153`, `eip5656`, `eip6780` | consumed | evmone via `revision`; `eip6780` also read in `EthHost::selfdestruct` via `cfg.eip6780` (ADR-018) |
 | `eip4844` | consumed | OPStack blob precheck (orchestration); evmone via revision |
 | `eip2537`, `eip7212` | consumed | `PrecompileActive.h` reads `cfg.eip2537` / `cfg.eip7212`; FISCO `PrecompiledManager` also feature-gated |
-| `eip2929` | consumed | `Eip2929Access.h` → `WarmTransactionEntry`, `EthHost::access_*`, CREATE warm pin, 7702 delegation warm. **Scheme A:** FISCO may mask via `feature_evm_eip2929` while `revision` stays high — intentional **deviation** from geth (Host reports COLD; not pre-Berlin revision). Read only through `isEip2929Enabled()` in `eth/` production code. |
+| `eip2929` | consumed | `Eip2929Gate.h` → `WarmTransactionEntry`, `EthHost::access_*`, CREATE warm pin, 7702 delegation warm. **Scheme A:** FISCO may mask via `feature_evm_eip2929` while `revision` stays high — intentional **deviation** from geth (Host reports COLD; not pre-Berlin revision). Read only through `isEip2929Enabled()` in `eth/` production code. |
 | `eip3651` | consumed | `warmTransactionEntry` coinbase warm gate (`isCoinbaseWarmEnabled`; ADR-018) |
 | `eip1559` | consumed | `Eip1559Access.h` → typed-tx gate (`Web3TypedTxKind`), fee-cap precheck (`EthTxPrecheck` / `OpStackPrecheckPolicy`), `normalizeGasCaps`, OpStack gas refund |
 | `eip7823` | profile-only until wired | Policy sets at OSAKA; verify consumer before marking consumed |
@@ -59,7 +59,7 @@ For **every** `RevisionConfig` field, each builder (`EthChainPolicy`, `FiscoPoli
 ## Consequences
 
 - Phase 1 matrix includes one row per `RevisionConfig` field without implying kernel inheritance for profile-only bits.
-- **`eip2929` (Scheme A):** TE EIP-2929 warm/cold tracking is gated by `eip2929` via `Eip2929Access.h`. Do not read `cfg.eip2929` elsewhere in `eth/` production code. FISCO `feature_evm_eip2929=OFF` with high `revision` is a documented deviation (matrix `deviation` on BCOS 2929 rows); evmone still runs at `revision`, Host disables warm tracking.
+- **`eip2929` (Scheme A):** TE EIP-2929 warm/cold tracking is gated by `eip2929` via `Eip2929Gate.h`. Do not read `cfg.eip2929` elsewhere in `eth/` production code. FISCO `feature_evm_eip2929=OFF` with high `revision` is a documented deviation (matrix `deviation` on BCOS 2929 rows); evmone still runs at `revision`, Host disables warm tracking.
 
 ---
 

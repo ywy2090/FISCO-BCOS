@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/eip/ProtocolGas.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-utilities/Common.h"
 #include <algorithm>
 #include <limits>
