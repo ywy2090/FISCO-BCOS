@@ -72,7 +72,8 @@ public:
                     synthetic.evidenceId = tc.name + "@" + profile.profileId;
                     synthetic.path = ExecutionPath::Reference;
                     synthetic.evidenceKind = EvidenceKind::ReferenceParity;
-                    synthetic.assertLevels = {"transitional", "expectException"};
+                    synthetic.assertLevels = {
+                        "transitional", "expectException", "stateRoot", "logsHash"};
 
                     auto const report = assertResult(synthetic, expected, result, gasBefore);
                     EXPECT_TRUE(report.passed) << report.message;
@@ -123,7 +124,7 @@ public:
         synthetic.evidenceId = m_testCase.name;
         synthetic.path = ExecutionPath::Reference;
         synthetic.evidenceKind = EvidenceKind::ReferenceParity;
-        synthetic.assertLevels = {"transitional", "expectException"};
+        synthetic.assertLevels = {"transitional", "expectException", "stateRoot", "logsHash"};
 
         auto const report = assertResult(synthetic, expected, result, gasBefore);
         EXPECT_TRUE(report.passed) << report.message;

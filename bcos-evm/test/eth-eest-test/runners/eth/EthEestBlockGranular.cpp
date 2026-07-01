@@ -25,9 +25,24 @@ public:
 
     void TestBody() final
     {
-        // Validate file is parseable and at least one block exists.
-        // Full validation is performed by EthEestBlockchainRunner.
-        GTEST_SKIP() << "EEST block granular validation — implemented in follow-up";
+        // Validate JSON fixture is loadable, has pre-state and at least one block.
+        // Full state-root validation is performed by EthEestBlockchainRunner.
+        // This test provides gtest-filterable per-file smoke coverage.
+        boost::property_tree::ptree root;
+        boost::property_tree::read_json(m_file.string(), root);
+
+        for (auto const& [testName, testTree] : root)
+        {
+            ASSERT_TRUE(testTree.count("pre")) << testName << ": missing pre-state";
+            ASSERT_TRUE(testTree.count("genesisBlockHeader"))
+                << testName << ": missing genesis block header";
+
+            // Verify at least one supported format exists
+            bool hasBlocks = testTree.count("blocks") > 0;
+            bool hasPayloads = testTree.count("engineNewPayloads") > 0;
+            EXPECT_TRUE(hasBlocks || hasPayloads)
+                << testName << ": no blocks or engine payloads found";
+        }
     }
 
     static void register_one(std::string const& suite, fs::path const& file)
