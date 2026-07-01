@@ -2,6 +2,7 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
+ * @brief Default `StateTransitionHooks` no-op implementations and `innerExecute` gateway.
  * @file StateTransitionHooks.cpp
  */
 

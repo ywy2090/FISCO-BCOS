@@ -13,6 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
+ * @brief Default `EvmHostHooks` methods and EIP-3529 SSTORE helper implementations.
  * @file EvmHostHooks.cpp
  */
 
@@ -32,6 +33,11 @@ using bcos::evm::gas::SSTORE_SET_GAS_EIP2200;
 using bcos::evm::gas::WARM_STORAGE_READ_COST_EIP2929;
 }  // namespace
 
+// EIP-3529 SSTORE refund counter updates before the slot write (geth: gasState.AddRefund).
+// Uses tx-original / pre-write current / new value:
+//   - clean slot (original == current): clear-to-zero earns SSTORE_CLEARS refund
+//   - dirty slot (original != current): adjust prior clear refund; restore-to-original
+//     earns SET/RESET gas delta minus warm/cold read costs
 void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
     evmc_bytes32 const& original, evmc_bytes32 const& value) noexcept
 {
@@ -142,10 +148,14 @@ evmc_storage_status EvmHostHooks::classifyStorageStatus(evmc_bytes32 const& orig
     return classifyStorageStatusPrecise(original, current, newValue);
 }
 
+// Default no-op: chain override point for legacy deleted-slot refund after status
+// classification. FISCO applies when `RevisionFlags::fix_storage_status` is disabled.
 void EvmHostHooks::applyLegacySstoreDeletedRefund(
     State& /*state*/, evmc_storage_status /*status*/) const noexcept
 {}
 
+// Default no-op: chain override point for top-level CREATE nonce finalization.
+// FISCO applies contract-create nonce semantics when `fix_nonce_init` is enabled.
 void EvmHostHooks::finalizeTopLevelCreateNonce(
     State& /*state*/, evmc_address const& /*createAddr*/) noexcept
 {}

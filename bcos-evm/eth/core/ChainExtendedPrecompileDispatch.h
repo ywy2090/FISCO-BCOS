@@ -44,7 +44,6 @@
 #include <functional>
 #include <optional>
 
-class State;
 namespace bcos::evm
 {
 
