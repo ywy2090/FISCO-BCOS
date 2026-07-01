@@ -38,11 +38,16 @@
 
 #pragma once
 
-#include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/kernel/execution/FrameScope.h"
+#include "bcos-evm/eth/core/CallTargetKind.h"
+#include "bcos-evm/eth/core/FrameScope.h"
 #include <evmc/evmc.h>
 #include <functional>
 #include <optional>
+
+namespace bcos::evm::state
+{
+class State;
+}
 
 namespace bcos::evm
 {

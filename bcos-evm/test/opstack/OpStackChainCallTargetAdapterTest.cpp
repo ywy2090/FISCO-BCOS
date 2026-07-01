@@ -1,7 +1,10 @@
 #define BOOST_TEST_MODULE OpStackChainCallTargetAdapterTest
 
 #include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/CallTargetKind.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/OpStackConstants.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

@@ -1,7 +1,7 @@
 #pragma once
 
+#include "bcos-evm/eth/core/CallTargetKind.h"
 #include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
-#include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include <functional>
 #include <optional>
 #include <vector>
