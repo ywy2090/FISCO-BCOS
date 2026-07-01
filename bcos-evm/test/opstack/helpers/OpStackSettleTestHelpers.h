@@ -4,13 +4,13 @@
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
 #include "bcos-evm/opstack/settlement/OpStackNormalTxFeeCoordinator.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/unit_test.hpp>
@@ -60,7 +60,7 @@ struct NormalSettleFixture
     StateTransitionContext ctx;
     OpStackMessageRequest input;
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view;
+    OpStackSettlementProjection view;
     OpStackFeeSettlement ledger;
     OpStackNormalTxFeeCoordinator settlement;
     OpStackFeeParams feeParams{};
@@ -119,7 +119,7 @@ struct NormalSettleFixture
 };
 
 inline void assertGasPoolMatchesSettled(
-    GasPoolSpy const& spy, OpStackSettlementResult const& settled)
+    GasPoolSpy const& spy, OpStackTxFinalizeResult const& settled)
 {
     BOOST_REQUIRE_EQUAL(spy.returnGasCallCount, 1);
     BOOST_CHECK_EQUAL(spy.lastRemaining, settled.gasRemaining);

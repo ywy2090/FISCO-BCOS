@@ -1,3 +1,11 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Post-execute gas/refund/floor math for OpStack (no state mutation).
+ * @file OpStackPostExecuteGas.h
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"

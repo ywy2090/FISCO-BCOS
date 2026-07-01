@@ -8,7 +8,7 @@
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <bcos-task/Wait.h>
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_deducts_blob_base_fee_times_blob_gas)
     input.blobVersionedHashes.push_back(makeVersionedHash());
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     auto const executionGasCost = u256(1'000) * u256(2);
     auto const blobGasCost = u256(OP_BLOB_GAS_PER_BLOB) * u256(10);
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE(buy_gas_rejects_insufficient_balance_for_blob_cost)
     input.blobVersionedHashes.push_back(makeVersionedHash());
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     auto const balanceBefore = ctx.state.get_balance(sender);
     BOOST_REQUIRE(!task::syncWait(executor.buyGas(view)));

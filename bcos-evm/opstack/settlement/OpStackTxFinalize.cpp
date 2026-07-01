@@ -1,7 +1,7 @@
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
 #include <algorithm>
 
@@ -20,7 +20,7 @@ void releaseGasPoolFullLimit(GasPoolHooks const& gasPool, int64_t originalGasLim
 }
 
 void applyPostExecuteSettlement(
-    StateTransitionContext const& ctx, uint64_t floorDataGas, OpStackSettlementResult& out)
+    StateTransitionContext const& ctx, uint64_t floorDataGas, OpStackTxFinalizeResult& out)
 {
     auto const stateRefund =
         gas::isEip1559GasRefundEnabled(ctx.revisionConfig) ?
@@ -36,7 +36,7 @@ void applyPostExecuteSettlement(
 }
 
 void applyDepositPostExecuteSettlement(
-    StateTransitionContext const& ctx, OpStackSettlementResult& out)
+    StateTransitionContext const& ctx, OpStackTxFinalizeResult& out)
 {
     applyPostExecuteSettlement(ctx, 0, out);
 }
@@ -60,10 +60,10 @@ void abortNormalAfterBuyGas(StateTransitionContext& ctx, GasPoolHooks const& gas
     output.stateDiff = ctx.state.build_diff();
 }
 
-OpStackSettlementResult finalizeNormal(StateTransitionContext const& ctx,
+OpStackTxFinalizeResult finalizeNormal(StateTransitionContext const& ctx,
     OpStackFeeSidecar const& sidecar, StateTransitionExitKind exitKind)
 {
-    OpStackSettlementResult out{};
+    OpStackTxFinalizeResult out{};
 
     if (exitKind == StateTransitionExitKind::IntrinsicRejected ||
         exitKind == StateTransitionExitKind::GasAffordRejected)
@@ -84,10 +84,10 @@ OpStackSettlementResult finalizeNormal(StateTransitionContext const& ctx,
     return out;
 }
 
-OpStackSettlementResult finalizeDeposit(
+OpStackTxFinalizeResult finalizeDeposit(
     StateTransitionContext& ctx, StateTransitionExitKind exitKind, evmc_status_code evmStatus)
 {
-    OpStackSettlementResult out{};
+    OpStackTxFinalizeResult out{};
     auto const sender = ctx.message.sender;
 
     if (exitKind == StateTransitionExitKind::Completed && evmStatus == EVMC_SUCCESS)
@@ -119,7 +119,7 @@ OpStackSettlementResult finalizeDeposit(
     return out;
 }
 
-task::Task<OpStackSettlementResult> settleDeposit(StateTransitionContext& ctx,
+task::Task<OpStackTxFinalizeResult> settleDeposit(StateTransitionContext& ctx,
     StateTransitionExitKind exitKind, evmc_status_code evmStatus, GasPoolHooks const& gasPool)
 {
     auto settled = finalizeDeposit(ctx, exitKind, evmStatus);

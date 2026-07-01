@@ -7,8 +7,8 @@
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/settlement/OpStackNormalTxFeeCoordinator.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include <algorithm>
 #include <stdexcept>
 
@@ -61,7 +61,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
 
     OpStackFeeSidecar sidecar;
     sidecar.floorDataGas = input.floorDataGas;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     // chainAdapter + wireExecutionEnvironment inject vm/chainPort into ctx.
     // bindingsCtx is orchestration policy bind input only.

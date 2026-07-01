@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include "bcos-evm/opstack/types/OpStackDepositTx.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"

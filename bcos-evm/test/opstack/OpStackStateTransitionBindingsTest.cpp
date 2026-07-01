@@ -5,7 +5,7 @@
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     evmc_message msg{};
     StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     OpStackStateTransitionBindings::Context bindingsCtx{input, view};
     auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
 
     StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     OpStackStateTransitionBindings::Context bindingsCtx{input, view};
     auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     evmc_message msg{};
     StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     OpStackStateTransitionBindings::Context bindingsCtx{input, view};
     auto bindings = OpStackStateTransitionBindings::bind(bindingsCtx);

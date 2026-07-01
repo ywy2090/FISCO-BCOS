@@ -154,7 +154,7 @@ Adapters without pipeline context (EEST GST) construct `FeeInputs` manually.
 
 **Status:** Accepted (grilling 2026-06-26)  
 **Extends:** ADR-026 §1 non-goals — L1 / operator / blob math stays in `opstack/`; this appendix deepens **composition** above `TxFeeSettlement`, not kernel math.  
-**Builds on:** ADR-021 Appendix A (`OpStackSettlementFacade`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator` — Done per `2026-06-26-opstack-fee-projection-design.md`).
+**Builds on:** ADR-021 Appendix A (`OpStackSettlementProjection`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator` — Done per `2026-06-26-opstack-fee-projection-design.md`).
 
 ### B.1 Context
 
@@ -213,10 +213,10 @@ OpStackPreDebitPlan planOpStackPreDebit(
 
 ### B.4 Mapper: `opstack/fee/OpStackPreDebitInputs.h`
 
-Convenience only; plan does not include `OpStackSettlementFacade.h` if inputs are constructed manually in tests.
+Convenience only; plan does not include `OpStackSettlementProjection.h` if inputs are constructed manually in tests.
 
 ```cpp
-OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementFacade const& view);
+OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementProjection const& view);
 ```
 
 `OpStackPreDebitInputs` bundles `gas::FeeInputs` fields plus `txValue`, blob hashes/feeCap, `rollupCostData`, `blockTime`, and `hasGasFeeCap` (from view accessors).
@@ -285,7 +285,7 @@ return true
 
 **Status:** Accepted (grilling 2026-06-26)  
 **Extends:** ADR-026 Appendix B — mirrors pre-debit deepening for the post-execute fee seam.  
-**Builds on:** ADR-021 Appendix A (`OpStackSettlementFacade`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator`), Appendix B (`OpStackPreDebitPlan`, sidecar snapshots).
+**Builds on:** ADR-021 Appendix A (`OpStackSettlementProjection`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator`), Appendix B (`OpStackPreDebitPlan`, sidecar snapshots).
 
 ### C.1 Context
 
@@ -298,7 +298,7 @@ Appendix B deepened **pre-debit** (`planOpStackPreDebit`). Remaining friction: `
 | # | Question | Choice |
 | --- | --- | --- |
 | C-D1 | Plan output boundary | **A.** Pure amount oracle; receipt reads `l1FeeRouted` / `operatorFeeCharged` from plan; `operatorFeeScalar` / `operatorFeeConstant` still from `OpStackFeeParams`. |
-| C-D2 | Input shape | **A.** `OpStackPostSettlementInputs` + `toOpStackPostSettlementInputs(view, settled)` mapper (mirror Appendix B). Plan does not include `OpStackSettlementFacade.h`. |
+| C-D2 | Input shape | **A.** `OpStackPostSettlementInputs` + `toOpStackPostSettlementInputs(view, settled)` mapper (mirror Appendix B). Plan does not include `OpStackSettlementProjection.h`. |
 | C-D3 | Isthmus fork gating | **A.** Plan does not read fork schedule. State routing unchanged. `isOpStackIsthmus` gates receipt `operatorFee` write only (orchestration policy). |
 | C-D4 | `refundIsthmusOperatorCost` | **A.** Delete public method; Isthmus refund covered by `plan.senderOperatorRefund` + characterization (migrate `RefundIsthmusTest`). |
 | C-D5 | Delivery | **A.** Single PR + this appendix. |
@@ -343,12 +343,12 @@ OpStackPostSettlementPlan planOpStackPostSettlement(
 
 ### C.4 Mapper: `opstack/fee/OpStackPostSettlementInputs.h`
 
-Convenience only; plan does not include `OpStackSettlementFacade.h` if inputs are constructed manually in tests.
+Convenience only; plan does not include `OpStackSettlementProjection.h` if inputs are constructed manually in tests.
 
 ```cpp
 OpStackPostSettlementInputs toOpStackPostSettlementInputs(
-    OpStackSettlementFacade const& view,
-    OpStackSettlementResult const& settled) noexcept;
+    OpStackSettlementProjection const& view,
+    OpStackTxFinalizeResult const& settled) noexcept;
 ```
 
 Mapper projects `gas::FeeInputs` from view/ctx (same caps path as pre-debit), `gasUsed` / `gasRemaining` from `settled`, and sidecar snapshots `l1CostCharged` / `operatorCostLimit` from `view.feeSidecar()`.
@@ -391,7 +391,7 @@ Introduce an anonymous-namespace aggregate in `OpStackNormalTxFeeCoordinator.cpp
 
 ```cpp
 struct NormalSettleOutcome {
-    OpStackSettlementResult settled;
+    OpStackTxFinalizeResult settled;
     OpStackPostSettlementPlan feePlan;
 };
 ```
@@ -400,7 +400,7 @@ struct NormalSettleOutcome {
 
 ```cpp
 task::Task<NormalSettleOutcome> settleNormal(
-    OpStackSettlementFacade view,
+    OpStackSettlementProjection view,
     TxPipelineExitKind exitKind,
     OpStackFeeSettlement& ledger,
     GasPoolHooks const& gasPool);

@@ -155,7 +155,7 @@ sequenceDiagram
 
 ### 5.1 Gas settlement（EIP-7623 + refund cap）
 
-| 项 | op-geth `innerExecute:644-661` | FB `OpStackGasSettlement.h` | 状态 |
+| 项 | op-geth `innerExecute:644-661` | FB `OpStackPostExecuteGas.h` | 状态 |
 |----|-------------------------------|----------------------------|------|
 | refund cap 1/5 peak | `calcRefund` | `min(refund, peak/5)` | ✅ |
 | floor bump gasUsed | `gasUsed < floorDataGas` → top-up | 同逻辑 `:35-40` | ✅ |

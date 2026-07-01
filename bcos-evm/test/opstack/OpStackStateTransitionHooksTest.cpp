@@ -6,7 +6,7 @@
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include "bcos-evm/opstack/types/OpStackDepositTx.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(gas_affordable_floor_rejects)
 
     StateTransitionContext ctx{stateView, message, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     OpStackStateTransitionBindings::Context bindingsCtx{input, view};
     auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
     evmc_message msg{};
     StateTransitionContext ctx{stateView, msg, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     OpStackStateTransitionBindings::Context bindingsCtx{input, view};
     auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);

@@ -1,14 +1,14 @@
 #define BOOST_TEST_MODULE OpStackSettlementTest
 
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

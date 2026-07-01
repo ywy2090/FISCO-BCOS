@@ -44,7 +44,7 @@ EVMCResult makePreCheckError(
 }
 }  // namespace
 
-OpStackStateTransitionHooks::OpStackStateTransitionHooks(OpStackSettlementFacade& view)
+OpStackStateTransitionHooks::OpStackStateTransitionHooks(OpStackSettlementProjection& view)
   : m_view(view), m_sidecar(view.mutableSidecar())
 {
     m_intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;

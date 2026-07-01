@@ -124,7 +124,7 @@
 |---|------|---------|-----|------|
 | 1 | `FloorDataGas` 公式 | `state_transition.go:120-133` | `OpStackFloorGas.cpp:32-41` | ✅ |
 | 2 | entry floor vs gasLimit | `IsPrague` + `:552` | `executeEntryFloorDataGasCheck` | ✅ |
-| 3 | post-exec floor bump | `:650-661` | `OpStackGasSettlement.h:35-40` | ✅ |
+| 3 | post-exec floor bump | `:650-661` | `OpStackPostExecuteGas.h:35-40` | ✅ |
 | 4 | operator 基于 post-floor gasUsed | `:731` | settlement 后 operator | ✅ |
 | 5 | entry 失败路径 | 早返回无 refund | abort + revert buyGas（ADR-025） | ✅ **CLOSED R3-7623-1** |
 | 6 | floor E2E receipt | — | 仍缺 | 🟡 |

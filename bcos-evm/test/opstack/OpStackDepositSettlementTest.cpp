@@ -4,8 +4,8 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
-#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
+#include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

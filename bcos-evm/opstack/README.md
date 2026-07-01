@@ -7,7 +7,7 @@
 | 路径 | 职责 |
 | --- | --- |
 | `apply/` | 链入口、生命周期、StateTransition bindings/hooks |
-| `settlement/` | Facade、Sidecar、Settlement、FeeSettlement、NormalTxFeeCoordinator |
+| `settlement/` | Projection、Sidecar、TxFinalize、FeeSettlement、NormalTxFeeCoordinator |
 | `adapter/` | `OpStackChainCallTargetAdapter`（L1Block / GasPriceOracle 路由） |
 | `policy/` | 常量、fork 时间表、Isthmus revision 绑定 |
 | `types/` | DTO / 元数据（DepositTx、ReceiptMeta、BlobTxChecks、HeaderExtension） |
@@ -16,20 +16,20 @@
 
 ## Settlement 命名对照
 
-`Settlement` 一词在 opstack 内指代不同层级，勿混用：
+`Settlement` 一词在 opstack 内曾指代不同层级；P3 重命名后推荐符号如下（`OpStackFeeSettlement` 保留以对齐 `eth/EthTxFeeSettlement`）：
 
 | 符号 / 文件 | 目录 | 层级 | 职责 | 是否改 state |
 | --- | --- | --- | --- | --- |
-| `OpStackSettlementFacade` | `settlement/` | 只读投影 | `ctx` + `input` + `sidecar` 统一读视图 | 否 |
+| `OpStackSettlementProjection` | `settlement/` | 只读投影 | `ctx` + `input` + `sidecar` 统一读视图（ADR-030: `SettlementProjection`） | 否 |
 | `OpStackFeeSidecar` | `settlement/` | 可变 sidecar | 生命周期内费用快照（effectiveGasPrice、l1CostCharged 等） | 是（内存） |
 | `OpStackFeeSettlement` | `settlement/` | 异步账本 | `buyGas` / `refundGas`；对齐 `eth/EthTxFeeSettlement` | 是 |
-| `OpStackSettlement` | `settlement/` | 同步收尾 | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort | 部分（gas pool） |
-| `OpStackGasSettlement` | `fee/` | 纯 gas 数学 | `postExecuteGasSettlement`（refund、floor 扣减） | 否 |
+| `OpStackTxFinalize` | `settlement/` | 同步收尾 | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort | 部分（gas pool） |
+| `OpStackPostExecuteGas` | `fee/` | 纯 gas 数学 | `postExecuteGasSettlement`（refund、floor 扣减） | 否 |
 | `OpStackNormalTxFeeCoordinator` | `settlement/` | 编排 | normal 路径：`buyGas` → pipeline → `completeAfterPipeline` | 委托上述组件 |
 
-**调用顺序（normal）：** `Facade` → `FeeSettlement.buyGas`（读 `PreDebitPlan`）→ pipeline → `Settlement.finalizeNormal`（读 `GasSettlement`）→ `FeeSettlement.refundGas`（读 `PostSettlementPlan`）→ `NormalTxFeeCoordinator` 写 receipt。
+**调用顺序（normal）：** `Projection` → `FeeSettlement.buyGas`（读 `PreDebitPlan`）→ pipeline → `TxFinalize.finalizeNormal`（读 `PostExecuteGas`）→ `FeeSettlement.refundGas`（读 `PostSettlementPlan`）→ `NormalTxFeeCoordinator` 写 receipt。
 
-**与 eth 对照：** `EthTxFeeSettlement` 合一；opstack 拆为 Facade + FeeSettlement + Settlement + fee 层 plan/math。
+**与 eth 对照：** `EthTxFeeSettlement` 合一；opstack 拆为 Projection + FeeSettlement + TxFinalize + fee 层 plan/math。
 
 ## `apply/` — 链入口 & 生命周期
 
@@ -45,10 +45,10 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `OpStackSettlementFacade.*` | `ctx` + `input` + sidecar 只读投影 |
+| `OpStackSettlementProjection.*` | `ctx` + `input` + sidecar 只读投影 |
 | `OpStackFeeSidecar.h` | 生命周期内可变费用状态 |
 | `OpStackNormalTxFeeCoordinator.*` | `buyGas` + `completeAfterPipeline`（ADR-025） |
-| `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort |
+| `OpStackTxFinalize.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort |
 | `OpStackFeeSettlement.*` | Adapter：`buyGas` / `refundGas` |
 
 ## `fee/` — 纯计算 & plan
@@ -56,10 +56,10 @@
 | 文件 | 职责 |
 | --- | --- |
 | `OpStackPreDebitPlan.*` | 定义 `OpStackPreDebitInputs` / `OpStackPreDebitPlan`；`planOpStackPreDebit` |
-| `OpStackPreDebitInputsMapping.h` | `toOpStackPreDebitInputs(facade)`（仅映射，对齐 `eth/EthFeeInputsMapping.h`） |
+| `OpStackPreDebitInputsMapping.h` | `toOpStackPreDebitInputs(projection)`（仅映射，对齐 `eth/EthFeeInputsMapping.h`） |
 | `OpStackPostSettlementPlan.*` | 定义 `OpStackPostSettlementInputs` / `OpStackPostSettlementPlan` |
-| `OpStackPostSettlementInputsMapping.h` | `toOpStackPostSettlementInputs(facade, settled)`（仅映射） |
-| `OpStackGasSettlement.h` | 执行后 gas/refund/floor 数学（`GasSettlement`） |
+| `OpStackPostSettlementInputsMapping.h` | `toOpStackPostSettlementInputs(projection, settled)`（仅映射） |
+| `OpStackPostExecuteGas.h` | 执行后 gas/refund/floor 数学（`GasSettlement`） |
 | `OpStackFeeParams.*`、`RollupCost.*`、`OpStackFloorGas.*` | L1/operator cost、rollup、floor gas |
 
 ## 执行流（ADR-021 Appendix A）
@@ -67,7 +67,7 @@
 ```text
 OpStackTransactionExecutorImpl
   → applyOpStackMessage()                    [apply/]
-      ├─ OpStackSettlementFacade             [settlement/]
+      ├─ OpStackSettlementProjection         [settlement/]
       ├─ OpStackStateTransitionBindings::bind [apply/]
       ├─ lifecycleCheckEntryRules            [apply/]
       ├─ deposit: gasPool → mint → pipeline → settleDeposit

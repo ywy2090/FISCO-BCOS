@@ -20,14 +20,14 @@
 
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 
 namespace bcos::evm
 {
 
 struct OpStackStateTransitionHooks : StateTransitionHooks
 {
-    explicit OpStackStateTransitionHooks(OpStackSettlementFacade& view);
+    explicit OpStackStateTransitionHooks(OpStackSettlementProjection& view);
 
     DeductIntrinsicGasParams getIntrinsicGasParams() const override { return m_intrinsicPolicy; }
 
@@ -41,7 +41,7 @@ struct OpStackStateTransitionHooks : StateTransitionHooks
     InnerExecuteOutput onInvokeInnerExecute(InnerExecuteInput&& input) const override;
 
 private:
-    OpStackSettlementFacade& m_view;
+    OpStackSettlementProjection& m_view;
     OpStackFeeSidecar& m_sidecar;
     DeductIntrinsicGasParams m_intrinsicPolicy{};
 };

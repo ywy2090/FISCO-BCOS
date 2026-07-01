@@ -4,7 +4,7 @@
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitInputsMapping.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 
 namespace bcos::evm
 {
@@ -20,7 +20,7 @@ void addBalance(state::State& state, evmc_address const& address, u256 const& de
 }
 }  // namespace
 
-task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementFacade view)
+task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementProjection view)
 {
     auto& ctx = view.pipelineContext();
     auto& sidecar = view.mutableSidecar();
@@ -69,7 +69,7 @@ task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementFacade view)
 }
 
 task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
-    OpStackSettlementFacade& view, OpStackSettlementResult const& settled)
+    OpStackSettlementProjection& view, OpStackTxFinalizeResult const& settled)
 {
     if (view.isDeposit())
     {

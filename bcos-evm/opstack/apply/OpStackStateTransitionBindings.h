@@ -22,7 +22,7 @@
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionErrorPolicy.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 
 namespace bcos::evm
 {
@@ -33,7 +33,7 @@ struct OpStackStateTransitionBindings
     struct Context
     {
         OpStackMessageRequest const& input;
-        OpStackSettlementFacade view;
+        OpStackSettlementProjection view;
     };
 
     struct Result

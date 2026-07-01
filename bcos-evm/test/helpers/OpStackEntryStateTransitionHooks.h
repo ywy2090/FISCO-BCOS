@@ -3,7 +3,7 @@
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include "bcos-evm/opstack/types/OpStackDepositTx.h"
 #include <optional>
 
@@ -15,7 +15,7 @@ inline std::optional<EVMCResult> runOpStackEntryLifecycleCheck(
 {
     StateTransitionContext ctx{stateView, input.message, input.revisionConfig, bcos::u256(0)};
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
     OpStackStateTransitionHooks policy(view);
     policy.lifecycleCheckEntryRules(ctx);
     if (ctx.earlyExit)

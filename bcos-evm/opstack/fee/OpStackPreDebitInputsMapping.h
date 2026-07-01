@@ -2,7 +2,7 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief Maps OpStackSettlementFacade into OpStackPreDebitInputs (types in OpStackPreDebitPlan.h).
+ * @brief Maps OpStackSettlementProjection into OpStackPreDebitInputs (types in OpStackPreDebitPlan.h).
  * @file OpStackPreDebitInputsMapping.h
  */
 
@@ -11,12 +11,12 @@
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 
 namespace bcos::evm
 {
 
-inline OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementFacade const& view) noexcept
+inline OpStackPreDebitInputs toOpStackPreDebitInputs(OpStackSettlementProjection const& view) noexcept
 {
     auto const& ctx = view.pipelineContext();
     std::optional<RollupCostData> const* rollupPtr = nullptr;

@@ -3,7 +3,7 @@
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>
@@ -15,7 +15,7 @@ namespace bcos::evm
 {
 #define OP_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("OP_TX_EXECUTOR")
 
-struct OpStackSettlementResult;
+struct OpStackTxFinalizeResult;
 
 struct OpStackFeeSettlement
 {
@@ -25,9 +25,9 @@ struct OpStackFeeSettlement
     evmc_address m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
     evmc_address m_operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
 
-    task::Task<bool> buyGas(OpStackSettlementFacade view);
+    task::Task<bool> buyGas(OpStackSettlementProjection view);
     task::Task<OpStackPostSettlementPlan> refundGas(
-        OpStackSettlementFacade& view, OpStackSettlementResult const& settled);
+        OpStackSettlementProjection& view, OpStackTxFinalizeResult const& settled);
 };
 
 }  // namespace bcos::evm

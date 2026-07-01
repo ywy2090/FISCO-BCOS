@@ -11,12 +11,12 @@ namespace
 {
 struct NormalSettleOutcome
 {
-    OpStackSettlementResult settled;
+    OpStackTxFinalizeResult settled;
     OpStackPostSettlementPlan feePlan;
 };
 
-void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementFacade& view,
-    OpStackFeeParams const& feeParams, OpStackSettlementResult const& settled,
+void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementProjection& view,
+    OpStackFeeParams const& feeParams, OpStackTxFinalizeResult const& settled,
     OpStackPostSettlementPlan const& feePlan)
 {
     auto const& input = view.input;
@@ -33,7 +33,7 @@ void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementFac
     }
 }
 
-task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementFacade view,
+task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementProjection view,
     StateTransitionExitKind exitKind, OpStackFeeSettlement& ledger, GasPoolHooks const& gasPool)
 {
     auto& ctx = view.pipelineContext();
@@ -49,7 +49,7 @@ task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementFacade view,
 }  // namespace
 
 task::Task<bool> OpStackNormalTxFeeCoordinator::buyGas(
-    OpStackSettlementFacade view, GasPoolHooks const& gasPool, OpStackMessageResult& output)
+    OpStackSettlementProjection view, GasPoolHooks const& gasPool, OpStackMessageResult& output)
 {
     auto& ctx = view.pipelineContext();
     auto const ok = co_await ledger.buyGas(view);
@@ -62,8 +62,9 @@ task::Task<bool> OpStackNormalTxFeeCoordinator::buyGas(
     co_return true;
 }
 
-task::Task<void> OpStackNormalTxFeeCoordinator::completeAfterPipeline(OpStackSettlementFacade view,
-    OpStackFeeParams const& feeParams, GasPoolHooks const& gasPool, OpStackMessageResult& output)
+task::Task<void> OpStackNormalTxFeeCoordinator::completeAfterPipeline(
+    OpStackSettlementProjection view, OpStackFeeParams const& feeParams,
+    GasPoolHooks const& gasPool, OpStackMessageResult& output)
 {
     auto& ctx = view.pipelineContext();
     if (isNormalPreExecutionReject(ctx.exitKind))

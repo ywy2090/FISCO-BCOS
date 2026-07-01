@@ -2,7 +2,8 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief Maps OpStackSettlementFacade + OpStackSettlementResult into OpStackPostSettlementInputs.
+ * @brief Maps OpStackSettlementProjection + OpStackTxFinalizeResult into
+ * OpStackPostSettlementInputs.
  * @file OpStackPostSettlementInputsMapping.h
  */
 
@@ -10,14 +11,14 @@
 
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 
 namespace bcos::evm
 {
 
 inline OpStackPostSettlementInputs toOpStackPostSettlementInputs(
-    OpStackSettlementFacade const& view, OpStackSettlementResult const& settled) noexcept
+    OpStackSettlementProjection const& view, OpStackTxFinalizeResult const& settled) noexcept
 {
     auto const& ctx = view.pipelineContext();
     auto const& sidecar = view.feeSidecar();

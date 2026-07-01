@@ -3,11 +3,11 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
+#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(buyGas_failure_records_result_on_ctx_not_fee_context)
     input.blockInfo.baseFee = 0;
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     OpStackFeeSettlement ledger;
     BOOST_REQUIRE(!task::syncWait(ledger.buyGas(view)));
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(buyGas_uses_ctx_message_not_fee_context_copy)
     input.blockInfo.baseFee = 0;
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     OpStackFeeSettlement ledger;
     auto ok = task::syncWait(ledger.buyGas(view));
@@ -105,11 +105,11 @@ BOOST_AUTO_TEST_CASE(Settlement_routesCoinbaseBaseFeeL1AndOperator)
     input.rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     BOOST_REQUIRE(task::syncWait(executor.buyGas(view)));
 
-    OpStackSettlementResult settled;
+    OpStackTxFinalizeResult settled;
     settled.gasUsed = 400;
     settled.gasRemaining = 600;
 
@@ -152,12 +152,12 @@ BOOST_AUTO_TEST_CASE(HardFailure_stillRefundsUnusedGas)
     input.rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
 
     OpStackFeeSidecar sidecar;
-    OpStackSettlementFacade view{ctx, input, sidecar};
+    OpStackSettlementProjection view{ctx, input, sidecar};
 
     BOOST_REQUIRE(task::syncWait(executor.buyGas(view)));
 
     auto const settlement = postExecuteGasSettlement(500, 120, 0, 0);
-    OpStackSettlementResult settled;
+    OpStackTxFinalizeResult settled;
     settled.gasUsed = static_cast<int64_t>(settlement.gasUsed);
     settled.gasRemaining = settlement.gasRemaining;
 

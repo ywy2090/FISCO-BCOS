@@ -137,7 +137,7 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 | `AuthPort` | — | `AuthCheck` (FISCO) | ADR-017 |
 | `ChainExtendedPrecompileDispatch` | `ActivePrecompiles` + dispatch | `ChainExtendedPrecompileDispatch` | ADR-024 |
 | `runOpStackTxLifecycle` | op-geth outer `execute` | `OpStackMessageApplier` | gasPool, settle, deposit |
-| `OpStackSettlementFacade` | — | `SettlementProjection` | read-only fee view |
+| `OpStackSettlementProjection` | — | `SettlementProjection` | read-only fee view |
 
 ### 7. ADR-029 ↔ ADR-030 coexistence
 

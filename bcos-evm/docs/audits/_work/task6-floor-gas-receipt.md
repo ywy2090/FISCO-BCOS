@@ -2,7 +2,7 @@
 
 **Commit：** `54e17a62c` (`feat(opstack): align L1Block IL1Block surface and close Isthmus remediation`)  
 **日期：** 2026-06-21（re-audit @ 54e17a62c）  
-**范围：** inventory #8–9、#26；`OpStackFloorGas.*`、`OpStackGasSettlement.h`、`OpStackReceiptMeta.h`、`OpStackExecuteViaHost.cpp`、`OpStackTransactionExecutorImpl::makeReceipt`  
+**范围：** inventory #8–9、#26；`OpStackFloorGas.*`、`OpStackPostExecuteGas.h`、`OpStackReceiptMeta.h`、`OpStackExecuteViaHost.cpp`、`OpStackTransactionExecutorImpl::makeReceipt`  
 **参考：** op-geth v1.101702.2 @ `e8800cffe` — `core/state_transition.go`（`FloorDataGas`、Prague precheck/settlement、OP fee routing）；`core/types/receipt_opstack.go`（receipt 派生）  
 **交叉引用：** ETH audit `_work/task5-eip7623.md`（共享公式）；Task 1 `_work/task1-executor-wiring.md`（`m_isIsthmus` 接线）；Task 4 `_work/task4-deposit.md`（deposit 失败 gasUsed 与 floor 交叉）
 
@@ -61,7 +61,7 @@ opStackExecuteViaHost
 
 ## Step 3: Settlement / floor top-up（inventory #9）
 
-### FB — `postExecuteGasSettlement`（`OpStackGasSettlement.h:17-48`）
+### FB — `postExecuteGasSettlement`（`OpStackPostExecuteGas.h:17-48`）
 
 ```cpp
 peakGasUsed = gasLimit - min(gasLeft, gasLimit);
@@ -156,7 +156,7 @@ op-geth 同样在 refund 后、fee routing 前应用 floor top-up，再用最终
 | 能力 | 层级 | 清单来源 | Matrix 状态 | 深度 | 状态 | Spec 依据 | FB 实现 | op-geth 对照 | FB 测试 | 缺口 |
 |------|------|----------|-------------|------|------|-----------|---------|--------------|---------|------|
 | EIP-7623 entry precheck | orchestration | matrix #8 | explicit | 深审 | ✅ | EIP-7623 §Specification | `OpStackFloorGas.cpp` + `executeEntryChecks` | `FloorDataGas` + `GasLimit` check | `OpStackFloorGasTest` | 无 E2E orchestration 用例；错误码非 `ErrFloorDataGas` |
-| EIP-7623 settlement / floor gas | orchestration | matrix #9 | deviation | 深审 | ✅ | EIP-7623 post-refund floor | `OpStackGasSettlement.h` | Prague `:650-661` | `CalcRefundTest` | 无 E2E receipt floor 断言；与 `Eip7623.h` 未共享 |
+| EIP-7623 settlement / floor gas | orchestration | matrix #9 | deviation | 深审 | ✅ | EIP-7623 post-refund floor | `OpStackPostExecuteGas.h` | Prague `:650-661` | `CalcRefundTest` | 无 E2E receipt floor 断言；与 `Eip7623.h` 未共享 |
 | OPStack receipt metadata | orchestration | matrix #26 | explicit | 深审 | 🟡 **DONE_WITH_CONCERNS** | Isthmus operator fee + OP receipt | `OpStackReceiptMeta` + `makeReceipt` | `receipt_opstack.go` | `L1AttributesDepositTest`, `OpStackSettlementTest`, `TestOpStackTransactionExecutorFixture` | protocol receipt 缺 scalar/constant；缺 `DepositReceiptVersion`；floor receipt E2E 缺 |
 
 ---
@@ -270,7 +270,7 @@ Isthmus spec 未强制全部字段；RPC 兼容性缺口。
 | 项 | op-geth | FB | Wave 3 |
 |----|---------|-----|--------|
 | FloorDataGas 公式 | `:120-133` | `OpStackFloorGas.cpp` | ✅ |
-| post-exec floor bump | `:650-661` | `OpStackGasSettlement.h` | ✅ |
+| post-exec floor bump | `:650-661` | `OpStackPostExecuteGas.h` | ✅ |
 | 非 deposit entry 失败 | 早返回无 refund | 仍 settlement+refundGas `:203-245` | 🟡 **R3-7623-1** |
 | TE entry 失败 state | — | 不 `applyStateDiff` 但 receipt 带 gasUsed | 🟡 **NEW** |
 | protocol receipt scalar | deriveOPStackFields | `makeReceipt` 已映射 | ✅ 闭合 |

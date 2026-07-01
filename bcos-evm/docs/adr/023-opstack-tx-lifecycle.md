@@ -8,7 +8,7 @@
 
 ## Context
 
-ADR-021 deepened **settlement math** (`finalizeNormal` / `finalizeDeposit`) and async settlement. **ADR-021 Appendix A (2026-06-26)** replaced `OpStackFeeContext` / `populateFeeContext` with `OpStackSettlementFacade` + `OpStackFeeSidecar` and moved normal post-pipeline wiring into **`OpStackNormalTxFeeCoordinator`** (`buyGas` + `completeAfterPipeline`). `TxPipelineContext` remains the gas/message/state single source.
+ADR-021 deepened **settlement math** (`finalizeNormal` / `finalizeDeposit`) and async settlement. **ADR-021 Appendix A (2026-06-26)** replaced `OpStackFeeContext` / `populateFeeContext` with `OpStackSettlementProjection` + `OpStackFeeSidecar` and moved normal post-pipeline wiring into **`OpStackNormalTxFeeCoordinator`** (`buyGas` + `completeAfterPipeline`). `TxPipelineContext` remains the gas/message/state single source.
 
 Historical context (pre–Appendix A): outer-ring wiring lived in `OpStackExecute` with manual `OpStackFeeContext` initialization and public `settleNormal`.
 
@@ -46,7 +46,7 @@ ADR-021 invariants unchanged.
 `OpStackStateTransitionBindings::Context` (internal; renamed from `Session`, ADR-027 naming follow-up):
 
 - `OpStackMessageRequest& input`
-- `OpStackSettlementFacade view` (`ctx` + `input` + `sidecar`)
+- `OpStackSettlementProjection view` (`ctx` + `input` + `sidecar`)
 
 `sidecar` / `view` do not cross the lifecycle external seam.
 

@@ -442,7 +442,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 依赖倒置端口 | `bcos/ports/AuthPort.h`、`eth/core/ChainExtendedPrecompileDispatch.h` |
 | OP 入口 | `opstack/ApplyOpStackMessage.cpp` |
 | OP lifecycle | `opstack/OpStackTxLifecycle.h` / `.cpp`（ADR-023） |
-| OP settlement | `opstack/OpStackSettlement.h` / `.cpp`（ADR-021） |
+| OP settlement | `opstack/settlement/OpStackTxFinalize.h` / `.cpp`（ADR-021） |
 | OP 扩展 | `opstack/OpStack chain call-target adapter.h` |
 | 能力契约 | `capability-matrix.md` |
 | 决策记录 | `docs/adr/001–024` |

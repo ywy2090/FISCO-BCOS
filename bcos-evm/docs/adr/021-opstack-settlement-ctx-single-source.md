@@ -2,7 +2,7 @@
 
 **Status:** Implemented (PR1 + PR2 + Appendix A PR1–PR3)  
 **Date:** 2026-06-25 (PR2 section added 2026-06-25; Appendix A 2026-06-26)  
-**Implementation:** `OpStackSettlementFacade`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator`, `finalizeNormal(sidecar)`  
+**Implementation:** `OpStackSettlementProjection`, `OpStackFeeSidecar`, `OpStackNormalTxFeeCoordinator`, `finalizeNormal(sidecar)`  
 **Spec (PR2):** `docs/superpowers/specs/2026-06-25-opstack-settlement-pr2-design.md`  
 **Spec (Appendix A):** `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`  
 **Deciders:** bcos-evm architecture  
@@ -72,7 +72,7 @@ buyGas → runTxPipeline → co_await settleNormal(...)
 
 `finalizeNormal` signature narrows to `(ctx, feeCtx, exitKind)` — no `ledger` / `gasPool` params.
 
-`OpStackFeeContext` deletes `m_gasUsed`, `m_gasRemaining`, `m_maxUsedGas`; outputs live only in `OpStackSettlementResult`.
+`OpStackFeeContext` deletes `m_gasUsed`, `m_gasRemaining`, `m_maxUsedGas`; outputs live only in `OpStackTxFinalizeResult`.
 
 `buyGas` failure: bridge calls `returnGas(gasLimit, 0)` explicitly; delete `GasPoolReturnGuard`.
 
@@ -106,7 +106,7 @@ Mint is never rolled back on failure.
 | Phase | Scope | Status |
 | --- | --- | --- |
 | **PR1** | Normal path; `finalizeNormal` gas math; delete shadow fields `m_message`/`m_gasLimit`/`m_state`; module tests | Implemented |
-| **PR2** | `settleNormal`/`settleDeposit`; `finalizeDeposit`; gas outputs in `OpStackSettlementResult` only; refund/pool in settlement facade | Implemented |
+| **PR2** | `settleNormal`/`settleDeposit`; `finalizeDeposit`; gas outputs in `OpStackTxFinalizeResult` only; refund/pool in settlement facade | Implemented |
 
 ---
 
@@ -173,7 +173,7 @@ Mint is never rolled back on failure.
 
 | # | Question | Choice |
 | --- | --- | --- |
-| 1 | Deepening boundary | **A** — `OpStackSettlementFacade` (read-only projection) + `OpStackFeeSidecar` (mutable lifecycle state) |
+| 1 | Deepening boundary | **A** — `OpStackSettlementProjection` (read-only projection) + `OpStackFeeSidecar` (mutable lifecycle state) |
 | 2 | Sidecar contents | **A2** — five fields: `effectiveGasPrice`, `baseFee`, `l1CostCharged`, `operatorCostLimit`, `floorDataGas` |
 | 3 | View lifecycle | **B3** — view always holds `ctx` + `input` + `sidecar&`; accessors fall back to input when sidecar unset |
 | 4 | Fee module shape | **C2** — `OpStackNormalTxFeeCoordinator` deep module: `buyGas` + `completeAfterPipeline` |
@@ -186,7 +186,7 @@ Mint is never rolled back on failure.
 
 | Module | Role |
 | --- | --- |
-| `OpStackSettlementFacade` | Projection over `TxPipelineContext` + `OpStackMessageRequest` + `OpStackFeeSidecar&`; **no mirrored storage** of request fields |
+| `OpStackSettlementProjection` | Projection over `TxPipelineContext` + `OpStackMessageRequest` + `OpStackFeeSidecar&`; **no mirrored storage** of request fields |
 | `OpStackFeeSidecar` | Lifecycle-mutable fee state only (see A.1 #2) |
 | `OpStackNormalTxFeeCoordinator` | Deep module: `buyGas(view)` → pipeline → `completeAfterPipeline(view, …)`; **ADR-025 abort tree internal** |
 | `OpStackFeeSettlement` | **Adapter seam** (L1/operator hooks, recipients); not lifecycle's direct interface |
@@ -216,7 +216,7 @@ settlement.completeAfterPipeline(view, gasPool, feeParams, output)
 
 | Phase | Scope | Behavior change |
 | --- | --- | --- |
-| **PR1** | `OpStackSettlementFacade`, `OpStackFeeSidecar`; Session E2; ledger/precheck read view; delete `populateFeeContext` | None |
+| **PR1** | `OpStackSettlementProjection`, `OpStackFeeSidecar`; Session E2; ledger/precheck read view; delete `populateFeeContext` | None |
 | **PR2** | `OpStackNormalTxFeeCoordinator`; lifecycle convergence; ADR-025 tests on `completeAfterPipeline` | Abort/settle locality only (no semantic drift) |
 | **PR3** | Remove `OpStackFeeContext`; drop public `settleNormal` / `completeNormalTxAfterPipeline`; doc sync | Implemented |
 
