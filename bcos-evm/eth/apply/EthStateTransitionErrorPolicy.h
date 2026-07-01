@@ -1,10 +1,9 @@
 #pragma once
 
-#include "bcos-evm/eth/kernel/EVMCResult.h"
+#include "bcos-evm/eth/apply/EthEvmResult.h"
 #include "bcos-evm/eth/kernel/state-transition/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
-#include <evmc/evmc.h>
 
 namespace bcos::evm
 {
@@ -14,10 +13,8 @@ struct EthStateTransitionErrorPolicy : StateTransitionErrorPolicy
     void onIntrinsicGasFailure(
         StateTransitionContext& ctx, IntrinsicDebitFailure /*failure*/) const override
     {
-        evmc_result failResult{};
-        failResult.status_code = EVMC_OUT_OF_GAS;
-        failResult.gas_left = 0;
-        ctx.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+        ctx.evmcResult =
+            makeEvmcResult(protocol::TransactionStatus::OutOfGasLimit, EVMC_OUT_OF_GAS);
     }
 
     void onException(StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const override
@@ -28,17 +25,13 @@ struct EthStateTransitionErrorPolicy : StateTransitionErrorPolicy
         }
         catch (protocol::OutOfGas&)
         {
-            evmc_result failResult{};
-            failResult.status_code = EVMC_OUT_OF_GAS;
-            failResult.gas_left = 0;
-            ctx.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::OutOfGasLimit);
+            ctx.evmcResult =
+                makeEvmcResult(protocol::TransactionStatus::OutOfGasLimit, EVMC_OUT_OF_GAS);
         }
         catch (std::exception&)
         {
-            evmc_result failResult{};
-            failResult.status_code = EVMC_INTERNAL_ERROR;
-            failResult.gas_left = 0;
-            ctx.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::Unknown);
+            ctx.evmcResult =
+                makeEvmcResult(protocol::TransactionStatus::Unknown, EVMC_INTERNAL_ERROR);
         }
 
         if (ctx.state.has_checkpoint())

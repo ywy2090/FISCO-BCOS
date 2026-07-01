@@ -1,7 +1,8 @@
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 
 #include "bcos-evm/eth/Web3TypedTxKind.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
+#include "bcos-evm/eth/apply/EthEvmResult.h"
 #include "bcos-evm/eth/eip/Eip1559Access.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -16,15 +17,6 @@ inline bool isCreateKind(evmc_call_kind kind) noexcept
 {
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
 }
-
-std::optional<EVMCResult> makePreCheckError(
-    protocol::TransactionStatus status, evmc_status_code evmcStatus = EVMC_FAILURE)
-{
-    evmc_result result{};
-    result.status_code = evmcStatus;
-    result.gas_left = 0;
-    return EVMCResult(result, status);
-}
 }  // namespace
 
 std::optional<EVMCResult> ethTxPrecheck(EthMessageRequest const& input, state::State& state)
@@ -32,7 +24,7 @@ std::optional<EVMCResult> ethTxPrecheck(EthMessageRequest const& input, state::S
     // EIP-2681: account nonce cannot exceed uint64 max; reject txs that cannot be incremented.
     if (input.txNonce == std::numeric_limits<uint64_t>::max())
     {
-        return makePreCheckError(protocol::TransactionStatus::NonceCheckFail);
+        return makeEvmcResult(protocol::TransactionStatus::NonceCheckFail);
     }
 
     auto const senderCode = state.get_code(input.message.sender);
@@ -40,35 +32,35 @@ std::optional<EVMCResult> ethTxPrecheck(EthMessageRequest const& input, state::S
         !parseDelegationTarget(bcos::bytesConstRef{senderCode.data(), senderCode.size()})
              .has_value())
     {
-        return makePreCheckError(protocol::TransactionStatus::Malformed);
+        return makeEvmcResult(protocol::TransactionStatus::Malformed);
     }
 
     if (gas::isEip1559FeeMarketActive(input.revisionConfig))
     {
         if (input.gasFeeCap < input.gasTipCap || input.gasFeeCap < input.blockInfo.baseFee)
         {
-            return makePreCheckError(protocol::TransactionStatus::Malformed);
+            return makeEvmcResult(protocol::TransactionStatus::Malformed);
         }
     }
 
     if (input.authorizationListPresent && input.authorizations.empty())
     {
-        return makePreCheckError(protocol::TransactionStatus::Malformed);
+        return makeEvmcResult(protocol::TransactionStatus::Malformed);
     }
 
     if (!input.authorizations.empty() && isCreateKind(input.message.kind))
     {
-        return makePreCheckError(protocol::TransactionStatus::Malformed);
+        return makeEvmcResult(protocol::TransactionStatus::Malformed);
     }
 
     if (input.web3TypedTxKind == 0x04 && isCreateKind(input.message.kind))
     {
-        return makePreCheckError(protocol::TransactionStatus::Malformed);
+        return makeEvmcResult(protocol::TransactionStatus::Malformed);
     }
 
     if (!isTypedTxKindSupportedByRevision(input.web3TypedTxKind, input.revisionConfig))
     {
-        return makePreCheckError(protocol::TransactionStatus::Malformed);
+        return makeEvmcResult(protocol::TransactionStatus::Malformed);
     }
 
     return std::nullopt;

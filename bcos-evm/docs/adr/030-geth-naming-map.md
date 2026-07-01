@@ -65,7 +65,7 @@ New **eth kernel** code: use Tier A/B names in function and log strings. ~~Tier 
 
 | geth | bcos-evm (canonical) | Header | Removed Tier E (Wave) |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | ~~`ethReferenceExecute`~~ (4, 2026-06-30) |
+| `ApplyMessage` | `applyEthMessage` | `eth/apply/ApplyEthMessage.h` | ~~`ethReferenceExecute`~~ (4, 2026-06-30) |
 | `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | ~~`fiscoExecute`~~ (4, 2026-06-30) |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` → `runOpStackTxLifecycle` | `opstack/ApplyOpStackMessage.h` | ~~`opStackExecute`~~ (4, 2026-06-30) |
 
@@ -81,7 +81,7 @@ Maps **current ADR-029 code** (as of 2026-06-29) to geth. Use the **geth column*
 | 1 | `preCheck` (incl. `buyGas` on ETH) | `onPreCheckRules`, `onPreCheckGasAffordable`, OP `lifecycleCheckEntryRules` | `preCheck` (+ chain hooks inside) |
 | 2 | `IntrinsicGas` + `Charge` | `deductIntrinsicGas` | `deductIntrinsicGas` (Phase 3 batch 1 ✅) |
 | 3 | `FloorDataGas` | Eip7623 mode in `deductIntrinsicGas` + `captureSettlementSnapshot` | `checkFloorDataGas` / `floorDataGas` |
-| 4 | `CanTransfer` | `onPreCheckCanTransfer` | `canTransfer` (`CanTransfer.h`) + `onPreCheckCanTransfer` (pipeline slice) |
+| 4 | `CanTransfer` | `onPreCheckCanTransfer` | `StateView::get_balance` + `onPreCheckCanTransfer` (pipeline slice) |
 | 5 | `state.Prepare` | `warmTransactionEntry`, transient clear in `TxExecutionRunner` | `prepareState` |
 | 6 | `evm.Create` / `evm.Call` | `onInvokeInnerExecute` → `innerExecute` → `runEvmKernelTopLevel` | `innerExecute` |
 | 7 | post-execution refund / 7623 uplift | `captureSettlementSnapshot`, `onFinalizeGasUsed` | `onFinalizeGasUsed` (geth: end of `execute`) |

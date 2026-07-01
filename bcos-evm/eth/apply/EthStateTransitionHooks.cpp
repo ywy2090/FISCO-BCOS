@@ -17,12 +17,12 @@
  */
 
 #include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
+#include "bcos-evm/eth/apply/EthEvmResult.h"
 #include "bcos-evm/eth/apply/EthFeeInputsMapping.h"
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
-#include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-evm/eth/kernel/execution/CanTransfer.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm
@@ -65,12 +65,10 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
 void EthStateTransitionHooks::onPreCheckCanTransfer(StateTransitionContext& ctx) const
 {
     auto const txValue = state::fromEvmC(ctx.message.value);
-    if (txValue != 0 && !canTransfer(ctx.state, ctx.message.sender, txValue))
+    if (txValue != 0 && ctx.state.get_balance(ctx.message.sender) < txValue)
     {
-        evmc_result failResult{};
-        failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
-        failResult.gas_left = 0;
-        ctx.evmcResult = EVMCResult(failResult, protocol::TransactionStatus::InsufficientFunds);
+        ctx.evmcResult = makeEvmcResult(
+            protocol::TransactionStatus::InsufficientFunds, EVMC_INSUFFICIENT_BALANCE);
         ctx.earlyExit = true;
     }
 }

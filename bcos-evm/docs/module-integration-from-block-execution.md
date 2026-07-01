@@ -67,7 +67,7 @@ flowchart TB
 | ADR-001 旧名 | 当前入口函数 | 模块路径 |
 |---|---|---|
 | `executeViaHost` | `fiscoExecute` | `bcos-evm/bcos/ApplyFiscoMessage.h` |
-| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/apply/EthMessage.h` |
+| `executeViaEth` | `ethReferenceExecute` | `bcos-evm/eth/apply/ApplyEthMessage.h` |
 | `opStackExecuteViaHost` | `opStackExecute` | `bcos-evm/opstack/ApplyOpStackMessage.h` |
 
 ---
@@ -351,8 +351,8 @@ TE 层通过 adapter 实现并注入（不修改 `eth/` 内核）：
 | 用途 | 头文件 | 说明 |
 |---|---|---|
 | FISCO 生产执行 | `bcos-evm/bcos/ApplyFiscoMessage.h` | `applyFiscoMessage` |
-| ETH 参考执行 | `bcos-evm/eth/apply/EthMessage.h` | `applyEthMessage` |
-| ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `EthMessage.h` |
+| ETH 参考执行 | `bcos-evm/eth/apply/ApplyEthMessage.h` | `applyEthMessage` |
+| ETH 聚合头（外部消费者） | `bcos-evm/include/bcos-evm/eth_executor.hpp` | 转引 `ApplyEthMessage.h` |
 | OP Stack 执行 | `bcos-evm/opstack/ApplyOpStackMessage.h` | `applyOpStackMessage` |
 | 状态读 | `bcos-evm/bcos/FiscoStateView.h` | TE 层构造 |
 | 状态写 | `bcos-evm/bcos/StateDiffApplier.h` | `applyStateDiff` |

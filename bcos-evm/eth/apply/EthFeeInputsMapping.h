@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 
 namespace bcos::evm::gas

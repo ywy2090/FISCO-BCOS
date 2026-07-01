@@ -13,7 +13,7 @@
 #define BOOST_TEST_MODULE EthIntrinsicGasFailureCharacterizationTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/ProtocolGas.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-protocol/TransactionStatus.h"

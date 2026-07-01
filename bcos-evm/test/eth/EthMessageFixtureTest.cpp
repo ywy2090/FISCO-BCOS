@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE EthMessageFixtureTest
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "fixtures/EthFixtureAdapter.h"
 #include "fixtures/EthStateFixtureLoader.h"
 #include "fixtures/FixtureAssert.h"

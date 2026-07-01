@@ -18,7 +18,6 @@
 
 #include "bcos-evm/eth/host/EthHost.hpp"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
-#include "bcos-evm/eth/kernel/execution/CanTransfer.h"
 #include "bcos-evm/eth/kernel/execution/Eip2929Access.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -180,7 +179,8 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     {
         if (!selfBeneficiary)
         {
-            bcos::evm::transfer(m_state, addr, beneficiary, balance);
+            m_state.set_balance(addr, m_state.get_balance(addr) - balance);
+            m_state.set_balance(beneficiary, m_state.get_balance(beneficiary) + balance);
         }
         else
         {

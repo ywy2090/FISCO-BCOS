@@ -77,7 +77,7 @@ Flip which symbol is the **exported** function vs inline forward. TE already inv
 | Order | Action | geth analogue | Headers |
 | --- | --- | --- | --- |
 | 3.1 | Rename implementation `fiscoExecute` → keep body; export as `applyFiscoMessage`; add `[[deprecated]] inline fiscoExecute` forward | `ApplyMessage` | `bcos/ApplyFiscoMessage.h` |
-| 3.2 | Same for `ethReferenceExecute` → `applyEthMessage` | `ApplyMessage` | `eth/apply/EthMessage.h` |
+| 3.2 | Same for `ethReferenceExecute` → `applyEthMessage` | `ApplyMessage` | `eth/apply/ApplyEthMessage.h` |
 | 3.3 | Same for `opStackExecute` → `applyOpStackMessage` | `ApplyMessage` + op lifecycle | `opstack/ApplyOpStackMessage.h` |
 
 Update log strings and `@brief` tags to canonical names; retain `*Execute` in release notes for one minimum release.

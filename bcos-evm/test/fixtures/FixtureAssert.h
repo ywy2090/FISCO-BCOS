@@ -20,7 +20,7 @@
 #pragma once
 
 #include "EthStateFixtureLoader.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-evm/eth/kernel/state-transition/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/state/StateView.hpp"

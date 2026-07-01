@@ -26,7 +26,7 @@
  */
 #define BOOST_TEST_MODULE EthCreateGasSettlementCharacterizationTest
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"

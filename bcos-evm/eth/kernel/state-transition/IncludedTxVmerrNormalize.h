@@ -1,3 +1,11 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Included-tx vmerr normalization (ADR-015).
+ * @file IncludedTxVmerrNormalize.h
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/kernel/EVMCResult.h"

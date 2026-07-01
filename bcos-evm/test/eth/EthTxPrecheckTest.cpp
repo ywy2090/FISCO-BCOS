@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE EthExecuteViaEthPreCheckTest
 
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
 

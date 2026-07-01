@@ -1,6 +1,5 @@
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
 
-#include "bcos-evm/eth/kernel/execution/CanTransfer.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 
 namespace bcos::evm
@@ -9,7 +8,7 @@ std::optional<EVMCResult> opStackFloorGasPrecheck(OpStackFloorGasPrecheckInput c
 {
     auto const value = state::fromEvmC(input.message.value);
     if (!input.skipTransactionChecks && value != 0 &&
-        !canTransfer(input.state, input.message.sender, value))
+        input.state.get_balance(input.message.sender) < value)
     {
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;

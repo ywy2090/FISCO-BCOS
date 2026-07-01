@@ -49,7 +49,7 @@
 
 | 文件 | 角色 |
 | --- | --- |
-| `EthMessage.*` | 链入口 `applyEthMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
+| `ApplyEthMessage.*` | 链入口 `applyEthMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
 | `EthStateTransitionBindings.*` | `bind()` → 填充 `StateTransitionHooks` + `StateTransitionErrorPolicy` |
 | `EthTxPrecheck.*` | 参考路径交易预检 |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
@@ -60,7 +60,7 @@
 
 | geth | ADR-030 文档名（Tier C） | 头文件 | TE 调用 |
 | --- | --- | --- | --- |
-| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | `applyEthMessage` |
+| `ApplyMessage` | `applyEthMessage` | `eth/apply/ApplyEthMessage.h` | `applyEthMessage` |
 | `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `applyFiscoMessage` |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | `applyOpStackMessage` |
 

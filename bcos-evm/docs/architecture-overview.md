@@ -186,7 +186,7 @@ evmone callback → EthHost::call (nested adapter)
 
 | geth | ADR-030 文档名 | 文件 | Profile / 外圈 | TE 调用 | 能力矩阵列语义 |
 | --- | --- | --- | --- | --- | --- |
-| `ApplyMessage` | `applyEthMessage` | `eth/apply/EthMessage.h` | `EthStateTransitionBindings::bind` | `applyEthMessage` | ETH = **接线审计**（非生产继承证明） |
+| `ApplyMessage` | `applyEthMessage` | `eth/apply/ApplyEthMessage.h` | `EthStateTransitionBindings::bind` | `applyEthMessage` | ETH = **接线审计**（非生产继承证明） |
 | `ApplyMessage` | `applyFiscoMessage` | `bcos/ApplyFiscoMessage.h` | `FiscoStateTransitionBindings::bind`；`AuthPort*` / `ChainPrecompilePort*` | `applyFiscoMessage` | BCOS = **FISCO 生产继承契约** |
 | `ApplyMessage` + op lifecycle | `applyOpStackMessage` | `opstack/ApplyOpStackMessage.h` | validate → `runOpStackTxLifecycle`（ADR-023） | `applyOpStackMessage` | OPStack = **OP 生产继承契约** |
 | — | — | `runOpStackTxLifecycle` | `opstack/OpStackTxLifecycle.h` | precheck → gasPool → deposit\|normal → `settle*` | — | ADR-023 characterization 主面 |

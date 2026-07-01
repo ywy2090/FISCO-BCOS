@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7623PrecheckTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

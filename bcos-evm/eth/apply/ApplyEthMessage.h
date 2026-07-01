@@ -1,6 +1,9 @@
 /*
- * @brief Eth chain entry (`applyEthMessage`).
- * @file EthMessage.h
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Chain entry applyEthMessage.
+ * @file ApplyEthMessage.h
  */
 
 #pragma once

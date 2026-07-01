@@ -4,7 +4,7 @@
 #define BOOST_TEST_MODULE EthMessage1559GasPriceTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

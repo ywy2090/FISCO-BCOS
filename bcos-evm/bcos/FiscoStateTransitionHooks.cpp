@@ -21,6 +21,8 @@
 #include "bcos-evm/bcos/FiscoPipelineInternals.h"
 #include "bcos-evm/bcos/FiscoTxAdapter.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <boost/throw_exception.hpp>
 

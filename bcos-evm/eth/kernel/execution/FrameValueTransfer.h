@@ -21,7 +21,6 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
-#include "bcos-evm/eth/kernel/execution/CanTransfer.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -64,28 +63,31 @@ inline bool transferFrameValue(state::State& state,
     {
         if (isCreateKind(msg.kind))
         {
-            if (!canTransfer(state, msg.sender, value))
+            if (state.get_balance(msg.sender) < value)
             {
                 return false;
             }
-            transfer(state, msg.sender, msg.recipient, value);
+            state.set_balance(msg.sender, state.get_balance(msg.sender) - value);
+            state.set_balance(msg.recipient, state.get_balance(msg.recipient) + value);
             return true;
         }
 
         auto const recipient = resolveCodeAddress(msg);
-        if (!canTransfer(state, msg.sender, value))
+        if (state.get_balance(msg.sender) < value)
         {
             return false;
         }
-        transfer(state, msg.sender, recipient, value);
+        state.set_balance(msg.sender, state.get_balance(msg.sender) - value);
+        state.set_balance(recipient, state.get_balance(recipient) + value);
         return true;
     }
 
-    if (!canTransfer(state, msg.sender, value))
+    if (state.get_balance(msg.sender) < value)
     {
         return false;
     }
-    transfer(state, msg.sender, msg.recipient, value);
+    state.set_balance(msg.sender, state.get_balance(msg.sender) - value);
+    state.set_balance(msg.recipient, state.get_balance(msg.recipient) + value);
     return true;
 }
 }  // namespace bcos::evm::execution

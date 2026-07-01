@@ -41,12 +41,14 @@
 
 #pragma once
 
-#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 
 namespace bcos::evm
 {
+
+class StateTransitionContext;
+struct InnerExecuteInput;
+struct InnerExecuteOutput;
 
 /// Chain policy for `stateTransitionExecute`. Hooks run in pipeline order below;
 /// precheck hooks short-circuit via `ctx.earlyExit` (and usually `ctx.evmcResult`).
@@ -58,28 +60,25 @@ struct StateTransitionHooks
     virtual DeductIntrinsicGasParams getIntrinsicGasParams() const = 0;
 
     /// Normalize `ctx.message` before any precheck (CREATE address derivation, deposit fields, …).
-    virtual void onNormalizeMessage(StateTransitionContext& ctx) const { (void)ctx; }
+    virtual void onNormalizeMessage(StateTransitionContext& ctx) const;
 
     /// Entry rules: unsupported typed tx, authorization list, revision gates.
     /// Set `ctx.earlyExit` to reject before intrinsic debit.
-    virtual void onPreCheckRules(StateTransitionContext& ctx) const { (void)ctx; }
+    virtual void onPreCheckRules(StateTransitionContext& ctx) const;
 
     /// Gas-limit / pool affordability **before** intrinsic debit.
     /// Set `ctx.earlyExit` on rejection.
-    virtual void onPreCheckGasAffordable(StateTransitionContext& ctx) const { (void)ctx; }
+    virtual void onPreCheckGasAffordable(StateTransitionContext& ctx) const;
 
     /// Balance and top-level value transfer checks **after** intrinsic debit.
     /// Set `ctx.earlyExit` on rejection.
-    virtual void onPreCheckCanTransfer(StateTransitionContext& ctx) const { (void)ctx; }
+    virtual void onPreCheckCanTransfer(StateTransitionContext& ctx) const;
 
     /// Last-chance mutation of `InnerExecuteInput` after `ctx.toInnerExecuteInput()`.
-    virtual void onTuneInnerExecuteInput(InnerExecuteInput& input) const { (void)input; }
+    virtual void onTuneInnerExecuteInput(InnerExecuteInput& input) const;
 
     /// EVM entry point. Default runs `innerExecute()`; chains may wrap for tracing or policy.
-    virtual InnerExecuteOutput onInvokeInnerExecute(InnerExecuteInput&& input) const
-    {
-        return innerExecute(std::move(input));
-    }
+    virtual InnerExecuteOutput onInvokeInnerExecute(InnerExecuteInput&& input) const;
 };
 
 // Pipeline order (stateTransitionExecute):

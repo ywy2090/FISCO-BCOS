@@ -21,7 +21,7 @@
 
 #include "EthStateFixtureLoader.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
 namespace bcos::evm::test::fixtures

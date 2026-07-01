@@ -4,7 +4,7 @@
 #include "RollbackableStorage.h"
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
-#include "bcos-evm/eth/apply/EthMessage.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/apply/EthTxFeeSettlement.h"
 #include "bcos-evm/eth/eip/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
