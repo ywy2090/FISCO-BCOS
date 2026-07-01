@@ -10,7 +10,7 @@
 | `settlement/` | Facade、Sidecar、Settlement、FeeSettlement、NormalTxFeeCoordinator |
 | `adapter/` | `OpStackChainCallTargetAdapter`（L1Block / GasPriceOracle 路由） |
 | `policy/` | 常量、fork 时间表、Isthmus revision 绑定 |
-| `types/` | DTO / 元数据（DepositTx、ReceiptMeta、BlobIntent、HeaderExtension） |
+| `types/` | DTO / 元数据（DepositTx、ReceiptMeta、BlobTxChecks、HeaderExtension） |
 | `fee/` | L1 fee、rollup cost、floor gas、pre/post debit plan（纯计算） |
 | `l1/` | L1Block 与 GasPriceOracle 预部署 |
 
@@ -39,7 +39,7 @@
 | `OpStackStateTransitionBindings.*` | `Context` `{ input, view }`；`bind` → pipeline hooks |
 | `OpStackStateTransitionHooks.*` | 入口规则、`onPreCheckGasAffordable`、inner execute 调优 |
 | `OpStackStateTransitionErrorPolicy.h` | OpStack 错误处理策略 |
-| `OpStackPipelineInternals.h` | 管线内部辅助 |
+| `OpStackEvmResult.h` | apply 层 EVMCResult 辅助（对齐 `eth/EthEvmResult.h`） |
 
 ## `settlement/` — 费用结算编排
 
@@ -60,7 +60,7 @@
 | `OpStackPostSettlementPlan.*` | 定义 `OpStackPostSettlementInputs` / `OpStackPostSettlementPlan` |
 | `OpStackPostSettlementInputsMapping.h` | `toOpStackPostSettlementInputs(facade, settled)`（仅映射） |
 | `OpStackGasSettlement.h` | 执行后 gas/refund/floor 数学（`GasSettlement`） |
-| `OpStackFee.*`、`RollupCost.*`、`OpStackFloorGas.*` | L1/operator cost、rollup、floor gas |
+| `OpStackFeeParams.*`、`RollupCost.*`、`OpStackFloorGas.*` | L1/operator cost、rollup、floor gas |
 
 ## 执行流（ADR-021 Appendix A）
 

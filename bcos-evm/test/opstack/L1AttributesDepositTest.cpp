@@ -6,7 +6,7 @@
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
-#include "bcos-evm/opstack/fee/OpStackFee.h"
+#include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "helpers/InMemoryStateView.h"

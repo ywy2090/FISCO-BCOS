@@ -1,6 +1,6 @@
 #include "bcos-evm/opstack/settlement/OpStackNormalTxFeeCoordinator.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/fee/OpStackFee.h"
+#include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"

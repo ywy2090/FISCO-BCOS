@@ -10,7 +10,7 @@
 #include "TestMemoryStorage.h"
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/opstack/fee/OpStackFee.h"
+#include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/types/OpStackBlockHeaderExtension.h"
 #include "bcos-framework/executor/OpStackTxType.h"

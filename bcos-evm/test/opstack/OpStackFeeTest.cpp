@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE OpStackFeeTest
 
-#include "bcos-evm/opstack/fee/OpStackFee.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
+#include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/l1/L1BlockStorage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"

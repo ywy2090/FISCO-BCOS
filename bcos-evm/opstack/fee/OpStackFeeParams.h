@@ -1,3 +1,11 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief OpStack L1/operator fee params and fork-aware cost selectors.
+ * @file OpStackFeeParams.h
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/state/StateView.hpp"
