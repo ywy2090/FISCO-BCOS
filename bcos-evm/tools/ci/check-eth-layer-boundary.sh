@@ -40,6 +40,12 @@ check_pattern \
   'eth/apply/' \
   '#include[[:space:]]*"bcos-evm/eth/kernel/execution/'
 
+# opstack apply entry mirrors eth/apply orchestration boundary.
+check_pattern \
+  'opstack/apply/ must not include eth/kernel/execution/ headers' \
+  'opstack/apply/' \
+  '#include[[:space:]]*"bcos-evm/eth/kernel/execution/'
+
 # kernel stays chain-agnostic at compile time.
 check_pattern \
   'eth/kernel/ must not include eth/apply/ headers' \

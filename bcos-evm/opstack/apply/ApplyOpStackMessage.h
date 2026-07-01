@@ -7,11 +7,12 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/IntrinsicGasAccounting.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
@@ -63,7 +64,7 @@ struct OpStackMessageResult
 {
     EVMCResult evmcResult{evmc_result{}};
     state::StateDiff stateDiff;
-    std::vector<LogEntry> logs;
+    std::vector<state::LogEntry> logs;
     int64_t gasUsed{0};
     OpStackReceiptMeta receiptMeta;
     IntrinsicGasAccounting gasAccounting{};
