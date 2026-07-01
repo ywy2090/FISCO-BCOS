@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief PrecompileRouter EIP-7702 delegation tests (via FrameTargetResolver).
+ *  @brief PrecompileRouter EIP-7702 delegation tests (via ExecutionAddressResolver).
  */
 
 #define BOOST_TEST_MODULE PrecompileRouter7702Test
@@ -11,7 +11,7 @@
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "fixtures/EthFrameParityHelpers.h"
@@ -116,8 +116,8 @@ BOOST_AUTO_TEST_CASE(resolve_frame_target_7702_call_uses_authority)
 
     state::test::InMemoryStateView view;
     state::State state(view);
-    auto const target =
-        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::Nested);
+    auto const target = execution::resolveExecutionAddress(
+        state, pragueCfg(), message, execution::FrameScope::Nested);
 
     BOOST_REQUIRE(
         std::memcmp(target.executionAddress.bytes, authority.bytes, sizeof(authority.bytes)) == 0);
@@ -133,8 +133,8 @@ BOOST_AUTO_TEST_CASE(resolve_frame_target_direct_identity_call)
 
     state::test::InMemoryStateView view;
     state::State state(view);
-    auto const target =
-        execution::resolveFrameTarget(state, pragueCfg(), message, execution::FrameScope::TopLevel);
+    auto const target = execution::resolveExecutionAddress(
+        state, pragueCfg(), message, execution::FrameScope::TopLevel);
 
     BOOST_REQUIRE(
         std::memcmp(target.executionAddress.bytes, identity.bytes, sizeof(identity.bytes)) == 0);

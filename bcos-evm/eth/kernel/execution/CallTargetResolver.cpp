@@ -2,7 +2,7 @@
 #include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
 
@@ -44,9 +44,9 @@ CallTargetDescriptor resolveCallTarget(state::State& state,
             .kind = CallTargetKind::EvmContract, .warmPolicy = WarmPolicy::Never, .routed = msg};
     }
 
-    auto const frameTarget = resolveFrameTarget(state, revision, msg, scope);
-    auto const& executionAddress = frameTarget.executionAddress;
-    auto const& routed = frameTarget.routed;
+    auto const resolved = resolveExecutionAddress(state, revision, msg, scope);
+    auto const& executionAddress = resolved.executionAddress;
+    auto const& routed = resolved.routed;
 
     auto const code = state.get_code(executionAddress);
     bool const emptyCode = code.empty();

@@ -27,7 +27,7 @@ enum class WarmPolicy
     Never,
     TxEntryAlways,
     TxEntryIfStatic,
-    FrameEntryOnly,  // CREATE warm-pin; set by resolveFrameTarget, not consumed by enumerate
+    FrameEntryOnly,  // CREATE warm-pin; set by resolveExecutionAddress, not consumed by enumerate
 };
 
 /// Tx-entry warm set includes TxEntryAlways (builtin) and TxEntryIfStatic (fixed predeploys).

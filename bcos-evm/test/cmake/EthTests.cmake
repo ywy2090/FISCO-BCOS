@@ -274,11 +274,11 @@ target_include_directories(DeductIntrinsicGasTest PRIVATE
 target_link_libraries(DeductIntrinsicGasTest PRIVATE bcos-evm-eth)
 add_test(NAME DeductIntrinsicGas COMMAND DeductIntrinsicGasTest)
 
-add_executable(FrameTargetResolverTest eth/FrameTargetResolverTest.cpp)
-target_include_directories(FrameTargetResolverTest PRIVATE
+add_executable(ExecutionAddressResolverTest eth/ExecutionAddressResolverTest.cpp)
+target_include_directories(ExecutionAddressResolverTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(FrameTargetResolverTest PRIVATE bcos-evm-eth evmone::evmone)
-add_test(NAME FrameTargetResolver COMMAND FrameTargetResolverTest)
+target_link_libraries(ExecutionAddressResolverTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME ExecutionAddressResolver COMMAND ExecutionAddressResolverTest)
 
 add_executable(CallTargetResolverTest eth/CallTargetResolverTest.cpp)
 target_include_directories(CallTargetResolverTest PRIVATE

@@ -3,7 +3,7 @@
 **Status:** Accepted  
 **Date:** 2026-06-26  
 **Last revised:** 2026-06-26 (v1.1 — subagent review patches)  
-**Related:** ADR-005, ADR-017, ADR-018, ADR-019, `docs/superpowers/specs/2026-06-26-call-target-resolver-design.md`, `eth/kernel/execution/FrameTargetResolver.*`, `eth/precompiled/PrecompileRouter.*`, `eth/precompiled/PrecompileActive.h`, `eth/kernel/execution/WarmTransactionEntry.h`, `docs/superpowers/specs/2026-06-24-execution-frame-design.md`
+**Related:** ADR-005, ADR-017, ADR-018, ADR-019, `docs/superpowers/specs/2026-06-26-call-target-resolver-design.md`, `eth/kernel/execution/ExecutionAddressResolver.*`, `eth/precompiled/PrecompileRouter.*`, `eth/precompiled/PrecompileActive.h`, `eth/kernel/execution/WarmTransactionEntry.h`, `docs/superpowers/specs/2026-06-24-execution-frame-design.md`
 
 ---
 
@@ -13,14 +13,14 @@ A CALL to a precompile-like target today requires bouncing across four modules:
 
 | Step | Module | Responsibility |
 | --- | --- | --- |
-| 1 | `FrameTargetResolver` | Address normalization (7702, CREATE, `executionAddress`) |
+| 1 | `ExecutionAddressResolver` | Address normalization (7702, CREATE, `executionAddress`) |
 | 2 | `PrecompileRouter` | Classification **and** execution envelope |
 | 3 | `EvmHostHooks::tryChainPrecompile` | Chain extension hook |
 | 4 | `ChainPrecompilePort` (FISCO) or inline logic (OpStack) | Chain dispatch |
 
 **Observed friction:**
 
-1. **Classification lacks locality.** Builtin gate (`isActivePrecompile`), chain hook (`tryChainPrecompile`), 7702 delegation bypass, and DELEGATECALL policy live in `PrecompileRouter.cpp` while address work lives in `FrameTargetResolver.cpp`.
+1. **Classification lacks locality.** Builtin gate (`isActivePrecompile`), chain hook (`tryChainPrecompile`), 7702 delegation bypass, and DELEGATECALL policy live in `PrecompileRouter.cpp` while address work lives in `ExecutionAddressResolver.cpp`.
 
 2. **Warm and dispatch are split for chain targets.** `WarmTransactionEntry` enumerates builtin precompile addresses via `forEachActivePrecompile` only. FISCO small-address precompiles and OpStack L1 predeploys dispatch at frame time but are not in that tx-entry warm set.
 
@@ -140,7 +140,7 @@ struct ChainExtendedPrecompileDispatch {
 }  // namespace bcos::evm
 ```
 
-**FISCO `classifyTarget` normative rule:** `executionAddress` (from `resolveFrameTarget`) is the primary key. Dynamic `[PRECOMPILED]` proxy: read `state.get_code(executionAddress)`, parse embedded target into `dispatchAddress`. Do not re-derive target solely from `msg.recipient` / `msg.code_address` when they disagree with `executionAddress`.
+**FISCO `classifyTarget` normative rule:** `executionAddress` (from `resolveExecutionAddress`) is the primary key. Dynamic `[PRECOMPILED]` proxy: read `state.get_code(executionAddress)`, parse embedded target into `dispatchAddress`. Do not re-derive target solely from `msg.recipient` / `msg.code_address` when they disagree with `executionAddress`.
 
 **Adapter structure (composition, not merge):**
 
@@ -179,7 +179,7 @@ Dispatch: `BuiltinPrecompile` → `EthPrecompiles::tryDispatchInCall`; `ChainPre
 **CALL / STATICCALL / DELEGATECALL (non-CREATE):**
 
 ```text
-① frameTarget = resolveFrameTarget(state, revision, msg, scope)   // address work (A)
+① resolved = resolveExecutionAddress(state, revision, msg, scope)   // address work (A)
 ② skipVt = extension && extension->skipHostValueTransfer()
 ③ descriptor = resolveCallTarget(state, revision, frameTarget.routed, scope,
                                  chainPort, extension)            // RR6: BEFORE prepareNestedMessage

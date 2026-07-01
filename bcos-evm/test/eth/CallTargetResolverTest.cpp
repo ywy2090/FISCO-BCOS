@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "fixtures/EthFrameParityHelpers.h"
@@ -46,7 +46,7 @@ execution::CallTargetDescriptor resolveAt(state::State& state,
     bcos::evm_standard::RevisionConfig const& cfg, evmc_message msg, execution::FrameScope scope,
     ChainExtendedPrecompileDispatch* chainPort = nullptr, state::EvmHostHooks* extension = nullptr)
 {
-    auto frame = execution::resolveFrameTarget(state, cfg, msg, scope);
+    auto frame = execution::resolveExecutionAddress(state, cfg, msg, scope);
     return execution::resolveCallTarget(state, cfg, frame.routed, scope, chainPort, extension);
 }
 

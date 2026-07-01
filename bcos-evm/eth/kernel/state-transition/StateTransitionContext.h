@@ -5,9 +5,9 @@
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
-#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/kernel/InnerExecuteTypes.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/IntrinsicGasAccounting.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -94,25 +94,7 @@ public:
         this->chainPort = chainPort;
     }
 
-    InnerExecuteInput toInnerExecuteInput() const
-    {
-        InnerExecuteInput input;
-        input.state = const_cast<state::State*>(&state);
-        input.vm = inputs.vm;
-        input.message = message;
-        input.gasPrice = gasPrice;
-        input.blockInfo = inputs.blockInfo;
-        input.blockHashes = inputs.blockHashes;
-        input.revisionConfig = revisionConfig;
-        input.txProps = txProps;
-        input.accessList = inputs.accessList;
-        input.authorizationListPresent = inputs.authorizationListPresent;
-        input.authorizations = inputs.authorizations;
-        input.web3TypedTxKind = inputs.web3TypedTxKind;
-        input.extension = extension;
-        input.chainPort = chainPort;
-        return input;
-    }
+    InnerExecuteInput toInnerExecuteInput() const;
 
     StateTransitionInputs inputs;
     evmc_message message{};

@@ -65,7 +65,7 @@ struct ChainExtendedPrecompileDispatch
     /// Classify whether this chain owns the call target.
     ///
     /// Invoked from `resolveCallTarget` when `emptyCode || scope == Nested` and `chainPort != nullptr`.
-    /// `executionAddress` is the frame execution key from `resolveFrameTarget` (not raw
+    /// `executionAddress` is the frame execution key from `resolveExecutionAddress` (not raw
     /// `msg.recipient` / `msg.code_address` when they disagree).
     ///
     /// @return A descriptor with `kind == ChainPrecompile`, `dispatchAddress`, and `WarmPolicy`

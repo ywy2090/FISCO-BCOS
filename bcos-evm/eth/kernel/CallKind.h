@@ -13,16 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Top-level message execution over eth::state::EthHost.
- * @file execution/InnerExecute.h
+ * @brief EVMC call-kind predicates shared by pipeline and execution layers.
+ * @file CallKind.h
  */
 
 #pragma once
 
-#include "bcos-evm/eth/kernel/InnerExecuteTypes.h"
+#include <evmc/evmc.h>
 
-namespace bcos::evm
+namespace bcos::evm::execution
 {
-InnerExecuteOutput innerExecute(InnerExecuteInput input);
-
-}  // namespace bcos::evm
+inline bool isCreateKind(evmc_call_kind kind) noexcept
+{
+    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
+}
+}  // namespace bcos::evm::execution

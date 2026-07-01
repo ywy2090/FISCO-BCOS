@@ -14,9 +14,9 @@
  *  limitations under the License.
  */
 
-#define BOOST_TEST_MODULE FrameTargetResolverTest
+#define BOOST_TEST_MODULE ExecutionAddressResolverTest
 
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -55,7 +55,8 @@ BOOST_AUTO_TEST_CASE(nested_create_fills_recipient_and_pins_warm)
     msg.recipient = addr(0x42);
     msg.code_address = {};
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::Nested);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::Nested);
     requireAddressEqual(resolved.routed.code_address, addr(0x42));
 }
 
@@ -71,7 +72,8 @@ BOOST_AUTO_TEST_CASE(nested_call_normalizes_code_address_for_identity)
     msg.recipient = identity;
     msg.code_address = identity;
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::Nested);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::Nested);
     requireAddressEqual(resolved.executionAddress, identity);
     requireAddressEqual(resolved.routed.code_address, identity);
 }
@@ -87,7 +89,8 @@ BOOST_AUTO_TEST_CASE(top_level_skips_create_warm_pin)
     msg.recipient = addr(0x55);
     msg.code_address = {};
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
     requireAddressEqual(resolved.routed.recipient, addr(0x55));
     BOOST_REQUIRE(std::memcmp(resolved.routed.code_address.bytes, evmc_address{}.bytes, 20) == 0);
 }
@@ -104,7 +107,8 @@ BOOST_AUTO_TEST_CASE(top_level_call_zero_code_address_fills_recipient)
     msg.recipient = recipient;
     msg.code_address = {};
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
     requireAddressEqual(resolved.executionAddress, recipient);
     requireAddressEqual(resolved.routed.code_address, recipient);
 }
@@ -123,7 +127,8 @@ BOOST_AUTO_TEST_CASE(nested_7702_call_pins_authority_as_execution_address)
     msg.recipient = authority;
     msg.code_address = identity;
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::Nested);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::Nested);
     requireAddressEqual(resolved.executionAddress, authority);
     requireAddressEqual(resolved.routed.code_address, authority);
 }
@@ -142,7 +147,8 @@ BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_keeps_delegate_in_execution_addres
     msg.recipient = caller;
     msg.code_address = identity;
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::Nested);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::Nested);
     requireAddressEqual(resolved.executionAddress, identity);
 }
 
@@ -160,7 +166,8 @@ BOOST_AUTO_TEST_CASE(top_level_7702_call_uses_authority_as_execution_address)
     msg.recipient = authority;
     msg.code_address = identity;
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
     requireAddressEqual(resolved.executionAddress, authority);
 }
 
@@ -178,7 +185,8 @@ BOOST_AUTO_TEST_CASE(nested_7702_staticcall_delegated_uses_code_address)
     msg.recipient = authority;
     msg.code_address = identity;
 
-    auto resolved = execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::Nested);
+    auto resolved =
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::Nested);
     requireAddressEqual(resolved.executionAddress, identity);
 }
 }  // namespace bcos::evm::test

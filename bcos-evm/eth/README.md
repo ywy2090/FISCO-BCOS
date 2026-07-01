@@ -35,6 +35,7 @@
 | `kernel/state-transition/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
 | `kernel/state-transition/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
 | `kernel/execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
+| `kernel/execution/ExecutionAddressResolver.*` | 帧级 `executionAddress` 归一化（7702 / CREATE） |
 | `kernel/EVMCResult.*` | EVMC ↔ `TransactionStatus` 桥接（`adoptEvmcResult`） |
 | `RevisionConfig.h` | EIP 开关位域（`eth/` 根） |
 

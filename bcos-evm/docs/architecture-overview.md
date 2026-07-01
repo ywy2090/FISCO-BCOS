@@ -170,13 +170,13 @@ stateTransitionExecute → innerExecute → runEvmKernelTopLevel
                                     └─ runCallFrame(TopLevel)
 evmone callback → EthHost::call (nested adapter)
                     └─ runCallFrame(Nested)
-                         ├─ FrameTargetResolver (7702 / CREATE address normalization)
+                         ├─ ExecutionAddressResolver (7702 / CREATE address normalization)
                          └─ PrecompileRouter::executePrecompileEnvelope (envelope 唯一 dispatch 点)
 ```
 
 `FrameScope` 由 adapter 显式传入（TopLevel / Nested），Frame 内部不根据 `message.depth` 驱动语义分叉。TopLevel 路径 defer `state.commit()` 至 `TxExecutionRunner` nonce bump 之后；Nested 路径忽略 `fr.gasRefund`（RR4）。
 
-**Precompile 单源：** tx-entry warm（`WarmTransactionEntry` → `forEachActivePrecompile`）与 dispatch（`PrecompileRouter` → `isActivePrecompile`）共用 `PrecompileActive.h`。帧级路由由 `FrameTargetResolver` 单源产出 `executionAddress`。FISCO `eip2537=false` 时 0x0b–0x11 既不 warm 也不 dispatch（`EipPrecompileRevisionGateTest`）。
+**Precompile 单源：** tx-entry warm（`WarmTransactionEntry` → `forEachActivePrecompile`）与 dispatch（`PrecompileRouter` → `isActivePrecompile`）共用 `PrecompileActive.h`。帧级地址归一化由 `ExecutionAddressResolver` 单源产出 `executionAddress`。FISCO `eip2537=false` 时 0x0b–0x11 既不 warm 也不 dispatch（`EipPrecompileRevisionGateTest`）。
 
 **Precompile envelope：** `checkpoint → transfer → dispatch`；失败 `revert`（`PrecompileRouter.cpp`；`PrecompileRouterEnvelopeTest`）。
 
@@ -431,7 +431,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | Precompile envelope | `eth/precompiled/PrecompileRouter.cpp`（`executePrecompileEnvelope`） |
 | 2929 warm gate | `eth/eip/Eip2929Gate.h` |
 | Tx-entry warm | `eth/kernel/execution/WarmTransactionEntry.h` |
-| Frame target resolver | `eth/kernel/execution/FrameTargetResolver.h` / `.cpp` |
+| Execution address resolver | `eth/kernel/execution/ExecutionAddressResolver.h` / `.cpp` |
 | Frame helpers | `eth/kernel/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |
 | 内核扩展点 | `eth/policy/EvmHostHooks.h` |
 | EIP 开关 | `eth/RevisionConfig.h` |

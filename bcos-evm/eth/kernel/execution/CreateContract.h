@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/host/EthHost.h"
+#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmone_precompiles/keccak.hpp>
@@ -28,11 +29,6 @@ namespace bcos::evm::execution
 {
 constexpr size_t MAX_EVM_CODE_SIZE = 0x6000;
 constexpr int64_t CREATE_DATA_GAS_PER_BYTE = 200;
-
-inline bool isCreateKind(evmc_call_kind kind) noexcept
-{
-    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
 
 inline evmc_address predictCreate2Address(
     evmc_address const& sender, evmc_bytes32 const& salt, bcos::bytesConstRef initCode) noexcept

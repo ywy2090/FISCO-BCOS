@@ -53,6 +53,13 @@ check_pattern \
   '#include[[:space:]]*"bcos-evm/eth/kernel/execution/' \
   --include='*.h' --include='*.hpp'
 
+# state-transition context headers stay above kernel/execution implementation.
+check_pattern \
+  'eth/kernel/state-transition/ headers must not include eth/kernel/execution/' \
+  'eth/kernel/state-transition/' \
+  '#include[[:space:]]*"bcos-evm/eth/kernel/execution/' \
+  --include='*.h' --include='*.hpp'
+
 if [[ $status -eq 0 ]]; then
   echo "eth-layer-boundary gate: OK"
 fi

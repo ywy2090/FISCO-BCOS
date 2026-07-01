@@ -21,7 +21,7 @@
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/kernel/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -61,12 +61,12 @@ struct FrameWork
 {
     FrameExecutionEnv& ctx;
     evmc_message const& originalMsg;
-    FrameTarget target;
+    ResolvedFrame resolved;
     bcos::bytes code;
     state::EthHost& host;
 
-    evmc_message& callMessage() noexcept { return target.routed; }
-    evmc_message const& callMessage() const noexcept { return target.routed; }
+    evmc_message& callMessage() noexcept { return resolved.routed; }
+    evmc_message const& callMessage() const noexcept { return resolved.routed; }
 };
 
 void logFrameDoneIfNested(evmc_message const& originalMsg, evmc::Result const& result)
@@ -185,7 +185,7 @@ evmc::Result runVm(FrameWork& work)
     if (work.code.empty())
     {
         work.code = resolveExecutionCode(
-            work.ctx.state, work.ctx.revisionConfig, callMessage, work.target.executionAddress);
+            work.ctx.state, work.ctx.revisionConfig, callMessage, work.resolved.executionAddress);
     }
     return work.ctx.vm.execute(work.host, work.ctx.revisionConfig.revision, callMessage,
         work.code.data(), work.code.size());
@@ -287,8 +287,8 @@ void bumpNestedCreateSenderNonce(FrameWork& work)
 FrameResult runFrameSteps(
     FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
-    FrameWork work{
-        ctx, message, resolveFrameTarget(ctx.state, ctx.revisionConfig, message, scope), {}, host};
+    FrameWork work{ctx, message,
+        resolveExecutionAddress(ctx.state, ctx.revisionConfig, message, scope), {}, host};
 
     if (auto early = tryCallTargetDispatch(work, scope))
     {

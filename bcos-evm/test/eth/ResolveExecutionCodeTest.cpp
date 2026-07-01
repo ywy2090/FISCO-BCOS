@@ -8,7 +8,7 @@
 
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -69,7 +69,7 @@ bcos::bytes resolveCodeLegacyPath(
 void assertResolveParity(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
     evmc_message const& msg, execution::FrameScope scope)
 {
-    auto const target = execution::resolveFrameTarget(state, cfg, msg, scope);
+    auto const target = execution::resolveExecutionAddress(state, cfg, msg, scope);
     auto const legacy = resolveCodeLegacyPath(state, cfg, target.routed);
     auto const current =
         execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(identity_precompile_empty_code)
 
     assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const target =
-        execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const resolved =
         execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
     BOOST_REQUIRE(resolved.empty());
@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(regular_contract_bytecode)
 
     assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const target =
-        execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const resolved =
         execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
     BOOST_REQUIRE_EQUAL(resolved.size(), bytecode.size());
@@ -160,7 +160,7 @@ BOOST_AUTO_TEST_CASE(eip7702_delegation_bytecode)
 
     assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const resolvedTarget =
-        execution::resolveFrameTarget(state, cfg, msg, execution::FrameScope::TopLevel);
+        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const resolved = execution::resolveExecutionCode(
         state, cfg, resolvedTarget.routed, resolvedTarget.executionAddress);
     BOOST_REQUIRE_EQUAL(resolved.size(), targetCode.size());

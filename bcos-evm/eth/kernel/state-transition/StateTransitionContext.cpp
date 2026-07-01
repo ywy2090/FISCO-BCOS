@@ -1,0 +1,44 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @file StateTransitionContext.cpp
+ */
+
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
+
+namespace bcos::evm
+{
+
+InnerExecuteInput StateTransitionContext::toInnerExecuteInput() const
+{
+    InnerExecuteInput input;
+    input.state = const_cast<state::State*>(&state);
+    input.vm = inputs.vm;
+    input.message = message;
+    input.gasPrice = gasPrice;
+    input.blockInfo = inputs.blockInfo;
+    input.blockHashes = inputs.blockHashes;
+    input.revisionConfig = revisionConfig;
+    input.txProps = txProps;
+    input.accessList = inputs.accessList;
+    input.authorizationListPresent = inputs.authorizationListPresent;
+    input.authorizations = inputs.authorizations;
+    input.web3TypedTxKind = inputs.web3TypedTxKind;
+    input.extension = extension;
+    input.chainPort = chainPort;
+    return input;
+}
+
+}  // namespace bcos::evm

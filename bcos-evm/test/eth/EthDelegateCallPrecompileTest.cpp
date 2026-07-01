@@ -14,7 +14,7 @@
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(resolver_delegatecall_to_identity_is_builtin_precompile_eth
     state::test::InMemoryStateView base;
     state::State state{base};
 
-    auto frame = execution::resolveFrameTarget(
+    auto frame = execution::resolveExecutionAddress(
         state, {.revision = EVMC_PRAGUE, .eip2929 = true}, msg, execution::FrameScope::Nested);
     auto desc = execution::resolveCallTarget(state,
         {.revision = EVMC_PRAGUE, .eip2929 = true, .eip2537 = true}, frame.routed,

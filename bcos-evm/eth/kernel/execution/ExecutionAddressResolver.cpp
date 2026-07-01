@@ -2,10 +2,10 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @file FrameTargetResolver.cpp
+ * @file ExecutionAddressResolver.cpp
  */
 
-#include "bcos-evm/eth/kernel/execution/FrameTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
 #include "bcos-evm/eth/eip/Eip2929Gate.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
@@ -15,14 +15,13 @@ namespace bcos::evm::execution
 {
 namespace
 {
-// EIP-7702 delegation helpers (internal to frame target resolution).
 inline bool isDirectDelegated7702(evmc_message const& msg) noexcept
 {
     return (msg.flags & EVMC_DELEGATED) != 0 && msg.kind == EVMC_CALL &&
            (msg.flags & EVMC_STATIC) == 0;
 }
 
-inline evmc_address resolveExecutionAddress(evmc_message const& msg) noexcept
+inline evmc_address pickExecutionAddressFromMessage(evmc_message const& msg) noexcept
 {
     if (isDirectDelegated7702(msg))
     {
@@ -32,28 +31,28 @@ inline evmc_address resolveExecutionAddress(evmc_message const& msg) noexcept
 }
 }  // namespace
 
-FrameTarget resolveFrameTarget(state::State& state,
+ResolvedFrame resolveExecutionAddress(state::State& state,
     bcos::evm_standard::RevisionConfig const& revisionConfig, evmc_message msg, FrameScope scope)
 {
-    FrameTarget target{};
-    target.routed = msg;
+    ResolvedFrame resolved{};
+    resolved.routed = msg;
 
     if (scope == FrameScope::Nested && isCreateKind(msg.kind))
     {
-        if (!state::isZeroAddress(target.routed.recipient))
+        if (!state::isZeroAddress(resolved.routed.recipient))
         {
-            target.routed.code_address = target.routed.recipient;
+            resolved.routed.code_address = resolved.routed.recipient;
             if (isCreateWarmPinEnabled(revisionConfig))
             {
-                state.pin_warm_create_address(target.routed.code_address);
+                state.pin_warm_create_address(resolved.routed.code_address);
             }
         }
-        else if (!state::isZeroAddress(target.routed.code_address))
+        else if (!state::isZeroAddress(resolved.routed.code_address))
         {
-            target.routed.recipient = target.routed.code_address;
+            resolved.routed.recipient = resolved.routed.code_address;
             if (isCreateWarmPinEnabled(revisionConfig))
             {
-                state.pin_warm_create_address(target.routed.code_address);
+                state.pin_warm_create_address(resolved.routed.code_address);
             }
         }
     }
@@ -62,37 +61,37 @@ FrameTarget resolveFrameTarget(state::State& state,
     {
         if (isCreateKind(msg.kind))
         {
-            target.executionAddress = resolveExecutionAddress(target.routed);
-            return target;
+            resolved.executionAddress = pickExecutionAddressFromMessage(resolved.routed);
+            return resolved;
         }
-        if (state::isZeroAddress(target.routed.code_address))
+        if (state::isZeroAddress(resolved.routed.code_address))
         {
-            target.routed.code_address = target.routed.recipient;
+            resolved.routed.code_address = resolved.routed.recipient;
         }
     }
     else
     {
-        auto resolved = state::isZeroAddress(target.routed.code_address) ?
-                            target.routed.recipient :
-                            target.routed.code_address;
+        auto normalized = state::isZeroAddress(resolved.routed.code_address) ?
+                              resolved.routed.recipient :
+                              resolved.routed.code_address;
         // EIP-7702: CALL/STATICCALL pass the authority as recipient; DELEGATECALL/CALLCODE keep
         // the resolved delegate in code_address. Delegation to a precompile runs empty code.
         if (isDirectDelegated7702(msg))
         {
-            resolved = target.routed.recipient;
+            normalized = resolved.routed.recipient;
         }
-        if (!state::isZeroAddress(resolved))
+        if (!state::isZeroAddress(normalized))
         {
-            target.routed.code_address = resolved;
-            if (state::isZeroAddress(target.routed.recipient))
+            resolved.routed.code_address = normalized;
+            if (state::isZeroAddress(resolved.routed.recipient))
             {
-                target.routed.recipient = resolved;
+                resolved.routed.recipient = normalized;
             }
         }
     }
 
-    target.executionAddress = resolveExecutionAddress(target.routed);
-    return target;
+    resolved.executionAddress = pickExecutionAddressFromMessage(resolved.routed);
+    return resolved;
 }
 
 bcos::bytes resolveExecutionCode(state::State& state,
