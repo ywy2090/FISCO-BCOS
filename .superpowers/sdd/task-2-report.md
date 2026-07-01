@@ -1,63 +1,60 @@
-# Task 2 Report: Phase 3b — Kernel Canonical Names + TE ADR
+# Task 2 Report: ADR-032 Wave 2 — Kernel Tier E Forward Removal
 
-**Status:** Complete  
-**Start:** `a290c486fd761cbae2da4a152790819a1fab91f8`  
-**Date:** 2026-06-30
+**Date:** 2026-06-30  
+**Baseline:** `f4f7bc42c` (Wave 1 complete)  
+**Status:** DONE
 
 ## Summary
 
-Promoted geth kernel symbols to canonical C++ identifiers in `bcos-evm/eth/`: `stateTransitionExecute` (was `runTxPipeline`) and `innerExecute` (was `executeMessage`). Tier E deprecated inline aliases retained for TE compatibility. Added ADR-031 documenting TE migration schedule.
+Removed deprecated kernel Tier E inline forwards `runTxPipeline` and `executeMessage`. Canonical symbols `stateTransitionExecute` and `innerExecute` are now the only exported kernel entry points in their respective headers.
 
-## Renames Applied
+## rg Gate Audit
 
-| Legacy (Tier E) | Canonical (ADR-031) | Deprecated alias location |
-| --- | --- | --- |
-| `runTxPipeline` | `stateTransitionExecute` | `TxPipeline.h` |
-| `executeMessage` | `innerExecute` | `ExecuteMessage.h` |
-
-## GethNamingAliases.h
-
-- Removed redundant `stateTransitionExecute` / `innerExecute` forwards (now canonical in kernel headers).
-- Updated index comments to reflect Tier E → canonical direction.
-
-## Internal call sites updated
-
-| Area | Change |
-| --- | --- |
-| `FiscoExecute.cpp` | `stateTransitionExecute` |
-| `EthReferenceExecute.cpp` | `stateTransitionExecute` |
-| `OpStackTxLifecycle.cpp` | `stateTransitionExecute` (×2) |
-| `ChainPrecheckPolicy.h` default | `innerExecute` |
-| `OpStackPrecheckPolicy.cpp` | `innerExecute` |
-| `TxExecutionRunner.cpp` logs | `innerExecute` |
-| bcos-evm tests (~35 files) | canonical names |
-
-## Transaction executor
-
-Audited `transaction-executor/` — **no direct** `runTxPipeline` / `executeMessage` calls. TE enters via Tier E adapters (`fiscoExecute`, `ethReferenceExecute`, `opStackExecute`). No TE code changes required for Phase 3b (documented in ADR-031 §3).
-
-## ADR
-
-Added `bcos-evm/docs/adr/031-te-geth-kernel-symbol-migration.md`.
-
-## Test Results
-
-```text
-ctest -R 'GethNaming|TxPipeline|TxExecutionRunner|EthOrchestrationProfile'
-4/4 passed (build/)
+```bash
+rg '\brunTxPipeline\b|\bexecuteMessage\b' bcos-evm --glob '!docs/**' --glob '!*.md'
+rg '\brunTxPipeline\b|\bexecuteMessage\b' transaction-executor
 ```
 
-| Test | Result |
+| Scope | Result |
 | --- | --- |
-| GethNamingAliases | Passed |
-| TxPipeline | Passed |
-| TxExecutionRunner | Passed |
-| EthOrchestrationProfile | Passed |
+| `bcos-evm` (non-doc code) | 1 hit — retirement comment in `GethNamingAliases.h` only |
+| `transaction-executor` | 0 hits |
+| `OpStackExecuteMessageTestHook::executeMessageSpySlot` | Not present / unrelated — untouched |
 
-## Commit
+Production and test call sites already used canonical names before this wave.
 
-`refactor(bcos-evm): promote stateTransitionExecute and innerExecute to canonical kernel names`
+## Changes
+
+| File | Change |
+| --- | --- |
+| `eth/pipeline/TxPipeline.h` | Removed `[[deprecated]] inline runTxPipeline` forward |
+| `eth/ExecuteMessage.h` | Removed `[[deprecated]] inline executeMessage` forward |
+| `eth/GethNamingAliases.h` | Updated Tier E index; noted Wave 2 removals |
+| `test/eth/GethNamingAliasesTest.cpp` | Removed deprecated alias cases; retained canonical driver tests |
+| `docs/adr/032-tier-e-symbol-retirement.md` | Wave 2 timeline row; inventory strikethrough; checklist ✅ |
+
+### Collateral fix
+
+`GethNamingAliases.h` `evmStaticCall` assert used non-existent `EVMC_STATICCALL`; corrected to `EVMC_CALL && (message.flags & EVMC_STATIC)` so `GethNamingAliasesTest` compiles.
+
+## Test Summary
+
+Built and ran in `build-bcos-evm-check`:
+
+| Test | Cases | Result |
+| --- | --- | --- |
+| `GethNamingAliasesTest` | 6 | PASS |
+| `TxPipelineTest` | 8 | PASS |
+| `TxExecutionRunnerTest` | 9 | PASS |
+| `ExecuteMessageSmokeTest` | 2 | PASS |
 
 ## Concerns
 
-None blocking. Deprecated aliases must remain until TE Phase 4–6 migration per ADR-031.
+1. **Documentation drift:** Many architecture docs still reference `runTxPipeline` / `executeMessage` as live symbols (Wave 5 cleanup per ADR-032).
+2. **Remaining Tier E:** `fiscoExecute`, `ethReferenceExecute`, `opStackExecute` forwards remain until Wave 3–4.
+3. **`evmStaticCall` assert:** Pre-existing compile bug fixed collaterally; not part of Wave 2 scope but required for smoke test build.
+
+## Commit
+
+**Hash:** `ccd5b1ff81979240cba4788f31f055e1f00d755a`  
+**Message:** `refactor(evm): ADR-032 Wave 2 — remove kernel Tier E forwards`

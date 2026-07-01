@@ -6,6 +6,7 @@
 
 #include "PrecompileRouter.h"
 #include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
+#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include <functional>
@@ -48,7 +49,8 @@ void finalizeEnvelope(state::State& state, PrecompileRouterOutput& output)
 std::optional<evmc::Result> tryEnvelopeValueTransfer(state::State& state,
     evmc_message const& message, evmc_address const& target, bool skipValueTransfer)
 {
-    if (state::isZeroBytes32(message.value) || skipValueTransfer)
+    if (state::isZeroBytes32(message.value) || skipValueTransfer ||
+        execution::isValueTransferSkippedKind(message.kind))
     {
         return std::nullopt;
     }

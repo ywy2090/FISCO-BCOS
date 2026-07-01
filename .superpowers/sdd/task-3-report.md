@@ -1,52 +1,63 @@
-# Task 3 Report: Phase 4a — apply*Message as primary documented names
+# Task 3 Report — ADR-032 Wave 3 Chain Adapter Promotion
 
-**Status:** DONE  
-**Branch:** feat/adr-030-geth-naming  
-**Baseline:** 0c78e63b02fcfdd6ce6c3f8e2797ef10f79f17ce  
-**Date:** 2026-06-30
-
----
+**Date:** 2026-06-30  
+**Baseline:** `ccd5b1ff8`  
+**Commit message:** `refactor(evm): ADR-032 Wave 3 — promote apply*Message exports`
 
 ## Summary
 
-Documented ADR-030 Tier C `apply*Message` as the primary geth `ApplyMessage` vocabulary in architecture docs and `eth/README.md`. Verified chain-header inline aliases from Task 1; no `[[deprecated]]` added on Tier E `*Execute` symbols.
+Flipped chain adapter entry symbols so `apply*Message` is the exported link symbol and `*Execute` are `[[deprecated]]` inline forwards (Wave 4 removal).
 
----
+## Changes
 
-## Deliverables
+### Chain adapters (exported ↔ deprecated flip)
 
-| Item | Result |
+| Adapter | Header | .cpp implementation | Deprecated forward |
+| --- | --- | --- | --- |
+| FISCO | `applyFiscoMessage` | `FiscoExecute.cpp` | `fiscoExecute` |
+| ETH reference | `applyEthMessage` | `EthReferenceExecute.cpp` | `ethReferenceExecute` |
+| OP Stack | `applyOpStackMessage` | `OpStackExecute.cpp` | `opStackExecute` |
+
+- `@brief` tags and `LOG_DESC` strings updated to canonical `apply*` names.
+- `.cpp` filenames unchanged (Wave 5 may rename).
+
+### Documentation / aliases
+
+- `GethNamingAliases.h` — Wave 3 status; Tier C/Tier E direction corrected.
+- `bcos-evm/docs/adr/032-tier-e-symbol-retirement.md` — Wave 3 row (2026-06-30); appendix deprecated-since dates.
+
+### Tests
+
+- Migrated **34** bcos-evm test `.cpp` call sites from `*Execute(` → `apply*Message(`.
+- Test case names retaining `*Execute` in identifiers left unchanged (BOOST_AUTO_TEST_CASE labels).
+
+### TE hygiene (comments only; call sites unchanged)
+
+- `EthTransactionExecutorImpl.h`, `OpStackTransactionExecutorImpl.h`
+- `ExecuteViaHostCompatTest.cpp`, `ExecuteViaHostEip2929Harness.h`
+
+## Gate verification
+
+| Gate | Status |
 | --- | --- |
-| `applyReferenceMessage` in `EthReferenceExecute.h` | Present (Task 1) |
-| `applyFiscoMessage` in `FiscoExecute.h` | Present (Task 1) |
-| `applyOpStackMessage` in `OpStackExecute.h` | Present (Task 1) |
-| No `[[deprecated]]` on `*Execute` | Confirmed |
-| `bcos-evm/eth/README.md` — fix `EthPipelineHookBinder` → `EthOrchestrationProfile` | Done |
-| `bcos-evm/eth/README.md` — dual-label table + execution flow | Done |
-| `bcos-evm/docs/architecture-overview.md` — §2 mermaid/ASCII + §3/§3.4 dual-label flows | Done |
-| `GethNamingAliases.h` — Tier A/C/E index with chain header locations | Done |
+| TE invokes `applyFiscoMessage` / `applyEthMessage` / `applyOpStackMessage` only | ✅ Confirmed (`TransactionExecutorImpl.h:316`, `EthTransactionExecutorImpl.h:251`, `OpStackTransactionExecutorImpl.h:228`) |
+| `*Execute` forwards retained (Wave 4) | ✅ |
+| No `.superpowers/` in commit | ✅ |
 
----
+## Tests run
 
-## Files changed
-
-| File | Change |
+| Test binary | Result |
 | --- | --- |
-| `bcos-evm/eth/README.md` | Dual-label chain entry table; updated execution flow; removed stale `EthPipelineHookBinder` |
-| `bcos-evm/docs/architecture-overview.md` | ADR-029+030 dual-label convention; entry table with geth column; §3.4 flow diagram |
-| `bcos-evm/eth/GethNamingAliases.h` | Expanded index: Tier A/C/E split; chain header paths for `apply*Message` |
+| `FiscoExecuteSmokeTest` | PASS |
+| `FiscoExecuteImportedFixtureTest` | PASS |
+| `Bcos7702FiscoExecutePropagationTest` | PASS |
+| `EthReferenceExecuteFixtureTest` | PASS |
+| `OpStackExecuteSmokeTest` | PASS |
+| `ExecuteViaHostCompat` | **Not in current build graph** (target absent from `build/` Makefile) |
 
----
+Log strings confirm canonical names, e.g. `applyFiscoMessage done`, `applyEthMessage done`.
 
-## Verification
+## Follow-ups (Wave 4+)
 
-- Docs-only change; no TE ABI breakage.
-- Tier E symbols unchanged: `ethReferenceExecute`, `fiscoExecute`, `opStackExecute`.
-- No new tests required (documentation task).
-
----
-
-## Follow-up (out of scope)
-
-- Phase 4b+: add `[[deprecated("use apply*Message")]]` on Tier E `*Execute` when TE migration plan lands.
-- Remaining `architecture-overview.md` kernel sections still cite `TxExecutionRunner::run` / `runExecutionFrame` in §3.1–3.2 prose (ADR-029 rename from Task 2); update in a dedicated doc sweep.
+- Remove `[[deprecated]]` `*Execute` inline forwards.
+- Wave 5: optional `.cpp` filename rename + doc sweep.

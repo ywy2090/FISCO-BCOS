@@ -129,8 +129,33 @@ void setupHostExecutionTarget(
     apply7702TxAuthorizationsIfNeeded(state, input, codeAddress);
 }
 
+/// Bump the top-level sender nonce for an INCLUDED transaction that executed the EVM.
+///
+/// geth increments the sender nonce before execution for every included tx (CALL at
+/// state_transition.go:620; CREATE inside evm.create at evm.go:499, before the revert
+/// snapshot), so the bump survives EVM failure (revert/OOG). Reject-class txs never
+/// reach the kernel (they early-exit in stateTransitionExecute before onInvokeInnerExecute),
+/// so calling this on both success and failure of the executed frame matches geth exactly.
+///
+/// EIP-7702 txs already bumped the sender nonce during authorization application
+/// (apply7702TxAuthorizationsIfNeeded), so they are skipped here to avoid a double bump.
+void bumpTopLevelSenderNonce(state::State& state, InnerExecuteInput const& input)
+{
+    if (input.message.depth != 0 || state::isZeroAddress(input.message.sender))
+    {
+        return;
+    }
+    bool const authPrebumped = !isCreateKind(input.message.kind) && input.revisionConfig.eip7702 &&
+                               input.authorizationListPresent && !input.authorizations.empty();
+    if (authPrebumped || input.skipTopLevelSenderNonceBump)
+    {
+        return;
+    }
+    state.set_nonce(input.message.sender, state.get_nonce(input.message.sender) + 1);
+}
+
 InnerExecuteOutput finalizePrecompileHit(
-    state::State& state, FrameResult&& fr, state::EthHost& host)
+    state::State& state, InnerExecuteInput const& input, FrameResult&& fr, state::EthHost& host)
 {
     InnerExecuteOutput output;
     output.result = std::move(fr.result);
@@ -139,6 +164,9 @@ InnerExecuteOutput finalizePrecompileHit(
                    << LOG_KV("status", trace::evmcStatus(output.result.status_code))
                    << LOG_KV("gasLeft", output.result.gas_left);
     output.gasRefund = fr.gasRefund;
+    // A top-level tx targeting a precompile is still an included CALL: bump the sender
+    // nonce like geth. The envelope already committed/reverted its own checkpoint.
+    bumpTopLevelSenderNonce(state, input);
     output.stateDiff = state.build_diff();
     return output;
 }
@@ -150,18 +178,11 @@ InnerExecuteOutput finalizeAfterFrame(
     output.result = std::move(fr.result);
     output.logs = host.take_logs();
 
+    // geth bumps the sender nonce for every included tx regardless of EVM outcome.
+    bumpTopLevelSenderNonce(state, input);
+
     if (output.result.status_code == EVMC_SUCCESS)
     {
-        if (input.message.depth == 0 && !state::isZeroAddress(input.message.sender))
-        {
-            bool const authPrebumped =
-                !isCreateKind(input.message.kind) && input.revisionConfig.eip7702 &&
-                input.authorizationListPresent && !input.authorizations.empty();
-            if (!authPrebumped && !input.skipTopLevelSenderNonceBump)
-            {
-                state.set_nonce(input.message.sender, state.get_nonce(input.message.sender) + 1);
-            }
-        }
         output.gasRefund = static_cast<int64_t>(state.get_refund());
         state.commit();
         state.finalize_self_destructs();
@@ -224,7 +245,7 @@ InnerExecuteOutput TxExecutionRunner::runEvmKernelTopLevel(InnerExecuteInput inp
 
     if (fr.precompileHit)
     {
-        return finalizePrecompileHit(state, std::move(fr), host);
+        return finalizePrecompileHit(state, input, std::move(fr), host);
     }
     return finalizeAfterFrame(state, input, std::move(fr), host);
 }

@@ -1,63 +1,60 @@
-# Task 4 Report: OpStack lifecycleCheckEntryRules (P3)
+# Task 4 Report — ADR-032 Wave 4
 
-**Status:** DONE  
-**Branch:** feat/adr-030-geth-naming  
-**Baseline:** c93e0caeaa  
-**Date:** 2026-06-30
-
----
+**Date:** 2026-06-30  
+**Baseline:** `5476b125c`  
+**Commit:** `3f77f4fd8` — `refactor(evm): ADR-032 Wave 4 — remove *Execute Tier E symbols`
 
 ## Summary
 
-Renamed `OpStackPrecheckPolicy::checkEntryRules` → `lifecycleCheckEntryRules` per ADR-029 §5 (OpStack L1½ lifecycle prefix). Added deprecated inline `checkEntryRules` alias forwarding to the canonical name. Updated call sites, test helper, and `opstack/README.md`.
+Removed deprecated Tier E inline forwards from chain adapter headers. Canonical entry points are now `applyFiscoMessage`, `applyEthMessage`, and `applyOpStackMessage` only.
 
----
-
-## Deliverables
-
-| Item | Result |
-| --- | --- |
-| Canonical method `lifecycleCheckEntryRules` | Done (`OpStackPrecheckPolicy.h/.cpp`) |
-| Deprecated `checkEntryRules` alias | Done (inline, ADR-029 message) |
-| `OpStackTxLifecycle.cpp` call site | Updated |
-| Test helper `OpStackEntryPrecheck.h` | Updated |
-| `opstack/README.md` | Updated (also `pipelineCheckGasAffordable` in module table) |
-
----
-
-## Files changed
+## Changes
 
 | File | Change |
 | --- | --- |
-| `bcos-evm/opstack/OpStackPrecheckPolicy.h` | Rename + deprecated alias |
-| `bcos-evm/opstack/OpStackPrecheckPolicy.cpp` | Implementation rename |
-| `bcos-evm/opstack/OpStackTxLifecycle.cpp` | Call site |
-| `bcos-evm/test/helpers/OpStackEntryPrecheck.h` | Test helper call site |
-| `bcos-evm/opstack/README.md` | Module table + execution flow diagram |
+| `bcos-evm/bcos/FiscoExecute.h` | Removed `fiscoExecute` deprecated inline forward |
+| `bcos-evm/eth/apply/EthReferenceExecute.h` | Removed `ethReferenceExecute` deprecated inline forward |
+| `bcos-evm/opstack/OpStackExecute.h` | Removed `opStackExecute` deprecated inline forward |
+| `bcos-evm/eth/GethNamingAliases.h` | Replaced Tier E index with Wave 4 removal note |
+| `bcos-evm/docs/adr/032-tier-e-symbol-retirement.md` | Timeline + inventory: Wave 4 marked done (2026-06-30) |
 
----
+### Aggregate headers (unchanged — already canonical-only)
 
-## Verification
+- `bcos-evm/include/bcos-evm/fisco_executor.hpp` → includes `FiscoExecute.h`
+- `bcos-evm/include/bcos-evm/eth_executor.hpp` → includes `EthReferenceExecute.h`
+- `bcos-evm/include/bcos-evm/op_executor.hpp` → includes `OpStackExecute.h`
+
+## Gate (monorepo rg)
 
 ```bash
-cd build
-cmake --build . --target OpStackPrecheckPolicyTest OpStackOrchestrationProfileTest \
-  OpStackOrchestrationErrorPolicyTest OpStackTxLifecycleCharacterizationTest
-ctest -R 'OpStackOrchestration|OpStackTxLifecycle|OpStackPrecheck' --output-on-failure
+rg '\bfiscoExecute\b|\bethReferenceExecute\b|\bopStackExecute\b' --glob '*.{cpp,h,hpp}'
 ```
 
-| Test | Result |
-| --- | --- |
-| OpStackOrchestrationProfile | PASS |
-| OpStackPrecheckPolicy | PASS |
-| OpStackOrchestrationErrorPolicy | PASS |
-| OpStackTxLifecycleCharacterization | PASS |
+**Result:** PASS — zero callable symbols. Remaining hits are allowed:
 
-**4/4 matched tests pass.**
+- Comments / `@brief` in test files (test case documentation)
+- Log strings in `libinitializer/Initializer.cpp`
+- ADR/history references in `GethNamingAliases.h` removal note
+- TE compat test description strings
 
----
+All production and test **call sites** already use `apply*Message` (TE adapters, bcos-evm tests).
 
-## Notes
+## Tests
 
-- ADR/historical docs still mention `checkEntryRules` in prose; code uses `lifecycleCheckEntryRules`.
-- Deprecated alias retained for one release cycle (same pattern as `ChainPrecheckPolicy` ADR-029 aliases).
+```bash
+ctest -R 'FiscoExecuteSmoke|EthReferenceExecuteFixture|OpStackExecuteSmoke|CompatExecuteViaHost' --output-on-failure -j8
+```
+
+**Result:** 109/109 passed (0 failed)
+
+Includes:
+
+- `FiscoExecuteSmoke`, `FiscoExecuteImportedFixture`, `Bcos7702FiscoExecutePropagation`, `Bcos7212FiscoExecute`
+- `EthReferenceExecuteFixture`, `EthReferenceExecute1559GasPrice`
+- `OpStackExecuteSmoke`
+- `CompatExecuteViaHost/*` (TE forward-compat)
+
+## Wave 5 follow-up (not in scope)
+
+- Stale Tier E rows in ADR-030 §8, architecture-overview.md, chain READMEs
+- Initializer log strings still mention legacy `*Execute` names

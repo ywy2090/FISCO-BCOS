@@ -52,6 +52,12 @@ inline bool transferFrameValue(state::State& state,
     {
         return true;
     }
+    // DELEGATECALL/CALLCODE never move balance (go-ethereum evm.go DelegateCall/CallCode);
+    // evmone still forwards the inherited/explicit value, so gate on kind here.
+    if (isValueTransferSkippedKind(msg.kind))
+    {
+        return true;
+    }
     if (extension != nullptr && extension->skipHostValueTransfer())
     {
         return true;

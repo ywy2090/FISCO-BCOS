@@ -27,4 +27,15 @@ inline bool isCreateKind(evmc_call_kind kind) noexcept
 {
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
 }
+
+/// DELEGATECALL / CALLCODE execute foreign code in the caller's own storage and
+/// balance context and MUST NOT move balance between accounts. evmone still forwards
+/// a (possibly non-zero) value in evmc_message.value — DELEGATECALL inherits the
+/// parent frame's apparent value, CALLCODE carries the explicit stack value — but
+/// go-ethereum's core/vm/evm.go DelegateCall/CallCode perform no Transfer. Host-side
+/// value settlement uses this predicate to skip the transfer for those kinds.
+inline bool isValueTransferSkippedKind(evmc_call_kind kind) noexcept
+{
+    return kind == EVMC_DELEGATECALL || kind == EVMC_CALLCODE;
+}
 }  // namespace bcos::evm::execution

@@ -316,6 +316,12 @@ target_include_directories(EthDelegateCallPrecompileTest PRIVATE
 target_link_libraries(EthDelegateCallPrecompileTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME EthDelegateCallPrecompile COMMAND EthDelegateCallPrecompileTest)
 
+add_executable(EthDelegateCallValueTransferCharacterizationTest eth/EthDelegateCallValueTransferCharacterizationTest.cpp)
+target_include_directories(EthDelegateCallValueTransferCharacterizationTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EthDelegateCallValueTransferCharacterizationTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME EthDelegateCallValueTransferCharacterization COMMAND EthDelegateCallValueTransferCharacterizationTest)
+
 add_executable(ResolveExecutionCodeTest eth/ResolveExecutionCodeTest.cpp)
 target_include_directories(ResolveExecutionCodeTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

@@ -1,61 +1,71 @@
-# Task 5 Report — ExecutionFrame Nested Production Path
+# Task 5 Report — ADR-032 Wave 5 Documentation Cleanup
 
-**Base:** dec56b4a5  
-**Status:** ✅ Complete  
-**Date:** 2026-06-24
+**Date:** 2026-06-30  
+**Baseline:** `3f77f4fd8`  
+**Commit message:** `docs(evm): ADR-032 Wave 5 — retirement doc cleanup`
 
 ## Summary
 
-Implemented full `runExecutionFrame(Nested)` pipeline in `ExecutionFrame.cpp`, delegating `EthHost::call` to it. Removed duplicated routing/transfer/caller helpers from `EthHost`. Fixed six vendored-`EthHost.cpp` state test targets to link `bcos-evm-eth`.
+Wave 5 completes the Tier E symbol retirement documentation sweep after Waves 1–4 removed all deprecated forwards from code. No production symbol changes in this wave — docs, log strings, and ADR checklists only.
 
 ## Changes
 
-| File | Change |
-|------|--------|
-| `bcos-evm/eth/execution/ExecutionFrame.cpp` | Full RR6 nested pipeline: route → DELEGATECALL guard → precompile → caller/prepare → CREATE bind → checkpoint → init → transfer → VM → finalize (incl. §4.1 CREATE nonce bump) |
-| `bcos-evm/eth/state/EthHost.cpp` | Thin `call()` delegating to `runExecutionFrame(Nested)`; deleted `routeCall`, `resolveExecutionCode`, `transferValue`, `resolveCallerAddress` |
-| `bcos-evm/eth/state/EthHost.hpp` | Removed `RoutedCall` and moved helper declarations |
-| `bcos-evm/test/cmake/StateTests.cmake` | 6 targets now link `bcos-evm-eth` instead of vendoring eth sources |
+### Carry-over from Wave 3/4 reviews
 
-## RR6 Order (verified)
+| Item | Status | Notes |
+| --- | --- | --- |
+| `Initializer.cpp` log strings → `apply*Message` | ✅ | Comments + 3 `INITIALIZER_LOG` lines updated |
+| ADR-032 §3 gate checklist | ✅ | Waves 1–4 gates marked complete |
+| ADR-032 §4 TE checklist | ✅ | Wave 3–4 items marked complete (optional `*ExecuteTx()` rename left open) |
+| ADR-032 internal migration checklist | ✅ | Wave 1 items marked complete |
+| `architecture-overview.md` | ✅ | Canonical names throughout; Tier E dual-label removed |
+| `opstack/README.md` | ✅ | `applyOpStackMessage` canonical |
+| `bcos/README.md` | ✅ | `applyFiscoMessage` + `stateTransitionExecute` |
+| `eth/README.md` | ✅ | Tier E removal noted; canonical flow updated |
+| ADR-030 §8 stable-alias table | ✅ | All removed symbols marked with 2026-06-30 dates |
+| ADR-031 appendix timeline | ✅ | Waves 1–5 events added |
+| `GethNamingAliases.h` index | ✅ | Stale Tier E entries replaced with Wave 5 sweep note |
+| `PrecompileRouterInput` removal | ✅ N/A | Already absent (grep clean) |
 
-1. `routeMessage(Nested)`
-2. DELEGATECALL→precompile guard
-3. `dispatchPrecompile` (early return + `precompileHit`/`gasRefund`)
-4. `resolveCallerAddress` + `setCallerAddress` + `prepareMessage`
-5. `bindCreateMessageForInit` (CREATE)
-6. `checkpoint`
-7. `initializeCreateTargetAccount` (CREATE)
-8. `transferFrameValue(Nested)`
-9. `resolveExecutionCode` + `vm.execute`
-10. Finalize: code deposit, install code, `markCreatedInTx`, commit/revert, execution address update, nested CREATE nonce bump
+### ADR updates
 
-## Global Constraints
+- **ADR-032:** Wave 5 timeline row, CI confirmation appendix, Tier E inventory fully struck through
+- **ADR-031:** TE §3 updated to `apply*Message`; deprecated forward note reflects Wave 2 removal
+- **ADR-030:** §2 entry points, §3 step map, §8 removal table, Tier A alias table, Appendix A lookup
 
-- ✅ `eth/execution/` has no bcos/opstack includes
-- ✅ `executeMessage.cpp` unchanged by this task
-- ✅ Live `dispatchPrecompile` call sites: `ExecutionFrame.cpp` (nested/EthHost path) + `ExecuteMessage.cpp` (top-level, pre-existing)
+## Verification
 
-## Test Results
-
-```
-ctest -R "^PrecompileRouterEnvelope$"           → 1/1 PASS
-ctest -R "^PrecompileRouter"                    → 4/4 PASS
-ctest -R "^PrecompileRouterCharacterization$|^PrecompileRouterEquivalence$" → 2/2 PASS
-cmake --build build --target NestedCallHostTest PragueStateTest → PASS
-
-Additional state targets (cmake fix verification):
-  PragueState, NestedCallHost, PrecompileInCall, BlockHashHost, NestedRevertWarm, EvmoneRefundSpike → 6/6 PASS
+```bash
+cd build && ctest -R 'GethNaming|FiscoExecute|EthReference|OpStackExecute|TxPipeline' --output-on-failure
 ```
 
-## Concerns / Follow-ups
+**Result:** 9/9 passed (0.43s)
 
-1. **TopLevel stub:** `runExecutionFrame` returns `EVMC_INTERNAL_ERROR` for non-Nested scope; Task 6+ should implement TopLevel before wiring `executeMessage`.
-2. **gasRefund (RR4):** `EthHost::call` intentionally ignores `fr.gasRefund`; nested precompile refund propagation remains a later orchestration concern.
-3. **Pre-existing dirty tree:** Many unrelated modified/untracked files remain outside this commit scope.
+| Test | Result |
+| --- | --- |
+| EthReferenceExecuteFixture | Passed |
+| EthReferenceExecute1559GasPrice | Passed |
+| TxPipeline | Passed |
+| GethNamingAliases | Passed |
+| FiscoExecuteSmoke | Passed |
+| Bcos7702FiscoExecutePropagation | Passed |
+| FiscoExecuteImportedFixture | Passed |
+| Bcos7212FiscoExecute | Passed |
+| OpStackExecuteSmoke | Passed |
 
-## Commit
+## Out of scope (documented, not blocking)
 
-```
-feat(bcos-evm): Delegate EthHost::call to runExecutionFrame(Nested)
-```
+- TE local helper names (`fiscoExecuteTx()`, etc.) — optional hygiene per ADR-032 §4
+- `.superpowers/` not committed per instructions
+
+## Files touched
+
+- `libinitializer/Initializer.cpp`
+- `bcos-evm/eth/GethNamingAliases.h`
+- `bcos-evm/docs/adr/030-geth-naming-map.md`
+- `bcos-evm/docs/adr/031-te-geth-kernel-symbol-migration.md`
+- `bcos-evm/docs/adr/032-tier-e-symbol-retirement.md`
+- `bcos-evm/docs/architecture-overview.md`
+- `bcos-evm/bcos/README.md`
+- `bcos-evm/eth/README.md`
+- `bcos-evm/opstack/README.md`
