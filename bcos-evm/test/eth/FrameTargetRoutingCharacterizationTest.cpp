@@ -51,7 +51,7 @@ struct FrameTestHost
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = revisionCfg;
-        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, false);
+        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, nullptr);
     }
 
     state::EthHost& ethHost() { return *host; }

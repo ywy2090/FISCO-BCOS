@@ -82,6 +82,7 @@ BOOST_AUTO_TEST_CASE(innerExecute_feature_evm_osaka_modexp_field_1025_rejected)
     BOOST_CHECK_EQUAL(revisionConfig.revision, EVMC_OSAKA);
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(stateView);
     InnerExecuteInput execInput;
     execInput.state = &state;
     execInput.vm = &vm;

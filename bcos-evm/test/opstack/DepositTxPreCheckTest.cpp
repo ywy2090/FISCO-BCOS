@@ -27,6 +27,7 @@ OpStackMessageRequest makeInput(const evmc_address& sender)
     input.blockInfo.blobBaseFee = 3;
     input.gasTipCap = 2;
     input.gasFeeCap = 2;
+    input.revisionConfig.eip1559 = true;
     return input;
 }
 }  // namespace

@@ -51,6 +51,7 @@ BOOST_AUTO_TEST_CASE(gas_fee_cap_balance_check_rejects_insufficient_sender)
     input.gasTipCap = 2;
     input.gasFeeCap = 10;
     input.blockInfo.baseFee = 1;
+    input.revisionConfig.eip1559 = true;
     input.txProps.warmDestination = true;
 
     auto output = task::syncWait(applyOpStackMessage(input));

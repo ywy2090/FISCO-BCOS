@@ -78,6 +78,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_innerExecute)
     blockInfo.gasLimit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(stateView);
     InnerExecuteInput execInput;
     execInput.state = &state;
     execInput.vm = &vm;

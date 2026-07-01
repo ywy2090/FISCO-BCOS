@@ -168,7 +168,7 @@ struct Depth1HostFixture
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = revision, .eip2929 = true};
-        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, false, chainPort);
+        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, chainPort);
     }
 
     state::EthHost& ethHost() { return *host; }

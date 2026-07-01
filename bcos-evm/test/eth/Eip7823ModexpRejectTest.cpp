@@ -66,6 +66,7 @@ BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_innerExecute)
     blockInfo.gasLimit = 30'000'000;
 
     evmc::VM vm{evmc_create_evmone()};
+    state::State state(stateView);
     InnerExecuteInput execInput;
     execInput.state = &state;
     execInput.vm = &vm;

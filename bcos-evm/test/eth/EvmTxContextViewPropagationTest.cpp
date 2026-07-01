@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(eth_host_nested_call_shares_chain_port_pointer)
     bcos::evm_standard::RevisionConfig cfg;
     cfg.revision = EVMC_CANCUN;
 
-    state::EthHost host(state, makeTxContext(), cfg, vm, {}, nullptr, true, &port);
+    state::EthHost host(state, makeTxContext(), cfg, vm, {}, nullptr, &port);
 
     evmc_message nested{};
     nested.kind = EVMC_CALL;
@@ -95,9 +95,9 @@ BOOST_AUTO_TEST_CASE(top_level_frame_context_shares_chain_port_pointer)
     top.recipient.bytes[19] = 0x02;
     top.code_address = top.recipient;
 
-    state::EthHost host(state, makeTxContext(), cfg, vm, {}, nullptr, true, &port);
+    state::EthHost host(state, makeTxContext(), cfg, vm, {}, nullptr, &port);
     execution::FrameExecutionEnv frameCtx{
-        state, vm, cfg, nullptr, top.sender, host.execution_address_ref(), false, &port};
+        state, vm, cfg, nullptr, top.sender, host.execution_address_ref(), &port};
     (void)execution::runCallFrame(frameCtx, top, execution::FrameScope::TopLevel, host);
 
     BOOST_REQUIRE(port.topLevelPort != nullptr);

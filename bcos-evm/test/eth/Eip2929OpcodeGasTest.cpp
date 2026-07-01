@@ -52,6 +52,7 @@ InnerExecuteOutput runContractCode(state::test::InMemoryStateView& stateView, ev
 {
     stateView.insert_account(contract, state::Account{.code = code});
 
+    state::State state(stateView);
     state::BlockInfo blockInfo;
     blockInfo.number = 12'500'000;
     blockInfo.chainId = 1;
@@ -202,6 +203,7 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_eip2929_disabled)
     auto const code = balanceTwiceCode(target);
     stateView.insert_account(contract, state::Account{.code = code});
 
+    state::State state(stateView);
     evmc_message message{};
     message.kind = EVMC_CALL;
     message.gas = gasLimit;
