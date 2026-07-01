@@ -496,6 +496,8 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_via_te)
         BOOST_CHECK_EQUAL(receipt->status(), 0);
         BOOST_REQUIRE(receipt->depositNonce().has_value());
         BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(0));
+        BOOST_REQUIRE(receipt->depositReceiptVersion().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->depositReceiptVersion().value()), u256(1));
 
         ledger::account::EVMAccount depositor(storage, OP_DEPOSITOR_ACCOUNT, false);
         BOOST_CHECK_EQUAL((co_await depositor.nonce()).value(), "1");
@@ -519,6 +521,8 @@ BOOST_AUTO_TEST_CASE(deposit_mint_applied_without_fee_routing)
         BOOST_CHECK_EQUAL(receipt->status(), 0);
         BOOST_REQUIRE(receipt->depositNonce().has_value());
         BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(3));
+        BOOST_REQUIRE(receipt->depositReceiptVersion().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->depositReceiptVersion().value()), u256(1));
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(100));
@@ -574,6 +578,8 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_but_keeps_mint)
         BOOST_CHECK_LT(receipt->gasUsed(), 50'000);
         BOOST_REQUIRE(receipt->depositNonce().has_value());
         BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(7));
+        BOOST_REQUIRE(receipt->depositReceiptVersion().has_value());
+        BOOST_CHECK_EQUAL(parseHexU256(receipt->depositReceiptVersion().value()), u256(1));
 
         ledger::account::EVMAccount senderAccount(storage, sender, false);
         BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(100));

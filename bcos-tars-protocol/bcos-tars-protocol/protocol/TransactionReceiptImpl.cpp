@@ -166,6 +166,15 @@ void bcostars::protocol::TransactionReceiptImpl::setDepositNonce(std::string dep
 {
     m_depositNonce = std::move(depositNonce);
 }
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::depositReceiptVersion() const
+{
+    return m_depositReceiptVersion;
+}
+void bcostars::protocol::TransactionReceiptImpl::setDepositReceiptVersion(
+    std::string depositReceiptVersion)
+{
+    m_depositReceiptVersion = std::move(depositReceiptVersion);
+}
 const bcostars::TransactionReceipt& bcostars::protocol::TransactionReceiptImpl::inner() const
 {
     return *m_inner();

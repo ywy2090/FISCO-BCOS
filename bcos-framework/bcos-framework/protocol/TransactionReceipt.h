@@ -62,6 +62,8 @@ public:
     virtual void setOperatorFeeConstant(std::string operatorFeeConstant) = 0;
     virtual std::optional<std::string> depositNonce() const = 0;
     virtual void setDepositNonce(std::string depositNonce) = 0;
+    virtual std::optional<std::string> depositReceiptVersion() const = 0;
+    virtual void setDepositReceiptVersion(std::string depositReceiptVersion) = 0;
 
     // additional information on transaction execution, no need to be involved in the hash
     // calculation
@@ -99,7 +101,7 @@ using Receipts = std::vector<TransactionReceipt::Ptr>;
 using ReceiptsPtr = std::shared_ptr<Receipts>;
 using ReceiptsConstPtr = std::shared_ptr<const Receipts>;
 using AnyTransactionReceipt =
-    AnyHolder<TransactionReceipt, 240>;  // 多平台TransactionReceiptImpl的最大尺寸 (Maximum size of
+    AnyHolder<TransactionReceipt, 272>;  // 多平台TransactionReceiptImpl的最大尺寸 (Maximum size of
                                          // TransactionReceiptImpl across platforms)
 
 }  // namespace bcos::protocol

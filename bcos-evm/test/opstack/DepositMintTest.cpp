@@ -101,5 +101,7 @@ BOOST_AUTO_TEST_CASE(deposit_mint_is_applied_before_execution)
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), 4);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 3);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
 }
 }  // namespace bcos::evm::test

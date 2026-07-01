@@ -33,6 +33,11 @@ bcostars::protocol::TransactionReceiptFactoryImpl::createReceipt(
     {
         receipt->setDepositNonce(*depositNonce);
     }
+    if (auto depositReceiptVersion = input.depositReceiptVersion();
+        depositReceiptVersion.has_value())
+    {
+        receipt->setDepositReceiptVersion(*depositReceiptVersion);
+    }
     return receipt;
 }
 

@@ -132,6 +132,8 @@ BOOST_AUTO_TEST_CASE(create_deposit_bumps_sender_nonce_exactly_once)
         nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), initialNonce + 1);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, initialNonce);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
 }
 
 BOOST_AUTO_TEST_CASE(create_deposit_revert_bumps_sender_nonce_exactly_once)
@@ -155,6 +157,8 @@ BOOST_AUTO_TEST_CASE(create_deposit_revert_bumps_sender_nonce_exactly_once)
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, initialNonce);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
 }
 
 BOOST_AUTO_TEST_CASE(create_deposit_intrinsic_reject_bumps_sender_nonce_exactly_once)
@@ -178,6 +182,8 @@ BOOST_AUTO_TEST_CASE(create_deposit_intrinsic_reject_bumps_sender_nonce_exactly_
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, initialNonce);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
 }
 
 BOOST_AUTO_TEST_CASE(create_deposit_oog_bumps_sender_nonce_exactly_once)
@@ -201,5 +207,7 @@ BOOST_AUTO_TEST_CASE(create_deposit_oog_bumps_sender_nonce_exactly_once)
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, initialNonce), initialNonce + 1);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, initialNonce);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
 }
 }  // namespace bcos::evm::test

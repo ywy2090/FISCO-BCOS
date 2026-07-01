@@ -81,6 +81,8 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     BOOST_REQUIRE_EQUAL(depositOutput.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE(depositOutput.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*depositOutput.receiptMeta.depositNonce, 0);
+    BOOST_REQUIRE(depositOutput.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*depositOutput.receiptMeta.depositReceiptVersion, 1u);
     BOOST_CHECK_GT(depositOutput.gasUsed, 0);
     applyStateDiffToView(depositOutput.stateDiff, stateView);
     auto const depositorAfter = stateView.get_account(OP_DEPOSITOR_ACCOUNT);

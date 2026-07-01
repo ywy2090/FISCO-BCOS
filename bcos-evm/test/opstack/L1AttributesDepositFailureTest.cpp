@@ -78,6 +78,8 @@ BOOST_AUTO_TEST_CASE(failed_l1_attributes_deposit_does_not_commit_slot_changes)
     BOOST_REQUIRE_EQUAL(failOutput.evmcResult.status_code, EVMC_REVERT);
     BOOST_REQUIRE(failOutput.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*failOutput.receiptMeta.depositNonce, 1);
+    BOOST_REQUIRE(failOutput.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*failOutput.receiptMeta.depositReceiptVersion, 1u);
     BOOST_CHECK_GT(failOutput.gasUsed, 0);
     BOOST_CHECK_LT(failOutput.gasUsed, 500'000);
 

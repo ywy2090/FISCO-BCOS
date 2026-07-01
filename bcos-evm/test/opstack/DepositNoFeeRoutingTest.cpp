@@ -130,6 +130,8 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_execution_but_keeps_mint_and_bumps_
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), 8);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 7);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, OP_BASE_FEE_RECIPIENT), u256(0));
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, OP_L1_FEE_RECIPIENT), u256(0));
     BOOST_CHECK_EQUAL(balanceFromDiff(output.stateDiff, OP_OPERATOR_FEE_RECIPIENT), u256(0));
@@ -159,5 +161,7 @@ BOOST_AUTO_TEST_CASE(deposit_entry_failure_bumps_nonce_and_uses_gas_limit)
     BOOST_CHECK_EQUAL(nonceFromDiff(output.stateDiff, sender, senderAccount.nonce), 6);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 5);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
 }
 }  // namespace bcos::evm::test

@@ -76,6 +76,8 @@ public:
     void setOperatorFeeConstant(std::string operatorFeeConstant) override;
     std::optional<std::string> depositNonce() const override;
     void setDepositNonce(std::string depositNonce) override;
+    std::optional<std::string> depositReceiptVersion() const override;
+    void setDepositReceiptVersion(std::string depositReceiptVersion) override;
 
     std::string_view cumulativeGasUsed() const override;
     void setCumulativeGasUsed(std::string cumulativeGasUsed) override;
@@ -106,9 +108,10 @@ private:
     std::optional<std::string> m_operatorFeeScalar;
     std::optional<std::string> m_operatorFeeConstant;
     std::optional<std::string> m_depositNonce;
+    std::optional<std::string> m_depositReceiptVersion;
 };
 
-static_assert(sizeof(TransactionReceiptImpl) <= 240,
-    "TransactionReceiptImpl exceeds AnyTransactionReceipt buffer (240 bytes); "
+static_assert(sizeof(TransactionReceiptImpl) <= 272,
+    "TransactionReceiptImpl exceeds AnyTransactionReceipt buffer (272 bytes); "
     "update the size constant in bcos-framework/protocol/TransactionReceipt.h");
 }  // namespace bcostars::protocol

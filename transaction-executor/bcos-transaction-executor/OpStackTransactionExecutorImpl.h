@@ -293,6 +293,11 @@ public:
                 auto const nonce = bcos::u256(*m_data->m_receiptMeta.depositNonce);
                 receipt->setDepositNonce("0x" + nonce.str(0, std::ios_base::hex));
             }
+            if (m_data->m_receiptMeta.depositReceiptVersion.has_value())
+            {
+                auto const version = bcos::u256(*m_data->m_receiptMeta.depositReceiptVersion);
+                receipt->setDepositReceiptVersion("0x" + version.str(0, std::ios_base::hex));
+            }
             co_return receipt;
         }
     };

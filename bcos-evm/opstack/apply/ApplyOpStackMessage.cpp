@@ -6,6 +6,7 @@
 #include "bcos-evm/opstack/apply/OpStackEvmResult.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/settlement/OpStackNormalTxFeeCoordinator.h"
 #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
@@ -91,6 +92,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
         }
 
         output.receiptMeta.depositNonce = ctx.state.get_nonce(input.message.sender);
+        output.receiptMeta.depositReceiptVersion = OP_CANYON_DEPOSIT_RECEIPT_VERSION;
         if (input.depositTx.has_value() && input.depositTx->mint.has_value() &&
             *input.depositTx->mint > 0)
         {

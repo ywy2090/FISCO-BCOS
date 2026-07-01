@@ -56,4 +56,7 @@ inline constexpr size_t JOVIAN_L1_ATTRIBUTES_LEN = 178;
 // EIP-4844 blob gas per blob (Cancun / Isthmus)
 inline constexpr uint64_t OP_BLOB_GAS_PER_BLOB = gas::BLOB_GAS_PER_BLOB;
 
+// Canyon+ deposit receipt metadata (op-geth types.CanyonDepositReceiptVersion)
+inline constexpr uint64_t OP_CANYON_DEPOSIT_RECEIPT_VERSION = 1;
+
 }  // namespace bcos::evm

@@ -198,6 +198,8 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_success_mint_deposit_nonce_and_nonce_bump
     BOOST_CHECK_EQUAL(lifecycleNonceFromDiff(output.stateDiff, sender, 3), 4u);
     BOOST_REQUIRE(output.receiptMeta.depositNonce.has_value());
     BOOST_CHECK_EQUAL(*output.receiptMeta.depositNonce, 3u);
+    BOOST_REQUIRE(output.receiptMeta.depositReceiptVersion.has_value());
+    BOOST_CHECK_EQUAL(*output.receiptMeta.depositReceiptVersion, 1u);
     BOOST_REQUIRE_EQUAL(gasPoolSpy.subGasCallCount, 1);
     BOOST_REQUIRE_EQUAL(gasPoolSpy.returnGasCallCount, 1);
 }
