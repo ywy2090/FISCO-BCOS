@@ -421,7 +421,7 @@ OpStackEestFixture adaptStateFixture(pt::ptree const& fixtureJson, std::string c
     // only gets tip (effectiveGasPrice - baseFee) instead of full gasPrice.
     // For London+ forks, baseFee stays as-is — OPStack routes it to OP_BASE_FEE_RECIPIENT
     // (op-geth compatible), which EEST doesn't track but doesn't affect coinbase assertions.
-    if (!gas::isEip1559FeeMarketActive(input.revisionConfig))
+    if (!bcos::evm::gas::isEip1559FeeMarketActive(input.revisionConfig))
     {
         input.blockInfo.baseFee = 0;
     }

@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackDepositSettlementTest
 
-#include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackIsthmusRevision.h"

@@ -1,7 +1,7 @@
 #pragma once
 #include "PrecompiledEntry.h"
-#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
 #include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-executor/src/Common.h"

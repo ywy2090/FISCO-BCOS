@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-framework/ledger/LedgerConfig.h"

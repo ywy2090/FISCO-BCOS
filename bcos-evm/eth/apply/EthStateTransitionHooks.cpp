@@ -17,11 +17,11 @@
  */
 
 #include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
-#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/apply/EthFeeInputsMapping.h"
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/TxFeeSettlement.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/kernel/execution/CanTransfer.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 

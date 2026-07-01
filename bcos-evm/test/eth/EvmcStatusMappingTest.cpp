@@ -7,8 +7,7 @@
 #define BOOST_TEST_MODULE EvmcStatusMappingTest
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/EVMCResult.h"
-#include "bcos-evm/eth/kernel/state-transition/AdoptEvmcResult.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-utilities/Exceptions.h"
 #include <boost/test/included/unit_test.hpp>

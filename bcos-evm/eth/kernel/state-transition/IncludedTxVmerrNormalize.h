@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 
 namespace bcos::evm
 {

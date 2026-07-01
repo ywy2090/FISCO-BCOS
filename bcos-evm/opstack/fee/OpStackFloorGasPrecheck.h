@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>

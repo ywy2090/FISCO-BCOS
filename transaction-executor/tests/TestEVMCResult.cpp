@@ -19,7 +19,7 @@
  */
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/eth/EVMCResult.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/Exceptions.h"

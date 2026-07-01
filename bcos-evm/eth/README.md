@@ -12,7 +12,7 @@
 | 目录 | 职责 |
 | --- | --- |
 | `apply/` | ETH 参考链编排（ApplyMessage 适配、hooks、precheck、fee settlement） |
-| `kernel/` | 可移植执行内核（Tier 2–3；三链共用，不含链策略） |
+| `kernel/` | 可移植执行内核（Tier 2–3；三链共用，含 `EVMCResult` 边界类型） |
 | `kernel/state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019；geth `stateTransition.execute`） |
 | `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 access gate |
 | `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch` 等 ADR-019/024 seam） |
@@ -34,8 +34,8 @@
 | `kernel/state-transition/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
 | `kernel/state-transition/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
 | `kernel/execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
-| `RevisionConfig.h` | EIP 开关位域 |
-| `EVMCResult.*` | EVMC 结果封装 |
+| `kernel/EVMCResult.*` | EVMC ↔ `TransactionStatus` 桥接（`adoptEvmcResult`） |
+| `RevisionConfig.h` | EIP 开关位域（`eth/` 根） |
 
 ## `eip/` — EIP 实现
 

@@ -1,6 +1,6 @@
 #pragma once
-#include "bcos-evm/eth/EVMCResult.h"
 #include "bcos-evm/eth/eip/ProtocolGas.h"
+#include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
