@@ -8,9 +8,9 @@
 
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
-#include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
-#include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackForkSchedule.h"
+#include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
+#include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

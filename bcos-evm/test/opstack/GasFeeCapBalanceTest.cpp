@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE GasFeeCapBalanceTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
