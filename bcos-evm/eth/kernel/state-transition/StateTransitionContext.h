@@ -6,8 +6,8 @@
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
+#include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
-#include "bcos-evm/eth/kernel/execution/TxFeaturePrepare.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/IntrinsicGasAccounting.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -59,7 +59,8 @@ public:
         gasPrice(intxToU256(inputGasPrice)),
         revisionConfig(inputRevisionConfig)
     {
-        execution::setWarmDestinationFromKind(txProps, message.kind);
+        // geth statedb.Prepare: skip destination warm on CREATE/CREATE2.
+        txProps.warmDestination = !execution::isCreateKind(message.kind);
     }
 
     StateTransitionContext(state::StateView const& stateView, evmc_message inputMessage,
@@ -70,7 +71,8 @@ public:
         gasPrice(inputGasPrice),
         revisionConfig(inputRevisionConfig)
     {
-        execution::setWarmDestinationFromKind(txProps, message.kind);
+        // geth statedb.Prepare: skip destination warm on CREATE/CREATE2.
+        txProps.warmDestination = !execution::isCreateKind(message.kind);
     }
 
     StateTransitionContext(StateTransitionContext const&) = delete;

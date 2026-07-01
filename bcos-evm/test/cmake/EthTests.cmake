@@ -161,10 +161,6 @@ target_include_directories(Eip7702ApplyAuthorizationEthTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(Eip7702ApplyAuthorizationEthTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME Eip7702ApplyAuthorizationEth COMMAND Eip7702ApplyAuthorizationEthTest)
-add_executable(TxFeaturePrepareTest eth/TxFeaturePrepareTest.cpp)
-target_include_directories(TxFeaturePrepareTest PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(TxFeaturePrepareTest PRIVATE bcos-evm-eth)
-add_test(NAME TxFeaturePrepare COMMAND TxFeaturePrepareTest)
 add_executable(Eip2537KernelTest eth/Eip2537KernelTest.cpp)
 target_include_directories(Eip2537KernelTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

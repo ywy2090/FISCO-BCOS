@@ -17,6 +17,7 @@
 #define BOOST_TEST_MODULE WarmTransactionEntryTest
 #include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "fixtures/BlockInfoBuilder.h"
@@ -235,6 +236,20 @@ BOOST_AUTO_TEST_CASE(W2_warms_chain_static_targets)
 
     BOOST_CHECK(state.is_address_warm(l1Block));
     BOOST_CHECK(state.is_address_warm(gasOracle));
+}
+
+BOOST_AUTO_TEST_CASE(create_kind_skips_destination_warm_flag)
+{
+    TransactionProperties props;
+    props.warmDestination = false;
+    props.warmDestination = !execution::isCreateKind(EVMC_CALL);
+    BOOST_CHECK(props.warmDestination);
+
+    props.warmDestination = !execution::isCreateKind(EVMC_CREATE);
+    BOOST_CHECK(!props.warmDestination);
+
+    props.warmDestination = !execution::isCreateKind(EVMC_CREATE2);
+    BOOST_CHECK(!props.warmDestination);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
