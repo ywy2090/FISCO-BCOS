@@ -137,6 +137,93 @@ set_tests_properties(EthGSTFull PROPERTIES
     LABELS "specs-tests;specs-tests-full;eth-kernel"
 )
 
+# Fetch GTest for GTest-granular runners
+include(FetchContent)
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# Suppress Apple Clang C++20 char8_t warning in GTest source
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    target_compile_options(gtest PRIVATE -Wno-character-conversion)
+    target_compile_options(gtest_main PRIVATE -Wno-character-conversion)
+endif()
+
+add_executable(EthGSTGranular runners/eth/EthGSTGranular.cpp)
+target_link_libraries(EthGSTGranular PRIVATE
+    bcos-evm-specs-tests-eth GTest::gtest)
+target_compile_definitions(EthGSTGranular PRIVATE
+    SPECS_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
+)
+
+add_test(NAME EthGSTGranular
+    COMMAND EthGSTGranular
+        stExample
+        --fork-profiles eth-cancun,eth-prague
+)
+set_tests_properties(EthGSTGranular PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;gst"
+)
+
+add_executable(EthBlockTransitionTest
+    runners/eth/EthBlockTransitionTest.cpp)
+target_include_directories(EthBlockTransitionTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(EthBlockTransitionTest PRIVATE
+    bcos-evm-specs-tests-eth GTest::gtest)
+
+get_filename_component(ETH_BLOCK_FIXTURES_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/../fixtures/state
+    ABSOLUTE)
+add_test(NAME EthBlockTransitionTest
+    COMMAND EthBlockTransitionTest
+        ${ETH_BLOCK_FIXTURES_DIR}
+        --fork-profile eth-cancun)
+set_tests_properties(EthBlockTransitionTest PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;block"
+)
+
+add_executable(EthEestStateGranular runners/eth/EthEestStateGranular.cpp)
+target_link_libraries(EthEestStateGranular PRIVATE
+    bcos-evm-specs-tests-eth GTest::gtest)
+target_compile_definitions(EthEestStateGranular PRIVATE
+    SPECS_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests")
+add_test(NAME EthEestStateGranularSmoke
+    COMMAND EthEestStateGranular ${EVM_REF_EEST_ROOT}/fixtures/state_tests/cancun
+    --gtest_filter="*eip1559*:*eip5656*:*eip3855*")
+set_tests_properties(EthEestStateGranularSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
+
+add_executable(EthEestTxGranular runners/eth/EthEestTxGranular.cpp)
+target_link_libraries(EthEestTxGranular PRIVATE
+    bcos-evm-specs-tests-core GTest::gtest)
+add_test(NAME EthEestTxGranularSmoke
+    COMMAND EthEestTxGranular ${EVM_REF_EEST_ROOT}/fixtures/transaction_tests
+    --gtest_filter="*basic*")
+set_tests_properties(EthEestTxGranularSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
+
+add_executable(EthEestBlockchainRunner runners/eth/EthEestBlockchainRunner.cpp)
+target_link_libraries(EthEestBlockchainRunner PRIVATE
+    bcos-evm-specs-tests-eth)
+add_test(NAME EthEestBlockchainSmoke COMMAND EthEestBlockchainRunner
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests --limit 10)
+set_tests_properties(EthEestBlockchainSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
+
+add_executable(EthEestBlockGranular runners/eth/EthEestBlockGranular.cpp)
+target_link_libraries(EthEestBlockGranular PRIVATE
+    bcos-evm-specs-tests-eth GTest::gtest)
+add_test(NAME EthEestBlockGranularSmoke COMMAND EthEestBlockGranular
+    ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests
+    --gtest_filter="*Cancun*")
+set_tests_properties(EthEestBlockGranularSmoke PROPERTIES
+    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
+
 set(EEST_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/manifests)
 
 add_executable(EthExecutionSpecStateTests runners/eth/EthExecutionSpecStateTests.cpp)

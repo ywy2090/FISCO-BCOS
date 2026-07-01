@@ -26,6 +26,8 @@ public:
         return it->second;
     }
 
+    auto const& accounts() const noexcept { return m_accounts; }
+
 private:
     std::unordered_map<evmc_address, state::Account, state::AddressHash, state::AddressEqual>
         m_accounts;

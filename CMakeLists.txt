@@ -83,6 +83,9 @@ if(FULLNODE)
     add_subdirectory(bcos-sync)
     add_subdirectory(bcos-front)
     add_subdirectory(libinitializer)
+
+    add_subdirectory(bcos-evm)
+
     add_subdirectory(fisco-bcos-air)
 
     add_subdirectory(transaction-executor)
