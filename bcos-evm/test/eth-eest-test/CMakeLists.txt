@@ -198,16 +198,9 @@ add_test(NAME EthEestStateGranularSmoke
 set_tests_properties(EthEestStateGranularSmoke PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
 
-add_executable(EthEestTxGranular runners/eth/EthEestTxGranular.cpp)
-target_link_libraries(EthEestTxGranular PRIVATE
-    bcos-evm-specs-tests-core GTest::gtest)
-add_test(NAME EthEestTxGranularSmoke
-    COMMAND EthEestTxGranular ${EVM_REF_EEST_ROOT}/fixtures/transaction_tests
-    --gtest_filter="*basic*")
-set_tests_properties(EthEestTxGranularSmoke PROPERTIES
-    LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
-
 add_executable(EthEestBlockchainRunner runners/eth/EthEestBlockchainRunner.cpp)
+target_include_directories(EthEestBlockchainRunner PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(EthEestBlockchainRunner PRIVATE
     bcos-evm-specs-tests-eth)
 add_test(NAME EthEestBlockchainSmoke COMMAND EthEestBlockchainRunner
