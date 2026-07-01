@@ -98,11 +98,11 @@ target_include_directories(EthEip1559GasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(EthEip1559GasTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME EthEip1559Gas COMMAND EthEip1559GasTest)
-add_executable(Eip1559AccessTest eth/Eip1559AccessTest.cpp)
-target_include_directories(Eip1559AccessTest PRIVATE
+add_executable(Eip1559GateTest eth/Eip1559GateTest.cpp)
+target_include_directories(Eip1559GateTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(Eip1559AccessTest PRIVATE bcos-evm-eth bcos-utilities)
-add_test(NAME Eip1559Access COMMAND Eip1559AccessTest)
+target_link_libraries(Eip1559GateTest PRIVATE bcos-evm-eth bcos-utilities)
+add_test(NAME Eip1559Gate COMMAND Eip1559GateTest)
 add_executable(TxFeeSettlementTest eth/TxFeeSettlementTest.cpp)
 target_include_directories(TxFeeSettlementTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

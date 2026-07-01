@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Enforce single consumer gate for cfg.eip1559 (Eip1559Access.h).
+# Enforce single consumer gate for cfg.eip1559 (Eip1559Gate.h).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -7,7 +7,7 @@ cd "$ROOT"
 
 ALLOWLIST=(
     'eth/RevisionConfig.h'
-    'eth/eip/Eip1559Access.h'
+    'eth/eip/Eip1559Gate.h'
 )
 
 status=0
@@ -38,9 +38,9 @@ if [[ -n "$matches" ]]; then
 fi
 
 if [[ $status -ne 0 ]]; then
-    echo "ERROR: cfg.eip1559 read outside Eip1559Access.h / RevisionConfig.h:" >&2
+    echo "ERROR: cfg.eip1559 read outside Eip1559Gate.h / RevisionConfig.h:" >&2
     echo "$VIOLATIONS" >&2
-    echo "  -> Route through gas::isEip1559* helpers in eth/eip/Eip1559Access.h." >&2
+    echo "  -> Route through gas::isEip1559* helpers in eth/eip/Eip1559Gate.h." >&2
 else
     echo "eip1559-access gate: OK (no direct cfg.eip1559 reads outside allowlist)"
 fi

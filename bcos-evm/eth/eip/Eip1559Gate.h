@@ -3,7 +3,7 @@
  *  SPDX-License-Identifier: Apache-2.0
  *
  * @brief Single TE gate for EIP-1559 fork + fee-market semantics.
- * @file Eip1559Access.h
+ * @file Eip1559Gate.h
  *
  * Do not read cfg.eip1559 outside this header in eth/ production code (CI gate).
  * Typed-tx allowance, fee-cap pricing, and post-execute refund all route through here.

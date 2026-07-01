@@ -10,7 +10,7 @@ Tracked items from Phase 1 audit and grill review. Update when closed.
 
 ## 37 — RevisionConfig profile-only fields
 
-Fields such as `eip1559` are consumed via `Eip1559Access.h` (typed-tx gate, fee-cap precheck, `normalizeGasCaps`, OpStack refund). `eip3651` and `eip2929` are wired: coinbase warm via `isCoinbaseWarmEnabled`; EIP-2929 TE gate via `Eip2929Access.h` (ADR-004 Scheme A — FISCO `feature_evm_eip2929=OFF` is intentional deviation).
+Fields such as `eip1559` are consumed via `Eip1559Gate.h` (typed-tx gate, fee-cap precheck, `normalizeGasCaps`, OpStack refund). `eip3651` and `eip2929` are wired: coinbase warm via `isCoinbaseWarmEnabled`; EIP-2929 TE gate via `Eip2929Access.h` (ADR-004 Scheme A — FISCO `feature_evm_eip2929=OFF` is intentional deviation).
 
 **Status:** Partially closed (`eip3651`, `eip2929`, `eip1559` consumed). Removed: `prague_post_execution` (dead flag). Isthmus criteria 14 (no 6110/7002/7251 block postExecution) guarded by `IsthmusPostExecutionPolicyTest` + `check-opstack-no-prague-post-execution.sh`.
 

@@ -17,7 +17,7 @@
  */
 
 #include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
-#include "bcos-evm/eth/eip/Eip1559Access.h"
+#include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/OpStackBlobTxIntent.h"

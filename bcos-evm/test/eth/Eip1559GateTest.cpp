@@ -1,5 +1,5 @@
-#define BOOST_TEST_MODULE Eip1559AccessTest
-#include "bcos-evm/eth/eip/Eip1559Access.h"
+#define BOOST_TEST_MODULE Eip1559GateTest
+#include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
@@ -35,7 +35,7 @@ EthMessageRequest makeMinimalRequest(bcos::evm_standard::RevisionConfig const& r
 }
 }  // namespace
 
-BOOST_AUTO_TEST_SUITE(Eip1559AccessTest)
+BOOST_AUTO_TEST_SUITE(Eip1559GateTest)
 
 BOOST_AUTO_TEST_CASE(typed_tx_gate_follows_revision_flag)
 {

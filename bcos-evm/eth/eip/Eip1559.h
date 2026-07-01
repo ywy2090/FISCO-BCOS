@@ -20,7 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/eip/Eip1559Access.h"
+#include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-utilities/Common.h"
 
 namespace bcos::evm::gas

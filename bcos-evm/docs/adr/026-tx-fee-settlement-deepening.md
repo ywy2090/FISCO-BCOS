@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/eip/Eip1559.h`, `eth/eip/Eip1559Access.h`, `eth/apply/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
+**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/eip/Eip1559.h`, `eth/eip/Eip1559Gate.h`, `eth/apply/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
 
 ---
 
@@ -14,7 +14,7 @@ EIP-1559 formulas live in `eth/eip/Eip1559.h` (`normalizeGasCaps`, `resolveEffec
 
 1. **Math is shared; composition is not.** `EthTxFeeSettlement`, `OpStackFeeSettlement`, and `applyGstTransactionSettlement` each re-compose caps, effective price, refund, and tip at independent call sites. OpStack `refundGas` hand-rolls `effectiveTip` instead of `tipPerGas()`.
 
-2. **No single test oracle.** `Eip1559AccessTest` gates fork flags; unit tests on `Eip1559.h` cover formulas. No cross-path characterization asserts that TE buyGas/refund, GST post-hoc, and OpStack 1559 routing produce identical **plan amounts** for the same inputs.
+2. **No single test oracle.** `Eip1559GateTest` gates fork flags; unit tests on `Eip1559.h` cover formulas. No cross-path characterization asserts that TE buyGas/refund, GST post-hoc, and OpStack 1559 routing produce identical **plan amounts** for the same inputs.
 
 3. **Call-site bugs hide behind pure functions.** ADR-025 phantom fee (pre-execution abort × `refundGas`) is a lifecycle composition error, not an `Eip1559.h` math error. Tighter projection locality reduces drift class.
 
@@ -25,7 +25,7 @@ EIP-1559 formulas live in `eth/eip/Eip1559.h` (`normalizeGasCaps`, `resolveEffec
 - FISCO `FiscoTxFeeSettlement` migration (legacy `protocol::effectiveGasPrice`; matrix deviation).
 - OpStack L1 / operator / blob fee math (remain sidecar in `opstack/` adapter).
 - TE `buyGas` insufficient-balance **penalty** (TE production policy, not EIP-1559).
-- Replacing `Eip1559.h` primitives or `Eip1559Access.h` fork gates.
+- Replacing `Eip1559.h` primitives or `Eip1559Gate.h` fork gates.
 - Async `EVMAccount` mutation abstraction inside kernel.
 
 ---
@@ -115,7 +115,7 @@ Adapters without pipeline context (EEST GST) construct `FeeInputs` manually.
 | Module | Role after ADR-026 |
 | --- | --- |
 | `Eip1559.h` | Primitive formulas; called by `TxFeeSettlement` |
-| `Eip1559Access.h` | Fork gates; unchanged; CI `check-eip1559-access.sh` |
+| `Eip1559Gate.h` | Fork gates; unchanged; CI `check-eip1559-access.sh` |
 | `EthPrecheckPolicy` | PR5: may set `ctx.gasPrice` from `planPreExecution(...).effectiveGasPrice` |
 | `OpStackSettlement` | Gas unit math (`finalizeNormal`); fee **amounts** from plan + sidecar |
 
@@ -127,7 +127,7 @@ Adapters without pipeline context (EEST GST) construct `FeeInputs` manually.
 | **PR2** | `applyGstTransactionSettlement` → `planPostExecution` | EEST smoke |
 | **PR3** | `EthTxFeeSettlement` buyGas/refund → plan; penalty stays in adapter | existing Eth TE tests |
 | **PR4** | `OpStackFeeSettlement` 1559 → plan; delete hand-rolled `effectiveTip`; sidecar unchanged | `OpStackSettlementTest` |
-| **PR5** | `FeeInputsMapping.h` + `EthPrecheckPolicy` effective from plan | `Eip1559AccessTest` extended |
+| **PR5** | `FeeInputsMapping.h` + `EthPrecheckPolicy` effective from plan | `Eip1559GateTest` extended |
 
 ---
 

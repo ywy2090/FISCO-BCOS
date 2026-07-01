@@ -43,6 +43,7 @@
 | 文件 | 角色 |
 | --- | --- |
 | `Eip2930AccessList.h` | EIP-2930 access list 类型 |
+| `Eip1559Gate.h` | EIP-1559 revision 门控（唯一读 `cfg.eip1559` 处） |
 | `Eip2929Gate.h` | EIP-2929 / 3651 revision 门控（Scheme A；唯一读 `cfg.eip2929` 处） |
 | `Eip2929StorageGas.h` | EIP-2929 / 2200 / 3529 SLOAD/SSTORE gas 常量 |
 | `Eip7702.*` | EIP-7702 单点实现 |
