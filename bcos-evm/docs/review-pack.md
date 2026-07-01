@@ -413,7 +413,7 @@ P0 内核候选**已闭合**。当前 open work：
 | FISCO 扩展 | `bcos/FiscoHostExtension.h` |
 | FISCO Policy | `bcos/FiscoPolicy.h` |
 | 依赖倒置端口 | `bcos/ports/AuthPort.h`、`ChainPrecompilePort.h` |
-| OP 编排 | `opstack/ApplyOpStackMessage.cpp` → `OpStackTxLifecycle.cpp` |
+| OP 编排 | `opstack/apply/ApplyOpStackMessage.cpp` |
 | OP settlement | `opstack/OpStackSettlement.cpp`（ADR-021） |
 | OP 扩展 | `opstack/OpHostExtension.h` |
 | 能力契约 | `capability-matrix.md` |

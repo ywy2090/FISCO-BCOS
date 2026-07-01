@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE L1AttributesDepositFailureTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "helpers/InMemoryStateView.h"

@@ -13,16 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Binds OpStack chain policy for `stateTransitionExecute` at `runOpStackTxLifecycle`.
+ * @brief Binds OpStack chain policy for `stateTransitionExecute` at `applyOpStackMessage`.
  * @file OpStackStateTransitionBindings.h
  */
 
 #pragma once
 
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackSettlementFacade.h"
-#include "bcos-evm/opstack/OpStackStateTransitionErrorPolicy.h"
-#include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionErrorPolicy.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
 
 namespace bcos::evm
 {

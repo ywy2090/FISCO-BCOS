@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackStateTransitionErrorPolicyTest
 
-#include "bcos-evm/opstack/OpStackStateTransitionErrorPolicy.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionErrorPolicy.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"

@@ -2,7 +2,7 @@
 
 #include "../../../transaction-executor/bcos-transaction-executor/OpStackTxInputBuilder.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
+#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include <boost/test/included/unit_test.hpp>
 
 using namespace bcos::evm;

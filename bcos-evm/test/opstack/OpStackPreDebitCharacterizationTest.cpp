@@ -9,7 +9,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/opstack/OpStackConstants.h"
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 #include <boost/test/included/unit_test.hpp>
 #include <functional>

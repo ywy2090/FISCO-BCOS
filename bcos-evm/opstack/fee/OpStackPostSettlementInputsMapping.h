@@ -1,9 +1,17 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Maps OpStackSettlementFacade + OpStackSettlementResult into OpStackPostSettlementInputs.
+ * @file OpStackPostSettlementInputsMapping.h
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
-#include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackSettlementFacade.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
 
 namespace bcos::evm
 {

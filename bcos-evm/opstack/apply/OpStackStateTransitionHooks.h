@@ -19,8 +19,8 @@
 #pragma once
 
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
 
 namespace bcos::evm
 {

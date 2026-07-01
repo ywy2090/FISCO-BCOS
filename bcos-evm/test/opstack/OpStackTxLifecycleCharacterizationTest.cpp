@@ -1,12 +1,12 @@
 #define BOOST_TEST_MODULE OpStackTxLifecycleCharacterizationTest
 
-// C1: characterization oracles via runOpStackTxLifecycle (deep module interface).
+// C1: characterization oracles via applyOpStackMessage (chain entry).
 
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
-#include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackTxLifecycle.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "opstack/helpers/OpStackLifecycleTestHelpers.h"
 #include <bcos-task/Wait.h>
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_success_routes_fees_and_gas_pool)
         stateView, vm, hash, sender, recipient, kLifecycleNormalGasLimit, gasPoolSpy);
     input.blockInfo.coinbase = coinbase;
 
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     auto const gasUsed = static_cast<uint64_t>(std::max<int64_t>(0, output.gasUsed));
     auto const expectedGas =
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_gas_used_zero_and_returns
 
     auto input = makeLifecycleNormalInput(
         stateView, vm, hash, sender, recipient, gasBelowIntrinsic, gasPoolSpy);
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_gas_afford_reject_aborts_without_settle_or
     input.message.input_size = calldata.size();
     input.message.gas = gasBelowFloor;
 
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_buy_gas_fail_releases_gas_pool_without_set
 
     auto input =
         makeLifecycleNormalInput(stateView, vm, hash, sender, recipient, 100'000, gasPoolSpy);
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
     BOOST_REQUIRE_EQUAL(gasPoolSpy.subGasCallCount, 1);
@@ -191,7 +191,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_success_mint_deposit_nonce_and_nonce_bump
 
     auto input = makeLifecycleDepositInput(
         stateView, vm, hash, sender, recipient, 50'000, gasPoolSpy, u256(100));
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(lifecycleBalanceFromDiff(output.stateDiff, sender), u256(100));
@@ -216,7 +216,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_gas_pool_reject_skips_pipeline)
 
     auto input = makeLifecycleDepositInput(
         stateView, vm, hash, sender, recipient, 50'000, gasPoolSpy, u256(100));
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_REQUIRE_EQUAL(gasPoolSpy.subGasCallCount, 1);
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_revert_keeps_mint_and_bumps_nonce)
 
     auto input = makeLifecycleDepositInput(
         stateView, vm, hash, sender, recipient, 50'000, gasPoolSpy, u256(100));
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_REVERT);
     BOOST_CHECK_EQUAL(lifecycleBalanceFromDiff(output.stateDiff, sender), u256(150));
@@ -268,7 +268,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_deposit_intrinsic_reject_uses_gas_limit_and_rever
 
     auto input = makeLifecycleDepositInput(
         stateView, vm, hash, sender, recipient, gasBelowIntrinsic, gasPoolSpy, u256(123));
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(output.gasUsed, gasBelowIntrinsic);
@@ -303,7 +303,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_intrinsic_reject_inclusion_failed_receipt_
 
     auto input = makeLifecycleNormalInput(
         stateView, vm, hash, sender, recipient, gasBelowIntrinsic, gasPoolSpy);
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_NE(static_cast<int>(output.evmcResult.status),
@@ -329,7 +329,7 @@ BOOST_AUTO_TEST_CASE(lifecycle_normal_buy_gas_fail_inclusion_failed_receipt_orac
 
     auto input =
         makeLifecycleNormalInput(stateView, vm, hash, sender, recipient, 100'000, gasPoolSpy);
-    auto output = task::syncWait(runOpStackTxLifecycle(std::move(input)));
+    auto output = task::syncWait(applyOpStackMessage(std::move(input)));
 
     BOOST_CHECK_EQUAL(output.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
     BOOST_CHECK_EQUAL(output.gasUsed, int64_t{0});

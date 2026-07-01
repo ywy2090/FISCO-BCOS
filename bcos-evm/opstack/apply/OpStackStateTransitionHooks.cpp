@@ -16,13 +16,13 @@
  * @file OpStackStateTransitionHooks.cpp
  */
 
-#include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
-#include "bcos-evm/opstack/OpStackBlobTxIntent.h"
-#include "bcos-evm/opstack/OpStackDepositTx.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
+#include "bcos-evm/opstack/types/OpStackBlobTxIntent.h"
+#include "bcos-evm/opstack/types/OpStackDepositTx.h"
 #include <algorithm>
 
 namespace bcos::evm

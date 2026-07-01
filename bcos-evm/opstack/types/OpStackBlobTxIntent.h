@@ -1,5 +1,5 @@
 #pragma once
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include <bcos-utilities/FixedBytes.h>
 
 namespace bcos::evm

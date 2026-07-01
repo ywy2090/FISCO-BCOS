@@ -2,12 +2,12 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackFeeSettlement.h"
-#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
-#include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackGasSettlement.h"
+#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
+#include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>

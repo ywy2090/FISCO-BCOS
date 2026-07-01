@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE OpStackTxInputBuilderTest
 
 #include "../../../transaction-executor/bcos-transaction-executor/OpStackTxInputBuilder.h"
-#include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
+#include "bcos-evm/opstack/types/OpStackBlockHeaderExtension.h"
 #include <bcos-codec/rlp/Common.h>
 #include <bcos-codec/rlp/RLPEncode.h>
 #include <bcos-crypto/hash/Keccak256.h>

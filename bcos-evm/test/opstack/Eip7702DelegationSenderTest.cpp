@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip7702DelegationSenderTest
 
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <boost/test/included/unit_test.hpp>

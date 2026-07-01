@@ -1,14 +1,14 @@
-#include "bcos-evm/opstack/OpStackTxLifecycle.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
-#include "bcos-evm/opstack/OpStackChainCallTargetAdapter.h"
-#include "bcos-evm/opstack/OpStackNormalTxFeeCoordinator.h"
-#include "bcos-evm/opstack/OpStackPipelineInternals.h"
-#include "bcos-evm/opstack/OpStackSettlement.h"
-#include "bcos-evm/opstack/OpStackSettlementFacade.h"
-#include "bcos-evm/opstack/OpStackStateTransitionBindings.h"
+#include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
+#include "bcos-evm/opstack/apply/OpStackPipelineInternals.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFee.h"
+#include "bcos-evm/opstack/settlement/OpStackNormalTxFeeCoordinator.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
 #include <algorithm>
 #include <stdexcept>
 
@@ -27,8 +27,13 @@ bool acquireGasPool(GasPoolHooks const& gasPool, int64_t originalGasLimit)
 }
 }  // namespace
 
-task::Task<OpStackMessageResult> runOpStackTxLifecycle(OpStackMessageRequest input)
+task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input)
 {
+    if (input.stateView == nullptr || input.vm == nullptr || input.hashImpl == nullptr)
+    {
+        throw std::invalid_argument("applyOpStackMessage requires stateView/vm/hashImpl");
+    }
+
     trace::EvmTraceScope traceScope(
         trace::makeTraceContext("opstack", input.blockInfo.number, input.txHash));
 
@@ -104,7 +109,7 @@ task::Task<OpStackMessageResult> runOpStackTxLifecycle(OpStackMessageRequest inp
         auto settled =
             co_await settleDeposit(ctx, ctx.exitKind, output.evmcResult.status_code, gasPool);
 
-        EVM_LOG(DEBUG) << LOG_DESC("opStackTxLifecycle deposit done")
+        EVM_LOG(DEBUG) << LOG_DESC("applyOpStackMessage deposit done")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
                        << LOG_KV("gasUsed", settled.gasUsed);
@@ -140,13 +145,13 @@ task::Task<OpStackMessageResult> runOpStackTxLifecycle(OpStackMessageRequest inp
 
     if (isNormalPreExecutionReject(ctx.exitKind))
     {
-        EVM_LOG(DEBUG) << LOG_DESC("opStackTxLifecycle entry reject abort")
+        EVM_LOG(DEBUG) << LOG_DESC("applyOpStackMessage entry reject abort")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code));
     }
     else
     {
-        EVM_LOG(DEBUG) << LOG_DESC("opStackTxLifecycle done")
+        EVM_LOG(DEBUG) << LOG_DESC("applyOpStackMessage done")
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(output.evmcResult.status_code))
                        << LOG_KV("gasUsed", output.gasUsed)
@@ -155,4 +160,5 @@ task::Task<OpStackMessageResult> runOpStackTxLifecycle(OpStackMessageRequest inp
 
     co_return output;
 }
+
 }  // namespace bcos::evm

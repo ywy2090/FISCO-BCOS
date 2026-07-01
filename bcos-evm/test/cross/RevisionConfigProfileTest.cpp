@@ -3,7 +3,7 @@
 #include "bcos-evm/bcos/FiscoPolicy.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
-#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
+#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include <bcos-framework/ledger/Features.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <boost/test/included/unit_test.hpp>

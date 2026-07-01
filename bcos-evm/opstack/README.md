@@ -2,47 +2,76 @@
 
 本目录编译为静态库 **`bcos-evm-op`**，依赖 `bcos-evm-eth`。
 
-## 目录
+## 子目录
 
 | 路径 | 职责 |
 | --- | --- |
-| 根目录 | Bridge、Lifecycle、Settlement、StateTransitionBindings、Precheck、常量 |
-| `fee/` | L1 fee、rollup cost、floor gas、gas settlement |
+| `apply/` | 链入口、生命周期、StateTransition bindings/hooks |
+| `settlement/` | Facade、Sidecar、Settlement、FeeSettlement、NormalTxFeeCoordinator |
+| `adapter/` | `OpStackChainCallTargetAdapter`（L1Block / GasPriceOracle 路由） |
+| `policy/` | 常量、fork 时间表、Isthmus revision 绑定 |
+| `types/` | DTO / 元数据（DepositTx、ReceiptMeta、BlobIntent、HeaderExtension） |
+| `fee/` | L1 fee、rollup cost、floor gas、pre/post debit plan（纯计算） |
 | `l1/` | L1Block 与 GasPriceOracle 预部署 |
 
-## 核心模块（根目录）
+## Settlement 命名对照
 
-| 组件 | 文件 | 职责 |
-| --- | --- | --- |
-| 执行桥 | `OpStackExecute.*` | TE 入口 `applyOpStackMessage()` → 委托 lifecycle |
-| 生命周期 | `OpStackTxLifecycle.*` | Deep module `runOpStackTxLifecycle`（gasPool、分支、settlement 编排） |
-| 费用投影 | `OpStackSettlementFacade.*`, `OpStackFeeSidecar.h` | `ctx` + `input` + sidecar 只读投影；无 request 镜像 |
-| Normal 结算 | `OpStackNormalTxFeeCoordinator.*` | `buyGas` + `completeAfterPipeline`（ADR-025 内聚） |
-| 同步结算 | `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort helpers |
-| 费用账本 | `OpStackFeeSettlement.*` | Adapter：`buyGas` / `refundGas`（读 `OpStackSettlementFacade`） |
-| 编排 | `OpStackStateTransitionBindings.*` | `Context` `{ input, view }`；`bind` → pipeline hooks |
-| 预检 | `OpStackPrecheckPolicy.*` | `lifecycleCheckEntryRules` + `onPreCheckGasAffordable` |
-| 链 call target | `OpStackChainCallTargetAdapter.*` | L1Block / GasPriceOracle classify + dispatch |
+`Settlement` 一词在 opstack 内指代不同层级，勿混用：
 
-## 子目录模块
+| 符号 / 文件 | 目录 | 层级 | 职责 | 是否改 state |
+| --- | --- | --- | --- | --- |
+| `OpStackSettlementFacade` | `settlement/` | 只读投影 | `ctx` + `input` + `sidecar` 统一读视图 | 否 |
+| `OpStackFeeSidecar` | `settlement/` | 可变 sidecar | 生命周期内费用快照（effectiveGasPrice、l1CostCharged 等） | 是（内存） |
+| `OpStackFeeSettlement` | `settlement/` | 异步账本 | `buyGas` / `refundGas`；对齐 `eth/EthTxFeeSettlement` | 是 |
+| `OpStackSettlement` | `settlement/` | 同步收尾 | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort | 部分（gas pool） |
+| `OpStackGasSettlement` | `fee/` | 纯 gas 数学 | `postExecuteGasSettlement`（refund、floor 扣减） | 否 |
+| `OpStackNormalTxFeeCoordinator` | `settlement/` | 编排 | normal 路径：`buyGas` → pipeline → `completeAfterPipeline` | 委托上述组件 |
 
-| 目录 | 文件 | 职责 |
-| --- | --- | --- |
-| `fee/` | `OpStackFee.*`、`RollupCost.*`、`OpStackFloorGas.*`、`OpStackGasSettlement.h` | L1 fee、rollup、settlement |
-| `l1/` | `L1Block*`、`GasPriceOracle*` | L1 属性与预部署 |
+**调用顺序（normal）：** `Facade` → `FeeSettlement.buyGas`（读 `PreDebitPlan`）→ pipeline → `Settlement.finalizeNormal`（读 `GasSettlement`）→ `FeeSettlement.refundGas`（读 `PostSettlementPlan`）→ `NormalTxFeeCoordinator` 写 receipt。
+
+**与 eth 对照：** `EthTxFeeSettlement` 合一；opstack 拆为 Facade + FeeSettlement + Settlement + fee 层 plan/math。
+
+## `apply/` — 链入口 & 生命周期
+
+| 文件 | 职责 |
+| --- | --- |
+| `ApplyOpStackMessage.*` | TE 入口 `applyOpStackMessage()`（gasPool、deposit/normal 分支、settlement 编排） |
+| `OpStackStateTransitionBindings.*` | `Context` `{ input, view }`；`bind` → pipeline hooks |
+| `OpStackStateTransitionHooks.*` | 入口规则、`onPreCheckGasAffordable`、inner execute 调优 |
+| `OpStackStateTransitionErrorPolicy.h` | OpStack 错误处理策略 |
+| `OpStackPipelineInternals.h` | 管线内部辅助 |
+
+## `settlement/` — 费用结算编排
+
+| 文件 | 职责 |
+| --- | --- |
+| `OpStackSettlementFacade.*` | `ctx` + `input` + sidecar 只读投影 |
+| `OpStackFeeSidecar.h` | 生命周期内可变费用状态 |
+| `OpStackNormalTxFeeCoordinator.*` | `buyGas` + `completeAfterPipeline`（ADR-025） |
+| `OpStackSettlement.*` | `finalizeNormal` / `finalizeDeposit` / `settleDeposit` / abort |
+| `OpStackFeeSettlement.*` | Adapter：`buyGas` / `refundGas` |
+
+## `fee/` — 纯计算 & plan
+
+| 文件 | 职责 |
+| --- | --- |
+| `OpStackPreDebitPlan.*` | 定义 `OpStackPreDebitInputs` / `OpStackPreDebitPlan`；`planOpStackPreDebit` |
+| `OpStackPreDebitInputsMapping.h` | `toOpStackPreDebitInputs(facade)`（仅映射，对齐 `eth/EthFeeInputsMapping.h`） |
+| `OpStackPostSettlementPlan.*` | 定义 `OpStackPostSettlementInputs` / `OpStackPostSettlementPlan` |
+| `OpStackPostSettlementInputsMapping.h` | `toOpStackPostSettlementInputs(facade, settled)`（仅映射） |
+| `OpStackGasSettlement.h` | 执行后 gas/refund/floor 数学（`GasSettlement`） |
+| `OpStackFee.*`、`RollupCost.*`、`OpStackFloorGas.*` | L1/operator cost、rollup、floor gas |
 
 ## 执行流（ADR-021 Appendix A）
 
 ```text
 OpStackTransactionExecutorImpl
-  → applyOpStackMessage()
-  → runOpStackTxLifecycle
-      ├─ OpStackSettlementFacade { ctx, input, sidecar }
-      ├─ OpStackStateTransitionBindings::bind(bindingsCtx)
-      ├─ lifecycleCheckEntryRules
+  → applyOpStackMessage()                    [apply/]
+      ├─ OpStackSettlementFacade             [settlement/]
+      ├─ OpStackStateTransitionBindings::bind [apply/]
+      ├─ lifecycleCheckEntryRules            [apply/]
       ├─ deposit: gasPool → mint → pipeline → settleDeposit
-      └─ normal:  gasPool → checkpoint → NormalFeeSettlement.buyGas
-                  → pipeline → completeAfterPipeline
+      └─ normal:  gasPool → buyGas → pipeline → completeAfterPipeline
 ```
 
 测试见 `test/opstack/`。设计见 ADR-021（Appendix A）、ADR-023、ADR-025。

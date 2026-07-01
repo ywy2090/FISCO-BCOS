@@ -16,7 +16,7 @@
  * @file OpStackStateTransitionBindings.cpp
  */
 
-#include "bcos-evm/opstack/OpStackStateTransitionBindings.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
 
 namespace bcos::evm
 {

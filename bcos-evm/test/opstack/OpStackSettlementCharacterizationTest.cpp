@@ -4,9 +4,9 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackConstants.h"
-#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
+#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>

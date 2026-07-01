@@ -12,11 +12,11 @@
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/IntrinsicGasAccounting.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/opstack/OpStackDepositTx.h"
-#include "bcos-evm/opstack/OpStackFeeSettlement.h"
-#include "bcos-evm/opstack/OpStackForkSchedule.h"
-#include "bcos-evm/opstack/OpStackReceiptMeta.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
+#include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
+#include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
+#include "bcos-evm/opstack/types/OpStackDepositTx.h"
+#include "bcos-evm/opstack/types/OpStackReceiptMeta.h"
 #include <bcos-framework/executor/OpStackTxType.h>
 #include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>

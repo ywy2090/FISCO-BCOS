@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/precompiled/Eip2537Gas.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
+#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>

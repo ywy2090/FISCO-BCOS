@@ -1,10 +1,10 @@
 #pragma once
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
-#include "bcos-evm/opstack/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/OpStackDepositTx.h"
-#include "bcos-evm/opstack/OpStackSettlementFacade.h"
-#include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
+#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/types/OpStackDepositTx.h"
 #include <optional>
 
 namespace bcos::evm::test

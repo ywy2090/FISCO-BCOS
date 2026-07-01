@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackBlockHeaderExtensionTest
 
-#include "bcos-evm/opstack/OpStackBlockHeaderExtension.h"
+#include "bcos-evm/opstack/types/OpStackBlockHeaderExtension.h"
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <boost/test/included/unit_test.hpp>
 

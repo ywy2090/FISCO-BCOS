@@ -1,13 +1,13 @@
 #define BOOST_TEST_MODULE OpStackStateTransitionHooksTest
 
-#include "bcos-evm/opstack/OpStackStateTransitionHooks.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
-#include "bcos-evm/opstack/OpStackDepositTx.h"
-#include "bcos-evm/opstack/OpStackIsthmusRevision.h"
-#include "bcos-evm/opstack/OpStackSettlementFacade.h"
-#include "bcos-evm/opstack/OpStackStateTransitionBindings.h"
+#include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
+#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
+#include "bcos-evm/opstack/settlement/OpStackSettlementFacade.h"
+#include "bcos-evm/opstack/types/OpStackDepositTx.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"
