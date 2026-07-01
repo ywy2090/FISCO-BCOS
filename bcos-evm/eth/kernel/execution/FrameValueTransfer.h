@@ -21,7 +21,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
-#include "bcos-evm/eth/core/FrameScope.h"
+#include "bcos-evm/eth/kernel/FrameScope.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"

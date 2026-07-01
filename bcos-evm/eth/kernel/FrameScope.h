@@ -2,7 +2,7 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief TopLevel vs Nested execution frame scope (core seam type).
+ * @brief TopLevel vs Nested execution frame scope (kernel shared type).
  * @file FrameScope.h
  */
 

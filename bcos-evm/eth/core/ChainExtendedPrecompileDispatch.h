@@ -39,7 +39,7 @@
 #pragma once
 
 #include "bcos-evm/eth/core/CallTargetKind.h"
-#include "bcos-evm/eth/core/FrameScope.h"
+#include "bcos-evm/eth/kernel/FrameScope.h"
 #include <evmc/evmc.h>
 #include <functional>
 #include <optional>

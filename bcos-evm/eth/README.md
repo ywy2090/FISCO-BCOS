@@ -15,7 +15,7 @@
 | `kernel/` | 可移植执行内核（Tier 2–3；三链共用，含 `EVMCResult` 边界类型） |
 | `kernel/state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019；geth `stateTransition.execute`） |
 | `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 warm pin |
-| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch`、`CallTargetKind`、`FrameScope` 等 ADR-019/024 seam） |
+| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch`、`CallTargetKind` 等 ADR-019/024 seam） |
 | `eip/` | 单 EIP 实现（1559/2930/4844/7623/7702 等）与 revision 门控 |
 | `gas/` | 跨 EIP 协议 gas（intrinsic、fee settlement、通用常量） |
 | `policy/` | `EthChainPolicy`（revision / feature 策略） |
@@ -36,6 +36,8 @@
 | `kernel/state-transition/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
 | `kernel/execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
 | `kernel/execution/ExecutionAddressResolver.*` | 帧级 `executionAddress` 归一化（7702 / CREATE） |
+| `kernel/CallKind.h` | `isCreateKind` 等 EVMC call-kind 谓词（pipeline / execution 共用） |
+| `kernel/FrameScope.h` | `TopLevel` / `Nested` 帧作用域 |
 | `kernel/EVMCResult.*` | EVMC ↔ `TransactionStatus` 桥接（`adoptEvmcResult`） |
 | `RevisionConfig.h` | EIP 开关位域（`eth/` 根） |
 
@@ -44,7 +46,6 @@
 | 文件 | 角色 |
 | --- | --- |
 | `CallTargetKind.h` | `CallTargetKind`、`WarmPolicy`、`CallTargetDescriptor`（ADR-024；链 adapter 与 kernel 共用） |
-| `FrameScope.h` | `TopLevel` / `Nested` 帧作用域 |
 | `ChainExtendedPrecompileDispatch.h` | 链扩展 precompile 注入端口 |
 | `StateTransitionHooks.*` | 状态转换 hook 接口 + 默认 `innerExecute` 网关 |
 | `EvmHostHooks.*` | evmone 调用树内 host 策略接口 |
