@@ -60,6 +60,13 @@ check_pattern \
   '#include[[:space:]]*"bcos-evm/eth/kernel/execution/' \
   --include='*.h' --include='*.hpp'
 
+# kernel execution headers stay above concrete host implementation.
+check_pattern \
+  'eth/kernel/execution/ headers must not include eth/host/' \
+  'eth/kernel/execution/' \
+  '#include[[:space:]]*"bcos-evm/eth/host/' \
+  --include='*.h' --include='*.hpp'
+
 if [[ $status -eq 0 ]]; then
   echo "eth-layer-boundary gate: OK"
 fi

@@ -163,7 +163,7 @@ void prepareNestedMessage(FrameWork& work)
 void bindCreateForInit(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
-    bindCreateMessageForInit(work.host, callMessage,
+    bindCreateMessageForInit(work.ctx.executionAddress, callMessage,
         bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), work.ctx.state);
 }
 

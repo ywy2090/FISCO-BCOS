@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -65,7 +64,7 @@ inline evmc_address predictCreateAddress(
 }
 
 /// Bind CREATE recipient/code_address from sender nonce (no state mutation).
-inline void bindCreateMessageForInit(state::EthHost& host, evmc_message& message,
+inline void bindCreateMessageForInit(evmc_address& executionAddress, evmc_message& message,
     bcos::bytesConstRef initCode, state::State& state) noexcept
 {
     if (!isCreateKind(message.kind))
@@ -81,7 +80,7 @@ inline void bindCreateMessageForInit(state::EthHost& host, evmc_message& message
 
     message.recipient = createAddr;
     message.code_address = createAddr;
-    host.set_execution_address(createAddr);
+    executionAddress = createAddr;
 }
 
 /// Initialize CREATE target account (nonce=1, warm pin). Must run inside a checkpoint.
@@ -105,11 +104,11 @@ inline void initializeCreateTargetAccount(state::State& state, evmc_address cons
 }
 
 /// Set recipient/code_address, warm, and nonce=1 before initcode runs.
-inline void prepareCreateTargetBeforeInit(state::State& state, state::EthHost& host,
+inline void prepareCreateTargetBeforeInit(state::State& state, evmc_address& executionAddress,
     evmc_message& message, evmc_revision revision, bcos::bytesConstRef initCode,
     bool warmAccess) noexcept
 {
-    bindCreateMessageForInit(host, message, initCode, state);
+    bindCreateMessageForInit(executionAddress, message, initCode, state);
     initializeCreateTargetAccount(state, message.recipient, revision, warmAccess);
 }
 
