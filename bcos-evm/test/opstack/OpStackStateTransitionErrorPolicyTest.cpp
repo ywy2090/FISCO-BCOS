@@ -149,14 +149,14 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
     evmc_result raw{};
     raw.status_code = EVMC_INVALID_INSTRUCTION;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
-    ctx.kernelOutput.logs.push_back(state::LogEntry{});
+    ctx.logs.push_back(state::LogEntry{});
 
     OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
     BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INVALID_INSTRUCTION);
-    BOOST_CHECK_EQUAL(ctx.kernelOutput.logs.size(), 1U);
+    BOOST_CHECK_EQUAL(ctx.logs.size(), 1U);
 }
 
 // O-PCO-01: OpStack inherits base noop pipeline-complete hook.

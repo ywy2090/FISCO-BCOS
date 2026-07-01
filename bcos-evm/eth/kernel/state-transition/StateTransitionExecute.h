@@ -18,7 +18,7 @@ namespace bcos::evm
 /// Run one top-level state transition: preCheck → intrinsic gas → EVM → result adopt.
 ///
 /// Mutates \p ctx in place. On success or early-exit, read ctx.evmcResult,
-/// ctx.exitKind, and ctx.kernelOutput. Chain-specific behavior is injected through
+/// ctx.exitKind, ctx.logs, and ctx.stateDiff. Chain-specific behavior is injected through
 /// \p hooks (pre-execution) and \p errorPolicy (failure mapping / post-execute normalize).
 ///
 /// Prerequisites:

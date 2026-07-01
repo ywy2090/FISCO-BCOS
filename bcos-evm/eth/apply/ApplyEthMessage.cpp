@@ -12,7 +12,7 @@ namespace bcos::evm
 {
 namespace
 {
-std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& logs)
+std::vector<protocol::LogEntry> convertLogs(std::vector<state::LogEntry> const& logs)
 {
     std::vector<protocol::LogEntry> out;
     out.reserve(logs.size());
@@ -75,10 +75,10 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.topLevelIncludedTxVmError = ctx.topLevelIncludedTxVmError;
-    output.receiptLogs = convertLogs(ctx.kernelOutput.logs);
-    output.logs = std::move(ctx.kernelOutput.logs);
+    output.receiptLogs = convertLogs(ctx.logs);
+    output.logs = std::move(ctx.logs);
     output.message = ctx.message;
-    output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
+    output.stateDiff = std::move(ctx.stateDiff);
 
     if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
     {

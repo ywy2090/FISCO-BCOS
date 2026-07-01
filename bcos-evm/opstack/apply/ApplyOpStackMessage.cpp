@@ -105,7 +105,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
         stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 
         output.evmcResult = std::move(ctx.evmcResult);
-        output.logs = std::move(ctx.kernelOutput.logs);
+        output.logs = std::move(ctx.logs);
         output.gasAccounting = ctx.gasAccounting;
 
         auto settled =
@@ -140,7 +140,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
     stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 
     output.evmcResult = std::move(ctx.evmcResult);
-    output.logs = std::move(ctx.kernelOutput.logs);
+    output.logs = std::move(ctx.logs);
     output.gasAccounting = ctx.gasAccounting;
 
     co_await settlement.completeAfterPipeline(view, feeParams, gasPool, output);

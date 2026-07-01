@@ -7,10 +7,11 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-evm/eth/kernel/InnerExecuteTypes.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/IntrinsicGasAccounting.h"
+#include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
@@ -25,6 +26,7 @@ namespace bcos::evm
 {
 
 struct ChainExtendedPrecompileDispatch;
+struct InnerExecuteInput;
 
 enum class StateTransitionExitKind
 {
@@ -106,7 +108,9 @@ public:
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};
-    InnerExecuteOutput kernelOutput{};
+    state::StateDiff stateDiff;
+    std::vector<state::LogEntry> logs;
+    int64_t evmGasRefund{0};
     EVMCResult evmcResult{evmc_result{}};
     bool earlyExit{false};
     StateTransitionExitKind exitKind{StateTransitionExitKind::None};

@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/kernel/InnerExecuteTypes.h"
 
 namespace bcos::evm
 {

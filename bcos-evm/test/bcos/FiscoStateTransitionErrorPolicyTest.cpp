@@ -465,13 +465,13 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_success_with_fix_revert_lo
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::None);
-    ctx.kernelOutput.logs.push_back(state::LogEntry{});
+    ctx.logs.push_back(state::LogEntry{});
 
     FiscoStateTransitionErrorPolicy errorPolicy;
     errorPolicy.fixRevertLogs = true;
     errorPolicy.onFinalizeGasUsed(ctx);
 
-    BOOST_CHECK_EQUAL(ctx.kernelOutput.logs.size(), 1U);
+    BOOST_CHECK_EQUAL(ctx.logs.size(), 1U);
 }
 
 BOOST_AUTO_TEST_CASE(fisco_post_execute_clears_logs_on_revert_when_fix_revert_logs)
@@ -487,13 +487,13 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_clears_logs_on_revert_when_fix_revert_lo
     evmc_result raw{};
     raw.status_code = EVMC_REVERT;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
-    ctx.kernelOutput.logs.push_back(state::LogEntry{});
+    ctx.logs.push_back(state::LogEntry{});
 
     FiscoStateTransitionErrorPolicy errorPolicy;
     errorPolicy.fixRevertLogs = true;
     errorPolicy.onFinalizeGasUsed(ctx);
 
-    BOOST_CHECK(ctx.kernelOutput.logs.empty());
+    BOOST_CHECK(ctx.logs.empty());
 }
 
 BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_revert_without_fix_revert_logs)
@@ -509,13 +509,13 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_revert_without_fix_revert_
     evmc_result raw{};
     raw.status_code = EVMC_REVERT;
     ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
-    ctx.kernelOutput.logs.push_back(state::LogEntry{});
+    ctx.logs.push_back(state::LogEntry{});
 
     FiscoStateTransitionErrorPolicy errorPolicy;
     errorPolicy.fixRevertLogs = false;
     errorPolicy.onFinalizeGasUsed(ctx);
 
-    BOOST_CHECK_EQUAL(ctx.kernelOutput.logs.size(), 1U);
+    BOOST_CHECK_EQUAL(ctx.logs.size(), 1U);
 }
 
 // INT-02: stateTransitionExecute routes balance exceptions through Fisco error policy.

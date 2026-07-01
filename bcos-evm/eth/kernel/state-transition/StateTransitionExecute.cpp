@@ -9,7 +9,7 @@ namespace bcos::evm
 {
 namespace
 {
-void captureSettlementSnapshot(StateTransitionContext& ctx, InnerExecuteOutput const& kernelOutput)
+void captureSettlementSnapshot(StateTransitionContext& ctx)
 {
     if (ctx.intrinsicDebitMode != IntrinsicDebitMode::Eip7623)
     {
@@ -19,7 +19,7 @@ void captureSettlementSnapshot(StateTransitionContext& ctx, InnerExecuteOutput c
     ctx.snapshot.gasLimit = ctx.originalGasLimit;
     ctx.snapshot.calldata =
         gas::calcEip7623Components(bytesConstRef(ctx.message.input_data, ctx.message.input_size));
-    ctx.snapshot.evmGasRefund = kernelOutput.gasRefund;
+    ctx.snapshot.evmGasRefund = ctx.evmGasRefund;
 }
 }  // namespace
 
@@ -128,10 +128,13 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
         ctx.gasAccounting.gasAtEvmEntry = executeInput.message.gas;
         ctx.gasAccounting.reachedEvmEntry = true;
 
-        ctx.kernelOutput = hooks.onInvokeInnerExecute(std::move(executeInput));
-        ctx.evmcResult = adoptEvmcResult(std::move(ctx.kernelOutput.result), *ctx.inputs.hashImpl);
+        auto kernelOutput = hooks.onInvokeInnerExecute(std::move(executeInput));
+        ctx.evmcResult = adoptEvmcResult(std::move(kernelOutput.result), *ctx.inputs.hashImpl);
+        ctx.stateDiff = std::move(kernelOutput.stateDiff);
+        ctx.logs = std::move(kernelOutput.logs);
+        ctx.evmGasRefund = kernelOutput.gasRefund;
 
-        captureSettlementSnapshot(ctx, ctx.kernelOutput);
+        captureSettlementSnapshot(ctx);
 
         errorPolicy.onFinalizeGasUsed(ctx);
         ctx.exitKind = StateTransitionExitKind::Completed;
@@ -140,8 +143,8 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
                        << LOG_KV("exit", trace::exitKind(ctx.exitKind))
                        << LOG_KV("status", trace::evmcStatus(ctx.evmcResult.status_code))
                        << LOG_KV("gasLeft", ctx.evmcResult.gas_left)
-                       << LOG_KV("gasRefund", ctx.kernelOutput.gasRefund)
-                       << LOG_KV("logCount", ctx.kernelOutput.logs.size());
+                       << LOG_KV("gasRefund", ctx.evmGasRefund)
+                       << LOG_KV("logCount", ctx.logs.size());
     }
     catch (...)
     {

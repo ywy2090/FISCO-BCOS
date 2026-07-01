@@ -98,7 +98,7 @@ struct FiscoStateTransitionErrorPolicy : StateTransitionErrorPolicy
 
         if (fixRevertLogs && ctx.evmcResult.status_code != EVMC_SUCCESS)
         {
-            ctx.kernelOutput.logs.clear();
+            ctx.logs.clear();
         }
     }
 

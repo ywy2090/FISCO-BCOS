@@ -115,7 +115,7 @@ task::Task<FiscoMessageResult> applyFiscoMessage(FiscoMessageRequest input)
                    << LOG_KV("gasLeft", ctx.evmcResult.gas_left) << LOG_KV("web3Tx", input.web3Tx);
 
     output.evmcResult = std::move(ctx.evmcResult);
-    output.executionContext.logs = convertLogs(ctx.kernelOutput.logs);
+    output.executionContext.logs = convertLogs(ctx.logs);
     output.executionContext.message = ctx.message;
 
     if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
@@ -125,7 +125,7 @@ task::Task<FiscoMessageResult> applyFiscoMessage(FiscoMessageRequest input)
 
     if (output.evmcResult.status_code == EVMC_SUCCESS)
     {
-        output.stateDiff = std::move(ctx.kernelOutput.stateDiff);
+        output.stateDiff = std::move(ctx.stateDiff);
     }
     else if (input.revisionConfig.fix_revert_logs)
     {
