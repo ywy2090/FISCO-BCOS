@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/apply/EthEvmResult.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
+#include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.h>
@@ -59,6 +60,12 @@ std::optional<EVMCResult> ethTxPrecheck(EthMessageRequest const& input, state::S
     }
 
     if (!isTypedTxKindSupportedByRevision(input.web3TypedTxKind, input.revisionConfig))
+    {
+        return makeEvmcResult(protocol::TransactionStatus::Malformed);
+    }
+
+    if (isInitCodeSizeExceeded(input.revisionConfig.revision, input.message.kind,
+            static_cast<size_t>(input.message.input_size)))
     {
         return makeEvmcResult(protocol::TransactionStatus::Malformed);
     }

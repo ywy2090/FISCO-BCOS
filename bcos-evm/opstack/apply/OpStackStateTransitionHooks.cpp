@@ -18,6 +18,7 @@
 
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
+#include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
@@ -146,6 +147,14 @@ void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContex
             return;
         }
         if (input.authorizationListPresent && input.authorizations.empty())
+        {
+            ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
+            ctx.earlyExit = true;
+            return;
+        }
+
+        if (isInitCodeSizeExceeded(input.revisionConfig.revision, input.message.kind,
+                static_cast<size_t>(input.message.input_size)))
         {
             ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
             ctx.earlyExit = true;

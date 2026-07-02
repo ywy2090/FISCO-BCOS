@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "opstack.eest.shanghai.state.eip3860",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3860_initcode",
+      "forkProfileId": "eth-shanghai",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip3860-initcode"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

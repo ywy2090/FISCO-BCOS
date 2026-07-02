@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip5656",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip5656_mcopy",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip5656-mcopy"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

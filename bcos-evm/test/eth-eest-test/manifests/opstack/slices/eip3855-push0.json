@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "opstack.eest.shanghai.state.eip3855",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/shanghai/eip3855_push0",
+      "forkProfileId": "eth-shanghai",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip3855-push0"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

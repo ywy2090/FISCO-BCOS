@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "opstack.eest.cancun.state.eip1153",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore",
+      "forkProfileId": "eth-cancun",
+      "path": "OpStackBaseline",
+      "evidenceKind": "BaselineReachability",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException"]
+    }
+  ]
+}

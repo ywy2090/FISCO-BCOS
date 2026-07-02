@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
+#include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -138,5 +139,40 @@ BOOST_AUTO_TEST_CASE(rejects_tx_nonce_at_uint64_max)
     auto error = ethTxPrecheck(input, state);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::NonceCheckFail);
+}
+
+BOOST_AUTO_TEST_CASE(rejects_oversized_initcode_on_shanghai)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x17);
+    state::State state(stateView);
+
+    bytes initcode(MAX_INIT_CODE_SIZE + 1, 0x00);
+    auto input = makeInput(sender);
+    input.message.kind = EVMC_CREATE;
+    input.message.input_data = initcode.data();
+    input.message.input_size = initcode.size();
+    input.revisionConfig.revision = EVMC_SHANGHAI;
+
+    auto error = ethTxPrecheck(input, state);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+}
+
+BOOST_AUTO_TEST_CASE(allows_max_initcode_size_on_shanghai)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x18);
+    state::State state(stateView);
+
+    bytes initcode(MAX_INIT_CODE_SIZE, 0x00);
+    auto input = makeInput(sender);
+    input.message.kind = EVMC_CREATE;
+    input.message.input_data = initcode.data();
+    input.message.input_size = initcode.size();
+    input.revisionConfig.revision = EVMC_SHANGHAI;
+
+    auto error = ethTxPrecheck(input, state);
+    BOOST_CHECK(!error.has_value());
 }
 }  // namespace bcos::evm::test

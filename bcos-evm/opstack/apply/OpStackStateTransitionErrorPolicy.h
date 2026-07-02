@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth/kernel/state-transition/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-evm/opstack/apply/OpStackEvmResult.h"
 
@@ -23,6 +24,16 @@ struct OpStackStateTransitionErrorPolicy : StateTransitionErrorPolicy
         {
             ctx.state.revert();
         }
+    }
+
+    /// Included top-level vmerr settlement (ADR-015 state semantics).
+    /// Does not apply normalizeSetCodeTransactionVmerr — OpStack keeps failed receipt for 7702
+    /// REVERT per op-geth parity (see opstack-vs-op-geth-parity-validation D3).
+    void onFinalizeGasUsed(StateTransitionContext& ctx) const override
+    {
+        ctx.topLevelIncludedTxVmError =
+            isTopLevelIncludedTxVmError(ctx.evmcResult.status_code, ctx.message.depth);
+        normalizeIncludedTxVmerr(ctx.evmcResult, ctx.message.depth);
     }
 };
 

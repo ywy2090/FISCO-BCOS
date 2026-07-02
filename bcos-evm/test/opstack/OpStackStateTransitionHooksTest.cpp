@@ -2,6 +2,7 @@
 
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
@@ -64,6 +65,28 @@ BOOST_AUTO_TEST_CASE(entry_rules_deposit_system_tx_rejected)
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
+
+    auto error = runOpStackEntryLifecycleCheck(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+    BOOST_CHECK_EQUAL(error->status_code, EVMC_FAILURE);
+}
+
+BOOST_AUTO_TEST_CASE(entry_rules_rejects_oversized_initcode)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x04);
+
+    bytes initcode(MAX_INIT_CODE_SIZE + 1, 0x00);
+    evmc_message message{};
+    message.sender = sender;
+    message.kind = EVMC_CREATE;
+    message.input_data = initcode.data();
+    message.input_size = initcode.size();
+
+    OpStackMessageRequest input;
+    input.message = message;
+    input.revisionConfig.revision = EVMC_SHANGHAI;
 
     auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());

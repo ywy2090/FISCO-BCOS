@@ -135,8 +135,8 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
     BOOST_CHECK_EQUAL(ctx.state.get_balance(sender), 2'000);
 }
 
-// O-PEN-01: OpStack inherits base noop post-execute normalization.
-BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
+// O-PEN-01: included top-level vmerr normalizes status_code for settlement (ADR-015).
+BOOST_AUTO_TEST_CASE(opstack_post_execute_normalizes_included_top_level_vmerr)
 {
     state::test::InMemoryStateView stateView;
 
@@ -154,9 +154,55 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalize_is_noop)
     OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
-    BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
-    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INVALID_INSTRUCTION);
+    BOOST_CHECK(ctx.topLevelIncludedTxVmError);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::BadInstruction));
     BOOST_CHECK_EQUAL(ctx.logs.size(), 1U);
+}
+
+BOOST_AUTO_TEST_CASE(opstack_post_execute_normalizes_stack_overflow_for_settlement)
+{
+    state::test::InMemoryStateView stateView;
+
+    evmc_message message{};
+    message.depth = 0;
+
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    evmc_result raw{};
+    raw.status_code = EVMC_STACK_OVERFLOW;
+    ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::Unknown);
+
+    OpStackStateTransitionErrorPolicy errorPolicy;
+    errorPolicy.onFinalizeGasUsed(ctx);
+
+    BOOST_CHECK(ctx.topLevelIncludedTxVmError);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::OutOfStack));
+}
+
+BOOST_AUTO_TEST_CASE(opstack_post_execute_keeps_top_level_revert_without_auth_list)
+{
+    state::test::InMemoryStateView stateView;
+
+    evmc_message message{};
+    message.depth = 0;
+
+    StateTransitionContext ctx{
+        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+
+    evmc_result raw{};
+    raw.status_code = EVMC_REVERT;
+    ctx.evmcResult = EVMCResult(raw, protocol::TransactionStatus::RevertInstruction);
+
+    OpStackStateTransitionErrorPolicy errorPolicy;
+    errorPolicy.onFinalizeGasUsed(ctx);
+
+    BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_REVERT);
 }
 
 // O-PCO-01: OpStack inherits base noop pipeline-complete hook.

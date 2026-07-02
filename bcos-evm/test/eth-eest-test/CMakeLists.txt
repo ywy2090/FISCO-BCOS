@@ -482,4 +482,50 @@ add_test(NAME OpStackEestManifestStateFull COMMAND OpStackEestManifestStateTest
 )
 set_tests_properties(OpStackEestManifestStateFull PROPERTIES
     LABELS "specs-tests;specs-tests-full;opstack;eest;manifest;nightly"
+    TIMEOUT 7200
 )
+
+# Per-collection manifest slices (run individually; avoid monolithic Full timeout).
+set(_OPSTACK_MANIFEST_SLICE_DIR ${EEST_MANIFEST_DIR}/opstack/slices)
+set(_OPSTACK_MANIFEST_SLICE_COMMON
+    COMMAND OpStackEestManifestStateTest
+    --eest-root ${EVM_REF_EEST_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/opstack/opstack-expectations.json
+)
+set(_OPSTACK_MANIFEST_SLICE_LABELS "specs-tests;specs-tests-slice;opstack;eest;manifest")
+
+add_test(NAME OpStackEestManifestSliceEip3855 ${_OPSTACK_MANIFEST_SLICE_COMMON}
+    --manifest ${_OPSTACK_MANIFEST_SLICE_DIR}/eip3855-push0.json
+)
+set_tests_properties(OpStackEestManifestSliceEip3855 PROPERTIES
+    LABELS "${_OPSTACK_MANIFEST_SLICE_LABELS}" TIMEOUT 600)
+
+add_test(NAME OpStackEestManifestSliceEip3860 ${_OPSTACK_MANIFEST_SLICE_COMMON}
+    --manifest ${_OPSTACK_MANIFEST_SLICE_DIR}/eip3860-initcode.json
+)
+set_tests_properties(OpStackEestManifestSliceEip3860 PROPERTIES
+    LABELS "${_OPSTACK_MANIFEST_SLICE_LABELS}" TIMEOUT 600)
+
+add_test(NAME OpStackEestManifestSliceEip1153 ${_OPSTACK_MANIFEST_SLICE_COMMON}
+    --manifest ${_OPSTACK_MANIFEST_SLICE_DIR}/eip1153-tstore.json
+)
+set_tests_properties(OpStackEestManifestSliceEip1153 PROPERTIES
+    LABELS "${_OPSTACK_MANIFEST_SLICE_LABELS}" TIMEOUT 14400)
+
+add_test(NAME OpStackEestManifestSliceEip1153Oog ${_OPSTACK_MANIFEST_SLICE_COMMON}
+    --manifest ${_OPSTACK_MANIFEST_SLICE_DIR}/eip1153-tstore-oog.json
+)
+set_tests_properties(OpStackEestManifestSliceEip1153Oog PROPERTIES
+    LABELS "${_OPSTACK_MANIFEST_SLICE_LABELS}" TIMEOUT 3600)
+
+add_test(NAME OpStackEestManifestSliceEip5656 ${_OPSTACK_MANIFEST_SLICE_COMMON}
+    --manifest ${_OPSTACK_MANIFEST_SLICE_DIR}/eip5656-mcopy.json
+)
+set_tests_properties(OpStackEestManifestSliceEip5656 PROPERTIES
+    LABELS "${_OPSTACK_MANIFEST_SLICE_LABELS}" TIMEOUT 7200)
+
+add_test(NAME OpStackEestManifestSliceEip7702 ${_OPSTACK_MANIFEST_SLICE_COMMON}
+    --manifest ${_OPSTACK_MANIFEST_SLICE_DIR}/eip7702-set-code.json
+)
+set_tests_properties(OpStackEestManifestSliceEip7702 PROPERTIES
+    LABELS "${_OPSTACK_MANIFEST_SLICE_LABELS}" TIMEOUT 3600)
