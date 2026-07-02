@@ -498,6 +498,8 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_via_te)
         BOOST_CHECK_EQUAL(parseHexU256(receipt->depositNonce().value()), u256(0));
         BOOST_REQUIRE(receipt->depositReceiptVersion().has_value());
         BOOST_CHECK_EQUAL(parseHexU256(receipt->depositReceiptVersion().value()), u256(1));
+        BOOST_CHECK(!receipt->daFootprintGasScalar().has_value());
+        BOOST_CHECK(!receipt->blobGasUsed().has_value());
 
         ledger::account::EVMAccount depositor(storage, OP_DEPOSITOR_ACCOUNT, false);
         BOOST_CHECK_EQUAL((co_await depositor.nonce()).value(), "1");
