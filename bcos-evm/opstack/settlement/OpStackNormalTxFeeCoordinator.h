@@ -1,7 +1,18 @@
-#pragma once
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Normal L2 tx fee lifecycle orchestrator.
+ * @file OpStackNormalTxFeeCoordinator.h
+ *
+ * Wires ApplyOpStackMessage pipeline stages for non-deposit txs:
+ *   buyGas → stateTransitionExecute → completeAfterPipeline
+ *        (debit)      (EVM)              (commit + refund + receipt meta)
+ *
+ * Deposit txs bypass this coordinator and use settleDeposit directly.
+ */
 
-// Orchestrates normal (non-deposit) L2 tx fee lifecycle in applyOpStackMessage:
-// buyGas → stateTransitionExecute → completeAfterPipeline.
+#pragma once
 
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"

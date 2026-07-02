@@ -1,6 +1,7 @@
 #include "bcos-evm/opstack/l1/GasPriceOraclePredeploy.h"
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/l1/GasPriceOracleSelectors.h"
@@ -53,6 +54,8 @@ u256 readU256At(bytesConstRef input, size_t offset)
 
 std::optional<bytesConstRef> decodeAbiBytes(bytesConstRef input)
 {
+    // ABI dynamic bytes: selector + offset(32) + length(32) + payload.
+    // Expect offset == 32 (single arg) and length <= remaining calldata.
     if (input.size() < 68)
     {
         return std::nullopt;
@@ -111,6 +114,7 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
     evmc_message const& msg, bcos::u256 l2BaseFee, OpStackForkSchedule const& forkSchedule,
     uint64_t blockTime)
 {
+    // l2BaseFee and blockTime are injected by OpStackChainCallTargetAdapter (not read from state).
     bytesConstRef input{msg.input_data, msg.input_size};
     if (input.size() < 4)
     {
@@ -127,6 +131,7 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
     {
     case gpo::kGasPrice:
     case gpo::kBaseFee:
+        // L2 execution base fee for the current block (wei); same value for both selectors.
         return successWithU256(msg.gas, l2BaseFee);
     case gpo::kDecimals:
         return successWithU256(msg.gas, 6);
@@ -136,9 +141,10 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
         // Under Isthmus+ schedule these forks are always active.
         return successWithU256(msg.gas, 1);
     case gpo::kIsJovian:
+        // Jovian activation is time-gated via fork schedule + block timestamp.
         return successWithU256(
             msg.gas, isOpStackJovian(forkSchedule, blockTime) ? u256(1) : u256(0));
-    // Legacy Bedrock APIs; revert after Ecotone
+    // Pre-Ecotone Bedrock APIs; GasPriceOracle.sol reverts these after Ecotone activation.
     case gpo::kOverhead:
     case gpo::kScalar:
         return makeResult(EVMC_REVERT, msg.gas);
@@ -149,6 +155,7 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
         {
             return makeResult(EVMC_REVERT, msg.gas);
         }
+        // Fjord formula: l1CostFjord(RollupCostData, L1Block scalars from state).
         auto const fee = l1CostFjord(newRollupCostData(*txBytes), loadOpStackFeeParams(state));
         return successWithU256(msg.gas, fee);
     }
@@ -160,7 +167,7 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
             return makeResult(EVMC_REVERT, msg.gas);
         }
         auto const fastLzSize = static_cast<uint64_t>(flzCompressLen(*txBytes)) + 68;
-        // Matches op-geth getL1GasUsed: estimatedSize * 16 / 1e6
+        // op-geth getL1GasUsed: fjordLinearRegression(fastLzSize) * 16 / 1e6
         auto const gasUsed = fjordLinearRegression(fastLzSize) * 16 / 1'000'000;
         return successWithU256(msg.gas, gasUsed);
     }
@@ -172,6 +179,7 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
         }
         auto const gasUsed = readU256At(input, 4);
         auto const params = loadOpStackFeeParams(state);
+        // Isthmus: scalar*gas + constant; Jovian adds daFootprintGasScalar term.
         auto const fee = isOpStackJovian(forkSchedule, blockTime) ?
                              operatorCostJovian(static_cast<uint64_t>(gasUsed), params) :
                              operatorCostIsthmus(static_cast<uint64_t>(gasUsed), params);

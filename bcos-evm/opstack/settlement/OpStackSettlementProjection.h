@@ -1,7 +1,15 @@
-#pragma once
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Unified read-only facade for fee planning inputs.
+ * @file OpStackSettlementProjection.h
+ *
+ * Decouples opstack/fee/* planners from ApplyOpStackMessage internals by exposing
+ * ctx + OpStackMessageRequest + OpStackFeeSidecar through a single view type.
+ */
 
-// Unified read-only view for fee modules: pipeline ctx + OpStackMessageRequest + fee sidecar.
-// Keeps opstack/fee/* planners free of ApplyOpStackMessage internals.
+#pragma once
 
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"

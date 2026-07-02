@@ -1,6 +1,15 @@
-#pragma once
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief GasPriceOracle.sol function selectors.
+ * @file GasPriceOracleSelectors.h
+ *
+ * Selectors ending in the L1Block proxy group are forwarded to L1BlockPredeploy::dispatchGetter
+ * without re-executing L1Block bytecode (see GasPriceOraclePredeploy::dispatchL1BlockProxyGetter).
+ */
 
-// GasPriceOracle.sol function selectors; aligned with op-geth predeploy ABI.
+#pragma once
 
 #include <cstdint>
 

@@ -1,6 +1,7 @@
 #include "bcos-evm/opstack/l1/L1BlockStorage.h"
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include <algorithm>
 #include <cstring>
@@ -10,6 +11,8 @@ namespace bcos::evm
 {
 namespace
 {
+// Calldata helpers: setL1BlockValues* uses a fixed big-endian layout (not standard ABI tuple).
+
 uint32_t readU32(bytesConstRef calldata, size_t offset)
 {
     return (static_cast<uint32_t>(calldata[offset]) << 24) |
@@ -51,7 +54,13 @@ std::optional<IsthmusL1Attributes> parseIsthmusL1Attributes(bytesConstRef callda
         return std::nullopt;
     }
 
-    // Calldata: selector(4) + ABI-encoded tuple (see op-geth deposit tx construction)
+    // Offsets after 4-byte selector (176 bytes total = ISTHMUS_L1_ATTRIBUTES_LEN):
+    //   [4..8)   baseFeeScalar      [8..12)  blobBaseFeeScalar
+    //   [12..20) sequenceNumber     [20..28) timestamp
+    //   [28..36) l1BlockNumber      [36..68) l1BaseFee (bytes32)
+    //   [68..100) l1BlobBaseFee     [100..132) hash
+    //   [132..164) batcherHash      [164..168) operatorFeeScalar
+    //   [168..176) operatorFeeConstant
     IsthmusL1Attributes parsed;
     parsed.baseFeeScalar = readU32(calldata, 4);
     parsed.blobBaseFeeScalar = readU32(calldata, 8);
@@ -82,6 +91,7 @@ std::optional<JovianL1Attributes> parseJovianL1Attributes(bytesConstRef calldata
 
     JovianL1Attributes parsed;
     static_cast<IsthmusL1Attributes&>(parsed) = *isthmus;
+    // Jovian appends uint16 daFootprintGasScalar at bytes [176..178).
     parsed.daFootprintGasScalar = static_cast<uint16_t>(
         (static_cast<uint16_t>(calldata[176]) << 8) | static_cast<uint16_t>(calldata[177]));
     return parsed;
@@ -155,6 +165,7 @@ u256 unpackTimestamp(evmc_bytes32 const& packed)
 
 u256 unpackSequenceNumber(evmc_bytes32 const& packed)
 {
+    // Slot 3 packs sequenceNumber in bytes[24..32), same layout as number in slot 0.
     return unpackNumber(packed);
 }
 
@@ -193,6 +204,7 @@ u256 unpackDaFootprintGasScalar(evmc_bytes32 const& packed)
 
 bytes encodeAbiString(std::string_view value)
 {
+    // ABI string: offset word (32) + length word + data padded to 32 bytes.
     bytes out(64, 0);
     out[31] = 32;
     auto const length = value.size();
@@ -231,7 +243,8 @@ bytes encodeGasPayingToken()
 
 bool readFeatureEnabled(state::State& state, evmc_bytes32 const& key)
 {
-    // Solidity: mapping(bytes32 => bool) at slot L1_FEATURE_ENABLED_MAPPING_SLOT
+    // Solidity: mapping(bytes32 => bool) at slot L1_FEATURE_ENABLED_MAPPING_SLOT (9).
+    // Storage key = keccak256(abi.encode(key, slot)).
     uint8_t buf[64];
     std::memcpy(buf, key.bytes, 32);
     std::memset(buf + 32, 0, 31);

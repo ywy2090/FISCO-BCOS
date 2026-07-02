@@ -33,6 +33,7 @@ bool OpStackSettlementProjection::noBaseFee() const noexcept
 
 bool OpStackSettlementProjection::hasGasFeeCap() const noexcept
 {
+    // OpStack typed txs always carry EIP-1559 fee caps on the execution request.
     return true;
 }
 

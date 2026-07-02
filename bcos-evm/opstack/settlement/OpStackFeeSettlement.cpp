@@ -27,7 +27,7 @@ task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementProjection view)
 
     if (view.isCall() || view.isDeposit())
     {
-        // eth_call and deposit txs skip L1/operator pre-debit.
+        // eth_call and system deposits do not pre-debit L1/operator fees from sender.
         co_return true;
     }
     if (ctx.originalGasLimit <= 0)
@@ -47,6 +47,7 @@ task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementProjection view)
 
     auto const plan = planOpStackPreDebit(toOpStackPreDebitInputs(view), hooks);
 
+    // Persist debit snapshot for post-execution refundGas and receipt projection.
     sidecar.effectiveGasPrice = plan.sidecar.effectiveGasPrice;
     sidecar.baseFee = plan.sidecar.baseFee;
     sidecar.l1CostCharged = plan.sidecar.l1CostCharged;
@@ -74,9 +75,10 @@ task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
 {
     if (view.isDeposit())
     {
+        // Deposits use a separate settlement path (settleDeposit); no fee routing here.
         co_return OpStackPostSettlementPlan{};
     }
-    // Zero-fee eth_call: no refund routing or recipient credits.
+    // Zero-fee eth_call (gasFeeCap=0, gasTipCap=0, noBaseFee): skip all balance mutations.
     if (view.isCall() && view.skipTransactionChecks() && view.noBaseFee() &&
         view.gasFeeCap() == 0 && view.gasTipCap() == 0)
     {
@@ -97,11 +99,12 @@ task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
 
     addBalance(state, ctx.message.sender, plan.core1559.unusedRefund + plan.senderOperatorRefund);
     addBalance(state, view.blockInfo().coinbase, plan.core1559.coinbaseTip);
-    // Route OP Stack fees to system predeploy recipients (not burned).
+    // OP Stack: base/L1/operator fees go to system predeploy recipients (not burned).
     addBalance(state, m_baseFeeRecipient, plan.core1559.baseFeeAmount);
     addBalance(state, m_l1FeeRecipient, plan.l1FeeRouted);
     if (hooks.operatorCostFunc != nullptr)
     {
+        // Operator fee only routed when Isthmus+ schedule wires operatorCostFunc.
         addBalance(state, m_operatorFeeRecipient, plan.operatorFeeCharged);
     }
 

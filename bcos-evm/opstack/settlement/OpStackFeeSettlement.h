@@ -1,7 +1,19 @@
-#pragma once
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Ledger-layer fee debit and post-execution refund routing.
+ * @file OpStackFeeSettlement.h
+ *
+ * Implements op-geth StateProcessor buyGas / refundGas for OP Stack:
+ *   buyGas    — pre-debit sender: EIP-1559 effective gas + L1 data fee + operator fee + blob fee
+ *   refundGas — unused gas refund + route base/L1/operator fees to predeploy recipients
+ *
+ * Fee math lives in opstack/fee/* (planOpStackPreDebit / planOpStackPostSettlement); this
+ * struct owns balance mutations and recipient addresses only.
+ */
 
-// Ledger layer: pre-debit (buyGas) and post-execution refund + fee routing.
-// Aligns with op-geth StateProcessor buyGas / refundGas; uses opstack/fee/* for plan math.
+#pragma once
 
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
@@ -23,16 +35,18 @@ struct OpStackTxFinalizeResult;
 
 struct OpStackFeeSettlement
 {
+    /// Fork-aware L1 cost estimator (Fjord linear regression over RollupCostData).
     std::function<u256(const RollupCostData&, uint64_t blockTime)> m_l1CostFunc;
+    /// Fork-aware operator fee ceiling (Isthmus scalar+constant; Jovian adds daFootprint).
     std::function<u256(uint64_t gasLimit, uint64_t blockTime)> m_operatorCostFunc;
-    // OP Stack predeploy fee recipients (OpStackConstants.h)
+    /// OP Stack predeploy fee recipients (OpStackConstants.h); fees are credited, not burned.
     evmc_address m_baseFeeRecipient = OP_BASE_FEE_RECIPIENT;
     evmc_address m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
     evmc_address m_operatorFeeRecipient = OP_OPERATOR_FEE_RECIPIENT;
 
-    /// Pre-execution debit: EIP-1559 + L1 + operator + blob. Skipped for call/deposit.
+    /// Pre-execution debit: EIP-1559 + L1 + operator + blob. Skipped for eth_call and deposits.
     task::Task<bool> buyGas(OpStackSettlementProjection view);
-    /// Post-execution: unused gas refund to sender, route fees to coinbase + predeploy recipients.
+    /// Post-execution: unused gas refund to sender; route fees to coinbase + predeploy recipients.
     task::Task<OpStackPostSettlementPlan> refundGas(
         OpStackSettlementProjection& view, OpStackTxFinalizeResult const& settled);
 };

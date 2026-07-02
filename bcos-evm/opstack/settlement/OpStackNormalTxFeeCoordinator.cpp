@@ -16,6 +16,7 @@ struct NormalSettleOutcome
     OpStackPostSettlementPlan feePlan;
 };
 
+/// Populate OP Stack receipt metadata (l1Fee, operatorFee, Jovian daFootprint).
 void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementProjection& view,
     OpStackFeeParams const& feeParams, OpStackTxFinalizeResult const& settled,
     OpStackPostSettlementPlan const& feePlan)
@@ -44,6 +45,7 @@ void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementPro
     }
 }
 
+/// Post-EVM settlement: gas metering → refundGas → gas pool release.
 task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementProjection view,
     StateTransitionExitKind exitKind, OpStackFeeSettlement& ledger, GasPoolHooks const& gasPool)
 {
@@ -67,6 +69,7 @@ task::Task<bool> OpStackNormalTxFeeCoordinator::buyGas(
     auto const ok = co_await ledger.buyGas(view);
     if (!ok)
     {
+        // Insufficient balance: revert checkpoint, release gas pool, surface evmcResult.
         abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
         output.evmcResult = std::move(ctx.evmcResult);
         co_return false;
@@ -81,13 +84,14 @@ task::Task<void> OpStackNormalTxFeeCoordinator::completeAfterPipeline(
     auto& ctx = view.pipelineContext();
     if (isNormalPreExecutionReject(ctx.exitKind))
     {
+        // Intrinsic/gas-afford reject before EVM: no gas charged, revert buyGas debit.
         abortNormalAfterBuyGas(ctx, gasPool, output, ctx.originalGasLimit);
         co_return;
     }
 
     ctx.state.commit();
 
-    // EVM checkpoint committed; finalize gas metering, refund, and receipt meta.
+    // EVM checkpoint committed; finalize gas metering, refund balances, project receipt.
     auto outcome = co_await settleNormal(view, ctx.exitKind, ledger, gasPool);
     output.gasUsed = outcome.settled.gasUsed;
     projectNormalReceiptMeta(output, view, feeParams, outcome.settled, outcome.feePlan);

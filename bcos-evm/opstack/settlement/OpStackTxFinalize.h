@@ -1,8 +1,23 @@
-#pragma once
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Post-execution gas metering and deposit finalization.
+ * @file OpStackTxFinalize.h
+ *
+ * Normal txs: compute gasUsed/gasRemaining/maxUsedGas via postExecuteGasSettlement
+ * (combines gas_left, SSTORE refund, Regolith+ floorDataGas).
+ *
+ * Deposit txs: op-geth deposit rules — always bump depositor nonce; success commits
+ * state, revert discards execution changes but still advances nonce.
+ *
+ * OpStackTxFinalizeResult fields:
+ *   gasUsed       — gas charged to sender / reported on receipt
+ *   gasRemaining  — unused portion of gas limit returned to block pool
+ *   maxUsedGas    — max(gasUsed, floorDataGas); operator fee basis (Isthmus+)
+ */
 
-// Gas metering and state finalization after EVM execution.
-// Normal txs: gasUsed/refund via postExecuteGasSettlement.
-// Deposit txs: commit/revert + depositor nonce bump (op-geth deposit rules).
+#pragma once
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
@@ -18,7 +33,9 @@ struct OpStackMessageResult;
 
 struct GasPoolHooks
 {
-    std::function<bool(uint64_t)> subGas;  // block-level gas pool acquire (applyOpStackMessage)
+    /// Block-level gas pool acquire (applyOpStackMessage).
+    std::function<bool(uint64_t)> subGas;
+    /// Return unused gas limit and report consumed gas after settlement.
     std::function<void(uint64_t gasRemaining, uint64_t gasUsed)> returnGas;
 };
 
@@ -26,7 +43,7 @@ struct OpStackTxFinalizeResult
 {
     int64_t gasUsed{0};
     uint64_t gasRemaining{0};
-    uint64_t maxUsedGas{0};  // max(gasUsed, floorDataGas) for operator fee basis
+    uint64_t maxUsedGas{0};
 };
 
 /// Intrinsic or gas-afford rejection before EVM runs; no gas charged.

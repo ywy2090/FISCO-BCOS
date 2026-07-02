@@ -15,6 +15,7 @@ void releaseGasPoolFullLimit(GasPoolHooks const& gasPool, int64_t originalGasLim
     {
         return;
     }
+    // Abort path: return entire gas limit, zero consumed.
     auto const gasLimitForPool = static_cast<uint64_t>(std::max<int64_t>(0, originalGasLimit));
     gasPool.returnGas(gasLimitForPool, 0);
 }
@@ -26,7 +27,7 @@ void applyPostExecuteSettlement(
         gas::isEip1559GasRefundEnabled(ctx.revisionConfig) ?
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_refund)) :
             uint64_t{0};
-    // Combines gas_left, SSTORE refund, and Regolith+ floorDataGas minimum.
+    // gasUsed = limit - gas_left - refund; maxUsedGas = max(gasUsed, floorDataGas).
     auto const settlement =
         postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit)),
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_left)), stateRefund,
@@ -70,6 +71,7 @@ OpStackTxFinalizeResult finalizeNormal(StateTransitionContext const& ctx,
     if (exitKind == StateTransitionExitKind::IntrinsicRejected ||
         exitKind == StateTransitionExitKind::GasAffordRejected)
     {
+        // Pre-execution reject: no gas consumed; full limit returned to block pool.
         out.gasUsed = 0;
         out.gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit));
         return out;
@@ -102,7 +104,7 @@ OpStackTxFinalizeResult finalizeDeposit(
 
     if (exitKind == StateTransitionExitKind::Completed)
     {
-        // Reverted deposit: discard state changes but still advance depositor nonce.
+        // Reverted deposit: discard execution state but always advance depositor nonce (op-geth).
         applyDepositPostExecuteSettlement(ctx, out);
         if (ctx.state.has_checkpoint())
         {
@@ -114,7 +116,7 @@ OpStackTxFinalizeResult finalizeDeposit(
 
     out.gasUsed = std::max<int64_t>(0, ctx.originalGasLimit);
     out.gasRemaining = 0;
-    // Entry failure (e.g. intrinsic gas): charge full gas limit, revert, bump nonce.
+    // Entry failure (intrinsic gas / validation): charge full gas limit, revert, bump nonce.
     if (ctx.state.has_checkpoint())
     {
         ctx.state.revert();

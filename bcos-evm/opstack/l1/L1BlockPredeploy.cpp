@@ -1,6 +1,7 @@
 #include "bcos-evm/opstack/l1/L1BlockPredeploy.h"
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/l1/L1BlockSelectors.h"
 #include "bcos-evm/opstack/l1/L1BlockStorage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
@@ -11,6 +12,7 @@ namespace bcos::evm
 {
 namespace
 {
+/// First four bytes of calldata as big-endian uint32 (Solidity function selector).
 uint32_t readSelector(bytesConstRef input)
 {
     return (static_cast<uint32_t>(input[0]) << 24) | (static_cast<uint32_t>(input[1]) << 16) |
@@ -24,6 +26,7 @@ evmc_result makeResult(evmc_status_code status, int64_t gasLeft, bytes output = 
     result.gas_left = gasLeft;
     if (!output.empty())
     {
+        // evmc_result owns output via release callback (matches evmone / adapter conventions).
         auto* data = new uint8_t[output.size()];
         std::copy(output.begin(), output.end(), data);
         result.output_data = data;
@@ -47,9 +50,11 @@ evmc_result successWithBytes(int64_t gasLeft, bytes output)
 
 evmc_result applySetterIsthmus(state::State& state, evmc_message const& msg, bytesConstRef input)
 {
-    // First deposit tx of each L2 block injects L1 attrs via setter from OP_DEPOSITOR_ACCOUNT.
+    // Only the synthetic depositor (first system deposit tx per L2 block) may write L1 attrs.
     if (std::memcmp(msg.sender.bytes, OP_DEPOSITOR_ACCOUNT.bytes, sizeof(msg.sender.bytes)) != 0)
     {
+        // Solidity custom error: revert data is abi.encodeWithSelector(NotDepositor()) → last 4
+        // bytes.
         evmc_bytes32 reason{};
         reason.bytes[28] = static_cast<uint8_t>((l1block::kNotDepositor >> 24) & 0xff);
         reason.bytes[29] = static_cast<uint8_t>((l1block::kNotDepositor >> 16) & 0xff);
@@ -81,10 +86,12 @@ evmc_result applySetterIsthmus(state::State& state, evmc_message const& msg, byt
     return makeResult(EVMC_SUCCESS, msg.gas);
 }
 
+/// Jovian setter: same L1 fields as Isthmus plus daFootprintGasScalar in OPERATOR_FEE_PARAMS_SLOT.
 evmc_result applySetterJovian(state::State& state, evmc_message const& msg, bytesConstRef input)
 {
     if (std::memcmp(msg.sender.bytes, OP_DEPOSITOR_ACCOUNT.bytes, sizeof(msg.sender.bytes)) != 0)
     {
+        // Same NotDepositor() encoding as Isthmus path.
         evmc_bytes32 reason{};
         reason.bytes[28] = static_cast<uint8_t>((l1block::kNotDepositor >> 24) & 0xff);
         reason.bytes[29] = static_cast<uint8_t>((l1block::kNotDepositor >> 16) & 0xff);
@@ -124,6 +131,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatchGetter(
     switch (selector)
     {
     case l1block::kNumber:
+        // Slot 0: high 8 bytes = L1 timestamp, low 8 bytes = L1 block number.
         return successWithU256(gas, unpackNumber(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
                                         state::toEvmC(L1_NUMBER_TIMESTAMP_SLOT))));
     case l1block::kTimestamp:
@@ -137,6 +145,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatchGetter(
         return successWithU256(gas,
             state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(L1_HASH_SLOT))));
     case l1block::kSequenceNumber:
+        // Slot 3: sequence lives in the low 8 bytes (same unpack as number in slot 0).
         return successWithU256(gas, unpackSequenceNumber(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
                                         state::toEvmC(L1_FEE_SCALARS_SLOT))));
     case l1block::kBlobBaseFeeScalar:
@@ -160,6 +169,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatchGetter(
         return successWithU256(gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
                                         state::toEvmC(L1_BLOB_BASE_FEE_SLOT))));
     case l1block::kOperatorFeeScalar:
+        // Slot 8: operator scalar at bytes[20..24); Jovian daFootprint at bytes[18..20).
         return successWithU256(gas, unpackOperatorFeeScalar(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
                                         state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
     case l1block::kOperatorFeeConstant:
@@ -207,6 +217,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatch(state::State& state, evmc_
     {
     case l1block::kIsFeatureEnabled:
     {
+        // isFeatureEnabled(bytes32 key): single 32-byte arg after selector.
         if (input.size() < 36)
         {
             return makeResult(EVMC_REVERT, msg.gas);
@@ -218,6 +229,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatch(state::State& state, evmc_
     case l1block::kSetL1BlockValuesIsthmus:
         return applySetterIsthmus(state, msg, input);
     case l1block::kSetL1BlockValuesJovian:
+        // Active once Jovian fork is live; deposit tx uses the longer calldata layout.
         return applySetterJovian(state, msg, input);
     default:
         return makeResult(EVMC_REVERT, msg.gas);
