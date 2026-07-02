@@ -4,9 +4,9 @@ Tracked items from Phase 1 audit and grill review. Update when closed.
 
 ## 36 — BCOS Prepare-phase dead warm
 
-`TransactionExecutorImpl::prepareTransaction` runs `warmTransactionEntry` on a **local** `State` during Prepare. That warm set is **not** persisted into Execute; only `executeViaHost` Execute-phase wiring is normative for TE baseline inheritance.
+**Status:** **Closed (2026-07-02).** TE Prepare no longer calls `prepareTransaction` / `warmTransactionEntry` on a local `State`. Tx-entry warm is normative in kernel Execute (`TxExecutionRunner::prepareTxEntry`). `FiscoPrepareTransaction.h` remains for test harnesses (`ExecuteViaHostEip2929Harness`).
 
-**Status:** Documented (design doc §2.1). **Fix options:** remove Prepare warm, or persist warm markers into Execute storage (product decision).
+**Was:** `TransactionExecutorImpl` / `EthTransactionExecutorImpl` ran warm on ephemeral Prepare `State` that did not persist into Execute.
 
 ## 37 — RevisionConfig profile-only fields
 

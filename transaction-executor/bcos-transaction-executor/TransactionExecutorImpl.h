@@ -10,7 +10,6 @@
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/bcos/FiscoPrepareTransaction.h"
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/FiscoTxFeeSettlement.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
@@ -153,31 +152,7 @@ public:
         {
             if constexpr (phase == static_cast<int>(ExecutePhase::Prepare))
             {
-                bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
-                    m_data->m_executionContext.revisionConfig.use_raw_address,
-                    *m_data->m_executor.get().m_hashImpl);
-                bcos::evm::state::State state(stateView);
-                auto const blockInfo = bcos::evm::state::buildFiscoBlockInfo(
-                    m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get(),
-                    [policy = m_data->m_policy](
-                        int64_t timestamp) { return policy.convertTimestamp(timestamp); });
-
-                state::Transaction tx;
-                auto const& msg = m_data->m_executionContext.message;
-                tx.from = msg.sender;
-                if (msg.kind != EVMC_CREATE && msg.kind != EVMC_CREATE2)
-                {
-                    tx.to = msg.recipient;
-                }
-                tx.data.assign(msg.input_data, msg.input_data + msg.input_size);
-                tx.value = fromEvmC(msg.value);
-                tx.gasPrice = protocol::effectiveGasPrice(m_data->m_transaction.get());
-                tx.gasLimit = msg.gas;
-                prepareTransaction(state, tx, blockInfo,
-                    FiscoPrepareTransactionInput{
-                        .revisionConfig = m_data->m_executionContext.revisionConfig.eth(),
-                        .properties = {},
-                        .accessList = m_data->m_web3AccessListResolved.accessList.get()});
+                // Gap 36: tx-entry warm runs in kernel Execute (TxExecutionRunner::prepareTxEntry).
             }
             else if constexpr (phase == static_cast<int>(ExecutePhase::Execute))
             {

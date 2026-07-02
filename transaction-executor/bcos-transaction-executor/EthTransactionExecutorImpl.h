@@ -8,7 +8,6 @@
 #include "bcos-evm/eth/apply/EthTxFeeSettlement.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-framework/protocol/BlockHeader.h"
@@ -136,28 +135,6 @@ public:
             {
                 eth_tx::fillTransactionGasFields(m_data->m_transaction.get(), *m_data);
                 m_data->m_gasFieldsFilled = true;
-
-                state::FiscoStateView stateView(
-                    m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
-                state::State state(stateView);
-
-                state::Transaction tx;
-                auto const& msg = m_data->m_message;
-                tx.from = msg.sender;
-                if (msg.kind != EVMC_CREATE && msg.kind != EVMC_CREATE2)
-                {
-                    tx.to = msg.recipient;
-                }
-                tx.data.assign(msg.input_data, msg.input_data + msg.input_size);
-                tx.value = fromEvmC(msg.value);
-                tx.gasPrice = m_data->m_gasPriceLegacy;
-                tx.gasLimit = msg.gas;
-
-                state::TransactionProperties props;
-                props.warmDestination = !isCreateKind(msg.kind);
-                execution::warmTransactionEntry(state, m_data->m_revisionConfig, nullptr, tx,
-                    m_data->m_blockInfo, props, m_data->m_web3AccessListResolved.accessList.get(),
-                    m_data->m_web3TypedTxKind);
             }
             else if constexpr (phase == static_cast<int>(EthExecutePhase::Execute))
             {
