@@ -26,6 +26,7 @@ void applyPostExecuteSettlement(
         gas::isEip1559GasRefundEnabled(ctx.revisionConfig) ?
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_refund)) :
             uint64_t{0};
+    // Combines gas_left, SSTORE refund, and Regolith+ floorDataGas minimum.
     auto const settlement =
         postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit)),
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_left)), stateRefund,
@@ -38,6 +39,7 @@ void applyPostExecuteSettlement(
 void applyDepositPostExecuteSettlement(
     StateTransitionContext const& ctx, OpStackTxFinalizeResult& out)
 {
+    // Deposits have no Regolith floorDataGas charge.
     applyPostExecuteSettlement(ctx, 0, out);
 }
 }  // namespace
@@ -100,6 +102,7 @@ OpStackTxFinalizeResult finalizeDeposit(
 
     if (exitKind == StateTransitionExitKind::Completed)
     {
+        // Reverted deposit: discard state changes but still advance depositor nonce.
         applyDepositPostExecuteSettlement(ctx, out);
         if (ctx.state.has_checkpoint())
         {
@@ -111,6 +114,7 @@ OpStackTxFinalizeResult finalizeDeposit(
 
     out.gasUsed = std::max<int64_t>(0, ctx.originalGasLimit);
     out.gasRemaining = 0;
+    // Entry failure (e.g. intrinsic gas): charge full gas limit, revert, bump nonce.
     if (ctx.state.has_checkpoint())
     {
         ctx.state.revert();

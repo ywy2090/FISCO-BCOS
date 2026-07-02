@@ -51,6 +51,7 @@ std::optional<IsthmusL1Attributes> parseIsthmusL1Attributes(bytesConstRef callda
         return std::nullopt;
     }
 
+    // Calldata: selector(4) + ABI-encoded tuple (see op-geth deposit tx construction)
     IsthmusL1Attributes parsed;
     parsed.baseFeeScalar = readU32(calldata, 4);
     parsed.blobBaseFeeScalar = readU32(calldata, 8);
@@ -219,6 +220,7 @@ bytes encodeAbiAddress(evmc_address const& address)
 
 bytes encodeGasPayingToken()
 {
+    // Non-custom-gas-token chains return 0xeeee…eeee sentinel + offset 18
     bytes out(64, 0);
     constexpr uint8_t ether[20] = {0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee,
         0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee, 0xee};
@@ -229,6 +231,7 @@ bytes encodeGasPayingToken()
 
 bool readFeatureEnabled(state::State& state, evmc_bytes32 const& key)
 {
+    // Solidity: mapping(bytes32 => bool) at slot L1_FEATURE_ENABLED_MAPPING_SLOT
     uint8_t buf[64];
     std::memcpy(buf, key.bytes, 32);
     std::memset(buf + 32, 0, 31);

@@ -1,13 +1,17 @@
 #pragma once
 
+// L1Block.sol function selectors (keccak256(sig)[0:4]); aligned with op-geth predeploy ABI.
+
 #include <cstdint>
 
 namespace bcos::evm::l1block
 {
+// --- setters (OP_DEPOSITOR_ACCOUNT only) ---
 inline constexpr uint32_t kSetL1BlockValuesIsthmus = 0x098999be;
 inline constexpr uint32_t kSetL1BlockValuesJovian = 0x3db6be2b;
-inline constexpr uint32_t kNotDepositor = 0x3cc50b45;
+inline constexpr uint32_t kNotDepositor = 0x3cc50b45;  // NotDepositor() custom revert selector
 
+// --- L1 state getters ---
 inline constexpr uint32_t kNumber = 0x8381f58a;
 inline constexpr uint32_t kTimestamp = 0xb80777ea;
 inline constexpr uint32_t kBasefee = 0x5cf24969;
@@ -23,9 +27,11 @@ inline constexpr uint32_t kOperatorFeeScalar = 0x4d5d9a2a;
 inline constexpr uint32_t kOperatorFeeConstant = 0x16d3bc7f;
 inline constexpr uint32_t kDaFootprintGasScalar = 0xfe3d5710;
 
+// Ecotone+ alias getters
 inline constexpr uint32_t kL1BaseFee = 0x519b4bd3;
 inline constexpr uint32_t kL1BlobBaseFee = 0x84189161;
 
+// --- chain config / gas token metadata ---
 inline constexpr uint32_t kDepositorAccount = 0xe591b282;
 inline constexpr uint32_t kIsCustomGasToken = 0x21326849;
 inline constexpr uint32_t kGasPayingToken = 0x4397dfef;

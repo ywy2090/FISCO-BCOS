@@ -83,6 +83,7 @@ std::optional<RollupCostData> const& OpStackSettlementProjection::rollupCostData
 
 bcos::u256 OpStackSettlementProjection::effectiveGasPrice() const
 {
+    // Prefer sidecar value set by buyGas; fall back to pre-execution EIP-1559 plan.
     if (sidecar.effectiveGasPrice != 0)
     {
         return sidecar.effectiveGasPrice;

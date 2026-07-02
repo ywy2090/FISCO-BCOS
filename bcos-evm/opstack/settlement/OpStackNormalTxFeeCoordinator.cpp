@@ -22,6 +22,7 @@ void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementPro
 {
     auto const& input = view.input;
     output.receiptMeta.l1Fee = feePlan.l1FeeRouted;
+    // Isthmus+: expose operator fee and scalar/constant on receipt when active.
     if (isOpStackIsthmus(input.forkSchedule, view.blockInfo().timestamp) &&
         input.opTxExecutor.m_operatorCostFunc)
     {
@@ -32,6 +33,7 @@ void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementPro
             output.receiptMeta.operatorFeeConstant = feeParams.operatorFeeConstant;
         }
     }
+    // Jovian: daFootprint = estimatedDASize * daFootprintGasScalar (receipt metadata).
     if (isOpStackJovian(input.forkSchedule, view.blockInfo().timestamp))
     {
         auto const scalar = static_cast<uint64_t>(feeParams.daFootprintGasScalar);
@@ -48,6 +50,7 @@ task::Task<NormalSettleOutcome> settleNormal(OpStackSettlementProjection view,
     auto& ctx = view.pipelineContext();
     auto settled = finalizeNormal(ctx, view.feeSidecar(), exitKind);
     auto feePlan = co_await ledger.refundGas(view, settled);
+    // Return unused gas limit and report consumed gas to block pool.
     if (gasPool.returnGas)
     {
         gasPool.returnGas(
@@ -84,6 +87,7 @@ task::Task<void> OpStackNormalTxFeeCoordinator::completeAfterPipeline(
 
     ctx.state.commit();
 
+    // EVM checkpoint committed; finalize gas metering, refund, and receipt meta.
     auto outcome = co_await settleNormal(view, ctx.exitKind, ledger, gasPool);
     output.gasUsed = outcome.settled.gasUsed;
     projectNormalReceiptMeta(output, view, feeParams, outcome.settled, outcome.feePlan);

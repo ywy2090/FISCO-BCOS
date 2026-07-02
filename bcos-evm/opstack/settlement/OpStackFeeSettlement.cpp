@@ -27,6 +27,7 @@ task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementProjection view)
 
     if (view.isCall() || view.isDeposit())
     {
+        // eth_call and deposit txs skip L1/operator pre-debit.
         co_return true;
     }
     if (ctx.originalGasLimit <= 0)
@@ -75,6 +76,7 @@ task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
     {
         co_return OpStackPostSettlementPlan{};
     }
+    // Zero-fee eth_call: no refund routing or recipient credits.
     if (view.isCall() && view.skipTransactionChecks() && view.noBaseFee() &&
         view.gasFeeCap() == 0 && view.gasTipCap() == 0)
     {
@@ -95,6 +97,7 @@ task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
 
     addBalance(state, ctx.message.sender, plan.core1559.unusedRefund + plan.senderOperatorRefund);
     addBalance(state, view.blockInfo().coinbase, plan.core1559.coinbaseTip);
+    // Route OP Stack fees to system predeploy recipients (not burned).
     addBalance(state, m_baseFeeRecipient, plan.core1559.baseFeeAmount);
     addBalance(state, m_l1FeeRecipient, plan.l1FeeRouted);
     if (hooks.operatorCostFunc != nullptr)

@@ -1,5 +1,8 @@
 #pragma once
 
+// Unified read-only view for fee modules: pipeline ctx + OpStackMessageRequest + fee sidecar.
+// Keeps opstack/fee/* planners free of ApplyOpStackMessage internals.
+
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
@@ -14,7 +17,7 @@ namespace bcos::evm
 
 struct OpStackMessageRequest;
 
-/// Read-only projection over pipeline ctx + execution request + fee sidecar.
+/// Facade over ctx, input, and sidecar for settlement and fee planning.
 struct OpStackSettlementProjection
 {
     StateTransitionContext& ctx;

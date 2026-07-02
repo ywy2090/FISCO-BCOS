@@ -1,5 +1,8 @@
 #pragma once
 
+// Orchestrates normal (non-deposit) L2 tx fee lifecycle in applyOpStackMessage:
+// buyGas → stateTransitionExecute → completeAfterPipeline.
+
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
@@ -11,7 +14,7 @@ namespace bcos::evm
 
 struct OpStackFeeSettlement;
 
-/// Normal L2 fee deep module: buyGas + post-pipeline tree.
+/// Normal L2 tx fee coordinator: wraps OpStackFeeSettlement + OpStackTxFinalize.
 struct OpStackNormalTxFeeCoordinator
 {
     OpStackFeeSettlement& ledger;

@@ -47,6 +47,7 @@ evmc_result successWithBytes(int64_t gasLeft, bytes output)
 
 evmc_result applySetterIsthmus(state::State& state, evmc_message const& msg, bytesConstRef input)
 {
+    // First deposit tx of each L2 block injects L1 attrs via setter from OP_DEPOSITOR_ACCOUNT.
     if (std::memcmp(msg.sender.bytes, OP_DEPOSITOR_ACCOUNT.bytes, sizeof(msg.sender.bytes)) != 0)
     {
         evmc_bytes32 reason{};
@@ -150,6 +151,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatchGetter(
     case l1block::kL1FeeOverhead:
         return successWithU256(gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
                                         state::toEvmC(L1_FEE_OVERHEAD_SLOT))));
+    // Legacy Bedrock slot; no longer written after Ecotone
     case l1block::kL1FeeScalar:
         return successWithU256(gas, state::fromEvmC(state.get_storage(OP_L1_BLOCK_PREDEPLOY,
                                         state::toEvmC(L1_FEE_SCALAR_LEGACY_SLOT))));
@@ -170,6 +172,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatchGetter(
                 state.get_storage(OP_L1_BLOCK_PREDEPLOY, state::toEvmC(OPERATOR_FEE_PARAMS_SLOT))));
     case l1block::kDepositorAccount:
         return successWithBytes(gas, encodeAbiAddress(OP_DEPOSITOR_ACCOUNT));
+    // Default ETH gas token (non-custom-gas-token chains)
     case l1block::kIsCustomGasToken:
         return successWithU256(gas, 0);
     case l1block::kGasPayingToken:
@@ -194,6 +197,7 @@ std::optional<evmc_result> L1BlockPredeploy::dispatch(state::State& state, evmc_
     }
 
     auto const selector = readSelector(input);
+    // Try read-only getters first; fall through to setters / isFeatureEnabled.
     if (auto getter = dispatchGetter(state, selector, msg.gas))
     {
         return getter;

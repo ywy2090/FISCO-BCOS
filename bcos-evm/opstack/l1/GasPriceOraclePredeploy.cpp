@@ -71,6 +71,8 @@ std::optional<bytesConstRef> decodeAbiBytes(bytesConstRef input)
 
 u256 fjordLinearRegression(uint64_t fastLzSize)
 {
+    // Fjord getL1GasUsed linear regression: intercept + coef * fastLzSize, floored at
+    // MIN_TX_SIZE_SCALED.
     s256 estimatedSize = s256(L1_COST_INTERCEPT) + s256(L1_COST_FASTLZ_COEF) * s256(fastLzSize);
     if (estimatedSize < s256(MIN_TX_SIZE_SCALED))
     {
@@ -82,6 +84,7 @@ u256 fjordLinearRegression(uint64_t fastLzSize)
 std::optional<evmc_result> dispatchL1BlockProxyGetter(
     state::State& state, uint32_t gpoSelector, int64_t gas)
 {
+    // Shared getters between GasPriceOracle and L1Block; forward to L1BlockPredeploy.
     uint32_t l1Selector = 0;
     switch (gpoSelector)
     {
@@ -130,10 +133,12 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
     case gpo::kIsEcotone:
     case gpo::kIsFjord:
     case gpo::kIsIsthmus:
+        // Under Isthmus+ schedule these forks are always active.
         return successWithU256(msg.gas, 1);
     case gpo::kIsJovian:
         return successWithU256(
             msg.gas, isOpStackJovian(forkSchedule, blockTime) ? u256(1) : u256(0));
+    // Legacy Bedrock APIs; revert after Ecotone
     case gpo::kOverhead:
     case gpo::kScalar:
         return makeResult(EVMC_REVERT, msg.gas);
@@ -155,6 +160,7 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
             return makeResult(EVMC_REVERT, msg.gas);
         }
         auto const fastLzSize = static_cast<uint64_t>(flzCompressLen(*txBytes)) + 68;
+        // Matches op-geth getL1GasUsed: estimatedSize * 16 / 1e6
         auto const gasUsed = fjordLinearRegression(fastLzSize) * 16 / 1'000'000;
         return successWithU256(msg.gas, gasUsed);
     }
