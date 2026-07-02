@@ -1,3 +1,16 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Chain-specific failure mapping for stateTransitionExecute.
+ * @file StateTransitionErrorPolicy.h
+ *
+ * Virtual table paired with StateTransitionHooks. Kernel calls these on
+ * intrinsic-gas failure, C++ exceptions, and post-EVM result normalization.
+ * Implementations: EthStateTransitionErrorPolicy, FiscoStateTransitionErrorPolicy,
+ * OpStackStateTransitionErrorPolicy.
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"

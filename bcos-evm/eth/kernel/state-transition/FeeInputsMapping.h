@@ -15,6 +15,7 @@
 namespace bcos::evm::gas
 {
 
+/// Tx-level fee cap fields extracted from apply layer (avoids apply types in kernel).
 struct FeeCapsView
 {
     bcos::u256 gasPrice;
@@ -24,6 +25,7 @@ struct FeeCapsView
     bool hasExplicitFeeCaps{false};
 };
 
+/// Build FeeInputs for settlement from revision, block base fee, and tx fee caps.
 inline FeeInputs toFeeInputs(bcos::evm_standard::RevisionConfig const& revision,
     state::BlockInfo const& blockInfo, FeeCapsView const& caps, int64_t gasLimit) noexcept
 {

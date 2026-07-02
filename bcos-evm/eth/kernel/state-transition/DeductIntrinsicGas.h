@@ -1,3 +1,20 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Kernel intrinsic gas debit before EVM entry.
+ * @file DeductIntrinsicGas.h
+ *
+ * Mutates evmc_message.gas in place. Mode is selected by each chain's
+ * StateTransitionHooks::getIntrinsicGasParams() — not hard-coded in the pipeline.
+ *
+ * Modes:
+ *   None          — skip debit (inner calls, Fisco non-tx paths)
+ *   AuthOnly      — EIP-7702 auth tuple gas only (partial pre-Osaka paths)
+ *   Eip7623       — full tx intrinsic + calldata floor (Eth reference)
+ *   OpStackEntry  — L2 entry intrinsic (no EIP-7623 calldata floor split)
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
@@ -8,6 +25,7 @@
 namespace bcos::evm
 {
 
+/// Which intrinsic-gas rules apply for this top-level transition.
 enum class IntrinsicDebitMode
 {
     None,
@@ -16,6 +34,7 @@ enum class IntrinsicDebitMode
     OpStackEntry
 };
 
+/// Failure reason when deductIntrinsicGas rejects before EVM entry.
 enum class IntrinsicDebitFailure
 {
     None,
@@ -42,6 +61,7 @@ struct DeductIntrinsicGasOutcome
     int64_t debitAmount{0};
 };
 
+/// Debit intrinsic gas from message.gas. On failure, message.gas is unchanged.
 inline DeductIntrinsicGasOutcome deductIntrinsicGas(
     evmc_message& message, DeductIntrinsicGasParams const& policy)
 {
@@ -83,6 +103,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
                                      gas::calcAuthTupleIntrinsicGas(policy.authTupleCount) :
                                      0;
 
+        // Floor check: gas limit must cover intrinsic minimum (incl. auth tuples).
         if (message.gas < intrinsic.gasLimitMinimumWithAuth(authCost))
         {
             outcome.ok = false;
@@ -90,6 +111,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
             outcome.gasLeftOnFailure = message.gas;
             return outcome;
         }
+        // Calldata must be fully affordable before preExecutionDebit (EIP-7623).
         if (message.gas < calldataGas)
         {
             outcome.ok = false;

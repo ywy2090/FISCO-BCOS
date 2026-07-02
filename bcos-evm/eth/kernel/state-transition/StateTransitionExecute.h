@@ -1,6 +1,9 @@
 /*
  * Shared top-level transaction execution pipeline.
  *
+ * Copyright (C) 2026 FISCO BCOS.
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Canonical kernel entry for stateTransitionExecute. Eth, Fisco, and
  * OpStack ApplyMessage paths converge here after constructing StateTransitionContext
  * and wiring execution environment via *ExecutionBundle.

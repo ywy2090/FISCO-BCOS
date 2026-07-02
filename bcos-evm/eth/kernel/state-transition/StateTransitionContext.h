@@ -1,3 +1,15 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Mutable execution context for stateTransitionExecute.
+ * @file StateTransitionContext.h
+ *
+ * Holds the evmc_message, state view, gas accounting, and pipeline outputs
+ * (evmcResult, logs, stateDiff). Constructed by each chain's apply*Message,
+ * then passed through hooks and errorPolicy. Non-copyable: one context per tx.
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
@@ -28,16 +40,18 @@ namespace bcos::evm
 struct ChainExtendedPrecompileDispatch;
 struct InnerExecuteInput;
 
+/// How stateTransitionExecute terminated (for logging and downstream settlement).
 enum class StateTransitionExitKind
 {
     None,
-    RulesRejected,
-    GasAffordRejected,
-    IntrinsicRejected,
-    Completed,
-    ExceptionHandled
+    RulesRejected,      ///< onPreCheckRules set earlyExit (nonce, initcode, etc.)
+    GasAffordRejected,  ///< buyGas / balance precheck failed
+    IntrinsicRejected,  ///< deductIntrinsicGas failed (gas limit floor or calldata OOG)
+    Completed,          ///< EVM ran; onFinalizeGasUsed applied
+    ExceptionHandled    ///< C++ exception mapped by errorPolicy.onException
 };
 
+/// Chain-agnostic inputs wired before stateTransitionExecute (via *ExecutionBundle).
 struct StateTransitionInputs
 {
     evmc::VM* vm{nullptr};
@@ -100,19 +114,19 @@ public:
 
     StateTransitionInputs inputs;
     evmc_message message{};
-    int64_t originalGasLimit{0};
+    int64_t originalGasLimit{0};  ///< Tx gas limit before any pipeline debit (settlement baseline).
     state::State state;
     bcos::u256 gasPrice{0};
     state::EvmHostHooks* extension{nullptr};
     ChainExtendedPrecompileDispatch* chainPort{nullptr};
     state::TransactionProperties txProps{};
     bcos::evm_standard::RevisionConfig revisionConfig{};
-    gas::TxGasSettlementSnapshot snapshot{};
+    gas::TxGasSettlementSnapshot snapshot{};  ///< EIP-7623 calldata components for refund.
     state::StateDiff stateDiff;
     std::vector<state::LogEntry> logs;
     int64_t evmGasRefund{0};
     EVMCResult evmcResult{evmc_result{}};
-    bool earlyExit{false};
+    bool earlyExit{false};  ///< Set by precheck hooks to skip EVM without throwing.
     StateTransitionExitKind exitKind{StateTransitionExitKind::None};
     IntrinsicDebitMode intrinsicDebitMode{IntrinsicDebitMode::None};
     IntrinsicGasAccounting gasAccounting{};

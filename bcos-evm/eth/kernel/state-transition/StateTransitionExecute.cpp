@@ -1,3 +1,15 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Canonical stateTransitionExecute pipeline implementation.
+ * @file StateTransitionExecute.cpp
+ *
+ * Fixed transaction-level flow shared by Eth / Fisco / OpStack apply paths.
+ * Chain policy is injected via StateTransitionHooks; failure mapping via
+ * StateTransitionErrorPolicy. See StateTransitionExecute.h for step order.
+ */
+
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
@@ -9,6 +21,7 @@ namespace bcos::evm
 {
 namespace
 {
+/// EIP-7623 settlement needs pre-EVM calldata gas components for refund math.
 void captureSettlementSnapshot(StateTransitionContext& ctx)
 {
     if (ctx.intrinsicDebitMode != IntrinsicDebitMode::Eip7623)
@@ -26,6 +39,7 @@ void captureSettlementSnapshot(StateTransitionContext& ctx)
 void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks const& hooks,
     StateTransitionErrorPolicy const& errorPolicy)
 {
+    // onComplete runs on every exit path (early-exit, success, exception).
     struct PipelineCompleteGuard
     {
         StateTransitionContext& ctx;
@@ -56,6 +70,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
 
     try
     {
+        // --- Phase 1: message normalization + entry rules ---
         hooks.onNormalizeMessage(ctx);
         EVM_LOG(TRACE) << LOG_DESC("stateTransitionExecute step")
                        << LOG_KV("step", "onNormalizeMessage") << LOG_KV("gas", ctx.message.gas);
@@ -80,6 +95,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             return;
         }
 
+        // --- Phase 2: kernel intrinsic gas debit (mode from hooks) ---
         ctx.gasAccounting.gasBeforeIntrinsicDebit = ctx.message.gas;
         ctx.gasAccounting.intrinsicDebitAttempted = true;
         auto const debitOutcome = deductIntrinsicGas(ctx.message, intrinsicPolicy);
@@ -119,6 +135,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             return;
         }
 
+        // --- Phase 3: EVM entry via innerExecute ---
         EVM_LOG(TRACE) << LOG_DESC("stateTransitionExecute step")
                        << LOG_KV("step", "onInvokeInnerExecute") << LOG_KV("gas", ctx.message.gas);
 
@@ -136,6 +153,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
 
         captureSettlementSnapshot(ctx);
 
+        // --- Phase 4: post-EVM normalization (included-vmerr, receipt fields) ---
         errorPolicy.onFinalizeGasUsed(ctx);
         ctx.exitKind = StateTransitionExitKind::Completed;
 

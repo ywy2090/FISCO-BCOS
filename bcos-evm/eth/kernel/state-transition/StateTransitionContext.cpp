@@ -14,6 +14,8 @@
  *  limitations under the License.
  *
  * @file StateTransitionContext.cpp
+ *
+ * Bridges StateTransitionContext to InnerExecuteInput for the EVM entry step.
  */
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
@@ -22,6 +24,8 @@
 namespace bcos::evm
 {
 
+/// Flatten context fields into the innerExecute input bundle.
+/// state is const_cast because innerExecute mutates through StateView interface.
 InnerExecuteInput StateTransitionContext::toInnerExecuteInput() const
 {
     InnerExecuteInput input;

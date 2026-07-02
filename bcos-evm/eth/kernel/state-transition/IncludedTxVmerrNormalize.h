@@ -18,7 +18,7 @@ inline bool isTopLevelIncludedTxVmError(evmc_status_code status, int32_t depth) 
 {
     if (depth != 0)
     {
-        return false;
+        return false;  // Only top-level tx vmerr is included in block (ADR-015).
     }
 
     switch (status)
