@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bcos-evm/eth/precompiled/PrecompiledContract.h"
+#include "bcos-executor/src/vm/PrecompiledContract.h"
 #include "bcos-framework/ledger/Features.h"
 #include <memory>
 #include <optional>

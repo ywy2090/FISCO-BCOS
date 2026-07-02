@@ -16,9 +16,8 @@
  * @brief Precompiled contract wrapper (cost + execute + activation block).
  * @file PrecompiledContract.h
  *
- * Thin facade over EthBuiltinRegistry executors/pricers. Prefer EthPrecompiles
- * on the state-transition kernel path; this type remains for legacy executor
- * integration and modexp revision-aware pricing.
+ * Legacy executor adapter: cost + execute wrapper over EthBuiltinRegistry.
+ * bcos-evm kernel uses EthPrecompiles + PrecompileActive instead.
  * @author: xingqiangbai
  * @date: 2021-05-24
  */

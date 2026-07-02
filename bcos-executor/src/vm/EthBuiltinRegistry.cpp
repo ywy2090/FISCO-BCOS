@@ -9,9 +9,9 @@
  */
 
 #include "EthBuiltinRegistry.h"
-#include "Eip2537Gas.h"
 #include "ModexpGas.h"
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
+#include "bcos-evm/eth/precompiled/Eip2537Gas.h"
 #include "wedpr-crypto/WedprCrypto.h"
 #include <algorithm>
 #include <array>
@@ -32,7 +32,7 @@
 
 using namespace bcos;
 using namespace bcos::crypto;
-using bcos::evm::parseModexpLengths;
+using bcos::executor::parseModexpLengths;
 
 #define ETH_REGISTER_PRECOMPILED(Name)                                                        \
     static std::pair<bool, bytes> __eth_registerPrecompiledFunction##Name(bytesConstRef _in); \
@@ -53,9 +53,9 @@ std::pair<bool, bytes> ecrecoverImpl(bytesConstRef _in)
         return {true, {}};
     }
 
-    byte rawRSV[RSV_LENGTH] = {0};
+    bcos::byte rawRSV[RSV_LENGTH] = {0};
     memcpy(rawRSV, _in.data() + 64, std::min(_in.size() - 64, (size_t)(RSV_LENGTH - 1)));
-    rawRSV[RSV_LENGTH - 1] = (byte)((int)_in[63] - 27);
+    rawRSV[RSV_LENGTH - 1] = (bcos::byte)((int)_in[63] - 27);
     crypto::HashType mHash;
     memcpy(mHash.data(), _in.data(), crypto::HashType::SIZE);
 
@@ -153,7 +153,7 @@ ETH_REGISTER_PRECOMPILED(modexp)(bytesConstRef _in)
 // Production modexp gas uses PrecompiledContract::modexp() -> calcModexpGas(revision).
 ETH_REGISTER_PRECOMPILED_PRICER(modexp)(bytesConstRef _in)
 {
-    return bcos::evm::calcModexpGasEip198Public(_in);
+    return bcos::executor::calcModexpGasEip198Public(_in);
 }
 
 ETH_REGISTER_PRECOMPILED(alt_bn128_G1_add)(bytesConstRef _in)

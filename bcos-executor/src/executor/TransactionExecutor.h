@@ -25,9 +25,9 @@
 #pragma once
 
 #include "../dag/CriticalFields.h"
+#include "../vm/PrecompiledContract.h"
 #include "../vm/VMFactory.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/precompiled/PrecompiledContract.h"
 #include "bcos-executor/src/executive/LedgerCache.h"
 #include "bcos-framework/executor/ExecutionMessage.h"
 #include "bcos-framework/executor/ParallelTransactionExecutorInterface.h"

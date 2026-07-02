@@ -1,6 +1,5 @@
 #include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledManager.h"
-#include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
-#include "bcos-evm/eth/precompiled/PrecompileTraits.h"
+#include "PrecompileTraits.h"
 #include "bcos-executor/src/precompiled/BFSPrecompiled.h"
 #include "bcos-executor/src/precompiled/CastPrecompiled.h"
 #include "bcos-executor/src/precompiled/ConsensusPrecompiled.h"
@@ -20,6 +19,7 @@
 #include "bcos-executor/src/precompiled/extension/PaillierPrecompiled.h"
 #include "bcos-executor/src/precompiled/extension/RingSigPrecompiled.h"
 #include "bcos-executor/src/precompiled/extension/ZkpPrecompiled.h"
+#include "bcos-executor/src/vm/EthBuiltinRegistry.h"
 #include <memory>
 #include <range/v3/algorithm/sort.hpp>
 

@@ -179,7 +179,7 @@ namespace evm
 {
 struct PrecompiledAvailable
 {
-    precompiled::Precompiled::Ptr precompiled;
+    ::bcos::precompiled::Precompiled::Ptr precompiled;
     std::function<bool(uint32_t, bool, ledger::Features const& features)> availableFunc;
 };
 class PrecompiledMap
@@ -193,7 +193,7 @@ public:
     PrecompiledMap& operator=(PrecompiledMap&&) = default;
     ~PrecompiledMap() = default;
 
-    auto insert(std::string_view _key, precompiled::Precompiled::Ptr _precompiled,
+    auto insert(std::string_view _key, ::bcos::precompiled::Precompiled::Ptr _precompiled,
         protocol::BlockVersion minVersion = protocol::BlockVersion::RC4_VERSION,
         bool needAuth = false)
     {
@@ -209,12 +209,12 @@ public:
         return m_map.insert({std::string(_key), {std::move(_precompiled), std::move(func)}});
     }
 
-    auto insert(std::string_view _key, precompiled::Precompiled::Ptr _precompiled,
+    auto insert(std::string_view _key, ::bcos::precompiled::Precompiled::Ptr _precompiled,
         std::function<bool(uint32_t, bool, ledger::Features const& features)> func)
     {
         return m_map.insert({std::string(_key), {std::move(_precompiled), std::move(func)}});
     }
-    precompiled::Precompiled::Ptr at(std::string_view, uint32_t version, bool isAuth,
+    ::bcos::precompiled::Precompiled::Ptr at(std::string_view, uint32_t version, bool isAuth,
         ledger::Features const& features) const noexcept;
     bool contains(std::string const& key, uint32_t version, bool isAuth,
         ledger::Features const& features) const noexcept;

@@ -20,8 +20,8 @@
  */
 
 #pragma once
-#include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
-#include "bcos-evm/eth/precompiled/PrecompiledContract.h"
+#include "EthBuiltinRegistry.h"
+#include "PrecompiledContract.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/FixedBytes.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/Precompiled.h"
@@ -37,7 +37,7 @@ using PrecompiledContract = evm::PrecompiledContract;
 using PrecompiledExecutor = evm::PrecompiledExecutor;
 using PrecompiledPricer = evm::PrecompiledPricer;
 
-/// Legacy name-based lookup for executor unit tests (forwards to bcos-evm EthBuiltinRegistry).
+/// Legacy name-based lookup for executor unit tests (forwards to EthBuiltinRegistry).
 struct PrecompiledRegistrar
 {
     static uint16_t suffixFromName(std::string_view name)

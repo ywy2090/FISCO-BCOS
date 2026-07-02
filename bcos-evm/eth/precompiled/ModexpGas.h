@@ -32,7 +32,7 @@ constexpr size_t MODEXP_MAX_FIELD_LEN_EIP7823 = 1024;
 
 ModexpLengths parseModexpLengths(bcos::bytesConstRef input);
 
-inline bool modexpEip7823Enabled(const bcos::evm_standard::RevisionConfig& rev) noexcept
+inline bool modexpEip7823Enabled(const bcos::evm::RevisionConfig& rev) noexcept
 {
     return rev.eip7823;
 }
@@ -40,16 +40,15 @@ inline bool modexpEip7823Enabled(const bcos::evm_standard::RevisionConfig& rev) 
 bool validateModexpEip7823(bcos::bytesConstRef input, evmc_revision revision);
 
 bool shouldRejectModexpEip7823(evmc_address const& addr, bcos::bytesConstRef input,
-    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept;
+    const bcos::evm::RevisionConfig& rev, evmc_revision revision) noexcept;
 
 bool shouldRejectModexpEip7823(std::string_view addr, bcos::bytesConstRef input,
-    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept;
+    const bcos::evm::RevisionConfig& rev, evmc_revision revision) noexcept;
 
 /// EIP-198 (< Berlin), EIP-2565 (Berlin..Osaka-1), EIP-7883 (Osaka+).
 bcos::bigint calcModexpGas(bcos::bytesConstRef input, evmc_revision revision);
 
-/// Legacy EIP-198 pricing for legacy modexp gas tests only.
-/// Production uses PrecompiledContract::modexp() -> calcModexpGas(input, revision).
+/// Legacy EIP-198 pricing for executor registry unit tests only.
 bcos::bigint calcModexpGasEip198Public(bcos::bytesConstRef input);
 
 }  // namespace bcos::evm

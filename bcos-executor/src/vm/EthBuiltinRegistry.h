@@ -3,9 +3,8 @@
 /*
  * @brief Legacy registry API: executor/pricer lookup by address suffix.
  *
- * Populated by EthBuiltinRegistry.cpp (macro-registered impls). Consumed by
- * PrecompiledContract and transaction-executor adapters; the kernel hot path
- * uses EthPrecompiles + kPrecompileTable instead.
+ * Populated by EthBuiltinRegistry.cpp (macro-registered impls). Legacy executor
+ * and transaction-executor adapters; bcos-evm kernel uses EthPrecompiles instead.
  */
 
 #include "bcos-utilities/Common.h"

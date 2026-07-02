@@ -1,12 +1,12 @@
 #pragma once
+#include "PrecompileTraits.h"
 #include "PrecompiledEntry.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-evm/eth/precompiled/EthBuiltinRegistry.h"
-#include "bcos-evm/eth/precompiled/PrecompileTraits.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/executive/BlockContext.h"
 #include "bcos-executor/src/executive/TransactionExecutive.h"
+#include "bcos-executor/src/vm/EthBuiltinRegistry.h"
 #include "bcos-executor/src/vm/EvmPrecompiledAddress.h"
 #include "bcos-executor/src/vm/Precompiled.h"
 #include "transaction-executor/bcos-transaction-executor/ExecutiveWrapper.h"
@@ -16,7 +16,7 @@ namespace bcos::evm
 {
 bcos::bigint calcModexpGas(bcos::bytesConstRef input, evmc_revision revision);
 bool shouldRejectModexpEip7823(evmc_address const& addr, bcos::bytesConstRef input,
-    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept;
+    const bcos::evm::RevisionConfig& rev, evmc_revision revision) noexcept;
 }  // namespace bcos::evm
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-protocol/TransactionStatus.h"
@@ -65,7 +65,7 @@ inline bcos::bigint builtinPrecompileGasCost(
 // Execute an EVM built-in precompiled contract (sha256, ecrecover, etc.).
 // ── New path: PrecompileTraits-based lookup (compile-time table) ──
 inline EVMCResult callBuiltinPrecompiled(evmc_message const& message,
-    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision, bool fixErrorHandling)
+    const bcos::evm::RevisionConfig& rev, evmc_revision revision, bool fixErrorHandling)
 {
     bytesConstRef const input{message.input_data, message.input_size};
     const auto* traits = precompiles::findPrecompile(revision, message.recipient);
@@ -196,8 +196,7 @@ inline constexpr struct
         protocol::BlockHeader const& blockHeader, evmc_message const& message,
         evmc_address const& origin, ExternalCaller auto&& externalCaller,
         auto const& precompiledManager, int64_t contextID, int64_t seq, bool authCheck,
-        const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision,
-        bool fixErrorHandling) const
+        const bcos::evm::RevisionConfig& rev, evmc_revision revision, bool fixErrorHandling) const
     {
         const bool bugfixPrecompiled = fixErrorHandling;
 

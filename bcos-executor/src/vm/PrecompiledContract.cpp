@@ -21,8 +21,8 @@
  * @date: 2021-05-24
  */
 
-#include "bcos-evm/eth/precompiled/PrecompiledContract.h"
-#include "bcos-evm/eth/precompiled/ModexpGas.h"
+#include "PrecompiledContract.h"
+#include "ModexpGas.h"
 
 using namespace bcos;
 
@@ -52,7 +52,7 @@ PrecompiledContract PrecompiledContract::modexp(
     contract.m_execute = exec;
     contract.m_startingBlock = startingBlock;
     contract.m_revisionAwareCost = [](bytesConstRef input, evmc_revision revision) {
-        return calcModexpGas(input, revision);
+        return bcos::executor::calcModexpGas(input, revision);
     };
     return contract;
 }

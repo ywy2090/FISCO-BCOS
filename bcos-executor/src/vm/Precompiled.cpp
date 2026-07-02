@@ -36,10 +36,11 @@ using namespace bcos::crypto;
 
 namespace bcos::evm
 {
-precompiled::Precompiled::Ptr PrecompiledMap::at(std::string_view _key, uint32_t version,
+::bcos::precompiled::Precompiled::Ptr PrecompiledMap::at(std::string_view _key, uint32_t version,
     bool isAuth, ledger::Features const& features) const noexcept
 {
-    if (!_key.starts_with(precompiled::SYS_ADDRESS_PREFIX) && !_key.starts_with(tool::FS_SYS_BIN))
+    if (!_key.starts_with(::bcos::precompiled::SYS_ADDRESS_PREFIX) &&
+        !_key.starts_with(tool::FS_SYS_BIN))
     {
         return nullptr;
     }

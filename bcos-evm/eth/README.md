@@ -15,11 +15,11 @@
 | `kernel/` | 可移植执行内核（Tier 2–3；三链共用，含 `EVMCResult` 边界类型） |
 | `kernel/state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019；geth `stateTransition.execute`） |
 | `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 warm pin |
-| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainExtendedPrecompileDispatch`、`CallTargetKind` 等 ADR-019/024 seam） |
+| `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainCallTargetPort`、`CallTargetTypes` 等 ADR-019/024 seam） |
 | `eip/` | 单 EIP 实现（1559/2930/4844/7623/7702 等）与 revision 门控 |
 | `gas/` | 跨 EIP 协议 gas（intrinsic、fee settlement、通用常量） |
 | `policy/` | `EthChainPolicy`（revision / feature 策略） |
-| `precompiled/` | `PrecompileRouter`、builtin registry（`EthPrecompiles.h`） |
+| `precompiled/` | `PrecompileRouter`、`PrecompileActive`、`EthPrecompiles`（legacy registry 在 `bcos-executor/src/vm/`） |
 | `host/` | `EthHost.h` evmone host 实现（ADR-020 Legacy Enclave） |
 | `state/` | State/Transition 数据层 |
 | `vm/` | evmone 实例封装 |
@@ -45,8 +45,8 @@
 
 | 文件 | 角色 |
 | --- | --- |
-| `CallTargetKind.h` | `CallTargetKind`、`WarmPolicy`、`CallTargetDescriptor`（ADR-024；链 adapter 与 kernel 共用） |
-| `ChainExtendedPrecompileDispatch.h` | 链扩展 precompile 注入端口 |
+| `CallTargetTypes.h` | `CallTargetKind`、`WarmPolicy`、`CallTargetDescriptor`（ADR-024；链 adapter 与 kernel 共用） |
+| `ChainCallTargetPort.h` | 链扩展 call target 注入端口 |
 | `StateTransitionHooks.*` | 状态转换 hook 接口 + 默认 `innerExecute` 网关 |
 | `EvmHostHooks.*` | evmone 调用树内 host 策略接口 |
 
@@ -83,7 +83,7 @@
 | `ApplyEthMessage.*` | 链入口 `applyEthMessage()`（geth `ApplyMessage`；ADR-030 Tier C） |
 | `EthEvmHostHooks.h` | ETH 默认 `EvmHostHooks` 实现（注入 `EthHost`） |
 | `EthStateTransitionBindings.*` | `bind()` → 填充 `StateTransitionHooks` + `StateTransitionErrorPolicy` |
-| `EthTxPrecheck.*` | 参考路径交易预检 |
+| `EthStateTransitionHooks.*` | 参考路径 `onPreCheckRules` 等 hook 实现（含交易预检规则） |
 | `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
 
 ## 链入口命名（ADR-029 + ADR-030）
