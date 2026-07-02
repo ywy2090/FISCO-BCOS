@@ -22,12 +22,12 @@
  * Scope spans **inside evm.Call / runCallFrame** — after `stateTransitionExecute` entry:
  *   - SSTORE refund + storage status (`EthHost::set_storage`)
  *   - SELFDESTRUCT gate (`EthHost::selfdestruct`)
- *   - CALL value transfer skip (`transferFrameValue`, precompile envelopes)
+ *   - CALL value transfer skip (`EvmCallFrame::transferOrFail`, precompile envelopes)
  *   - DELEGATECALL-to-precompile policy (`resolveCallTarget`)
  *   - nested CREATE message prep + nonce finalization (`prepareNestedMessage`,
  *     `bumpNestedCreateSenderNonce`, `finalizeFrame`)
  *
- * Paired symbols: `FrameExecutionEnv::extension`, `EthHost::m_extension`,
+ * Paired symbols: `CallFrameContext::extension`, `EthHost::m_extension`,
  * `applySstoreRefundEip3529`, `classifyStorageStatusPrecise`. Wired at each chain's
  * `apply*Message` or execution bundle (e.g. `ApplyEthMessage`, `FiscoExecutionBundle`).
  *
@@ -37,12 +37,12 @@
  * Lifetime / wiring (one pointer per transaction, shared at nested depth):
  *   `apply*Message` / `*ExecutionBundle` → `StateTransitionContext::wireExecutionEnvironment`
  *                                       → `InnerExecuteInput::extension`
- *                                       → `FrameExecutionEnv::extension`
+ *                                       → `CallFrameContext::extension`
  *                                       → `EthHost` / `EvmCallFrame`
  *
  * Related seams (different execution phase):
  *   - `StateTransitionHooks` — tx-level precheck through `innerExecute` entry
- *   - `ChainExtendedPrecompileDispatch` — chain precompile classify/dispatch at CALL time
+ *   - `ChainCallTargetPort` — chain precompile classify/dispatch at CALL time
  *
  * See ADR-005, ADR-027, ADR-030 §6.
  */
@@ -67,7 +67,7 @@ evmc_storage_status classifyStorageStatusPrecise(evmc_bytes32 const& original,
     evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept;
 
 /// Injectable hooks for EthHost extension points inside evm.Call.
-/// Chain precompile dispatch is via `ChainExtendedPrecompileDispatch` on FrameExecutionEnv.
+/// Chain precompile dispatch is via `ChainCallTargetPort` on CallFrameContext.
 struct EvmHostHooks
 {
     virtual ~EvmHostHooks() = default;
@@ -76,11 +76,17 @@ struct EvmHostHooks
     /// FISCO returns `false`; ETH reference may disable per audit policy.
     virtual bool allowSelfdestruct(const Account& acc) { return true; }
 
-    /// DELEGATECALL-to-precompile gate in `resolveCallTarget`.
-    /// When `false`, active empty-code precompile targets return `PolicyRejected`.
+    /// DELEGATECALL-to-precompile gate (`CallTargetResolver::resolveCallTarget`).
+    ///
+    /// Applies only when `msg.kind == EVMC_DELEGATECALL` and the resolved target is an active
+    /// builtin precompile (empty code, e.g. 0x01 identity). Normal CALL / STATICCALL to
+    /// precompiles are unaffected.
+    ///
+    /// When `false`, routing returns `CallTargetKind::PolicyRejected` instead of
+    /// `BuiltinPrecompile`. Eth reference returns `true` (geth parity); FISCO returns `false`.
     virtual bool allowDelegateCallToPrecompile() { return true; }
 
-    /// Skip native value transfer in `transferFrameValue` and precompile envelopes.
+    /// Skip native value transfer in `EvmCallFrame::transferOrFail` and precompile envelopes.
     /// FISCO uses when value was moved in orchestration (ADR-005).
     virtual bool skipHostValueTransfer() { return false; }
 

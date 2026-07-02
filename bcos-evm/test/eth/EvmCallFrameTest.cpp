@@ -41,7 +41,7 @@ struct FrameTestHost
 {
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true};
     std::optional<state::EthHost> host;
 
     explicit FrameTestHost(state::State& state, state::EvmHostHooks* extension = nullptr)
@@ -58,7 +58,7 @@ CallOutcome runFrameNested(
 {
     FrameTestHost fixture(state, extension);
     message.depth = 1;
-    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, extension,
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, extension,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runCallFrame(
         frameCtx, message, execution::FrameScope::Nested, fixture.ethHost());
@@ -72,7 +72,7 @@ CallOutcome runFrameNested(
 CallOutcome runFrameTopLevel(state::State& state, evmc_message message)
 {
     FrameTestHost fixture(state);
-    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runCallFrame(
         frameCtx, message, execution::FrameScope::TopLevel, fixture.ethHost());
@@ -83,6 +83,30 @@ CallOutcome runFrameTopLevel(state::State& state, evmc_message message)
         .precompileHit = fr.precompileHit};
 }
 }  // namespace
+
+BOOST_AUTO_TEST_CASE(nested_call_insufficient_balance_returns_insufficient_balance)
+{
+    auto const sender = addressFromLastByte(0x01);
+    auto const target = addressFromLastByte(0x02);
+    bcos::bytes const stopCode{0x00};
+
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_code(target, stopCode,
+        state::keccak256Code(bcos::bytesConstRef{stopCode.data(), stopCode.size()}));
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.gas = 100'000;
+    msg.sender = sender;
+    msg.recipient = target;
+    msg.code_address = target;
+    msg.value = weiValue(100);
+    state.set_balance(sender, 50);
+
+    auto outcome = runFrameNested(state, msg);
+    BOOST_REQUIRE_EQUAL(outcome.status, EVMC_INSUFFICIENT_BALANCE);
+}
 
 BOOST_AUTO_TEST_CASE(nested_precompile_insufficient_balance_matches_envelope_test)
 {
@@ -228,7 +252,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_does_not_commit_before_adapter_nonce_bump)
     message.input_size = 0;
 
     FrameTestHost fixture(state);
-    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runCallFrame(
         frameCtx, message, execution::FrameScope::TopLevel, fixture.ethHost());
@@ -433,7 +457,7 @@ BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)
     state.set_nonce(sender, 7);
 
     FrameTestHost fixture(state);
-    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
 
     evmc_message create1{};

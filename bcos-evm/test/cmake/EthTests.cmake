@@ -298,12 +298,6 @@ target_include_directories(FrameTargetRoutingCharacterizationTest PRIVATE
 target_link_libraries(FrameTargetRoutingCharacterizationTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME FrameTargetRoutingCharacterization COMMAND FrameTargetRoutingCharacterizationTest)
 
-add_executable(FrameValueTransferTest eth/FrameValueTransferTest.cpp)
-target_include_directories(FrameValueTransferTest PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(FrameValueTransferTest PRIVATE bcos-evm-eth evmone::evmone)
-add_test(NAME FrameValueTransfer COMMAND FrameValueTransferTest)
-
 add_executable(EvmCallFrameTest eth/EvmCallFrameTest.cpp)
 target_include_directories(EvmCallFrameTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

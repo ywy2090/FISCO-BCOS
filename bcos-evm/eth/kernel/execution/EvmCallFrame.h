@@ -13,8 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Unified execution frame entry (top-level and nested).
+ * @brief Unified EVM call/create frame entry (top-level tx and nested host calls).
  * @file EvmCallFrame.h
+ *
+ * Single orchestration point for one evmc_message frame: target routing, value transfer,
+ * evmone execution, and journal commit/revert. Invoked from TxExecutionRunner (TopLevel)
+ * and EthHost::call (Nested).
  */
 
 #pragma once
@@ -25,7 +29,7 @@
 
 namespace bcos::evm
 {
-struct ChainExtendedPrecompileDispatch;
+struct ChainCallTargetPort;
 }
 
 namespace bcos::evm::state
@@ -38,30 +42,35 @@ struct EvmHostHooks;
 namespace bcos::evm::execution
 {
 
-struct FrameExecutionEnv
+/// Per-frame execution bundle shared across nested calls for one transaction.
+struct CallFrameContext
 {
     state::State& state;
     evmc::VM& vm;
-    bcos::evm_standard::RevisionConfig const& revisionConfig;
+    bcos::evm::RevisionConfig const& revisionConfig;
+    /// Chain-specific host hooks (FISCO storage status, nonce policy, etc.).
     state::EvmHostHooks* extension{nullptr};
-    ChainExtendedPrecompileDispatch* chainPort{nullptr};
+    /// Optional chain precompile / policy dispatch (FISCO, OpStack adapters).
+    ChainCallTargetPort* callTargetPort{nullptr};
     evmc_address txOrigin{};
+    /// Current execution address; updated on nested CALL success (delegate routing).
     evmc_address& executionAddress;
 
-    FrameExecutionEnv(state::State& state_, evmc::VM& vm_,
-        bcos::evm_standard::RevisionConfig const& revisionConfig_, state::EvmHostHooks* extension_,
+    CallFrameContext(state::State& state_, evmc::VM& vm_,
+        bcos::evm::RevisionConfig const& revisionConfig_, state::EvmHostHooks* extension_,
         evmc_address txOrigin_, evmc_address& executionAddress_,
-        ChainExtendedPrecompileDispatch* chainPort_ = nullptr) noexcept
+        ChainCallTargetPort* callTargetPort_ = nullptr) noexcept
       : state(state_),
         vm(vm_),
         revisionConfig(revisionConfig_),
         extension(extension_),
-        chainPort(chainPort_),
+        callTargetPort(callTargetPort_),
         txOrigin(txOrigin_),
         executionAddress(executionAddress_)
     {}
 };
 
+/// Outcome of runCallFrame; precompileHit skips post-execute host bookkeeping in the runner.
 struct FrameResult
 {
     evmc::Result result{evmc_result{}};
@@ -69,7 +78,8 @@ struct FrameResult
     bool precompileHit{false};
 };
 
+/// Run one CALL/CREATE/DELEGATECALL frame. scope selects TopLevel vs Nested semantics.
 FrameResult runCallFrame(
-    FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host);
+    CallFrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host);
 
 }  // namespace bcos::evm::execution

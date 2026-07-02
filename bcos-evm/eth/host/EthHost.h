@@ -23,8 +23,8 @@
  *
  * Extension seams (ADR-005):
  *   - `EvmHostHooks* m_extension` — SSTORE refund/status, SELFDESTRUCT gate
- *   - `ChainExtendedPrecompileDispatch* m_chainPort` — chain precompile routing
- *     (wired through `FrameExecutionEnv`, consumed inside `runCallFrame`)
+ *   - `ChainCallTargetPort* m_callTargetPort` — chain precompile routing
+ *     (wired through `CallFrameContext`, consumed inside `runCallFrame`)
  *
  * Per-transaction side state kept here (not in `State`):
  *   - `m_logs` — LOG0..4 emissions, drained by `take_logs()` after execution
@@ -50,7 +50,7 @@
 
 namespace bcos::evm
 {
-struct ChainExtendedPrecompileDispatch;
+struct ChainCallTargetPort;
 }
 
 namespace bcos::evm::state
@@ -66,9 +66,9 @@ public:
     using uint256be = evmc::uint256be;
     using Result = evmc::Result;
 
-    EthHost(State& state, evmc_tx_context txContext,
-        bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-        EvmHostHooks* extension = nullptr, ChainExtendedPrecompileDispatch* chainPort = nullptr);
+    EthHost(State& state, evmc_tx_context txContext, bcos::evm::RevisionConfig revisionConfig,
+        evmc::VM& vm, BlockHashes blockHashes, EvmHostHooks* extension = nullptr,
+        ChainCallTargetPort* callTargetPort = nullptr);
 
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
@@ -111,11 +111,11 @@ private:
 
     State& m_state;
     evmc_tx_context m_txContext{};
-    bcos::evm_standard::RevisionConfig m_revisionConfig{};
+    bcos::evm::RevisionConfig m_revisionConfig{};
     evmc::VM& m_vm;
     BlockHashes m_blockHashes;
     EvmHostHooks* m_extension{nullptr};
-    ChainExtendedPrecompileDispatch* m_chainPort{nullptr};
+    ChainCallTargetPort* m_callTargetPort{nullptr};
     /// Original slot value at first SSTORE in this tx (per addr,key) for EIP-2200 status.
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>

@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE EvmTxContextViewPropagationTest
 
-#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainCallTargetPort.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
@@ -16,10 +16,10 @@ namespace bcos::evm::test
 namespace
 {
 
-struct IdentityChainPort final : ChainExtendedPrecompileDispatch
+struct IdentityChainPort final : ChainCallTargetPort
 {
-    ChainExtendedPrecompileDispatch* topLevelPort{nullptr};
-    ChainExtendedPrecompileDispatch* nestedPort{nullptr};
+    ChainCallTargetPort* topLevelPort{nullptr};
+    ChainCallTargetPort* nestedPort{nullptr};
 
     std::optional<execution::CallTargetDescriptor> classifyTarget(state::State&,
         evmc_address const&, evmc_message const&, execution::FrameScope scope) override
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(eth_host_nested_call_shares_chain_port_pointer)
     state::State state(baseState);
     IdentityChainPort port;
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     cfg.revision = EVMC_CANCUN;
 
     state::EthHost host(state, makeTxContext(), cfg, vm, {}, nullptr, &port);
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_context_shares_chain_port_pointer)
     state::State state(baseState);
     IdentityChainPort port;
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     cfg.revision = EVMC_CANCUN;
 
     evmc_message top{};
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(top_level_frame_context_shares_chain_port_pointer)
     top.code_address = top.recipient;
 
     state::EthHost host(state, makeTxContext(), cfg, vm, {}, nullptr, &port);
-    execution::FrameExecutionEnv frameCtx{
+    execution::CallFrameContext frameCtx{
         state, vm, cfg, nullptr, top.sender, host.execution_address_ref(), &port};
     (void)execution::runCallFrame(frameCtx, top, execution::FrameScope::TopLevel, host);
 
@@ -130,12 +130,11 @@ BOOST_AUTO_TEST_CASE(opstack_adapter_propagates_through_execute_message)
     input.blockInfo.number = 1;
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.txProps.warmDestination = true;
-    input.chainPort = &chainAdapter;
+    input.callTargetPort = &chainAdapter;
 
     auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_REVERT);
-    BOOST_CHECK(input.chainPort == &chainAdapter);
+    BOOST_CHECK(input.callTargetPort == &chainAdapter);
 }
 
 }  // namespace bcos::evm::test

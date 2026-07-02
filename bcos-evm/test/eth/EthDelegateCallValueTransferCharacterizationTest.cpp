@@ -23,19 +23,15 @@
  * evmone forwards that inherited (possibly non-zero) value in `evmc_message.value`
  * (lib/evmone/instructions_calls.cpp:117-118: `msg.value = state.msg->value`).
  *
- * bcos `transferFrameValue` (FrameValueTransfer.h:45-92) does NOT gate on `msg.kind` in the
- * nested branch, so a DELEGATECALL carrying a non-zero inherited value moves balance
- * sender->recipient a second time — double-debiting the caller relative to geth.
- *
- * The fix gates transferFrameValue / precompile envelope value transfer on msg.kind
- * (execution::isValueTransferSkippedKind). These tests now assert geth parity: a
- * DELEGATECALL/CALLCODE carrying a non-zero inherited value moves NO balance.
+ * bcos `EvmCallFrame::transferOrFail` gates on msg.kind via isValueTransferSkippedKind so
+ * a DELEGATECALL carrying a non-zero inherited value moves NO balance — matching geth.
+ * Precompile envelopes apply the same kind gate.
  */
 
 #define BOOST_TEST_MODULE EthDelegateCallValueTransferCharacterizationTest
 
 #include "bcos-evm/eth/host/EthHost.h"
-#include "bcos-evm/eth/kernel/execution/FrameValueTransfer.h"
+#include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -64,47 +60,53 @@ bcos::bytes makeDelegateProxyCode(evmc_address const& impl)
     return code;
 }
 
-/// Proxy runtime code: CALLCODE(gas, impl, value=0, 0, 0, 0, 0); STOP.
-/// Note: CALLCODE takes an explicit stack value; we push 0 to isolate the
-/// inherited-value question from CALLCODE's own value argument.
 void setCode(state::State& state, evmc_address const& addr, bcos::bytes const& code)
 {
     state.set_code(
         addr, code, state::keccak256Code(bcos::bytesConstRef{code.data(), code.size()}));
 }
+
+evmc_status_code runFrameNested(state::State& state, evmc_message message)
+{
+    evmc::VM vm{evmc_create_evmone()};
+    evmc_tx_context txContext{};
+    txContext.block_gas_limit = 30'000'000;
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE};
+    state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes());
+    message.depth = 1;
+    execution::CallFrameContext frameCtx{state, vm, cfg, nullptr, txContext.tx_origin,
+        host.execution_address_ref()};
+    auto fr = execution::runCallFrame(frameCtx, message, execution::FrameScope::Nested, host);
+    return fr.result.status_code;
+}
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// 1. Unit-level: transferFrameValue mis-handles a nested DELEGATECALL.
+// 1. Unit-level: nested DELEGATECALL via runCallFrame must not transfer value.
 // ---------------------------------------------------------------------------
 BOOST_AUTO_TEST_CASE(delegatecall_nested_value_erroneously_transfers)
 {
     state::test::InMemoryStateView view;
     state::State state(view);
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 
     auto const eoa = addressFromLastByte(0x11);
     auto const proxy = addressFromLastByte(0x22);
     auto const impl = addressFromLastByte(0x33);
 
-    // Exactly what evmone hands to EthHost::call for a DELEGATECALL:
-    //   sender/recipient inherited from parent, value = inherited apparent value.
+    setCode(state, impl, bcos::bytes{0x00});  // STOP — EvmContract path through transferOrFail
+
     evmc_message msg{};
     msg.kind = EVMC_DELEGATECALL;
-    msg.depth = 1;
-    msg.sender = eoa;         // parent sender
-    msg.recipient = proxy;    // parent recipient (storage context)
-    msg.code_address = impl;  // delegated code
-    msg.value = weiValue(1);  // NON-zero inherited value
+    msg.gas = 100'000;
+    msg.sender = eoa;
+    msg.recipient = proxy;
+    msg.code_address = impl;
+    msg.value = weiValue(1);
 
     state.set_balance(eoa, 10);
     state.set_balance(proxy, 0);
 
-    bool const ok =
-        execution::transferFrameValue(state, cfg, nullptr, msg, execution::FrameScope::Nested);
-    BOOST_REQUIRE(ok);
-
-    // Fixed: a DELEGATECALL performs no transfer, matching geth.
+    BOOST_REQUIRE_EQUAL(runFrameNested(state, msg), EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(state.get_balance(eoa), 10U);
     BOOST_CHECK_EQUAL(state.get_balance(proxy), 0U);
 }
@@ -116,25 +118,24 @@ BOOST_AUTO_TEST_CASE(callcode_nested_value_does_not_transfer)
 {
     state::test::InMemoryStateView view;
     state::State state(view);
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 
     auto const caller = addressFromLastByte(0x22);
     auto const impl = addressFromLastByte(0x33);
 
+    setCode(state, impl, bcos::bytes{0x00});
+
     evmc_message msg{};
     msg.kind = EVMC_CALLCODE;
-    msg.depth = 1;
-    msg.sender = caller;      // CALLCODE keeps sender = current contract
-    msg.recipient = caller;   // storage context stays with caller
+    msg.gas = 100'000;
+    msg.sender = caller;
+    msg.recipient = caller;
     msg.code_address = impl;
     msg.value = weiValue(1);
 
     state.set_balance(caller, 10);
 
-    bool const ok =
-        execution::transferFrameValue(state, cfg, nullptr, msg, execution::FrameScope::Nested);
-    BOOST_REQUIRE(ok);
-    BOOST_CHECK_EQUAL(state.get_balance(caller), 10U);  // geth CallCode: no Transfer
+    BOOST_REQUIRE_EQUAL(runFrameNested(state, msg), EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(state.get_balance(caller), 10U);
 }
 
 // ---------------------------------------------------------------------------
@@ -144,33 +145,30 @@ BOOST_AUTO_TEST_CASE(delegatecall_nested_zero_value_is_noop)
 {
     state::test::InMemoryStateView view;
     state::State state(view);
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 
     auto const eoa = addressFromLastByte(0x11);
     auto const proxy = addressFromLastByte(0x22);
     auto const impl = addressFromLastByte(0x33);
 
+    setCode(state, impl, bcos::bytes{0x00});
+
     evmc_message msg{};
     msg.kind = EVMC_DELEGATECALL;
-    msg.depth = 1;
+    msg.gas = 100'000;
     msg.sender = eoa;
     msg.recipient = proxy;
     msg.code_address = impl;
-    // value defaults to zero.
 
     state.set_balance(eoa, 10);
     state.set_balance(proxy, 0);
 
-    bool const ok =
-        execution::transferFrameValue(state, cfg, nullptr, msg, execution::FrameScope::Nested);
-    BOOST_REQUIRE(ok);
-    BOOST_CHECK_EQUAL(state.get_balance(eoa), 10U);   // matches geth
-    BOOST_CHECK_EQUAL(state.get_balance(proxy), 0U);  // matches geth
+    BOOST_REQUIRE_EQUAL(runFrameNested(state, msg), EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(state.get_balance(eoa), 10U);
+    BOOST_CHECK_EQUAL(state.get_balance(proxy), 0U);
 }
 
 // ---------------------------------------------------------------------------
 // 3. End-to-end via real evmone: CALL(value=1) -> Proxy -> DELEGATECALL(Impl).
-//    Sender is debited twice; geth debits once.
 // ---------------------------------------------------------------------------
 BOOST_AUTO_TEST_CASE(end_to_end_call_then_delegatecall_double_debits_sender)
 {
@@ -183,7 +181,7 @@ BOOST_AUTO_TEST_CASE(end_to_end_call_then_delegatecall_double_debits_sender)
     state.set_balance(eoa, 10);
 
     setCode(state, proxy, makeDelegateProxyCode(impl));
-    setCode(state, impl, bcos::bytes{0x00});  // STOP
+    setCode(state, impl, bcos::bytes{0x00});
 
     evmc_message top{};
     top.kind = EVMC_CALL;
@@ -196,13 +194,10 @@ BOOST_AUTO_TEST_CASE(end_to_end_call_then_delegatecall_double_debits_sender)
     auto const output = innerExecute(makeBaseInput(&state, top));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
 
-    // Top-level CALL moves 1 wei (eoa->proxy). evmone re-enters Proxy code and issues
-    // DELEGATECALL inheriting value=1; the fix skips the nested transfer, so the sender
-    // is debited exactly once — matching geth.
     BOOST_TEST_MESSAGE("eoa balance   = " << state.get_balance(eoa));
     BOOST_TEST_MESSAGE("proxy balance = " << state.get_balance(proxy));
-    BOOST_CHECK_EQUAL(state.get_balance(eoa), 9U);    // single debit
-    BOOST_CHECK_EQUAL(state.get_balance(proxy), 1U);  // single credit
+    BOOST_CHECK_EQUAL(state.get_balance(eoa), 9U);
+    BOOST_CHECK_EQUAL(state.get_balance(proxy), 1U);
     BOOST_CHECK_EQUAL(state.get_balance(impl), 0U);
 }
 
@@ -220,7 +215,7 @@ BOOST_AUTO_TEST_CASE(end_to_end_zero_value_delegatecall_no_double_debit)
     state.set_balance(eoa, 10);
 
     setCode(state, proxy, makeDelegateProxyCode(impl));
-    setCode(state, impl, bcos::bytes{0x00});  // STOP
+    setCode(state, impl, bcos::bytes{0x00});
 
     evmc_message top{};
     top.kind = EVMC_CALL;
@@ -228,11 +223,10 @@ BOOST_AUTO_TEST_CASE(end_to_end_zero_value_delegatecall_no_double_debit)
     top.sender = eoa;
     top.recipient = proxy;
     top.code_address = proxy;
-    // value = 0
 
     auto const output = innerExecute(makeBaseInput(&state, top));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
-    BOOST_CHECK_EQUAL(state.get_balance(eoa), 10U);  // matches geth
-    BOOST_CHECK_EQUAL(state.get_balance(proxy), 0U);  // matches geth
+    BOOST_CHECK_EQUAL(state.get_balance(eoa), 10U);
+    BOOST_CHECK_EQUAL(state.get_balance(proxy), 0U);
 }
 }  // namespace bcos::evm::test

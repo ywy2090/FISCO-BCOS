@@ -212,12 +212,12 @@ Dispatch: `BuiltinPrecompile` → `EthPrecompiles::tryDispatchInCall`; `ChainPre
 
 | Entry | `chainPort` construction | Lifetime | Passed to |
 | --- | --- | --- | --- |
-| Eth reference | `nullptr` | — | `ExecuteMessageInput.chainPort` → `FrameExecutionEnv` |
-| FISCO TE | `FiscoChainCallTargetAdapter` on stack in `TransactionExecutorImpl` | per `executeViaHost` call | `FiscoExecute` / `ExecuteMessageInput` → `FrameExecutionEnv` → `EthHost::call` |
-| OpStack | `OpStackChainCallTargetAdapter(state, baseFee, fork, ts)` on stack in `OpStackTxLifecycle` | per `runOpStackTxLifecycle` call | `TxPipelineContext` or parallel field → `FrameExecutionEnv` |
-| Nested `EthHost::call` | **same pointer** as top-level tx | borrow | `FrameExecutionEnv.chainPort` (new field alongside `extension`) |
+| Eth reference | `nullptr` | — | `ExecuteMessageInput.chainPort` → `CallFrameContext` |
+| FISCO TE | `FiscoChainCallTargetAdapter` on stack in `TransactionExecutorImpl` | per `executeViaHost` call | `FiscoExecute` / `ExecuteMessageInput` → `CallFrameContext` → `EthHost::call` |
+| OpStack | `OpStackChainCallTargetAdapter(state, baseFee, fork, ts)` on stack in `OpStackTxLifecycle` | per `runOpStackTxLifecycle` call | `TxPipelineContext` or parallel field → `CallFrameContext` |
+| Nested `EthHost::call` | **same pointer** as top-level tx | borrow | `CallFrameContext.chainPort` (new field alongside `extension`) |
 
-`FrameExecutionEnv` and `ExecuteMessageInput` gain `ChainExtendedPrecompileDispatch* chainPort{nullptr}` in PR3–PR4.
+`CallFrameContext` and `ExecuteMessageInput` gain `ChainExtendedPrecompileDispatch* chainPort{nullptr}` in PR3–PR4.
 
 ### 7. Seam discipline (extends ADR-005 Rule 1)
 
@@ -258,7 +258,7 @@ PR2: debug dual-run should cover R1–R8 before PR4.
 
 **Positive:** Locality, warm/dispatch single engine, symmetric chain port, envelope depth preserved, interface-aligned tests.
 
-**Costs:** Six PRs; `FrameExecutionEnv` injection surface grows; PR4 requires frozen RR6/RR7/EmptyAccount/C7 contracts.
+**Costs:** Six PRs; `CallFrameContext` injection surface grows; PR4 requires frozen RR6/RR7/EmptyAccount/C7 contracts.
 
 **ADR-017:** Extended, not replaced. `bcos-evm` still zero `bcos-executor` includes.
 

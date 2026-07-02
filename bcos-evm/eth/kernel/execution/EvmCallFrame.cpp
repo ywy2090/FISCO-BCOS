@@ -14,15 +14,37 @@
  *  limitations under the License.
  *
  * @file EvmCallFrame.cpp
+ *
+ * Unified execution of one evmc_message frame (CALL / DELEGATECALL / CREATE / CREATE2).
+ *
+ * Call sites:
+ *   - TxExecutionRunner::runEvmKernelTopLevel  → FrameScope::TopLevel
+ *   - EthHost::call (evmone host callback)      → FrameScope::Nested
+ *
+ * Pipeline (runFrameSteps):
+ *   1. resolveExecutionAddress  — normalize recipient/code_address, EIP-7702 delegation routing
+ *   2. tryCallTargetDispatch    — precompile / empty-account / policy short-circuit (no evmone)
+ *   3. prepareNestedMessage     — chain hooks before nested EVM (warm pin, caller address)
+ *   4. CREATE pre-checkpoint    — bind init code address, bump nested sender nonce
+ *   5. checkpointFrame          — open state journal slice for this frame
+ *   6. transferOrFail           — move msg.value (skipped for DELEGATECALL/CALLCODE)
+ *   7. runVm                    — load bytecode, invoke evmone via EthHost
+ *   8. finalizeFrame            — code deposit, install contract, commit/revert journal
+ *
+ * TopLevel vs Nested differences:
+ *   - TopLevel: no state.commit() here (outer state-transition owns the tx journal);
+ *               CREATE bind-init runs after checkpoint; extension finalizes create nonce.
+ *   - Nested:   state.commit() on success; executionAddress updated for delegate routing;
+ *               nested CREATE bumps sender nonce *before* checkpoint (survives revert).
  */
 
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/eip/Eip2929Gate.h"
 #include "bcos-evm/eth/host/EthHost.h"
+#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
-#include "bcos-evm/eth/kernel/execution/FrameValueTransfer.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
@@ -33,6 +55,8 @@ namespace bcos::evm::execution
 {
 namespace
 {
+
+/// Build a minimal evmc::Result for early-exit paths (balance failure, policy reject, etc.).
 evmc::Result makeFrameResult(evmc_status_code status, int64_t gasLeft)
 {
     evmc_result result{};
@@ -43,6 +67,10 @@ evmc::Result makeFrameResult(evmc_status_code status, int64_t gasLeft)
     return evmc::Result(result);
 }
 
+/// Resolve the deployed contract address reported to callers/receipts.
+/// Priority: message.recipient (already bound by bindCreateForInit) → code_address → VM output.
+/// TopLevel CREATE may still have a zero recipient before init binding; nested CREATE always
+/// has recipient set during bindCreateForInit.
 evmc_address resolveCreateAddress(evmc_message const& message, evmc_result const& result) noexcept
 {
     auto createAddr = message.recipient;
@@ -57,18 +85,21 @@ evmc_address resolveCreateAddress(evmc_message const& message, evmc_result const
     return createAddr;
 }
 
+/// Per-frame mutable workspace. `resolved.routed` is the message after target/7702 routing;
+/// `callMessage()` always reads/writes the routed copy, not the original evmc_message.
 struct FrameWork
 {
-    FrameExecutionEnv& ctx;
+    CallFrameContext& ctx;
     evmc_message const& originalMsg;
     ResolvedFrame resolved;
-    bcos::bytes code;
+    bcos::bytes code;  // lazy-loaded in runVm; empty until first EVM execution
     state::EthHost& host;
 
     evmc_message& callMessage() noexcept { return resolved.routed; }
     evmc_message const& callMessage() const noexcept { return resolved.routed; }
 };
 
+/// Trace log for nested frames only; top-level tracing is owned by state-transition / apply.
 void logFrameDoneIfNested(evmc_message const& originalMsg, evmc::Result const& result)
 {
     if (originalMsg.depth > 0)
@@ -79,6 +110,9 @@ void logFrameDoneIfNested(evmc_message const& originalMsg, evmc::Result const& r
     }
 }
 
+/// Caller seen by chain hooks during nested execution.
+/// DELEGATECALL/CALLCODE keep the parent execution context: use executionAddress when set,
+/// otherwise fall back to msg.sender (first nested frame from top-level CALL).
 evmc_address resolveCallerAddress(
     evmc_address const& executionAddress, evmc_message const& msg) noexcept
 {
@@ -89,6 +123,13 @@ evmc_address resolveCallerAddress(
     return msg.sender;
 }
 
+/// Classify call target and dispatch without entering evmone when possible.
+///
+/// Returns std::nullopt → fall through to normal EVM contract execution.
+/// Returns FrameResult  → frame completes here; caller must not run value transfer / VM again.
+///
+/// Precompile envelopes handle their own gas accounting and optional in-envelope value transfer
+/// (unless extension->skipHostValueTransfer(), used by FISCO paths that settle value elsewhere).
 std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope scope)
 {
     auto& callMessage = work.callMessage();
@@ -101,14 +142,14 @@ std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope sco
         work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer();
 
     auto const desc = resolveCallTarget(work.ctx.state, work.ctx.revisionConfig, callMessage, scope,
-        work.ctx.chainPort, work.ctx.extension);
+        work.ctx.callTargetPort, work.ctx.extension);
 
     precompiled::PrecompileEnvelopeInput envInput{.state = work.ctx.state,
         .revision = work.ctx.revisionConfig,
         .target = desc,
         .message = callMessage,
         .skipValueTransfer = skipVt,
-        .chainPort = work.ctx.chainPort};
+        .callTargetPort = work.ctx.callTargetPort};
 
     switch (desc.kind)
     {
@@ -121,12 +162,14 @@ std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope sco
     }
     case CallTargetKind::EmptyAccount:
     {
+        // Calls into empty code (non-existent contract): charge access gas, return empty success.
         auto out = precompiled::executeEmptyAccountEnvelope(envInput);
         return FrameResult{
             .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
     }
     case CallTargetKind::PolicyRejected:
     {
+        // Chain policy blocked the target (e.g. disallowed precompile revision); no state change.
         evmc_result raw{};
         raw.status_code = EVMC_PRECOMPILE_FAILURE;
         raw.gas_left = callMessage.gas;
@@ -138,10 +181,77 @@ std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope sco
     return std::nullopt;
 }
 
+/// TopLevel CALL value recipient: code_address when set, otherwise recipient.
+evmc_address resolveValueTransferRecipient(evmc_message const& message) noexcept
+{
+    auto codeAddress = message.code_address;
+    if (state::isZeroAddress(codeAddress))
+    {
+        codeAddress = message.recipient;
+    }
+    return codeAddress;
+}
+
+/// Move msg.value for this frame (scope/kind rules below).
+/// On failure: revert everything since checkpointFrame() and return INSUFFICIENT_BALANCE
+/// with full frame gas left (matching geth's balance-check failure before interpreter run).
+///
+/// Skips transfer when:
+///   - msg.value is zero
+///   - DELEGATECALL / CALLCODE (evmone forwards inherited value but geth does not Transfer)
+///   - extension->skipHostValueTransfer() (FISCO paths that settle value elsewhere)
+///
+/// TopLevel CREATE: sender → recipient (deployed address).
+/// TopLevel CALL:   sender → resolveValueTransferRecipient(msg).
+/// Nested:          sender → recipient.
 std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
 {
-    if (!transferFrameValue(
-            work.ctx.state, work.ctx.revisionConfig, work.ctx.extension, work.callMessage(), scope))
+    auto const& msg = work.callMessage();
+    auto& state = work.ctx.state;
+
+    if (state::isZeroBytes32(msg.value))
+    {
+        return std::nullopt;
+    }
+    if (isValueTransferSkippedKind(msg.kind))
+    {
+        return std::nullopt;
+    }
+    if (work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer())
+    {
+        return std::nullopt;
+    }
+
+    auto const value = state::fromEvmC(msg.value);
+
+    auto transfer = [&](evmc_address const& from, evmc_address const& to) -> bool {
+        if (state.get_balance(from) < value)
+        {
+            return false;
+        }
+        state.set_balance(from, state.get_balance(from) - value);
+        state.set_balance(to, state.get_balance(to) + value);
+        return true;
+    };
+
+    bool ok = false;
+    if (scope == FrameScope::TopLevel)
+    {
+        if (isCreateKind(msg.kind))
+        {
+            ok = transfer(msg.sender, msg.recipient);
+        }
+        else
+        {
+            ok = transfer(msg.sender, resolveValueTransferRecipient(msg));
+        }
+    }
+    else
+    {
+        ok = transfer(msg.sender, msg.recipient);
+    }
+
+    if (!ok)
     {
         work.ctx.state.revert();
         return FrameResult{
@@ -150,6 +260,9 @@ std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
     return std::nullopt;
 }
 
+/// Chain-specific nested-frame setup (EvmHostHooks).
+/// Runs only for FrameScope::Nested, before checkpoint, so hook side effects participate in
+/// the frame journal and roll back with revert().
 void prepareNestedMessage(FrameWork& work)
 {
     auto const callerAddress = resolveCallerAddress(work.ctx.executionAddress, work.callMessage());
@@ -160,6 +273,8 @@ void prepareNestedMessage(FrameWork& work)
     }
 }
 
+/// Bind CREATE/CREATE2 recipient from init code (+ salt) and validate init-code size limits.
+/// Uses executionAddress as the logical sender for CREATE2 address prediction under DELEGATECALL.
 void bindCreateForInit(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
@@ -167,11 +282,13 @@ void bindCreateForInit(FrameWork& work)
         bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), work.ctx.state);
 }
 
+/// Open a journal checkpoint so this frame's state changes can commit or revert atomically.
 void checkpointFrame(FrameWork& work)
 {
     work.ctx.state.checkpoint();
 }
 
+/// Ensure the CREATE target account exists and apply EIP-2929 warm-pin when enabled.
 void initializeCreateAccount(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
@@ -179,6 +296,8 @@ void initializeCreateAccount(FrameWork& work)
         work.ctx.revisionConfig.revision, isCreateWarmPinEnabled(work.ctx.revisionConfig));
 }
 
+/// Load bytecode (following 7702 delegation if applicable) and run evmone.
+/// Host callbacks (storage, balance, nested call) go through EthHost bound in FrameWork.
 evmc::Result runVm(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
@@ -191,10 +310,25 @@ evmc::Result runVm(FrameWork& work)
         work.code.data(), work.code.size());
 }
 
+/// Post-interpreter frame teardown: gas for code deposit, persist CREATE output, journal action.
+///
+/// CREATE success path:
+///   1. applyCreateCodeDepositGas — EIP-3860/EIP-170 size gas; may downgrade to OOG
+///   2. installCreatedContractCode — write runtime code to state
+///   3. markCreatedInTx — host tracks addresses created in this tx (EIP-6780 selfdestruct rules)
+///
+/// Journal:
+///   - Nested success → commit() (merge into parent journal)
+///   - Any failure    → revert() (discard since checkpointFrame)
+///   - TopLevel       → no commit/revert here; outer pipeline owns tx-level journal
+///
+/// executionAddress update (nested CALL success only):
+///   Propagate delegate target so deeper DELEGATECALL frames see the correct caller context.
 FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result)
 {
     auto& callMessage = work.callMessage();
 
+    // CREATE: charge code-deposit gas and possibly fail after interpreter returned SUCCESS.
     if (result.status_code == EVMC_SUCCESS && isCreateKind(callMessage.kind))
     {
         auto raw = result.release_raw();
@@ -234,6 +368,7 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
 
         if (scope == FrameScope::TopLevel)
         {
+            // FISCO: bump contract nonce after successful top-level CREATE (outside frame journal).
             if (isCreateKind(callMessage.kind) && work.ctx.extension != nullptr)
             {
                 auto const createAddr = resolveCreateAddress(callMessage, result.raw());
@@ -245,6 +380,7 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
             work.ctx.state.commit();
             if (!isCreateKind(callMessage.kind))
             {
+                // CALL / DELEGATECALL: advance execution context for nested delegate routing.
                 auto const nextExecution = state::isZeroAddress(callMessage.code_address) ?
                                                callMessage.recipient :
                                                callMessage.code_address;
@@ -264,8 +400,12 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
     return FrameResult{.result = std::move(result)};
 }
 
-/// SetNonce(caller, nonce+1) before Snapshot(). The bump sits outside the
-/// frame checkpoint journal, so it survives CREATE failure/revert.
+/// Increment sender nonce for nested CREATE *before* checkpointFrame().
+///
+/// geth semantics: the nonce bump is not part of the call-frame snapshot, so it persists even
+/// when CREATE init/revert rolls back the frame journal. Skipped at depth==0 (top-level nonce
+/// is handled by state-transition pre-check). extension->bumpContractCreateNonce covers FISCO
+/// contract-account nonce when sender != tx.origin.
 void bumpNestedCreateSenderNonce(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
@@ -284,30 +424,40 @@ void bumpNestedCreateSenderNonce(FrameWork& work)
     }
 }
 
+/// Main frame orchestrator; each step may return early via std::optional<FrameResult>.
 FrameResult runFrameSteps(
-    FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
+    CallFrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
+    // Step 1: normalize addresses and apply 7702 delegation to routed message.
     FrameWork work{ctx, message,
         resolveExecutionAddress(ctx.state, ctx.revisionConfig, message, scope), {}, host};
 
+    // Step 2: precompile / empty-account / policy fast path.
     if (auto early = tryCallTargetDispatch(work, scope))
     {
         return std::move(*early);
     }
 
+    // Step 3: nested-only host hooks (warm/access preparation).
     if (scope == FrameScope::Nested)
     {
         prepareNestedMessage(work);
     }
 
+    // Step 4: nested CREATE — bind predicted address and bump sender nonce before journal open.
     if (isCreateKind(work.callMessage().kind) && scope == FrameScope::Nested)
     {
         bindCreateForInit(work);
         bumpNestedCreateSenderNonce(work);
     }
 
+    // Step 5: open frame journal.
     checkpointFrame(work);
 
+    // Step 6: value transfer + CREATE account initialization.
+    // Ordering matches geth evm.create / evm.create2:
+    //   TopLevel CREATE: bind init → transfer endowment → touch/create account
+    //   Nested CREATE:   touch/create account → transfer endowment
     if (isCreateKind(work.callMessage().kind))
     {
         if (scope == FrameScope::TopLevel)
@@ -333,13 +483,15 @@ FrameResult runFrameSteps(
         return std::move(*early);
     }
 
+    // Step 7–8: interpreter + finalize (commit/revert, code install).
     auto result = runVm(work);
     return finalizeFrame(work, scope, std::move(result));
 }
 }  // namespace
 
+/// Public entry; thin wrapper so call sites depend only on EvmCallFrame.h.
 FrameResult runCallFrame(
-    FrameExecutionEnv& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
+    CallFrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     return runFrameSteps(ctx, message, scope, host);
 }

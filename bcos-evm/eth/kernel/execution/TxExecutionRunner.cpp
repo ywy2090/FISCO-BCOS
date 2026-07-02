@@ -111,8 +111,8 @@ void prepareTxEntry(state::State& state, InnerExecuteInput const& input)
     {
         createCodeAddress = input.message.code_address;
     }
-    execution::warmTransactionEntry(state, input.revisionConfig, input.chainPort, transaction,
-        input.blockInfo, input.txProps, input.accessList, input.web3TypedTxKind, createCodeAddress);
+    execution::warmTransactionEntry(state, input.revisionConfig, input.callTargetPort, transaction,
+        input.blockInfo, input.accessList, input.web3TypedTxKind, createCodeAddress);
 }
 
 void setupHostExecutionTarget(
@@ -236,11 +236,11 @@ InnerExecuteOutput TxExecutionRunner::runEvmKernelTopLevel(InnerExecuteInput inp
     auto txContext = buildTxContext(input.blockInfo, input.message);
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);
     state::EthHost host(state, txContext, input.revisionConfig, *input.vm, input.blockHashes,
-        input.extension, input.chainPort);
+        input.extension, input.callTargetPort);
     setupHostExecutionTarget(host, state, input);
 
-    execution::FrameExecutionEnv frameCtx{state, *input.vm, input.revisionConfig, input.extension,
-        txContext.tx_origin, host.execution_address_ref(), input.chainPort};
+    execution::CallFrameContext frameCtx{state, *input.vm, input.revisionConfig, input.extension,
+        txContext.tx_origin, host.execution_address_ref(), input.callTargetPort};
 
     auto const scope = input.message.depth == 0 ? FrameScope::TopLevel : FrameScope::Nested;
     auto fr = runCallFrame(frameCtx, input.message, scope, host);

@@ -432,7 +432,7 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | 2929 warm gate | `eth/eip/Eip2929Gate.h` |
 | Tx-entry warm | `eth/kernel/execution/WarmTransactionEntry.h` |
 | Execution address resolver | `eth/kernel/execution/ExecutionAddressResolver.h` / `.cpp` |
-| Frame helpers | `eth/kernel/execution/FrameValueTransfer.h`、`ResolveExecutionCode.h` |
+| Frame helpers | `eth/kernel/execution/EvmCallFrame.cpp`（value transfer inlined in `transferOrFail`）、`ExecutionAddressResolver.*` |
 | 内核扩展点 | `eth/policy/EvmHostHooks.h` |
 | EIP 开关 | `eth/RevisionConfig.h` |
 | FISCO 编排 | `bcos/ApplyFiscoMessage.cpp` |

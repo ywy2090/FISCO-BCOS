@@ -29,7 +29,7 @@
 | `eth/state/EvmHostHooks.cpp` | **New.** EIP-3529 refund + precise classify defaults; virtual method bodies |
 | `eth/state/EthHost.h/cpp` | SSTORE orchestration via hooks; drop bool |
 | `eth/kernel/execution/EvmCallFrame.h/cpp` | Top-level CREATE → `finalizeTopLevelCreateNonce` |
-| `eth/kernel/execution/TxExecutionRunner.cpp` | Simpler `EthHost` / `FrameExecutionEnv` wiring |
+| `eth/kernel/execution/TxExecutionRunner.cpp` | Simpler `EthHost` / `CallFrameContext` wiring |
 | `eth/kernel/execution/InnerExecute.h` | Remove fix* fields |
 | `eth/kernel/state-transition/EvmTxContextView.h` | Remove fix* fields |
 | `bcos/FiscoEvmHostHooks.h/cpp` | FISCO overrides + `RevisionFlags.fix_storage_status` |
@@ -452,18 +452,18 @@ EOF
 **Files:**
 - Modify: `bcos-evm/eth/kernel/execution/EvmCallFrame.h`
 - Modify: `bcos-evm/eth/kernel/execution/ExecutionFrame.cpp`
-- Modify: `bcos-evm/eth/kernel/execution/TxExecutionRunner.cpp` (partial — only `FrameExecutionEnv` ctor args)
+- Modify: `bcos-evm/eth/kernel/execution/TxExecutionRunner.cpp` (partial — only `CallFrameContext` ctor args)
 
 **Interfaces:**
 - **Consumes:** `EvmHostHooks::finalizeTopLevelCreateNonce`
-- **Produces:** `FrameExecutionEnv` without `fixNonceInit`
+- **Produces:** `CallFrameContext` without `fixNonceInit`
 
 - [ ] **Step 1: Update `ExecutionFrame.h`**
 
 Remove `bool fixNonceInit{false};` and constructor parameter `fixNonceInit_`:
 
 ```cpp
-    FrameExecutionEnv(state::State& state_, evmc::VM& vm_,
+    CallFrameContext(state::State& state_, evmc::VM& vm_,
         bcos::evm_standard::RevisionConfig const& revisionConfig_, state::EvmHostHooks* extension_,
         evmc_address txOrigin_, evmc_address& executionAddress_,
         ChainExtendedPrecompileDispatch* chainPort_ = nullptr) noexcept
@@ -486,19 +486,19 @@ Replace block at lines ~237-247:
 
 Remove `work.ctx.fixNonceInit` condition.
 
-- [ ] **Step 3: Update `TxExecutionRunner.cpp` `FrameExecutionEnv` construction**
+- [ ] **Step 3: Update `TxExecutionRunner.cpp` `CallFrameContext` construction**
 
 Change:
 
 ```cpp
-    execution::FrameExecutionEnv frameCtx{state, *input.vm, input.revisionConfig, input.extension,
+    execution::CallFrameContext frameCtx{state, *input.vm, input.revisionConfig, input.extension,
         txContext.tx_origin, host.execution_address_ref(), input.fixNonceInit, input.chainPort};
 ```
 
 to:
 
 ```cpp
-    execution::FrameExecutionEnv frameCtx{state, *input.vm, input.revisionConfig, input.extension,
+    execution::CallFrameContext frameCtx{state, *input.vm, input.revisionConfig, input.extension,
         txContext.tx_origin, host.execution_address_ref(), input.chainPort};
 ```
 
@@ -509,13 +509,13 @@ Also update `EthHost` construction (remove `input.fixStorageStatus` if still pre
         input.extension, input.chainPort);
 ```
 
-- [ ] **Step 4: Grep for remaining `fixNonceInit` / `FrameExecutionEnv` old ctor**
+- [ ] **Step 4: Grep for remaining `fixNonceInit` / `CallFrameContext` old ctor**
 
 ```bash
 rg 'fixNonceInit|fixStorageStatus' bcos-evm/eth bcos-evm/test
 ```
 
-Fix any test direct `FrameExecutionEnv` constructions.
+Fix any test direct `CallFrameContext` constructions.
 
 - [ ] **Step 5: Build + smoke**
 
@@ -533,7 +533,7 @@ rtk git add bcos-evm/eth/kernel/execution/EvmCallFrame.h bcos-evm/eth/kernel/exe
 rtk git commit -m "$(cat <<'EOF'
 refactor(evm): top-level CREATE nonce via EvmHostHooks
 
-Replace FrameExecutionEnv.fixNonceInit with extension->finalizeTopLevelCreateNonce.
+Replace CallFrameContext.fixNonceInit with extension->finalizeTopLevelCreateNonce.
 EOF
 )"
 ```

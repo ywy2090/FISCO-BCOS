@@ -8,14 +8,14 @@
 
 ## Context
 
-ADR-024 §6 documents per-tx injection of `ChainExtendedPrecompileDispatch*` and `EvmHostHooks* extension` from orchestration into `ExecuteMessageInput` → `FrameExecutionEnv` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
+ADR-024 §6 documents per-tx injection of `ChainExtendedPrecompileDispatch*` and `EvmHostHooks* extension` from orchestration into `ExecuteMessageInput` → `CallFrameContext` → nested `EthHost::call`. Today that wiring is **manual and multi-hop**:
 
 ```text
 bridge/lifecycle → TxPipelineContext.{extension, chainPort}
                 → buildExecuteMessageInput(ctx)   // ~15 field copy
                 → TxExecutionRunner
                 → EthHost(m_extension, m_chainPort)
-                → FrameExecutionEnv.{extension, chainPort}
+                → CallFrameContext.{extension, chainPort}
 ```
 
 **Observed friction:**
@@ -31,7 +31,7 @@ bridge/lifecycle → TxPipelineContext.{extension, chainPort}
 **Non-goals (v1):**
 
 - Removing duplicate `ctx.extension` / `ctx.chainPort` fields from `TxPipelineContext` (follow-up after `wire()` is stable).
-- Changing `ExecuteMessageInput` or `FrameExecutionEnv` field shapes.
+- Changing `ExecuteMessageInput` or `CallFrameContext` field shapes.
 - TE `TransactionExecutorImpl` changes (injection stays inside `fiscoExecute` bridge).
 - Replacing `OrchestrationProfile::Session` or merging it with execution injection.
 - Prepare-phase warm (Gap 36); see separate product decision.

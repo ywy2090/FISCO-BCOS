@@ -44,10 +44,10 @@ struct FrameTestHost
 {
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     std::optional<state::EthHost> host;
 
-    explicit FrameTestHost(state::State& state, bcos::evm_standard::RevisionConfig revisionCfg)
+    explicit FrameTestHost(state::State& state, bcos::evm::RevisionConfig revisionCfg)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = revisionCfg;
@@ -65,9 +65,9 @@ evmc_address precompileWithHigh(uint8_t lowByte, uint8_t highByte = 0x00)
     return addr;
 }
 
-bcos::evm_standard::RevisionConfig cfgForSuffix(uint8_t lowByte, uint8_t highByte)
+bcos::evm::RevisionConfig cfgForSuffix(uint8_t lowByte, uint8_t highByte)
 {
-    bcos::evm_standard::RevisionConfig cfg{.eip2929 = true, .eip7702 = true};
+    bcos::evm::RevisionConfig cfg{.eip2929 = true, .eip7702 = true};
     if (highByte == 0x01 && lowByte == 0x00)
     {
         cfg.revision = EVMC_OSAKA;
@@ -89,7 +89,7 @@ bcos::evm_standard::RevisionConfig cfgForSuffix(uint8_t lowByte, uint8_t highByt
     return cfg;
 }
 
-CallOutcome runFrame(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
+CallOutcome runFrame(state::State& state, bcos::evm::RevisionConfig const& cfg,
     evmc_message message, execution::FrameScope scope, state::EvmHostHooks* extension = nullptr)
 {
     FrameTestHost fixture(state, cfg);
@@ -97,7 +97,7 @@ CallOutcome runFrame(state::State& state, bcos::evm_standard::RevisionConfig con
     {
         message.depth = 1;
     }
-    execution::FrameExecutionEnv frameCtx{state, fixture.vm, fixture.cfg, extension,
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, extension,
         fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
     auto fr = execution::runCallFrame(frameCtx, message, scope, fixture.ethHost());
     return {.status = fr.result.status_code,
@@ -246,8 +246,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_top_level
     message.input_size = inputBytes.size();
 
     DenyDelegatePrecompilePolicy policy;
-    bcos::evm_standard::RevisionConfig cfg{
-        .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 
     state::test::InMemoryStateView view;
     state::State state(view);
@@ -275,8 +274,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_nested)
     message.input_size = inputBytes.size();
 
     DenyDelegatePrecompilePolicy policy;
-    bcos::evm_standard::RevisionConfig cfg{
-        .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 
     state::test::InMemoryStateView view;
     state::State state(view);

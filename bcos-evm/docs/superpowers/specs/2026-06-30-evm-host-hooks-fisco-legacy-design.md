@@ -27,7 +27,7 @@ FiscoPolicy
   → FiscoExecutionBundle / FiscoPrecheckPolicy
   → EvmTxContextView / ExecuteMessageInput          // Tier-2 字段
   → TxExecutionRunner
-  → EthHost(m_fixStorageStatus) / FrameExecutionEnv(fixNonceInit)
+  → EthHost(m_fixStorageStatus) / CallFrameContext(fixNonceInit)
   → if (bool) { FISCO legacy ... }
 ```
 
@@ -202,7 +202,7 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 }
 ```
 
-删除 `FrameExecutionEnv::fixNonceInit` 及构造函数参数。
+删除 `CallFrameContext::fixNonceInit` 及构造函数参数。
 
 ---
 
@@ -218,7 +218,7 @@ if (scope == FrameScope::TopLevel && isCreateKind(kind) && ctx.extension != null
 | `eth/state/EthHost.cpp` | `set_storage` 调 hooks；删除 FISCO 注释 |
 | `eth/kernel/execution/EvmCallFrame.h` | 删除 `fixNonceInit` |
 | `eth/kernel/execution/ExecutionFrame.cpp` | 调 `finalizeTopLevelCreateNonce` |
-| `eth/kernel/execution/TxExecutionRunner.cpp` | 简化 `EthHost` / `FrameExecutionEnv` 构造 |
+| `eth/kernel/execution/TxExecutionRunner.cpp` | 简化 `EthHost` / `CallFrameContext` 构造 |
 | `eth/kernel/execution/InnerExecute.h` | 删除 `fixStorageStatus`, `fixNonceInit` |
 | `eth/kernel/state-transition/EvmTxContextView.h` | 删除同上 + `toExecuteMessageInput` 拷贝 |
 | `eth/CMakeLists.txt`（或等效） | 添加 `EvmHostHooks.cpp` |

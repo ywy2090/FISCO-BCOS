@@ -70,12 +70,12 @@ DelegatePrecompileOutcome runNestedExecutionFrame(
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
     txContext.block_gas_limit = 30'000'000;
-    bcos::evm_standard::RevisionConfig cfg{
+    bcos::evm::RevisionConfig cfg{
         .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
     state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), extension);
 
     message.depth = 1;
-    execution::FrameExecutionEnv frameCtx{
+    execution::CallFrameContext frameCtx{
         state, vm, cfg, extension, txContext.tx_origin, host.execution_address_ref()};
     auto fr = execution::runCallFrame(frameCtx, message, execution::FrameScope::Nested, host);
 

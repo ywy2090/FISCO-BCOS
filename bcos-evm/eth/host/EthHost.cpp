@@ -37,16 +37,16 @@ namespace bcos::evm::state
 // Construction
 // ---------------------------------------------------------------------------
 
-EthHost::EthHost(State& state, evmc_tx_context txContext,
-    bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
-    EvmHostHooks* extension, ChainExtendedPrecompileDispatch* chainPort)
+EthHost::EthHost(State& state, evmc_tx_context txContext, bcos::evm::RevisionConfig revisionConfig,
+    evmc::VM& vm, BlockHashes blockHashes, EvmHostHooks* extension,
+    ChainCallTargetPort* callTargetPort)
   : m_state(state),
     m_txContext(txContext),
     m_revisionConfig(revisionConfig),
     m_vm(vm),
     m_blockHashes(std::move(blockHashes)),
     m_extension(extension),
-    m_chainPort(chainPort)
+    m_callTargetPort(callTargetPort)
 {}
 
 // ---------------------------------------------------------------------------
@@ -241,8 +241,8 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     };
     ExecutionAddressGuard guard{m_executionAddress};
 
-    execution::FrameExecutionEnv frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
-        m_txContext.tx_origin, m_executionAddress, m_chainPort};
+    execution::CallFrameContext frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
+        m_txContext.tx_origin, m_executionAddress, m_callTargetPort};
     auto fr = execution::runCallFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
     return Result(std::move(fr.result));
 }
