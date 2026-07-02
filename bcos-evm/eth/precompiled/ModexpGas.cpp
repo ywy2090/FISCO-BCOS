@@ -3,6 +3,9 @@
  *  SPDX-License-Identifier: Apache-2.0
  *  @brief Modexp (0x05) precompile gas: EIP-198 / EIP-2565 / EIP-7883 by revision.
  *  @file ModexpGas.cpp
+ *
+ *  Pricing formulas mirror geth `modexpMultComplexity` / `modexpIterationCount` and the
+ *  legacy EIP-198 `multComplexity` piecewise curve. Public entry: `calcModexpGas`.
  */
 
 #include "ModexpGas.h"
@@ -19,6 +22,7 @@ namespace bcos::evm
 {
 namespace
 {
+/// Read @p count bytes at @p begin, zero-padded on the right (modexp exp head semantics).
 bigint parseBigEndianRightPadded(bytesConstRef in, bigint const& begin, bigint const& count)
 {
     if (begin > in.count())
@@ -39,11 +43,14 @@ bigint parseBigEndianRightPadded(bytesConstRef in, bigint const& begin, bigint c
     return ret;
 }
 
+/// One 32-byte big-endian length word from the modexp header (offset 0 / 32 / 64).
 bigint parseHeaderLen(bytesConstRef in, size_t offset)
 {
     return parseBigEndianRightPadded(in, offset, 32);
 }
 
+/// Effective exponent bit-length for gas (EIP-2565 / shared by 198 path).
+/// expOffset = 96 + baseLen points at the start of the exponent field in calldata.
 bigint expLengthAdjustEip2565(bigint const& expOffset, bigint const& expLength, bytesConstRef in)
 {
     if (expLength <= 32)
@@ -56,6 +63,7 @@ bigint expLengthAdjustEip2565(bigint const& expOffset, bigint const& expLength, 
     return 8 * (expLength - 32) + highestBit;
 }
 
+/// EIP-198 multiplication complexity (piecewise on max(baseLen, modLen)).
 bigint multComplexityEip198(bigint const& x)
 {
     if (x <= 64)
@@ -69,12 +77,14 @@ bigint multComplexityEip198(bigint const& x)
     return (x * x) / 16 + 480 * x - 199680;
 }
 
+/// EIP-2565: complexity = ceil(maxLen/8)^2 (word-based).
 bigint modexpMultComplexityEip2565(bigint const& maxLenBytes)
 {
     bigint const words = (maxLenBytes + 7) / 8;
     return words * words;
 }
 
+/// EIP-7883: complexity = 16 when max(base,mod) ≤ 32, else 2 * ceil(maxLen/8)^2.
 bigint modexpMultComplexityEip7883(size_t baseLen, size_t modLen)
 {
     size_t const maxLen = std::max(baseLen, modLen);
@@ -86,6 +96,7 @@ bigint modexpMultComplexityEip7883(size_t baseLen, size_t modLen)
     return 2 * words * words;
 }
 
+/// EIP-7883 iteration count: uses low 256 bits of exponent head when expLen > 32.
 bigint modexpIterationCountEip7883(size_t expLen, bytesConstRef in, size_t baseLen)
 {
     size_t const expOffset = 96 + baseLen;
@@ -105,6 +116,7 @@ bigint modexpIterationCountEip7883(size_t expLen, bytesConstRef in, size_t baseL
     return 16 * (expLen - 32) + highestBit;
 }
 
+/// gas = multComplexity(max(base,mod)) * max(adjustedExpBits, 1) / 20
 bigint calcModexpGasEip198(bytesConstRef in)
 {
     bigint const baseLength(parseHeaderLen(in, 0));
@@ -117,6 +129,7 @@ bigint calcModexpGasEip198(bytesConstRef in)
     return multComplexityEip198(maxLength) * max<bigint>(adjustedExpLength, 1) / 20;
 }
 
+/// gas = complexity * max(iterationCount, 1) / 3, floor 200 (EIP-2565).
 bigint calcModexpGasEip2565(bytesConstRef in)
 {
     bigint const baseLength(parseHeaderLen(in, 0));
@@ -131,6 +144,7 @@ bigint calcModexpGasEip2565(bytesConstRef in)
     return gas < kMinGas ? kMinGas : gas;
 }
 
+/// gas = complexity * max(iterationCount, 1), floor 500 (EIP-7883 / Osaka+).
 bigint calcModexpGasEip7883(bytesConstRef in)
 {
     auto const lens = parseModexpLengths(in);
@@ -151,6 +165,7 @@ ModexpLengths parseModexpLengths(bytesConstRef input)
     auto const exp = parseHeaderLen(input, 32);
     auto const mod = parseHeaderLen(input, 64);
 
+    // Lengths used for gas and 7823 validation; oversize headers → overflow (reject).
     auto assign = [&](bigint const& v, size_t& dst) {
         if (v > kUint64Max)
         {
@@ -169,6 +184,7 @@ ModexpLengths parseModexpLengths(bytesConstRef input)
 
 bool validateModexpEip7823(bytesConstRef input, evmc_revision revision)
 {
+    // Pre-Osaka: no field bound (7823 is an Osaka EIP; revision gate matches geth).
     if (revision < EVMC_OSAKA)
     {
         return true;
@@ -194,7 +210,7 @@ bool validateModexpEip7823(bytesConstRef input, evmc_revision revision)
 }
 
 bool shouldRejectModexpEip7823(evmc_address const& addr, bytesConstRef input,
-    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept
+    const bcos::evm::RevisionConfig& rev, evmc_revision revision) noexcept
 {
     if (!isModexpPrecompileEvmcAddress(addr))
     {
@@ -208,7 +224,7 @@ bool shouldRejectModexpEip7823(evmc_address const& addr, bytesConstRef input,
 }
 
 bool shouldRejectModexpEip7823(std::string_view addr, bytesConstRef input,
-    const bcos::evm_standard::RevisionConfig& rev, evmc_revision revision) noexcept
+    const bcos::evm::RevisionConfig& rev, evmc_revision revision) noexcept
 {
     if (!isModexpPrecompileAddress(addr))
     {
@@ -221,6 +237,7 @@ bool shouldRejectModexpEip7823(std::string_view addr, bytesConstRef input,
     return !validateModexpEip7823(input, revision);
 }
 
+/// Fork dispatch for `EthPrecompiles::gasModexp` (Osaka → 7883, Berlin → 2565, else 198).
 bigint calcModexpGas(bytesConstRef input, evmc_revision revision)
 {
     if (revision >= EVMC_OSAKA)
