@@ -1,3 +1,10 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @file ApplyOpStackMessage.cpp
+ */
+
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
@@ -17,6 +24,7 @@ namespace bcos::evm
 {
 namespace
 {
+/// Reserve gas from block pool; no-op when hook unset (tests / unconstrained callers).
 bool acquireGasPool(GasPoolHooks const& gasPool, int64_t originalGasLimit)
 {
     if (!gasPool.subGas)
@@ -41,7 +49,6 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
     OpStackMessageResult output;
     StateTransitionContext ctx{
         *input.stateView, input.message, input.revisionConfig, bcos::u256(0)};
-    ctx.txProps = input.txProps;
     ctx.inputs.vm = input.vm;
     ctx.inputs.hashImpl = input.hashImpl;
     ctx.inputs.blockInfo = input.blockInfo;
@@ -51,6 +58,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
 
+    // OpStack predeploy classification + dispatch (L1Block, GasPriceOracle, …).
     OpStackChainCallTargetAdapter chainAdapter(
         &ctx.state, input.blockInfo.baseFee, input.forkSchedule, input.blockInfo.timestamp);
     ctx.wireExecutionEnvironment(input.vm, nullptr, &chainAdapter);
@@ -64,13 +72,14 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
     sidecar.floorDataGas = input.floorDataGas;
     OpStackSettlementProjection view{ctx, input, sidecar};
 
-    // chainAdapter + wireExecutionEnvironment inject vm/chainPort into ctx.
+    // chainAdapter + wireExecutionEnvironment inject vm/callTargetPort into ctx.
     // bindingsCtx is orchestration policy bind input only.
     OpStackStateTransitionBindings::Context bindingsCtx{input, view};
     auto bindings = OpStackStateTransitionBindings::bind(bindingsCtx);
 
     trace::logMessageContext(input.message);
 
+    // OpStack entry rules (nonce, fee caps, deposit-specific checks) may set ctx.earlyExit.
     bindings.hooks.lifecycleCheckEntryRules(ctx);
     if (ctx.earlyExit)
     {
@@ -83,6 +92,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
         .returnGas = input.gasPoolReturnGasHook,
     };
 
+    // ── Deposit path: L1-originated system tx; no buyGas / L1 fee settlement ──
     if (view.isDeposit())
     {
         if (!acquireGasPool(gasPool, ctx.originalGasLimit))
@@ -93,6 +103,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
 
         output.receiptMeta.depositNonce = ctx.state.get_nonce(input.message.sender);
         output.receiptMeta.depositReceiptVersion = OP_CANYON_DEPOSIT_RECEIPT_VERSION;
+        // Mint ETH credited by L1 deposit before execution (op-geth: mint on deposit).
         if (input.depositTx.has_value() && input.depositTx->mint.has_value() &&
             *input.depositTx->mint > 0)
         {
@@ -121,6 +132,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
         co_return output;
     }
 
+    // ── Normal L2 user tx: buy gas, execute, refund + L1/operator fee finalize ──
     if (!acquireGasPool(gasPool, ctx.originalGasLimit))
     {
         output.evmcResult = makeOutOfGasLimitResult();

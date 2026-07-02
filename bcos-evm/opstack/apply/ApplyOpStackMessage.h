@@ -1,6 +1,18 @@
 /*
- * @brief Chain entry applyOpStackMessage.
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief OpStack chain entry: deposit vs normal tx orchestration around stateTransitionExecute.
  * @file ApplyOpStackMessage.h
+ *
+ * Parallel to eth/apply/ApplyEthMessage.h. OpStack adds:
+ *   - L1 / operator fee settlement (OpStackNormalTxFeeCoordinator, settleDeposit)
+ *   - OpStackChainCallTargetAdapter (L1Block, GasPriceOracle predeploys)
+ *   - Deposit-tx mint + receipt meta (Canyon deposit receipt version)
+ *
+ * Pipeline (applyOpStackMessage):
+ *   wire ctx → bind hooks → lifecycleCheckEntryRules
+ *   → [deposit | normal] gas pool → checkpoint → stateTransitionExecute → settlement
  */
 
 #pragma once
@@ -29,6 +41,8 @@
 
 namespace bcos::evm
 {
+
+/// Inputs for one OpStack transaction apply (L1-derived deposit or L2 user tx).
 struct OpStackMessageRequest
 {
     state::StateView const* stateView{nullptr};
@@ -42,8 +56,7 @@ struct OpStackMessageRequest
     std::vector<bcos::h256> blobVersionedHashes;
     state::BlockInfo blockInfo{};
     state::BlockHashes blockHashes{};
-    bcos::evm_standard::RevisionConfig revisionConfig{};
-    state::TransactionProperties txProps{};
+    bcos::evm::RevisionConfig revisionConfig{};
     const Eip2930AccessList* accessList{nullptr};
     uint8_t web3TypedTxKind{0};
     std::optional<OpStackDepositTx> depositTx;
@@ -56,6 +69,7 @@ struct OpStackMessageRequest
     uint64_t floorDataGas{0};
     std::optional<RollupCostData> rollupCostData;
     OpStackForkSchedule forkSchedule = makeIsthmusPlusForkSchedule();
+    /// Block-level gas pool hooks; deposit and normal paths both acquire before execute.
     std::function<bool(uint64_t)> gasPoolSubGasHook;
     std::function<void(uint64_t gasRemaining, uint64_t gasUsed)> gasPoolReturnGasHook;
     OpStackFeeSettlement opTxExecutor{};
@@ -75,6 +89,7 @@ struct OpStackMessageResult
 // ── Chain entry ───────────────────────────────────────────────────────────────
 task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input);
 
+/// True for L1 deposit transactions (typed tx kind or explicit depositTx payload).
 inline bool isDepositTx(OpStackMessageRequest const& input) noexcept
 {
     return input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE || input.depositTx.has_value();
