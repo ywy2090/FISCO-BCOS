@@ -298,6 +298,16 @@ public:
                 auto const version = bcos::u256(*m_data->m_receiptMeta.depositReceiptVersion);
                 receipt->setDepositReceiptVersion("0x" + version.str(0, std::ios_base::hex));
             }
+            if (m_data->m_receiptMeta.daFootprintGasScalar.has_value())
+            {
+                auto const scalar = bcos::u256(*m_data->m_receiptMeta.daFootprintGasScalar);
+                receipt->setDaFootprintGasScalar("0x" + scalar.str(0, std::ios_base::hex));
+            }
+            if (m_data->m_receiptMeta.daFootprint.has_value())
+            {
+                auto const footprint = bcos::u256(*m_data->m_receiptMeta.daFootprint);
+                receipt->setBlobGasUsed("0x" + footprint.str(0, std::ios_base::hex));
+            }
             co_return receipt;
         }
     };
