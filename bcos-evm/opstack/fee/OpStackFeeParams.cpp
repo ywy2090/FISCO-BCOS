@@ -103,14 +103,8 @@ u256 l1CostFjord(RollupCostData const& data, OpStackFeeParams const& params)
     auto const blobCostPerByte = params.l1BlobBaseFeeScalar * params.l1BlobBaseFee;
     auto const l1FeeScaled = calldataCostPerByte + blobCostPerByte;
 
-    s256 estimatedSize =
-        s256(L1_COST_INTERCEPT) + s256(L1_COST_FASTLZ_COEF) * s256(data.fastLzSize);
-    if (estimatedSize < s256(MIN_TX_SIZE_SCALED))
-    {
-        estimatedSize = s256(MIN_TX_SIZE_SCALED);
-    }
-
-    return u256(estimatedSize) * l1FeeScaled / u256(FJORD_DIVISOR);
+    auto const scaled = estimatedDASizeScaled(data);
+    return u256(scaled) * l1FeeScaled / u256(FJORD_DIVISOR);
 }
 
 u256 operatorCostIsthmus(uint64_t gas, OpStackFeeParams const& params)

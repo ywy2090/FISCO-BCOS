@@ -739,3 +739,23 @@ target_include_directories(OpStackTxPropsTest PRIVATE
     ${CMAKE_SOURCE_DIR}/transaction-executor)
 target_link_libraries(OpStackTxPropsTest PRIVATE bcos-evm-op bcos-evm-eth)
 add_test(NAME OpStackTxProps COMMAND OpStackTxPropsTest)
+
+set(ESTIMATED_DA_SIZE_TEST_BINARY_NAME EstimatedDASizeTest)
+
+add_executable(${ESTIMATED_DA_SIZE_TEST_BINARY_NAME}
+    opstack/EstimatedDASizeTest.cpp
+)
+
+target_include_directories(${ESTIMATED_DA_SIZE_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${ESTIMATED_DA_SIZE_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME EstimatedDASize
+    COMMAND ${ESTIMATED_DA_SIZE_TEST_BINARY_NAME}
+)

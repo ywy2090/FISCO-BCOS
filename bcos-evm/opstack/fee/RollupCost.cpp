@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/fee/RollupCost.h"
 
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -126,6 +127,21 @@ RollupCostData newRollupCostData(bcos::bytesConstRef serializedTx)
     }
     out.fastLzSize = flzCompressLen(serializedTx);
     return out;
+}
+
+bcos::s256 estimatedDASizeScaled(RollupCostData const& data) noexcept
+{
+    s256 scaled = s256(L1_COST_INTERCEPT) + s256(L1_COST_FASTLZ_COEF) * s256(data.fastLzSize);
+    if (scaled < s256(MIN_TX_SIZE_SCALED))
+    {
+        scaled = s256(MIN_TX_SIZE_SCALED);
+    }
+    return scaled;
+}
+
+uint64_t estimatedDASize(RollupCostData const& data) noexcept
+{
+    return static_cast<uint64_t>(estimatedDASizeScaled(data) / s256(1'000'000));
 }
 
 }  // namespace bcos::evm
