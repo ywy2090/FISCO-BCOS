@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
     BOOST_CHECK(output.logs.empty());
 }
 
-BOOST_AUTO_TEST_CASE(top_level_revert_does_not_bump_sender_nonce)
+BOOST_AUTO_TEST_CASE(top_level_revert_bumps_sender_nonce)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x03);
@@ -114,7 +114,8 @@ BOOST_AUTO_TEST_CASE(top_level_revert_does_not_bump_sender_nonce)
 
     auto output = innerExecute(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_REVERT);
-    BOOST_CHECK_EQUAL(state.get_nonce(sender), 1U);
+    // geth bumps the sender nonce before execution; it survives revert (state_transition.go:620).
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 2U);
 }
 
 }  // namespace bcos::evm::test

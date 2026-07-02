@@ -1,6 +1,6 @@
 # bcos-evm/eth vs go-ethereum 标准 EVM Parity 报告
 
-**状态：** Phase 1–15 初稿 + Round 1 四路 sub-agent 独立复核  
+**状态：** Phase 1–15 初稿 + Round 1/2 复核 + **2026-07-01 修复同步**（[6.5] DELEGATECALL value ✅）  
 **提示词：** [2026-07-01-eth-vs-geth-diff-prompt.md](../../superpowers/plans/2026-07-01-eth-vs-geth-diff-prompt.md)  
 **日期：** 2026-07-01  
 **范围：** 可移植 ETH 内核（`bcos-evm/eth/`）+ TE 编排（`EthTransactionExecutorImpl`），不含 `opstack/` / `bcos/` 链扩展
@@ -24,22 +24,22 @@
 
 bcos `eth/` 内核在 **Prague+ 且经完整 TE 路径**（`buyGas` → `stateTransitionExecute` → `refundGas`）时，intrinsic 公式、EIP-7623 floor、1559 扣款公式、预热集合与 geth **大体对齐**。
 
-初稿标记 **12 项 🔴**；Round 1 去重后 **8 项唯一主题**（见文末复核节）。Prague+ 产品基线下 **2 项确认阻断**：nonce 时机、DELEGATECALL value transfer。
+初稿标记 **12 项 🔴**；Round 1 去重后 **8 项唯一主题**（见文末复核节）。Prague+ 产品基线下原 **2 项 state root 阻断**；**[6.5] DELEGATECALL value** 与 **[2.1] 顶层 nonce 时机** 均已于 2026-07-01 修复，**Prague+ 主路径 state root 阻断已清零**。
 
 主要差异主题：
 
 1. **Cancun（`eip7623=false`）内核不扣 intrinsic gas** — gasUsed 系统性偏低（Prague+ 产品基线下为有意门控，非主路径 bug）  
-2. **Nonce 仅在 SUCCESS 路径递增** — 失败 tx 的 state root 与 geth 不一致（**确认阻断**；Eth TE 无 `updateNonce` 补偿）  
+2. ~~**Nonce 仅在 SUCCESS 路径递增**~~ — ✅ **已修复 2026-07-01**（`bumpTopLevelSenderNonce`：included tx 无论成败均递增，含 CREATE/precompile；reject 早退不受影响）  
 3. **多处 geth reject → bcos included 失败** — intrinsic 不足、buyGas 不足、transfer 不足（ADR-028 已知设计差距）  
 4. **非 eip7623 路径跳过 EIP-3529 refund settlement** — London–Cancun 链少退 gas（Prague+ 走 `settleTopLevelTransactionGas`，已对齐）  
-5. **DELEGATECALL/CALLCODE 未过滤 value transfer** — 嵌套调用余额错误（**确认阻断**；含 precompile envelope 路径）  
+5. ~~**DELEGATECALL/CALLCODE 未过滤 value transfer**~~ — ✅ **已修复 2026-07-01**（`isValueTransferSkippedKind` + 回归测试）  
 6. **PrecompileActive 将 0x01–0x09 统一门控到 Berlin+** — 与 geth fork 表矛盾（有意设计，见 `PrecompileActiveGateMatrixTest`；Prague+ 不受影响）
 
-**合并判定（复核后）：** ⚠️ **条件 parity** — Prague+ Web3 全链路 intrinsic/7623/refund/预热对齐，但 **nonce** 与 **delegate value transfer** 仍为 state root 级真实分歧；全 revision parity 需另修 Cancun intrinsic、London refund、历史 fork 预编译、reject 语义。
+**合并判定（复核后）：** ⚠️ **条件 parity** — Prague+ Web3 全链路 intrinsic/7623/refund/预热对齐；**delegate value transfer 与顶层 nonce 时机均已闭合**；Prague+ 主路径无剩余 state root 阻断。剩余 **inclusion/receipt 层**（ADR-028 reject 语义、ADR-015 receiptsRoot）与 **全 revision parity**（Cancun intrinsic、London refund、历史 fork 预编译）为独立课题。
 
 | 等级 | 初稿 | 复核后（去重/分级修正） |
 |------|------|------------------------|
-| 🔴 | 12（含重复） | **8 主题**；Prague+ 阻断 **2** |
+| 🔴 | 12（含重复） | **8 主题**；Prague+ **state root 阻断 0**（[6.5]、[2.1] 均已修复）；剩余 ADR-028 / ADR-015 为 inclusion/receipt 层 |
 | 🟡 | 18 | 18（ plausible，计数规则不透明） |
 | 🟢 | 18 | 18（合并粒度偏粗） |
 
@@ -50,9 +50,9 @@ bcos `eth/` 内核在 **Prague+ 且经完整 TE 路径**（`buyGas` → `stateTr
 | # | ID | 主题 | 影响 |
 |---|-----|------|------|
 | 1 | 3.1 | Cancun 无 intrinsic debit | gasUsed 偏低 ≥21000+calldata |
-| 2 | 2.1 / P7-05 | Nonce 仅 SUCCESS 递增 | 失败 tx nonce 不变 |
+| 2 | 2.1 / P7-05 | Nonce 仅 SUCCESS 递增 | 失败 tx nonce 不变 | ✅ 已修复 |
 | 3 | 9.3 / 10.5 | 非 eip7623 跳过 refund settlement | sender 少退 gas、tip 错误 |
-| 4 | 6.5 / P8-05 | DELEGATECALL value transfer 未跳过 | 嵌套调用余额错误 |
+| 4 | 6.5 / P8-05 | DELEGATECALL value transfer 未跳过 | 嵌套调用余额错误 | ✅ 已修复 |
 | 5 | 1.4 / 3.5 / 4.4 | reject vs included 语义分裂 | receipt/gasUsed/inclusion |
 | 6 | 11.1 | PrecompileActive Berlin 门控过严 | Frontier–Istanbul 预编译不可达 |
 | 7 | 4.1 | applyEthMessage 无 buyGas | 单独调用余额不对 |
@@ -122,17 +122,25 @@ geth 块级 `GasPool`；bcos ETH 内核无 GasPool，块 gas 在 TE/块执行层
 
 ## Phase 2 — Precheck
 
-### [2.1] Nonce：无状态校验 + 递增时机
+### [2.1] Nonce：无状态校验 + 递增时机 — ✅ 递增时机已修复
 
-**风险等级**: 🔴
+**风险等级**: 🔴 → ✅ RESOLVED（递增时机部分）
 
-**geth 行为**: `preCheck` 比较 `msg.Nonce` vs state；非 CREATE 在 **Call 前**递增，**无论成败** (`state_transition.go:619-620`)。
+**geth 行为**: `preCheck` 比较 `msg.Nonce` vs state；非 CREATE 在 **Call 前**递增，**无论成败** (`state_transition.go:619-620`)；CREATE 在 `evm.create` 的 revert snapshot 之前递增 (`evm.go:499`)，地址派生用递增前 nonce (`evm.go:625`)。
 
-**bcos-evm 行为**: `EthTxPrecheck.cpp:24-28` 仅拒 `txNonce == UINT64_MAX`；**不与 state nonce 比较**；递增仅在 `TxExecutionRunner.cpp:153-163` **`EVMC_SUCCESS` 路径**。
+**bcos-evm 原行为**: 递增仅在 `TxExecutionRunner.cpp` **`EVMC_SUCCESS` 路径**；失败（REVERT/OOG）不递增；顶层 precompile 直调路径完全不递增。
 
 **影响面**: status: 是；state root: 是（nonce）
 
-**触发场景**: CALL `value=0`，execution REVERT/OOG；geth nonce+1，bcos nonce 不变
+**触发场景**: CALL `value=0` execution REVERT/OOG；顶层 CREATE 失败；顶层 tx 目标为 precompile。
+
+**修复 (2026-07-01)**:
+- 提取 `bumpTopLevelSenderNonce(state, input)`（`TxExecutionRunner.cpp` 匿名命名空间），在 `finalizeAfterFrame` **成功与失败两分支** + `finalizePrecompileHit` 统一调用；保留 `depth==0`、非零 sender、`skipTopLevelSenderNonceBump`（OpStack deposit）、EIP-7702 auth 预 bump 互斥条件。
+- reject 类交易（preCheck/gasAfford/intrinsic/CanTransfer）在 `stateTransitionExecute` 于 `onInvokeInnerExecute` **之前**早退，永不进入内核，故不会误 bump —— 与 geth 对齐。
+- CREATE 地址派生仍在帧内用递增前 nonce（bump 在 finalize，位于帧之后），CREATE 失败也按 geth 递增一次。
+- 回归：`TxExecutionRunnerTest`（REVERT/INVALID/CREATE 失败/precompile 各 bump 一次；skip flag / nested / 7702 预 bump 不受影响）、`InnerExecuteSmokeTest` 更新为 bump-on-revert；OpStack deposit 4 项（skip flag + 结算层 bump）不受影响，全绿。
+
+**残留（非本次范围）**: 无状态 nonce 校验（`msg.Nonce` vs state nonce 比较）由生产 TE 层 `updateNonce` 承担，Eth 参考路径 `EthTxPrecheck.cpp` 仅拒 `UINT64_MAX`——属 TE 层职责，与本 state-root 阻断分离。
 
 ---
 
@@ -334,7 +342,7 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 | ID | 等级 | 摘要 |
 |----|------|------|
 | P7-01~04,07~08 | 🟢 | 地址派生、code deposit、嵌套 CREATE nonce bump、endowment 顺序 |
-| P7-05 | 🟡 | 顶层 nonce 仅 SUCCESS bump（同 [2.1]） |
+| P7-05 | ✅ | 顶层 CREATE 失败 nonce bump（同 [2.1]，已修复：`bumpTopLevelSenderNonce`） |
 | P7-06 | 🟡 | 无显式 contract address collision 检查 |
 
 ---
@@ -344,7 +352,7 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 | ID | 等级 | 摘要 |
 |----|------|------|
 | P8-01~04,06~07 | 🟢 | depth 1024、revert、7702 路由、precompile envelope |
-| P8-05 | 🔴 | 同 [6.5] delegate value transfer |
+| P8-05 | ✅ | 同 [6.5] delegate value transfer — **已修复 2026-07-01** |
 
 ---
 
@@ -479,15 +487,15 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 | R4 | `applyEthMessage` 无 TE，sender balance 不变 | EEST adapter 测试 |
 | R5 | balance < gasFeeCap×gasLimit，reject vs penalty | `EthTxFeeLedger1559Test` 扩展 |
 | R6 | London SSTORE refund tx，非 eip7623 gasUsed 对比 | 新 test |
-| R7 | DELEGATECALL 带 value 嵌套，balance 对比 | 新 test |
+| R7 | DELEGATECALL 带 value 嵌套，balance 对比 | ✅ `EthDelegateCallValueTransferCharacterizationTest.cpp` |
 | R8 | Istanbul CALL 0x01 ecrecover 可达性 | `PrecompileRouter` test |
 
 ---
 
 ## 优先修复建议（复核后排序）
 
-1. **6.5 / P8-05** — `FrameValueTransfer` 跳过 DELEGATECALL/CALLCODE/STATIC；DELEGATECALL→precompile 的 `PrecompileRouter` envelope 转账同理
-2. **2.1 / P7-05** — 顶层 nonce 在 Call 前 bump（**不能**指望 Eth TE `updateNonce`——仅 Fisco `TransactionExecutorImpl` 有）
+1. ~~**6.5 / P8-05**~~ — ✅ 已修复：`isValueTransferSkippedKind` 门控 `FrameValueTransfer` + `PrecompileRouter`；`EthDelegateCallValueTransferCharacterizationTest`
+2. ~~**2.1 / P7-05**~~ — ✅ 已修复：`bumpTopLevelSenderNonce` 在 finalize 成功/失败 + precompile 统一递增；`TxExecutionRunnerTest` + `InnerExecuteSmokeTest`
 3. **ADR-028** — 关闭 preCheck reject vs included 簇（intrinsic/buyGas/transfer）
 4. 若需全 revision：**3.1** 非 `eip7623` 也应 debit intrinsic；**9.3** London+ 始终 refund settlement；**11.1** `PrecompileActive` 对齐 `PrecompileTraits`
 5. Prague+ 产品基线：文档化 `eip7623` 门控即 intrinsic+settlement 开关（`RevisionConfig.h:93`）
@@ -513,8 +521,8 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 
 | 主题 | 初稿重复项 | Prague+ 主路径？ |
 |------|-----------|------------------|
-| Nonce SUCCESS-only bump | 2.1, P7-05 | **是 — 阻断** |
-| DELEGATECALL value transfer | 6.5, P8-05, P8-05b/c | **是 — 阻断** |
+| Nonce SUCCESS-only bump | 2.1, P7-05 | ~~是 — 阻断~~ → **✅ 已修复 2026-07-01** |
+| DELEGATECALL value transfer | 6.5, P8-05, P8-05b/c | ~~是 — 阻断~~ → **✅ 已修复 2026-07-01** |
 | reject vs included 簇 | 1.4, 3.4, 3.5, 4.4, P10-04, 2.6 | 是（ADR-028 设计差距） |
 | Cancun 无 intrinsic | 3.1 | 否（`eip7623` Prague+ 恒 true） |
 | 非 eip7623 refund skip | 9.3, 9.4, P10-05 | 否（Prague+ 已走 settlement） |
@@ -527,7 +535,7 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 |----|------|------|
 | N1 | 7702 授权 tx 在 Call 前预增 nonce（`TxExecutionRunner.cpp:76-78`），部分缓解 7702 路径 | 🟡 |
 | N2 | intrinsic 失败后 buyGas 已扣款、bcos 仍出 receipt（geth reject 不入块） | 🔴 |
-| N3 | CALLCODE 与 DELEGATECALL→precompile 同族 value transfer 缺陷 | 🔴 |
+| N3 | CALLCODE 与 DELEGATECALL→precompile 同族 value transfer 缺陷 | ✅ 已修复（同 [6.5]） |
 | N4 | `isWeb3==false` 时 Prague+ 也跳过 refund settlement | 🔴（窄场景） |
 | N5 | `PrecompileActiveGateMatrixTest` 固化 Berlin 门控为**有意行为** | 信息 |
 | N6 | REVERT 收据：geth `Failed(0)` vs bcos 保留 `EVMC_REVERT`（语义同失败、编码不同） | 🟡 |
@@ -545,16 +553,16 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 - **ADR-028**（Proposed）— preCheck 失败 inclusion 与 geth reject 差距
 - **buyGas/refund 在 TE** — `eth/README.md` 分层架构
 
-### 修正后的 Prague+ 阻断清单
+### 修正后的 Prague+ 阻断清单（Round 1 快照；Round 2 终裁 + 修复记录见下节）
 
-1. **Nonce** — `TxExecutionRunner.cpp:153-163` 仅 SUCCESS bump；geth `state_transition.go:619-620` Call 前无条件 bump
-2. **DELEGATECALL/CALLCODE value** — `FrameValueTransfer.h:85-91` 未区分 `msg.kind`；调用链 `EthHost::call` → `runCallFrame(Nested)` → `transferOrFail`
+1. ~~**Nonce**~~ — ✅ **已修复 2026-07-01**（`TxExecutionRunner.cpp::bumpTopLevelSenderNonce`）
+2. ~~**DELEGATECALL/CALLCODE value**~~ — ✅ **已修复 2026-07-01**（`CallKind.h` / `FrameValueTransfer.h` / `PrecompileRouter.cpp`）
 
 ---
 
 ## Round 2 交叉验证（2026-07-01，终裁式复核）
 
-针对前两轮**所有**异常项（含争议、降级、新增），五路 sub-agent 追完整调用链并对 evmone/geth 语义作定论。**修正了 Round 1 的两处误判**，并确认两处真阻断。
+针对前两轮**所有**异常项（含争议、降级、新增），五路 sub-agent 追完整调用链并对 evmone/geth 语义作定论。**修正了 Round 1 的两处误判**；DELEGATECALL value 与 nonce 时机 **均已修复（2026-07-01）**，Prague+ 主路径 state root 阻断已清零。
 
 ### 关键修正 1 — DELEGATECALL value transfer 是真 bug（非无害）
 
@@ -567,7 +575,7 @@ Round 1 曾疑「evmone DELEGATECALL 传 value=0 故无害」。**REFUTED。** e
 - CALLCODE 分路径：→EVM 合约 `sender==recipient` 自转净额为 0（PARTIAL）；→precompile 带 value 为真 bug
 - 现有 `EthDelegateCallPrecompileTest` **未设 `message.value`**，测不到此 bug
 
-**终裁：Prague+ 阻断级 parity 缺陷（真 state root 分歧）。**
+**终裁：Prague+ 阻断级 parity 缺陷（真 state root 分歧）。** → **✅ 已修复 2026-07-01**（见 [6.5] 修复节与 `EthDelegateCallValueTransferCharacterizationTest`）。
 
 ### 关键修正 2 — reject-vs-included 的 TE 流程定论
 
@@ -598,8 +606,8 @@ Round 1 两 agent 在「buyGas/intrinsic 失败是否入块」上矛盾。**终�
 
 | 项 | Round 1 判定 | Round 2 终裁 | Prague+ 主路径 |
 |----|-------------|-------------|----------------|
-| Nonce 仅 SUCCESS bump | 🔴 阻断 | **VERIFIED 真阻断**；含顶层 CREATE 失败 + precompile 路径；P7-05 应升 🔴 | **受影响** |
-| DELEGATECALL/CALLCODE value | 🔴 阻断 | **VERIFIED 真 bug**（evmone 传非零继承 value） | **受影响** |
+| Nonce 仅 SUCCESS bump | 🔴 阻断 → ✅ 已修复 | VERIFIED 真阻断（含顶层 CREATE 失败 + precompile）；**2026-07-01 修复**：`bumpTopLevelSenderNonce` 成功/失败/precompile 统一递增 | 已闭合 |
+| DELEGATECALL/CALLCODE value | 🔴 阻断 | **VERIFIED 真 bug** → **✅ 已修复 2026-07-01** | ~~受影响~~ 已闭合 |
 | N2 intrinsic 失败仍收费 | 🔴 | **VERIFIED**；ADR-028 目标态未实现 | 受影响 |
 | reject vs included 簇 | 🔴 | **VERIFIED 设计差距**（TE 入块+收费） | ADR-028 |
 | 2.6 CanTransfer | PARTIAL | **假阳性**（TE 主路径不可达） | 不受影响 |
@@ -614,11 +622,22 @@ Round 1 两 agent 在「buyGas/intrinsic 失败是否入块」上矛盾。**终�
 | # | 阻断 | 影响 | 关键证据 |
 |---|------|------|----------|
 | 1 | ~~**DELEGATECALL/CALLCODE(+precompile) value transfer**~~ ✅ 已修复 | 余额 / state root | `CallKind.h::isValueTransferSkippedKind` 门控 `FrameValueTransfer.h` + `PrecompileRouter.cpp`；回归 `EthDelegateCallValueTransferCharacterizationTest` |
-| 2 | **顶层 CALL/CREATE 失败 nonce 不 bump** | nonce / state root | `TxExecutionRunner.cpp:153-163` vs geth `state_transition.go:619-620` |
+| 2 | ~~**顶层 CALL/CREATE 失败 nonce 不 bump**~~ ✅ 已修复 | nonce / state root | `TxExecutionRunner.cpp::bumpTopLevelSenderNonce`（成功/失败/precompile 统一）；回归 `TxExecutionRunnerTest` + `InnerExecuteSmokeTest` |
 | 3 | **preCheck/intrinsic/buyGas 失败 inclusion + 收费**（N2 簇） | inclusion / 余额 / receiptsRoot | `EthTransactionExecutorImpl.h:281-289`；ADR-028 待实现 |
 | 4 | **ADR-015 vmerr receipt 成功化** | receiptsRoot / RPC status | `IncludedTxVmerrNormalize.h` + `ReceiptResponse.cpp:16`（设计选择，header parity 需单独处理） |
 
-**修复优先级**：~~1~~（✅ 已修复）→ 2 → 3（ADR-028）→ 4（产品决策）。全 revision parity 另需 3.1 / 9.3 / 11.1（London–Cancun / 历史 fork）。
+**修复优先级**：~~1~~（✅ 已修复）→ ~~2~~（✅ 已修复）→ **3（ADR-028，reject 语义，需共识层）** → 4（产品决策，ADR-015 header parity）。全 revision parity 另需 3.1 / 9.3 / 11.1（London–Cancun / 历史 fork）。Prague+ 主路径 state root 阻断已清零。
+
+---
+
+## 修复记录（Remediation log）
+
+| 日期 | ID | 变更 | 验证 |
+|------|-----|------|------|
+| 2026-07-01 | [6.5] / P8-05 / N3 | `CallKind.h::isValueTransferSkippedKind`；`FrameValueTransfer.h` + `PrecompileRouter.cpp` 门控 DELEGATECALL/CALLCODE 转账 | `EthDelegateCallValueTransferCharacterizationTest`（5 用例） |
+| 2026-07-01 | [2.1] / P7-05 | `TxExecutionRunner.cpp::bumpTopLevelSenderNonce`：included tx 无论成败均 bump 顶层 sender nonce（CALL/CREATE/precompile），reject 早退不受影响 | `TxExecutionRunnerTest`（+4 用例）、`InnerExecuteSmokeTest`（更新） |
+
+**下一项建议**：#3 reject-vs-included 簇（N2 / ADR-028，需共识层落地）；#4 ADR-015 receipt header parity（产品决策）。全 revision parity 另需 3.1 / 9.3 / 11.1。
 
 ---
 

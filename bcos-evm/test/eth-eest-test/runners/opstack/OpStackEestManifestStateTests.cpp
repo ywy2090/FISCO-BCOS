@@ -94,7 +94,7 @@ std::vector<std::filesystem::path> resolveCasePaths(
 }
 
 bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatcher const& matcher,
-    OpStackManifestAdapter& adapter, int& failures, int& executed)
+    bcos::crypto::Keccak256& hashImpl, evmc::VM& vm, int& failures, int& executed)
 {
     if (entry.sourceSuite != "eest")
     {
@@ -117,6 +117,8 @@ bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatch
         ++failures;
         return false;
     }
+
+    OpStackManifestAdapter adapter(*profile, hashImpl, vm);
 
     for (auto const& jsonPath : resolveCasePaths(options.eestRoot, entry))
     {
@@ -197,26 +199,12 @@ int main(int argc, char** argv)
         bcos::crypto::Keccak256 hashImpl;
         evmc::VM vm{evmc_create_evmone()};
 
-        // Pick the profile from the first entry for the adapter;
-        // the adapter uses its own profile for revision config.
-        ForkProfile adapterProfile;
-        if (!entries.empty())
-        {
-            auto const profile =
-                ForkProfileRegistry::instance().findByProfileId(entries[0].forkProfileId);
-            if (profile.has_value())
-            {
-                adapterProfile = *profile;
-            }
-        }
-        OpStackManifestAdapter adapter(adapterProfile, hashImpl, vm);
-
         int failures = 0;
         int executed = 0;
 
         for (auto const& entry : entries)
         {
-            runEntry(entry, options, matcher, adapter, failures, executed);
+            runEntry(entry, options, matcher, hashImpl, vm, failures, executed);
         }
 
         if (executed == 0)

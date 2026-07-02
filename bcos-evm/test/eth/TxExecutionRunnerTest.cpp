@@ -158,8 +158,8 @@ BOOST_AUTO_TEST_CASE(precompile_hit_returns_state_diff)
     BOOST_CHECK(recipientIt->second.balance >= bcos::u256(100));
 }
 
-// Matrix: T07 — REVERT characterization (included-tx nonce semantics under review).
-BOOST_AUTO_TEST_CASE(top_level_revert_nonce_characterization)
+// Matrix: T07 — included-tx REVERT still bumps sender nonce (geth state_transition.go:620).
+BOOST_AUTO_TEST_CASE(top_level_revert_bumps_sender_nonce)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x51);
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(top_level_revert_nonce_characterization)
     stateView.insert_account(sender, senderAccount);
 
     state::Account targetAccount;
-    targetAccount.code = {0x60, 0x00, 0x60, 0x00, 0xfd};
+    targetAccount.code = {0x60, 0x00, 0x60, 0x00, 0xfd};  // PUSH1 0 PUSH1 0 REVERT
     stateView.insert_account(target, targetAccount);
 
     state::State state(stateView);
@@ -180,15 +180,84 @@ BOOST_AUTO_TEST_CASE(top_level_revert_nonce_characterization)
     auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_REVERT);
 
+    // geth increments the sender nonce before execution; the bump survives revert.
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 2U);
     auto const diffIt = output.stateDiff.accounts.find(sender);
-    if (diffIt != output.stateDiff.accounts.end())
-    {
-        BOOST_CHECK_EQUAL(diffIt->second.nonce, 1U);
-    }
-    else
-    {
-        BOOST_CHECK_EQUAL(state.get_nonce(sender), 1U);
-    }
+    BOOST_REQUIRE(diffIt != output.stateDiff.accounts.end());
+    BOOST_CHECK_EQUAL(diffIt->second.nonce, 2U);
+}
+
+// Matrix: T07b — included-tx invalid-opcode (OOG-style abort) bumps sender nonce.
+BOOST_AUTO_TEST_CASE(top_level_invalid_opcode_bumps_sender_nonce)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x53);
+    auto const target = addressFromLastByte(0x54);
+
+    state::Account senderAccount;
+    senderAccount.nonce = 4;
+    senderAccount.balance = 1'000'000;
+    stateView.insert_account(sender, senderAccount);
+
+    state::Account targetAccount;
+    targetAccount.code = {0xfe};  // INVALID — consumes all gas, aborts
+    stateView.insert_account(target, targetAccount);
+
+    state::State state(stateView);
+    auto input = makePragueCallInput(state, callMessage(sender, target));
+
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
+    BOOST_REQUIRE(output.result.status_code != EVMC_SUCCESS);
+    BOOST_REQUIRE(output.result.status_code != EVMC_REVERT);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 5U);
+}
+
+// Matrix: T10 — top-level tx targeting a precompile is an included CALL: bump nonce.
+BOOST_AUTO_TEST_CASE(top_level_precompile_bumps_sender_nonce)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x61);
+    auto const identity = precompileAddress(0x04);
+
+    state::Account senderAccount;
+    senderAccount.nonce = 2;
+    senderAccount.balance = 1'000'000;
+    stateView.insert_account(sender, senderAccount);
+
+    state::State state(stateView);
+    auto input = makePragueCallInput(state, callMessage(sender, identity));
+
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
+    BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 3U);
+}
+
+// Matrix: T11 — top-level CREATE failure bumps sender nonce (geth evm.create SetNonce
+// pre-snapshot).
+BOOST_AUTO_TEST_CASE(top_level_create_failure_bumps_sender_nonce)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x62);
+
+    state::Account senderAccount;
+    senderAccount.nonce = 9;
+    senderAccount.balance = 1'000'000;
+    stateView.insert_account(sender, senderAccount);
+
+    bcos::bytes initCode{0xfe};  // INVALID initcode — CREATE fails
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.gas = 500'000;
+    message.sender = sender;
+    message.input_data = initCode.data();
+    message.input_size = initCode.size();
+
+    state::State state(stateView);
+    auto input = makePragueCallInput(state, message);
+
+    auto const output = TxExecutionRunner::runEvmKernelTopLevel(std::move(input));
+    BOOST_REQUIRE(output.result.status_code != EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), 10U);
 }
 
 // Matrix: T06 — CREATE skips EIP-7702 tx auth apply on sender.
