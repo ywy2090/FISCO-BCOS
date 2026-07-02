@@ -159,34 +159,35 @@ echo "=== check-commit.sh valid_insertions per eth PR slice ===" echo "BASE=$BAS
         EthEvmHostHooks.h
 
             check_slice "PR-11 prod-1" bcos -
-    evm / eth / kernel / execution / ExecutionAddressResolver.h bcos -
-    evm / eth / kernel / execution / ExecutionAddressResolver.cpp bcos -
+    evm / eth / kernel / execution / CreateAddress.h bcos -
+    evm / eth / kernel / execution / CreateAddress.cpp bcos -
+    evm / eth / kernel / execution / FrameRouting.h bcos -
+    evm / eth / kernel / execution / FrameRouting.cpp bcos -
+    evm / eth / kernel / execution / FrameBytecode.h bcos -
+    evm / eth / kernel / execution / FrameBytecode.cpp bcos -
     evm / eth / kernel / execution / CallTargetResolver.h bcos -
     evm / eth / kernel / execution / CallTargetResolver.cpp check_slice "PR-11 prod-2" bcos -
-    evm / eth / kernel / execution / WarmTransactionEntry.h bcos -
-    evm / eth / kernel / execution / CreateContract.h check_slice "PR-11 ALL" bcos -
-    evm / eth / kernel / execution / ExecutionAddressResolver.h bcos -
-    evm / eth / kernel / execution / ExecutionAddressResolver.cpp bcos -
-    evm / eth / kernel / execution / CallTargetResolver.h bcos -
-    evm / eth / kernel / execution / CallTargetResolver.cpp bcos -
-    evm / eth / kernel / execution / WarmTransactionEntry.h bcos -
+    evm / eth / kernel / execution / PrepareState.h bcos -
+    evm / eth / kernel / execution / CreateDeployment.h check_slice "PR-11 ALL" bcos -
+    evm / eth / kernel / execution / CreateAddress.h bcos -
+    evm / eth / kernel / execution / CreateAddress.cpp bcos -
+    evm / eth / kernel / execution / FrameRouting.h bcos -
+    evm / eth / kernel / execution / FrameRouting.cpp bcos -
+    evm / eth / kernel / execution / FrameBytecode.h bcos -
+    evm / eth / kernel / execution / FrameBytecode.cpp bcos -
     evm / eth / kernel / execution /
-        CreateContract.h
+        CreateDeployment.h
 
             check_slice "PR-12 prod-1" bcos -
     evm / eth / kernel / execution / EvmCallFrame.h bcos -
     evm / eth / kernel / execution / EvmCallFrame.cpp check_slice "PR-12 prod-2" bcos -
     evm / eth / kernel / execution / InnerExecute.h bcos -
-    evm / eth / kernel / execution / InnerExecute.cpp bcos -
-    evm / eth / kernel / execution / TxExecutionRunner.h bcos -
-    evm / eth / kernel / execution / TxExecutionRunner.cpp check_slice "PR-12 ALL" bcos -
+    evm / eth / kernel / execution / InnerExecute.cpp check_slice "PR-12 ALL" bcos -
     evm / eth / kernel / execution / EvmCallFrame.h bcos -
     evm / eth / kernel / execution / EvmCallFrame.cpp bcos -
     evm / eth / kernel / execution / InnerExecute.h bcos -
-    evm / eth / kernel / execution / InnerExecute.cpp bcos -
-    evm / eth / kernel / execution / TxExecutionRunner.h bcos -
     evm / eth / kernel / execution /
-        TxExecutionRunner.cpp
+        InnerExecute.cpp
 
             check_slice "PR-13 prod-1" bcos -
     evm / eth / kernel / state - transition / StateTransitionContext.h bcos -
@@ -324,25 +325,27 @@ check_slice "PR-09 Registry" bcos-executor/src/vm/EthBuiltinRegistry.cpp \
 check_slice "PR-10 ALL" bcos-evm/eth/host/ bcos-evm/eth/apply/EthEvmHostHooks.h
 
 check_slice "PR-11 prod-1" \
-  bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h bcos-evm/eth/kernel/execution/ExecutionAddressResolver.cpp \
+  bcos-evm/eth/kernel/execution/CreateAddress.h bcos-evm/eth/kernel/execution/CreateAddress.cpp \
+  bcos-evm/eth/kernel/execution/FrameRouting.h bcos-evm/eth/kernel/execution/FrameRouting.cpp \
+  bcos-evm/eth/kernel/execution/FrameBytecode.h bcos-evm/eth/kernel/execution/FrameBytecode.cpp \
   bcos-evm/eth/kernel/execution/CallTargetResolver.h bcos-evm/eth/kernel/execution/CallTargetResolver.cpp
 check_slice "PR-11 prod-2" \
-  bcos-evm/eth/kernel/execution/WarmTransactionEntry.h \
-  bcos-evm/eth/kernel/execution/CreateContract.h
+  bcos-evm/eth/kernel/execution/PrepareState.h \
+  bcos-evm/eth/kernel/execution/CreateDeployment.h
 check_slice "PR-11 ALL" \
-  bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h bcos-evm/eth/kernel/execution/ExecutionAddressResolver.cpp \
+  bcos-evm/eth/kernel/execution/CreateAddress.h bcos-evm/eth/kernel/execution/CreateAddress.cpp \
+  bcos-evm/eth/kernel/execution/FrameRouting.h bcos-evm/eth/kernel/execution/FrameRouting.cpp \
+  bcos-evm/eth/kernel/execution/FrameBytecode.h bcos-evm/eth/kernel/execution/FrameBytecode.cpp \
   bcos-evm/eth/kernel/execution/CallTargetResolver.h bcos-evm/eth/kernel/execution/CallTargetResolver.cpp \
-  bcos-evm/eth/kernel/execution/WarmTransactionEntry.h \
-  bcos-evm/eth/kernel/execution/CreateContract.h
+  bcos-evm/eth/kernel/execution/PrepareState.h \
+  bcos-evm/eth/kernel/execution/CreateDeployment.h
 
 check_slice "PR-12 prod-1" bcos-evm/eth/kernel/execution/EvmCallFrame.h bcos-evm/eth/kernel/execution/EvmCallFrame.cpp
 check_slice "PR-12 prod-2" \
-  bcos-evm/eth/kernel/execution/InnerExecute.h bcos-evm/eth/kernel/execution/InnerExecute.cpp \
-  bcos-evm/eth/kernel/execution/TxExecutionRunner.h bcos-evm/eth/kernel/execution/TxExecutionRunner.cpp
+  bcos-evm/eth/kernel/execution/InnerExecute.h bcos-evm/eth/kernel/execution/InnerExecute.cpp
 check_slice "PR-12 ALL" \
   bcos-evm/eth/kernel/execution/EvmCallFrame.h bcos-evm/eth/kernel/execution/EvmCallFrame.cpp \
-  bcos-evm/eth/kernel/execution/InnerExecute.h bcos-evm/eth/kernel/execution/InnerExecute.cpp \
-  bcos-evm/eth/kernel/execution/TxExecutionRunner.h bcos-evm/eth/kernel/execution/TxExecutionRunner.cpp
+  bcos-evm/eth/kernel/execution/InnerExecute.h bcos-evm/eth/kernel/execution/InnerExecute.cpp
 
 check_slice "PR-13 prod-1" \
   bcos-evm/eth/kernel/state-transition/StateTransitionContext.h bcos-evm/eth/kernel/state-transition/StateTransitionContext.cpp \

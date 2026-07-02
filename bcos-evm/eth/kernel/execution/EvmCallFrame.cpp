@@ -18,11 +18,11 @@
  * Unified execution of one evmc_message frame (CALL / DELEGATECALL / CREATE / CREATE2).
  *
  * Call sites:
- *   - TxExecutionRunner::runEvmKernelTopLevel  → FrameScope::TopLevel
+ *   - innerExecute (InnerExecute)             → FrameScope::TopLevel
  *   - EthHost::call (evmone host callback)      → FrameScope::Nested
  *
  * Pipeline (runFrameSteps):
- *   1. resolveExecutionAddress  — normalize recipient/code_address, EIP-7702 delegation routing
+ *   1. routeFrameMessage  — normalize recipient/code_address, EIP-7702 delegation routing
  *   2. tryCallTargetDispatch    — precompile / empty-account / policy short-circuit (no evmone)
  *   3. prepareNestedMessage     — chain hooks before nested EVM (warm pin, caller address)
  *   4. CREATE pre-checkpoint    — bind init code address, bump nested sender nonce
@@ -43,9 +43,11 @@
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
-#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
+#include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
+#include "bcos-evm/eth/kernel/execution/FrameBytecode.h"
+#include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <cstring>
@@ -85,18 +87,18 @@ evmc_address resolveCreateAddress(evmc_message const& message, evmc_result const
     return createAddr;
 }
 
-/// Per-frame mutable workspace. `resolved.routed` is the message after target/7702 routing;
+/// Per-frame mutable workspace. `routed.routed` is the message after target/7702 routing;
 /// `callMessage()` always reads/writes the routed copy, not the original evmc_message.
 struct FrameWork
 {
     CallFrameContext& ctx;
     evmc_message const& originalMsg;
-    ResolvedFrame resolved;
+    RoutedFrame routed;
     bcos::bytes code;  // lazy-loaded in runVm; empty until first EVM execution
     state::EthHost& host;
 
-    evmc_message& callMessage() noexcept { return resolved.routed; }
-    evmc_message const& callMessage() const noexcept { return resolved.routed; }
+    evmc_message& callMessage() noexcept { return routed.routed; }
+    evmc_message const& callMessage() const noexcept { return routed.routed; }
 };
 
 /// Trace log for nested frames only; top-level tracing is owned by state-transition / apply.
@@ -141,8 +143,8 @@ std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope sco
     bool const skipVt =
         work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer();
 
-    auto const desc = resolveCallTarget(work.ctx.state, work.ctx.revisionConfig, callMessage, scope,
-        work.ctx.callTargetPort, work.ctx.extension);
+    auto const desc = classifyCallTarget(work.ctx.state, work.ctx.revisionConfig, callMessage,
+        scope, work.ctx.callTargetPort, work.ctx.extension);
 
     precompiled::PrecompileEnvelopeInput envInput{.state = work.ctx.state,
         .revision = work.ctx.revisionConfig,
@@ -278,7 +280,7 @@ void prepareNestedMessage(FrameWork& work)
 void bindCreateForInit(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
-    bindCreateMessageForInit(work.ctx.executionAddress, callMessage,
+    assignCreateAddresses(work.ctx.executionAddress, callMessage,
         bcos::bytesConstRef(callMessage.input_data, callMessage.input_size), work.ctx.state);
 }
 
@@ -303,8 +305,8 @@ evmc::Result runVm(FrameWork& work)
     auto& callMessage = work.callMessage();
     if (work.code.empty())
     {
-        work.code = resolveExecutionCode(
-            work.ctx.state, work.ctx.revisionConfig, callMessage, work.resolved.executionAddress);
+        work.code = loadFrameBytecode(
+            work.ctx.state, work.ctx.revisionConfig, callMessage, work.routed.executionAddress);
     }
     return work.ctx.vm.execute(work.host, work.ctx.revisionConfig.revision, callMessage,
         work.code.data(), work.code.size());
@@ -429,8 +431,8 @@ FrameResult runFrameSteps(
     CallFrameContext& ctx, evmc_message message, FrameScope scope, state::EthHost& host)
 {
     // Step 1: normalize addresses and apply 7702 delegation to routed message.
-    FrameWork work{ctx, message,
-        resolveExecutionAddress(ctx.state, ctx.revisionConfig, message, scope), {}, host};
+    FrameWork work{
+        ctx, message, routeFrameMessage(ctx.state, ctx.revisionConfig, message, scope), {}, host};
 
     // Step 2: precompile / empty-account / policy fast path.
     if (auto early = tryCallTargetDispatch(work, scope))

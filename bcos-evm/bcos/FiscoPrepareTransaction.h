@@ -21,7 +21,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
-#include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
+#include "bcos-evm/eth/kernel/execution/PrepareState.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -33,8 +33,7 @@ namespace bcos::evm
 
 struct FiscoPrepareTransactionInput
 {
-    bcos::evm_standard::RevisionConfig revisionConfig{};
-    state::TransactionProperties properties{};
+    bcos::evm::RevisionConfig revisionConfig{};
     const Eip2930AccessList* accessList{nullptr};
     uint8_t web3TypedTxKind{0};
     std::optional<evmc_address> createCodeAddress{};
@@ -43,8 +42,8 @@ struct FiscoPrepareTransactionInput
 inline void prepareTransaction(state::State& state, const state::Transaction& transaction,
     const state::BlockInfo& blockInfo, const FiscoPrepareTransactionInput& input = {})
 {
-    execution::warmTransactionEntry(state, input.revisionConfig, nullptr, transaction, blockInfo,
-        input.properties, input.accessList, input.web3TypedTxKind, input.createCodeAddress);
+    execution::prepareState(state, input.revisionConfig, nullptr, transaction, blockInfo,
+        input.accessList, input.web3TypedTxKind, input.createCodeAddress);
 }
 
 }  // namespace bcos::evm

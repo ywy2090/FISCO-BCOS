@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief PrecompileRouter EIP-7702 delegation tests (via ExecutionAddressResolver).
+ *  @brief PrecompileRouter EIP-7702 delegation tests (via FrameRouting).
  */
 
 #define BOOST_TEST_MODULE PrecompileRouter7702Test
@@ -11,7 +11,7 @@
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/FrameScope.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
+#include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "fixtures/EthFrameParityHelpers.h"
@@ -24,7 +24,7 @@ namespace bcos::evm::test
 {
 namespace
 {
-bcos::evm_standard::RevisionConfig pragueCfg()
+bcos::evm::RevisionConfig pragueCfg()
 {
     return {.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 }
@@ -48,19 +48,19 @@ evmc_message delegatedCallToAuthority(evmc_address authority, evmc_address deleg
 }
 
 precompiled::PrecompileRouterOutput routePrecompileAtSeam(state::State& state,
-    bcos::evm_standard::RevisionConfig const& revision, evmc_message const& message,
+    bcos::evm::RevisionConfig const& revision, evmc_message const& message,
     execution::FrameScope scope, state::EvmHostHooks* extension,
-    ChainExtendedPrecompileDispatch* chainPort = nullptr, bool skipValueTransfer = false)
+    ChainCallTargetPort* callTargetPort = nullptr, bool skipValueTransfer = false)
 {
     auto const desc =
-        execution::resolveCallTarget(state, revision, message, scope, chainPort, extension);
+        execution::classifyCallTarget(state, revision, message, scope, callTargetPort, extension);
 
     precompiled::PrecompileEnvelopeInput envInput{.state = state,
         .revision = revision,
         .target = desc,
         .message = message,
         .skipValueTransfer = skipValueTransfer,
-        .chainPort = chainPort};
+        .callTargetPort = callTargetPort};
 
     precompiled::PrecompileRouterOutput output;
     switch (desc.kind)
@@ -96,8 +96,7 @@ FrameBalanceOutcome runDepth1With7702(state::State& state, evmc_message message)
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
     txContext.block_gas_limit = 30'000'000;
-    bcos::evm_standard::RevisionConfig cfg{
-        .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
     state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, nullptr);
     message.depth = 1;
     auto result = host.call(message);
@@ -116,8 +115,8 @@ BOOST_AUTO_TEST_CASE(resolve_frame_target_7702_call_uses_authority)
 
     state::test::InMemoryStateView view;
     state::State state(view);
-    auto const target = execution::resolveExecutionAddress(
-        state, pragueCfg(), message, execution::FrameScope::Nested);
+    auto const target =
+        execution::routeFrameMessage(state, pragueCfg(), message, execution::FrameScope::Nested);
 
     BOOST_REQUIRE(
         std::memcmp(target.executionAddress.bytes, authority.bytes, sizeof(authority.bytes)) == 0);
@@ -133,8 +132,8 @@ BOOST_AUTO_TEST_CASE(resolve_frame_target_direct_identity_call)
 
     state::test::InMemoryStateView view;
     state::State state(view);
-    auto const target = execution::resolveExecutionAddress(
-        state, pragueCfg(), message, execution::FrameScope::TopLevel);
+    auto const target =
+        execution::routeFrameMessage(state, pragueCfg(), message, execution::FrameScope::TopLevel);
 
     BOOST_REQUIRE(
         std::memcmp(target.executionAddress.bytes, identity.bytes, sizeof(identity.bytes)) == 0);

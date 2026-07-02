@@ -2,7 +2,7 @@
 
 **Status:** Proposed  
 **Date:** 2026-06-25  
-**Related:** ADR-005, ADR-017, ADR-019, `eth/kernel/execution/CreateContract.h`, `architecture-review-post-orchestration-2026-06-23.md` (候选 6)
+**Related:** ADR-005, ADR-017, ADR-019, `eth/kernel/execution/CreateDeployment.h`, `architecture-review-post-orchestration-2026-06-23.md` (候选 6)
 
 ---
 
@@ -26,7 +26,7 @@ Today the logic is **copy-pasted across four seams**:
 | EvmHostHooks (nested) | `bcos/FiscoEvmHostHooks.cpp::deriveNestedCreateAddress()` | `prepareMessage` inside kernel call tree |
 | Post-execute patch | `bcos/FiscoStateTransitionErrorPolicy::onFinalizeGasUsed()` | Fill empty `create_address` from `recipient` (not re-derivation) |
 
-ETH reference path already converged on `eth/kernel/execution/CreateContract.h` (`predictCreateAddress`, `bindCreateMessageForInit`). FISCO has no equivalent.
+ETH reference path already converged on `eth/kernel/execution/CreateDeployment.h` (`predictCreateAddress`, `assignCreateAddresses`). FISCO has no equivalent.
 
 ### Observed drift (2026-06-25 audit)
 
@@ -82,7 +82,7 @@ struct FiscoNestedCreateParams {
 evmc_address predictFiscoTopLevelCreateAddress(FiscoTopLevelCreateParams const&);
 evmc_address predictFiscoNestedCreateAddress(FiscoNestedCreateParams const&);
 
-// Optional: bind recipient + code_address on message (mirrors CreateContract.h pattern).
+// Optional: bind recipient + code_address on message (mirrors CreateDeployment.h pattern).
 void bindFiscoCreateMessage(evmc_message& message, evmc_address const& addr);
 ```
 
@@ -186,7 +186,7 @@ Add row:
 
 - **Behavior change (intentional):** top-level CREATE with `feature_evm_address == true` && `web3Tx == false` switches from FISCO-hash to legacy — aligns with `TransactionExecutive` and nested path. Requires matrix note + snapshot test.
 - **No change** to post-execute `create_address` patch or CREATE nonce init (`applyCreateNonceSemantics`, ADR-005).
-- **No change** to ETH `CreateContract.h` path.
+- **No change** to ETH `CreateDeployment.h` path.
 - Reduces candidate 6 «four modules» to one module + two thin delegates + one post-execute patch.
 - Enables deletion of ~120 lines of duplicate code in `FiscoPolicy.h`.
 

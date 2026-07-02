@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(selfdestruct_hook_blocks_when_extension_denies)
     extension.allowSelfdestructResult = false;
 
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
     auto result = host.selfdestruct(addressFromLastByte(0x01), addressFromLastByte(0x02));
 
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(delegatecall_to_precompile_is_rejected_by_extension)
     extension.allowDelegateCallToPrecompileResult = false;
 
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
     evmc_message message{};
     message.kind = EVMC_DELEGATECALL;
@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(skip_value_transfer_hook_is_honored)
     extension.skipHostValueTransferResult = true;
 
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
     evmc_message message{};
     message.kind = EVMC_CALL;

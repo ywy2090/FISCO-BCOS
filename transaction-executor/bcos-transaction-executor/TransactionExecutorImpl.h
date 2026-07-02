@@ -152,7 +152,8 @@ public:
         {
             if constexpr (phase == static_cast<int>(ExecutePhase::Prepare))
             {
-                // Gap 36: tx-entry warm runs in kernel Execute (TxExecutionRunner::prepareTxEntry).
+                // Gap 36: tx-entry warm runs in kernel Execute (InnerExecute::prepareTxEntry →
+                // prepareState).
             }
             else if constexpr (phase == static_cast<int>(ExecutePhase::Execute))
             {
@@ -286,7 +287,7 @@ public:
             transaction_executor::ExecutorPrecompileAdapter precompileAdapter{portCtx};
 
             input.authPort = &authAdapter;
-            input.chainDispatchPort = &precompileAdapter;
+            input.callTargetPort = &precompileAdapter;
 
             co_return co_await applyFiscoMessage(std::move(input));
         }

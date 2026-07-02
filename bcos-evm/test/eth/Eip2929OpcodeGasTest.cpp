@@ -25,9 +25,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-bcos::evm_standard::RevisionConfig makeBerlinRevisionConfig()
+bcos::evm::RevisionConfig makeBerlinRevisionConfig()
 {
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     cfg.revision = EVMC_BERLIN;
     cfg.eip2929 = true;
     return cfg;
@@ -71,7 +71,6 @@ InnerExecuteOutput runContractCode(state::test::InMemoryStateView& stateView, ev
     input.message = message;
     input.blockInfo = blockInfo;
     input.revisionConfig = makeBerlinRevisionConfig();
-    input.txProps.warmDestination = true;
 
     return innerExecute(std::move(input));
 }
@@ -211,7 +210,7 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_eip2929_disabled)
     message.recipient = contract;
     message.code_address = contract;
 
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     cfg.revision = EVMC_BERLIN;
     cfg.eip2929 = false;
 
@@ -221,7 +220,6 @@ BOOST_AUTO_TEST_CASE(balance_always_cold_when_eip2929_disabled)
     input.message = message;
     input.blockInfo = blockInfo;
     input.revisionConfig = cfg;
-    input.txProps.warmDestination = true;
 
     auto output = innerExecute(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);

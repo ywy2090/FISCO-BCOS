@@ -23,7 +23,7 @@
  *   - SSTORE refund + storage status (`EthHost::set_storage`)
  *   - SELFDESTRUCT gate (`EthHost::selfdestruct`)
  *   - CALL value transfer skip (`EvmCallFrame::transferOrFail`, precompile envelopes)
- *   - DELEGATECALL-to-precompile policy (`resolveCallTarget`)
+ *   - DELEGATECALL-to-precompile policy (`classifyCallTarget`)
  *   - nested CREATE message prep + nonce finalization (`prepareNestedMessage`,
  *     `bumpNestedCreateSenderNonce`, `finalizeFrame`)
  *
@@ -76,7 +76,7 @@ struct EvmHostHooks
     /// FISCO returns `false`; ETH reference may disable per audit policy.
     virtual bool allowSelfdestruct(const Account& acc) { return true; }
 
-    /// DELEGATECALL-to-precompile gate (`CallTargetResolver::resolveCallTarget`).
+    /// DELEGATECALL-to-precompile gate (`CallTargetResolver::classifyCallTarget`).
     ///
     /// Applies only when `msg.kind == EVMC_DELEGATECALL` and the resolved target is an active
     /// builtin precompile (empty code, e.g. 0x01 identity). Normal CALL / STATICCALL to

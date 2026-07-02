@@ -23,9 +23,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-bcos::evm_standard::RevisionConfig makePrague7702Config()
+bcos::evm::RevisionConfig makePrague7702Config()
 {
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     cfg.revision = EVMC_PRAGUE;
     cfg.eip2929 = true;
     cfg.eip7702 = true;
@@ -107,7 +107,6 @@ InnerExecuteOutput runCallerContract(state::test::InMemoryStateView& stateView, 
     input.message = message;
     input.blockInfo = blockInfo;
     input.revisionConfig = makePrague7702Config();
-    input.txProps.warmDestination = true;
 
     return innerExecute(std::move(input));
 }

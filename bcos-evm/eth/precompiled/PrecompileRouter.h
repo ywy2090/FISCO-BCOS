@@ -3,23 +3,23 @@
  *  SPDX-License-Identifier: Apache-2.0
  * @brief Precompile call envelope: value transfer + state journal + dispatch.
  *
- * Production path (EvmCallFrame → resolveCallTarget):
+ * Production path (EvmCallFrame → classifyCallTarget):
  *   executePrecompileEnvelope
  *     → checkpoint / optional value transfer
  *     → BuiltinPrecompile  → EthPrecompiles::tryDispatchInCall
- *     → ChainPrecompile    → ChainExtendedPrecompileDispatch (FISCO / OpStack)
+ *     → ChainPrecompile    → ChainCallTargetPort (FISCO / OpStack)
  *     → commit or revert state
  */
 
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/core/CallTargetKind.h"
+#include "bcos-evm/eth/core/CallTargetTypes.h"
 #include <evmc/evmc.hpp>
 
 namespace bcos::evm
 {
-struct ChainExtendedPrecompileDispatch;
+struct ChainCallTargetPort;
 }
 
 namespace bcos::evm::state
@@ -43,12 +43,12 @@ enum class PrecompileDispatchOutcome
 struct PrecompileEnvelopeInput
 {
     state::State& state;
-    bcos::evm_standard::RevisionConfig const& revision;
+    bcos::evm::RevisionConfig const& revision;
     execution::CallTargetDescriptor const& target;
     evmc_message const& message;
     bool skipValueTransfer;
     /// nullptr on pure Eth reference execution (builtin precompiles only).
-    ChainExtendedPrecompileDispatch* chainPort;
+    ChainCallTargetPort* callTargetPort;
 };
 
 struct PrecompileRouterOutput

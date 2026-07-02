@@ -33,7 +33,7 @@ Chain ApplyMessage adapters are **`applyFiscoMessage` / `applyEthMessage` / `app
 
 - New `bcos-evm` code **must** call canonical names (`stateTransitionExecute`, `innerExecute`, `apply*Message`).
 - ~~Tier E aliases remain one release minimum~~ — **removed ADR-032 Waves 2–4 (2026-06-30)**.
-- ~~`GethNamingAliases.h` / `GethOrchestrationAliases.h`~~ removed 2026-06-30; use canonical symbols (`warmTransactionEntry`, `runCallFrame`, …) and ADR-030 §6 for geth prose names.
+- ~~`GethNamingAliases.h` / `GethOrchestrationAliases.h`~~ removed 2026-06-30; use canonical symbols (`prepareState`, `runCallFrame`, …) and ADR-030 §6 for geth prose names.
 
 ### 2. Internal migration (bcos-evm)
 

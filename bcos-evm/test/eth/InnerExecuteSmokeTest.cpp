@@ -66,7 +66,6 @@ BOOST_AUTO_TEST_CASE(empty_account_call_smoke)
     input.message = message;
     input.blockInfo = blockInfo;
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.txProps.warmDestination = true;
 
     auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_SUCCESS);
@@ -110,7 +109,6 @@ BOOST_AUTO_TEST_CASE(top_level_revert_bumps_sender_nonce)
     input.message = message;
     input.blockInfo = blockInfo;
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.txProps.warmDestination = true;
 
     auto output = innerExecute(std::move(input));
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_REVERT);

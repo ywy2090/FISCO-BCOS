@@ -17,7 +17,7 @@
  * @file EvmCallFrame.h
  *
  * Single orchestration point for one evmc_message frame: target routing, value transfer,
- * evmone execution, and journal commit/revert. Invoked from TxExecutionRunner (TopLevel)
+ * evmone execution, and journal commit/revert. Invoked from innerExecute (TopLevel)
  * and EthHost::call (Nested).
  */
 

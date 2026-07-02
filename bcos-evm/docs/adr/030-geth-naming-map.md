@@ -82,7 +82,7 @@ Maps **current ADR-029 code** (as of 2026-06-29) to geth. Use the **geth column*
 | 2 | `IntrinsicGas` + `Charge` | `deductIntrinsicGas` | `deductIntrinsicGas` (Phase 3 batch 1 ✅) |
 | 3 | `FloorDataGas` | Eip7623 mode in `deductIntrinsicGas` + `captureSettlementSnapshot` | `checkFloorDataGas` / `floorDataGas` |
 | 4 | `CanTransfer` | `onPreCheckCanTransfer` | `StateView::get_balance` + `onPreCheckCanTransfer` (pipeline slice) |
-| 5 | `state.Prepare` | `warmTransactionEntry`, transient clear in `TxExecutionRunner` | `prepareState` |
+| 5 | `state.Prepare` | `prepareState`, transient clear in `InnerExecute` | `prepareState` ✅ |
 | 6 | `evm.Create` / `evm.Call` | `onInvokeInnerExecute` → `innerExecute` → `runEvmKernelTopLevel` | `innerExecute` |
 | 7 | post-execution refund / 7623 uplift | `captureSettlementSnapshot`, `onFinalizeGasUsed` | `onFinalizeGasUsed` (geth: end of `execute`) |
 | — | `execute()` wrapper | `stateTransitionExecute` | `StateTransition::execute` (canonical pipeline driver) |
@@ -118,7 +118,7 @@ ADR-029 name `runCallFrame` is **acceptable**; geth comment alias: `// geth: evm
 | `ExecutionResult` | `ExecuteMessageOutput` + `EVMCResult` | `ExecutionResult` | geth: `UsedGas`, `ReturnData`, `Err` |
 | `GasPool` | OP block gas pool hooks | `GasPool` | already used in OP docs |
 | `StateDB` | `state::State` | `StateDB` in prose; `State` in C++ API | journal + snapshot |
-| `vm.StateDB.Prepare` | `warmTransactionEntry` + transient | `prepareState` | |
+| `vm.StateDB.Prepare` | `prepareState` + transient clear | `prepareState` | |
 
 **`EVMCResult::status` vs `status_code`:** geth separates `error` (consensus / reject) from `vmerr` (included execution failure). bcos-evm adds `protocol::TransactionStatus` on `EVMCResult` for FISCO receipt/executor — document as **FISCO extension**, not geth `ExecutionResult.Err`.
 
@@ -184,7 +184,7 @@ Tier A inline aliases (implemented 2026-06-29, coexist with ADR-029 `pipeline*`)
 | `onNormalizeMessage` | `onNormalizeMessage` | `onNormalizeMessage` |
 | `innerExecute` | `innerExecute` | `onInvokeInnerExecute` |
 | `IntrinsicGas` | `deductIntrinsicGas` | canonical (`IntrinsicGasDebit.h`) |
-| `state.Prepare` | `prepareState` | `warmTransactionEntry` |
+| `state.Prepare` | `prepareState` | canonical (`PrepareState.h`) |
 | `execute` | `stateTransitionExecute` | canonical pipeline driver (`TxPipeline.cpp`) |
 | `onFinalizeGasUsed` | `onFinalizeGasUsed` | `onFinalizeGasUsed` |
 | `ApplyMessage` | `applyEthMessage`, `applyFiscoMessage`, `applyOpStackMessage` | canonical chain L1 exports |
@@ -241,7 +241,7 @@ Phase 2 (Tasks 1–6, 2026-06-30) — closed unless noted deferred.
 | `pipelineCheck*` | `preCheck` |
 | `deductIntrinsicGas` | `IntrinsicGas` + `Charge` |
 | `onPreCheckCanTransfer` | `CanTransfer` |
-| `warmTransactionEntry` | `state.Prepare` |
+| `prepareState` | `state.Prepare` |
 | `innerExecute` | after `Prepare`: `evm.Call`/`Create` |
 | `runCallFrame` | `evm.Call` / `Create` |
 | `EthHost::call` | nested `evm.Call` |

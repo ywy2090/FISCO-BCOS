@@ -46,8 +46,7 @@ BOOST_AUTO_TEST_CASE(top_level_call_hits_chain_precompile_hook_on_empty_code)
     input.blockInfo.number = 1;
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.txProps.warmDestination = true;
-    input.chainPort = &chainAdapter;
+    input.callTargetPort = &chainAdapter;
 
     auto output = innerExecute(std::move(input));
     BOOST_CHECK_EQUAL(output.result.status_code, EVMC_REVERT);

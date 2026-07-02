@@ -1,8 +1,8 @@
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainCallTargetPort.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
-#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
+#include "bcos-evm/eth/kernel/CallKind.h"
+#include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
 
@@ -10,15 +10,14 @@ namespace bcos::evm::execution
 {
 namespace
 {
-bool is7702DelegationDesignator(
-    bcos::evm_standard::RevisionConfig const& revision, bcos::bytes const& code)
+bool is7702DelegationDesignator(bcos::evm::RevisionConfig const& revision, bcos::bytes const& code)
 {
     return revision.eip7702 &&
            parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}).has_value();
 }
 
 bool isActiveEmptyPrecompileTarget(state::State const& state,
-    bcos::evm_standard::RevisionConfig const& revision, evmc_address const& target,
+    bcos::evm::RevisionConfig const& revision, evmc_address const& target,
     evmc_message const& message)
 {
     if (state::isZeroAddress(target))
@@ -34,9 +33,9 @@ bool isActiveEmptyPrecompileTarget(state::State const& state,
 }
 }  // namespace
 
-CallTargetDescriptor resolveCallTarget(state::State& state,
-    bcos::evm_standard::RevisionConfig const& revision, evmc_message msg, FrameScope scope,
-    ChainExtendedPrecompileDispatch* chainPort, state::EvmHostHooks* extension)
+CallTargetDescriptor classifyCallTarget(state::State& state,
+    bcos::evm::RevisionConfig const& revision, evmc_message msg, FrameScope scope,
+    ChainCallTargetPort* callTargetPort, state::EvmHostHooks* extension)
 {
     if (isCreateKind(msg.kind))
     {
@@ -44,7 +43,7 @@ CallTargetDescriptor resolveCallTarget(state::State& state,
             .kind = CallTargetKind::EvmContract, .warmPolicy = WarmPolicy::Never, .routed = msg};
     }
 
-    auto const resolved = resolveExecutionAddress(state, revision, msg, scope);
+    auto const resolved = routeFrameMessage(state, revision, msg, scope);
     auto const& executionAddress = resolved.executionAddress;
     auto const& routed = resolved.routed;
 
@@ -70,9 +69,9 @@ CallTargetDescriptor resolveCallTarget(state::State& state,
     }
 
     bool const tryChainHook = emptyCode || scope == FrameScope::Nested;
-    if (tryChainHook && chainPort != nullptr)
+    if (tryChainHook && callTargetPort != nullptr)
     {
-        if (auto chainDesc = chainPort->classifyTarget(state, executionAddress, routed, scope))
+        if (auto chainDesc = callTargetPort->classifyTarget(state, executionAddress, routed, scope))
         {
             chainDesc->routed = routed;
             return *chainDesc;
@@ -101,17 +100,17 @@ CallTargetDescriptor resolveCallTarget(state::State& state,
         .routed = routed};
 }
 
-void enumerateTxEntryWarmTargets(bcos::evm_standard::RevisionConfig const& cfg,
-    ChainExtendedPrecompileDispatch const* chainPort,
+void enumerateTxEntryWarmTargets(bcos::evm::RevisionConfig const& cfg,
+    ChainCallTargetPort const* callTargetPort,
     std::function<void(evmc_address const&)> const& consume)
 {
-    // Builtin precompiles: resolveCallTarget assigns WarmPolicy::TxEntryAlways (PrecompileActive
+    // Builtin precompiles: classifyCallTarget assigns WarmPolicy::TxEntryAlways (PrecompileActive
     // single source).
     precompiled::forEachActivePrecompile(cfg, [&](evmc_address const& a) { consume(a); });
     // Chain static targets: adapter forEachStaticWarmTarget emits only isTxEntryWarm entries (PR5).
-    if (chainPort != nullptr)
+    if (callTargetPort != nullptr)
     {
-        chainPort->forEachStaticWarmTarget(consume);
+        callTargetPort->forEachStaticWarmTarget(consume);
     }
 }
 

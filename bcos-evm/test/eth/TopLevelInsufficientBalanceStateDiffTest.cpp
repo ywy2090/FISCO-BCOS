@@ -40,9 +40,9 @@ evmc_uint256be weiValue(uint64_t amount)
     return out;
 }
 
-bcos::evm_standard::RevisionConfig prague7702Config()
+bcos::evm::RevisionConfig prague7702Config()
 {
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     cfg.revision = EVMC_PRAGUE;
     cfg.eip7702 = true;
     cfg.eip7623 = true;

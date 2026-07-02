@@ -14,10 +14,9 @@
  *  limitations under the License.
  */
 
-#define BOOST_TEST_MODULE WarmTransactionEntryTest
-#include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
+#define BOOST_TEST_MODULE PrepareStateTest
+#include "bcos-evm/eth/kernel/execution/PrepareState.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "fixtures/BlockInfoBuilder.h"
@@ -65,7 +64,7 @@ evmc_bytes32 toEvmcBytes32(const h256& value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_SUITE(WarmTransactionEntryTest)
+BOOST_AUTO_TEST_SUITE(PrepareStateTest)
 
 BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
 {
@@ -79,9 +78,8 @@ BOOST_AUTO_TEST_CASE(warms_sender_to_and_coinbase_for_call_transaction)
     auto const coinbase = evmcAddressFromLastByte(0x03);
     auto const block = bcos::evm::test::BlockInfoBuilder().coinbase(coinbase).build();
 
-    TransactionProperties props;
-    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_SHANGHAI);
-    execution::warmTransactionEntry(state, cfg, nullptr, tx, block, props);
+    auto cfg = bcos::evm::revisionConfigFromRevision(EVMC_SHANGHAI);
+    execution::prepareState(state, cfg, nullptr, tx, block);
 
     BOOST_CHECK(state.is_address_warm(tx.from));
     BOOST_REQUIRE(tx.to.has_value());
@@ -102,10 +100,9 @@ BOOST_AUTO_TEST_CASE(skips_coinbase_warm_when_eip3651_disabled)
     auto const coinbase = evmcAddressFromLastByte(0xFE);
     auto const block = bcos::evm::test::BlockInfoBuilder().coinbase(coinbase).build();
 
-    TransactionProperties props;
-    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_PARIS);
+    auto cfg = bcos::evm::revisionConfigFromRevision(EVMC_PARIS);
     BOOST_REQUIRE(!cfg.eip3651);
-    execution::warmTransactionEntry(state, cfg, nullptr, tx, block, props);
+    execution::prepareState(state, cfg, nullptr, tx, block);
 
     BOOST_CHECK(state.is_address_warm(tx.from));
     BOOST_REQUIRE(tx.to.has_value());
@@ -130,10 +127,8 @@ BOOST_AUTO_TEST_CASE(warms_access_list_address_and_storage_keys)
     auto const keyB = h256FromLastByte(0xB1);
     Eip2930AccessList accessList{{accessAddress, {keyA, keyB}}};
 
-    TransactionProperties props;
-    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_SHANGHAI);
-    execution::warmTransactionEntry(
-        state, cfg, nullptr, tx, block, props, &accessList, /*web3TypedTxKind=*/1);
+    auto cfg = bcos::evm::revisionConfigFromRevision(EVMC_SHANGHAI);
+    execution::prepareState(state, cfg, nullptr, tx, block, &accessList, /*web3TypedTxKind=*/1);
 
     auto const evmcAccessAddress = evmcAddressFromLastByte(0x21);
     BOOST_CHECK(state.is_address_warm(evmcAccessAddress));
@@ -154,10 +149,8 @@ BOOST_AUTO_TEST_CASE(legacy_kind_zero_ignores_access_list)
     auto const accessAddress = bcosAddressFromLastByte(0x41);
     Eip2930AccessList accessList{{accessAddress, {}}};
 
-    TransactionProperties props;
-    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_SHANGHAI);
-    execution::warmTransactionEntry(
-        state, cfg, nullptr, tx, block, props, &accessList, /*web3TypedTxKind=*/0);
+    auto cfg = bcos::evm::revisionConfigFromRevision(EVMC_SHANGHAI);
+    execution::prepareState(state, cfg, nullptr, tx, block, &accessList, /*web3TypedTxKind=*/0);
 
     auto const evmcAccessAddress = evmcAddressFromLastByte(0x41);
     BOOST_CHECK(!state.is_address_warm(evmcAccessAddress));
@@ -193,12 +186,9 @@ BOOST_AUTO_TEST_CASE(W1_warms_active_builtin_precompiles)
 
     Transaction tx{};
     BlockInfo block{};
-    TransactionProperties props{};
-    props.warmDestination = false;
-    props.warmCoinbase = false;
 
-    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_CANCUN);
-    execution::warmTransactionEntry(state, cfg, nullptr, tx, block, props);
+    auto cfg = bcos::evm::revisionConfigFromRevision(EVMC_CANCUN);
+    execution::prepareState(state, cfg, nullptr, tx, block);
 
     auto const ecRecover = evmcAddressFromLastByte(0x01);
     auto const identity = evmcAddressFromLastByte(0x04);
@@ -227,29 +217,30 @@ BOOST_AUTO_TEST_CASE(W2_warms_chain_static_targets)
 
     Transaction tx{};
     BlockInfo block{};
-    TransactionProperties props{};
-    props.warmDestination = false;
-    props.warmCoinbase = false;
 
-    auto cfg = bcos::evm_standard::revisionConfigFromRevision(EVMC_CANCUN);
-    execution::warmTransactionEntry(state, cfg, &adapter, tx, block, props);
+    auto cfg = bcos::evm::revisionConfigFromRevision(EVMC_CANCUN);
+    execution::prepareState(state, cfg, &adapter, tx, block);
 
     BOOST_CHECK(state.is_address_warm(l1Block));
     BOOST_CHECK(state.is_address_warm(gasOracle));
 }
 
-BOOST_AUTO_TEST_CASE(create_kind_skips_destination_warm_flag)
+BOOST_AUTO_TEST_CASE(create_transaction_without_to_skips_destination_warm)
 {
-    TransactionProperties props;
-    props.warmDestination = false;
-    props.warmDestination = !execution::isCreateKind(EVMC_CALL);
-    BOOST_CHECK(props.warmDestination);
+    InMemoryStateView view;
+    State state(view);
 
-    props.warmDestination = !execution::isCreateKind(EVMC_CREATE);
-    BOOST_CHECK(!props.warmDestination);
+    Transaction tx{};
+    tx.from = evmcAddressFromLastByte(0x51);
+    auto const wouldBeDestination = evmcAddressFromLastByte(0x52);
+    auto const block = bcos::evm::test::BlockInfoBuilder().build();
 
-    props.warmDestination = !execution::isCreateKind(EVMC_CREATE2);
-    BOOST_CHECK(!props.warmDestination);
+    auto cfg = bcos::evm::revisionConfigFromRevision(EVMC_SHANGHAI);
+    execution::prepareState(state, cfg, nullptr, tx, block);
+
+    BOOST_CHECK(state.is_address_warm(tx.from));
+    BOOST_CHECK(!tx.to.has_value());
+    BOOST_CHECK(!state.is_address_warm(wouldBeDestination));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief ExecutionAddressResolver → ExecutionFrame routing characterization (M1 matrix).
+ *  @brief FrameRouting → ExecutionFrame routing characterization (M1 matrix).
  */
 
 #define BOOST_TEST_MODULE FrameTargetRoutingCharacterizationTest

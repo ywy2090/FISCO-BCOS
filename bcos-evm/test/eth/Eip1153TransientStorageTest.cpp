@@ -23,9 +23,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-bcos::evm_standard::RevisionConfig makeCancunRevisionConfig()
+bcos::evm::RevisionConfig makeCancunRevisionConfig()
 {
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     cfg.revision = EVMC_CANCUN;
     cfg.eip2929 = true;
     cfg.eip1153 = true;

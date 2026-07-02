@@ -9,7 +9,7 @@
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/host/EthHost.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
+#include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -504,7 +504,7 @@ BOOST_AUTO_TEST_CASE(nested_create_reentrant_address_derivation_sees_pre_checkpo
     outer.input_data = emptyInit;
     outer.input_size = sizeof(emptyInit);
 
-    execution::bindCreateMessageForInit(host.execution_address_ref(), outer,
+    execution::assignCreateAddresses(host.execution_address_ref(), outer,
         bcos::bytesConstRef(outer.input_data, outer.input_size), state);
     BOOST_REQUIRE(
         std::memcmp(outer.recipient.bytes, firstChild.bytes, sizeof(firstChild.bytes)) == 0);
@@ -514,7 +514,7 @@ BOOST_AUTO_TEST_CASE(nested_create_reentrant_address_derivation_sees_pre_checkpo
     evmc_message inner = outer;
     inner.recipient = {};
     inner.code_address = {};
-    execution::bindCreateMessageForInit(host.execution_address_ref(), inner,
+    execution::assignCreateAddresses(host.execution_address_ref(), inner,
         bcos::bytesConstRef(inner.input_data, inner.input_size), state);
     BOOST_REQUIRE(
         std::memcmp(inner.recipient.bytes, secondChild.bytes, sizeof(secondChild.bytes)) == 0);

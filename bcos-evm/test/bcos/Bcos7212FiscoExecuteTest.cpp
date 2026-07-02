@@ -39,7 +39,7 @@ bcos::bytes p256verifyValidSignatureInput()
     return input;
 }
 
-bcos::evm_standard::RevisionConfig osakaEthRevisionConfig()
+bcos::evm::RevisionConfig osakaEthRevisionConfig()
 {
     using Flag = bcos::ledger::Features::Flag;
     bcos::ledger::Features features;

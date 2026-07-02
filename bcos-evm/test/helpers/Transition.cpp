@@ -26,12 +26,11 @@ namespace bcos::evm::state
 {
 namespace
 {
-evmc_message buildTopLevelMessage(
-    const Transaction& tx, const TransactionProperties& tx_props) noexcept
+evmc_message buildTopLevelMessage(const Transaction& tx, bool isStatic) noexcept
 {
     evmc_message msg{};
     msg.kind = tx.to.has_value() ? EVMC_CALL : EVMC_CREATE;
-    msg.flags = tx_props.isStatic ? EVMC_STATIC : 0;
+    msg.flags = isStatic ? EVMC_STATIC : 0;
     msg.depth = 0;
     msg.gas = tx.gasLimit;
     msg.recipient = tx.to.value_or(evmc_address{});
@@ -62,10 +61,10 @@ int64_t calcGasUsed(int64_t gas_limit, int64_t gas_left) noexcept
 
 TransactionReceipt transition(const StateView& state_view, const BlockInfo& block,
     const BlockHashes& block_hashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
-    const TransactionProperties& tx_props, EvmHostHooks* ext)
+    bool isStatic, EvmHostHooks* ext)
 {
     TransactionReceipt receipt{};
-    auto msg = buildTopLevelMessage(tx, tx_props);
+    auto msg = buildTopLevelMessage(tx, isStatic);
     // Keep transition() as a thin adapter: warm-up + execution + commit/revert
     // are centralized in innerExecute().
     State state(state_view);
@@ -75,8 +74,7 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
         .gasPrice = tx.gasPrice,
         .blockInfo = block,
         .blockHashes = block_hashes,
-        .revisionConfig = bcos::evm_standard::RevisionConfig{.revision = rev},
-        .txProps = tx_props,
+        .revisionConfig = bcos::evm::RevisionConfig{.revision = rev},
         .extension = ext});
 
     receipt.status = executeOutput.result.status_code;

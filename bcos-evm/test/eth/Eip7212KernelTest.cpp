@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(p256verify_osaka_success_via_dispatch)
 {
     auto const addr = p256Address();
     auto const input = p256verifyValidSignatureInput();
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip7212 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip7212 = true};
 
     auto result = bcos::evm::precompiled::EthPrecompiles::dispatch(
         addr, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_OSAKA, cfg);

@@ -40,24 +40,24 @@ add_test(
     COMMAND ${EXECUTE_MESSAGE_SMOKE_TEST_BINARY_NAME}
 )
 
-set(TX_EXECUTION_ADAPTER_TEST_BINARY_NAME TxExecutionRunnerTest)
+set(INNER_EXECUTE_TEST_BINARY_NAME InnerExecuteTest)
 
-add_executable(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME}
-    eth/TxExecutionRunnerTest.cpp
+add_executable(${INNER_EXECUTE_TEST_BINARY_NAME}
+    eth/InnerExecuteTest.cpp
 )
 
-target_include_directories(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME} PRIVATE
+target_include_directories(${INNER_EXECUTE_TEST_BINARY_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}
 )
 
-target_link_libraries(${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME} PRIVATE
+target_link_libraries(${INNER_EXECUTE_TEST_BINARY_NAME} PRIVATE
     bcos-evm-eth evmone::evmone
 )
 
 add_test(
-    NAME TxExecutionRunner
-    COMMAND ${TX_EXECUTION_ADAPTER_TEST_BINARY_NAME}
+    NAME InnerExecute
+    COMMAND ${INNER_EXECUTE_TEST_BINARY_NAME}
 )
 
 add_executable(Eip2929OpcodeGasTest eth/Eip2929OpcodeGasTest.cpp)
@@ -274,11 +274,11 @@ target_include_directories(DeductIntrinsicGasTest PRIVATE
 target_link_libraries(DeductIntrinsicGasTest PRIVATE bcos-evm-eth)
 add_test(NAME DeductIntrinsicGas COMMAND DeductIntrinsicGasTest)
 
-add_executable(ExecutionAddressResolverTest eth/ExecutionAddressResolverTest.cpp)
-target_include_directories(ExecutionAddressResolverTest PRIVATE
+add_executable(FrameRoutingTest eth/FrameRoutingTest.cpp)
+target_include_directories(FrameRoutingTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(ExecutionAddressResolverTest PRIVATE bcos-evm-eth evmone::evmone)
-add_test(NAME ExecutionAddressResolver COMMAND ExecutionAddressResolverTest)
+target_link_libraries(FrameRoutingTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME FrameRouting COMMAND FrameRoutingTest)
 
 add_executable(CallTargetResolverTest eth/CallTargetResolverTest.cpp)
 target_include_directories(CallTargetResolverTest PRIVATE
@@ -316,11 +316,11 @@ target_include_directories(EthDelegateCallValueTransferCharacterizationTest PRIV
 target_link_libraries(EthDelegateCallValueTransferCharacterizationTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME EthDelegateCallValueTransferCharacterization COMMAND EthDelegateCallValueTransferCharacterizationTest)
 
-add_executable(ResolveExecutionCodeTest eth/ResolveExecutionCodeTest.cpp)
-target_include_directories(ResolveExecutionCodeTest PRIVATE
+add_executable(FrameBytecodeTest eth/FrameBytecodeTest.cpp)
+target_include_directories(FrameBytecodeTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(ResolveExecutionCodeTest PRIVATE bcos-evm-eth evmone::evmone)
-add_test(NAME ResolveExecutionCode COMMAND ResolveExecutionCodeTest)
+target_link_libraries(FrameBytecodeTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME FrameBytecode COMMAND FrameBytecodeTest)
 
 add_executable(TopLevelInsufficientBalanceStateDiffTest eth/TopLevelInsufficientBalanceStateDiffTest.cpp)
 target_include_directories(TopLevelInsufficientBalanceStateDiffTest PRIVATE

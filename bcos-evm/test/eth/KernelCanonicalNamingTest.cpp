@@ -54,8 +54,7 @@ BOOST_AUTO_TEST_CASE(onPreCheckRules_is_hook_override_point)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     CountingStateTransitionHooks policy;
     policy.onPreCheckRules(ctx);
@@ -68,8 +67,7 @@ BOOST_AUTO_TEST_CASE(onNormalizeMessage_is_hook_override_point)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     CountingStateTransitionHooks policy;
     policy.onNormalizeMessage(ctx);
@@ -81,8 +79,7 @@ BOOST_AUTO_TEST_CASE(stateTransitionExecute_is_canonical_pipeline_driver)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
     static evmc::VM vm{evmc_create_evmone()};
     static bcos::crypto::Keccak256 hashImpl;
     ctx.inputs.vm = &vm;
@@ -114,8 +111,7 @@ BOOST_AUTO_TEST_CASE(onFinalizeGasUsed_is_error_policy_hook)
 
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     CountingErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);

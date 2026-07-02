@@ -55,9 +55,9 @@ These symbols are `[[deprecated]]` today and are **not** TE entry points. Safe t
 | 1.4 | `buildExecuteMessageInput` | `EvmTxContextView::toExecuteMessageInput` via `ctx.txContextView` | `eth/kernel/state-transition/EvmTxContextView.h` |
 | 1.5 | `StateTransitionHooks` legacy virtuals: `setupMessage`, `checkTransactionRules`, `checkGasAffordable`, `checkBalanceAndValue`, `tuneExecutionInput`, `runEvmExecution` | `onNormalizeMessage`, `onPreCheckRules`, `onPreCheckGasAffordable`, `onPreCheckCanTransfer`, `onTuneInnerExecuteInput`, `onInvokeInnerExecute` | `eth/core/StateTransitionHooks.h` |
 | 1.6 | `checkEntryRules` | `lifecycleCheckEntryRules` | `opstack/OpStackPrecheckPolicy.h` |
-| 1.7 | `dispatchPrecompile` | `resolveCallTarget` + `executePrecompileEnvelope` | `eth/precompiled/PrecompileRouter.h` |
+| 1.7 | `dispatchPrecompile` | `classifyCallTarget` + `executePrecompileEnvelope` | `eth/precompiled/PrecompileRouter.h` |
 
-**Note:** Tier A geth inline aliases formerly in `GethNamingAliases.h` (`prepareState`, `evmCall`, …) and documentation-only orchestration aliases in `GethOrchestrationAliases.h` were removed 2026-06-30; use canonical symbols (`warmTransactionEntry`, `runCallFrame`, `StateTransitionHooks`, …) and ADR-030 §6 prose map. Policy hooks use `on*` / `get*` on `StateTransitionHooks` / `StateTransitionErrorPolicy` directly.
+**Note:** Tier A geth inline aliases formerly in `GethNamingAliases.h` (`prepareState`, `evmCall`, …) and documentation-only orchestration aliases in `GethOrchestrationAliases.h` were removed 2026-06-30; use canonical symbols (`prepareState`, `runCallFrame`, `StateTransitionHooks`, …) and ADR-030 §6 prose map. Policy hooks use `on*` / `get*` on `StateTransitionHooks` / `StateTransitionErrorPolicy` directly.
 
 #### Wave 2 — Eth kernel Tier E forwards
 

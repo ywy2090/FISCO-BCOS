@@ -11,7 +11,7 @@
 #include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
-#include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
+#include "bcos-evm/eth/kernel/execution/PrepareState.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
@@ -160,22 +160,22 @@ struct Depth1HostFixture
 {
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     std::optional<state::EthHost> host;
 
     Depth1HostFixture(state::State& state, state::EvmHostHooks* extension = nullptr,
-        evmc_revision revision = EVMC_PRAGUE, ChainExtendedPrecompileDispatch* chainPort = nullptr)
+        evmc_revision revision = EVMC_PRAGUE, ChainCallTargetPort* callTargetPort = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = revision, .eip2929 = true};
-        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, chainPort);
+        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), extension, callTargetPort);
     }
 
     state::EthHost& ethHost() { return *host; }
 };
 
 InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message,
-    state::EvmHostHooks* extension = nullptr, ChainExtendedPrecompileDispatch* chainPort = nullptr)
+    state::EvmHostHooks* extension = nullptr, ChainCallTargetPort* callTargetPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     InnerExecuteInput input;
@@ -186,9 +186,8 @@ InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_PRAGUE;
     input.revisionConfig.eip2929 = true;
-    input.txProps.warmDestination = true;
     input.extension = extension;
-    input.chainPort = chainPort;
+    input.callTargetPort = callTargetPort;
     return input;
 }
 }  // namespace
@@ -368,7 +367,7 @@ BOOST_AUTO_TEST_CASE(c6_revision_gate_bls_inactive_at_cancun)
 {
     auto const sender = addressFromLastByte(0x01);
     auto const bls = precompileAddress(0x0b);
-    bcos::evm_standard::RevisionConfig cancunCfg{};
+    bcos::evm::RevisionConfig cancunCfg{};
     cancunCfg.revision = EVMC_CANCUN;
     BOOST_CHECK(!precompiled::isActivePrecompile(cancunCfg, bls));
 
@@ -501,16 +500,13 @@ BOOST_AUTO_TEST_CASE(pr5_op_l1block_chain_static_warm_tx_entry_oracle)
             port.addStaticWarmTarget(OP_GAS_PRICE_ORACLE_PREDEPLOY);
         }
 
-        bcos::evm_standard::RevisionConfig cfg{};
+        bcos::evm::RevisionConfig cfg{};
         cfg.revision = EVMC_PRAGUE;
         cfg.eip2929 = true;
 
         state::Transaction tx{};
         state::BlockInfo block{};
-        state::TransactionProperties props{};
-        props.warmDestination = false;
-        props.warmCoinbase = false;
-        execution::warmTransactionEntry(state, cfg, &port, tx, block, props);
+        execution::prepareState(state, cfg, &port, tx, block);
         return state.is_address_warm(OP_L1_BLOCK_PREDEPLOY);
     };
 

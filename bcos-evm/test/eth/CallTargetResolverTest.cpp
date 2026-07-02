@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
+#include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "fixtures/EthFrameParityHelpers.h"
@@ -37,17 +37,18 @@ evmc_address addressFromValue(uint64_t value)
     return address;
 }
 
-bcos::evm_standard::RevisionConfig pragueCfg()
+bcos::evm::RevisionConfig pragueCfg()
 {
     return {.revision = EVMC_PRAGUE, .eip2929 = true, .eip2537 = true, .eip7702 = true};
 }
 
-execution::CallTargetDescriptor resolveAt(state::State& state,
-    bcos::evm_standard::RevisionConfig const& cfg, evmc_message msg, execution::FrameScope scope,
-    ChainExtendedPrecompileDispatch* chainPort = nullptr, state::EvmHostHooks* extension = nullptr)
+execution::CallTargetDescriptor resolveAt(state::State& state, bcos::evm::RevisionConfig const& cfg,
+    evmc_message msg, execution::FrameScope scope, ChainCallTargetPort* callTargetPort = nullptr,
+    state::EvmHostHooks* extension = nullptr)
 {
-    auto frame = execution::resolveExecutionAddress(state, cfg, msg, scope);
-    return execution::resolveCallTarget(state, cfg, frame.routed, scope, chainPort, extension);
+    auto frame = execution::routeFrameMessage(state, cfg, msg, scope);
+    return execution::classifyCallTarget(
+        state, cfg, frame.routed, scope, callTargetPort, extension);
 }
 
 struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
@@ -61,7 +62,7 @@ BOOST_AUTO_TEST_CASE(R1_empty_code_active_builtin)
 {
     state::test::InMemoryStateView base;
     state::State state{base};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -89,7 +90,7 @@ BOOST_AUTO_TEST_CASE(R2_inactive_precompile_empty_account)
     msg.code_address = bls;
     msg.gas = 50000;
 
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN};
     BOOST_REQUIRE(!precompiled::isActivePrecompile(cfg, bls));
 
     auto desc = resolveAt(state, cfg, msg, execution::FrameScope::TopLevel);
@@ -149,7 +150,7 @@ BOOST_AUTO_TEST_CASE(R4_chain_precompile_wins_over_active_builtin)
     msg.recipient = identity;
     msg.code_address = identity;
 
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2537 = true};
     BOOST_REQUIRE(precompiled::isActivePrecompile(cfg, identity));
 
     auto desc = resolveAt(state, cfg, msg, execution::FrameScope::TopLevel, &adapter);
@@ -287,7 +288,7 @@ BOOST_AUTO_TEST_CASE(R8_create_kind_returns_evm_contract)
 
 BOOST_AUTO_TEST_CASE(W1_enumerate_active_builtin_precompiles)
 {
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN};
     std::set<uint8_t> warmedLowBytes;
     execution::enumerateTxEntryWarmTargets(
         cfg, nullptr, [&](evmc_address const& a) { warmedLowBytes.insert(a.bytes[19]); });
@@ -311,7 +312,7 @@ BOOST_AUTO_TEST_CASE(W2_enumerate_chain_static_warm_targets)
     adapter.addStaticWarmTarget(l1Block);
     adapter.addStaticWarmTarget(gasOracle);
 
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN};
     std::vector<evmc_address> warmed;
     execution::enumerateTxEntryWarmTargets(
         cfg, &adapter, [&](evmc_address const& a) { warmed.push_back(a); });

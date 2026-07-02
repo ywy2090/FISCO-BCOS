@@ -1,14 +1,15 @@
 /*
  *  Copyright (C) 2024 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
- *  @brief ResolveExecutionCode parity oracle tests (legacy ExecuteMessage path).
+ *  @brief FrameBytecode parity oracle tests (legacy ExecuteMessage path).
  */
 
-#define BOOST_TEST_MODULE ResolveExecutionCodeTest
+#define BOOST_TEST_MODULE FrameBytecodeTest
 
+#include "bcos-evm/eth/kernel/execution/FrameBytecode.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
-#include "bcos-evm/eth/kernel/execution/ExecutionAddressResolver.h"
+#include "bcos-evm/eth/kernel/CallKind.h"
+#include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -26,7 +27,7 @@ evmc_address addr(uint8_t last)
     return a;
 }
 
-bcos::evm_standard::RevisionConfig pragueCfg()
+bcos::evm::RevisionConfig pragueCfg()
 {
     return {.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
 }
@@ -55,7 +56,7 @@ bcos::bytes resolveExecutableCodeLegacy(state::State& state, bcos::bytes code, b
 }
 
 bcos::bytes resolveCodeLegacyPath(
-    state::State& state, bcos::evm_standard::RevisionConfig const& cfg, evmc_message const& msg)
+    state::State& state, bcos::evm::RevisionConfig const& cfg, evmc_message const& msg)
 {
     if (execution::isCreateKind(msg.kind))
     {
@@ -66,13 +67,13 @@ bcos::bytes resolveCodeLegacyPath(
     return resolveExecutableCodeLegacy(state, std::move(code), cfg.eip7702);
 }
 
-void assertResolveParity(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
+void assertResolveParity(state::State& state, bcos::evm::RevisionConfig const& cfg,
     evmc_message const& msg, execution::FrameScope scope)
 {
-    auto const target = execution::resolveExecutionAddress(state, cfg, msg, scope);
+    auto const target = execution::routeFrameMessage(state, cfg, msg, scope);
     auto const legacy = resolveCodeLegacyPath(state, cfg, target.routed);
     auto const current =
-        execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
+        execution::loadFrameBytecode(state, cfg, target.routed, target.executionAddress);
     BOOST_CHECK_EQUAL_COLLECTIONS(legacy.begin(), legacy.end(), current.begin(), current.end());
 }
 }  // namespace
@@ -106,9 +107,9 @@ BOOST_AUTO_TEST_CASE(identity_precompile_empty_code)
 
     assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const target =
-        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
+        execution::routeFrameMessage(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const resolved =
-        execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
+        execution::loadFrameBytecode(state, cfg, target.routed, target.executionAddress);
     BOOST_REQUIRE(resolved.empty());
 }
 
@@ -130,9 +131,9 @@ BOOST_AUTO_TEST_CASE(regular_contract_bytecode)
 
     assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const target =
-        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
+        execution::routeFrameMessage(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const resolved =
-        execution::resolveExecutionCode(state, cfg, target.routed, target.executionAddress);
+        execution::loadFrameBytecode(state, cfg, target.routed, target.executionAddress);
     BOOST_REQUIRE_EQUAL(resolved.size(), bytecode.size());
     BOOST_CHECK_EQUAL_COLLECTIONS(
         resolved.begin(), resolved.end(), bytecode.begin(), bytecode.end());
@@ -160,8 +161,8 @@ BOOST_AUTO_TEST_CASE(eip7702_delegation_bytecode)
 
     assertResolveParity(state, cfg, msg, execution::FrameScope::TopLevel);
     auto const resolvedTarget =
-        execution::resolveExecutionAddress(state, cfg, msg, execution::FrameScope::TopLevel);
-    auto const resolved = execution::resolveExecutionCode(
+        execution::routeFrameMessage(state, cfg, msg, execution::FrameScope::TopLevel);
+    auto const resolved = execution::loadFrameBytecode(
         state, cfg, resolvedTarget.routed, resolvedTarget.executionAddress);
     BOOST_REQUIRE_EQUAL(resolved.size(), targetCode.size());
     BOOST_CHECK_EQUAL_COLLECTIONS(

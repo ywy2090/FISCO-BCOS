@@ -68,8 +68,8 @@ evmc_address balanceTarget(evmc_message const& msg)
                msg.recipient;
 }
 
-InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message,
-    ChainExtendedPrecompileDispatch* chainPort = nullptr)
+InnerExecuteInput makeBaseInput(
+    state::State& state, evmc_message const& message, ChainCallTargetPort* callTargetPort = nullptr)
 {
     static evmc::VM vm{evmc_create_evmone()};
     InnerExecuteInput input;
@@ -80,15 +80,14 @@ InnerExecuteInput makeBaseInput(state::State& state, evmc_message const& message
     input.blockInfo.gasLimit = 30'000'000;
     input.revisionConfig.revision = EVMC_PRAGUE;
     input.revisionConfig.eip2929 = true;
-    input.txProps.warmDestination = true;
-    input.chainPort = chainPort;
+    input.callTargetPort = callTargetPort;
     return input;
 }
 
-CallOutcome runDepth0(state::State& state, evmc_message const& message,
-    ChainExtendedPrecompileDispatch* chainPort = nullptr)
+CallOutcome runDepth0(
+    state::State& state, evmc_message const& message, ChainCallTargetPort* callTargetPort = nullptr)
 {
-    auto output = innerExecute(makeBaseInput(state, message, chainPort));
+    auto output = innerExecute(makeBaseInput(state, message, callTargetPort));
     return {.status = output.result.status_code,
         .gasLeft = output.result.gas_left,
         .recipientBalance = state.get_balance(balanceTarget(message))};
@@ -98,23 +97,23 @@ struct Depth1HostFixture
 {
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     std::optional<state::EthHost> host;
 
-    Depth1HostFixture(state::State& state, ChainExtendedPrecompileDispatch* chainPort = nullptr)
+    Depth1HostFixture(state::State& state, ChainCallTargetPort* callTargetPort = nullptr)
     {
         txContext.block_gas_limit = 30'000'000;
         cfg = {.revision = EVMC_PRAGUE, .eip2929 = true};
-        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, chainPort);
+        host.emplace(state, txContext, cfg, vm, emptyBlockHashes(), nullptr, callTargetPort);
     }
 
     state::EthHost& ethHost() { return *host; }
 };
 
 CallOutcome runDepth1(
-    state::State& state, evmc_message message, ChainExtendedPrecompileDispatch* chainPort = nullptr)
+    state::State& state, evmc_message message, ChainCallTargetPort* callTargetPort = nullptr)
 {
-    Depth1HostFixture fixture(state, chainPort);
+    Depth1HostFixture fixture(state, callTargetPort);
     message.depth = 1;
     auto result = fixture.ethHost().call(message);
     return {.status = result.status_code,

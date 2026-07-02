@@ -98,7 +98,7 @@ graph TD
             │   runCallFrame()       统一帧 deep module（PR1–4）           │
             │   EthHost::call()      嵌套帧 adapter → Nested               │
             │   PrecompileActive.h   warm/dispatch 单源                    │
-            │   PrecompileRouter     resolveCallTarget→executePrecompileEnvelope │
+            │   PrecompileRouter     classifyCallTarget→executePrecompileEnvelope │
             │   Eip2929Gate.h          2929 / coinbase / CREATE warm gate    │
             │   EvmHostHooks         扩展点基类 = 标准以太坊默认语义         │
             │   RevisionConfig       EIP 开关位域（13 bool + 参数）          │
@@ -147,18 +147,11 @@ EthHost::call(msg)
     └─ runCallFrame(Nested)
 ```
 
-`TxExecutionRunner::runEvmKernelTopLevel` 负责 tx 级语义：EIP-2929 tx-entry warm（`WarmTransactionEntry`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `EvmHostHooks*` 注入。
+`innerExecute`（`InnerExecute.cpp`）负责 tx 级语义：EIP-2929 tx-entry warm（`PrepareState`）、7702 authorization 预应用、sender nonce bump、`finalize_self_destructs`、`stateDiff` 映射。帧体（precompile route → checkpoint → value → CREATE → evmone）在 `runCallFrame` 内；链行为通过 `EvmHostHooks*` 注入。
 
 ```cpp
-// eth/kernel/execution/InnerExecute.h — 对外接口
-ExecuteMessageOutput innerExecute(ExecuteMessageInput input);
-
-// eth/kernel/execution/TxExecutionRunner.h — 实现体
-namespace bcos::evm::execution {
-struct TxExecutionRunner {
-    static ExecuteMessageOutput runEvmKernelTopLevel(ExecuteMessageInput input);
-};
-}
+// eth/kernel/execution/InnerExecute.h
+InnerExecuteOutput innerExecute(InnerExecuteInput input);
 ```
 
 **编排不变量：** `TxPipelineContext::message` 是 intrinsic 扣减的唯一可变 owner；步骤 ④ `deductIntrinsicGas` 修改它，步骤 ⑦ `innerExecute` 使用同一引用。三路径内核调用点：`EthReferenceExecute.cpp`、`FiscoExecute.cpp`、`OpStackTxLifecycle.cpp`（经 `OpStackStateTransitionBindings::bind`）。
@@ -166,17 +159,17 @@ struct TxExecutionRunner {
 ### 3.1 Frame execution (ExecutionFrame)
 
 ```text
-stateTransitionExecute → innerExecute → runEvmKernelTopLevel
+stateTransitionExecute → innerExecute
                                     └─ runCallFrame(TopLevel)
 evmone callback → EthHost::call (nested adapter)
                     └─ runCallFrame(Nested)
-                         ├─ ExecutionAddressResolver (7702 / CREATE address normalization)
+                         ├─ FrameRouting (7702 / CREATE address normalization)
                          └─ PrecompileRouter::executePrecompileEnvelope (envelope 唯一 dispatch 点)
 ```
 
-`FrameScope` 由 adapter 显式传入（TopLevel / Nested），Frame 内部不根据 `message.depth` 驱动语义分叉。TopLevel 路径 defer `state.commit()` 至 `TxExecutionRunner` nonce bump 之后；Nested 路径忽略 `fr.gasRefund`（RR4）。
+`FrameScope` 由 adapter 显式传入（TopLevel / Nested），Frame 内部不根据 `message.depth` 驱动语义分叉。TopLevel 路径 defer `state.commit()` 至 `innerExecute` nonce bump 之后；Nested 路径忽略 `fr.gasRefund`（RR4）。
 
-**Precompile 单源：** tx-entry warm（`WarmTransactionEntry` → `forEachActivePrecompile`）与 dispatch（`PrecompileRouter` → `isActivePrecompile`）共用 `PrecompileActive.h`。帧级地址归一化由 `ExecutionAddressResolver` 单源产出 `executionAddress`。FISCO `eip2537=false` 时 0x0b–0x11 既不 warm 也不 dispatch（`EipPrecompileRevisionGateTest`）。
+**Precompile 单源：** tx-entry warm（`PrepareState` → `forEachActivePrecompile`）与 dispatch（`PrecompileRouter` → `isActivePrecompile`）共用 `PrecompileActive.h`。帧级路由由 `FrameRouting::routeFrameMessage` 产出 `executionAddress`；bytecode 由 `FrameBytecode::loadFrameBytecode`；CREATE 地址预测在 `CreateAddress.*`。FISCO `eip2537=false` 时 0x0b–0x11 既不 warm 也不 dispatch（`EipPrecompileRevisionGateTest`）。
 
 **Precompile envelope：** `checkpoint → transfer → dispatch`；失败 `revert`（`PrecompileRouter.cpp`；`PrecompileRouterEnvelopeTest`）。
 
@@ -399,12 +392,12 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 
 ## 7. 评审者应重点质疑的点
 
-1. **profile-only 字段**（Gap 37）：`eip1559` 仍无统一 TE 消费者（局部消费见 `Web3TypedTxKind` / OpStack settlement）。`eip2929`、`eip3651` 已接线（`Eip2929Gate`、`WarmTransactionEntry`）。
+1. **profile-only 字段**（Gap 37）：`eip1559` 仍无统一 TE 消费者（局部消费见 `Web3TypedTxKind` / OpStack settlement）。`eip2929`、`eip3651` 已接线（`Eip2929Gate`、`PrepareState`）。
 2. ~~**warm 与 dispatch 未单源**~~ **Done：** `PrecompileActive.h` + `EipPrecompileRevisionGateTest`。
 3. **`FiscoPolicy.h` include `transaction-executor/.../AuthCheck.h`**：与 ADR-017 Port 全生命周期方向仍有张力（候选 5）。
 4. **ETH 列定位**：矩阵明确 ETH 路径非生产继承证明。
 5. **Prepare 阶段 dead warm**（Gap 36）：`prepareTransaction` warm 未持久化到 Execute。
-6. ~~**内核帧语义双轨**~~ **Done (ExecutionFrame PR1–4 + TxExecutionRunner)**。
+6. ~~**内核帧语义双轨**~~ **Done (ExecutionFrame PR1–4 + InnerExecute)**。
 7. ~~**PrecompileRouter envelope 顺序**~~ **Done：** `checkpoint → transfer → dispatch` + envelope 测试。
 8. **OpStack TE 层**：`bcos-evm` 内 ADR-021/023 已闭合；executor 侧 `txData` 影子帧是否残留需 TE 审计（候选 7）。
 
@@ -423,16 +416,18 @@ EIP 启用状态统一收敛到 `RevisionConfig` 位域（`eth/RevisionConfig.h`
 | ETH bindings | `eth/apply/EthStateTransitionBindings.h` |
 | FISCO Profile | `bcos/FiscoStateTransitionBindings.h` |
 | OP Profile | `opstack/OpStackStateTransitionBindings.h` |
-| 内核入口（符号） | `eth/kernel/execution/InnerExecute.h` / `.cpp` (`innerExecute`) |
-| Tx 级 adapter | `eth/kernel/execution/TxExecutionRunner.h` / `.cpp` |
+| 内核入口 | `eth/kernel/execution/InnerExecute.h` / `.cpp` (`innerExecute`) |
 | Call target 分类 | `eth/kernel/execution/CallTargetResolver.h` / `.cpp`（ADR-024） |
 | ExecutionFrame | `eth/kernel/execution/EvmCallFrame.h` / `.cpp` |
 | Precompile 单源 | `eth/precompiled/PrecompileActive.h` |
 | Precompile envelope | `eth/precompiled/PrecompileRouter.cpp`（`executePrecompileEnvelope`） |
 | 2929 warm gate | `eth/eip/Eip2929Gate.h` |
-| Tx-entry warm | `eth/kernel/execution/WarmTransactionEntry.h` |
-| Execution address resolver | `eth/kernel/execution/ExecutionAddressResolver.h` / `.cpp` |
-| Frame helpers | `eth/kernel/execution/EvmCallFrame.cpp`（value transfer inlined in `transferOrFail`）、`ExecutionAddressResolver.*` |
+| Tx-entry warm | `eth/kernel/execution/PrepareState.h` |
+| Frame routing | `eth/kernel/execution/FrameRouting.h` / `.cpp` (`routeFrameMessage`) |
+| Frame bytecode | `eth/kernel/execution/FrameBytecode.h` / `.cpp` (`loadFrameBytecode`) |
+| CREATE address | `eth/kernel/execution/CreateAddress.h` / `.cpp` |
+| CREATE deployment | `eth/kernel/execution/CreateDeployment.h` |
+| Frame helpers | `eth/kernel/execution/EvmCallFrame.cpp`（value transfer inlined in `transferOrFail`） |
 | 内核扩展点 | `eth/policy/EvmHostHooks.h` |
 | EIP 开关 | `eth/RevisionConfig.h` |
 | FISCO 编排 | `bcos/ApplyFiscoMessage.cpp` |

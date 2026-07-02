@@ -13,8 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Transaction-entry warm set helper over state::State APIs.
- * @file WarmTransactionEntry.h
+ * @brief EIP-2929 tx-entry warm set (geth: state.Prepare).
+ * @file PrepareState.h
  */
 
 #pragma once
@@ -48,11 +48,12 @@ inline evmc_bytes32 toEvmcBytes32(const h256& value)
 }
 }  // namespace detail
 
-inline void warmTransactionEntry(state::State& state, bcos::evm_standard::RevisionConfig const& cfg,
-    ChainExtendedPrecompileDispatch const* chainPort, const state::Transaction& tx,
-    const state::BlockInfo& block, const state::TransactionProperties& props,
-    const Eip2930AccessList* accessList = nullptr, uint8_t web3TypedTxKind = 0,
-    std::optional<evmc_address> createCodeAddress = std::nullopt)
+/// Tx-entry warm set: sender, destination, coinbase, precompiles, access list (geth:
+/// state.Prepare).
+inline void prepareState(state::State& state, bcos::evm::RevisionConfig const& cfg,
+    ChainCallTargetPort const* callTargetPort, const state::Transaction& tx,
+    const state::BlockInfo& block, const Eip2930AccessList* accessList = nullptr,
+    uint8_t web3TypedTxKind = 0, std::optional<evmc_address> createCodeAddress = std::nullopt)
 {
     if (!isEip2929Enabled(cfg))
     {
@@ -61,12 +62,14 @@ inline void warmTransactionEntry(state::State& state, bcos::evm_standard::Revisi
 
     (void)state.warm_up_address_no_journal(tx.from);
 
-    if (props.warmDestination && tx.to.has_value())
+    // geth statedb.Prepare: CALL warms destination; CREATE/CREATE2 omit tx.to in
+    // toStateTransaction().
+    if (tx.to.has_value())
     {
         (void)state.warm_up_address_no_journal(*tx.to);
     }
 
-    if (props.warmCoinbase && isCoinbaseWarmEnabled(cfg))
+    if (isCoinbaseWarmEnabled(cfg))
     {
         (void)state.warm_up_address_no_journal(block.coinbase);
     }
@@ -76,7 +79,7 @@ inline void warmTransactionEntry(state::State& state, bcos::evm_standard::Revisi
         (void)state.warm_up_address_no_journal(*createCodeAddress);
     }
 
-    enumerateTxEntryWarmTargets(cfg, chainPort, [&state](evmc_address const& precompile) {
+    enumerateTxEntryWarmTargets(cfg, callTargetPort, [&state](evmc_address const& precompile) {
         (void)state.warm_up_address_no_journal(precompile);
     });
 

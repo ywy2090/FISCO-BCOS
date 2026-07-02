@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(osaka_modexp_field_1025_rejected_via_dispatch)
 {
     auto const modexp = modexpAddress();
     auto const input = modexpHeaderBaseLen1025();
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip7823 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_OSAKA, .eip7823 = true};
 
     auto result = bcos::evm::precompiled::EthPrecompiles::dispatch(
         modexp, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_OSAKA, cfg);
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(prague_modexp_field_1025_not_rejected)
 {
     auto const modexp = modexpAddress();
     auto const input = modexpHeaderBaseLen1025();
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip7823 = false};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip7823 = false};
 
     auto result = bcos::evm::precompiled::EthPrecompiles::dispatch(
         modexp, bcos::bytesConstRef(input.data(), input.size()), 500'000, EVMC_PRAGUE, cfg);
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(prague_modexp_field_1025_not_rejected)
 BOOST_AUTO_TEST_CASE(precompile_failure_exhausts_call_gas)
 {
     auto const blake2f = blake2fAddress();
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 
     evmc_message message{};
     message.kind = EVMC_CALL;

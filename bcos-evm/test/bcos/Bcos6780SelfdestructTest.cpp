@@ -32,7 +32,7 @@ InnerExecuteInput buildInnerExecuteInput(
 
     evmc_message msg{};
     msg.kind = fixture.tx.to.has_value() ? EVMC_CALL : EVMC_CREATE;
-    msg.flags = fixture.txProps.isStatic ? EVMC_STATIC : 0;
+    msg.flags = fixture.isStatic ? EVMC_STATIC : 0;
     msg.gas = fixture.tx.gasLimit;
     msg.sender = fixture.tx.from;
     msg.recipient = fixture.tx.to.value_or(evmc_address{});
@@ -44,7 +44,6 @@ InnerExecuteInput buildInnerExecuteInput(
     input.blockInfo = fixture.block;
     input.revisionConfig = makePragueRevisionConfig();
     input.gasPrice = fixture.tx.gasPrice;
-    input.txProps = fixture.txProps;
     return input;
 }
 }  // namespace

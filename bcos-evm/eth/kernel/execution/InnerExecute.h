@@ -13,8 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Top-level message execution over eth::state::EthHost.
- * @file execution/InnerExecute.h
+ * @brief EVM kernel entry: tx warm/7702 setup, runCallFrame, finalize (geth innerExecute).
+ * @file InnerExecute.h
  */
 
 #pragma once
@@ -23,6 +23,7 @@
 
 namespace bcos::evm
 {
+
 InnerExecuteOutput innerExecute(InnerExecuteInput input);
 
 }  // namespace bcos::evm

@@ -13,66 +13,33 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief CREATE / CREATE2 contract deployment helpers.
- * @file CreateContract.h
+ * @brief CREATE deployment lifecycle helpers (init binding, account touch, code deposit).
+ * @file CreateDeployment.h
+ *
+ * CREATE/CREATE2 address prediction lives in CreateAddress.h.
  */
 
 #pragma once
 
 #include "bcos-evm/eth/kernel/CallKind.h"
-#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/kernel/execution/CreateAddress.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include <evmone_precompiles/keccak.hpp>
 
 namespace bcos::evm::execution
 {
 constexpr size_t MAX_EVM_CODE_SIZE = 0x6000;
 constexpr int64_t CREATE_DATA_GAS_PER_BYTE = 200;
 
-inline evmc_address predictCreate2Address(
-    evmc_address const& sender, evmc_bytes32 const& salt, bcos::bytesConstRef initCode) noexcept
-{
-    bcos::bytes buffer;
-    buffer.reserve(1 + sizeof(sender.bytes) + sizeof(salt.bytes) + 32);
-    buffer.push_back(0xff);
-    buffer.insert(buffer.end(), sender.bytes, sender.bytes + sizeof(sender.bytes));
-    buffer.insert(buffer.end(), salt.bytes, salt.bytes + sizeof(salt.bytes));
-    auto const initHash = ethash::keccak256(initCode.data(), initCode.size());
-    buffer.insert(buffer.end(), initHash.bytes, initHash.bytes + sizeof(initHash.bytes));
-    auto const hash = ethash::keccak256(buffer.data(), buffer.size());
-    evmc_address out{};
-    std::memcpy(out.bytes, hash.bytes + 12, sizeof(out.bytes));
-    return out;
-}
-
-inline evmc_address predictCreateAddress(
-    state::State& state, evmc_message const& message, bcos::bytesConstRef initCode) noexcept
-{
-    if (!state::isZeroAddress(message.recipient))
-    {
-        return message.recipient;
-    }
-    if (!state::isZeroAddress(message.code_address))
-    {
-        return message.code_address;
-    }
-    if (message.kind == EVMC_CREATE2)
-    {
-        return predictCreate2Address(message.sender, message.create2_salt, initCode);
-    }
-    return state::predictLegacyCreateAddress(message.sender, state.get_nonce(message.sender));
-}
-
-/// Bind CREATE recipient/code_address from sender nonce (no state mutation).
-inline void bindCreateMessageForInit(evmc_address& executionAddress, evmc_message& message,
-    bcos::bytesConstRef initCode, state::State& state) noexcept
+/// Assign CREATE recipient/code_address from sender nonce (no state mutation; geth: create() addr).
+inline void assignCreateAddresses(evmc_address& executionAddress, evmc_message& message,
+    bcos::bytesConstRef initCode, state::State& st) noexcept
 {
     if (!isCreateKind(message.kind))
     {
         return;
     }
 
-    auto const createAddr = predictCreateAddress(state, message, initCode);
+    auto const createAddr = predictCreateAddress(st, message, initCode);
     if (state::isZeroAddress(createAddr))
     {
         return;
@@ -84,7 +51,7 @@ inline void bindCreateMessageForInit(evmc_address& executionAddress, evmc_messag
 }
 
 /// Initialize CREATE target account (nonce=1, warm pin). Must run inside a checkpoint.
-inline void initializeCreateTargetAccount(state::State& state, evmc_address const& createAddr,
+inline void initializeCreateTargetAccount(state::State& st, evmc_address const& createAddr,
     evmc_revision revision, bool warmAccess) noexcept
 {
     if (state::isZeroAddress(createAddr))
@@ -94,22 +61,21 @@ inline void initializeCreateTargetAccount(state::State& state, evmc_address cons
 
     if (warmAccess)
     {
-        state.pin_warm_create_address(createAddr);
+        st.pin_warm_create_address(createAddr);
     }
 
     if (revision >= EVMC_SPURIOUS_DRAGON)
     {
-        state.set_nonce(createAddr, 1);
+        st.set_nonce(createAddr, 1);
     }
 }
 
-/// Set recipient/code_address, warm, and nonce=1 before initcode runs.
-inline void prepareCreateTargetBeforeInit(state::State& state, evmc_address& executionAddress,
-    evmc_message& message, evmc_revision revision, bcos::bytesConstRef initCode,
-    bool warmAccess) noexcept
+/// Assign addresses, warm, and nonce=1 before initcode runs (geth: create account touch).
+inline void setupCreateTarget(state::State& st, evmc_address& executionAddress, evmc_message& message,
+    evmc_revision revision, bcos::bytesConstRef initCode, bool warmAccess) noexcept
 {
-    bindCreateMessageForInit(executionAddress, message, initCode, state);
-    initializeCreateTargetAccount(state, message.recipient, revision, warmAccess);
+    assignCreateAddresses(executionAddress, message, initCode, st);
+    initializeCreateTargetAccount(st, message.recipient, revision, warmAccess);
 }
 
 /// Charge CREATE runtime-code deposit (200 gas/byte). Matches evmone test/state/host.cpp create().

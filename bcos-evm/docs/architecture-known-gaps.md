@@ -4,7 +4,7 @@ Tracked items from Phase 1 audit and grill review. Update when closed.
 
 ## 36 — BCOS Prepare-phase dead warm
 
-**Status:** **Closed (2026-07-02).** TE Prepare no longer calls `prepareTransaction` / `warmTransactionEntry` on a local `State`. Tx-entry warm is normative in kernel Execute (`TxExecutionRunner::prepareTxEntry`). `FiscoPrepareTransaction.h` remains for test harnesses (`ExecuteViaHostEip2929Harness`).
+**Status:** **Closed (2026-07-02).** TE Prepare no longer calls `prepareTransaction` / `prepareState` on a local `State`. Tx-entry warm is normative in kernel Execute (`InnerExecute::prepareTxEntry` → `prepareState`). `FiscoPrepareTransaction.h` remains for test harnesses (`ExecuteViaHostEip2929Harness`).
 
 **Was:** `TransactionExecutorImpl` / `EthTransactionExecutorImpl` ran warm on ephemeral Prepare `State` that did not persist into Execute.
 

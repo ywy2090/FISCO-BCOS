@@ -17,7 +17,7 @@
  * @file ChainCallTargetPort.h
  *
  * Kernel-neutral seam (ADR-024): **chain-owned** CALL targets that are not Ethereum
- * `CallTargetKind::BuiltinPrecompile`. The kernel routes via `resolveCallTarget` and
+ * `CallTargetKind::BuiltinPrecompile`. The kernel routes via `classifyCallTarget` and
  * `executePrecompileEnvelope` without `#include` of `bcos/` or `opstack/`.
  *
  * Covers `CallTargetKind::ChainPrecompile`:
@@ -29,9 +29,9 @@
  * Lifetime / wiring (one pointer per transaction, must outlive `innerExecute`):
  *   `apply*Message` / `*ExecutionBundle` → `StateTransitionContext::wireExecutionEnvironment`
  *                                      → `InnerExecuteInput::callTargetPort`
- *                                      → `TxExecutionRunner` / `runCallFrame`
+ *                                      → `innerExecute` / `runCallFrame`
  *                                      → `CallFrameContext::callTargetPort` (+ nested `EthHost`)
- *   Used by: `resolveCallTarget`, `executePrecompileEnvelope`, `enumerateTxEntryWarmTargets`
+ *   Used by: `classifyCallTarget`, `executePrecompileEnvelope`, `enumerateTxEntryWarmTargets`
  *
  * Production adapters:
  *   - `OpStackChainCallTargetAdapter` — classify + dispatch + static warm (apply-local)
@@ -62,7 +62,7 @@ namespace bcos::evm
 /// Chain extension port for `CallTargetKind::ChainPrecompile` targets.
 ///
 /// Three hooks mirror the kernel call-target pipeline:
-///   1. `classifyTarget` — `resolveCallTarget` (before value transfer / VM)
+///   1. `classifyTarget` — `classifyCallTarget` (before value transfer / VM)
 ///   2. `dispatch`       — `executePrecompileEnvelope` after classification
 ///   3. `forEachStaticWarmTarget` — `enumerateTxEntryWarmTargets` (EIP-2929 tx entry)
 struct ChainCallTargetPort
@@ -71,11 +71,11 @@ struct ChainCallTargetPort
 
     /// Claim a chain-owned call target during routing.
     ///
-    /// Invoked from `resolveCallTarget` when `(emptyCode || scope == Nested)` and
+    /// Invoked from `classifyCallTarget` when `(emptyCode || scope == Nested)` and
     /// `callTargetPort != nullptr`. Runs after EIP-7702 delegation routing and the
     /// `EvmHostHooks::allowDelegateCallToPrecompile` gate (builtin precompile only).
     ///
-    /// `executionAddress` is the frame execution key from `resolveExecutionAddress`
+    /// `executionAddress` is the frame execution key from `routeFrameMessage`
     /// (not raw `msg.recipient` / `msg.code_address` when they differ). `msg` is the
     /// routed envelope (`CallTargetDescriptor::routed`).
     ///

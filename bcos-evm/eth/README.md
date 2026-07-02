@@ -35,7 +35,10 @@
 | `kernel/state-transition/DeductIntrinsicGas.h` | `deductIntrinsicGas()` |
 | `kernel/state-transition/IncludedTxVmerrNormalize.h` | included-tx vmerr 归一化 |
 | `kernel/execution/EvmCallFrame.*` | `runCallFrame()` / evm.Call 族 |
-| `kernel/execution/ExecutionAddressResolver.*` | 帧级 `executionAddress` 归一化（7702 / CREATE） |
+| `kernel/execution/FrameRouting.*` | 帧 message 路由 + `executionAddress`（7702 / CREATE warm pin） |
+| `kernel/execution/FrameBytecode.*` | 帧 bytecode 加载（CREATE initcode / 7702 delegate） |
+| `kernel/execution/CreateAddress.*` | CREATE / CREATE2 地址预测 |
+| `kernel/execution/CreateDeployment.h` | CREATE 生命周期（assign / touch / code deposit） |
 | `kernel/CallKind.h` | `isCreateKind` 等 EVMC call-kind 谓词（pipeline / execution 共用） |
 | `kernel/FrameScope.h` | `TopLevel` / `Nested` 帧作用域 |
 | `kernel/EVMCResult.*` | EVMC ↔ `TransactionStatus` 桥接（`adoptEvmcResult`） |
@@ -98,7 +101,7 @@
 
 **ApplyMessage DTO（P1-2，方案 A）：** 三链统一 `*MessageRequest` / `*MessageResult` — `EthMessageRequest`、`FiscoMessageRequest`、`OpStackMessageRequest`（及对应 `*Result`）。geth `ExecutionResult` 语义由 Result 侧字段承载（ADR-030 §5）。
 
-内核 tx 级执行见 `innerExecute`（geth post-`Prepare` 路径；ADR-030 §3 step 6）。geth 词汇对照见 ADR-030 §3–§8（canonical 符号：`stateTransitionExecute`、`innerExecute`、`runCallFrame`、`warmTransactionEntry` 等）。
+内核 tx 级执行见 `innerExecute`（geth post-`Prepare` 路径；ADR-030 §3 step 6）。geth 词汇对照见 ADR-030 §3–§8（canonical 符号：`stateTransitionExecute`、`innerExecute`、`runCallFrame`、`prepareState` 等）。
 
 ## 执行流
 

@@ -127,7 +127,7 @@ co_return co_await makeReceipt(...);
 
 geth increments sender nonce **after** `preCheck` succeeds inside `execute()` (`state_transition.go` ~619–620).
 
-Current TE **Prepare** calls `warmTransactionEntry`, which may touch account warmth but must **not** commit a nonce increment before consensus outcome is known.
+Current TE **Prepare** calls `prepareState`, which may touch account warmth but must **not** commit a nonce increment before consensus outcome is known.
 
 | Rule | Requirement |
 | --- | --- |

@@ -19,19 +19,19 @@ namespace bcos::evm::execution
 {
 
 /// TE runtime gate for EIP-2929 warm/cold tracking (Host + tx-entry + CREATE pin).
-inline bool isEip2929Enabled(bcos::evm_standard::RevisionConfig const& cfg) noexcept
+inline bool isEip2929Enabled(bcos::evm::RevisionConfig const& cfg) noexcept
 {
     return cfg.eip2929;
 }
 
 /// EIP-3651 coinbase warm at tx entry (independent of 2929 total gate).
-inline bool isCoinbaseWarmEnabled(bcos::evm_standard::RevisionConfig const& cfg) noexcept
+inline bool isCoinbaseWarmEnabled(bcos::evm::RevisionConfig const& cfg) noexcept
 {
     return cfg.eip3651;
 }
 
-/// CREATE target warm pin (Frame / CreateContract).
-inline bool isCreateWarmPinEnabled(bcos::evm_standard::RevisionConfig const& cfg) noexcept
+/// CREATE target warm pin (Frame / CreateDeployment).
+inline bool isCreateWarmPinEnabled(bcos::evm::RevisionConfig const& cfg) noexcept
 {
     return isEip2929Enabled(cfg);
 }
