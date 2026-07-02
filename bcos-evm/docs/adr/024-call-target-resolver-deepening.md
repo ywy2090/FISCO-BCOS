@@ -99,7 +99,7 @@ void enumerateTxEntryWarmTargets(
 | DELEGATECALL + `allowDelegateCallToPrecompile` | `classifyCallTarget` → `PolicyRejected` |
 | checkpoint / value transfer / `finalizeEnvelope` | **Stay in envelope** |
 
-`PrecompileDispatchOutcome::NotApplicable` retired from hot path.
+`PrecompileEnvelopeRoute::None` is the default; production envelopes set `Precompile` or `EmptyAccount`.
 
 ### 2. Warm policy (2b+)
 

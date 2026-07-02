@@ -66,7 +66,6 @@ precompiled::PrecompileRouterOutput routePrecompileAtSeam(state::State& state,
     switch (desc.kind)
     {
     case execution::CallTargetKind::PolicyRejected:
-        output.outcome = precompiled::PrecompileDispatchOutcome::PolicyRejected;
         output.result.status_code = EVMC_PRECOMPILE_FAILURE;
         output.result.gas_left = message.gas;
         return output;
@@ -162,8 +161,7 @@ BOOST_AUTO_TEST_CASE(delegatecall_to_precompile_blocked_at_router_seam)
     auto output =
         routePrecompileAtSeam(state, pragueCfg(), message, execution::FrameScope::Nested, &policy);
 
-    BOOST_REQUIRE_EQUAL(static_cast<int>(output.outcome),
-        static_cast<int>(precompiled::PrecompileDispatchOutcome::PolicyRejected));
+    BOOST_REQUIRE(output.route == precompiled::PrecompileEnvelopeRoute::None);
     BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_PRECOMPILE_FAILURE);
     BOOST_REQUIRE_EQUAL(output.result.gas_left, message.gas);
 }
@@ -184,8 +182,7 @@ BOOST_AUTO_TEST_CASE(dispatch_not_applicable_for_7702_delegation_to_precompile)
     auto output = routePrecompileAtSeam(
         state, pragueCfg(), message, execution::FrameScope::TopLevel, nullptr);
 
-    BOOST_REQUIRE_EQUAL(static_cast<int>(output.outcome),
-        static_cast<int>(precompiled::PrecompileDispatchOutcome::NotApplicable));
+    BOOST_REQUIRE(output.route == precompiled::PrecompileEnvelopeRoute::None);
 }
 
 BOOST_AUTO_TEST_CASE(delegated_precompile_runs_empty_code_depth_parity)

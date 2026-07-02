@@ -5,7 +5,7 @@
  */
 
 #include "PrecompileRouter.h"
-#include "bcos-evm/eth/core/ChainExtendedPrecompileDispatch.h"
+#include "bcos-evm/eth/core/ChainCallTargetPort.h"
 #include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -75,13 +75,13 @@ PrecompileRouterOutput envelopeAfterValueTransfer(
     if (auto insufficient = tryEnvelopeValueTransfer(
             input.state, input.message, input.target.dispatchAddress, input.skipValueTransfer))
     {
-        output.outcome = PrecompileDispatchOutcome::Dispatched;
+        output.route = PrecompileEnvelopeRoute::Precompile;
         output.result = std::move(*insufficient);
         input.state.revert();
         return output;
     }
 
-    output.outcome = PrecompileDispatchOutcome::Dispatched;
+    output.route = PrecompileEnvelopeRoute::Precompile;
     output.result = dispatchFn();
     finalizeEnvelope(input.state, output);
     return output;
@@ -102,9 +102,10 @@ PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& 
         }
 
         if (input.target.kind == execution::CallTargetKind::ChainPrecompile &&
-            input.chainPort != nullptr)
+            input.callTargetPort != nullptr)
         {
-            if (auto result = input.chainPort->dispatch(input.revision.revision, input.message))
+            if (auto result =
+                    input.callTargetPort->dispatch(input.revision.revision, input.message))
             {
                 return evmc::Result(std::move(*result));
             }
@@ -122,7 +123,7 @@ PrecompileRouterOutput executeEmptyAccountEnvelope(PrecompileEnvelopeInput const
         result.gas_left = input.message.gas;
         return evmc::Result(result);
     });
-    output.outcome = PrecompileDispatchOutcome::EmptyAccountSuccess;
+    output.route = PrecompileEnvelopeRoute::EmptyAccount;
     return output;
 }
 

@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE PrecompileEnvelopeTest
 
-#include "bcos-evm/eth/core/CallTargetKind.h"
+#include "bcos-evm/eth/core/CallTargetTypes.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_ecrecover)
 {
     state::test::InMemoryStateView base;
     state::State state{base};
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     cfg.revision = EVMC_CANCUN;
 
     evmc_address target = precompileAddr(0x01);
@@ -41,9 +41,9 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_ecrecover)
         .target = desc,
         .message = msg,
         .skipValueTransfer = false,
-        .chainPort = nullptr});
+        .callTargetPort = nullptr});
 
-    BOOST_CHECK(out.outcome == precompiled::PrecompileDispatchOutcome::Dispatched);
+    BOOST_CHECK(out.route == precompiled::PrecompileEnvelopeRoute::Precompile);
     BOOST_CHECK(out.result.status_code == EVMC_SUCCESS || out.result.status_code == EVMC_FAILURE);
 }
 
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_identity)
 {
     state::test::InMemoryStateView base;
     state::State state{base};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 
     evmc_address target = precompileAddr(0x04);
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
@@ -73,9 +73,9 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_identity)
         .target = desc,
         .message = msg,
         .skipValueTransfer = false,
-        .chainPort = nullptr});
+        .callTargetPort = nullptr});
 
-    BOOST_CHECK(out.outcome == precompiled::PrecompileDispatchOutcome::Dispatched);
+    BOOST_CHECK(out.route == precompiled::PrecompileEnvelopeRoute::Precompile);
     BOOST_CHECK_EQUAL(out.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(out.result.output_size, inputBytes.size());
 }
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(empty_account_envelope_success_noop)
 {
     state::test::InMemoryStateView base;
     state::State state{base};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_PRAGUE};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE};
 
     evmc_address target = precompileAddr(0x02);
     evmc_message msg{};
@@ -103,9 +103,9 @@ BOOST_AUTO_TEST_CASE(empty_account_envelope_success_noop)
         .target = desc,
         .message = msg,
         .skipValueTransfer = false,
-        .chainPort = nullptr});
+        .callTargetPort = nullptr});
 
-    BOOST_CHECK(out.outcome == precompiled::PrecompileDispatchOutcome::EmptyAccountSuccess);
+    BOOST_CHECK(out.route == precompiled::PrecompileEnvelopeRoute::EmptyAccount);
     BOOST_CHECK_EQUAL(out.result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(out.result.gas_left, msg.gas);
 }

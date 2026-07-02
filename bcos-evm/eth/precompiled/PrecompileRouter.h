@@ -30,13 +30,12 @@ class State;
 namespace bcos::evm::precompiled
 {
 
-/// How the envelope resolved; orthogonal to evmc status inside @p result.
-enum class PrecompileDispatchOutcome
+/// Which PrecompileRouter envelope ran; orthogonal to @p result (success/failure/gas).
+enum class PrecompileEnvelopeRoute
 {
-    NotApplicable,
-    Dispatched,
-    EmptyAccountSuccess,
-    PolicyRejected,
+    None,          ///< Envelope not executed (default; policy reject / EvmContract fall-through).
+    Precompile,    ///< executePrecompileEnvelope (builtin or chain precompile).
+    EmptyAccount,  ///< executeEmptyAccountEnvelope (empty code, non-precompile address).
 };
 
 /// Inputs assembled by EvmCallFrame after CallTargetResolver classification.
@@ -53,7 +52,7 @@ struct PrecompileEnvelopeInput
 
 struct PrecompileRouterOutput
 {
-    PrecompileDispatchOutcome outcome{PrecompileDispatchOutcome::NotApplicable};
+    PrecompileEnvelopeRoute route{PrecompileEnvelopeRoute::None};
     evmc::Result result{};
     int64_t gasRefund{0};
 };
