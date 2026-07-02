@@ -8,6 +8,7 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
+#include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -66,7 +67,8 @@ BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_applies_eip7623_floor)
     BOOST_CHECK_EQUAL(gasUsed, 21'000);
 }
 
-BOOST_AUTO_TEST_CASE(applyEthMessage_top_level_invalid_is_included_with_success_status)
+BOOST_AUTO_TEST_CASE(
+    applyEthMessage_top_level_invalid_is_included_settlement_success_receipt_failed)
 {
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
@@ -107,6 +109,8 @@ BOOST_AUTO_TEST_CASE(applyEthMessage_top_level_invalid_is_included_with_success_
 
     BOOST_CHECK(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(static_cast<int>(output.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::BadInstruction));
     BOOST_CHECK_GT(output.gasSettlementSnapshot.gasLimit, 0);
 }
 
@@ -158,6 +162,8 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_
 
     BOOST_REQUIRE(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(static_cast<int>(output.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::BadInstruction));
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, 0);
 
     auto const& snap = output.gasSettlementSnapshot;
@@ -233,6 +239,8 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
 
     BOOST_REQUIRE(output.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(static_cast<int>(output.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::OutOfGas));
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, 0);
 
     auto const& snap = output.gasSettlementSnapshot;

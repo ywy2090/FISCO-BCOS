@@ -1,10 +1,12 @@
 # ADR-028: Consensus Reject on Entry Failure (Inclusion Parity)
 
-**Status:** Proposed  
+**Status:** Proposed — **tracked, implementation deferred** (2026-07-01)  
 **Date:** 2026-06-26  
-**Related:** ADR-015, ADR-019, ADR-023, ADR-025, ADR-026, GAP-001/002 (`error-handling-geth-parity-report-2026-06-26-v2.md`)  
+**Related:** ADR-015, ADR-019, ADR-023, ADR-025, ADR-026, GAP-001/002 (`error-handling-geth-parity-report-2026-06-26-v2.md`), audit [`2026-07-01-eth-vs-geth-parity.md`](../audits/2026-07-01-eth-vs-geth-parity.md) § [1.4]/N2/reject cluster  
 **geth anchor:** `core/state_transition.go` `preCheck` / `execute()` error return; `core/state_processor.go` `ApplyTransaction` err → no receipt  
 **op-geth anchor:** same as geth for normal L2; deposit entry failures remain intentionally included (ADR-021/023)
+
+> **Tracking note (2026-07-01):** Round 2 parity audit **VERIFIED** this as a real geth divergence (inclusion/receipt layer, not state root). **Do not fix in `eth/` kernel alone.** Batch implementation with **TE adapter** (`EthTransactionExecutorImpl`, `OpStackTransactionExecutorImpl` Finalize gate) and **consensus / block scheduler** (`SchedulerSerialImpl` null-receipt → block error). See §Implementation tracking and `architecture-known-gaps.md` Gap 39.
 
 ---
 
@@ -191,6 +193,25 @@ Default for **GST / EEST / op-geth parity tests:** flag **off** → `Rejected`.
 | **F** | Docs | This ADR → **Accepted**; `architecture-known-gaps.md` close GAP-001/002 inclusion |
 
 Recommended PR order: **A → B → C → E** (unit/char tests) → **D** (integration) → **F**.
+
+---
+
+## Implementation tracking (2026-07-01)
+
+**Audit verdict:** [`2026-07-01-eth-vs-geth-parity.md`](../audits/2026-07-01-eth-vs-geth-parity.md) Round 2 confirms current TE **always** `makeReceipt` on entry failure (N2: intrinsic fail may still charge pre-buyGas debit). This is **not** an `eth/` kernel bug — orchestration already exposes `TxPipelineExitKind`; inclusion policy belongs in TE + consensus.
+
+**Deferred until TE + consensus batch** (do not partial-fix in kernel):
+
+| Layer | Owner | Deliverable |
+| --- | --- | --- |
+| `eth/` | lifecycle bridge | `TxConsensusOutcome` + set `Rejected` on entry-failure paths (Phases A–B) |
+| TE | `EthTransactionExecutorImpl`, `OpStackTransactionExecutorImpl` | `consensusRejected` flag; Finalize `nullptr` receipt; skip apply/settle (Phase C) |
+| Consensus / scheduler | `SchedulerSerialImpl` (+ parallel) | null receipt → block execution error, not silent include (Phase D) |
+| Tests | characterization + E2E | Flip ETH-1/2, OP-2/3/8 oracles; deposit/vmerr rows unchanged (Phase E) |
+
+**Explicit non-goals for kernel-only PRs:** changing ErrorPolicy mappings, removing `OutOfGasLimit` trace payloads, or bumping nonce on reject paths — those stay gated on `consensusOutcome` at TE boundary.
+
+**Related audit IDs:** [1.4], [2.6] (direct-kernel path only), [4.4], N2, reject-vs-included cluster, Phase 13 intrinsic/buyGas/transfer rows.
 
 ---
 

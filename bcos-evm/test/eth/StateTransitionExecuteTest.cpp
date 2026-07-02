@@ -370,7 +370,7 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     BOOST_CHECK(ctx.topLevelIncludedTxVmError);
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
-        static_cast<int>(protocol::TransactionStatus::None));
+        static_cast<int>(protocol::TransactionStatus::BadInstruction));
 }
 
 BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)

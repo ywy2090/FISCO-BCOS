@@ -1,6 +1,6 @@
 # bcos-evm/eth vs go-ethereum 标准 EVM Parity 报告
 
-**状态：** Phase 1–15 初稿 + Round 1/2 复核 + **2026-07-01 修复同步**（[6.5] DELEGATECALL value ✅）  
+**状态：** Phase 1–15 初稿 + Round 1/2 复核 + **2026-07-01 修复同步**（[6.5] DELEGATECALL value ✅、[2.1] nonce ✅）+ **ADR-028 reject 簇已标注暂缓（Gap 39）**  
 **提示词：** [2026-07-01-eth-vs-geth-diff-prompt.md](../../superpowers/plans/2026-07-01-eth-vs-geth-diff-prompt.md)  
 **日期：** 2026-07-01  
 **范围：** 可移植 ETH 内核（`bcos-evm/eth/`）+ TE 编排（`EthTransactionExecutorImpl`），不含 `opstack/` / `bcos/` 链扩展
@@ -30,7 +30,7 @@ bcos `eth/` 内核在 **Prague+ 且经完整 TE 路径**（`buyGas` → `stateTr
 
 1. **Cancun（`eip7623=false`）内核不扣 intrinsic gas** — gasUsed 系统性偏低（Prague+ 产品基线下为有意门控，非主路径 bug）  
 2. ~~**Nonce 仅在 SUCCESS 路径递增**~~ — ✅ **已修复 2026-07-01**（`bumpTopLevelSenderNonce`：included tx 无论成败均递增，含 CREATE/precompile；reject 早退不受影响）  
-3. **多处 geth reject → bcos included 失败** — intrinsic 不足、buyGas 不足、transfer 不足（ADR-028 已知设计差距）  
+3. **多处 geth reject → bcos included 失败** — intrinsic 不足、buyGas 不足、transfer 不足（**⏸️ ADR-028 已标注，待 TE + 共识层批次落地**；见 Gap 39 / ADR-028 §Implementation tracking）  
 4. **非 eip7623 路径跳过 EIP-3529 refund settlement** — London–Cancun 链少退 gas（Prague+ 走 `settleTopLevelTransactionGas`，已对齐）  
 5. ~~**DELEGATECALL/CALLCODE 未过滤 value transfer**~~ — ✅ **已修复 2026-07-01**（`isValueTransferSkippedKind` + 回归测试）  
 6. **PrecompileActive 将 0x01–0x09 统一门控到 Berlin+** — 与 geth fork 表矛盾（有意设计，见 `PrecompileActiveGateMatrixTest`；Prague+ 不受影响）
@@ -53,7 +53,7 @@ bcos `eth/` 内核在 **Prague+ 且经完整 TE 路径**（`buyGas` → `stateTr
 | 2 | 2.1 / P7-05 | Nonce 仅 SUCCESS 递增 | 失败 tx nonce 不变 | ✅ 已修复 |
 | 3 | 9.3 / 10.5 | 非 eip7623 跳过 refund settlement | sender 少退 gas、tip 错误 |
 | 4 | 6.5 / P8-05 | DELEGATECALL value transfer 未跳过 | 嵌套调用余额错误 | ✅ 已修复 |
-| 5 | 1.4 / 3.5 / 4.4 | reject vs included 语义分裂 | receipt/gasUsed/inclusion |
+| 5 | 1.4 / 3.5 / 4.4 | reject vs included 语义分裂 | receipt/gasUsed/inclusion | ⏸️ ADR-028（TE+共识） |
 | 6 | 11.1 | PrecompileActive Berlin 门控过严 | Frontier–Istanbul 预编译不可达 |
 | 7 | 4.1 | applyEthMessage 无 buyGas | 单独调用余额不对 |
 | 8 | 2.6 | CanTransfer → included INSUFFICIENT_BALANCE | geth reject vs bcos 入块失败 |
@@ -98,9 +98,11 @@ geth 块级 `GasPool`；bcos ETH 内核无 GasPool，块 gas 在 TE/块执行层
 
 ---
 
-### [1.4] Intrinsic / precheck 失败：reject vs included
+### [1.4] Intrinsic / precheck 失败：reject vs included — ⏸️ ADR-028（待 TE + 共识层）
 
-**风险等级**: 🔴
+**风险等级**: 🔴（inclusion/receipt 层；**非 state root 阻断**）
+
+**处置**: **已标注、暂缓实现。** 不在 `eth/` 内核单独修；与 [4.4]、N2、reject 簇一并按 [ADR-028](../adr/028-consensus-reject-entry-failure-inclusion.md) Phase C–D（TE Finalize `nullptr` + scheduler 块级错误）批次交付。台账：`architecture-known-gaps.md` Gap 39。
 
 **geth 行为**: `preCheck` / intrinsic / floor 失败 → `execute` 返回 error，**不入块**。
 
@@ -180,9 +182,11 @@ geth 块级 `GasPool`；bcos ETH 内核无 GasPool，块 gas 在 TE/块执行层
 
 ---
 
-### [2.6] Balance / CanTransfer 时机与语义
+### [2.6] Balance / CanTransfer 时机与语义 — ⏸️ ADR-028（直调内核路径；TE 主路径假阳性）
 
-**风险等级**: 🔴
+**风险等级**: 🔴 → 🟡（TE 主路径）/ 🔴（绕过 TE 直调 `applyEthMessage`）
+
+**处置**: TE 生产路径由 `buyGas` 先验，CanTransfer 不可达 — **Round 2 假阳性**。直调内核时仍 included — 归入 ADR-028 reject 簇，**待 TE + 共识层批次**，不在内核单独改。
 
 **geth 行为**: `buyGas` 先验 `gasFeeCap*gasLimit + value + blob`；`CanTransfer` 仅 value → **`ErrInsufficientFundsForTransfer` reject**。
 
@@ -272,9 +276,11 @@ geth 拒绝无 receipt；bcos TE 投影 `gasUsed = gasLimit`。
 
 ---
 
-### [4.4] 余额不足：reject vs included + 部分罚没
+### [4.4] 余额不足：reject vs included + 部分罚没 — ⏸️ ADR-028（待 TE + 共识层）
 
-**风险等级**: 🔴
+**风险等级**: 🔴（inclusion/receipt 层）
+
+**处置**: 与 [1.4]、N2 同簇；**ADR-028 Phase C–D** 批次（TE `buyGas` fail → `consensusRejected` → 无 receipt）。内核 ErrorPolicy 映射可保留供 trace。
 
 geth `ErrInsufficientFunds` → reject；bcos `NotEnoughCash`，扣 `min(balance, 21000*effectiveGasPrice)`。
 
@@ -441,14 +447,14 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 
 ## Phase 13 — 错误映射
 
-| 场景 | geth | bcos | 一致？ |
-|------|------|------|--------|
-| 顶层 OOG/FAILURE | Failed receipt | ADR-015 → SUCCESS + flag | ❌ 收据语义 |
-| 顶层 REVERT | Failed | REVERT | ✅ |
-| intrinsic 不足 | reject | included OutOfGasLimit | ❌ |
-| buyGas 不足 | reject | included NotEnoughCash | ❌ |
-| transfer 不足 | reject | included INSUFFICIENT_BALANCE | ❌ |
-| 预编译 failure | 耗光 gas | 同 | ✅ |
+| 场景 | geth | bcos | 一致？ | 跟踪 |
+|------|------|------|--------|------|
+| 顶层 OOG/FAILURE | Failed receipt | ADR-015 → SUCCESS + flag | ❌ 收据语义 | ADR-015 产品决策 |
+| 顶层 REVERT | Failed | REVERT | ✅ | |
+| intrinsic 不足 | reject | included OutOfGasLimit | ❌ | ⏸️ ADR-028 |
+| buyGas 不足 | reject | included NotEnoughCash | ❌ | ⏸️ ADR-028 |
+| transfer 不足 | reject | included INSUFFICIENT_BALANCE | ❌ | ⏸️ ADR-028（直调内核） |
+| 预编译 failure | 耗光 gas | 同 | ✅ | |
 
 ---
 
@@ -496,7 +502,7 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 
 1. ~~**6.5 / P8-05**~~ — ✅ 已修复：`isValueTransferSkippedKind` 门控 `FrameValueTransfer` + `PrecompileRouter`；`EthDelegateCallValueTransferCharacterizationTest`
 2. ~~**2.1 / P7-05**~~ — ✅ 已修复：`bumpTopLevelSenderNonce` 在 finalize 成功/失败 + precompile 统一递增；`TxExecutionRunnerTest` + `InnerExecuteSmokeTest`
-3. **ADR-028** — 关闭 preCheck reject vs included 簇（intrinsic/buyGas/transfer）
+3. **ADR-028** — ⏸️ **已标注、暂缓** — 关闭 preCheck reject vs included 簇（intrinsic/buyGas/transfer）；**与 TE Finalize + 共识/scheduler 同批实现**（Gap 39；ADR-028 §Implementation tracking）
 4. 若需全 revision：**3.1** 非 `eip7623` 也应 debit intrinsic；**9.3** London+ 始终 refund settlement；**11.1** `PrecompileActive` 对齐 `PrecompileTraits`
 5. Prague+ 产品基线：文档化 `eip7623` 门控即 intrinsic+settlement 开关（`RevisionConfig.h:93`）
 
@@ -523,7 +529,7 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 |------|-----------|------------------|
 | Nonce SUCCESS-only bump | 2.1, P7-05 | ~~是 — 阻断~~ → **✅ 已修复 2026-07-01** |
 | DELEGATECALL value transfer | 6.5, P8-05, P8-05b/c | ~~是 — 阻断~~ → **✅ 已修复 2026-07-01** |
-| reject vs included 簇 | 1.4, 3.4, 3.5, 4.4, P10-04, 2.6 | 是（ADR-028 设计差距） |
+| reject vs included 簇 | 1.4, 3.4, 3.5, 4.4, P10-04, 2.6 | 是（ADR-028 设计差距） | ⏸️ 待 TE+共识批次 |
 | Cancun 无 intrinsic | 3.1 | 否（`eip7623` Prague+ 恒 true） |
 | 非 eip7623 refund skip | 9.3, 9.4, P10-05 | 否（Prague+ 已走 settlement） |
 | buyGas 不在内核 | 1.1, 4.1 | TE 路径为设计；直调内核为缺口 |
@@ -534,7 +540,7 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 | ID | 发现 | 等级 |
 |----|------|------|
 | N1 | 7702 授权 tx 在 Call 前预增 nonce（`TxExecutionRunner.cpp:76-78`），部分缓解 7702 路径 | 🟡 |
-| N2 | intrinsic 失败后 buyGas 已扣款、bcos 仍出 receipt（geth reject 不入块） | 🔴 |
+| N2 | intrinsic 失败后 buyGas 已扣款、bcos 仍出 receipt（geth reject 不入块） | ⏸️ ADR-028（TE+共识） |
 | N3 | CALLCODE 与 DELEGATECALL→precompile 同族 value transfer 缺陷 | ✅ 已修复（同 [6.5]） |
 | N4 | `isWeb3==false` 时 Prague+ 也跳过 refund settlement | 🔴（窄场景） |
 | N5 | `PrecompileActiveGateMatrixTest` 固化 Berlin 门控为**有意行为** | 信息 |
@@ -550,7 +556,7 @@ sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐
 ### 设计选择（非 bug）
 
 - **ADR-015** — 顶层 vmerr 归一化为 SUCCESS + flag（`IncludedTxVmerrNormalize.h`）
-- **ADR-028**（Proposed）— preCheck 失败 inclusion 与 geth reject 差距
+- **ADR-028**（Proposed，**tracked / deferred 2026-07-01**）— preCheck 失败 inclusion 与 geth reject 差距；**TE + 共识层批次**，见 Gap 39
 - **buyGas/refund 在 TE** — `eth/README.md` 分层架构
 
 ### 修正后的 Prague+ 阻断清单（Round 1 快照；Round 2 终裁 + 修复记录见下节）
@@ -608,14 +614,14 @@ Round 1 两 agent 在「buyGas/intrinsic 失败是否入块」上矛盾。**终�
 |----|-------------|-------------|----------------|
 | Nonce 仅 SUCCESS bump | 🔴 阻断 → ✅ 已修复 | VERIFIED 真阻断（含顶层 CREATE 失败 + precompile）；**2026-07-01 修复**：`bumpTopLevelSenderNonce` 成功/失败/precompile 统一递增 | 已闭合 |
 | DELEGATECALL/CALLCODE value | 🔴 阻断 | **VERIFIED 真 bug** → **✅ 已修复 2026-07-01** | ~~受影响~~ 已闭合 |
-| N2 intrinsic 失败仍收费 | 🔴 | **VERIFIED**；ADR-028 目标态未实现 | 受影响 |
-| reject vs included 簇 | 🔴 | **VERIFIED 设计差距**（TE 入块+收费） | ADR-028 |
+| N2 intrinsic 失败仍收费 | 🔴 | **VERIFIED**；ADR-028 目标态未实现 | ⏸️ 待 TE+共识（ADR-028） |
+| reject vs included 簇 | 🔴 | **VERIFIED 设计差距**（TE 入块+收费） | ⏸️ ADR-028 + Gap 39 |
 | 2.6 CanTransfer | PARTIAL | **假阳性**（TE 主路径不可达） | 不受影响 |
 | 3.1 Cancun intrinsic | 🔴 | **假阳性**（Prague+）；London–Cancun 真实 | 不受影响 |
 | 9.3/9.4 refund skip | 🔴 | **假阳性**（Prague+）；London–Cancun 真实 | 不受影响 |
 | N4 isWeb3 gate | 🔴 窄 | **假阳性**（生产 Eth 恒 Web3Tx） | 不受影响 |
 | 11.1 PrecompileActive | 🔴 | **假阳性**（Eth 最低 revision=London>Berlin） | 不受影响 |
-| ADR-015 receipt 归一化 | 设计 | **VERIFIED 设计**；影响 receiptsRoot 非 state root | 收据层差异 |
+| ADR-015 receipt 归一化 | ✅ 已修复（Gap 40） | receipt `status` 对齐 geth 失败位；settlement 仍用 `status_code==SUCCESS` | 已闭合 |
 
 ### 修正后的最终阻断清单（Prague+ 生产 Eth 主路径）
 
@@ -623,10 +629,10 @@ Round 1 两 agent 在「buyGas/intrinsic 失败是否入块」上矛盾。**终�
 |---|------|------|----------|
 | 1 | ~~**DELEGATECALL/CALLCODE(+precompile) value transfer**~~ ✅ 已修复 | 余额 / state root | `CallKind.h::isValueTransferSkippedKind` 门控 `FrameValueTransfer.h` + `PrecompileRouter.cpp`；回归 `EthDelegateCallValueTransferCharacterizationTest` |
 | 2 | ~~**顶层 CALL/CREATE 失败 nonce 不 bump**~~ ✅ 已修复 | nonce / state root | `TxExecutionRunner.cpp::bumpTopLevelSenderNonce`（成功/失败/precompile 统一）；回归 `TxExecutionRunnerTest` + `InnerExecuteSmokeTest` |
-| 3 | **preCheck/intrinsic/buyGas 失败 inclusion + 收费**（N2 簇） | inclusion / 余额 / receiptsRoot | `EthTransactionExecutorImpl.h:281-289`；ADR-028 待实现 |
-| 4 | **ADR-015 vmerr receipt 成功化** | receiptsRoot / RPC status | `IncludedTxVmerrNormalize.h` + `ReceiptResponse.cpp:16`（设计选择，header parity 需单独处理） |
+| 3 | **preCheck/intrinsic/buyGas 失败 inclusion + 收费**（N2 簇） | inclusion / 余额 / receiptsRoot | `EthTransactionExecutorImpl.h:281-289`；**⏸️ ADR-028 待 TE+共识批次**（Gap 39） |
+| 4 | ~~**ADR-015 vmerr receipt 成功化**~~ ✅ 已修复 | receiptsRoot / RPC status | `IncludedTxVmerrNormalize.h`（Gap 40，2026-07-02） |
 
-**修复优先级**：~~1~~（✅ 已修复）→ ~~2~~（✅ 已修复）→ **3（ADR-028，reject 语义，需共识层）** → 4（产品决策，ADR-015 header parity）。全 revision parity 另需 3.1 / 9.3 / 11.1（London–Cancun / 历史 fork）。Prague+ 主路径 state root 阻断已清零。
+**修复优先级**：~~1~~（✅ 已修复）→ ~~2~~（✅ 已修复）→ **3（⏸️ ADR-028，reject 语义 — 待 TE + 共识层同批）** → **4（🎯 ADR-015 receipt status — Gap 40，eth+TE 小步）** → 5（全 revision 3.1 / 9.3 / 11.1）。Prague+ 主路径 state root 阻断已清零；**完全 geth 对齐**还需 3 + 4 + 5。
 
 ---
 
@@ -635,9 +641,36 @@ Round 1 两 agent 在「buyGas/intrinsic 失败是否入块」上矛盾。**终�
 | 日期 | ID | 变更 | 验证 |
 |------|-----|------|------|
 | 2026-07-01 | [6.5] / P8-05 / N3 | `CallKind.h::isValueTransferSkippedKind`；`FrameValueTransfer.h` + `PrecompileRouter.cpp` 门控 DELEGATECALL/CALLCODE 转账 | `EthDelegateCallValueTransferCharacterizationTest`（5 用例） |
-| 2026-07-01 | [2.1] / P7-05 | `TxExecutionRunner.cpp::bumpTopLevelSenderNonce`：included tx 无论成败均 bump 顶层 sender nonce（CALL/CREATE/precompile），reject 早退不受影响 | `TxExecutionRunnerTest`（+4 用例）、`InnerExecuteSmokeTest`（更新） |
+| 2026-07-01 | [2.1] / P7-05 | `TxExecutionRunner.cpp::bumpTopLevelSenderNonce` | `TxExecutionRunnerTest`、`InnerExecuteSmokeTest` |
+| 2026-07-02 | Gap 40 / ADR-015 receipt | `IncludedTxVmerrNormalize.h`：included vmerr 仅归一化 `status_code`；receipt 保留失败 `TransactionStatus` | `EthIncludedTxVmerrTest`、`EthStateTransitionErrorPolicyTest`、`StateTransitionExecuteTest` |
 
-**下一项建议**：#3 reject-vs-included 簇（N2 / ADR-028，需共识层落地）；#4 ADR-015 receipt header parity（产品决策）。全 revision parity 另需 3.1 / 9.3 / 11.1。
+**下一项建议**：#3 ADR-028 + Gap 39（TE+共识批次）；#5 全 revision 3.1 / 9.3 / 11.1。
+
+---
+
+## 完全 geth 对齐路线图（2026-07-01 产品目标）
+
+| 层 | 主题 | 状态 | 交付 |
+|----|------|------|------|
+| **State root** | nonce bump、DELEGATECALL value | ✅ 已修复 | `TxExecutionRunner` + 回归测试 |
+| **Inclusion** | 执行前 reject（intrinsic/buyGas） | ⏸️ ADR-028 Gap 39 | TE Finalize `nullptr` + scheduler |
+| **Receipt / header** | included vmerr 失败位 | ✅ Gap 40（2026-07-02） | `normalizeIncludedTxVmerr` 只改 `status_code` |
+| **Receipt / header** | 7702 REVERT receipt | ✅ 同 Gap 40 | `normalizeSetCodeTransactionVmerr` 保留 `RevertInstruction` |
+| **Historical fork** | 3.1 / 9.3 / 11.1 | 低优先级 | London–Cancun 回放专项 |
+
+**原则：** settlement 与 inclusion 解耦 — `topLevelIncludedTxVmError` + `status_code==SUCCESS` 驱动 state/gas；`TransactionStatus` 驱动 receipt/RPC，与 geth 一致。
+
+---
+
+## 待办追踪（Deferred backlog）
+
+| ID | 主题 | 层级 | 状态 | 落地方式 |
+|----|------|------|------|----------|
+| ADR-028 / N2 / [1.4][4.4] | reject vs included（执行前失败仍入块+出 receipt；N2 可能预扣 gas） | inclusion / receiptsRoot / 余额 | ⏸️ **已标注，暂缓** | **TE**（`EthTransactionExecutorImpl` / OpStack TE Finalize `nullptr`）+ **共识/scheduler**（null receipt → 块错误）；`eth/` 仅 Phase A–B `TxConsensusOutcome` 桥接。详见 [ADR-028 §Implementation tracking](../adr/028-consensus-reject-entry-failure-inclusion.md#implementation-tracking-2026-07-01)、`architecture-known-gaps.md` Gap 39 |
+| ADR-015 | vmerr receipt 成功化 | receiptsRoot / RPC | ✅ **已修复 2026-07-02**（Gap 40） | `IncludedTxVmerrNormalize.h`：`status_code` 归一化 + receipt `status` 保留 |
+| 3.1 / 9.3 / 11.1 | London–Cancun 历史 fork | gas / refund / 预编译 | 低优先级 | 全 revision parity 专项 |
+
+**明确不做（本阶段）**：在 `eth/` 内核单独改 ErrorPolicy 或去掉 entry-failure 的 `evmcResult`，而不接 TE Finalize 与 scheduler —— 会造成 trace 与 inclusion 语义更分裂。
 
 ---
 

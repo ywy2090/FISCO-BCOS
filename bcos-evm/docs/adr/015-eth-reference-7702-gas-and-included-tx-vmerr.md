@@ -60,10 +60,38 @@ Nested calls (`depth > 0`) keep raw `evmc_status_code`.
 - TE baseline (BCOS/OPStack) unchanged by this ADR; OPStack already uses `postExecuteGasSettlement` for vmerr paths.
 - Receipt-level failure signaling on production TE executors remains a separate product concern; this ADR governs **reference path + GST adapter** only.
 
----
+**Update (2026-07-01 — product goal: full geth parity):** Receipt / RPC / `receiptsRoot` must match geth for included top-level vmerr (failed receipt status while state + gas settlement remain ADR-015 included semantics). See §Receipt parity extension below; audit [`2026-07-01-eth-vs-geth-parity.md`](../audits/2026-07-01-eth-vs-geth-parity.md) § ADR-015 / Deferred backlog.
 
 ## References
 
 - geth `core/state_transition.go` — `IntrinsicGas`, `applyAuthorization`, `TransitionDb` vmerr handling
 - `ExecuteViaEth.cpp`, `EthTxGasSettlement.h`, `ExecuteViaEthAdapter.cpp`
 - EEST probes: `manifests/eth-eest-probe-{return,invalid,revert,oog}.json`
+
+---
+
+## Receipt parity extension (2026-07-01)
+
+**Goal:** Full geth parity on **included** top-level vmerr — same as today for **state root + gasUsed**, plus **receipt status / receiptsRoot / `eth_getTransactionReceipt.status`** aligned with geth.
+
+**Problem:** `normalizeIncludedTxVmerr` currently sets both `status_code = EVMC_SUCCESS` **and** `status = TransactionStatus::None`. TE `makeReceipt` writes `None` → `ReceiptResponse` maps `status==0` to RPC **success=1**, diverging from geth **status=0 (failed)** for INVALID / OOG / etc.
+
+**Decision (extends §Included top-level vmerr, does not revert settlement):**
+
+| Field | Settlement / applyStateDiff / refund | Receipt / RPC |
+| --- | --- | --- |
+| `evmc_result.status_code` | Normalize to `EVMC_SUCCESS` when `topLevelIncludedTxVmError` | N/A (receipt uses `EVMCResult.status`) |
+| `EVMCResult.status` | **Preserve** pre-normalize mapping (`BadInstruction`, `OutOfGas`, …) | Written to receipt → RPC failure |
+| `topLevelIncludedTxVmError` | Drives `settleIncludedTopLevelTransactionGas` | Unchanged |
+
+**Implementation sketch:**
+
+1. `IncludedTxVmerrNormalize.h` — normalize **`status_code` only**; if `status == Unknown`, backfill via `evmcStatusToTransactionStatus(original_code)` before overwrite.
+2. `normalizeSetCodeTransactionVmerr` — **geth-oracle** EEST row for 7702 REVERT receipt bit (state root already passes; receipt may stay `RevertInstruction` if geth shows failed).
+3. `EthTxFeeSettlement::makeReceipt` / TE path — no special case if `status` already correct.
+4. Tests — extend `EthIncludedTxVmerrTest` + TE E2E: assert `receipt.status() != None` and RPC-equivalent failure for INVALID/OOG; keep `topLevelIncludedTxVmError` + peak gas assertions.
+5. **Do not** change nested-frame or `INSUFFICIENT_BALANCE` / `INTERNAL_ERROR` exclusions.
+
+**Related full-parity work (separate ADRs):** ADR-028 entry-failure **reject** (no receipt) — Gap 39; London–Cancun historical fork rows (audit 3.1 / 9.3 / 11.1).
+
+---

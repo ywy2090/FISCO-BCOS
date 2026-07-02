@@ -28,3 +28,21 @@ Fields such as `eip1559` are consumed via `Eip1559Gate.h` (typed-tx gate, fee-ca
 | EIP-7212 on TE path | Not in `EthPrecompiles`; matrix `unsupported` |
 | L1Block via `OpHostExtension` | `L1BlockGetterTest` + `L1BlockPredeployTest` |
 | `stEIP7702_delegation.json` fixture | **Closed (pipeline):** `ExecuteViaHostImportedFixtureTest` — plain CALL smoke, not 7702 delegation E2E |
+
+## 39 — ADR-028 reject vs included (entry-failure inclusion)
+
+Pre-execution failures (intrinsic gas, buyGas afford, transfer afford, rules preCheck) are **consensus-rejected** in geth/op-geth: no receipt, tx not in block, sender balance unchanged. Post ADR-025, bcos orchestration state/fee on abort is aligned, but **TE still always `makeReceipt`** and the block scheduler unconditionally appends receipts.
+
+**Status:** **Tracked — deferred.** Verified by [`2026-07-01-eth-vs-geth-parity.md`](audits/2026-07-01-eth-vs-geth-parity.md) Round 2 (N2 / reject cluster). **Not a Prague+ state-root blocker.** Fix in one batch with TE + consensus per [ADR-028](adr/028-consensus-reject-entry-failure-inclusion.md) Phases C–D.
+
+**Impact:** receiptsRoot, inclusion count, optional sender gas debit on intrinsic fail (N2); not state root on happy-path storage.
+
+**Do not:** patch only `eth/` ErrorPolicy or kernel early-exit without TE Finalize gate and scheduler null-receipt handling.
+
+## 40 — ADR-015 included-vmerr receipt status (geth receiptsRoot / RPC)
+
+Included top-level vmerr settlement/state matches geth (ADR-015 Accepted), but `normalizeIncludedTxVmerr` sets `TransactionStatus::None` → TE receipt + `ReceiptResponse` report **RPC success** where geth reports **failed** (INVALID / OOG / …).
+
+**Status:** **Closed (2026-07-02).** `IncludedTxVmerrNormalize.h` normalizes `status_code` only; receipt `TransactionStatus` preserved (`BadInstruction` / `OutOfGas` / `RevertInstruction` for 7702). Tests: `EthIncludedTxVmerrTest`, `EthStateTransitionErrorPolicyTest`.
+
+**Do not:** remove `topLevelIncludedTxVmError` or peak-gas settlement; receipt fix is orthogonal to ADR-015 state semantics.
