@@ -154,6 +154,7 @@ OpStackFeeParams loadOpStackFeeParams(state::StateView const& state)
 
     params.operatorFeeScalar = unpackOperatorFeeScalar(operatorFeeParams);
     params.operatorFeeConstant = unpackOperatorFeeConstant(operatorFeeParams);
+    params.daFootprintGasScalar = unpackDaFootprintGasScalar(operatorFeeParams);
     return params;
 }
 

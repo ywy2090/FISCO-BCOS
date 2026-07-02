@@ -26,6 +26,7 @@ struct OpStackFeeParams
     u256 l1BlobBaseFeeScalar;
     u256 operatorFeeScalar;
     u256 operatorFeeConstant;
+    u256 daFootprintGasScalar;
 };
 
 u256 l1CostFjord(RollupCostData const& data, OpStackFeeParams const& params);

@@ -322,4 +322,17 @@ BOOST_AUTO_TEST_CASE(wireOperator_matches_select_on_isthmus_plus)
     BOOST_CHECK_EQUAL(wired(1618, 1), selected(1618, 1));
 }
 
+BOOST_AUTO_TEST_CASE(loadOpStackFeeParams_reads_da_footprint_scalar)
+{
+    MockStateView state;
+    // packOperatorFeeParams 的第 3 参把 daFootprintGasScalar 写入 slot 的 bytes[18:20)。
+    // scalar 非零 → loadOpStackFeeParams 不会在 isZeroBytes32 处提前返回。
+    state.setSlot(OPERATOR_FEE_PARAMS_SLOT,
+        packOperatorFeeParams(/*operatorScalar*/ 1'439'103'868,
+            /*operatorConstant*/ 1'256'417'826'609'331'460ULL, /*daFootprintGasScalar*/ 400));
+
+    auto const params = loadOpStackFeeParams(state);
+    BOOST_CHECK_EQUAL(params.daFootprintGasScalar, u256(400));
+}
+
 }  // namespace bcos::evm::test
