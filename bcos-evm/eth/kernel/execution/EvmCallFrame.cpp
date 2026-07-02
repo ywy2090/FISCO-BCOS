@@ -23,7 +23,7 @@
  *
  * Pipeline (runFrameSteps):
  *   1. routeFrameMessage  — normalize recipient/code_address, EIP-7702 delegation routing
- *   2. tryCallTargetDispatch    — precompile / empty-account / policy short-circuit (no evmone)
+ *   2. runCallTargetFastPath    — precompile / empty-account / policy short-circuit (no evmone)
  *   3. prepareNestedMessage     — chain hooks before nested EVM (warm pin, caller address)
  *   4. CREATE pre-checkpoint    — bind init code address, bump nested sender nonce
  *   5. checkpointFrame          — open state journal slice for this frame
@@ -125,14 +125,15 @@ evmc_address resolveCallerAddress(
     return msg.sender;
 }
 
-/// Classify call target and dispatch without entering evmone when possible.
+/// Precompile / empty-account / policy fast path (geth: evm.Call before interpreter).
 ///
+/// Classifies the call target; when not a normal contract, runs the envelope and returns.
 /// Returns std::nullopt → fall through to normal EVM contract execution.
 /// Returns FrameResult  → frame completes here; caller must not run value transfer / VM again.
 ///
 /// Precompile envelopes handle their own gas accounting and optional in-envelope value transfer
 /// (unless extension->skipHostValueTransfer(), used by FISCO paths that settle value elsewhere).
-std::optional<FrameResult> tryCallTargetDispatch(FrameWork& work, FrameScope scope)
+std::optional<FrameResult> runCallTargetFastPath(FrameWork& work, FrameScope scope)
 {
     auto& callMessage = work.callMessage();
     if (isCreateKind(callMessage.kind))
@@ -435,7 +436,7 @@ FrameResult runFrameSteps(
         ctx, message, routeFrameMessage(ctx.state, ctx.revisionConfig, message, scope), {}, host};
 
     // Step 2: precompile / empty-account / policy fast path.
-    if (auto early = tryCallTargetDispatch(work, scope))
+    if (auto early = runCallTargetFastPath(work, scope))
     {
         return std::move(*early);
     }
