@@ -9,6 +9,7 @@
 #include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include <functional>
 
 namespace bcos::evm::precompiled

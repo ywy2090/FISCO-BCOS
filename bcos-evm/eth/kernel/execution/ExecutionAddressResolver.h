@@ -10,8 +10,13 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/FrameScope.h"
-#include "bcos-evm/eth/state/State.hpp"
+#include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
+
+namespace bcos::evm::state
+{
+class State;
+}
 
 namespace bcos::evm::execution
 {

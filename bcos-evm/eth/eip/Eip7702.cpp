@@ -3,6 +3,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include <array>
 
 namespace bcos::evm

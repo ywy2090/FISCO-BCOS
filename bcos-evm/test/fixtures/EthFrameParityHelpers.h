@@ -8,6 +8,7 @@
 
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <array>

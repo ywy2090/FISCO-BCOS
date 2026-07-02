@@ -39,15 +39,14 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
-#include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <evmc/evmc.hpp>
-#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 namespace bcos::evm
 {
@@ -56,6 +55,8 @@ struct ChainExtendedPrecompileDispatch;
 
 namespace bcos::evm::state
 {
+class State;
+struct EvmHostHooks;
 /// evmc::Host implementation backed by `State` journal + revision-aware EIP helpers.
 class EthHost : public evmc::Host
 {

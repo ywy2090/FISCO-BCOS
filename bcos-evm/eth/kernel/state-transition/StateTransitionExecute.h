@@ -18,6 +18,8 @@
 namespace bcos::evm
 {
 
+class StateTransitionContext;
+
 /// Run one top-level state transition: preCheck → intrinsic gas → EVM → result adopt.
 ///
 /// Mutates \p ctx in place. On success or early-exit, read ctx.evmcResult,

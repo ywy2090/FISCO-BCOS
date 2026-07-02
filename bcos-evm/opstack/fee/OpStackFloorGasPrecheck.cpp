@@ -1,5 +1,7 @@
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
 
+#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 
 namespace bcos::evm

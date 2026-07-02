@@ -24,7 +24,6 @@
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include <evmc/evmc.h>

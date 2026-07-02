@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include <evmc/evmc.h>

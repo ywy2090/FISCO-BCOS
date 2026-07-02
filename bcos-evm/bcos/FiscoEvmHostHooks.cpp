@@ -21,6 +21,7 @@
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip2929StorageGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-framework/ledger/Features.h"
 #include <algorithm>
 #include <cstring>

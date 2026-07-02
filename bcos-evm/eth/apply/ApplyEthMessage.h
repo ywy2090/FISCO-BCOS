@@ -14,13 +14,13 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
-#include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/StateDiff.hpp"
+#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-task/Task.h"
 #include <bcos-framework/protocol/LogEntry.h>
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
-#include <functional>
 #include <optional>
 
 namespace bcos::crypto

@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-crypto/interfaces/crypto/CommonType.h"
+#include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.h>
 #include <boost/container_hash/hash.hpp>
@@ -28,53 +29,10 @@
 #include <cstring>
 #include <evmone_precompiles/keccak.hpp>
 #include <string_view>
+#include <utility>
 
 namespace bcos::evm::state
 {
-struct AddressHash
-{
-    size_t operator()(evmc_address const& address) const noexcept
-    {
-        return boost::hash_range(address.bytes, address.bytes + sizeof(address.bytes));
-    }
-};
-
-struct AddressEqual
-{
-    bool operator()(evmc_address const& lhs, evmc_address const& rhs) const noexcept
-    {
-        return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
-    }
-};
-
-struct Bytes32Hash
-{
-    size_t operator()(evmc_bytes32 const& value) const noexcept
-    {
-        return boost::hash_range(value.bytes, value.bytes + sizeof(value.bytes));
-    }
-};
-
-struct Bytes32Equal
-{
-    bool operator()(evmc_bytes32 const& lhs, evmc_bytes32 const& rhs) const noexcept
-    {
-        return std::memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) == 0;
-    }
-};
-
-inline bool isZeroAddress(const evmc_address& address) noexcept
-{
-    return std::all_of(std::begin(address.bytes), std::end(address.bytes),
-        [](uint8_t value) { return value == 0; });
-}
-
-inline bool isZeroBytes32(const evmc_bytes32& value) noexcept
-{
-    return std::all_of(
-        std::begin(value.bytes), std::end(value.bytes), [](uint8_t item) { return item == 0; });
-}
-
 inline evmc_bytes32 emptyCodeHash() noexcept
 {
     evmc_bytes32 out{};

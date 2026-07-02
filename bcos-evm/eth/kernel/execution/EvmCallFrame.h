@@ -20,7 +20,6 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/kernel/FrameScope.h"
 #include <evmc/evmc.hpp>
 
@@ -33,6 +32,7 @@ namespace bcos::evm::state
 {
 class State;
 class EthHost;
+struct EvmHostHooks;
 }  // namespace bcos::evm::state
 
 namespace bcos::evm::execution

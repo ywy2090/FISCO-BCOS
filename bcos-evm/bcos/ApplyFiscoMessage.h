@@ -28,8 +28,8 @@
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
-#include "bcos-evm/eth/state/State.hpp"
-#include "bcos-evm/eth/state/Transaction.hpp"
+#include "bcos-evm/eth/state/StateDiff.hpp"
+#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-task/Task.h"
 #include <bcos-utilities/Common.h>

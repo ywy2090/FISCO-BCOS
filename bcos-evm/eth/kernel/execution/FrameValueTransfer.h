@@ -20,12 +20,16 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/core/EvmHostHooks.h"
+#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/FrameScope.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.h>
+
+namespace bcos::evm::state
+{
+struct EvmHostHooks;
+}
 
 namespace bcos::evm::execution
 {

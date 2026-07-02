@@ -15,12 +15,16 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/CallTargetKind.h"
-#include "bcos-evm/eth/state/State.hpp"
 #include <evmc/evmc.hpp>
 
 namespace bcos::evm
 {
 struct ChainExtendedPrecompileDispatch;
+}
+
+namespace bcos::evm::state
+{
+class State;
 }
 
 namespace bcos::evm::precompiled

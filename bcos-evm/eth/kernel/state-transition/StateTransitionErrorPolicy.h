@@ -14,11 +14,12 @@
 #pragma once
 
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
-#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include <exception>
 
 namespace bcos::evm
 {
+
+class StateTransitionContext;
 
 /// Chain-specific error mapping for stateTransitionExecute early-exit and exception paths.
 struct StateTransitionErrorPolicy

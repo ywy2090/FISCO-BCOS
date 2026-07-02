@@ -1,10 +1,14 @@
 #pragma once
 
-#include "bcos-evm/eth/state/State.hpp"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <optional>
 #include <vector>
+
+namespace bcos::evm::state
+{
+class State;
+}
 
 namespace bcos::evm
 {

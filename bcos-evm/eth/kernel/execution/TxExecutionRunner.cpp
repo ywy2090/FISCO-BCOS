@@ -11,6 +11,8 @@
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/WarmTransactionEntry.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include <optional>
 #include <stdexcept>

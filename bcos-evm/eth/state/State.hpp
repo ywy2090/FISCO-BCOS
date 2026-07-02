@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/state/StateDiff.hpp"
+#include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
 #include <optional>
 #include <unordered_set>
@@ -27,25 +28,6 @@
 
 namespace bcos::evm::state
 {
-struct WarmStorageKeyHash
-{
-    size_t operator()(std::pair<evmc_address, evmc_bytes32> const& value) const noexcept
-    {
-        size_t hash = AddressHash{}(value.first);
-        boost::hash_combine(hash, Bytes32Hash{}(value.second));
-        return hash;
-    }
-};
-
-struct WarmStorageKeyEqual
-{
-    bool operator()(std::pair<evmc_address, evmc_bytes32> const& lhs,
-        std::pair<evmc_address, evmc_bytes32> const& rhs) const noexcept
-    {
-        return AddressEqual{}(lhs.first, rhs.first) && Bytes32Equal{}(lhs.second, rhs.second);
-    }
-};
-
 class State : public StateView
 {
 public:

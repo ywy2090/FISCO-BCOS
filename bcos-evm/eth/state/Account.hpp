@@ -19,7 +19,8 @@
 
 #pragma once
 
-#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/StateKeyHash.hpp"
+#include <bcos-utilities/Common.h>
 #include <unordered_map>
 
 namespace bcos::evm::state

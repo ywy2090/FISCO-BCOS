@@ -1,5 +1,7 @@
 #include "bcos-evm/bcos/FiscoChainCallTargetClassify.h"
 #include "bcos-evm/bcos/FiscoConstants.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include <algorithm>
 #include <cstring>
 #include <vector>
