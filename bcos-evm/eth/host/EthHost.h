@@ -13,8 +13,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Lightweight evmc host over eth::state with extension hooks.
+ * @brief evmc::Host adapter over eth::state::State for evmone execution.
  * @file EthHost.h
+ *
+ * EthHost is the state-facing half of evm.Call: evmone invokes these callbacks
+ * for account/storage/code access, nested calls, logs, and Berlin+ access lists.
+ * It does not own transaction lifecycle — that stays in state-transition /
+ * `runCallFrame`; EthHost only bridges evmc host interface → `State` journal.
+ *
+ * Extension seams (ADR-005):
+ *   - `EvmHostHooks* m_extension` — SSTORE refund/status, SELFDESTRUCT gate
+ *   - `ChainExtendedPrecompileDispatch* m_chainPort` — chain precompile routing
+ *     (wired through `FrameExecutionEnv`, consumed inside `runCallFrame`)
+ *
+ * Per-transaction side state kept here (not in `State`):
+ *   - `m_logs` — LOG0..4 emissions, drained by `take_logs()` after execution
+ *   - `m_createdInTx` — CREATE addresses for EIP-6780 SELFDESTRUCT semantics
+ *   - `m_storageOriginalValues` — first SSTORE touch original slot (EIP-2200)
+ *   - `m_executionAddress` — current frame execution address for nested CREATE
+ *
+ * Wired once per transaction in `StateTransitionContext::wireExecutionEnvironment`
+ * and passed into `runCallFrame` as the host for both top-level and nested depth.
  */
 
 #pragma once
@@ -37,6 +56,7 @@ struct ChainExtendedPrecompileDispatch;
 
 namespace bcos::evm::state
 {
+/// evmc::Host implementation backed by `State` journal + revision-aware EIP helpers.
 class EthHost : public evmc::Host
 {
 public:
@@ -69,19 +89,25 @@ public:
     bytes32 get_transient_storage(const address& addr, const bytes32& key) const noexcept final;
     void set_transient_storage(
         const address& addr, const bytes32& key, const bytes32& value) noexcept final;
+    /// Current frame address for CREATE/CREATE2 side effects (updated by `EvmCallFrame`).
     void set_execution_address(const evmc_address& address) noexcept
     {
         m_executionAddress = address;
     }
     evmc_address& execution_address_ref() noexcept { return m_executionAddress; }
+
+    /// Record a contract address created in this transaction (EIP-6780 SELFDESTRUCT gate).
+    /// Called from `EvmCallFrame` on successful CREATE; zero address is ignored.
     void markCreatedInTx(evmc_address const& addr) noexcept;
     [[nodiscard]] bool wasCreatedInTx(evmc_address const& addr) const noexcept;
+
+    /// Move accumulated LOG entries out; host log buffer is cleared after call.
     std::vector<LogEntry> take_logs();
 
 private:
+    /// Pre-EIP-6780 path: wipe code + storage on SELFDESTRUCT.
     void destroyContractState(evmc_address const& addr) noexcept;
 
-private:
     State& m_state;
     evmc_tx_context m_txContext{};
     bcos::evm_standard::RevisionConfig m_revisionConfig{};
@@ -89,11 +115,13 @@ private:
     BlockHashes m_blockHashes;
     EvmHostHooks* m_extension{nullptr};
     ChainExtendedPrecompileDispatch* m_chainPort{nullptr};
+    /// Original slot value at first SSTORE in this tx (per addr,key) for EIP-2200 status.
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_storageOriginalValues;
     std::vector<LogEntry> m_logs;
     evmc_address m_executionAddress{};
+    /// Addresses created via CREATE/CREATE2 in this tx; drives EIP-6780 selfdestruct.
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_createdInTx;
 };
 }  // namespace bcos::evm::state

@@ -14,6 +14,7 @@
  *  limitations under the License.
  *
  * @file EthHost.cpp
+ * @details evmc::Host callbacks — see EthHost.h for architecture overview.
  */
 
 #include "bcos-evm/eth/host/EthHost.h"
@@ -31,6 +32,10 @@
 namespace bcos::evm::state
 {
 
+// ---------------------------------------------------------------------------
+// Construction
+// ---------------------------------------------------------------------------
+
 EthHost::EthHost(State& state, evmc_tx_context txContext,
     bcos::evm_standard::RevisionConfig revisionConfig, evmc::VM& vm, BlockHashes blockHashes,
     EvmHostHooks* extension, ChainExtendedPrecompileDispatch* chainPort)
@@ -42,6 +47,10 @@ EthHost::EthHost(State& state, evmc_tx_context txContext,
     m_extension(extension),
     m_chainPort(chainPort)
 {}
+
+// ---------------------------------------------------------------------------
+// Account / storage / code (evmc host interface)
+// ---------------------------------------------------------------------------
 
 bool EthHost::account_exists(const address& addr) const noexcept
 {
@@ -56,6 +65,7 @@ EthHost::bytes32 EthHost::get_storage(const address& addr, const bytes32& key) c
 evmc_storage_status EthHost::set_storage(
     const address& addr, const bytes32& key, const bytes32& value) noexcept
 {
+    // Snapshot original value on first write to (addr,key) in this transaction.
     auto const slot = std::make_pair(addr, key);
     auto [it, inserted] = m_storageOriginalValues.try_emplace(slot, evmc_bytes32{});
     if (inserted)
@@ -122,6 +132,10 @@ size_t EthHost::copy_code(const address& addr, size_t code_offset, uint8_t* buff
     return count;
 }
 
+// ---------------------------------------------------------------------------
+// Per-tx CREATE tracking (EIP-6780)
+// ---------------------------------------------------------------------------
+
 void EthHost::markCreatedInTx(evmc_address const& addr) noexcept
 {
     if (!isZeroAddress(addr))
@@ -134,6 +148,10 @@ bool EthHost::wasCreatedInTx(evmc_address const& addr) const noexcept
 {
     return m_createdInTx.contains(addr);
 }
+
+// ---------------------------------------------------------------------------
+// SELFDESTRUCT — EIP-6780 limits destruction to contracts created in this tx
+// ---------------------------------------------------------------------------
 
 void EthHost::destroyContractState(evmc_address const& addr) noexcept
 {
@@ -198,6 +216,10 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Nested call entry — delegates to runCallFrame (evmone vm.execute recursion)
+// ---------------------------------------------------------------------------
+
 EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 {
     if (msg.depth > 0)
@@ -224,6 +246,10 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     return Result(std::move(fr.result));
 }
 
+// ---------------------------------------------------------------------------
+// Block / tx context
+// ---------------------------------------------------------------------------
+
 evmc_tx_context EthHost::get_tx_context() const noexcept
 {
     return m_txContext;
@@ -237,6 +263,10 @@ EthHost::bytes32 EthHost::get_block_hash(int64_t number) const noexcept
     }
     return m_blockHashes(number);
 }
+
+// ---------------------------------------------------------------------------
+// Logs
+// ---------------------------------------------------------------------------
 
 void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_size,
     const bytes32 topics[], size_t num_topics) noexcept
@@ -255,6 +285,15 @@ void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_siz
     m_logs.push_back(std::move(entry));
 }
 
+std::vector<LogEntry> EthHost::take_logs()
+{
+    return std::exchange(m_logs, {});
+}
+
+// ---------------------------------------------------------------------------
+// EIP-2929 warm/cold access (no-op when revision disables eip2929)
+// ---------------------------------------------------------------------------
+
 evmc_access_status EthHost::access_account(const address& addr) noexcept
 {
     if (!execution::isEip2929Enabled(m_revisionConfig))
@@ -272,6 +311,10 @@ evmc_access_status EthHost::access_storage(const address& addr, const bytes32& k
     }
     return m_state.warm_up_storage(addr, key) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
 }
+
+// ---------------------------------------------------------------------------
+// EIP-1153 transient storage (Cancun+)
+// ---------------------------------------------------------------------------
 
 EthHost::bytes32 EthHost::get_transient_storage(
     const address& addr, const bytes32& key) const noexcept
@@ -293,10 +336,5 @@ void EthHost::set_transient_storage(
     const address& addr, const bytes32& key, const bytes32& value) noexcept
 {
     m_state.set_transient_storage(addr, key, value);
-}
-
-std::vector<LogEntry> EthHost::take_logs()
-{
-    return std::exchange(m_logs, {});
 }
 }  // namespace bcos::evm::state
