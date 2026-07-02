@@ -18,6 +18,7 @@ namespace bcos::evm::test
 namespace
 {
 using bcos::evm::gas::calcEip7623Components;
+using bcos::evm::gas::finalizeEthTxGasUsed;
 using bcos::evm::gas::settleTopLevelTransactionGas;
 
 evmc_address addressFromLastByte(uint8_t value)
@@ -64,6 +65,32 @@ BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_applies_eip7623_floor)
 {
     auto const calldata = calcEip7623Components({});
     int64_t const gasUsed = settleTopLevelTransactionGas(50'000, 49'000, 0, 10, calldata);
+    BOOST_CHECK_EQUAL(gasUsed, 21'000);
+}
+
+BOOST_AUTO_TEST_CASE(finalizeEthTxGasUsed_routes_included_vmerr_to_peak_settlement)
+{
+    gas::TxGasSettlementSnapshot snapshot;
+    snapshot.gasLimit = 10'000'000;
+    snapshot.calldata = calcEip7623Components({});
+    snapshot.evmGasRefund = 0;
+
+    auto const gasUsed = finalizeEthTxGasUsed(
+        10'000'000, 12'500, 10'000'000 - 12'500, true, true, true, snapshot, 10);
+
+    BOOST_CHECK_EQUAL(gasUsed, 9'987'500);
+}
+
+BOOST_AUTO_TEST_CASE(finalizeEthTxGasUsed_routes_regular_eip7623_to_top_level_settlement)
+{
+    gas::TxGasSettlementSnapshot snapshot;
+    snapshot.gasLimit = 100'000;
+    snapshot.calldata = calcEip7623Components({});
+    snapshot.evmGasRefund = 0;
+
+    auto const gasUsed =
+        finalizeEthTxGasUsed(100'000, 99'500, 500, true, true, false, snapshot, 10);
+
     BOOST_CHECK_EQUAL(gasUsed, 21'000);
 }
 

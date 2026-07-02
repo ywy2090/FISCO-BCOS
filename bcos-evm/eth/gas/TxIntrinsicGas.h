@@ -151,6 +151,38 @@ inline int64_t settleTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft
         gasLimit, evmGasLeft, stateRefund, calcFloorDataGas(calldataFloorPerToken, calldata));
 }
 
+/// Included top-level vmerr (ADR-015): peak settlement on committed failure txs.
+inline int64_t settleIncludedTopLevelTransactionGas(
+    int64_t gasLimit, int64_t evmGasLeft, int64_t stateRefund, int64_t floorDataGas) noexcept
+{
+    return settleTopLevelTransactionGas(gasLimit, evmGasLeft, stateRefund, floorDataGas);
+}
+
+inline int64_t settleIncludedTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft,
+    int64_t stateRefund, uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
+{
+    return settleTopLevelTransactionGas(
+        gasLimit, evmGasLeft, stateRefund, calldataFloorPerToken, calldata);
+}
+
+/// Shared TE / EEST top-level gasUsed finalization (GAP-TE-002 Task 3).
+inline int64_t finalizeEthTxGasUsed(int64_t gasLimit, int64_t legacyGasLeft, int64_t rawGasUsed,
+    bool isWeb3, bool eip7623, bool topLevelIncludedTxVmError,
+    TxGasSettlementSnapshot const& snapshot, uint8_t calldataFloorPerToken) noexcept
+{
+    if (topLevelIncludedTxVmError && eip7623 && snapshot.gasLimit > 0)
+    {
+        return settleIncludedTopLevelTransactionGas(gasLimit, legacyGasLeft, snapshot.evmGasRefund,
+            calldataFloorPerToken, snapshot.calldata);
+    }
+    if (snapshot.gasLimit > 0 && isWeb3 && eip7623)
+    {
+        return settleTopLevelTransactionGas(gasLimit, legacyGasLeft, snapshot.evmGasRefund,
+            calldataFloorPerToken, snapshot.calldata);
+    }
+    return rawGasUsed;
+}
+
 }  // namespace gas
 }  // namespace bcos::evm
 

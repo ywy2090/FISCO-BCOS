@@ -262,6 +262,18 @@ BOOST_AUTO_TEST_CASE(Eip3529RefundCapBoundary_zeroPeakGasUsed)
     BOOST_CHECK_EQUAL(settleTopLevelTransactionGas(gasLimit, gasLeft, stateRefund, 0), 0);
 }
 
+BOOST_AUTO_TEST_CASE(FinalizeEthTxGasUsed_included_vmerr_matches_geth_peak)
+{
+    TxGasSettlementSnapshot snapshot;
+    snapshot.gasLimit = 10'000'000;
+    snapshot.calldata = calcEip7623Components({});
+    snapshot.evmGasRefund = 0;
+
+    BOOST_CHECK_EQUAL(
+        finalizeEthTxGasUsed(10'000'000, 12'500, 9'987'500, true, true, true, snapshot, 10),
+        9'987'500);
+}
+
 // GAP-TE-002: mirrors EthTransactionExecutorImpl::settleGasUsedFromEvmResult — no
 // topLevelIncludedTxVmError parameter. GETH_ORACLE: peak gas on included vmerr.
 int64_t mirrorSettleGasUsedFromEvmResult(int64_t gasLimit, evmc_result const& evmcResult,
