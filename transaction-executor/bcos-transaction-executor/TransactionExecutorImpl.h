@@ -14,7 +14,7 @@
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/FiscoTxFeeSettlement.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
-#include "bcos-evm/eth/eip/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/ledger/EVMAccount.h"

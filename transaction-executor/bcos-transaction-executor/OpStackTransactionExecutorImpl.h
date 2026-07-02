@@ -44,7 +44,7 @@ evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
 
 namespace opstack_executor_detail
 {
-inline std::vector<protocol::LogEntry> convertLogs(std::vector<LogEntry> const& logs)
+inline std::vector<protocol::LogEntry> convertLogs(std::vector<state::LogEntry> const& logs)
 {
     std::vector<protocol::LogEntry> out;
     out.reserve(logs.size());
