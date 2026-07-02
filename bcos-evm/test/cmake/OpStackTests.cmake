@@ -759,3 +759,27 @@ add_test(
     NAME EstimatedDASize
     COMMAND ${ESTIMATED_DA_SIZE_TEST_BINARY_NAME}
 )
+
+set(DA_FOOTPRINT_RECEIPT_TEST_BINARY_NAME DaFootprintReceiptTest)
+
+add_executable(${DA_FOOTPRINT_RECEIPT_TEST_BINARY_NAME}
+    opstack/DaFootprintReceiptTest.cpp
+)
+
+target_include_directories(${DA_FOOTPRINT_RECEIPT_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_compile_definitions(${DA_FOOTPRINT_RECEIPT_TEST_BINARY_NAME} PRIVATE
+    OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/opstack"
+)
+
+target_link_libraries(${DA_FOOTPRINT_RECEIPT_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+)
+
+add_test(
+    NAME DaFootprintReceipt
+    COMMAND ${DA_FOOTPRINT_RECEIPT_TEST_BINARY_NAME}
+)

@@ -2,6 +2,7 @@
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
+#include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
 
@@ -30,6 +31,14 @@ void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementPro
             output.receiptMeta.operatorFeeScalar = feeParams.operatorFeeScalar;
             output.receiptMeta.operatorFeeConstant = feeParams.operatorFeeConstant;
         }
+    }
+    if (isOpStackJovian(input.forkSchedule, view.blockInfo().timestamp))
+    {
+        auto const scalar = static_cast<uint64_t>(feeParams.daFootprintGasScalar);
+        output.receiptMeta.daFootprintGasScalar = scalar;
+        auto const& rollup = view.rollupCostData();
+        auto const size = rollup.has_value() ? estimatedDASize(*rollup) : 0;
+        output.receiptMeta.daFootprint = size * scalar;
     }
 }
 
