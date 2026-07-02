@@ -38,6 +38,14 @@ bcostars::protocol::TransactionReceiptFactoryImpl::createReceipt(
     {
         receipt->setDepositReceiptVersion(*depositReceiptVersion);
     }
+    if (auto daFootprintGasScalar = input.daFootprintGasScalar(); daFootprintGasScalar.has_value())
+    {
+        receipt->setDaFootprintGasScalar(*daFootprintGasScalar);
+    }
+    if (auto blobGasUsed = input.blobGasUsed(); blobGasUsed.has_value())
+    {
+        receipt->setBlobGasUsed(*blobGasUsed);
+    }
     return receipt;
 }
 

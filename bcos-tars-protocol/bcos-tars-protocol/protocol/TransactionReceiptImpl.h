@@ -78,6 +78,10 @@ public:
     void setDepositNonce(std::string depositNonce) override;
     std::optional<std::string> depositReceiptVersion() const override;
     void setDepositReceiptVersion(std::string depositReceiptVersion) override;
+    std::optional<std::string> daFootprintGasScalar() const override;
+    void setDaFootprintGasScalar(std::string daFootprintGasScalar) override;
+    std::optional<std::string> blobGasUsed() const override;
+    void setBlobGasUsed(std::string blobGasUsed) override;
 
     std::string_view cumulativeGasUsed() const override;
     void setCumulativeGasUsed(std::string cumulativeGasUsed) override;
@@ -109,9 +113,11 @@ private:
     std::optional<std::string> m_operatorFeeConstant;
     std::optional<std::string> m_depositNonce;
     std::optional<std::string> m_depositReceiptVersion;
+    std::optional<std::string> m_daFootprintGasScalar;
+    std::optional<std::string> m_blobGasUsed;
 };
 
-static_assert(sizeof(TransactionReceiptImpl) <= 272,
-    "TransactionReceiptImpl exceeds AnyTransactionReceipt buffer (272 bytes); "
+static_assert(sizeof(TransactionReceiptImpl) <= 336,
+    "TransactionReceiptImpl exceeds AnyTransactionReceipt buffer (336 bytes); "
     "update the size constant in bcos-framework/protocol/TransactionReceipt.h");
 }  // namespace bcostars::protocol

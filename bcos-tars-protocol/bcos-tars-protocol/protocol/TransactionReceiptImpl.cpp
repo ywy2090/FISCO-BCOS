@@ -175,6 +175,23 @@ void bcostars::protocol::TransactionReceiptImpl::setDepositReceiptVersion(
 {
     m_depositReceiptVersion = std::move(depositReceiptVersion);
 }
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::daFootprintGasScalar() const
+{
+    return m_daFootprintGasScalar;
+}
+void bcostars::protocol::TransactionReceiptImpl::setDaFootprintGasScalar(
+    std::string daFootprintGasScalar)
+{
+    m_daFootprintGasScalar = std::move(daFootprintGasScalar);
+}
+std::optional<std::string> bcostars::protocol::TransactionReceiptImpl::blobGasUsed() const
+{
+    return m_blobGasUsed;
+}
+void bcostars::protocol::TransactionReceiptImpl::setBlobGasUsed(std::string blobGasUsed)
+{
+    m_blobGasUsed = std::move(blobGasUsed);
+}
 const bcostars::TransactionReceipt& bcostars::protocol::TransactionReceiptImpl::inner() const
 {
     return *m_inner();
