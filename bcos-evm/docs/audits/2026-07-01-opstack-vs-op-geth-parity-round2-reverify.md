@@ -34,10 +34,10 @@
 | D8 | 🟡 | **PARTIAL** | **🔵/🟡** | 拒绝集等价；geth 顺序为 buyGas→intrinsic检查→floor→扣减 |
 | D9 | 🔵 | **PARTIAL** | **🔵** | 模块拆分无共识风险；buyGas 失败入块策略另见 NEW-5 |
 | D10a | ✅ | **CONFIRMED** | **✅** | Jovian operator/L1 attrs/GPO 已实现 |
-| D10b | 🟡 | **CONFIRMED 缺失** | **🟡** | DA footprint / receipt / miner 未实现 |
+| D10b | 🟡 | **部分闭合（receipt 层已实现，块级/出块待 Phase 2）** | **🟡** | receipt `daFootprintGasScalar`/`blobGasUsed` 已实现；`CalcDAFootprint`/miner DA 待 Phase 2 |
 | D10c | 🟡 | **CONFIRMED** | **🟡** | superchain vs TE 硬编码 |
 | N1 | 🟡 | **CONFIRMED** | **🟡** | `DepositReceiptVersion` 全链路缺失 |
-| N2 | 🟡 | **CONFIRMED** | **🟡** | DA footprint receipt 字段缺失 |
+| N2 | 🟡 | **部分闭合（receipt 层已实现，块级/出块待 Phase 2）** | **🟡** | receipt 字段已实现；块级累计/出块限流待 Phase 2 |
 | N3 | 🟡 | **CONFIRMED** | **🟡 文档债** | capability-matrix 与代码矛盾 |
 | N4 | 📋 | **CONFIRMED** | **🟡 文档债** | ADR-014 Jovian 描述过时 |
 | N5 | 🟡 | **CONFIRMED** | **🟡** | TE 错误码不对齐 |
@@ -176,7 +176,7 @@ bcos 有：Fjord, Isthmus, Jovian（部分）
 | 子项 | Round 2 | 说明 |
 |------|---------|------|
 | D10a operator/L1/GPO | ✅ CONFIRMED | `operatorCostJovian`, `parseJovianL1Attributes` |
-| D10b DA footprint | 🟡 CONFIRMED 缺失 | 无 `CalcDAFootprint`, `deriveOPStackFields`, miner DA |
+| D10b DA footprint | 🟡 部分闭合（receipt 层已实现，块级/出块待 Phase 2） | receipt 已实现；`CalcDAFootprint`/块级/miner DA 待 Phase 2 |
 | D10c superchain | 🟡 CONFIRMED | TE 硬编码 `makeIsthmusPlusForkSchedule()` |
 
 ### N3 — CONFIRMED 🟡 文档债
@@ -218,7 +218,7 @@ ADR-014 §3「Jovian extension only」与 `operatorCostJovian` 已实现矛盾
 
 ### P0 — 功能缺口（Jovian / receipt）
 
-1. 实现 Jovian DA footprint：`CalcDAFootprint` + receipt `BlobGasUsed` / `DAFootprintGasScalar`（D10b/N2）
+1. 实现 Jovian DA footprint：`CalcDAFootprint` + receipt `BlobGasUsed` / `DAFootprintGasScalar`（D10b/N2）— **receipt 部分已闭合**
 2. 实现 `DepositReceiptVersion` + TE wire（N1/NEW-4）
 
 ### P1 — 测试补强
