@@ -35,7 +35,7 @@ namespace bcos::evm::opstack::test
 namespace
 {
 constexpr int64_t kGasLimit = 1'000'000;
-constexpr int64_t kExpectedSstoreClearRefund = SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529;
+constexpr int64_t kExpectedSstoreClearRefund = gas::SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529;
 
 // PUSH1 0 PUSH1 0 SSTORE STOP
 constexpr std::string_view kSstoreClearBytecode = "600060005500";

@@ -127,7 +127,7 @@ check_slice "PR-12 ALL" \
 
 check_slice "PR-13 prod-1" \
   bcos-evm/eth/kernel/state-transition/StateTransitionContext.h bcos-evm/eth/kernel/state-transition/StateTransitionContext.cpp \
-  bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h bcos-evm/eth/kernel/state-transition/IntrinsicGasAccounting.h \
+  bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h \
   bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h
 check_slice "PR-13 prod-2" \
   bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h \
