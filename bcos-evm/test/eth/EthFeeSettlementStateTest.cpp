@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/settlement/EthFeeSettlement.h"
 #include "bcos-evm/eth/settlement/EthSettlementProjection.h"
+#include "bcos-evm/eth/settlement/EthTxFinalize.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-protocol/TransactionStatus.h>
@@ -79,5 +80,29 @@ BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_applies_penalty)
     // penalty = min(500, TX_BASE_GAS * effective) — balance reduced
     BOOST_CHECK(ctx.state.get_balance(addr(1)) < 500);
     BOOST_CHECK(ctx.evmcResult.status == protocol::TransactionStatus::NotEnoughCash);
+}
+
+BOOST_AUTO_TEST_CASE(finalizeEthNormal_eip7623_uses_settlement_snapshot)
+{
+    evmc_message msg{};
+    msg.gas = 1000;
+    RevisionConfig rev{};
+    rev.revision = EVMC_PRAGUE;
+    rev.eip7623 = true;
+    rev.calldata_floor_per_token = 10;
+    state::test::InMemoryStateView base;
+    StateTransitionContext ctx(base, msg, rev, bcos::u256(1));
+
+    ctx.evmcResult.status_code = EVMC_SUCCESS;
+    ctx.evmcResult.gas_left = 800;
+    ctx.snapshot.evmGasRefund = 0;
+    ctx.snapshot.calldata = {10, 0, 0};  // floor path exercised in real snapshot
+
+    gas::TxGasSettlementContext snap = ctx.snapshot;
+    snap.gasLimit = 1000;  // Eip7623 mode snapshot (captureSettlementSnapshot)
+    auto const out = finalizeEthNormal(ctx, StateTransitionExitKind::Completed, snap,
+        /*topLevelIncludedTxVmError=*/false);
+    BOOST_CHECK(out.gasUsed > 0);
+    BOOST_CHECK_EQUAL(out.gasRemaining, 800);
 }
 }  // namespace bcos::evm::test
