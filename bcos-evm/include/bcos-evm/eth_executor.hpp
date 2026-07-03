@@ -4,4 +4,4 @@
 // Inside bcos-evm, include bcos-evm/eth/apply/ApplyEthMessage.h directly.
 
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/apply/EthTxFeeSettlement.h"
+#include "bcos-evm/eth/settlement/EthFeeSettlement.h"

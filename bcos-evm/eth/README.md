@@ -11,7 +11,8 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| `apply/` | ETH 参考链编排（ApplyMessage、`EthEvmHostHooks`、`EthStateTransitionHooks`、precheck、fee settlement） |
+| `apply/` | ETH 参考链编排（ApplyMessage、`EthEvmHostHooks`、`EthStateTransitionHooks`、precheck） |
+| `settlement/` | State-based 费用结算（Projection、FeeSettlement、TxFinalize、NormalTxFeeCoordinator） |
 | `kernel/` | 可移植执行内核（Tier 2–3；三链共用，含 `EVMCResult` 边界类型） |
 | `kernel/state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019；geth `stateTransition.execute`） |
 | `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 warm pin |
@@ -39,7 +40,7 @@
 | `kernel/execution/FrameBytecode.*` | 帧 bytecode 加载（CREATE initcode / 7702 delegate） |
 | `kernel/execution/CreateAddress.*` | CREATE / CREATE2 地址预测 |
 | `kernel/execution/CreateDeployment.h` | CREATE 生命周期（assign / touch / code deposit） |
-| `kernel/FrameScope.h` | `TopLevel` / `Nested` 帧作用域 |
+| `kernel/execution/FrameScope.h` | `TopLevel` / `Nested` 帧作用域 |
 | `kernel/EVMCResult.*` | EVMC ↔ `TransactionStatus` 桥接（`adoptEvmcResult`） |
 | `RevisionConfig.h` | EIP 开关位域（`eth/` 根） |
 
@@ -86,7 +87,16 @@
 | `EthEvmHostHooks.h` | ETH 默认 `EvmHostHooks` 实现（注入 `EthHost`） |
 | `EthStateTransitionBindings.*` | `bind()` → 填充 `StateTransitionHooks` + `StateTransitionErrorPolicy` |
 | `EthStateTransitionHooks.*` | 参考路径 `onPreCheckRules` 等 hook 实现（含交易预检规则） |
-| `EthTxFeeSettlement.h` | `buyGas` / `refundGas` 等 |
+
+## `settlement/` — State-based 费用结算
+
+| 文件 | 角色 |
+| --- | --- |
+| `EthSettlementProjection.h` | `ctx` + request 只读投影 |
+| `EthFeeSidecar.h` | 生命周期内费用快照 |
+| `EthFeeSettlement.*` | State `buyGas` / `refundGas` |
+| `EthTxFinalize.*` | gas 计量与 abort 辅助 |
+| `EthNormalTxFeeCoordinator.*` | normal 路径编排（`buyGas` → pipeline → `completeAfterPipeline`） |
 
 ## 链入口命名（ADR-029 + ADR-030）
 
