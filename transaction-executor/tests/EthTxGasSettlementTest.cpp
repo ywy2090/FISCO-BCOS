@@ -1,6 +1,8 @@
 /*
  * Unit tests for EIP-7623 TE gas settlement helpers (spec §6.1).
  */
+#include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
+#include "bcos-evm/eth/gas/TxGasUsedGate.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-executor/src/CallParameters.h"
 #include "bcos-executor/src/Common.h"
@@ -265,7 +267,7 @@ BOOST_AUTO_TEST_CASE(Eip3529RefundCapBoundary_zeroPeakGasUsed)
 BOOST_AUTO_TEST_CASE(FinalizeEthTxGasUsed_included_vmerr_matches_geth_peak)
 {
     TxGasSettlementSnapshot snapshot;
-    snapshot.gasLimit = 10'000'000;
+    snapshot.eip7623SnapshotActive = true;
     snapshot.calldata = calcEip7623Components({});
     snapshot.evmGasRefund = 0;
 

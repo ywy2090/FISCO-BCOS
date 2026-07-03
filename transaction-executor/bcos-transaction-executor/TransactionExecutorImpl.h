@@ -13,7 +13,7 @@
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/FiscoTxFeeSettlement.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/ledger/EVMAccount.h"
@@ -222,7 +222,7 @@ public:
         {
             auto& evmcResult = *m_data->m_evmcResult;
             auto const& snapshot = m_data->m_executionContext.gasSettlementSnapshot;
-            if (snapshot.gasLimit > 0 &&
+            if (snapshot.eip7623SnapshotActive &&
                 m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction &&
                 m_data->m_executionContext.revisionConfig.eth().eip7623)
             {

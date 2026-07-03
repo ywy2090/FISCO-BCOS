@@ -145,7 +145,8 @@ check_slice "PR-15 ALL" \
   bcos-evm/eth/apply/ApplyEthMessage.h bcos-evm/eth/apply/ApplyEthMessage.cpp \
   bcos-evm/eth/settlement/EthFeeSettlement.h bcos-evm/eth/settlement/EthFeeSettlement.cpp \
   bcos-evm/eth/settlement/EthNormalTxFeeCoordinator.h bcos-evm/eth/settlement/EthNormalTxFeeCoordinator.cpp \
-  bcos-evm/eth/settlement/EthTxFinalize.h bcos-evm/eth/settlement/EthTxFinalize.cpp \
+  bcos-evm/eth/gas/GasSettlementTypes.h bcos-evm/eth/gas/PostExecuteGasMetering.h \
+  bcos-evm/eth/gas/TopLevelGasSettlement.h bcos-evm/eth/gas/TxGasLifecycle.h \
   bcos-evm/eth/settlement/EthSettlementProjection.h bcos-evm/eth/settlement/EthFeeSidecar.h
 
 echo ""

@@ -16,7 +16,6 @@
 
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/settlement/EthSettlementProjection.h"
-#include "bcos-evm/eth/settlement/EthTxFinalize.h"
 #include <bcos-task/Task.h>
 
 namespace bcos::evm
@@ -24,7 +23,7 @@ namespace bcos::evm
 
 struct EthFeeSettlement;
 
-/// Normal Eth tx fee coordinator: wraps EthFeeSettlement + EthTxFinalize.
+/// Normal Eth tx fee coordinator: buyGas / post-execute metering / refundGas.
 struct EthNormalTxFeeCoordinator
 {
     EthFeeSettlement& ledger;

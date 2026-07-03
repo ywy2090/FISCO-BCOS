@@ -13,12 +13,10 @@
 
 namespace bcos::evm
 {
-struct EthTxFinalizeResult;
-
 struct EthFeeSettlement
 {
     task::Task<bool> buyGas(EthSettlementProjection view);
     task::Task<gas::FeeSettlementPlan> refundGas(
-        EthSettlementProjection& view, EthTxFinalizeResult const& settled);
+        EthSettlementProjection& view, gas::PostExecuteGasResult const& settled);
 };
 }  // namespace bcos::evm

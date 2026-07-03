@@ -18,6 +18,9 @@
 namespace bcos::evm::gas
 {
 
+// Numeric literals only — fork gating (when a constant applies) lives in eth/eip/*Gate.h
+// and RevisionConfig. Values here match go-ethereum params/protocol_params.go.
+
 // --- Transaction & calldata (EIP-2028 / legacy intrinsic) ---
 
 /// Minimum gas charged for any transaction (EIP-1559 txs still pay this via intrinsic debit).

@@ -30,7 +30,7 @@ void captureSettlementSnapshot(StateTransitionContext& ctx)
         return;
     }
 
-    ctx.snapshot.gasLimit = ctx.originalGasLimit;
+    ctx.snapshot.eip7623SnapshotActive = true;
     ctx.snapshot.calldata =
         gas::calcEip7623Components(bytesConstRef(ctx.message.input_data, ctx.message.input_size));
     ctx.snapshot.evmGasRefund = ctx.evmGasRefund;

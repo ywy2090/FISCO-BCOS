@@ -7,10 +7,24 @@
  */
 
 #include "bcos-evm/eth/settlement/EthNormalTxFeeCoordinator.h"
+#include "bcos-evm/eth/gas/PostExecuteGasMetering.h"
 #include "bcos-evm/eth/settlement/EthFeeSettlement.h"
 
 namespace bcos::evm
 {
+namespace
+{
+void abortEthAfterBuyGas(
+    StateTransitionContext& ctx, EthMessageResult& output, int64_t /*originalGasLimit*/)
+{
+    if (ctx.state.has_checkpoint())
+    {
+        ctx.state.revert();
+    }
+    output.gasUsed = 0;
+    output.stateDiff = ctx.state.build_diff();
+}
+}  // namespace
 
 task::Task<bool> EthNormalTxFeeCoordinator::buyGas(
     EthSettlementProjection view, EthMessageResult& output)
@@ -36,7 +50,7 @@ task::Task<void> EthNormalTxFeeCoordinator::completeAfterPipeline(
     auto& ctx = view.pipelineContext();
 
     // ① pre-exec reject（intrinsic / gas-afford）→ 单层 revert 撤销 buyGas（ADR-025）
-    if (isEthPreExecutionReject(ctx.exitKind))
+    if (gas::isPreExecutionGasReject(ctx.exitKind))
     {
         abortEthAfterBuyGas(ctx, output, ctx.originalGasLimit);
         co_return;
@@ -45,8 +59,9 @@ task::Task<void> EthNormalTxFeeCoordinator::completeAfterPipeline(
     // ② 其它（SUCCESS / REVERT / vmerr / included-vmerr / ExceptionHandled）：
     //    顶层帧的 commit/revert 已由 kernel 完成（spec §1.3）——
     //    fee 层【不 revert、不 commit】，一律 refund（gas 照收 + tip）。
-    auto const settled = finalizeEthNormal(
-        ctx, ctx.exitKind, output.gasSettlementSnapshot, output.topLevelIncludedTxVmError);
+    auto const settled = gas::meterPostExecuteGas(ctx.originalGasLimit, ctx.exitKind,
+        ctx.revisionConfig.eip7623, ctx.revisionConfig.calldata_floor_per_token,
+        ctx.evmcResult.gas_left, output.gasSettlementSnapshot);
     co_await ledger.refundGas(view, settled);
 
     output.gasUsed = settled.gasUsed;

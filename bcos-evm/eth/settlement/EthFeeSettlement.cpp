@@ -10,7 +10,6 @@
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
-#include "bcos-evm/eth/settlement/EthTxFinalize.h"
 #include <algorithm>
 
 namespace bcos::evm
@@ -76,7 +75,7 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
 }
 
 task::Task<gas::FeeSettlementPlan> EthFeeSettlement::refundGas(
-    EthSettlementProjection& view, EthTxFinalizeResult const& settled)
+    EthSettlementProjection& view, gas::PostExecuteGasResult const& settled)
 {
     auto& ctx = view.pipelineContext();
     if (view.isCall() || view.sidecar.effectiveGasPrice == 0)

@@ -27,7 +27,7 @@
 #define BOOST_TEST_MODULE EthCreateGasSettlementCharacterizationTest
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
@@ -126,8 +126,8 @@ CreateCharacterization runCase(evmc_call_kind kind, evmc_address const& recipien
     result.status = output.evmcResult.status_code;
     result.hostRefund = snap.evmGasRefund;
     result.evmoneRefund = output.evmcResult.gas_refund;
-    result.settledGasUsed = gas::settleTopLevelTransactionGas(snap.gasLimit,
-        output.evmcResult.gas_left, snap.evmGasRefund, kCalldataFloorPerToken, snap.calldata);
+    result.settledGasUsed = gas::settleTopLevelTransactionGas(gasLimit, output.evmcResult.gas_left,
+        snap.evmGasRefund, kCalldataFloorPerToken, snap.calldata);
     return result;
 }
 

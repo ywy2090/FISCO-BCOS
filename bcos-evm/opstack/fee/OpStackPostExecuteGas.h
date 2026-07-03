@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include <algorithm>
 #include <cstdint>
 

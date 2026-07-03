@@ -5,7 +5,8 @@
 
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
+#include "bcos-evm/eth/gas/TxGasUsedGate.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-protocol/TransactionStatus.h>
@@ -71,7 +72,7 @@ BOOST_AUTO_TEST_CASE(settleTopLevelTransactionGas_applies_eip7623_floor)
 BOOST_AUTO_TEST_CASE(finalizeEthTxGasUsed_routes_included_vmerr_to_peak_settlement)
 {
     gas::TxGasSettlementSnapshot snapshot;
-    snapshot.gasLimit = 10'000'000;
+    snapshot.eip7623SnapshotActive = true;
     snapshot.calldata = calcEip7623Components({});
     snapshot.evmGasRefund = 0;
 
@@ -84,7 +85,7 @@ BOOST_AUTO_TEST_CASE(finalizeEthTxGasUsed_routes_included_vmerr_to_peak_settleme
 BOOST_AUTO_TEST_CASE(finalizeEthTxGasUsed_routes_regular_eip7623_to_top_level_settlement)
 {
     gas::TxGasSettlementSnapshot snapshot;
-    snapshot.gasLimit = 100'000;
+    snapshot.eip7623SnapshotActive = true;
     snapshot.calldata = calcEip7623Components({});
     snapshot.evmGasRefund = 0;
 
@@ -138,7 +139,7 @@ BOOST_AUTO_TEST_CASE(
     BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(static_cast<int>(output.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::BadInstruction));
-    BOOST_CHECK_GT(output.gasSettlementSnapshot.gasLimit, 0);
+    BOOST_CHECK(output.gasSettlementSnapshot.eip7623SnapshotActive);
 }
 
 // GAP-TE-002 / Plan Task 3: TE settleGasUsedFromEvmResult does not consult
@@ -194,17 +195,17 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_invalid_opcode_eest_
     BOOST_CHECK_EQUAL(output.evmcResult.gas_left, 0);
 
     auto const& snap = output.gasSettlementSnapshot;
-    BOOST_REQUIRE_GT(snap.gasLimit, 0);
+    BOOST_REQUIRE(snap.eip7623SnapshotActive);
 
     // CURRENT_ORACLE: TE mirror path (EthTransactionExecutorImpl::settleGasUsedFromEvmResult)
     // has no branch on topLevelIncludedTxVmError — only gas_left + snapshot fields.
     int64_t const teMirrorGasUsed =
-        settleTopLevelTransactionGas(snap.gasLimit, output.evmcResult.gas_left, snap.evmGasRefund,
+        settleTopLevelTransactionGas(gasLimit, output.evmcResult.gas_left, snap.evmGasRefund,
             input.revisionConfig.calldata_floor_per_token, snap.calldata);
 
     // Flag is recorded but not consumed by settlement helper (same result with flag forced false).
     int64_t const teMirrorIgnoringFlag =
-        settleTopLevelTransactionGas(snap.gasLimit, output.evmcResult.gas_left, snap.evmGasRefund,
+        settleTopLevelTransactionGas(gasLimit, output.evmcResult.gas_left, snap.evmGasRefund,
             input.revisionConfig.calldata_floor_per_token, snap.calldata);
     BOOST_CHECK_EQUAL(teMirrorGasUsed, teMirrorIgnoringFlag);
 
@@ -272,7 +273,7 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
 
     auto const& snap = output.gasSettlementSnapshot;
     int64_t const teMirrorGasUsed =
-        settleTopLevelTransactionGas(snap.gasLimit, output.evmcResult.gas_left, snap.evmGasRefund,
+        settleTopLevelTransactionGas(gasLimit, output.evmcResult.gas_left, snap.evmGasRefund,
             input.revisionConfig.calldata_floor_per_token, snap.calldata);
 
     // CURRENT_ORACLE + GETH_ORACLE align for OOG: full gasLimit charged when gas_left=0.

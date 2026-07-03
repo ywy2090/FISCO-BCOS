@@ -12,7 +12,7 @@
 | 目录 | 职责 |
 | --- | --- |
 | `apply/` | ETH 参考链编排（ApplyMessage、`EthEvmHostHooks`、`EthStateTransitionHooks`、precheck） |
-| `settlement/` | State-based 费用结算（Projection、FeeSettlement、TxFinalize、NormalTxFeeCoordinator） |
+| `settlement/` | State-based 费用结算（Projection、FeeSettlement、NormalTxFeeCoordinator） |
 | `kernel/` | 可移植执行内核（Tier 2–3；三链共用，含 `EVMCResult` 边界类型） |
 | `kernel/state-transition/` | `stateTransitionExecute` 共享内核步骤（ADR-019；geth `stateTransition.execute`） |
 | `kernel/execution/` | 交易入口预热、`innerExecute`、`EvmCallFrame`、EIP-2929 warm pin |
@@ -69,7 +69,12 @@
 | 文件 | 角色 |
 | --- | --- |
 | `ProtocolGas.h` | 21000、CREATE、calldata、access list 等通用常量 |
-| `TxIntrinsicGas.h` | intrinsic gas 与 top-level settlement（7623/3529/2930/7702 组合） |
+| `GasSettlementTypes.h` | 结算 DTO（`TxIntrinsicGas`、`FeeInputs`、`PostExecuteGasResult` 等） |
+| `TxGasLifecycle.h` | 正常交易 gas 生命周期索引（只读导航） |
+| `TxIntrinsicGas.h` | intrinsic gas 公式（7623/2930/7702 预执行扣减） |
+| `TopLevelGasSettlement.h` | 顶层 post-EVM gasUsed 结算（3529 refund cap、7623 floor） |
+| `PostExecuteGasMetering.h` | 执行后 gasUsed 计量（State-free） |
+| `TxGasUsedGate.h` | TE/EEST `finalizeEthTxGasUsed` fork 门控 |
 | `TxFeeSettlement.h` | EIP-1559 费用投影（sync、State-free） |
 
 ## `precompiled/` — 预编译 gas 命名
@@ -97,8 +102,7 @@ Eth 参考路径费用生命周期（ADR-026 PR3；无 `bcos-ledger` / `EVMAccou
 | `EthSettlementProjection.h` | `ctx` + `EthMessageRequest` 只读投影 |
 | `EthFeeSidecar.h` | buyGas 快照（`effectiveGasPrice` 等） |
 | `EthFeeSettlement.*` | sync `ctx.state`：`buyGas` / `refundGas`；burn base；buyGas 余额不足 penalty（不 revert） |
-| `EthTxFinalize.*` | post-execute gas 计量；pre-exec reject / buyGas abort 辅助 |
-| `EthNormalTxFeeCoordinator.*` | normal 路径编排（`buyGas` → `stateTransitionExecute` → `completeAfterPipeline`） |
+| `EthNormalTxFeeCoordinator.*` | normal 路径编排（`buyGas` → `stateTransitionExecute` → `completeAfterPipeline`；含 pre-exec abort） |
 
 ## 链入口命名（ADR-029 + ADR-030）
 

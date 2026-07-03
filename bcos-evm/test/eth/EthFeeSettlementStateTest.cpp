@@ -1,11 +1,11 @@
 #define BOOST_TEST_MODULE EthFeeSettlementStateTest
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/gas/PostExecuteGasMetering.h"
+#include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/settlement/EthFeeSettlement.h"
 #include "bcos-evm/eth/settlement/EthSettlementProjection.h"
-#include "bcos-evm/eth/settlement/EthTxFinalize.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-protocol/TransactionStatus.h>
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_applies_penalty)
     BOOST_CHECK(ctx.evmcResult.status == protocol::TransactionStatus::NotEnoughCash);
 }
 
-BOOST_AUTO_TEST_CASE(finalizeEthNormal_eip7623_uses_settlement_snapshot)
+BOOST_AUTO_TEST_CASE(meterPostExecuteGas_eip7623_uses_settlement_snapshot)
 {
     evmc_message msg{};
     msg.gas = 1000;
@@ -100,9 +100,10 @@ BOOST_AUTO_TEST_CASE(finalizeEthNormal_eip7623_uses_settlement_snapshot)
     ctx.snapshot.calldata = {10, 0, 0};  // floor path exercised in real snapshot
 
     gas::TxGasSettlementContext snap = ctx.snapshot;
-    snap.gasLimit = 1000;  // Eip7623 mode snapshot (captureSettlementSnapshot)
-    auto const out = finalizeEthNormal(ctx, StateTransitionExitKind::Completed, snap,
-        /*topLevelIncludedTxVmError=*/false);
+    snap.eip7623SnapshotActive = true;  // captureSettlementSnapshot (FloorDataGas mode)
+    auto const out =
+        gas::meterPostExecuteGas(ctx.originalGasLimit, StateTransitionExitKind::Completed,
+            rev.eip7623, rev.calldata_floor_per_token, ctx.evmcResult.gas_left, snap);
     auto const oracleGasUsed = gas::settleTopLevelTransactionGas(
         1000, 800, 0, rev.calldata_floor_per_token, snap.calldata);
     BOOST_CHECK_EQUAL(out.gasUsed, oracleGasUsed);
