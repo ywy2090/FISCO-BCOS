@@ -5,7 +5,7 @@
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
-#include "bcos-evm/eth/kernel/InnerExecuteTypes.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"

@@ -27,7 +27,6 @@
  * Pipeline (see InnerExecute.cpp):
  *   prepareState (tx-entry warm, EIP-1153 clear) → EthHost + tx context → runCallFrame → finalize
  *
- * DTO types: `InnerExecuteInput` / `InnerExecuteOutput` in `kernel/InnerExecuteTypes.h`.
  * Frame orchestration: `EvmCallFrame` (`runCallFrame`, `runCallTargetFastPath`).
  *
  * ADR-030: documented geth name `innerExecute`; C++ symbol matches geth `evm.go` innerExecute.
@@ -35,10 +34,57 @@
 
 #pragma once
 
-#include "bcos-evm/eth/kernel/InnerExecuteTypes.h"
+#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2930AccessList.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/state/BlockInfo.hpp"
+#include "bcos-evm/eth/state/StateDiff.hpp"
+#include "bcos-evm/eth/state/Transaction.hpp"
+#include <bcos-utilities/Common.h>
+#include <evmc/evmc.hpp>
+#include <optional>
+#include <vector>
 
 namespace bcos::evm
 {
+struct ChainCallTargetPort;
+
+namespace state
+{
+class State;
+struct EvmHostHooks;
+}  // namespace state
+
+using LogEntry = state::LogEntry;
+
+struct InnerExecuteInput
+{
+    /// Mutable execution journal; pipeline passes &StateTransitionContext::state.
+    state::State* state{nullptr};
+    evmc::VM* vm{nullptr};
+    evmc_message message{};
+    bcos::u256 gasPrice{0};
+    state::BlockInfo blockInfo{};
+    state::BlockHashes blockHashes{};
+    bcos::evm::RevisionConfig revisionConfig{};
+    const Eip2930AccessList* accessList{nullptr};
+    bool authorizationListPresent{false};
+    std::vector<SetCodeAuthorization> authorizations;
+    uint8_t web3TypedTxKind{0};
+    state::EvmHostHooks* extension{nullptr};
+    ChainCallTargetPort* callTargetPort{nullptr};
+    /// When true, orchestration owns top-level sender nonce bump (kernel skips it).
+    bool skipTopLevelSenderNonceBump{false};
+    std::optional<bcos::h256> txHash;
+};
+
+struct InnerExecuteOutput
+{
+    evmc::Result result{evmc_result{}};
+    state::StateDiff stateDiff;
+    std::vector<LogEntry> logs;
+    int64_t gasRefund{0};
+};
 
 /// Run one EVM execution pass for @p input.message (top-level tx when depth == 0).
 ///
