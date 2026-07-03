@@ -52,6 +52,8 @@ struct EthMessageRequest
     std::vector<SetCodeAuthorization> authorizations;
     uint64_t txNonce{0};
     std::optional<bcos::h256> txHash;
+    bool isCall{false};
+    bcos::u256 txValue{0};
 };
 
 struct EthMessageResult
@@ -64,6 +66,9 @@ struct EthMessageResult
     std::vector<protocol::LogEntry> receiptLogs;
     gas::TxGasSettlementContext gasSettlementSnapshot{};
     bool topLevelIncludedTxVmError{false};
+    int64_t gasUsed{0};
+    bcos::u256 effectiveGasPrice{0};
+    std::string gasPriceStr;
 };
 
 // ── Chain entry ───────────────────────────────────────────────────────────────
