@@ -37,10 +37,15 @@ public:
     [[nodiscard]] bcos::u256 get_balance(const evmc_address& address) const override;
     [[nodiscard]] uint64_t get_nonce(const evmc_address& address) const override;
     [[nodiscard]] bcos::bytes get_code(const evmc_address& address) const override;
+    [[nodiscard]] size_t get_code_size(const evmc_address& address) const;
+    [[nodiscard]] size_t copy_code(const evmc_address& address, size_t code_offset,
+        uint8_t* buffer_data, size_t buffer_size) const;
     [[nodiscard]] evmc_bytes32 get_code_hash(const evmc_address& address) const override;
     [[nodiscard]] evmc_bytes32 get_storage(
         const evmc_address& address, const evmc_bytes32& key) const override;
+    [[nodiscard]] bool account_exists(const evmc_address& address) const;
     [[nodiscard]] std::optional<Account> find(const evmc_address& address) const;
+    [[nodiscard]] Account const* find_overlay_account(const evmc_address& address) const;
 
     void checkpoint();
     void revert();

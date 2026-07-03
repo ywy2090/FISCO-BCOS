@@ -19,6 +19,8 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
+#include <algorithm>
+
 namespace bcos::evm::state
 {
 State::State(StateView const& baseStateView) : m_baseStateView(&baseStateView) {}
@@ -39,38 +41,98 @@ std::optional<Account> State::get_account(const evmc_address& address) const
 
 bcos::u256 State::get_balance(const evmc_address& address) const
 {
-    auto const account = find(address);
-    return account.has_value() ? account->balance : bcos::u256{0};
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
+    {
+        return it->second.balance;
+    }
+    return m_baseStateView->get_balance(address);
 }
 
 uint64_t State::get_nonce(const evmc_address& address) const
 {
-    auto const account = find(address);
-    return account.has_value() ? account->nonce : 0;
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
+    {
+        return it->second.nonce;
+    }
+    return m_baseStateView->get_nonce(address);
 }
 
 bcos::bytes State::get_code(const evmc_address& address) const
 {
-    auto const account = find(address);
-    return account.has_value() ? account->code : bcos::bytes{};
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
+    {
+        return it->second.code;
+    }
+    return m_baseStateView->get_code(address);
+}
+
+size_t State::get_code_size(const evmc_address& address) const
+{
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
+    {
+        return it->second.code.size();
+    }
+    return m_baseStateView->get_code(address).size();
+}
+
+size_t State::copy_code(
+    const evmc_address& address, size_t code_offset, uint8_t* buffer_data, size_t buffer_size) const
+{
+    bcos::bytesConstRef codeRef;
+    bcos::bytes baseCode;
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
+    {
+        codeRef = bcos::bytesConstRef(it->second.code.data(), it->second.code.size());
+    }
+    else
+    {
+        baseCode = m_baseStateView->get_code(address);
+        codeRef = bcos::bytesConstRef(baseCode.data(), baseCode.size());
+    }
+
+    if (code_offset >= codeRef.size() || buffer_size == 0)
+    {
+        return 0;
+    }
+    auto const count = std::min(buffer_size, codeRef.size() - code_offset);
+    std::copy_n(codeRef.data() + code_offset, count, buffer_data);
+    return count;
 }
 
 evmc_bytes32 State::get_code_hash(const evmc_address& address) const
 {
-    auto const account = find(address);
-    if (!account.has_value())
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
     {
-        return {};
+        auto const& account = it->second;
+        if (account.code.empty())
+        {
+            return emptyCodeHash();
+        }
+        if (!isZeroBytes32(account.codeHash))
+        {
+            return account.codeHash;
+        }
+        return keccak256Code(bcos::bytesConstRef{account.code.data(), account.code.size()});
     }
-    if (account->code.empty())
+    return m_baseStateView->get_code_hash(address);
+}
+
+bool State::account_exists(const evmc_address& address) const
+{
+    if (m_accounts.find(address) != m_accounts.end())
     {
-        return emptyCodeHash();
+        return true;
     }
-    if (!isZeroBytes32(account->codeHash))
+    return m_baseStateView->get_account(address).has_value();
+}
+
+Account const* State::find_overlay_account(const evmc_address& address) const
+{
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
     {
-        return account->codeHash;
+        return &it->second;
     }
-    return keccak256Code(bcos::bytesConstRef{account->code.data(), account->code.size()});
+    return nullptr;
 }
 
 evmc_bytes32 State::get_storage(const evmc_address& address, const evmc_bytes32& key) const
@@ -373,8 +435,15 @@ void State::mark_self_destructed(const evmc_address& address)
 
 bool State::has_self_destructed(const evmc_address& address) const
 {
-    auto const account = find(address);
-    return account.has_value() && account->selfDestructed;
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
+    {
+        return it->second.selfDestructed;
+    }
+    if (auto const account = m_baseStateView->get_account(address); account.has_value())
+    {
+        return account->selfDestructed;
+    }
+    return false;
 }
 
 void State::finalize_self_destructs()

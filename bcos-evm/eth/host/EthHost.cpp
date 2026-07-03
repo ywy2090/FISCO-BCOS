@@ -55,7 +55,7 @@ EthHost::EthHost(State& state, evmc_tx_context txContext, bcos::evm::RevisionCon
 
 bool EthHost::account_exists(const address& addr) const noexcept
 {
-    return m_state.get_account(addr).has_value();
+    return m_state.account_exists(addr);
 }
 
 EthHost::bytes32 EthHost::get_storage(const address& addr, const bytes32& key) const noexcept
@@ -112,7 +112,7 @@ EthHost::uint256be EthHost::get_balance(const address& addr) const noexcept
 
 size_t EthHost::get_code_size(const address& addr) const noexcept
 {
-    return m_state.get_code(addr).size();
+    return m_state.get_code_size(addr);
 }
 
 EthHost::bytes32 EthHost::get_code_hash(const address& addr) const noexcept
@@ -123,14 +123,7 @@ EthHost::bytes32 EthHost::get_code_hash(const address& addr) const noexcept
 size_t EthHost::copy_code(const address& addr, size_t code_offset, uint8_t* buffer_data,
     size_t buffer_size) const noexcept
 {
-    auto const code = m_state.get_code(addr);
-    if (code_offset >= code.size() || buffer_size == 0)
-    {
-        return 0;
-    }
-    auto const count = std::min(buffer_size, code.size() - code_offset);
-    std::copy_n(code.data() + code_offset, count, buffer_data);
-    return count;
+    return m_state.copy_code(addr, code_offset, buffer_data, buffer_size);
 }
 
 // ---------------------------------------------------------------------------
@@ -164,10 +157,19 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
 {
     if (m_extension != nullptr)
     {
-        auto const account = m_state.find(addr).value_or(Account{});
-        if (!m_extension->allowSelfdestruct(account))
+        if (auto const* overlay = m_state.find_overlay_account(addr); overlay != nullptr)
         {
-            return false;
+            if (!m_extension->allowSelfdestruct(*overlay))
+            {
+                return false;
+            }
+        }
+        else if (auto const account = m_state.find(addr); account.has_value())
+        {
+            if (!m_extension->allowSelfdestruct(*account))
+            {
+                return false;
+            }
         }
     }
 
