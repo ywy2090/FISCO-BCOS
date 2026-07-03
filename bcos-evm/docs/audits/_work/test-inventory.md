@@ -1,6 +1,6 @@
 # Task 8 — ETH Reference 测试用例清单
 
-**范围：** `bcos-evm/test/eth/*.cpp`、`Eip2929AccessHostTest.cpp`、`WarmTransactionEntryTest.cpp`  
+**范围：** `bcos-evm/test/eth/*.cpp`、`Eip2929AccessHostTest.cpp`、`PrepareStateTest.cpp`  
 **日期：** 2026-06-20  
 **方法：** `rtk grep -n "BOOST_AUTO_TEST_CASE" …`
 
@@ -17,7 +17,7 @@
 | `Eip2537KernelTest.cpp` | 1 | EIP-2537 G1Add @0x0b |
 | `TxFeaturePrepareTest.cpp` | 1 | EIP-2929 tx-entry destination warm |
 | `Eip2929AccessHostTest.cpp` | 4 | EIP-2929 runtime COLD/WARM + journal revert |
-| `WarmTransactionEntryTest.cpp` | 3 | EIP-2929/3651 tx-entry warm + BlockInfoBuilder |
+| `PrepareStateTest.cpp` | 3 | EIP-2929/3651 tx-entry warm + BlockInfoBuilder |
 | **合计** | **16 显式用例 + 21 fixture 子项** | |
 
 ---
@@ -101,7 +101,7 @@
 | 3 | `journal_revert_rolls_back_child_warm_address` | checkpoint/revert 后 `!is_address_warm` |
 | 4 | `access_account_disabled_when_eip2929_off` | `warmAccessEnabled=false` 时恒 COLD |
 
-### `WarmTransactionEntryTest.cpp`
+### `PrepareStateTest.cpp`
 
 | # | 用例名 | 关键断言 |
 |---|--------|----------|

@@ -101,11 +101,11 @@ P2  Speculative → Done
 
 **强度:** Strong · **类别:** in-process
 
-**文件:** `eth/precompiled/PrecompileActive.h` · `eth/kernel/execution/WarmTransactionEntry.h` · `eth/precompiled/PrecompileRouter.cpp` · `eth/kernel/execution/RouteMessage.cpp` · `bcos/FiscoPolicy.h` · `test/eth/EipPrecompileRevisionGateTest.cpp` · `test/bcos/BcosPrecompileRevisionGateTest.cpp`
+**文件:** `eth/precompiled/PrecompileActive.h` · `eth/kernel/execution/PrepareState.h` · `eth/precompiled/PrecompileRouter.cpp` · `eth/kernel/execution/RouteMessage.cpp` · `bcos/FiscoPolicy.h` · `test/eth/EipPrecompileRevisionGateTest.cpp` · `test/bcos/BcosPrecompileRevisionGateTest.cpp`
 
 **问题（已修复，归档）：** ADR-018 要求 gated EIP 消费 `RevisionConfig` bool；dispatch 已遵守（`PrecompileActive` 读 `cfg.eip2537`），但 tx-entry warm 曾按 `evmc_revision >= PRAGUE/OSAKA` 硬编码。FISCO 场景 `revision=PRAGUE` + `eip2537=false` 时，0x0b–0x11 曾被 warm 却不会 dispatch——与 geth `ActivePrecompiles(rules)` 分叉。
 
-**落地:** `isActivePrecompile` / `forEachActivePrecompile` 为唯一集合；`WarmTransactionEntry` warm 与 `PrecompileRouter` / `RouteMessage` dispatch 共用。FISCO `FISCO_GATED_FLAG_MAP` 一次 mask `eip2537` / `eip2929`。
+**落地:** `isActivePrecompile` / `forEachActivePrecompile` 为唯一集合；`PrepareState` warm 与 `PrecompileRouter` / `RouteMessage` dispatch 共用。FISCO `FISCO_GATED_FLAG_MAP` 一次 mask `eip2537` / `eip2929`。
 
 **测试:** `EipPrecompileRevisionGateTest`（含 `fisco_mask_bls_not_warmed_when_eip2537_off`）、`BcosPrecompileRevisionGateTest`、`PrecompileRouterCharacterizationTest` C6。
 

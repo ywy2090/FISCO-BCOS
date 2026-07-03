@@ -386,7 +386,7 @@ evmc_result HostContext::callBuiltInPrecompiled(
         }
 
         auto const revision = toRevision(features(), m_executive->blockContext().blockVersion());
-        bcos::evm_standard::RevisionConfig rev{.revision = revision,
+        bcos::evm::RevisionConfig rev{.revision = revision,
             .eip7823 = revision >= EVMC_OSAKA &&
                        features().get(ledger::Features::Flag::feature_evm_osaka)};
         if (shouldRejectModexpEip7823(_request->receiveAddress, ref(_request->data), rev, revision))

@@ -16,16 +16,16 @@ struct FiscoExecutionBundle
     FiscoExecutionBundle(StateTransitionContext& ctx, FiscoMessageRequest& input)
       : m_extension(input.revisionConfig.enable_balance_transfer, makeDeps(ctx, input))
     {
-        ChainExtendedPrecompileDispatch* chainPort = nullptr;
-        if (input.chainDispatchPort != nullptr)
+        ChainCallTargetPort* callTargetPort = nullptr;
+        if (input.callTargetPort != nullptr)
         {
-            m_chainAdapter.emplace(ctx.state, *input.chainDispatchPort);
-            chainPort = std::addressof(*m_chainAdapter);
+            m_chainAdapter.emplace(ctx.state, *input.callTargetPort);
+            callTargetPort = std::addressof(*m_chainAdapter);
 #ifndef NDEBUG
-            assert(chainPort != nullptr);
+            assert(callTargetPort != nullptr);
 #endif
         }
-        ctx.wireExecutionEnvironment(input.vm, &m_extension, chainPort);
+        ctx.wireExecutionEnvironment(input.vm, &m_extension, callTargetPort);
     }
 
     FiscoEvmHostHooks& extension() noexcept { return m_extension; }

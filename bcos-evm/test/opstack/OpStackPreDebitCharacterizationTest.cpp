@@ -9,16 +9,16 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
+#include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include <boost/test/included/unit_test.hpp>
 #include <functional>
 
 namespace bcos::evm::test
 {
+using bcos::evm::revisionConfigFromRevision;
 using bcos::evm::gas::FeeInputs;
 using bcos::evm::gas::planPreExecution;
-using bcos::evm_standard::revisionConfigFromRevision;
 
 namespace
 {

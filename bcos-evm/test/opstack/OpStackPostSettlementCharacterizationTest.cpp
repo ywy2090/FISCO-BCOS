@@ -16,10 +16,10 @@
 
 namespace bcos::evm::test
 {
+using bcos::evm::revisionConfigFromRevision;
 using bcos::evm::gas::FeeInputs;
 using bcos::evm::gas::planPostExecution;
 using bcos::evm::gas::planPreExecution;
-using bcos::evm_standard::revisionConfigFromRevision;
 
 namespace
 {

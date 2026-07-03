@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace bcos::evm_standard
+namespace bcos::evm
 {
 
 struct RevisionConfig
@@ -27,53 +27,17 @@ struct RevisionConfig
     uint8_t calldata_floor_per_token = 10;
 };
 
-// Enumerate bool EIP/profile flags for profile tests and drift detection (design §5.6).
-#define REVISION_CONFIG_BOOL_FIELDS(X) \
-    X(eip2929)                         \
-    X(eip2537)                         \
-    X(eip7212)                         \
-    X(eip7623)                         \
-    X(eip7823)                         \
-    X(eip1153)                         \
-    X(eip4844)                         \
-    X(eip5656)                         \
-    X(eip6780)                         \
-    X(eip1559)                         \
-    X(eip3651)                         \
-    X(eip7702)
-
 inline constexpr std::size_t revisionConfigBoolFieldCount() noexcept
 {
-    std::size_t n = 0;
-#define REVISION_CONFIG_COUNT_FIELD(name) ++n;
-    REVISION_CONFIG_BOOL_FIELDS(REVISION_CONFIG_COUNT_FIELD)
-#undef REVISION_CONFIG_COUNT_FIELD
-    return n;
+    return 12;
 }
 
-static_assert(revisionConfigBoolFieldCount() == 12,
-    "Keep REVISION_CONFIG_BOOL_FIELDS in sync with RevisionConfig bool bitfields");
-
-// A-class feature-gated fields (may be masked off per chain policy).
-#define REVISION_CONFIG_GATED_FIELDS(X) \
-    X(eip2929)                          \
-    X(eip2537)                          \
-    X(eip7212)                          \
-    X(eip7623)                          \
-    X(eip7823)                          \
-    X(eip7702)
-
+// A-class fields (may be masked per chain policy): eip2929, eip2537, eip7212, eip7623, eip7823,
+// eip7702.
 inline constexpr std::size_t revisionConfigGatedFieldCount() noexcept
 {
-    std::size_t n = 0;
-#define REVISION_CONFIG_GATED_COUNT(name) ++n;
-    REVISION_CONFIG_GATED_FIELDS(REVISION_CONFIG_GATED_COUNT)
-#undef REVISION_CONFIG_GATED_COUNT
-    return n;
+    return 6;
 }
-
-static_assert(revisionConfigGatedFieldCount() == 6,
-    "Keep REVISION_CONFIG_GATED_FIELDS in sync with the A-class field set");
 
 // Single source of truth: EIP gating for a given revision. Canonical (maximal) config.
 // Chain policy builders translate blockNum/features -> revision, then optionally mask A-class
@@ -98,4 +62,4 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
     return cfg;
 }
 
-}  // namespace bcos::evm_standard
+}  // namespace bcos::evm

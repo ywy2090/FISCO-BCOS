@@ -8,7 +8,6 @@
 
 #include "bcos-evm/eth/kernel/execution/FrameBytecode.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
-#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -58,7 +57,7 @@ bcos::bytes resolveExecutableCodeLegacy(state::State& state, bcos::bytes code, b
 bcos::bytes resolveCodeLegacyPath(
     state::State& state, bcos::evm::RevisionConfig const& cfg, evmc_message const& msg)
 {
-    if (execution::isCreateKind(msg.kind))
+    if (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2)
     {
         return bcos::bytes(msg.input_data, msg.input_data + msg.input_size);
     }

@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE EmptyCodeHookTest
 
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"

@@ -70,7 +70,7 @@ bcos::evm::EVMCResult callBuiltinAt(evmc_address const& recipient, bytesConstRef
     message.input_data = input.data();
     message.input_size = input.size();
 
-    bcos::evm_standard::RevisionConfig rev{.revision = revision};
+    bcos::evm::RevisionConfig rev{.revision = revision};
     if (revision >= EVMC_OSAKA)
     {
         rev.eip7823 = true;

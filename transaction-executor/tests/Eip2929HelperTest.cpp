@@ -51,16 +51,16 @@ bool containsOsakaPrecompile(std::vector<evmc_address> const& addrs)
         [](evmc_address const& a) { return a.bytes[18] == 0x01 && a.bytes[19] == 0x00; });
 }
 
-bcos::evm_standard::RevisionConfig revWithEip2929On()
+bcos::evm::RevisionConfig revWithEip2929On()
 {
-    bcos::evm_standard::RevisionConfig rev;
+    bcos::evm::RevisionConfig rev;
     rev.eip2929 = true;
     return rev;
 }
 
-bcos::evm_standard::RevisionConfig revWithEip2929Off()
+bcos::evm::RevisionConfig revWithEip2929Off()
 {
-    bcos::evm_standard::RevisionConfig rev;
+    bcos::evm::RevisionConfig rev;
     rev.eip2929 = false;
     return rev;
 }

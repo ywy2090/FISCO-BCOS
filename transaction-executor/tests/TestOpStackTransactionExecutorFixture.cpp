@@ -665,41 +665,5 @@ BOOST_AUTO_TEST_CASE(second_transaction_rejected_when_block_gas_exhausted)
     }());
 }
 
-BOOST_AUTO_TEST_CASE(executor_input_build_applies_warm_destination_for_call)
-{
-    auto const sender = addressFromLastByte(0x71);
-    auto const target = addressFromLastByte(0x72);
-    auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
-    auto header = makeBlockHeader();
-
-    evmc_message message = newEVMCMessage(header.number(), *tx, 50'000, sender);
-    OpStackMessageRequest input;
-    input.message = message;
-    opstack_tx::fillWeb3Fields(*tx, input);
-    opstack_tx::applyDefaultTxProps(input);
-
-    BOOST_CHECK_EQUAL(input.message.kind, EVMC_CALL);
-    BOOST_CHECK(input.txProps.warmDestination);
-}
-
-BOOST_AUTO_TEST_CASE(executor_input_build_clears_warm_destination_for_create)
-{
-    auto const sender = addressFromLastByte(0x81);
-    auto tx = makeEip1559Tx(transactionFactory, sender, sender, 50'000, "0", {});
-    auto header = makeBlockHeader();
-
-    evmc_message message = newEVMCMessage(header.number(), *tx, 50'000, sender);
-    message.kind = EVMC_CREATE;
-    message.recipient = evmc_address{};
-
-    OpStackMessageRequest input;
-    input.message = message;
-    opstack_tx::fillWeb3Fields(*tx, input);
-    opstack_tx::applyDefaultTxProps(input);
-
-    BOOST_CHECK_EQUAL(input.message.kind, EVMC_CREATE);
-    BOOST_CHECK(!input.txProps.warmDestination);
-}
-
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace bcos::evm::test

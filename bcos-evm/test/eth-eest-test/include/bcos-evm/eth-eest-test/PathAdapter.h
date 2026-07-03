@@ -17,6 +17,8 @@ namespace bcos::evm::reference_tests
 struct ExecutionResult
 {
     evmc_status_code status{EVMC_SUCCESS};
+    /// Set when the fixture carries an EIP-7702 authorization list (manifest assert D3).
+    bool authorizationListPresent{false};
     int64_t gasUsed{0};
     bcos::bytes output;
     state::StateDiff stateDiff;

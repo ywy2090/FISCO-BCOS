@@ -156,7 +156,6 @@ inline OpStackMessageRequest makeLifecycleNormalInput(state::test::InMemoryState
     input.blockInfo.baseFee = 2;
     input.blockInfo.coinbase = lifecycleAddressFromLastByte(0x99);
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
-    input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 1, .fastLzSize = 1};
     auto const poolHooks = gasPoolSpy.hooks();
     input.gasPoolSubGasHook = poolHooks.subGas;
@@ -188,7 +187,6 @@ inline OpStackMessageRequest makeLifecycleDepositInput(state::test::InMemoryStat
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 1;
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
-    input.txProps.warmDestination = true;
     input.skipTransactionChecks = true;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{

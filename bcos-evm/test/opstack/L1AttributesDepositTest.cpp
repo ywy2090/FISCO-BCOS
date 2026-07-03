@@ -3,10 +3,10 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
+#include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
-#include "bcos-evm/opstack/fee/OpStackFeeParams.h"
+#include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "helpers/InMemoryStateView.h"
@@ -105,7 +105,6 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     userInput.gasTipCap = 1;
     userInput.gasFeeCap = 2;
     userInput.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
-    userInput.txProps.warmDestination = true;
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
 
     auto userOutput = task::syncWait(applyOpStackMessage(userInput));
@@ -191,7 +190,6 @@ BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_opera
     userInput.gasTipCap = 1;
     userInput.gasFeeCap = 2;
     userInput.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
-    userInput.txProps.warmDestination = true;
     userInput.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 64};
     userInput.forkSchedule = makeJovianPlusForkSchedule();
 

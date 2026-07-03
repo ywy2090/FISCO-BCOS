@@ -55,6 +55,6 @@ OpStackEestFixture adaptStateFixture(boost::property_tree::ptree const& fixtureJ
 evmc_revision revisionFromForkName(std::string const& forkName);
 
 /// Map fork name to RevisionConfig.
-bcos::evm_standard::RevisionConfig revisionConfigFromForkName(std::string const& forkName);
+bcos::evm::RevisionConfig revisionConfigFromForkName(std::string const& forkName);
 
 }  // namespace bcos::eest::opstack

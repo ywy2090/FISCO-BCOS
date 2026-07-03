@@ -11,12 +11,12 @@
 
 #define BOOST_TEST_MODULE EthDelegateCallPrecompileTest
 
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
-#include "bcos-evm/eth/host/EthHost.h"
-#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"
@@ -37,7 +37,7 @@ struct DelegatePrecompileOutcome
 {
     evmc_status_code status{};
     int64_t gasLeft{};
-    bool precompileHit{false};
+    bool envelopeComplete{false};
     bcos::bytes output;
 };
 
@@ -70,8 +70,7 @@ DelegatePrecompileOutcome runNestedExecutionFrame(
     evmc::VM vm{evmc_create_evmone()};
     evmc_tx_context txContext{};
     txContext.block_gas_limit = 30'000'000;
-    bcos::evm::RevisionConfig cfg{
-        .revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_PRAGUE, .eip2929 = true, .eip7702 = true};
     state::EthHost host(state, txContext, cfg, vm, emptyBlockHashes(), extension);
 
     message.depth = 1;
@@ -81,7 +80,7 @@ DelegatePrecompileOutcome runNestedExecutionFrame(
 
     return {.status = fr.result.status_code,
         .gasLeft = fr.result.gas_left,
-        .precompileHit = fr.precompileHit,
+        .envelopeComplete = fr.envelopeComplete,
         .output = copyOutput(fr.result)};
 }
 
@@ -92,7 +91,7 @@ DelegatePrecompileOutcome runNestedEthHostCall(state::State& state, evmc_message
     auto result = fixture.ethHost().call(message);
     return {.status = result.status_code,
         .gasLeft = result.gas_left,
-        .precompileHit = false,
+        .envelopeComplete = false,
         .output = copyOutput(result)};
 }
 
@@ -143,7 +142,7 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_identity_hits_precompile_envelope)
     state.set_balance(sender, 1'000'000);
 
     auto outcome = runNestedExecutionFrame(state, message);
-    BOOST_REQUIRE(outcome.precompileHit);
+    BOOST_REQUIRE(outcome.envelopeComplete);
     assertIdentityDelegateCallSuccess(outcome, inputBytes);
 }
 
@@ -164,7 +163,7 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_identity_matches_eth_host_call)
     stateHost.set_balance(sender, 1'000'000);
     auto hostOutcome = runNestedEthHostCall(stateHost, message);
 
-    BOOST_REQUIRE(frameOutcome.precompileHit);
+    BOOST_REQUIRE(frameOutcome.envelopeComplete);
     assertIdentityDelegateCallSuccess(frameOutcome, inputBytes);
     assertIdentityDelegateCallSuccess(hostOutcome, inputBytes);
     BOOST_REQUIRE_EQUAL(frameOutcome.gasLeft, hostOutcome.gasLeft);
@@ -211,7 +210,7 @@ BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_direct_precompile_with_evmc_dele
     state.set_balance(sender, 1'000'000);
 
     auto outcome = runNestedExecutionFrame(state, message);
-    BOOST_REQUIRE(outcome.precompileHit);
+    BOOST_REQUIRE(outcome.envelopeComplete);
     assertIdentityDelegateCallSuccess(outcome, inputBytes);
 }
 
@@ -242,7 +241,7 @@ BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_to_authority_runs_empty_code_not
     message.input_size = inputBytes.size();
 
     auto outcome = runNestedExecutionFrame(state, message);
-    BOOST_REQUIRE(!outcome.precompileHit);
+    BOOST_REQUIRE(!outcome.envelopeComplete);
     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(outcome.gasLeft, kInputGas);
     BOOST_REQUIRE(outcome.output.empty());
@@ -262,7 +261,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_rejects_delegatecall_precompile_even_with_dele
     state.set_balance(sender, 1'000'000);
 
     auto outcome = runNestedExecutionFrame(state, message, &policy);
-    BOOST_REQUIRE(!outcome.precompileHit);
+    BOOST_REQUIRE(!outcome.envelopeComplete);
     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_PRECOMPILE_FAILURE);
     BOOST_REQUIRE_EQUAL(outcome.gasLeft, kInputGas);
 }

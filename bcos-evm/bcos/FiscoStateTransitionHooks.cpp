@@ -82,7 +82,7 @@ void FiscoStateTransitionHooks::onPreCheckCanTransfer(StateTransitionContext& ct
         }
         ctx.message.gas -= BALANCE_TRANSFER_GAS;
     }
-    if (!isCreateKind(ctx.message.kind))
+    if (ctx.message.kind != EVMC_CREATE && ctx.message.kind != EVMC_CREATE2)
     {
         auto const code = ctx.state.get_code(ctx.message.code_address);
         if (code.empty() && ctx.message.input_size > 0)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth/eip/Eip4844.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 
@@ -49,6 +50,21 @@ inline constexpr int64_t L1_COST_INTERCEPT = -42'585'600;
 inline constexpr int64_t L1_COST_FASTLZ_COEF = 836'500;
 inline constexpr int64_t MIN_TX_SIZE_SCALED = 100'000'000;
 inline constexpr int64_t FJORD_DIVISOR = 1'000'000'000'000;
+
+// Fjord L1 fee / getL1GasUsed: Ecotone calldata byte cost numerator (same as intrinsic nonzero
+// byte).
+inline constexpr int64_t FJORD_L1_FEE_CALLDATA_BYTE_NUMERATOR = gas::NONZERO_BYTE_INTRINSIC_COST;
+// estimatedDASize = estimatedDASizeScaled / ESTIMATED_DA_SIZE_DIVISOR
+inline constexpr int64_t ESTIMATED_DA_SIZE_DIVISOR = 1'000'000;
+// getL1GasUsed: unsigned tx envelope overhead added to FastLZ compressed size (op-geth).
+inline constexpr uint64_t L1_GAS_USED_UNSIGNED_TX_OVERHEAD = 68;
+// Isthmus operator fee: gas * scalar / OPERATOR_FEE_SCALAR_DIVISOR + constant
+inline constexpr int64_t OPERATOR_FEE_SCALAR_DIVISOR = 1'000'000;
+// Jovian operator fee: gas * scalar * JOVIAN_OPERATOR_FEE_GAS_MULTIPLIER + constant
+inline constexpr int64_t JOVIAN_OPERATOR_FEE_GAS_MULTIPLIER = 100;
+
+// GasPriceOracle.decimals()
+inline constexpr uint32_t GAS_PRICE_ORACLE_DECIMALS = 6;
 
 inline constexpr size_t ISTHMUS_L1_ATTRIBUTES_LEN = 176;
 inline constexpr size_t JOVIAN_L1_ATTRIBUTES_LEN = 178;

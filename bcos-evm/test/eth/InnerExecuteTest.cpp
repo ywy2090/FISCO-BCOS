@@ -132,8 +132,8 @@ BOOST_AUTO_TEST_CASE(eip7702_auth_prebump_characterization)
     BOOST_CHECK_EQUAL(it->second.code[0], 0xEF);
 }
 
-// Matrix: T01 — precompile hit returns diff without top-level commit finalize path.
-BOOST_AUTO_TEST_CASE(precompile_hit_returns_state_diff)
+// Matrix: T01 — envelope-complete frame returns diff without top-level commit finalize path.
+BOOST_AUTO_TEST_CASE(envelope_complete_returns_state_diff)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x41);

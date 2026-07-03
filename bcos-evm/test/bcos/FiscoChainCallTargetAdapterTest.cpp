@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE FiscoChainCallTargetAdapterTest
 
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
-#include "bcos-evm/eth/core/CallTargetKind.h"
+#include "bcos-evm/eth/core/CallTargetTypes.h"
 #include "bcos-evm/eth/kernel/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryChainPrecompileAdapter.h"

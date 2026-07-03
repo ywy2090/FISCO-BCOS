@@ -17,7 +17,6 @@
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
-#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/IntrinsicGasAccounting.h"
@@ -37,7 +36,7 @@ class Hash;
 namespace bcos::evm
 {
 
-struct ChainExtendedPrecompileDispatch;
+struct ChainCallTargetPort;
 struct InnerExecuteInput;
 
 /// How stateTransitionExecute terminated (for logging and downstream settlement).
@@ -68,28 +67,22 @@ class StateTransitionContext
 {
 public:
     StateTransitionContext(state::StateView const& stateView, evmc_message inputMessage,
-        bcos::evm_standard::RevisionConfig inputRevisionConfig, intx::uint256 inputGasPrice)
+        bcos::evm::RevisionConfig inputRevisionConfig, intx::uint256 inputGasPrice)
       : message(inputMessage),
         originalGasLimit(inputMessage.gas),
         state(stateView),
         gasPrice(intxToU256(inputGasPrice)),
         revisionConfig(inputRevisionConfig)
-    {
-        // geth statedb.Prepare: skip destination warm on CREATE/CREATE2.
-        txProps.warmDestination = !execution::isCreateKind(message.kind);
-    }
+    {}
 
     StateTransitionContext(state::StateView const& stateView, evmc_message inputMessage,
-        bcos::evm_standard::RevisionConfig inputRevisionConfig, bcos::u256 inputGasPrice)
+        bcos::evm::RevisionConfig inputRevisionConfig, bcos::u256 inputGasPrice)
       : message(inputMessage),
         originalGasLimit(inputMessage.gas),
         state(stateView),
         gasPrice(inputGasPrice),
         revisionConfig(inputRevisionConfig)
-    {
-        // geth statedb.Prepare: skip destination warm on CREATE/CREATE2.
-        txProps.warmDestination = !execution::isCreateKind(message.kind);
-    }
+    {}
 
     StateTransitionContext(StateTransitionContext const&) = delete;
     StateTransitionContext& operator=(StateTransitionContext const&) = delete;
@@ -98,7 +91,7 @@ public:
 
     /// Chain Bundle injection: vm (required), host hooks, call-target port (optional).
     void wireExecutionEnvironment(
-        evmc::VM* vm, state::EvmHostHooks* extension, ChainExtendedPrecompileDispatch* chainPort)
+        evmc::VM* vm, state::EvmHostHooks* extension, ChainCallTargetPort* callTargetPort)
     {
         if (vm == nullptr)
         {
@@ -107,7 +100,7 @@ public:
         }
         inputs.vm = vm;
         this->extension = extension;
-        this->chainPort = chainPort;
+        this->callTargetPort = callTargetPort;
     }
 
     InnerExecuteInput toInnerExecuteInput() const;
@@ -118,9 +111,8 @@ public:
     state::State state;
     bcos::u256 gasPrice{0};
     state::EvmHostHooks* extension{nullptr};
-    ChainExtendedPrecompileDispatch* chainPort{nullptr};
-    state::TransactionProperties txProps{};
-    bcos::evm_standard::RevisionConfig revisionConfig{};
+    ChainCallTargetPort* callTargetPort{nullptr};
+    bcos::evm::RevisionConfig revisionConfig{};
     gas::TxGasSettlementSnapshot snapshot{};  ///< EIP-7623 calldata components for refund.
     state::StateDiff stateDiff;
     std::vector<state::LogEntry> logs;

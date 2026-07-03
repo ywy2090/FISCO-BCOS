@@ -25,7 +25,7 @@ struct ForkProfile
     std::string canonicalName;
     std::vector<std::string> aliases;
     std::string upstreamForkName;
-    bcos::evm_standard::RevisionConfig revision;
+    bcos::evm::RevisionConfig revision;
     std::vector<std::string> activatedEips;
     std::vector<PathProfile> pathProfiles;
 };

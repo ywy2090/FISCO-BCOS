@@ -190,8 +190,6 @@ public:
                 tx.to = m_message.recipient;
             }
 
-            bcos::evm::state::TransactionProperties props;
-            props.warmDestination = m_message.kind != EVMC_CREATE && m_message.kind != EVMC_CREATE2;
             std::optional<evmc_address> createCodeAddress;
             if (m_message.kind == EVMC_CREATE || m_message.kind == EVMC_CREATE2)
             {
@@ -206,7 +204,6 @@ public:
 
             bcos::evm::prepareTransaction(*m_state, tx, blockInfo(),
                 bcos::evm::FiscoPrepareTransactionInput{.revisionConfig = m_revisionConfig.eth(),
-                    .properties = props,
                     .accessList = listPtr,
                     .web3TypedTxKind = m_web3Kind,
                     .createCodeAddress = createCodeAddress});

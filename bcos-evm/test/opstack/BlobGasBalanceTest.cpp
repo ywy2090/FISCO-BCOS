@@ -257,7 +257,6 @@ BOOST_AUTO_TEST_CASE(applyOpStackMessage_deducts_blob_fee_on_success)
         input.blockInfo.baseFee = 1;
         input.blockInfo.blobBaseFee = 10;
         input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
-        input.txProps.warmDestination = true;
         if (withBlobVersionedHashes)
         {
             input.blobGasFeeCap = 20;

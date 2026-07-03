@@ -30,7 +30,7 @@ evmc_address precompileAddress(uint8_t lowByte)
 
 BOOST_AUTO_TEST_CASE(isActivePrecompile_cancun_rejects_prague_bls)
 {
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN};
     auto const blsAddr = precompileAddress(0x0b);
     BOOST_CHECK(!precompiled::isActivePrecompile(cfg, blsAddr));
 }

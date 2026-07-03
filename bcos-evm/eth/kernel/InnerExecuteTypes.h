@@ -32,7 +32,7 @@
 
 namespace bcos::evm
 {
-struct ChainExtendedPrecompileDispatch;
+struct ChainCallTargetPort;
 
 namespace state
 {
@@ -51,14 +51,13 @@ struct InnerExecuteInput
     bcos::u256 gasPrice{0};
     state::BlockInfo blockInfo{};
     state::BlockHashes blockHashes{};
-    bcos::evm_standard::RevisionConfig revisionConfig{};
-    state::TransactionProperties txProps{};
+    bcos::evm::RevisionConfig revisionConfig{};
     const Eip2930AccessList* accessList{nullptr};
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
     state::EvmHostHooks* extension{nullptr};
-    ChainExtendedPrecompileDispatch* chainPort{nullptr};
+    ChainCallTargetPort* callTargetPort{nullptr};
     /// When true, orchestration owns top-level sender nonce bump (kernel skips it).
     bool skipTopLevelSenderNonceBump{false};
     std::optional<bcos::h256> txHash;

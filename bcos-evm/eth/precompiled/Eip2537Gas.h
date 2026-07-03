@@ -25,6 +25,21 @@
 namespace bcos::evm::precompiled
 {
 
+inline constexpr int64_t BLS_G1_MSM_UNIT_GAS = 12'000;
+inline constexpr int64_t BLS_G2_MSM_UNIT_GAS = 22'500;
+inline constexpr int64_t BLS_MSM_DISCOUNT_DIVISOR = 1'000;
+
+inline constexpr int64_t BLS_G1_ADD_GAS = 375;
+inline constexpr int64_t BLS_G2_ADD_GAS = 600;
+inline constexpr int64_t BLS_PAIRING_CHECK_BASE_GAS = 37'700;
+inline constexpr int64_t BLS_PAIRING_CHECK_PAIR_GAS = 32'600;
+inline constexpr int64_t BLS_MAP_FP_TO_G1_GAS = 5'500;
+inline constexpr int64_t BLS_MAP_FP2_TO_G2_GAS = 23'800;
+
+inline constexpr size_t BLS_G1_INPUT_BYTES = 160;
+inline constexpr size_t BLS_G2_INPUT_BYTES = 288;
+inline constexpr size_t BLS_PAIRING_INPUT_BYTES = 384;
+
 /// G1 MSM discount table, index 0 = k=1 … index 127 = k=128 (EIP-2537 §Gas costs).
 inline constexpr std::array<uint16_t, 128> kG1MsmDiscounts = {1000, 949, 848, 797, 764, 750, 738,
     728, 719, 712, 705, 698, 692, 687, 682, 677, 673, 669, 665, 661, 658, 654, 651, 648, 645, 642,
@@ -46,7 +61,7 @@ inline constexpr std::array<uint16_t, 128> kG2MsmDiscounts = {1000, 1000, 923, 8
     528, 527, 526, 526, 525, 524, 524};
 
 /// G1 MSM gas for @p k pairs (geth: `Bls12381G1MultiExpGas` + discount table).
-/// @param k Number of (G1 point, scalar) pairs; 0 → 0 gas. unit_cost = 12000.
+/// @param k Number of (G1 point, scalar) pairs; 0 → 0 gas.
 inline int64_t blsG1MsmGas(size_t k) noexcept
 {
     if (k == 0)
@@ -55,11 +70,12 @@ inline int64_t blsG1MsmGas(size_t k) noexcept
     }
     // Table covers k ∈ [1,128]; k > 128 clamps to entry 128 (max batch discount).
     auto const discount = kG1MsmDiscounts[std::min(k, kG1MsmDiscounts.size()) - 1];
-    return 12000 * static_cast<int64_t>(discount) * static_cast<int64_t>(k) / 1000;
+    return BLS_G1_MSM_UNIT_GAS * static_cast<int64_t>(discount) * static_cast<int64_t>(k) /
+           BLS_MSM_DISCOUNT_DIVISOR;
 }
 
 /// G2 MSM gas for @p k pairs (geth: `Bls12381G2MultiExpGas` + discount table).
-/// @param k Number of (G2 point, scalar) pairs; 0 → 0 gas. unit_cost = 22500.
+/// @param k Number of (G2 point, scalar) pairs; 0 → 0 gas.
 inline int64_t blsG2MsmGas(size_t k) noexcept
 {
     if (k == 0)
@@ -67,7 +83,8 @@ inline int64_t blsG2MsmGas(size_t k) noexcept
         return 0;
     }
     auto const discount = kG2MsmDiscounts[std::min(k, kG2MsmDiscounts.size()) - 1];
-    return 22500 * static_cast<int64_t>(discount) * static_cast<int64_t>(k) / 1000;
+    return BLS_G2_MSM_UNIT_GAS * static_cast<int64_t>(discount) * static_cast<int64_t>(k) /
+           BLS_MSM_DISCOUNT_DIVISOR;
 }
 
 }  // namespace bcos::evm::precompiled

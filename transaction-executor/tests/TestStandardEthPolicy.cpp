@@ -3,7 +3,7 @@
 #include <evmc/evmc.h>
 #include <boost/test/unit_test.hpp>
 
-using namespace bcos::evm_standard;
+using namespace bcos::evm;
 
 BOOST_AUTO_TEST_SUITE(EthChainPolicyTest)
 

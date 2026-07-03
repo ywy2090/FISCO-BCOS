@@ -34,7 +34,7 @@
  *
  * Related seams (different execution phase):
  *   - `EvmHostHooks` — inside `evm.Call` (SSTORE refund, value transfer, CREATE nonce)
- *   - `ChainExtendedPrecompileDispatch` — chain precompile classify/dispatch at CALL time
+ *   - `ChainCallTargetPort` — chain precompile classify/dispatch at CALL time
  *
  * See ADR-019, ADR-029, ADR-030 §6.
  */
@@ -80,12 +80,5 @@ struct StateTransitionHooks
     /// EVM entry point. Default runs `innerExecute()`; chains may wrap for tracing or policy.
     virtual InnerExecuteOutput onInvokeInnerExecute(InnerExecuteInput&& input) const;
 };
-
-// Pipeline order (stateTransitionExecute):
-//   onNormalizeMessage → onPreCheckRules → onPreCheckGasAffordable
-//   → deductIntrinsicGas(getIntrinsicGasParams())   [kernel step]
-//   → onPreCheckCanTransfer
-//   → toInnerExecuteInput → onTuneInnerExecuteInput → onInvokeInnerExecute
-// Failure mapping: StateTransitionErrorPolicy::on* (not on this interface).
 
 }  // namespace bcos::evm

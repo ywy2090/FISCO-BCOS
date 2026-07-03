@@ -1,5 +1,6 @@
 #include "VMInstance.h"
 #include <evmone/evmone.h>
+#include <evmone/baseline.hpp>
 #include <evmone/vm.hpp>
 
 bcos::evm::VMInstance::VMInstance(std::shared_ptr<EvmoneCodeAnalysis const> analysis) noexcept

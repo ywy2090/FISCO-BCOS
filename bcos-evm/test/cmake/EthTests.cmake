@@ -304,6 +304,12 @@ target_include_directories(EvmCallFrameTest PRIVATE
 target_link_libraries(EvmCallFrameTest PRIVATE bcos-evm-eth evmone::evmone)
 add_test(NAME EvmCallFrame COMMAND EvmCallFrameTest)
 
+add_executable(Eip3541CreateDepositTest eth/Eip3541CreateDepositTest.cpp)
+target_include_directories(Eip3541CreateDepositTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(Eip3541CreateDepositTest PRIVATE bcos-evm-eth evmone::evmone)
+add_test(NAME Eip3541CreateDeposit COMMAND Eip3541CreateDepositTest)
+
 add_executable(EthDelegateCallPrecompileTest eth/EthDelegateCallPrecompileTest.cpp)
 target_include_directories(EthDelegateCallPrecompileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

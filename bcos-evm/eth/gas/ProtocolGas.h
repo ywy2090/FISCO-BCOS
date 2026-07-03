@@ -20,4 +20,8 @@ inline constexpr int64_t ACCESS_LIST_STORAGE_KEY_COST = 1'900;
 inline constexpr int64_t ZERO_BYTE_INTRINSIC_COST = 4;
 inline constexpr int64_t NONZERO_BYTE_INTRINSIC_COST = 16;
 
+// EIP-170 / EIP-3860 contract creation limits
+inline constexpr size_t MAX_CODE_SIZE_EIP170 = 0x6000;
+inline constexpr int64_t CODE_DEPOSIT_GAS_PER_BYTE = 200;
+
 }  // namespace bcos::evm::gas

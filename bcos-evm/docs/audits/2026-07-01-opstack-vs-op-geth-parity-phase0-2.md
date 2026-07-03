@@ -112,7 +112,7 @@ bcos:     OpStackTransactionExecutorImpl → applyOpStackMessage → stateTransi
 | 33 | EIP-4844 blob 预检 | `preCheck` blob hashes/cap | `lifecycleCheckEntryRules` + blob checks |
 | 34 | EIP-7702 预检 | `preCheck` sender EOA / auth+CREATE | `lifecycleCheckEntryRules` |
 | 35 | EIP-7702 应用 | `applyAuthorization` | `applyAuthorizations` (eth/eip) |
-| 36 | 7702 delegation 解析 | `ParseDelegation` + `evm.Call` | `parseDelegationTarget` + `resolveExecutionCode` |
+| 36 | 7702 delegation 解析 | `ParseDelegation` + `evm.Call` | `parseDelegationTarget` + `loadFrameBytecode` |
 | 37 | Fork schedule | `ChainConfig.Fjord/Isthmus/JovianTime` | `OpStackForkSchedule` |
 | 38 | EVM revision | `Rules` → Prague/Osaka | `makeIsthmusRevisionConfig()` → Prague |
 | 39 | Fee recipients | `Optimism*FeeRecipient` | `OP_*_FEE_RECIPIENT` |

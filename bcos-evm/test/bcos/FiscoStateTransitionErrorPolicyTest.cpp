@@ -53,8 +53,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_gas_limit_minimum)
     evmc_message message{};
     message.gas = 5'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
@@ -73,8 +72,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_clamps_gas_when_fix_error_handl
     evmc_message message{};
     message.gas = 5'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(true);
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::CalldataOutOfGas);
@@ -91,8 +89,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_calldata_out_of_gas)
     evmc_message message{};
     message.gas = 5'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::CalldataOutOfGas);
@@ -110,8 +107,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_auth_tuple_out_of_gas)
     evmc_message message{};
     message.gas = 5'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::AuthTupleOutOfGas);
@@ -129,8 +125,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_maps_out_of_gas)
     evmc_message message{};
     message.gas = 40'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
@@ -149,8 +144,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_maps_not_enough_cash)
     evmc_message message{};
     message.gas = 55'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     invokePipelineException(errorPolicy, ctx, protocol::NotEnoughCashError{});
@@ -170,8 +164,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_delegatecall_suc
     message.kind = EVMC_DELEGATECALL;
     message.gas = 50'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     invokePipelineException(errorPolicy, ctx, NotFoundCodeError{});
@@ -190,8 +183,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_generic_maps_to_unknown_with_fix)
     evmc_message message{};
     message.gas = 60'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(true);
     invokePipelineException(errorPolicy, ctx, protocol::PrecompiledError{});
@@ -210,8 +202,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_enough_cash_clamps_gas_with_fi
     evmc_message message{};
     message.gas = 55'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(true);
     invokePipelineException(errorPolicy, ctx, protocol::NotEnoughCashError{});
@@ -235,8 +226,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_reverts_open_checkpoint)
     message.sender = sender;
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     ctx.state.checkpoint();
     ctx.state.set_balance(sender, 200);
@@ -257,8 +247,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_preserves_message_gas_without_fix)
     evmc_message message{};
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -280,8 +269,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_leaves_positive_gas_left)
     evmc_message message{};
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -304,8 +292,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_call_reverts)
     message.kind = EVMC_CALL;
     message.gas = 50'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     invokePipelineException(errorPolicy, ctx, NotFoundCodeError{});
@@ -326,8 +313,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_not_found_code_on_staticcall_succe
     message.flags = EVMC_STATIC;
     message.gas = 50'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     invokePipelineException(errorPolicy, ctx, NotFoundCodeError{});
@@ -346,8 +332,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_generic_maps_to_out_of_gas_legacy)
     evmc_message message{};
     message.gas = 60'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
     invokePipelineException(errorPolicy, ctx, protocol::PrecompiledError{});
@@ -366,8 +351,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_complete_clamps_negative_gas_left)
     evmc_message message{};
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -391,8 +375,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create_address)
     message.kind = EVMC_CREATE;
     message.recipient.bytes[19] = 0xAB;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -414,8 +397,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_patches_empty_create2_address)
     message.kind = EVMC_CREATE2;
     message.recipient.bytes[19] = 0xCD;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -437,8 +419,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_nonempty_create_address)
     message.kind = EVMC_CREATE;
     message.recipient.bytes[19] = 0xAB;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -459,8 +440,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_success_with_fix_revert_lo
     evmc_message message{};
     message.kind = EVMC_CALL;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -481,8 +461,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_clears_logs_on_revert_when_fix_revert_lo
     evmc_message message{};
     message.kind = EVMC_CALL;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_REVERT;
@@ -503,8 +482,7 @@ BOOST_AUTO_TEST_CASE(fisco_post_execute_keeps_logs_on_revert_without_fix_revert_
     evmc_message message{};
     message.kind = EVMC_CALL;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_REVERT;
@@ -527,8 +505,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
     message.kind = EVMC_CALL;
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
     ctx.inputs.vm = &vm;

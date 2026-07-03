@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(isthmus_revision_config_is_prague_tx_level)
 // Criteria 14 is enforced by architectural scope + source scan below + CI gate.
 BOOST_AUTO_TEST_CASE(revision_config_has_no_prague_post_execution_field)
 {
-    BOOST_CHECK_EQUAL(bcos::evm_standard::revisionConfigBoolFieldCount(), 12U);
+    BOOST_CHECK_EQUAL(bcos::evm::revisionConfigBoolFieldCount(), 12U);
 }
 
 BOOST_AUTO_TEST_CASE(opstack_sources_have_no_prague_block_post_execution_hooks)

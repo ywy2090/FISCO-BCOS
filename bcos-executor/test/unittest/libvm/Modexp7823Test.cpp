@@ -17,15 +17,15 @@ namespace bcos::test
 
 namespace
 {
-bcos::evm_standard::RevisionConfig osakaRev()
+bcos::evm::RevisionConfig osakaRev()
 {
-    bcos::evm_standard::RevisionConfig rev{.revision = EVMC_OSAKA, .eip7823 = true};
+    bcos::evm::RevisionConfig rev{.revision = EVMC_OSAKA, .eip7823 = true};
     return rev;
 }
 
-bcos::evm_standard::RevisionConfig pragueRev()
+bcos::evm::RevisionConfig pragueRev()
 {
-    bcos::evm_standard::RevisionConfig rev{.revision = EVMC_PRAGUE, .eip7823 = false};
+    bcos::evm::RevisionConfig rev{.revision = EVMC_PRAGUE, .eip7823 = false};
     return rev;
 }
 

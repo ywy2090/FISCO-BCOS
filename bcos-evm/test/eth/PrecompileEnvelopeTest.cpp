@@ -2,6 +2,7 @@
 
 #include "bcos-evm/eth/core/CallTargetTypes.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 

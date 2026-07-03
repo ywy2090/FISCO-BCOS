@@ -83,7 +83,7 @@ delegation 前缀：`0xEF 0x01 0x00` + 20-byte address（23 bytes），与 geth 
 
 ### `EthHost.cpp` 执行语义
 
-- `resolveExecutionCode`（`EthHost.cpp:472-484`）返回账户原始 code，**无** Host 层 delegation 解析。
+- `loadFrameBytecode`（`EthHost.cpp:472-484`）返回账户原始 code，**无** Host 层 delegation 解析。
 - delegation 设计符执行由 **evmone + `EVMC_PRAGUE` revision** 委托（与 MCOPY/6780 同类 evmone-delegated）。
 - `routeCall` / `call` 不特殊处理 7702；7702 在 tx 级 apply + EVM 加载时生效。
 

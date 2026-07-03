@@ -28,14 +28,14 @@
 | `EthTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | ✅ | EIP-7702 type-4 RLP + ecrecover | 仅 input 层；不测 apply/post-state |
 | `FiscoTxInputBuilderTest.cpp` | `fillWeb3Fields_maps_eip7702_authorizations` | 🟡 | 同上 | 重复覆盖 FISCO builder；非 ETH reference |
 | `Eip2537KernelTest.cpp` | `stBLS_add_precompile_0x0b_via_executeMessage` | ✅ | geth `blsG1Add.json` case `bls_g1add_(inf+g1=g1)` | `executeMessage` + `eip2537=true`；output 128B 一致 |
-| `TxFeaturePrepareTest.cpp` | `setWarmDestinationFromKind_matches_create_vs_call` | ✅ | geth `Prepare` skip dst on CREATE | helper；与 `warmTransactionEntry` 组合有效 |
+| `TxFeaturePrepareTest.cpp` | `setWarmDestinationFromKind_matches_create_vs_call` | ✅ | geth `Prepare` skip dst on CREATE | helper；与 `prepareState` 组合有效 |
 | `Eip2929AccessHostTest.cpp` | `access_account_cold_then_warm` | ✅ | EIP-2929 §Cold/warm | 生产 `EthHost::access_account` |
 | `Eip2929AccessHostTest.cpp` | `access_storage_cold_then_warm` | ✅ | EIP-2929 | 生产 `EthHost::access_storage` |
 | `Eip2929AccessHostTest.cpp` | `journal_revert_rolls_back_child_warm_address` | ✅ | geth journal revert 语义 | 含否定性 post-revert 断言 |
 | `Eip2929AccessHostTest.cpp` | `access_account_disabled_when_eip2929_off` | ✅ | flag OFF → 无 warm | 否定路径 |
-| `WarmTransactionEntryTest.cpp` | `warms_sender_to_and_coinbase_for_call_transaction` | ✅ | geth `statedb.Prepare` + EIP-3651 | `@ EVMC_SHANGHAI` coinbase warm |
-| `WarmTransactionEntryTest.cpp` | `warms_access_list_address_and_storage_keys` | ✅ | EIP-2930 W2 warm | type-1 tx + 2 storage keys |
-| `WarmTransactionEntryTest.cpp` | `builds_block_info_with_expected_fields` | 🟡 | BlockInfoBuilder | 非 EIP 专项；smoke |
+| `PrepareStateTest.cpp` | `warms_sender_to_and_coinbase_for_call_transaction` | ✅ | geth `statedb.Prepare` + EIP-3651 | `@ EVMC_SHANGHAI` coinbase warm |
+| `PrepareStateTest.cpp` | `warms_access_list_address_and_storage_keys` | ✅ | EIP-2930 W2 warm | type-1 tx + 2 storage keys |
+| `PrepareStateTest.cpp` | `builds_block_info_with_expected_fields` | 🟡 | BlockInfoBuilder | 非 EIP 专项；smoke |
 | `ExecuteViaEthFixtureTest.cpp` | `existing_prague_fixtures_via_execute_via_eth` | — | 见下表 fixture 子项 | 驱动循环；本身无独立断言 |
 
 **显式用例小计：** ✅ 11 | 🟡 5 | 🔴 0

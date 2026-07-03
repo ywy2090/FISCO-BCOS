@@ -22,6 +22,7 @@
 #include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/precompiled/Eip2537Gas.h"
 #include "bcos-evm/eth/precompiled/ModexpGas.h"
+#include "bcos-evm/eth/precompiled/PrecompileGas.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <algorithm>
@@ -444,22 +445,22 @@ std::pair<bool, bcos::bytes> executeIdentity(bcos::bytesConstRef input)
 
 int64_t gasEcrecover(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
 {
-    return 3000;
+    return gas::ECRECOVER;
 }
 
 int64_t gasSha256(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
 {
-    return wordsCost(input.size(), 60, 12);
+    return wordsCost(input.size(), gas::SHA256_WORD, gas::SHA256_BASE);
 }
 
 int64_t gasRipemd160(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
 {
-    return wordsCost(input.size(), 600, 120);
+    return wordsCost(input.size(), gas::RIPEMD160_WORD, gas::RIPEMD160_BASE);
 }
 
 int64_t gasIdentity(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
 {
-    return wordsCost(input.size(), 15, 3);
+    return wordsCost(input.size(), gas::IDENTITY_WORD, gas::IDENTITY_BASE);
 }
 
 int64_t gasModexp(bcos::bytesConstRef input, evmc_revision revision) noexcept
@@ -469,18 +470,21 @@ int64_t gasModexp(bcos::bytesConstRef input, evmc_revision revision) noexcept
 
 int64_t gasBnAdd(bcos::bytesConstRef /*input*/, evmc_revision revision) noexcept
 {
-    return revision >= EVMC_ISTANBUL ? 150 : 500;
+    return revision >= EVMC_ISTANBUL ? gas::BN_ADD_ISTANBUL : gas::BN_ADD_LEGACY;
 }
 
 int64_t gasBnMul(bcos::bytesConstRef /*input*/, evmc_revision revision) noexcept
 {
-    return revision >= EVMC_ISTANBUL ? 6000 : 40000;
+    return revision >= EVMC_ISTANBUL ? gas::BN_MUL_ISTANBUL : gas::BN_MUL_LEGACY;
 }
 
 int64_t gasBnPairing(bcos::bytesConstRef input, evmc_revision revision) noexcept
 {
-    return (revision >= EVMC_ISTANBUL ? 45000 : 100000) +
-           static_cast<int64_t>(input.size() / 192) * (revision >= EVMC_ISTANBUL ? 34000 : 80000);
+    return (revision >= EVMC_ISTANBUL ? gas::BN_PAIRING_BASE_ISTANBUL :
+                                        gas::BN_PAIRING_BASE_LEGACY) +
+           static_cast<int64_t>(input.size() / gas::BN_PAIRING_INPUT_BYTES) *
+               (revision >= EVMC_ISTANBUL ? gas::BN_PAIRING_PAIR_ISTANBUL :
+                                            gas::BN_PAIRING_PAIR_LEGACY);
 }
 
 int64_t gasBlake2f(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
@@ -492,51 +496,53 @@ int64_t gasBlake2f(bcos::bytesConstRef input, evmc_revision /*revision*/) noexce
 
 int64_t gasPointEvaluation(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
 {
-    return 50000;
+    return gas::POINT_EVALUATION;
 }
 
 int64_t gasBlsG1Add(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
 {
-    return 375;
+    return BLS_G1_ADD_GAS;
 }
 
 int64_t gasBlsG1Msm(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
 {
-    return precompiled::blsG1MsmGas(input.size() / 160);
+    return precompiled::blsG1MsmGas(input.size() / BLS_G1_INPUT_BYTES);
 }
 
 int64_t gasBlsG2Add(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
 {
-    return 600;
+    return BLS_G2_ADD_GAS;
 }
 
 int64_t gasBlsG2Msm(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
 {
-    return precompiled::blsG2MsmGas(input.size() / 288);
+    return precompiled::blsG2MsmGas(input.size() / BLS_G2_INPUT_BYTES);
 }
 
 int64_t gasBlsPairingCheck(bcos::bytesConstRef input, evmc_revision /*revision*/) noexcept
 {
-    return 37700 + 32600 * static_cast<int64_t>(input.size() / 384);
+    return BLS_PAIRING_CHECK_BASE_GAS +
+           BLS_PAIRING_CHECK_PAIR_GAS *
+               static_cast<int64_t>(input.size() / BLS_PAIRING_INPUT_BYTES);
 }
 
 int64_t gasBlsMapFpToG1(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
 {
-    return 5500;
+    return BLS_MAP_FP_TO_G1_GAS;
 }
 
 int64_t gasBlsMapFp2ToG2(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
 {
-    return 23800;
+    return BLS_MAP_FP2_TO_G2_GAS;
 }
 
 int64_t gasP256Verify(bcos::bytesConstRef /*input*/, evmc_revision /*revision*/) noexcept
 {
-    return 6900;
+    return gas::P256_VERIFY;
 }
 
 bool rejectModexp7823(evmc_address const& address, bcos::bytesConstRef input,
-    bcos::evm_standard::RevisionConfig const& cfg, evmc_revision revision) noexcept
+    bcos::evm::RevisionConfig const& cfg, evmc_revision revision) noexcept
 {
     return bcos::evm::shouldRejectModexpEip7823(address, input, cfg, revision);
 }
@@ -544,8 +550,8 @@ bool rejectModexp7823(evmc_address const& address, bcos::bytesConstRef input,
 using ExecuteFn = std::pair<bool, bcos::bytes> (*)(bcos::bytesConstRef);
 using GasFn = int64_t (*)(bcos::bytesConstRef, evmc_revision);
 /// Optional policy gate (e.g. modexp EIP-7823 field limits); failure → PRECOMPILE_FAILURE.
-using RejectFn = bool (*)(evmc_address const&, bcos::bytesConstRef,
-    bcos::evm_standard::RevisionConfig const&, evmc_revision);
+using RejectFn = bool (*)(
+    evmc_address const&, bcos::bytesConstRef, bcos::evm::RevisionConfig const&, evmc_revision);
 
 /// One row per Ethereum builtin precompile; keyed by address suffix (bytes[18:19]).
 struct PrecompileEntry
@@ -599,7 +605,7 @@ bool EthPrecompiles::isAddressInRange(const evmc_address& address) noexcept
 // Core dispatch: suffix lookup → gas check → optional reject → execute.
 std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& address,
     bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision,
-    bcos::evm_standard::RevisionConfig const& cfg)
+    bcos::evm::RevisionConfig const& cfg)
 {
     auto const suffixKey = bcos::evm::precompileSuffix(address);
     if (!suffixKey.has_value())
@@ -638,7 +644,7 @@ std::optional<EthPrecompileResult> EthPrecompiles::dispatch(const evmc_address& 
 
 // Adapter for PrecompileRouter: dispatch + map to evmc::Result (gas_left, owned output).
 std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(const evmc_address& address,
-    const evmc_message& msg, evmc_revision revision, bcos::evm_standard::RevisionConfig const& cfg)
+    const evmc_message& msg, evmc_revision revision, bcos::evm::RevisionConfig const& cfg)
 {
     bcos::bytesConstRef input(msg.input_data, msg.input_size);
     auto dispatched = dispatch(address, input, msg.gas, revision, cfg);

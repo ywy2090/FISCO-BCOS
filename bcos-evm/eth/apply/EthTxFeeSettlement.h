@@ -21,7 +21,7 @@ namespace bcos::evm
 
 struct EthTxFeeSettlement
 {
-    using PolicyType = bcos::evm_standard::EthChainPolicy;
+    using PolicyType = bcos::evm::EthChainPolicy;
     // Standard gas payment: buyGas -> execute -> refundGas (reference path only).
 
     template <class Data>

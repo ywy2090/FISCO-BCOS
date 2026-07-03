@@ -3,27 +3,26 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/apply/EthFeeInputsMapping.h"
-#include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
+#include "helpers/EthPreCheckRulesTestHelper.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
-using bcos::evm_standard::revisionConfigFromRevision;
+using bcos::evm::revisionConfigFromRevision;
 
 namespace
 {
-state::State makeState()
+state::test::InMemoryStateView& baseStateView()
 {
-    static state::test::InMemoryStateView baseState;
-    return state::State(baseState);
+    static state::test::InMemoryStateView stateView;
+    return stateView;
 }
 
-EthMessageRequest makeMinimalRequest(bcos::evm_standard::RevisionConfig const& revision)
+EthMessageRequest makeMinimalRequest(bcos::evm::RevisionConfig const& revision)
 {
     EthMessageRequest input{};
     input.revisionConfig = revision;
@@ -53,8 +52,7 @@ BOOST_AUTO_TEST_CASE(fee_market_inactive_skips_fee_cap_precheck)
     input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::Legacy);
     input.gasFeeCap = 1;
     input.gasTipCap = 5;
-    auto state = makeState();
-    BOOST_CHECK(!ethTxPrecheck(input, state).has_value());
+    BOOST_CHECK(!ethPreCheckRulesError(input, baseStateView()).has_value());
 }
 
 BOOST_AUTO_TEST_CASE(fee_market_active_rejects_invalid_fee_caps)
@@ -63,8 +61,7 @@ BOOST_AUTO_TEST_CASE(fee_market_active_rejects_invalid_fee_caps)
     auto input = makeMinimalRequest(london);
     input.gasFeeCap = 1;
     input.gasTipCap = 5;
-    auto state = makeState();
-    BOOST_CHECK(ethTxPrecheck(input, state).has_value());
+    BOOST_CHECK(ethPreCheckRulesError(input, baseStateView()).has_value());
 }
 
 BOOST_AUTO_TEST_CASE(normalize_gas_caps_respects_fee_market_gate)
@@ -81,7 +78,10 @@ BOOST_AUTO_TEST_CASE(precheck_effective_via_plan_pre_execution)
 {
     auto const london = revisionConfigFromRevision(EVMC_LONDON);
     auto input = makeMinimalRequest(london);
-    auto const plan = gas::planPreExecution(gas::toFeeInputs(input, 100'000));
+    auto const plan = gas::planPreExecution(gas::toFeeInputs(input.revisionConfig, input.blockInfo,
+        gas::FeeCapsView{input.gasPrice, input.gasTipCap, input.gasFeeCap, input.web3TypedTxKind,
+            input.hasExplicitFeeCaps},
+        100'000));
     BOOST_CHECK_EQUAL(plan.effectiveGasPrice, 12);
 }
 

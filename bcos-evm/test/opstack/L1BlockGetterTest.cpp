@@ -53,7 +53,6 @@ void runGetter(state::test::InMemoryStateView& stateView, bytes const& input, u2
     opInput.gasTipCap = 1;
     opInput.gasFeeCap = 2;
     opInput.blockInfo.baseFee = 1;
-    opInput.txProps.warmDestination = true;
 
     auto output = task::syncWait(applyOpStackMessage(opInput));
     BOOST_REQUIRE_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);

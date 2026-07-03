@@ -4,7 +4,7 @@
 #include <evmc/evmc.h>
 #include <cstdint>
 
-namespace bcos::evm_standard
+namespace bcos::evm
 {
 
 inline evmc_revision evmcRevisionFromBlockNumber(int64_t blockNum)
@@ -52,4 +52,4 @@ struct EthChainPolicy
     }
 };
 
-}  // namespace bcos::evm_standard
+}  // namespace bcos::evm

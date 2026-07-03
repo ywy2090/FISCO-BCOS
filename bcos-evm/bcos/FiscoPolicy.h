@@ -52,11 +52,10 @@ inline constexpr std::size_t fiscoGatedFlagMapCount() noexcept
 }
 
 // Completeness: every A-class kernel field has exactly one FISCO flag mapping.
-static_assert(fiscoGatedFlagMapCount() == bcos::evm_standard::revisionConfigGatedFieldCount(),
-    "FISCO_GATED_FLAG_MAP must cover every REVISION_CONFIG_GATED_FIELDS entry");
+static_assert(fiscoGatedFlagMapCount() == bcos::evm::revisionConfigGatedFieldCount(),
+    "FISCO_GATED_FLAG_MAP must cover every RevisionConfig A-class gated field");
 
-inline void applyFiscoFeatureGates(
-    bcos::evm_standard::RevisionConfig& cfg, const ledger::Features& features)
+inline void applyFiscoFeatureGates(bcos::evm::RevisionConfig& cfg, const ledger::Features& features)
 {
     using Flag = ledger::Features::Flag;
 #define FISCO_APPLY_GATE(field, flag) cfg.field = cfg.field && features.get(Flag::flag);
@@ -80,7 +79,7 @@ public:
         FiscoRevisionConfig cfg;
         auto& ethCfg = cfg.eth();
 
-        ethCfg = bcos::evm_standard::revisionConfigFromRevision(
+        ethCfg = bcos::evm::revisionConfigFromRevision(
             std::max(toFiscoRevision(m_features, header.version()), EVMC_CANCUN));
         applyFiscoFeatureGates(ethCfg, m_features);
 

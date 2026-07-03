@@ -100,7 +100,7 @@ task::Task<FiscoMessageResult> applyFiscoMessage(FiscoMessageRequest input)
 
     trace::logMessageContext(input.message);
 
-    // execBundle wires execution environment (vm, extension, chainPort) into ctx;
+    // execBundle wires execution environment (vm, extension, callTargetPort) into ctx;
     // bindingsCtx is orchestration policy bind input only.
     FiscoExecutionBundle execBundle{ctx, input};
 

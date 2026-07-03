@@ -88,9 +88,9 @@ public:
             bool m_topLevelIncludedTxVmError{false};
             bool m_gasFieldsFilled{false};
             evmc::VM m_vm;
-            bcos::evm_standard::EthChainPolicy m_policy;
+            bcos::evm::EthChainPolicy m_policy;
             evmc_message m_message{};
-            bcos::evm_standard::RevisionConfig m_revisionConfig{};
+            bcos::evm::RevisionConfig m_revisionConfig{};
             std::vector<protocol::LogEntry> m_receiptLogs;
             gas::TxGasSettlementContext m_gasSettlementSnapshot{};
             std::optional<EVMCResult> m_evmcResult;

@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE EthExecuteViaEthPreCheckTest
 
-#include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
+#include "helpers/EthPreCheckRulesTestHelper.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <limits>
@@ -41,10 +41,9 @@ BOOST_AUTO_TEST_CASE(rejects_sender_with_non_delegation_code)
     state::Account senderAccount;
     senderAccount.code = {0x00};
     stateView.insert_account(sender, std::move(senderAccount));
-    state::State state(stateView);
 
     auto input = makeInput(sender);
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -58,10 +57,9 @@ BOOST_AUTO_TEST_CASE(allows_sender_with_delegation_code)
     state::Account senderAccount;
     senderAccount.code = addressToDelegation(target);
     stateView.insert_account(sender, std::move(senderAccount));
-    state::State state(stateView);
 
     auto input = makeInput(sender);
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_CHECK(!error.has_value());
 }
 
@@ -69,13 +67,12 @@ BOOST_AUTO_TEST_CASE(rejects_explicit_empty_authorization_list)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x12);
-    state::State state(stateView);
 
     auto input = makeInput(sender);
     input.authorizationListPresent = true;
     input.web3TypedTxKind = 0x04;
 
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -84,14 +81,13 @@ BOOST_AUTO_TEST_CASE(rejects_type4_contract_creation)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x13);
-    state::State state(stateView);
 
     auto input = makeInput(sender);
     input.message.kind = EVMC_CREATE;
     input.web3TypedTxKind = 0x04;
     input.authorizations.push_back({});
 
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -100,13 +96,12 @@ BOOST_AUTO_TEST_CASE(rejects_priority_fee_above_max_fee)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x14);
-    state::State state(stateView);
 
     auto input = makeInput(sender);
     input.gasTipCap = 3;
     input.gasFeeCap = 2;
 
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -115,14 +110,13 @@ BOOST_AUTO_TEST_CASE(rejects_max_fee_below_base_fee)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x15);
-    state::State state(stateView);
 
     auto input = makeInput(sender);
     input.blockInfo.baseFee = 10;
     input.gasTipCap = 1;
     input.gasFeeCap = 5;
 
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -131,12 +125,11 @@ BOOST_AUTO_TEST_CASE(rejects_tx_nonce_at_uint64_max)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x16);
-    state::State state(stateView);
 
     auto input = makeInput(sender);
     input.txNonce = std::numeric_limits<uint64_t>::max();
 
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::NonceCheckFail);
 }
@@ -145,7 +138,6 @@ BOOST_AUTO_TEST_CASE(rejects_oversized_initcode_on_shanghai)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x17);
-    state::State state(stateView);
 
     bytes initcode(MAX_INIT_CODE_SIZE + 1, 0x00);
     auto input = makeInput(sender);
@@ -154,7 +146,7 @@ BOOST_AUTO_TEST_CASE(rejects_oversized_initcode_on_shanghai)
     input.message.input_size = initcode.size();
     input.revisionConfig.revision = EVMC_SHANGHAI;
 
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
@@ -163,7 +155,6 @@ BOOST_AUTO_TEST_CASE(allows_max_initcode_size_on_shanghai)
 {
     state::test::InMemoryStateView stateView;
     auto const sender = addressFromLastByte(0x18);
-    state::State state(stateView);
 
     bytes initcode(MAX_INIT_CODE_SIZE, 0x00);
     auto input = makeInput(sender);
@@ -172,7 +163,7 @@ BOOST_AUTO_TEST_CASE(allows_max_initcode_size_on_shanghai)
     input.message.input_size = initcode.size();
     input.revisionConfig.revision = EVMC_SHANGHAI;
 
-    auto error = ethTxPrecheck(input, state);
+    auto error = ethPreCheckRulesError(input, stateView);
     BOOST_CHECK(!error.has_value());
 }
 }  // namespace bcos::evm::test

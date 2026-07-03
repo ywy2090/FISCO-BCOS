@@ -96,7 +96,6 @@ OpStackMessageRequest makeUserTx(state::test::InMemoryStateView& stateView, evmc
     in.gasTipCap = 1;
     in.gasFeeCap = 2;
     in.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
-    in.txProps.warmDestination = true;
     in.forkSchedule = schedule;
     in.rollupCostData = RollupCostData{.ones = 8, .fastLzSize = 200};
     return in;

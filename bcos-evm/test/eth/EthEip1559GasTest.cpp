@@ -5,12 +5,12 @@
 
 namespace bcos::evm::test
 {
+using bcos::evm::revisionConfigFromRevision;
 using bcos::evm::gas::isEip1559GasCapsTx;
 using bcos::evm::gas::maxBalanceGasDebit;
 using bcos::evm::gas::normalizeGasCaps;
 using bcos::evm::gas::resolveEffectiveGasPrice;
 using bcos::evm::gas::tipPerGas;
-using bcos::evm_standard::revisionConfigFromRevision;
 
 namespace
 {

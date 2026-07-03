@@ -41,7 +41,7 @@ struct EthMessageRequest
     evmc_message message{};
     state::BlockInfo blockInfo{};
     state::BlockHashes blockHashes{};
-    bcos::evm_standard::RevisionConfig revisionConfig{};
+    bcos::evm::RevisionConfig revisionConfig{};
     bcos::u256 gasPrice{0};
     bcos::u256 gasTipCap{0};
     bcos::u256 gasFeeCap{0};
@@ -60,7 +60,7 @@ struct EthMessageResult
     state::StateDiff stateDiff;
     std::vector<state::LogEntry> logs;
     evmc_message message{};
-    bcos::evm_standard::RevisionConfig revisionConfig{};
+    bcos::evm::RevisionConfig revisionConfig{};
     std::vector<protocol::LogEntry> receiptLogs;
     gas::TxGasSettlementContext gasSettlementSnapshot{};
     bool topLevelIncludedTxVmError{false};

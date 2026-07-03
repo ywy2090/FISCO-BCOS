@@ -26,7 +26,7 @@ struct FeeCapsView
 };
 
 /// Build FeeInputs for settlement from revision, block base fee, and tx fee caps.
-inline FeeInputs toFeeInputs(bcos::evm_standard::RevisionConfig const& revision,
+inline FeeInputs toFeeInputs(bcos::evm::RevisionConfig const& revision,
     state::BlockInfo const& blockInfo, FeeCapsView const& caps, int64_t gasLimit) noexcept
 {
     return FeeInputs{

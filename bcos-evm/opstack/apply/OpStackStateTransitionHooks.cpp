@@ -31,11 +31,6 @@ namespace bcos::evm
 {
 namespace
 {
-inline bool isCreateKind(evmc_call_kind kind) noexcept
-{
-    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
-
 EVMCResult makePreCheckError(
     protocol::TransactionStatus status, evmc_status_code evmcStatus = EVMC_FAILURE)
 {
@@ -111,7 +106,7 @@ void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContex
                 ctx.earlyExit = true;
                 return;
             }
-            if (isCreateKind(input.message.kind))
+            if (input.message.kind == EVMC_CREATE || input.message.kind == EVMC_CREATE2)
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
                 ctx.earlyExit = true;
@@ -140,7 +135,8 @@ void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContex
             }
         }
 
-        if (!input.authorizations.empty() && isCreateKind(input.message.kind))
+        if (!input.authorizations.empty() &&
+            (input.message.kind == EVMC_CREATE || input.message.kind == EVMC_CREATE2))
         {
             ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
             ctx.earlyExit = true;

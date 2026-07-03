@@ -7,7 +7,6 @@
 
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/eip/Eip2929Gate.h"
-#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::execution
@@ -36,7 +35,7 @@ RoutedFrame routeFrameMessage(state::State& state, bcos::evm::RevisionConfig con
     RoutedFrame routed{};
     routed.routed = msg;
 
-    if (scope == FrameScope::Nested && isCreateKind(msg.kind))
+    if (scope == FrameScope::Nested && (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2))
     {
         if (!state::isZeroAddress(routed.routed.recipient))
         {
@@ -58,7 +57,7 @@ RoutedFrame routeFrameMessage(state::State& state, bcos::evm::RevisionConfig con
 
     if (scope == FrameScope::TopLevel)
     {
-        if (isCreateKind(msg.kind))
+        if (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2)
         {
             routed.executionAddress = pickExecutionAddressFromMessage(routed.routed);
             return routed;

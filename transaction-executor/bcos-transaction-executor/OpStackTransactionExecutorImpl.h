@@ -68,7 +68,7 @@ inline std::vector<protocol::LogEntry> convertLogs(std::vector<state::LogEntry> 
 /// baseline scheduler / Engine API via the executor_v1::TransactionExecutor concept.
 ///
 /// Compared to TransactionExecutorImpl:
-/// - No FISCO auth/precompile hooks (L1Block via OpStackChainCallTargetAdapter + chainPort).
+/// - No FISCO auth/precompile hooks (L1Block via OpStackChainCallTargetAdapter + callTargetPort).
 /// - Gas buy/refund/settlement is internal to applyOpStackMessage.
 /// - Uses gasTipCap/gasFeeCap (EIP-1559) instead of legacy gasPrice.
 class OpStackTransactionExecutorImpl
@@ -213,7 +213,6 @@ public:
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
             opstack_tx::fillGasCaps(m_data->m_transaction.get(), input);
             opstack_tx::fillWeb3Fields(m_data->m_transaction.get(), input);
-            opstack_tx::applyDefaultTxProps(input);
             input.rollupCostData = opstack_tx::buildRollupCostData(m_data->m_transaction.get());
             input.gasPoolSubGasHook = [pool = m_data->m_blockGasPool](
                                           uint64_t gas) { return !pool || pool->tryConsume(gas); };

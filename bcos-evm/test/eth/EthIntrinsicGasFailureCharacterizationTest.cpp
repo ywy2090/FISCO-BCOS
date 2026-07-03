@@ -35,9 +35,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-bcos::evm_standard::RevisionConfig pragueEip7623Config()
+bcos::evm::RevisionConfig pragueEip7623Config()
 {
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     cfg.revision = EVMC_PRAGUE;
     cfg.eip2929 = true;
     cfg.eip7623 = true;

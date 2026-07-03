@@ -50,7 +50,6 @@ OpStackMessageRequest makeInput(state::test::InMemoryStateView& stateView, evmc:
     input.revisionConfig.eip7702 = true;
     input.revisionConfig.eip4844 = true;
     input.revisionConfig.revision = EVMC_PRAGUE;
-    input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{};
     return input;
 }

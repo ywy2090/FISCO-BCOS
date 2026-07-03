@@ -37,13 +37,6 @@ struct Transaction
     uint64_t nonce{0};
 };
 
-struct TransactionProperties
-{
-    bool isStatic{false};
-    bool warmCoinbase{true};
-    bool warmDestination{true};
-};
-
 struct LogEntry
 {
     evmc_address address{};

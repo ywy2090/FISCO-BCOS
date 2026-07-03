@@ -6,7 +6,7 @@
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/kernel/execution/CreateContract.h"
+#include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
@@ -260,11 +260,6 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackMessageReques
             input.depositTx = std::move(deposit);
         }
     }
-}
-
-inline void applyDefaultTxProps(OpStackMessageRequest& input)
-{
-    input.txProps.warmDestination = !execution::isCreateKind(input.message.kind);
 }
 }  // namespace opstack_tx
 }  // namespace bcos::evm

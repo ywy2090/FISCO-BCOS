@@ -32,7 +32,7 @@ inline bool isP256Precompile(evmc_address const& addr) noexcept
 
 /// Fork/EIP gate: must pass before EthPrecompiles dispatch in production.
 inline bool isActivePrecompile(
-    bcos::evm_standard::RevisionConfig const& cfg, evmc_address const& addr) noexcept
+    bcos::evm::RevisionConfig const& cfg, evmc_address const& addr) noexcept
 {
     if (isP256Precompile(addr))
     {
@@ -60,7 +60,7 @@ inline bool isActivePrecompile(
 
 /// Iterate all precompiles active at @p cfg (tx warm-up, access-list helpers).
 template <typename Consumer>
-void forEachActivePrecompile(bcos::evm_standard::RevisionConfig const& cfg, Consumer&& consume)
+void forEachActivePrecompile(bcos::evm::RevisionConfig const& cfg, Consumer&& consume)
 {
     static constexpr unsigned precompileHi = sizeof(evmc_address) - 1;
     for (uint8_t i = ETH_PRECOMPILE_INDEX_FIRST; i <= ETH_PRECOMPILE_INDEX_LAST; ++i)

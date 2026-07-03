@@ -29,7 +29,7 @@ struct CallOutcome
     int64_t gasLeft{};
     bcos::u256 senderBalance{};
     bcos::u256 recipientBalance{};
-    bool precompileHit{false};
+    bool envelopeComplete{false};
 };
 
 struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
@@ -66,7 +66,7 @@ CallOutcome runFrameNested(
         .gasLeft = fr.result.gas_left,
         .senderBalance = state.get_balance(message.sender),
         .recipientBalance = state.get_balance(balanceTarget(message)),
-        .precompileHit = fr.precompileHit};
+        .envelopeComplete = fr.envelopeComplete};
 }
 
 CallOutcome runFrameTopLevel(state::State& state, evmc_message message)
@@ -80,7 +80,7 @@ CallOutcome runFrameTopLevel(state::State& state, evmc_message message)
         .gasLeft = fr.result.gas_left,
         .senderBalance = state.get_balance(message.sender),
         .recipientBalance = state.get_balance(balanceTarget(message)),
-        .precompileHit = fr.precompileHit};
+        .envelopeComplete = fr.envelopeComplete};
 }
 }  // namespace
 
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_precompile_blocked)
 
     auto frame = runFrameNested(state, message, &policy);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_PRECOMPILE_FAILURE);
-    BOOST_REQUIRE(!frame.precompileHit);
+    BOOST_REQUIRE(!frame.envelopeComplete);
 }
 
 BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_direct_precompile_hits_envelope)
@@ -208,12 +208,12 @@ BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_direct_precompile_hits_envelope)
     state.set_balance(sender, 1'000'000);
 
     auto frame = runFrameNested(state, message);
-    BOOST_REQUIRE(frame.precompileHit);
+    BOOST_REQUIRE(frame.envelopeComplete);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(frame.gasLeft, 500'000 - 18);
 }
 
-BOOST_AUTO_TEST_CASE(top_level_precompile_hit_sets_precompileHit)
+BOOST_AUTO_TEST_CASE(top_level_envelope_complete_sets_flag)
 {
     auto const sender = addressFromLastByte(0x01);
     auto const identity = precompileAddress(0x04);
@@ -225,7 +225,7 @@ BOOST_AUTO_TEST_CASE(top_level_precompile_hit_sets_precompileHit)
     state.set_balance(sender, 1'000'000);
 
     auto frame = runFrameTopLevel(state, message);
-    BOOST_REQUIRE(frame.precompileHit);
+    BOOST_REQUIRE(frame.envelopeComplete);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_SUCCESS);
 }
 
@@ -394,7 +394,7 @@ BOOST_AUTO_TEST_CASE(top_level_sender_nonce_bump_on_success)
     BOOST_REQUIRE_EQUAL(state.get_nonce(sender), 6U);
 }
 
-BOOST_AUTO_TEST_CASE(top_level_precompile_hit_skips_finalize_self_destructs)
+BOOST_AUTO_TEST_CASE(top_level_envelope_complete_skips_finalize_self_destructs)
 {
     auto const sender = addressFromLastByte(0x01);
     auto const victim = addressFromLastByte(0x99);

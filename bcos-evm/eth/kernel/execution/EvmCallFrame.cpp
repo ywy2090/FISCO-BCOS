@@ -41,7 +41,6 @@
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/eip/Eip2929Gate.h"
 #include "bcos-evm/eth/host/EthHost.h"
-#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
 #include "bcos-evm/eth/kernel/execution/FrameBytecode.h"
@@ -136,7 +135,7 @@ evmc_address resolveCallerAddress(
 std::optional<FrameResult> runCallTargetFastPath(FrameWork& work, FrameScope scope)
 {
     auto& callMessage = work.callMessage();
-    if (isCreateKind(callMessage.kind))
+    if ((callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
     {
         return std::nullopt;
     }
@@ -161,14 +160,14 @@ std::optional<FrameResult> runCallTargetFastPath(FrameWork& work, FrameScope sco
     {
         auto out = precompiled::executePrecompileEnvelope(envInput);
         return FrameResult{
-            .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
+            .result = std::move(out.result), .gasRefund = out.gasRefund, .envelopeComplete = true};
     }
     case CallTargetKind::EmptyAccount:
     {
         // Calls into empty code (non-existent contract): charge access gas, return empty success.
         auto out = precompiled::executeEmptyAccountEnvelope(envInput);
         return FrameResult{
-            .result = std::move(out.result), .gasRefund = out.gasRefund, .precompileHit = true};
+            .result = std::move(out.result), .gasRefund = out.gasRefund, .envelopeComplete = true};
     }
     case CallTargetKind::PolicyRejected:
     {
@@ -176,7 +175,7 @@ std::optional<FrameResult> runCallTargetFastPath(FrameWork& work, FrameScope sco
         evmc_result raw{};
         raw.status_code = EVMC_PRECOMPILE_FAILURE;
         raw.gas_left = callMessage.gas;
-        return FrameResult{.result = evmc::Result(raw), .precompileHit = false};
+        return FrameResult{.result = evmc::Result(raw), .envelopeComplete = false};
     }
     case CallTargetKind::EvmContract:
         return std::nullopt;
@@ -193,6 +192,17 @@ evmc_address resolveValueTransferRecipient(evmc_message const& message) noexcept
         codeAddress = message.recipient;
     }
     return codeAddress;
+}
+
+/// DELEGATECALL / CALLCODE execute foreign code in the caller's own storage and
+/// balance context and MUST NOT move balance between accounts. evmone still forwards
+/// a (possibly non-zero) value in evmc_message.value — DELEGATECALL inherits the
+/// parent frame's apparent value, CALLCODE carries the explicit stack value — but
+/// go-ethereum's core/vm/evm.go DelegateCall/CallCode perform no Transfer. Host-side
+/// value settlement uses this predicate to skip the transfer for those kinds.
+inline bool isValueTransferSkippedKind(evmc_call_kind kind) noexcept
+{
+    return kind == EVMC_DELEGATECALL || kind == EVMC_CALLCODE;
 }
 
 /// Move msg.value for this frame (scope/kind rules below).
@@ -240,7 +250,7 @@ std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
     bool ok = false;
     if (scope == FrameScope::TopLevel)
     {
-        if (isCreateKind(msg.kind))
+        if ((msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2))
         {
             ok = transfer(msg.sender, msg.recipient);
         }
@@ -332,7 +342,8 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
     auto& callMessage = work.callMessage();
 
     // CREATE: charge code-deposit gas and possibly fail after interpreter returned SUCCESS.
-    if (result.status_code == EVMC_SUCCESS && isCreateKind(callMessage.kind))
+    if (result.status_code == EVMC_SUCCESS &&
+        (callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
     {
         auto raw = result.release_raw();
         if (!applyCreateCodeDepositGas(raw, work.ctx.revisionConfig.revision) &&
@@ -356,7 +367,7 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
     if (result.status_code == EVMC_SUCCESS)
     {
         state::installCreatedContractCode(work.ctx.state, callMessage, result.raw());
-        if (isCreateKind(callMessage.kind))
+        if ((callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
         {
             evmc_address createAddr = scope == FrameScope::TopLevel ?
                                           resolveCreateAddress(callMessage, result.raw()) :
@@ -372,7 +383,8 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
         if (scope == FrameScope::TopLevel)
         {
             // FISCO: bump contract nonce after successful top-level CREATE (outside frame journal).
-            if (isCreateKind(callMessage.kind) && work.ctx.extension != nullptr)
+            if ((callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2) &&
+                work.ctx.extension != nullptr)
             {
                 auto const createAddr = resolveCreateAddress(callMessage, result.raw());
                 work.ctx.extension->finalizeTopLevelCreateNonce(work.ctx.state, createAddr);
@@ -381,7 +393,7 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
         else
         {
             work.ctx.state.commit();
-            if (!isCreateKind(callMessage.kind))
+            if (!(callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
             {
                 // CALL / DELEGATECALL: advance execution context for nested delegate routing.
                 auto const nextExecution = state::isZeroAddress(callMessage.code_address) ?
@@ -412,8 +424,8 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
 void bumpNestedCreateSenderNonce(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
-    if (!isCreateKind(callMessage.kind) || state::isZeroAddress(callMessage.sender) ||
-        work.originalMsg.depth == 0)
+    if (!(callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2) ||
+        state::isZeroAddress(callMessage.sender) || work.originalMsg.depth == 0)
     {
         return;
     }
@@ -448,7 +460,8 @@ FrameResult runFrameSteps(
     }
 
     // Step 4: nested CREATE — bind predicted address and bump sender nonce before journal open.
-    if (isCreateKind(work.callMessage().kind) && scope == FrameScope::Nested)
+    if ((work.callMessage().kind == EVMC_CREATE || work.callMessage().kind == EVMC_CREATE2) &&
+        scope == FrameScope::Nested)
     {
         bindCreateForInit(work);
         bumpNestedCreateSenderNonce(work);
@@ -461,7 +474,7 @@ FrameResult runFrameSteps(
     // Ordering matches geth evm.create / evm.create2:
     //   TopLevel CREATE: bind init → transfer endowment → touch/create account
     //   Nested CREATE:   touch/create account → transfer endowment
-    if (isCreateKind(work.callMessage().kind))
+    if ((work.callMessage().kind == EVMC_CREATE || work.callMessage().kind == EVMC_CREATE2))
     {
         if (scope == FrameScope::TopLevel)
         {

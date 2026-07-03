@@ -18,7 +18,7 @@ namespace bcos::evm::gas
 
 struct FeeInputs
 {
-    bcos::evm_standard::RevisionConfig const& revision;
+    bcos::evm::RevisionConfig const& revision;
     bcos::u256 baseFee;
     int64_t gasLimit{0};
     bcos::u256 gasPrice;

@@ -21,20 +21,20 @@
 
 #pragma once
 
-#include "bcos-evm/eth/kernel/CallKind.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/kernel/execution/CreateAddress.h"
 #include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::execution
 {
-constexpr size_t MAX_EVM_CODE_SIZE = 0x6000;
-constexpr int64_t CREATE_DATA_GAS_PER_BYTE = 200;
+constexpr size_t MAX_EVM_CODE_SIZE = gas::MAX_CODE_SIZE_EIP170;
+constexpr int64_t CREATE_DATA_GAS_PER_BYTE = gas::CODE_DEPOSIT_GAS_PER_BYTE;
 
 /// Assign CREATE recipient/code_address from sender nonce (no state mutation; geth: create() addr).
 inline void assignCreateAddresses(evmc_address& executionAddress, evmc_message& message,
     bcos::bytesConstRef initCode, state::State& st) noexcept
 {
-    if (!isCreateKind(message.kind))
+    if (message.kind != EVMC_CREATE && message.kind != EVMC_CREATE2)
     {
         return;
     }
@@ -71,8 +71,9 @@ inline void initializeCreateTargetAccount(state::State& st, evmc_address const& 
 }
 
 /// Assign addresses, warm, and nonce=1 before initcode runs (geth: create account touch).
-inline void setupCreateTarget(state::State& st, evmc_address& executionAddress, evmc_message& message,
-    evmc_revision revision, bcos::bytesConstRef initCode, bool warmAccess) noexcept
+inline void setupCreateTarget(state::State& st, evmc_address& executionAddress,
+    evmc_message& message, evmc_revision revision, bcos::bytesConstRef initCode,
+    bool warmAccess) noexcept
 {
     assignCreateAddresses(executionAddress, message, initCode, st);
     initializeCreateTargetAccount(st, message.recipient, revision, warmAccess);

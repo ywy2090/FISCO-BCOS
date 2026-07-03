@@ -49,10 +49,9 @@ public:
 
     static std::optional<EthPrecompileResult> dispatch(const evmc_address& address,
         bcos::bytesConstRef input, int64_t msgGas, evmc_revision revision,
-        bcos::evm_standard::RevisionConfig const& cfg);
+        bcos::evm::RevisionConfig const& cfg);
 
     static std::optional<evmc::Result> tryDispatchInCall(const evmc_address& address,
-        const evmc_message& msg, evmc_revision revision,
-        bcos::evm_standard::RevisionConfig const& cfg);
+        const evmc_message& msg, evmc_revision revision, bcos::evm::RevisionConfig const& cfg);
 };
 }  // namespace bcos::evm::precompiled

@@ -6,6 +6,7 @@
 
 #define BOOST_TEST_MODULE FrameTargetRoutingCharacterizationTest
 
+#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/state/State.hpp"
@@ -32,7 +33,7 @@ struct CallOutcome
 {
     evmc_status_code status{};
     int64_t gasLeft{};
-    bool precompileHit{false};
+    bool envelopeComplete{false};
 };
 
 struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
@@ -102,7 +103,7 @@ CallOutcome runFrame(state::State& state, bcos::evm::RevisionConfig const& cfg,
     auto fr = execution::runCallFrame(frameCtx, message, scope, fixture.ethHost());
     return {.status = fr.result.status_code,
         .gasLeft = fr.result.gas_left,
-        .precompileHit = fr.precompileHit};
+        .envelopeComplete = fr.envelopeComplete};
 }
 
 void applyCallMode(evmc_message& message, RoutingCallMode mode)
@@ -176,7 +177,7 @@ BOOST_AUTO_TEST_CASE(plain_precompile_routing_matrix)
                 state.set_balance(sender, 1'000'000);
                 auto message = makePlainPrecompileMessage(callMode, sender, precompile, inputBytes);
                 auto const outcome = runFrame(state, cfg, message, scope);
-                BOOST_REQUIRE(outcome.precompileHit);
+                BOOST_REQUIRE(outcome.envelopeComplete);
                 if (lowByte == 0x04 && highByte == 0x00)
                 {
                     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_SUCCESS);
@@ -219,7 +220,7 @@ BOOST_AUTO_TEST_CASE(delegated7702_precompile_routing_matrix)
                 state::State state(view);
                 state.set_balance(sender, 1'000'000);
                 auto const outcome = runFrame(state, cfg, message, scope);
-                BOOST_REQUIRE(outcome.precompileHit);
+                BOOST_REQUIRE(outcome.envelopeComplete);
                 if (lowByte == 0x04 && highByte == 0x00 && callMode == RoutingCallMode::Call)
                 {
                     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_SUCCESS);
@@ -254,7 +255,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_top_level
 
     auto const outcome = runFrame(state, cfg, message, execution::FrameScope::TopLevel, &policy);
     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_PRECOMPILE_FAILURE);
-    BOOST_REQUIRE(!outcome.precompileHit);
+    BOOST_REQUIRE(!outcome.envelopeComplete);
 }
 
 BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_nested)
@@ -282,7 +283,7 @@ BOOST_AUTO_TEST_CASE(delegated_delegatecall_precompile_policy_rejected_nested)
 
     auto const outcome = runFrame(state, cfg, message, execution::FrameScope::Nested, &policy);
     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_PRECOMPILE_FAILURE);
-    BOOST_REQUIRE(!outcome.precompileHit);
+    BOOST_REQUIRE(!outcome.envelopeComplete);
 }
 
 }  // namespace bcos::evm::test

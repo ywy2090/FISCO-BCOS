@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-# A-class fields (keep in sync with REVISION_CONFIG_GATED_FIELDS in eth/RevisionConfig.h).
+# A-class fields (keep in sync with revisionConfigGatedFieldCount() in eth/RevisionConfig.h).
 FIELDS=(eip2929 eip2537 eip7212 eip7623 eip7823 eip7702)
 
 status=0

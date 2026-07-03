@@ -99,7 +99,6 @@ OpStackMessageRequest makeExecuteInput(state::test::InMemoryStateView& stateView
     input.blockInfo.baseFee = 1;
     input.blockInfo.coinbase = addressFromLastByte(0x99);
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
-    input.txProps.warmDestination = true;
     input.rollupCostData = RollupCostData{.ones = 2, .fastLzSize = 3};
     input.opTxExecutor.m_l1FeeRecipient = OP_L1_FEE_RECIPIENT;
     return input;

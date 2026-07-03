@@ -9,7 +9,7 @@
  *   buyGas    — pre-debit sender: EIP-1559 effective gas + L1 data fee + operator fee + blob fee
  *   refundGas — unused gas refund + route base/L1/operator fees to predeploy recipients
  *
- * Fee math lives in opstack/fee/* (planOpStackPreDebit / planOpStackPostSettlement); this
+ * Fee math lives in opstack/fee planners (planOpStackPreDebit / planOpStackPostSettlement); this
  * struct owns balance mutations and recipient addresses only.
  */
 

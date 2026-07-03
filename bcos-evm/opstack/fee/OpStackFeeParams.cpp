@@ -99,7 +99,7 @@ u256 l1CostFjord(RollupCostData const& data, OpStackFeeParams const& params)
     }
 
     auto const scaledL1BaseFee = params.l1BaseFeeScalar * params.l1BaseFee;
-    auto const calldataCostPerByte = scaledL1BaseFee * u256(16);
+    auto const calldataCostPerByte = scaledL1BaseFee * u256(FJORD_L1_FEE_CALLDATA_BYTE_NUMERATOR);
     auto const blobCostPerByte = params.l1BlobBaseFeeScalar * params.l1BlobBaseFee;
     auto const l1FeeScaled = calldataCostPerByte + blobCostPerByte;
 
@@ -114,7 +114,7 @@ u256 operatorCostIsthmus(uint64_t gas, OpStackFeeParams const& params)
         return 0;
     }
 
-    auto fee = u256(gas) * params.operatorFeeScalar / u256(1'000'000);
+    auto fee = u256(gas) * params.operatorFeeScalar / u256(OPERATOR_FEE_SCALAR_DIVISOR);
     fee += params.operatorFeeConstant;
     return fee;
 }
@@ -126,7 +126,7 @@ u256 operatorCostJovian(uint64_t gas, OpStackFeeParams const& params)
         return 0;
     }
 
-    auto fee = u256(gas) * params.operatorFeeScalar * u256(100);
+    auto fee = u256(gas) * params.operatorFeeScalar * u256(JOVIAN_OPERATOR_FEE_GAS_MULTIPLIER);
     fee += params.operatorFeeConstant;
     return fee;
 }

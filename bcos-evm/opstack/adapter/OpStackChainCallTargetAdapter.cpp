@@ -1,5 +1,5 @@
 #include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
-#include "bcos-evm/eth/core/CallTargetKind.h"
+#include "bcos-evm/eth/core/CallTargetTypes.h"
 #include "bcos-evm/opstack/l1/GasPriceOraclePredeploy.h"
 #include "bcos-evm/opstack/l1/L1BlockPredeploy.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"

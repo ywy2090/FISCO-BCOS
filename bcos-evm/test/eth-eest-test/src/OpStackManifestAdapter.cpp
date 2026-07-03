@@ -196,6 +196,8 @@ task::Task<ExecutionResult> OpStackManifestAdapter::execute(
 
     ExecutionResult result;
     result.status = output.evmcResult.status_code;
+    result.authorizationListPresent =
+        input.authorizationListPresent || !input.authorizations.empty();
     result.gasUsed = gasBefore - output.evmcResult.gas_left;
     if (output.evmcResult.output_data != nullptr && output.evmcResult.output_size > 0)
     {

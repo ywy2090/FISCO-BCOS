@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_gate_matrix)
 
     for (auto const& row : rows)
     {
-        bcos::evm_standard::RevisionConfig cfg{
+        bcos::evm::RevisionConfig cfg{
             .revision = row.revision, .eip2537 = row.eip2537, .eip7212 = row.eip7212};
         auto const addr = precompileAddress(row.lowByte, row.highByte);
         auto const suffix = bcos::evm::precompileSuffix(addr);
@@ -70,8 +70,7 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_gate_matrix)
 
 BOOST_AUTO_TEST_CASE(isActivePrecompile_rejects_non_precompile_address)
 {
-    bcos::evm_standard::RevisionConfig cfg =
-        bcos::evm_standard::revisionConfigFromRevision(EVMC_PRAGUE);
+    bcos::evm::RevisionConfig cfg = bcos::evm::revisionConfigFromRevision(EVMC_PRAGUE);
     auto const addr = precompileAddress(0x42);
     BOOST_CHECK(!bcos::evm::precompileSuffix(addr).has_value());
     BOOST_CHECK(!bcos::evm::precompiled::isActivePrecompile(cfg, addr));

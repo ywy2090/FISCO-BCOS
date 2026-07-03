@@ -28,9 +28,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-bcos::evm_standard::RevisionConfig osakaReferenceConfig()
+bcos::evm::RevisionConfig osakaReferenceConfig()
 {
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     cfg.revision = EVMC_OSAKA;
     cfg.eip2929 = true;
     cfg.eip7623 = true;

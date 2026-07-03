@@ -24,9 +24,9 @@ evmc_address addressFromLastByte(uint8_t value)
     return address;
 }
 
-bcos::evm_standard::RevisionConfig london1559Config()
+bcos::evm::RevisionConfig london1559Config()
 {
-    bcos::evm_standard::RevisionConfig cfg{};
+    bcos::evm::RevisionConfig cfg{};
     cfg.revision = EVMC_LONDON;
     cfg.eip1559 = true;
     cfg.eip2929 = true;

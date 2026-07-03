@@ -69,7 +69,7 @@ inline uint8_t inferWeb3TypedTxKindFromFields(bool authorizationListKeyPresent,
 
 /// Reject EIP-2718 typed txs on forks that do not support them.
 inline bool isTypedTxKindSupportedByRevision(
-    uint8_t web3TypedTxKind, bcos::evm_standard::RevisionConfig const& revision) noexcept
+    uint8_t web3TypedTxKind, bcos::evm::RevisionConfig const& revision) noexcept
 {
     switch (web3TypedTxKind)
     {

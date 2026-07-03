@@ -25,8 +25,7 @@ StateTransitionContext makeContext(state::test::InMemoryStateView const& stateVi
     evmc_message message{};
     message.kind = EVMC_CALL;
     message.gas = 100'000;
-    return StateTransitionContext{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(1)};
+    return StateTransitionContext{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(1)};
 }
 
 evmc_address addressFromLastByte(uint8_t value)

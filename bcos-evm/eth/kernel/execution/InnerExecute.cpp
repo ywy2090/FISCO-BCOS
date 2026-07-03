@@ -1,11 +1,36 @@
 /*
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  * @file InnerExecute.cpp
  *
- * Tx-level kernel entry between stateTransitionExecute and runCallFrame:
- *   prepareState → EthHost setup → runCallFrame → nonce bump / state diff
+ * geth: `evm.go` innerExecute — bridges `stateTransitionExecute` and `evm.Call` / CREATE.
+ *
+ * Top-level flow (message.depth == 0):
+ *   1. clear_refund, clear transient storage (EIP-1153)
+ *   2. prepareState — EIP-2929 tx-entry warm (sender, to, coinbase, precompiles, access list)
+ *   3. build evmc_tx_context + EthHost (block hashes, hooks, ChainCallTargetPort)
+ *   4. setupHostExecutionTarget — execution address + EIP-7702 authorization apply
+ *   5. runCallFrame(TopLevel) — precompile fast path or evmone
+ *   6. finalize — precompile-hit vs VM path; top-level sender nonce bump
+ *
+ * Nested flow (EthHost::call, depth > 0): steps 2 and 6 nonce policy differ; no prepareState.
+ *
+ * Journal ownership:
+ *   - Precompile / empty-account hits: frame envelope already commit/revert; innerExecute builds
+ * diff only
+ *   - VM path success: innerExecute commit + finalize_self_destructs at top level
  */
 
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
@@ -24,16 +49,13 @@ namespace bcos::evm
 {
 namespace
 {
-bool isCreateKind(evmc_call_kind kind) noexcept
-{
-    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
 
+/// Map evmc_message fields into `state::Transaction` for prepareState (CALL to / CREATE omit to).
 state::Transaction toStateTransaction(const evmc_message& message)
 {
     state::Transaction transaction;
     transaction.from = message.sender;
-    if (!isCreateKind(message.kind))
+    if (message.kind != EVMC_CREATE && message.kind != EVMC_CREATE2)
     {
         auto to = message.code_address;
         if (state::isZeroAddress(to))
@@ -48,6 +70,7 @@ state::Transaction toStateTransaction(const evmc_message& message)
     return transaction;
 }
 
+/// Block + tx header fields exposed to evmone host callbacks (BLOCKHASH, BASEFEE, …).
 evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message& message)
 {
     evmc_tx_context context{};
@@ -63,10 +86,13 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
     return context;
 }
 
+/// EIP-7702: apply set-code authorizations before first CALL frame (geth: applyAuthorizationList).
+/// Bumps sender nonce here when auth list present; `bumpTopLevelSenderNonce` skips duplicate bump.
+/// Warms delegation target under EIP-2929 when enabled.
 void apply7702TxAuthorizationsIfNeeded(
     state::State& state, InnerExecuteInput const& input, evmc_address const& codeAddress)
 {
-    if (isCreateKind(input.message.kind))
+    if (input.message.kind == EVMC_CREATE || input.message.kind == EVMC_CREATE2)
     {
         return;
     }
@@ -102,6 +128,7 @@ void logEntry(InnerExecuteInput const& input)
                    << LOG_KV("code", trace::evmcAddress(input.message.code_address));
 }
 
+/// Tx-entry setup: EIP-1153 reset (depth 0) + prepareState warm set (geth state.Prepare).
 void prepareTxEntry(state::State& state, InnerExecuteInput const& input)
 {
     if (input.message.depth == 0)
@@ -110,7 +137,7 @@ void prepareTxEntry(state::State& state, InnerExecuteInput const& input)
     }
     auto const transaction = toStateTransaction(input.message);
     std::optional<evmc_address> createCodeAddress;
-    if (isCreateKind(input.message.kind))
+    if (input.message.kind == EVMC_CREATE || input.message.kind == EVMC_CREATE2)
     {
         createCodeAddress = input.message.code_address;
     }
@@ -118,10 +145,12 @@ void prepareTxEntry(state::State& state, InnerExecuteInput const& input)
         input.blockInfo, input.accessList, input.web3TypedTxKind, createCodeAddress);
 }
 
+/// Bind host execution address for CALL/STATICCALL/DELEGATECALL; CREATE skips (frame routing owns
+/// it).
 void setupHostExecutionTarget(
     state::EthHost& host, state::State& state, InnerExecuteInput const& input)
 {
-    if (isCreateKind(input.message.kind))
+    if (input.message.kind == EVMC_CREATE || input.message.kind == EVMC_CREATE2)
     {
         return;
     }
@@ -134,13 +163,17 @@ void setupHostExecutionTarget(
     apply7702TxAuthorizationsIfNeeded(state, input, codeAddress);
 }
 
+/// Top-level sender nonce +1 after successful execution (geth outer nonce bump).
+/// Skipped when EIP-7702 auth list already bumped, or orchestration sets
+/// skipTopLevelSenderNonceBump.
 void bumpTopLevelSenderNonce(state::State& state, InnerExecuteInput const& input)
 {
     if (input.message.depth != 0 || state::isZeroAddress(input.message.sender))
     {
         return;
     }
-    bool const authPrebumped = !isCreateKind(input.message.kind) && input.revisionConfig.eip7702 &&
+    bool const authPrebumped = input.message.kind != EVMC_CREATE &&
+                               input.message.kind != EVMC_CREATE2 && input.revisionConfig.eip7702 &&
                                input.authorizationListPresent && !input.authorizations.empty();
     if (authPrebumped || input.skipTopLevelSenderNonceBump)
     {
@@ -149,13 +182,14 @@ void bumpTopLevelSenderNonce(state::State& state, InnerExecuteInput const& input
     state.set_nonce(input.message.sender, state.get_nonce(input.message.sender) + 1);
 }
 
-InnerExecuteOutput finalizePrecompileHit(state::State& state, InnerExecuteInput const& input,
+/// Precompile / empty-account fast path: envelope already finalized journal inside runCallFrame.
+InnerExecuteOutput finalizeEnvelopeFrame(state::State& state, InnerExecuteInput const& input,
     execution::FrameResult&& fr, state::EthHost& host)
 {
     InnerExecuteOutput output;
     output.result = std::move(fr.result);
     output.logs = host.take_logs();
-    EVM_LOG(TRACE) << LOG_DESC("innerExecute precompile")
+    EVM_LOG(TRACE) << LOG_DESC("innerExecute envelope")
                    << LOG_KV("status", trace::evmcStatus(output.result.status_code))
                    << LOG_KV("gasLeft", output.result.gas_left);
     output.gasRefund = fr.gasRefund;
@@ -164,6 +198,7 @@ InnerExecuteOutput finalizePrecompileHit(state::State& state, InnerExecuteInput 
     return output;
 }
 
+/// Normal VM / CREATE path: commit journal on success, always emit diff for outer pipeline.
 InnerExecuteOutput finalizeAfterFrame(state::State& state, InnerExecuteInput const& input,
     execution::FrameResult&& fr, state::EthHost& host)
 {
@@ -236,9 +271,9 @@ InnerExecuteOutput innerExecute(InnerExecuteInput input)
         input.message.depth == 0 ? execution::FrameScope::TopLevel : execution::FrameScope::Nested;
     auto fr = execution::runCallFrame(frameCtx, input.message, scope, host);
 
-    if (fr.precompileHit)
+    if (fr.envelopeComplete)
     {
-        return finalizePrecompileHit(state, input, std::move(fr), host);
+        return finalizeEnvelopeFrame(state, input, std::move(fr), host);
     }
     return finalizeAfterFrame(state, input, std::move(fr), host);
 }

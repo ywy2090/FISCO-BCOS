@@ -724,6 +724,12 @@ target_include_directories(OpStack7702ExecutePropagationTest PRIVATE
 target_link_libraries(OpStack7702ExecutePropagationTest PRIVATE
     bcos-evm-op bcos-task evmone::evmone)
 add_test(NAME OpStack7702ExecutePropagation COMMAND OpStack7702ExecutePropagationTest)
+add_executable(OpStack7702RevertIncludedTest opstack/OpStack7702RevertIncludedTest.cpp)
+target_include_directories(OpStack7702RevertIncludedTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(OpStack7702RevertIncludedTest PRIVATE
+    bcos-evm-op bcos-task bcos-protocol evmone::evmone)
+add_test(NAME OpStack7702RevertIncluded COMMAND OpStack7702RevertIncludedTest)
 add_executable(OpStack67802537KernelSmokeTest opstack/OpStack67802537KernelSmokeTest.cpp)
 target_include_directories(OpStack67802537KernelSmokeTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

@@ -44,5 +44,5 @@ struct TransactionReceipt
 
 TransactionReceipt transition(const StateView& state_view, const BlockInfo& block,
     const BlockHashes& block_hashes, const Transaction& tx, evmc_revision rev, evmc::VM& vm,
-    const TransactionProperties& tx_props, EvmHostHooks* ext = nullptr);
+    bool isStatic = false, EvmHostHooks* ext = nullptr);
 }  // namespace bcos::evm::state

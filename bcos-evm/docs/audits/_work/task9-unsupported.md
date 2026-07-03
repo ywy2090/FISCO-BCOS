@@ -88,7 +88,7 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | 检查项 | 期望 | 证据 | 判定 |
 |--------|------|------|------|
 | Isthmus helper | **`true`** | `RevisionConfig.h:66`；`assertIsthmusHelperProfile` | ✅ |
-| TE 消费者 | `EthHost`、`warmTransactionEntry` | `eip2929=true` 时 full 2929 | ✅ |
+| TE 消费者 | `EthHost`、`prepareState` | `eip2929=true` 时 full 2929 | ✅ |
 | 与 Task 8 张力 | 初审计 false 导致 2929 弱化 | **OP-09b 已闭合** | ✅ |
 
 **Part 1 状态：** ✅ — Isthmus 显式启用；与 EthChainPolicy Berlin+ 一致。
@@ -112,7 +112,7 @@ grep -rn "eip7212\|eip7823\|BALANCE_TRANSFER\|prague_post" bcos-evm/opstack/
 | 检查项 | 期望 | 证据 | 判定 |
 |--------|------|------|------|
 | Isthmus helper 未设 | `false` | 稀疏 profile | ✅ |
-| coinbase warm 实际路径 | `txProps.warmCoinbase` + `eip2929=true` | `WarmTransactionEntry.h:67-70` | ✅ |
+| coinbase warm 实际路径 | `txProps.warmCoinbase` + `eip2929=true` | `PrepareState.h:67-70` | ✅ |
 
 **Part 1 状态：** ✅ — coinbase warm 不经 `eip3651` flag；`eip2929` 已启用。
 

@@ -43,22 +43,22 @@
 
 - `ExecuteViaEth.cpp:57–58` 调用 `setWarmDestinationFromKind(txProps, message.kind)`。
 - `TxFeaturePrepare.h:13–16`：`CREATE`/`CREATE2` → `warmDestination=false`；其余 kind → `true`。
-- `WarmTransactionEntry.h:62–65`：`props.warmDestination && tx.to` 时 `warm_up_address_no_journal(*tx.to)`。
+- `PrepareState.h:62–65`：`props.warmDestination && tx.to` 时 `warm_up_address_no_journal(*tx.to)`。
 - geth `statedb.Prepare`（`statedb.go:1416–1419`）：`dst != nil` 时 warm；create-tx 不设 dst → 不 warm。一致。
 
-**测试：** `WarmTransactionEntryTest`（sender/to/coinbase warm）、`TxFeaturePrepareTest`（create vs call）。
+**测试：** `PrepareStateTest`（sender/to/coinbase warm）、`TxFeaturePrepareTest`（create vs call）。
 
 ### coinbase warm (#3, EIP-3651)
 
 - `TransactionProperties::warmCoinbase{true}` 默认（`Transaction.hpp:44`）；`ExecuteViaEth` 不显式赋值，依赖 implicit-default（ADR-002 / capability-matrix footnote）。
-- `WarmTransactionEntry.h:67–70`：`props.warmCoinbase && rev >= EVMC_SHANGHAI` → warm coinbase。
+- `PrepareState.h:67–70`：`props.warmCoinbase && rev >= EVMC_SHANGHAI` → warm coinbase。
 - geth `Prepare`（`statedb.go:1430–1432`）：`rules.IsShanghai` → warm coinbase。一致。
 
-**测试：** `WarmTransactionEntryTest::warms_sender_to_and_coinbase_for_call_transaction` 在 `EVMC_SHANGHAI` 断言 coinbase warm。
+**测试：** `PrepareStateTest::warms_sender_to_and_coinbase_for_call_transaction` 在 `EVMC_SHANGHAI` 断言 coinbase warm。
 
 ### active precompile warm（tx-entry 子集）
 
-- `WarmTransactionEntry.h:77–82`：`rev >= EVMC_BERLIN` 时对 `forEachActivePrecompileAddress(rev, …)` 全部 warm。
+- `PrepareState.h:77–82`：`rev >= EVMC_BERLIN` 时对 `forEachActivePrecompileAddress(rev, …)` 全部 warm。
 - `Eip2929PrecompileWarm.h`：1–9 恒活；CANCUN+ 加 0x0a；PRAGUE+ 加 0x0b–0x11；OSAKA+ 加 0x0100。
 - geth `Prepare` 传入 `vm.ActivePrecompiles(rules)` — 分叉阶梯一致（Cancun 无 0x0b–0x11；Prague 有）。
 
@@ -100,7 +100,7 @@
 
 ```bash
 ./bcos-evm/test/ExecuteViaEthFixtureTest   # PASS，含 stPrecompile_ecrecover/sha256/identity
-./bcos-evm/test/WarmTransactionEntryTest   # PASS
+./bcos-evm/test/PrepareStateTest   # PASS
 ./bcos-evm/test/Eip2929AccessHostTest      # PASS
 ```
 

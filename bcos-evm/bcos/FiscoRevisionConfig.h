@@ -7,7 +7,7 @@ namespace bcos::chain_policy
 
 struct FiscoRevisionConfig
 {
-    bcos::evm_standard::RevisionConfig ethConfig{};
+    bcos::evm::RevisionConfig ethConfig{};
 
     // FISCO-specific bugfix toggles.
     bool fix_storage_status : 1 = false;
@@ -26,8 +26,8 @@ struct FiscoRevisionConfig
     bool enable_auth_check : 1 = false;
     bool feature_evm_address : 1 = false;
 
-    bcos::evm_standard::RevisionConfig& eth() noexcept { return ethConfig; }
-    const bcos::evm_standard::RevisionConfig& eth() const noexcept { return ethConfig; }
+    bcos::evm::RevisionConfig& eth() noexcept { return ethConfig; }
+    const bcos::evm::RevisionConfig& eth() const noexcept { return ethConfig; }
 };
 
 }  // namespace bcos::chain_policy

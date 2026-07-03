@@ -38,8 +38,7 @@ BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_maps_to_out_of_gas_limit)
     evmc_message message{};
     message.gas = 5'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
@@ -58,8 +57,7 @@ BOOST_AUTO_TEST_CASE(eth_intrinsic_gas_failure_ignores_failure_kind)
     evmc_message message{};
     message.gas = 5'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::CalldataOutOfGas);
@@ -76,8 +74,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_generic_exception)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     EthStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::PrecompiledError{});
@@ -97,8 +94,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_non_out_of_gas_bcos_exception)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     EthStateTransitionErrorPolicy errorPolicy;
     BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::GasOverflow{}));
@@ -118,8 +114,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_runtime_error_currently_propagates)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     EthStateTransitionErrorPolicy errorPolicy;
     bool caught = false;
@@ -141,8 +136,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_handler_does_not_rethrow)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     EthStateTransitionErrorPolicy errorPolicy;
     BOOST_REQUIRE_NO_THROW(invokePipelineException(errorPolicy, ctx, protocol::PrecompiledError{}));
@@ -165,8 +159,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_without_checkpoint_leaves_state)
     message.sender = sender;
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
     ctx.state.set_balance(sender, 250);
     BOOST_CHECK(!ctx.state.has_checkpoint());
 
@@ -183,8 +176,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_complete_is_noop)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -204,8 +196,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_maps_out_of_gas)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     EthStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
@@ -231,8 +222,7 @@ BOOST_AUTO_TEST_CASE(eth_pipeline_exception_reverts_open_checkpoint)
     message.sender = sender;
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     ctx.state.checkpoint();
     ctx.state.set_balance(sender, 100);
@@ -253,8 +243,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_included_top_level_vmerr)
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_INVALID_INSTRUCTION;
@@ -276,8 +265,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_skips_nested_vmerr_normalization)
     evmc_message message{};
     message.depth = 1;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_INVALID_INSTRUCTION;
@@ -297,8 +285,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_set_code_revert_at_top_level)
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
     ctx.inputs.authorizationListPresent = true;
 
     evmc_result raw{};
@@ -321,8 +308,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_top_level_revert_without_auth_list)
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
     ctx.inputs.authorizationListPresent = false;
 
     evmc_result raw{};
@@ -346,8 +332,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_leaves_success_unchanged)
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -370,8 +355,7 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_insufficient_balance_at_top_level)
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_INSUFFICIENT_BALANCE;

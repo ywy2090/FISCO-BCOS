@@ -204,8 +204,6 @@ std::vector<bcos::evm::SetCodeAuthorization> parseAuthorizationList(pt::ptree co
 /// Parse EIP-2930 access list from transaction tree (first variant only for state tests).
 bcos::evm::Eip2930AccessList parseAccessList(pt::ptree const& txTree)
 {
-    using bcos::h160;
-    using bcos::h256;
     using bcos::evm::state::fromEvmC;
 
     bcos::evm::Eip2930AccessList accessList;
@@ -240,9 +238,9 @@ bcos::evm::Eip2930AccessList parseAccessList(pt::ptree const& txTree)
 }
 
 /// Parse blob versioned hashes from transaction tree.
-std::vector<bcos::h256> parseBlobVersionedHashes(pt::ptree const& txTree)
+std::vector<h256> parseBlobVersionedHashes(pt::ptree const& txTree)
 {
-    using bcos::h256;
+    namespace pt = boost::property_tree;
     using bcos::evm::state::fromEvmC;
 
     std::vector<h256> hashes;
@@ -516,9 +514,9 @@ evmc_revision revisionFromForkName(std::string const& forkName)
     return EVMC_OSAKA;
 }
 
-bcos::evm_standard::RevisionConfig revisionConfigFromForkName(std::string const& forkName)
+bcos::evm::RevisionConfig revisionConfigFromForkName(std::string const& forkName)
 {
-    return bcos::evm_standard::revisionConfigFromRevision(revisionFromForkName(forkName));
+    return bcos::evm::revisionConfigFromRevision(revisionFromForkName(forkName));
 }
 
 }  // namespace bcos::eest::opstack

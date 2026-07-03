@@ -27,9 +27,9 @@
 namespace bcos::evm::test::fixtures
 {
 
-inline bcos::evm_standard::RevisionConfig makePragueRevisionConfig()
+inline bcos::evm::RevisionConfig makePragueRevisionConfig()
 {
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     cfg.revision = EVMC_PRAGUE;
     cfg.eip2929 = true;
     cfg.eip1153 = true;
@@ -53,7 +53,7 @@ inline EthMessageRequest buildEthMessageRequest(FixtureCase const& fixture,
 
     evmc_message msg{};
     msg.kind = fixture.tx.to.has_value() ? EVMC_CALL : EVMC_CREATE;
-    msg.flags = fixture.txProps.isStatic ? EVMC_STATIC : 0;
+    msg.flags = fixture.isStatic ? EVMC_STATIC : 0;
     msg.depth = 0;
     msg.gas = fixture.tx.gasLimit;
     msg.sender = fixture.tx.from;

@@ -2,7 +2,7 @@
 
 #include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/core/CallTargetKind.h"
+#include "bcos-evm/eth/core/CallTargetTypes.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(enumerate_static_warm_targets)
     BOOST_CHECK(contains(OP_L1_BLOCK_PREDEPLOY));
     BOOST_CHECK(contains(OP_GAS_PRICE_ORACLE_PREDEPLOY));
 
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN};
     std::set<uint8_t> builtinLowBytes;
     execution::enumerateTxEntryWarmTargets(cfg, &adapter, [&](evmc_address const& a) {
         if (a.bytes[0] == 0 && a.bytes[18] == 0 && a.bytes[17] == 0)

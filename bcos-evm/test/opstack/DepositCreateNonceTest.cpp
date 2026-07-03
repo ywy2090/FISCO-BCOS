@@ -101,7 +101,6 @@ OpStackMessageRequest makeCreateDepositInput(state::test::InMemoryStateView& sta
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 1;
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.txProps.warmDestination = true;
     input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
     input.depositTx = OpStackDepositTx{
         .from = sender, .to = std::nullopt, .value = 0, .gas = gasLimit, .data = initCode};

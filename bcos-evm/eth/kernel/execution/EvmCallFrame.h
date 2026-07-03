@@ -70,12 +70,12 @@ struct CallFrameContext
     {}
 };
 
-/// Outcome of runCallFrame; precompileHit skips post-execute host bookkeeping in the runner.
+/// Outcome of runCallFrame; envelopeComplete skips post-execute host bookkeeping in the runner.
 struct FrameResult
 {
     evmc::Result result{evmc_result{}};
     int64_t gasRefund{0};
-    bool precompileHit{false};
+    bool envelopeComplete{false};
 };
 
 /// Run one CALL/CREATE/DELEGATECALL frame. scope selects TopLevel vs Nested semantics.

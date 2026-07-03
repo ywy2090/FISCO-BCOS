@@ -167,8 +167,8 @@ bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatch
                 ++executed;
                 if (!report.passed)
                 {
-                    std::cerr << "FAIL " << entry.evidenceId << " fork=" << subtest.fork << ": "
-                              << report.message << '\n';
+                    std::cerr << "FAIL " << entry.evidenceId << " fork=" << subtest.fork
+                              << " case=" << testCase.name << ": " << report.message << '\n';
                     ++failures;
                 }
                 else

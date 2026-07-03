@@ -300,7 +300,7 @@ geth `ErrInsufficientFunds` → reject；bcos `NotEnoughCash`，扣 `min(balance
 
 **风险等级**: 🟢
 
-sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐 `WarmTransactionEntry.h`。
+sender / recipient / precompiles / access list / coinbase（EIP-3651）均对齐 `PrepareState.h`。
 
 ---
 

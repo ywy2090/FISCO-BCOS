@@ -11,7 +11,7 @@
 #include <vector>
 
 using namespace bcos;
-using namespace bcos::evm_standard;
+using namespace bcos::evm;
 
 namespace
 {
@@ -24,28 +24,28 @@ bcostars::protocol::BlockHeaderImpl makeHeader(int64_t number, uint32_t version)
     return header;
 }
 
-struct ExpectedRevisionConfig
-{
-    evmc_revision revision = EVMC_CANCUN;
-#define REVISION_CONFIG_FIELD(name) bool name = false;
-    REVISION_CONFIG_BOOL_FIELDS(REVISION_CONFIG_FIELD)
-#undef REVISION_CONFIG_FIELD
-    uint8_t calldata_floor_per_token = 0;
-};
-
 inline void assertRevisionConfigMatches(
-    bcos::evm_standard::RevisionConfig const& actual, ExpectedRevisionConfig const& expected)
+    bcos::evm::RevisionConfig const& actual, RevisionConfig const& expected)
 {
     BOOST_CHECK_EQUAL(actual.revision, expected.revision);
-#define REVISION_CONFIG_ASSERT(name) BOOST_CHECK_EQUAL(actual.name, expected.name);
-    REVISION_CONFIG_BOOL_FIELDS(REVISION_CONFIG_ASSERT)
-#undef REVISION_CONFIG_ASSERT
+    BOOST_CHECK_EQUAL(actual.eip2929, expected.eip2929);
+    BOOST_CHECK_EQUAL(actual.eip2537, expected.eip2537);
+    BOOST_CHECK_EQUAL(actual.eip7212, expected.eip7212);
+    BOOST_CHECK_EQUAL(actual.eip7623, expected.eip7623);
+    BOOST_CHECK_EQUAL(actual.eip7823, expected.eip7823);
+    BOOST_CHECK_EQUAL(actual.eip1153, expected.eip1153);
+    BOOST_CHECK_EQUAL(actual.eip4844, expected.eip4844);
+    BOOST_CHECK_EQUAL(actual.eip5656, expected.eip5656);
+    BOOST_CHECK_EQUAL(actual.eip6780, expected.eip6780);
+    BOOST_CHECK_EQUAL(actual.eip1559, expected.eip1559);
+    BOOST_CHECK_EQUAL(actual.eip3651, expected.eip3651);
+    BOOST_CHECK_EQUAL(actual.eip7702, expected.eip7702);
     BOOST_CHECK_EQUAL(actual.calldata_floor_per_token, expected.calldata_floor_per_token);
 }
 
-inline void assertIsthmusHelperProfile(bcos::evm_standard::RevisionConfig const& actual)
+inline void assertIsthmusHelperProfile(bcos::evm::RevisionConfig const& actual)
 {
-    ExpectedRevisionConfig expected{};
+    RevisionConfig expected{};
     expected.revision = EVMC_PRAGUE;
     expected.eip2929 = true;
     expected.eip2537 = true;
@@ -64,7 +64,7 @@ inline void assertIsthmusHelperProfile(bcos::evm_standard::RevisionConfig const&
 
 BOOST_AUTO_TEST_SUITE(RevisionConfigProfileTest)
 
-BOOST_AUTO_TEST_CASE(revision_config_bool_field_macro_count)
+BOOST_AUTO_TEST_CASE(revision_config_bool_field_count)
 {
     BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 12U);
 }
@@ -74,13 +74,22 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
     struct Row
     {
         evmc_revision revision;
-        ExpectedRevisionConfig expected;
+        RevisionConfig expected;
     };
     std::vector<Row> const rows = {
-        {EVMC_LONDON, {.revision = EVMC_LONDON, .eip2929 = true, .eip1559 = true}},
-        {EVMC_PARIS, {.revision = EVMC_PARIS, .eip2929 = true, .eip1559 = true}},
-        {EVMC_SHANGHAI,
-            {.revision = EVMC_SHANGHAI, .eip2929 = true, .eip1559 = true, .eip3651 = true}},
+        {EVMC_LONDON, {.revision = EVMC_LONDON,
+                          .eip2929 = true,
+                          .eip1559 = true,
+                          .calldata_floor_per_token = 0}},
+        {EVMC_PARIS, {.revision = EVMC_PARIS,
+                         .eip2929 = true,
+                         .eip1559 = true,
+                         .calldata_floor_per_token = 0}},
+        {EVMC_SHANGHAI, {.revision = EVMC_SHANGHAI,
+                            .eip2929 = true,
+                            .eip1559 = true,
+                            .eip3651 = true,
+                            .calldata_floor_per_token = 0}},
         {EVMC_CANCUN, {.revision = EVMC_CANCUN,
                           .eip2929 = true,
                           .eip1153 = true,
@@ -88,7 +97,8 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                           .eip5656 = true,
                           .eip6780 = true,
                           .eip1559 = true,
-                          .eip3651 = true}},
+                          .eip3651 = true,
+                          .calldata_floor_per_token = 0}},
         {EVMC_PRAGUE, {.revision = EVMC_PRAGUE,
                           .eip2929 = true,
                           .eip2537 = true,
@@ -173,12 +183,18 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
     struct Row
     {
         int64_t block;
-        ExpectedRevisionConfig expected;
+        RevisionConfig expected;
     };
     std::vector<Row> const rows = {
-        {15'537'394, {.revision = EVMC_PARIS, .eip2929 = true, .eip1559 = true}},
-        {17'034'870,
-            {.revision = EVMC_SHANGHAI, .eip2929 = true, .eip1559 = true, .eip3651 = true}},
+        {15'537'394, {.revision = EVMC_PARIS,
+                         .eip2929 = true,
+                         .eip1559 = true,
+                         .calldata_floor_per_token = 0}},
+        {17'034'870, {.revision = EVMC_SHANGHAI,
+                         .eip2929 = true,
+                         .eip1559 = true,
+                         .eip3651 = true,
+                         .calldata_floor_per_token = 0}},
         {19'426'587, {.revision = EVMC_CANCUN,
                          .eip2929 = true,
                          .eip1153 = true,
@@ -186,7 +202,8 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip5656 = true,
                          .eip6780 = true,
                          .eip1559 = true,
-                         .eip3651 = true}},
+                         .eip3651 = true,
+                         .calldata_floor_per_token = 0}},
         {22'000'000, {.revision = EVMC_PRAGUE,
                          .eip2929 = true,
                          .eip2537 = true,
@@ -231,7 +248,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
     struct Row
     {
         std::function<void(ledger::Features&)> setup;
-        ExpectedRevisionConfig expected;
+        RevisionConfig expected;
     };
     std::vector<Row> const rows = {
         {[&](ledger::Features& f) {
@@ -245,7 +262,8 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip5656 = true,
                 .eip6780 = true,
                 .eip1559 = true,
-                .eip3651 = true}},
+                .eip3651 = true,
+                .calldata_floor_per_token = 0}},
         {[&](ledger::Features& f) {
              f.set(Flag::feature_evm_cancun);
              f.set(Flag::feature_evm_prague);
@@ -290,7 +308,8 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                                                    .eip5656 = true,
                                                    .eip6780 = true,
                                                    .eip1559 = true,
-                                                   .eip3651 = true}},
+                                                   .eip3651 = true,
+                                                   .calldata_floor_per_token = 0}},
     };
     for (auto const& row : rows)
     {

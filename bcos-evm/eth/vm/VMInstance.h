@@ -26,8 +26,12 @@
 #include <bcos-utilities/Common.h>
 #include <compare>
 #include <evmc/evmc.hpp>
-#include <evmone/baseline.hpp>
 #include <memory>
+
+namespace evmone::baseline
+{
+class CodeAnalysis;
+}
 
 namespace bcos::evm
 {

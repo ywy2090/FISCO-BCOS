@@ -39,7 +39,6 @@
 | `kernel/execution/FrameBytecode.*` | 帧 bytecode 加载（CREATE initcode / 7702 delegate） |
 | `kernel/execution/CreateAddress.*` | CREATE / CREATE2 地址预测 |
 | `kernel/execution/CreateDeployment.h` | CREATE 生命周期（assign / touch / code deposit） |
-| `kernel/CallKind.h` | `isCreateKind` 等 EVMC call-kind 谓词（pipeline / execution 共用） |
 | `kernel/FrameScope.h` | `TopLevel` / `Nested` 帧作用域 |
 | `kernel/EVMCResult.*` | EVMC ↔ `TransactionStatus` 桥接（`adoptEvmcResult`） |
 | `RevisionConfig.h` | EIP 开关位域（`eth/` 根） |

@@ -26,10 +26,10 @@ bytes modexpHeaderBaseLen1025()
     return input;
 }
 
-bcos::evm_standard::RevisionConfig osakaRev(bool fixErrorHandling = true)
+bcos::evm::RevisionConfig osakaRev(bool fixErrorHandling = true)
 {
     (void)fixErrorHandling;
-    bcos::evm_standard::RevisionConfig rev{.revision = EVMC_OSAKA, .eip7823 = true};
+    bcos::evm::RevisionConfig rev{.revision = EVMC_OSAKA, .eip7823 = true};
     return rev;
 }
 }  // namespace

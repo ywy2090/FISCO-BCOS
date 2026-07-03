@@ -6,7 +6,6 @@
 
 #include "PrecompileRouter.h"
 #include "bcos-evm/eth/core/ChainCallTargetPort.h"
-#include "bcos-evm/eth/kernel/CallKind.h"
 #include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
@@ -51,7 +50,7 @@ std::optional<evmc::Result> tryEnvelopeValueTransfer(state::State& state,
     evmc_message const& message, evmc_address const& target, bool skipValueTransfer)
 {
     if (state::isZeroBytes32(message.value) || skipValueTransfer ||
-        execution::isValueTransferSkippedKind(message.kind))
+        message.kind == EVMC_DELEGATECALL || message.kind == EVMC_CALLCODE)
     {
         return std::nullopt;
     }

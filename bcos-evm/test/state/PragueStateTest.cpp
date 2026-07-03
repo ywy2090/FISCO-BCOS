@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(prague_minimal_vectors_gate)
             evmc::VM vm{evmc_create_evmone()};
 
             auto const receipt = transition(view, fixture.block, blockHashes, fixture.tx,
-                EVMC_PRAGUE, vm, fixture.txProps, nullptr);
+                EVMC_PRAGUE, vm, fixture.isStatic, nullptr);
 
             BOOST_CHECK_EQUAL(
                 static_cast<int>(receipt.status), static_cast<int>(fixture.expected.status));

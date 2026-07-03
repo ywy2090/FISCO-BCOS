@@ -30,7 +30,7 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
   → opStackExecuteViaHost()
        → isIsthmusOrchestrationProfile → m_isIsthmus=true
        → executeMessage(..., revisionConfig, txProps, authorizations)
-            → warmTransactionEntry(...)  // revisionConfig.eip2929=true
+            → prepareState(...)  // revisionConfig.eip2929=true
             → EthHost / EthPrecompiles   // 共享 eth/ 内核（P0 已闭合）
 ```
 
@@ -43,8 +43,8 @@ OpStackTransactionExecutorImpl::opStackExecuteViaHostTx()
 | Inv# | 能力 | 层级 | ETH 复审计 | OP 状态 | Spec 依据 | OP FB 实现 | op-geth 对照 | OP FB 测试 | 缺口 |
 |------|------|------|------------|---------|-----------|------------|--------------|------------|------|
 | 1 | EIP-2929 runtime warm | kernel | ✅ | ✅ | [EIP-2929](https://eips.ethereum.org/EIPS/eip-2929) §Cold/warm | `makeIsthmusRevisionConfig` `eip2929=true`（`:66`）；`EthHost::access_account` 读 flag | Berlin ACL via revision | 共享 `Eip2929OpcodeGasTest`；OP Isthmus profile `OpStackTxPropsTest::isthmus_revision_profile_enables_eip2929` | — |
-| 2 | EIP-2929 tx-entry destination warm | tx input | ✅ | ✅ | EIP-2929 tx access | `OpStackTransactionExecutorImpl.h:206` `applyDefaultTxProps`；`WarmTransactionEntry.h:62-65` | `statedb.Prepare` dst warm | `OpStackTxPropsTest`；TE `executor_input_build_applies_warm_destination_for_call` | — |
-| 3 | EIP-2929 tx-entry coinbase warm | tx input | ✅ | ✅ | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | `TransactionProperties::warmCoinbase{true}` + `eip2929=true` | Shanghai coinbase warm | 共享 `WarmTransactionEntryTest`；Isthmus profile 启用 warm | — |
+| 2 | EIP-2929 tx-entry destination warm | tx input | ✅ | ✅ | EIP-2929 tx access | `OpStackTransactionExecutorImpl.h:206` `applyDefaultTxProps`；`PrepareState.h:62-65` | `statedb.Prepare` dst warm | `OpStackTxPropsTest`；TE `executor_input_build_applies_warm_destination_for_call` | — |
+| 3 | EIP-2929 tx-entry coinbase warm | tx input | ✅ | ✅ | [EIP-3651](https://eips.ethereum.org/EIPS/eip-3651) | `TransactionProperties::warmCoinbase{true}` + `eip2929=true` | Shanghai coinbase warm | 共享 `PrepareStateTest`；Isthmus profile 启用 warm | — |
 | 4 | EIP-7702 authorization apply | kernel | ✅ | ✅ | [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) §Set code | `ExecuteMessage.cpp` `applyAuthorizations`；Isthmus `eip7702=true` | `applyAuthorization` (`state_transition.go`) | `Eip7702ApplyAuthorizationTest`；`OpStack7702ExecuteViaHostPropagationTest` | — |
 | 5 | EIP-7702 tx field propagation | tx input | ✅ | ✅ | EIP-7702 type-4 | `OpStackTxInputBuilder.h` `fillWeb3Fields` → `authorizations` | type-4 RLP → `SetCodeAuthorizations` | `OpStackTxInputBuilderTest::decodes_eip7702_authorization_from_extra_bytes` | — |
 | 6 | EIP-7702 revision enable (`eip7702`) | revision profile | ✅ | ✅ | EIP-7702 | `makeIsthmusRevisionConfig()` `eip7702=true`（`:68`） | Isthmus EVM rules | `RevisionConfigProfileTest::isthmus_helper_sparse_profile_all_fields` | 初审计 ETH 🔴 已闭合 |

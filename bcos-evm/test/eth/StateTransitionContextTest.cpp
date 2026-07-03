@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE StateTransitionContextTest
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
@@ -28,8 +29,7 @@ BOOST_AUTO_TEST_CASE(toInnerExecuteInput_projects_context_fields)
     state::test::InMemoryStateView stateView;
     evmc_message message{};
     message.gas = 50'000;
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(3)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(3)};
     evmc::VM vm{evmc_create_evmone()};
     populateContext(ctx, vm);
 
@@ -42,22 +42,21 @@ BOOST_AUTO_TEST_CASE(toInnerExecuteInput_projects_context_fields)
     BOOST_CHECK(input.blockInfo.number == 42);
     BOOST_CHECK(input.revisionConfig.revision == EVMC_CANCUN);
     BOOST_CHECK(input.extension == ctx.extension);
-    BOOST_CHECK(input.chainPort == ctx.chainPort);
+    BOOST_CHECK(input.callTargetPort == ctx.callTargetPort);
 }
 
 BOOST_AUTO_TEST_CASE(wireExecutionEnvironment_sets_vm_and_ports)
 {
     state::test::InMemoryStateView stateView;
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
     evmc::VM vm{evmc_create_evmone()};
 
     ctx.wireExecutionEnvironment(&vm, nullptr, nullptr);
 
     BOOST_CHECK_EQUAL(ctx.inputs.vm, &vm);
     BOOST_CHECK(ctx.extension == nullptr);
-    BOOST_CHECK(ctx.chainPort == nullptr);
+    BOOST_CHECK(ctx.callTargetPort == nullptr);
 }
 
 }  // namespace bcos::evm::test

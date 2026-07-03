@@ -134,7 +134,7 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
         // L2 execution base fee for the current block (wei); same value for both selectors.
         return successWithU256(msg.gas, l2BaseFee);
     case gpo::kDecimals:
-        return successWithU256(msg.gas, 6);
+        return successWithU256(msg.gas, GAS_PRICE_ORACLE_DECIMALS);
     case gpo::kIsEcotone:
     case gpo::kIsFjord:
     case gpo::kIsIsthmus:
@@ -166,9 +166,10 @@ std::optional<evmc_result> GasPriceOraclePredeploy::dispatch(state::State& state
         {
             return makeResult(EVMC_REVERT, msg.gas);
         }
-        auto const fastLzSize = static_cast<uint64_t>(flzCompressLen(*txBytes)) + 68;
-        // op-geth getL1GasUsed: fjordLinearRegression(fastLzSize) * 16 / 1e6
-        auto const gasUsed = fjordLinearRegression(fastLzSize) * 16 / 1'000'000;
+        auto const fastLzSize =
+            static_cast<uint64_t>(flzCompressLen(*txBytes)) + L1_GAS_USED_UNSIGNED_TX_OVERHEAD;
+        auto const gasUsed = fjordLinearRegression(fastLzSize) *
+                             FJORD_L1_FEE_CALLDATA_BYTE_NUMERATOR / ESTIMATED_DA_SIZE_DIVISOR;
         return successWithU256(msg.gas, gasUsed);
     }
     case gpo::kGetOperatorFee:

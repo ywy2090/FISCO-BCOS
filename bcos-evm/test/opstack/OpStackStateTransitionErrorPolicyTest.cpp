@@ -41,8 +41,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_maps_to_out_of_gas_limit)
     evmc_message message{};
     message.gas = 21'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::OpStackIntrinsicOutOfGas);
@@ -61,8 +60,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_ignores_failure_kind)
     evmc_message message{};
     message.gas = 21'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     OpStackStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
@@ -78,8 +76,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_maps_to_internal_error)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     OpStackStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, std::runtime_error{"boom"});
@@ -95,8 +92,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_treats_out_of_gas_like_generic)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     OpStackStateTransitionErrorPolicy errorPolicy;
     invokePipelineException(errorPolicy, ctx, protocol::OutOfGas{});
@@ -121,8 +117,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_exception_reverts_open_checkpoint)
     message.sender = sender;
     message.gas = 100'000;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     ctx.state.checkpoint();
     ctx.state.set_balance(sender, 200);
@@ -143,8 +138,7 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalizes_included_top_level_vmerr)
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_INVALID_INSTRUCTION;
@@ -168,8 +162,7 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_normalizes_stack_overflow_for_settleme
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_STACK_OVERFLOW;
@@ -191,8 +184,7 @@ BOOST_AUTO_TEST_CASE(opstack_post_execute_keeps_top_level_revert_without_auth_li
     evmc_message message{};
     message.depth = 0;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_REVERT;
@@ -211,8 +203,7 @@ BOOST_AUTO_TEST_CASE(opstack_pipeline_complete_is_noop)
     state::test::InMemoryStateView stateView;
 
     evmc_message message{};
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     evmc_result raw{};
     raw.status_code = EVMC_SUCCESS;
@@ -235,8 +226,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
     message.kind = EVMC_CALL;
     message.gas = 1;
 
-    StateTransitionContext ctx{
-        stateView, message, bcos::evm_standard::RevisionConfig{}, bcos::u256(0)};
+    StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
     crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
     ctx.inputs.vm = &vm;

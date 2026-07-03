@@ -33,8 +33,8 @@
 | `eip1153`, `eip5656`, `eip6780` | consumed | evmone via `revision`; `eip6780` also read in `EthHost::selfdestruct` via `cfg.eip6780` (ADR-018) |
 | `eip4844` | consumed | OPStack blob precheck (orchestration); evmone via revision |
 | `eip2537`, `eip7212` | consumed | `PrecompileActive.h` reads `cfg.eip2537` / `cfg.eip7212`; FISCO `PrecompiledManager` also feature-gated |
-| `eip2929` | consumed | `Eip2929Gate.h` → `WarmTransactionEntry`, `EthHost::access_*`, CREATE warm pin, 7702 delegation warm. **Scheme A:** FISCO may mask via `feature_evm_eip2929` while `revision` stays high — intentional **deviation** from geth (Host reports COLD; not pre-Berlin revision). Read only through `isEip2929Enabled()` in `eth/` production code. |
-| `eip3651` | consumed | `warmTransactionEntry` coinbase warm gate (`isCoinbaseWarmEnabled`; ADR-018) |
+| `eip2929` | consumed | `Eip2929Gate.h` → `PrepareState`, `EthHost::access_*`, CREATE warm pin, 7702 delegation warm. **Scheme A:** FISCO may mask via `feature_evm_eip2929` while `revision` stays high — intentional **deviation** from geth (Host reports COLD; not pre-Berlin revision). Read only through `isEip2929Enabled()` in `eth/` production code. |
+| `eip3651` | consumed | `prepareState` coinbase warm gate (`isCoinbaseWarmEnabled`; ADR-018) |
 | `eip1559` | consumed | `Eip1559Gate.h` → typed-tx gate (`Web3TypedTxKind`), fee-cap precheck (`EthTxPrecheck` / `OpStackPrecheckPolicy`), `normalizeGasCaps`, OpStack gas refund |
 | `eip7823` | profile-only until wired | Policy sets at OSAKA; verify consumer before marking consumed |
 

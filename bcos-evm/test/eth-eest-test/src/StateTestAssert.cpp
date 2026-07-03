@@ -26,6 +26,15 @@ std::string formatBytes32(evmc_bytes32 const& value)
     return bcos::toHex(bytes);
 }
 
+/// op-geth D3: included 7702 tx may REVERT while auth state commits; receipt stays failed.
+/// Eth reference normalizes REVERT→SUCCESS (ADR-015); OpStack manifest transitional accepts REVERT.
+bool opStack7702IncludedRevertPasses(ManifestEntry const& entry, ExpectedPostState const& expected,
+    ExecutionResult const& actual) noexcept
+{
+    return entry.path == ExecutionPath::OpStackBaseline && actual.authorizationListPresent &&
+           !expected.expectException.has_value() && actual.status == EVMC_REVERT;
+}
+
 }  // namespace
 
 AssertReport assertResult(ManifestEntry const& entry, ExpectedPostState const& expected,
@@ -48,7 +57,8 @@ AssertReport assertResult(ManifestEntry const& entry, ExpectedPostState const& e
                 return report;
             }
         }
-        else if (actual.status != EVMC_SUCCESS)
+        else if (actual.status != EVMC_SUCCESS &&
+                 !opStack7702IncludedRevertPasses(entry, expected, actual))
         {
             report.passed = false;
             report.message = "Expected success but got status " +
@@ -69,7 +79,8 @@ AssertReport assertResult(ManifestEntry const& entry, ExpectedPostState const& e
                 return report;
             }
         }
-        else if (actual.status != EVMC_SUCCESS)
+        else if (actual.status != EVMC_SUCCESS &&
+                 !opStack7702IncludedRevertPasses(entry, expected, actual))
         {
             report.passed = false;
             report.message = "Expected success but got status " +

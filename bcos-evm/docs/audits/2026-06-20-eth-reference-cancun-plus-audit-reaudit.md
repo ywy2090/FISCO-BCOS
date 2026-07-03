@@ -74,7 +74,7 @@
 
 **P2（1）：** `Eip2929OpcodeGasTest`
 
-**关联仍绿：** `WarmTransactionEntryTest`、`StateJournalRevertTest`（2929 journal）
+**关联仍绿：** `PrepareStateTest`、`StateJournalRevertTest`（2929 journal）
 
 运行路径：`build/bcos-evm/test/<binary>`
 

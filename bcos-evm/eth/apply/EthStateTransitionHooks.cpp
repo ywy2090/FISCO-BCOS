@@ -17,13 +17,19 @@
  */
 
 #include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
+#include "bcos-evm/eth/Web3TypedTxKind.h"
+#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/apply/EthEvmResult.h"
-#include "bcos-evm/eth/apply/EthFeeInputsMapping.h"
-#include "bcos-evm/eth/apply/EthTxPrecheck.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
+#include "bcos-evm/eth/eip/Eip1559Gate.h"
+#include "bcos-evm/eth/eip/Eip3860.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
+#include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include <evmc/evmc.h>
+#include <limits>
 
 namespace bcos::evm
 {
@@ -47,9 +53,68 @@ EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input)
 
 void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
 {
-    if (auto preCheckError = ethTxPrecheck(m_input, ctx.state))
+    // EIP-2681: account nonce cannot exceed uint64 max; reject txs that cannot be incremented.
+    if (m_input.txNonce == std::numeric_limits<uint64_t>::max())
     {
-        ctx.evmcResult = std::move(*preCheckError);
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::NonceCheckFail);
+        ctx.earlyExit = true;
+        return;
+    }
+
+    auto const senderCode = ctx.state.get_code(m_input.message.sender);
+    if (!senderCode.empty() &&
+        !parseDelegationTarget(bcos::bytesConstRef{senderCode.data(), senderCode.size()})
+             .has_value())
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+        ctx.earlyExit = true;
+        return;
+    }
+
+    if (gas::isEip1559FeeMarketActive(m_input.revisionConfig))
+    {
+        if (m_input.gasFeeCap < m_input.gasTipCap || m_input.gasFeeCap < m_input.blockInfo.baseFee)
+        {
+            ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+            ctx.earlyExit = true;
+            return;
+        }
+    }
+
+    if (m_input.authorizationListPresent && m_input.authorizations.empty())
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+        ctx.earlyExit = true;
+        return;
+    }
+
+    if (!m_input.authorizations.empty() &&
+        (m_input.message.kind == EVMC_CREATE || m_input.message.kind == EVMC_CREATE2))
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+        ctx.earlyExit = true;
+        return;
+    }
+
+    if (m_input.web3TypedTxKind == 0x04 &&
+        (m_input.message.kind == EVMC_CREATE || m_input.message.kind == EVMC_CREATE2))
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+        ctx.earlyExit = true;
+        return;
+    }
+
+    if (!isTypedTxKindSupportedByRevision(m_input.web3TypedTxKind, m_input.revisionConfig))
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+        ctx.earlyExit = true;
+        return;
+    }
+
+    if (isInitCodeSizeExceeded(m_input.revisionConfig.revision, m_input.message.kind,
+            static_cast<size_t>(m_input.message.input_size)))
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
         ctx.earlyExit = true;
         return;
     }
@@ -57,7 +122,11 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
     if (gas::isEip1559GasCapsTx(
             m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps, m_input.revisionConfig))
     {
-        auto const plan = gas::planPreExecution(gas::toFeeInputs(m_input, ctx.originalGasLimit));
+        auto const plan =
+            gas::planPreExecution(gas::toFeeInputs(m_input.revisionConfig, m_input.blockInfo,
+                gas::FeeCapsView{m_input.gasPrice, m_input.gasTipCap, m_input.gasFeeCap,
+                    m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps},
+                ctx.originalGasLimit));
         ctx.gasPrice = plan.effectiveGasPrice;
     }
 }

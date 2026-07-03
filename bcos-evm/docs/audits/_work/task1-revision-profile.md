@@ -43,7 +43,7 @@ cd build && ./bcos-evm/test/RevisionConfigProfileTest --log_level=test_suite
 
 | 字段 | EthChainPolicy 赋值 | TE consumer（`bcos-evm/eth/`） | ADR-004 分类 |
 |------|---------------|-------------------------------|-------------|
-| `eip2929` | `>= BERLIN` → true | `ExecuteMessage.cpp:140,147,177` 传入 `warmTransactionEntry` / `EthHost` | profile-only（语义门控为 revision；flag 仍被读取） |
+| `eip2929` | `>= BERLIN` → true | `ExecuteMessage.cpp:140,147,177` 传入 `prepareState` / `EthHost` | profile-only（语义门控为 revision；flag 仍被读取） |
 | `eip1559` | 未赋值 | **无** grep 命中 | profile-only |
 | `eip3651` | 未赋值 | **无** grep 命中 | profile-only |
 | `prague_post_execution` | 未赋值 | **无** grep 命中 | profile-only |

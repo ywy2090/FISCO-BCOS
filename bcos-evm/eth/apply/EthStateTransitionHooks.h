@@ -18,11 +18,12 @@
 
 #pragma once
 
-#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
 
 namespace bcos::evm
 {
+
+struct EthMessageRequest;
 
 struct EthStateTransitionHooks : StateTransitionHooks
 {

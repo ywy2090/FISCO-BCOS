@@ -36,13 +36,12 @@ InnerExecuteInput StateTransitionContext::toInnerExecuteInput() const
     input.blockInfo = inputs.blockInfo;
     input.blockHashes = inputs.blockHashes;
     input.revisionConfig = revisionConfig;
-    input.txProps = txProps;
     input.accessList = inputs.accessList;
     input.authorizationListPresent = inputs.authorizationListPresent;
     input.authorizations = inputs.authorizations;
     input.web3TypedTxKind = inputs.web3TypedTxKind;
     input.extension = extension;
-    input.chainPort = chainPort;
+    input.callTargetPort = callTargetPort;
     return input;
 }
 

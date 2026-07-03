@@ -74,7 +74,7 @@ struct FixtureCase
     std::string revision;
     state::Transaction tx;
     state::BlockInfo block;
-    state::TransactionProperties txProps;
+    bool isStatic{false};
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
     std::vector<std::pair<evmc_address, state::Account>> preState;
@@ -270,9 +270,7 @@ inline FixtureCase loadFixture(std::filesystem::path const& path)
         }
     }
 
-    fixture.txProps.warmCoinbase = tree.get<bool>("tx_props.warm_coinbase", true);
-    fixture.txProps.warmDestination = tree.get<bool>("tx_props.warm_destination", true);
-    fixture.txProps.isStatic = tree.get<bool>("tx_props.is_static", false);
+    fixture.isStatic = tree.get<bool>("tx_props.is_static", false);
 
     fixture.block = parseBlock(tree.get_child("block"));
 

@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
 #include "helpers/InMemoryStateView.h"

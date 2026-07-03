@@ -33,11 +33,6 @@ struct NotFoundCodeError : public std::runtime_error
     NotFoundCodeError() : std::runtime_error("code not found") {}
 };
 
-inline bool isCreateKind(evmc_call_kind kind) noexcept
-{
-    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
-}
-
 namespace detail
 {
 inline bool hasNonZeroValue(evmc_bytes32 const& value)
@@ -67,7 +62,7 @@ inline void maybeTransferValue(
     }
 
     // CREATE/CREATE2 endowment is applied by the EVM kernel; pre-transfer would double-count.
-    if (isCreateKind(msg.kind))
+    if (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2)
     {
         return;
     }

@@ -141,7 +141,7 @@ bcos::s256 estimatedDASizeScaled(RollupCostData const& data) noexcept
 
 uint64_t estimatedDASize(RollupCostData const& data) noexcept
 {
-    return static_cast<uint64_t>(estimatedDASizeScaled(data) / s256(1'000'000));
+    return static_cast<uint64_t>(estimatedDASizeScaled(data) / s256(ESTIMATED_DA_SIZE_DIVISOR));
 }
 
 }  // namespace bcos::evm

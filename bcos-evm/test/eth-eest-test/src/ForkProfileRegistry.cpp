@@ -8,12 +8,12 @@ namespace bcos::evm::reference_tests
 namespace
 {
 
-bcos::evm_standard::RevisionConfig makeReferenceRevisionConfig(evmc_revision revision)
+bcos::evm::RevisionConfig makeReferenceRevisionConfig(evmc_revision revision)
 {
-    return bcos::evm_standard::revisionConfigFromRevision(revision);
+    return bcos::evm::revisionConfigFromRevision(revision);
 }
 
-std::vector<std::string> activatedEipsFor(bcos::evm_standard::RevisionConfig const& revision)
+std::vector<std::string> activatedEipsFor(bcos::evm::RevisionConfig const& revision)
 {
     std::vector<std::string> eips;
     if (revision.eip2929)

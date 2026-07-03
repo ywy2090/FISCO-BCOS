@@ -34,16 +34,16 @@ Jovian DA footprint 在 op-geth 中横跨 **单笔 receipt**、**块级累计/�
 
 | ID | 能力 | op-geth 参照 | 层级 | 本阶段 |
 |----|------|--------------|------|--------|
-| P2-1 | 块级 `calcDAFootprint(txs)` | `rollup_cost.go:CalcDAFootprint` | types / finalize | ❌ 不做 |
-| P2-2 | Header `BlobGasUsed` = 块 DA footprint 累计 | Jovian 复用该字段 | 共识 / engine | ❌ 不做 |
-| P2-3 | `ExecutionPayload.blobGasUsed`（块级） | Engine API | engine / RPC | ❌ 不做 |
-| P2-4 | 块内 DA 预算池（类比 `BlockGasPool`） | miner `daFootprintLeft` | TE `beginBlock` | ❌ 不做 |
-| P2-5 | Entry 拒绝：超 DA 预算 tx | `miner/worker.go` | TE / txpool | ❌ 不做 |
-| P2-6 | Sealer / PBFT 打包按 DA 筛 tx | miner tx selection | 共识 / scheduler | ❌ 不做 |
+| P2-1 | 块级 `calcDAFootprint(txs)` | `rollup_cost.go:CalcDAFootprint` | types / finalize | 📋 [Phase 2 spec](2026-07-02-opstack-jovian-da-footprint-block-design.md) |
+| P2-2 | Header `BlobGasUsed` = 块 DA footprint 累计 | Jovian 复用该字段 | 共识 / engine | 📋 Phase 2（Engine `ExecutionPayload`；FISCO BlockHeader 不扩展） |
+| P2-3 | `ExecutionPayload.blobGasUsed`（块级） | Engine API | engine / RPC | 📋 Phase 2 |
+| P2-4 | 块内 DA 预算池（类比 `BlockGasPool`） | miner `daFootprintLeft` | TE `beginBlock` | 📋 Phase 2 |
+| P2-5 | Entry 拒绝：超 DA 预算 tx | `miner/worker.go` | TE / txpool | 📋 Phase 2 |
+| P2-6 | Sealer / PBFT 打包按 DA 筛 tx | miner tx selection | 共识 / scheduler | 📋 Phase 2 |
 | P2-7 | RPC `eth_getTransactionReceipt` 暴露字段 | `internal/ethapi/api.go` | bcos-rpc | ❌ 不做（可另开 integration PR） |
 | P2-8 | Minimum base fee（header extraData 17B） | Jovian 共识 | 出块 | ❌ 不做 |
 
-> **备注：** Phase 2 完成后，N2 / D10b 方可标为 **全量闭合**。Phase 1 与 [2026-06-26 Jovian Scope B](2026-06-26-opstack-jovian-design.md) §8 non-goals 中「Receipt / 区块限流」项衔接：Scope B 已写入 `daFootprintGasScalar` 链上状态；本 spec 补 receipt 展示；Scope C（块级）待独立 spec。
+> **备注：** Phase 2 完成后，N2 / D10b 方可标为 **全量闭合**。Scope C 独立 spec/plan：[2026-07-02-opstack-jovian-da-footprint-block-design.md](2026-07-02-opstack-jovian-da-footprint-block-design.md) / [plan](../plans/2026-07-02-opstack-jovian-da-footprint-block.md)。
 
 ---
 
@@ -214,9 +214,9 @@ uint64_t estimatedDASize(RollupCostData const& data) noexcept
 
 ---
 
-## 8. 后续完整实现 backlog（Phase 2+ spec 待写）
+## 8. 后续完整实现 backlog（Phase 2 — 已独开 spec）
 
-实现 **op-geth Jovian DA footprint 全量 parity** 时，在独立 spec（建议名：`opstack-jovian-da-footprint-block-design.md`）中交付：
+实现 **op-geth Jovian DA footprint 全量 parity** 的块级/出块部分，见 **[2026-07-02-opstack-jovian-da-footprint-block-design.md](2026-07-02-opstack-jovian-da-footprint-block-design.md)**（plan: [2026-07-02-opstack-jovian-da-footprint-block.md](../plans/2026-07-02-opstack-jovian-da-footprint-block.md)）。摘要：
 
 1. **`calcDAFootprint`** — 跳过 deposit，累加非 deposit tx footprint；Jovian 激活块特例（176B 首 deposit、无 user tx → 0）。
 2. **Header / payload** — 块 `BlobGasUsed` 存累计 DA footprint（非 Cancun blob gas 语义）；Engine `executionPayload.blobGasUsed` 同步。

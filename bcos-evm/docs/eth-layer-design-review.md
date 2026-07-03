@@ -29,7 +29,7 @@ opstack/ ──►  eth/
 | 4 | `eth/precompiled/` | Precompile dispatch and gas | `PrecompileRouter`, `EthBuiltinRegistry`, `BlsGas`, `ModexpGas` | `test/eth/` |
 | 5 | `eth/eip/` | Gas settlement | `computeTxIntrinsicGas`, `settleTopLevelTransactionGas`, `Eip7623`, `Eip1559` | `test/eth/` |
 | 6 | `eth/kernel/state-transition/` | Hook-based pre/post kernel pipeline | `TxPipeline`, `TxPipelineContext`, `TxPipelineHooks`, `deductIntrinsicGas` | `test/eth/` |
-| 7 | `eth/kernel/execution/` | Warm-up and feature preparation | `warmTransactionEntry`, `TxFeaturePrepare`, `Eip2929PrecompileWarm` | `test/eth/` |
+| 7 | `eth/kernel/execution/` | Warm-up and feature preparation | `prepareState`, `TxFeaturePrepare`, `Eip2929PrecompileWarm` | `test/eth/` |
 | 8 | `test/fixtures/` | Test fixture helpers | `BlockInfoBuilder`, `EthStateFixtureLoader` | `test/eth/`, `test/state/` |
 | 9 | `eth/` (root) | Entry points, types, cross-cutting | `executeMessage`, `executeViaEth`, `RevisionConfig`, `Eip7702`, `EVMCResult` | `test/eth/`, `test/` (root) |
 
@@ -211,11 +211,11 @@ runTxPipeline(ctx, hooks):
 
 ### 3.7 `eth/kernel/execution/` — Warm-up and feature preparation
 
-**Files:** `WarmTransactionEntry.h`, `TxFeaturePrepare.h`, `Eip2929PrecompileWarm.h`
+**Files:** `PrepareState.h`, `TxFeaturePrepare.h`, `Eip2929PrecompileWarm.h`
 
 **Design:**
 
-`warmTransactionEntry()` warms the sender, recipient (based on transaction kind), access list entries, and coinbase. This runs before `executeMessage()`.
+`prepareState()` warms the sender, recipient (based on transaction kind), access list entries, and coinbase. This runs before `executeMessage()`.
 
 `TxFeaturePrepare.h` defines `TransactionProperties` (warm flags for sender, recipient, coinbase, create address, and 7702 delegation target) and `setWarmDestinationFromKind()`.
 

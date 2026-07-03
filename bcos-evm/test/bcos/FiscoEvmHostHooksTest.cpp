@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(create_auth_table_path_is_invoked_with_fib82_raw_address_ru
 
     FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(nested_create_increments_sender_nonce_for_web3_tx)
 
     FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
 
     // Minimal initcode: PUSH0 PUSH0 RETURN
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(create_frame_entry_write_reverts_with_state_journal)
     FiscoEvmHostHooks extension(/*skipEvmNativeValueTransfer*/ true, std::move(deps));
 
     evmc::VM vm{evmc_create_evmone()};
-    bcos::evm_standard::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
+    bcos::evm::RevisionConfig cfg{.revision = EVMC_CANCUN, .eip2929 = true};
     state::EthHost host(state, evmc_tx_context{}, cfg, vm, emptyBlockHashes(), &extension);
 
     evmc_message createMsg{};

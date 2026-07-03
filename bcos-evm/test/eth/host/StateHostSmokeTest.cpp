@@ -58,10 +58,8 @@ BOOST_AUTO_TEST_CASE(empty_account_call_returns_success)
     BlockHashes blockHashes = [](int64_t) { return evmc_bytes32{}; };
 
     evmc::VM vm{evmc_create_evmone()};
-    TransactionProperties props;
 
-    auto const receipt =
-        transition(stateView, block, blockHashes, tx, EVMC_CANCUN, vm, props, nullptr);
+    auto const receipt = transition(stateView, block, blockHashes, tx, EVMC_CANCUN, vm);
 
     BOOST_CHECK_EQUAL(receipt.status, EVMC_SUCCESS);
 }

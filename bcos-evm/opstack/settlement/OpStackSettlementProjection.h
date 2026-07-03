@@ -5,7 +5,7 @@
  * @brief Unified read-only facade for fee planning inputs.
  * @file OpStackSettlementProjection.h
  *
- * Decouples opstack/fee/* planners from ApplyOpStackMessage internals by exposing
+ * Decouples opstack fee planners from ApplyOpStackMessage internals by exposing
  * ctx + OpStackMessageRequest + OpStackFeeSidecar through a single view type.
  */
 

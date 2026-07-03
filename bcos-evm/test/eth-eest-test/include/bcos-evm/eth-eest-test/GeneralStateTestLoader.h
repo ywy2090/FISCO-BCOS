@@ -5,6 +5,7 @@
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <bcos-utilities/Common.h>
+#include <bcos-utilities/FixedBytes.h>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -43,7 +44,7 @@ struct GstTransactionTemplate
     bcos::u256 maxFeePerGas{0};
     bcos::u256 maxPriorityFeePerGas{0};
     bcos::u256 maxFeePerBlobGas{0};
-    std::vector<bcos::h256> blobVersionedHashes;
+    std::vector<h256> blobVersionedHashes;
     uint64_t nonce{0};
     std::vector<GstAuthorizationEntry> authorizationList;
     bool authorizationListKeyPresent{false};

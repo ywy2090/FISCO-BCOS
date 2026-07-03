@@ -8,10 +8,9 @@
 namespace bcos::evm::test::fixtures
 {
 
-inline bcos::evm_standard::RevisionConfig revisionConfigFromFixtureRevision(
-    std::string const& revision)
+inline bcos::evm::RevisionConfig revisionConfigFromFixtureRevision(std::string const& revision)
 {
-    bcos::evm_standard::RevisionConfig cfg;
+    bcos::evm::RevisionConfig cfg;
     if (revision == "prague")
     {
         cfg.revision = EVMC_PRAGUE;
@@ -46,7 +45,7 @@ inline FiscoMessageRequest buildFiscoMessageRequest(FixtureCase const& fixture,
 
     evmc_message msg{};
     msg.kind = fixture.tx.to.has_value() ? EVMC_CALL : EVMC_CREATE;
-    msg.flags = fixture.txProps.isStatic ? EVMC_STATIC : 0;
+    msg.flags = fixture.isStatic ? EVMC_STATIC : 0;
     msg.gas = fixture.tx.gasLimit;
     msg.sender = fixture.tx.from;
     msg.recipient = fixture.tx.to.value_or(evmc_address{});
