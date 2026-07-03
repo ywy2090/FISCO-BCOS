@@ -1,6 +1,5 @@
 #pragma once
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-framework/ledger/Features.h"
 #include <evmc/evmc.h>
 #include <cstdint>
 
@@ -44,12 +43,6 @@ struct EthChainPolicy
     }
 
     bool allowDelegateCallToPrecompile() const { return true; }
-
-    const ledger::Features& features() const
-    {
-        static const ledger::Features empty;
-        return empty;
-    }
 };
 
 }  // namespace bcos::evm
