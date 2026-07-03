@@ -341,3 +341,9 @@ target_include_directories(EvmcStatusMappingTest PRIVATE
 target_link_libraries(EvmcStatusMappingTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-crypto)
 add_test(NAME EvmcStatusMapping COMMAND EvmcStatusMappingTest)
+
+add_executable(EthFeeSettlementStateTest eth/EthFeeSettlementStateTest.cpp)
+target_include_directories(EthFeeSettlementStateTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
+target_link_libraries(EthFeeSettlementStateTest PRIVATE bcos-evm-eth bcos-task evmone::evmone)
+add_test(NAME EthFeeSettlementState COMMAND EthFeeSettlementStateTest)
