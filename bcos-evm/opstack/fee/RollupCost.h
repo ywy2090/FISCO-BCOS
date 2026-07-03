@@ -24,7 +24,8 @@ RollupCostData newRollupCostData(bcos::bytesConstRef serializedTx);
 // L1_COST_INTERCEPT 为负，fastLzSize 小时中间和为负，随后由 MIN_TX_SIZE_SCALED 兜底。
 bcos::s256 estimatedDASizeScaled(RollupCostData const& data) noexcept;
 
-// = estimatedDASizeScaled / ESTIMATED_DA_SIZE_DIVISOR（对齐 op-geth RollupCostData.EstimatedDASize）。
+// = estimatedDASizeScaled / ESTIMATED_DA_SIZE_DIVISOR（对齐 op-geth
+// RollupCostData.EstimatedDASize）。
 uint64_t estimatedDASize(RollupCostData const& data) noexcept;
 
 }  // namespace bcos::evm

@@ -43,6 +43,31 @@ struct ModexpLengths
 /// EIP-7823 MUST bound (geth `bigModExp` / Besu modexp upperBound).
 constexpr size_t MODEXP_MAX_FIELD_LEN_EIP7823 = 1024;
 
+/// Fixed 96-byte header: baseLen | expLen | modLen (each 32-byte big-endian).
+constexpr size_t MODEXP_HEADER_SIZE = 96;
+constexpr size_t MODEXP_LEN_FIELD_SIZE = 32;
+constexpr size_t MODEXP_BASE_LEN_OFFSET = 0;
+constexpr size_t MODEXP_EXP_LEN_OFFSET = 32;
+constexpr size_t MODEXP_MOD_LEN_OFFSET = 64;
+
+/// Minimum modexp gas after EIP-2565 / EIP-7883 formulas.
+constexpr int64_t MODEXP_MIN_GAS_EIP2565 = 200;
+constexpr int64_t MODEXP_MIN_GAS_EIP7883 = 500;
+
+/// Final gas divisors in legacy (EIP-198) and Berlin (EIP-2565) schedules.
+constexpr int64_t MODEXP_GAS_DIVISOR_EIP198 = 20;
+constexpr int64_t MODEXP_GAS_DIVISOR_EIP2565 = 3;
+
+/// EIP-198 `multComplexity` piecewise thresholds on max(baseLen, modLen).
+constexpr size_t MODEXP_EIP198_COMPLEXITY_SMALL_MAX = 64;
+constexpr size_t MODEXP_EIP198_COMPLEXITY_MID_MAX = 1024;
+
+/// EIP-7883: complexity = 16 when max(base, mod) ≤ 32 bytes.
+constexpr size_t MODEXP_EIP7883_SMALL_INPUT_MAX = 32;
+constexpr int64_t MODEXP_EIP7883_SMALL_COMPLEXITY = 16;
+constexpr int64_t MODEXP_EIP7883_EXP_HEAD_BITS = 256;
+constexpr int64_t MODEXP_EIP7883_EXP_BIT_MULTIPLIER = 16;
+
 /// Parse the three 32-byte big-endian length fields at the start of modexp input.
 ModexpLengths parseModexpLengths(bcos::bytesConstRef input);
 

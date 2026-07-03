@@ -1,11 +1,18 @@
 /*
- * Transaction intrinsic gas and top-level settlement (EIP-7623 + EIP-3529).
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
  *
- * Lean model: full intrinsic pre-debit before EVM, then
- *   gasUsed = gasLimit - min(gasLimit, gasLeft + cappedRefund), EIP-7623 floor uplift.
- *
+ * @brief Transaction intrinsic gas and top-level gasUsed settlement.
  * @file TxIntrinsicGas.h
+ *
+ * Lean model (geth-aligned):
+ *   1. Full intrinsic pre-debit before EVM entry (kernel deductIntrinsicGas).
+ *   2. Post-EVM: gasUsed = gasLimit - min(gasLimit, gasLeft + cappedRefund), with EIP-7623 floor.
+ *
+ * EIP-3529 refund cap and EIP-7623 calldata floor apply at top-level settlement only;
+ * inner frames use standard evmone refund accounting.
  */
+
 #pragma once
 
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
@@ -20,16 +27,18 @@ namespace bcos::evm
 namespace gas
 {
 
+/// Breakdown of gas debited before EVM entry (intrinsic + access list + CREATE overhead).
 struct TxIntrinsicGas
 {
     int64_t txBase = TX_BASE_GAS;
-    int64_t normalCalldata = 0;
-    int64_t accessListCost = 0;
-    int64_t createIntrinsic = 0;
-    int64_t floorReserve = 0;
+    int64_t normalCalldata = 0;   ///< Legacy calldata cost (EIP-7623 "normal" component)
+    int64_t accessListCost = 0;   ///< EIP-2930 warm-address/key charges
+    int64_t createIntrinsic = 0;  ///< CREATE/CREATE2 base + initcode words
+    int64_t floorReserve = 0;     ///< EIP-7623 floor minus txBase (used in gasLimitMinimum)
 
     int64_t fixedCost() const { return txBase + accessListCost; }
 
+    /// Total intrinsic debited from message.gas before innerExecute.
     int64_t preExecutionDebit() const { return fixedCost() + normalCalldata + createIntrinsic; }
 
     /// EIP-7623: max(21000 + floor, intrinsic) where intrinsic includes access list + CREATE.
@@ -41,7 +50,7 @@ struct TxIntrinsicGas
     }
 
     /// EIP-7623 + EIP-7702: auth intrinsic is part of the intrinsic side of the minimum, not
-    /// additive.
+    /// additive on top of the floor comparison.
     int64_t gasLimitMinimumWithAuth(int64_t authCost) const
     {
         int64_t const intrinsic = preExecutionDebit() + authCost;
@@ -50,12 +59,12 @@ struct TxIntrinsicGas
     }
 };
 
-/// Post-execution inputs for Lean settlement (full intrinsic already debited from message.gas).
+/// Snapshot captured after EVM for EIP-7623 / EIP-3529 top-level settlement.
 struct TxGasSettlementSnapshot
 {
     int64_t gasLimit = 0;
     Eip7623Components calldata{};
-    int64_t evmGasRefund = 0;
+    int64_t evmGasRefund = 0;  ///< Host refund counter at end of execution (SSTORE refunds, etc.)
 };
 
 using TxGasSettlementContext = TxGasSettlementSnapshot;
@@ -75,6 +84,8 @@ inline int64_t calcAccessListCost(Eip2930AccessList const* accessList) noexcept
     return cost;
 }
 
+/// EIP-7702: PER_EMPTY_ACCOUNT_COST per authorization tuple (debited in intrinsic path when
+/// active).
 inline int64_t calcAuthTupleIntrinsicGas(uint64_t authTupleCount) noexcept
 {
     return static_cast<int64_t>(authTupleCount) * static_cast<int64_t>(PER_EMPTY_ACCOUNT_COST);
@@ -91,6 +102,7 @@ inline int64_t calcCreateIntrinsic(evmc_message const& message) noexcept
     return CREATE_BASE_GAS + INITCODE_WORD_GAS * words;
 }
 
+/// Aggregate intrinsic components for a top-level message (used by kernel and txpool prechecks).
 inline TxIntrinsicGas computeTxIntrinsicGas(
     evmc_message const& message, Eip2930AccessList const* accessList, uint8_t web3TypedTxKind)
 {
@@ -110,15 +122,17 @@ inline TxIntrinsicGas computeTxIntrinsicGas(
     return intrinsic;
 }
 
+/// EIP-3529: refund capped at gasUsed / 5 (replaces pre-London gasUsed / 2 rule).
 inline int64_t effectiveRefundEip3529(int64_t evmGasRefund, int64_t gasUsedBeforeRefund) noexcept
 {
     if (gasUsedBeforeRefund <= 0)
     {
         return 0;
     }
-    return std::min(evmGasRefund, gasUsedBeforeRefund / 5);
+    return std::min(evmGasRefund, gasUsedBeforeRefund / REFUND_QUOTIENT_EIP3529);
 }
 
+/// EIP-7623 minimum data gas: TX_BASE_GAS + tokenCount * calldataFloorPerToken.
 inline int64_t calcFloorDataGas(
     uint8_t calldataFloorPerToken, Eip7623Components const& calldata) noexcept
 {
@@ -151,7 +165,7 @@ inline int64_t settleTopLevelTransactionGas(int64_t gasLimit, int64_t evmGasLeft
         gasLimit, evmGasLeft, stateRefund, calcFloorDataGas(calldataFloorPerToken, calldata));
 }
 
-/// Included top-level vmerr (ADR-015): peak settlement on committed failure txs.
+/// Included top-level vmerr (ADR-015): same peak settlement as success path on committed failures.
 inline int64_t settleIncludedTopLevelTransactionGas(
     int64_t gasLimit, int64_t evmGasLeft, int64_t stateRefund, int64_t floorDataGas) noexcept
 {
@@ -166,6 +180,7 @@ inline int64_t settleIncludedTopLevelTransactionGas(int64_t gasLimit, int64_t ev
 }
 
 /// Shared TE / EEST top-level gasUsed finalization (GAP-TE-002 Task 3).
+/// Chooses legacy (gasLimit - gasLeft) vs EIP-7623 settlement based on fork flags and vmerr path.
 inline int64_t finalizeEthTxGasUsed(int64_t gasLimit, int64_t legacyGasLeft, int64_t rawGasUsed,
     bool isWeb3, bool eip7623, bool topLevelIncludedTxVmError,
     TxGasSettlementSnapshot const& snapshot, uint8_t calldataFloorPerToken) noexcept

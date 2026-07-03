@@ -19,6 +19,8 @@
 
 #define BOOST_TEST_MODULE EvmoneRefundSpikeTest
 
+#include "bcos-evm/eth/eip/Eip2929StorageGas.h"
+#include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
@@ -33,7 +35,7 @@ namespace bcos::evm::opstack::test
 namespace
 {
 constexpr int64_t kGasLimit = 1'000'000;
-constexpr int64_t kExpectedSstoreClearRefund = 4800;  // EIP-3529
+constexpr int64_t kExpectedSstoreClearRefund = SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529;
 
 // PUSH1 0 PUSH1 0 SSTORE STOP
 constexpr std::string_view kSstoreClearBytecode = "600060005500";
@@ -78,7 +80,7 @@ RefundSemantics classifyRefundSemantics(
     }
 
     int64_t const peakWithRefund = gasLimit - gasLeftWithRefund;
-    int64_t const cappedRefund = std::min(gasRefund, peakWithRefund / 5);
+    int64_t const cappedRefund = std::min(gasRefund, peakWithRefund / gas::REFUND_QUOTIENT_EIP3529);
     int64_t const executionCostDelta = peakWithRefund - (gasLimit - gasLeftBaseline);
     int64_t const gasLeftDelta = gasLeftBaseline - gasLeftWithRefund;
 
@@ -173,7 +175,7 @@ BOOST_AUTO_TEST_CASE(SstoreClear_recordsGasLeftAndRefund)
     int64_t const gasRefund = clearOutcome.gasRefund;
     int64_t const baselineGasLeft = baselineOutcome.gasLeft;
     int64_t const peakGasUsed = kGasLimit - gasLeft;
-    int64_t const cappedRefund = std::min(gasRefund, peakGasUsed / 5);
+    int64_t const cappedRefund = std::min(gasRefund, peakGasUsed / gas::REFUND_QUOTIENT_EIP3529);
     int64_t const gasRemainingIfDeferred = gasLeft + cappedRefund;
     int64_t const gasUsedIfDeferred = kGasLimit - gasRemainingIfDeferred;
 

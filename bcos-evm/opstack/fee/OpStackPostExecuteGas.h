@@ -30,7 +30,8 @@ inline GasSettlement postExecuteGasSettlement(
     settlement.gasLeft = std::min(gasLeft, gasLimit);
 
     auto const peakGasUsed = gasLimit - settlement.gasLeft;
-    settlement.refund = std::min(stateRefund, peakGasUsed / 5);
+    settlement.refund = static_cast<uint64_t>(gas::effectiveRefundEip3529(
+        static_cast<int64_t>(stateRefund), static_cast<int64_t>(peakGasUsed)));
 
     settlement.gasUsed = gas::settleTopLevelTransactionGas(static_cast<int64_t>(gasLimit),
         static_cast<int64_t>(gasLeft), static_cast<int64_t>(stateRefund),

@@ -46,33 +46,33 @@ bigint parseBigEndianRightPadded(bytesConstRef in, bigint const& begin, bigint c
 /// One 32-byte big-endian length word from the modexp header (offset 0 / 32 / 64).
 bigint parseHeaderLen(bytesConstRef in, size_t offset)
 {
-    return parseBigEndianRightPadded(in, offset, 32);
+    return parseBigEndianRightPadded(in, offset, MODEXP_LEN_FIELD_SIZE);
 }
 
 /// Effective exponent bit-length for gas (EIP-2565 / shared by 198 path).
-/// expOffset = 96 + baseLen points at the start of the exponent field in calldata.
+/// expOffset = MODEXP_HEADER_SIZE + baseLen points at the start of the exponent field.
 bigint expLengthAdjustEip2565(bigint const& expOffset, bigint const& expLength, bytesConstRef in)
 {
-    if (expLength <= 32)
+    if (expLength <= MODEXP_LEN_FIELD_SIZE)
     {
         bigint const exp(parseBigEndianRightPadded(in, expOffset, expLength));
         return exp ? msb(exp) : 0;
     }
-    bigint const expFirstWord(parseBigEndianRightPadded(in, expOffset, 32));
+    bigint const expFirstWord(parseBigEndianRightPadded(in, expOffset, MODEXP_LEN_FIELD_SIZE));
     size_t const highestBit(expFirstWord ? msb(expFirstWord) : 0);
-    return 8 * (expLength - 32) + highestBit;
+    return 8 * (expLength - MODEXP_LEN_FIELD_SIZE) + highestBit;
 }
 
 /// EIP-198 multiplication complexity (piecewise on max(baseLen, modLen)).
 bigint multComplexityEip198(bigint const& x)
 {
-    if (x <= 64)
+    if (x <= MODEXP_EIP198_COMPLEXITY_SMALL_MAX)
     {
         return x * x;
     }
-    if (x <= 1024)
+    if (x <= MODEXP_EIP198_COMPLEXITY_MID_MAX)
     {
-        return (x * x) / 4 + 96 * x - 3072;
+        return (x * x) / 4 + MODEXP_HEADER_SIZE * x - 3072;
     }
     return (x * x) / 16 + 480 * x - 199680;
 }
@@ -88,9 +88,9 @@ bigint modexpMultComplexityEip2565(bigint const& maxLenBytes)
 bigint modexpMultComplexityEip7883(size_t baseLen, size_t modLen)
 {
     size_t const maxLen = std::max(baseLen, modLen);
-    if (maxLen <= 32)
+    if (maxLen <= MODEXP_EIP7883_SMALL_INPUT_MAX)
     {
-        return 16;
+        return MODEXP_EIP7883_SMALL_COMPLEXITY;
     }
     bigint const words = (bigint(maxLen) + 7) / 8;
     return 2 * words * words;
@@ -99,48 +99,51 @@ bigint modexpMultComplexityEip7883(size_t baseLen, size_t modLen)
 /// EIP-7883 iteration count: uses low 256 bits of exponent head when expLen > 32.
 bigint modexpIterationCountEip7883(size_t expLen, bytesConstRef in, size_t baseLen)
 {
-    size_t const expOffset = 96 + baseLen;
-    if (expLen <= 32)
+    size_t const expOffset = MODEXP_HEADER_SIZE + baseLen;
+    if (expLen <= MODEXP_LEN_FIELD_SIZE)
     {
         bigint const exp = expLen == 0 ? 0 : parseBigEndianRightPadded(in, expOffset, expLen);
-        if (expLen <= 32 && exp == 0)
+        if (expLen <= MODEXP_LEN_FIELD_SIZE && exp == 0)
         {
             return 0;
         }
         return exp ? msb(exp) : 0;
     }
-    bigint const expHead(parseBigEndianRightPadded(in, expOffset, 32));
-    static bigint const kMask256 = (bigint(1) << 256) - 1;
+    bigint const expHead(parseBigEndianRightPadded(in, expOffset, MODEXP_LEN_FIELD_SIZE));
+    static bigint const kMask256 = (bigint(1) << MODEXP_EIP7883_EXP_HEAD_BITS) - 1;
     bigint const exp256 = expHead & kMask256;
     size_t const highestBit = exp256 ? msb(exp256) : 0;
-    return 16 * (expLen - 32) + highestBit;
+    return MODEXP_EIP7883_EXP_BIT_MULTIPLIER * (expLen - MODEXP_LEN_FIELD_SIZE) + highestBit;
 }
 
 /// gas = multComplexity(max(base,mod)) * max(adjustedExpBits, 1) / 20
 bigint calcModexpGasEip198(bytesConstRef in)
 {
-    bigint const baseLength(parseHeaderLen(in, 0));
-    bigint const expLength(parseHeaderLen(in, 32));
-    bigint const modLength(parseHeaderLen(in, 64));
+    bigint const baseLength(parseHeaderLen(in, MODEXP_BASE_LEN_OFFSET));
+    bigint const expLength(parseHeaderLen(in, MODEXP_EXP_LEN_OFFSET));
+    bigint const modLength(parseHeaderLen(in, MODEXP_MOD_LEN_OFFSET));
 
     bigint const maxLength(max(modLength, baseLength));
-    bigint const adjustedExpLength(expLengthAdjustEip2565(baseLength + 96, expLength, in));
+    bigint const adjustedExpLength(
+        expLengthAdjustEip2565(baseLength + MODEXP_HEADER_SIZE, expLength, in));
 
-    return multComplexityEip198(maxLength) * max<bigint>(adjustedExpLength, 1) / 20;
+    return multComplexityEip198(maxLength) * max<bigint>(adjustedExpLength, 1) /
+           MODEXP_GAS_DIVISOR_EIP198;
 }
 
 /// gas = complexity * max(iterationCount, 1) / 3, floor 200 (EIP-2565).
 bigint calcModexpGasEip2565(bytesConstRef in)
 {
-    bigint const baseLength(parseHeaderLen(in, 0));
-    bigint const expLength(parseHeaderLen(in, 32));
-    bigint const modLength(parseHeaderLen(in, 64));
+    bigint const baseLength(parseHeaderLen(in, MODEXP_BASE_LEN_OFFSET));
+    bigint const expLength(parseHeaderLen(in, MODEXP_EXP_LEN_OFFSET));
+    bigint const modLength(parseHeaderLen(in, MODEXP_MOD_LEN_OFFSET));
 
     bigint const maxLength(max(modLength, baseLength));
-    bigint const iterationCount(expLengthAdjustEip2565(baseLength + 96, expLength, in));
+    bigint const iterationCount(
+        expLengthAdjustEip2565(baseLength + MODEXP_HEADER_SIZE, expLength, in));
     bigint const complexity = modexpMultComplexityEip2565(maxLength);
-    bigint const gas = complexity * max<bigint>(iterationCount, 1) / 3;
-    static bigint const kMinGas{200};
+    bigint const gas = complexity * max<bigint>(iterationCount, 1) / MODEXP_GAS_DIVISOR_EIP2565;
+    static bigint const kMinGas{MODEXP_MIN_GAS_EIP2565};
     return gas < kMinGas ? kMinGas : gas;
 }
 
@@ -151,7 +154,7 @@ bigint calcModexpGasEip7883(bytesConstRef in)
     bigint const mc = modexpMultComplexityEip7883(lens.baseLen, lens.modLen);
     bigint const iter = modexpIterationCountEip7883(lens.expLen, in, lens.baseLen);
     bigint const gas = mc * max<bigint>(iter, 1);
-    static bigint const kMinGas{500};
+    static bigint const kMinGas{MODEXP_MIN_GAS_EIP7883};
     return gas < kMinGas ? kMinGas : gas;
 }
 }  // namespace
@@ -161,9 +164,9 @@ ModexpLengths parseModexpLengths(bytesConstRef input)
     ModexpLengths out;
     static bigint const kUint64Max = (bigint(1) << 64) - 1;
 
-    auto const base = parseHeaderLen(input, 0);
-    auto const exp = parseHeaderLen(input, 32);
-    auto const mod = parseHeaderLen(input, 64);
+    auto const base = parseHeaderLen(input, MODEXP_BASE_LEN_OFFSET);
+    auto const exp = parseHeaderLen(input, MODEXP_EXP_LEN_OFFSET);
+    auto const mod = parseHeaderLen(input, MODEXP_MOD_LEN_OFFSET);
 
     // Lengths used for gas and 7823 validation; oversize headers → overflow (reject).
     auto assign = [&](bigint const& v, size_t& dst) {
