@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE EthFeeSettlementStateTest
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
+#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/settlement/EthFeeSettlement.h"
 #include "bcos-evm/eth/settlement/EthSettlementProjection.h"
@@ -102,7 +103,10 @@ BOOST_AUTO_TEST_CASE(finalizeEthNormal_eip7623_uses_settlement_snapshot)
     snap.gasLimit = 1000;  // Eip7623 mode snapshot (captureSettlementSnapshot)
     auto const out = finalizeEthNormal(ctx, StateTransitionExitKind::Completed, snap,
         /*topLevelIncludedTxVmError=*/false);
-    BOOST_CHECK(out.gasUsed > 0);
-    BOOST_CHECK_EQUAL(out.gasRemaining, 800);
+    auto const oracleGasUsed = gas::settleTopLevelTransactionGas(
+        1000, 800, 0, rev.calldata_floor_per_token, snap.calldata);
+    BOOST_CHECK_EQUAL(out.gasUsed, oracleGasUsed);
+    BOOST_CHECK_EQUAL(out.gasUsed, 1000);
+    BOOST_CHECK_EQUAL(out.gasRemaining, 0);
 }
 }  // namespace bcos::evm::test

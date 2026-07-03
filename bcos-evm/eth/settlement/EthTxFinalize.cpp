@@ -58,7 +58,8 @@ EthTxFinalizeResult finalizeEthNormal(StateTransitionContext const& ctx,
         {
             out.gasUsed = ctx.originalGasLimit - evmcResult.gas_left;
         }
-        out.gasRemaining = static_cast<uint64_t>(std::max<int64_t>(0, evmcResult.gas_left));
+        out.gasRemaining =
+            static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit - out.gasUsed));
     }
     return out;
 }
