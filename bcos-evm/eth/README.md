@@ -90,13 +90,15 @@
 
 ## `settlement/` — State-based 费用结算
 
+Eth 参考路径费用生命周期（ADR-026 PR3；无 `bcos-ledger` / `EVMAccount` 依赖）。`TxFeeSettlement.h` 提供 sync plan；本目录 adapter 通过 `ctx.state` 落账。
+
 | 文件 | 角色 |
 | --- | --- |
-| `EthSettlementProjection.h` | `ctx` + request 只读投影 |
-| `EthFeeSidecar.h` | 生命周期内费用快照 |
-| `EthFeeSettlement.*` | State `buyGas` / `refundGas` |
-| `EthTxFinalize.*` | gas 计量与 abort 辅助 |
-| `EthNormalTxFeeCoordinator.*` | normal 路径编排（`buyGas` → pipeline → `completeAfterPipeline`） |
+| `EthSettlementProjection.h` | `ctx` + `EthMessageRequest` 只读投影 |
+| `EthFeeSidecar.h` | buyGas 快照（`effectiveGasPrice` 等） |
+| `EthFeeSettlement.*` | sync `ctx.state`：`buyGas` / `refundGas`；burn base；buyGas 余额不足 penalty（不 revert） |
+| `EthTxFinalize.*` | post-execute gas 计量；pre-exec reject / buyGas abort 辅助 |
+| `EthNormalTxFeeCoordinator.*` | normal 路径编排（`buyGas` → `stateTransitionExecute` → `completeAfterPipeline`） |
 
 ## 链入口命名（ADR-029 + ADR-030）
 

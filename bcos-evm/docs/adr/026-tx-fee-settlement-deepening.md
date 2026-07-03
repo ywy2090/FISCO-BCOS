@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-06-26  
-**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/eip/Eip1559.h`, `eth/eip/Eip1559Gate.h`, `eth/apply/EthTxFeeSettlement.h`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
+**Related:** ADR-005, ADR-016, ADR-018, ADR-019, ADR-021, ADR-025, `eth/eip/Eip1559.h`, `eth/eip/Eip1559Gate.h`, `eth/settlement/EthFeeSettlement.*`, `opstack/OpStackFeeSettlement.*`, `opstack/fee/OpStackPreDebitPlan.h`, `opstack/fee/OpStackPostSettlementPlan.h`, `docs/superpowers/specs/2026-06-26-opstack-fee-projection-design.md`, `docs/superpowers/specs/2026-07-03-eth-fee-settlement-remove-ledger-dependency-design.md`, `test/eth-eest-test/src/EthReferenceExecuteAdapter.cpp`
 
 ---
 
@@ -90,7 +90,7 @@ Invariant (1559 active): `senderNetDebit == coinbaseTip + baseFeeAmount` (base d
 
 | Path | Reads plan | Applies (timing + backend) |
 | --- | --- | --- |
-| `EthTxFeeSettlement` | pre + post | async `EVMAccount`; burn `baseFeeAmount`; penalty on buyGas fail (adapter-only) |
+| `EthFeeSettlement` | pre + post | sync `ctx.state`; burn base; penalty on buyGas fail |
 | `applyGstTransactionSettlement` | post | `StateDiff` post-hoc; burn base |
 | `OpStackFeeSettlement` | pre + post | sync `ctx.state`; route `baseFeeAmount` → `m_baseFeeRecipient`; pre-debit via **Appendix B** `planOpStackPreDebit`; post-debit via **Appendix C** `planOpStackPostSettlement` |
 
