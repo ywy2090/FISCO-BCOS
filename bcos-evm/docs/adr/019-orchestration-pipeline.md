@@ -23,7 +23,7 @@ Three chain orchestrators (`ethReferenceExecute`, `fiscoExecute`, `opStackExecut
 | Q5 | `deductIntrinsicGas` is portable intrinsic only; OpStack floor/balance in `preDebitEntry` |
 | Q6 | State machine / RAII outside kernel; kernel catch is not a revert owner |
 | Q7 | `buyGas`/`refundGas` in wrapper; `runTxPipeline` is sync `void` |
-| Q8 | Explicit `IntrinsicDebitMode` |
+| Q8 | Explicit `IntrinsicGasMode` |
 | Q9 | Structured intrinsic failure → `mapIntrinsicFailure` |
 | Q10 | `TxPipelineContext` construction-valid, no default constructor |
 | Q11 | `mapException(std::exception_ptr)`; chain rethrow/catch in own `.cpp` |
@@ -82,14 +82,14 @@ Steps ②–⑪ are inside `try/catch`. On exception: `exitKind = ExceptionMappe
 
 **Core invariant:** Step ④ mutates `ctx.message`; step ⑦ uses the same reference. OpStack removes dual-track `txData.m_message` vs `input.message`.
 
-### 3. `IntrinsicDebitMode`
+### 3. `IntrinsicGasMode`
 
 | Mode | Semantics | Used by |
 | --- | --- | --- |
-| `None` | No intrinsic/auth debit | Eth/Fisco when not 7623 and no auth |
-| `AuthOnly` | Auth tuple cost only | Eth non-7623 with EIP-7702 auth |
-| `Eip7623` | gasLimit minimum + calldata checks + `preExecutionDebit` + auth | Eth 7623; Fisco web3+7623 |
-| `OpStackEntry` | `availableGas >= intrinsicDebit` then subtract; no floor/balance here | OpStack normal/deposit |
+| `Skip` | No intrinsic/auth debit | Eth/Fisco when not 7623 and no auth |
+| `AuthTuples` | Auth tuple cost only | Eth non-7623 with EIP-7702 auth |
+| `FloorDataGas` | gasLimit minimum + calldata checks + `preExecutionDebit` + auth | Eth 7623; Fisco web3+7623 |
+| `OpStack` | `availableGas >= intrinsicDebit` then subtract; no floor/balance here | OpStack normal/deposit |
 
 `deductIntrinsicGas` returns `DebitIntrinsicGasOutcome{ok, failure, gasLeftOnFailure, debitAmount}`. Failure enum includes `GasLimitMinimum`, `CalldataOutOfGas`, `AuthTupleOutOfGas`, `OpStackIntrinsicOutOfGas`. It **must not** construct chain-final `EVMCResult`; `mapIntrinsicFailure` hook maps to chain status.
 

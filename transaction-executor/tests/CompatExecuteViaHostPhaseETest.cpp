@@ -10,6 +10,7 @@
 #include "SelfdestructCompatBytecode.h"
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-executor/src/Common.h"

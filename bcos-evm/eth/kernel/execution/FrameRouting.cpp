@@ -7,6 +7,7 @@
 
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/eip/Eip2929Gate.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::execution

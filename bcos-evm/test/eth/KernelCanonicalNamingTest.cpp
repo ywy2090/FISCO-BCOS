@@ -39,7 +39,7 @@ struct CountingStateTransitionHooks : StateTransitionHooks
 
 struct NoopErrorPolicy : StateTransitionErrorPolicy
 {
-    void onIntrinsicGasFailure(StateTransitionContext&, IntrinsicDebitFailure) const override {}
+    void onIntrinsicGasFailure(StateTransitionContext&, IntrinsicGasFailure) const override {}
     void onException(StateTransitionContext&, std::exception_ptr) const override {}
 };
 
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(onFinalizeGasUsed_is_error_policy_hook)
     {
         mutable int normalizeCount{0};
 
-        void onIntrinsicGasFailure(StateTransitionContext&, IntrinsicDebitFailure) const override {}
+        void onIntrinsicGasFailure(StateTransitionContext&, IntrinsicGasFailure) const override {}
         void onException(StateTransitionContext&, std::exception_ptr) const override {}
 
         void onFinalizeGasUsed(StateTransitionContext& ctx) const override

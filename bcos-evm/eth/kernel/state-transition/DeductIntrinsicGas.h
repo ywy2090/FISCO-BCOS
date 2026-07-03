@@ -8,11 +8,11 @@
  * Mutates evmc_message.gas in place. Mode is selected by each chain's
  * StateTransitionHooks::getIntrinsicGasParams() — not hard-coded in the pipeline.
  *
- * Modes:
- *   None          — skip debit (inner calls, Fisco non-tx paths)
- *   AuthOnly      — EIP-7702 auth tuple gas only (partial pre-Osaka paths)
- *   Eip7623       — full tx intrinsic + calldata floor (Eth reference)
- *   OpStackEntry  — L2 entry intrinsic (no EIP-7623 calldata floor split)
+ * Modes (geth: IntrinsicGas / FloorDataGas — ADR-030):
+ *   Skip         — skip debit (inner calls, Fisco non-tx paths)
+ *   AuthTuples   — EIP-7702 auth tuple gas only (partial pre-Osaka paths)
+ *   FloorDataGas — full tx intrinsic + calldata floor (Eth reference)
+ *   OpStack      — L2 entry intrinsic (no EIP-7623 calldata floor split)
  */
 
 #pragma once
@@ -26,16 +26,16 @@ namespace bcos::evm
 {
 
 /// Which intrinsic-gas rules apply for this top-level transition.
-enum class IntrinsicDebitMode
+enum class IntrinsicGasMode
 {
-    None,
-    AuthOnly,
-    Eip7623,
-    OpStackEntry
+    Skip,
+    AuthTuples,
+    FloorDataGas,
+    OpStack
 };
 
 /// Failure reason when deductIntrinsicGas rejects before EVM entry.
-enum class IntrinsicDebitFailure
+enum class IntrinsicGasFailure
 {
     None,
     GasLimitMinimum,
@@ -46,7 +46,7 @@ enum class IntrinsicDebitFailure
 
 struct DeductIntrinsicGasParams
 {
-    IntrinsicDebitMode mode{IntrinsicDebitMode::None};
+    IntrinsicGasMode mode{IntrinsicGasMode::Skip};
     bool authorizationListPresent{false};
     uint64_t authTupleCount{0};
     Eip2930AccessList const* accessList{nullptr};
@@ -56,7 +56,7 @@ struct DeductIntrinsicGasParams
 struct DeductIntrinsicGasOutcome
 {
     bool ok{false};
-    IntrinsicDebitFailure failure{IntrinsicDebitFailure::None};
+    IntrinsicGasFailure failure{IntrinsicGasFailure::None};
     int64_t gasLeftOnFailure{0};
     int64_t debitAmount{0};
 };
@@ -67,14 +67,14 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
 {
     DeductIntrinsicGasOutcome outcome{};
     outcome.ok = true;
-    outcome.failure = IntrinsicDebitFailure::None;
+    outcome.failure = IntrinsicGasFailure::None;
 
     switch (policy.mode)
     {
-    case IntrinsicDebitMode::None:
+    case IntrinsicGasMode::Skip:
         return outcome;
 
-    case IntrinsicDebitMode::AuthOnly:
+    case IntrinsicGasMode::AuthTuples:
     {
         if (!policy.authorizationListPresent || policy.authTupleCount == 0)
         {
@@ -84,7 +84,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         if (message.gas < authCost)
         {
             outcome.ok = false;
-            outcome.failure = IntrinsicDebitFailure::AuthTupleOutOfGas;
+            outcome.failure = IntrinsicGasFailure::AuthTupleOutOfGas;
             outcome.gasLeftOnFailure = message.gas;
             return outcome;
         }
@@ -93,7 +93,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         return outcome;
     }
 
-    case IntrinsicDebitMode::Eip7623:
+    case IntrinsicGasMode::FloorDataGas:
     {
         auto const calldataRef = bcos::bytesConstRef(message.input_data, message.input_size);
         auto const calldataGas = gas::calcEip7623CalldataGas(calldataRef);
@@ -107,7 +107,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         if (message.gas < intrinsic.gasLimitMinimumWithAuth(authCost))
         {
             outcome.ok = false;
-            outcome.failure = IntrinsicDebitFailure::GasLimitMinimum;
+            outcome.failure = IntrinsicGasFailure::GasLimitMinimum;
             outcome.gasLeftOnFailure = message.gas;
             return outcome;
         }
@@ -115,7 +115,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         if (message.gas < calldataGas)
         {
             outcome.ok = false;
-            outcome.failure = IntrinsicDebitFailure::CalldataOutOfGas;
+            outcome.failure = IntrinsicGasFailure::CalldataOutOfGas;
             outcome.gasLeftOnFailure = message.gas;
             return outcome;
         }
@@ -131,7 +131,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         return outcome;
     }
 
-    case IntrinsicDebitMode::OpStackEntry:
+    case IntrinsicGasMode::OpStack:
     {
         auto const intrinsic =
             gas::computeTxIntrinsicGas(message, policy.accessList, policy.web3TypedTxKind);
@@ -142,7 +142,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         if (message.gas < totalDebit)
         {
             outcome.ok = false;
-            outcome.failure = IntrinsicDebitFailure::OpStackIntrinsicOutOfGas;
+            outcome.failure = IntrinsicGasFailure::OpStackIntrinsicOutOfGas;
             outcome.gasLeftOnFailure = message.gas;
             return outcome;
         }

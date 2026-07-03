@@ -25,7 +25,7 @@ namespace
 /// EIP-7623 settlement needs pre-EVM calldata gas components for refund math.
 void captureSettlementSnapshot(StateTransitionContext& ctx)
 {
-    if (ctx.intrinsicDebitMode != IntrinsicDebitMode::Eip7623)
+    if (ctx.intrinsicGasMode != IntrinsicGasMode::FloorDataGas)
     {
         return;
     }
@@ -57,7 +57,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
 
     ctx.earlyExit = false;
     ctx.exitKind = StateTransitionExitKind::None;
-    ctx.intrinsicDebitMode = intrinsicPolicy.mode;
+    ctx.intrinsicGasMode = intrinsicPolicy.mode;
     ctx.gasAccounting = {};
 
     EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute begin")
@@ -66,7 +66,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
                    << LOG_KV("originalGas", ctx.originalGasLimit)
                    << LOG_KV("sender", trace::evmcAddress(ctx.message.sender))
                    << LOG_KV("recipient", trace::evmcAddress(ctx.message.recipient))
-                   << LOG_KV("intrinsicMode", trace::intrinsicDebitMode(intrinsicPolicy.mode))
+                   << LOG_KV("intrinsicMode", trace::intrinsicGasMode(intrinsicPolicy.mode))
                    << LOG_KV("revision", static_cast<int>(ctx.revisionConfig.revision));
 
     try
@@ -105,7 +105,7 @@ void stateTransitionExecute(StateTransitionContext& ctx, StateTransitionHooks co
             ctx.earlyExit = true;
             ctx.exitKind = StateTransitionExitKind::IntrinsicRejected;
             EVM_LOG(DEBUG) << LOG_DESC("stateTransitionExecute intrinsic rejected")
-                           << LOG_KV("failure", trace::intrinsicDebitFailure(debitOutcome.failure))
+                           << LOG_KV("failure", trace::intrinsicGasFailure(debitOutcome.failure))
                            << LOG_KV("gasBefore", ctx.gasAccounting.gasBeforeIntrinsicDebit)
                            << LOG_KV("gasLeft", debitOutcome.gasLeftOnFailure);
             errorPolicy.onIntrinsicGasFailure(ctx, debitOutcome.failure);

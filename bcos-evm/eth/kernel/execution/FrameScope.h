@@ -3,7 +3,7 @@
  *  SPDX-License-Identifier: Apache-2.0
  *
  * @brief TopLevel vs Nested execution frame scope (kernel shared type).
- * @file FrameScope.h
+ * @file execution/FrameScope.h
  */
 
 #pragma once

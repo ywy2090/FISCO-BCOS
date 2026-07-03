@@ -43,7 +43,7 @@ struct PrecompileEnvelopeInput
 {
     state::State& state;
     bcos::evm::RevisionConfig const& revision;
-    execution::CallTargetDescriptor const& target;
+    execution::ClassifiedCallTarget const& target;
     evmc_message const& message;
     bool skipValueTransfer;
     /// nullptr on pure Eth reference execution (builtin precompiles only).

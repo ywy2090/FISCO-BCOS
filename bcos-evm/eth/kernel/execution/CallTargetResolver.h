@@ -9,7 +9,7 @@
  *   routeFrameMessage → classifyCallTarget → runCallTargetFastPath / loadFrameBytecode
  *
  * Merges address work (via FrameRouting) with target route selection (ADR-024). PrecompileRouter
- * consumes a pre-classified CallTargetDescriptor; it does not re-classify.
+ * consumes a pre-classified ClassifiedCallTarget; it does not re-classify.
  *
  * CallTargetRoute values (see CallTargetTypes.h):
  *   EvmContract        — normal VM path (incl. EIP-7702 designator accounts)
@@ -26,7 +26,6 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/CallTargetTypes.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
-#include "bcos-evm/eth/kernel/FrameScope.h"
 #include <evmc/evmc.h>
 #include <functional>
 
@@ -42,6 +41,7 @@ class State;
 
 namespace bcos::evm::execution
 {
+enum class FrameScope;
 
 /// Classify one frame's call target after routing (geth: run() precompile vs contract dispatch).
 ///
@@ -49,7 +49,7 @@ namespace bcos::evm::execution
 /// @param callTargetPort Chain extension (FISCO [PRECOMPILED], OpStack predeploys); may be null.
 /// @param extension      Host hooks; DELEGATECALL-to-precompile policy via
 /// allowDelegateCallToPrecompile.
-CallTargetDescriptor classifyCallTarget(state::State& state,
+ClassifiedCallTarget classifyCallTarget(state::State& state,
     bcos::evm::RevisionConfig const& revision, evmc_message msg, FrameScope scope,
     ChainCallTargetPort* callTargetPort, state::EvmHostHooks* extension);
 

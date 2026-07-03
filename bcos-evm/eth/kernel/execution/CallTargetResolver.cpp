@@ -9,6 +9,7 @@
 #include "bcos-evm/eth/core/ChainCallTargetPort.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
 
@@ -41,14 +42,14 @@ bool isActiveEmptyPrecompileTarget(state::State const& state,
 }
 }  // namespace
 
-CallTargetDescriptor classifyCallTarget(state::State& state,
+ClassifiedCallTarget classifyCallTarget(state::State& state,
     bcos::evm::RevisionConfig const& revision, evmc_message msg, FrameScope scope,
     ChainCallTargetPort* callTargetPort, state::EvmHostHooks* extension)
 {
     // CREATE frames always run initcode via EVM; classification is for CALL-family only.
     if (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2)
     {
-        return CallTargetDescriptor{.route = CallTargetRoute::EvmContract,
+        return ClassifiedCallTarget{.route = CallTargetRoute::EvmContract,
             .accessWarm = AccessWarmSchedule::AtFirstAccess,
             .routed = msg};
     }
@@ -63,7 +64,7 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
     // 7702 authority stores a designator; execution follows delegate code in loadFrameBytecode.
     if (!emptyCode && is7702DelegationDesignator(revision, code))
     {
-        return CallTargetDescriptor{.route = CallTargetRoute::EvmContract,
+        return ClassifiedCallTarget{.route = CallTargetRoute::EvmContract,
             .dispatchAddress = executionAddress,
             .accessWarm = AccessWarmSchedule::AtFirstAccess,
             .routed = routed};
@@ -74,7 +75,7 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
         !extension->allowDelegateCallToPrecompile() &&
         isActiveEmptyPrecompileTarget(state, revision, executionAddress, routed))
     {
-        return CallTargetDescriptor{.route = CallTargetRoute::BuiltinPrecompile,
+        return ClassifiedCallTarget{.route = CallTargetRoute::BuiltinPrecompile,
             .admission = CallTargetAdmission::DenyDelegateCallPrecompile,
             .dispatchAddress = executionAddress,
             .accessWarm = AccessWarmSchedule::AtFirstAccess,
@@ -95,7 +96,7 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
     // Standard eth precompile table (single source: PrecompileActive).
     if (emptyCode && precompiled::isActivePrecompile(revision, executionAddress))
     {
-        return CallTargetDescriptor{.route = CallTargetRoute::BuiltinPrecompile,
+        return ClassifiedCallTarget{.route = CallTargetRoute::BuiltinPrecompile,
             .dispatchAddress = executionAddress,
             .accessWarm = AccessWarmSchedule::AtTxPrepare,
             .routed = routed};
@@ -104,13 +105,13 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
     // Call into non-existent contract: empty success envelope, no VM.
     if (emptyCode)
     {
-        return CallTargetDescriptor{.route = CallTargetRoute::EmptyAccount,
+        return ClassifiedCallTarget{.route = CallTargetRoute::EmptyAccount,
             .dispatchAddress = executionAddress,
             .accessWarm = AccessWarmSchedule::AtFirstAccess,
             .routed = routed};
     }
 
-    return CallTargetDescriptor{.route = CallTargetRoute::EvmContract,
+    return ClassifiedCallTarget{.route = CallTargetRoute::EvmContract,
         .dispatchAddress = executionAddress,
         .accessWarm = AccessWarmSchedule::AtFirstAccess,
         .routed = routed};

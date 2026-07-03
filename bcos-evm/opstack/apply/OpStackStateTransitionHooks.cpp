@@ -44,7 +44,7 @@ EVMCResult makePreCheckError(
 OpStackStateTransitionHooks::OpStackStateTransitionHooks(OpStackSettlementProjection& view)
   : m_view(view), m_sidecar(view.mutableSidecar())
 {
-    m_intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+    m_intrinsicPolicy.mode = IntrinsicGasMode::OpStack;
     m_intrinsicPolicy.authTupleCount = view.authTupleCount();
     m_intrinsicPolicy.accessList = view.accessList();
     m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();

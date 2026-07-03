@@ -31,6 +31,7 @@
 #define BOOST_TEST_MODULE EthDelegateCallValueTransferCharacterizationTest
 
 #include "bcos-evm/eth/host/EthHost.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

@@ -27,7 +27,7 @@ struct StateTransitionErrorPolicy
     virtual ~StateTransitionErrorPolicy() = default;
 
     virtual void onIntrinsicGasFailure(
-        StateTransitionContext& ctx, IntrinsicDebitFailure failure) const = 0;
+        StateTransitionContext& ctx, IntrinsicGasFailure failure) const = 0;
 
     virtual void onException(
         StateTransitionContext& ctx, std::exception_ptr exceptionPtr) const = 0;

@@ -100,11 +100,11 @@ struct CallbackStateTransitionHooks : StateTransitionHooks
 
 struct CallbackStateTransitionErrorPolicy : StateTransitionErrorPolicy
 {
-    std::function<void(StateTransitionContext&, IntrinsicDebitFailure)> onIntrinsicCallback;
+    std::function<void(StateTransitionContext&, IntrinsicGasFailure)> onIntrinsicCallback;
     std::function<void(StateTransitionContext&, std::exception_ptr)> onExceptionCallback;
 
     void onIntrinsicGasFailure(
-        StateTransitionContext& ctx, IntrinsicDebitFailure failure) const override
+        StateTransitionContext& ctx, IntrinsicGasFailure failure) const override
     {
         if (onIntrinsicCallback)
         {
@@ -171,17 +171,16 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_maps_via_error_policy)
 
     bool mapped = false;
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::AuthOnly;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::AuthTuples;
     hooks.intrinsicPolicy.authorizationListPresent = true;
     hooks.intrinsicPolicy.authTupleCount = 2;
     ctx.message.gas = 1;
 
     CallbackStateTransitionErrorPolicy errorPolicy;
-    errorPolicy.onIntrinsicCallback = [&](StateTransitionContext& c,
-                                          IntrinsicDebitFailure failure) {
+    errorPolicy.onIntrinsicCallback = [&](StateTransitionContext& c, IntrinsicGasFailure failure) {
         mapped = true;
         BOOST_CHECK_EQUAL(
-            static_cast<int>(failure), static_cast<int>(IntrinsicDebitFailure::AuthTupleOutOfGas));
+            static_cast<int>(failure), static_cast<int>(IntrinsicGasFailure::AuthTupleOutOfGas));
         evmc_result failResult{};
         failResult.status_code = EVMC_OUT_OF_GAS;
         failResult.gas_left = 0;
@@ -213,7 +212,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_early_exit_skips_kernel_executio
 
     int tuneExecutionInputCalls = 0;
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     hooks.onCheckBalanceAndValue = [](StateTransitionContext& c) {
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;
@@ -250,7 +249,7 @@ BOOST_AUTO_TEST_CASE(pipeline_generic_exception_maps_internal_error_eth_policy)
     ctx.inputs.hashImpl = &hashImpl;
 
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     hooks.onSetupMessage = [](StateTransitionContext&) { throw protocol::PrecompiledError{}; };
 
     EthStateTransitionErrorPolicy errorPolicy;
@@ -276,7 +275,7 @@ BOOST_AUTO_TEST_CASE(tx_check_balance_and_value_exception_maps_without_kernel_re
     bool mapCalled = false;
     ctx.state.checkpoint();
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     hooks.onCheckBalanceAndValue = [](StateTransitionContext&) {
         throw std::runtime_error("boom");
     };
@@ -319,7 +318,7 @@ BOOST_AUTO_TEST_CASE(completed_path_non_eip7623_keeps_snapshot_values)
     ctx.inputs.hashImpl = &hashImpl;
 
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     hooks.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
         InnerExecuteOutput output;
         output.gasRefund = 789;
@@ -351,7 +350,7 @@ BOOST_AUTO_TEST_CASE(completed_path_invokes_eth_post_execute_normalize)
     ctx.inputs.hashImpl = &hashImpl;
 
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     hooks.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
         InnerExecuteOutput output;
         evmc_result raw{};
@@ -390,7 +389,7 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
 
     state::State* capturedState = nullptr;
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     hooks.onRunEvmExecution = [&](InnerExecuteInput&& execInput) {
         capturedState = execInput.state;
         BOOST_CHECK(execInput.state == &ctx.state);
@@ -420,7 +419,7 @@ BOOST_AUTO_TEST_CASE(opstack_entry_records_intrinsic_gas_accounting)
     ctx.inputs.hashImpl = &hashImpl;
 
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::OpStack;
     hooks.onRunEvmExecution = [](InnerExecuteInput&&) -> InnerExecuteOutput {
         InnerExecuteOutput output;
         evmc_result raw{};
@@ -453,7 +452,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_failure_does_not_set_gas_at_evm_entry)
     ctx.inputs.hashImpl = &hashImpl;
 
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::OpStack;
 
     EthStateTransitionErrorPolicy errorPolicy;
     stateTransitionExecute(ctx, hooks, errorPolicy);
@@ -475,7 +474,7 @@ BOOST_AUTO_TEST_CASE(can_transfer_early_exit_records_intrinsic_but_not_evm_entry
     ctx.inputs.hashImpl = &hashImpl;
 
     CallbackStateTransitionHooks hooks;
-    hooks.intrinsicPolicy.mode = IntrinsicDebitMode::OpStackEntry;
+    hooks.intrinsicPolicy.mode = IntrinsicGasMode::OpStack;
     hooks.onCheckBalanceAndValue = [](StateTransitionContext& c) {
         c.earlyExit = true;
         evmc_result failResult{};

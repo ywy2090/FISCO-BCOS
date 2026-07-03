@@ -83,9 +83,9 @@ check_slice "PR-03 ALL" bcos-evm/eth/gas/TxIntrinsicGas.h bcos-evm/eth/gas/TxFee
 check_slice "PR-04 ALL" bcos-evm/eth/eip/Eip7702.cpp bcos-evm/eth/trace/EvmTrace.h
 
 check_slice "PR-05 prod-1" bcos-evm/eth/core/
-check_slice "PR-05 prod-2" bcos-evm/eth/kernel/FrameScope.h \
+check_slice "PR-05 prod-2" bcos-evm/eth/kernel/execution/FrameScope.h \
   bcos-evm/eth/kernel/EVMCResult.h bcos-evm/eth/kernel/EVMCResult.cpp
-check_slice "PR-05 ALL" bcos-evm/eth/core/ bcos-evm/eth/kernel/FrameScope.h \
+check_slice "PR-05 ALL" bcos-evm/eth/core/ bcos-evm/eth/kernel/execution/FrameScope.h \
   bcos-evm/eth/kernel/EVMCResult.h bcos-evm/eth/kernel/EVMCResult.cpp
 
 check_slice "PR-06 ALL" \

@@ -118,7 +118,7 @@ task::Task<FiscoMessageResult> applyFiscoMessage(FiscoMessageRequest input)
     output.executionContext.logs = convertLogs(ctx.logs);
     output.executionContext.message = ctx.message;
 
-    if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+    if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicGasMode::FloorDataGas)
     {
         output.executionContext.gasSettlementSnapshot = ctx.snapshot;
     }

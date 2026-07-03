@@ -21,18 +21,18 @@ struct FiscoStateTransitionErrorPolicy : StateTransitionErrorPolicy
     bool fixRevertLogs{false};
 
     void onIntrinsicGasFailure(
-        StateTransitionContext& ctx, IntrinsicDebitFailure failure) const override
+        StateTransitionContext& ctx, IntrinsicGasFailure failure) const override
     {
         std::string reason = "EIP-7623 intrinsic OOG";
         switch (failure)
         {
-        case IntrinsicDebitFailure::GasLimitMinimum:
+        case IntrinsicGasFailure::GasLimitMinimum:
             reason = "EIP-7623 gas limit minimum";
             break;
-        case IntrinsicDebitFailure::CalldataOutOfGas:
+        case IntrinsicGasFailure::CalldataOutOfGas:
             reason = "EIP-7623 calldata OOG";
             break;
-        case IntrinsicDebitFailure::AuthTupleOutOfGas:
+        case IntrinsicGasFailure::AuthTupleOutOfGas:
             reason = "EIP-7702 auth tuple OOG";
             break;
         default:

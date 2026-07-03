@@ -14,7 +14,7 @@ public:
     OpStackChainCallTargetAdapter(state::State* state, bcos::u256 l2BaseFee,
         OpStackForkSchedule forkSchedule, uint64_t blockTimestamp);
 
-    std::optional<execution::CallTargetDescriptor> classifyTarget(state::State& state,
+    std::optional<execution::ClassifiedCallTarget> classifyTarget(state::State& state,
         evmc_address const& executionAddress, evmc_message const& msg,
         execution::FrameScope scope) override;
 

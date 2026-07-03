@@ -12,7 +12,7 @@ namespace bcos::evm::test
 class InMemoryChainCallTargetAdapter final : public ChainCallTargetPort
 {
 public:
-    using ClassifyFn = std::function<std::optional<execution::CallTargetDescriptor>(
+    using ClassifyFn = std::function<std::optional<execution::ClassifiedCallTarget>(
         state::State&, evmc_address const&, evmc_message const&, execution::FrameScope)>;
     using DispatchFn =
         std::function<std::optional<evmc_result>(evmc_revision, evmc_message const&)>;
@@ -23,7 +23,7 @@ public:
 
     void addStaticWarmTarget(evmc_address const& addr) { m_staticWarm.push_back(addr); }
 
-    std::optional<execution::CallTargetDescriptor> classifyTarget(state::State& s,
+    std::optional<execution::ClassifiedCallTarget> classifyTarget(state::State& s,
         evmc_address const& a, evmc_message const& m, execution::FrameScope scope) override
     {
         return m_classify ? m_classify(s, a, m, scope) : std::nullopt;

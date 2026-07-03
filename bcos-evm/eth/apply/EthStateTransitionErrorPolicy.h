@@ -12,7 +12,7 @@ namespace bcos::evm
 struct EthStateTransitionErrorPolicy : StateTransitionErrorPolicy
 {
     void onIntrinsicGasFailure(
-        StateTransitionContext& ctx, IntrinsicDebitFailure /*failure*/) const override
+        StateTransitionContext& ctx, IntrinsicGasFailure /*failure*/) const override
     {
         ctx.evmcResult =
             makeEvmcResult(protocol::TransactionStatus::OutOfGasLimit, EVMC_OUT_OF_GAS);

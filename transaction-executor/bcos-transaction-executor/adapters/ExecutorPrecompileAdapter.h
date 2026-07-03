@@ -16,7 +16,7 @@ public:
       : m_portAdapterContext(portAdapterContext)
     {}
 
-    std::optional<bcos::evm::execution::CallTargetDescriptor> classifyTarget(
+    std::optional<bcos::evm::execution::ClassifiedCallTarget> classifyTarget(
         bcos::evm::state::State&, evmc_address const&, evmc_message const&,
         bcos::evm::execution::FrameScope) override
     {

@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623)
     auto policy = EthStateTransitionBindings::buildStateTransitionHooks(ctx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicDebitMode::Eip7623));
+        static_cast<int>(IntrinsicGasMode::FloorDataGas));
 }
 
 BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_auth_only)
     auto policy = EthStateTransitionBindings::buildStateTransitionHooks(ctx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicDebitMode::AuthOnly));
+        static_cast<int>(IntrinsicGasMode::AuthTuples));
 }
 
 BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     auto bindings = EthStateTransitionBindings::bind(ctx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicDebitMode::None));
+        static_cast<int>(IntrinsicGasMode::Skip));
 }
 
 }  // namespace bcos::evm::test

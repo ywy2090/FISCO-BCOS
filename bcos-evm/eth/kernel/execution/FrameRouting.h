@@ -9,7 +9,6 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/kernel/FrameScope.h"
 #include <evmc/evmc.h>
 
 namespace bcos::evm::state
@@ -19,6 +18,7 @@ class State;
 
 namespace bcos::evm::execution
 {
+enum class FrameScope;
 
 struct RoutedFrame
 {

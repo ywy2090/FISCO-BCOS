@@ -16,7 +16,7 @@ public:
 
     explicit InMemoryChainPrecompileAdapter(Handler handler = {}) : m_handler(std::move(handler)) {}
 
-    std::optional<execution::CallTargetDescriptor> classifyTarget(
+    std::optional<execution::ClassifiedCallTarget> classifyTarget(
         state::State&, evmc_address const&, evmc_message const&, execution::FrameScope) override
     {
         return std::nullopt;

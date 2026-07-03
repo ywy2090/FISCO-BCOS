@@ -100,7 +100,7 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
 
     if (!input.isCall)
     {
-        if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+        if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicGasMode::FloorDataGas)
             output.gasSettlementSnapshot = ctx.snapshot;
         co_await coordinator.completeAfterPipeline(feeView, output);
     }

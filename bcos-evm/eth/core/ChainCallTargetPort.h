@@ -46,10 +46,14 @@
 #pragma once
 
 #include "bcos-evm/eth/core/CallTargetTypes.h"
-#include "bcos-evm/eth/kernel/FrameScope.h"
 #include <evmc/evmc.h>
 #include <functional>
 #include <optional>
+
+namespace bcos::evm::execution
+{
+enum class FrameScope;
+}
 
 namespace bcos::evm::state
 {
@@ -77,20 +81,20 @@ struct ChainCallTargetPort
     ///
     /// `executionAddress` is the frame execution key from `routeFrameMessage`
     /// (not raw `msg.recipient` / `msg.code_address` when they differ). `msg` is the
-    /// routed envelope (`CallTargetDescriptor::routed`).
+    /// routed envelope (`ClassifiedCallTarget::routed`).
     ///
     /// @return Descriptor with `route == ChainPrecompile` and appropriate `AccessWarmSchedule`
     ///         when claimed; `std::nullopt` to fall through to builtin precompile, empty
     ///         account, or EVM contract resolution. May always return `nullopt` when
     ///         the port is dispatch-only (FISCO TE `ExecutorPrecompileAdapter`).
-    virtual std::optional<execution::CallTargetDescriptor> classifyTarget(state::State& state,
+    virtual std::optional<execution::ClassifiedCallTarget> classifyTarget(state::State& state,
         evmc_address const& executionAddress, evmc_message const& msg,
         execution::FrameScope scope) = 0;
 
     /// Execute a target already classified as `CallTargetRoute::ChainPrecompile`.
     ///
     /// Called from `executePrecompileEnvelope`; must not re-classify or re-route.
-    /// @param msg Final routed envelope (`CallTargetDescriptor::routed`).
+    /// @param msg Final routed envelope (`ClassifiedCallTarget::routed`).
     /// @return `evmc_result` on success; `std::nullopt` → envelope reports precompile failure.
     virtual std::optional<evmc_result> dispatch(evmc_revision rev, evmc_message const& msg) = 0;
 

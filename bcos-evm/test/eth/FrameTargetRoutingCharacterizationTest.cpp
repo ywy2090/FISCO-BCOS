@@ -9,6 +9,7 @@
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"

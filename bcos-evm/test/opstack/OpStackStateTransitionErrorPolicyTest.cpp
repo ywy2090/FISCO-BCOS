@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_maps_to_out_of_gas_limit)
     StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     OpStackStateTransitionErrorPolicy errorPolicy;
-    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::OpStackIntrinsicOutOfGas);
+    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicGasFailure::OpStackIntrinsicOutOfGas);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 0);
@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_gas_failure_ignores_failure_kind)
     StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     OpStackStateTransitionErrorPolicy errorPolicy;
-    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
+    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicGasFailure::GasLimitMinimum);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
@@ -237,7 +237,7 @@ BOOST_AUTO_TEST_CASE(opstack_intrinsic_failure_via_run_tx_pipeline)
         DeductIntrinsicGasParams getIntrinsicGasParams() const override
         {
             DeductIntrinsicGasParams policy;
-            policy.mode = IntrinsicDebitMode::OpStackEntry;
+            policy.mode = IntrinsicGasMode::OpStack;
             return policy;
         }
     };

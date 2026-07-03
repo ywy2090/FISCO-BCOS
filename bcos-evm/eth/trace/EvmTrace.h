@@ -233,36 +233,36 @@ inline std::string_view exitKind(StateTransitionExitKind kind) noexcept
     }
 }
 
-inline std::string_view intrinsicDebitMode(IntrinsicDebitMode mode) noexcept
+inline std::string_view intrinsicGasMode(IntrinsicGasMode mode) noexcept
 {
     switch (mode)
     {
-    case IntrinsicDebitMode::None:
-        return "none";
-    case IntrinsicDebitMode::AuthOnly:
-        return "auth_only";
-    case IntrinsicDebitMode::Eip7623:
-        return "eip7623";
-    case IntrinsicDebitMode::OpStackEntry:
-        return "opstack_entry";
+    case IntrinsicGasMode::Skip:
+        return "skip";
+    case IntrinsicGasMode::AuthTuples:
+        return "auth_tuples";
+    case IntrinsicGasMode::FloorDataGas:
+        return "floor_data_gas";
+    case IntrinsicGasMode::OpStack:
+        return "opstack";
     default:
         return "unknown";
     }
 }
 
-inline std::string_view intrinsicDebitFailure(IntrinsicDebitFailure failure) noexcept
+inline std::string_view intrinsicGasFailure(IntrinsicGasFailure failure) noexcept
 {
     switch (failure)
     {
-    case IntrinsicDebitFailure::None:
+    case IntrinsicGasFailure::None:
         return "none";
-    case IntrinsicDebitFailure::GasLimitMinimum:
+    case IntrinsicGasFailure::GasLimitMinimum:
         return "gas_limit_minimum";
-    case IntrinsicDebitFailure::CalldataOutOfGas:
+    case IntrinsicGasFailure::CalldataOutOfGas:
         return "calldata_out_of_gas";
-    case IntrinsicDebitFailure::AuthTupleOutOfGas:
+    case IntrinsicGasFailure::AuthTupleOutOfGas:
         return "auth_tuple_out_of_gas";
-    case IntrinsicDebitFailure::OpStackIntrinsicOutOfGas:
+    case IntrinsicGasFailure::OpStackIntrinsicOutOfGas:
         return "opstack_intrinsic_out_of_gas";
     default:
         return "unknown";

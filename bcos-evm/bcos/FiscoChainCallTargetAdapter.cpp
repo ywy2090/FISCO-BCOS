@@ -1,10 +1,11 @@
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoChainCallTargetClassify.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 
 namespace bcos::evm
 {
 
-std::optional<execution::CallTargetDescriptor> FiscoChainCallTargetAdapter::classifyTarget(
+std::optional<execution::ClassifiedCallTarget> FiscoChainCallTargetAdapter::classifyTarget(
     state::State& state, evmc_address const& executionAddress, evmc_message const& /*msg*/,
     execution::FrameScope /*scope*/)
 {
@@ -14,7 +15,7 @@ std::optional<execution::CallTargetDescriptor> FiscoChainCallTargetAdapter::clas
         return std::nullopt;
     }
 
-    return execution::CallTargetDescriptor{
+    return execution::ClassifiedCallTarget{
         .route = execution::CallTargetRoute::ChainPrecompile,
         .dispatchAddress = *dispatchAddress,
         .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,

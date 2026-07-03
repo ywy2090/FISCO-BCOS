@@ -196,7 +196,7 @@ When reviewing geth parity, walk this checklist in order:
 
 1. **Reject vs included** — geth `preCheck` / intrinsic failure → `return nil, err` vs bcos `earlyExit` + `StateTransitionErrorPolicy` (see error-handling parity reports).
 2. **`preCheck`** — map `pipelineCheck*` + OP `lifecycleCheckEntryRules`.
-3. **`IntrinsicGas` / `FloorDataGas`** — map `deductIntrinsicGas` + `IntrinsicDebitMode`.
+3. **`IntrinsicGas` / `FloorDataGas`** — map `deductIntrinsicGas` + `IntrinsicGasMode`.
 4. **`CanTransfer`** — map `onPreCheckCanTransfer`.
 5. **`Prepare`** — map warm + transient + 7702 auth apply timing vs geth `execute` block.
 6. **`innerExecute`** — map `executeMessage` path through `runCallFrame`.

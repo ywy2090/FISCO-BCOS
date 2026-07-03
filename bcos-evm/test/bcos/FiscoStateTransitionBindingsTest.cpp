@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_eip7623_when_web3_and_flag_enabled)
 
     auto policy = FiscoStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicDebitMode::Eip7623));
+        static_cast<int>(IntrinsicGasMode::FloorDataGas));
 }
 
 BOOST_AUTO_TEST_CASE(pre_execute_auth_sets_early_exit)

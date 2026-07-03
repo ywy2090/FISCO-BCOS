@@ -12,7 +12,7 @@ public:
       : m_state(state), m_dispatchPort(dispatchPort)
     {}
 
-    std::optional<execution::CallTargetDescriptor> classifyTarget(state::State& state,
+    std::optional<execution::ClassifiedCallTarget> classifyTarget(state::State& state,
         evmc_address const& executionAddress, evmc_message const& msg,
         execution::FrameScope scope) override;
 

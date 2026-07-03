@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
 #include "bcos-evm/eth/core/CallTargetTypes.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/opstack/l1/GasPriceOraclePredeploy.h"
 #include "bcos-evm/opstack/l1/L1BlockPredeploy.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
@@ -47,7 +48,7 @@ OpStackChainCallTargetAdapter::OpStackChainCallTargetAdapter(state::State* state
     m_blockTimestamp(blockTimestamp)
 {}
 
-std::optional<execution::CallTargetDescriptor> OpStackChainCallTargetAdapter::classifyTarget(
+std::optional<execution::ClassifiedCallTarget> OpStackChainCallTargetAdapter::classifyTarget(
     state::State& /*state*/, evmc_address const& executionAddress, evmc_message const& /*msg*/,
     execution::FrameScope /*scope*/)
 {
@@ -57,7 +58,7 @@ std::optional<execution::CallTargetDescriptor> OpStackChainCallTargetAdapter::cl
         return std::nullopt;
     }
 
-    return execution::CallTargetDescriptor{
+    return execution::ClassifiedCallTarget{
         .route = execution::CallTargetRoute::ChainPrecompile,
         .dispatchAddress = entry->address,
         .accessWarm = entry->accessWarm,

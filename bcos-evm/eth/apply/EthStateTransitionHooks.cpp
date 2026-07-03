@@ -36,14 +36,14 @@ namespace bcos::evm
 
 EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input) : m_input(input)
 {
-    m_intrinsicPolicy.mode = IntrinsicDebitMode::None;
+    m_intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     if (input.revisionConfig.eip7623)
     {
-        m_intrinsicPolicy.mode = IntrinsicDebitMode::Eip7623;
+        m_intrinsicPolicy.mode = IntrinsicGasMode::FloorDataGas;
     }
     else if (input.authorizationListPresent && !input.authorizations.empty())
     {
-        m_intrinsicPolicy.mode = IntrinsicDebitMode::AuthOnly;
+        m_intrinsicPolicy.mode = IntrinsicGasMode::AuthTuples;
     }
     m_intrinsicPolicy.authorizationListPresent = input.authorizationListPresent;
     m_intrinsicPolicy.authTupleCount = input.authorizations.size();

@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "fixtures/EthFrameParityHelpers.h"
@@ -42,7 +43,7 @@ bcos::evm::RevisionConfig pragueCfg()
     return {.revision = EVMC_PRAGUE, .eip2929 = true, .eip2537 = true, .eip7702 = true};
 }
 
-execution::CallTargetDescriptor resolveAt(state::State& state, bcos::evm::RevisionConfig const& cfg,
+execution::ClassifiedCallTarget resolveAt(state::State& state, bcos::evm::RevisionConfig const& cfg,
     evmc_message msg, execution::FrameScope scope, ChainCallTargetPort* callTargetPort = nullptr,
     state::EvmHostHooks* extension = nullptr)
 {
@@ -107,8 +108,8 @@ BOOST_AUTO_TEST_CASE(R3_chain_classify_empty_code_toplevel)
 
     InMemoryChainCallTargetAdapter adapter(
         [&](state::State&, evmc_address const& executionAddress, evmc_message const&,
-            execution::FrameScope) -> std::optional<execution::CallTargetDescriptor> {
-            return execution::CallTargetDescriptor{
+            execution::FrameScope) -> std::optional<execution::ClassifiedCallTarget> {
+            return execution::ClassifiedCallTarget{
                 .route = execution::CallTargetRoute::ChainPrecompile,
                 .dispatchAddress = executionAddress,
                 .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
@@ -136,8 +137,8 @@ BOOST_AUTO_TEST_CASE(R4_chain_precompile_wins_over_active_builtin)
 
     InMemoryChainCallTargetAdapter adapter(
         [&](state::State&, evmc_address const& executionAddress, evmc_message const&,
-            execution::FrameScope) -> std::optional<execution::CallTargetDescriptor> {
-            return execution::CallTargetDescriptor{
+            execution::FrameScope) -> std::optional<execution::ClassifiedCallTarget> {
+            return execution::ClassifiedCallTarget{
                 .route = execution::CallTargetRoute::ChainPrecompile,
                 .dispatchAddress = executionAddress,
                 .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
@@ -218,12 +219,12 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
 
     InMemoryChainCallTargetAdapter adapter(
         [&](state::State& s, evmc_address const& executionAddress, evmc_message const&,
-            execution::FrameScope scope) -> std::optional<execution::CallTargetDescriptor> {
+            execution::FrameScope scope) -> std::optional<execution::ClassifiedCallTarget> {
             if (scope == execution::FrameScope::TopLevel &&
                 std::memcmp(executionAddress.bytes, chainDirect.bytes, sizeof(chainDirect.bytes)) ==
                     0)
             {
-                return execution::CallTargetDescriptor{
+                return execution::ClassifiedCallTarget{
                     .route = execution::CallTargetRoute::ChainPrecompile,
                     .dispatchAddress = executionAddress,
                     .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
@@ -236,7 +237,7 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
                     std::string_view{reinterpret_cast<char const*>(code.data()), code.size()};
                 if (codeView.rfind("[PRECOMPILED]", 0) == 0)
                 {
-                    return execution::CallTargetDescriptor{
+                    return execution::ClassifiedCallTarget{
                         .route = execution::CallTargetRoute::ChainPrecompile,
                         .dispatchAddress = resolvedTarget,
                         .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,

@@ -11,7 +11,7 @@ namespace bcos::evm
 struct OpStackStateTransitionErrorPolicy : StateTransitionErrorPolicy
 {
     void onIntrinsicGasFailure(
-        StateTransitionContext& ctx, IntrinsicDebitFailure /*failure*/) const override
+        StateTransitionContext& ctx, IntrinsicGasFailure /*failure*/) const override
     {
         ctx.evmcResult = makeOutOfGasLimitResult();
     }

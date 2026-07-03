@@ -34,7 +34,7 @@ FiscoStateTransitionHooks::FiscoStateTransitionHooks(
   : m_input(input), m_eip7623Enabled(eip7623Enabled)
 {
     m_intrinsicPolicy.mode =
-        eip7623Enabled ? IntrinsicDebitMode::Eip7623 : IntrinsicDebitMode::None;
+        eip7623Enabled ? IntrinsicGasMode::FloorDataGas : IntrinsicGasMode::Skip;
     m_intrinsicPolicy.authorizationListPresent = input.authorizationListPresent;
     m_intrinsicPolicy.authTupleCount = input.authorizations.size();
     m_intrinsicPolicy.accessList = input.accessList.get();

@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/CallTargetTypes.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "helpers/InMemoryStateView.h"

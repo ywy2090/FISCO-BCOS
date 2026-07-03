@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(profile_ctor_wires_input_and_fee_ctx)
     auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicDebitMode::OpStackEntry));
+        static_cast<int>(IntrinsicGasMode::OpStack));
     BOOST_CHECK_EQUAL(policy.getIntrinsicGasParams().authTupleCount, 2U);
 }
 

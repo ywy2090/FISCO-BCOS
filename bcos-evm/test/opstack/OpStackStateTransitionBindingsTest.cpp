@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(intrinsic_policy_op_stack_entry)
     auto policy = OpStackStateTransitionBindings::buildStateTransitionHooks(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(policy.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicDebitMode::OpStackEntry));
+        static_cast<int>(IntrinsicGasMode::OpStack));
 }
 
 BOOST_AUTO_TEST_CASE(pre_debit_entry_floor_rejects)
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     auto bindings = OpStackStateTransitionBindings::bind(bindingsCtx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicDebitMode::OpStackEntry));
+        static_cast<int>(IntrinsicGasMode::OpStack));
 }
 
 }  // namespace bcos::evm::test

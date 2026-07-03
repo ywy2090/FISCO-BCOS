@@ -45,7 +45,7 @@ inline constexpr bool isEnumeratedAtTxPrepare(AccessWarmSchedule schedule) noexc
            schedule == AccessWarmSchedule::AtTxPrepareIfStatic;
 }
 
-struct CallTargetDescriptor
+struct ClassifiedCallTarget
 {
     CallTargetRoute route{CallTargetRoute::EvmContract};
     CallTargetAdmission admission{CallTargetAdmission::Ok};

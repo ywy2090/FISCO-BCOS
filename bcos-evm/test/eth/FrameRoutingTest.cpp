@@ -17,6 +17,7 @@
 #define BOOST_TEST_MODULE FrameRoutingTest
 
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

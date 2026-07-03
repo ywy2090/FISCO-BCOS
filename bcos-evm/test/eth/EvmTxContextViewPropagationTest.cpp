@@ -3,6 +3,7 @@
 #include "bcos-evm/eth/core/ChainCallTargetPort.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
+#include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
@@ -22,7 +23,7 @@ struct IdentityChainPort final : ChainCallTargetPort
     ChainCallTargetPort* topLevelPort{nullptr};
     ChainCallTargetPort* nestedPort{nullptr};
 
-    std::optional<execution::CallTargetDescriptor> classifyTarget(state::State&,
+    std::optional<execution::ClassifiedCallTarget> classifyTarget(state::State&,
         evmc_address const&, evmc_message const&, execution::FrameScope scope) override
     {
         if (scope == execution::FrameScope::TopLevel)

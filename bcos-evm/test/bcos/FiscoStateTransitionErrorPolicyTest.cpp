@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_gas_limit_minimum)
     StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::GasLimitMinimum);
+    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicGasFailure::GasLimitMinimum);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 5'000);
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_clamps_gas_when_fix_error_handl
     StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(true);
-    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::CalldataOutOfGas);
+    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicGasFailure::CalldataOutOfGas);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 0);
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_calldata_out_of_gas)
     StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::CalldataOutOfGas);
+    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicGasFailure::CalldataOutOfGas);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 5'000);
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(fisco_intrinsic_gas_failure_auth_tuple_out_of_gas)
     StateTransitionContext ctx{stateView, message, bcos::evm::RevisionConfig{}, bcos::u256(0)};
 
     auto errorPolicy = makeFiscoErrorPolicy(false);
-    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicDebitFailure::AuthTupleOutOfGas);
+    errorPolicy.onIntrinsicGasFailure(ctx, IntrinsicGasFailure::AuthTupleOutOfGas);
 
     BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_OUT_OF_GAS);
     BOOST_CHECK_EQUAL(ctx.evmcResult.gas_left, 5'000);
@@ -516,7 +516,7 @@ BOOST_AUTO_TEST_CASE(fisco_pipeline_exception_via_run_tx_pipeline)
         DeductIntrinsicGasParams getIntrinsicGasParams() const override
         {
             DeductIntrinsicGasParams policy;
-            policy.mode = IntrinsicDebitMode::None;
+            policy.mode = IntrinsicGasMode::Skip;
             return policy;
         }
 

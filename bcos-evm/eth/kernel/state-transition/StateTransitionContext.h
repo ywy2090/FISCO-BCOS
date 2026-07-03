@@ -23,9 +23,7 @@
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
-#include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.hpp>
-#include <intx/intx.hpp>
 #include <stdexcept>
 
 namespace bcos::crypto
@@ -66,15 +64,6 @@ struct StateTransitionInputs
 class StateTransitionContext
 {
 public:
-    StateTransitionContext(state::StateView const& stateView, evmc_message inputMessage,
-        bcos::evm::RevisionConfig inputRevisionConfig, intx::uint256 inputGasPrice)
-      : message(inputMessage),
-        originalGasLimit(inputMessage.gas),
-        state(stateView),
-        gasPrice(intxToU256(inputGasPrice)),
-        revisionConfig(inputRevisionConfig)
-    {}
-
     StateTransitionContext(state::StateView const& stateView, evmc_message inputMessage,
         bcos::evm::RevisionConfig inputRevisionConfig, bcos::u256 inputGasPrice)
       : message(inputMessage),
@@ -120,18 +109,10 @@ public:
     EVMCResult evmcResult{evmc_result{}};
     bool earlyExit{false};  ///< Set by precheck hooks to skip EVM without throwing.
     StateTransitionExitKind exitKind{StateTransitionExitKind::None};
-    IntrinsicDebitMode intrinsicDebitMode{IntrinsicDebitMode::None};
+    IntrinsicGasMode intrinsicGasMode{IntrinsicGasMode::Skip};
     IntrinsicGasAccounting gasAccounting{};
     /// Eth-only: set by EthStateTransitionErrorPolicy when top-level vmerr is included in block.
     bool topLevelIncludedTxVmError{false};
-
-private:
-    static bcos::u256 intxToU256(intx::uint256 const& value)
-    {
-        evmc_bytes32 bytes{};
-        intx::be::store(bytes.bytes, value);
-        return fromBigEndian<bcos::u256>(bytes.bytes);
-    }
 };
 
 }  // namespace bcos::evm

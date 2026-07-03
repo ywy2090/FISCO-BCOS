@@ -24,7 +24,6 @@
 #pragma once
 
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/kernel/FrameScope.h"
 #include <evmc/evmc.hpp>
 
 namespace bcos::evm
@@ -41,6 +40,7 @@ struct EvmHostHooks;
 
 namespace bcos::evm::execution
 {
+enum class FrameScope;
 
 /// Per-frame execution bundle shared across nested calls for one transaction.
 struct CallFrameContext
