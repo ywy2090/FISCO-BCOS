@@ -5,8 +5,6 @@
 #include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/apply/EthTxFeeSettlement.h"
-#include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -19,6 +17,7 @@
 #include "bcos-utilities/DataConvertUtility.h"
 #include <evmc/evmc.h>
 #include <evmone/evmone.h>
+#include <boost/algorithm/hex.hpp>
 #include <memory>
 
 namespace bcos::evm
@@ -38,7 +37,6 @@ evmc_message newEVMCMessage(bcos::protocol::BlockNumber blockNumber,
 
 /// Pure-ethereum transaction executor — geth-aligned gas + applyEthMessage, no FISCO
 /// extensions.
-template <class TxExec = EthTxFeeSettlement>
 class EthTransactionExecutorImpl
 {
 public:
@@ -49,7 +47,6 @@ public:
 
     std::reference_wrapper<protocol::TransactionReceiptFactory const> m_receiptFactory;
     crypto::Hash::Ptr m_hashImpl;
-    TxExec m_txExecutor;
 
     static int64_t computeEffectiveGasLimit(
         protocol::Transaction const& tx, int64_t blockGasLimit) noexcept
@@ -73,7 +70,6 @@ public:
             std::reference_wrapper<ledger::LedgerConfig const> m_ledgerConfig;
             Rollbackable<Storage> m_rollbackableStorage;
             Rollbackable<Storage>::Savepoint m_startSavepoint;
-            Rollbackable<Storage>::Savepoint m_afterBuyGasSavepoint{0};
             bool m_call;
             int64_t m_gasUsed{0};
             std::string m_gasPriceStr;
@@ -143,63 +139,29 @@ public:
                     eth_tx::fillTransactionGasFields(m_data->m_transaction.get(), *m_data);
                 }
 
-                if (!m_data->m_call)
-                {
-                    if (!co_await m_data->m_executor.get().m_txExecutor.buyGas(*m_data))
-                    {
-                        co_return {};
-                    }
-                }
-
                 auto output = co_await applyEthMessageTx();
                 m_data->m_message = std::move(output.message);
                 m_data->m_revisionConfig = std::move(output.revisionConfig);
                 m_data->m_receiptLogs = std::move(output.receiptLogs);
                 m_data->m_gasSettlementSnapshot = output.gasSettlementSnapshot;
                 m_data->m_evmcResult.emplace(std::move(output.evmcResult));
+                m_data->m_gasUsed = output.gasUsed;
+                m_data->m_effectiveGasPrice = output.effectiveGasPrice;
+                m_data->m_gasPriceStr = std::move(output.gasPriceStr);
+                m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
 
-                if (m_data->m_evmcResult->status_code == EVMC_SUCCESS ||
-                    m_data->m_evmcResult->status_code == EVMC_REVERT)
+                if (!m_data->m_call && !output.stateDiff.accounts.empty())
                 {
-                    if (!output.stateDiff.accounts.empty())
-                    {
-                        co_await state::applyStateDiff(m_data->m_rollbackableStorage,
-                            output.stateDiff, false, *m_data->m_executor.get().m_hashImpl,
-                            m_data->m_transaction.get().abi());
-                    }
-                }
-
-                settleGasUsedFromEvmResult();
-
-                if (!m_data->m_call)
-                {
-                    co_await m_data->m_executor.get().m_txExecutor.refundGas(*m_data);
+                    co_await state::applyStateDiff(m_data->m_rollbackableStorage, output.stateDiff,
+                        false, *m_data->m_executor.get().m_hashImpl,
+                        m_data->m_transaction.get().abi());
                 }
             }
             else if constexpr (phase == static_cast<int>(EthExecutePhase::Finalize))
             {
-                co_return co_await m_data->m_executor.get().m_txExecutor.makeReceipt(*m_data);
+                co_return co_await makeReceiptFromData();
             }
             co_return {};
-        }
-
-        void settleGasUsedFromEvmResult()
-        {
-            auto& evmcResult = *m_data->m_evmcResult;
-            auto const& snapshot = m_data->m_gasSettlementSnapshot;
-            auto const isWeb3 =
-                m_data->m_transaction.get().type() == protocol::TransactionType::Web3Transaction;
-            auto const eip7623 = m_data->m_revisionConfig.eip7623;
-
-            if (snapshot.gasLimit > 0 && isWeb3 && eip7623)
-            {
-                m_data->m_gasUsed = gas::settleTopLevelTransactionGas(m_data->m_gasLimit,
-                    evmcResult.gas_left, snapshot.evmGasRefund,
-                    m_data->m_revisionConfig.calldata_floor_per_token, snapshot.calldata);
-                return;
-            }
-
-            m_data->m_gasUsed = m_data->m_gasLimit - evmcResult.gas_left;
         }
 
         task::Task<EthMessageResult> applyEthMessageTx()
@@ -226,12 +188,48 @@ public:
                 input.web3TypedTxKind = m_data->m_web3TypedTxKind;
             }
             input.hasExplicitFeeCaps = m_data->m_hasExplicitFeeCaps;
-            input.txNonce = m_data->m_nonce.convert_to<uint64_t>();
+            input.txNonce = m_data->m_nonce.template convert_to<uint64_t>();
             input.txHash = m_data->m_transaction.get().hash();
+            input.isCall = m_data->m_call;
+            input.txValue = u256(m_data->m_transaction.get().value());
 
-            auto output = co_await applyEthMessage(std::move(input));
-            m_data->m_topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
-            co_return output;
+            co_return co_await applyEthMessage(std::move(input));
+        }
+
+        task::Task<protocol::TransactionReceipt::Ptr> makeReceiptFromData()
+        {
+            auto& evmcResult = *m_data->m_evmcResult;
+            auto& msg = m_data->m_message;
+
+            std::string newContractAddress;
+            if (msg.kind == EVMC_CREATE && evmcResult.status_code == EVMC_SUCCESS)
+            {
+                newContractAddress.reserve(sizeof(evmcResult.create_address) * 2);
+                boost::algorithm::hex_lower(evmcResult.create_address.bytes,
+                    evmcResult.create_address.bytes + sizeof(evmcResult.create_address.bytes),
+                    std::back_inserter(newContractAddress));
+            }
+
+            if (evmcResult.status_code != EVMC_SUCCESS)
+            {
+                auto [outputData, outputSize, release] = fillErrorOutputInPlace(
+                    *m_data->m_executor.get().m_hashImpl, evmcResult.status_code);
+                if (release != nullptr)
+                {
+                    if (evmcResult.release != nullptr)
+                        evmcResult.release(std::addressof(evmcResult));
+                    evmcResult.output_data = outputData;
+                    evmcResult.output_size = outputSize;
+                    evmcResult.release = release;
+                }
+            }
+
+            co_return m_data->m_executor.get().m_receiptFactory.get().createReceipt2(
+                m_data->m_gasUsed, std::move(newContractAddress), m_data->m_receiptLogs,
+                static_cast<int32_t>(evmcResult.status),
+                {evmcResult.output_data, evmcResult.output_size},
+                m_data->m_blockHeader.get().number(), std::move(m_data->m_gasPriceStr),
+                bcos::protocol::TransactionVersion::V2_VERSION);
         }
 
     private:
@@ -271,5 +269,5 @@ public:
 
 namespace bcos::executor_v1
 {
-using EthTransactionExecutorImpl = bcos::evm::EthTransactionExecutorImpl<>;
+using EthTransactionExecutorImpl = bcos::evm::EthTransactionExecutorImpl;
 }  // namespace bcos::executor_v1
