@@ -9,7 +9,8 @@
       "path": "OpStackBaseline",
       "evidenceKind": "BaselineReachability",
       "capabilityRowIds": ["eip1153-tstore"],
-      "assertLevels": ["transitional", "expectException"]
+      "assertLevels": ["transitional", "expectException"],
+      "excludeCaseFiles": ["test_run_until_out_of_gas.json"]
     }
   ]
 }

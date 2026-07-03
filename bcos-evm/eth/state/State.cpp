@@ -270,6 +270,29 @@ void State::set_transient_storage(
     mutable_account(address).transientStorage[key] = value;
 }
 
+evmc_bytes32 State::get_transient_storage(
+    const evmc_address& address, const evmc_bytes32& key) const
+{
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
+    {
+        if (auto storageIt = it->second.transientStorage.find(key);
+            storageIt != it->second.transientStorage.end())
+        {
+            return storageIt->second;
+        }
+        return {};
+    }
+    if (auto const account = m_baseStateView->get_account(address); account.has_value())
+    {
+        if (auto storageIt = account->transientStorage.find(key);
+            storageIt != account->transientStorage.end())
+        {
+            return storageIt->second;
+        }
+    }
+    return {};
+}
+
 void State::clearAllTransientStorage()
 {
     for (auto& [address, account] : m_accounts)

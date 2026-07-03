@@ -9,6 +9,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -75,11 +76,33 @@ std::vector<std::filesystem::path> resolveCasePaths(
     std::filesystem::path const& eestRoot, ManifestEntry const& entry)
 {
     auto const target = eestRoot / entry.casePath;
+    std::vector<std::filesystem::path> files;
     if (std::filesystem::is_directory(target))
     {
-        return listEestStateTestFiles(eestRoot, entry.casePath);
+        files = listEestStateTestFiles(eestRoot, entry.casePath);
     }
-    return {target};
+    else
+    {
+        files = {target};
+    }
+    if (entry.excludeCaseFiles.empty())
+    {
+        return files;
+    }
+
+    std::vector<std::filesystem::path> filtered;
+    filtered.reserve(files.size());
+    for (auto const& path : files)
+    {
+        auto const base = path.filename().string();
+        if (std::find(entry.excludeCaseFiles.begin(), entry.excludeCaseFiles.end(), base) !=
+            entry.excludeCaseFiles.end())
+        {
+            continue;
+        }
+        filtered.push_back(path);
+    }
+    return filtered;
 }
 
 bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatcher const& matcher,

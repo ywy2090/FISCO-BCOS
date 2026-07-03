@@ -45,6 +45,8 @@ struct ManifestEntry
     std::vector<std::string> assertLevels;
     /// When upstream GST JSON lacks post for profile fork (e.g. Osaka), use this fork's post.
     std::optional<std::string> postFork;
+    /// Basenames to skip when casePath is a directory (e.g. slow OOG fixtures in a separate slice).
+    std::vector<std::string> excludeCaseFiles;
 };
 
 }  // namespace bcos::evm::reference_tests

@@ -55,6 +55,8 @@ public:
     void clear_storage(const evmc_address& address);
     void set_transient_storage(
         const evmc_address& address, const evmc_bytes32& key, const evmc_bytes32& value);
+    [[nodiscard]] evmc_bytes32 get_transient_storage(
+        const evmc_address& address, const evmc_bytes32& key) const;
     /// Clears in-memory transient slots for all overlay accounts.
     void clearAllTransientStorage();
 

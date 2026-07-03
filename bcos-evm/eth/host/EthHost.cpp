@@ -320,17 +320,7 @@ evmc_access_status EthHost::access_storage(const address& addr, const bytes32& k
 EthHost::bytes32 EthHost::get_transient_storage(
     const address& addr, const bytes32& key) const noexcept
 {
-    auto const account = m_state.find(addr);
-    if (!account.has_value())
-    {
-        return {};
-    }
-    auto it = account->transientStorage.find(key);
-    if (it == account->transientStorage.end())
-    {
-        return {};
-    }
-    return it->second;
+    return m_state.get_transient_storage(addr, key);
 }
 
 void EthHost::set_transient_storage(

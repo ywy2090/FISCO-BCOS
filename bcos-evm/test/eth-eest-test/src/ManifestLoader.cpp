@@ -107,6 +107,18 @@ ManifestEntry parseManifestEntry(pt::ptree const& node)
         }
         entry.postFork = *postFork;
     }
+    if (auto const excludeNode = node.get_child_optional("excludeCaseFiles"))
+    {
+        for (auto const& [key, child] : *excludeNode)
+        {
+            static_cast<void>(key);
+            auto const name = child.get_value<std::string>();
+            if (!name.empty())
+            {
+                entry.excludeCaseFiles.push_back(name);
+            }
+        }
+    }
     return entry;
 }
 
