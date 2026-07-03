@@ -82,8 +82,9 @@ struct EvmHostHooks
     /// builtin precompile (empty code, e.g. 0x01 identity). Normal CALL / STATICCALL to
     /// precompiles are unaffected.
     ///
-    /// When `false`, routing returns `CallTargetKind::PolicyRejected` instead of
-    /// `BuiltinPrecompile`. Eth reference returns `true` (geth parity); FISCO returns `false`.
+    /// When `false`, routing sets `CallTargetAdmission::DenyDelegateCallPrecompile` on an otherwise
+    /// `BuiltinPrecompile` route. Eth reference returns `true` (geth parity); FISCO returns
+    /// `false`.
     virtual bool allowDelegateCallToPrecompile() { return true; }
 
     /// Skip native value transfer in `EvmCallFrame::transferOrFail` and precompile envelopes.

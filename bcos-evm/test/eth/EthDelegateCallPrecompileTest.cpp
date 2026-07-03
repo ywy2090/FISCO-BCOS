@@ -6,7 +6,7 @@
  *  GETH_ORACLE: go-ethereum/core/vm/evm.go:404
  *    "It is allowed to call precompiles, even via delegatecall"
  *
- *  Contrast: FiscoEvmHostHooks / DenyDelegatePrecompilePolicy → PolicyRejected (see C4 baseline).
+ *  Contrast: FiscoEvmHostHooks / DenyDelegatePrecompilePolicy → DelegateCallPrecompileDenied.
  */
 
 #define BOOST_TEST_MODULE EthDelegateCallPrecompileTest
@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(resolver_delegatecall_to_identity_is_builtin_precompile_eth
         {.revision = EVMC_PRAGUE, .eip2929 = true, .eip2537 = true}, frame.routed,
         execution::FrameScope::Nested, nullptr, nullptr);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::BuiltinPrecompile);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::BuiltinPrecompile);
     BOOST_CHECK(
         std::memcmp(desc.dispatchAddress.bytes, identity.bytes, sizeof(identity.bytes)) == 0);
 }

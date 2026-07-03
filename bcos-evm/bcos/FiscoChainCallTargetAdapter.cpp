@@ -15,9 +15,9 @@ std::optional<execution::CallTargetDescriptor> FiscoChainCallTargetAdapter::clas
     }
 
     return execution::CallTargetDescriptor{
-        .kind = execution::CallTargetKind::ChainPrecompile,
+        .route = execution::CallTargetRoute::ChainPrecompile,
         .dispatchAddress = *dispatchAddress,
-        .warmPolicy = execution::WarmPolicy::Never,
+        .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
     };
 }
 

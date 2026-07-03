@@ -17,10 +17,10 @@
  * @file ChainCallTargetPort.h
  *
  * Kernel-neutral seam (ADR-024): **chain-owned** CALL targets that are not Ethereum
- * `CallTargetKind::BuiltinPrecompile`. The kernel routes via `classifyCallTarget` and
+ * `CallTargetRoute::BuiltinPrecompile`. The kernel routes via `classifyCallTarget` and
  * `executePrecompileEnvelope` without `#include` of `bcos/` or `opstack/`.
  *
- * Covers `CallTargetKind::ChainPrecompile`:
+ * Covers `CallTargetRoute::ChainPrecompile`:
  *   - FISCO: `0x1000+` precompiles and `[PRECOMPILED]` proxy accounts
  *   - OpStack: system predeploys (L1Block, GasPriceOracle, …)
  *
@@ -59,7 +59,7 @@ class State;
 namespace bcos::evm
 {
 
-/// Chain extension port for `CallTargetKind::ChainPrecompile` targets.
+/// Chain extension port for `CallTargetRoute::ChainPrecompile` targets.
 ///
 /// Three hooks mirror the kernel call-target pipeline:
 ///   1. `classifyTarget` — `classifyCallTarget` (before value transfer / VM)
@@ -79,7 +79,7 @@ struct ChainCallTargetPort
     /// (not raw `msg.recipient` / `msg.code_address` when they differ). `msg` is the
     /// routed envelope (`CallTargetDescriptor::routed`).
     ///
-    /// @return Descriptor with `kind == ChainPrecompile` and appropriate `WarmPolicy`
+    /// @return Descriptor with `route == ChainPrecompile` and appropriate `AccessWarmSchedule`
     ///         when claimed; `std::nullopt` to fall through to builtin precompile, empty
     ///         account, or EVM contract resolution. May always return `nullopt` when
     ///         the port is dispatch-only (FISCO TE `ExecutorPrecompileAdapter`).
@@ -87,7 +87,7 @@ struct ChainCallTargetPort
         evmc_address const& executionAddress, evmc_message const& msg,
         execution::FrameScope scope) = 0;
 
-    /// Execute a target already classified as `CallTargetKind::ChainPrecompile`.
+    /// Execute a target already classified as `CallTargetRoute::ChainPrecompile`.
     ///
     /// Called from `executePrecompileEnvelope`; must not re-classify or re-route.
     /// @param msg Final routed envelope (`CallTargetDescriptor::routed`).
@@ -97,7 +97,7 @@ struct ChainCallTargetPort
     /// Emit fixed chain addresses warmed at transaction entry (EIP-2929).
     ///
     /// Consumed by `enumerateTxEntryWarmTargets` alongside builtin precompiles from
-    /// `PrecompileActive`. Emit only `WarmPolicy::TxEntryIfStatic` predeploys (OpStack
+    /// `PrecompileActive`. Emit only `AccessWarmSchedule::AtTxPrepareIfStatic` predeploys (OpStack
     /// L1Block / GasPriceOracle). Dynamic FISCO `[PRECOMPILED]` targets rely on
     /// `classifyTarget` at frame time; FISCO adapter leaves this as no-op.
     virtual void forEachStaticWarmTarget(

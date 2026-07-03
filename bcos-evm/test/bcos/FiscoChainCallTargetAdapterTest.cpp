@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(classify_and_dispatch_0x1003_hit)
 
     auto desc = adapter.classifyTarget(state, target, msg, execution::FrameScope::TopLevel);
     BOOST_REQUIRE(desc.has_value());
-    BOOST_CHECK(desc->kind == execution::CallTargetKind::ChainPrecompile);
+    BOOST_CHECK(desc->route == execution::CallTargetRoute::ChainPrecompile);
     BOOST_CHECK(std::memcmp(desc->dispatchAddress.bytes, target.bytes, sizeof(target.bytes)) == 0);
 
     auto result = adapter.dispatch(EVMC_CANCUN, msg);
@@ -234,7 +234,7 @@ BOOST_AUTO_TEST_CASE(static_warm_enumerate_is_empty)
     msg.code_address = msg.recipient;
     auto desc = adapter.classifyTarget(state, msg.recipient, msg, execution::FrameScope::TopLevel);
     BOOST_REQUIRE(desc.has_value());
-    BOOST_CHECK(desc->warmPolicy == execution::WarmPolicy::Never);
+    BOOST_CHECK(desc->accessWarm == execution::AccessWarmSchedule::AtFirstAccess);
 }
 
 }  // namespace bcos::evm::test

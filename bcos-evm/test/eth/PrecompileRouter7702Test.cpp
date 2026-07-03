@@ -63,18 +63,20 @@ precompiled::PrecompileRouterOutput routePrecompileAtSeam(state::State& state,
         .callTargetPort = callTargetPort};
 
     precompiled::PrecompileRouterOutput output;
-    switch (desc.kind)
+    if (desc.admission != execution::CallTargetAdmission::Ok)
     {
-    case execution::CallTargetKind::PolicyRejected:
         output.result.status_code = EVMC_PRECOMPILE_FAILURE;
         output.result.gas_left = message.gas;
         return output;
-    case execution::CallTargetKind::EmptyAccount:
+    }
+    switch (desc.route)
+    {
+    case execution::CallTargetRoute::EmptyAccount:
         return precompiled::executeEmptyAccountEnvelope(envInput);
-    case execution::CallTargetKind::BuiltinPrecompile:
-    case execution::CallTargetKind::ChainPrecompile:
+    case execution::CallTargetRoute::BuiltinPrecompile:
+    case execution::CallTargetRoute::ChainPrecompile:
         return precompiled::executePrecompileEnvelope(envInput);
-    case execution::CallTargetKind::EvmContract:
+    case execution::CallTargetRoute::EvmContract:
         return output;
     }
 }

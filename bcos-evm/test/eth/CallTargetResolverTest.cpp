@@ -72,8 +72,8 @@ BOOST_AUTO_TEST_CASE(R1_empty_code_active_builtin)
 
     auto desc = resolveAt(state, cfg, msg, execution::FrameScope::TopLevel);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::BuiltinPrecompile);
-    BOOST_CHECK(desc.warmPolicy == execution::WarmPolicy::TxEntryAlways);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::BuiltinPrecompile);
+    BOOST_CHECK(desc.accessWarm == execution::AccessWarmSchedule::AtTxPrepare);
     BOOST_CHECK(std::memcmp(desc.dispatchAddress.bytes, msg.recipient.bytes,
                     sizeof(msg.recipient.bytes)) == 0);
 }
@@ -95,8 +95,8 @@ BOOST_AUTO_TEST_CASE(R2_inactive_precompile_empty_account)
 
     auto desc = resolveAt(state, cfg, msg, execution::FrameScope::TopLevel);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::EmptyAccount);
-    BOOST_CHECK(desc.warmPolicy == execution::WarmPolicy::Never);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::EmptyAccount);
+    BOOST_CHECK(desc.accessWarm == execution::AccessWarmSchedule::AtFirstAccess);
 }
 
 BOOST_AUTO_TEST_CASE(R3_chain_classify_empty_code_toplevel)
@@ -109,9 +109,9 @@ BOOST_AUTO_TEST_CASE(R3_chain_classify_empty_code_toplevel)
         [&](state::State&, evmc_address const& executionAddress, evmc_message const&,
             execution::FrameScope) -> std::optional<execution::CallTargetDescriptor> {
             return execution::CallTargetDescriptor{
-                .kind = execution::CallTargetKind::ChainPrecompile,
+                .route = execution::CallTargetRoute::ChainPrecompile,
                 .dispatchAddress = executionAddress,
-                .warmPolicy = execution::WarmPolicy::Never,
+                .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
             };
         });
 
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(R3_chain_classify_empty_code_toplevel)
 
     auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::TopLevel, &adapter);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::ChainPrecompile);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::ChainPrecompile);
     BOOST_CHECK(
         std::memcmp(desc.dispatchAddress.bytes, chainAddr.bytes, sizeof(chainAddr.bytes)) == 0);
 }
@@ -138,9 +138,9 @@ BOOST_AUTO_TEST_CASE(R4_chain_precompile_wins_over_active_builtin)
         [&](state::State&, evmc_address const& executionAddress, evmc_message const&,
             execution::FrameScope) -> std::optional<execution::CallTargetDescriptor> {
             return execution::CallTargetDescriptor{
-                .kind = execution::CallTargetKind::ChainPrecompile,
+                .route = execution::CallTargetRoute::ChainPrecompile,
                 .dispatchAddress = executionAddress,
-                .warmPolicy = execution::WarmPolicy::Never,
+                .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
             };
         });
 
@@ -155,8 +155,8 @@ BOOST_AUTO_TEST_CASE(R4_chain_precompile_wins_over_active_builtin)
 
     auto desc = resolveAt(state, cfg, msg, execution::FrameScope::TopLevel, &adapter);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::ChainPrecompile);
-    BOOST_CHECK(desc.kind != execution::CallTargetKind::BuiltinPrecompile);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::ChainPrecompile);
+    BOOST_CHECK(desc.route != execution::CallTargetRoute::BuiltinPrecompile);
 }
 
 BOOST_AUTO_TEST_CASE(R5_7702_delegation_designator_is_evm_contract)
@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(R5_7702_delegation_designator_is_evm_contract)
 
     auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::TopLevel);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::EvmContract);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::EvmContract);
     BOOST_CHECK(
         std::memcmp(desc.dispatchAddress.bytes, authority.bytes, sizeof(authority.bytes)) == 0);
 }
@@ -200,8 +200,9 @@ BOOST_AUTO_TEST_CASE(R6_delegatecall_to_precompile_policy_rejected)
 
     auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::Nested, nullptr, &policy);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::PolicyRejected);
-    BOOST_CHECK(desc.warmPolicy == execution::WarmPolicy::Never);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::BuiltinPrecompile);
+    BOOST_CHECK(desc.admission == execution::CallTargetAdmission::DenyDelegateCallPrecompile);
+    BOOST_CHECK(desc.accessWarm == execution::AccessWarmSchedule::AtFirstAccess);
 }
 
 BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
@@ -223,9 +224,9 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
                     0)
             {
                 return execution::CallTargetDescriptor{
-                    .kind = execution::CallTargetKind::ChainPrecompile,
+                    .route = execution::CallTargetRoute::ChainPrecompile,
                     .dispatchAddress = executionAddress,
-                    .warmPolicy = execution::WarmPolicy::Never,
+                    .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
                 };
             }
             if (scope == execution::FrameScope::Nested)
@@ -236,9 +237,9 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
                 if (codeView.rfind("[PRECOMPILED]", 0) == 0)
                 {
                     return execution::CallTargetDescriptor{
-                        .kind = execution::CallTargetKind::ChainPrecompile,
+                        .route = execution::CallTargetRoute::ChainPrecompile,
                         .dispatchAddress = resolvedTarget,
-                        .warmPolicy = execution::WarmPolicy::Never,
+                        .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
                     };
                 }
             }
@@ -252,7 +253,7 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
     topMsg.code_address = chainDirect;
 
     auto topDesc = resolveAt(state, pragueCfg(), topMsg, execution::FrameScope::TopLevel, &adapter);
-    BOOST_CHECK(topDesc.kind == execution::CallTargetKind::ChainPrecompile);
+    BOOST_CHECK(topDesc.route == execution::CallTargetRoute::ChainPrecompile);
 
     evmc_message nestedMsg{};
     nestedMsg.kind = EVMC_CALL;
@@ -262,7 +263,7 @@ BOOST_AUTO_TEST_CASE(R7_chain_proxy_toplevel_empty_and_nested_marker)
 
     auto nestedDesc =
         resolveAt(state, pragueCfg(), nestedMsg, execution::FrameScope::Nested, &adapter);
-    BOOST_CHECK(nestedDesc.kind == execution::CallTargetKind::ChainPrecompile);
+    BOOST_CHECK(nestedDesc.route == execution::CallTargetRoute::ChainPrecompile);
     BOOST_CHECK(std::memcmp(nestedDesc.dispatchAddress.bytes, resolvedTarget.bytes,
                     sizeof(resolvedTarget.bytes)) == 0);
 }
@@ -282,8 +283,8 @@ BOOST_AUTO_TEST_CASE(R8_create_kind_returns_evm_contract)
 
     auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::TopLevel);
 
-    BOOST_CHECK(desc.kind == execution::CallTargetKind::EvmContract);
-    BOOST_CHECK(desc.warmPolicy == execution::WarmPolicy::Never);
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::EvmContract);
+    BOOST_CHECK(desc.accessWarm == execution::AccessWarmSchedule::AtFirstAccess);
 }
 
 BOOST_AUTO_TEST_CASE(W1_enumerate_active_builtin_precompiles)

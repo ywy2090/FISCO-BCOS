@@ -48,8 +48,9 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
     // CREATE frames always run initcode via EVM; classification is for CALL-family only.
     if (msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2)
     {
-        return CallTargetDescriptor{
-            .kind = CallTargetKind::EvmContract, .warmPolicy = WarmPolicy::Never, .routed = msg};
+        return CallTargetDescriptor{.route = CallTargetRoute::EvmContract,
+            .accessWarm = AccessWarmSchedule::AtFirstAccess,
+            .routed = msg};
     }
 
     auto const resolved = routeFrameMessage(state, revision, msg, scope);
@@ -62,9 +63,9 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
     // 7702 authority stores a designator; execution follows delegate code in loadFrameBytecode.
     if (!emptyCode && is7702DelegationDesignator(revision, code))
     {
-        return CallTargetDescriptor{.kind = CallTargetKind::EvmContract,
+        return CallTargetDescriptor{.route = CallTargetRoute::EvmContract,
             .dispatchAddress = executionAddress,
-            .warmPolicy = WarmPolicy::Never,
+            .accessWarm = AccessWarmSchedule::AtFirstAccess,
             .routed = routed};
     }
 
@@ -73,9 +74,10 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
         !extension->allowDelegateCallToPrecompile() &&
         isActiveEmptyPrecompileTarget(state, revision, executionAddress, routed))
     {
-        return CallTargetDescriptor{.kind = CallTargetKind::PolicyRejected,
+        return CallTargetDescriptor{.route = CallTargetRoute::BuiltinPrecompile,
+            .admission = CallTargetAdmission::DenyDelegateCallPrecompile,
             .dispatchAddress = executionAddress,
-            .warmPolicy = WarmPolicy::Never,
+            .accessWarm = AccessWarmSchedule::AtFirstAccess,
             .routed = routed};
     }
 
@@ -93,24 +95,24 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
     // Standard eth precompile table (single source: PrecompileActive).
     if (emptyCode && precompiled::isActivePrecompile(revision, executionAddress))
     {
-        return CallTargetDescriptor{.kind = CallTargetKind::BuiltinPrecompile,
+        return CallTargetDescriptor{.route = CallTargetRoute::BuiltinPrecompile,
             .dispatchAddress = executionAddress,
-            .warmPolicy = WarmPolicy::TxEntryAlways,
+            .accessWarm = AccessWarmSchedule::AtTxPrepare,
             .routed = routed};
     }
 
     // Call into non-existent contract: empty success envelope, no VM.
     if (emptyCode)
     {
-        return CallTargetDescriptor{.kind = CallTargetKind::EmptyAccount,
+        return CallTargetDescriptor{.route = CallTargetRoute::EmptyAccount,
             .dispatchAddress = executionAddress,
-            .warmPolicy = WarmPolicy::Never,
+            .accessWarm = AccessWarmSchedule::AtFirstAccess,
             .routed = routed};
     }
 
-    return CallTargetDescriptor{.kind = CallTargetKind::EvmContract,
+    return CallTargetDescriptor{.route = CallTargetRoute::EvmContract,
         .dispatchAddress = executionAddress,
-        .warmPolicy = WarmPolicy::Never,
+        .accessWarm = AccessWarmSchedule::AtFirstAccess,
         .routed = routed};
 }
 
@@ -118,10 +120,11 @@ void enumerateTxEntryWarmTargets(bcos::evm::RevisionConfig const& cfg,
     ChainCallTargetPort const* callTargetPort,
     std::function<void(evmc_address const&)> const& consume)
 {
-    // Builtin precompiles: classifyCallTarget assigns WarmPolicy::TxEntryAlways (PrecompileActive
-    // single source).
+    // Builtin precompiles: classifyCallTarget assigns AccessWarmSchedule::AtTxPrepare
+    // (PrecompileActive single source).
     precompiled::forEachActivePrecompile(cfg, [&](evmc_address const& a) { consume(a); });
-    // Chain static targets: adapter forEachStaticWarmTarget emits only isTxEntryWarm entries.
+    // Chain static targets: adapter forEachStaticWarmTarget emits only isEnumeratedAtTxPrepare
+    // entries.
     if (callTargetPort != nullptr)
     {
         callTargetPort->forEachStaticWarmTarget(consume);

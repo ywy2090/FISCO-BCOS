@@ -90,7 +90,7 @@ PrecompileRouterOutput envelopeAfterValueTransfer(
 PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& input)
 {
     return envelopeAfterValueTransfer(input, [&input]() -> evmc::Result {
-        if (input.target.kind == execution::CallTargetKind::BuiltinPrecompile)
+        if (input.target.route == execution::CallTargetRoute::BuiltinPrecompile)
         {
             if (auto result = EthPrecompiles::tryDispatchInCall(input.target.dispatchAddress,
                     input.message, input.revision.revision, input.revision))
@@ -100,7 +100,7 @@ PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& 
             return makePrecompileFailureResult(input.message.gas);
         }
 
-        if (input.target.kind == execution::CallTargetKind::ChainPrecompile &&
+        if (input.target.route == execution::CallTargetRoute::ChainPrecompile &&
             input.callTargetPort != nullptr)
         {
             if (auto result =

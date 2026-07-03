@@ -32,9 +32,9 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_ecrecover)
     msg.code_address = target;
     msg.gas = 500'000;
 
-    execution::CallTargetDescriptor desc{.kind = execution::CallTargetKind::BuiltinPrecompile,
+    execution::CallTargetDescriptor desc{.route = execution::CallTargetRoute::BuiltinPrecompile,
         .dispatchAddress = target,
-        .warmPolicy = execution::WarmPolicy::TxEntryAlways,
+        .accessWarm = execution::AccessWarmSchedule::AtTxPrepare,
         .routed = msg};
 
     auto out = precompiled::executePrecompileEnvelope({.state = state,
@@ -64,9 +64,9 @@ BOOST_AUTO_TEST_CASE(builtin_envelope_dispatches_identity)
     msg.input_data = inputBytes.data();
     msg.input_size = inputBytes.size();
 
-    execution::CallTargetDescriptor desc{.kind = execution::CallTargetKind::BuiltinPrecompile,
+    execution::CallTargetDescriptor desc{.route = execution::CallTargetRoute::BuiltinPrecompile,
         .dispatchAddress = target,
-        .warmPolicy = execution::WarmPolicy::TxEntryAlways,
+        .accessWarm = execution::AccessWarmSchedule::AtTxPrepare,
         .routed = msg};
 
     auto out = precompiled::executePrecompileEnvelope({.state = state,
@@ -94,9 +94,9 @@ BOOST_AUTO_TEST_CASE(empty_account_envelope_success_noop)
     msg.code_address = target;
     msg.gas = 50'000;
 
-    execution::CallTargetDescriptor desc{.kind = execution::CallTargetKind::EmptyAccount,
+    execution::CallTargetDescriptor desc{.route = execution::CallTargetRoute::EmptyAccount,
         .dispatchAddress = target,
-        .warmPolicy = execution::WarmPolicy::Never,
+        .accessWarm = execution::AccessWarmSchedule::AtFirstAccess,
         .routed = msg};
 
     auto out = precompiled::executeEmptyAccountEnvelope({.state = state,

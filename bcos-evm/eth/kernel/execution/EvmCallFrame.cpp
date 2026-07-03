@@ -146,6 +146,15 @@ std::optional<FrameResult> runCallTargetFastPath(FrameWork& work, FrameScope sco
     auto const desc = classifyCallTarget(work.ctx.state, work.ctx.revisionConfig, callMessage,
         scope, work.ctx.callTargetPort, work.ctx.extension);
 
+    if (desc.admission != CallTargetAdmission::Ok)
+    {
+        // Chain policy blocked the classified target; no state change.
+        evmc_result raw{};
+        raw.status_code = EVMC_PRECOMPILE_FAILURE;
+        raw.gas_left = callMessage.gas;
+        return FrameResult{.result = evmc::Result(raw), .envelopeComplete = false};
+    }
+
     precompiled::PrecompileEnvelopeInput envInput{.state = work.ctx.state,
         .revision = work.ctx.revisionConfig,
         .target = desc,
@@ -153,31 +162,23 @@ std::optional<FrameResult> runCallTargetFastPath(FrameWork& work, FrameScope sco
         .skipValueTransfer = skipVt,
         .callTargetPort = work.ctx.callTargetPort};
 
-    switch (desc.kind)
+    switch (desc.route)
     {
-    case CallTargetKind::BuiltinPrecompile:
-    case CallTargetKind::ChainPrecompile:
+    case CallTargetRoute::BuiltinPrecompile:
+    case CallTargetRoute::ChainPrecompile:
     {
         auto out = precompiled::executePrecompileEnvelope(envInput);
         return FrameResult{
             .result = std::move(out.result), .gasRefund = out.gasRefund, .envelopeComplete = true};
     }
-    case CallTargetKind::EmptyAccount:
+    case CallTargetRoute::EmptyAccount:
     {
         // Calls into empty code (non-existent contract): charge access gas, return empty success.
         auto out = precompiled::executeEmptyAccountEnvelope(envInput);
         return FrameResult{
             .result = std::move(out.result), .gasRefund = out.gasRefund, .envelopeComplete = true};
     }
-    case CallTargetKind::PolicyRejected:
-    {
-        // Chain policy blocked the target (e.g. disallowed precompile revision); no state change.
-        evmc_result raw{};
-        raw.status_code = EVMC_PRECOMPILE_FAILURE;
-        raw.gas_left = callMessage.gas;
-        return FrameResult{.result = evmc::Result(raw), .envelopeComplete = false};
-    }
-    case CallTargetKind::EvmContract:
+    case CallTargetRoute::EvmContract:
         return std::nullopt;
     }
     return std::nullopt;

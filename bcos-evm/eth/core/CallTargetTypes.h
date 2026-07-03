@@ -13,34 +13,44 @@
 namespace bcos::evm::execution
 {
 
-enum class CallTargetKind
+/// Dispatch route for a classified call target.
+enum class CallTargetRoute
 {
     EvmContract,
     BuiltinPrecompile,
     ChainPrecompile,
     EmptyAccount,
-    PolicyRejected,
 };
 
-enum class WarmPolicy
+/// Frame admission after target classification (orthogonal to CallTargetRoute).
+enum class CallTargetAdmission
 {
-    Never,
-    TxEntryAlways,
-    TxEntryIfStatic,
-    FrameEntryOnly,  // CREATE warm-pin; set by routeFrameMessage, not consumed by enumerate
+    Ok,
+    DenyDelegateCallPrecompile,
 };
 
-/// Tx-entry warm set includes TxEntryAlways (builtin) and TxEntryIfStatic (fixed predeploys).
-inline constexpr bool isTxEntryWarm(WarmPolicy policy) noexcept
+/// EIP-2929 address warm schedule for a classified call target.
+enum class AccessWarmSchedule
 {
-    return policy == WarmPolicy::TxEntryAlways || policy == WarmPolicy::TxEntryIfStatic;
+    AtFirstAccess,
+    AtTxPrepare,
+    AtTxPrepareIfStatic,
+    AtFrameOpen,  // CREATE warm-pin; set by routeFrameMessage, not consumed by enumerate
+};
+
+/// Targets enumerated at transaction entry (prepareState / EIP-2929 tx warm set).
+inline constexpr bool isEnumeratedAtTxPrepare(AccessWarmSchedule schedule) noexcept
+{
+    return schedule == AccessWarmSchedule::AtTxPrepare ||
+           schedule == AccessWarmSchedule::AtTxPrepareIfStatic;
 }
 
 struct CallTargetDescriptor
 {
-    CallTargetKind kind{CallTargetKind::EvmContract};
+    CallTargetRoute route{CallTargetRoute::EvmContract};
+    CallTargetAdmission admission{CallTargetAdmission::Ok};
     evmc_address dispatchAddress{};
-    WarmPolicy warmPolicy{WarmPolicy::Never};
+    AccessWarmSchedule accessWarm{AccessWarmSchedule::AtFirstAccess};
     evmc_message routed{};
 };
 

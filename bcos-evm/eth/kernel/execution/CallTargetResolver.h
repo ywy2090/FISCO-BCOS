@@ -2,21 +2,23 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief Call-target classification: address resolution seam + precompile / EVM dispatch kind.
+ * @brief Call-target classification: address resolution seam + precompile / EVM dispatch route.
  * @file CallTargetResolver.h
  *
  * Pipeline position (EvmCallFrame::runFrameSteps):
  *   routeFrameMessage → classifyCallTarget → runCallTargetFastPath / loadFrameBytecode
  *
- * Merges address work (via FrameRouting) with target kind selection (ADR-024). PrecompileRouter
+ * Merges address work (via FrameRouting) with target route selection (ADR-024). PrecompileRouter
  * consumes a pre-classified CallTargetDescriptor; it does not re-classify.
  *
- * CallTargetKind values (see CallTargetTypes.h):
+ * CallTargetRoute values (see CallTargetTypes.h):
  *   EvmContract        — normal VM path (incl. EIP-7702 designator accounts)
  *   BuiltinPrecompile  — eth precompile table (PrecompileActive)
  *   ChainPrecompile    — FISCO / OpStack adapter (ChainCallTargetPort)
  *   EmptyAccount       — empty code, not a precompile
- *   PolicyRejected     — e.g. DELEGATECALL to precompile when disallowed by extension
+ *
+ * CallTargetAdmission (orthogonal to route):
+ *   DenyDelegateCallPrecompile — DELEGATECALL to builtin precompile when extension disallows
  */
 
 #pragma once
@@ -54,7 +56,7 @@ CallTargetDescriptor classifyCallTarget(state::State& state,
 /// Emit all addresses warmed at transaction entry (EIP-2929).
 ///
 /// Builtin precompiles (PrecompileActive) plus chain static targets from callTargetPort.
-/// Used by prepareState; must stay aligned with WarmPolicy assigned in classifyCallTarget.
+/// Used by prepareState; must stay aligned with AccessWarmSchedule assigned in classifyCallTarget.
 void enumerateTxEntryWarmTargets(bcos::evm::RevisionConfig const& cfg,
     ChainCallTargetPort const* callTargetPort,
     std::function<void(evmc_address const&)> const& consume);

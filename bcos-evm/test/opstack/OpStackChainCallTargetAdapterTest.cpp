@@ -39,8 +39,8 @@ BOOST_AUTO_TEST_CASE(classify_l1_block_and_gas_oracle)
         auto desc = adapter.classifyTarget(
             state, target, makeCall(target), execution::FrameScope::TopLevel);
         BOOST_REQUIRE(desc.has_value());
-        BOOST_CHECK(desc->kind == execution::CallTargetKind::ChainPrecompile);
-        BOOST_CHECK(desc->warmPolicy == execution::WarmPolicy::TxEntryIfStatic);
+        BOOST_CHECK(desc->route == execution::CallTargetRoute::ChainPrecompile);
+        BOOST_CHECK(desc->accessWarm == execution::AccessWarmSchedule::AtTxPrepareIfStatic);
         BOOST_CHECK(
             std::memcmp(desc->dispatchAddress.bytes, target.bytes, sizeof(target.bytes)) == 0);
     };
@@ -103,8 +103,8 @@ BOOST_AUTO_TEST_CASE(invariant_classify_warm_policy_matches_static_warm_enumerat
         auto desc = adapter.classifyTarget(
             state, target, makeCall(target), execution::FrameScope::TopLevel);
         BOOST_REQUIRE(desc.has_value());
-        BOOST_CHECK(desc->kind == execution::CallTargetKind::ChainPrecompile);
-        BOOST_CHECK(execution::isTxEntryWarm(desc->warmPolicy));
+        BOOST_CHECK(desc->route == execution::CallTargetRoute::ChainPrecompile);
+        BOOST_CHECK(execution::isEnumeratedAtTxPrepare(desc->accessWarm));
 
         auto inEnumerate =
             std::any_of(enumerated.begin(), enumerated.end(), [&](evmc_address const& a) {

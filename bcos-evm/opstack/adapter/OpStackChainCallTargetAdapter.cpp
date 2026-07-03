@@ -17,12 +17,12 @@ bool sameAddress(evmc_address const& left, evmc_address const& right) noexcept
 struct StaticChainTarget
 {
     evmc_address address;
-    execution::WarmPolicy warmPolicy;
+    execution::AccessWarmSchedule accessWarm;
 };
 
 constexpr StaticChainTarget kOpStackStaticTargets[] = {
-    {OP_L1_BLOCK_PREDEPLOY, execution::WarmPolicy::TxEntryIfStatic},
-    {OP_GAS_PRICE_ORACLE_PREDEPLOY, execution::WarmPolicy::TxEntryIfStatic},
+    {OP_L1_BLOCK_PREDEPLOY, execution::AccessWarmSchedule::AtTxPrepareIfStatic},
+    {OP_GAS_PRICE_ORACLE_PREDEPLOY, execution::AccessWarmSchedule::AtTxPrepareIfStatic},
 };
 
 std::optional<StaticChainTarget const*> findStaticTarget(
@@ -58,9 +58,9 @@ std::optional<execution::CallTargetDescriptor> OpStackChainCallTargetAdapter::cl
     }
 
     return execution::CallTargetDescriptor{
-        .kind = execution::CallTargetKind::ChainPrecompile,
+        .route = execution::CallTargetRoute::ChainPrecompile,
         .dispatchAddress = entry->address,
-        .warmPolicy = entry->warmPolicy,
+        .accessWarm = entry->accessWarm,
     };
 }
 
@@ -90,7 +90,7 @@ void OpStackChainCallTargetAdapter::forEachStaticWarmTarget(
 {
     for (auto const& entry : kOpStackStaticTargets)
     {
-        if (execution::isTxEntryWarm(entry.warmPolicy))
+        if (execution::isEnumeratedAtTxPrepare(entry.accessWarm))
         {
             consume(entry.address);
         }
