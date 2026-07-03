@@ -2,6 +2,9 @@
 #include "bcos-evm/eth/apply/EthEvmHostHooks.h"
 #include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
+#include "bcos-evm/eth/settlement/EthFeeSettlement.h"
+#include "bcos-evm/eth/settlement/EthNormalTxFeeCoordinator.h"
+#include "bcos-evm/eth/settlement/EthSettlementProjection.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
@@ -65,6 +68,22 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
     EthStateTransitionBindings::Context bindingsCtx{input, output};
     auto bindings = EthStateTransitionBindings::bind(bindingsCtx);
 
+    EthFeeSidecar sidecar;
+    EthSettlementProjection feeView{ctx, input, sidecar};
+    EthFeeSettlement feeLedger;
+    EthNormalTxFeeCoordinator coordinator{feeLedger};
+
+    if (!input.isCall)
+    {
+        ctx.state.checkpoint();
+        if (!co_await coordinator.buyGas(feeView, output))
+        {
+            output.stateDiff = ctx.state.build_diff();
+            co_return output;
+        }
+        ctx.gasPrice = sidecar.effectiveGasPrice;
+    }
+
     stateTransitionExecute(ctx, bindings.hooks, bindings.errorPolicy);
 
     EVM_LOG(DEBUG) << LOG_DESC("applyEthMessage done")
@@ -78,11 +97,16 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
     output.receiptLogs = convertLogs(ctx.logs);
     output.logs = std::move(ctx.logs);
     output.message = ctx.message;
-    output.stateDiff = std::move(ctx.stateDiff);
 
-    if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+    if (!input.isCall)
     {
-        output.gasSettlementSnapshot = ctx.snapshot;
+        if (bindings.hooks.getIntrinsicGasParams().mode == IntrinsicDebitMode::Eip7623)
+            output.gasSettlementSnapshot = ctx.snapshot;
+        co_await coordinator.completeAfterPipeline(feeView, output);
+    }
+    else
+    {
+        output.stateDiff = ctx.state.build_diff();
     }
 
     co_return output;
