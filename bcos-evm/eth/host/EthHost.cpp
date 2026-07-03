@@ -14,7 +14,10 @@
  *  limitations under the License.
  *
  * @file EthHost.cpp
- * @details evmc::Host callbacks — see EthHost.h for architecture overview.
+ * @details evmc::Host callback implementations — see EthHost.h for architecture overview.
+ *
+ * Each override forwards to `State` for persistent data, or maintains tx-local side
+ * state (logs, CREATE tracking, SSTORE originals) that `State` does not own.
  */
 
 #include "bcos-evm/eth/host/EthHost.h"
@@ -66,7 +69,8 @@ EthHost::bytes32 EthHost::get_storage(const address& addr, const bytes32& key) c
 evmc_storage_status EthHost::set_storage(
     const address& addr, const bytes32& key, const bytes32& value) noexcept
 {
-    // Snapshot original value on first write to (addr,key) in this transaction.
+    // EIP-2200: "original" is the value before any SSTORE in this transaction.
+    // Cached per (addr,key) so nested reverts do not reset the original snapshot.
     auto const slot = std::make_pair(addr, key);
     auto [it, inserted] = m_storageOriginalValues.try_emplace(slot, evmc_bytes32{});
     if (inserted)
@@ -78,10 +82,11 @@ evmc_storage_status EthHost::set_storage(
     auto const current = m_state.get_storage(addr, key);
     if (Bytes32Equal{}(current, value))
     {
-        // Unchanged slot: evmone keeps ASSIGNED (100 gas) even when original was zero.
+        // No-op write: evmone expects ASSIGNED (100 gas) regardless of original zero/non-zero.
         return EVMC_STORAGE_ASSIGNED;
     }
 
+    // Refund delta before mutation; extension may apply FISCO legacy refund rules.
     if (m_extension != nullptr)
     {
         m_extension->applySstoreRefund(m_state, current, original, value);
@@ -93,6 +98,7 @@ evmc_storage_status EthHost::set_storage(
 
     m_state.set_storage(addr, key, value);
 
+    // Return status drives evmone gas accounting (ADDED / MODIFIED / DELETED / …).
     auto const status = m_extension != nullptr ?
                             m_extension->classifyStorageStatus(original, current, value) :
                             classifyStorageStatusPrecise(original, current, value);
@@ -155,6 +161,7 @@ void EthHost::destroyContractState(evmc_address const& addr) noexcept
 
 bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noexcept
 {
+    // Chain extension may veto SELFDESTRUCT (e.g. FISCO auth / system contracts).
     if (m_extension != nullptr)
     {
         if (auto const* overlay = m_state.find_overlay_account(addr); overlay != nullptr)
@@ -179,8 +186,9 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
 
     if (m_revisionConfig.eip6780 && !wasCreatedInTx(addr))
     {
-        // EIP-6780: pre-existing accounts are not destroyable; move balance only.
-        // evmone: acc.balance = 0; beneficiary += balance (net unchanged when self-beneficiary).
+        // EIP-6780: contracts that existed before this tx cannot be destroyed.
+        // Transfer balance to beneficiary; return false so evmone skips destroy refund.
+        // Self-beneficiary: zero then restore — net balance unchanged (matches geth/evmone).
         if (balance != 0)
         {
             m_state.set_balance(addr, 0);
@@ -196,6 +204,7 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
         return false;
     }
 
+    // Full destruction path: transfer balance, then wipe or mark per revision.
     if (balance != 0)
     {
         if (!selfBeneficiary)
@@ -211,10 +220,12 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
 
     if (m_revisionConfig.eip6780)
     {
+        // Tx-created contract: mark destroyed; code/storage cleared at tx end (EIP-6780).
         m_state.mark_self_destructed(addr);
         return true;
     }
 
+    // Pre-Cancun: immediate code + storage wipe.
     destroyContractState(addr);
     return true;
 }
@@ -233,6 +244,8 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
                        << LOG_KV("target", trace::evmcAddress(msg.recipient));
     }
 
+    // Nested CREATE/CREATE2 updates m_executionAddress inside runCallFrame; restore on exit
+    // so outer frames keep their execution address for subsequent opcodes.
     struct ExecutionAddressGuard
     {
         evmc_address& address;
@@ -299,10 +312,12 @@ std::vector<LogEntry> EthHost::take_logs()
 
 evmc_access_status EthHost::access_account(const address& addr) noexcept
 {
+    // Pre-Berlin: evmone ignores access status; returning COLD is safe.
     if (!execution::isEip2929Enabled(m_revisionConfig))
     {
         return EVMC_ACCESS_COLD;
     }
+    // First touch in tx → COLD (2600 gas); subsequent → WARM (100 gas).
     return m_state.warm_up_address(addr) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
 }
 
@@ -312,6 +327,7 @@ evmc_access_status EthHost::access_storage(const address& addr, const bytes32& k
     {
         return EVMC_ACCESS_COLD;
     }
+    // First touch in tx → COLD (2100 gas); subsequent → WARM (100 gas).
     return m_state.warm_up_storage(addr, key) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
 }
 

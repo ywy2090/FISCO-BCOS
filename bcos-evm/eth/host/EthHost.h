@@ -58,6 +58,10 @@ namespace bcos::evm::state
 class State;
 struct EvmHostHooks;
 /// evmc::Host implementation backed by `State` journal + revision-aware EIP helpers.
+///
+/// Lifetime: one instance per transaction, shared across all nested call depths.
+/// Wired in `StateTransitionContext::wireExecutionEnvironment`; evmone holds a
+/// pointer for the duration of `runCallFrame`.
 class EthHost : public evmc::Host
 {
 public:
@@ -66,12 +70,22 @@ public:
     using uint256be = evmc::uint256be;
     using Result = evmc::Result;
 
+    /// @param state            Mutable execution journal (balance/code/storage overlay).
+    /// @param txContext        BLOCKHASH / ORIGIN / GASPRICE context for opcodes.
+    /// @param revisionConfig   Fork flags (EIP-6780, EIP-2929, EIP-1153, …).
+    /// @param vm               evmone VM instance used for nested `call()`.
+    /// @param blockHashes      Optional BLOCKHASH lookup; empty functor returns zero hash.
+    /// @param extension        Chain SSTORE/SELFDESTRUCT policy; nullptr → ETH defaults.
+    /// @param callTargetPort   Chain precompile routing; consumed inside `runCallFrame`.
     EthHost(State& state, evmc_tx_context txContext, bcos::evm::RevisionConfig revisionConfig,
         evmc::VM& vm, BlockHashes blockHashes, EvmHostHooks* extension = nullptr,
         ChainCallTargetPort* callTargetPort = nullptr);
 
+    // --- Account / storage / code (evmc host interface → State journal) ---
+
     bool account_exists(const address& addr) const noexcept final;
     bytes32 get_storage(const address& addr, const bytes32& key) const noexcept final;
+    /// EIP-2200/3529 storage status + refund; original slot cached in `m_storageOriginalValues`.
     evmc_storage_status set_storage(
         const address& addr, const bytes32& key, const bytes32& value) noexcept final;
     uint256be get_balance(const address& addr) const noexcept final;
@@ -79,17 +93,38 @@ public:
     bytes32 get_code_hash(const address& addr) const noexcept final;
     size_t copy_code(const address& addr, size_t code_offset, uint8_t* buffer_data,
         size_t buffer_size) const noexcept final;
+
+    /// EIP-6780: pre-existing contracts transfer balance only; tx-created contracts
+    /// are marked via `mark_self_destructed`. Pre-6780: wipes code + storage.
+    /// Returns `true` when account is considered destroyed (evmone refund semantics).
     bool selfdestruct(const address& addr, const address& beneficiary) noexcept final;
+
+    /// Nested CALL/CREATE entry — builds `CallFrameContext` and delegates to `runCallFrame`.
+    /// Saves/restores `m_executionAddress` around the nested frame.
     Result call(const evmc_message& msg) noexcept final;
+
+    // --- Block / transaction context ---
+
     evmc_tx_context get_tx_context() const noexcept final;
     bytes32 get_block_hash(int64_t number) const noexcept final;
+
+    // --- Logs (accumulated per tx, drained by `take_logs`) ---
+
     void emit_log(const address& addr, const uint8_t* data, size_t data_size,
         const bytes32 topics[], size_t num_topics) noexcept final;
+
+    // --- EIP-2929 warm/cold access (no-op gas-wise when revision disables eip2929) ---
+
     evmc_access_status access_account(const address& addr) noexcept final;
     evmc_access_status access_storage(const address& addr, const bytes32& key) noexcept final;
+
+    // --- EIP-1153 transient storage (Cancun+) ---
+
     bytes32 get_transient_storage(const address& addr, const bytes32& key) const noexcept final;
     void set_transient_storage(
         const address& addr, const bytes32& key, const bytes32& value) noexcept final;
+
+    // --- Frame-local helpers (not part of evmc::Host) ---
     /// Current frame address for CREATE/CREATE2 side effects (updated by `EvmCallFrame`).
     void set_execution_address(const evmc_address& address) noexcept
     {
@@ -106,21 +141,30 @@ public:
     std::vector<LogEntry> take_logs();
 
 private:
-    /// Pre-EIP-6780 path: wipe code + storage on SELFDESTRUCT.
+    /// Pre-EIP-6780 path: zero code hash + clear all storage slots on SELFDESTRUCT.
     void destroyContractState(evmc_address const& addr) noexcept;
 
+    /// Execution journal (shared at all nested call depths).
     State& m_state;
+    /// Tx/block metadata for opcode context (ORIGIN, GASPRICE, …).
     evmc_tx_context m_txContext{};
+    /// Active fork profile for this block (EIP-6780, EIP-2929, …).
     bcos::evm::RevisionConfig m_revisionConfig{};
+    /// evmone instance used for nested `call()`.
     evmc::VM& m_vm;
+    /// BLOCKHASH(number) lookup; empty functor returns zero hash.
     BlockHashes m_blockHashes;
+    /// Chain SSTORE/SELFDESTRUCT hooks (ADR-005); nullptr → ETH defaults.
     EvmHostHooks* m_extension{nullptr};
+    /// Chain precompile routing port (ADR-005); consumed inside `runCallFrame`.
     ChainCallTargetPort* m_callTargetPort{nullptr};
     /// Original slot value at first SSTORE in this tx (per addr,key) for EIP-2200 status.
     std::unordered_map<std::pair<address, bytes32>, bytes32, WarmStorageKeyHash,
         WarmStorageKeyEqual>
         m_storageOriginalValues;
+    /// LOG0..4 buffer; moved out via `take_logs()` after execution.
     std::vector<LogEntry> m_logs;
+    /// Active frame address for nested CREATE/CREATE2 side effects.
     evmc_address m_executionAddress{};
     /// Addresses created via CREATE/CREATE2 in this tx; drives EIP-6780 selfdestruct.
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_createdInTx;
