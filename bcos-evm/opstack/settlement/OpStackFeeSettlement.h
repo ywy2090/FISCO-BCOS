@@ -18,19 +18,18 @@
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
-#include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
-#include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Task.h>
+#include <bcos-utilities/BoostLog.h>
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
+#include <cstdint>
 #include <functional>
-#include <optional>
 
 namespace bcos::evm
 {
 #define OP_TX_EXECUTOR_LOG(LEVEL) BCOS_LOG(LEVEL) << LOG_BADGE("OP_TX_EXECUTOR")
 
+struct OpStackSettlementProjection;
 struct OpStackTxFinalizeResult;
 
 struct OpStackFeeSettlement

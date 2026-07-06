@@ -2,9 +2,10 @@
 
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include <bcos-utilities/Common.h>
-#include <evmc/evmc.h>
 #include <cstdint>
 #include <optional>
+
+struct evmc_message;
 
 namespace bcos::evm::state
 {

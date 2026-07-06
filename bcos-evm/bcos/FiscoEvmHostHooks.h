@@ -19,19 +19,33 @@
 
 #pragma once
 
-#include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/bcos/FiscoConstants.h"
-#include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
-#include "bcos-evm/eth/kernel/EVMCResult.h"
-#include "bcos-framework/ledger/LedgerConfig.h"
-#include "bcos-framework/protocol/BlockHeader.h"
+#include "bcos-evm/eth/state/Account.hpp"
 #include <evmc/evmc.h>
+#include <cstdint>
 #include <functional>
 #include <string>
 
+namespace bcos::crypto
+{
+class Hash;
+}
+
+namespace bcos::ledger
+{
+class LedgerConfig;
+}
+
+namespace bcos::protocol
+{
+class BlockHeader;
+}
+
 namespace bcos::evm
 {
+
+struct AuthPort;
+
 class FiscoEvmHostHooks final : public state::EvmHostHooks
 {
 public:

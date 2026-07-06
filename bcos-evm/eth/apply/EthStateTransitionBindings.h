@@ -19,12 +19,14 @@
 
 #pragma once
 
-#include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/apply/EthStateTransitionErrorPolicy.h"
 #include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
 
 namespace bcos::evm
 {
+
+struct EthMessageRequest;
+struct EthMessageResult;
 
 /// Factory for `{hooks, errorPolicy}` injected into `stateTransitionExecute`.
 struct EthStateTransitionBindings

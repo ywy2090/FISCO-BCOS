@@ -19,12 +19,14 @@
 
 #pragma once
 
-#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoStateTransitionErrorPolicy.h"
 #include "bcos-evm/bcos/FiscoStateTransitionHooks.h"
 
 namespace bcos::evm
 {
+
+struct FiscoMessageRequest;
+struct FiscoMessageResult;
 
 /// Factory for `{hooks, errorPolicy}` injected into `stateTransitionExecute`.
 struct FiscoStateTransitionBindings

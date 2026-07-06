@@ -8,15 +8,20 @@
 
 #pragma once
 
-#include "bcos-evm/eth/state/StateView.hpp"
 #include "bcos-evm/opstack/fee/RollupCost.h"
-#include "bcos-evm/opstack/policy/OpStackConstants.h"
-#include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include <bcos-utilities/Common.h>
+#include <cstdint>
 #include <functional>
+
+namespace bcos::evm::state
+{
+class StateView;
+}
 
 namespace bcos::evm
 {
+
+struct OpStackForkSchedule;
 
 struct OpStackFeeParams
 {

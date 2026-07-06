@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-crypto/ChecksumAddress.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

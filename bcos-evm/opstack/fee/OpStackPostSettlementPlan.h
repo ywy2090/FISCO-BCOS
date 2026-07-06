@@ -7,12 +7,14 @@
  */
 #pragma once
 
-#include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
+#include "bcos-evm/eth/gas/GasSettlementTypes.h"
 #include <bcos-utilities/Common.h>
+#include <cstdint>
 
 namespace bcos::evm
 {
+
+struct OpStackFeeHooks;
 
 struct OpStackPostSettlementInputs
 {

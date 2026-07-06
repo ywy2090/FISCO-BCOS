@@ -17,6 +17,7 @@
  */
 
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
+#include "opstack/apply/ApplyOpStackMessage.h"
 #include "opstack/apply/OpStackStateTransitionErrorPolicy.h"
 #include "opstack/apply/OpStackStateTransitionHooks.h"
 

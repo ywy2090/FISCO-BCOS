@@ -19,13 +19,14 @@
 
 #pragma once
 
-#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionErrorPolicy.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
 #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 
 namespace bcos::evm
 {
+
+struct OpStackMessageRequest;
 
 /// Factory for `{hooks, errorPolicy}` injected into `stateTransitionExecute`.
 struct OpStackStateTransitionBindings

@@ -1,13 +1,16 @@
 #pragma once
 
-#include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/opstack/fee/RollupCost.h"
+#include "bcos-evm/eth/gas/GasSettlementTypes.h"
 #include <bcos-utilities/Common.h>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <optional>
 
 namespace bcos::evm
 {
+
+struct RollupCostData;
 
 struct OpStackFeeHooks
 {

@@ -14,16 +14,16 @@
 
 #pragma once
 
-#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/fee/OpStackFeeParams.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
-#include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include <bcos-task/Task.h>
 
 namespace bcos::evm
 {
 
+struct GasPoolHooks;
+struct OpStackFeeParams;
 struct OpStackFeeSettlement;
+struct OpStackMessageResult;
+struct OpStackSettlementProjection;
 
 /// Normal L2 tx fee coordinator: wraps OpStackFeeSettlement + OpStackTxFinalize.
 struct OpStackNormalTxFeeCoordinator

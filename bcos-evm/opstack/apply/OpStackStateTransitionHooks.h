@@ -19,11 +19,16 @@
 #pragma once
 
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
-#include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
+#include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 
 namespace bcos::evm
 {
+
+class StateTransitionContext;
+struct InnerExecuteInput;
+struct InnerExecuteOutput;
+struct OpStackFeeSidecar;
+struct OpStackSettlementProjection;
 
 struct OpStackStateTransitionHooks : StateTransitionHooks
 {

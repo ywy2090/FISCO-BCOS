@@ -3,6 +3,8 @@
 #include "bcos-evm/eth/core/ChainCallTargetPort.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include <bcos-utilities/Common.h>
+#include <evmc/evmc.h>
+#include <cstdint>
 #include <functional>
 
 namespace bcos::evm

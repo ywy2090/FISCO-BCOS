@@ -19,17 +19,19 @@
 
 #pragma once
 
-#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
-#include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
 #include <bcos-task/Task.h>
 #include <evmc/evmc.h>
+#include <cstdint>
 #include <functional>
 
 namespace bcos::evm
 {
 
+enum class StateTransitionExitKind;
+class StateTransitionContext;
 struct OpStackFeeParams;
 struct OpStackMessageResult;
+struct OpStackFeeSidecar;
 
 struct GasPoolHooks
 {

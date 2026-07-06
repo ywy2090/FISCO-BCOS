@@ -18,11 +18,13 @@
 
 #pragma once
 
-#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/eth/core/StateTransitionHooks.h"
+#include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 
 namespace bcos::evm
 {
+
+struct FiscoMessageRequest;
 
 struct FiscoStateTransitionHooks : StateTransitionHooks
 {

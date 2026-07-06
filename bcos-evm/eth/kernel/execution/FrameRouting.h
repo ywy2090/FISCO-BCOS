@@ -8,8 +8,12 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
 #include <evmc/evmc.h>
+
+namespace bcos::evm
+{
+struct RevisionConfig;
+}
 
 namespace bcos::evm::state
 {

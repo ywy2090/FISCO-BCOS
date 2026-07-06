@@ -17,6 +17,8 @@
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
 #include <bcos-utilities/Common.h>
+#include <bcos-utilities/FixedBytes.h>
+#include <cstdint>
 #include <optional>
 #include <vector>
 

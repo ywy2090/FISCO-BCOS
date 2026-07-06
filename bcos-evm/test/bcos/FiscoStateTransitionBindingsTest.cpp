@@ -2,6 +2,7 @@
 
 #include "bcos-evm/bcos/FiscoStateTransitionBindings.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/ports/AuthPort.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"

@@ -9,6 +9,7 @@
 #include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
+#include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
 #include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
