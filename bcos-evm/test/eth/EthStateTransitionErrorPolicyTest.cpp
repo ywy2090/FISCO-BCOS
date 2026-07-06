@@ -300,8 +300,8 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_set_code_revert_at_top_level)
         static_cast<int>(protocol::TransactionStatus::RevertInstruction));
 }
 
-// E-PEN-04: top-level REVERT without authorization list stays reverted.
-BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_top_level_revert_without_auth_list)
+// ADR-015: top-level REVERT is included vmerr on Eth reference (GST expects SUCCESS status_code).
+BOOST_AUTO_TEST_CASE(eth_post_execute_normalizes_top_level_revert_without_auth_list)
 {
     state::test::InMemoryStateView stateView;
 
@@ -318,8 +318,8 @@ BOOST_AUTO_TEST_CASE(eth_post_execute_keeps_top_level_revert_without_auth_list)
     EthStateTransitionErrorPolicy errorPolicy;
     errorPolicy.onFinalizeGasUsed(ctx);
 
-    BOOST_CHECK(!ctx.topLevelIncludedTxVmError);
-    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_REVERT);
+    BOOST_CHECK(ctx.topLevelIncludedTxVmError);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(static_cast<int>(ctx.evmcResult.status),
         static_cast<int>(protocol::TransactionStatus::RevertInstruction));
 }

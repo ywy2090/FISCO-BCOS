@@ -280,6 +280,48 @@ BOOST_AUTO_TEST_CASE(TopLevelIncludedTxVmErrorGasSettlement_top_level_oog_charge
     BOOST_CHECK_EQUAL(teMirrorGasUsed, gasLimit);
 }
 
+BOOST_AUTO_TEST_CASE(applyEthMessage_top_level_revert_is_included_settlement_success_receipt_failed)
+{
+    crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+
+    state::test::InMemoryStateView view;
+    auto const sender = addressFromLastByte(0x01);
+
+    state::Account senderAccount;
+    senderAccount.balance = 1'000'000'000'000'000;
+    view.insert_account(sender, senderAccount);
+
+    evmc_message message{};
+    message.depth = 0;
+    message.kind = EVMC_CREATE;
+    message.gas = 1'000'000;
+    message.sender = sender;
+    static uint8_t const initCode[] = {0x60, 0x00, 0x60, 0x00, 0xfd};  // REVERT
+
+    message.input_data = initCode;
+    message.input_size = sizeof(initCode);
+
+    state::BlockInfo blockInfo{};
+    blockInfo.number = 1;
+    blockInfo.gasLimit = 30'000'000;
+
+    EthMessageRequest input{};
+    input.stateView = &view;
+    input.vm = &vm;
+    input.hashImpl = &hashImpl;
+    input.message = message;
+    input.blockInfo = blockInfo;
+    input.revisionConfig = osakaReferenceConfig();
+
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
+
+    BOOST_CHECK(output.topLevelIncludedTxVmError);
+    BOOST_CHECK_EQUAL(output.evmcResult.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(static_cast<int>(output.evmcResult.status),
+        static_cast<int>(protocol::TransactionStatus::RevertInstruction));
+}
+
 BOOST_AUTO_TEST_CASE(applyEthMessage_nested_invalid_is_not_included_tx_vmerr)
 {
     crypto::Keccak256 hashImpl;

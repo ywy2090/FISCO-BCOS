@@ -72,6 +72,12 @@ public:
     [[nodiscard]] bool warm_up_storage_no_journal(
         const evmc_address& address, const evmc_bytes32& key);
     void pin_warm_create_address(const evmc_address& address);
+    /// Record pre-snapshot CREATE warm for journal revert when this frame commits to a parent
+    /// that may still REVERT (geth: access-list changes roll back with the enclosing call).
+    void journal_warm_address_for_revert(const evmc_address& address);
+    /// Re-establish pre-snapshot CREATE warm after frame revert (survives WarmAddressInsert undo).
+    void pin_create_pre_snapshot_warm(const evmc_address& address);
+    void unpin_create_pre_snapshot_warm(const evmc_address& address);
     [[nodiscard]] bool is_address_warm(const evmc_address& address) const;
     [[nodiscard]] bool is_storage_warm(const evmc_address& address, const evmc_bytes32& key) const;
 

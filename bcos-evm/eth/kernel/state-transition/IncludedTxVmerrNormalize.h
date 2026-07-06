@@ -24,7 +24,6 @@ inline bool isTopLevelIncludedTxVmError(evmc_status_code status, int32_t depth) 
     switch (status)
     {
     case EVMC_SUCCESS:
-    case EVMC_REVERT:
     case EVMC_INSUFFICIENT_BALANCE:
     case EVMC_INTERNAL_ERROR:
         return false;
@@ -55,6 +54,8 @@ inline protocol::TransactionStatus receiptStatusForIncludedTxVmerr(
     case EVMC_INVALID_INSTRUCTION:
     case EVMC_UNDEFINED_INSTRUCTION:
         return protocol::TransactionStatus::BadInstruction;
+    case EVMC_REVERT:
+        return protocol::TransactionStatus::RevertInstruction;
     default:
         return protocol::TransactionStatus::Unknown;
     }

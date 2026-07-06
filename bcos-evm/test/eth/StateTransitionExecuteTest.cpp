@@ -385,7 +385,7 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     ctx.inputs.hashImpl = &hashImpl;
 
     auto const warmAddr = ctx.message.recipient;
-    ctx.state.pin_warm_create_address(warmAddr);
+    ctx.state.warm_up_address_no_journal(warmAddr);
     BOOST_REQUIRE(ctx.state.is_address_warm(warmAddr));
 
     state::State* capturedState = nullptr;

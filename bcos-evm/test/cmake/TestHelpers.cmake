@@ -1,5 +1,7 @@
 # Shared helpers for bcos-evm unit tests.
 
+include(${CMAKE_CURRENT_LIST_DIR}/EvmCallStack.cmake)
+
 add_library(bcos-evm-test-state STATIC
     helpers/BloomFilter.cpp
     helpers/Transition.cpp

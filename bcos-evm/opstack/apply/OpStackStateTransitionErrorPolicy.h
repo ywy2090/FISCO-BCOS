@@ -33,13 +33,18 @@ struct OpStackStateTransitionErrorPolicy : StateTransitionErrorPolicy
     /// REVERT per op-geth parity (see opstack-vs-op-geth-parity-validation D3).
     void onFinalizeGasUsed(StateTransitionContext& ctx) const override
     {
-        ctx.topLevelIncludedTxVmError =
-            isTopLevelIncludedTxVmError(ctx.evmcResult.status_code, ctx.message.depth);
-        // Deposits settle via finalizeDeposit using raw evmc status (op-geth deposit OOG/revert).
         if (ctx.inputs.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE)
         {
             return;
         }
+        // Op-geth D3: keep raw top-level REVERT status_code; Eth reference normalizes via ADR-015.
+        if (ctx.evmcResult.status_code == EVMC_REVERT)
+        {
+            ctx.topLevelIncludedTxVmError = false;
+            return;
+        }
+        ctx.topLevelIncludedTxVmError =
+            isTopLevelIncludedTxVmError(ctx.evmcResult.status_code, ctx.message.depth);
         normalizeIncludedTxVmerr(ctx.evmcResult, ctx.message.depth);
     }
 };

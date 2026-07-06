@@ -25,6 +25,7 @@
 #include "bcos-evm/eth/kernel/execution/CreateAddress.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include <limits>
+#include <optional>
 
 namespace bcos::evm::execution
 {
@@ -51,18 +52,14 @@ inline void assignCreateAddresses(evmc_address& executionAddress, evmc_message& 
     executionAddress = createAddr;
 }
 
-/// Initialize CREATE target account (nonce=1, warm pin). Must run inside a checkpoint.
+/// Initialize CREATE target account (nonce=1). Must run inside a checkpoint.
+/// EIP-2929 warm for the predicted address is applied before the frame checkpoint (geth: before Snapshot).
 inline void initializeCreateTargetAccount(state::State& st, evmc_address const& createAddr,
-    evmc_revision revision, bool warmAccess) noexcept
+    evmc_revision revision) noexcept
 {
     if (state::isZeroAddress(createAddr))
     {
         return;
-    }
-
-    if (warmAccess)
-    {
-        st.pin_warm_create_address(createAddr);
     }
 
     st.touchCreateDeploymentAccount(createAddr, revision);
@@ -101,26 +98,34 @@ inline bool isCreateSenderNonceOverflow(
     return st.get_nonce(sender) == std::numeric_limits<uint64_t>::max();
 }
 
-/// Assign addresses, warm, and nonce=1 before initcode runs (geth: create account touch).
+/// Assign addresses and nonce=1 before initcode runs (geth: create account touch).
 inline void setupCreateTarget(state::State& st, evmc_address& executionAddress,
-    evmc_message& message, evmc_revision revision, bcos::bytesConstRef initCode,
-    bool warmAccess) noexcept
+    evmc_message& message, evmc_revision revision, bcos::bytesConstRef initCode) noexcept
 {
     assignCreateAddresses(executionAddress, message, initCode, st);
-    initializeCreateTargetAccount(st, message.recipient, revision, warmAccess);
+    initializeCreateTargetAccount(st, message.recipient, revision);
 }
 
-/// Charge CREATE runtime-code deposit (200 gas/byte). Matches evmone test/state/host.cpp create().
-/// @return true when deployment may proceed; false when initcode succeeded but deploy must fail.
-inline bool applyCreateCodeDepositGas(evmc_result& result, evmc_revision revision) noexcept
+/// Post-init CREATE rejection reason (geth create() err classification).
+enum class CreateCodeDepositReject : uint8_t
+{
+    MaxCodeSizeExceeded,
+    InvalidCodePrefix,
+    DepositOutOfGas,
+};
+
+/// Charge CREATE runtime-code deposit (200 gas/byte). Matches geth create() post-RETURN checks.
+/// @return empty when deployment may proceed; otherwise the rejection kind (result.status updated).
+inline std::optional<CreateCodeDepositReject> applyCreateCodeDepositGas(
+    evmc_result& result, evmc_revision revision) noexcept
 {
     if (result.status_code != EVMC_SUCCESS)
     {
-        return false;
+        return std::nullopt;
     }
     if (result.output_size == 0 || result.output_data == nullptr)
     {
-        return true;
+        return std::nullopt;
     }
 
     auto const codeSize = static_cast<int64_t>(result.output_size);
@@ -128,13 +133,13 @@ inline bool applyCreateCodeDepositGas(evmc_result& result, evmc_revision revisio
     {
         result.status_code = EVMC_FAILURE;
         result.gas_left = 0;
-        return false;
+        return CreateCodeDepositReject::MaxCodeSizeExceeded;
     }
     if (revision >= EVMC_LONDON && result.output_data[0] == 0xEF)
     {
         result.status_code = EVMC_CONTRACT_VALIDATION_FAILURE;
         result.gas_left = 0;
-        return false;
+        return CreateCodeDepositReject::InvalidCodePrefix;
     }
 
     auto const cost = codeSize * CREATE_DATA_GAS_PER_BYTE;
@@ -142,13 +147,13 @@ inline bool applyCreateCodeDepositGas(evmc_result& result, evmc_revision revisio
     {
         if (revision == EVMC_FRONTIER)
         {
-            return true;
+            return std::nullopt;
         }
         result.status_code = EVMC_FAILURE;
         result.gas_left = 0;
-        return false;
+        return CreateCodeDepositReject::DepositOutOfGas;
     }
     result.gas_left -= cost;
-    return true;
+    return std::nullopt;
 }
 }  // namespace bcos::evm::execution

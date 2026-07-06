@@ -37,6 +37,7 @@
 #include "eth/state/Transaction.hpp"
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -46,6 +47,19 @@
 
 namespace bcos::evm::state
 {
+namespace
+{
+/// geth params.CallCreateDepth — reject nested calls when depth > 1024.
+constexpr int32_t kEvmCallDepthLimit = 1024;
+
+evmc::Result makeCallDepthExceededResult(int64_t gasLeft)
+{
+    evmc_result raw{};
+    raw.status_code = EVMC_CALL_DEPTH_EXCEEDED;
+    raw.gas_left = gasLeft;
+    return evmc::Result(raw);
+}
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // Construction
@@ -252,6 +266,11 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
 
 EthHost::Result EthHost::call(const evmc_message& msg) noexcept
 {
+    if (msg.depth > kEvmCallDepthLimit)
+    {
+        return Result(makeCallDepthExceededResult(msg.gas));
+    }
+
     if (msg.depth > 0)
     {
         EVM_LOG(TRACE) << LOG_DESC("EthHost::call") << LOG_KV("kind", trace::callKind(msg.kind))

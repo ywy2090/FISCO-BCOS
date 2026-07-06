@@ -146,7 +146,7 @@ std::pair<bool, bcos::bytes> executeBnAdd(bcos::bytesConstRef input)
     auto const q = AffinePoint::from_bytes(std::span<const uint8_t, 64>{data + 64, 64});
     if (!p.has_value() || !q.has_value() || !validate(*p) || !validate(*q))
     {
-        return {false, bcos::bytes(64, 0)};
+        return {false, {}};
     }
     bcos::bytes output(64, 0);
     evmmax::ecc::add_affine(*p, *q).to_bytes(std::span<uint8_t, 64>{output.data(), 64});
@@ -161,7 +161,7 @@ std::pair<bool, bcos::bytes> executeBnMul(bcos::bytesConstRef input)
     auto const p = AffinePoint::from_bytes(std::span<const uint8_t, 64>{data, 64});
     if (!p.has_value() || !validate(*p))
     {
-        return {false, bcos::bytes(64, 0)};
+        return {false, {}};
     }
     auto const scalar = intx::be::unsafe::load<intx::uint256>(data + 64);
     bcos::bytes output(64, 0);
@@ -174,7 +174,7 @@ std::pair<bool, bcos::bytes> executeBnPairing(bcos::bytesConstRef input)
     constexpr size_t PAIR_SIZE = 192;
     if (input.size() % PAIR_SIZE != 0)
     {
-        return {false, bcos::bytes(32, 0)};
+        return {false, {}};
     }
 
     using namespace evmmax::bn254;
@@ -186,7 +186,7 @@ std::pair<bool, bcos::bytes> executeBnPairing(bcos::bytesConstRef input)
         auto const g1 = AffinePoint::from_bytes(std::span<const uint8_t, 64>{ptr, 64});
         if (!g1.has_value() || !validate(*g1))
         {
-            return {false, bcos::bytes(32, 0)};
+            return {false, {}};
         }
         const ExtPoint g2{{load<intx::uint256>(ptr + 96), load<intx::uint256>(ptr + 64)},
             {load<intx::uint256>(ptr + 160), load<intx::uint256>(ptr + 128)}};
@@ -197,7 +197,7 @@ std::pair<bool, bcos::bytes> executeBnPairing(bcos::bytesConstRef input)
     auto const result = pairing_check(pairs);
     if (!result.has_value())
     {
-        return {false, bcos::bytes(32, 0)};
+        return {false, {}};
     }
     if (*result)
     {
@@ -672,7 +672,9 @@ std::optional<evmc::Result> EthPrecompiles::tryDispatchInCall(const evmc_address
         result.gas_left = 0;
     }
 
-    if (!dispatched->output.empty())
+    // geth: failed precompile runs return no output; evmone still memcpy's host output on
+    // CALL failure when output_size > 0 (instructions_calls.cpp), so omit output unless SUCCESS.
+    if (dispatched->status == EVMC_SUCCESS && !dispatched->output.empty())
     {
         auto* data = new uint8_t[dispatched->output.size()];
         std::copy(dispatched->output.begin(), dispatched->output.end(), data);

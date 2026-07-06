@@ -5,6 +5,7 @@ option(BCOS_EVM_SPECS_TESTS_FETCH_ASSETS
     ON)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchReferenceAssets.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/EvmCallStack.cmake")
 
 add_library(bcos-evm-specs-tests-core STATIC
     src/ManifestLoader.cpp
@@ -222,6 +223,7 @@ set(EEST_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/manifests)
 
 add_executable(EthExecutionSpecStateTests runners/eth/EthExecutionSpecStateTests.cpp)
 target_link_libraries(EthExecutionSpecStateTests PRIVATE bcos-evm-specs-tests-eth)
+bcos_evm_enable_deep_call_stack(EthExecutionSpecStateTests)
 target_compile_definitions(EthExecutionSpecStateTests PRIVATE
     SPECS_TESTS_MANIFEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/manifests"
 )

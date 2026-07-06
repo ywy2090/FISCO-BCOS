@@ -25,7 +25,8 @@
  *   1. routeFrameMessage  — normalize recipient/code_address, EIP-7702 delegation routing
  *   2. runCallTargetFastPath    — precompile / empty-account / policy short-circuit (no evmone)
  *   3. prepareNestedMessage     — chain hooks before nested EVM (warm pin, caller address)
- *   4. CREATE pre-checkpoint    — bind init code address, bump nested sender nonce
+ *   4. CREATE pre-checkpoint    — bind address, balance/nonce checks, EIP-2929 warm (no journal),
+ *                                 bump nested sender nonce
  *   5. checkpointFrame          — open state journal slice for this frame
  *   6. transferOrFail           — move msg.value (skipped for DELEGATECALL/CALLCODE)
  *   7. runVm                    — load bytecode, invoke evmone via EthHost
@@ -33,7 +34,7 @@
  *
  * TopLevel vs Nested differences:
  *   - TopLevel: no state.commit() here (outer state-transition owns the tx journal);
- *               CREATE bind-init runs after checkpoint; extension finalizes create nonce.
+ *               CREATE bind/warm run before checkpoint; extension finalizes create nonce.
  *   - Nested:   state.commit() on success; executionAddress updated for delegate routing;
  *               nested CREATE bumps sender nonce *before* checkpoint (survives revert).
  */
@@ -311,12 +312,12 @@ void checkpointFrame(FrameWork& work)
     work.ctx.state.checkpoint();
 }
 
-/// Ensure the CREATE target account exists and apply EIP-2929 warm-pin when enabled.
+/// Ensure the CREATE target account exists (EIP-2929 warm is applied before checkpoint).
 void initializeCreateAccount(FrameWork& work)
 {
     auto& callMessage = work.callMessage();
-    initializeCreateTargetAccount(work.ctx.state, callMessage.recipient,
-        work.ctx.revisionConfig.revision, isCreateWarmPinEnabled(work.ctx.revisionConfig));
+    initializeCreateTargetAccount(
+        work.ctx.state, callMessage.recipient, work.ctx.revisionConfig.revision);
     // geth CreateAccount runs before initcode; SELFDESTRUCT in init must see wasCreatedInTx.
     if (work.ctx.revisionConfig.eip6780)
     {
@@ -354,6 +355,60 @@ std::optional<FrameResult> failIfCreateSenderNonceOverflow(FrameWork& work)
     return std::nullopt;
 }
 
+/// geth evm.create: CanTransfer before AddAddressToAccessList — insufficient balance aborts cold.
+std::optional<FrameResult> failIfCreateInsufficientBalance(FrameWork& work)
+{
+    auto& callMessage = work.callMessage();
+    if (callMessage.kind != EVMC_CREATE && callMessage.kind != EVMC_CREATE2)
+    {
+        return std::nullopt;
+    }
+    if (state::isZeroBytes32(callMessage.value))
+    {
+        return std::nullopt;
+    }
+    if (work.ctx.extension != nullptr && work.ctx.extension->skipHostValueTransfer())
+    {
+        return std::nullopt;
+    }
+
+    auto const value = state::fromEvmC(callMessage.value);
+    if (work.ctx.state.get_balance(callMessage.sender) < value)
+    {
+        return FrameResult{
+            .result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, work.callMessage().gas)};
+    }
+    return std::nullopt;
+}
+
+/// geth: AddAddressToAccessList before Snapshot; survives CREATE init/deposit failure.
+/// Nested CREATE (parent journal open): journaled warm so outer revert restores cold.
+void warmCreateTargetBeforeCheckpoint(FrameWork& work)
+{
+    auto& callMessage = work.callMessage();
+    if (callMessage.kind != EVMC_CREATE && callMessage.kind != EVMC_CREATE2)
+    {
+        return;
+    }
+    if (!isCreateWarmPinEnabled(work.ctx.revisionConfig))
+    {
+        return;
+    }
+    auto const& createAddr = callMessage.recipient;
+    if (state::isZeroAddress(createAddr))
+    {
+        return;
+    }
+    if (work.ctx.state.has_checkpoint())
+    {
+        (void)work.ctx.state.warm_up_address(createAddr);
+    }
+    else
+    {
+        (void)work.ctx.state.warm_up_address_no_journal(createAddr);
+    }
+}
+
 /// geth: CREATE/CREATE2 at an address already self-destructed in this tx (6780 tx-new path).
 std::optional<FrameResult> failIfCreateDeploymentBlocked(FrameWork& work)
 {
@@ -363,11 +418,6 @@ std::optional<FrameResult> failIfCreateDeploymentBlocked(FrameWork& work)
         return std::nullopt;
     }
     auto const& createAddr = callMessage.recipient;
-    if (!state::isZeroAddress(createAddr) && work.ctx.state.account_exists(createAddr))
-    {
-        // geth: collision pre-check touches the target; EIP-2929 counts it as warm.
-        (void)work.ctx.state.warm_up_address_no_journal(createAddr);
-    }
     if (isCreateDeploymentAddressCollision(work.ctx.state, createAddr) ||
         isSameTxSelfDestructedCreateBlocked(
             work.ctx.state, createAddr, work.ctx.revisionConfig.eip6780))
@@ -388,6 +438,17 @@ evmc::Result runVm(FrameWork& work)
         work.code = loadFrameBytecode(
             work.ctx.state, work.ctx.revisionConfig, callMessage, work.routed.executionAddress);
     }
+    // geth: initcode is executed from the code buffer, not msg.input calldata. evmc still carries
+    // init bytes in input_data for address prediction / intrinsic gas; zero them for the
+    // interpreter so CALLDATA* opcodes see empty input while CODESIZE reflects init length.
+    if (callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2)
+    {
+        auto initMessage = callMessage;
+        initMessage.input_data = nullptr;
+        initMessage.input_size = 0;
+        return work.ctx.vm.execute(work.host, work.ctx.revisionConfig.revision, initMessage,
+            work.code.data(), work.code.size());
+    }
     return work.ctx.vm.execute(work.host, work.ctx.revisionConfig.revision, callMessage,
         work.code.data(), work.code.size());
 }
@@ -404,6 +465,23 @@ void clearCreateSuccessReturnData(evmc::Result& result)
     raw.output_data = nullptr;
     raw.output_size = 0;
     raw.release = nullptr;
+}
+
+/// geth: ErrCodeStoreOutOfGas (Homestead+) keeps frame journal; warm pre-Snapshot persists.
+void commitFailedCreateDepositOutOfGas(
+    FrameWork& work, FrameScope scope, evmc_address const& createAddr)
+{
+    if (scope == FrameScope::Nested)
+    {
+        if (!state::isZeroAddress(createAddr))
+        {
+            work.ctx.state.unpin_create_pre_snapshot_warm(createAddr);
+            work.ctx.state.journal_warm_address_for_revert(createAddr);
+        }
+        work.ctx.state.commit();
+        return;
+    }
+    // TopLevel: tx journal owns revert; partial CREATE state stays committed in overlay.
 }
 
 /// Post-interpreter frame teardown: gas for code deposit, persist CREATE output, journal action.
@@ -423,14 +501,15 @@ void clearCreateSuccessReturnData(evmc::Result& result)
 FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result)
 {
     auto& callMessage = work.callMessage();
+    std::optional<CreateCodeDepositReject> depositReject;
 
     // CREATE: charge code-deposit gas and possibly fail after interpreter returned SUCCESS.
     if (result.status_code == EVMC_SUCCESS &&
         (callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
     {
         auto raw = result.release_raw();
-        if (!applyCreateCodeDepositGas(raw, work.ctx.revisionConfig.revision) &&
-            raw.release != nullptr)
+        depositReject = applyCreateCodeDepositGas(raw, work.ctx.revisionConfig.revision);
+        if (depositReject.has_value() && raw.release != nullptr)
         {
             raw.release(&raw);
             raw.release = nullptr;
@@ -476,6 +555,17 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
         }
         else
         {
+            if (callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2)
+            {
+                auto const& createAddr = callMessage.recipient;
+                if (!state::isZeroAddress(createAddr))
+                {
+                    work.ctx.state.unpin_create_pre_snapshot_warm(createAddr);
+                    // Pre-checkpoint warm survives CREATE revert; journal it on success so a
+                    // reverting parent call restores cold access (EIP-2929).
+                    work.ctx.state.journal_warm_address_for_revert(createAddr);
+                }
+            }
             work.ctx.state.commit();
             if (!(callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
             {
@@ -492,11 +582,32 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
     }
     else
     {
-        if (callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2)
+        evmc_address failedCreateAddr{};
+        bool const isCreateFailure =
+            callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2;
+        if (isCreateFailure)
         {
+            failedCreateAddr = callMessage.recipient;
             unmarkCreateInTxOnAbort(work);
         }
-        work.ctx.state.revert();
+
+        // geth: ErrCodeStoreOutOfGas only skips RevertToSnapshot on Frontier.
+        bool const depositOogNoRevert = depositReject == CreateCodeDepositReject::DepositOutOfGas &&
+                                        work.ctx.revisionConfig.revision == EVMC_FRONTIER;
+        if (depositOogNoRevert && isCreateFailure)
+        {
+            commitFailedCreateDepositOutOfGas(work, scope, failedCreateAddr);
+        }
+        else
+        {
+            work.ctx.state.revert();
+            if (isCreateFailure && !state::isZeroAddress(failedCreateAddr) &&
+                isCreateWarmPinEnabled(work.ctx.revisionConfig) && !work.ctx.state.has_checkpoint())
+            {
+                // Top-level / no parent journal: pre-checkpoint no_journal warm survives revert.
+                work.ctx.state.pin_create_pre_snapshot_warm(failedCreateAddr);
+            }
+        }
     }
 
     logFrameDoneIfNested(work.originalMsg, result);
@@ -547,56 +658,43 @@ FrameResult runFrameSteps(
         prepareNestedMessage(work);
     }
 
-    // Step 4: nested CREATE — bind predicted address and bump sender nonce before journal open.
-    if ((work.callMessage().kind == EVMC_CREATE || work.callMessage().kind == EVMC_CREATE2) &&
-        scope == FrameScope::Nested)
+    // Step 4: CREATE pre-checkpoint — bind, validate, warm (geth: before Snapshot).
+    if (work.callMessage().kind == EVMC_CREATE || work.callMessage().kind == EVMC_CREATE2)
     {
         bindCreateForInit(work);
         if (auto early = failIfCreateSenderNonceOverflow(work))
         {
             return std::move(*early);
         }
-        bumpNestedCreateSenderNonce(work);
+        if (auto early = failIfCreateInsufficientBalance(work))
+        {
+            return std::move(*early);
+        }
+        if (scope == FrameScope::Nested)
+        {
+            bumpNestedCreateSenderNonce(work);
+        }
+        warmCreateTargetBeforeCheckpoint(work);
     }
 
     // Step 5: open frame journal.
     checkpointFrame(work);
 
-    // Step 6: value transfer + CREATE account initialization.
-    // Ordering matches geth evm.create / evm.create2:
-    //   TopLevel CREATE: bind init → transfer endowment → touch/create account
-    //   Nested CREATE:   touch/create account → transfer endowment
+    // Step 6: collision check, account touch, value transfer (geth post-Snapshot order).
     if ((work.callMessage().kind == EVMC_CREATE || work.callMessage().kind == EVMC_CREATE2))
     {
-        if (scope == FrameScope::TopLevel)
+        if (auto early = failIfCreateDeploymentBlocked(work))
         {
-            bindCreateForInit(work);
-            if (auto early = failIfCreateSenderNonceOverflow(work))
-            {
-                return std::move(*early);
-            }
-            if (auto early = transferOrFail(work, scope))
-            {
-                return std::move(*early);
-            }
-            if (auto early = failIfCreateDeploymentBlocked(work))
-            {
-                return std::move(*early);
-            }
-            initializeCreateAccount(work);
+            return std::move(*early);
         }
-        else
+        initializeCreateAccount(work);
+        if (auto early = transferOrFail(work, scope))
         {
-            if (auto early = failIfCreateDeploymentBlocked(work))
-            {
-                return std::move(*early);
-            }
-            initializeCreateAccount(work);
-            if (auto early = transferOrFail(work, scope))
+            if (scope == FrameScope::Nested)
             {
                 unmarkCreateInTxOnAbort(work);
-                return std::move(*early);
             }
+            return std::move(*early);
         }
     }
     else if (auto early = transferOrFail(work, scope))

@@ -182,4 +182,39 @@ BOOST_AUTO_TEST_CASE(nested_7702_staticcall_delegated_uses_code_address)
     auto resolved = execution::routeFrameMessage(state, cfg, msg, execution::FrameScope::Nested);
     requireAddressEqual(resolved.executionAddress, identity);
 }
+
+BOOST_AUTO_TEST_CASE(nested_callcode_zero_code_address_keeps_empty_target)
+{
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    auto cfg = pragueCfg();
+    auto const caller = addr(0x10);
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALLCODE;
+    msg.recipient = caller;
+    msg.code_address = {};
+
+    auto resolved = execution::routeFrameMessage(state, cfg, msg, execution::FrameScope::Nested);
+    BOOST_REQUIRE(std::memcmp(resolved.routed.code_address.bytes, evmc_address{}.bytes, 20) == 0);
+    BOOST_REQUIRE(std::memcmp(resolved.executionAddress.bytes, evmc_address{}.bytes, 20) == 0);
+    requireAddressEqual(resolved.routed.recipient, caller);
+}
+
+BOOST_AUTO_TEST_CASE(top_level_callcode_zero_code_address_does_not_fill_recipient)
+{
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    auto cfg = pragueCfg();
+    auto const caller = addr(0x11);
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALLCODE;
+    msg.recipient = caller;
+    msg.code_address = {};
+
+    auto resolved = execution::routeFrameMessage(state, cfg, msg, execution::FrameScope::TopLevel);
+    BOOST_REQUIRE(std::memcmp(resolved.routed.code_address.bytes, evmc_address{}.bytes, 20) == 0);
+    BOOST_REQUIRE(std::memcmp(resolved.executionAddress.bytes, evmc_address{}.bytes, 20) == 0);
+}
 }  // namespace bcos::evm::test

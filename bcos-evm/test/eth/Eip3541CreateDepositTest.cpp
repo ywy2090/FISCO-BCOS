@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(apply_create_code_deposit_gas_rejects_ef_prefix_london)
 {
     uint8_t output[] = {0xEF};
     auto result = makeDepositCandidate(output, sizeof(output), 100'000);
-    BOOST_REQUIRE(!applyCreateCodeDepositGas(result, EVMC_LONDON));
+    BOOST_REQUIRE(applyCreateCodeDepositGas(result, EVMC_LONDON).has_value());
     BOOST_CHECK_EQUAL(result.status_code, EVMC_CONTRACT_VALIDATION_FAILURE);
     BOOST_CHECK_EQUAL(result.gas_left, 0);
 }
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(apply_create_code_deposit_gas_allows_ef_prefix_pre_london)
 {
     uint8_t output[] = {0xEF};
     auto result = makeDepositCandidate(output, sizeof(output), 1'000);
-    BOOST_REQUIRE(applyCreateCodeDepositGas(result, EVMC_BERLIN));
+    BOOST_REQUIRE(!applyCreateCodeDepositGas(result, EVMC_BERLIN).has_value());
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(result.gas_left, 800);
 }
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(apply_create_code_deposit_gas_allows_fe_prefix_london)
 {
     uint8_t output[] = {0xFE};
     auto result = makeDepositCandidate(output, sizeof(output), 1'000);
-    BOOST_REQUIRE(applyCreateCodeDepositGas(result, EVMC_LONDON));
+    BOOST_REQUIRE(!applyCreateCodeDepositGas(result, EVMC_LONDON).has_value());
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(result.gas_left, 800);
 }
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(apply_create_code_deposit_gas_empty_output_succeeds)
     evmc_result result{};
     result.status_code = EVMC_SUCCESS;
     result.gas_left = 50'000;
-    BOOST_REQUIRE(applyCreateCodeDepositGas(result, EVMC_LONDON));
+    BOOST_REQUIRE(!applyCreateCodeDepositGas(result, EVMC_LONDON).has_value());
     BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(result.gas_left, 50'000);
 }
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(apply_create_code_deposit_gas_non_success_unchanged)
     uint8_t output[] = {0xEF};
     auto result = makeDepositCandidate(output, sizeof(output), 100'000);
     result.status_code = EVMC_REVERT;
-    BOOST_REQUIRE(!applyCreateCodeDepositGas(result, EVMC_LONDON));
+    BOOST_REQUIRE(!applyCreateCodeDepositGas(result, EVMC_LONDON).has_value());
     BOOST_CHECK_EQUAL(result.status_code, EVMC_REVERT);
     BOOST_CHECK_EQUAL(result.gas_left, 100'000);
 }

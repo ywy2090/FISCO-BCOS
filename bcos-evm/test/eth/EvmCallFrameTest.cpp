@@ -9,11 +9,12 @@
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
 #include "bcos-evm/eth/host/EthHost.h"
+#include "bcos-evm/eth/kernel/execution/CreateAddress.h"
 #include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
-#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -541,6 +542,122 @@ BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)
     BOOST_CHECK_EQUAL(state.get_nonce(sender), 9U);
 }
 
+BOOST_AUTO_TEST_CASE(create2_init_calldatasize_is_zero_codesize_is_init_length)
+{
+    // stCreate2/create2checkFieldsInInitcode: init SSTOREs CALLDATASIZE→slot5, CODESIZE→slot6.
+    // CALLDATASIZE must be 0 during init; CODESIZE equals init byte length.
+    static uint8_t initCode[] = {
+        0x36, 0x60, 0x05, 0x55,        // CALLDATASIZE; PUSH1 5; SSTORE
+        0x38, 0x60, 0x06, 0x55,        // CODESIZE; PUSH1 6; SSTORE
+        0x60, 0x00, 0x60, 0x00, 0xf3,  // RETURN empty runtime
+    };
+
+    auto const sender = addressFromLastByte(0x01);
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 0);
+
+    FrameTestHost fixture(state);
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+        fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
+
+    evmc_message create2{};
+    create2.kind = EVMC_CREATE2;
+    create2.depth = 1;
+    create2.gas = 500'000;
+    create2.sender = sender;
+    create2.input_data = initCode;
+    create2.input_size = sizeof(initCode);
+    std::memset(create2.create2_salt.bytes, 0, sizeof(create2.create2_salt.bytes));
+
+    auto fr = execution::runCallFrame(
+        frameCtx, create2, execution::FrameScope::Nested, fixture.ethHost());
+    BOOST_REQUIRE_EQUAL(fr.result.status_code, EVMC_SUCCESS);
+
+    auto const deployed = execution::predictCreate2Address(
+        sender, create2.create2_salt, bcos::bytesConstRef(initCode, sizeof(initCode)));
+    evmc_bytes32 slot5{};
+    slot5.bytes[31] = 0x05;
+    evmc_bytes32 slot6{};
+    slot6.bytes[31] = 0x06;
+    BOOST_CHECK(state::isZeroBytes32(state.get_storage(deployed, slot5)));
+    BOOST_CHECK(state.get_storage(deployed, slot6).bytes[31] == sizeof(initCode));
+}
+
+BOOST_AUTO_TEST_CASE(create2_init_failed_precompile_call_preserves_memory_for_mload)
+{
+    // create2callPrecompiles d5: init MSTOREs 1, CALL bnAdd (invalid input) fails, MLOAD+SSTORE
+    // slot 0 must remain 1. evmone copies host output even on CALL failure when output_size>0.
+    static uint8_t initCode[] = {
+        0x60,
+        0x01,
+        0x60,
+        0x00,
+        0x52,  // MSTORE mem[0]=1
+        0x60,
+        0x20,
+        0x60,
+        0x00,
+        0x61,
+        0x01,
+        0x00,
+        0x60,
+        0x00,
+        0x60,
+        0x00,
+        0x60,
+        0x06,
+        0x62,
+        0x09,
+        0x27,
+        0xc0,
+        0xf1,  // CALL bnAdd
+        0x60,
+        0x02,
+        0x55,  // SSTORE slot 2 = success flag
+        0x60,
+        0x00,
+        0x51,
+        0x60,
+        0x00,
+        0x55,  // SSTORE slot 0 = MLOAD mem[0]
+        0x00,
+        0x00,
+    };
+
+    auto const sender = addressFromLastByte(0x01);
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 0);
+
+    FrameTestHost fixture(state);
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+        fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
+
+    evmc_message create2{};
+    create2.kind = EVMC_CREATE2;
+    create2.depth = 1;
+    create2.gas = 2'000'000;
+    create2.sender = sender;
+    create2.input_data = initCode;
+    create2.input_size = sizeof(initCode);
+    std::memset(create2.create2_salt.bytes, 0, sizeof(create2.create2_salt.bytes));
+
+    auto fr = execution::runCallFrame(
+        frameCtx, create2, execution::FrameScope::Nested, fixture.ethHost());
+    BOOST_REQUIRE_EQUAL(fr.result.status_code, EVMC_SUCCESS);
+
+    auto const deployed = execution::predictCreate2Address(
+        sender, create2.create2_salt, bcos::bytesConstRef(initCode, sizeof(initCode)));
+    evmc_bytes32 slot0{};
+    evmc_bytes32 slot2{};
+    slot2.bytes[31] = 0x02;
+    BOOST_CHECK(state.get_storage(deployed, slot0).bytes[31] == 1);
+    BOOST_CHECK(state::isZeroBytes32(state.get_storage(deployed, slot2)));
+}
+
 BOOST_AUTO_TEST_CASE(nested_create_reentrant_address_derivation_sees_pre_checkpoint_bump)
 {
     auto const deployer = addressFromLastByte(0x01);
@@ -575,6 +692,56 @@ BOOST_AUTO_TEST_CASE(nested_create_reentrant_address_derivation_sees_pre_checkpo
         bcos::bytesConstRef(inner.input_data, inner.input_size), state);
     BOOST_REQUIRE(
         std::memcmp(inner.recipient.bytes, secondChild.bytes, sizeof(secondChild.bytes)) == 0);
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_failed_init_keeps_predicted_address_warm)
+{
+    auto const sender = addressFromLastByte(0x01);
+    // REVERT in init: PUSH0 PUSH0 REVERT
+    static uint8_t revertingInit[] = {0x5f, 0x5f, 0xfd};
+
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_nonce(sender, 5);
+    auto const createAddr = state::predictLegacyCreateAddress(sender, 5);
+
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.depth = 1;
+    message.gas = 500'000;
+    message.sender = sender;
+    message.input_data = revertingInit;
+    message.input_size = sizeof(revertingInit);
+
+    auto outcome = runFrameNested(state, message);
+    BOOST_REQUIRE_EQUAL(outcome.status, EVMC_REVERT);
+    BOOST_CHECK(state.is_address_warm(createAddr));
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_insufficient_balance_leaves_predicted_address_cold)
+{
+    auto const sender = addressFromLastByte(0x01);
+    static uint8_t emptyInit[] = {0x00};
+
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_nonce(sender, 5);
+    auto const createAddr = state::predictLegacyCreateAddress(sender, 5);
+    state.set_balance(sender, 50);
+
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.depth = 1;
+    message.gas = 500'000;
+    message.sender = sender;
+    message.recipient = createAddr;
+    message.value = weiValue(100);
+    message.input_data = emptyInit;
+    message.input_size = sizeof(emptyInit);
+
+    auto outcome = runFrameNested(state, message);
+    BOOST_REQUIRE_EQUAL(outcome.status, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_CHECK(!state.is_address_warm(createAddr));
 }
 
 }  // namespace bcos::evm::test

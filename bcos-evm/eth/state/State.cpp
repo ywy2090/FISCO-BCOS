@@ -117,7 +117,14 @@ evmc_bytes32 State::get_code_hash(const evmc_address& address) const
         auto const& account = it->second;
         if (account.code.empty() && !account.codeDirty)
         {
-            return m_baseStateView->get_code_hash(address);
+            // Lazy-load from base when the account pre-existed; tx-created touch-only
+            // overlay entries (value transfer, warm pin) have no base account but still
+            // exist on state — EIP-1052 EXTCODEHASH must return keccak256(""), not 0.
+            if (m_baseStateView->get_account(address).has_value())
+            {
+                return m_baseStateView->get_code_hash(address);
+            }
+            return emptyCodeHash();
         }
         if (account.code.empty())
         {
@@ -435,6 +442,26 @@ bool State::warm_up_address_no_journal(const evmc_address& address)
 bool State::warm_up_storage_no_journal(const evmc_address& address, const evmc_bytes32& key)
 {
     return m_warmStorage.insert({address, key}).second;
+}
+
+void State::journal_warm_address_for_revert(const evmc_address& address)
+{
+    if (!m_warmAccounts.contains(address) || !has_checkpoint())
+    {
+        return;
+    }
+    push_journal_warm_address(address);
+}
+
+void State::pin_create_pre_snapshot_warm(const evmc_address& address)
+{
+    (void)warm_up_address_no_journal(address);
+    m_pinnedWarmAccounts.insert(address);
+}
+
+void State::unpin_create_pre_snapshot_warm(const evmc_address& address)
+{
+    m_pinnedWarmAccounts.erase(address);
 }
 
 void State::pin_warm_create_address(const evmc_address& address)

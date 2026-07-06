@@ -169,6 +169,13 @@ bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatch
                 {
                     return true;
                 }
+                auto const caseMatch = matcher.decide(testCase.variantKey, entry.path);
+                if (caseMatch.kind == MatchDecision::Kind::Skip)
+                {
+                    std::cout << "SKIP " << testCase.variantKey << " ("
+                              << caseMatch.reason.value_or("skip") << ")\n";
+                    continue;
+                }
                 auto const expected = selectExpected(testCase, subtest);
                 auto const result = bcos::task::syncWait(adapter.execute(testCase, subtest));
                 auto const report = assertResult(entry, expected, result,

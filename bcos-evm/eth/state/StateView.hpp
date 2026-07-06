@@ -57,7 +57,11 @@ public:
         {
             return {};
         }
-        if (!account->code.empty() && isZeroBytes32(account->codeHash))
+        if (account->code.empty())
+        {
+            return emptyCodeHash();
+        }
+        if (isZeroBytes32(account->codeHash))
         {
             return keccak256Code(bcos::bytesConstRef{account->code.data(), account->code.size()});
         }
