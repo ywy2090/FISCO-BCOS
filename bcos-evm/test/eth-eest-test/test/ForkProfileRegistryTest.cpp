@@ -41,6 +41,7 @@ BOOST_AUTO_TEST_CASE(osaka_profile_maps_upstream_fork)
     BOOST_CHECK_EQUAL(profile->revision.revision, EVMC_OSAKA);
     BOOST_CHECK(profile->revision.eip7212);
     BOOST_CHECK(profile->revision.eip7823);
+    BOOST_CHECK(profile->revision.eip7825);
     BOOST_CHECK(profile->revision.eip7702);
     BOOST_REQUIRE_EQUAL(profile->pathProfiles.size(), 1u);
     BOOST_CHECK(profile->pathProfiles.front().evidenceKind == EvidenceKind::ReferenceParity);

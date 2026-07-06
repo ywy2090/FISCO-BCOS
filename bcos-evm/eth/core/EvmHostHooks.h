@@ -129,5 +129,12 @@ struct EvmHostHooks
     /// Top-level CREATE nonce finalization after successful code install (`finalizeFrame`).
     /// No-op by default; FISCO uses when `fix_nonce_init` / contract-create nonce is enabled.
     virtual void finalizeTopLevelCreateNonce(State& state, evmc_address const& createAddr) noexcept;
+
+    /// FISCO auth-table side effects after CREATE target account touch (`initializeCreateAccount`).
+    virtual void onCreateTargetInitialized(evmc_revision rev, evmc_message const& msg)
+    {
+        (void)rev;
+        (void)msg;
+    }
 };
 }  // namespace bcos::evm::state

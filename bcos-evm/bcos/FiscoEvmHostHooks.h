@@ -100,6 +100,8 @@ public:
     void finalizeTopLevelCreateNonce(
         state::State& state, evmc_address const& createAddr) noexcept override;
 
+    void onCreateTargetInitialized(evmc_revision rev, evmc_message const& msg) override;
+
 private:
     static bool isZeroAddress(const evmc_address& address) noexcept;
     static evmc_address createTarget(const evmc_message& message) noexcept;

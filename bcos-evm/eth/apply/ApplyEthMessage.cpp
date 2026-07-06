@@ -65,6 +65,7 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
     EthMessageResult output;
     output.message = input.message;
     output.revisionConfig = input.revisionConfig;
+    input.txValue = state::fromEvmC(input.message.value);
 
     StateTransitionContext ctx{
         *input.stateView, input.message, input.revisionConfig, input.gasPrice};
@@ -76,6 +77,7 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
     ctx.inputs.authorizationListPresent = input.authorizationListPresent;
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
+    ctx.inputs.blobVersionedHashes = input.blobVersionedHashes;
 
     trace::logMessageContext(input.message);
 
@@ -95,6 +97,12 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
         ctx.state.checkpoint();
         if (!co_await coordinator.buyGas(feeView, output))
         {
+            // GST/geth insufficient-funds: reject with unchanged state (no penalty diff).
+            if (ctx.state.has_checkpoint())
+            {
+                ctx.state.revert();
+            }
+            output.gasUsed = 0;
             output.stateDiff = ctx.state.build_diff();
             co_return output;
         }

@@ -45,6 +45,7 @@ struct GstTransactionTemplate
     bcos::u256 maxFeePerGas{0};
     bcos::u256 maxPriorityFeePerGas{0};
     bcos::u256 maxFeePerBlobGas{0};
+    bool maxFeePerBlobGasKeyPresent{false};
     std::vector<h256> blobVersionedHashes;
     uint64_t nonce{0};
     std::vector<GstAuthorizationEntry> authorizationList;

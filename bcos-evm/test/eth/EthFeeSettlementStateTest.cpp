@@ -91,6 +91,50 @@ BOOST_AUTO_TEST_CASE(buyGas_debits_blob_base_fee_on_state)
     BOOST_CHECK_EQUAL(ctx.state.get_balance(addr(1)), initialBalance - execPreDebit - blobDebit);
 }
 
+BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_includes_tx_value_in_afford_check)
+{
+    state::test::InMemoryStateView base;
+    auto const execPreDebit = bcos::u256(100'000) * 7;
+    auto const blobDebit = bcos::u256(131'072) * 1;
+    auto const txValue = bcos::u256(1);
+    auto const initialBalance = execPreDebit + blobDebit + txValue - 1;
+    base.insert_account(addr(1), state::Account{.balance = initialBalance});
+
+    evmc_message msg{};
+    msg.sender = addr(1);
+    msg.gas = 100'000;
+    RevisionConfig rev{};
+    rev.revision = EVMC_CANCUN;
+    rev.eip1559 = true;
+    rev.eip4844 = true;
+    StateTransitionContext ctx(base, msg, rev, bcos::u256(7));
+
+    EthMessageRequest input{};
+    input.revisionConfig = rev;
+    input.blockInfo.baseFee = 7;
+    input.blockInfo.blobBaseFee = 1;
+    input.gasTipCap = 0;
+    input.gasFeeCap = 7;
+    input.blobGasFeeCap = 1;
+    input.hasExplicitFeeCaps = true;
+    input.web3TypedTxKind = 0x03;
+    input.txValue = 0;
+    input.blobVersionedHashes = {h256{0x01}};
+    EthFeeSidecar sidecar;
+    EthSettlementProjection view{ctx, input, sidecar};
+
+    EthFeeSettlement settlement;
+    auto const okWithoutValue = bcos::task::syncWait(settlement.buyGas(view));
+    BOOST_REQUIRE(okWithoutValue);
+
+    base.insert_account(addr(1), state::Account{.balance = initialBalance});
+    StateTransitionContext ctxWithValue(base, msg, rev, bcos::u256(7));
+    input.txValue = txValue;
+    EthSettlementProjection viewWithValue{ctxWithValue, input, sidecar};
+    auto const okWithValue = bcos::task::syncWait(settlement.buyGas(viewWithValue));
+    BOOST_REQUIRE(!okWithValue);
+}
+
 BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_applies_penalty)
 {
     state::test::InMemoryStateView base;

@@ -56,6 +56,10 @@ std::vector<std::string> activatedEipsFor(bcos::evm::RevisionConfig const& revis
     {
         eips.emplace_back("EIP-7823");
     }
+    if (revision.eip7825)
+    {
+        eips.emplace_back("EIP-7825");
+    }
     return eips;
 }
 
@@ -171,6 +175,26 @@ std::optional<ForkProfile> ForkProfileRegistry::findByUpstreamFork(std::string_v
         }
     }
     return std::nullopt;
+}
+
+ForkProfile ForkProfileRegistry::resolveExecutionProfile(
+    ForkProfile profile, std::optional<std::string> const& postFork) const
+{
+    if (!postFork.has_value())
+    {
+        return profile;
+    }
+
+    auto const postProfile = findByUpstreamFork(*postFork);
+    if (!postProfile.has_value())
+    {
+        return profile;
+    }
+
+    auto const vmRevision = profile.revision.revision;
+    profile.revision = postProfile->revision;
+    profile.revision.revision = vmRevision;
+    return profile;
 }
 
 }  // namespace bcos::evm::reference_tests

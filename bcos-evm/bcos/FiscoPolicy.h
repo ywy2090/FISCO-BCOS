@@ -40,7 +40,8 @@ inline evmc_revision toFiscoRevision(const ledger::Features& features, uint32_t 
     X(eip7623, feature_evm_prague)  \
     X(eip7702, feature_evm_prague)  \
     X(eip7212, feature_evm_osaka)   \
-    X(eip7823, feature_evm_osaka)
+    X(eip7823, feature_evm_osaka)   \
+    X(eip7825, feature_evm_osaka)
 
 inline constexpr std::size_t fiscoGatedFlagMapCount() noexcept
 {

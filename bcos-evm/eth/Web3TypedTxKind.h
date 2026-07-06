@@ -45,14 +45,14 @@ inline constexpr uint8_t toWeb3TypedTxKindValue(Web3TypedTxKind kind) noexcept
 /// Infer typed tx kind when the RLP type byte is missing or legacy (0).
 /// Priority: 0x04 auth → 0x03 blob → 0x02 EIP-1559 caps → 0x01 access list → legacy.
 inline uint8_t inferWeb3TypedTxKindFromFields(bool authorizationListKeyPresent,
-    bool hasAuthorizationList, bool hasBlobVersionedHashes, bool hasEip1559FeeCaps,
-    bool hasAccessList) noexcept
+    bool hasAuthorizationList, bool hasBlobVersionedHashes, bool hasMaxFeePerBlobGas,
+    bool hasEip1559FeeCaps, bool hasAccessList) noexcept
 {
     if (authorizationListKeyPresent || hasAuthorizationList)
     {
         return toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702);
     }
-    if (hasBlobVersionedHashes)
+    if (hasBlobVersionedHashes || hasMaxFeePerBlobGas)
     {
         return toWeb3TypedTxKindValue(Web3TypedTxKind::EIP4844);
     }

@@ -2,7 +2,9 @@
 
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip3860.h"
+#include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/eip/Eip7825.h"
 #include "helpers/EthPreCheckRulesTestHelper.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
@@ -122,6 +124,51 @@ BOOST_AUTO_TEST_CASE(rejects_max_fee_below_base_fee)
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
 
+BOOST_AUTO_TEST_CASE(rejects_legacy_gas_price_below_base_fee)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x1f);
+
+    auto input = makeInput(sender);
+    input.hasExplicitFeeCaps = false;
+    input.web3TypedTxKind = 0;
+    input.gasPrice = 999;
+    input.gasTipCap = 999;
+    input.gasFeeCap = 999;
+    input.blockInfo.baseFee = 1000;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+}
+
+BOOST_AUTO_TEST_CASE(rejects_tx_gas_limit_above_block_gas_limit)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x20);
+
+    auto input = makeInput(sender);
+    input.blockInfo.gasLimit = 80'000;
+    input.message.gas = 90'000;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::OutOfGasLimit);
+}
+
+BOOST_AUTO_TEST_CASE(allows_tx_gas_limit_at_block_gas_limit)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x21);
+
+    auto input = makeInput(sender);
+    input.blockInfo.gasLimit = 80'000;
+    input.message.gas = 80'000;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_CHECK(!error.has_value());
+}
+
 BOOST_AUTO_TEST_CASE(rejects_tx_nonce_at_uint64_max)
 {
     state::test::InMemoryStateView stateView;
@@ -166,5 +213,93 @@ BOOST_AUTO_TEST_CASE(allows_max_initcode_size_on_shanghai)
 
     auto error = ethPreCheckRulesError(input, stateView);
     BOOST_CHECK(!error.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(rejects_tx_gas_limit_above_osaka_cap)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x19);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.revision = EVMC_OSAKA;
+    input.revisionConfig.eip7825 = true;
+    input.message.gas = MAX_TX_GAS + 1;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::OutOfGasLimit);
+}
+
+BOOST_AUTO_TEST_CASE(allows_tx_gas_limit_at_osaka_cap)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x1a);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.revision = EVMC_OSAKA;
+    input.revisionConfig.eip7825 = true;
+    input.message.gas = MAX_TX_GAS;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_CHECK(!error.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(allows_tx_gas_above_cap_when_eip7825_off)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x1b);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.revision = EVMC_OSAKA;
+    input.revisionConfig.eip7825 = false;
+    input.message.gas = MAX_TX_GAS + 1;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_CHECK(!error.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(allows_tx_gas_above_cap_before_osaka)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x1c);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.revision = EVMC_PRAGUE;
+    input.revisionConfig.eip7825 = false;
+    input.message.gas = MAX_TX_GAS + 1;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_CHECK(!error.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(rejects_type03_with_zero_blobs)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x1d);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.eip4844 = true;
+    input.web3TypedTxKind = 0x03;
+    input.blobGasFeeCap = 1;
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+}
+
+BOOST_AUTO_TEST_CASE(rejects_blob_count_above_cancun_cap)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x1e);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.eip4844 = true;
+    input.web3TypedTxKind = 0x03;
+    input.blobGasFeeCap = 1;
+    input.blobVersionedHashes.assign(gas::MAX_BLOBS_PER_TX + 1, h256{0x01});
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
 }  // namespace bcos::evm::test

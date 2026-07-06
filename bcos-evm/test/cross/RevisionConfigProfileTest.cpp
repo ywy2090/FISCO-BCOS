@@ -33,6 +33,7 @@ inline void assertRevisionConfigMatches(
     BOOST_CHECK_EQUAL(actual.eip7212, expected.eip7212);
     BOOST_CHECK_EQUAL(actual.eip7623, expected.eip7623);
     BOOST_CHECK_EQUAL(actual.eip7823, expected.eip7823);
+    BOOST_CHECK_EQUAL(actual.eip7825, expected.eip7825);
     BOOST_CHECK_EQUAL(actual.eip1153, expected.eip1153);
     BOOST_CHECK_EQUAL(actual.eip4844, expected.eip4844);
     BOOST_CHECK_EQUAL(actual.eip5656, expected.eip5656);
@@ -66,7 +67,7 @@ BOOST_AUTO_TEST_SUITE(RevisionConfigProfileTest)
 
 BOOST_AUTO_TEST_CASE(revision_config_bool_field_count)
 {
-    BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 12U);
+    BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 13U);
 }
 
 BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
@@ -117,6 +118,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                          .eip7212 = true,
                          .eip7623 = true,
                          .eip7823 = true,
+                         .eip7825 = true,
                          .eip1153 = true,
                          .eip4844 = true,
                          .eip5656 = true,
@@ -135,9 +137,9 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
     }
 }
 
-BOOST_AUTO_TEST_CASE(gated_field_count_is_six)
+BOOST_AUTO_TEST_CASE(gated_field_count_is_seven)
 {
-    BOOST_CHECK_EQUAL(revisionConfigGatedFieldCount(), 6U);
+    BOOST_CHECK_EQUAL(revisionConfigGatedFieldCount(), 7U);
 }
 
 BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
@@ -153,6 +155,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
         BOOST_CHECK(!cfg.eip7212);
         BOOST_CHECK(!cfg.eip7623);
         BOOST_CHECK(!cfg.eip7823);
+        BOOST_CHECK(!cfg.eip7825);
         BOOST_CHECK(!cfg.eip7702);
         // B-class survive.
         BOOST_CHECK(cfg.eip1153);
@@ -174,6 +177,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
         BOOST_CHECK(cfg.eip7702);
         BOOST_CHECK(!cfg.eip7212);
         BOOST_CHECK(!cfg.eip7823);
+        BOOST_CHECK(!cfg.eip7825);
     }
 }
 
@@ -222,6 +226,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip7212 = true,
                          .eip7623 = true,
                          .eip7823 = true,
+                         .eip7825 = true,
                          .eip1153 = true,
                          .eip4844 = true,
                          .eip5656 = true,
@@ -293,6 +298,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip7212 = true,
                 .eip7623 = true,
                 .eip7823 = true,
+                .eip7825 = true,
                 .eip1153 = true,
                 .eip4844 = true,
                 .eip5656 = true,

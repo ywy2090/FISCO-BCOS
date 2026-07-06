@@ -27,6 +27,7 @@
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/WarmAccessProbe.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-utilities/BoostLog.h"
 #include "eth/RevisionConfig.h"
@@ -148,10 +149,15 @@ size_t EthHost::copy_code(const address& addr, size_t code_offset, uint8_t* buff
 
 void EthHost::markCreatedInTx(evmc_address const& addr) noexcept
 {
-    if (!isZeroAddress(addr))
+    if (!isZeroAddress(addr) && !m_state.isPreexistingAccount(addr))
     {
         m_createdInTx.insert(addr);
     }
+}
+
+void EthHost::unmarkCreatedInTx(evmc_address const& addr) noexcept
+{
+    m_createdInTx.erase(addr);
 }
 
 bool EthHost::wasCreatedInTx(evmc_address const& addr) const noexcept
@@ -330,7 +336,20 @@ evmc_access_status EthHost::access_account(const address& addr) noexcept
         return EVMC_ACCESS_COLD;
     }
     // First touch in tx → COLD (2600 gas); subsequent → WARM (100 gas).
-    return m_state.warm_up_address(addr) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
+    auto const status = m_state.warm_up_address(addr) ? EVMC_ACCESS_COLD : EVMC_ACCESS_WARM;
+    if (state::WarmAccessProbe::enabled())
+    {
+        auto& probe = state::WarmAccessProbe::instance();
+        if (status == EVMC_ACCESS_COLD)
+        {
+            ++probe.hostAccessCold;
+        }
+        else
+        {
+            ++probe.hostAccessWarm;
+        }
+    }
+    return status;
 }
 
 evmc_access_status EthHost::access_storage(const address& addr, const bytes32& key) noexcept

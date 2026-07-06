@@ -42,6 +42,8 @@
 #include "bcos-evm/eth/kernel/execution/PrepareState.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-evm/eth/state/WarmAccessProbe.h"
+#include "bcos-evm/eth/trace/EvmOpcodeProbe.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-utilities/BoostLog.h"
 #include "eth/RevisionConfig.h"
@@ -50,6 +52,7 @@
 #include "eth/state/StateKeyHash.hpp"
 #include "eth/state/Transaction.hpp"
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -80,8 +83,9 @@ state::Transaction toStateTransaction(const evmc_message& message)
     return transaction;
 }
 
-/// Block + tx header fields exposed to evmone host callbacks (BLOCKHASH, BASEFEE, …).
-evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message& message)
+/// Block + tx header fields exposed to evmone host callbacks (BLOCKHASH, BASEFEE, BLOBHASH, …).
+evmc_tx_context buildTxContext(state::BlockInfo const& block, evmc_message const& message,
+    std::span<evmc_bytes32 const> blobHashes)
 {
     evmc_tx_context context{};
     context.tx_origin = message.sender;
@@ -93,6 +97,11 @@ evmc_tx_context buildTxContext(const state::BlockInfo& block, const evmc_message
     context.chain_id = state::toEvmC(block.chainId);
     context.block_base_fee = state::toEvmC(block.baseFee);
     context.blob_base_fee = state::toEvmC(block.blobBaseFee);
+    if (!blobHashes.empty())
+    {
+        context.blob_hashes = blobHashes.data();
+        context.blob_hashes_count = blobHashes.size();
+    }
     return context;
 }
 
@@ -146,13 +155,10 @@ void prepareTxEntry(state::State& state, InnerExecuteInput const& input)
         state.clearAllTransientStorage();
     }
     auto const transaction = toStateTransaction(input.message);
-    std::optional<evmc_address> createCodeAddress;
-    if (input.message.kind == EVMC_CREATE || input.message.kind == EVMC_CREATE2)
-    {
-        createCodeAddress = input.message.code_address;
-    }
+    // geth state.Prepare warms sender/coinbase/to only — not the predicted CREATE address.
+    // FISCO passes createCodeAddress via FiscoPrepareTransaction.h when needed.
     execution::prepareState(state, input.revisionConfig, input.callTargetPort, transaction,
-        input.blockInfo, input.accessList, input.web3TypedTxKind, createCodeAddress);
+        input.blockInfo, input.accessList, input.web3TypedTxKind);
 }
 
 /// Bind host execution address for CALL/STATICCALL/DELEGATECALL; CREATE skips (frame routing owns
@@ -265,10 +271,20 @@ InnerExecuteOutput innerExecute(InnerExecuteInput input)
     auto& state = *input.state;
     state.clear_refund();
 
+    if (input.message.depth == 0 && state::WarmAccessProbe::enabled())
+    {
+        state::WarmAccessProbe::instance().reset();
+    }
+    if (input.message.depth == 0 && trace::EvmOpcodeProbe::enabled())
+    {
+        trace::EvmOpcodeProbe::reset();
+        trace::EvmOpcodeProbe::attachIfNeeded(input.vm->get_raw_pointer());
+    }
+
     logEntry(input);
     prepareTxEntry(state, input);
 
-    auto txContext = buildTxContext(input.blockInfo, input.message);
+    auto txContext = buildTxContext(input.blockInfo, input.message, input.blobHashes);
     txContext.tx_gas_price = state::toEvmC(input.gasPrice);
     state::EthHost host(state, txContext, input.revisionConfig, *input.vm, input.blockHashes,
         input.extension, input.callTargetPort);

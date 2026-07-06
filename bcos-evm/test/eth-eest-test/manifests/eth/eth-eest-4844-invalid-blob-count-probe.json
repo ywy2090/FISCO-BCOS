@@ -1,0 +1,21 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "4844-invalid-blob-count",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip4844_blobs/test_invalid_tx_blob_count.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": [
+        "eip4844-blobs"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
+    }
+  ]
+}

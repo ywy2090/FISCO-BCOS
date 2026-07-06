@@ -148,7 +148,6 @@ set(CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME CreateWarmPinRevertTest)
 
 add_executable(${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME}
     eth/host/CreateWarmPinRevertTest.cpp
-    ../eth/state/State.cpp
 )
 
 target_include_directories(${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME} PRIVATE
@@ -157,8 +156,8 @@ target_include_directories(${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${CREATE_WARM_PIN_REVERT_TEST_BINARY_NAME} PRIVATE
+    bcos-evm
     evmone::evmone
-    bcos-utilities
 )
 
 add_test(

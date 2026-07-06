@@ -102,4 +102,32 @@ BOOST_AUTO_TEST_CASE(add11_state_root_matches_fixture)
     BOOST_CHECK(state::Bytes32Equal{}(storageIt->second, expectedValue));
 }
 
+BOOST_AUTO_TEST_CASE(osaka_vm_with_prague_post_fork_policy_runs_high_gas_self_balance)
+{
+    auto const root = resolveEthereumTestsRoot();
+    ensureGeneralStateTestsExtracted(root);
+
+    auto const profile = ForkProfileRegistry::instance().findByProfileId("eth-osaka");
+    BOOST_REQUIRE(profile.has_value());
+    auto const executionProfile =
+        ForkProfileRegistry::instance().resolveExecutionProfile(*profile, std::string{"Prague"});
+    BOOST_CHECK(!executionProfile.revision.eip7825);
+
+    auto const testCase = loadGeneralStateTest(
+        root / "GeneralStateTests/stSelfBalance/selfBalance.json",
+        std::string_view{
+            "GeneralStateTests/stSelfBalance/selfBalance.json::selfBalance-fork_[Cancun-Prague]-"
+            "d0g0v0"});
+
+    auto const subtests = listSubtests(testCase, "Prague");
+    BOOST_REQUIRE(!subtests.empty());
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    EthMessageAdapter adapter(executionProfile, hashImpl, vm);
+
+    auto const result = bcos::task::syncWait(adapter.execute(testCase, subtests.front()));
+    BOOST_CHECK_EQUAL(result.status, EVMC_SUCCESS);
+}
+
 }  // namespace bcos::evm::reference_tests

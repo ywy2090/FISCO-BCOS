@@ -17,6 +17,7 @@
 #define BOOST_TEST_MODULE FiscoEvmHostHooksTest
 #include "bcos-evm/bcos/FiscoEvmHostHooks.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/eth/host/EthHost.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryAuthAdapter.h"

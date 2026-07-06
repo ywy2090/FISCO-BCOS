@@ -25,6 +25,7 @@
 #include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/eip/Eip7825.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
@@ -67,6 +68,20 @@ EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input)
 
 void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
 {
+    if (isTxGasLimitExceeded(m_input.revisionConfig, ctx.originalGasLimit))
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::OutOfGasLimit);
+        ctx.earlyExit = true;
+        return;
+    }
+
+    if (m_input.blockInfo.gasLimit > 0 && ctx.originalGasLimit > m_input.blockInfo.gasLimit)
+    {
+        ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::OutOfGasLimit);
+        ctx.earlyExit = true;
+        return;
+    }
+
     // EIP-2681: account nonce cannot exceed uint64 max; reject txs that cannot be incremented.
     if (m_input.txNonce == std::numeric_limits<uint64_t>::max())
     {
@@ -85,8 +100,7 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
         return;
     }
 
-    if (gas::isEip1559GasCapsTx(
-            m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps, m_input.revisionConfig))
+    if (gas::isEip1559FeeMarketActive(m_input.revisionConfig))
     {
         if (m_input.gasFeeCap < m_input.gasTipCap || m_input.gasFeeCap < m_input.blockInfo.baseFee)
         {
@@ -134,8 +148,8 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
         return;
     }
 
-    if (m_input.web3TypedTxKind == toWeb3TypedTxKindValue(Web3TypedTxKind::EIP4844) ||
-        !m_input.blobVersionedHashes.empty())
+    if (gas::hasBlobTxIntent(m_input.web3TypedTxKind, !m_input.blobVersionedHashes.empty(),
+            m_input.blobGasFeeCap > 0))
     {
         if (!m_input.revisionConfig.eip4844)
         {
@@ -150,6 +164,12 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
             return;
         }
         if (m_input.blobVersionedHashes.empty())
+        {
+            ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+            ctx.earlyExit = true;
+            return;
+        }
+        if (m_input.blobVersionedHashes.size() > gas::MAX_BLOBS_PER_TX)
         {
             ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
             ctx.earlyExit = true;

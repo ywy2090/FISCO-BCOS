@@ -536,6 +536,7 @@ GstTransactionTemplate parseTransactionTemplate(pt::ptree const& txTree)
 
     if (auto const maxBlobFee = txTree.get_optional<std::string>("maxFeePerBlobGas"))
     {
+        transaction.maxFeePerBlobGasKeyPresent = true;
         transaction.maxFeePerBlobGas = parseQuantity(*maxBlobFee);
     }
     if (auto const blobHashes = txTree.get_child_optional("blobVersionedHashes"))

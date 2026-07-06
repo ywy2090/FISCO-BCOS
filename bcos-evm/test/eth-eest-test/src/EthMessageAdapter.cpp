@@ -7,6 +7,8 @@
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/WarmAccessProbe.h"
+#include "bcos-evm/eth/trace/EvmOpcodeProbe.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-task/Wait.h>
 #include <cstdlib>
@@ -162,6 +164,7 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
         inferWeb3TypedTxKindFromFields(testCase.transaction.authorizationListKeyPresent,
             !testCase.transaction.authorizationList.empty(),
             !testCase.transaction.blobVersionedHashes.empty(),
+            testCase.transaction.maxFeePerBlobGasKeyPresent,
             tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0,
             !testCase.transaction.accessLists.empty());
     input.hasExplicitFeeCaps = tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0;
@@ -169,6 +172,7 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
     input.authorizationListPresent = testCase.transaction.authorizationListKeyPresent;
     input.authorizations = authorizations;
     input.txNonce = tx.nonce;
+    input.txValue = tx.value;
 
     evmc_message msg{};
     msg.kind = tx.to.has_value() ? EVMC_CALL : EVMC_CREATE;
@@ -263,6 +267,16 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
                           << "\n";
             }
         }
+    }
+
+    if (state::WarmAccessProbe::enabled())
+    {
+        state::WarmAccessProbe::instance().print(std::cerr);
+    }
+
+    if (trace::EvmOpcodeProbe::enabled())
+    {
+        trace::EvmOpcodeProbe::print(std::cerr);
     }
 
     co_return result;

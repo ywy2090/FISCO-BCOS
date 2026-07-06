@@ -1,5 +1,6 @@
 #define BOOST_TEST_MODULE ManifestLoaderTest
 #include "bcos-evm/eth-eest-test/ManifestLoader.h"
+#include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include <boost/test/included/unit_test.hpp>
 #include <filesystem>
 #include <fstream>
@@ -29,6 +30,32 @@ BOOST_AUTO_TEST_CASE(loads_prague_smoke_manifest)
     BOOST_CHECK_EQUAL(entries.front().assertLevels[0], "expectException");
     BOOST_CHECK_EQUAL(entries.front().assertLevels[1], "stateRoot");
     BOOST_CHECK_EQUAL(entries.front().assertLevels[2], "logsHash");
+}
+
+BOOST_AUTO_TEST_CASE(resolve_execution_profile_applies_post_fork_policy)
+{
+    auto const osaka = ForkProfileRegistry::instance().findByProfileId("eth-osaka");
+    BOOST_REQUIRE(osaka.has_value());
+    auto const resolved =
+        ForkProfileRegistry::instance().resolveExecutionProfile(*osaka, std::string{"Prague"});
+    BOOST_CHECK_EQUAL(resolved.revision.revision, EVMC_OSAKA);
+    BOOST_CHECK(!resolved.revision.eip7825);
+    BOOST_CHECK(resolved.revision.eip7623);
+    BOOST_CHECK(!resolved.revision.eip7823);
+}
+
+BOOST_AUTO_TEST_CASE(osaka_smoke_manifest_carries_prague_post_fork)
+{
+#ifdef SPECS_TESTS_MANIFEST_DIR
+    auto const path =
+        std::filesystem::path(SPECS_TESTS_MANIFEST_DIR) / "eth/eth-gst-osaka-smoke.json";
+#else
+    auto const path = std::filesystem::path("manifests/eth/eth-gst-osaka-smoke.json");
+#endif
+    auto const entries = loadManifest(path);
+    BOOST_REQUIRE(!entries.empty());
+    BOOST_REQUIRE(entries.front().postFork.has_value());
+    BOOST_CHECK_EQUAL(*entries.front().postFork, "Prague");
 }
 
 BOOST_AUTO_TEST_CASE(rejects_missing_required_field)

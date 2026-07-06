@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "6780-callcode-probe",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct/test_calling_from_pre_existing_contract_to_new_contract.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip6780-selfdestruct-kernel"],
+      "assertLevels": ["stateRoot"],
+      "variantKey": "tests/cancun/eip6780_selfdestruct/test_selfdestruct.py::test_calling_from_pre_existing_contract_to_new_contract[fork_Cancun-state_test-pre_existing_contract_initial_balance_0-selfdestruct_contract_initial_balance_0-call_times_1-call_opcode_CALLCODE-create_opcode_CREATE2]"
+    }
+  ]
+}

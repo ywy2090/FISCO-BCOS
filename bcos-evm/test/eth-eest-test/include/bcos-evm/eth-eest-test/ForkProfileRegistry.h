@@ -38,6 +38,10 @@ public:
     std::optional<ForkProfile> findByProfileId(std::string_view id) const;
     std::optional<ForkProfile> findByUpstreamFork(std::string_view fork) const;
 
+    /// Apply postFork policy gates while keeping profile evmc_revision for VM execution.
+    ForkProfile resolveExecutionProfile(
+        ForkProfile profile, std::optional<std::string> const& postFork) const;
+
 private:
     ForkProfileRegistry();
 

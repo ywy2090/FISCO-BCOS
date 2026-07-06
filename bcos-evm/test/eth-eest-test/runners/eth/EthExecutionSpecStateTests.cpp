@@ -130,7 +130,9 @@ bool runEntry(ManifestEntry const& entry, Options const& options, StateTestMatch
         return false;
     }
 
-    EthMessageAdapter adapter(*profile, hashImpl, vm);
+    auto const executionProfile =
+        ForkProfileRegistry::instance().resolveExecutionProfile(*profile, entry.postFork);
+    EthMessageAdapter adapter(executionProfile, hashImpl, vm);
     for (auto const& jsonPath : resolveCasePaths(options.eestRoot, entry))
     {
         std::vector<StateTestCase> cases;

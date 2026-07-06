@@ -14,7 +14,8 @@ namespace bcos::evm
 {
 inline bool hasBlobTxIntent(OpStackMessageRequest const& input) noexcept
 {
-    return input.web3TypedTxKind == 0x03 || !input.blobVersionedHashes.empty();
+    return input.web3TypedTxKind == 0x03 || !input.blobVersionedHashes.empty() ||
+           input.blobGasFeeCap > 0;
 }
 
 inline bool isValidVersionedHash(bcos::h256 const& h) noexcept

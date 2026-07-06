@@ -1,0 +1,21 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "4844-blobhash",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip4844_blobs/test_blobhash_opcode_contexts.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": [
+        "eip4844-blobs"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
+    }
+  ]
+}

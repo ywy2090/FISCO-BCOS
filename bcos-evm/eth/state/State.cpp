@@ -64,7 +64,11 @@ bcos::bytes State::get_code(const evmc_address& address) const
 {
     if (auto it = m_accounts.find(address); it != m_accounts.end())
     {
-        return it->second.code;
+        if (!it->second.code.empty() || it->second.codeDirty)
+        {
+            return it->second.code;
+        }
+        return m_baseStateView->get_code(address);
     }
     return m_baseStateView->get_code(address);
 }
@@ -73,7 +77,11 @@ size_t State::get_code_size(const evmc_address& address) const
 {
     if (auto it = m_accounts.find(address); it != m_accounts.end())
     {
-        return it->second.code.size();
+        if (!it->second.code.empty() || it->second.codeDirty)
+        {
+            return it->second.code.size();
+        }
+        return m_baseStateView->get_code(address).size();
     }
     return m_baseStateView->get_code(address).size();
 }
@@ -107,6 +115,10 @@ evmc_bytes32 State::get_code_hash(const evmc_address& address) const
     if (auto it = m_accounts.find(address); it != m_accounts.end())
     {
         auto const& account = it->second;
+        if (account.code.empty() && !account.codeDirty)
+        {
+            return m_baseStateView->get_code_hash(address);
+        }
         if (account.code.empty())
         {
             return emptyCodeHash();
@@ -146,6 +158,9 @@ evmc_bytes32 State::get_storage(const evmc_address& address, const evmc_bytes32&
         {
             return storageIt->second;
         }
+        // Overlay account present: absent keys are zero (geth: dirty object owns storage).
+        // Required after touchCreateDeploymentAccount / clear_storage — must not read base.
+        return evmc_bytes32{};
     }
     return m_baseStateView->get_storage(address, key);
 }
@@ -370,6 +385,18 @@ void State::clearAllTransientStorage()
 bool State::warm_up_address(const evmc_address& address)
 {
     auto const inserted = m_warmAccounts.insert(address).second;
+    if (WarmAccessProbe::enabled())
+    {
+        auto& probe = WarmAccessProbe::instance();
+        if (inserted)
+        {
+            ++probe.warmUpCold;
+        }
+        else
+        {
+            ++probe.warmUpWarm;
+        }
+    }
     if (inserted && has_checkpoint())
     {
         push_journal_warm_address(address);
@@ -389,7 +416,20 @@ bool State::warm_up_storage(const evmc_address& address, const evmc_bytes32& key
 
 bool State::warm_up_address_no_journal(const evmc_address& address)
 {
-    return m_warmAccounts.insert(address).second;
+    auto const inserted = m_warmAccounts.insert(address).second;
+    if (WarmAccessProbe::enabled())
+    {
+        auto& probe = WarmAccessProbe::instance();
+        if (inserted)
+        {
+            ++probe.warmUpNoJournalCold;
+        }
+        else
+        {
+            ++probe.warmUpNoJournalWarm;
+        }
+    }
+    return inserted;
 }
 
 bool State::warm_up_storage_no_journal(const evmc_address& address, const evmc_bytes32& key)
@@ -400,6 +440,18 @@ bool State::warm_up_storage_no_journal(const evmc_address& address, const evmc_b
 void State::pin_warm_create_address(const evmc_address& address)
 {
     bool const insertedWarm = m_warmAccounts.insert(address).second;
+    if (WarmAccessProbe::enabled())
+    {
+        auto& probe = WarmAccessProbe::instance();
+        if (insertedWarm)
+        {
+            ++probe.pinWarmNewInsert;
+        }
+        else
+        {
+            ++probe.pinWarmAlreadyWarm;
+        }
+    }
     m_pinnedWarmAccounts.insert(address);
     if (has_checkpoint())
     {
@@ -464,6 +516,37 @@ void State::finalize_self_destructs()
         account.nonce = 0;
         account.selfDestructed = false;
     }
+}
+
+void State::touchCreateDeploymentAccount(const evmc_address& address, evmc_revision revision)
+{
+    if (state::isZeroAddress(address))
+    {
+        return;
+    }
+
+    journal_account_once(address);
+    auto& account = mutable_account(address);
+    account.code.clear();
+    account.codeHash = {};
+    account.codeDirty = true;
+    account.storage.clear();
+    // Fresh CREATE target starts at nonce 1 (Spurious Dragon+). Same-tx collision recreate
+    // (EIP-6780) must preserve an existing contract nonce — geth does not reset it on re-init.
+    if (account.nonce == 0 && revision >= EVMC_SPURIOUS_DRAGON)
+    {
+        account.nonce = 1U;
+    }
+}
+
+bool State::isPreexistingAccount(const evmc_address& address) const
+{
+    auto const account = m_baseStateView->get_account(address);
+    if (!account.has_value())
+    {
+        return false;
+    }
+    return !account->code.empty() || account->nonce != 0;
 }
 
 void State::add_refund(uint64_t amount)

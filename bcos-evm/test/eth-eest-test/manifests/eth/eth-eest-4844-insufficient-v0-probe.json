@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "probe",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip4844_blobs/test_insufficient_balance_blob_tx.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": [
+        "eip4844-blobs"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ],
+      "variantKey": "tests/cancun/eip4844_blobs/test_blob_txs.py::test_insufficient_balance_blob_tx[fork_Cancun-state_test--exact_balance_minus_1-tx_max_fee_per_blob_gas_multiplier_1-no_calldata-tx_value_0-tx_max_priority_fee_per_gas_0-tx_max_fee_per_gas_14-access_list]"
+    }
+  ]
+}

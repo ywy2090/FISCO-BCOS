@@ -19,7 +19,9 @@
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/eip/Eip3860.h"
+#include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/eip/Eip7825.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
@@ -93,6 +95,13 @@ void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContex
 
     if (!input.skipTransactionChecks)
     {
+        if (isTxGasLimitExceeded(input.revisionConfig, ctx.originalGasLimit))
+        {
+            ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::OutOfGasLimit);
+            ctx.earlyExit = true;
+            return;
+        }
+
         auto const senderCode = ctx.state.get_code(input.message.sender);
         if (!senderCode.empty() &&
             !parseDelegationTarget(bcos::bytesConstRef{senderCode.data(), senderCode.size()})
@@ -128,6 +137,12 @@ void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContex
                 return;
             }
             if (input.blobVersionedHashes.empty())
+            {
+                ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
+                ctx.earlyExit = true;
+                return;
+            }
+            if (input.blobVersionedHashes.size() > gas::MAX_BLOBS_PER_TX)
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
                 ctx.earlyExit = true;

@@ -1,4 +1,5 @@
 #include "VMInstance.h"
+#include "bcos-evm/eth/trace/EvmOpcodeProbe.h"
 #include "eth/kernel/EVMCResult.h"
 #include <evmone/evmone.h>
 #include <cstring>
@@ -24,6 +25,10 @@ bcos::evm::EVMCResult bcos::evm::VMInstance::execute(const struct evmc_host_inte
     // (EVMC_BAD_JUMP_DESTINATION) was fixed in 0.21. Internal ExecutionState pool grows to max
     // nesting depth then stops allocating — eliminating per-call malloc/free.
     thread_local evmc::VM t_vm{evmc_create_evmone()};
+    if (trace::EvmOpcodeProbe::enabled())
+    {
+        trace::EvmOpcodeProbe::attachIfNeeded(t_vm.get_raw_pointer());
+    }
     return EVMCResult(evmone::baseline::execute(
         *static_cast<evmone::VM*>(t_vm.get_raw_pointer()), *host, context, rev, *msg, *m_analysis));
 }

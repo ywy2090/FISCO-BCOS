@@ -93,6 +93,12 @@ target_include_directories(EthIntrinsicGasFailureCharacterizationTest PRIVATE
 target_link_libraries(EthIntrinsicGasFailureCharacterizationTest PRIVATE
     bcos-evm-eth evmone::evmone bcos-task bcos-crypto bcos-protocol)
 add_test(NAME EthIntrinsicGasFailure COMMAND EthIntrinsicGasFailureCharacterizationTest)
+add_executable(Eip4844BlobBaseFeeTest eth/Eip4844BlobBaseFeeTest.cpp)
+target_include_directories(Eip4844BlobBaseFeeTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+target_link_libraries(Eip4844BlobBaseFeeTest PRIVATE bcos-evm-eth bcos-utilities)
+add_test(NAME Eip4844BlobBaseFee COMMAND Eip4844BlobBaseFeeTest)
+
 add_executable(EthEip1559GasTest eth/EthEip1559GasTest.cpp)
 target_include_directories(EthEip1559GasTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

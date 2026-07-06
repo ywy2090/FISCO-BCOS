@@ -1,0 +1,21 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "6780-all",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip6780_selfdestruct",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": [
+        "eip6780-selfdestruct-kernel"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ]
+    }
+  ]
+}

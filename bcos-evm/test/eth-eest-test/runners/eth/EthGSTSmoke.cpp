@@ -104,7 +104,9 @@ int main(int argc, char** argv)
                 continue;
             }
 
-            EthMessageAdapter adapter(*profile, hashImpl, vm);
+            auto const executionProfile =
+                ForkProfileRegistry::instance().resolveExecutionProfile(*profile, entry.postFork);
+            EthMessageAdapter adapter(executionProfile, hashImpl, vm);
             auto const gstPath = options.ethereumTestsRoot / entry.casePath;
             auto const testCase = loadGeneralStateTest(
                 gstPath, entry.variantKey ? std::optional<std::string_view>{*entry.variantKey} :

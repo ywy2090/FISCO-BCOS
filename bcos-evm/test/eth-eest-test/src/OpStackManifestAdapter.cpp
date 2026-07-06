@@ -153,6 +153,7 @@ task::Task<ExecutionResult> OpStackManifestAdapter::execute(
         inferWeb3TypedTxKindFromFields(testCase.transaction.authorizationListKeyPresent,
             !testCase.transaction.authorizationList.empty(),
             !testCase.transaction.blobVersionedHashes.empty(),
+            testCase.transaction.maxFeePerBlobGasKeyPresent,
             tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0,
             !testCase.transaction.accessLists.empty());
     input.accessList = accessList.empty() ? nullptr : &accessList;

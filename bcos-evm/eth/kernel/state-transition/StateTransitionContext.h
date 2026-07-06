@@ -58,6 +58,7 @@ struct StateTransitionInputs
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
     uint8_t web3TypedTxKind{0};
+    std::vector<bcos::h256> blobVersionedHashes;
 };
 
 class StateTransitionContext

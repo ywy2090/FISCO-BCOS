@@ -342,6 +342,19 @@ inline std::vector<std::filesystem::path> listRootFixtureFiles(std::filesystem::
     };
 }
 
+inline bool isSingleTxStateFixture(std::filesystem::path const& path)
+{
+    std::ifstream file(path);
+    if (!file.good())
+    {
+        return false;
+    }
+    pt::ptree tree;
+    pt::read_json(file, tree);
+    return tree.get_optional<std::string>("name").has_value() &&
+           tree.get_child_optional("expected").has_value();
+}
+
 inline std::vector<std::filesystem::path> listAllFixtureFiles(std::filesystem::path const& rootDir)
 {
     std::vector<std::filesystem::path> paths;
@@ -350,7 +363,8 @@ inline std::vector<std::filesystem::path> listAllFixtureFiles(std::filesystem::p
     {
         for (auto const& entry : std::filesystem::directory_iterator(rootDir))
         {
-            if (entry.is_regular_file() && entry.path().extension() == ".json")
+            if (entry.is_regular_file() && entry.path().extension() == ".json" &&
+                isSingleTxStateFixture(entry.path()))
             {
                 paths.push_back(entry.path());
             }
@@ -362,7 +376,8 @@ inline std::vector<std::filesystem::path> listAllFixtureFiles(std::filesystem::p
     {
         for (auto const& entry : std::filesystem::directory_iterator(importedDir))
         {
-            if (entry.is_regular_file() && entry.path().extension() == ".json")
+            if (entry.is_regular_file() && entry.path().extension() == ".json" &&
+                isSingleTxStateFixture(entry.path()))
             {
                 paths.push_back(entry.path());
             }

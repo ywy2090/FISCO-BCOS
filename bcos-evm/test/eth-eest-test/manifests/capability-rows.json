@@ -13,6 +13,7 @@
     "eip3651-warm-coinbase",
     "eip4844-blobs",
     "eip7212-p256-precompile",
+    "eip7623-calldata-cost",
     "eip7823-modexp",
     "eip7825-gas-limit-cap"
   ]

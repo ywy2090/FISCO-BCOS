@@ -73,6 +73,8 @@ struct InnerExecuteInput
     uint8_t web3TypedTxKind{0};
     state::EvmHostHooks* extension{nullptr};
     ChainCallTargetPort* callTargetPort{nullptr};
+    /// EIP-4844 versioned blob hashes for BLOBHASH opcode (tx-scoped, all depths).
+    std::vector<evmc_bytes32> blobHashes;
     /// When true, orchestration owns top-level sender nonce bump (kernel skips it).
     bool skipTopLevelSenderNonceBump{false};
     std::optional<bcos::h256> txHash;

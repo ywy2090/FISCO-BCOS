@@ -18,6 +18,7 @@
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>
+#include <limits>
 #include <optional>
 
 namespace bcos::evm::test
@@ -188,6 +189,9 @@ BOOST_AUTO_TEST_CASE(nested_delegatecall_precompile_blocked)
 
 BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_direct_precompile_hits_envelope)
 {
+    // evmone Prague+: DELEGATECALL + EVMC_DELEGATED to a precompile address runs empty delegate
+    // bytecode (EmptyAccount envelope), not RunPrecompiledContract — see R5c in
+    // CallTargetResolverTest.
     auto const sender = addressFromLastByte(0x01);
     auto const caller = addressFromLastByte(0x02);
     auto const identity = precompileAddress(0x04);
@@ -211,7 +215,7 @@ BOOST_AUTO_TEST_CASE(nested_7702_delegatecall_direct_precompile_hits_envelope)
     auto frame = runFrameNested(state, message);
     BOOST_REQUIRE(frame.envelopeComplete);
     BOOST_REQUIRE_EQUAL(frame.status, EVMC_SUCCESS);
-    BOOST_REQUIRE_EQUAL(frame.gasLeft, 500'000 - 18);
+    BOOST_REQUIRE_EQUAL(frame.gasLeft, 500'000);
 }
 
 BOOST_AUTO_TEST_CASE(top_level_envelope_complete_sets_flag)
@@ -443,6 +447,58 @@ BOOST_AUTO_TEST_CASE(nested_create_failed_still_increments_sender_nonce)
     auto frame = runFrameNested(state, message);
     BOOST_REQUIRE(frame.status != EVMC_SUCCESS);
     BOOST_CHECK_EQUAL(state.get_nonce(sender), 8U);
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_at_uint64_max_nonce_fails_without_wrap)
+{
+    auto const sender = addressFromLastByte(0x02);
+    static uint8_t emptyInit[] = {0x60, 0x00, 0x60, 0x00, 0xf3};
+
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.depth = 1;
+    message.gas = 500'000;
+    message.sender = sender;
+    message.input_data = emptyInit;
+    message.input_size = sizeof(emptyInit);
+
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, std::numeric_limits<uint64_t>::max());
+
+    auto frame = runFrameNested(state, message);
+    BOOST_REQUIRE_EQUAL(frame.status, EVMC_FAILURE);
+    BOOST_CHECK_EQUAL(state.get_nonce(sender), std::numeric_limits<uint64_t>::max());
+}
+
+BOOST_AUTO_TEST_CASE(nested_create_success_returns_empty_returndata)
+{
+    auto const sender = addressFromLastByte(0x03);
+    static uint8_t emptyInit[] = {0x60, 0x00, 0x60, 0x00, 0xf3};
+
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_balance(sender, 1'000'000);
+    state.set_nonce(sender, 0);
+
+    FrameTestHost fixture(state);
+    execution::CallFrameContext frameCtx{state, fixture.vm, fixture.cfg, nullptr,
+        fixture.txContext.tx_origin, fixture.ethHost().execution_address_ref()};
+
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.depth = 1;
+    message.gas = 500'000;
+    message.sender = sender;
+    message.input_data = emptyInit;
+    message.input_size = sizeof(emptyInit);
+
+    auto frame = execution::runCallFrame(
+        frameCtx, message, execution::FrameScope::Nested, fixture.ethHost());
+    BOOST_REQUIRE_EQUAL(frame.result.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(frame.result.output_size, 0U);
+    BOOST_CHECK(frame.result.output_data == nullptr);
 }
 
 BOOST_AUTO_TEST_CASE(nested_create_sequential_assigns_distinct_addresses)

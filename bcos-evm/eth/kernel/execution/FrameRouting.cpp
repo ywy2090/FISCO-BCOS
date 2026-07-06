@@ -6,7 +6,6 @@
  */
 
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
-#include "bcos-evm/eth/eip/Eip2929Gate.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "eth/RevisionConfig.h"
@@ -43,18 +42,10 @@ RoutedFrame routeFrameMessage(state::State& state, bcos::evm::RevisionConfig con
         if (!state::isZeroAddress(routed.routed.recipient))
         {
             routed.routed.code_address = routed.routed.recipient;
-            if (isCreateWarmPinEnabled(revisionConfig))
-            {
-                state.pin_warm_create_address(routed.routed.code_address);
-            }
         }
         else if (!state::isZeroAddress(routed.routed.code_address))
         {
             routed.routed.recipient = routed.routed.code_address;
-            if (isCreateWarmPinEnabled(revisionConfig))
-            {
-                state.pin_warm_create_address(routed.routed.code_address);
-            }
         }
     }
 

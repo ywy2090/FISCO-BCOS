@@ -210,8 +210,11 @@ int main(int argc, char** argv)
                     continue;
                 }
 
-                EthMessageAdapter adapter(*profile, hashImpl, vm);
                 auto const entry = makeSyntheticEntry(caseId + "@" + profileId, *profile);
+                auto const executionProfile =
+                    ForkProfileRegistry::instance().resolveExecutionProfile(
+                        *profile, entry.postFork);
+                EthMessageAdapter adapter(executionProfile, hashImpl, vm);
 
                 for (auto const& testCase : cases)
                 {

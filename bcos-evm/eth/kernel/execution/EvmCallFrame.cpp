@@ -317,6 +317,65 @@ void initializeCreateAccount(FrameWork& work)
     auto& callMessage = work.callMessage();
     initializeCreateTargetAccount(work.ctx.state, callMessage.recipient,
         work.ctx.revisionConfig.revision, isCreateWarmPinEnabled(work.ctx.revisionConfig));
+    // geth CreateAccount runs before initcode; SELFDESTRUCT in init must see wasCreatedInTx.
+    if (work.ctx.revisionConfig.eip6780)
+    {
+        work.host.markCreatedInTx(callMessage.recipient);
+    }
+    if (work.ctx.extension != nullptr)
+    {
+        work.ctx.extension->onCreateTargetInitialized(
+            work.ctx.revisionConfig.revision, callMessage);
+    }
+}
+
+/// Roll back per-tx CREATE tracking when a CREATE/CREATE2 frame aborts after init binding.
+void unmarkCreateInTxOnAbort(FrameWork& work)
+{
+    if (!work.ctx.revisionConfig.eip6780)
+    {
+        return;
+    }
+    work.host.unmarkCreatedInTx(work.callMessage().recipient);
+}
+
+/// EIP-2681: CREATE/CREATE2 fails when sender nonce is already uint64 max (no wrap).
+std::optional<FrameResult> failIfCreateSenderNonceOverflow(FrameWork& work)
+{
+    auto& callMessage = work.callMessage();
+    if (callMessage.kind != EVMC_CREATE && callMessage.kind != EVMC_CREATE2)
+    {
+        return std::nullopt;
+    }
+    if (isCreateSenderNonceOverflow(work.ctx.state, callMessage.sender))
+    {
+        return FrameResult{.result = makeFrameResult(EVMC_FAILURE, work.callMessage().gas)};
+    }
+    return std::nullopt;
+}
+
+/// geth: CREATE/CREATE2 at an address already self-destructed in this tx (6780 tx-new path).
+std::optional<FrameResult> failIfCreateDeploymentBlocked(FrameWork& work)
+{
+    auto& callMessage = work.callMessage();
+    if (callMessage.kind != EVMC_CREATE && callMessage.kind != EVMC_CREATE2)
+    {
+        return std::nullopt;
+    }
+    auto const& createAddr = callMessage.recipient;
+    if (!state::isZeroAddress(createAddr) && work.ctx.state.account_exists(createAddr))
+    {
+        // geth: collision pre-check touches the target; EIP-2929 counts it as warm.
+        (void)work.ctx.state.warm_up_address_no_journal(createAddr);
+    }
+    if (isCreateDeploymentAddressCollision(work.ctx.state, createAddr) ||
+        isSameTxSelfDestructedCreateBlocked(
+            work.ctx.state, createAddr, work.ctx.revisionConfig.eip6780))
+    {
+        work.ctx.state.revert();
+        return FrameResult{.result = makeFrameResult(EVMC_FAILURE, 0)};
+    }
+    return std::nullopt;
 }
 
 /// Load bytecode (following 7702 delegation if applicable) and run evmone.
@@ -333,12 +392,26 @@ evmc::Result runVm(FrameWork& work)
         work.code.data(), work.code.size());
 }
 
+/// EIP-211: successful CREATE/CREATE2 exposes empty returndata to the caller; failures keep
+/// init revert data. Must run after installCreatedContractCode (which consumes deployment output).
+void clearCreateSuccessReturnData(evmc::Result& result)
+{
+    auto& raw = const_cast<evmc_result&>(result.raw());
+    if (raw.release != nullptr)
+    {
+        raw.release(&raw);
+    }
+    raw.output_data = nullptr;
+    raw.output_size = 0;
+    raw.release = nullptr;
+}
+
 /// Post-interpreter frame teardown: gas for code deposit, persist CREATE output, journal action.
 ///
 /// CREATE success path:
 ///   1. applyCreateCodeDepositGas — EIP-3860/EIP-170 size gas; may downgrade to OOG
 ///   2. installCreatedContractCode — write runtime code to state
-///   3. markCreatedInTx — host tracks addresses created in this tx (EIP-6780 selfdestruct rules)
+///   3. markCreatedInTx — idempotent re-mark on success (init-time mark at account touch)
 ///
 /// Journal:
 ///   - Nested success → commit() (merge into parent journal)
@@ -388,6 +461,7 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
             {
                 raw.create_address = callMessage.recipient;
             }
+            clearCreateSuccessReturnData(result);
         }
 
         if (scope == FrameScope::TopLevel)
@@ -418,6 +492,10 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
     }
     else
     {
+        if (callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2)
+        {
+            unmarkCreateInTxOnAbort(work);
+        }
         work.ctx.state.revert();
     }
 
@@ -474,6 +552,10 @@ FrameResult runFrameSteps(
         scope == FrameScope::Nested)
     {
         bindCreateForInit(work);
+        if (auto early = failIfCreateSenderNonceOverflow(work))
+        {
+            return std::move(*early);
+        }
         bumpNestedCreateSenderNonce(work);
     }
 
@@ -489,7 +571,15 @@ FrameResult runFrameSteps(
         if (scope == FrameScope::TopLevel)
         {
             bindCreateForInit(work);
+            if (auto early = failIfCreateSenderNonceOverflow(work))
+            {
+                return std::move(*early);
+            }
             if (auto early = transferOrFail(work, scope))
+            {
+                return std::move(*early);
+            }
+            if (auto early = failIfCreateDeploymentBlocked(work))
             {
                 return std::move(*early);
             }
@@ -497,9 +587,14 @@ FrameResult runFrameSteps(
         }
         else
         {
+            if (auto early = failIfCreateDeploymentBlocked(work))
+            {
+                return std::move(*early);
+            }
             initializeCreateAccount(work);
             if (auto early = transferOrFail(work, scope))
             {
+                unmarkCreateInTxOnAbort(work);
                 return std::move(*early);
             }
         }

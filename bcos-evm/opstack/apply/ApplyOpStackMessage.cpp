@@ -78,6 +78,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
     ctx.inputs.authorizationListPresent = input.authorizationListPresent;
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;
+    ctx.inputs.blobVersionedHashes = input.blobVersionedHashes;
 
     // OpStack predeploy classification + dispatch (L1Block, GasPriceOracle, …).
     OpStackChainCallTargetAdapter chainAdapter(

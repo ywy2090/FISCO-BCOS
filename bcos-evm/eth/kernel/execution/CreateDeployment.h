@@ -24,6 +24,7 @@
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/kernel/execution/CreateAddress.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include <limits>
 
 namespace bcos::evm::execution
 {
@@ -64,10 +65,40 @@ inline void initializeCreateTargetAccount(state::State& st, evmc_address const& 
         st.pin_warm_create_address(createAddr);
     }
 
-    if (revision >= EVMC_SPURIOUS_DRAGON)
+    st.touchCreateDeploymentAccount(createAddr, revision);
+}
+
+/// EIP-6780: block CREATE/CREATE2 redeploy at an address already marked for same-tx deletion.
+inline bool isSameTxSelfDestructedCreateBlocked(
+    state::State const& st, evmc_address const& createAddr, bool eip6780) noexcept
+{
+    if (!eip6780 || state::isZeroAddress(createAddr))
     {
-        st.set_nonce(createAddr, 1);
+        return false;
     }
+    return st.has_self_destructed(createAddr);
+}
+
+/// geth create/create2: fail when target already has nonce or code (address collision).
+inline bool isCreateDeploymentAddressCollision(
+    state::State const& st, evmc_address const& createAddr) noexcept
+{
+    if (state::isZeroAddress(createAddr) || !st.account_exists(createAddr))
+    {
+        return false;
+    }
+    return st.get_nonce(createAddr) != 0 || st.get_code_size(createAddr) != 0;
+}
+
+/// EIP-2681: sender nonce at uint64 max cannot increment for CREATE/CREATE2.
+inline bool isCreateSenderNonceOverflow(
+    state::State const& st, evmc_address const& sender) noexcept
+{
+    if (state::isZeroAddress(sender))
+    {
+        return false;
+    }
+    return st.get_nonce(sender) == std::numeric_limits<uint64_t>::max();
 }
 
 /// Assign addresses, warm, and nonce=1 before initcode runs (geth: create account touch).

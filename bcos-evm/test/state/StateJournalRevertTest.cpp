@@ -126,6 +126,39 @@ BOOST_AUTO_TEST_CASE(revert_discards_post_checkpoint_warm_sets)
     BOOST_CHECK(!state.is_storage_warm(address, key));
 }
 
+BOOST_AUTO_TEST_CASE(cleared_overlay_storage_does_not_read_base)
+{
+    class StorageBaseView : public StateView
+    {
+    public:
+        std::optional<Account> get_account(const evmc_address& address) const override
+        {
+            if (address.bytes[19] != 0x03)
+            {
+                return std::nullopt;
+            }
+            Account account;
+            evmc_bytes32 slot{};
+            slot.bytes[31] = 0x01;
+            account.storage[slot] = slot;
+            return account;
+        }
+    };
+
+    StorageBaseView view;
+    State state(view);
+
+    evmc_address address{};
+    address.bytes[19] = 0x03;
+    evmc_bytes32 slot{};
+    slot.bytes[31] = 0x01;
+
+    state.touchCreateDeploymentAccount(address, EVMC_CANCUN);
+    BOOST_CHECK_EQUAL(state.get_code_size(address), 0);
+    BOOST_CHECK(bytes32Equal(state.get_code_hash(address), state::emptyCodeHash()));
+    BOOST_CHECK(bytes32Equal(state.get_storage(address, slot), evmc_bytes32{}));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }  // namespace bcos::evm::state::test

@@ -8,27 +8,35 @@ BOOST_AUTO_TEST_SUITE(Web3TypedTxKindTest)
 
 BOOST_AUTO_TEST_CASE(infers_type1_from_access_list)
 {
-    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, false, false, true), 0x01);
+    BOOST_CHECK_EQUAL(
+        inferWeb3TypedTxKindFromFields(false, false, false, false, false, true), 0x01);
 }
 
 BOOST_AUTO_TEST_CASE(infers_type2_from_fee_caps)
 {
-    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, false, true, false), 0x02);
+    BOOST_CHECK_EQUAL(
+        inferWeb3TypedTxKindFromFields(false, false, false, false, true, false), 0x02);
 }
 
 BOOST_AUTO_TEST_CASE(infers_type3_from_blob_hashes)
 {
-    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, true, true, true), 0x03);
+    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, true, false, true, true), 0x03);
+}
+
+BOOST_AUTO_TEST_CASE(infers_type3_from_max_fee_per_blob_gas_key)
+{
+    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, false, true, true, true), 0x03);
 }
 
 BOOST_AUTO_TEST_CASE(infers_type4_from_auth_list_key)
 {
-    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(true, false, false, false, false), 0x04);
+    BOOST_CHECK_EQUAL(
+        inferWeb3TypedTxKindFromFields(true, false, false, false, false, false), 0x04);
 }
 
 BOOST_AUTO_TEST_CASE(legacy_when_no_typed_fields)
 {
-    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, false, false, false), 0);
+    BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, false, false, false, false), 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

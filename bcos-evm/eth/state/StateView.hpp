@@ -20,6 +20,7 @@
 #pragma once
 
 #include "bcos-evm/eth/state/Account.hpp"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include <optional>
 
 namespace bcos::evm::state
@@ -52,7 +53,15 @@ public:
     [[nodiscard]] virtual evmc_bytes32 get_code_hash(const evmc_address& address) const
     {
         auto const account = get_account(address);
-        return account.has_value() ? account->codeHash : evmc_bytes32{};
+        if (!account.has_value())
+        {
+            return {};
+        }
+        if (!account->code.empty() && isZeroBytes32(account->codeHash))
+        {
+            return keccak256Code(bcos::bytesConstRef{account->code.data(), account->code.size()});
+        }
+        return account->codeHash;
     }
 
     [[nodiscard]] virtual evmc_bytes32 get_storage(

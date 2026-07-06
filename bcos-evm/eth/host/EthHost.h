@@ -133,8 +133,9 @@ public:
     evmc_address& execution_address_ref() noexcept { return m_executionAddress; }
 
     /// Record a contract address created in this transaction (EIP-6780 SELFDESTRUCT gate).
-    /// Called from `EvmCallFrame` on successful CREATE; zero address is ignored.
+    /// Marked when CREATE/CREATE2 init starts so SELFDESTRUCT in initcode sees wasCreatedInTx.
     void markCreatedInTx(evmc_address const& addr) noexcept;
+    void unmarkCreatedInTx(evmc_address const& addr) noexcept;
     [[nodiscard]] bool wasCreatedInTx(evmc_address const& addr) const noexcept;
 
     /// Move accumulated LOG entries out; host log buffer is cleared after call.

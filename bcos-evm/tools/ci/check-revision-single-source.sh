@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 # A-class fields (keep in sync with revisionConfigGatedFieldCount() in eth/RevisionConfig.h).
-FIELDS=(eip2929 eip2537 eip7212 eip7623 eip7823 eip7702)
+FIELDS=(eip2929 eip2537 eip7212 eip7623 eip7823 eip7825 eip7702)
 
 status=0
 for field in "${FIELDS[@]}"; do

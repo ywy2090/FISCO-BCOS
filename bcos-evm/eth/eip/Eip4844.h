@@ -28,27 +28,33 @@ namespace bcos::evm::gas
 constexpr uint64_t BLOB_GAS_PER_BLOB = 131'072;
 constexpr uint64_t MIN_BLOB_GAS_PRICE = 1;
 constexpr uint64_t BLOB_GASPRICE_UPDATE_FRACTION = 3'338'477;
+/// Cancun per-tx blob cap (matches blobSchedule.max = 6 / geth MaxBlobsPerBlock).
+constexpr uint64_t MAX_BLOBS_PER_TX = 6;
 
-// fakeExponential for blob base fee from excess blob gas.
+inline bool hasBlobTxIntent(
+    uint8_t web3TypedTxKind, bool hasBlobVersionedHashes, bool hasMaxFeePerBlobGas) noexcept
+{
+    return web3TypedTxKind == 0x03 || hasBlobVersionedHashes || hasMaxFeePerBlobGas;
+}
+
+// geth consensus/misc/eip4844.fakeExponential — factor * e^(numerator / denominator).
+inline bcos::u256 fakeExponential(
+    bcos::u256 factor, bcos::u256 numerator, bcos::u256 denominator) noexcept
+{
+    bcos::u256 output{};
+    bcos::u256 accum = factor * denominator;
+    for (uint64_t i = 1; accum > 0; ++i)
+    {
+        output += accum;
+        accum = (accum * numerator) / denominator / bcos::u256(i);
+    }
+    return output / denominator;
+}
+
 inline bcos::u256 calcBlobBaseFee(uint64_t excessBlobGas) noexcept
 {
-    bcos::u256 price{MIN_BLOB_GAS_PRICE};
-    bcos::u256 numerator = price * bcos::u256(excessBlobGas);
-    bcos::u256 denominator = bcos::u256(1) << 16;
-    bcos::u256 output{};
-
-    while (excessBlobGas > 0)
-    {
-        output += numerator / denominator;
-        numerator /= denominator;
-        if (numerator == 0)
-        {
-            break;
-        }
-        excessBlobGas >>= 16;
-        numerator *= bcos::u256(excessBlobGas);
-    }
-    return output + price;
+    return fakeExponential(bcos::u256{MIN_BLOB_GAS_PRICE}, bcos::u256{excessBlobGas},
+        bcos::u256{BLOB_GASPRICE_UPDATE_FRACTION});
 }
 
 }  // namespace bcos::evm::gas

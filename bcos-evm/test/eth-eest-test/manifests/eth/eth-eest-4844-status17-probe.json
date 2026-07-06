@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "probe4844-status17",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip4844_blobs/test_blob_tx_attribute_opcodes.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": [
+        "eip4844-blobs"
+      ],
+      "assertLevels": [
+        "transitional",
+        "expectException",
+        "stateRoot"
+      ],
+      "variantKey": "tests/cancun/eip4844_blobs/test_blob_txs.py::test_blob_tx_attribute_opcodes[fork_Cancun-state_test-tx_gas_500000-opcode_CALLER]"
+    }
+  ]
+}

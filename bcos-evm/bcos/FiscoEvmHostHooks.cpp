@@ -93,6 +93,15 @@ void FiscoEvmHostHooks::prepareMessage(evmc_revision rev, evmc_message& msg)
     }
 
     deriveNestedCreateAddress(msg);
+}
+
+void FiscoEvmHostHooks::onCreateTargetInitialized(evmc_revision rev, evmc_message const& msg)
+{
+    (void)rev;
+    if (m_state == nullptr)
+    {
+        return;
+    }
 
     if (m_blockNumber != 0 && m_authPort != nullptr)
     {

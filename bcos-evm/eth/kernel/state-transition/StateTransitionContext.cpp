@@ -20,6 +20,7 @@
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "bcos-evm/eth/state/HashUtils.hpp"
 #include "eth/RevisionConfig.h"
 #include "eth/eip/Eip7702.h"
 #include "eth/state/BlockInfo.hpp"
@@ -45,6 +46,11 @@ InnerExecuteInput StateTransitionContext::toInnerExecuteInput() const
     input.web3TypedTxKind = inputs.web3TypedTxKind;
     input.extension = extension;
     input.callTargetPort = callTargetPort;
+    input.blobHashes.reserve(inputs.blobVersionedHashes.size());
+    for (auto const& hash : inputs.blobVersionedHashes)
+    {
+        input.blobHashes.push_back(state::toEvmC(hash));
+    }
     return input;
 }
 

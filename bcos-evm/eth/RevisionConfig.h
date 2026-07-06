@@ -15,6 +15,7 @@ struct RevisionConfig
     bool eip7212 : 1 = false;
     bool eip7623 : 1 = false;
     bool eip7823 : 1 = false;
+    bool eip7825 : 1 = false;
     bool eip1153 : 1 = false;
     bool eip4844 : 1 = false;
     bool eip5656 : 1 = false;
@@ -29,14 +30,14 @@ struct RevisionConfig
 
 inline constexpr std::size_t revisionConfigBoolFieldCount() noexcept
 {
-    return 12;
+    return 13;
 }
 
 // A-class fields (may be masked per chain policy): eip2929, eip2537, eip7212, eip7623, eip7823,
-// eip7702.
+// eip7825, eip7702.
 inline constexpr std::size_t revisionConfigGatedFieldCount() noexcept
 {
-    return 6;
+    return 7;
 }
 
 // Single source of truth: EIP gating for a given revision. Canonical (maximal) config.
@@ -58,6 +59,7 @@ inline RevisionConfig revisionConfigFromRevision(evmc_revision revision)
     cfg.eip7702 = revision >= EVMC_PRAGUE;
     cfg.eip7212 = revision >= EVMC_OSAKA;
     cfg.eip7823 = revision >= EVMC_OSAKA;
+    cfg.eip7825 = revision >= EVMC_OSAKA;
     cfg.calldata_floor_per_token = cfg.eip7623 ? 10 : 0;
     return cfg;
 }

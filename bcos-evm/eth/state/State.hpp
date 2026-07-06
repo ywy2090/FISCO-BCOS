@@ -22,6 +22,7 @@
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
+#include "bcos-evm/eth/state/WarmAccessProbe.h"
 #include <optional>
 #include <unordered_set>
 #include <vector>
@@ -79,6 +80,12 @@ public:
     void mark_self_destructed(const evmc_address& address);
     [[nodiscard]] bool has_self_destructed(const evmc_address& address) const;
     void finalize_self_destructs();
+
+    /// Clear prior deployment residue before CREATE/CREATE2 init (EIP-6780 same-tx recreate).
+    void touchCreateDeploymentAccount(const evmc_address& address, evmc_revision revision);
+
+    /// True when address had a non-empty pre-tx account in base state (geth: !IsNewContract).
+    [[nodiscard]] bool isPreexistingAccount(const evmc_address& address) const;
 
     void add_refund(uint64_t amount);
     void sub_refund(uint64_t amount);

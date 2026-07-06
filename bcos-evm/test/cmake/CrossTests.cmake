@@ -4,7 +4,7 @@ add_executable(RevisionConfigProfileTest cross/RevisionConfigProfileTest.cpp)
 target_include_directories(RevisionConfigProfileTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(RevisionConfigProfileTest PRIVATE
-    bcos-evm-eth bcos-evm-bcos protocol-tars bcos-framework)
+    bcos-evm-eth bcos-evm-bcos protocol-tars bcos-framework ledger)
 add_test(NAME RevisionConfigProfile COMMAND RevisionConfigProfileTest)
 
 add_executable(CallTargetCharacterizationTest cross/CallTargetCharacterizationTest.cpp)
