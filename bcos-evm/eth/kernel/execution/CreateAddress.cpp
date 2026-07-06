@@ -8,6 +8,8 @@
 #include "bcos-evm/eth/kernel/execution/CreateAddress.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-utilities/Common.h"
+#include "eth/state/StateKeyHash.hpp"
 #include <cstring>
 #include <evmone_precompiles/keccak.hpp>
 

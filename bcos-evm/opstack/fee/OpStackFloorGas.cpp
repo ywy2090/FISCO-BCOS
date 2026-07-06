@@ -1,5 +1,6 @@
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"
 
+#include "bcos-utilities/Common.h"
 #include <limits>
 
 namespace bcos::evm

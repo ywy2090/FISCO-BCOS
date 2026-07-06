@@ -139,7 +139,10 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
     input.vm = m_vm;
     input.hashImpl = m_hashImpl;
     input.blockInfo = testCase.env;
-    input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
+    if (m_blockHashes)
+        input.blockHashes = m_blockHashes;
+    else
+        input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
     input.revisionConfig = m_profile.revision;
     input.gasPrice = tx.gasPrice;
     auto const& tmpl = testCase.transaction;
@@ -153,6 +156,8 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
         input.gasTipCap = tx.gasPrice;
         input.gasFeeCap = tx.gasPrice;
     }
+    input.blobGasFeeCap = tmpl.maxFeePerBlobGas;
+    input.blobVersionedHashes = tmpl.blobVersionedHashes;
     input.web3TypedTxKind =
         inferWeb3TypedTxKindFromFields(testCase.transaction.authorizationListKeyPresent,
             !testCase.transaction.authorizationList.empty(),
@@ -181,6 +186,9 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
 
     ExecutionResult result;
     result.status = output.evmcResult.status_code;
+    result.receiptStatus = output.evmcResult.status;
+    result.topLevelIncludedTxVmError = output.topLevelIncludedTxVmError;
+    result.exitKind = output.exitKind;
     result.authorizationListPresent =
         input.authorizationListPresent || !input.authorizations.empty();
     result.gasUsed = output.gasUsed;

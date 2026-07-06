@@ -4,9 +4,16 @@
 #include "bcos-evm/opstack/l1/L1BlockStorage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
+#include "bcos-utilities/Common.h"
+#include "eth/state/StateKeyHash.hpp"
+#include "eth/state/StateView.hpp"
+#include "opstack/fee/RollupCost.h"
+#include <evmc/evmc.h>
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <utility>
 
 namespace bcos::evm
 {

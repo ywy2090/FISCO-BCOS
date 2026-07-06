@@ -2,6 +2,8 @@
 #include "bcos-evm/bcos/FiscoConstants.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "eth/state/StateKeyHash.hpp"
+#include <stdint.h>
 #include <algorithm>
 #include <cstring>
 #include <vector>

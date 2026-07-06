@@ -9,7 +9,13 @@
 #include "bcos-evm/eth/precompiled/EthPrecompiles.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "eth/RevisionConfig.h"
+#include "eth/core/CallTargetTypes.h"
+#include "eth/state/StateKeyHash.hpp"
+#include <evmc/evmc.h>
 #include <functional>
+#include <optional>
+#include <utility>
 
 namespace bcos::evm::precompiled
 {

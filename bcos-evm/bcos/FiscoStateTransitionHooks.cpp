@@ -24,7 +24,19 @@
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-framework/protocol/Exceptions.h"
+#include "bcos/ApplyFiscoMessage.h"
+#include "bcos/FiscoRevisionConfig.h"
+#include "eth/RevisionConfig.h"
+#include "eth/eip/Eip7702.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/State.hpp"
+#include <evmc/evmc.h>
 #include <boost/throw_exception.hpp>
+#include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
 namespace bcos::evm
 {

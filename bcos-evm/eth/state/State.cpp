@@ -19,6 +19,9 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 
+#include "eth/state/StateDiff.hpp"
+#include "eth/state/StateKeyHash.hpp"
+#include "eth/state/StateView.hpp"
 #include <algorithm>
 
 namespace bcos::evm::state

@@ -4,7 +4,12 @@
 #include "bcos-evm/opstack/l1/GasPriceOraclePredeploy.h"
 #include "bcos-evm/opstack/l1/L1BlockPredeploy.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
+#include "bcos-utilities/Common.h"
+#include "opstack/policy/OpStackForkSchedule.h"
 #include <cstring>
+#include <functional>
+#include <optional>
+#include <utility>
 
 namespace bcos::evm
 {

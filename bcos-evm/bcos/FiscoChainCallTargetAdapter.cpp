@@ -1,6 +1,9 @@
 #include "bcos-evm/bcos/FiscoChainCallTargetAdapter.h"
 #include "bcos-evm/bcos/FiscoChainCallTargetClassify.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
+#include "eth/core/CallTargetTypes.h"
+#include "eth/core/ChainCallTargetPort.h"
+#include <optional>
 
 namespace bcos::evm
 {

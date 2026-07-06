@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <gsl/pointers>
+#include <vector>
 
 DERIVE_BCOS_EXCEPTION(UnknownEVMCStatus);
 

@@ -23,13 +23,26 @@
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/eip/Eip3860.h"
+#include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-protocol/TransactionStatus.h"
+#include "bcos-utilities/Common.h"
+#include "bcos-utilities/FixedBytes.h"
+#include "eth/RevisionConfig.h"
+#include "eth/gas/GasSettlementTypes.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/State.hpp"
 #include <evmc/evmc.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <limits>
+#include <optional>
+#include <vector>
 
 namespace bcos::evm
 {
@@ -119,6 +132,45 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
         ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
         ctx.earlyExit = true;
         return;
+    }
+
+    if (m_input.web3TypedTxKind == toWeb3TypedTxKindValue(Web3TypedTxKind::EIP4844) ||
+        !m_input.blobVersionedHashes.empty())
+    {
+        if (!m_input.revisionConfig.eip4844)
+        {
+            ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+            ctx.earlyExit = true;
+            return;
+        }
+        if (m_input.message.kind == EVMC_CREATE || m_input.message.kind == EVMC_CREATE2)
+        {
+            ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+            ctx.earlyExit = true;
+            return;
+        }
+        if (m_input.blobVersionedHashes.empty())
+        {
+            ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+            ctx.earlyExit = true;
+            return;
+        }
+        for (auto const& hash : m_input.blobVersionedHashes)
+        {
+            if (hash[0] != 0x01)
+            {
+                ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
+                ctx.earlyExit = true;
+                return;
+            }
+        }
+        if (m_input.blobGasFeeCap < m_input.blockInfo.blobBaseFee)
+        {
+            ctx.evmcResult = makeEvmcResult(
+                protocol::TransactionStatus::InsufficientFunds, EVMC_INSUFFICIENT_BALANCE);
+            ctx.earlyExit = true;
+            return;
+        }
     }
 
     if (gas::isEip1559GasCapsTx(

@@ -5,6 +5,20 @@
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
+#include "bcos-task/Task.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/State.hpp"
+#include "eth/state/StateDiff.hpp"
+#include "opstack/settlement/OpStackSettlementProjection.h"
+#include "opstack/settlement/OpStackTxFinalize.h"
+#include "opstack/types/OpStackReceiptMeta.h"
+#include <stdint.h>
+#include <algorithm>
+#include <functional>
+#include <optional>
+#include <utility>
 
 namespace bcos::evm
 {

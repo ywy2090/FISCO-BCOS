@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.osaka.state.eip7823",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/osaka/eip7823_modexp_upper_bounds",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7823-modexp"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    }
+  ]
+}

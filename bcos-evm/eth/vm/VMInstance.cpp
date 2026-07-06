@@ -1,7 +1,11 @@
 #include "VMInstance.h"
+#include "eth/kernel/EVMCResult.h"
 #include <evmone/evmone.h>
+#include <cstring>
+#include <evmc/evmc.hpp>
 #include <evmone/baseline.hpp>
 #include <evmone/vm.hpp>
+#include <utility>
 
 bcos::evm::VMInstance::VMInstance(std::shared_ptr<EvmoneCodeAnalysis const> analysis) noexcept
   : m_analysis(std::move(analysis))

@@ -1,11 +1,13 @@
 #pragma once
 
-#include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
+#include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
+#include "bcos-protocol/TransactionStatus.h"
 #include "helpers/BlockSystemCalls.h"
 #include <bcos-task/Wait.h>
 #include <cstdint>
@@ -17,6 +19,12 @@ namespace bcos::evm::reference_tests
 
 struct TransactionReceipt
 {
+    /// Post-normalize settlement status (ADR-015 included vmerr → EVMC_SUCCESS).
+    evmc_status_code settlementStatus{EVMC_SUCCESS};
+    /// Receipt / RPC failure bit (Gap 40 — preserved across included vmerr).
+    protocol::TransactionStatus receiptStatus{protocol::TransactionStatus::None};
+    bool topLevelIncludedTxVmError{false};
+    StateTransitionExitKind exitKind{StateTransitionExitKind::None};
     state::LogEntry log;
     int64_t gasUsed = 0;
 };
@@ -32,8 +40,9 @@ struct BlockApplyResult
 /// Each tx is executed via EthMessageAdapter::execute(); state diffs accumulate.
 /// Coinbase reward is set to 0 (standard test convention).
 inline BlockApplyResult applyEthBlock(TestStateView& preState,
-    std::span<const state::Transaction> transactions, state::BlockInfo const& blockInfo,
-    ForkProfile const& profile, evmc::VM& vm, bcos::crypto::Hash& hashImpl)
+    std::span<GstTransactionTemplate const> transactions, state::BlockInfo const& blockInfo,
+    ForkProfile const& profile, evmc::VM& vm, bcos::crypto::Hash& hashImpl,
+    state::BlockHashes blockHashes = {})
 {
     BlockApplyResult result;
     result.gasUsed = 0;
@@ -55,24 +64,20 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         mergeStateDiffIntoPairs(preStatePairs, sysDiff);
     }
 
-    for (auto const& tx : transactions)
+    // Prague+: block-start system calls (EIP-2935) before user transactions.
+    if (profile.revision.revision >= EVMC_PRAGUE)
     {
-        // Build a StateTestCase for this single transaction
+        auto const sysDiff =
+            applyPragueBlockSystemCalls(preState, blockInfo, profile.revision, vm, hashImpl);
+        mergeStateDiffIntoPairs(preStatePairs, sysDiff);
+    }
+
+    for (auto const& tmpl : transactions)
+    {
         StateTestCase tc;
         tc.env = blockInfo;
-        tc.tx = tx;
-        tc.transaction.gasLimit.push_back(static_cast<uint64_t>(tx.gasLimit));
-        tc.transaction.data.push_back(tx.data);
-        tc.transaction.value.push_back(tx.value);
-        tc.transaction.gasPrice = tx.gasPrice;
-        tc.transaction.nonce = tx.nonce;
-        tc.transaction.sender = tx.from;
-
-        if (tx.to.has_value())
-        {
-            tc.transaction.to =
-                "0x" + bcos::toHex(bcos::bytes(tx.to->bytes, tx.to->bytes + sizeof(tx.to->bytes)));
-        }
+        tc.transaction = tmpl;
+        tc.tx = materializeTransaction(tmpl);
 
         // Pre-state: current block state (includes contract code/storage).
         for (auto const& [addr, acc] : preStatePairs)
@@ -85,6 +90,8 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         st.valueIndex = 0;
 
         EthMessageAdapter adapter(profile, hashImpl, vm);
+        if (blockHashes)
+            adapter.setBlockHashes(blockHashes);
         auto execResult = task::syncWait(adapter.execute(tc, st));
 
         result.gasUsed += execResult.gasUsed;
@@ -136,8 +143,12 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
                 preStatePairs.emplace_back(addr, acc);
         }
 
-        // Collect receipt
+        // Collect receipt (settlement vs receipt status split mirrors ADR-015 / Gap 40).
         TransactionReceipt receipt;
+        receipt.settlementStatus = execResult.status;
+        receipt.receiptStatus = execResult.receiptStatus;
+        receipt.topLevelIncludedTxVmError = execResult.topLevelIncludedTxVmError;
+        receipt.exitKind = execResult.exitKind;
         receipt.gasUsed = execResult.gasUsed;
         if (!execResult.logs.empty())
             receipt.log = execResult.logs.front();

@@ -2,6 +2,12 @@
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
+#include "bcos-utilities/Common.h"
+#include "eth/eip/Eip2930AccessList.h"
+#include "eth/eip/Eip7702.h"
+#include "eth/gas/GasSettlementTypes.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "opstack/settlement/OpStackFeeSidecar.h"
 
 namespace bcos::evm
 {

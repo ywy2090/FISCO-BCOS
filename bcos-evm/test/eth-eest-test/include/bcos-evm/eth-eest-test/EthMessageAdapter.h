@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth-eest-test/PathAdapter.h"
+#include "bcos-evm/eth/state/BlockInfo.hpp"
 #include <evmc/evmc.hpp>
 
 namespace bcos::crypto
@@ -23,10 +24,13 @@ public:
     task::Task<ExecutionResult> execute(
         StateTestCase const& testCase, StateSubtest const& subtest) override;
 
+    void setBlockHashes(state::BlockHashes blockHashes) { m_blockHashes = std::move(blockHashes); }
+
 private:
     ForkProfile m_profile;
     bcos::crypto::Hash* m_hashImpl{};
     evmc::VM* m_vm{};
+    state::BlockHashes m_blockHashes{};
 };
 
 }  // namespace bcos::evm::reference_tests

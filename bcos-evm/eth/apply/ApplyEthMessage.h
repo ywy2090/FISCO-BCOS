@@ -13,6 +13,7 @@
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-evm/eth/state/StateView.hpp"
@@ -22,6 +23,7 @@
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
 #include <optional>
+#include <vector>
 
 namespace bcos::crypto
 {
@@ -45,6 +47,8 @@ struct EthMessageRequest
     bcos::u256 gasPrice{0};
     bcos::u256 gasTipCap{0};
     bcos::u256 gasFeeCap{0};
+    bcos::u256 blobGasFeeCap{0};
+    std::vector<bcos::h256> blobVersionedHashes;
     uint8_t web3TypedTxKind{0};
     bool hasExplicitFeeCaps{false};
     const Eip2930AccessList* accessList{nullptr};
@@ -66,6 +70,7 @@ struct EthMessageResult
     std::vector<protocol::LogEntry> receiptLogs;
     gas::TxGasSettlementContext gasSettlementSnapshot{};
     bool topLevelIncludedTxVmError{false};
+    StateTransitionExitKind exitKind{StateTransitionExitKind::None};
     int64_t gasUsed{0};
     bcos::u256 effectiveGasPrice{0};
     std::string gasPriceStr;

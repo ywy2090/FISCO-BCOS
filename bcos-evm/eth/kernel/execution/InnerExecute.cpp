@@ -43,8 +43,17 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
+#include "bcos-utilities/BoostLog.h"
+#include "eth/RevisionConfig.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/StateDiff.hpp"
+#include "eth/state/StateKeyHash.hpp"
+#include "eth/state/Transaction.hpp"
 #include <optional>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
 
 namespace bcos::evm
 {

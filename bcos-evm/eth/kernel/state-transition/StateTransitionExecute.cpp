@@ -16,7 +16,21 @@
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
+#include "bcos-utilities/BoostLog.h"
+#include "bcos-utilities/Common.h"
+#include "eth/RevisionConfig.h"
+#include "eth/core/StateTransitionHooks.h"
+#include "eth/gas/GasSettlementTypes.h"
+#include "eth/kernel/state-transition/DeductIntrinsicGas.h"
+#include "eth/kernel/state-transition/StateTransitionErrorPolicy.h"
+#include "eth/state/StateDiff.hpp"
+#include "eth/state/Transaction.hpp"
+#include <evmc/evmc.h>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace bcos::evm
 {

@@ -50,8 +50,16 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
+#include "bcos-utilities/BoostLog.h"
+#include "bcos-utilities/Common.h"
+#include "eth/RevisionConfig.h"
+#include "eth/core/CallTargetTypes.h"
+#include "eth/core/EvmHostHooks.h"
+#include "eth/state/StateKeyHash.hpp"
 #include <cstring>
 #include <optional>
+#include <string_view>
+#include <utility>
 
 namespace bcos::evm::execution
 {

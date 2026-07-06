@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.prague.state.eip7623",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7623_increase_calldata_cost",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7623-calldata-cost"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    }
+  ]
+}

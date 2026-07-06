@@ -9,8 +9,10 @@
 #include "bcos-evm/opstack/l1/L1BlockSelectors.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
+#include "bcos-utilities/Common.h"
 #include <algorithm>
 #include <cstring>
+#include <utility>
 
 namespace bcos::evm
 {

@@ -9,6 +9,19 @@
 #include "bcos-evm/eth/settlement/EthNormalTxFeeCoordinator.h"
 #include "bcos-evm/eth/gas/PostExecuteGasMetering.h"
 #include "bcos-evm/eth/settlement/EthFeeSettlement.h"
+#include "bcos-task/Task.h"
+#include "eth/RevisionConfig.h"
+#include "eth/apply/ApplyEthMessage.h"
+#include "eth/gas/GasSettlementTypes.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "eth/settlement/EthFeeSidecar.h"
+#include "eth/settlement/EthSettlementProjection.h"
+#include "eth/state/State.hpp"
+#include "eth/state/StateDiff.hpp"
+#include <stdint.h>
+#include <string>
+#include <utility>
 
 namespace bcos::evm
 {
@@ -49,8 +62,9 @@ task::Task<void> EthNormalTxFeeCoordinator::completeAfterPipeline(
 {
     auto& ctx = view.pipelineContext();
 
-    // ① pre-exec reject（intrinsic / gas-afford）→ 单层 revert 撤销 buyGas（ADR-025）
-    if (gas::isPreExecutionGasReject(ctx.exitKind))
+    // ① pre-exec reject (intrinsic / gas-afford / entry rules) → revert buyGas (geth/GST: no state
+    // change on TransactionException expectException paths).
+    if (gas::isPreExecutionGasReject(ctx.exitKind) || gas::isEthRulesEntryRejectAbort(ctx.exitKind))
     {
         abortEthAfterBuyGas(ctx, output, ctx.originalGasLimit);
         co_return;

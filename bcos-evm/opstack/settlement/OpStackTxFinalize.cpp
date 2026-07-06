@@ -3,6 +3,11 @@
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"
+#include "bcos-task/Task.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "eth/state/State.hpp"
+#include "eth/state/StateDiff.hpp"
 #include <algorithm>
 
 namespace bcos::evm

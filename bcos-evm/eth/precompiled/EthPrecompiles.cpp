@@ -24,7 +24,9 @@
 #include "bcos-evm/eth/precompiled/ModexpGas.h"
 #include "bcos-evm/eth/precompiled/PrecompileGas.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
+#include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
+#include "eth/RevisionConfig.h"
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -40,7 +42,9 @@
 #include <evmone_precompiles/sha256.hpp>
 #include <intx/intx.hpp>
 #include <limits>
+#include <range/v3/utility/get.hpp>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace bcos::evm::precompiled

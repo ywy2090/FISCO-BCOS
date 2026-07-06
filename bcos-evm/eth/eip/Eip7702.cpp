@@ -4,7 +4,15 @@
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-utilities/Common.h"
+#include "bcos-utilities/DataConvertUtility.h"
+#include "bcos-utilities/FixedBytes.h"
+#include "bcos-utilities/RefDataContainer.h"
+#include "eth/state/Account.hpp"
+#include <stddef.h>
+#include <algorithm>
 #include <array>
+#include <utility>
 
 namespace bcos::evm
 {

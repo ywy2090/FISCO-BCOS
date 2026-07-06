@@ -1,5 +1,10 @@
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
+#include <algorithm>
+#include <utility>
+#include "bcos-utilities/Common.h"
+#include "eth/gas/TxFeeSettlement.h"
+#include "opstack/fee/RollupCost.h"
 
 namespace bcos::evm
 {

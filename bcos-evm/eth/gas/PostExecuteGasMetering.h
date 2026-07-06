@@ -27,6 +27,12 @@ inline bool isPreExecutionGasReject(StateTransitionExitKind exitKind) noexcept
            exitKind == StateTransitionExitKind::GasAffordRejected;
 }
 
+/// Eth reference entry-rule reject (GST expectException): revert buyGas debit, gasUsed=0.
+inline bool isEthRulesEntryRejectAbort(StateTransitionExitKind exitKind) noexcept
+{
+    return exitKind == StateTransitionExitKind::RulesRejected;
+}
+
 /// Post-execution gasUsed/gasRemaining for Eth normal txs.
 /// EIP-7623 peak settlement when revision.eip7623 && snapshot.eip7623SnapshotActive;
 /// otherwise legacy gasLimit - gasLeft (pre-Prague / no snapshot capture).

@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE EthFeeSettlementStateTest
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
+#include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/gas/PostExecuteGasMetering.h"
 #include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
@@ -51,6 +52,43 @@ BOOST_AUTO_TEST_CASE(buyGas_debits_sender_on_state)
     BOOST_REQUIRE(ok);
     BOOST_CHECK_EQUAL(ctx.state.get_balance(addr(1)), initialBalance - kPreDebit);
     BOOST_CHECK_EQUAL(sidecar.effectiveGasPrice, 100);
+}
+
+BOOST_AUTO_TEST_CASE(buyGas_debits_blob_base_fee_on_state)
+{
+    state::test::InMemoryStateView base;
+    constexpr size_t kBlobCount = 6;
+    auto const execPreDebit = bcos::u256(100'000) * 7;
+    auto const blobDebit = bcos::u256(kBlobCount) * gas::BLOB_GAS_PER_BLOB * 1;
+    auto const initialBalance = execPreDebit + blobDebit + 1'000'000;
+    base.insert_account(addr(1), state::Account{.balance = initialBalance});
+
+    evmc_message msg{};
+    msg.sender = addr(1);
+    msg.gas = 100'000;
+    RevisionConfig rev{};
+    rev.revision = EVMC_CANCUN;
+    rev.eip1559 = true;
+    rev.eip4844 = true;
+    StateTransitionContext ctx(base, msg, rev, bcos::u256(7));
+
+    EthMessageRequest input{};
+    input.revisionConfig = rev;
+    input.blockInfo.baseFee = 7;
+    input.blockInfo.blobBaseFee = 1;
+    input.gasTipCap = 0;
+    input.gasFeeCap = 7;
+    input.blobGasFeeCap = 1;
+    input.hasExplicitFeeCaps = true;
+    input.web3TypedTxKind = 0x03;
+    input.blobVersionedHashes.assign(kBlobCount, h256{0x01});
+    EthFeeSidecar sidecar;
+    EthSettlementProjection view{ctx, input, sidecar};
+
+    EthFeeSettlement settlement;
+    auto const ok = bcos::task::syncWait(settlement.buyGas(view));
+    BOOST_REQUIRE(ok);
+    BOOST_CHECK_EQUAL(ctx.state.get_balance(addr(1)), initialBalance - execPreDebit - blobDebit);
 }
 
 BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_applies_penalty)

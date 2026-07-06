@@ -17,8 +17,29 @@
 #include "bcos-evm/opstack/settlement/OpStackNormalTxFeeCoordinator.h"
 #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
+#include "bcos-task/Task.h"
+#include "bcos-utilities/BoostLog.h"
+#include "bcos-utilities/Common.h"
+#include "eth/RevisionConfig.h"
+#include "eth/eip/Eip7702.h"
+#include "eth/gas/GasSettlementTypes.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/State.hpp"
+#include "eth/state/StateDiff.hpp"
+#include "eth/state/Transaction.hpp"
+#include "opstack/apply/OpStackStateTransitionErrorPolicy.h"
+#include "opstack/apply/OpStackStateTransitionHooks.h"
+#include "opstack/policy/OpStackForkSchedule.h"
+#include "opstack/settlement/OpStackFeeSettlement.h"
+#include "opstack/settlement/OpStackFeeSidecar.h"
+#include "opstack/types/OpStackDepositTx.h"
+#include "opstack/types/OpStackReceiptMeta.h"
 #include <algorithm>
 #include <stdexcept>
+#include <string_view>
+#include <utility>
 
 namespace bcos::evm
 {

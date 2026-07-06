@@ -6,7 +6,10 @@
  * @file OpStackPostSettlementPlan.cpp
  */
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
+#include "eth/gas/TxFeeSettlement.h"
+#include "opstack/fee/OpStackPreDebitPlan.h"
 #include <algorithm>
+#include <functional>
 
 namespace bcos::evm
 {

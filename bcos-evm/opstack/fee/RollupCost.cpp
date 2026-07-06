@@ -1,9 +1,12 @@
 #include "bcos-evm/opstack/fee/RollupCost.h"
 
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
+#include "bcos-utilities/Common.h"
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 namespace bcos::evm
 {

@@ -8,6 +8,9 @@
 #include "bcos-evm/eth/kernel/execution/FrameBytecode.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-utilities/Common.h"
+#include "eth/RevisionConfig.h"
+#include <optional>
 
 namespace bcos::evm::execution
 {

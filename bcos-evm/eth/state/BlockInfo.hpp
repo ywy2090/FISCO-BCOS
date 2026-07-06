@@ -34,6 +34,7 @@ struct BlockInfo
     int64_t gasLimit{0};
     evmc_address coinbase{};
     evmc_bytes32 prevRandao{};
+    evmc_bytes32 parentHash{};
     bcos::u256 baseFee{0};
     bcos::u256 chainId{0};
     bcos::u256 blobBaseFee{0};

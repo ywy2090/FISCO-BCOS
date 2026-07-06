@@ -12,6 +12,12 @@
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-utilities/Common.h"
+#include "eth/RevisionConfig.h"
+#include "eth/core/CallTargetTypes.h"
+#include "eth/core/EvmHostHooks.h"
+#include "eth/state/StateKeyHash.hpp"
+#include <optional>
 
 namespace bcos::evm::execution
 {
@@ -24,7 +30,17 @@ bool is7702DelegationDesignator(bcos::evm::RevisionConfig const& revision, bcos:
            parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}).has_value();
 }
 
-/// Empty-code account at an active builtin precompile address (DELEGATECALL policy probe).
+/// STATICCALL is EVMC_CALL with EVMC_STATIC (no separate evmc_call_kind).
+inline bool isStaticCallFamily(evmc_message const& msg) noexcept
+{
+    return msg.kind == EVMC_CALL && (msg.flags & EVMC_STATIC) != 0;
+}
+
+/// DELEGATECALL/CALLCODE/STATICCALL through 7702 delegation to empty delegate code.
+inline bool is7702NonCallEmptyDelegateOpcode(evmc_message const& msg) noexcept
+{
+    return msg.kind == EVMC_DELEGATECALL || msg.kind == EVMC_CALLCODE || isStaticCallFamily(msg);
+}
 bool isActiveEmptyPrecompileTarget(state::State const& state,
     bcos::evm::RevisionConfig const& revision, evmc_address const& target,
     evmc_message const& message)
@@ -64,6 +80,21 @@ ClassifiedCallTarget classifyCallTarget(state::State& state,
     // 7702 authority stores a designator; execution follows delegate code in loadFrameBytecode.
     if (!emptyCode && is7702DelegationDesignator(revision, code))
     {
+        // geth: DELEGATECALL/CALLCODE resolve delegation but never RunPrecompiledContract on the
+        // delegate address — empty delegate bytecode (incl. precompile addrs) is an empty-account
+        // success envelope, including gas=0 child calls (EEST set_code_to_precompile).
+        if (auto const delegate =
+                parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
+        {
+            auto const delegateCode = state.get_code(*delegate);
+            if (delegateCode.empty() && is7702NonCallEmptyDelegateOpcode(msg))
+            {
+                return ClassifiedCallTarget{.route = CallTargetRoute::EmptyAccount,
+                    .dispatchAddress = executionAddress,
+                    .accessWarm = AccessWarmSchedule::AtFirstAccess,
+                    .routed = routed};
+            }
+        }
         return ClassifiedCallTarget{.route = CallTargetRoute::EvmContract,
             .dispatchAddress = executionAddress,
             .accessWarm = AccessWarmSchedule::AtFirstAccess,
@@ -77,6 +108,18 @@ ClassifiedCallTarget classifyCallTarget(state::State& state,
     {
         return ClassifiedCallTarget{.route = CallTargetRoute::BuiltinPrecompile,
             .admission = CallTargetAdmission::DenyDelegateCallPrecompile,
+            .dispatchAddress = executionAddress,
+            .accessWarm = AccessWarmSchedule::AtFirstAccess,
+            .routed = routed};
+    }
+
+    // evmone Prague+ resolves EIP-7702 before host call: DELEGATECALL/CALLCODE/STATICCALL to a
+    // delegated precompile arrives with code_address at the delegate and EVMC_DELEGATED set — run
+    // empty code, not RunPrecompiledContract (EEST set_code_to_precompile variants).
+    if (emptyCode && precompiled::isActivePrecompile(revision, executionAddress) &&
+        is7702NonCallEmptyDelegateOpcode(msg) && (msg.flags & EVMC_DELEGATED) != 0)
+    {
+        return ClassifiedCallTarget{.route = CallTargetRoute::EmptyAccount,
             .dispatchAddress = executionAddress,
             .accessWarm = AccessWarmSchedule::AtFirstAccess,
             .routed = routed};

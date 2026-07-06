@@ -28,6 +28,7 @@ EthMessageRequest makeInput(evmc_address sender)
     input.blockInfo.baseFee = 1;
     input.gasTipCap = 1;
     input.gasFeeCap = 1;
+    input.hasExplicitFeeCaps = true;
     input.revisionConfig.eip1559 = true;
     return input;
 }

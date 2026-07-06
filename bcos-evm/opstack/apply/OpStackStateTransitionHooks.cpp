@@ -25,7 +25,22 @@
 #include "bcos-evm/opstack/fee/OpStackFloorGasPrecheck.h"
 #include "bcos-evm/opstack/types/OpStackBlobTxChecks.h"
 #include "bcos-evm/opstack/types/OpStackDepositTx.h"
+#include "bcos-protocol/TransactionStatus.h"
+#include "bcos-utilities/Common.h"
+#include "eth/RevisionConfig.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/State.hpp"
+#include "opstack/apply/ApplyOpStackMessage.h"
+#include "opstack/settlement/OpStackFeeSidecar.h"
+#include "opstack/settlement/OpStackSettlementProjection.h"
+#include <evmc/evmc.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <algorithm>
+#include <optional>
+#include <utility>
+#include <vector>
 
 namespace bcos::evm
 {

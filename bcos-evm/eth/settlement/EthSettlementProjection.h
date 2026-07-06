@@ -25,6 +25,11 @@ struct EthSettlementProjection
     bcos::u256 gasTipCap() const noexcept { return input.gasTipCap; }
     bcos::u256 gasFeeCap() const noexcept { return input.gasFeeCap; }
     bcos::u256 gasPriceLegacy() const noexcept { return input.gasPrice; }
+    bcos::u256 blobGasFeeCap() const noexcept { return input.blobGasFeeCap; }
+    std::vector<bcos::h256> const& blobVersionedHashes() const noexcept
+    {
+        return input.blobVersionedHashes;
+    }
     uint8_t web3TypedTxKind() const noexcept { return input.web3TypedTxKind; }
     bool hasExplicitFeeCaps() const noexcept { return input.hasExplicitFeeCaps; }
     state::BlockInfo const& blockInfo() const noexcept { return input.blockInfo; }

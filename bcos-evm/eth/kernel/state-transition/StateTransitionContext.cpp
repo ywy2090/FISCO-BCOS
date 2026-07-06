@@ -20,6 +20,9 @@
 
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
+#include "eth/RevisionConfig.h"
+#include "eth/eip/Eip7702.h"
+#include "eth/state/BlockInfo.hpp"
 
 namespace bcos::evm
 {

@@ -28,9 +28,18 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
+#include "bcos-utilities/BoostLog.h"
+#include "eth/RevisionConfig.h"
+#include "eth/state/Account.hpp"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/StateKeyHash.hpp"
+#include "eth/state/Transaction.hpp"
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -241,8 +250,10 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     {
         EVM_LOG(TRACE) << LOG_DESC("EthHost::call") << LOG_KV("kind", trace::callKind(msg.kind))
                        << LOG_KV("depth", msg.depth) << LOG_KV("gas", msg.gas)
+                       << LOG_KV("flags", msg.flags)
                        << LOG_KV("sender", trace::evmcAddress(msg.sender))
-                       << LOG_KV("target", trace::evmcAddress(msg.recipient));
+                       << LOG_KV("target", trace::evmcAddress(msg.recipient))
+                       << LOG_KV("code", trace::evmcAddress(msg.code_address));
     }
 
     // Nested CREATE/CREATE2 updates m_executionAddress inside runCallFrame; restore on exit

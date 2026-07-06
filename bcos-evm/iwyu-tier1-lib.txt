@@ -1,0 +1,770 @@
+# Tier-1 IWYU — project/std/evmc only (no boost::multiprecision noise)
+# Files: 87
+
+## bcos/ApplyFiscoMessage.cpp
+ADD:
+  #include <string_view>
+  #include <utility>
+  #include "bcos-framework/protocol/LogEntry.h"
+  #include "bcos-utilities/BoostLog.h"
+  #include "bcos-utilities/Common.h"
+  #include "bcos-utilities/DataConvertUtility.h"
+  #include "bcos/FiscoExecutionArtifacts.h"
+  #include "bcos/FiscoRevisionConfig.h"
+  #include "bcos/FiscoStateTransitionErrorPolicy.h"
+  #include "bcos/FiscoStateTransitionHooks.h"
+  #include "eth/RevisionConfig.h"
+  #include "eth/eip/Eip7702.h"
+  #include "eth/kernel/EVMCResult.h"
+  #include "eth/kernel/state-transition/DeductIntrinsicGas.h"
+  #include "eth/kernel/state-transition/StateTransitionContext.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/HashUtils.hpp"
+  #include "eth/state/StateDiff.hpp"
+  #include "eth/state/Transaction.hpp"
+REMOVE:
+  - #include <algorithm>  // lines 30-30
+  - #include <exception>  // lines 31-31
+  - #include "bcos-evm/bcos/FiscoConstants.h"  // lines 21-21
+  - #include "bcos-evm/bcos/FiscoPipelineInternals.h"  // lines 23-23
+  - #include "bcos-framework/protocol/Exceptions.h"  // lines 28-28
+
+## opstack/apply/ApplyOpStackMessage.cpp
+ADD:
+  #include <string_view>
+  #include <utility>
+  #include "bcos-task/Task.h"
+  #include "bcos-utilities/BoostLog.h"
+  #include "bcos-utilities/Common.h"
+  #include "eth/RevisionConfig.h"
+  #include "eth/eip/Eip7702.h"
+  #include "eth/gas/GasSettlementTypes.h"
+  #include "eth/kernel/EVMCResult.h"
+  #include "eth/kernel/state-transition/StateTransitionContext.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/State.hpp"
+  #include "eth/state/StateDiff.hpp"
+  #include "eth/state/Transaction.hpp"
+  #include "opstack/apply/OpStackStateTransitionErrorPolicy.h"
+  #include "opstack/apply/OpStackStateTransitionHooks.h"
+  #include "opstack/policy/OpStackForkSchedule.h"
+  #include "opstack/settlement/OpStackFeeSettlement.h"
+  #include "opstack/settlement/OpStackFeeSidecar.h"
+  #include "opstack/types/OpStackDepositTx.h"
+  #include "opstack/types/OpStackReceiptMeta.h"
+
+## eth/apply/ApplyEthMessage.cpp
+ADD:
+  #include <string_view>
+  #include <utility>
+  #include "bcos-framework/protocol/LogEntry.h"
+  #include "bcos-utilities/BoostLog.h"
+  #include "bcos-utilities/Common.h"
+  #include "bcos-utilities/DataConvertUtility.h"
+  #include "eth/RevisionConfig.h"
+  #include "eth/apply/EthStateTransitionErrorPolicy.h"
+  #include "eth/apply/EthStateTransitionHooks.h"
+  #include "eth/eip/Eip7702.h"
+  #include "eth/kernel/EVMCResult.h"
+  #include "eth/kernel/state-transition/StateTransitionContext.h"
+  #include "eth/settlement/EthFeeSidecar.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/State.hpp"
+  #include "eth/state/StateDiff.hpp"
+  #include "eth/state/Transaction.hpp"
+REMOVE:
+  - #include "bcos-framework/protocol/Exceptions.h"  // lines 10-10
+
+## eth/settlement/EthFeeSettlement.cpp
+ADD:
+  #include <evmc/evmc.h>
+  #include <stdint.h>
+  #include <utility>                                                  // for move
+  #include <vector>
+  #include "bcos-protocol/TransactionStatus.h"
+  #include "bcos-task/Task.h"
+  #include "bcos-utilities/Common.h"                                  // for u256
+  #include "eth/RevisionConfig.h"
+  #include "eth/apply/ApplyEthMessage.h"
+  #include "eth/gas/TxFeeSettlement.h"
+  #include "eth/kernel/state-transition/StateTransitionContext.h"
+  #include "eth/settlement/EthFeeSidecar.h"
+  #include "eth/settlement/EthSettlementProjection.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/State.hpp"
+
+## opstack/apply/OpStackStateTransitionHooks.cpp
+ADD:
+  #include <evmc/evmc.h>
+  #include <stddef.h>
+  #include <stdint.h>
+  #include <optional>
+  #include <utility>
+  #include <vector>
+  #include "bcos-protocol/TransactionStatus.h"
+  #include "bcos-utilities/Common.h"
+  #include "eth/RevisionConfig.h"
+  #include "eth/kernel/EVMCResult.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/State.hpp"
+  #include "opstack/apply/ApplyOpStackMessage.h"
+  #include "opstack/settlement/OpStackFeeSidecar.h"
+  #include "opstack/settlement/OpStackSettlementProjection.h"
+
+## opstack/settlement/OpStackNormalTxFeeCoordinator.cpp
+ADD:
+  #include <stdint.h>                                              // for uint...
+  #include <algorithm>                                             // for max
+  #include <functional>                                            // for func...
+  #include <optional>                                              // for opti...
+  #include <utility>                                               // for move
+  #include "bcos-task/Task.h"                                      // for Task
+  #include "eth/kernel/EVMCResult.h"                               // for EVMC...
+  #include "eth/kernel/state-transition/StateTransitionContext.h"  // for Stat...
+  #include "eth/state/BlockInfo.hpp"                               // for Bloc...
+  #include "eth/state/State.hpp"                                   // for State
+  #include "eth/state/StateDiff.hpp"                               // for Stat...
+  #include "opstack/settlement/OpStackSettlementProjection.h"      // for OpSt...
+  #include "opstack/settlement/OpStackTxFinalize.h"                // for OpSt...
+  #include "opstack/types/OpStackReceiptMeta.h"                    // for OpSt...
+
+## eth/apply/EthStateTransitionHooks.cpp
+ADD:
+  #include <stddef.h>
+  #include <stdint.h>
+  #include <optional>
+  #include <vector>
+  #include "bcos-protocol/TransactionStatus.h"
+  #include "bcos-utilities/Common.h"
+  #include "bcos-utilities/FixedBytes.h"
+  #include "eth/RevisionConfig.h"
+  #include "eth/gas/GasSettlementTypes.h"
+  #include "eth/kernel/EVMCResult.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/State.hpp"
+REMOVE:
+  - #include "bcos-evm/eth/eip/Eip1559Gate.h"  // lines 24-24
+  - #include "bcos-evm/eth/eip/Eip4844.h"  // lines 26-26
+
+## eth/kernel/state-transition/StateTransitionExecute.cpp
+ADD:
+  #include <evmc/evmc.h>
+  #include <string>
+  #include <string_view>
+  #include <utility>
+  #include <vector>
+  #include "bcos-utilities/BoostLog.h"
+  #include "bcos-utilities/Common.h"
+  #include "eth/RevisionConfig.h"
+  #include "eth/core/StateTransitionHooks.h"
+  #include "eth/gas/GasSettlementTypes.h"
+  #include "eth/kernel/state-transition/DeductIntrinsicGas.h"
+  #include "eth/kernel/state-transition/StateTransitionErrorPolicy.h"
+  #include "eth/state/StateDiff.hpp"
+  #include "eth/state/Transaction.hpp"
+
+## eth/settlement/EthNormalTxFeeCoordinator.cpp
+ADD:
+  #include <stdint.h>                                              // for int64_t
+  #include <string>                                                // for basi...
+  #include <utility>                                               // for move
+  #include "bcos-task/Task.h"                                      // for Task
+  #include "eth/RevisionConfig.h"                                  // for Revi...
+  #include "eth/apply/ApplyEthMessage.h"                           // for EthM...
+  #include "eth/gas/GasSettlementTypes.h"                          // for FeeS...
+  #include "eth/kernel/EVMCResult.h"                               // for EVMC...
+  #include "eth/kernel/state-transition/StateTransitionContext.h"  // for Stat...
+  #include "eth/settlement/EthFeeSidecar.h"                        // for EthF...
+  #include "eth/settlement/EthSettlementProjection.h"              // for EthS...
+  #include "eth/state/State.hpp"                                   // for State
+  #include "eth/state/StateDiff.hpp"                               // for Stat...
+
+## eth/host/EthHost.cpp
+ADD:
+  #include <_string.h>                                        // for memcmp
+  #include <optional>                                         // for optional
+  #include <string>                                           // for basic_string
+  #include <string_view>                                      // for basic_str...
+  #include "bcos-utilities/BoostLog.h"                        // for LOG_KV
+  #include "eth/RevisionConfig.h"                             // for RevisionC...
+  #include "eth/state/Account.hpp"                            // for Account
+  #include "eth/state/BlockInfo.hpp"                          // for BlockHashes
+  #include "eth/state/StateKeyHash.hpp"                       // for AddressEqual
+  #include "eth/state/Transaction.hpp"                        // for LogEntry
+REMOVE:
+  - #include <algorithm>  // lines 31-31
+  - #include <array>  // lines 32-32
+
+## bcos/FiscoStateTransitionHooks.cpp
+ADD:
+  #include <evmc/evmc.h>
+  #include <memory>
+  #include <optional>
+  #include <utility>
+  #include <vector>
+  #include "bcos/ApplyFiscoMessage.h"
+  #include "bcos/FiscoRevisionConfig.h"
+  #include "eth/RevisionConfig.h"
+  #include "eth/eip/Eip7702.h"
+  #include "eth/kernel/EVMCResult.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/State.hpp"
+
+## opstack/settlement/OpStackFeeSettlement.cpp
+ADD:
+  #include <utility>
+  #include "bcos-protocol/TransactionStatus.h"
+  #include "bcos-task/Task.h"
+  #include "bcos-utilities/Common.h"
+  #include "eth/gas/GasSettlementTypes.h"
+  #include "eth/kernel/state-transition/StateTransitionContext.h"
+  #include "eth/state/BlockInfo.hpp"
+  #include "eth/state/State.hpp"
+  #include "opstack/settlement/OpStackFeeSidecar.h"
+  #include "opstack/settlement/OpStackSettlementProjection.h"
+REMOVE:
+  - #include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"  // lines 7-7
+
+## eth/eip/Eip7702.cpp
+ADD:
+  #include <stddef.h>                                           // for size_t
+  #include <algorithm>                                          // for copy
+  #include <utility>                                            // for get
+  #include "bcos-utilities/Common.h"                            // for bytesCo...
+  #include "bcos-utilities/DataConvertUtility.h"                // for fromBig...
+  #include "bcos-utilities/FixedBytes.h"                        // for FixedBytes
+  #include "bcos-utilities/RefDataContainer.h"                  // for RefData...
+  #include "eth/state/Account.hpp"                              // for Account
+REMOVE:
+  - #include <array>  // lines 7-7
+
+## eth/kernel/execution/EvmCallFrame.cpp
+ADD:
+  #include <_string.h>                                           // for memcmp
+  #include <string_view>                                         // for basic_...
+  #include <utility>                                             // for move
+  #include "bcos-utilities/BoostLog.h"                           // for LOG_KV
+  #include "bcos-utilities/Common.h"                             // for bytes
+  #include "eth/RevisionConfig.h"                                // for Revisi...
+  #include "eth/core/CallTargetTypes.h"                          // for CallTa...
+  #include "eth/core/EvmHostHooks.h"                             // for EvmHos...
+  #include "eth/state/StateKeyHash.hpp"                          // for isZero...
+
+## eth/kernel/execution/InnerExecute.cpp
+ADD:
+  #include <string>                                        // for basic_string
+  #include <string_view>                                   // for basic_string...
+  #include <utility>                                       // for move
+  #include "bcos-utilities/BoostLog.h"                     // for LOG_KV, LOG_...
+  #include "eth/RevisionConfig.h"                          // for RevisionConfig
+  #include "eth/state/BlockInfo.hpp"                       // for BlockInfo
+  #include "eth/state/StateDiff.hpp"                       // for StateDiff
+  #include "eth/state/StateKeyHash.hpp"                    // for isZeroAddress
+  #include "eth/state/Transaction.hpp"                     // for Transaction
+
+## bcos/ApplyFiscoMessage.h
+ADD:
+  #include <evmc/evmc.h>                              // for evmc_address, evm...
+  #include <stdint.h>                                 // for int64_t, uint64_t
+  #include <vector>                                   // for vector
+  #include "bcos-utilities/FixedBytes.h"              // for h256
+REMOVE:
+  - #include <evmc/evmc.hpp>  // lines 36-36
+  - #include "bcos-evm/bcos/ports/AuthPort.h"  // lines 25-25
+  - #include "bcos-evm/eth/core/ChainCallTargetPort.h"  // lines 26-26
+  - #include "bcos-evm/eth/state/StateView.hpp"  // lines 32-32
+  - #include "bcos-framework/protocol/LogEntry.h"  // lines 33-33
+
+## eth/kernel/state-transition/StateTransitionContext.h
+ADD:
+  #include <evmc/evmc.h>
+  #include <stdint.h>
+  #include <vector>
+  #include "bcos-utilities/Common.h"
+  #include "eth/gas/GasSettlementTypes.h"
+  #include "eth/state/StateDiff.hpp"
+REMOVE:
+  - #include <evmc/evmc.hpp>  // lines 25-25
+  - #include "bcos-evm/eth/core/EvmHostHooks.h"  // lines 16-16
+  - #include "bcos-evm/eth/gas/TxIntrinsicGas.h"  // lines 19-19
+
+## eth/apply/ApplyEthMessage.h
+ADD:
+  #include <evmc/evmc.h>
+  #include <stdint.h>
+  #include <string>
+  #include "bcos-utilities/FixedBytes.h"
+  #include "eth/gas/GasSettlementTypes.h"
+REMOVE:
+  - #include <evmc/evmc.hpp>  // lines 24-24
+  - #include "bcos-evm/eth/gas/TxIntrinsicGas.h"  // lines 15-15
+  - #include "bcos-evm/eth/state/StateView.hpp"  // lines 19-19
+
+## eth/state/State.hpp
+ADD:
+  #include <evmc/evmc.h>                          // for evmc_address, evmc_by...
+  #include <stddef.h>                             // for size_t
+  #include <stdint.h>                             // for uint64_t, uint8_t
+  #include <unordered_map>                        // for unordered_map
+  #include <utility>                              // for pair, move
+  #include "bcos-utilities/Common.h"              // for bytes, u256
+  #include "eth/state/Account.hpp"                // for Account
+  #include "bcos-evm/eth/state/Account.hpp"       // for Account
+
+## opstack/fee/OpStackFeeParams.cpp
+ADD:
+  #include <evmc/evmc.h>                                      // for evmc_bytes32
+  #include <algorithm>                                        // for min
+  #include <utility>                                          // for move
+  #include "bcos-utilities/Common.h"                          // for u256
+  #include "eth/state/StateKeyHash.hpp"                       // for isZeroByt...
+  #include "eth/state/StateView.hpp"                          // for StateView
+  #include "opstack/fee/RollupCost.h"                         // for RollupCos...
+
+## bcos/FiscoEvmHostHooks.cpp
+ADD:
+  #include <string_view>                             // for basic_string_view
+  #include <utility>                                 // for move
+  #include "bcos-framework/ledger/LedgerConfig.h"    // for LedgerConfig
+  #include "bcos/FiscoConstants.h"                   // for USER_APPS_PREFIX
+  #include "bcos/ports/AuthPort.h"                   // for AuthPort
+  #include "eth/state/StateKeyHash.hpp"              // for isZeroAddress, isZ...
+REMOVE:
+  - #include "bcos-evm/eth/state/HashUtils.hpp"  // lines 23-23
+
+## opstack/settlement/OpStackFeeSettlement.h
+ADD:
+  #include <stdint.h>                                          // for uint64_t
+  #include "bcos-utilities/BoostLog.h"                         // for BCOS_LOG
+REMOVE:
+  - #include <bcos-protocol/TransactionStatus.h>  // lines 23-23
+  - #include <optional>  // lines 28-28
+  - #include "bcos-evm/opstack/fee/RollupCost.h"  // lines 19-19
+  - #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"  // lines 21-21
+  - #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"  // lines 22-22
+
+## bcos/FiscoEvmHostHooks.h
+ADD:
+  #include <stdint.h>                          // for int64_t, uint64_t
+REMOVE:
+  - #include "bcos-crypto/interfaces/crypto/Hash.h"  // lines 22-22
+  - #include "bcos-evm/bcos/FiscoConstants.h"  // lines 23-23
+  - #include "bcos-evm/bcos/ports/AuthPort.h"  // lines 24-24
+  - #include "bcos-evm/eth/kernel/EVMCResult.h"  // lines 26-26
+  - #include "bcos-framework/ledger/LedgerConfig.h"  // lines 27-27
+  - #include "bcos-framework/protocol/BlockHeader.h"  // lines 28-28
+
+## opstack/adapter/OpStackChainCallTargetAdapter.cpp
+ADD:
+  #include <_string.h>                                      // for memcmp
+  #include <functional>                                     // for function
+  #include <optional>                                       // for optional
+  #include <utility>                                        // for move
+  #include "bcos-utilities/Common.h"                        // for u256
+  #include "opstack/policy/OpStackForkSchedule.h"           // for OpStackFork...
+REMOVE:
+  - #include "bcos-evm/eth/kernel/execution/FrameScope.h"  // lines 3-3
+
+## eth/precompiled/PrecompileRouter.cpp
+ADD:
+  #include <evmc/evmc.h>                                      // for evmc_message
+  #include <optional>                                         // for optional
+  #include <utility>                                          // for move
+  #include "eth/RevisionConfig.h"                             // for RevisionC...
+  #include "eth/core/CallTargetTypes.h"                       // for Classifie...
+  #include "eth/state/StateKeyHash.hpp"                       // for isZeroByt...
+
+## opstack/l1/L1BlockStorage.cpp
+ADD:
+  #include <_string.h>                                    // for memcpy, memset
+  #include <array>                                        // for array
+  #include <utility>                                      // for move
+  #include "bcos-utilities/Common.h"                      // for u256, bytes
+  #include "eth/state/StateKeyHash.hpp"                   // for isZeroBytes32
+REMOVE:
+  - #include "bcos-evm/eth/state/HashUtils.hpp"  // lines 3-3
+
+## opstack/settlement/OpStackSettlementProjection.cpp
+ADD:
+  #include "bcos-utilities/Common.h"                                  // for u256
+  #include "eth/eip/Eip2930AccessList.h"
+  #include "eth/eip/Eip7702.h"
+  #include "eth/gas/GasSettlementTypes.h"
+  #include "eth/kernel/state-transition/StateTransitionContext.h"
+  #include "opstack/settlement/OpStackFeeSidecar.h"
+
+## eth/kernel/execution/CallTargetResolver.cpp
+ADD:
+  #include <optional>                                      // for optional
+  #include "bcos-utilities/Common.h"                       // for bytesConstRef
+  #include "eth/RevisionConfig.h"                          // for RevisionConfig
+  #include "eth/core/CallTargetTypes.h"                    // for AccessWarmSc...
+  #include "eth/core/EvmHostHooks.h"                       // for EvmHostHooks
+  #include "eth/state/StateKeyHash.hpp"                    // for isZeroAddress
+
+## eth/kernel/EVMCResult.h
+ADD:
+  #include <stddef.h>                           // for size_t
+  #include <stdint.h>                           // for int64_t, uint8_t
+  #include <iosfwd>                             // for ostream
+  #include <string>                             // for string, basic_string
+  #include "bcos-utilities/Common.h"            // for bytes
+REMOVE:
+  - #include "bcos-crypto/interfaces/crypto/Hash.h"  // lines 22-22
+
+## opstack/settlement/OpStackSettlementProjection.h
+ADD:
+  #include <stdint.h>                              // for uint64_t, uint8_t
+  #include "bcos-utilities/FixedBytes.h"           // for h256
+REMOVE:
+  - #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"  // lines 15-15
+  - #include "bcos-evm/eth/state/BlockInfo.hpp"  // lines 16-16
+  - #include "bcos-evm/opstack/fee/RollupCost.h"  // lines 17-17
+  - #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"  // lines 18-18
+
+## eth/precompiled/EthPrecompiles.cpp
+ADD:
+  #include <_string.h>                                       // for memcpy
+  #include <range/v3/utility/get.hpp>                        // for get
+  #include <utility>                                         // for pair, move
+  #include "bcos-utilities/Common.h"                         // for bytes, byt...
+  #include "eth/RevisionConfig.h"                            // for RevisionCo...
+
+## opstack/fee/OpStackPreDebitPlan.cpp
+ADD:
+  #include <algorithm>                                        // for min
+  #include <utility>                                          // for move
+  #include "bcos-utilities/Common.h"                          // for u256
+  #include "eth/gas/TxFeeSettlement.h"                        // for planPreEx...
+  #include "opstack/fee/RollupCost.h"                         // for RollupCos...
+
+## eth/kernel/EVMCResult.cpp
+ADD:
+  #include <vector>                             // for vector
+REMOVE:
+  - #include <cstdint>  // lines 14-14
+  - #include <range/v3/algorithm/binary_search.hpp>  // lines 1-1
+  - #include <range/v3/algorithm/lower_bound.hpp>  // lines 3-3
+  - #include <range/v3/algorithm/partition_point.hpp>  // lines 4-4
+
+## eth/vm/VMInstance.cpp
+ADD:
+  #include <_string.h>                      // for memcmp
+  #include <cstring>                        // for memcmp
+  #include <evmc/evmc.hpp>                  // for VM
+  #include <utility>                        // for move
+  #include "eth/kernel/EVMCResult.h"        // for EVMCResult
+
+## eth/vm/VMInstance.h
+ADD:
+  #include <evmc/evmc.h>                       // for evmc_address, evmc_messa...
+  #include <stdint.h>                          // for uint8_t
+  #include <functional>                        // for equal_to
+REMOVE:
+  - #include <bcos-utilities/Common.h>  // lines 26-26
+  - #include <evmc/evmc.hpp>  // lines 28-28
+
+## opstack/settlement/OpStackTxFinalize.cpp
+ADD:
+  #include "bcos-task/Task.h"                                      // for Prom...
+  #include "eth/kernel/EVMCResult.h"                               // for EVMC...
+  #include "eth/kernel/state-transition/StateTransitionContext.h"  // for Stat...
+  #include "eth/state/State.hpp"                                   // for State
+  #include "eth/state/StateDiff.hpp"                               // for Stat...
+
+## opstack/apply/ApplyOpStackMessage.h
+ADD:
+  #include <evmc/evmc.h>                                         // for evmc_r...
+  #include <stdint.h>                                            // for uint64_t
+  #include "bcos-utilities/FixedBytes.h"                         // for h256
+REMOVE:
+  - #include "bcos-crypto/interfaces/crypto/Hash.h"  // lines 20-20
+  - #include "bcos-evm/eth/state/StateView.hpp"  // lines 28-28
+
+## opstack/fee/OpStackPreDebitPlan.h
+ADD:
+  #include <stddef.h>                      // for size_t
+  #include <stdint.h>                      // for uint64_t
+  #include "eth/gas/GasSettlementTypes.h"  // for FeeInputs, FeeSettlementPlan
+REMOVE:
+  - #include "bcos-evm/eth/gas/TxFeeSettlement.h"  // lines 3-3
+  - #include "bcos-evm/opstack/fee/RollupCost.h"  // lines 4-4
+
+## bcos/FiscoStateView.h
+ADD:
+  #include <evmc/evmc.h>                            // for evmc_bytes32, evmc_...
+  #include <stdint.h>                               // for uint64_t
+  #include "bcos-utilities/Common.h"                // for bytesConstRef, u256
+  #include "eth/state/Account.hpp"                  // for Account
+
+## opstack/fee/OpStackFeeParams.h
+ADD:
+  #include <stdint.h>                           // for uint64_t
+REMOVE:
+  - #include "bcos-evm/eth/state/StateView.hpp"  // lines 11-11
+  - #include "bcos-evm/opstack/policy/OpStackConstants.h"  // lines 13-13
+  - #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"  // lines 14-14
+
+## bcos/FiscoChainCallTargetAdapter.cpp
+ADD:
+  #include <optional>                                      // for optional
+  #include "eth/core/CallTargetTypes.h"                    // for ClassifiedCa...
+  #include "eth/core/ChainCallTargetPort.h"                // for ChainCallTar...
+REMOVE:
+  - #include "bcos-evm/eth/kernel/execution/FrameScope.h"  // lines 3-3
+
+## bcos/FiscoChainCallTargetClassify.cpp
+ADD:
+  #include <_string.h>                         // for memcmp
+  #include <stdint.h>                          // for uint64_t
+  #include "eth/state/StateKeyHash.hpp"        // for isZeroAddress
+REMOVE:
+  - #include <algorithm>  // lines 5-5
+
+## bcos/FiscoStateTransitionBindings.cpp
+ADD:
+  #include "bcos/ApplyFiscoMessage.h"                // for FiscoMessageRequest
+  #include "bcos/FiscoRevisionConfig.h"              // for FiscoRevisionConfig
+  #include "bcos/FiscoStateTransitionErrorPolicy.h"  // for FiscoStateTransiti...
+  #include "bcos/FiscoStateTransitionHooks.h"        // for FiscoStateTransiti...
+
+## eth/precompiled/PrecompileRouter.h
+ADD:
+  #include <stdint.h>       // for int64_t
+  struct evmc_message;
+REMOVE:
+  - #include "bcos-evm/eth/RevisionConfig.h"  // lines 16-16
+  - #include "bcos-evm/eth/core/CallTargetTypes.h"  // lines 17-17
+
+## opstack/fee/OpStackPostSettlementPlan.h
+ADD:
+  #include <stdint.h>                      // for int64_t, uint64_t
+  #include "eth/gas/GasSettlementTypes.h"  // for FeeInputs, FeeSettlementPlan
+REMOVE:
+  - #include "bcos-evm/eth/gas/TxFeeSettlement.h"  // lines 10-10
+  - #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"  // lines 11-11
+
+## opstack/l1/L1BlockPredeploy.cpp
+ADD:
+  #include <_string.h>                                   // for memcmp, memcpy
+  #include <string_view>                                 // for basic_string_view
+  #include <utility>                                     // for move
+  #include "bcos-utilities/Common.h"                     // for bytes, bytesCo...
+
+## opstack/settlement/OpStackNormalTxFeeCoordinator.h
+REMOVE:
+  - #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"  // lines 17-17
+  - #include "bcos-evm/opstack/fee/OpStackFeeParams.h"  // lines 18-18
+  - #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"  // lines 19-19
+  - #include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"  // lines 20-20
+
+## opstack/l1/GasPriceOraclePredeploy.cpp
+ADD:
+  #include <_string.h>                                        // for memcpy
+  #include <utility>                                          // for move
+  #include "bcos-utilities/Common.h"                          // for u256, byt...
+
+## opstack/fee/RollupCost.cpp
+ADD:
+  #include <algorithm>                                        // for min
+  #include <utility>                                          // for move
+  #include "bcos-utilities/Common.h"                          // for s256, byt...
+
+## opstack/fee/OpStackPostSettlementPlan.cpp
+ADD:
+  #include <functional>                                       // for function
+  #include "eth/gas/TxFeeSettlement.h"                        // for planPostE...
+  #include "opstack/fee/OpStackPreDebitPlan.h"                // for OpStackFe...
+
+## opstack/fee/OpStackFloorGasPrecheck.cpp
+ADD:
+  #include <evmc/evmc.h>                                     // for evmc_result
+  #include "bcos-protocol/TransactionStatus.h"               // for Transactio...
+  #include "eth/kernel/EVMCResult.h"                         // for EVMCResult
+
+## eth/kernel/execution/FrameBytecode.cpp
+ADD:
+  #include <optional>                      // for optional
+  #include "bcos-utilities/Common.h"       // for bytes, bytesConstRef
+  #include "eth/RevisionConfig.h"          // for RevisionConfig
+
+## eth/host/EthHost.h
+ADD:
+  #include <evmc/evmc.h>                          // for evmc_address, evmc_ac...
+  #include <stddef.h>                             // for size_t
+  #include <stdint.h>                             // for uint8_t, int64_t
+
+## eth/kernel/execution/CreateAddress.cpp
+ADD:
+  #include <_string.h>                         // for memcpy
+  #include "bcos-utilities/Common.h"           // for bytesConstRef, bytes
+  #include "eth/state/StateKeyHash.hpp"        // for isZeroAddress
+
+## eth/kernel/execution/EvmCallFrame.h
+ADD:
+  #include <evmc/evmc.h>    // for evmc_address, evmc_result, evmc_message (pt...
+  #include <stdint.h>       // for int64_t
+REMOVE:
+  - #include "bcos-evm/eth/RevisionConfig.h"  // lines 26-26
+
+## eth/kernel/state-transition/StateTransitionContext.cpp
+ADD:
+  #include "eth/RevisionConfig.h"                          // for RevisionConfig
+  #include "eth/eip/Eip7702.h"                             // for SetCodeAutho...
+  #include "eth/state/BlockInfo.hpp"                       // for BlockInfo
+
+## eth/kernel/execution/InnerExecute.h
+ADD:
+  #include <evmc/evmc.h>                           // for evmc_result, evmc_me...
+  #include <stdint.h>                              // for int64_t, uint8_t
+  #include "bcos-utilities/FixedBytes.h"           // for h256
+
+## eth/state/State.cpp
+ADD:
+  #include "eth/state/StateDiff.hpp"           // for StateDiff
+  #include "eth/state/StateKeyHash.hpp"        // for AddressEqual, AddressHash
+  #include "eth/state/StateView.hpp"           // for StateView
+
+## eth/settlement/EthFeeSettlement.h
+ADD:
+  #include "eth/gas/GasSettlementTypes.h"  // for FeeSettlementPlan, PostExecu...
+REMOVE:
+  - #include "bcos-evm/eth/gas/TxFeeSettlement.h"  // lines 10-10
+  - #include "bcos-evm/eth/settlement/EthSettlementProjection.h"  // lines 11-11
+
+## opstack/adapter/OpStackChainCallTargetAdapter.h
+ADD:
+  #include <evmc/evmc.h>                                    // for evmc_address
+  #include <stdint.h>                                       // for uint64_t
+REMOVE:
+  - #include <functional>  // lines 6-6
+
+## opstack/apply/OpStackStateTransitionHooks.h
+ADD:
+  #include "eth/kernel/state-transition/DeductIntrinsicGas.h"  // for DeductIn...
+REMOVE:
+  - #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"  // lines 22-22
+  - #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"  // lines 23-23
+
+## opstack/settlement/OpStackTxFinalize.h
+ADD:
+  #include <stdint.h>          // for uint64_t, int64_t
+REMOVE:
+  - #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"  // lines 22-22
+  - #include "bcos-evm/opstack/settlement/OpStackFeeSidecar.h"  // lines 23-23
+
+## eth/precompiled/ModexpGas.cpp
+ADD:
+  #include <utility>                                          // for move
+REMOVE:
+  - #include <limits>  // lines 16-16
+
+## bcos/FiscoStateTransitionHooks.h
+ADD:
+  #include "eth/kernel/state-transition/DeductIntrinsicGas.h"  // for DeductIn...
+REMOVE:
+  - #include "bcos-evm/bcos/ApplyFiscoMessage.h"  // lines 21-21
+
+## eth/apply/EthStateTransitionBindings.cpp
+ADD:
+  #include "eth/apply/EthStateTransitionErrorPolicy.h"  // for EthStateTransit...
+  #include "eth/apply/EthStateTransitionHooks.h"        // for EthStateTransit...
+
+## eth/core/EvmHostHooks.cpp
+ADD:
+  #include "eth/state/StateKeyHash.hpp"            // for Bytes32Equal, isZero...
+REMOVE:
+  - #include "bcos-evm/eth/state/HashUtils.hpp"  // lines 22-22
+
+## eth/kernel/execution/CallTargetResolver.h
+REMOVE:
+  - #include "bcos-evm/eth/RevisionConfig.h"  // lines 26-26
+  - #include "bcos-evm/eth/core/EvmHostHooks.h"  // lines 28-28
+
+## eth/precompiled/EthPrecompiles.h
+ADD:
+  #include <stdint.h>                 // for int64_t
+REMOVE:
+  - #include "bcos-evm/eth/RevisionConfig.h"  // lines 26-26
+
+## eth/kernel/state-transition/StateTransitionExecute.h
+REMOVE:
+  - #include "bcos-evm/eth/core/StateTransitionHooks.h"  // lines 15-15
+  - #include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"  // lines 16-16
+
+## eth/settlement/EthNormalTxFeeCoordinator.h
+REMOVE:
+  - #include "bcos-evm/eth/apply/ApplyEthMessage.h"  // lines 17-17
+  - #include "bcos-evm/eth/settlement/EthSettlementProjection.h"  // lines 18-18
+
+## opstack/apply/OpStackStateTransitionBindings.cpp
+ADD:
+  #include "opstack/apply/OpStackStateTransitionErrorPolicy.h"  // for OpStack...
+  #include "opstack/apply/OpStackStateTransitionHooks.h"        // for OpStack...
+
+## opstack/fee/OpStackFloorGasPrecheck.h
+ADD:
+  struct evmc_message;
+REMOVE:
+  - #include <evmc/evmc.h>  // lines 5-5
+
+## bcos/FiscoChainCallTargetAdapter.h
+ADD:
+  #include <evmc/evmc.h>                              // for evmc_address, evm...
+
+## bcos/FiscoStateTransitionBindings.h
+REMOVE:
+  - #include "bcos-evm/bcos/ApplyFiscoMessage.h"  // lines 22-22
+
+## eth/apply/EthStateTransitionBindings.h
+REMOVE:
+  - #include "bcos-evm/eth/apply/ApplyEthMessage.h"  // lines 22-22
+
+## eth/core/StateTransitionHooks.cpp
+ADD:
+  #include <utility>                                       // for move
+
+## eth/apply/EthStateTransitionHooks.h
+ADD:
+  #include "eth/kernel/state-transition/DeductIntrinsicGas.h"  // for DeductIn...
+
+## eth/eip/Eip7702.h
+ADD:
+  #include <stdint.h>                 // for uint64_t
+
+## eth/kernel/execution/FrameBytecode.h
+REMOVE:
+  - #include "bcos-evm/eth/RevisionConfig.h"  // lines 19-19
+
+## eth/kernel/execution/FrameRouting.h
+REMOVE:
+  - #include "bcos-evm/eth/RevisionConfig.h"  // lines 11-11
+
+## eth/kernel/execution/FrameRouting.cpp
+ADD:
+  #include "eth/state/StateKeyHash.hpp"                  // for isZeroAddress
+
+## eth/precompiled/ModexpGas.h
+ADD:
+  #include <stdint.h>                       // for int64_t
+
+## opstack/apply/OpStackStateTransitionBindings.h
+REMOVE:
+  - #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"  // lines 22-22
+
+## opstack/fee/OpStackFloorGas.cpp
+ADD:
+  #include "bcos-utilities/Common.h"  // for bytesConstRef
+
+## opstack/l1/GasPriceOraclePredeploy.h
+ADD:
+  #include <stdint.h>                                       // for uint64_t
+
+## opstack/l1/L1BlockPredeploy.h
+ADD:
+  #include <stdint.h>     // for int64_t, uint32_t
+
+## opstack/l1/L1BlockStorage.h
+ADD:
+  #include <stdint.h>                 // for uint64_t, uint32_t, uint16_t
+

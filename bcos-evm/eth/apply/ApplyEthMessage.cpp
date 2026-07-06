@@ -8,8 +8,25 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
+#include "bcos-framework/protocol/LogEntry.h"
+#include "bcos-utilities/BoostLog.h"
+#include "bcos-utilities/Common.h"
+#include "bcos-utilities/DataConvertUtility.h"
+#include "eth/RevisionConfig.h"
+#include "eth/apply/EthStateTransitionErrorPolicy.h"
+#include "eth/apply/EthStateTransitionHooks.h"
+#include "eth/eip/Eip7702.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "eth/settlement/EthFeeSidecar.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/State.hpp"
+#include "eth/state/StateDiff.hpp"
+#include "eth/state/Transaction.hpp"
 #include <span>
 #include <stdexcept>
+#include <string_view>
+#include <utility>
 
 namespace bcos::evm
 {
@@ -94,6 +111,7 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
 
     output.evmcResult = std::move(ctx.evmcResult);
     output.topLevelIncludedTxVmError = ctx.topLevelIncludedTxVmError;
+    output.exitKind = ctx.exitKind;
     output.receiptLogs = convertLogs(ctx.logs);
     output.logs = std::move(ctx.logs);
     output.message = ctx.message;

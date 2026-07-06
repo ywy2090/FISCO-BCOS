@@ -6,6 +6,7 @@
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include <bcos-utilities/Common.h>
 #include <bcos-utilities/FixedBytes.h>
+#include <boost/property_tree/ptree_fwd.hpp>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -75,5 +76,14 @@ StateTestCase loadGeneralStateTest(std::filesystem::path const& jsonPath,
 std::vector<StateSubtest> listSubtests(StateTestCase const& test, std::string_view fork);
 std::vector<StateSubtest> tryListSubtests(StateTestCase const& test, std::string_view fork);
 ExpectedPostState selectExpected(StateTestCase const& test, StateSubtest const& subtest);
+
+/// Parse EEST/GST transaction JSON (scalar blockchain fields or GST variant arrays).
+GstTransactionTemplate parseTransactionTemplate(boost::property_tree::ptree const& txTree);
+
+/// Materialize index-0 GST variant fields into a state::Transaction.
+state::Transaction materializeTransaction(GstTransactionTemplate const& transaction);
+
+/// Build a single-variant GstTransactionTemplate from a plain transaction (block tests).
+GstTransactionTemplate gstTransactionTemplateFromSimple(state::Transaction const& tx);
 
 }  // namespace bcos::evm::reference_tests

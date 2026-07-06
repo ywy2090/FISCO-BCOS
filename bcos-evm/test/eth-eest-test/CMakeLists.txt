@@ -178,12 +178,12 @@ target_link_libraries(EthBlockTransitionTest PRIVATE
     bcos-evm-specs-tests-eth GTest::gtest jsoncpp_static)
 
 get_filename_component(ETH_BLOCK_FIXTURES_DIR
-    ${CMAKE_CURRENT_SOURCE_DIR}/../fixtures/state
+    ${CMAKE_CURRENT_SOURCE_DIR}/../fixtures/state/block
     ABSOLUTE)
 add_test(NAME EthBlockTransitionTest
     COMMAND EthBlockTransitionTest
         ${ETH_BLOCK_FIXTURES_DIR}
-        --fork-profile eth-cancun)
+        --fork-profile eth-prague)
 set_tests_properties(EthBlockTransitionTest PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;block"
 )
@@ -565,6 +565,33 @@ set_tests_properties(OpStackEestManifestStateFull PROPERTIES
     LABELS "specs-tests;specs-tests-full;opstack;eest;manifest;nightly"
     TIMEOUT 7200
 )
+
+# Per-collection Eth manifest slices (7623 / 7702 / 7823 bucket attack).
+set(_ETH_MANIFEST_SLICE_DIR ${EEST_MANIFEST_DIR}/eth/slices)
+set(_ETH_MANIFEST_SLICE_COMMON
+    COMMAND EthExecutionSpecStateTests
+    --eest-root ${EVM_REF_EEST_ROOT}
+    --expectations ${EEST_MANIFEST_DIR}/expectations.json
+)
+set(_ETH_MANIFEST_SLICE_LABELS "specs-tests;specs-tests-slice;eth-kernel;eest;manifest")
+
+add_test(NAME EthExecutionSpecSliceEip7823 ${_ETH_MANIFEST_SLICE_COMMON}
+    --manifest ${_ETH_MANIFEST_SLICE_DIR}/eip7823-state-full.json
+)
+set_tests_properties(EthExecutionSpecSliceEip7823 PROPERTIES
+    LABELS "${_ETH_MANIFEST_SLICE_LABELS};7823" TIMEOUT 600)
+
+add_test(NAME EthExecutionSpecSliceEip7702 ${_ETH_MANIFEST_SLICE_COMMON}
+    --manifest ${_ETH_MANIFEST_SLICE_DIR}/eip7702-state-full.json
+)
+set_tests_properties(EthExecutionSpecSliceEip7702 PROPERTIES
+    LABELS "${_ETH_MANIFEST_SLICE_LABELS};7702" TIMEOUT 3600)
+
+add_test(NAME EthExecutionSpecSliceEip7623 ${_ETH_MANIFEST_SLICE_COMMON}
+    --manifest ${_ETH_MANIFEST_SLICE_DIR}/eip7623-state-full.json
+)
+set_tests_properties(EthExecutionSpecSliceEip7623 PROPERTIES
+    LABELS "${_ETH_MANIFEST_SLICE_LABELS};7623" TIMEOUT 3600)
 
 # Per-collection manifest slices (run individually; avoid monolithic Full timeout).
 set(_OPSTACK_MANIFEST_SLICE_DIR ${EEST_MANIFEST_DIR}/opstack/slices)

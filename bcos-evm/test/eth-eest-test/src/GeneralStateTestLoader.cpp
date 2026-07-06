@@ -89,6 +89,78 @@ std::vector<uint64_t> parseUint64Array(pt::ptree const& node, char const* field)
     return values;
 }
 
+/// GST arrays (`["0x.."]`) or blockchain scalars (`"0x.."`).
+std::vector<uint64_t> parseUint64FieldFlexible(pt::ptree const& node, char const* field)
+{
+    auto const childOpt = node.get_child_optional(field);
+    if (!childOpt)
+        return {};
+    auto const& child = *childOpt;
+    std::vector<uint64_t> values;
+    if (child.empty())
+    {
+        values.push_back(parseUint64(child.get_value<std::string>()));
+        return values;
+    }
+    return parseUint64Array(node, field);
+}
+
+std::vector<std::string> parseStringFieldFlexible(pt::ptree const& node, char const* field)
+{
+    auto const childOpt = node.get_child_optional(field);
+    if (!childOpt)
+        return {};
+    auto const& child = *childOpt;
+    std::vector<std::string> values;
+    if (child.empty())
+    {
+        values.push_back(child.get_value<std::string>());
+        return values;
+    }
+    return parseStringArray(node, field);
+}
+
+std::vector<bcos::u256> parseQuantityFieldFlexible(pt::ptree const& node, char const* field)
+{
+    auto const childOpt = node.get_child_optional(field);
+    if (!childOpt)
+        return {};
+    auto const& child = *childOpt;
+    std::vector<bcos::u256> values;
+    if (child.empty())
+    {
+        values.push_back(parseQuantity(child.get_value<std::string>()));
+        return values;
+    }
+    for (auto const& [key, item] : child)
+    {
+        static_cast<void>(key);
+        values.push_back(parseQuantity(item.get_value<std::string>()));
+    }
+    return values;
+}
+
+std::vector<GstAccessListEntry> parseAccessListEntries(pt::ptree const& listNode)
+{
+    std::vector<GstAccessListEntry> entries;
+    for (auto const& [entryKey, entryNode] : listNode)
+    {
+        static_cast<void>(entryKey);
+        GstAccessListEntry entry;
+        entry.address = state::parseHexAddress(entryNode.get<std::string>("address"));
+        if (auto const storage = entryNode.get_child_optional("storageKeys"))
+        {
+            for (auto const& [slotKey, slotNode] : *storage)
+            {
+                static_cast<void>(slotKey);
+                entry.storageKeys.push_back(parseBytes32(slotNode.get_value<std::string>()));
+            }
+        }
+        entries.push_back(std::move(entry));
+    }
+    return entries;
+}
+
 state::BlockInfo parseEnv(pt::ptree const& envTree)
 {
     state::BlockInfo env;
@@ -216,97 +288,6 @@ std::vector<std::vector<GstAccessListEntry>> parseAccessLists(pt::ptree const& t
         accessLists.push_back(std::move(entries));
     }
     return accessLists;
-}
-
-GstTransactionTemplate parseTransactionTemplate(pt::ptree const& txTree)
-{
-    GstTransactionTemplate transaction;
-    transaction.nonce = parseUint64(txTree.get<std::string>("nonce", "0x0"));
-
-    if (auto const gasPrice = txTree.get_optional<std::string>("gasPrice"))
-    {
-        transaction.gasPrice = parseQuantity(*gasPrice);
-    }
-    if (auto const maxFee = txTree.get_optional<std::string>("maxFeePerGas"))
-    {
-        transaction.maxFeePerGas = parseQuantity(*maxFee);
-    }
-    if (auto const maxPriority = txTree.get_optional<std::string>("maxPriorityFeePerGas"))
-    {
-        transaction.maxPriorityFeePerGas = parseQuantity(*maxPriority);
-    }
-    if (auto const to = txTree.get_optional<std::string>("to"))
-    {
-        transaction.to = *to;
-    }
-
-    transaction.gasLimit = parseUint64Array(txTree, "gasLimit");
-    auto const dataStrings = parseStringArray(txTree, "data");
-    transaction.data.reserve(dataStrings.size());
-    for (auto const& item : dataStrings)
-    {
-        transaction.data.push_back(parseHexBytes(item));
-    }
-
-    for (auto const& [key, child] : txTree.get_child("value"))
-    {
-        static_cast<void>(key);
-        transaction.value.push_back(parseQuantity(child.get_value<std::string>()));
-    }
-
-    if (auto const sender = txTree.get_optional<std::string>("sender"))
-    {
-        transaction.sender = state::parseHexAddress(*sender);
-    }
-
-    transaction.authorizationListKeyPresent =
-        txTree.get_child_optional("authorizationList").has_value();
-    transaction.authorizationList = parseAuthorizationList(txTree);
-    transaction.accessLists = parseAccessLists(txTree);
-
-    if (auto const maxBlobFee = txTree.get_optional<std::string>("maxFeePerBlobGas"))
-    {
-        transaction.maxFeePerBlobGas = parseQuantity(*maxBlobFee);
-    }
-    if (auto const blobHashes = txTree.get_child_optional("blobVersionedHashes"))
-    {
-        for (auto const& [key, hashNode] : *blobHashes)
-        {
-            static_cast<void>(key);
-            transaction.blobVersionedHashes.emplace_back(
-                state::fromEvmC(parseBytes32(hashNode.get_value<std::string>())));
-        }
-    }
-
-    return transaction;
-}
-
-state::Transaction materializeTransaction(GstTransactionTemplate const& transaction)
-{
-    state::Transaction tx;
-    if (transaction.sender.has_value())
-    {
-        tx.from = *transaction.sender;
-    }
-    if (transaction.to.has_value() && !transaction.to->empty())
-    {
-        tx.to = state::parseHexAddress(*transaction.to);
-    }
-    tx.nonce = transaction.nonce;
-    tx.gasPrice = transaction.gasPrice != 0 ? transaction.gasPrice : transaction.maxFeePerGas;
-    if (!transaction.gasLimit.empty())
-    {
-        tx.gasLimit = static_cast<int64_t>(transaction.gasLimit.front());
-    }
-    if (!transaction.data.empty())
-    {
-        tx.data = transaction.data.front();
-    }
-    if (!transaction.value.empty())
-    {
-        tx.value = transaction.value.front();
-    }
-    return tx;
 }
 
 ExpectedPostState parsePostState(pt::ptree const& postTree)
@@ -505,6 +486,115 @@ std::filesystem::path moduleAssetsRoot()
 }
 
 }  // namespace
+
+GstTransactionTemplate parseTransactionTemplate(pt::ptree const& txTree)
+{
+    GstTransactionTemplate transaction;
+    transaction.nonce = parseUint64(txTree.get<std::string>("nonce", "0x0"));
+
+    if (auto const gasPrice = txTree.get_optional<std::string>("gasPrice"))
+    {
+        transaction.gasPrice = parseQuantity(*gasPrice);
+    }
+    if (auto const maxFee = txTree.get_optional<std::string>("maxFeePerGas"))
+    {
+        transaction.maxFeePerGas = parseQuantity(*maxFee);
+    }
+    if (auto const maxPriority = txTree.get_optional<std::string>("maxPriorityFeePerGas"))
+    {
+        transaction.maxPriorityFeePerGas = parseQuantity(*maxPriority);
+    }
+    if (auto const to = txTree.get_optional<std::string>("to"))
+    {
+        transaction.to = *to;
+    }
+
+    transaction.gasLimit = parseUint64FieldFlexible(txTree, "gasLimit");
+    auto const dataStrings = parseStringFieldFlexible(txTree, "data");
+    transaction.data.reserve(dataStrings.size());
+    for (auto const& item : dataStrings)
+    {
+        transaction.data.push_back(parseHexBytes(item));
+    }
+
+    transaction.value = parseQuantityFieldFlexible(txTree, "value");
+
+    if (auto const sender = txTree.get_optional<std::string>("sender"))
+    {
+        transaction.sender = state::parseHexAddress(*sender);
+    }
+
+    transaction.authorizationListKeyPresent =
+        txTree.get_child_optional("authorizationList").has_value();
+    transaction.authorizationList = parseAuthorizationList(txTree);
+    transaction.accessLists = parseAccessLists(txTree);
+    if (transaction.accessLists.empty())
+    {
+        if (auto const listNode = txTree.get_child_optional("accessList"))
+            transaction.accessLists.push_back(parseAccessListEntries(*listNode));
+    }
+
+    if (auto const maxBlobFee = txTree.get_optional<std::string>("maxFeePerBlobGas"))
+    {
+        transaction.maxFeePerBlobGas = parseQuantity(*maxBlobFee);
+    }
+    if (auto const blobHashes = txTree.get_child_optional("blobVersionedHashes"))
+    {
+        for (auto const& [key, hashNode] : *blobHashes)
+        {
+            static_cast<void>(key);
+            transaction.blobVersionedHashes.emplace_back(
+                state::fromEvmC(parseBytes32(hashNode.get_value<std::string>())));
+        }
+    }
+
+    return transaction;
+}
+
+state::Transaction materializeTransaction(GstTransactionTemplate const& transaction)
+{
+    state::Transaction tx;
+    if (transaction.sender.has_value())
+    {
+        tx.from = *transaction.sender;
+    }
+    if (transaction.to.has_value() && !transaction.to->empty())
+    {
+        tx.to = state::parseHexAddress(*transaction.to);
+    }
+    tx.nonce = transaction.nonce;
+    tx.gasPrice = transaction.gasPrice != 0 ? transaction.gasPrice : transaction.maxFeePerGas;
+    if (!transaction.gasLimit.empty())
+    {
+        tx.gasLimit = static_cast<int64_t>(transaction.gasLimit.front());
+    }
+    if (!transaction.data.empty())
+    {
+        tx.data = transaction.data.front();
+    }
+    if (!transaction.value.empty())
+    {
+        tx.value = transaction.value.front();
+    }
+    return tx;
+}
+
+GstTransactionTemplate gstTransactionTemplateFromSimple(state::Transaction const& tx)
+{
+    GstTransactionTemplate transaction;
+    transaction.sender = tx.from;
+    transaction.nonce = tx.nonce;
+    transaction.gasPrice = tx.gasPrice;
+    transaction.gasLimit.push_back(static_cast<uint64_t>(tx.gasLimit));
+    transaction.data.push_back(tx.data);
+    transaction.value.push_back(tx.value);
+    if (tx.to.has_value())
+    {
+        transaction.to =
+            "0x" + bcos::toHex(bcos::bytes(tx.to->bytes, tx.to->bytes + sizeof(tx.to->bytes)));
+    }
+    return transaction;
+}
 
 std::filesystem::path resolveEthereumTestsRoot()
 {

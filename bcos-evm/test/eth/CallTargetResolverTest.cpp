@@ -160,6 +160,64 @@ BOOST_AUTO_TEST_CASE(R4_chain_precompile_wins_over_active_builtin)
     BOOST_CHECK(desc.route != execution::CallTargetRoute::BuiltinPrecompile);
 }
 
+BOOST_AUTO_TEST_CASE(R5d_7702_evmc_delegated_staticcall_to_precompile_is_empty_account)
+{
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.flags = EVMC_DELEGATED | EVMC_STATIC;
+    msg.gas = 0;
+    msg.recipient = addressFromLastByte(0x02);
+    msg.code_address = precompileAddr(0x01);
+
+    state::test::InMemoryStateView base;
+    state::State state{base};
+
+    auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::Nested);
+
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::EmptyAccount);
+}
+
+BOOST_AUTO_TEST_CASE(R5c_7702_evmc_delegated_delegatecall_to_precompile_is_empty_account)
+{
+    evmc_message msg{};
+    msg.kind = EVMC_DELEGATECALL;
+    msg.flags = EVMC_DELEGATED;
+    msg.gas = 0;
+    msg.recipient = addressFromLastByte(0x02);
+    msg.code_address = precompileAddr(0x01);
+
+    state::test::InMemoryStateView base;
+    state::State state{base};
+
+    auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::Nested);
+
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::EmptyAccount);
+}
+
+BOOST_AUTO_TEST_CASE(R5b_7702_delegation_to_precompile_delegatecall_is_empty_account)
+{
+    auto const authority = addressFromLastByte(0xAA);
+    auto const identity = precompileAddr(0x01);
+    auto delegationCode = addressToDelegation(identity);
+
+    state::test::InMemoryStateView base;
+    state::State state{base};
+    state.set_code(authority, delegationCode,
+        state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
+
+    evmc_message msg{};
+    msg.kind = EVMC_DELEGATECALL;
+    msg.gas = 0;
+    msg.recipient = addressFromLastByte(0x02);
+    msg.code_address = authority;
+
+    auto desc = resolveAt(state, pragueCfg(), msg, execution::FrameScope::Nested);
+
+    BOOST_CHECK(desc.route == execution::CallTargetRoute::EmptyAccount);
+    BOOST_CHECK(
+        std::memcmp(desc.dispatchAddress.bytes, authority.bytes, sizeof(authority.bytes)) == 0);
+}
+
 BOOST_AUTO_TEST_CASE(R5_7702_delegation_designator_is_evm_contract)
 {
     auto const authority = addressFromLastByte(0xAA);

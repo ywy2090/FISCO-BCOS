@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.prague.state.eip7702",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/prague/eip7702_set_code_tx",
+      "forkProfileId": "eth-osaka",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip7702-set-code-tx"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    }
+  ]
+}

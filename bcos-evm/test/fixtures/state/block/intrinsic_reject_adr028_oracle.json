@@ -1,0 +1,40 @@
+{
+  "forkProfile": "eth-prague",
+  "comment": "ADR-028 oracle: geth rejects before EVM; bcos currently still emits a failed receipt.",
+  "pre": {
+    "0x0000000000000000000000000000000000000001": {
+      "balance": "0x3635c9adc5dea00000",
+      "nonce": "0x01",
+      "code": "0x"
+    },
+    "0x00000000000000000000000000000000000000aa": {
+      "balance": "0x00",
+      "nonce": "0x00",
+      "code": "0x602a60005260206000f3"
+    }
+  },
+  "blocks": [
+    {
+      "transactions": [
+        {
+          "sender": "0x0000000000000000000000000000000000000001",
+          "to": "0x00000000000000000000000000000000000000aa",
+          "value": "0x0",
+          "data": "0x",
+          "gasLimit": "0x4e20",
+          "gasPrice": "0x0",
+          "nonce": "0x01"
+        }
+      ],
+      "expectedReceipts": [
+        {
+          "settlementStatus": "EVMC_OUT_OF_GAS",
+          "receiptStatus": "OutOfGasLimit",
+          "includedTxVmError": false,
+          "consensusRejected": true,
+          "adr028ExpectNoReceipt": true
+        }
+      ]
+    }
+  ]
+}

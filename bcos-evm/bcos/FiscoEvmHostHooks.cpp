@@ -23,8 +23,14 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-framework/ledger/Features.h"
+#include "bcos-framework/ledger/LedgerConfig.h"
+#include "bcos/FiscoConstants.h"
+#include "bcos/ports/AuthPort.h"
+#include "eth/state/StateKeyHash.hpp"
 #include <algorithm>
 #include <cstring>
+#include <string_view>
+#include <utility>
 
 namespace bcos::evm
 {

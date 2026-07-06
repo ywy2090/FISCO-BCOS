@@ -4,9 +4,13 @@
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/l1/L1BlockLayout.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
+#include "bcos-utilities/Common.h"
+#include "eth/state/StateKeyHash.hpp"
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <evmone_precompiles/keccak.hpp>
+#include <utility>
 
 namespace bcos::evm
 {

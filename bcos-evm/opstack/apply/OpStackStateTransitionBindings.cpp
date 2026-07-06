@@ -17,6 +17,8 @@
  */
 
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
+#include "opstack/apply/OpStackStateTransitionErrorPolicy.h"
+#include "opstack/apply/OpStackStateTransitionHooks.h"
 
 namespace bcos::evm
 {

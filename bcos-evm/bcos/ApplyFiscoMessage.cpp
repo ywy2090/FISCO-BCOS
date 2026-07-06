@@ -26,12 +26,31 @@
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionExecute.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-framework/protocol/Exceptions.h"
+#include "bcos-framework/protocol/LogEntry.h"
+#include "bcos-utilities/BoostLog.h"
+#include "bcos-utilities/Common.h"
+#include "bcos-utilities/DataConvertUtility.h"
+#include "bcos/FiscoExecutionArtifacts.h"
+#include "bcos/FiscoRevisionConfig.h"
+#include "bcos/FiscoStateTransitionErrorPolicy.h"
+#include "bcos/FiscoStateTransitionHooks.h"
+#include "eth/RevisionConfig.h"
+#include "eth/eip/Eip7702.h"
+#include "eth/kernel/EVMCResult.h"
+#include "eth/kernel/state-transition/DeductIntrinsicGas.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/HashUtils.hpp"
+#include "eth/state/StateDiff.hpp"
+#include "eth/state/Transaction.hpp"
 #include <boost/throw_exception.hpp>
 #include <algorithm>
 #include <exception>
 #include <memory>
 #include <span>
 #include <stdexcept>
+#include <string_view>
+#include <utility>
 
 namespace bcos::evm
 {

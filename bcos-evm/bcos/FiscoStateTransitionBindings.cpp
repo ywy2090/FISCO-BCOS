@@ -17,6 +17,10 @@
  */
 
 #include "bcos-evm/bcos/FiscoStateTransitionBindings.h"
+#include "bcos/ApplyFiscoMessage.h"
+#include "bcos/FiscoRevisionConfig.h"
+#include "bcos/FiscoStateTransitionErrorPolicy.h"
+#include "bcos/FiscoStateTransitionHooks.h"
 
 namespace bcos::evm
 {

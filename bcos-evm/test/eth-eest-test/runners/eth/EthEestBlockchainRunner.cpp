@@ -1,4 +1,5 @@
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
+#include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "helpers/BlockTransition.h"
@@ -112,39 +113,9 @@ TestStateView buildTestStateView(
 }
 
 /// Parse a simple transaction object from JSON.
-state::Transaction parseTx(pt::ptree const& txTree)
+GstTransactionTemplate parseBlockchainTx(pt::ptree const& txTree)
 {
-    state::Transaction tx{};
-    // Optional standard fields
-    if (auto s = txTree.get_optional<std::string>("sender"))
-        tx.from = parseAddr(*s);
-    if (auto s = txTree.get_optional<std::string>("to"))
-    {
-        if (!s->empty())
-            tx.to = parseAddr(*s);
-    }
-    if (auto s = txTree.get_optional<std::string>("gasLimit"))
-        tx.gasLimit = static_cast<int64_t>(parseU256(*s));
-    if (auto s = txTree.get_optional<std::string>("value"))
-        tx.value = parseU256(*s);
-    if (auto s = txTree.get_optional<std::string>("data"))
-        tx.data = parseHex(*s);
-    if (auto s = txTree.get_optional<std::string>("gasPrice"))
-        tx.gasPrice = parseU256(*s);
-    if (auto s = txTree.get_optional<std::string>("nonce"))
-    {
-        tx.nonce = static_cast<int64_t>(parseU256(*s));
-    }
-    // EIP-1559 fields
-    if (auto s = txTree.get_optional<std::string>("maxFeePerGas"))
-    {
-        tx.gasPrice = parseU256(*s);
-    }
-    if (auto s = txTree.get_optional<std::string>("maxPriorityFeePerGas"))
-    {
-        // stored as gasPrice for BlockTransition compatibility
-    }
-    return tx;
+    return parseTransactionTemplate(txTree);
 }
 
 /// Parse block info from JSON (EEST uses "number"; legacy callers may use "blockNumber").
@@ -167,6 +138,8 @@ state::BlockInfo parseBlockInfo(pt::ptree const& headerTree)
         info.prevRandao = parseBytes32(*s);
     if (auto s = headerTree.get_optional<std::string>("parentBeaconBlockRoot"))
         info.prevRandao = parseBytes32(*s);
+    if (auto s = headerTree.get_optional<std::string>("parentHash"))
+        info.parentHash = parseBytes32(*s);
     return info;
 }
 
@@ -324,6 +297,10 @@ void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
 
             // ── 3. Process blocks ──
             std::optional<evmc_bytes32> lastStateRoot;
+            std::unordered_map<int64_t, evmc_bytes32> blockHashByNumber;
+            if (auto genesisHash =
+                    testTree.get_child("genesisBlockHeader").get_optional<std::string>("hash"))
+                blockHashByNumber[0] = parseBytes32(*genesisHash);
 
             // Legacy format: "blocks" array
             if (auto blocksOpt = testTree.get_child_optional("blocks"))
@@ -334,24 +311,40 @@ void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
                     if (auto headerOpt = blockTree.get_child_optional("blockHeader"))
                         blockInfo = parseBlockInfo(*headerOpt);
 
+                    state::BlockHashes blockHashesLookup = [&blockHashByNumber,
+                                                               blockNum = blockInfo.number](
+                                                               int64_t n) -> evmc_bytes32 {
+                        if (n < 0 || n >= blockNum)
+                            return {};
+                        if (n + 256 <= blockNum)
+                            return {};
+                        if (auto it = blockHashByNumber.find(n); it != blockHashByNumber.end())
+                            return it->second;
+                        return {};
+                    };
+
                     // Parse transactions
-                    std::vector<state::Transaction> txs;
+                    std::vector<GstTransactionTemplate> txs;
                     if (auto txsOpt = blockTree.get_child_optional("transactions"))
                         for (auto const& [_, txTree] : *txsOpt)
-                            txs.push_back(parseTx(txTree));
+                            txs.push_back(parseBlockchainTx(txTree));
 
-                    if (txs.empty() && blockTree.count("rlp"))
+                    if (txs.empty() && blockTree.count("rlp") &&
+                        !blockTree.get_child_optional("blockHeader"))
                     {
-                        // Block has RLP hex but no parsed txs — skip for now
+                        // Block has RLP hex but no parsed txs and no header — skip for now
                         continue;
                     }
 
-                    if (txs.empty())
-                        continue;
+                    // Empty tx blocks still run block-start system calls (EIP-4788 / EIP-2935).
+                    auto blockResult = applyEthBlock(stateView, txs, blockInfo, profile, vm,
+                        hashImpl, std::move(blockHashesLookup));
 
-                    // Apply block
-                    auto blockResult =
-                        applyEthBlock(stateView, txs, blockInfo, profile, vm, hashImpl);
+                    if (auto headerOpt = blockTree.get_child_optional("blockHeader"))
+                    {
+                        if (auto hashStr = headerOpt->get_optional<std::string>("hash"))
+                            blockHashByNumber[blockInfo.number] = parseBytes32(*hashStr);
+                    }
 
                     // Compute post-state root
                     GstPostStateView postView;

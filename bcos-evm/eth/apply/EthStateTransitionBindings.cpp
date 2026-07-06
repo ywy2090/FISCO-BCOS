@@ -17,6 +17,8 @@
  */
 
 #include "bcos-evm/eth/apply/EthStateTransitionBindings.h"
+#include "eth/apply/EthStateTransitionErrorPolicy.h"
+#include "eth/apply/EthStateTransitionHooks.h"
 
 namespace bcos::evm
 {

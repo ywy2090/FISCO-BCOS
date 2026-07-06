@@ -3,7 +3,9 @@
 #include "bcos-evm/eth-eest-test/ExecutionPath.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
+#include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/State.hpp"
+#include "bcos-protocol/TransactionStatus.h"
 #include "bcos-task/Task.h"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
@@ -17,6 +19,10 @@ namespace bcos::evm::reference_tests
 struct ExecutionResult
 {
     evmc_status_code status{EVMC_SUCCESS};
+    /// Receipt failure bit (protocol::TransactionStatus); may differ from status after ADR-015.
+    protocol::TransactionStatus receiptStatus{protocol::TransactionStatus::None};
+    bool topLevelIncludedTxVmError{false};
+    StateTransitionExitKind exitKind{StateTransitionExitKind::None};
     /// Set when the fixture carries an EIP-7702 authorization list (manifest assert D3).
     bool authorizationListPresent{false};
     int64_t gasUsed{0};

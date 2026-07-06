@@ -198,8 +198,8 @@ struct DenyDelegatePrecompilePolicy : state::EvmHostHooks
 
 BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_direct_precompile_with_evmc_delegated_flag)
 {
-    // EVMC_DELEGATED on a direct DELEGATECALL to a precompile address must still dispatch the
-    // precompile envelope (geth evm.go:403-405).
+    // evmone sets EVMC_DELEGATED when a 7702 delegation resolves to a precompile address.
+    // DELEGATECALL in that context runs empty delegate bytecode — not RunPrecompiledContract.
     std::array<uint8_t, 4> inputBytes{0xde, 0xad, 0xbe, 0xef};
     auto const sender = addressFromLastByte(0x01);
     auto const caller = addressFromLastByte(0x02);
@@ -212,7 +212,131 @@ BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_direct_precompile_with_evmc_dele
 
     auto outcome = runNestedExecutionFrame(state, message);
     BOOST_REQUIRE(outcome.envelopeComplete);
-    assertIdentityDelegateCallSuccess(outcome, inputBytes);
+    BOOST_REQUIRE_EQUAL(outcome.status, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(outcome.gasLeft, kInputGas);
+    BOOST_REQUIRE(outcome.output.empty());
+}
+
+BOOST_AUTO_TEST_CASE(eest_set_code_to_precompile_delegatecall_bytecode_integration)
+{
+    // Mirrors EEST test_set_code_to_precompile DELEGATECALL variant bytecode path.
+    auto const caller = [] {
+        evmc_address a{};
+        a.bytes[0] = 0x02;
+        a.bytes[1] = 0x34;
+        a.bytes[2] = 0xfa;
+        a.bytes[3] = 0x8e;
+        a.bytes[4] = 0xe3;
+        a.bytes[5] = 0x37;
+        a.bytes[6] = 0x84;
+        a.bytes[7] = 0xbc;
+        a.bytes[8] = 0xe3;
+        a.bytes[9] = 0x6e;
+        a.bytes[10] = 0x68;
+        a.bytes[11] = 0x19;
+        a.bytes[12] = 0x43;
+        a.bytes[13] = 0xb0;
+        a.bytes[14] = 0xe5;
+        a.bytes[15] = 0xf1;
+        a.bytes[16] = 0x97;
+        a.bytes[17] = 0xf7;
+        a.bytes[18] = 0xcc;
+        a.bytes[19] = 0x04;
+        return a;
+    }();
+    auto const authority = [] {
+        evmc_address a{};
+        a.bytes[0] = 0x38;
+        a.bytes[1] = 0x46;
+        a.bytes[2] = 0x3a;
+        a.bytes[3] = 0xab;
+        a.bytes[4] = 0x77;
+        a.bytes[5] = 0xb1;
+        a.bytes[6] = 0x54;
+        a.bytes[7] = 0x81;
+        a.bytes[8] = 0xe3;
+        a.bytes[9] = 0x30;
+        a.bytes[10] = 0x3f;
+        a.bytes[11] = 0x62;
+        a.bytes[12] = 0xef;
+        a.bytes[13] = 0x60;
+        a.bytes[14] = 0x1d;
+        a.bytes[15] = 0x3d;
+        a.bytes[16] = 0x51;
+        a.bytes[17] = 0x77;
+        a.bytes[18] = 0x10;
+        a.bytes[19] = 0x0e;
+        return a;
+    }();
+    bcos::bytes const contractCode = bcos::fromHex(
+        "60006000600060007338463aab77b15481e3303f62ef601d3d5177100e6000f46000553d60015500");
+    auto delegationCode = addressToDelegation(precompileAddress(0x01));
+
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_code(caller, contractCode,
+        state::keccak256Code(bcos::bytesConstRef{contractCode.data(), contractCode.size()}));
+    state.set_code(authority, delegationCode,
+        state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
+    state.set_balance(addressFromLastByte(0x01), 10'000'000'000'000'000ULL);
+
+    evmc_message message{};
+    message.kind = EVMC_CALL;
+    message.gas = 500'000;
+    message.sender = addressFromLastByte(0x01);
+    message.recipient = caller;
+    message.code_address = caller;
+
+    auto input = makeBaseInput(state, message);
+    input.revisionConfig.eip7702 = true;
+    input.revisionConfig.eip7623 = true;
+    input.revisionConfig.eip1559 = true;
+
+    evmc_message delegateMsg{};
+    delegateMsg.kind = EVMC_DELEGATECALL;
+    delegateMsg.flags = EVMC_DELEGATED;
+    delegateMsg.gas = 0;
+    delegateMsg.sender = message.sender;
+    delegateMsg.recipient = caller;
+    delegateMsg.code_address = precompileAddress(0x01);
+    auto const routed = execution::routeFrameMessage(
+        state, input.revisionConfig, delegateMsg, execution::FrameScope::Nested);
+    auto const desc = execution::classifyCallTarget(state, input.revisionConfig, routed.routed,
+        execution::FrameScope::Nested, nullptr, nullptr);
+    BOOST_REQUIRE(desc.route == execution::CallTargetRoute::EmptyAccount);
+
+    auto output = innerExecute(std::move(input));
+    BOOST_REQUIRE_EQUAL(output.result.status_code, EVMC_SUCCESS);
+
+    auto const slot0 = state.get_storage(caller, evmc_bytes32{});
+    evmc_bytes32 expected{};
+    expected.bytes[31] = 1;
+    BOOST_REQUIRE(state::Bytes32Equal{}(slot0, expected));
+}
+
+BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_zero_gas_to_authority_succeeds)
+{
+    auto const authority = addressFromLastByte(0xAA);
+    auto const precompileOne = precompileAddress(0x01);
+    auto const caller = addressFromLastByte(0x02);
+    auto delegationCode = addressToDelegation(precompileOne);
+
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    state.set_code(authority, delegationCode,
+        state::keccak256Code(bcos::bytesConstRef{delegationCode.data(), delegationCode.size()}));
+
+    evmc_message message{};
+    message.kind = EVMC_DELEGATECALL;
+    message.gas = 0;
+    message.sender = addressFromLastByte(0x01);
+    message.recipient = caller;
+    message.code_address = authority;
+
+    auto outcome = runNestedExecutionFrame(state, message);
+    BOOST_REQUIRE(outcome.envelopeComplete);
+    BOOST_REQUIRE_EQUAL(outcome.status, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(outcome.gasLeft, 0);
 }
 
 BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_to_authority_runs_empty_code_not_precompile)
@@ -242,7 +366,7 @@ BOOST_AUTO_TEST_CASE(delegated7702_delegatecall_to_authority_runs_empty_code_not
     message.input_size = inputBytes.size();
 
     auto outcome = runNestedExecutionFrame(state, message);
-    BOOST_REQUIRE(!outcome.envelopeComplete);
+    BOOST_REQUIRE(outcome.envelopeComplete);
     BOOST_REQUIRE_EQUAL(outcome.status, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(outcome.gasLeft, kInputGas);
     BOOST_REQUIRE(outcome.output.empty());

@@ -5,6 +5,16 @@
 #include "bcos-evm/opstack/fee/OpStackPreDebitInputsMapping.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 #include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
+#include "bcos-protocol/TransactionStatus.h"
+#include "bcos-task/Task.h"
+#include "bcos-utilities/Common.h"
+#include "eth/gas/GasSettlementTypes.h"
+#include "eth/kernel/state-transition/StateTransitionContext.h"
+#include "eth/state/BlockInfo.hpp"
+#include "eth/state/State.hpp"
+#include "opstack/settlement/OpStackFeeSidecar.h"
+#include "opstack/settlement/OpStackSettlementProjection.h"
+#include <utility>
 
 namespace bcos::evm
 {

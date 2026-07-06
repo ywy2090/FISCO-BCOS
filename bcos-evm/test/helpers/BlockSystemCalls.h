@@ -20,6 +20,10 @@ inline constexpr evmc_address kSystemSenderAddress{0xff, 0xff, 0xff, 0xff, 0xff,
 inline constexpr evmc_address kBeaconRootsAddress{0x00, 0x0f, 0x3d, 0xf6, 0xd7, 0x32, 0x80, 0x7e,
     0xf1, 0x31, 0x9f, 0xb7, 0xb8, 0xbb, 0x85, 0x22, 0xd0, 0xbe, 0xac, 0x02};
 
+/// EIP-2935 history storage contract (Prague+).
+inline constexpr evmc_address kHistoryStorageAddress{0x00, 0x00, 0xf9, 0x08, 0x27, 0xf1, 0xc5, 0x3a,
+    0x10, 0xcb, 0x7a, 0x02, 0x33, 0x5b, 0x17, 0x53, 0x20, 0x00, 0x29, 0x35};
+
 inline void mergeStateDiffAccount(
     state::Account& merged, state::Account const& patch, bool eraseZeroStorage = true)
 {
@@ -108,6 +112,50 @@ inline state::StateDiff applyCancunBlockSystemCalls(TestStateView& state,
     auto output = task::syncWait(applyEthMessage(std::move(input)));
     auto diff = output.stateDiff;
     // System sender must not persist in block state (geth discards after system call).
+    diff.accounts.erase(kSystemSenderAddress);
+    return diff;
+}
+
+/// Prague block-start system calls (EIP-2935 parent block hash into history storage).
+inline state::StateDiff applyPragueBlockSystemCalls(TestStateView& state,
+    state::BlockInfo const& blockInfo, bcos::evm::RevisionConfig const& revision, evmc::VM& vm,
+    bcos::crypto::Hash& hashImpl)
+{
+    state::StateDiff empty{};
+    if (revision.revision < EVMC_PRAGUE)
+        return empty;
+
+    if (blockInfo.number <= 0)
+        return empty;
+
+    if (!state.get_account(kHistoryStorageAddress).has_value())
+        return empty;
+
+    bcos::bytes const calldata(blockInfo.parentHash.bytes,
+        blockInfo.parentHash.bytes + sizeof(blockInfo.parentHash.bytes));
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.depth = 0;
+    msg.gas = blockInfo.gasLimit > 0 ? blockInfo.gasLimit : 30'000'000;
+    msg.sender = kSystemSenderAddress;
+    msg.recipient = kHistoryStorageAddress;
+    msg.code_address = kHistoryStorageAddress;
+    msg.input_data = calldata.data();
+    msg.input_size = calldata.size();
+
+    EthMessageRequest input{};
+    input.stateView = &state;
+    input.vm = &vm;
+    input.hashImpl = &hashImpl;
+    input.message = msg;
+    input.blockInfo = blockInfo;
+    input.revisionConfig = revision;
+    input.isCall = true;
+    input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
+
+    auto output = task::syncWait(applyEthMessage(std::move(input)));
+    auto diff = output.stateDiff;
     diff.accounts.erase(kSystemSenderAddress);
     return diff;
 }
