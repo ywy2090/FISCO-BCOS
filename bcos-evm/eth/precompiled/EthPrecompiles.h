@@ -23,11 +23,16 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
+#include <cstdint>
 #include <evmc/evmc.hpp>
 #include <optional>
+
+namespace bcos::evm
+{
+struct RevisionConfig;
+}
 
 namespace bcos::evm::precompiled
 {

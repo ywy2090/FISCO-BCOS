@@ -13,13 +13,17 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/core/CallTargetTypes.h"
 #include <evmc/evmc.hpp>
 
 namespace bcos::evm
 {
 struct ChainCallTargetPort;
+struct RevisionConfig;
+}  // namespace bcos::evm
+
+namespace bcos::evm::execution
+{
+struct ClassifiedCallTarget;
 }
 
 namespace bcos::evm::state

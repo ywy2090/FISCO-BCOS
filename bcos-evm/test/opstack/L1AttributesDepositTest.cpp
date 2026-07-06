@@ -14,6 +14,7 @@
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
 #include <fstream>
+#include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::test
 {

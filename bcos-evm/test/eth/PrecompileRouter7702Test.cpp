@@ -14,6 +14,7 @@
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/precompiled/PrecompileRouter.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

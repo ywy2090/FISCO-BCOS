@@ -10,6 +10,7 @@
 
 #define BOOST_TEST_MODULE InsufficientBalanceGasLeftTest
 
+#include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include "helpers/InMemoryStateView.h"
 #include <boost/test/included/unit_test.hpp>

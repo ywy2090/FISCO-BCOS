@@ -1,5 +1,6 @@
 #define BOOST_TEST_MODULE OpStackPreCheck4844Test
 
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"

@@ -10,6 +10,7 @@
 
 #define BOOST_TEST_MODULE PrecompileRouterEnvelopeTest
 
+#include "bcos-evm/eth/state/State.hpp"
 #include "fixtures/EthFrameParityHelpers.h"
 #include <boost/test/included/unit_test.hpp>
 #include <array>

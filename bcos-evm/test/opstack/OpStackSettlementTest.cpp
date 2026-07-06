@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"

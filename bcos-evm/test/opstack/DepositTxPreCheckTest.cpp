@@ -5,6 +5,7 @@
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <boost/test/included/unit_test.hpp>
+#include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::test
 {

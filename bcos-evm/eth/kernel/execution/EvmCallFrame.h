@@ -23,13 +23,13 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
 #include <evmc/evmc.hpp>
 
 namespace bcos::evm
 {
 struct ChainCallTargetPort;
-}
+struct RevisionConfig;
+}  // namespace bcos::evm
 
 namespace bcos::evm::state
 {

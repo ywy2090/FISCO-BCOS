@@ -14,14 +14,14 @@
 
 #pragma once
 
-#include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/settlement/EthSettlementProjection.h"
 #include <bcos-task/Task.h>
 
 namespace bcos::evm
 {
 
 struct EthFeeSettlement;
+struct EthMessageResult;
+struct EthSettlementProjection;
 
 /// Normal Eth tx fee coordinator: buyGas / post-execute metering / refundGas.
 struct EthNormalTxFeeCoordinator

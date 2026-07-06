@@ -1,5 +1,6 @@
 #define BOOST_TEST_MODULE Eip7702PreCheckTest
 
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"

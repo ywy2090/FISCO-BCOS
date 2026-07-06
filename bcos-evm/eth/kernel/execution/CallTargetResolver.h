@@ -23,21 +23,21 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/CallTargetTypes.h"
-#include "bcos-evm/eth/core/EvmHostHooks.h"
 #include <evmc/evmc.h>
 #include <functional>
 
 namespace bcos::evm
 {
 struct ChainCallTargetPort;
-}
+struct RevisionConfig;
+}  // namespace bcos::evm
 
 namespace bcos::evm::state
 {
 class State;
-}
+struct EvmHostHooks;
+}  // namespace bcos::evm::state
 
 namespace bcos::evm::execution
 {

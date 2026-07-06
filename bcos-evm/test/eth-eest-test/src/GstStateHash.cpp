@@ -1,6 +1,7 @@
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include <algorithm>
 #include <array>
 #include <bit>

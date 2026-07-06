@@ -12,13 +12,12 @@
  */
 #pragma once
 
-#include "bcos-evm/eth/core/StateTransitionHooks.h"
-#include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
-
 namespace bcos::evm
 {
 
 class StateTransitionContext;
+struct StateTransitionHooks;
+struct StateTransitionErrorPolicy;
 
 /// Run one top-level state transition: preCheck → intrinsic gas → EVM → result adopt.
 ///

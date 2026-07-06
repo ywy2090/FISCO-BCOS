@@ -4,6 +4,7 @@
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"

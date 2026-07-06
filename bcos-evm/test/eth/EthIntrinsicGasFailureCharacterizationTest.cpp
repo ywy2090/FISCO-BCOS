@@ -16,6 +16,7 @@
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>

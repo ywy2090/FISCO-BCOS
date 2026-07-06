@@ -24,6 +24,7 @@
 #include <boost/test/included/unit_test.hpp>
 #include <array>
 #include <cstring>
+#include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::test
 {

@@ -9,6 +9,7 @@
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/test/included/unit_test.hpp>
+#include "bcos-evm/eth/state/State.hpp"
 
 namespace bcos::evm::test
 {

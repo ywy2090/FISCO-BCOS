@@ -7,6 +7,7 @@
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/InMemoryStateView.h"

@@ -6,6 +6,7 @@
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"

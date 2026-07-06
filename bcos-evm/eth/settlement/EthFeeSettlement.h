@@ -7,12 +7,13 @@
  */
 
 #pragma once
-#include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/eth/settlement/EthSettlementProjection.h"
+#include "bcos-evm/eth/gas/GasSettlementTypes.h"
 #include <bcos-task/Task.h>
 
 namespace bcos::evm
 {
+struct EthSettlementProjection;
+
 struct EthFeeSettlement
 {
     task::Task<bool> buyGas(EthSettlementProjection view);
