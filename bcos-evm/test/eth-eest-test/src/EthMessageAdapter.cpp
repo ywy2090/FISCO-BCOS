@@ -4,11 +4,8 @@
 #include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
-#include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
-#include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
-#include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-task/Wait.h>
@@ -103,44 +100,6 @@ std::vector<SetCodeAuthorization> materializeAuthorizations(
     return authorizations;
 }
 
-void applyGstTransactionSettlement(state::StateDiff& stateDiff,
-    std::vector<std::pair<evmc_address, state::Account>> const& preState, evmc_message const& msg,
-    evmc_address const& coinbase, gas::FeeInputs const& feeInputs, int64_t gasUsed,
-    bcos::u256 blobFee = 0)
-{
-    auto resolveAccount = [&](evmc_address const& address) -> state::Account& {
-        if (auto it = stateDiff.accounts.find(address); it != stateDiff.accounts.end())
-        {
-            return it->second;
-        }
-        for (auto const& [preAddress, preAccount] : preState)
-        {
-            if (state::AddressEqual{}(preAddress, address))
-            {
-                auto [inserted, _] = stateDiff.accounts.emplace(address, preAccount);
-                return inserted->second;
-            }
-        }
-        auto [inserted, _] = stateDiff.accounts.emplace(address, state::Account{});
-        return inserted->second;
-    };
-
-    auto const plan = gas::planPostExecution(feeInputs, gasUsed, 0);
-    auto& sender = resolveAccount(msg.sender);
-
-    bcos::u256 const totalCost = plan.senderNetDebit + blobFee;
-    if (totalCost != 0)
-    {
-        sender.balance = sender.balance > totalCost ? sender.balance - totalCost : 0;
-    }
-
-    if (plan.coinbaseTip != 0)
-    {
-        auto& miner = resolveAccount(coinbase);
-        miner.balance += plan.coinbaseTip;
-    }
-}
-
 }  // namespace
 
 EthMessageAdapter::EthMessageAdapter(
@@ -218,18 +177,13 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
     msg.value = state::toEvmC(tx.value);
     input.message = msg;
 
-    int64_t const gasBefore = msg.gas;
-    auto const web3TypedTxKind = input.web3TypedTxKind;
-    auto const hasExplicitFeeCaps = input.hasExplicitFeeCaps;
-    auto const gasTipCap = input.gasTipCap;
-    auto const gasFeeCap = input.gasFeeCap;
     auto output = co_await applyEthMessage(std::move(input));
 
     ExecutionResult result;
     result.status = output.evmcResult.status_code;
     result.authorizationListPresent =
         input.authorizationListPresent || !input.authorizations.empty();
-    result.gasUsed = gasBefore - output.evmcResult.gas_left;
+    result.gasUsed = output.gasUsed;
     if (output.evmcResult.output_data != nullptr && output.evmcResult.output_size > 0)
     {
         result.output.assign(output.evmcResult.output_data,
@@ -238,51 +192,9 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
     result.stateDiff = std::move(output.stateDiff);
     result.logs = std::move(output.logs);
 
-    int64_t finalGasUsed = result.gasUsed;
-    if (m_profile.revision.eip7623)
-    {
-        auto const& snap = output.gasSettlementSnapshot;
-        if (snap.eip7623SnapshotActive)
-        {
-            finalGasUsed = gas::settleTopLevelTransactionGas(gasBefore, output.evmcResult.gas_left,
-                snap.evmGasRefund, m_profile.revision.calldata_floor_per_token, snap.calldata);
-        }
-        else if (result.status == EVMC_SUCCESS)
-        {
-            finalGasUsed = gas::TX_BASE_GAS + result.gasUsed;
-        }
-    }
-    else if (result.status == EVMC_SUCCESS)
-    {
-        finalGasUsed = gas::TX_BASE_GAS + result.gasUsed;
-    }
-    result.gasUsed = finalGasUsed;
-
     if (result.status != EVMC_SUCCESS)
     {
         result.rejectionReason = std::to_string(static_cast<int>(result.status));
-    }
-
-    if (result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty())
-    {
-        gas::FeeInputs const feeInputs{
-            .revision = m_profile.revision,
-            .baseFee = testCase.env.baseFee,
-            .gasLimit = msg.gas,
-            .gasPrice = tx.gasPrice,
-            .gasTipCap = gasTipCap,
-            .gasFeeCap = gasFeeCap,
-            .web3TypedTxKind = web3TypedTxKind,
-            .hasExplicitFeeCaps = hasExplicitFeeCaps,
-        };
-        bcos::u256 blobFee{0};
-        if (m_profile.revision.eip4844 && !testCase.transaction.blobVersionedHashes.empty())
-        {
-            blobFee = static_cast<bcos::u256>(testCase.transaction.blobVersionedHashes.size()) *
-                      static_cast<bcos::u256>(gas::BLOB_GAS_PER_BLOB) * testCase.env.blobBaseFee;
-        }
-        applyGstTransactionSettlement(result.stateDiff, testCase.preState, msg,
-            testCase.env.coinbase, feeInputs, finalGasUsed, blobFee);
     }
 
     auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty();

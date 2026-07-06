@@ -22,9 +22,10 @@ namespace bcos::evm
 {
 namespace
 {
-/// EIP-7623 settlement needs pre-EVM calldata gas components for refund math.
+/// Post-EVM settlement inputs: EIP-3529 refund always; EIP-7623 calldata floor when active.
 void captureSettlementSnapshot(StateTransitionContext& ctx)
 {
+    ctx.snapshot.evmGasRefund = ctx.evmGasRefund;
     if (ctx.intrinsicGasMode != IntrinsicGasMode::FloorDataGas)
     {
         return;
@@ -33,7 +34,6 @@ void captureSettlementSnapshot(StateTransitionContext& ctx)
     ctx.snapshot.eip7623SnapshotActive = true;
     ctx.snapshot.calldata =
         gas::calcEip7623Components(bytesConstRef(ctx.message.input_data, ctx.message.input_size));
-    ctx.snapshot.evmGasRefund = ctx.evmGasRefund;
 }
 }  // namespace
 

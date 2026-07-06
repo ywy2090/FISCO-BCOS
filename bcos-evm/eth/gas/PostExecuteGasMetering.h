@@ -52,8 +52,9 @@ inline PostExecuteGasResult meterPostExecuteGas(int64_t originalGasLimit,
         }
         else
         {
-            // Pre-7623 or snapshot not captured (IntrinsicGasMode != FloorDataGas).
-            out.gasUsed = originalGasLimit - evmcGasLeft;
+            // Pre-7623: EIP-3529 refund cap still applies (London–Cancun reference path).
+            out.gasUsed = settleTopLevelTransactionGas(
+                originalGasLimit, evmcGasLeft, snapshot.evmGasRefund, 0);
         }
         out.gasRemaining =
             static_cast<uint64_t>(std::max<int64_t>(0, originalGasLimit - out.gasUsed));

@@ -48,6 +48,7 @@ BOOST_AUTO_TEST_CASE(pre_execute_precheck_early_exit)
     EthMessageRequest input;
     input.message = message;
     input.revisionConfig.eip1559 = true;
+    input.web3TypedTxKind = 0x02;
     input.gasTipCap = 3;
     input.gasFeeCap = 2;
     input.blockInfo.baseFee = 1;
@@ -72,7 +73,7 @@ BOOST_AUTO_TEST_CASE(bind_returns_precheck_policy_and_error_policy)
     auto bindings = EthStateTransitionBindings::bind(ctx);
 
     BOOST_CHECK_EQUAL(static_cast<int>(bindings.hooks.getIntrinsicGasParams().mode),
-        static_cast<int>(IntrinsicGasMode::Skip));
+        static_cast<int>(IntrinsicGasMode::OpStack));
 }
 
 }  // namespace bcos::evm::test

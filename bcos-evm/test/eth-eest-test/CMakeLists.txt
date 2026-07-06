@@ -173,8 +173,9 @@ add_executable(EthBlockTransitionTest
     runners/eth/EthBlockTransitionTest.cpp)
 target_include_directories(EthBlockTransitionTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/..)
+find_package(jsoncpp CONFIG REQUIRED)
 target_link_libraries(EthBlockTransitionTest PRIVATE
-    bcos-evm-specs-tests-eth GTest::gtest)
+    bcos-evm-specs-tests-eth GTest::gtest jsoncpp_static)
 
 get_filename_component(ETH_BLOCK_FIXTURES_DIR
     ${CMAKE_CURRENT_SOURCE_DIR}/../fixtures/state

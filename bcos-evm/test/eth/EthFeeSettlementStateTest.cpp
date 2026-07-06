@@ -83,6 +83,29 @@ BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_applies_penalty)
     BOOST_CHECK(ctx.evmcResult.status == protocol::TransactionStatus::NotEnoughCash);
 }
 
+BOOST_AUTO_TEST_CASE(meterPostExecuteGas_cancun_applies_eip3529_refund)
+{
+    evmc_message msg{};
+    msg.gas = 5'000'000;
+    RevisionConfig rev{};
+    rev.revision = EVMC_CANCUN;
+    rev.eip7623 = false;
+    state::test::InMemoryStateView base;
+    StateTransitionContext ctx(base, msg, rev, bcos::u256(1));
+
+    ctx.evmcResult.status_code = EVMC_SUCCESS;
+    ctx.evmcResult.gas_left = 4'951'681;
+    gas::TxGasSettlementContext snap{};
+    snap.evmGasRefund = 4'800;
+
+    auto const out =
+        gas::meterPostExecuteGas(ctx.originalGasLimit, StateTransitionExitKind::Completed,
+            rev.eip7623, rev.calldata_floor_per_token, ctx.evmcResult.gas_left, snap);
+    // peakGasUsed=48319; effectiveRefund=min(4800,48319/5)=4800 → gasUsed=43519
+    BOOST_CHECK_EQUAL(out.gasUsed, 43'519);
+    BOOST_CHECK_EQUAL(out.gasRemaining, 4'956'481u);
+}
+
 BOOST_AUTO_TEST_CASE(meterPostExecuteGas_eip7623_uses_settlement_snapshot)
 {
     evmc_message msg{};

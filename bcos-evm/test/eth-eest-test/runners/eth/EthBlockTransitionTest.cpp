@@ -33,6 +33,15 @@ struct BlockTestFixture
     bcos::evm::reference_tests::GstPostStateView expectedPostState;
 };
 
+std::string normalizeHexAddressKey(std::string const& addrHex)
+{
+    if (addrHex.starts_with("0x") || addrHex.starts_with("0X"))
+    {
+        return addrHex;
+    }
+    return "0x" + addrHex;
+}
+
 // Load a simple block test JSON.
 // Format mirrors a subset of evmone's BlockchainTest:
 // { "pre": {...}, "blocks": [{ "transactions": [...], "expectedPost": {...} }] }
@@ -56,7 +65,7 @@ BlockTestFixture loadBlockTest(fs::path const& path)
         for (auto const& addrHex : j["pre"].getMemberNames())
         {
             auto const& accJson = j["pre"][addrHex];
-            auto addr = bcos::evm::state::parseHexAddress("0x" + addrHex);
+            auto addr = bcos::evm::state::parseHexAddress(normalizeHexAddressKey(addrHex));
             bcos::evm::state::Account acc;
             acc.balance = bcos::fromBigQuantity(accJson.get("balance", "0x0").asString());
             acc.nonce = static_cast<uint64_t>(
@@ -98,7 +107,7 @@ BlockTestFixture loadBlockTest(fs::path const& path)
             for (auto const& addrHex : blk["expectedPost"].getMemberNames())
             {
                 auto const& accJson = blk["expectedPost"][addrHex];
-                auto addr = bcos::evm::state::parseHexAddress("0x" + addrHex);
+                auto addr = bcos::evm::state::parseHexAddress(normalizeHexAddressKey(addrHex));
                 bcos::evm::state::Account acc;
                 acc.balance = bcos::fromBigQuantity(accJson.get("balance", "0x0").asString());
                 acc.nonce = static_cast<uint64_t>(

@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153.basic_tload_works.stateRoot",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_basic_tload_works.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    },
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153.basic_tload_after_store.stateRoot",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore/test_basic_tload_after_store.json",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    }
+  ]
+}

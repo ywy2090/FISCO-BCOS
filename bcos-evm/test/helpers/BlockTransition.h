@@ -6,6 +6,7 @@
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
+#include "helpers/BlockSystemCalls.h"
 #include <bcos-task/Wait.h>
 #include <cstdint>
 #include <span>
@@ -40,12 +41,18 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
     // Accumulated state diff across all transactions
     state::StateDiff accumulatedDiff;
 
-    // Build initial pre-state pairs for StateTestCase construction
+    // Full block pre-state; updated after each tx for sequential execution.
     std::vector<std::pair<evmc_address, state::Account>> preStatePairs;
-    for (auto const& tx : transactions)
+    preStatePairs.reserve(preState.accounts().size());
+    for (auto const& [addr, acc] : preState.accounts())
+        preStatePairs.emplace_back(addr, acc);
+
+    // Cancun+: block-start system calls (EIP-4788) before user transactions.
+    if (profile.revision.revision >= EVMC_CANCUN)
     {
-        if (auto opt = preState.get_account(tx.from))
-            preStatePairs.emplace_back(tx.from, std::move(*opt));
+        auto const sysDiff =
+            applyCancunBlockSystemCalls(preState, blockInfo, profile.revision, vm, hashImpl);
+        mergeStateDiffIntoPairs(preStatePairs, sysDiff);
     }
 
     for (auto const& tx : transactions)
@@ -67,13 +74,7 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
                 "0x" + bcos::toHex(bcos::bytes(tx.to->bytes, tx.to->bytes + sizeof(tx.to->bytes)));
         }
 
-        if (profile.revision.eip1559)
-        {
-            tc.transaction.maxFeePerGas = tx.gasPrice;
-            tc.transaction.maxPriorityFeePerGas = 0;
-        }
-
-        // Pre-state: copy accumulated state pairs
+        // Pre-state: current block state (includes contract code/storage).
         for (auto const& [addr, acc] : preStatePairs)
             tc.preState.emplace_back(addr, acc);
 

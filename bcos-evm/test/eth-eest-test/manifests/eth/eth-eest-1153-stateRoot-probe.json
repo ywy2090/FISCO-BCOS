@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "evidenceId": "eth.eest.cancun.state.eip1153.stateRoot.probe",
+      "sourceSuite": "eest",
+      "casePath": "fixtures/state_tests/cancun/eip1153_tstore",
+      "forkProfileId": "eth-cancun",
+      "path": "Reference",
+      "evidenceKind": "ReferenceParity",
+      "capabilityRowIds": ["eip1153-tstore"],
+      "assertLevels": ["transitional", "expectException", "stateRoot"]
+    }
+  ]
+}

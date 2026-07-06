@@ -36,7 +36,8 @@ namespace bcos::evm
 
 EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input) : m_input(input)
 {
-    m_intrinsicPolicy.mode = IntrinsicGasMode::Skip;
+    // Pre-7623 Eth reference txs debit full intrinsic (base + calldata + access list) before EVM.
+    m_intrinsicPolicy.mode = IntrinsicGasMode::OpStack;
     if (input.revisionConfig.eip7623)
     {
         m_intrinsicPolicy.mode = IntrinsicGasMode::FloorDataGas;
@@ -71,7 +72,8 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
         return;
     }
 
-    if (gas::isEip1559FeeMarketActive(m_input.revisionConfig))
+    if (gas::isEip1559GasCapsTx(
+            m_input.web3TypedTxKind, m_input.hasExplicitFeeCaps, m_input.revisionConfig))
     {
         if (m_input.gasFeeCap < m_input.gasTipCap || m_input.gasFeeCap < m_input.blockInfo.baseFee)
         {
