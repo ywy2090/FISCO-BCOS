@@ -135,6 +135,48 @@ BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_includes_tx_value_in_afford_che
     BOOST_REQUIRE(!okWithValue);
 }
 
+BOOST_AUTO_TEST_CASE(buyGas_rejects_eest_insufficient_blob_tx_exact_balance_minus_1)
+{
+    // EEST exact_balance_minus_1: afford gasFeeCap*gasLimit but not + blobGas*maxFeePerBlobGas.
+    state::test::InMemoryStateView base;
+    auto const gasLimit = int64_t{0x6a40};
+    auto const gasFeeCap = bcos::u256{0x0e};
+    auto const maxBalanceDebit = bcos::u256(gasLimit) * gasFeeCap;
+    auto const blobBalanceCheck = bcos::u256(gas::BLOB_GAS_PER_BLOB) * 1;
+    auto const initialBalance = maxBalanceDebit + blobBalanceCheck - 1;
+    base.insert_account(addr(1), state::Account{.balance = initialBalance});
+
+    evmc_message msg{};
+    msg.sender = addr(1);
+    msg.gas = gasLimit;
+    RevisionConfig rev{};
+    rev.revision = EVMC_CANCUN;
+    rev.eip1559 = true;
+    rev.eip4844 = true;
+    StateTransitionContext ctx(base, msg, rev, bcos::u256(7));
+
+    EthMessageRequest input{};
+    input.revisionConfig = rev;
+    input.blockInfo.baseFee = 7;
+    input.blockInfo.blobBaseFee = 1;
+    input.gasTipCap = 0;
+    input.gasFeeCap = gasFeeCap;
+    input.blobGasFeeCap = 1;
+    input.hasExplicitFeeCaps = true;
+    input.web3TypedTxKind = 0x03;
+    h256 blobHash{};
+    blobHash[0] = 0x01;
+    input.blobVersionedHashes = {blobHash};
+    EthFeeSidecar sidecar;
+    EthSettlementProjection view{ctx, input, sidecar};
+
+    EthFeeSettlement settlement;
+    auto const ok = bcos::task::syncWait(settlement.buyGas(view));
+    BOOST_REQUIRE(!ok);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status_code, EVMC_INSUFFICIENT_BALANCE);
+    BOOST_CHECK_EQUAL(ctx.evmcResult.status, protocol::TransactionStatus::NotEnoughCash);
+}
+
 BOOST_AUTO_TEST_CASE(buyGas_insufficient_balance_applies_penalty)
 {
     state::test::InMemoryStateView base;

@@ -302,4 +302,43 @@ BOOST_AUTO_TEST_CASE(rejects_blob_count_above_cancun_cap)
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
 }
+
+BOOST_AUTO_TEST_CASE(rejects_insufficient_max_fee_per_blob_gas)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x1f);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.eip4844 = true;
+    input.web3TypedTxKind = 0x03;
+    input.blockInfo.blobBaseFee = 2;
+    input.blobGasFeeCap = 1;
+    h256 blobHash{};
+    blobHash[0] = 0x01;
+    input.blobVersionedHashes = {blobHash};
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::InsufficientFunds);
+    BOOST_CHECK_EQUAL(error->status_code, EVMC_INSUFFICIENT_BALANCE);
+}
+
+BOOST_AUTO_TEST_CASE(rejects_invalid_blob_versioned_hash_prefix)
+{
+    state::test::InMemoryStateView stateView;
+    auto const sender = addressFromLastByte(0x20);
+
+    auto input = makeInput(sender);
+    input.revisionConfig.eip4844 = true;
+    input.web3TypedTxKind = 0x03;
+    input.blobGasFeeCap = 1;
+    input.blockInfo.blobBaseFee = 1;
+    h256 invalidVersionHash{};
+    invalidVersionHash[0] = 0x02;
+    input.blobVersionedHashes = {invalidVersionHash};
+
+    auto error = ethPreCheckRulesError(input, stateView);
+    BOOST_REQUIRE(error.has_value());
+    BOOST_CHECK_EQUAL(error->status, protocol::TransactionStatus::Malformed);
+}
 }  // namespace bcos::evm::test
