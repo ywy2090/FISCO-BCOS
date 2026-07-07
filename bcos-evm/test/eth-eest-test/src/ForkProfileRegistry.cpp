@@ -179,6 +179,39 @@ bool matchesForkName(ForkProfile const& profile, std::string_view fork)
         [&](std::string const& alias) { return alias == fork; });
 }
 
+std::optional<std::string_view> upstreamForkFromDirSegment(std::string_view segment)
+{
+    if (segment == "berlin")
+    {
+        return "Berlin";
+    }
+    if (segment == "london")
+    {
+        return "London";
+    }
+    if (segment == "paris" || segment == "merge")
+    {
+        return "Paris";
+    }
+    if (segment == "shanghai")
+    {
+        return "Shanghai";
+    }
+    if (segment == "cancun")
+    {
+        return "Cancun";
+    }
+    if (segment == "prague")
+    {
+        return "Prague";
+    }
+    if (segment == "osaka")
+    {
+        return "Osaka";
+    }
+    return std::nullopt;
+}
+
 }  // namespace
 
 ForkProfileRegistry::ForkProfileRegistry()
@@ -217,6 +250,35 @@ std::optional<ForkProfile> ForkProfileRegistry::findByUpstreamFork(std::string_v
         if (matchesForkName(profile, fork))
         {
             return profile;
+        }
+    }
+    return std::nullopt;
+}
+
+std::vector<std::string_view> ForkProfileRegistry::allProfileIds() const
+{
+    std::vector<std::string_view> ids;
+    ids.reserve(m_profiles.size());
+    for (auto const& profile : m_profiles)
+    {
+        ids.emplace_back(profile.profileId);
+    }
+    return ids;
+}
+
+std::optional<std::string_view> ForkProfileRegistry::profileIdForDirSegment(
+    std::string_view segment) const
+{
+    auto const fork = upstreamForkFromDirSegment(segment);
+    if (!fork.has_value())
+    {
+        return std::nullopt;
+    }
+    for (auto const& profile : m_profiles)
+    {
+        if (matchesForkName(profile, *fork))
+        {
+            return profile.profileId;
         }
     }
     return std::nullopt;

@@ -1,5 +1,7 @@
 #include "bcos-evm/eth-eest-test/EestForkInference.h"
 
+#include "bcos-evm/eth-eest-test/EestStateFullManifest.h"
+
 #include <algorithm>
 
 namespace bcos::evm::reference_tests
@@ -17,8 +19,34 @@ bool profileMatchesFork(ForkProfile const& profile, std::string_view fork)
         [&](std::string const& alias) { return alias == fork; });
 }
 
-std::optional<std::string_view> forkNameFromDirSegment(std::string_view segment)
+std::optional<std::filesystem::path> relativeCaseDir(
+    std::filesystem::path const& file, std::filesystem::path const& stateTestsRoot)
 {
+    std::error_code ec;
+    auto const rel = std::filesystem::relative(file.parent_path(), stateTestsRoot, ec);
+    if (ec || rel.empty() || rel.string().starts_with(".."))
+    {
+        return std::nullopt;
+    }
+    return rel;
+}
+
+std::optional<std::string_view> profileIdFromPathSegment(std::string_view segment)
+{
+    return ForkProfileRegistry::instance().profileIdForDirSegment(segment);
+}
+
+}  // namespace
+
+std::optional<std::string_view> inferUpstreamForkFromPath(
+    std::filesystem::path const& file, std::filesystem::path const& stateTestsRoot)
+{
+    auto const caseDir = relativeCaseDir(file, stateTestsRoot);
+    if (!caseDir.has_value() || caseDir->empty())
+    {
+        return std::nullopt;
+    }
+    auto const segment = caseDir->begin()->string();
     if (segment == "berlin")
     {
         return "Berlin";
@@ -50,42 +78,6 @@ std::optional<std::string_view> forkNameFromDirSegment(std::string_view segment)
     return std::nullopt;
 }
 
-std::optional<std::filesystem::path> relativeCaseDir(
-    std::filesystem::path const& file, std::filesystem::path const& stateTestsRoot)
-{
-    std::error_code ec;
-    auto const rel = std::filesystem::relative(file.parent_path(), stateTestsRoot, ec);
-    if (ec || rel.empty() || rel.string().starts_with(".."))
-    {
-        return std::nullopt;
-    }
-    return rel;
-}
-
-struct ManifestPathOverride
-{
-    std::string_view pathSuffix;
-    std::string_view profileId;
-};
-
-constexpr ManifestPathOverride kManifestPathOverrides[] = {
-    {"prague/eip7623_increase_calldata_cost", "eth-osaka"},
-    {"prague/eip7702_set_code_tx", "eth-osaka"},
-};
-
-}  // namespace
-
-std::optional<std::string_view> inferUpstreamForkFromPath(
-    std::filesystem::path const& file, std::filesystem::path const& stateTestsRoot)
-{
-    auto const caseDir = relativeCaseDir(file, stateTestsRoot);
-    if (!caseDir.has_value() || caseDir->empty())
-    {
-        return std::nullopt;
-    }
-    return forkNameFromDirSegment(caseDir->begin()->string());
-}
-
 std::optional<std::string_view> manifestProfileIdForPath(
     std::filesystem::path const& file, std::filesystem::path const& stateTestsRoot)
 {
@@ -96,32 +88,14 @@ std::optional<std::string_view> manifestProfileIdForPath(
     }
 
     auto const rel = caseDir->generic_string();
-    for (auto const& entry : kManifestPathOverrides)
+    auto const& index = StateFullManifestIndex::instance();
+    if (auto const manifestId = index.profileIdForRelativeDir(rel))
     {
-        if (rel == entry.pathSuffix || rel.starts_with(std::string(entry.pathSuffix) + "/"))
-        {
-            return entry.profileId;
-        }
+        return manifestId;
     }
 
     auto const segment = caseDir->begin()->string();
-    if (segment == "shanghai")
-    {
-        return std::string_view("eth-shanghai");
-    }
-    if (segment == "cancun")
-    {
-        return std::string_view("eth-cancun");
-    }
-    if (segment == "prague")
-    {
-        return std::string_view("eth-prague");
-    }
-    if (segment == "osaka")
-    {
-        return std::string_view("eth-osaka");
-    }
-    return std::nullopt;
+    return profileIdFromPathSegment(segment);
 }
 
 std::vector<ResolvedSubtestRun> resolveRunsForCase(StateTestCase const& test,
@@ -129,8 +103,18 @@ std::vector<ResolvedSubtestRun> resolveRunsForCase(StateTestCase const& test,
     std::vector<ForkProfile> const& profileFilter)
 {
     auto const& registry = ForkProfileRegistry::instance();
+    auto const& manifestIndex = StateFullManifestIndex::instance();
     auto const manifestId = manifestProfileIdForPath(sourceFile, stateTestsRoot);
     std::vector<ResolvedSubtestRun> runs;
+
+    auto const caseRelDir = [&]() -> std::optional<std::string> {
+        auto const caseDir = relativeCaseDir(sourceFile, stateTestsRoot);
+        if (!caseDir.has_value())
+        {
+            return std::nullopt;
+        }
+        return caseDir->generic_string();
+    }();
 
     auto filterCanRunPostFork = [&](std::string_view postForkKey) {
         if (profileFilter.empty())
@@ -147,25 +131,12 @@ std::vector<ResolvedSubtestRun> resolveRunsForCase(StateTestCase const& test,
         return false;
     };
 
-    auto isManifestPathOverride = [&]() {
-        if (!manifestId.has_value())
+    auto isDistinctManifestProfile = [&]() {
+        if (!manifestId.has_value() || !caseRelDir.has_value())
         {
             return false;
         }
-        auto const caseDir = relativeCaseDir(sourceFile, stateTestsRoot);
-        if (!caseDir.has_value())
-        {
-            return false;
-        }
-        auto const rel = caseDir->generic_string();
-        for (auto const& entry : kManifestPathOverrides)
-        {
-            if (rel == entry.pathSuffix || rel.starts_with(std::string(entry.pathSuffix) + "/"))
-            {
-                return true;
-            }
-        }
-        return false;
+        return manifestIndex.isDistinctManifestProfile(*caseRelDir, *manifestId);
     };
 
     auto determineBaseProfile = [&](std::string_view postForkKey) -> std::optional<ForkProfile> {
@@ -186,7 +157,7 @@ std::vector<ResolvedSubtestRun> resolveRunsForCase(StateTestCase const& test,
         {
             if (auto const profile = registry.findByProfileId(*manifestId))
             {
-                if (isManifestPathOverride() || profileMatchesFork(*profile, postForkKey))
+                if (isDistinctManifestProfile() || profileMatchesFork(*profile, postForkKey))
                 {
                     return *profile;
                 }

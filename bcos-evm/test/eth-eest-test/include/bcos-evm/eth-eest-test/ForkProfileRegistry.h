@@ -38,6 +38,12 @@ public:
     std::optional<ForkProfile> findByProfileId(std::string_view id) const;
     std::optional<ForkProfile> findByUpstreamFork(std::string_view fork) const;
 
+    /// All registered profile ids (stable order).
+    std::vector<std::string_view> allProfileIds() const;
+
+    /// Map state_tests top-level dir segment (e.g. "cancun") → profile id.
+    std::optional<std::string_view> profileIdForDirSegment(std::string_view segment) const;
+
     /// Apply postFork policy gates while keeping profile evmc_revision for VM execution.
     ForkProfile resolveExecutionProfile(
         ForkProfile profile, std::optional<std::string> const& postFork) const;

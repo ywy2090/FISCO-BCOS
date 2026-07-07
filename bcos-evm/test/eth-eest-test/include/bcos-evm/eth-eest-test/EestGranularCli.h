@@ -19,7 +19,7 @@ struct EestGranularCliOptions
 /// Parse argv AFTER testing::InitGoogleTest (gtest flags removed).
 EestGranularCliOptions parseEestGranularCliRemaining(int argc, char** argv);
 
-/// Resolve fork profiles; empty profileIds => manifest-16 defaults.
+/// Resolve fork profiles; empty profileIds => defaults from eth-eest-state-full.json.
 std::vector<ForkProfile> buildRunnerConfig(std::vector<std::string> const& profileIds);
 
 }  // namespace bcos::evm::reference_tests

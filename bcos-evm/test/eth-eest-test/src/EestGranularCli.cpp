@@ -1,7 +1,9 @@
 #include "bcos-evm/eth-eest-test/EestGranularCli.h"
 
+#include "bcos-evm/eth-eest-test/EestStateFullManifest.h"
+
 #include <algorithm>
-#include <array>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 
@@ -29,6 +31,37 @@ void splitCommaSeparated(std::string_view list, std::vector<std::string>& out)
     throw std::invalid_argument(std::string(reason) + "\nUsage: " + prog +
                                 " <path> [<path>...] [-k SUBSTR] [--fork-profiles IDS]\n"
                                 "       [--gtest_filter=...]   # standard GTest flags");
+}
+
+std::string joinProfileIds(std::vector<std::string_view> const& ids)
+{
+    std::ostringstream out;
+    for (std::size_t i = 0; i < ids.size(); ++i)
+    {
+        if (i != 0)
+        {
+            out << ", ";
+        }
+        out << ids[i];
+    }
+    return out.str();
+}
+
+[[noreturn]] void throwUnknownProfileIds(std::vector<std::string> const& unknown)
+{
+    auto const& registry = ForkProfileRegistry::instance();
+    std::ostringstream msg;
+    msg << "unknown fork profile id(s): ";
+    for (std::size_t i = 0; i < unknown.size(); ++i)
+    {
+        if (i != 0)
+        {
+            msg << ", ";
+        }
+        msg << unknown[i];
+    }
+    msg << "; known: " << joinProfileIds(registry.allProfileIds());
+    throw std::invalid_argument(msg.str());
 }
 
 }  // namespace
@@ -65,15 +98,12 @@ EestGranularCliOptions parseEestGranularCliRemaining(int argc, char** argv)
 
 std::vector<ForkProfile> buildRunnerConfig(std::vector<std::string> const& profileIds)
 {
-    static constexpr std::array<char const*, 4> kManifest16Profiles = {
-        "eth-shanghai", "eth-cancun", "eth-prague", "eth-osaka"};
-
     std::vector<ForkProfile> profiles;
     auto const& registry = ForkProfileRegistry::instance();
 
     if (profileIds.empty())
     {
-        for (auto const* id : kManifest16Profiles)
+        for (auto const id : StateFullManifestIndex::instance().defaultGranularProfileIds())
         {
             if (auto const profile = registry.findByProfileId(id))
             {
@@ -85,16 +115,30 @@ std::vector<ForkProfile> buildRunnerConfig(std::vector<std::string> const& profi
                 }
             }
         }
+        return profiles;
     }
-    else
+
+    std::vector<std::string> unknown;
+    for (auto const& id : profileIds)
     {
-        for (auto const& id : profileIds)
+        if (auto const profile = registry.findByProfileId(id))
         {
-            if (auto const profile = registry.findByProfileId(id))
+            if (std::ranges::none_of(profiles, [&](ForkProfile const& existing) {
+                    return existing.profileId == profile->profileId;
+                }))
             {
                 profiles.push_back(*profile);
             }
         }
+        else
+        {
+            unknown.push_back(id);
+        }
+    }
+
+    if (!unknown.empty())
+    {
+        throwUnknownProfileIds(unknown);
     }
     return profiles;
 }

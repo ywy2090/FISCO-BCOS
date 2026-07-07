@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE ForkProfileRegistryTest
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include <boost/test/included/unit_test.hpp>
+#include <algorithm>
 
 namespace bcos::evm::reference_tests
 {
@@ -68,6 +69,22 @@ BOOST_AUTO_TEST_CASE(unknown_profile_returns_empty)
 {
     BOOST_CHECK(!ForkProfileRegistry::instance().findByProfileId("eth-unknown").has_value());
     BOOST_CHECK(!ForkProfileRegistry::instance().findByUpstreamFork("Frontier").has_value());
+}
+
+BOOST_AUTO_TEST_CASE(dir_segment_maps_to_profile_id)
+{
+    auto const& reg = ForkProfileRegistry::instance();
+    auto const cancun = reg.profileIdForDirSegment("cancun");
+    BOOST_REQUIRE(cancun.has_value());
+    BOOST_CHECK_EQUAL(*cancun, "eth-cancun");
+    BOOST_CHECK(!reg.profileIdForDirSegment("frontier").has_value());
+}
+
+BOOST_AUTO_TEST_CASE(all_profile_ids_lists_registry)
+{
+    auto const ids = ForkProfileRegistry::instance().allProfileIds();
+    BOOST_REQUIRE_EQUAL(ids.size(), 7u);
+    BOOST_CHECK(std::find(ids.begin(), ids.end(), "eth-osaka") != ids.end());
 }
 
 }  // namespace bcos::evm::reference_tests

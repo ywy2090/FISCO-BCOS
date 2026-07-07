@@ -21,7 +21,7 @@ struct ResolvedSubtestRun
 std::optional<std::string_view> inferUpstreamForkFromPath(
     std::filesystem::path const& file, std::filesystem::path const& stateTestsRoot);
 
-/// Lookup forkProfileId for manifest-16 dirs (prague/eip7623 → eth-osaka).
+/// Lookup forkProfileId from eth-eest-state-full.json (fallback: dir segment → registry).
 std::optional<std::string_view> manifestProfileIdForPath(
     std::filesystem::path const& file, std::filesystem::path const& stateTestsRoot);
 
