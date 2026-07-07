@@ -421,7 +421,7 @@ evmc_bytes32 computeStateRootImpl(GstPostStateView const& postState)
     entries.reserve(postState.accounts.size());
     for (auto const& [address, account] : postState.accounts)
     {
-        if (isEmptyAccount(account))
+        if (postState.eip158ClearEmpty && isEmptyAccount(account))
         {
             continue;
         }
@@ -523,6 +523,7 @@ GstPostStateView buildPostStateView(
     }
 
     GstPostStateView view;
+    view.eip158ClearEmpty = eip158;
     view.accounts.reserve(accounts.size());
     for (auto& [address, account] : accounts)
     {

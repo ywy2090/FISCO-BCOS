@@ -36,6 +36,29 @@ std::optional<std::string_view> profileIdFromPathSegment(std::string_view segmen
     return ForkProfileRegistry::instance().profileIdForDirSegment(segment);
 }
 
+/// WP-HIST posts run without being in manifest default profiles (targeted paths only).
+bool shouldRunWpHistPost(std::string_view postForkKey, std::filesystem::path const& sourceFile)
+{
+    auto const filename = sourceFile.filename().string();
+    if (postForkKey == "Homestead")
+    {
+        if (filename.find("homestead") != std::string::npos)
+        {
+            return true;
+        }
+        return sourceFile.parent_path().filename() == "touch";
+    }
+    if (postForkKey == "Berlin")
+    {
+        if (filename.find("byzantium") != std::string::npos)
+        {
+            return true;
+        }
+        return sourceFile.parent_path().filename() == "touch";
+    }
+    return true;
+}
+
 }  // namespace
 
 std::optional<std::string_view> inferUpstreamForkFromPath(
@@ -47,6 +70,10 @@ std::optional<std::string_view> inferUpstreamForkFromPath(
         return std::nullopt;
     }
     auto const segment = caseDir->begin()->string();
+    if (segment == "homestead")
+    {
+        return "Homestead";
+    }
     if (segment == "berlin")
     {
         return "Berlin";
@@ -117,6 +144,10 @@ std::vector<ResolvedSubtestRun> resolveRunsForCase(StateTestCase const& test,
     }();
 
     auto filterCanRunPostFork = [&](std::string_view postForkKey) {
+        if (!shouldRunWpHistPost(postForkKey, sourceFile))
+        {
+            return false;
+        }
         if (profileFilter.empty())
         {
             return true;

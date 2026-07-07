@@ -14,6 +14,8 @@ namespace bcos::evm::reference_tests
 struct GstPostStateView
 {
     std::vector<std::pair<evmc_address, state::Account>> accounts;
+    /// When true (post-EIP-158), empty accounts are omitted from the state trie root.
+    bool eip158ClearEmpty = true;
 };
 
 GstPostStateView buildPostStateView(

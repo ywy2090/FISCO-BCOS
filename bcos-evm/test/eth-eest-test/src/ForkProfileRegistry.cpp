@@ -71,6 +71,20 @@ PathProfile referenceParityProfile()
     return profile;
 }
 
+ForkProfile makeHomesteadProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_HOMESTEAD);
+    ForkProfile profile;
+    profile.profileId = "eth-homestead";
+    profile.canonicalName = "Ethereum Homestead";
+    profile.aliases = {"Homestead"};
+    profile.upstreamForkName = "Homestead";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
 ForkProfile makeBerlinProfile()
 {
     auto const revision = makeReferenceRevisionConfig(EVMC_BERLIN);
@@ -181,6 +195,10 @@ bool matchesForkName(ForkProfile const& profile, std::string_view fork)
 
 std::optional<std::string_view> upstreamForkFromDirSegment(std::string_view segment)
 {
+    if (segment == "homestead")
+    {
+        return "Homestead";
+    }
     if (segment == "berlin")
     {
         return "Berlin";
@@ -216,6 +234,7 @@ std::optional<std::string_view> upstreamForkFromDirSegment(std::string_view segm
 
 ForkProfileRegistry::ForkProfileRegistry()
 {
+    m_profiles.push_back(makeHomesteadProfile());
     m_profiles.push_back(makeBerlinProfile());
     m_profiles.push_back(makeLondonProfile());
     m_profiles.push_back(makeParisProfile());

@@ -210,8 +210,9 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
     }
 
     auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty();
+    auto const eip158 = m_profile.revision.revision >= EVMC_SPURIOUS_DRAGON;
     auto const postState = buildPostStateView(
-        testCase.preState, result.stateDiff, applyDiff, testCase.env.coinbase, true);
+        testCase.preState, result.stateDiff, applyDiff, testCase.env.coinbase, eip158);
     result.stateRoot = computeStateRoot(postState);
     result.logsHash = computeLogsHash(result.logs);
 

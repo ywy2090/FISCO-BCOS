@@ -3,6 +3,7 @@
 #include "bcos-evm/eth-eest-test/EestStateFullManifest.h"
 
 #include <algorithm>
+#include <array>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -64,6 +65,26 @@ std::string joinProfileIds(std::vector<std::string_view> const& ids)
     throw std::invalid_argument(msg.str());
 }
 
+/// WP-HIST profiles appended to manifest defaults for granular full-tree runs.
+static constexpr std::array<char const*, 2> kGranularHistoricalProfileIds = {
+    "eth-homestead",
+    "eth-berlin",
+};
+
+void appendProfileIdIfKnown(
+    std::vector<ForkProfile>& profiles, ForkProfileRegistry const& registry, std::string_view id)
+{
+    if (auto const profile = registry.findByProfileId(id))
+    {
+        if (std::ranges::none_of(profiles, [&](ForkProfile const& existing) {
+                return existing.profileId == profile->profileId;
+            }))
+        {
+            profiles.push_back(*profile);
+        }
+    }
+}
+
 }  // namespace
 
 EestGranularCliOptions parseEestGranularCliRemaining(int argc, char** argv)
@@ -105,15 +126,11 @@ std::vector<ForkProfile> buildRunnerConfig(std::vector<std::string> const& profi
     {
         for (auto const id : StateFullManifestIndex::instance().defaultGranularProfileIds())
         {
-            if (auto const profile = registry.findByProfileId(id))
-            {
-                if (std::ranges::none_of(profiles, [&](ForkProfile const& existing) {
-                        return existing.profileId == profile->profileId;
-                    }))
-                {
-                    profiles.push_back(*profile);
-                }
-            }
+            appendProfileIdIfKnown(profiles, registry, id);
+        }
+        for (auto const id : kGranularHistoricalProfileIds)
+        {
+            appendProfileIdIfKnown(profiles, registry, id);
         }
         return profiles;
     }

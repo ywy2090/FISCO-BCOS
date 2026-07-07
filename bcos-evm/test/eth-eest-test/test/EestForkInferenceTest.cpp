@@ -1,8 +1,10 @@
 #define BOOST_TEST_MODULE EestForkInferenceTest
 #include "bcos-evm/eth-eest-test/EestForkInference.h"
+#include "bcos-evm/eth-eest-test/EestGranularCli.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include <boost/test/included/unit_test.hpp>
 #include <filesystem>
+#include <ranges>
 
 namespace fs = std::filesystem;
 
@@ -75,6 +77,36 @@ BOOST_AUTO_TEST_CASE(resolve_runs_skips_non_matching_fork_with_single_profile_fi
     std::vector<ForkProfile> filter = {*cancun};
 
     auto const runs = resolveRunsForCase(tc, file, root, filter);
+    BOOST_CHECK(runs.empty());
+}
+
+BOOST_AUTO_TEST_CASE(resolve_runs_homestead_post_on_homestead_fixture_path)
+{
+    StateTestCase tc;
+    tc.name = "homestead_fixture";
+    tc.postByFork.emplace("Homestead", std::vector<ExpectedPostState>{});
+
+    fs::path root = "/fixtures/state_tests";
+    fs::path file = root / "frontier/opcodes/test_value_transfer_gas_calculation_homestead.json";
+
+    auto const profiles = buildRunnerConfig({});
+    auto const runs = resolveRunsForCase(tc, file, root, profiles);
+    BOOST_REQUIRE(!runs.empty());
+    BOOST_CHECK_EQUAL(runs.front().postForkKey, "Homestead");
+    BOOST_CHECK_EQUAL(runs.front().executionProfile.profileId, "eth-homestead");
+}
+
+BOOST_AUTO_TEST_CASE(resolve_runs_skips_berlin_post_on_unlisted_frontier_opcode)
+{
+    StateTestCase tc;
+    tc.name = "all_opcodes";
+    tc.postByFork.emplace("Berlin", std::vector<ExpectedPostState>{});
+
+    fs::path root = "/fixtures/state_tests";
+    fs::path file = root / "frontier/opcodes/test_all_opcodes.json";
+
+    auto const profiles = buildRunnerConfig({});
+    auto const runs = resolveRunsForCase(tc, file, root, profiles);
     BOOST_CHECK(runs.empty());
 }
 
