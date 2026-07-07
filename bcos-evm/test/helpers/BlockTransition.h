@@ -12,6 +12,7 @@
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/BlockSystemCalls.h"
 #include "helpers/BlockValidation.h"
+#include "helpers/BloomFilter.hpp"
 #include <bcos-task/Wait.h>
 #include <cstdint>
 #include <optional>
@@ -200,10 +201,16 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         receipt.topLevelIncludedTxVmError = execResult.topLevelIncludedTxVmError;
         receipt.exitKind = execResult.exitKind;
         receipt.gasUsed = execResult.gasUsed;
+        receipt.logs = execResult.logs;
         if (!execResult.logs.empty())
             receipt.log = execResult.logs.front();
+        receipt.bloom = state::computeLogsBloom(execResult.logs);
         result.receipts.push_back(std::move(receipt));
     }
+
+    result.bloom.assign(state::LOGS_BLOOM_BYTES, 0);
+    for (auto const& rc : result.receipts)
+        state::bloomOr(result.bloom, rc.bloom);
 
     if (profile.revision.revision >= EVMC_CANCUN)
     {

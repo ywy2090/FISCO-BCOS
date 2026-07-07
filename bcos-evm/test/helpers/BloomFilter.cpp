@@ -18,38 +18,5 @@
 
 #include "helpers/BloomFilter.hpp"
 
-namespace bcos::evm::state
-{
-namespace
-{
-constexpr size_t BLOOM_BITS = BloomFilter::BLOOM_BYTES * 8;
-
-size_t bloomBitFromWord(uint16_t word) noexcept
-{
-    return static_cast<size_t>(word & 0x07ff);  // 2048 bits
-}
-}  // namespace
-
-void BloomFilter::add(const evmc_bytes32& value) noexcept
-{
-    // Skeleton bloom mapping: take 3x16-bit windows from the 32-byte payload.
-    for (size_t i = 0; i < 3; ++i)
-    {
-        auto const offset = i * 2;
-        auto const word =
-            static_cast<uint16_t>((value.bytes[offset] << 8) | value.bytes[offset + 1]);
-        auto const bit = bloomBitFromWord(word);
-        auto const byteIndex = (BLOOM_BITS - 1 - bit) / 8;
-        auto const bitInByte = bit % 8;
-        m_bits[byteIndex] = static_cast<uint8_t>(m_bits[byteIndex] | (1U << bitInByte));
-    }
-}
-
-void BloomFilter::merge(const BloomFilter& other) noexcept
-{
-    for (size_t i = 0; i < BLOOM_BYTES; ++i)
-    {
-        m_bits[i] = static_cast<uint8_t>(m_bits[i] | other.m_bits[i]);
-    }
-}
-}  // namespace bcos::evm::state
+// BloomFilter helpers are header-only; this translation unit retains linkage for
+// bcos-evm-test-state.

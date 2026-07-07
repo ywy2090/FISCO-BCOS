@@ -10,6 +10,7 @@
 #include "bcos-crypto/hash/Keccak256.h"
 #include "helpers/BlockTransition.h"
 #include "helpers/BlockValidation.h"
+#include "helpers/BloomFilter.hpp"
 #include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -391,6 +392,61 @@ TEST(ApplyEthBlockRejected, UnderfundedTxRejectedAndNoStateChange)
 
     BlobParams const blobParams = blobParamsFor({}, profile->upstreamForkName);
     EXPECT_EQ(result.blobGasLeft, maxBlobGasPerBlock(blobParams));
+}
+
+TEST(ApplyEthBlockLogsBloom, SingleLogTxProducesNonZeroBloom)
+{
+    using namespace bcos::evm::reference_tests;
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    auto const profile = ForkProfileRegistry::instance().findByProfileId("eth-cancun");
+    ASSERT_TRUE(profile.has_value());
+
+    TestStateView preState;
+    auto const sender =
+        bcos::evm::state::parseHexAddress("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b");
+    auto const contract =
+        bcos::evm::state::parseHexAddress("0x095e7baea6a6c7c4c2dfeb977efac326af552d87");
+    // PUSH1 0 PUSH1 0 LOG0 STOP — emits one empty LOG0 from contract address.
+    auto const logCode = bcos::fromHex("60006000a000");
+    preState.insertAccount(
+        sender, bcos::evm::state::Account{
+                    .balance = bcos::fromBigQuantity("0x0de0b6b3a7640000"), .nonce = 0});
+    preState.insertAccount(contract, bcos::evm::state::Account{.code = logCode});
+
+    bcos::evm::state::BlockInfo blockInfo;
+    blockInfo.coinbase =
+        bcos::evm::state::parseHexAddress("0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba");
+    blockInfo.gasLimit = 30'000'000;
+    blockInfo.number = 1;
+    blockInfo.timestamp = 1;
+    blockInfo.baseFee = 7;
+
+    bcos::evm::state::Transaction tx;
+    tx.from = sender;
+    tx.to = contract;
+    tx.value = 0;
+    tx.gasLimit = 200'000;
+    tx.gasPrice = 10;
+    tx.nonce = 0;
+
+    std::vector<GstTransactionTemplate> transactions{gstTransactionTemplateFromSimple(tx)};
+
+    auto const result = applyEthBlock(preState, transactions, blockInfo, *profile, vm, hashImpl);
+
+    ASSERT_EQ(result.receipts.size(), 1u);
+    EXPECT_FALSE(result.receipts.front().logs.empty());
+    EXPECT_EQ(result.receipts.front().bloom.size(), bcos::evm::state::LOGS_BLOOM_BYTES);
+    EXPECT_EQ(result.receipts.front().bloom,
+        bcos::evm::state::computeLogsBloom(result.receipts.front().logs));
+
+    EXPECT_EQ(result.bloom.size(), bcos::evm::state::LOGS_BLOOM_BYTES);
+    EXPECT_EQ(result.bloom, result.receipts.front().bloom);
+
+    auto const allZero =
+        std::all_of(result.bloom.begin(), result.bloom.end(), [](bcos::byte b) { return b == 0; });
+    EXPECT_FALSE(allZero) << "block logs bloom must be non-zero when logs exist";
 }
 
 int main(int argc, char** argv)
