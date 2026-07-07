@@ -9,6 +9,7 @@
 
 #include "bcos-crypto/hash/Keccak256.h"
 #include "helpers/BlockTransition.h"
+#include "helpers/BlockValidation.h"
 #include <bcos-protocol/TransactionStatus.h>
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -26,20 +27,6 @@ namespace fs = std::filesystem;
 
 namespace
 {
-
-/// ADR-028 proposed gate — entry failures geth rejects before inclusion.
-inline bool isConsensusRejectedExitKind(bcos::evm::StateTransitionExitKind exitKind) noexcept
-{
-    switch (exitKind)
-    {
-    case bcos::evm::StateTransitionExitKind::RulesRejected:
-    case bcos::evm::StateTransitionExitKind::GasAffordRejected:
-    case bcos::evm::StateTransitionExitKind::IntrinsicRejected:
-        return true;
-    default:
-        return false;
-    }
-}
 
 struct ExpectedBlockReceipt
 {
@@ -222,23 +209,24 @@ void assertReceiptMatches(ExpectedBlockReceipt const& expected,
     EXPECT_EQ(actual.receiptStatus, expected.receiptStatus) << "receipt TransactionStatus mismatch";
     EXPECT_EQ(actual.topLevelIncludedTxVmError, expected.includedTxVmError)
         << "topLevelIncludedTxVmError mismatch";
-    EXPECT_EQ(isConsensusRejectedExitKind(actual.exitKind), expected.consensusRejected)
+    EXPECT_EQ(bcos::evm::reference_tests::isConsensusRejectedExitKind(actual.exitKind),
+        expected.consensusRejected)
         << "consensusRejected / exitKind mismatch";
 
     if (expected.adr028ExpectNoReceipt)
     {
         // CURRENT_ORACLE (pre ADR-028): orchestration still materializes a receipt trace payload.
         // GETH_ORACLE / ADR-028: TE Finalize returns nullptr — flip receipt-count assert then.
-        EXPECT_TRUE(isConsensusRejectedExitKind(actual.exitKind))
+        EXPECT_TRUE(bcos::evm::reference_tests::isConsensusRejectedExitKind(actual.exitKind))
             << "ADR-028 oracle expects IntrinsicRejected/GasAffordRejected/RulesRejected exitKind";
     }
     else if (expected.consensusRejected)
     {
-        EXPECT_TRUE(isConsensusRejectedExitKind(actual.exitKind));
+        EXPECT_TRUE(bcos::evm::reference_tests::isConsensusRejectedExitKind(actual.exitKind));
     }
     else
     {
-        EXPECT_FALSE(isConsensusRejectedExitKind(actual.exitKind))
+        EXPECT_FALSE(bcos::evm::reference_tests::isConsensusRejectedExitKind(actual.exitKind))
             << "included execution should not be consensus-rejected";
     }
 }
@@ -349,6 +337,61 @@ public:
 };
 
 }  // namespace
+
+TEST(ApplyEthBlockRejected, UnderfundedTxRejectedAndNoStateChange)
+{
+    using namespace bcos::evm::reference_tests;
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    auto const profile = ForkProfileRegistry::instance().findByProfileId("eth-cancun");
+    ASSERT_TRUE(profile.has_value());
+
+    TestStateView preState;
+    auto const sender =
+        bcos::evm::state::parseHexAddress("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b");
+    auto const recipient =
+        bcos::evm::state::parseHexAddress("0x095e7baea6a6c7c4c2dfeb977efac326af552d87");
+    preState.insertAccount(sender, bcos::evm::state::Account{.balance = 1, .nonce = 0});
+    preState.insertAccount(recipient, bcos::evm::state::Account{.balance = 0, .nonce = 0});
+
+    bcos::evm::state::BlockInfo blockInfo;
+    blockInfo.coinbase =
+        bcos::evm::state::parseHexAddress("0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba");
+    blockInfo.gasLimit = 30'000'000;
+    blockInfo.number = 1;
+    blockInfo.timestamp = 1;
+    blockInfo.baseFee = 7;
+
+    bcos::evm::state::Transaction tx;
+    tx.from = sender;
+    tx.to = recipient;
+    tx.value = 0;
+    tx.gasLimit = 200'000;
+    tx.gasPrice = 10;
+    tx.nonce = 0;
+
+    std::vector<GstTransactionTemplate> transactions{gstTransactionTemplateFromSimple(tx)};
+
+    auto const result = applyEthBlock(preState, transactions, blockInfo, *profile, vm, hashImpl);
+
+    ASSERT_EQ(result.rejected.size(), 1u);
+    EXPECT_EQ(result.rejected.front(), 0u);
+    EXPECT_TRUE(
+        bcos::evm::reference_tests::isBlockTxRejected(bcos::evm::reference_tests::ExecutionResult{
+            .status = result.receipts.front().settlementStatus,
+            .receiptStatus = result.receipts.front().receiptStatus,
+            .exitKind = result.receipts.front().exitKind,
+        }));
+
+    auto const senderAfter = result.postState.get_account(sender);
+    ASSERT_TRUE(senderAfter.has_value());
+    EXPECT_EQ(senderAfter->balance, 1u);
+    EXPECT_EQ(senderAfter->nonce, 0u);
+
+    BlobParams const blobParams = blobParamsFor({}, profile->upstreamForkName);
+    EXPECT_EQ(result.blobGasLeft, maxBlobGasPerBlock(blobParams));
+}
 
 int main(int argc, char** argv)
 {

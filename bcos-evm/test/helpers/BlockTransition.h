@@ -11,6 +11,7 @@
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-protocol/TransactionStatus.h"
 #include "helpers/BlockSystemCalls.h"
+#include "helpers/BlockValidation.h"
 #include <bcos-task/Wait.h>
 #include <cstdint>
 #include <optional>
@@ -20,6 +21,30 @@
 
 namespace bcos::evm::reference_tests
 {
+
+inline bool isConsensusRejectedExitKind(StateTransitionExitKind exitKind) noexcept
+{
+    switch (exitKind)
+    {
+    case StateTransitionExitKind::RulesRejected:
+    case StateTransitionExitKind::GasAffordRejected:
+    case StateTransitionExitKind::IntrinsicRejected:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/// Block-level tx rejection (spec §8.2 Level 2): consensus entry rejects plus buyGas abort
+/// before stateTransitionExecute (ApplyEthMessage early return leaves exitKind=None).
+inline bool isBlockTxRejected(ExecutionResult const& execResult) noexcept
+{
+    if (isConsensusRejectedExitKind(execResult.exitKind))
+        return true;
+    return execResult.exitKind == StateTransitionExitKind::None &&
+           execResult.status == EVMC_INSUFFICIENT_BALANCE &&
+           execResult.receiptStatus == protocol::TransactionStatus::NotEnoughCash;
+}
 
 struct TransactionReceipt
 {
@@ -85,8 +110,11 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         mergeStateDiffIntoPairs(preStatePairs, sysDiff);
     }
 
-    for (auto const& tmpl : transactions)
+    uint64_t blobGasConsumed = 0;
+
+    for (size_t txIndex = 0; txIndex < transactions.size(); ++txIndex)
     {
+        auto const& tmpl = transactions[txIndex];
         StateTestCase tc;
         tc.env = blockInfo;
         tc.transaction = tmpl;
@@ -107,58 +135,67 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
             adapter.setBlockHashes(blockHashes);
         auto execResult = task::syncWait(adapter.execute(tc, st));
 
-        result.gasUsed += execResult.gasUsed;
-
-        // Accumulate diff
-        for (auto const& [addr, acc] : execResult.stateDiff.accounts)
+        bool const consensusRejected = isBlockTxRejected(execResult);
+        if (consensusRejected)
+            result.rejected.push_back(txIndex);
+        else
         {
-            auto& merged = accumulatedDiff.accounts[addr];
-            merged.nonce = acc.nonce;
-            merged.balance = acc.balance;
-            if (!acc.code.empty())
-                merged.code = acc.code;
-            merged.codeHash = acc.codeHash;
-            for (auto const& [slot, value] : acc.storage)
-            {
-                if (state::isZeroBytes32(value))
-                    merged.storage.erase(slot);
-                else
-                    merged.storage[slot] = value;
-            }
-        }
+            result.gasUsed += execResult.gasUsed;
+            blobGasConsumed +=
+                static_cast<uint64_t>(tmpl.blobVersionedHashes.size()) * GAS_PER_BLOB;
 
-        // Propagate state diff into preStatePairs so the next transaction
-        // sees this transaction's balance/nonce/storage mutations.
-        for (auto const& [addr, acc] : execResult.stateDiff.accounts)
-        {
-            bool found = false;
-            for (auto& [pAddr, pAcc] : preStatePairs)
+            // Accumulate diff
+            for (auto const& [addr, acc] : execResult.stateDiff.accounts)
             {
-                if (state::AddressEqual{}(pAddr, addr))
+                auto& merged = accumulatedDiff.accounts[addr];
+                merged.nonce = acc.nonce;
+                merged.balance = acc.balance;
+                if (!acc.code.empty())
+                    merged.code = acc.code;
+                merged.codeHash = acc.codeHash;
+                for (auto const& [slot, value] : acc.storage)
                 {
-                    pAcc.nonce = acc.nonce;
-                    pAcc.balance = acc.balance;
-                    if (!acc.code.empty())
-                        pAcc.code = acc.code;
-                    pAcc.codeHash = acc.codeHash;
-                    for (auto const& [slot, value] : acc.storage)
-                    {
-                        if (state::isZeroBytes32(value))
-                            pAcc.storage.erase(slot);
-                        else
-                            pAcc.storage[slot] = value;
-                    }
-                    found = true;
-                    break;
+                    if (state::isZeroBytes32(value))
+                        merged.storage.erase(slot);
+                    else
+                        merged.storage[slot] = value;
                 }
             }
-            if (!found)
-                preStatePairs.emplace_back(addr, acc);
+
+            // Propagate state diff into preStatePairs so the next transaction
+            // sees this transaction's balance/nonce/storage mutations.
+            for (auto const& [addr, acc] : execResult.stateDiff.accounts)
+            {
+                bool found = false;
+                for (auto& [pAddr, pAcc] : preStatePairs)
+                {
+                    if (state::AddressEqual{}(pAddr, addr))
+                    {
+                        pAcc.nonce = acc.nonce;
+                        pAcc.balance = acc.balance;
+                        if (!acc.code.empty())
+                            pAcc.code = acc.code;
+                        pAcc.codeHash = acc.codeHash;
+                        for (auto const& [slot, value] : acc.storage)
+                        {
+                            if (state::isZeroBytes32(value))
+                                pAcc.storage.erase(slot);
+                            else
+                                pAcc.storage[slot] = value;
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    preStatePairs.emplace_back(addr, acc);
+            }
         }
 
         // Collect receipt (settlement vs receipt status split mirrors ADR-015 / Gap 40).
         TransactionReceipt receipt;
         receipt.settlementStatus = execResult.status;
+        receipt.status = execResult.status;
         receipt.receiptStatus = execResult.receiptStatus;
         receipt.topLevelIncludedTxVmError = execResult.topLevelIncludedTxVmError;
         receipt.exitKind = execResult.exitKind;
@@ -166,6 +203,12 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         if (!execResult.logs.empty())
             receipt.log = execResult.logs.front();
         result.receipts.push_back(std::move(receipt));
+    }
+
+    if (profile.revision.revision >= EVMC_CANCUN)
+    {
+        BlobParams const blobParams = blobParamsFor({}, profile.upstreamForkName);
+        result.blobGasLeft = maxBlobGasPerBlock(blobParams) - blobGasConsumed;
     }
 
     // Build post-state from pre-state + accumulated diff
