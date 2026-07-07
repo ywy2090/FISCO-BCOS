@@ -6,7 +6,7 @@
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
-#include "bcos-framework/executor/OpStackTxType.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -63,7 +63,7 @@ void seedJovianL1Block(state::test::InMemoryStateView& stateView, evmc::VM& vm, 
     in.gasTipCap = 1;
     in.gasFeeCap = 1;
     in.forkSchedule = makeJovianPlusForkSchedule();
-    in.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    in.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     in.depositTx =
         OpStackDepositTx{.from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
     auto out = task::syncWait(applyOpStackMessage(in));

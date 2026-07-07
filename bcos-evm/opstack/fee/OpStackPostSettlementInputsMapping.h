@@ -5,6 +5,8 @@
  * @brief Maps OpStackSettlementProjection + OpStackTxFinalizeResult into
  * OpStackPostSettlementInputs.
  * @file OpStackPostSettlementInputsMapping.h
+ *
+ * Carries l1CostCharged and operatorCostLimit from buyGas sidecar into post-settlement plan.
  */
 
 #pragma once

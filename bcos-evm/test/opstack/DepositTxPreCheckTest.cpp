@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE DepositTxPreCheckTest
 
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-framework/executor/OpStackTxType.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <boost/test/included/unit_test.hpp>
@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(system_deposit_is_rejected)
     auto const sender = addressFromLastByte(0x01);
     state::State state(stateView);
     auto input = makeInput(sender);
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
 
     auto error = runOpStackEntryLifecycleCheck(input, stateView);
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(deposit_skips_nonce_and_fee_checks)
 
     state::State state(stateView);
     auto input = makeInput(sender);
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{};
     input.nonce = 1;
     input.gasTipCap = 100;

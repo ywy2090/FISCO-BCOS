@@ -19,6 +19,7 @@
  * @date 2021-05-11
  */
 #include "TxValidator.h"
+#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/vm/VMInstance.h"
@@ -292,7 +293,7 @@ task::Task<protocol::TransactionStatus> TxValidator::validateChainId(
 
 namespace
 {
-int64_t web3Eip7623GasLimitMinimum(protocol::Transaction const& tx)
+int64_t web3Eip7623GasLimitMinimum(protocol::Transaction const& tx, bool eip3860)
 {
     evmc_message msg{};
     msg.kind = tx.to().empty() ? EVMC_CREATE : EVMC_CALL;
@@ -302,8 +303,8 @@ int64_t web3Eip7623GasLimitMinimum(protocol::Transaction const& tx)
     auto const resolved = executor::resolveWeb3AccessList(tx);
     bcos::evm::Eip2930AccessList const* accessListPtr =
         resolved.accessList ? resolved.accessList.get() : nullptr;
-    auto const intrinsic =
-        bcos::evm::gas::computeTxIntrinsicGas(msg, accessListPtr, resolved.web3TypedTxKind);
+    auto const intrinsic = bcos::evm::gas::computeTxIntrinsicGas(
+        msg, accessListPtr, resolved.web3TypedTxKind, eip3860);
     return intrinsic.gasLimitMinimum();
 }
 }  // namespace
@@ -329,7 +330,8 @@ task::Task<protocol::TransactionStatus> TxValidator::validateEip7623GasFloor(
     {
         co_return TransactionStatus::None;
     }
-    auto const minGas = web3Eip7623GasLimitMinimum(_tx);
+    auto const minGas =
+        web3Eip7623GasLimitMinimum(_tx, bcos::evm::revisionConfigFromRevision(revision).eip3860);
     if (static_cast<int64_t>(_tx.gasLimit()) < minGas)
     {
         TX_VALIDATOR_CHECKER_LOG(TRACE)

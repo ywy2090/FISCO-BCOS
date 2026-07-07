@@ -4,7 +4,7 @@
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
-#include "bcos-framework/executor/OpStackTxType.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -73,7 +73,7 @@ OpStackMessageRequest makeDepositInput(state::test::InMemoryStateView& stateView
     input.blockInfo.baseFee = 1;
     input.blockInfo.coinbase = addressFromLastByte(0x99);
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{
         .from = sender, .to = recipient, .mint = u256(100), .value = 0, .gas = 50'000};
     return input;

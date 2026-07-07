@@ -39,5 +39,13 @@ BOOST_AUTO_TEST_CASE(legacy_when_no_typed_fields)
     BOOST_CHECK_EQUAL(inferWeb3TypedTxKindFromFields(false, false, false, false, false, false), 0);
 }
 
+BOOST_AUTO_TEST_CASE(opstack_deposit_supported_on_any_revision)
+{
+    bcos::evm::RevisionConfig london{};
+    london.revision = EVMC_LONDON;
+    BOOST_CHECK(isTypedTxKindSupportedByRevision(
+        toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit), london));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace bcos::evm::test

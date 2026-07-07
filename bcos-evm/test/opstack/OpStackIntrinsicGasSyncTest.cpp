@@ -2,11 +2,11 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/gas/ProtocolGas.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(apply_op_stack_message_records_gas_at_evm_entry)
     input.vm = &vm;
     input.hashImpl = &hash;
     input.message = message;
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{.from = sender, .to = recipient, .gas = 100'000};
     input.skipTransactionChecks = true;
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();

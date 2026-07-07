@@ -9,11 +9,11 @@
 #include "../bcos-transaction-executor/OpStackTxInputBuilder.h"
 #include "TestMemoryStorage.h"
 #include "bcos-codec/rlp/RLPEncode.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/types/OpStackBlockHeaderExtension.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/protocol/Protocol.h"
@@ -165,7 +165,7 @@ bytes buildDepositExtra(evmc_address const& from, evmc_address const& to, u256 m
         payload, sourceHashRaw, fromRaw, toRaw, mintData, valueData, gas, bytes{0x00}, calldata);
 
     bytes extra;
-    extra.push_back(bcos::executor::DEPOSIT_TX_TYPE);
+    extra.push_back(toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit));
     extra.insert(extra.end(), payload.begin(), payload.end());
     return extra;
 }
@@ -226,7 +226,7 @@ std::shared_ptr<bcostars::protocol::TransactionImpl> makeDepositTx(
     BOOST_REQUIRE(impl);
     impl->mutableInner().type =
         static_cast<tars::Char>(bcos::protocol::TransactionType::Web3Transaction);
-    impl->mutableInner().web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    impl->mutableInner().web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     impl->mutableInner().extraTransactionBytes.assign(extra.begin(), extra.end());
     return impl;
 }

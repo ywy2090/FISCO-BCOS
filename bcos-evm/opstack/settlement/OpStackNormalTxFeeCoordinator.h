@@ -9,6 +9,9 @@
  *   buyGas → stateTransitionExecute → completeAfterPipeline
  *        (debit)      (EVM)              (commit + refund + receipt meta)
  *
+ * Receipt meta projection (l1Fee, operatorFee, daFootprint) is delegated to
+ * opstack/fee/OpStackReceiptMetaProjection.h.
+ *
  * Deposit txs bypass this coordinator and use settleDeposit directly.
  */
 

@@ -28,6 +28,7 @@ namespace bcos::evm
 {
 
 /// EIP-2718 typed transaction envelope byte (0 = legacy RLP without type prefix).
+/// OpStackDeposit (0x7E) is OP Stack Bedrock L1→L2 deposit (op-geth DepositTxType).
 enum class Web3TypedTxKind : uint8_t
 {
     Legacy = 0x00,
@@ -35,12 +36,15 @@ enum class Web3TypedTxKind : uint8_t
     EIP1559 = 0x02,
     EIP4844 = 0x03,
     EIP7702 = 0x04,
+    OpStackDeposit = 0x7E,
 };
 
 inline constexpr uint8_t toWeb3TypedTxKindValue(Web3TypedTxKind kind) noexcept
 {
     return static_cast<uint8_t>(kind);
 }
+
+static_assert(toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit) == 0x7E);
 
 /// Infer typed tx kind when the RLP type byte is missing or legacy (0).
 /// Priority: 0x04 auth → 0x03 blob → 0x02 EIP-1559 caps → 0x01 access list → legacy.
@@ -83,6 +87,9 @@ inline bool isTypedTxKindSupportedByRevision(
         return revision.eip4844;
     case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702):
         return revision.eip7702;
+    case toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit):
+        // OP Stack-only (op-geth DepositTxType); not gated by Ethereum L1 fork flags.
+        return true;
     default:
         return false;
     }

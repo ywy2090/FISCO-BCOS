@@ -50,6 +50,7 @@ L1CostFunc makeCachedL1CostFunc(OpStackForkSchedule schedule, FeeParamsResolver 
             return 0;
         }
 
+        // Per-block cache: fork flag + L1Block params are constant within one block.
         if (cache->forBlock != blockTime)
         {
             cache->forBlock = blockTime;
@@ -62,6 +63,7 @@ L1CostFunc makeCachedL1CostFunc(OpStackForkSchedule schedule, FeeParamsResolver 
             throw std::invalid_argument("OpStack: pre-Fjord L1 cost unsupported");
         }
 
+        // Delegates to l1CostFjord — see OpStackFeeParams.h formula block.
         return l1CostFjord(data, cache->params);
     };
 }
@@ -93,6 +95,7 @@ OperatorCostFunc makeCachedOperatorCostFunc(
         {
             return operatorCostJovian(gas, cache->params);
         }
+        // Isthmus formula: gas * scalar / divisor + constant
         return operatorCostIsthmus(gas, cache->params);
     };
 }
@@ -105,6 +108,9 @@ u256 l1CostFjord(RollupCostData const& data, OpStackFeeParams const& params)
         return 0;
     }
 
+    // l1Cost = estimatedDASizeScaled * l1FeeScaled / FJORD_DIVISOR
+    // where l1FeeScaled = (l1BaseFeeScalar * l1BaseFee * calldataByteNum)
+    //                   + (l1BlobBaseFeeScalar * l1BlobBaseFee)
     auto const scaledL1BaseFee = params.l1BaseFeeScalar * params.l1BaseFee;
     auto const calldataCostPerByte = scaledL1BaseFee * u256(FJORD_L1_FEE_CALLDATA_BYTE_NUMERATOR);
     auto const blobCostPerByte = params.l1BlobBaseFeeScalar * params.l1BlobBaseFee;
@@ -121,6 +127,7 @@ u256 operatorCostIsthmus(uint64_t gas, OpStackFeeParams const& params)
         return 0;
     }
 
+    // operatorCost = gas * scalar / OPERATOR_FEE_SCALAR_DIVISOR + constant
     auto fee = u256(gas) * params.operatorFeeScalar / u256(OPERATOR_FEE_SCALAR_DIVISOR);
     fee += params.operatorFeeConstant;
     return fee;
@@ -133,6 +140,7 @@ u256 operatorCostJovian(uint64_t gas, OpStackFeeParams const& params)
         return 0;
     }
 
+    // operatorCost = gas * scalar * JOVIAN_OPERATOR_FEE_GAS_MULTIPLIER + constant
     auto fee = u256(gas) * params.operatorFeeScalar * u256(JOVIAN_OPERATOR_FEE_GAS_MULTIPLIER);
     fee += params.operatorFeeConstant;
     return fee;

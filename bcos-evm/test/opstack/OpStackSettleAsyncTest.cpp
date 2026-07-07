@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackSettleAsyncTest
 
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "opstack/helpers/OpStackSettleTestHelpers.h"
-#include <bcos-framework/executor/OpStackTxType.h>
 #include <bcos-task/Wait.h>
 #include <boost/test/included/unit_test.hpp>
 
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(settle_normal_call_frame_skips_refund_routing)
 BOOST_AUTO_TEST_CASE(settle_normal_deposit_flag_skips_refund_routing)
 {
     NormalSettleFixture fixture(100'000, StateTransitionExitKind::Completed, 80'000);
-    fixture.input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    fixture.input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     fixture.prepareAndComplete();
 
     auto const senderAfterBuyGas = fixture.ctx.state.get_balance(fixture.sender);

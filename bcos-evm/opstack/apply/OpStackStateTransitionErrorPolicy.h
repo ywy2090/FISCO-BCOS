@@ -1,10 +1,10 @@
 #pragma once
 
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/kernel/state-transition/IncludedTxVmerrNormalize.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionErrorPolicy.h"
 #include "bcos-evm/opstack/apply/OpStackEvmResult.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 
 namespace bcos::evm
 {
@@ -33,7 +33,7 @@ struct OpStackStateTransitionErrorPolicy : StateTransitionErrorPolicy
     /// REVERT per op-geth parity (see opstack-vs-op-geth-parity-validation D3).
     void onFinalizeGasUsed(StateTransitionContext& ctx) const override
     {
-        if (ctx.inputs.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE)
+        if (ctx.inputs.web3TypedTxKind == toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit))
         {
             return;
         }

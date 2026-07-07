@@ -2,8 +2,7 @@
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/fee/OpStackPostSettlementPlan.h"
-#include "bcos-evm/opstack/fee/RollupCost.h"
-#include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
+#include "bcos-evm/opstack/fee/OpStackReceiptMetaProjection.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
 #include "bcos-task/Task.h"
 #include "eth/kernel/EVMCResult.h"
@@ -30,33 +29,19 @@ struct NormalSettleOutcome
     OpStackPostSettlementPlan feePlan;
 };
 
-/// Populate OP Stack receipt metadata (l1Fee, operatorFee, Jovian daFootprint).
+/// Populate OP Stack receipt metadata via fee/ projection (l1Fee, operatorFee, daFootprint).
 void projectNormalReceiptMeta(OpStackMessageResult& output, OpStackSettlementProjection& view,
-    OpStackFeeParams const& feeParams, OpStackTxFinalizeResult const& settled,
-    OpStackPostSettlementPlan const& feePlan)
+    OpStackFeeParams const& feeParams, OpStackPostSettlementPlan const& feePlan)
 {
-    auto const& input = view.input;
-    output.receiptMeta.l1Fee = feePlan.l1FeeRouted;
-    // Isthmus+: expose operator fee and scalar/constant on receipt when active.
-    if (isOpStackIsthmus(input.forkSchedule, view.blockInfo().timestamp) &&
-        input.opTxExecutor.m_operatorCostFunc)
-    {
-        output.receiptMeta.operatorFee = feePlan.operatorFeeCharged;
-        if (feeParams.operatorFeeScalar != 0 || feeParams.operatorFeeConstant != 0)
-        {
-            output.receiptMeta.operatorFeeScalar = feeParams.operatorFeeScalar;
-            output.receiptMeta.operatorFeeConstant = feeParams.operatorFeeConstant;
-        }
-    }
-    // Jovian: daFootprint = estimatedDASize * daFootprintGasScalar (receipt metadata).
-    if (isOpStackJovian(input.forkSchedule, view.blockInfo().timestamp))
-    {
-        auto const scalar = static_cast<uint64_t>(feeParams.daFootprintGasScalar);
-        output.receiptMeta.daFootprintGasScalar = scalar;
-        auto const& rollup = view.rollupCostData();
-        auto const size = rollup.has_value() ? estimatedDASize(*rollup) : 0;
-        output.receiptMeta.daFootprint = size * scalar;
-    }
+    projectOpStackReceiptMeta(output.receiptMeta,
+        OpStackReceiptMetaProjectionInput{
+            .forkSchedule = view.input.forkSchedule,
+            .blockTime = static_cast<uint64_t>(view.blockInfo().timestamp),
+            .hasOperatorCostFunc = view.input.opTxExecutor.m_operatorCostFunc != nullptr,
+            .feeParams = feeParams,
+            .feePlan = feePlan,
+            .rollupCostData = view.rollupCostData(),
+        });
 }
 
 /// Post-EVM settlement: gas metering → refundGas → gas pool release.
@@ -108,7 +93,7 @@ task::Task<void> OpStackNormalTxFeeCoordinator::completeAfterPipeline(
     // EVM checkpoint committed; finalize gas metering, refund balances, project receipt.
     auto outcome = co_await settleNormal(view, ctx.exitKind, ledger, gasPool);
     output.gasUsed = outcome.settled.gasUsed;
-    projectNormalReceiptMeta(output, view, feeParams, outcome.settled, outcome.feePlan);
+    projectNormalReceiptMeta(output, view, feeParams, outcome.feePlan);
     output.stateDiff = ctx.state.build_diff();
 }
 

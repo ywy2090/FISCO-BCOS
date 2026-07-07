@@ -11,6 +11,7 @@ namespace bcos::evm
 {
 std::optional<EVMCResult> opStackFloorGasPrecheck(OpStackFloorGasPrecheckInput const& input)
 {
+    // Value transfer affordability (distinct from gas fee balance checked at buyGas).
     auto const value = state::fromEvmC(input.message.value);
     if (!input.skipTransactionChecks && value != 0 &&
         input.state.get_balance(input.message.sender) < value)
@@ -23,6 +24,7 @@ std::optional<EVMCResult> opStackFloorGasPrecheck(OpStackFloorGasPrecheckInput c
 
     auto const floorCheck = executeEntryFloorDataGasCheck(input.gasLimit, input.inputData);
     input.floorDataGasOut = floorCheck.floorGas;
+    // Reject when gasLimit < floorDataGas (EIP-7623 execute-entry rule).
     if (floorCheck.ok)
     {
         return std::nullopt;

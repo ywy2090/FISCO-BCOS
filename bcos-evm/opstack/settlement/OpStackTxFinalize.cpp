@@ -32,7 +32,7 @@ void applyPostExecuteSettlement(
         gas::isEip1559GasRefundEnabled(ctx.revisionConfig) ?
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_refund)) :
             uint64_t{0};
-    // gasUsed = limit - gas_left - refund; maxUsedGas = max(gasUsed, floorDataGas).
+    // Delegates to postExecuteGasSettlement — see OpStackPostExecuteGas.h formula block.
     auto const settlement =
         postExecuteGasSettlement(static_cast<uint64_t>(std::max<int64_t>(0, ctx.originalGasLimit)),
             static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_left)), stateRefund,

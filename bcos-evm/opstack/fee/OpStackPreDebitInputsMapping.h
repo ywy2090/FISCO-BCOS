@@ -4,6 +4,9 @@
  *
  * @brief Maps OpStackSettlementProjection into OpStackPreDebitInputs (types in OpStackPreDebitPlan.h).
  * @file OpStackPreDebitInputsMapping.h
+ *
+ * Bridges settlement projection to buyGas fee plan inputs. rollupCostData is set when the
+ * serialized tx is available for Fjord L1 fee estimation.
  */
 
 #pragma once

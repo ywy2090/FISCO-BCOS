@@ -4,6 +4,17 @@
  *
  * @brief Post-execute gas/refund/floor math for OpStack (no state mutation).
  * @file OpStackPostExecuteGas.h
+ *
+ * Top-level transaction gas settlement after EVM returns. Delegates to eth/gas helpers.
+ *
+ * Core formulas:
+ *   gasLeft         = min(evmGasLeft, gasLimit)
+ *   peakGasUsed     = gasLimit - gasLeft
+ *   effectiveRefund = min(stateRefund, peakGasUsed / 5)          [EIP-3529]
+ *   gasRemaining    = min(gasLimit, gasLeft + effectiveRefund)
+ *   gasUsed         = gasLimit - gasRemaining
+ *   gasUsed         = max(gasUsed, floorDataGas) when EIP-7623 floor applies
+ *   maxUsedGas      = max(peakGasUsed, gasUsed)
  */
 
 #pragma once
@@ -14,13 +25,14 @@
 
 namespace bcos::evm
 {
+/// Post-EVM gas metering result used by settlement and fee hooks.
 struct GasSettlement
 {
-    uint64_t gasLeft{0};
-    uint64_t refund{0};
-    uint64_t gasRemaining{0};
-    uint64_t gasUsed{0};
-    uint64_t maxUsedGas{0};
+    uint64_t gasLeft{0};       ///< min(evmGasLeft, gasLimit)
+    uint64_t refund{0};        ///< EIP-3529 capped refund applied to gasRemaining
+    uint64_t gasRemaining{0};  ///< gasLimit - gasUsed (unused units after settlement)
+    uint64_t gasUsed{0};       ///< Billable gas including EIP-7623 floor uplift
+    uint64_t maxUsedGas{0};    ///< max(peakGasUsed, gasUsed)
 };
 
 inline GasSettlement postExecuteGasSettlement(
@@ -30,9 +42,11 @@ inline GasSettlement postExecuteGasSettlement(
     settlement.gasLeft = std::min(gasLeft, gasLimit);
 
     auto const peakGasUsed = gasLimit - settlement.gasLeft;
+    // effectiveRefund = min(stateRefund, peakGasUsed / REFUND_QUOTIENT_EIP3529)
     settlement.refund = static_cast<uint64_t>(gas::effectiveRefundEip3529(
         static_cast<int64_t>(stateRefund), static_cast<int64_t>(peakGasUsed)));
 
+    // gasUsed uplifted to floorDataGas inside settleTopLevelTransactionGas (EIP-7623).
     settlement.gasUsed = gas::settleTopLevelTransactionGas(static_cast<int64_t>(gasLimit),
         static_cast<int64_t>(gasLeft), static_cast<int64_t>(stateRefund),
         static_cast<int64_t>(floorDataGas));

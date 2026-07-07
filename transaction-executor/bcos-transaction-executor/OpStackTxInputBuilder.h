@@ -14,7 +14,6 @@
 #include "bcos-evm/opstack/types/OpStackBlockHeaderExtension.h"
 #include "bcos-evm/storage/LedgerBlockInfo.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
@@ -129,7 +128,8 @@ inline std::optional<RollupCostData> buildRollupCostData(protocol::Transaction c
     auto const extra = tx.extraTransactionBytes();
     if (!extra.empty())
     {
-        if (static_cast<uint8_t>(extra[0]) == bcos::executor::DEPOSIT_TX_TYPE)
+        if (static_cast<uint8_t>(extra[0]) ==
+            toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit))
         {
             // op-geth transaction.go RollupCostData(): DepositTxType → empty struct.
             return RollupCostData{};
@@ -148,7 +148,8 @@ inline std::optional<RollupCostData> buildRollupCostData(protocol::Transaction c
 
 inline std::optional<OpStackDepositTx> decodeOpStackDepositTx(bcos::bytesConstRef extra)
 {
-    if (extra.empty() || static_cast<uint8_t>(extra[0]) != bcos::executor::DEPOSIT_TX_TYPE)
+    if (extra.empty() ||
+        static_cast<uint8_t>(extra[0]) != toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit))
     {
         return std::nullopt;
     }
@@ -244,7 +245,7 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackMessageReques
             input.blobVersionedHashes = std::move(decodedBlobFields->blobVersionedHashes);
         }
     }
-    if (input.web3TypedTxKind == bcos::executor::DEPOSIT_TX_TYPE)
+    if (input.web3TypedTxKind == toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit))
     {
         if (auto decodedDeposit = decodeOpStackDepositTx(tx.extraTransactionBytes());
             decodedDeposit.has_value())

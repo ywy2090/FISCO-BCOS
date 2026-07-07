@@ -12,7 +12,7 @@ namespace bcos::evm
 {
 namespace
 {
-// FlzCompressLen implementation.
+// Port of op-geth FlzCompressLen: length of output if serializedTx were FastLZ-compressed.
 uint32_t flzCompressLenImpl(bcos::bytesConstRef ib)
 {
     uint32_t n = 0;
@@ -116,6 +116,7 @@ uint32_t flzCompressLen(bcos::bytesConstRef data)
 
 RollupCostData newRollupCostData(bcos::bytesConstRef serializedTx)
 {
+    // zeroes + ones = len(serializedTx); fastLzSize feeds estimatedDASizeScaled.
     RollupCostData out;
     for (size_t i = 0; i < serializedTx.size(); ++i)
     {
@@ -134,6 +135,7 @@ RollupCostData newRollupCostData(bcos::bytesConstRef serializedTx)
 
 bcos::s256 estimatedDASizeScaled(RollupCostData const& data) noexcept
 {
+    // estimatedDASizeScaled = max(intercept + coef * fastLzSize, MIN_TX_SIZE_SCALED)
     s256 scaled = s256(L1_COST_INTERCEPT) + s256(L1_COST_FASTLZ_COEF) * s256(data.fastLzSize);
     if (scaled < s256(MIN_TX_SIZE_SCALED))
     {
@@ -144,6 +146,7 @@ bcos::s256 estimatedDASizeScaled(RollupCostData const& data) noexcept
 
 uint64_t estimatedDASize(RollupCostData const& data) noexcept
 {
+    // estimatedDASize = estimatedDASizeScaled / ESTIMATED_DA_SIZE_DIVISOR
     return static_cast<uint64_t>(estimatedDASizeScaled(data) / s256(ESTIMATED_DA_SIZE_DIVISOR));
 }
 

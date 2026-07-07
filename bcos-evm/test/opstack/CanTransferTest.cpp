@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE CanTransferTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(value_transfer_rejected_when_sender_balance_insufficient)
     FakeHash hash;
     auto input = makeInput(stateView, vm, hash, sender, target);
     input.message.value.bytes[31] = 10;
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{.from = sender,
         .to = target,
         .mint = u256(0),

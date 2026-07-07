@@ -57,7 +57,7 @@ bytes buildDepositExtra()
         bytes{0x00}, callData);
 
     bytes extra;
-    extra.push_back(bcos::executor::DEPOSIT_TX_TYPE);
+    extra.push_back(toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit));
     extra.insert(extra.end(), payload.begin(), payload.end());
     return extra;
 }
@@ -161,7 +161,8 @@ BOOST_AUTO_TEST_SUITE(OpStackTxInputBuilderTest)
 
 BOOST_AUTO_TEST_CASE(decodes_deposit_extra_transaction_bytes)
 {
-    auto tx = makeWeb3Tx(buildDepositExtra(), bcos::executor::DEPOSIT_TX_TYPE);
+    auto tx =
+        makeWeb3Tx(buildDepositExtra(), toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit));
     OpStackMessageRequest input;
     opstack_tx::fillWeb3Fields(tx, input);
 
@@ -236,7 +237,7 @@ BOOST_AUTO_TEST_CASE(buildRollupCostData_uses_signed_web3_rlp_not_encodeForSign)
 BOOST_AUTO_TEST_CASE(buildRollupCostData_deposit_returns_empty_rollup_cost_data)
 {
     auto depositExtra = buildDepositExtra();
-    auto tx = makeWeb3Tx(depositExtra, bcos::executor::DEPOSIT_TX_TYPE);
+    auto tx = makeWeb3Tx(depositExtra, toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit));
     auto const fromBuilder = opstack_tx::buildRollupCostData(tx);
     BOOST_REQUIRE(fromBuilder.has_value());
     BOOST_CHECK(fromBuilder->isEmpty());

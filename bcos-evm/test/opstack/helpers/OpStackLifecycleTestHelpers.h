@@ -2,6 +2,7 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
@@ -9,7 +10,6 @@
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackTxFinalize.h"
 #include "bcos-evm/opstack/types/OpStackDepositTx.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include <evmc/evmc.h>
 #include <functional>
@@ -188,7 +188,7 @@ inline OpStackMessageRequest makeLifecycleDepositInput(state::test::InMemoryStat
     input.blockInfo.baseFee = 1;
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
     input.skipTransactionChecks = true;
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{
         .from = sender, .to = recipient, .value = 0, .gas = static_cast<uint64_t>(message.gas)};
     if (mint.has_value())

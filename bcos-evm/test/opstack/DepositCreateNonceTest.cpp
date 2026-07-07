@@ -3,7 +3,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
-#include "bcos-framework/executor/OpStackTxType.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -64,7 +64,7 @@ int64_t createDepositIntrinsicDebit(bcos::bytes const& initCode)
     probe.input_data = initCode.data();
     probe.input_size = initCode.size();
     auto const intrinsic =
-        gas::computeTxIntrinsicGas(probe, {}, bcos::executor::DEPOSIT_TX_TYPE, /*eip3860=*/true);
+        gas::computeTxIntrinsicGas(probe, {}, toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit), /*eip3860=*/true);
     return intrinsic.preExecutionDebit() + gas::calcAuthTupleIntrinsicGas(0);
 }
 
@@ -103,7 +103,7 @@ OpStackMessageRequest makeCreateDepositInput(state::test::InMemoryStateView& sta
     input.blockInfo.gasLimit = 30'000'000;
     input.blockInfo.baseFee = 1;
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{
         .from = sender, .to = std::nullopt, .value = 0, .gas = gasLimit, .data = initCode};
     return input;

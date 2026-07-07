@@ -1,3 +1,23 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Op Stack receipt extension fields (beyond standard Ethereum receipt).
+ * @file OpStackReceiptMeta.h
+ *
+ * Populated by projectOpStackReceiptMeta (opstack/fee/OpStackReceiptMetaProjection.h).
+ *
+ * Field semantics:
+ *   l1Fee                — L1 data fee routed to L1 fee vault (= l1CostCharged from buyGas)
+ *   operatorFee          — Actual operator fee at gasUsed (Isthmus+)
+ *   operatorFeeScalar    — L1Block slot-8 scalar echoed on receipt when non-zero
+ *   operatorFeeConstant  — L1Block slot-8 constant echoed on receipt when non-zero
+ *   depositNonce         — L1-origin deposit account nonce (deposit txs only)
+ *   depositReceiptVersion— Canyon+ deposit receipt version marker
+ *   daFootprintGasScalar — Jovian scalar from L1Block slot 8
+ *   daFootprint          — estimatedDASize * daFootprintGasScalar (Jovian; op-geth BlobGasUsed)
+ */
+
 #pragma once
 
 #include <bcos-utilities/Common.h>
@@ -14,6 +34,6 @@ struct OpStackReceiptMeta
     std::optional<uint64_t> depositNonce;
     std::optional<uint64_t> depositReceiptVersion;
     std::optional<uint64_t> daFootprintGasScalar;
-    std::optional<uint64_t> daFootprint;  // op-geth Receipt.BlobGasUsed 的 Jovian 语义
+    std::optional<uint64_t> daFootprint;
 };
 }  // namespace bcos::evm

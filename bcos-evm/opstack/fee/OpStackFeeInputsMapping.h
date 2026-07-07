@@ -4,6 +4,10 @@
  *
  * @brief OpStack apply-layer projection of OpStackMessageRequest into FeeInputs.
  * @file OpStackFeeInputsMapping.h
+ *
+ * Builds gas::FeeInputs for EIP-1559 settlement. effectiveGasPrice resolution:
+ *   effectiveGasPrice = min(gasTipCap + baseFee, gasFeeCap)   [EIP-1559 typed tx]
+ *   effectiveGasPrice = gasPrice                               [legacy tx]
  */
 
 #pragma once

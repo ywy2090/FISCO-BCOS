@@ -2,6 +2,7 @@
 
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
@@ -9,7 +10,6 @@
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackSettlementProjection.h"
 #include "bcos-evm/opstack/types/OpStackDepositTx.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include "helpers/OpStackEntryStateTransitionHooks.h"
 #include <boost/test/included/unit_test.hpp>
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(entry_rules_deposit_system_tx_rejected)
 
     OpStackMessageRequest input;
     input.message.sender = sender;
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{.isSystemTransaction = true};
     input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
 

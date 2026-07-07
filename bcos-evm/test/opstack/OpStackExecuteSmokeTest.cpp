@@ -2,13 +2,13 @@
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
-#include "bcos-framework/executor/OpStackTxType.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
@@ -260,7 +260,7 @@ BOOST_AUTO_TEST_CASE(deposit_pre_fjord_schedule_no_throw)
     FakeHash hash;
     auto input = makeBaseInput(stateView, vm, hash, sender, target);
     input.revisionConfig.revision = EVMC_CANCUN;
-    input.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     input.depositTx = OpStackDepositTx{
         .from = sender, .to = target, .mint = u256(100), .value = 0, .gas = 50'000};
     input.forkSchedule = OpStackForkSchedule{.fjordTime = 100, .isthmusTime = 0};

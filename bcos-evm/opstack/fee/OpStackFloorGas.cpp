@@ -26,6 +26,7 @@ FloorDataGasResult floorDataGasFromTokens(uint64_t tokens)
     {
         return FloorDataGasResult{.gas = 0, .error = FloorDataGasError::GasUintOverflow};
     }
+    // floorDataGas = OP_TX_GAS + tokens * OP_TX_COST_FLOOR_PER_TOKEN
     return FloorDataGasResult{.gas = OP_TX_GAS + tokens * OP_TX_COST_FLOOR_PER_TOKEN, .error = {}};
 }
 }  // namespace
@@ -35,6 +36,7 @@ FloorDataGasResult tryFloorDataGas(bcos::bytesConstRef data, std::optional<uint6
     auto const dataLen = static_cast<uint64_t>(data.size());
     auto const zeroes = countZeroBytes(data);
     auto const nonZeroes = dataLen - zeroes;
+    // tokens = nonZeroes * TOKENS_PER_NONZERO_BYTE + zeroes  (EIP-7623)
     auto const tokens = tokenOverride.has_value() ?
                             *tokenOverride :
                             nonZeroes * OP_TX_TOKEN_PER_NON_ZERO_BYTE + zeroes;
@@ -60,6 +62,7 @@ ExecuteEntryFloorCheck executeEntryFloorDataGasCheck(uint64_t gasLimit, bcos::by
     }
 
     auto const floorGasValue = floorResult.gas;
+    // gasLimit must cover EIP-7623 floor before execution starts.
     if (gasLimit < floorGasValue)
     {
         return ExecuteEntryFloorCheck{

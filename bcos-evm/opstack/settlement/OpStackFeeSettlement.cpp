@@ -77,6 +77,7 @@ task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementProjection view)
     }
 
     ctx.state.set_balance(ctx.message.sender, senderBalance - plan.totalDebit);
+    // totalDebit = preDebitAmount + l1CostCharged + operatorCostLimit + blobDebit
     co_return true;
 }
 
@@ -108,13 +109,18 @@ task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
         planOpStackPostSettlement(toOpStackPostSettlementInputs(view, settled), hooks);
 
     addBalance(state, ctx.message.sender, plan.core1559.unusedRefund + plan.senderOperatorRefund);
+    // unusedRefund = gasRemaining * effectiveGasPrice; senderOperatorRefund from post-settlement
+    // plan
     addBalance(state, view.blockInfo().coinbase, plan.core1559.coinbaseTip);
+    // coinbaseTip = gasUsed * (effectiveGasPrice - baseFee)
     // OP Stack: base/L1/operator fees go to system predeploy recipients (not burned).
     addBalance(state, m_baseFeeRecipient, plan.core1559.baseFeeAmount);
+    // baseFeeAmount = gasUsed * baseFee → OP_BASE_FEE_VAULT_PREDEPLOY
     addBalance(state, m_l1FeeRecipient, plan.l1FeeRouted);
+    // l1FeeRouted = l1CostCharged (full L1 fee from buyGas) → OP_L1_FEE_VAULT_PREDEPLOY
     if (hooks.operatorCostFunc != nullptr)
     {
-        // Operator fee only routed when Isthmus+ schedule wires operatorCostFunc.
+        // operatorFeeCharged → OP_OPERATOR_FEE_VAULT_PREDEPLOY
         addBalance(state, m_operatorFeeRecipient, plan.operatorFeeCharged);
     }
 

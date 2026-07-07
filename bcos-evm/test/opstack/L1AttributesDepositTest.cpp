@@ -7,7 +7,7 @@
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
-#include "bcos-framework/executor/OpStackTxType.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "helpers/ApplyStateDiffToView.h"
 #include "helpers/InMemoryStateView.h"
 #include <bcos-task/Wait.h>
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(l1_attributes_deposit_updates_l1block_and_affects_following
     depositInput.blockInfo.baseFee = 1;
     depositInput.gasTipCap = 1;
     depositInput.gasFeeCap = 1;
-    depositInput.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    depositInput.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     depositInput.depositTx =
         OpStackDepositTx{.from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
 
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(jovian_l1_attributes_deposit_then_user_tx_uses_jovian_opera
     depositInput.blockInfo.baseFee = 1;
     depositInput.gasTipCap = 1;
     depositInput.gasFeeCap = 1;
-    depositInput.web3TypedTxKind = bcos::executor::DEPOSIT_TX_TYPE;
+    depositInput.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
     depositInput.depositTx =
         OpStackDepositTx{.from = OP_DEPOSITOR_ACCOUNT, .to = OP_L1_BLOCK_PREDEPLOY, .gas = 500'000};
     depositInput.forkSchedule = makeJovianPlusForkSchedule();

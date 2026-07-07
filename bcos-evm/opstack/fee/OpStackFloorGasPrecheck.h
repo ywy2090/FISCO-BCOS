@@ -1,3 +1,17 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief Execute-entry balance and EIP-7623 floor gas precheck for Op Stack txs.
+ * @file OpStackFloorGasPrecheck.h
+ *
+ * Runs before EVM execution. Rejects when:
+ *   balance < txValue  (unless skipTransactionChecks)
+ *   gasLimit < floorDataGas(inputData)
+ *
+ * floorDataGasOut receives the computed floor for downstream post-execute settlement.
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/kernel/EVMCResult.h"
@@ -14,6 +28,8 @@ class State;
 
 namespace bcos::evm
 {
+
+/// Input bundle for execute-entry floor gas and balance prechecks (before EVM runs).
 struct OpStackFloorGasPrecheckInput
 {
     evmc_message const& message;

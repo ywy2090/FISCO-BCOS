@@ -1,3 +1,21 @@
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @brief EIP-7623 calldata floor gas for Op Stack transactions.
+ * @file OpStackFloorGas.h
+ *
+ * Enforces minimum gas from transaction input data size (Prague/EIP-7623 on OP chains).
+ *
+ * Core formulas:
+ *   tokens         = nonZeroes * OP_TX_TOKEN_PER_NON_ZERO_BYTE + zeroes
+ *   floorDataGas   = OP_TX_GAS + tokens * OP_TX_COST_FLOOR_PER_TOKEN
+ *
+ * Execute-entry check: gasLimit >= floorDataGas (reject with OutOfGasLimit otherwise).
+ * Post-execution uplift uses the same floor via settleTopLevelTransactionGas (see
+ * OpStackPostExecuteGas.h).
+ */
+
 #pragma once
 
 #include "bcos-evm/eth/eip/Eip7623.h"
@@ -47,7 +65,7 @@ FloorDataGasResult tryFloorDataGas(
 
 uint64_t floorDataGas(bcos::bytesConstRef data);
 
-// Stub for Task 8 wiring: execute-entry gasLimit >= floorDataGas (§7.1.1 step 4).
+// Execute-entry rule: gasLimit >= floorDataGas(inputData).
 ExecuteEntryFloorCheck executeEntryFloorDataGasCheck(uint64_t gasLimit, bcos::bytesConstRef data);
 
 }  // namespace bcos::evm
