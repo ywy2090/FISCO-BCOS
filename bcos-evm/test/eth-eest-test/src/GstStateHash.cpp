@@ -564,7 +564,11 @@ GstPostStateView buildPostStateView(
         }
     }
 
-    (void)accounts[coinbase];
+    if (applyDiff)
+    {
+        // Pre-EIP158: successful txs touch coinbase (fees/reward); omit on rejected no-op diffs.
+        (void)accounts[coinbase];
+    }
 
     if (eip158)
     {

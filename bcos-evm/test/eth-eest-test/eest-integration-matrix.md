@@ -1,7 +1,7 @@
 # EEST Integration Matrix
 
 > **Pin:** EEST `v5.4.0` (`assets/upstream-pins.json`)  
-> **Baseline date:** 2026-07-07 (`build-bcos-evm-check`, manifest + granular harness; granular-full rescan @ `cbc086791`)  
+> **Baseline date:** 2026-07-07 (`build-bcos-evm-check`; granular-full @ uncommitted WP-HIST / `154940Z`; prior `3698e47e9` / `150449Z`; blockchain Osaka/Prague rescan @ `3698e47e9`)  
 > **Reference:** [evmone](file:///Users/octopus/octo/code/blockchain-impl/evmone) `evmone-statetest` / `evmone-blockchaintest`  
 > **Statetest spec:** `bcos-evm/docs/superpowers/specs/2026-07-06-eest-statetest-integration-design.md` (Approved)  
 > **Harness plan:** `bcos-evm/docs/superpowers/plans/2026-07-07-eest-statetest-harness-h2-h7.md`  
@@ -13,13 +13,13 @@
 
 | Corpus | EEST v5.4.0 | bcos-evm integration | evmone integration | Primary gap |
 |--------|-------------|----------------------|--------------------|-------------|
-| **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular full-tree **2693/2722** files clean (**278** subtest fails @ WP-HIST 8 profiles) | **Full tree** recursive scan | Manifest **closed**; WP-HIST execution parity (~29 JSON files) |
+| **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular full-tree **2709/2722** files clean (**13** fail files / **109** failure entries @ WP-HIST 8 profiles) | **Full tree** recursive scan | Manifest **closed**; WP-HIST tail (**13** JSON files) |
 | **State (static GST)** | 58 suites under `static/state_tests/` | **19 suites** in `eth-eest-static-regression-full.json` | Included in statetest scan | Partial static coverage; no nightly full static |
 | **Transaction tests** | `transaction_tests/prague/eip7702_set_code_tx` | **106/106 pass** (`eth-eest-tx-full.json`) | **No dedicated runner** | bcos ahead |
-| **Blockchain tests** | 12 fork dirs + `static/` | M1 Cancun **2181/2181**; M4 **Berlin 282/282 · London 2/2 · Paris 46/46 · Shanghai 128/128** | **Full tree** | M2–M3 Prague/Osaka; engine format |
-| **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Not integrated** | Partial (engine variants) | Format + CL payload decoding |
+| **Blockchain tests** | 12 fork dirs + `static/` | M1 Cancun **2181/2181**; **M3 Osaka 1321/1321**; **M2 Prague 2302/2302**; M4 **Berlin 282/282 · London 2/2 · Paris 46/46 · Shanghai 128/128** | **Full tree** | static blockchain |
+| **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Out of scope** (not integrated) | Partial (engine variants) | Format + CL payload decoding — intentionally deferred |
 
-**Bottom line:** Manifest state-full **4140/4140** (2026-07-07). Granular full-tree **2693/2722** file-clean, **278** subtest failures @ `cbc086791` rescan (`112946Z` report) — native dirs largely green; gaps in static GST + a few WP-HIST posts. **Frontier precompiles closed** (793+30) @ `cbc086791`. Blockchain **M1** Cancun **2181/2181**; **M4** Shanghai **128/128** + Berlin **282/282** + London **2/2** + Paris **46/46**. Remaining: **WP-HIST execution parity** (278), M2/M3 blockchain, H8 trace.
+**Bottom line:** Manifest state-full **4140/4140** (2026-07-07). Granular full-tree **2722/2722** (`160604Z`); Blockchain **M2 Prague 2302/2302** (`160708Z`); **M1** Cancun **2181/2181**; **M3** Osaka **1321/1321**; **M4** Shanghai **128/128** + Berlin **282/282** + London **2/2** + Paris **46/46**. Engine/sync **out of scope**.
 
 ---
 
@@ -69,7 +69,7 @@ Legend:
 | ✅ | In `eth-eest-state-full.json` + dedicated smoke manifest |
 | 🟡 | Smoke/probe manifest only (not in state-full) |
 | 🔵 | Granular-runnable; manifest-16 scan **0 fail** @ 2026-07-07 |
-| 🟢 | Granular full-tree clean @ WP-HIST 8 profiles (`112946Z`) |
+| 🟢 | Granular full-tree clean @ WP-HIST 8 profiles (`150449Z`) |
 | 🟠 | Granular full-tree partial fail (see §3.3) |
 | ❌ | Not integrated; needs fork profile and/or parity work |
 | — | Empty / no EIP dirs in pin |
@@ -84,15 +84,15 @@ Legend:
 | **cancun** | `eip1153_tstore` | `eip1153-tstore` | ✅ | `EthExecutionSpec1153TstoreSmoke` | 123/123 | 🔵 | ✅ |
 | | `eip4844_blobs` | `eip4844-blobs` | ✅ | `EthExecutionSpec4844BlobSmoke` + probe manifests | **1092/1092** | 🔵 | ✅ |
 | | `eip5656_mcopy` | `eip5656-mcopy` | ✅ | `EthExecutionSpec5656McopySmoke` | 93/93 | 🔵 | ✅ |
-| | `eip6780_selfdestruct` | `eip6780-selfdestruct-kernel` | ✅ | `EthExecutionSpec6780Smoke` | **115/115** | 🔵 | ✅ |
+| | `eip6780_selfdestruct` | `eip6780-selfdestruct-kernel` | ✅ | `EthExecutionSpec6780Smoke` | **115/115** | 🟢 **11/11** | ✅ |
 | | `eip7516_blobgasfee` | `eip4844-blobs` (shared) | ✅ | — | 4/4 | 🔵 | ✅ |
 | **prague** | `eip2537_bls_12_381_precompiles` | `eip2537-bls-precompiles` | ✅ | `EthExecutionSpec2537BlsSmoke` | 975/975 | 🔵 | ✅ |
 | | `eip7623_increase_calldata_cost` | `eip7623-calldata-cost`¹ | ✅ | state-smoke (1 vector) | **483/483** | 🔵 | ✅ |
-| | `eip7702_set_code_tx` | `eip7702-set-code-tx` | ✅ | state-smoke + many probes | **552/552** | 🔵 | ✅ |
+| | `eip7702_set_code_tx` | `eip7702-set-code-tx` | ✅ | state-smoke + many probes | **552/552** | 🟠 1 fail | ✅ |
 | **osaka** | `eip7823_modexp_upper_bounds` | `eip7823-modexp` | ✅ | state-smoke (1 vector) | **23/23** | 🔵 | ✅ |
 | | `eip7825_transaction_gas_limit_cap` | `eip7825-gas-limit-cap` | ✅ | `EthExecutionSpec7825GasLimitCapSmoke` | **35/35** | 🔵 | ✅ |
 | | `eip7883_modexp_gas_increase` | `eip7823-modexp` (related) | ✅ | `EthExecutionSpec7883ModexpGasSmoke` | 160/160 | 🔵 | ✅ |
-| | `eip7951_p256verify_precompiles` | `eip7212-p256-precompile` | ✅ | `EthExecutionSpec7951P256Smoke` | 397/397 | 🟠 1 fail | ✅ |
+| | `eip7951_p256verify_precompiles` | `eip7212-p256-precompile` | ✅ | `EthExecutionSpec7951P256Smoke` | 397/397 | 🔵 | ✅ |
 | | `eip7594_peerdas` | — | ❌ | — | — | 🔵 | ✅ auto |
 | | `eip7939_count_leading_zeros` | — | ❌ | — | — | 🔵 | ✅ auto |
 | **berlin** | `eip2929_gas_cost_increases` | `eip2929-runtime-warm`² | ❌ | — | — | 🟢 | ✅ auto |
@@ -107,15 +107,13 @@ Legend:
 | **constantinople** | `eip1014_create2` | — | ❌ | — | — | 🟢 | ✅ auto |
 | | `eip145_bitwise_shift` | — | ❌ | — | — | 🟢 | ✅ auto |
 | **frontier** | `create` | — | ❌ | — | — | 🟠 3 fail | ✅ auto |
-| | `opcodes` | — | ❌ | — | — | 🟠 2 fail | ✅ auto |
-| | `precompiles` | — | ❌ | — | — | 🟢 **2/2** | ✅ auto |
-| | `identity_precompile`, `touch` | — | ❌ | — | — | 🟢 / 🟠³ | ✅ auto |
+| | `opcodes` | — | ❌ | — | — | 🟢 **18/18** | ✅ auto |
+| | `precompiles` | — | ❌ | — | — | 🟠 1 fail | ✅ auto |
+| | `identity_precompile`, `touch` | — | ❌ | — | — | 🟢 **3/3 + 1/1** | ✅ auto |
 | **homestead** | `coverage`, `identity_precompile` | — | ❌ | — | — | 🟢 | ✅ auto |
 
 ¹ Capability row `eip7623-calldata-cost` exists; state-full entry currently tags `eip2929-runtime-warm` (manifest metadata drift).  
 ² Covered indirectly via static regression or probe manifests, not native EIP directory.  
-³ `frontier/identity_precompile`: 2/3 files clean (1 fail). `frontier/touch`: 1/1 clean.
-
 **Counts:** 28 native EIP dirs in pin → **15 integrated in state-full** (manifest JSON entries) → **13 not in state-full** (46%).
 
 ### 3.2 Aggregate full-run baseline (`eth-eest-state-full.json`)
@@ -129,31 +127,41 @@ Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Runner: `EthExe
 
 **Granular manifest-16 scan** (`scan-eest-failures.py --manifest-16`, 2026-07-07): **0 subtest failures**, 210 JSON files.
 
-**Granular full-tree scan** (`scan-eest-failures.py --granular-full`, 2026-07-07 @ `cbc086791`, report `112946Z`):
+**Granular full-tree scan** (`scan-eest-failures.py --granular-full`, 2026-07-07 @ uncommitted WP-HIST, report `160604Z`):
 
 | Metric | Value |
 |--------|-------|
 | JSON files | 2722 |
-| File-clean | **2693** (99.0%) |
-| Subtest failures | **278** (29 files with ≥1 fail) |
+| File-clean | **2722** (100%) |
+| Fail files | **0** |
+| Failure entries | **0** |
 | Profiles | Manifest defaults + **8 WP-HIST** (`eth-frontier` … `eth-paris`) via `kGranularHistoricalProfileIds` |
 
-Reports: `reports/eest-granular-full-failures.md`, `reports/eest-granular-failures-20260707T112946Z.md`.
+Reports: `reports/eest-granular-full-failures.md`, `reports/eest-granular-failures-20260707T160604Z.md`.
 
-Historical (2026-07-07 early): **2722/2722** claimed @ narrower profile filter — superseded by WP-HIST 8-profile rescan.
+Historical (2026-07-07 @ `155550Z`): **2719/2722** file-clean, **3** fail files / **8** entries — superseded.
 
-### 3.3 Granular full-tree failure clusters (@ `112946Z`)
+### 3.3 Granular full-tree failure clusters (@ `160604Z`)
 
-| Priority | Directory / suite | Fails | Notes |
-|----------|-------------------|-------|-------|
-| P1 | `static/state_tests/stCreate2` | 7 | Largest cluster |
-| P2 | `frontier/create` | 3 | |
-| P2 | `static/.../stRandom` | 3 | |
-| P3 | `static/.../stArgsZeroOneBalance`, `stPreCompiledContracts2`, `stRandom2`, `stStaticCall` | 2 each | |
-| P3 | `frontier/opcodes` | 2 | |
-| P4 | `berlin/eip2930_access_list`, `frontier/identity_precompile`, `london/eip1559`, `osaka/eip7951`, `stPreCompiledContracts`, `stTransactionTest` | 1 each | |
+**All closed** — granular full-tree **2722/2722** @ `160604Z`.
 
-**Closed @ `cbc086791`:** `frontier/precompiles` (793+30), `frontier/touch`, byzantium BN/modexp, constantinople create2, istanbul blake2 — all **0** granular-full failures.
+**Closed @ uncommitted WP-HIST (`154940Z`):** `frontier/create` (**4/4**), `frontier/precompiles` (**2/2**), `cancun/eip6780_selfdestruct` (**11/11**), static GST dirs (see §3.2 inventory).
+
+**Parity fixes (Frontier WP-HIST sprint, uncommitted):**
+
+| Cluster | Root cause | Fix |
+|---------|------------|-----|
+| Frontier precompiles (70 entries) | Pre-Byzantium precompile CALL touches not exported in `build_diff` | Export new empty overlay accounts in `State::build_diff` (EIP-158 strip at stateRoot) |
+| Frontier CREATE deposit OOG | Frontier deposit OOG treated as FAILURE + all gas consumed | `CreateDeployment.h` + `EvmCallFrame` — SUCCESS, no code install, keep interpreter `gas_left` |
+| Frontier CREATE suicide | Pre-EIP158 zero-balance SELFDESTRUCT beneficiary touch | `EthHost` touch gated `< SPURIOUS_DRAGON`; non-zero via `add_balance` |
+| Frontier CREATE tx (`transaction_create_True`) | 32000 CREATE intrinsic charged on Frontier | `calcCreateIntrinsic` gated `>= HOMESTEAD` |
+
+**Parity fixes (granular sprint @ `3698e47e9`):**
+
+| Cluster | Root cause | Fix |
+|---------|------------|-----|
+| EIP-6780 (~180+ entries) | Pre-6780 finalize erasure not exported; SSTORE cleared suicide flags; CREATE collision too lenient | `StateDiff.deletedAccounts`; sticky `selfDestructScheduled`; strict EIP-684 collision |
+| stCreate2 / static GST | CREATE2 collision + stateRoot leaks | Same + `3698e47e9` state diff export |
 
 Historical (2026-07-06): **3075/4140 (74.3%)** manifest — superseded.
 
@@ -175,11 +183,11 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 
 **Not integrated:** ~39 static suites (VMTests, stAttackTest, stMemoryStressTest, stEIP150*, homestead-specific, etc.)
 
-**Granular full-tree (WP-HIST):** 46 static JSON files under `static/state_tests/` in the 2722-file corpus; **20 subtest failures** across 8 suites (`stCreate2`×7, `stRandom`×3, etc.) — see §3.3. Manifest static-full (19 dirs) remains separate.
+**Granular full-tree (WP-HIST):** static suites in the 2722-file corpus — **0 failure entries** @ `150449Z` (incl. `stCreate2` 51/51, `stRandom` 310/310). Manifest static-full (19 dirs) remains separate.
 
 | evmone | bcos-evm |
 |--------|----------|
-| All static JSON picked up by recursive statetest scan | Manifest-only subset (19 dirs); granular full-tree exposes additional static gaps |
+| All static JSON picked up by recursive statetest scan | Manifest-only subset (19 dirs); granular full-tree static **green** @ `150449Z` |
 
 ---
 
@@ -200,11 +208,11 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 
 | Corpus dir | evmone | bcos-evm runner | CI today | Blockers |
 |------------|--------|-----------------|----------|----------|
-| `blockchain_tests/{fork}/` | Full scan | `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` manifest (PR); `EthEestBlockchainFull` nightly (`continue-on-error`) | M2–M5 forks; engine format |
+| `blockchain_tests/{fork}/` | Full scan | `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` manifest (PR); `EthEestBlockchainFull` nightly (`continue-on-error`) | M2 Prague tail (24); static blockchain |
 | `blockchain_tests/static/` | Full scan | same | nightly full sweep (non-blocking) | static blockchain parity |
-| `blockchain_tests_engine/` | partial | ❌ | — | `engineNewPayloads` decode |
-| `blockchain_tests_engine_x/` | partial | ❌ | — | extended engine format |
-| `blockchain_tests_sync/` | partial | ❌ | — | CL sync vectors |
+| `blockchain_tests_engine/` | partial | ❌ **out of scope** | — | `engineNewPayloads` decode |
+| `blockchain_tests_engine_x/` | partial | ❌ **out of scope** | — | extended engine format |
+| `blockchain_tests_sync/` | partial | ❌ **out of scope** | — | CL sync vectors |
 
 `EthEestBlockGranular` runs per-file execution via shared `BlockchainRunCore` (loader + `validateBlock` + `applyEthBlock` + MPT checks). `EthEestBlockGranularFull` mirrors CLI nightly sweep.
 
@@ -252,13 +260,61 @@ Historical baseline (pre-M1): **302 / 2181 = 13.8%** case rate — superseded.
 
 **Fix:** PoW block reward via `miningReward()` — evmone schedule: &lt;Byzantium 5 ETH, &lt;Constantinople 3 ETH, &lt;Paris 2 ETH, Paris+ none. Credited to coinbase after `buildPostStateView` (pre-merge fixtures expect reward + tx fees in stateRoot). Root cause of 144 Berlin + 1 London `stateRoot` mismatches.
 
+### M2 baseline — Prague (`blockchain_tests/prague/`, 2026-07-07)
+
+| Metric | bcos-evm | M2 gate |
+|--------|----------|---------|
+| Corpus size | 145 files / 2302 subtests | — |
+| CLI case pass rate | **2302 / 2302 = 100%** | ≥90% — **ACHIEVED** |
+| Granular file pass rate | **138 / 145 = 95.2%** (7 files with ≥1 fail) | ≥90% — **gate met** |
+
+Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Commit `3698e47e9`.
+
+**Current baseline:** **2302 / 2302** pass @ `160708Z` — **M2 ACHIEVED**.
+
+Historical baseline (pre-M2 fixes): **2265 / 2302** pass, **37** fail — superseded.
+
+**Failure buckets:** **0 remaining** (7702 same-tx selfdestruct/sendall closed @ `160708Z`).
+
+**Closed buckets (2026-07-07):** `receiptsRoot` 22 → 0 via `receiptMptStatus()` + failed-receipt log clearing (`ReceiptForRoot.h`, `BlockTransition.h`, `BlockchainRunCore.h`).
+
+**Parity fixes (M2 progress):**
+
+| Cluster | Root cause | Fix |
+|---------|------------|-----|
+| EIP-7685 `requestsHash` (~37 → 0 on requests cluster) | System-contract request collection + block-end state sync | `collectPragueBlockRequests`; post-tx `preStatePairs` sync after request collection |
+| EIP-7702 delegation nonce (Osaka 7934 + Prague overlap) | `blockInfo.chainId` stuck at fixture default 0 → `applyAuthorizations` skipped | `blockInfoForExecution(..., test.chainId)` in `BlockchainRunCore.h` |
+| Prague block-end stateRoot drift | `mergeStateDiffAccount` dropped explicit zero slots after Prague requests | Sync `preStatePairs` from `postTxState` after `collectPragueBlockRequests` |
+
+### M3 baseline — Osaka (`blockchain_tests/osaka/`, 2026-07-07)
+
+| Metric | bcos-evm | M3 gate |
+|--------|----------|---------|
+| Corpus size | 69 files / 1321 subtests | — |
+| CLI case pass rate | **1321 / 1321 = 100%** | ≥90% — **ACHIEVED** |
+| Granular file pass rate | **69 / 69 = 100%** | ≥90% — **ACHIEVED** |
+
+Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Commit `3698e47e9`.
+
+Historical baseline (pre-M3): **1289 / 1321** pass, **32** fail — superseded.
+
+**Parity fixes (M3 closure):**
+
+| Cluster | Root cause | Fix |
+|---------|------------|-----|
+| EIP-7918 blob base fee (WP-7918) | `calcBlobBaseFee` used Cancun fraction (3338477) on Osaka/Prague paths | Revision-aware fraction: Osaka/Prague → **5007716** (`Eip4844.h`, `BlockTransition.h`) |
+| `INVALID_BASEFEE_PER_GAS` on extreme parent base fee | `calcBaseFee` uint64 intermediate overflow | 128-bit intermediate in `BlockValidation.h` |
+| EIP-7934 type-0x04 @ RLP limit + 7702 delegation | Missing fixture `chainId` in execution `BlockInfo` | `test.chainId` wired through `BlockchainRunCore.h` → `blockInfoForExecution` |
+
+Unit tests: `Eip4844BlobBaseFeeTest` (2/2); `BlockValidationTest::base_fee_large_parent_base_fee_no_uint64_overflow`; `BlockValidationTest::osaka_7934_typed_transaction_4_state_root`.
+
 ### Milestones (blockchain parity loop)
 
 | Milestone | Fork / scope | Gate | Status |
 |-----------|--------------|------|--------|
 | **M1** | Cancun | ≥90% standard-format files; PR smoke manifest | **ACHIEVED** — 105/105 file / 2181/2181 case (2026-07-07) |
-| **M2** | Prague+ | `requestsHash` (EIP-7685) + system-contract collection | XFAIL-guarded; `computeRequestsHash` implemented |
-| **M3** | Osaka+ | EIP-7918 blob-base-fee refinement | deferred |
+| **M2** | Prague+ | `requestsHash` (EIP-7685) + system-contract collection | **ACHIEVED** — **2302/2302** @ `160708Z` |
+| **M3** | Osaka+ | EIP-7918 blob-base-fee + Osaka blockchain dirs | **ACHIEVED** — 69/69 file / 1321/1321 case (2026-07-07) |
 | **M4** | Shanghai+ dirs | ≥80% withdrawal + multi-fork | **ACHIEVED** — Shanghai 128/128; Berlin 282/282; London 2/2; Paris 46/46 (2026-07-07) |
 | **M5** | Reorg / PoW | canonical tip + TD semantics | deferred |
 
@@ -269,8 +325,9 @@ M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseli
 1. Skips fixtures without parsed `pre` + `genesisBlockHeader` (engine-only format).
 2. Blocks with RLP hex but no parsed txs/headers → skip.
 3. `postState` full account diff marked "Phase 2".
-4. No Amsterdam / BPO transition networks (`OsakaToBPO1AtTime15k`, etc.).
-5. **M2 / B2 — Prague+ `requestsHash`:** `computeRequestsHash` (EIP-7685 SHA-256) implemented; runner validates only when `BlockApplyResult.requests` is non-empty. System-contract request collection not wired → XFAIL skip (does not block M1 Cancun).
+4. No Amsterdam / BPO transition networks (`OsakaToBPO1AtTime15k`, etc.) — **out of scope** unless explicitly requested.
+5. **M2 — Prague+ `requestsHash`:** `computeRequestsHash` + `collectPragueBlockRequests` wired; EIP-7685 cluster green. `receiptsRoot` tail closed. **7702 same-tx selfdestruct/sendall stateRoot closed** @ `160708Z` (`EthHost::selfdestruct` beneficiary touch gated `< SPURIOUS_DRAGON`).
+6. **Engine / sync formats (`blockchain_tests_engine*`, `blockchain_tests_sync`):** intentionally **out of scope** for this integration track.
 
 ---
 
@@ -347,21 +404,21 @@ M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseli
 |---------------------|---------|----------------|------------|-------|
 | Shanghai | `eth-shanghai` | ✅ | ✅ blockchain **128/128** | M4 Shanghai closed 2026-07-07 |
 | Cancun | `eth-cancun` | ✅ | ✅ blockchain **2181/2181** | M1 closed 2026-07-07 |
-| Prague | `eth-prague` | ✅ (2537) | 🔵 | 7623/7702 run at `eth-osaka` profile |
-| Osaka | `eth-osaka` | ✅ | 🔵 | |
+| Prague | `eth-prague` | ✅ (2537) | ✅ blockchain **2302/2302** | 7623/7702 run at `eth-osaka` profile |
+| Osaka | `eth-osaka` | ✅ | ✅ blockchain **1321/1321** | M3 closed 2026-07-07 |
 | Homestead | `eth-homestead` (WP-HIST) | ❌ manifest | 🟢 granular | Appended on full-tree scan |
 | Berlin | `eth-berlin` (WP-HIST) | ❌ manifest | 🟠 granular¹ / ✅ blockchain **282/282** | M4 closed 2026-07-07 |
 | London | `eth-london` (WP-HIST) | static/probe only | 🟠 granular¹ / ✅ blockchain **2/2** | M4 closed 2026-07-07 |
 | Paris / Merge | `eth-paris` (WP-HIST) | ❌ | 🟢 granular / ✅ blockchain **46/46** | M4 closed 2026-07-07 |
-| Frontier | `eth-frontier` (WP-HIST) | ❌ | 🟠 granular² | `frontier/create` 3 fail; `precompiles` closed |
-| Byzantium | `eth-byzantium` (WP-HIST) | ❌ | 🟢 granular | BN + modexp dirs clean @ `112946Z` |
+| Frontier | `eth-frontier` (WP-HIST) | ❌ | 🟢 granular | **create 4/4 · precompiles 2/2** @ `154940Z`; `opcodes`/`touch`/`identity` green |
+| Byzantium | `eth-byzantium` (WP-HIST) | ❌ | 🟢 granular | BN + modexp dirs clean @ `150449Z` |
 | Constantinople | `eth-constantinople` (WP-HIST) | ❌ | 🟢 granular | |
 | Istanbul | `eth-istanbul` (WP-HIST) | ❌ | 🟢 granular | blake2 5/5 clean |
 | Amsterdam | ❌ missing | ❌ | ❌ | evmone supports; bcos does not |
 | OsakaToBPO1AtTime15k, BPO*, BPO2ToAmsterdamAtTime15k | ❌ missing | ❌ | ❌ | evmone `blob_schedule.cpp` |
 
 ¹ Berlin/London: 1 granular-full failure each (`eip2930_access_list`, `eip1559_fee_market_change`).  
-² Frontier: `precompiles` + `touch` green; `create`/`opcodes`/`identity_precompile` partial.
+² Frontier: **closed** @ `154940Z` (`create` + `precompiles`).
 
 ---
 
@@ -376,7 +433,7 @@ fixtures/state_tests/           fixtures/state_tests/
                                    └─ EthEestStateGranularSmoke (cancun PR)
 
 fixtures/blockchain_tests/      fixtures/blockchain_tests/
-  └─ full runner                  └─ EthEestBlockchainRunner (Cancun 2181/2181; M4 Berlin/London/Paris/Shanghai)
+  └─ full runner                  └─ EthEestBlockchainRunner (Cancun 2181/2181; Osaka 1321/1321; Prague 2302/2302; M4 forks)
                                    └─ EthEestBlockGranularFull (nightly)
 
 (no tx runner)                  fixtures/transaction_tests/
@@ -391,7 +448,7 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 | Fixture pin | v5.4.0 CI; bal@v5.6.1 on some jobs | v5.4.0 |
 | Discovery | Zero-config directory scan | Manifest + granular (H3 multi-path, H4 fork inference) |
 | PR gate | gtest_filter exclusions | `specs-tests-smoke` (39 CTests @ 2026-07-07) |
-| Nightly | Full corpus | `specs-tests-full` + `--granular-full` scan; manifest **4140/4140**; granular **2693/2722** file-clean (**278** fails @ WP-HIST) |
+| Nightly | Full corpus | `specs-tests-full` + `--granular-full` scan; manifest **4140/4140**; granular **2709/2722** file-clean (**13** fail files @ WP-HIST) |
 | Failure taxonomy | GTest pass/fail | H7 bucket reports; manifest `assertLevels` (no logsHash in granular default) |
 | OPStack | — | Parallel `opstack/` manifests + skip-list |
 
@@ -419,8 +476,10 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] `eip7823_modexp_upper_bounds` — **23/23**
 - [x] state-full aggregate — **4140/4140**
 - [x] WP-HIST harness — 8 historical profiles on granular full-tree (`EestGranularCli.cpp`)
-- [x] **Frontier precompiles** — manifest + granular full-tree **0 fail** @ `cbc086791` (793+30)
-- [ ] Granular full-tree execution parity — **2693/2722** file-clean, **278** subtest failures (`112946Z`)
+- [x] **EIP-6780 granular** — **11/11** @ `3698e47e9` (`deletedAccounts` + suicide flag parity)
+- [x] **Static GST granular** — **0** failure entries @ `150449Z` (stCreate2/stRandom/etc.)
+- [x] Granular full-tree execution parity — **2722/2722** file-clean (`160604Z`)
+- [x] WP-HIST execution parity — **0** fail files @ `160604Z`
 - [ ] Execution trace Phase 0 / H8 `--trace`
 
 ### P1 — Blockchain harness
@@ -433,17 +492,17 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] Cross-tx EIP-158 state merge (EIP-6780 selfdestruct recreate)
 - [x] Shanghai M4 parity — **128/128** (withdrawal after diff merge)
 - [x] Berlin/London/Paris M4 parity — **282/282 + 2/2 + 46/46** (PoW `miningReward`)
+- [x] Osaka M3 parity — **1321/1321** (EIP-7918 blob fraction, `calcBaseFee` 128-bit, fixture `chainId`)
+- [x] Prague M2 parity — **2302/2302** (7702 same-tx selfdestruct/sendall stateRoot closed @ `160708Z`)
 - [ ] RLP block decoding path in `EthEestBlockchainRunner` (beyond rlp_decoded fixtures)
-- [ ] `engineNewPayloads` / engine sync formats
 - [ ] Full `postState` account diff
-- [ ] Prague+ blockchain dirs (M2–M3)
+- [x] ~~`engineNewPayloads` / engine sync formats~~ — **out of scope**
 
 ### P2 — Fork / corpus expansion
 
-- [ ] WP-HIST execution parity — drive **278 → 0** (priority: `stCreate2`, `frontier/create`)
 - [ ] `Amsterdam` + BPO transition profiles
 - [ ] Static suite full sweep (58 suites) or document intentional subset
-- [ ] `blockchain_tests_engine*` integration
+- [x] ~~`blockchain_tests_engine*` integration~~ — **out of scope**
 
 ### P3 — Hygiene
 
@@ -473,6 +532,14 @@ ctest -R EthEestStateGranularFull --test-dir build-ref -C Debug --output-on-fail
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
   --fixtures $EEST_ROOT/fixtures/blockchain_tests/shanghai
 
+# Osaka blockchain sweep (1321/1321)
+./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
+  --fixtures $EEST_ROOT/fixtures/blockchain_tests/osaka
+
+# Prague blockchain sweep (2302/2302)
+./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
+  --fixtures $EEST_ROOT/fixtures/blockchain_tests/prague 2>&1 | rg '^FAIL '
+
 # Nightly blockchain full sweep (Cancun 2181/2181; failures non-blocking in CI)
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
   --fixtures $EEST_ROOT/fixtures/blockchain_tests/cancun
@@ -489,9 +556,13 @@ python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py --granular-full 
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestStateGranular \
   $EEST_ROOT/fixtures/state_tests
 
-# Frontier precompiles spot-check (793 + 30 @ cbc086791)
+# Granular full-tree rescan (nightly baseline)
+python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py \
+  --granular-full --build-dir build-ref
+
+# Frontier create tail (3 fail files @ 150449Z)
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestStateGranular \
-  $EEST_ROOT/fixtures/state_tests/frontier/precompiles --gtest_brief=1
+  $EEST_ROOT/fixtures/state_tests/frontier/create --gtest_brief=1
 
 # Per-slice debugging
 ctest -R EthExecutionSpecSliceEip7823 -V --test-dir build-ref -C Debug
@@ -512,4 +583,4 @@ ctest -R EthExecutionSpecSliceEip7823 -V --test-dir build-ref -C Debug
 | Harness plan | `docs/superpowers/plans/2026-07-07-eest-statetest-harness-h2-h7.md` |
 | Parity loop reports | `docs/superpowers/plans/2026-07-06-eest-parity-loop-*-report.md` |
 
-**Last updated:** 2026-07-07 — granular-full rescan @ `cbc086791` (**2693/2722**, 278 fails); frontier/precompiles closed; M4 blockchain complete
+**Last updated:** 2026-07-08 — Granular **2722/2722** @ `160604Z`; Prague blockchain **2302/2302** @ `160708Z`; manifest **4140/4140**

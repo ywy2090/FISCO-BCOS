@@ -5,6 +5,7 @@
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include <bcos-task/Wait.h>
+#include <algorithm>
 #include <cstring>
 #include <utility>
 #include <vector>
@@ -63,6 +64,15 @@ inline void mergeStateDiffIntoPairs(
         }
         if (!found)
             accounts.emplace_back(addr, acc);
+    }
+    if (!diff.deletedAccounts.empty())
+    {
+        accounts.erase(std::remove_if(accounts.begin(), accounts.end(),
+                           [&diff](auto const& entry) {
+                               return diff.deletedAccounts.find(entry.first) !=
+                                      diff.deletedAccounts.end();
+                           }),
+            accounts.end());
     }
 }
 

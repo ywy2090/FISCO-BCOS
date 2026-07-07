@@ -46,6 +46,22 @@ BOOST_AUTO_TEST_CASE(self_balance_post_state_root_from_fixture)
     BOOST_CHECK_EQUAL(std::memcmp(actual.bytes, expected.bytes, 32), 0);
 }
 
+BOOST_AUTO_TEST_CASE(pre_eip158_rejected_tx_omits_untouched_coinbase)
+{
+    std::vector<std::pair<evmc_address, state::Account>> preState;
+    state::StateDiff diff;
+    auto const coinbase = state::parseHexAddress("0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba");
+
+    auto const postState = buildPostStateView(preState, diff, false, coinbase, false);
+    BOOST_CHECK_EQUAL(postState.accounts.size(), 0u);
+
+    evmc_bytes32 const expected = {0xe1, 0xba, 0x68, 0xaa, 0xb2, 0x77, 0xd1, 0xbc, 0x2d, 0xbd, 0xd5,
+        0x57, 0x3f, 0xf1, 0x52, 0x4e, 0xcf, 0x1e, 0x13, 0x2f, 0x6a, 0x52, 0xa7, 0xc6, 0x54, 0x1c,
+        0xeb, 0x82, 0x5b, 0x7d, 0x08, 0x37};
+    auto const actual = computeStateRoot(postState);
+    BOOST_CHECK_EQUAL(std::memcmp(actual.bytes, expected.bytes, 32), 0);
+}
+
 BOOST_AUTO_TEST_CASE(pre_eip158_coinbase_touch_included_in_post_state)
 {
     std::vector<std::pair<evmc_address, state::Account>> preState;

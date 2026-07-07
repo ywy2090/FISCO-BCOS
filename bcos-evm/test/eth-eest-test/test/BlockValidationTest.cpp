@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace bcos::evm::reference_tests
 {
@@ -807,6 +808,189 @@ BOOST_AUTO_TEST_CASE(osaka_7934_typed_transaction_4_state_root)
     BOOST_CHECK_MESSAGE(detail::bytes32Equal(computedRoot, h.stateRoot),
         "stateRoot mismatch got=0x" << detail::formatBytes32(computedRoot) << " want=0x"
                                     << detail::formatBytes32(h.stateRoot));
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(prague_deposit_oog_receipts_root)
+{
+#ifdef SPECS_TESTS_EEST_ROOT
+    namespace fs = std::filesystem;
+    namespace pt = boost::property_tree;
+    auto const path = fs::path(SPECS_TESTS_EEST_ROOT) /
+                      "fixtures/blockchain_tests/prague/eip6110_deposits/test_deposit.json";
+    pt::ptree root;
+    pt::read_json(path.string(), root);
+    auto tests = loadBlockchainTests(root);
+    BOOST_REQUIRE(!tests.empty());
+
+    BlockchainTest const* picked = nullptr;
+    for (auto const& t : tests)
+    {
+        if (t.network == "Prague" &&
+            t.name.find("many_deposits_from_contract_oog") != std::string::npos)
+        {
+            picked = &t;
+            break;
+        }
+    }
+    BOOST_REQUIRE(picked != nullptr);
+
+    auto profile = ForkProfileRegistry::instance().findByUpstreamFork(picked->network);
+    BOOST_REQUIRE(profile.has_value());
+    evmc::VM vm{evmc_create_evmone()};
+    bcos::crypto::Keccak256 hashImpl;
+
+    auto const& tb = picked->testBlocks.front();
+    auto const execBlockInfo = blockInfoForExecution(
+        tb.blockInfo, tb, &picked->genesisBlockHeader, profile->revision.revision, picked->chainId);
+    TestStateView chain = picked->preState;
+    auto res = applyEthBlock(
+        chain, tb.transactions, execBlockInfo, *profile, vm, hashImpl, {}, tb.withdrawals);
+
+    auto const& h = tb.expectedBlockHeader;
+    BOOST_REQUIRE_EQUAL(res.receipts.size(), 1u);
+    auto const& rc = res.receipts.front();
+    std::cerr << "gasUsed block=" << res.gasUsed << " want=" << h.gasUsed << " txGas=" << rc.gasUsed
+              << " topLevelIncludedTxVmError=" << rc.topLevelIncludedTxVmError
+              << " receiptStatus=" << static_cast<int>(rc.receiptStatus)
+              << " settlementStatus=" << static_cast<int>(rc.status) << " logs=" << rc.logs.size()
+              << '\n';
+
+    auto const gotRoot = computeReceiptsRoot(detail::receiptsForRoot(res.receipts));
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(gotRoot, h.receiptsRoot),
+        "receiptsRoot got=0x" << detail::formatBytes32(gotRoot) << " want=0x"
+                              << detail::formatBytes32(h.receiptsRoot));
+    BOOST_CHECK_EQUAL(res.gasUsed, h.gasUsed);
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(prague_7702_selfdestruct_same_tx_state_root)
+{
+#ifdef SPECS_TESTS_EEST_ROOT
+    namespace fs = std::filesystem;
+    namespace pt = boost::property_tree;
+    auto const path = fs::path(SPECS_TESTS_EEST_ROOT) /
+                      "fixtures/blockchain_tests/prague/eip7702_set_code_tx/"
+                      "test_set_code_to_self_destructing_account_deployed_in_same_tx.json";
+    pt::ptree root;
+    pt::read_json(path.string(), root);
+    auto tests = loadBlockchainTests(root);
+    BOOST_REQUIRE(!tests.empty());
+
+    std::string const wantSuffix =
+        "create_opcode_CREATE-call_set_code_first_False-balance_1-external_sendall_recipient_True";
+    BlockchainTest const* picked = nullptr;
+    for (auto const& t : tests)
+    {
+        if (t.network == "Prague" && t.name.find(wantSuffix) != std::string::npos &&
+            t.name.find("CREATE2") == std::string::npos)
+        {
+            picked = &t;
+            break;
+        }
+    }
+    BOOST_REQUIRE(picked != nullptr);
+
+    auto profile = ForkProfileRegistry::instance().findByUpstreamFork(picked->network);
+    BOOST_REQUIRE(profile.has_value());
+    evmc::VM vm{evmc_create_evmone()};
+    bcos::crypto::Keccak256 hashImpl;
+
+    auto const& tb = picked->testBlocks.front();
+    auto const execBlockInfo = blockInfoForExecution(
+        tb.blockInfo, tb, &picked->genesisBlockHeader, profile->revision.revision, picked->chainId);
+    TestStateView chain = picked->preState;
+    auto res = applyEthBlock(
+        chain, tb.transactions, execBlockInfo, *profile, vm, hashImpl, {}, tb.withdrawals);
+
+    auto const& h = tb.expectedBlockHeader;
+    std::cerr << "gasUsed block=" << res.gasUsed << " want=" << h.gasUsed
+              << " txGas=" << res.receipts.front().gasUsed << '\n';
+    auto const computedRoot = detail::computeStateRootFromView(res.postState);
+    if (!detail::bytes32Equal(computedRoot, h.stateRoot))
+    {
+        for (auto const& [expAddr, expAcc] : picked->postState)
+        {
+            auto got = res.postState.get_account(expAddr);
+            std::cerr << "account 0x" << bcos::toHex(bcos::bytes(expAddr.bytes, expAddr.bytes + 20))
+                      << " expBal=0x" << expAcc.balance.str(0, std::ios::hex) << " gotBal="
+                      << (got ? ("0x" + got->balance.str(0, std::ios::hex)) : "MISSING")
+                      << " expNonce=" << expAcc.nonce << " gotNonce=" << (got ? got->nonce : 0)
+                      << " expCode=" << bcos::toHex(expAcc.code)
+                      << " gotCode=" << (got ? bcos::toHex(got->code) : "MISSING") << '\n';
+        }
+    }
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(computedRoot, h.stateRoot),
+        "stateRoot got=0x" << detail::formatBytes32(computedRoot) << " want=0x"
+                           << detail::formatBytes32(h.stateRoot));
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(shanghai_selfdestructing_account_withdrawal_state_root)
+{
+#ifdef SPECS_TESTS_EEST_ROOT
+    namespace fs = std::filesystem;
+    namespace pt = boost::property_tree;
+    auto const path = fs::path(SPECS_TESTS_EEST_ROOT) /
+                      "fixtures/blockchain_tests/shanghai/eip4895_withdrawals/"
+                      "test_self_destructing_account.json";
+    pt::ptree root;
+    pt::read_json(path.string(), root);
+    auto tests = loadBlockchainTests(root);
+    BOOST_REQUIRE(!tests.empty());
+
+    BlockchainTest const* picked = nullptr;
+    for (auto const& t : tests)
+    {
+        if (t.network == "Shanghai" &&
+            t.name.find("test_self_destructing_account") != std::string::npos)
+        {
+            picked = &t;
+            break;
+        }
+    }
+    BOOST_REQUIRE(picked != nullptr);
+
+    auto profile = ForkProfileRegistry::instance().findByUpstreamFork(picked->network);
+    BOOST_REQUIRE(profile.has_value());
+    evmc::VM vm{evmc_create_evmone()};
+    bcos::crypto::Keccak256 hashImpl;
+
+    auto const& tb = picked->testBlocks.front();
+    auto const execBlockInfo = blockInfoForExecution(
+        tb.blockInfo, tb, &picked->genesisBlockHeader, profile->revision.revision, picked->chainId);
+    TestStateView chain = picked->preState;
+    auto res = applyEthBlock(
+        chain, tb.transactions, execBlockInfo, *profile, vm, hashImpl, {}, tb.withdrawals);
+
+    auto const& h = tb.expectedBlockHeader;
+    auto const computedRoot = detail::computeStateRootFromView(res.postState);
+    std::cerr << "gasUsed block=" << res.gasUsed << " want=" << h.gasUsed << '\n';
+    std::cerr << "stateRoot got=0x" << detail::formatBytes32(computedRoot) << " want=0x"
+              << detail::formatBytes32(h.stateRoot) << '\n';
+    std::unordered_set<evmc_address, state::AddressHash, state::AddressEqual> expectedAddrs;
+    for (auto const& [expAddr, expAcc] : picked->postState)
+    {
+        expectedAddrs.insert(expAddr);
+        auto got = res.postState.get_account(expAddr);
+        std::cerr << "account 0x" << bcos::toHex(bcos::bytes(expAddr.bytes, expAddr.bytes + 20))
+                  << " expBal=0x" << expAcc.balance.str(0, std::ios::hex)
+                  << " gotBal=" << (got ? ("0x" + got->balance.str(0, std::ios::hex)) : "MISSING")
+                  << " expCode=" << bcos::toHex(expAcc.code)
+                  << " gotCode=" << (got ? bcos::toHex(got->code) : "MISSING") << '\n';
+    }
+    for (auto const& [addr, acc] : res.postState.accounts())
+    {
+        if (expectedAddrs.find(addr) == expectedAddrs.end())
+        {
+            std::cerr << "extra account 0x" << bcos::toHex(bcos::bytes(addr.bytes, addr.bytes + 20))
+                      << " bal=0x" << acc.balance.str(0, std::ios::hex)
+                      << " code=" << bcos::toHex(acc.code) << '\n';
+        }
+    }
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(computedRoot, h.stateRoot),
+        "stateRoot got=0x" << detail::formatBytes32(computedRoot) << " want=0x"
+                           << detail::formatBytes32(h.stateRoot));
 #endif
 }
 }  // namespace bcos::evm::reference_tests

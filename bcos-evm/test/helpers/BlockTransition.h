@@ -4,7 +4,7 @@
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
-#include "bcos-evm/eth-eest-test/GstStateHash.h"
+#include "bcos-evm/eth-eest-test/ReceiptForRoot.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/eip/Eip4844.h"
@@ -171,24 +171,12 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
             // Accumulate diff
             for (auto const& [addr, acc] : execResult.stateDiff.accounts)
                 mergeStateDiffAccount(accumulatedDiff.accounts[addr], acc);
+            accumulatedDiff.deletedAccounts.insert(execResult.stateDiff.deletedAccounts.begin(),
+                execResult.stateDiff.deletedAccounts.end());
 
             // Propagate state diff into preStatePairs so the next transaction
             // sees this transaction's balance/nonce/storage mutations.
-            for (auto const& [addr, acc] : execResult.stateDiff.accounts)
-            {
-                bool found = false;
-                for (auto& [pAddr, pAcc] : preStatePairs)
-                {
-                    if (state::AddressEqual{}(pAddr, addr))
-                    {
-                        mergeStateDiffAccount(pAcc, acc);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                    preStatePairs.emplace_back(addr, acc);
-            }
+            mergeStateDiffIntoPairs(preStatePairs, execResult.stateDiff);
 
             if (profile.revision.revision >= EVMC_SPURIOUS_DRAGON)
             {
@@ -211,9 +199,15 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         receipt.exitKind = execResult.exitKind;
         receipt.gasUsed = execResult.gasUsed;
         receipt.logs = execResult.logs;
-        if (!execResult.logs.empty())
-            receipt.log = execResult.logs.front();
-        receipt.bloom = state::computeLogsBloom(execResult.logs);
+        // geth receiptsRoot: failed included txs encode status=0 and empty logs (reverted state).
+        if (receiptMptStatus(receipt.status, receipt.receiptStatus,
+                receipt.topLevelIncludedTxVmError) != EVMC_SUCCESS)
+        {
+            receipt.logs.clear();
+        }
+        if (!receipt.logs.empty())
+            receipt.log = receipt.logs.front();
+        receipt.bloom = state::computeLogsBloom(receipt.logs);
         receipt.txType = inferWeb3TypedTxKindFromFields(tmpl.authorizationListKeyPresent,
             !tmpl.authorizationList.empty(), !tmpl.blobVersionedHashes.empty(),
             tmpl.maxFeePerBlobGasKeyPresent,

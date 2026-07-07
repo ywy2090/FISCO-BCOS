@@ -157,12 +157,19 @@ inline std::vector<ReceiptForRoot> receiptsForRoot(std::vector<TransactionReceip
     {
         ReceiptForRoot r;
         r.txType = rc.txType;
-        // MPT receipt status: included vmerr still encodes failure (0x80), not settlement success.
-        r.status = rc.topLevelIncludedTxVmError ? EVMC_REVERT : rc.status;
+        r.status = receiptMptStatus(rc.status, rc.receiptStatus, rc.topLevelIncludedTxVmError);
+        if (r.status != EVMC_SUCCESS)
+        {
+            r.logs.clear();
+            r.bloom.assign(state::LOGS_BLOOM_BYTES, 0);
+        }
+        else
+        {
+            r.bloom = rc.bloom;
+            r.logs = rc.logs;
+        }
         cumulative += static_cast<uint64_t>(rc.gasUsed);
         r.cumulativeGasUsed = cumulative;
-        r.bloom = rc.bloom;
-        r.logs = rc.logs;
         out.push_back(std::move(r));
     }
     return out;

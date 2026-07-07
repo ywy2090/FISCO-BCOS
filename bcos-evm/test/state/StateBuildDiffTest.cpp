@@ -170,5 +170,17 @@ BOOST_AUTO_TEST_CASE(block_end_style_clear_exports_zero_against_post_tx_base)
     BOOST_CHECK(bytes32Equal(slotIt->second, evmc_bytes32{}));
 }
 
+BOOST_AUTO_TEST_CASE(new_overlay_empty_account_is_exported)
+{
+    InMemoryStateView view;
+    evmc_address const addr = addrFromLastByte(0x07);
+
+    State state(view);
+    state.touchOverlayAccount(addr);
+
+    auto const diff = state.build_diff();
+    BOOST_REQUIRE(diff.accounts.find(addr) != diff.accounts.end());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace bcos::evm::state::test
