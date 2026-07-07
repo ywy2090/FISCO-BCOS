@@ -46,7 +46,7 @@ jobs:
             -DLINKER=mold \
             -DVCPKG_TARGET_TRIPLET=x64-linux-release \
             .
-          cmake --build build --target EthGSTFull EthExecutionSpecStateTests EthExecutionSpecTransactionTests EthEestStateGranular -j$(nproc)
+          cmake --build build --target EthGSTFull EthExecutionSpecStateTests EthExecutionSpecTransactionTests EthEestStateGranular EthEestBlockchainRunner EthEestBlockGranular -j$(nproc)
       - name: Run full GST sweep
         run: |
           build/bcos-evm/test/eth-eest-test/EthGSTFull \
@@ -67,6 +67,10 @@ jobs:
         run: |
           python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py \
             --granular-full --build-dir build
+      - name: Run EthEest blockchain full sweep
+        continue-on-error: true
+        run: |
+          ctest --test-dir build -L 'specs-tests-full' -R 'BlockchainFull|BlockGranularFull' --output-on-failure
       - name: Upload granular full-tree reports
         if: always()
         uses: actions/upload-artifact@v4

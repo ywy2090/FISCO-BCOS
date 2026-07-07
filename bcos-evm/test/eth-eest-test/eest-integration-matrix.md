@@ -16,10 +16,10 @@
 | **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular **2722/2722** (H1–H7 + WP-HIST harness) | **Full tree** recursive scan | Manifest + default-profile granular **closed**; WP-HIST phase 2 = expand historical post coverage |
 | **State (static GST)** | 58 suites under `static/state_tests/` | **19 suites** in `eth-eest-static-regression-full.json` | Included in statetest scan | Partial static coverage; no nightly full static |
 | **Transaction tests** | `transaction_tests/prague/eip7702_set_code_tx` | **106/106 pass** (`eth-eest-tx-full.json`) | **No dedicated runner** | bcos ahead |
-| **Blockchain tests** | 12 fork dirs + `static/` | Smoke only (`--limit 10`); runner partial | **Full tree** | RLP/engine payload + multi-block parity |
+| **Blockchain tests** | 12 fork dirs + `static/` | `validateBlock` + MPT + invalid-block; Cancun **13.8%** case / **7.6%** file (M1 **open**) | **Full tree** | stateRoot execution parity; engine format |
 | **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Not integrated** | Partial (engine variants) | Format + CL payload decoding |
 
-**Bottom line:** Manifest state-full **4140/4140** and granular full-tree **2722/2722** (2026-07-07, default profiles incl. Homestead/Berlin). Harness H2–H7 complete; nightly CI gates `--granular-full`. Remaining: **WP-HIST phase 2** (broader historical post runs), **blockchain harness**, optional H8 trace.
+**Bottom line:** Manifest state-full **4140/4140** and granular full-tree **2722/2722** (2026-07-07, default profiles incl. Homestead/Berlin). Harness H2–H7 complete; nightly CI gates `--granular-full` (hard) + blockchain full sweep (crash-free, `continue-on-error`). Blockchain M1 (Cancun ≥90%) **not met** — baseline **13.8%** case rate; M2–M5 tracked in §6. Remaining: **WP-HIST phase 2**, blockchain stateRoot parity loop, optional H8 trace.
 
 ---
 
@@ -30,8 +30,8 @@
 | `EthExecutionSpecStateTests` | manifest-driven CTests | `EthMessageAdapter` → `applyEthMessage` | — | Curated manifest entries + `assertLevels` |
 | `EthEestStateGranular` | `EthEestStateGranularSmoke` / `EthEestStateGranularFull` | Same (file-per-GTest) | `evmone-statetest` | H1 full tree CTest; H2–H7 harness (see §2.1) |
 | `EthExecutionSpecTransactionTests` | `EthExecutionSpecTransactionTestsFull` | Tx decode / precheck (no EVM exec) | — | Full `transaction_tests/` dir |
-| `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` | `applyEthBlock` multi-block | `evmone-blockchaintest` | `--limit 10`; skips engine format |
-| `EthEestBlockGranular` | `EthEestBlockGranularSmoke` | JSON parse smoke only | — | No stateRoot validation |
+| `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` / `EthEestBlockchainFull` | `validateBlock` + `applyEthBlock` + MPT roots + invalid-block | `evmone-blockchaintest` | Smoke manifest (8 files); nightly full sweep |
+| `EthEestBlockGranular` | `EthEestBlockGranularSmoke` / `EthEestBlockGranularFull` | Same via `BlockchainRunCore` (per-file GTest) | `evmone-blockchaintest` | Cancun filter smoke; nightly full tree |
 | `EthGSTSmoke` / `EthGSTFull` | GST legacy | GST adapter | evmone also runs legacy GST | Separate from EEST native dirs |
 
 ### CTest labels
@@ -168,13 +168,36 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 
 | Corpus dir | evmone | bcos-evm runner | CI today | Blockers |
 |------------|--------|-----------------|----------|----------|
-| `blockchain_tests/{fork}/` | Full scan | `EthEestBlockchainRunner` | `--limit 10` smoke | RLP-only blocks; engine format skipped |
-| `blockchain_tests/static/` | Full scan | same | not wired | static blockchain parity |
+| `blockchain_tests/{fork}/` | Full scan | `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` manifest (PR); `EthEestBlockchainFull` nightly (`continue-on-error`) | stateRoot execution parity |
+| `blockchain_tests/static/` | Full scan | same | nightly full sweep (non-blocking) | static blockchain parity |
 | `blockchain_tests_engine/` | partial | ❌ | — | `engineNewPayloads` decode |
 | `blockchain_tests_engine_x/` | partial | ❌ | — | extended engine format |
 | `blockchain_tests_sync/` | partial | ❌ | — | CL sync vectors |
 
-`EthEestBlockGranular` validates JSON structure only (`pre`, `genesisBlockHeader`, `blocks|engineNewPayloads` present) — **no execution**.
+`EthEestBlockGranular` runs per-file execution via shared `BlockchainRunCore` (loader + `validateBlock` + `applyEthBlock` + MPT checks). `EthEestBlockGranularFull` mirrors CLI nightly sweep.
+
+### M1 baseline — Cancun (`blockchain_tests/cancun/`, 2026-07-07)
+
+| Metric | bcos-evm | evmone target | M1 gate |
+|--------|----------|---------------|---------|
+| Corpus size | 105 files / 8389 subtests | full tree | — |
+| CLI case pass rate | **302 / 2181 = 13.8%** | ~100% | ≥90% — **NOT MET** |
+| Granular file pass rate | **8 / 105 = 7.6%** | ~100% | ≥90% — **NOT MET** |
+| Crash-free nightly | `EthEestBlockchainFull` + `EthEestBlockGranularFull` CTests wired | — | ✅ (failures allowed) |
+
+Dominant failure: `header field mismatch: stateRoot` on valid blocks. Passing files are predominantly eip4844 invalid/reject vectors (Task 3.3).
+
+### Milestones (blockchain parity loop)
+
+| Milestone | Fork / scope | Gate | Status |
+|-----------|--------------|------|--------|
+| **M1** | Cancun | ≥90% standard-format files; PR smoke manifest | **OPEN** — 7.6% file / 13.8% case |
+| **M2** | Prague+ | `requestsHash` (EIP-7685) + system-contract collection | XFAIL-guarded; `computeRequestsHash` implemented |
+| **M3** | Osaka+ | EIP-7918 blob-base-fee refinement | deferred |
+| **M4** | Shanghai+ dirs | withdrawal + multi-fork coverage | partial (B1 credit wired) |
+| **M5** | Reorg / PoW | canonical tip + TD semantics | deferred |
+
+M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseline without blocking CI.
 
 ### Known blockchain runner gaps (vs evmone-blockchaintest)
 
@@ -182,8 +205,7 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 2. Blocks with RLP hex but no parsed txs/headers → skip.
 3. `postState` full account diff marked "Phase 2".
 4. No Amsterdam / BPO transition networks (`OsakaToBPO1AtTime15k`, etc.).
-5. No nightly full corpus CTest.
-6. **M2 / B2 — Prague+ `requestsHash`:** `computeRequestsHash` (EIP-7685 SHA-256) implemented; runner validates only when `BlockApplyResult.requests` is non-empty. System-contract request collection not wired → XFAIL skip (does not block M1 Cancun).
+5. **M2 / B2 — Prague+ `requestsHash`:** `computeRequestsHash` (EIP-7685 SHA-256) implemented; runner validates only when `BlockApplyResult.requests` is non-empty. System-contract request collection not wired → XFAIL skip (does not block M1 Cancun).
 
 ---
 
@@ -311,7 +333,7 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] Slow-test filter aligned with evmone (H2)
 - [x] CLI multi-path + `-k` (H3)
 - [x] Failure bucket reports (H7)
-- [ ] CTest: `EthEestBlockchainRunner --fixtures .../blockchain_tests` (no limit, nightly)
+- [x] CTest: `EthEestBlockchainRunner --fixtures .../blockchain_tests` (no limit, nightly; `workflow-specs-tests-nightly.yml` `continue-on-error`)
 - [x] CI job artifact upload for `--granular-full` reports (`workflow-specs-tests-nightly.yml`)
 - [x] Nightly `--granular-full` hard gate (`workflow-specs-tests-nightly.yml`, 2026-07-07)
 - [ ] Pin bump policy (track evmone v5.6.x bal)
@@ -368,6 +390,9 @@ ctest -L 'specs-tests-full' --test-dir build-ref -C Debug --output-on-failure
 
 # Nightly granular full tree
 ctest -R EthEestStateGranularFull --test-dir build-ref -C Debug --output-on-failure
+
+# Nightly blockchain full sweep (crash-free; failures non-blocking in CI)
+ctest -L 'specs-tests-full' -R 'BlockchainFull|BlockGranularFull' --test-dir build-ref -C Debug --output-on-failure
 
 # Failure bucket scan (manifest-16 dirs)
 python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py --manifest-16
