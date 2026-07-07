@@ -141,7 +141,16 @@ evmc_storage_status classifyStorageStatusPrecise(evmc_bytes32 const& oldValue,
 evmc_storage_status classifyStorageStatusLegacy(
     evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept
 {
-    return isZeroBytes32(newValue) ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
+    // Pre-Constantinople (Byzantium): zero→non-zero is ADDED (20k gas), not MODIFIED (5k).
+    if (isZeroBytes32(newValue))
+    {
+        return EVMC_STORAGE_DELETED;
+    }
+    if (isZeroBytes32(current))
+    {
+        return EVMC_STORAGE_ADDED;
+    }
+    return EVMC_STORAGE_MODIFIED;
 }
 
 void applySstoreRefundLegacy(

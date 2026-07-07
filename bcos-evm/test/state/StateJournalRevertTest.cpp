@@ -218,6 +218,20 @@ BOOST_AUTO_TEST_CASE(transfer_balance_insufficient_leaves_state_unchanged)
     BOOST_CHECK_EQUAL(state.get_balance(recipient), 0);
 }
 
+// geth parity: self-transfer (from == to) is SubBalance then AddBalance — net zero,
+// never minting value (regression: recipient balance was snapshotted before the debit).
+BOOST_AUTO_TEST_CASE(transfer_balance_self_transfer_is_net_zero)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address account{};
+    account.bytes[19] = 0x01;
+
+    BOOST_REQUIRE(state.transfer_balance(account, account, 40));
+    BOOST_CHECK_EQUAL(state.get_balance(account), 100);
+}
+
 BOOST_AUTO_TEST_CASE(transfer_balance_zero_value_is_noop)
 {
     MockStateView view;

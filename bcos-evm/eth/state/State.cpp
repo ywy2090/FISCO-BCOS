@@ -380,9 +380,10 @@ bool State::transfer_balance(
         return false;
     }
 
-    auto const toBalance = get_balance(to);
+    // geth SubBalance/AddBalance order: debit first, then re-read the recipient so a
+    // self-transfer (from == to) nets to zero instead of minting `value`.
     set_balance(from, fromBalance - value);
-    set_balance(to, toBalance + value);
+    set_balance(to, get_balance(to) + value);
     return true;
 }
 

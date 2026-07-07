@@ -94,6 +94,14 @@ PrecompileRouterOutput envelopeAfterValueTransfer(
 PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& input)
 {
     return envelopeAfterValueTransfer(input, [&input]() -> evmc::Result {
+        // Pre-Byzantium GST: successful CALL to a precompile leaves a touched empty
+        // account (0x01–0x04) in the state trie. Touch inside the envelope checkpoint
+        // so OOG / failure reverts the account alongside dispatch state.
+        if (input.revision.revision < EVMC_BYZANTIUM)
+        {
+            input.state.touchOverlayAccount(input.target.dispatchAddress);
+        }
+
         if (input.target.route == execution::CallTargetRoute::BuiltinPrecompile)
         {
             if (auto result = EthPrecompiles::tryDispatchInCall(input.target.dispatchAddress,
