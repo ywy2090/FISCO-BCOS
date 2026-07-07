@@ -21,6 +21,7 @@
 
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-utilities/Common.h"
 
 namespace bcos::evm::gas
@@ -33,7 +34,8 @@ inline bool isEip1559GasCapsTx(uint8_t web3TypedTxKind, bool hasExplicitFeeCapsF
     {
         return false;
     }
-    if (web3TypedTxKind == 0x02 || web3TypedTxKind == 0x04)
+    if (web3TypedTxKind == bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::EIP1559) ||
+        web3TypedTxKind == bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::EIP7702))
     {
         return true;
     }

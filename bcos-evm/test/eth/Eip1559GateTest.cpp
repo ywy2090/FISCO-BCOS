@@ -1,9 +1,9 @@
 #define BOOST_TEST_MODULE Eip1559GateTest
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/RevisionConfig.h"
-#include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "helpers/EthPreCheckRulesTestHelper.h"
@@ -68,8 +68,9 @@ BOOST_AUTO_TEST_CASE(normalize_gas_caps_respects_fee_market_gate)
 {
     auto const london = revisionConfigFromRevision(EVMC_LONDON);
     auto const berlin = revisionConfigFromRevision(EVMC_BERLIN);
-    auto const londonCaps = gas::normalizeGasCaps(0, 2, 100, 0x02, false, london);
-    auto const berlinCaps = gas::normalizeGasCaps(0, 2, 100, 0x02, false, berlin);
+    auto const typed1559 = toWeb3TypedTxKindValue(Web3TypedTxKind::EIP1559);
+    auto const londonCaps = gas::normalizeGasCaps(0, 2, 100, typed1559, false, london);
+    auto const berlinCaps = gas::normalizeGasCaps(0, 2, 100, typed1559, false, berlin);
     BOOST_CHECK(londonCaps.isEip1559Caps);
     BOOST_CHECK(!berlinCaps.isEip1559Caps);
 }

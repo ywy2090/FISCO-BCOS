@@ -5,7 +5,7 @@
 
 #include "bcos-evm/eth-eest-test/OpStackEestAdapter.h"
 
-#include "bcos-evm/eth/Web3TypedTxKind.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-utilities/DataConvertUtility.h"

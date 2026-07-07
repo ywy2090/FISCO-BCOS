@@ -17,11 +17,11 @@
  */
 
 #include "bcos-evm/eth/apply/EthStateTransitionHooks.h"
-#include "bcos-evm/eth/Web3TypedTxKind.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/apply/EthEvmResult.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
@@ -125,7 +125,7 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
         return;
     }
 
-    if (m_input.web3TypedTxKind == 0x04 &&
+    if (m_input.web3TypedTxKind == toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702) &&
         (m_input.message.kind == EVMC_CREATE || m_input.message.kind == EVMC_CREATE2))
     {
         ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);

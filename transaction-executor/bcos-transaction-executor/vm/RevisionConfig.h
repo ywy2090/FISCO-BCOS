@@ -1,2 +1,2 @@
 #pragma once
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"

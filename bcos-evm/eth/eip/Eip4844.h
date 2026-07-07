@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include <bcos-utilities/Common.h>
 #include <cstdint>
 
@@ -34,7 +35,9 @@ constexpr uint64_t MAX_BLOBS_PER_TX = 6;
 inline bool hasBlobTxIntent(
     uint8_t web3TypedTxKind, bool hasBlobVersionedHashes, bool hasMaxFeePerBlobGas) noexcept
 {
-    return web3TypedTxKind == 0x03 || hasBlobVersionedHashes || hasMaxFeePerBlobGas;
+    return web3TypedTxKind ==
+               bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::EIP4844) ||
+           hasBlobVersionedHashes || hasMaxFeePerBlobGas;
 }
 
 // geth consensus/misc/eip4844.fakeExponential — factor * e^(numerator / denominator).

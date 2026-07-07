@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 ALLOWLIST=(
+    'eth/core/RevisionConfig.h'
     'eth/RevisionConfig.h'
     'eth/eip/Eip1559Gate.h'
 )

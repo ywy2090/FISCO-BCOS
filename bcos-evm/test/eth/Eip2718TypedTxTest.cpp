@@ -1,10 +1,10 @@
-#define BOOST_TEST_MODULE Web3TypedTxKindTest
-#include "bcos-evm/eth/Web3TypedTxKind.h"
+#define BOOST_TEST_MODULE Eip2718TypedTxTest
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::test
 {
-BOOST_AUTO_TEST_SUITE(Web3TypedTxKindTest)
+BOOST_AUTO_TEST_SUITE(Eip2718TypedTxTest)
 
 BOOST_AUTO_TEST_CASE(infers_type1_from_access_list)
 {

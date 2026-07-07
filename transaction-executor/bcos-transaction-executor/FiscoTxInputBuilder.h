@@ -2,6 +2,7 @@
 
 #include "Web3Eip7702Decoder.h"
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/protocol/Transaction.h"
 
@@ -21,7 +22,7 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, FiscoMessageRequest&
                               (tx.extraTransactionBytes().empty() ?
                                       uint8_t{0} :
                                       static_cast<uint8_t>(tx.extraTransactionBytes()[0]));
-    if (web3Kind == 0x04)
+    if (web3Kind == bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::EIP7702))
     {
         input.web3TypedTxKind = web3Kind;
         if (auto decodedAuthorizations =

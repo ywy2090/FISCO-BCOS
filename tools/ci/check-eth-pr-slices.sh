@@ -57,16 +57,16 @@ echo "FAIL when valid>${INSERT_LIMIT} AND git>${INSERT_LIMIT}"
 echo ""
 
 check_slice "PR-01 prod-1" \
-  bcos-evm/CMakeLists.txt bcos-evm/eth/vm/ bcos-evm/eth/RevisionConfig.h \
-  bcos-evm/eth/Web3TypedTxKind.h bcos-evm/eth/policy/ bcos-evm/eth/gas/ProtocolGas.h
+  bcos-evm/CMakeLists.txt bcos-evm/eth/vm/ bcos-evm/eth/core/RevisionConfig.h \
+  bcos-evm/eth/eip/Eip2718TypedTx.h bcos-evm/eth/policy/ bcos-evm/eth/gas/ProtocolGas.h
 
 check_slice "PR-01 prod-2" \
   bcos-evm/eth/state/Account.hpp bcos-evm/eth/state/BlockInfo.hpp \
   bcos-evm/eth/state/Transaction.hpp bcos-evm/eth/state/StateDiff.hpp bcos-evm/eth/state/StateView.hpp
 
 check_slice "PR-01 ALL" \
-  bcos-evm/CMakeLists.txt bcos-evm/eth/vm/ bcos-evm/eth/RevisionConfig.h \
-  bcos-evm/eth/Web3TypedTxKind.h bcos-evm/eth/policy/ bcos-evm/eth/gas/ProtocolGas.h \
+  bcos-evm/CMakeLists.txt bcos-evm/eth/vm/ bcos-evm/eth/core/RevisionConfig.h \
+  bcos-evm/eth/eip/Eip2718TypedTx.h bcos-evm/eth/policy/ bcos-evm/eth/gas/ProtocolGas.h \
   bcos-evm/eth/state/Account.hpp bcos-evm/eth/state/BlockInfo.hpp \
   bcos-evm/eth/state/Transaction.hpp bcos-evm/eth/state/StateDiff.hpp bcos-evm/eth/state/StateView.hpp
 

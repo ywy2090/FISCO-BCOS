@@ -7,6 +7,7 @@
  */
 
 #pragma once
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include <bcos-utilities/FixedBytes.h>
 
@@ -14,8 +15,8 @@ namespace bcos::evm
 {
 inline bool hasBlobTxIntent(OpStackMessageRequest const& input) noexcept
 {
-    return input.web3TypedTxKind == 0x03 || !input.blobVersionedHashes.empty() ||
-           input.blobGasFeeCap > 0;
+    return input.web3TypedTxKind == toWeb3TypedTxKindValue(Web3TypedTxKind::EIP4844) ||
+           !input.blobVersionedHashes.empty() || input.blobGasFeeCap > 0;
 }
 
 inline bool isValidVersionedHash(bcos::h256 const& h) noexcept

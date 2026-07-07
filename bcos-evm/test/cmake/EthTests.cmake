@@ -114,11 +114,11 @@ target_include_directories(TxFeeSettlementTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
 target_link_libraries(TxFeeSettlementTest PRIVATE bcos-evm-eth bcos-utilities)
 add_test(NAME TxFeeSettlement COMMAND TxFeeSettlementTest)
-add_executable(Web3TypedTxKindTest eth/Web3TypedTxKindTest.cpp)
-target_include_directories(Web3TypedTxKindTest PRIVATE
+add_executable(Eip2718TypedTxTest eth/Eip2718TypedTxTest.cpp)
+target_include_directories(Eip2718TypedTxTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})
-target_link_libraries(Web3TypedTxKindTest PRIVATE bcos-evm-eth bcos-utilities)
-add_test(NAME Web3TypedTxKind COMMAND Web3TypedTxKindTest)
+target_link_libraries(Eip2718TypedTxTest PRIVATE bcos-evm-eth bcos-utilities)
+add_test(NAME Eip2718TypedTx COMMAND Eip2718TypedTxTest)
 add_executable(EthMessage1559GasPriceTest eth/EthMessage1559GasPriceTest.cpp)
 target_include_directories(EthMessage1559GasPriceTest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR})

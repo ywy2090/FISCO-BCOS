@@ -6,6 +6,7 @@
 #include "bcos-codec/rlp/RLPEncode.h"
 #include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
@@ -217,7 +218,8 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackMessageReques
     {
         input.accessList = resolved.accessList.get();
     }
-    if (input.web3TypedTxKind == 0x04)
+    if (input.web3TypedTxKind ==
+        bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::EIP7702))
     {
         if (auto decodedAuthorizations =
                 web3_tx::decodeEip7702Authorizations(tx.extraTransactionBytes());
@@ -232,7 +234,7 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackMessageReques
                               (tx.extraTransactionBytes().empty() ?
                                       uint8_t{0} :
                                       static_cast<uint8_t>(tx.extraTransactionBytes()[0]));
-    if (web3Kind == 0x03)
+    if (web3Kind == bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::EIP4844))
     {
         input.web3TypedTxKind = web3Kind;
         if (auto decodedBlobFields = web3_tx::decodeEip4844BlobFields(tx.extraTransactionBytes());

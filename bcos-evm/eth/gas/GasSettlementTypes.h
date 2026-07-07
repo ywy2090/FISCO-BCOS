@@ -117,7 +117,7 @@ struct FeeInputs
     bcos::u256 gasPrice;             ///< Legacy gasPrice field (pre-1559 or fallback)
     bcos::u256 gasTipCap;            ///< maxPriorityFeePerGas
     bcos::u256 gasFeeCap;            ///< maxFeePerGas
-    uint8_t web3TypedTxKind{0};      ///< EIP-2718 type byte (0x02 / 0x04 → 1559 caps)
+    uint8_t web3TypedTxKind{0};      ///< EIP-2718 type byte (EIP1559 / EIP7702 → 1559 caps)
     bool hasExplicitFeeCaps{false};  ///< Typed tx or explicit cap fields from TE builder
 };
 
