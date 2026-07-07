@@ -183,6 +183,7 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 3. `postState` full account diff marked "Phase 2".
 4. No Amsterdam / BPO transition networks (`OsakaToBPO1AtTime15k`, etc.).
 5. No nightly full corpus CTest.
+6. **M2 / B2 — Prague+ `requestsHash`:** `computeRequestsHash` (EIP-7685 SHA-256) implemented; runner validates only when `BlockApplyResult.requests` is non-empty. System-contract request collection not wired → XFAIL skip (does not block M1 Cancun).
 
 ---
 

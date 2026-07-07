@@ -3,6 +3,7 @@
 #include "bcos-evm/eth-eest-test/BlockchainTestTypes.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
+#include <bcos-crypto/hash/Sha256.h>
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -32,6 +33,13 @@ evmc_bytes32 keccak256(bcos::bytes const& data)
     auto const hash = ethash::keccak256(data.data(), data.size());
     evmc_bytes32 out{};
     std::memcpy(out.bytes, hash.bytes, sizeof(out.bytes));
+    return out;
+}
+
+evmc_bytes32 sha256ToBytes32(bcos::crypto::HashType const& hash)
+{
+    evmc_bytes32 out{};
+    std::memcpy(out.bytes, hash.data(), sizeof(out.bytes));
     return out;
 }
 
@@ -593,6 +601,21 @@ evmc_bytes32 computeWithdrawalRoot(std::span<const Withdrawal> withdrawals)
 {
     return computeIndexedTrieRoot(
         withdrawals.size(), [&](size_t i) { return encodeWithdrawal(withdrawals[i]); });
+}
+
+evmc_bytes32 computeRequestsHash(std::span<const bcos::bytes> requests)
+{
+    bcos::bytes concatenated;
+    for (auto const& request : requests)
+    {
+        if (request.size() <= 1)
+        {
+            continue;
+        }
+        auto const inner = bcos::crypto::sha256Hash(bcos::ref(request));
+        concatenated.insert(concatenated.end(), inner.begin(), inner.end());
+    }
+    return sha256ToBytes32(bcos::crypto::sha256Hash(bcos::ref(concatenated)));
 }
 
 }  // namespace bcos::evm::reference_tests

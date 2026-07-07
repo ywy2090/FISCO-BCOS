@@ -33,6 +33,8 @@ evmc_bytes32 computeLogsHash(std::vector<state::LogEntry> const& logs);
 evmc_bytes32 computeTxRoot(std::span<const bcos::bytes> signedTxRlps);
 evmc_bytes32 computeReceiptsRoot(std::span<const ReceiptForRoot> receipts);
 evmc_bytes32 computeWithdrawalRoot(std::span<const Withdrawal> withdrawals);
+/// EIP-7685: SHA-256 commitment over non-empty request blobs (type byte ++ payload).
+evmc_bytes32 computeRequestsHash(std::span<const bcos::bytes> requests);
 
 bcos::bytes rlpEncodeRaw(bcos::bytes const& input);
 bcos::bytes rlpEncodeUint64(uint64_t value);
