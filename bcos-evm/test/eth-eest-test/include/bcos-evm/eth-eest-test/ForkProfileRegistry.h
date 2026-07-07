@@ -3,6 +3,7 @@
 #include "bcos-evm/eth-eest-test/EvidenceKind.h"
 #include "bcos-evm/eth-eest-test/ExecutionPath.h"
 #include "bcos-evm/eth/RevisionConfig.h"
+#include <evmc/evmc.h>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -37,6 +38,10 @@ public:
 
     std::optional<ForkProfile> findByProfileId(std::string_view id) const;
     std::optional<ForkProfile> findByUpstreamFork(std::string_view fork) const;
+
+    /// Map an EEST network name (+timestamp, reserved for BPO transition forks)
+    /// to an evmc_revision. Returns nullopt if the network is unknown.
+    std::optional<evmc_revision> resolveRevision(std::string_view network, int64_t timestamp) const;
 
     /// All registered profile ids (stable order).
     std::vector<std::string_view> allProfileIds() const;

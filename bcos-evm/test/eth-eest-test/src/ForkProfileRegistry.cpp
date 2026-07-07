@@ -303,6 +303,15 @@ std::optional<std::string_view> ForkProfileRegistry::profileIdForDirSegment(
     return std::nullopt;
 }
 
+std::optional<evmc_revision> ForkProfileRegistry::resolveRevision(
+    std::string_view network, int64_t /*timestamp*/) const
+{
+    // timestamp reserved for future BPO/transition networks (out of M1-M4 scope).
+    if (auto profile = findByUpstreamFork(network))
+        return profile->revision.revision;
+    return std::nullopt;
+}
+
 ForkProfile ForkProfileRegistry::resolveExecutionProfile(
     ForkProfile profile, std::optional<std::string> const& postFork) const
 {

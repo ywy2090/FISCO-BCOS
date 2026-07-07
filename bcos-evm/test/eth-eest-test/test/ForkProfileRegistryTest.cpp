@@ -101,4 +101,15 @@ BOOST_AUTO_TEST_CASE(all_profile_ids_lists_registry)
     BOOST_CHECK(std::find(ids.begin(), ids.end(), "eth-osaka") != ids.end());
 }
 
+BOOST_AUTO_TEST_CASE(resolve_revision_maps_network_to_evmc_revision)
+{
+    auto const& reg = ForkProfileRegistry::instance();
+    auto const cancun = reg.resolveRevision("Cancun", /*timestamp*/ 0);
+    BOOST_REQUIRE(cancun.has_value());
+    BOOST_CHECK_EQUAL(static_cast<int>(*cancun), static_cast<int>(EVMC_CANCUN));
+
+    auto const unknown = reg.resolveRevision("NoSuchFork", 0);
+    BOOST_CHECK(!unknown.has_value());
+}
+
 }  // namespace bcos::evm::reference_tests
