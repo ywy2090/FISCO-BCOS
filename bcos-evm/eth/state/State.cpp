@@ -674,6 +674,12 @@ StateDiff State::build_diff() const
         {
             diff.accounts.emplace(address, std::move(patch));
         }
+        else if (!baseAccount.has_value())
+        {
+            // Pre-EIP158 touched empty accounts (precompile CALL, SELFDESTRUCT beneficiary).
+            // Post-EIP158 callers strip empties when computing stateRoot (GstStateHash).
+            diff.accounts.emplace(address, Account{});
+        }
     }
     diff.deletedAccounts = m_deletedAccounts;
     return diff;

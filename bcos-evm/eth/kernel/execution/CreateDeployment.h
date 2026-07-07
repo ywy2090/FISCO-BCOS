@@ -139,7 +139,8 @@ inline std::optional<CreateCodeDepositReject> applyCreateCodeDepositGas(
     {
         if (revision == EVMC_FRONTIER)
         {
-            return std::nullopt;
+            // evmone host.create: SUCCESS + recipient; keep interpreter gas_left for CALL refund.
+            return CreateCodeDepositReject::DepositOutOfGas;
         }
         result.status_code = EVMC_FAILURE;
         result.gas_left = 0;

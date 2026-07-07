@@ -496,33 +496,49 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
 {
     auto& callMessage = work.callMessage();
     std::optional<CreateCodeDepositReject> depositReject;
+    bool const isCreate = callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2;
 
-    // CREATE: charge code-deposit gas and possibly fail after interpreter returned SUCCESS.
-    if (result.status_code == EVMC_SUCCESS &&
-        (callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
+    // CREATE: charge code-deposit gas after RETURN (geth create() post-interpreter).
+    if (isCreate)
     {
-        auto raw = result.release_raw();
-        depositReject = applyCreateCodeDepositGas(raw, work.ctx.revisionConfig.revision);
-        if (depositReject.has_value() && raw.release != nullptr)
+        auto const& rawView = result.raw();
+        bool const hasInitOutput = rawView.output_size > 0 && rawView.output_data != nullptr;
+        bool const runDepositCheck =
+            result.status_code == EVMC_SUCCESS ||
+            (work.ctx.revisionConfig.revision == EVMC_FRONTIER && hasInitOutput);
+        if (runDepositCheck)
         {
-            raw.release(&raw);
-            raw.release = nullptr;
-            raw.output_data = nullptr;
-            raw.output_size = 0;
-        }
-        if (raw.status_code == EVMC_SUCCESS)
-        {
-            result = evmc::Result(raw);
-        }
-        else
-        {
-            result = makeFrameResult(raw.status_code, raw.gas_left);
+            auto raw = result.release_raw();
+            depositReject = applyCreateCodeDepositGas(raw, work.ctx.revisionConfig.revision);
+            if (depositReject.has_value() && raw.release != nullptr)
+            {
+                raw.release(&raw);
+                raw.release = nullptr;
+                raw.output_data = nullptr;
+                raw.output_size = 0;
+            }
+            if (depositReject.has_value() && work.ctx.revisionConfig.revision == EVMC_FRONTIER)
+            {
+                // Frontier ErrCodeStoreOutOfGas: CREATE returns address, no code, no revert.
+                raw.status_code = EVMC_SUCCESS;
+            }
+            if (raw.status_code == EVMC_SUCCESS)
+            {
+                result = evmc::Result(raw);
+            }
+            else
+            {
+                result = makeFrameResult(raw.status_code, raw.gas_left);
+            }
         }
     }
 
     if (result.status_code == EVMC_SUCCESS)
     {
-        state::installCreatedContractCode(work.ctx.state, callMessage, result.raw());
+        if (!depositReject.has_value())
+        {
+            state::installCreatedContractCode(work.ctx.state, callMessage, result.raw());
+        }
         if ((callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
         {
             evmc_address createAddr = scope == FrameScope::TopLevel ?

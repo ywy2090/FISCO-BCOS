@@ -240,12 +240,16 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     auto const selfBeneficiary =
         std::memcmp(addr.bytes, beneficiary.bytes, sizeof(addr.bytes)) == 0;
 
-    // evmone: materialize beneficiary before balance transfer (incl. zero-balance touch).
-    if (!selfBeneficiary && m_state.find_overlay_account(beneficiary) == nullptr &&
+    // Pre-EIP158: zero-balance SELFDESTRUCT to a new address leaves an empty touched account.
+    // Post-EIP158: beneficiary must not be created without a value transfer (7702 sendall parity).
+    if (!selfBeneficiary && balance == 0 && m_revisionConfig.revision < EVMC_SPURIOUS_DRAGON &&
+        m_state.find_overlay_account(beneficiary) == nullptr &&
         !m_state.account_exists(beneficiary))
     {
         m_state.touchOverlayAccount(beneficiary);
     }
+
+    // Non-zero transfers materialize the beneficiary via add_balance below.
 
     if (m_revisionConfig.eip6780 && !wasCreatedInTx(addr))
     {

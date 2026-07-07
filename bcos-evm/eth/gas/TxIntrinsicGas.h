@@ -49,10 +49,11 @@ inline int64_t calcAuthTupleIntrinsicGas(uint64_t authTupleCount) noexcept
     return static_cast<int64_t>(authTupleCount) * static_cast<int64_t>(PER_EMPTY_ACCOUNT_COST);
 }
 
-/// CREATE/CREATE2 intrinsic: CREATE_BASE_GAS + EIP-3860 initcode word cost (when active).
-/// eip3860 comes from RevisionConfig (single source of truth for fork gating) — callers must
-/// pass it explicitly; there is no default so an omitted flag is a compile error.
-inline int64_t calcCreateIntrinsic(evmc_message const& message, bool eip3860) noexcept
+/// CREATE/CREATE2 intrinsic: Homestead+ CREATE_BASE_GAS + EIP-3860 initcode word cost (when
+/// active). eip3860 comes from RevisionConfig (single source of truth for fork gating) — callers
+/// must pass it explicitly; there is no default so an omitted flag is a compile error.
+inline int64_t calcCreateIntrinsic(
+    evmc_message const& message, bool eip3860, evmc_revision revision) noexcept
 {
     if (message.kind != EVMC_CREATE && message.kind != EVMC_CREATE2)
     {
@@ -65,7 +66,8 @@ inline int64_t calcCreateIntrinsic(evmc_message const& message, bool eip3860) no
         auto const words = (inputSize + 31) / 32;
         initcodeWordGas = INITCODE_WORD_GAS * words;
     }
-    return CREATE_BASE_GAS + initcodeWordGas;
+    int64_t const createBase = revision >= EVMC_HOMESTEAD ? CREATE_BASE_GAS : 0;
+    return createBase + initcodeWordGas;
 }
 
 /// Aggregate intrinsic components for a top-level message (geth IntrinsicGas).
@@ -89,7 +91,7 @@ inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
         intrinsic.accessListCost = calcAccessListCost(accessList);
     }
 
-    intrinsic.createIntrinsic = calcCreateIntrinsic(message, eip3860);
+    intrinsic.createIntrinsic = calcCreateIntrinsic(message, eip3860, revision);
     return intrinsic;
 }
 
