@@ -169,7 +169,8 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
             ctx.earlyExit = true;
             return;
         }
-        if (m_input.blobVersionedHashes.size() > gas::MAX_BLOBS_PER_TX)
+        if (m_input.blobVersionedHashes.size() >
+            gas::maxBlobsPerTx(m_input.revisionConfig.revision))
         {
             ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);
             ctx.earlyExit = true;

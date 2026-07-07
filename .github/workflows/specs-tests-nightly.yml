@@ -46,7 +46,7 @@ jobs:
             -DLINKER=mold \
             -DVCPKG_TARGET_TRIPLET=x64-linux-release \
             .
-          cmake --build build --target EthGSTFull EthExecutionSpecStateTests EthExecutionSpecTransactionTests -j$(nproc)
+          cmake --build build --target EthGSTFull EthExecutionSpecStateTests EthExecutionSpecTransactionTests EthEestStateGranular -j$(nproc)
       - name: Run full GST sweep
         run: |
           build/bcos-evm/test/eth-eest-test/EthGSTFull \
@@ -63,3 +63,20 @@ jobs:
           build/bcos-evm/test/eth-eest-test/EthExecutionSpecTransactionTests \
             --manifest bcos-evm/test/eth-eest-test/manifests/eth-eest-tx-full.json \
             --eest-root bcos-evm/test/eth-eest-test/assets/eest
+      - name: Run EthEestStateGranular full tree (informational)
+        continue-on-error: true
+        run: |
+          python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py \
+            --granular-full --build-dir build
+      - name: Upload granular full-tree reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eest-granular-full-reports
+          path: |
+            bcos-evm/test/eth-eest-test/reports/eest-granular-full-failures.json
+            bcos-evm/test/eth-eest-test/reports/eest-granular-full-failures.md
+            bcos-evm/test/eth-eest-test/reports/eest-granular-failures-*.json
+            bcos-evm/test/eth-eest-test/reports/eest-granular-failures-*.md
+            bcos-evm/test/eth-eest-test/reports/gtest-xml/granular_full.xml
+          if-no-files-found: ignore

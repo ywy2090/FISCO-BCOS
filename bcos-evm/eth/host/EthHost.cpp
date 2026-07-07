@@ -163,7 +163,7 @@ size_t EthHost::copy_code(const address& addr, size_t code_offset, uint8_t* buff
 
 void EthHost::markCreatedInTx(evmc_address const& addr) noexcept
 {
-    if (!isZeroAddress(addr) && !m_state.isPreexistingAccount(addr))
+    if (!isZeroAddress(addr))
     {
         m_createdInTx.insert(addr);
     }
@@ -255,8 +255,9 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
         return true;
     }
 
-    // Pre-Cancun: immediate code + storage wipe.
-    destroyContractState(addr);
+    // Pre-Cancun: mark for tx-end finalization; CREATE re-init clears via
+    // touchCreateDeploymentAccount.
+    m_state.mark_self_destructed(addr);
     return true;
 }
 

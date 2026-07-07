@@ -148,6 +148,22 @@ bool State::account_exists(const evmc_address& address) const
     return m_baseStateView->get_account(address).has_value();
 }
 
+bool State::hasNonEmptyStorage(const evmc_address& address) const
+{
+    if (auto const* overlay = find_overlay_account(address))
+    {
+        if (!overlay->storage.empty())
+        {
+            return true;
+        }
+    }
+    if (auto const account = m_baseStateView->get_account(address))
+    {
+        return !account->storage.empty();
+    }
+    return false;
+}
+
 Account const* State::find_overlay_account(const evmc_address& address) const
 {
     if (auto it = m_accounts.find(address); it != m_accounts.end())
@@ -536,9 +552,27 @@ void State::finalize_self_destructs()
         {
             continue;
         }
+        std::unordered_map<evmc_bytes32, evmc_bytes32, Bytes32Hash, Bytes32Equal> slotsToClear;
+        if (auto const base = m_baseStateView->get_account(address); base.has_value())
+        {
+            for (auto const& [key, value] : base->storage)
+            {
+                slotsToClear.emplace(key, value);
+            }
+        }
+        for (auto const& [key, value] : account.storage)
+        {
+            slotsToClear.emplace(key, value);
+        }
         account.code.clear();
         account.codeHash = {};
+        account.codeDirty = true;
         account.storage.clear();
+        for (auto const& [key, value] : slotsToClear)
+        {
+            (void)value;
+            account.storage[key] = {};
+        }
         account.balance = 0;
         account.nonce = 0;
         account.selfDestructed = false;
@@ -558,6 +592,8 @@ void State::touchCreateDeploymentAccount(const evmc_address& address, evmc_revis
     account.codeHash = {};
     account.codeDirty = true;
     account.storage.clear();
+    // Legacy same-tx recreate after SELFDESTRUCT: cancel pending deletion (geth create reset).
+    account.selfDestructed = false;
     // Fresh CREATE target starts at nonce 1 (Spurious Dragon+). Same-tx collision recreate
     // (EIP-6780) must preserve an existing contract nonce — geth does not reset it on re-init.
     if (account.nonce == 0 && revision >= EVMC_SPURIOUS_DRAGON)

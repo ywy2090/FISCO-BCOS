@@ -143,7 +143,44 @@ def parse_subtest_xml(xml_path: Path, rel_dir: str, json_file: str) -> list[Fail
     return fails
 
 
-def run_granular_full(granular: Path, eest_root: Path, xml_out: Path) -> list[Failure]:
+def parse_granular_full_results(
+    xml_path: Path,
+) -> tuple[list[Failure], dict[str, dict[str, int]]]:
+    """Parse file-level GTest XML from EthEestStateGranular full-tree run."""
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    fails: list[Failure] = []
+    file_failed: dict[str, dict[str, bool]] = {}
+
+    for case in root.iter("testcase"):
+        rel_dir = case.get("classname", "") or "(unknown)"
+        json_stem = case.get("name", "")
+        json_file = f"{json_stem}.json" if json_stem else "(unknown)"
+        failed = case.find("failure") is not None
+        file_failed.setdefault(rel_dir, {})[json_stem or json_file] = failed
+
+        if not failed:
+            continue
+        for fail in case.findall("failure"):
+            subtest = f"{rel_dir}/{json_stem}" if json_stem else rel_dir
+            msg = (fail.text or fail.get("message") or "").strip().split("\n")[0][:200]
+            fails.append(Failure(rel_dir, json_file, subtest, msg))
+
+    dir_stats: dict[str, dict[str, int]] = {}
+    for rel_dir, files in sorted(file_failed.items()):
+        json_files = len(files)
+        failed_files = sum(1 for failed in files.values() if failed)
+        dir_stats[rel_dir] = {
+            "json_files": json_files,
+            "json_files_all_pass": json_files - failed_files,
+            "subtest_failures": failed_files,
+        }
+    return fails, dir_stats
+
+
+def run_granular_full(
+    granular: Path, eest_root: Path, xml_out: Path
+) -> tuple[list[Failure], dict[str, dict[str, int]]]:
     cmd = [
         str(granular.resolve()),
         str(eest_root),
@@ -152,25 +189,22 @@ def run_granular_full(granular: Path, eest_root: Path, xml_out: Path) -> list[Fa
     try:
         subprocess.run(cmd, capture_output=True, text=True, timeout=14400, check=False)
     except subprocess.TimeoutExpired:
-        return [Failure("(full tree)", "(runner error)", "(runner error)", "timeout after 14400s")]
+        return (
+            [Failure("(full tree)", "(runner error)", "(runner error)", "timeout after 14400s")],
+            {},
+        )
 
     if not xml_out.exists():
-        return [
-            Failure("(full tree)", "(runner error)", "(runner error)", "no gtest xml produced")
-        ]
+        return (
+            [
+                Failure(
+                    "(full tree)", "(runner error)", "(runner error)", "no gtest xml produced"
+                )
+            ],
+            {},
+        )
 
-    tree = ET.parse(xml_out)
-    root = tree.getroot()
-    fails: list[Failure] = []
-    for case in root.iter("testcase"):
-        for fail in case.findall("failure"):
-            suite = case.get("classname", "") or "(unknown)"
-            json_stem = case.get("name", "")
-            json_file = f"{json_stem}.json" if json_stem else "(unknown)"
-            subtest = f"{suite}/{json_stem}" if json_stem else suite
-            msg = (fail.text or fail.get("message") or "").strip().split("\n")[0][:200]
-            fails.append(Failure(suite, json_file, subtest, msg))
-    return fails
+    return parse_granular_full_results(xml_out)
 
 
 def scan_directories(
@@ -291,10 +325,20 @@ def main() -> int:
     if args.granular_full:
         scope = "EthEestStateGranular full tree (fixtures/state_tests)"
         xml_out = xml_dir / "granular_full.xml"
-        all_failures = run_granular_full(granular, eest, xml_out)
-        dir_stats: dict[str, dict[str, int]] = {}
+        all_failures, dir_stats = run_granular_full(granular, eest, xml_out)
         inventory_stem = "eest-granular-full-failures"
-        print(f"full tree: {len(all_failures)} subtest failures")
+        total_files = sum(st["json_files"] for st in dir_stats.values())
+        clean_files = sum(st["json_files_all_pass"] for st in dir_stats.values())
+        print(
+            f"full tree: {len(all_failures)} file failures "
+            f"({clean_files}/{total_files} files clean, {len(dir_stats)} dirs)"
+        )
+        for rel, st in sorted(dir_stats.items()):
+            if st["subtest_failures"]:
+                print(
+                    f"  {rel}: {st['subtest_failures']} failures "
+                    f"({st['json_files_all_pass']}/{st['json_files']} files clean)"
+                )
     elif args.dir:
         scope = f"single dir {args.dir} (profile {args.profile})"
         all_failures, dir_stats = scan_directories(

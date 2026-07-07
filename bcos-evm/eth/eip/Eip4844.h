@@ -21,6 +21,7 @@
 
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include <bcos-utilities/Common.h>
+#include <evmc/evmc.h>
 #include <cstdint>
 
 namespace bcos::evm::gas
@@ -29,8 +30,26 @@ namespace bcos::evm::gas
 constexpr uint64_t BLOB_GAS_PER_BLOB = 131'072;
 constexpr uint64_t MIN_BLOB_GAS_PRICE = 1;
 constexpr uint64_t BLOB_GASPRICE_UPDATE_FRACTION = 3'338'477;
-/// Cancun per-tx blob cap (matches blobSchedule.max = 6 / geth MaxBlobsPerBlock).
-constexpr uint64_t MAX_BLOBS_PER_TX = 6;
+/// Cancun per-tx blob cap (blobSchedule.max = 6).
+constexpr uint64_t MAX_BLOBS_PER_TX_CANCUN = 6;
+/// Prague+ per-tx blob cap (EIP-7691, blobSchedule.max = 9).
+constexpr uint64_t MAX_BLOBS_PER_TX_PRAGUE = 9;
+/// Back-compat alias for Cancun cap.
+constexpr uint64_t MAX_BLOBS_PER_TX = MAX_BLOBS_PER_TX_CANCUN;
+
+inline uint64_t maxBlobsPerTx(evmc_revision revision) noexcept
+{
+    // EIP-7691 (Prague): 9; EIP-7594 (Osaka): back to 6 per-tx while block max stays 9.
+    if (revision >= EVMC_PRAGUE && revision < EVMC_OSAKA)
+    {
+        return MAX_BLOBS_PER_TX_PRAGUE;
+    }
+    if (revision >= EVMC_CANCUN)
+    {
+        return MAX_BLOBS_PER_TX_CANCUN;
+    }
+    return 0;
+}
 
 inline bool hasBlobTxIntent(
     uint8_t web3TypedTxKind, bool hasBlobVersionedHashes, bool hasMaxFeePerBlobGas) noexcept

@@ -34,7 +34,11 @@ inline FeeSettlementPlan planPreExecution(FeeInputs const& inputs) noexcept
     plan.maxBalanceDebit = maxBalanceGasDebit(inputs.gasLimit, caps);
     if (inputs.gasLimit > 0 && plan.effectiveGasPrice > 0)
     {
-        plan.preDebitAmount = bcos::u256(inputs.gasLimit) * plan.effectiveGasPrice;
+        bcos::u256 preDebit{};
+        if (!mulU256Overflow(bcos::u256(inputs.gasLimit), plan.effectiveGasPrice, preDebit))
+        {
+            plan.preDebitAmount = preDebit;
+        }
     }
     return plan;
 }

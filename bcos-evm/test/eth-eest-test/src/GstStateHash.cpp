@@ -483,11 +483,14 @@ GstPostStateView buildPostStateView(
             auto& merged = accounts[address];
             merged.nonce = account.nonce;
             merged.balance = account.balance;
-            if (!account.code.empty())
+            if (!account.code.empty() || account.codeDirty)
             {
                 merged.code = account.code;
             }
-            merged.codeHash = account.codeHash;
+            if (account.codeDirty)
+            {
+                merged.codeHash = account.codeHash;
+            }
             for (auto const& [slot, value] : account.storage)
             {
                 if (state::isZeroBytes32(value))

@@ -653,12 +653,18 @@ add_test(NAME OpStackEestManifestSliceEip7702 ${_OPSTACK_MANIFEST_SLICE_COMMON}
 set_tests_properties(OpStackEestManifestSliceEip7702 PROPERTIES
     LABELS "${_OPSTACK_MANIFEST_SLICE_LABELS}" TIMEOUT 3600)
 
-# Maintainer-only: granular failure bucket report (not a PR gate).
+# Maintainer-only: granular failure bucket reports (not PR gates).
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_FOUND)
     add_custom_target(eest-granular-failure-report
         COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/tools/scan-eest-failures.py --manifest-16
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Generate EEST granular failure bucket report")
+        COMMENT "Generate EEST manifest-16 granular failure bucket report")
+    add_custom_target(eest-granular-full-report
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tools/scan-eest-failures.py --granular-full
+            --build-dir ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Run EthEestStateGranular full tree + failure bucket report (nightly)")
 endif()

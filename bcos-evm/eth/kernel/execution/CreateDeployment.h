@@ -65,26 +65,30 @@ inline void initializeCreateTargetAccount(state::State& st, evmc_address const& 
     st.touchCreateDeploymentAccount(createAddr, revision);
 }
 
-/// EIP-6780: block CREATE/CREATE2 redeploy at an address already marked for same-tx deletion.
+/// Block CREATE/CREATE2 redeploy at an address already marked for same-tx deletion.
+/// Applies on Cancun+ (EIP-6780) and legacy Shanghai paths (EEST dynamic_create2).
 inline bool isSameTxSelfDestructedCreateBlocked(
-    state::State const& st, evmc_address const& createAddr, bool eip6780) noexcept
+    state::State const& st, evmc_address const& createAddr, bool /*eip6780*/) noexcept
 {
-    if (!eip6780 || state::isZeroAddress(createAddr))
+    if (state::isZeroAddress(createAddr))
     {
         return false;
     }
     return st.has_self_destructed(createAddr);
 }
 
-/// geth create/create2: fail when target already has nonce or code (address collision).
-inline bool isCreateDeploymentAddressCollision(
-    state::State const& st, evmc_address const& createAddr) noexcept
+/// geth create/create2: fail when target already has nonce or code (EIP-684; storage only via
+/// EIP-7610 hard-coded addresses). Same-tx recreate after legacy SELFDESTRUCT is gated by
+/// isSameTxSelfDestructedCreateBlocked (tx-created only); do not bypass collision here.
+inline bool isCreateDeploymentAddressCollision(state::State const& st,
+    evmc_address const& createAddr, bool /*eip6780*/) noexcept
 {
     if (state::isZeroAddress(createAddr) || !st.account_exists(createAddr))
     {
         return false;
     }
-    return st.get_nonce(createAddr) != 0 || st.get_code_size(createAddr) != 0;
+    return st.get_nonce(createAddr) != 0 || st.get_code_size(createAddr) != 0 ||
+           st.hasNonEmptyStorage(createAddr);
 }
 
 /// EIP-2681: sender nonce at uint64 max cannot increment for CREATE/CREATE2.

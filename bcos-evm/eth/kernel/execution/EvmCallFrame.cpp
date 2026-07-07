@@ -318,11 +318,9 @@ void initializeCreateAccount(FrameWork& work)
     auto& callMessage = work.callMessage();
     initializeCreateTargetAccount(
         work.ctx.state, callMessage.recipient, work.ctx.revisionConfig.revision);
-    // geth CreateAccount runs before initcode; SELFDESTRUCT in init must see wasCreatedInTx.
-    if (work.ctx.revisionConfig.eip6780)
-    {
-        work.host.markCreatedInTx(callMessage.recipient);
-    }
+    // geth CreateAccount runs before initcode; SELFDESTRUCT in init must see wasCreatedInTx
+    // (legacy immediate code clear and EIP-6780 end-of-tx destruction).
+    work.host.markCreatedInTx(callMessage.recipient);
     if (work.ctx.extension != nullptr)
     {
         work.ctx.extension->onCreateTargetInitialized(
@@ -333,11 +331,14 @@ void initializeCreateAccount(FrameWork& work)
 /// Roll back per-tx CREATE tracking when a CREATE/CREATE2 frame aborts after init binding.
 void unmarkCreateInTxOnAbort(FrameWork& work)
 {
-    if (!work.ctx.revisionConfig.eip6780)
+    auto const& createAddr = work.callMessage().recipient;
+    // Keep tracking when an earlier successful CREATE in this tx already deployed code here
+    // (EEST dynamic_create2: a later collision attempt must not drop wasCreatedInTx before CALL).
+    if (work.host.wasCreatedInTx(createAddr) && work.ctx.state.get_code_size(createAddr) != 0)
     {
         return;
     }
-    work.host.unmarkCreatedInTx(work.callMessage().recipient);
+    work.host.unmarkCreatedInTx(createAddr);
 }
 
 /// EIP-2681: CREATE/CREATE2 fails when sender nonce is already uint64 max (no wrap).
@@ -418,7 +419,8 @@ std::optional<FrameResult> failIfCreateDeploymentBlocked(FrameWork& work)
         return std::nullopt;
     }
     auto const& createAddr = callMessage.recipient;
-    if (isCreateDeploymentAddressCollision(work.ctx.state, createAddr) ||
+    if (isCreateDeploymentAddressCollision(
+            work.ctx.state, createAddr, work.ctx.revisionConfig.eip6780) ||
         isSameTxSelfDestructedCreateBlocked(
             work.ctx.state, createAddr, work.ctx.revisionConfig.eip6780))
     {

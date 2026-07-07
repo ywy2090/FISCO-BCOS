@@ -23,9 +23,27 @@
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-utilities/Common.h"
+#include <limits>
 
 namespace bcos::evm::gas
 {
+
+/// geth/evmone: gasLimit × price must not overflow uint256 for affordability checks.
+inline bool mulU256Overflow(bcos::u256 const& a, bcos::u256 const& b, bcos::u256& product) noexcept
+{
+    if (a == 0 || b == 0)
+    {
+        product = 0;
+        return false;
+    }
+    auto const max = std::numeric_limits<bcos::u256>::max();
+    if (a > max / b)
+    {
+        return true;
+    }
+    product = a * b;
+    return false;
+}
 
 inline bool isEip1559GasCapsTx(uint8_t web3TypedTxKind, bool hasExplicitFeeCapsFromTx,
     bcos::evm::RevisionConfig const& cfg) noexcept
@@ -83,7 +101,12 @@ inline GasCaps normalizeGasCaps(bcos::u256 gasPrice, bcos::u256 gasTipCap, bcos:
 inline bcos::u256 maxBalanceGasDebit(int64_t gasLimit, GasCaps const& caps) noexcept
 {
     auto const price = caps.isEip1559Caps ? caps.gasFeeCap : caps.gasTipCap;
-    return bcos::u256(gasLimit) * price;
+    bcos::u256 product{};
+    if (mulU256Overflow(bcos::u256(gasLimit), price, product))
+    {
+        return std::numeric_limits<bcos::u256>::max();
+    }
+    return product;
 }
 
 }  // namespace bcos::evm::gas

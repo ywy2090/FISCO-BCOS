@@ -45,6 +45,8 @@ public:
     [[nodiscard]] evmc_bytes32 get_storage(
         const evmc_address& address, const evmc_bytes32& key) const override;
     [[nodiscard]] bool account_exists(const evmc_address& address) const;
+    /// EIP-7610: true when any storage slot exists on the merged account view.
+    [[nodiscard]] bool hasNonEmptyStorage(const evmc_address& address) const;
     [[nodiscard]] std::optional<Account> find(const evmc_address& address) const;
     [[nodiscard]] Account const* find_overlay_account(const evmc_address& address) const;
 
@@ -167,6 +169,11 @@ inline void installCreatedContractCode(
         createAddr = result.create_address;
     }
     if (isZeroAddress(createAddr))
+    {
+        return;
+    }
+    // geth: skip code store when initcode SELFDESTRUCTed the create target in this frame.
+    if (state.has_self_destructed(createAddr))
     {
         return;
     }

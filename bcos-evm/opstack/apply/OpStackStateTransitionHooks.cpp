@@ -142,7 +142,8 @@ void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContex
                 ctx.earlyExit = true;
                 return;
             }
-            if (input.blobVersionedHashes.size() > gas::MAX_BLOBS_PER_TX)
+            if (input.blobVersionedHashes.size() >
+                gas::maxBlobsPerTx(input.revisionConfig.revision))
             {
                 ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);
                 ctx.earlyExit = true;

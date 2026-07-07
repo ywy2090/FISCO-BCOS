@@ -89,6 +89,18 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
         co_return true;
     }
 
+    if (sidecar.effectiveGasPrice > 0 && ctx.originalGasLimit > 0)
+    {
+        bcos::u256 preDebitCheck{};
+        if (gas::mulU256Overflow(
+                bcos::u256(ctx.originalGasLimit), sidecar.effectiveGasPrice, preDebitCheck))
+        {
+            ctx.evmcResult = EVMCResult(evmc_result{.status_code = EVMC_INSUFFICIENT_BALANCE},
+                protocol::TransactionStatus::NotEnoughCash);
+            co_return false;
+        }
+    }
+
     auto blobBalanceCheck = blobPlan.balanceCheck;
     if (blobBalanceCheck == 0 && blobPlan.debit > 0)
     {
