@@ -8,6 +8,13 @@
 namespace bcos::evm::reference_tests
 {
 
+namespace
+{
+evmc_bytes32 const kEmptyStateRoot = {0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83,
+    0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62,
+    0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21};
+}  // namespace
+
 BOOST_AUTO_TEST_CASE(empty_logs_hash_matches_geth)
 {
     evmc_bytes32 const expected = {0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc7, 0x5d, 0x7a, 0xab, 0x85, 0xb5,
@@ -55,11 +62,8 @@ BOOST_AUTO_TEST_CASE(pre_eip158_rejected_tx_omits_untouched_coinbase)
     auto const postState = buildPostStateView(preState, diff, false, coinbase, false);
     BOOST_CHECK_EQUAL(postState.accounts.size(), 0u);
 
-    evmc_bytes32 const expected = {0xe1, 0xba, 0x68, 0xaa, 0xb2, 0x77, 0xd1, 0xbc, 0x2d, 0xbd, 0xd5,
-        0x57, 0x3f, 0xf1, 0x52, 0x4e, 0xcf, 0x1e, 0x13, 0x2f, 0x6a, 0x52, 0xa7, 0xc6, 0x54, 0x1c,
-        0xeb, 0x82, 0x5b, 0x7d, 0x08, 0x37};
     auto const actual = computeStateRoot(postState);
-    BOOST_CHECK_EQUAL(std::memcmp(actual.bytes, expected.bytes, 32), 0);
+    BOOST_CHECK_EQUAL(std::memcmp(actual.bytes, kEmptyStateRoot.bytes, 32), 0);
 }
 
 BOOST_AUTO_TEST_CASE(pre_eip158_coinbase_touch_included_in_post_state)
@@ -73,10 +77,14 @@ BOOST_AUTO_TEST_CASE(pre_eip158_coinbase_touch_included_in_post_state)
     state::Account senderAccount;
     senderAccount.nonce = 1;
     senderAccount.balance = bcos::fromBigQuantity("0x3635c9adc5dea00000");
+    senderAccount.nonceDirty = true;
+    senderAccount.balanceDirty = true;
     diff.accounts.emplace(sender, senderAccount);
 
     state::Account contractAccount;
     contractAccount.nonce = 1;
+    contractAccount.nonceDirty = true;
+    contractAccount.codeDirty = true;
     contractAccount.code = bcos::fromHex("600160005500");
     evmc_bytes32 slot{};
     evmc_bytes32 value{};

@@ -1,7 +1,7 @@
 # EEST Integration Matrix
 
 > **Pin:** EEST `v5.4.0` (`assets/upstream-pins.json`)  
-> **Baseline date:** 2026-07-07 (`build-bcos-evm-check`; granular-full @ uncommitted WP-HIST / `154940Z`; prior `3698e47e9` / `150449Z`; blockchain Osaka/Prague rescan @ `3698e47e9`)  
+> **Baseline date:** 2026-07-08 (`build-bcos-evm-check`; blockchain full sweep @ uncommitted; granular-full **2722/2722** @ `160604Z`)  
 > **Reference:** [evmone](file:///Users/octopus/octo/code/blockchain-impl/evmone) `evmone-statetest` / `evmone-blockchaintest`  
 > **Statetest spec:** `bcos-evm/docs/superpowers/specs/2026-07-06-eest-statetest-integration-design.md` (Approved)  
 > **Harness plan:** `bcos-evm/docs/superpowers/plans/2026-07-07-eest-statetest-harness-h2-h7.md`  
@@ -13,13 +13,13 @@
 
 | Corpus | EEST v5.4.0 | bcos-evm integration | evmone integration | Primary gap |
 |--------|-------------|----------------------|--------------------|-------------|
-| **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular full-tree **2709/2722** files clean (**13** fail files / **109** failure entries @ WP-HIST 8 profiles) | **Full tree** recursive scan | Manifest **closed**; WP-HIST tail (**13** JSON files) |
+| **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular full-tree **2722/2722** file-clean (**100%** @ `160604Z`) | **Full tree** recursive scan | Manifest **closed** |
 | **State (static GST)** | 58 suites under `static/state_tests/` | **19 suites** in `eth-eest-static-regression-full.json` | Included in statetest scan | Partial static coverage; no nightly full static |
 | **Transaction tests** | `transaction_tests/prague/eip7702_set_code_tx` | **106/106 pass** (`eth-eest-tx-full.json`) | **No dedicated runner** | bcos ahead |
 | **Blockchain tests** | 12 fork dirs + `static/` | M1 Cancun **2181/2181**; **M3 Osaka 1321/1321**; **M2 Prague 2302/2302**; M4 **Berlin 282/282 · London 2/2 · Paris 46/46 · Shanghai 128/128** | **Full tree** | static blockchain |
 | **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Out of scope** (not integrated) | Partial (engine variants) | Format + CL payload decoding — intentionally deferred |
 
-**Bottom line:** Manifest state-full **4140/4140** (2026-07-07). Granular full-tree **2722/2722** (`160604Z`); Blockchain **M2 Prague 2302/2302** (`160708Z`); **M1** Cancun **2181/2181**; **M3** Osaka **1321/1321**; **M4** Shanghai **128/128** + Berlin **282/282** + London **2/2** + Paris **46/46**. Engine/sync **out of scope**.
+**Bottom line:** Manifest state-full **4140/4140**; granular full-tree **2722/2722** (`160604Z`). Blockchain **M2 Prague 2302/2302**; **M1** Cancun **2181/2181**; **M3** Osaka **1321/1321**; **M4** Shanghai **128/128** + Berlin **282/282** + London **2/2** + Paris **46/46** (all @ `160708Z`). Engine/sync **out of scope**.
 
 ---
 
@@ -250,6 +250,8 @@ Historical baseline (pre-M1): **302 / 2181 = 13.8%** case rate — superseded.
 
 **Fix:** withdrawal balance credit moved to **after** `buildPostStateView` (geth: post-tx, not overwritten by `accumulatedDiff`). Affected `eip4895_withdrawals` CREATE/SELFDESTRUCT + withdrawal combos (3 cases).
 
+**Fix (2026-07-08):** `mergeStateDiffIntoPairs` now erases `deletedAccounts` from `preStatePairs` between txs. Root cause of `test_self_destructing_account` stateRoot drift: pre-6780 SELFDESTRUCT removed overlay account but stale balance lingered; withdrawal credit stacked on top (`BlockSystemCalls.h`, `BlockTransition.h`).
+
 ### M4 baseline — Berlin / London / Paris (`blockchain_tests/{berlin,london,paris}/`, 2026-07-07)
 
 | Fork | Files | Cases | Pass rate |
@@ -260,15 +262,15 @@ Historical baseline (pre-M1): **302 / 2181 = 13.8%** case rate — superseded.
 
 **Fix:** PoW block reward via `miningReward()` — evmone schedule: &lt;Byzantium 5 ETH, &lt;Constantinople 3 ETH, &lt;Paris 2 ETH, Paris+ none. Credited to coinbase after `buildPostStateView` (pre-merge fixtures expect reward + tx fees in stateRoot). Root cause of 144 Berlin + 1 London `stateRoot` mismatches.
 
-### M2 baseline — Prague (`blockchain_tests/prague/`, 2026-07-07)
+### M2 baseline — Prague (`blockchain_tests/prague/`, 2026-07-08)
 
 | Metric | bcos-evm | M2 gate |
 |--------|----------|---------|
 | Corpus size | 145 files / 2302 subtests | — |
 | CLI case pass rate | **2302 / 2302 = 100%** | ≥90% — **ACHIEVED** |
-| Granular file pass rate | **138 / 145 = 95.2%** (7 files with ≥1 fail) | ≥90% — **gate met** |
+| Granular file pass rate | **145 / 145 = 100%** (137 pass + 8 skip) | ≥90% — **ACHIEVED** |
 
-Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Commit `3698e47e9`.
+Verified **2026-07-08** on `build-bcos-evm-check` (EEST v5.4.0). Uncommitted parity fixes.
 
 **Current baseline:** **2302 / 2302** pass @ `160708Z` — **M2 ACHIEVED**.
 
@@ -276,7 +278,7 @@ Historical baseline (pre-M2 fixes): **2265 / 2302** pass, **37** fail — supers
 
 **Failure buckets:** **0 remaining** (7702 same-tx selfdestruct/sendall closed @ `160708Z`).
 
-**Closed buckets (2026-07-07):** `receiptsRoot` 22 → 0 via `receiptMptStatus()` + failed-receipt log clearing (`ReceiptForRoot.h`, `BlockTransition.h`, `BlockchainRunCore.h`).
+**Closed buckets (2026-07-08):** `receiptsRoot` 22 → 0 (`receiptMptStatus()` + failed-receipt log clearing). `stateRoot` 2 → 0: EIP-7702 same-tx selfdestruct + sendall — post-EIP158 beneficiary must not be touched without value transfer (`EthHost.cpp`); Shanghai `deletedAccounts` erase in `preStatePairs` (`BlockSystemCalls.h`, `BlockTransition.h`).
 
 **Parity fixes (M2 progress):**
 
@@ -285,6 +287,7 @@ Historical baseline (pre-M2 fixes): **2265 / 2302** pass, **37** fail — supers
 | EIP-7685 `requestsHash` (~37 → 0 on requests cluster) | System-contract request collection + block-end state sync | `collectPragueBlockRequests`; post-tx `preStatePairs` sync after request collection |
 | EIP-7702 delegation nonce (Osaka 7934 + Prague overlap) | `blockInfo.chainId` stuck at fixture default 0 → `applyAuthorizations` skipped | `blockInfoForExecution(..., test.chainId)` in `BlockchainRunCore.h` |
 | Prague block-end stateRoot drift | `mergeStateDiffAccount` dropped explicit zero slots after Prague requests | Sync `preStatePairs` from `postTxState` after `collectPragueBlockRequests` |
+| EIP-7702 same-tx selfdestruct + sendall (2 → 0) | Zero-balance SELFDESTRUCT pre-touched beneficiary → sendall skipped `CreateBySelfdestructGas` | Post-EIP158: no `touchOverlayAccount` on zero-balance path (`EthHost.cpp`) |
 
 ### M3 baseline — Osaka (`blockchain_tests/osaka/`, 2026-07-07)
 
@@ -490,7 +493,7 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] Blob tx execution context (`blobBaseFee` from `excessBlobGas`)
 - [x] RLP-only invalid block Level-1 handling
 - [x] Cross-tx EIP-158 state merge (EIP-6780 selfdestruct recreate)
-- [x] Shanghai M4 parity — **128/128** (withdrawal after diff merge)
+- [x] Shanghai M4 parity — **128/128** (withdrawal after diff merge; `deletedAccounts` erase in `preStatePairs`)
 - [x] Berlin/London/Paris M4 parity — **282/282 + 2/2 + 46/46** (PoW `miningReward`)
 - [x] Osaka M3 parity — **1321/1321** (EIP-7918 blob fraction, `calcBaseFee` 128-bit, fixture `chainId`)
 - [x] Prague M2 parity — **2302/2302** (7702 same-tx selfdestruct/sendall stateRoot closed @ `160708Z`)
@@ -538,7 +541,7 @@ ctest -R EthEestStateGranularFull --test-dir build-ref -C Debug --output-on-fail
 
 # Prague blockchain sweep (2302/2302)
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
-  --fixtures $EEST_ROOT/fixtures/blockchain_tests/prague 2>&1 | rg '^FAIL '
+  --fixtures $EEST_ROOT/blockchain_tests/prague
 
 # Nightly blockchain full sweep (Cancun 2181/2181; failures non-blocking in CI)
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \

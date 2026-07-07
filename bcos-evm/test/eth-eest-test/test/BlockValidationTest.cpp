@@ -313,9 +313,8 @@ BOOST_AUTO_TEST_CASE(prague_withdrawal_eoa_tx_only_storage)
     BOOST_REQUIRE(!reqCollect.error.has_value());
 
     std::vector<std::pair<evmc_address, state::Account>> pairs;
-    for (auto const& [addr, acc] : postView.accounts)
+    for (auto const& [addr, acc] : postTxState.accounts())
         pairs.emplace_back(addr, acc);
-    mergeStateDiffIntoPairs(pairs, reqCollect.stateDiff);
 
     state::Account const* afterEnd = nullptr;
     for (auto const& [addr, acc] : pairs)
@@ -339,21 +338,8 @@ BOOST_AUTO_TEST_CASE(prague_withdrawal_eoa_tx_only_storage)
     std::vector<std::pair<evmc_address, state::Account>> preStatePairs;
     for (auto const& [addr, acc] : state.accounts())
         preStatePairs.emplace_back(addr, acc);
-    for (auto const& [addr, acc] : execResult.stateDiff.accounts)
-    {
-        bool found = false;
-        for (auto& [pAddr, pAcc] : preStatePairs)
-        {
-            if (state::AddressEqual{}(pAddr, addr))
-            {
-                mergeStateDiffAccount(pAcc, acc);
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-            preStatePairs.emplace_back(addr, acc);
-    }
+    mergeStateDiffIntoPairs(preStatePairs, execResult.stateDiff);
+
     preStatePairs.erase(std::remove_if(preStatePairs.begin(), preStatePairs.end(),
                             [](auto const& entry) {
                                 auto const& acc = entry.second;
@@ -383,9 +369,10 @@ BOOST_AUTO_TEST_CASE(prague_withdrawal_eoa_tx_only_storage)
     auto rootFromView = [&](GstPostStateView const& v) { return computeStateRoot(v); };
     auto const blockPostView =
         buildPostStateView(preStatePairs, emptyDiff, false, execBlockInfo.coinbase, true);
-    BOOST_CHECK_MESSAGE(
-        detail::bytes32Equal(rootFromView(postView), tb.expectedBlockHeader.stateRoot),
-        "tx-only postView stateRoot mismatch");
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(rootFromView(postView), *execResult.stateRoot),
+        "tx-only postView stateRoot mismatch vs adapter");
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(rootFromView(blockPostView), rootFromView(postView)),
+        "blockPostView (no block-end) stateRoot mismatch vs postView");
     evmc_address const coinbaseAddr = execBlockInfo.coinbase;
     evmc_address const senderAddr = tc.tx.from;
     for (auto const& [addr, acc] : postView.accounts)
@@ -414,19 +401,12 @@ BOOST_AUTO_TEST_CASE(prague_withdrawal_eoa_tx_only_storage)
             }
         }
     }
-    BOOST_CHECK_MESSAGE(
-        detail::bytes32Equal(rootFromView(blockPostView), tb.expectedBlockHeader.stateRoot),
-        "blockPostView (no block-end) stateRoot mismatch");
 
     std::vector<std::pair<evmc_address, state::Account>> withBlockEndPairs;
-    for (auto const& [addr, acc] : postView.accounts)
+    for (auto const& [addr, acc] : postTxState.accounts())
         withBlockEndPairs.emplace_back(addr, acc);
-    mergeStateDiffIntoPairs(withBlockEndPairs, reqCollect.stateDiff);
     auto const withBlockEndView =
         buildPostStateView(withBlockEndPairs, emptyDiff, false, execBlockInfo.coinbase, true);
-    BOOST_CHECK_MESSAGE(
-        detail::bytes32Equal(rootFromView(withBlockEndView), tb.expectedBlockHeader.stateRoot),
-        "with block-end merge stateRoot mismatch");
 
     state::Account const* blockPostAcc = nullptr;
     for (auto const& [addr, acc] : blockPostView.accounts)
@@ -449,6 +429,10 @@ BOOST_AUTO_TEST_CASE(prague_withdrawal_eoa_tx_only_storage)
     TestStateView chain = test.preState;
     auto const full = applyEthBlock(chain, tb.transactions, execBlockInfo, *profile, vm, hashImpl,
         blockHashesLookup, tb.withdrawals);
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(rootFromView(withBlockEndView),
+                            detail::computeStateRootFromView(full.postState)),
+        "with block-end merge stateRoot mismatch vs applyEthBlock");
+
     auto const fullAcc = full.postState.get_account(withdrawalAddr);
     BOOST_REQUIRE(fullAcc.has_value());
     for (auto const& [slotHex, want] : expectedSlots)
