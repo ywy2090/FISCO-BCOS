@@ -57,8 +57,48 @@ Osaka smoke (`eth-gst-osaka-smoke.json`) executes at `EVMC_OSAKA` while using `p
 | `eth-eest-6780-smoke.json` | Cancun EIP-6780 same-tx SELFDESTRUCT (3 vectors; transitional only — stateRoot parity pending) | `specs-tests-smoke`, `6780` |
 | `eth-eest-1559-gasprice-probe.json` | EIP-1559 `GASPRICE`/`BASEFEE` state probe (`stExample/eip1559`) | `specs-tests-smoke`, `1559-gasprice` |
 | `eth-eest-nonce-smoke.json` | Nonce semantics: REVERT precompile touch, CREATE high nonce, 7702 nonce validity | `specs-tests-smoke`, `nonce` |
-| `eth-eest-state-full.json` | Full native EIP dirs in manifest (16 entries: Shanghai→Osaka) | `specs-tests-full` |
+| `eth-eest-state-full.json` | Full native EIP dirs in manifest (15 entries: Shanghai→Osaka) | `specs-tests-full` |
 | `eth-eest-tx-full.json` | Full Prague 7702 transaction_tests dir | `specs-tests-full` |
+
+### Granular runners (evmone-statetest parity)
+
+Harness spec: `bcos-evm/docs/superpowers/specs/2026-07-06-eest-statetest-integration-design.md` (Approved 2026-07-07).  
+Implementation plan: `bcos-evm/docs/superpowers/plans/2026-07-07-eest-statetest-harness-h2-h7.md`.
+
+| CTest | Scope | Labels |
+|-------|-------|--------|
+| `EthEestStateGranularSmoke` | `state_tests/cancun` + gtest filter | `specs-tests-smoke` |
+| `EthEestStateGranularFull` | `${EEST}/fixtures/state_tests` full tree (recursive) | `specs-tests-full;eest-statetest;nightly` |
+
+| Harness ID | Feature | CLI / behavior |
+|------------|---------|----------------|
+| H1 | Full-tree CTest | `EthEestStateGranularFull` |
+| H2 | Slow-test default filter | evmone + EEST `*run_until_out_of_gas*` excluded; override with `--gtest_filter=*` |
+| H3 | Multi-path + `-k` | `EthEestStateGranular dir/a dir/b -k 4844 --fork-profiles eth-cancun` |
+| H4 | Per-case fork inference | `postByFork` + manifest profile map; default profiles: shanghai,cancun,prague,osaka |
+| H5 | Historical profiles | Berlin, London, Paris (Merge alias) in `ForkProfileRegistry` |
+| H6 | Unsupported JSON | Non-GST / engine JSON → `GTEST_SKIP` (not FAIL) |
+| H7 | Failure buckets | `tools/scan-eest-failures.py --manifest-16` → JSON/MD reports |
+
+```bash
+# List registered cases (file-level GTests; directory mode = one GTest per JSON file)
+./build-ref/bcos-evm/test/eth-eest-test/EthEestStateGranular \
+  $EEST_ROOT/fixtures/state_tests --gtest_list_tests | head
+
+# Multi-path + name filter (evmone-statetest style)
+./build-ref/bcos-evm/test/eth-eest-test/EthEestStateGranular \
+  $EEST_ROOT/fixtures/state_tests/cancun/eip4844_blobs \
+  $EEST_ROOT/fixtures/state_tests/cancun/eip6780_selfdestruct \
+  -k insufficient --fork-profiles eth-cancun
+
+# Nightly full granular sweep
+ctest -R EthEestStateGranularFull --test-dir build-ref -C Debug --output-on-failure
+
+# Manifest-16 failure scan + bucket report
+python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py --manifest-16
+```
+
+**Profile / SKIP note:** `--fork-profiles` intersects with JSON `post` fork keys. Pre-fork vectors (e.g. `post: Shanghai` under `cancun/eip4844_blobs`) require `eth-shanghai` in the profile list, or use the default manifest-16 four profiles. Narrow single-profile runs may `GTEST_SKIP("no supported forks")` — this is expected, not an execution failure.
 
 **Probe manifests (nightly):** `eth-eest-probe-*.json`, `eth-eest-precompile-probe*.json`, `probe-gas-cost-one.json` — 7702 behavior/gas slices with `stateRoot` assertions; label `specs-tests-full`, `probe`.
 
@@ -72,7 +112,7 @@ ctest -L 'specs-tests-smoke' --test-dir build-ref -C Debug --output-on-failure
 ctest -L 'specs-tests-full' --test-dir build-ref -C Debug --output-on-failure
 ```
 
-### Full-run baseline (2026-07-06, `build-bcos-evm-check`, EEST pin v5.4.0)
+### Full-run baseline (2026-07-07, `build-bcos-evm-check`, EEST pin v5.4.0)
 
 Re-run locally:
 
@@ -80,30 +120,21 @@ Re-run locally:
 ./build-bcos-evm-check/bcos-evm/test/eth-eest-test/EthExecutionSpecStateTests \
   --manifest bcos-evm/test/eth-eest-test/manifests/eth/eth-eest-state-full.json \
   --eest-root build-bcos-evm-check/_deps/evm_ref_eest_root \
-  --expectations bcos-evm/test/eth-eest-test/manifests/expectations.json \
-  > /tmp/eest-pass.txt 2> /tmp/eest-fail.txt
-# PASS lines → stdout; FAIL lines → stderr
+  --expectations bcos-evm/test/eth-eest-test/manifests/expectations.json
+# All 4140 EEST state subtest(s) passed
 ```
 
 | Manifest | Executed | Pass | Fail | Pass rate | Notes |
 |----------|----------|------|------|-----------|-------|
-| `eth-eest-tx-full.json` | 106 | 106 | 0 | 100% | 7702 `transaction_tests` (not re-run this sweep) |
-| `eth-eest-state-full.json` | **4140** | **3075** | **1065** | **74.3%** | 16 manifest entries; see slice table below |
+| `eth-eest-tx-full.json` | 106 | 106 | 0 | 100% | 7702 `transaction_tests` |
+| `eth-eest-state-full.json` | **4140** | **4140** | **0** | **100%** | 15 manifest entries (Shanghai→Osaka); regression guard |
 
-**Core slice** (same dirs as 2026-06-21 README breakdown; subtest counts drift +2 on 7823):
+**Granular manifest-16 scan** (2026-07-07, `--manifest-16`): **0 subtest failures** across 15 directories / 210 JSON files.  
+Parity loop closure: `bcos-evm/docs/superpowers/plans/2026-07-06-eest-parity-loop-1-report.md`, loop-2-report.
 
-| Directory | Pass | Fail | Total | Pass rate |
-|-----------|------|------|-------|-----------|
-| `prague/eip7623_increase_calldata_cost` | 424 | 59 | 483 | 87.8% |
-| `osaka/eip7823_modexp_upper_bounds` | 23 | 0 | 23 | 100% |
-| `prague/eip7702_set_code_tx` | 484 | 68 | 552 | 87.7% |
-| **Core total** | **931** | **127** | **1058** | **88.0%** |
+Historical baseline (2026-07-06): state-full **3075/4140 (74%)** — superseded after parity loop (4844/7623/7702/6780/7825 closed).
 
-**Dominant remaining gaps** (state-full, 2026-07-06): `eip4844_blobs` **890 fail** (202 pass); then `eip7702` (68), `eip7623` (59), `eip6780` (34), `eip7825` (12). Directories at 100% in manifest: 2537, 7823, 7883, 7951, 1153, 5656, 7516, shanghai trio (3651/3855 mostly pass).
-
-Historical baseline (2026-06-21): core slice **519/1056 (49%)** — superseded; 7623/7702/7823 parity improved significantly since W1–W4.
-
-Smoke + self_sponsored `stateRoot` remain the PR gate; full state sweep stays nightly-only until parity closes (4844 is current blocker for aggregate >95%).
+Smoke + manifest full remain the PR / nightly gate. Granular full tree (`EthEestStateGranularFull`) is informational for historical dirs and WP-HIST.
 
 PR CI (`capability-gate`) configures with `BCOS_EVM_SPECS_TESTS=ON` (FetchContent downloads assets) and runs smoke via `ctest -L specs-tests-smoke`.
 
