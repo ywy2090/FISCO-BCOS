@@ -23,11 +23,25 @@
 - `2026-07-02-evmone-inspired-eth-gtest-design.md` — 其中 §3 Pillar 3 `EthEestBlockGranular` 由本 spec 实现
 - `2026-06-30-gtest-state-block-eest-migration-design.md` — 父级测试迁移设计
 
-**Key evmone reference files:**
+**evmone 复用策略（评估结论，2026-07-07）：**
+
+evmone 仅作 **参考规格**，**不作代码依赖**。三层阻断使得直接链接/复用 evmone 测试组件不可行：
+
+1. **测试语义反向** — evmone `blockchaintest_runner` 走 `evmone::state::transition()`（evmone 自己的 EVM+状态机）。复用它 = 测 evmone 而非 `bcos-evm`，违背 harness 目的。
+2. **不可链接** — `evmone.testutils` 是 test-only 静态库，`PUBLIC` 依赖 `evmone::state` + `nlohmann_json`，`PRIVATE` 依赖 `evmc::mocked_host`。FISCO 仅通过二进制包拿到 `evmone::evmone`（VM 库）；`testutils`/`state` 不在导出集，无法 `target_link_libraries`。
+3. **类型/JSON 库鸿沟** — evmone 用 `intx::uint256`/`evmc::bytes32`/`nlohmann_json`；FISCO 用 `bcos::u256`/`h256`/`boost::property_tree`。`mpt_hash<T>` 模板绑定 evmone state 类型，喂 FISCO 类型编不过。
+
+**FISCO 已有底层能力，无需从 evmone 搬运：** `GstStateHash.cpp` 已含完整 RLP（`rlpEncodeRaw/Uint64/U256/List`）+ MPT trie（leaf/extension/branch）+ `computeStateRoot`；`keccak256(rlpEncodeList({}))` 即 `EMPTY_MPT_HASH`；Bloom 见 `helpers/BloomFilter.hpp`。因此 `MptHash.h` **扩展 `GstStateHash`** 而非新造。
+
+**应从 evmone「照抄逻辑、用 FISCO 类型重写」的部分（规格，非依赖）：** `validate_block()` 15 项规则、`MAX_RLP_BLOCK_SIZE = 10MB − 2MB = 8MB`、`calc_excess_blob_gas`/`fake_exponential`/`compute_blob_gas_price` 公式、`blob_params.hpp` fork 参数表。
+
+**⚠️ 实现约束：** 禁止 `target_link_libraries(... evmone::testutils)` 或 `evmone::state`；仅允许既有的 `evmone::evmone`（VM）。
+
+**Key evmone reference files（参考规格，非依赖；行号对应本机 `/Users/octopus/octo/code/blockchain-impl/evmone`，跨版本易漂移，实现时以函数名为准）：**
 
 - `test/blockchaintest/blockchaintest_runner.cpp` — `validate_block()` + `run_blockchain_tests()`
 - `test/utils/blockchaintest.hpp` — `BlockHeader` / `TestBlock` / `BlockchainTest` 类型定义
-- `test/utils/mpt_hash.hpp` — MPT hash 辅助函数
+- `test/utils/mpt_hash.hpp` — MPT hash 辅助函数（仅参考算法，不链接）
 - `test/state/errors.hpp` — 验证错误码定义
 
 ---
@@ -53,7 +67,7 @@
 
 | 优先级 | 目标 | 对标 evmone 代码位置 |
 |--------|------|---------------------|
-| P0 | `validate_block()` 区块头验证（10 项规则，不含 PoW/ommer） | `blockchaintest_runner.cpp:31-126` |
+| P0 | `validate_block()` 区块头验证（15 项规则，不含 PoW/ommer；见 §6.2） | `blockchaintest_runner.cpp:31-126` |
 | P0 | 无效区块 + `expectedException` 匹配（三段检查） | `blockchaintest_runner.cpp:282-356` |
 | P0 | 规范链选择 + `lastblockhash` 校验 | `blockchaintest_runner.cpp:358-371` |
 | P0 | 区块头 MPT root 逐项校验（7 项字段） | `blockchaintest_runner.cpp:260-281` |
@@ -65,7 +79,7 @@
 
 - Ethash 难度计算（FISCO 不涉及 PoW，difficulty 检查跳过）
 - 完整 ommers 处理（仅检查 Paris+ 无 ommers）
-- Engine API sync 格式（payload RLP 解码，标记为 Phase 2）
+- Engine API sync 格式（payload RLP 解码，标记为 **Phase 5**，单独 spec）
 - `--trace` / `--trace-summary` CLI 选项（P2）
 - Precompile benchmarks / Fuzzer（P3）
 - OPStack blockchain runner 适配（现有 OPStack 路径暂不修改）
@@ -107,10 +121,11 @@ bcos-evm/test/eth-eest-test/
     BlockchainTestLoader.cpp     # ~250 L  JSON fixture 解析
   helpers/
     BlockValidation.h            # ~200 L  validate_block() + 辅助计算
-    MptHash.h                    # ~60 L   tx/withdrawal/receipts MPT root 扩展
+  # 注：tx/receipts/withdrawal/requests root 扩展现有 src/GstStateHash.cpp，不新建 MptHash.h（§7.1）
   runners/eth/
     EthEestBlockchainRunner.cpp  # ~300 L  重构（CLI standalone，输出到 std::cerr）
     EthEestBlockGranular.cpp     # ~100 L  重构（GTest dynamic registration）
+```
 
 **Runner 两种形态**（对标 evmone 同样有两种）：
 
@@ -120,7 +135,6 @@ bcos-evm/test/eth-eest-test/
 | `EthEestBlockGranular` | `evmone-blockchaintest` | GTest `EXPECT_EQ`/`FAIL()`，支持 `--gtest_filter` |
 
 两者复用同一套 `BlockValidation` + `BlockchainTestLoader`，仅在调度和输出方式上不同。
-```
 
 ### 3.3 依赖关系
 
@@ -131,10 +145,10 @@ BlockchainTestTypes.h  ← 基础类型（TestBlockHeader, TestBlock, Blockchain
 │    └── BlockchainTestLoader.h
 ├─── BlockValidation.h  ← ForkProfile（已有）
 │    └── BlockValidationErrors.h  ← 错误码常量
-├─── MptHash.h  ← GstStateHash（已有 state root/logs hash 可复用）
+├─── GstStateHash.h（扩展）  ← 已有 RLP+MPT，新增 tx/receipts/withdrawal/requests root
 │
 └───→ EthEestBlockchainRunner.cpp  ← BlockTransition.h（已有 applyEthBlock）
-     EthEestBlockGranular.cpp     ← BlockValidation.h + BlockchainTestLoader.h + MptHash.h
+     EthEestBlockGranular.cpp     ← BlockValidation.h + BlockchainTestLoader.h + GstStateHash.h
 ```
 
 ---
@@ -164,7 +178,7 @@ constexpr uint64_t GAS_PER_BLOB = 1 << 17;  // 131072
 
 // EMPTY_MPT_HASH = keccak256(RLP([]))（对标 evmone mpt_hash.hpp）
 // 值为 0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421
-// 在 §8.1 Genesis 验证中引用，实际值由 MptHash.h 提供
+// 在 §8.1 Genesis 验证中引用，唯一定义在扩展后的 GstStateHash.h（§7.1）
 
 // 对标 evmone: using BlobSchedule = unordered_map<string, BlobParams>;
 // 支持 fork-dependent 参数查询（Cancun/Prague/Amsterdam 各不相同）
@@ -259,7 +273,7 @@ struct BlockchainTest {
 | `std::vector<Ommers>` | 省略（仅检查 Paris+ 无 ommers） | FISCO 不涉及 |
 | `RevisionSchedule` | `ForkProfileRegistry` + `network` 字符串 + `resolveRevision()` 新函数 | §8.0 |
 
-**evmone 的 `state::BlockInfo` 包含 `blob_gas_used`/`excess_blob_gas`/`withdrawals` 等字段，但 FISCO 的 `state::BlockInfo` 只有 9 个执行层字段（number, timestamp, gasLimit, coinbase, prevRandao, baseFee, chainId, blobBaseFee）。因此这些共识验证所需字段被安置在 `TestBlock`（input_* 前缀）和 `TestBlockHeader` 中，保持生产代码不变。**
+**evmone 的 `state::BlockInfo` 包含 `blob_gas_used`/`excess_blob_gas`/`withdrawals` 等字段，但 FISCO 的 `state::BlockInfo`（`eth/state/BlockInfo.hpp`）只有 9 个执行层字段（number, timestamp, gasLimit, coinbase, prevRandao, `parentHash`, baseFee, chainId, blobBaseFee）。其中 `parentHash` 已存在，故 §8.1 的 `tb.block_info.parent_hash` 有依据（对应 `.parentHash`）。共识验证所需的 blob/withdrawal 字段被安置在 `TestBlock`（input_* 前缀）和 `TestBlockHeader` 中，保持生产代码不变。**
 
 ### 4.2 `BlockValidationErrors.h` — 错误码常量
 
@@ -377,8 +391,9 @@ uint64_t calcExcessBlobGas(evmc_revision rev,
                            uint64_t parentBaseFee,
                            uint64_t parentBlobBaseFee);
 
-/// 对标: evmone mining_reward() — Phase 2（区块 reward/finalize 重构时启用）
+/// 对标: evmone mining_reward() — 仅 M5 历史 PoW fork（<PARIS）需要；本 spec 主体 PoS 下 reward=0
 /// 当前 evmone 值: <BYZANTIUM=5ETH, <CONSTANTINOPLE=3ETH, <PARIS=2ETH, >=PARIS=0
+/// YAGNI：Phase 0–4 不实现（EEST PoS fixture coinbase reward=0）；仅当 M5 PoW parity 需要时补
 std::optional<uint64_t> miningReward(evmc_revision rev);
 
 }  // namespace
@@ -417,27 +432,27 @@ std::optional<uint64_t> miningReward(evmc_revision rev);
 
 ## 7. MPT Hash 扩展
 
-### 7.1 文件：`helpers/MptHash.h`（~80 L，或扩展现有 `GstStateHash.h`）
+### 7.1 文件：扩展现有 `GstStateHash.h`（**决定：扩展，不新建**）
 
-对标 evmone `test/utils/mpt_hash.hpp`。当前 FISCO 已有 `computeStateRoot()` 和 `computeLogsHash()`，需要新增：
+**复用结论（关闭旧 Open Q2）：** `GstStateHash.cpp` 已含完整 RLP（`rlpEncodeRaw/Uint64/U256/List`）+ MPT trie（leaf/extension/branch node）+ `computeStateRoot`，且 `keccak256(rlpEncodeList({}))` 即 `EMPTY_MPT_HASH`。因此新 root 函数直接在此文件扩展，不新建 `MptHash.h`，不引入 evmone。
+
+**返回类型约定：** 现有 `computeStateRoot()` / `computeLogsHash()` 返回 `evmc_bytes32`。为保持一致，**新增函数统一返回 `evmc_bytes32`**（不用 `h256`）。断言时 `TestBlockHeader` 的 `h256` 字段与 `evmc_bytes32` 通过 helper（`toEvmcBytes32(h256)` / 逐字节 `memcmp`）比较——§8.1/§8.3 的 `EXPECT_EQ` 两侧须先归一到同一类型。
 
 ```cpp
 namespace bcos::evm::reference_tests {
 
 // 对标 evmone: mpt_hash(transactions)
-h256 computeTxRoot(std::span<const state::Transaction> txs);
+evmc_bytes32 computeTxRoot(std::span<const state::Transaction> txs);
 
 // 对标 evmone: mpt_hash(receipts)
-h256 computeReceiptsRoot(std::span<const TransactionReceipt> receipts);
+evmc_bytes32 computeReceiptsRoot(std::span<const TransactionReceipt> receipts);
 
-// 对标 evmone: mpt_hash(withdrawals)
-// Withdrawal 类型定义见 §10.1
-h256 computeWithdrawalRoot(std::span<const Withdrawal> withdrawals);
+// 对标 evmone: mpt_hash(withdrawals) — Withdrawal 类型定义见 §10.1
+evmc_bytes32 computeWithdrawalRoot(std::span<const Withdrawal> withdrawals);
 
-// 对标 evmone: calculate_requests_hash()
-// RequestsList = std::vector<Requests> where Requests is the serialized EIP-7685 request type
-// （SHA256，非 MPT；具体类型在 BlockchainTestTypes.h 中定义）
-h256 computeRequestsHash(std::span<const bytes> requests);
+// 对标 evmone: calculate_requests_hash() — SHA256，非 MPT
+// requests 为 EIP-7685 序列化后的 request 字节列表（每项 = type byte ++ payload）
+evmc_bytes32 computeRequestsHash(std::span<const bytes> requests);
 
 }  // namespace
 ```
@@ -497,12 +512,14 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit) {
 void runBlockchainTest(const BlockchainTest& test, ForkProfile& profile,
                        evmc::VM& vm, bcos::crypto::Hash& hashImpl) {
     // ── 1. Genesis 验证（对标 evmone L175-183）──
+    // 统一用 resolveRevision(network, timestamp)，不引入 evmone 的 rev_schedule
+    const auto genesisRev = resolveRevision(test.network, test.genesis_block_header.timestamp);
     EXPECT_EQ(test.genesis_block_header.block_number, 0);
     EXPECT_EQ(test.genesis_block_header.gas_used, 0);
     EXPECT_EQ(test.genesis_block_header.transactions_root, EMPTY_MPT_HASH);
     EXPECT_EQ(test.genesis_block_header.receipts_root, EMPTY_MPT_HASH);
     // withdrawal_root: Shanghai+ 则为 EMPTY_MPT_HASH，否则为 0
-    if (rev_schedule.get_revision(test.genesis_block_header.timestamp) >= EVMC_SHANGHAI)
+    if (genesisRev >= EVMC_SHANGHAI)
         EXPECT_EQ(test.genesis_block_header.withdrawal_root, EMPTY_MPT_HASH);
     else
         EXPECT_EQ(test.genesis_block_header.withdrawal_root, h256{});
@@ -518,48 +535,71 @@ void runBlockchainTest(const BlockchainTest& test, ForkProfile& profile,
     // 注意：total_difficulty 初始化为 genesis.difficulty（evmone），
     // FISCO 中 difficulty 通常为 0（非 PoW 链），从 0 开始等效
     block_data[genesis.hash] = {&genesis, test.pre_state, 0};
-    auto* canonical_state = &test.pre_state;
+    TestStateView const* canonical_state = &test.pre_state;
     h256 canonical_tip = genesis.hash;
+    uint64_t max_total_difficulty = 0;
 
     // ── 3. 逐块循环 ──
     for (auto& tb : test.test_blocks) {
-        auto rev = resolveRevision(test.network, tb.block_info.timestamp);
-        auto blob_gas_limit = maxBlobGasPerBlock(test.blob_schedule);
+        const auto rev = resolveRevision(test.network, tb.block_info.timestamp);
+        const auto blob_gas_limit = maxBlobGasPerBlock(test.blob_schedule);
 
         // 3a. 查找父区块数据（对标 evmone L206-210）
-        auto parent_it = block_data.find(tb.block_info.parent_hash);  // 需在 BlockInfo 解析时填入
-        auto* parent_header = (parent_it != block_data.end()) ? parent_it->second.header : nullptr;
+        // BlockInfo.parentHash 在 Loader 解析时填入 tb.block_info.parentHash
+        auto parent_it = block_data.find(tb.block_info.parentHash);
+        auto* parent_header =
+            (parent_it != block_data.end()) ? parent_it->second.header : nullptr;
 
         // 3b. 区块头验证
         auto block_error = validateBlock(rev, test.blob_schedule, tb, parent_header);
 
         if (!tb.expected_exception.empty()) {
-            // ── 无效区块路径 ──
+            // ── 无效区块路径 ──（三段检查见 §8.2）
             if (block_error) {
                 EXPECT_TRUE(tb.expected_exception.contains(*block_error));
-                continue;  // 正确拒绝
+                continue;  // Level 1：正确拒绝
             }
-            // 执行交易 → 检查交易级错误 → 检查区块头字段不一致
-            auto res = applyEthBlock(pre_state, vm, bi, ...);
-            // ... （三段检查见 §8.2）
-            // 如果所有字段都匹配 → FAIL（预期无效但实际有效）
+            // 区块头合法 → 从父块 post_state 起执行交易，走 Level 2/2.5/3
+            if (parent_it == block_data.end()) { ADD_FAILURE(); continue; }
+            auto res = applyEthBlock(
+                parent_it->second.post_state, tb.transactions, tb.block_info, profile,
+                vm, hashImpl);
+            // ... Level 2 (res.rejected) / Level 2.5 (res.requests_error) / Level 3（字段比对）
+            // 全部字段匹配 → FAIL（预期无效但实际有效）
         } else {
             // ── 有效区块路径 ──
-            EXPECT_FALSE(block_error);  // 不应该被 validateBlock 拒绝
+            EXPECT_FALSE(block_error);  // 不应被 validateBlock 拒绝
+            if (parent_it == block_data.end()) { ADD_FAILURE(); continue; }
 
-            // 使用父区块的 post_state 作为执行起点（对标 evmone L230-231）
-            const auto& pre_state = parent_data_it->second.post_state;
-            auto res = applyEthBlock(pre_state, vm, bi, ...);
+            // 使用父区块 post_state 作为执行起点（对标 evmone L230-231）
+            auto res = applyEthBlock(
+                parent_it->second.post_state, tb.transactions, tb.block_info, profile,
+                vm, hashImpl);
             // 逐项校验区块头字段（见 §8.3）
 
-            block_hashes[tb.expected_block_header.block_number] = tb.expected_block_header.hash;
-            // 更新 block_data, canonical_state, canonical_tip
+            block_hashes[tb.expected_block_header.block_number] =
+                tb.expected_block_header.hash;
+
+            // 记录该块 BlockData，并按 §8.4 更新 canonical tip
+            auto const total_difficulty =
+                parent_it->second.total_difficulty + tb.block_info.difficulty;
+            auto [it, _] = block_data.insert_or_assign(
+                tb.expected_block_header.hash,
+                BlockData{&tb.expected_block_header, res.postState, total_difficulty});
+            if (total_difficulty >= max_total_difficulty) {  // PoS：等效"输入顺序最后一个有效块"
+                canonical_state = &it->second.post_state;
+                canonical_tip = tb.expected_block_header.hash;
+                max_total_difficulty = total_difficulty;
+            }
         }
     }
 
     // ── 4. 最终验证 ──
     EXPECT_EQ(canonical_tip, test.expectation.last_block_hash);
-    EXPECT_EQ(computeStateRoot(finalState), expectedPostHash);
+    // Expectation.post_state 为 variant<TestStateView, h256>：
+    //   - 持 h256：直接比 computeStateRoot(*canonical_state) == 该 hash
+    //   - 持 TestStateView：比 computeStateRoot(canonical) == computeStateRoot(expectedView)
+    expectPostStateMatches(*canonical_state, test.expectation.post_state);
 }
 ```
 
@@ -601,7 +641,8 @@ ASSERT_FALSE(res.requests_error);  // EIP-7685 requests 收集不应失败
 EXPECT_TRUE(res.rejected.empty())  // 有效区块中不应有交易被拒绝
     << "Invalid transaction in block expected to be valid";
 
-EXPECT_EQ(computeStateRoot(res.block_state), expected_header.state_root);
+// 注意：BlockApplyResult 的状态字段名为 `postState`（非 evmone 的 block_state）
+EXPECT_EQ(computeStateRoot(res.postState), expected_header.state_root);
 EXPECT_EQ(computeTxRoot(tb.transactions), expected_header.transactions_root);
 EXPECT_EQ(computeReceiptsRoot(res.receipts), expected_header.receipts_root);
 
@@ -615,6 +656,8 @@ if (rev >= EVMC_PRAGUE) {
     EXPECT_EQ(computeRequestsHash(res.requests),
               expected_header.requests_hash);
 }
+// ⚠️ B2：res.requests 的来源见 §8.3.1 —— 若 Phase 3 未打通采集，Prague requestsHash
+//        校验降级为 XFAIL 并在 §15.2 记录，不阻塞 M1(Cancun)。
 
 EXPECT_EQ(res.gas_used, expected_header.gas_used);
 EXPECT_EQ(res.bloom, expected_header.logs_bloom);
@@ -623,6 +666,23 @@ EXPECT_EQ(res.bloom, expected_header.logs_bloom);
 EXPECT_EQ(blob_gas_limit - res.blob_gas_left,
           static_cast<int64_t>(expected_header.blob_gas_used.value_or(0)));
 ```
+
+### 8.3.1 ⚠️ EIP-7685 requests 采集来源（B2 — Prague+ 前置）
+
+**问题：** §8.3 校验 `requestsHash`（Prague+），§11 让 `BlockApplyResult` 加 `requests` 字段，但 requests **不来自交易返回值**——它由三个系统合约在区块末尾产出：
+
+| Request type | EIP | 来源 |
+|--------------|-----|------|
+| `0x00` deposits | EIP-6110 | 扫描本块 receipts 中 deposit 合约的 log |
+| `0x01` withdrawals | EIP-7002 | 区块末尾调用 withdrawal-request 预部署合约，读其返回 |
+| `0x02` consolidations | EIP-7251 | 区块末尾调用 consolidation 预部署合约，读其返回 |
+
+**采集路径（Phase 3）：** 在 `applyEthBlock` 末尾（withdrawal credit 之后）：
+1. 遍历 receipts，匹配 EIP-6110 deposit 合约地址的 log → 拼 `0x00 ++ payload`
+2. 对 EIP-7002 / EIP-7251 预部署合约各发一次系统调用，取 output → `0x01/0x02 ++ output`
+3. 按 type 升序拼成 `res.requests`（`std::vector<bytes>`），`computeRequestsHash` 做 `sha256(concat)` 逐段哈希
+
+**降级策略：** 若 Phase 3 未打通系统合约调用，Prague+ 的 `requestsHash` 校验标记 `GTEST_SKIP`/XFAIL，在 §15.2 M2（Prague）baseline 中记录，**不阻塞 M1（Cancun，无 requests）**。
 
 ### 8.4 规范链选择（P0）
 
@@ -640,10 +700,12 @@ if (total_difficulty >= max_total_difficulty) {
     max_total_difficulty = total_difficulty;
 }
 
-// 循环结束后：
+// 循环结束后（post_state 比对见 §8.1 expectPostStateMatches）：
 EXPECT_EQ(canonical_tip, test.expectation.last_block_hash);
-EXPECT_EQ(computeStateRoot(*canonical_state), expectedPostHash);
+expectPostStateMatches(*canonical_state, test.expectation.post_state);
 ```
+
+**PoS fixture 语义（M-3）：** FISCO 链 `difficulty = 0`，`total_difficulty` 恒不增，`>=` 比较使 canonical tip **等效为"输入顺序中最后一个通过 `validateBlock` 的块"**——这与 EEST PoS fixture 的约定一致（Paris+ 无 PoW，规范链即区块顺序）。对含竞争链/reorg 的历史 PoW fixture（M5 范围），`total_difficulty` 累加才生效；本 spec 以 PoS 语义为主，PoW reorg 归入 M5 baseline。
 
 ---
 
@@ -746,15 +808,33 @@ if (rev >= EVMC_SHANGHAI) {
 }
 ```
 
+### 10.3 ⚠️ Withdrawal balance credit（B1 — stateRoot 通过率关键路径）
+
+**问题：** 当前 `applyEthBlock`（`BlockTransition.h`）只执行交易，**不对 withdrawal 做 balance 增记**。而 §8.3 要校验 Shanghai+ 有效块的 `stateRoot`——若不 credit withdrawal 余额，任何含 withdrawal 的块 `stateRoot` 必然 mismatch，直接压垮 M1/M4 的通过率目标。
+
+**修复（Phase 3，随 withdrawal 一起落地）：** 在 `applyEthBlock` 于**所有用户交易执行之后、构建 post-state 之前**，对每笔 withdrawal 执行余额增记：
+
+```cpp
+// EIP-4895: withdrawal.amount 单位为 Gwei，credit 时换算为 Wei
+for (auto const& w : withdrawals) {
+    account(w.address).balance += u256(w.amount) * 1'000'000'000;  // ×10^9
+    // 若目标账户不存在则按 touch/create 语义处理（EIP-158 空账户规则）
+}
+```
+
+**接口影响：** `applyEthBlock` 需新增 `std::span<const Withdrawal> withdrawals = {}` 形参（默认空，兼容既有 state-test 调用方）。这是对 §13 "不改 `applyEthBlock` 公共 API" 的**受控例外**——追加带默认值的形参，现有调用点不受影响。
+
+**验收挂钩：** 该修复是 §15.2 中 **M4（Shanghai）里程碑**的前置条件；Cancun（M1）本身也含 withdrawal 用例，故 Phase 3 必须完成。
+
 ---
 
 ## 11. 对现有文件的修改
 
 | 文件 | 修改类型 | 内容 |
 |------|---------|------|
-| `CMakeLists.txt` | 修改 | 新增 `BlockchainTestLoader.cpp` 源文件 + 新增 `BlockchainTestTypes.h` 头文件 |
-| `helpers/BlockTransition.h` | 修改 | 扩展 `TransactionReceipt` 字段（增加 bloom, logs[]，替换单 log）; 扩展 `BlockApplyResult` 字段（bloom, blob_gas_left, requests, requests_error, rejected） |
-| `helpers/GstStateHash.h` | 修改/新增 | 新增 `computeTxRoot()` / `computeReceiptsRoot()` / `computeWithdrawalRoot()` / `computeRequestsHash()` |
+| `CMakeLists.txt` | 修改 | 新增 `BlockchainTestLoader.cpp` 源文件 + `BlockchainTestTypes.h` 头文件；**不新增 `evmone::testutils` 链接** |
+| `helpers/BlockTransition.h` | 修改 | 扩展 `TransactionReceipt`（bloom, logs[], status, gas_refund）; 扩展 `BlockApplyResult`（bloom, blob_gas_left, requests, requests_error, rejected）; `applyEthBlock` 追加 `withdrawals` 默认形参（§10.3） |
+| `src/GstStateHash.cpp` + `include/.../GstStateHash.h` | **扩展（非新建 MptHash.h）** | 复用现有 RLP+MPT，新增 `computeTxRoot()` / `computeReceiptsRoot()` / `computeWithdrawalRoot()` / `computeRequestsHash()`，均返回 `evmc_bytes32`（§7.1） |
 | `runners/eth/EthEestBlockchainRunner.cpp` | **重构** | 替换为使用 Loader + Validation + 新 runner 逻辑 |
 | `runners/eth/EthEestBlockGranular.cpp` | 修改 | 复用 Loader + Validation，改为细粒度 per-file GTest |
 
@@ -773,9 +853,11 @@ if (rev >= EVMC_SHANGHAI) {
 
 ```cmake
 # 重构后的 blockchain smoke（替换原 EthEestBlockchainSmoke）
-# 使用 blockchain_tests/cancun 子目录对应 §15 验收标准
+# Phase 2 过渡期：cancun --limit 10；M1 完成后（Phase 4）切到 curated manifest（§15.3），
+# 避免 --limit 依赖文件名排序导致门禁漂移。
 add_test(NAME EthEestBlockchainSmoke COMMAND EthEestBlockchainRunner
-    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests/cancun --limit 10)
+    --manifest ${CMAKE_CURRENT_SOURCE_DIR}/manifests/eth/eth-eest-blockchain-smoke.json
+    --eest-root ${EVM_REF_EEST_ROOT})
 set_tests_properties(EthEestBlockchainSmoke PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
 
@@ -820,7 +902,9 @@ ctest -L 'specs-tests-full' -R 'blockchain' --test-dir build-ref -C Debug
 | 风险 | 缓解措施 |
 |------|---------|
 | JSON fixture 格式差异（legacy 格式 vs EEST 格式） | `BlockchainTestLoader` 支持两种格式，优先 EEST，legacy 作为 fallback |
-| 规范链选择在简单测试中不走（total_difficulty=0） | runner 保持 evmone 的 `>=` 逻辑，默认选择最后一个有效区块 |
+| 规范链选择在简单测试中不走（total_difficulty=0） | PoS fixture 下 `>=` 等效"选输入顺序最后一个有效块"（§8.4）；PoW reorg 归 M5 |
+| **含 withdrawal 的 Shanghai+ 块 stateRoot mismatch**（未 credit 余额） | **B1**：`applyEthBlock` 末尾按 §10.3 对 withdrawal 做 `+amount×10⁹` Wei 增记 |
+| **Prague+ requestsHash 无采集来源** | **B2**：§8.3.1 系统合约采集；未打通则 XFAIL 降级，不阻塞 M1 |
 | Blob gas 参数依赖 EIP 版本 | `BlobSchedule` 支持配置，通过 `ForkProfileRegistry` 查表获取 |
 | `applyEthBlock` 目前为单 block 逐 tx 循环，不支持 MPT root 中间计算 | 扩展 `BlockTransition.h` 中的 `BlockApplyResult` |
 | ETH 测试中 ommers 字段不存在于 EEST 格式 | `parseBlockHeader` 设默认值 `ommers.empty()` |
@@ -873,25 +957,30 @@ ctest -L 'specs-tests-full' -R 'blockchain' --test-dir build-ref -C Debug
 |-------|------|------|------|--------|
 | **0** | 脚手架 | 1–2d | `BlockchainTestTypes.h`、`BlockchainTestLoader` 骨架、`resolveRevision()` | Loader 单测可解析 Cancun fixture |
 | **1** | 验证引擎 P0 | 3–4d | `BlockValidation.h`、`BlockApplyResult` 扩展、invalid block 三段检查 | Cancun invalid-block vectors PASS |
-| **2** | MPT + Runner 重构 | 2–3d | `MptHash.h`、`EthEestBlockchainRunner` 调用 Loader+Validation | Cancun 标准格式 **≥50%**（M1 中途） |
+| **2** | MPT + Runner 重构 | 2–3d | `GstStateHash` 扩展（tx/receipts root）、`EthEestBlockchainRunner` 调用 Loader+Validation | Cancun 标准格式 **≥50%**（M1 中途） |
 | **3** | P1 特性 + Granular | 2–3d | blob gas、withdrawal、EIP-7934；`EthEestBlockGranular` 执行 | Cancun **≥90%**（**M1 完成**） |
-| **4** | Full + CI | 1–2d | `EthEestBlockchainFull`、`EthEestBlockGranularFull`、nightly workflow、可选 manifest | CI 硬门禁上线 |
+| **4** | Full + CI | 1–2d | `EthEestBlockchainFull`、`EthEestBlockGranularFull`、nightly workflow、`eth-eest-blockchain-smoke.json` manifest（PR 门禁切换） | CI 硬门禁上线；**M1 达成** |
+| **4.x** | Fork parity loop | 持续 | 逐 fork 修失败、扩 baseline | **M2 Prague → M3 Osaka → M4 Shanghai/Berlin/London/Paris → M5 历史 fork** |
 | **5** | Engine/Sync | deferred | 单独 spec | — |
 
-**合计：** ~10–14 人天（Phase 0–4）。
+**合计：** ~10–14 人天（Phase 0–4，达成 M1）。M2–M5 为 Phase 4.x 持续 parity loop，按 §15.2 里程碑逐步推进，不计入初始估时。
+
+**里程碑 ↔ Phase 映射：** M1 = Phase 3 完成（Cancun ≥90%）+ Phase 4 门禁上线；M2–M5 = Phase 4.x（各 fork 依赖 B2 requests 采集 / B1 withdrawal credit 的完成度）。
 
 ---
 
 ## 17. Open Questions
 
-1. **`applyEthBlock` 扩展**：当前 `BlockTransition.h` 的 `applyEthBlock()` 只做逐 tx 执行 + state 累积。Phase 1 必须扩展 `BlockApplyResult` 添加 `bloom`、`blob_gas_left`、`requests`、`rejected` 字段（§11）。`miningReward()` Phase 1 仅声明不调用；Phase 2 重构 `apply_block()` 时启用（evmone reward 值: <BYZANTIUM=5ETH, <CONSTANTINOPLE=3ETH, <PARIS=2ETH, >=PARIS=0）。
+1. **`applyEthBlock` 扩展**：Phase 1 扩展 `BlockApplyResult` 添加 `bloom`、`blob_gas_left`、`requests`、`requests_error`、`rejected`（§11）；Phase 3 追加 `withdrawals` 形参做 balance credit（§10.3）。`miningReward()` 按 §6.1 YAGNI 推迟至 M5，Phase 0–4 不实现。
 
-2. **MPT 实现**：`computeTxRoot()` / `computeReceiptsRoot()` 需要 RLP 编码 + Keccak-256 MPT。目前 `GstStateHash.cpp` 已有 MPT 实现，评估其是否可直接复用。
+2. ~~**MPT 实现复用**~~ — **已关闭**：`GstStateHash.cpp` 已含完整 RLP+MPT，`MptHash` 扩展该文件（§7.1），不引入 evmone。
 
-3. **legacy `ethereum/tests` 格式**：当前仅支持 EEST 格式。Phase 2 考虑支持 legacy `BlockchainTests/`。
+3. **legacy `ethereum/tests` 格式**：当前仅支持 EEST 格式。**Phase 5** 考虑支持 legacy `BlockchainTests/`（与 engine/sync 同批，单独 spec）。
 
-4. **`resolveRevision()` 新函数**：当前 `ForkProfileRegistry` 只有 `findByUpstreamFork()` 和 `findByProfileId()`，都不接受 timestamp 参数。需新建 `resolveRevision(network, timestamp) -> evmc_revision`。
+4. **`resolveRevision()` 新函数**：`ForkProfileRegistry` 现有 `findByUpstreamFork()` / `findByProfileId()`，均不接受 timestamp。Phase 0 新建 `resolveRevision(network, timestamp) -> evmc_revision`（内部查 `ForkProfile` 的 `RevisionConfig` + timestamp 过渡判定）。
 
-5. **`Withdrawal` 类型**：FISCO 代码库中不存在此类型，需在 `BlockchainTestTypes.h` 中从零定义（§10.1）。
+5. **`Withdrawal` 类型**：FISCO 无此类型，Phase 0 在 `BlockchainTestTypes.h` 从零定义（§10.1）。
 
-6. **`TransactionReceipt` 扩展影响面**：当前仅有 `LogEntry log` + `int64_t gasUsed`。扩展为 `status` + `bloom` + `logs[]` + `gas_refund` 后，需评估对 `EthBlockTransitionTest.cpp` 和 OPStack 路径的影响。
+6. **`TransactionReceipt` 扩展影响面**：当前 `LogEntry log` + `int64_t gasUsed`（`BlockTransition.h:20-30`）。扩展为 `status` + `bloom` + `logs[]` + `gas_refund` 后，`EthBlockTransitionTest.cpp`（已确认存在）与 OPStack 路径需回归。缓解：新增字段带默认值，`log` 保留为 `logs.front()` 的兼容别名过渡，或一次性迁移调用点。
+
+7. **evmone 复用（已决策）**：见头部「evmone 复用策略」——仅作参考规格，禁止链接 `evmone::testutils`/`evmone::state`。
