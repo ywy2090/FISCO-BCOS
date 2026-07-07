@@ -1,4 +1,4 @@
-name: specs-tests-nightly
+name: Specs Tests Nightly
 
 on:
   schedule:

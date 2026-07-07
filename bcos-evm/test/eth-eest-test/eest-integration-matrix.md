@@ -123,7 +123,7 @@ Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Runner: `EthExe
 
 **Granular manifest-16 scan** (`scan-eest-failures.py --manifest-16`, 2026-07-07): **0 subtest failures**, 210 JSON files.
 
-**Granular full-tree scan** (`scan-eest-failures.py --granular-full`, 2026-07-07): **2722/2722 JSON files clean**, 0 subtest failures. Default profiles: manifest (Shanghai/Cancun/Prague/Osaka) + `eth-homestead` + `eth-berlin`; historical posts filtered via `shouldRunWpHistPost`. Nightly CI: `specs-tests-nightly.yml` (hard gate).
+**Granular full-tree scan** (`scan-eest-failures.py --granular-full`, 2026-07-07): **2722/2722 JSON files clean**, 0 subtest failures. Default profiles: manifest (Shanghai/Cancun/Prague/Osaka) + `eth-homestead` + `eth-berlin`; historical posts filtered via `shouldRunWpHistPost`. Nightly CI: `workflow-specs-tests-nightly.yml` (hard gate).
 
 Historical (2026-07-06): **3075/4140 (74.3%)** — superseded.
 
@@ -311,8 +311,8 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] CLI multi-path + `-k` (H3)
 - [x] Failure bucket reports (H7)
 - [ ] CTest: `EthEestBlockchainRunner --fixtures .../blockchain_tests` (no limit, nightly)
-- [x] CI job artifact upload for `--granular-full` reports (`specs-tests-nightly.yml`)
-- [x] Nightly `--granular-full` hard gate (`specs-tests-nightly.yml`, 2026-07-07)
+- [x] CI job artifact upload for `--granular-full` reports (`workflow-specs-tests-nightly.yml`)
+- [x] Nightly `--granular-full` hard gate (`workflow-specs-tests-nightly.yml`, 2026-07-07)
 - [ ] Pin bump policy (track evmone v5.6.x bal)
 
 ### P0 — Parity (manifest — closed 2026-07-07)
