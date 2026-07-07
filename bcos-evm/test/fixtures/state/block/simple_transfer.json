@@ -21,7 +21,7 @@
           "value": "0x01",
           "data": "0x",
           "gasLimit": "0x30d40",
-          "gasPrice": "0x01",
+          "gasPrice": "0x0a",
           "nonce": "0x00"
         }
       ],

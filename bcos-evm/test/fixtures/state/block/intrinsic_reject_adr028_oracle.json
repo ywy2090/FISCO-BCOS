@@ -1,6 +1,6 @@
 {
   "forkProfile": "eth-prague",
-  "comment": "ADR-028 oracle: geth rejects before EVM; bcos currently still emits a failed receipt.",
+  "comment": "ADR-028 oracle: consensus reject before EVM. gasPrice=0 triggers RulesRejected/Malformed (not intrinsic OOG). CURRENT_ORACLE still emits one receipt per tx until TE nullptr gate.",
   "pre": {
     "0x0000000000000000000000000000000000000001": {
       "balance": "0x3635c9adc5dea00000",
@@ -28,8 +28,8 @@
       ],
       "expectedReceipts": [
         {
-          "settlementStatus": "EVMC_OUT_OF_GAS",
-          "receiptStatus": "OutOfGasLimit",
+          "settlementStatus": "EVMC_FAILURE",
+          "receiptStatus": "MalformTx",
           "includedTxVmError": false,
           "consensusRejected": true,
           "adr028ExpectNoReceipt": true

@@ -102,6 +102,8 @@ bcos::protocol::TransactionStatus parseReceiptStatus(std::string const& name)
         return bcos::protocol::TransactionStatus::OutOfGasLimit;
     if (name == "Unknown")
         return bcos::protocol::TransactionStatus::Unknown;
+    if (name == "MalformTx" || name == "Malformed")
+        return bcos::protocol::TransactionStatus::Malformed;
     throw std::runtime_error("Unknown receipt status token: " + name);
 }
 

@@ -26,7 +26,7 @@
           "value": "0x0",
           "data": "0x",
           "gasLimit": "0x030d40",
-          "gasPrice": "0x0",
+          "gasPrice": "0x0a",
           "nonce": "0x01"
         },
         {
@@ -35,7 +35,7 @@
           "value": "0x0",
           "data": "0x",
           "gasLimit": "0x030d40",
-          "gasPrice": "0x0",
+          "gasPrice": "0x0a",
           "nonce": "0x02"
         }
       ],
