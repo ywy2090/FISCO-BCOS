@@ -248,8 +248,11 @@ public:
         ETH_TRANSACTION_EXECUTOR_LOG(TRACE) << "Create eth transaction context";
         auto ctx = ExecuteContext<Storage>{
             *this, storage, blockHeader, transaction, contextID, ledgerConfig, call};
-        ctx.m_data->m_message = newEVMCMessage(
-            blockHeader.number(), transaction, ctx.m_data->m_gasLimit, ctx.m_data->m_origin);
+        ctx.m_data->m_message = EthChainPolicy::deriveMessage(transaction.type() != 0,
+            newEVMCMessage(
+                blockHeader.number(), transaction, ctx.m_data->m_gasLimit, ctx.m_data->m_origin),
+            blockHeader.number(), contextID, 0, ctx.m_data->m_nonce,
+            *ctx.m_data->m_executor.get().m_hashImpl);
         co_return ctx;
     }
 

@@ -1,4 +1,6 @@
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
+#include "bcos-evm/eth/policy/EthForkSchedule.h"
+#include "bcos-evm/eth/policy/EthMainnetRevision.h"
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <evmc/evmc.h>
 #include <boost/test/unit_test.hpp>
@@ -6,6 +8,15 @@
 using namespace bcos::evm;
 
 BOOST_AUTO_TEST_SUITE(EthChainPolicyTest)
+
+BOOST_AUTO_TEST_CASE(evmcRevisionFromBlockNumberMainnetForks)
+{
+    BOOST_CHECK_EQUAL(evmcRevisionFromBlockNumber(ETH_MAINNET_PARIS_BLOCK - 1), EVMC_LONDON);
+    BOOST_CHECK_EQUAL(evmcRevisionFromBlockNumber(ETH_MAINNET_PARIS_BLOCK), EVMC_PARIS);
+    BOOST_CHECK_EQUAL(evmcRevisionFromBlockNumber(ETH_MAINNET_CANCUN_BLOCK), EVMC_CANCUN);
+    BOOST_CHECK_EQUAL(evmcRevisionFromBlockNumber(ETH_MAINNET_PRAGUE_BLOCK), EVMC_PRAGUE);
+    BOOST_CHECK_EQUAL(evmcRevisionFromBlockNumber(ETH_MAINNET_OSAKA_BLOCK), EVMC_OSAKA);
+}
 
 BOOST_AUTO_TEST_CASE(computeRevisionConfigPrague)
 {
@@ -43,10 +54,18 @@ BOOST_AUTO_TEST_CASE(computeRevisionConfigLondon)
     BOOST_CHECK(rev.calldata_floor_per_token == 0);
 }
 
-BOOST_AUTO_TEST_CASE(allowDelegateCallToPrecompile)
+BOOST_AUTO_TEST_CASE(makeEthRevisionConfigFromBlockMatchesPolicy)
 {
+    bcostars::protocol::BlockHeaderImpl header(
+        [inner = bcostars::BlockHeader()]() mutable { return std::addressof(inner); });
+    header.setNumber(ETH_MAINNET_CANCUN_BLOCK);
+
     EthChainPolicy policy;
-    BOOST_CHECK(policy.allowDelegateCallToPrecompile());
+    auto const fromHelper = makeEthRevisionConfigFromBlock(header);
+    auto const fromPolicy = policy.computeRevisionConfig(header);
+    BOOST_CHECK(fromHelper.revision == fromPolicy.revision);
+    BOOST_CHECK(fromHelper.eip4844 == fromPolicy.eip4844);
+    BOOST_CHECK(fromHelper.eip7702 == fromPolicy.eip7702);
 }
 
 BOOST_AUTO_TEST_CASE(convertTimestamp)

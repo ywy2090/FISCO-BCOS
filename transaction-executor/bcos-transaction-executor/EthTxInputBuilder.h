@@ -3,6 +3,7 @@
 #include "Web3Eip7702Decoder.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
+#include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include "bcos-evm/storage/LedgerBlockInfo.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
@@ -12,18 +13,19 @@
 
 namespace bcos::evm::eth_tx
 {
-inline state::BlockInfo buildEthBlockInfo(
-    protocol::BlockHeader const& blockHeader, ledger::LedgerConfig const& ledgerConfig)
+inline state::BlockInfo buildEthBlockInfo(protocol::BlockHeader const& blockHeader,
+    ledger::LedgerConfig const& ledgerConfig, EthChainPolicy const& policy)
 {
-    auto blockInfo = state::buildBlockInfoFromHeader(
-        blockHeader, ledgerConfig, [](int64_t timestamp) { return timestamp / 1000; });
+    auto blockInfo = state::buildBlockInfoFromHeader(blockHeader, ledgerConfig,
+        [&policy](int64_t timestamp) { return policy.convertTimestamp(timestamp); });
     blockInfo.baseFee = u256(std::get<0>(ledgerConfig.gasPrice()));
     return blockInfo;
 }
 
 inline void fillTransactionGasFields(protocol::Transaction const& tx, auto& data)
 {
-    data.m_blockInfo = buildEthBlockInfo(data.m_blockHeader.get(), data.m_ledgerConfig.get());
+    data.m_blockInfo =
+        buildEthBlockInfo(data.m_blockHeader.get(), data.m_ledgerConfig.get(), data.m_policy);
 
     data.m_gasTipCap = 0;
     data.m_gasFeeCap = 0;
@@ -52,10 +54,9 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, EthMessageRequest& i
 {
     auto const resolved = executor::resolveWeb3AccessList(tx);
     input.web3TypedTxKind = resolved.web3TypedTxKind;
-    if (resolved.accessList)
-    {
-        input.accessList = resolved.accessList.get();
-    }
+    // Transfer ownership into the request: `resolved` is a local, so storing .get()
+    // here would dangle as soon as this function returns (use-after-free).
+    input.accessList = resolved.accessList;
 
     auto const web3Kind = input.web3TypedTxKind != 0 ?
                               input.web3TypedTxKind :

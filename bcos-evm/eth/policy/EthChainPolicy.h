@@ -1,48 +1,33 @@
 #pragma once
-#include "bcos-evm/eth/core/RevisionConfig.h"
+#include "bcos-evm/eth/policy/EthMainnetRevision.h"
+#include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <cstdint>
+
+namespace bcos::crypto
+{
+class Hash;
+}
 
 namespace bcos::evm
 {
 
-inline evmc_revision evmcRevisionFromBlockNumber(int64_t blockNum)
-{
-    if (blockNum >= 25000000)
-        return EVMC_OSAKA;
-    if (blockNum >= 22000000)
-        return EVMC_PRAGUE;
-    if (blockNum >= 19426587)
-        return EVMC_CANCUN;
-    if (blockNum >= 17034870)
-        return EVMC_SHANGHAI;
-    if (blockNum >= 15537394)
-        return EVMC_PARIS;
-    return EVMC_LONDON;
-}
-
+/// TE-boundary policy for the Eth reference execution path.
 struct EthChainPolicy
 {
-    RevisionConfig computeRevisionConfig(const protocol::BlockHeader& header) const
+    RevisionConfig computeRevisionConfig(protocol::BlockHeader const& header) const
     {
-        return revisionConfigFromRevision(evmcRevisionFromBlockNumber(header.number()));
+        return makeEthRevisionConfigFromBlock(header);
     }
 
-    static evmc_message deriveMessage(bool /*web3Tx*/, const evmc_message& msg,
-        int64_t /*blockNum*/, int64_t /*ctxId*/, int64_t /*seq*/, const u256& /*nonce*/,
-        const crypto::Hash& /*hashImpl*/)
+    static evmc_message deriveMessage(bool /*web3Tx*/, evmc_message const& msg,
+        int64_t /*blockNum*/, int64_t /*ctxId*/, int64_t /*seq*/, u256 const& /*nonce*/,
+        crypto::Hash const& /*hashImpl*/)
     {
         return msg;  // Standard: no address override
     }
 
     int64_t convertTimestamp(int64_t blockTimestampMs) const { return blockTimestampMs / 1000; }
-
-    bool selfdestruct(const evmc_address&, const evmc_address&) const
-    {
-        return false;  // EIP-3529: no refund
-    }
-
-    bool allowDelegateCallToPrecompile() const { return true; }
 };
 
 }  // namespace bcos::evm

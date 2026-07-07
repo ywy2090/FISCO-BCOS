@@ -19,7 +19,7 @@
 | `core/` | 内核共享接口（`StateTransitionHooks`、`EvmHostHooks`、`ChainCallTargetPort`、`CallTargetTypes` 等 ADR-019/024 seam） |
 | `eip/` | 单 EIP 实现（1559/2930/4844/7623/7702 等）与 revision 门控 |
 | `gas/` | 跨 EIP 协议 gas（intrinsic、fee settlement、通用常量） |
-| `policy/` | `EthChainPolicy`（revision / feature 策略） |
+| `policy/` | `EthForkSchedule` / `EthMainnetRevision` / `EthChainPolicy`（主网 fork 表、revision 绑定、TE 策略） |
 | `precompiled/` | `PrecompileRouter`、`PrecompileActive`、`EthPrecompiles`（legacy registry 在 `bcos-executor/src/vm/`） |
 | `host/` | `EthHost.h` evmone host 实现（ADR-020 Legacy Enclave） |
 | `state/` | State/Transition 数据层 |
@@ -42,12 +42,12 @@
 | `kernel/execution/CreateDeployment.h` | CREATE 生命周期（assign / touch / code deposit） |
 | `kernel/execution/FrameScope.h` | `TopLevel` / `Nested` 帧作用域 |
 | `kernel/EVMCResult.*` | EVMC ↔ `TransactionStatus` 桥接（`adoptEvmcResult`） |
-| `RevisionConfig.h` | EIP 开关位域（`eth/` 根） |
 
 ## `core/` — 链无关 seam 类型与端口
 
 | 文件 | 角色 |
 | --- | --- |
+| `RevisionConfig.h` | EIP 开关位域 + `revisionConfigFromRevision`（EIP 门控唯一来源） |
 | `CallTargetTypes.h` | `CallTargetKind`、`WarmPolicy`、`CallTargetDescriptor`（ADR-024；链 adapter 与 kernel 共用） |
 | `ChainCallTargetPort.h` | 链扩展 call target 注入端口 |
 | `StateTransitionHooks.*` | 状态转换 hook 接口 + 默认 `innerExecute` 网关 |
@@ -83,6 +83,14 @@
 | --- | --- |
 | `Eip2537Gas.h` | EIP-2537 BLS12-381 MSM 折扣表 |
 | `ModexpGas.h` | modexp (0x05) 跨 EIP-198/2565/7883 gas + EIP-7823 校验 |
+
+## `policy/` — Eth 参考链 profile
+
+| 文件 | 角色 |
+| --- | --- |
+| `EthForkSchedule.h` | 主网区块高度 → `evmc_revision`（geth mainnet fork 表） |
+| `EthMainnetRevision.h` | `BlockHeader` / `evmc_revision` → `RevisionConfig`（委托 `core/RevisionConfig.h`） |
+| `EthChainPolicy.h` | TE 边界策略（`computeRevisionConfig`、`convertTimestamp`、`deriveMessage`） |
 
 ## `apply/` — ETH 参考路径
 

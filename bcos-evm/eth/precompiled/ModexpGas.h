@@ -71,7 +71,8 @@ constexpr int64_t MODEXP_EIP7883_EXP_BIT_MULTIPLIER = 16;
 /// Parse the three 32-byte big-endian length fields at the start of modexp input.
 ModexpLengths parseModexpLengths(bcos::bytesConstRef input);
 
-/// Profile gate for EIP-7823 reject (Osaka+ in `EthChainPolicy`; independent of gas schedule).
+/// Profile gate for EIP-7823 reject (Osaka+ via `RevisionConfig::eip7823`; independent of gas
+/// schedule).
 inline bool modexpEip7823Enabled(const bcos::evm::RevisionConfig& rev) noexcept
 {
     return rev.eip7823;
