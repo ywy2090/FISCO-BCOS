@@ -4,7 +4,9 @@
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
+#include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -24,5 +26,10 @@ GstPostStateView buildPostStateView(
 
 evmc_bytes32 computeStateRoot(GstPostStateView const& postState);
 evmc_bytes32 computeLogsHash(std::vector<state::LogEntry> const& logs);
+
+bcos::bytes rlpEncodeRaw(bcos::bytes const& input);
+bcos::bytes rlpEncodeUint64(uint64_t value);
+bcos::bytes rlpEncodeU256(bcos::u256 value);
+bcos::bytes rlpEncodeList(std::vector<bcos::bytes> const& items);
 
 }  // namespace bcos::evm::reference_tests

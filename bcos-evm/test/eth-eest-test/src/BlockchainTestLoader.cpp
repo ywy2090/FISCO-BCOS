@@ -1,7 +1,9 @@
 #include "bcos-evm/eth-eest-test/BlockchainTestLoader.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
+#include "bcos-evm/eth-eest-test/GstStateHash.h"
 
 #include <bcos-utilities/DataConvertUtility.h>
+#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -75,6 +77,263 @@ bool uncleHashImpliesOmmers(std::string_view uncleHex)
     auto const uh = toBytes32(uncleHex);
     auto const empty = emptyMptHash();
     return std::memcmp(uh.bytes, empty.bytes, 32) != 0;
+}
+
+bcos::bytes stripLeadingZeros(bcos::bytes const& input)
+{
+    auto it = std::find_if(input.begin(), input.end(), [](uint8_t b) { return b != 0; });
+    if (it == input.end())
+    {
+        return {};
+    }
+    return bcos::bytes(it, input.end());
+}
+
+bcos::bytes addressToBytes(std::string_view hex)
+{
+    auto bytes = hexToBytes(hex);
+    if (bytes.size() >= sizeof(evmc_address))
+    {
+        if (bytes.size() > sizeof(evmc_address))
+        {
+            bytes.erase(bytes.begin(), bytes.end() - sizeof(evmc_address));
+        }
+        return bytes;
+    }
+    bcos::bytes out(sizeof(evmc_address), 0);
+    if (!bytes.empty())
+    {
+        std::memcpy(out.data() + sizeof(evmc_address) - bytes.size(), bytes.data(), bytes.size());
+    }
+    return out;
+}
+
+bcos::bytes hash32ToBytes(std::string_view hex)
+{
+    auto bytes = hexToBytes(hex);
+    if (bytes.size() >= sizeof(evmc_bytes32))
+    {
+        if (bytes.size() > sizeof(evmc_bytes32))
+        {
+            bytes.erase(bytes.begin(), bytes.end() - sizeof(evmc_bytes32));
+        }
+        return bytes;
+    }
+    bcos::bytes out(sizeof(evmc_bytes32), 0);
+    if (!bytes.empty())
+    {
+        std::memcpy(out.data() + sizeof(evmc_bytes32) - bytes.size(), bytes.data(), bytes.size());
+    }
+    return out;
+}
+
+bcos::bytes rlpEncodeScalarHex(std::string_view hex)
+{
+    return rlpEncodeRaw(stripLeadingZeros(hexToBytes(hex)));
+}
+
+bcos::bytes rlpEncodeToField(pt::ptree const& tx)
+{
+    if (auto const to = opt(tx, "to"))
+    {
+        if (to->empty())
+        {
+            return rlpEncodeRaw({});
+        }
+        return rlpEncodeRaw(addressToBytes(*to));
+    }
+    return rlpEncodeRaw({});
+}
+
+bcos::bytes rlpEncodeDataField(pt::ptree const& tx)
+{
+    if (auto const data = opt(tx, "data"))
+    {
+        return rlpEncodeRaw(hexToBytes(*data));
+    }
+    return rlpEncodeRaw({});
+}
+
+bcos::bytes rlpEncodeValueField(pt::ptree const& tx)
+{
+    if (auto const value = opt(tx, "value"))
+    {
+        return rlpEncodeU256(bcos::fromBigQuantity(*value));
+    }
+    return rlpEncodeU256(0);
+}
+
+bcos::bytes rlpEncodeGasLimitField(pt::ptree const& tx)
+{
+    if (auto const gasLimit = opt(tx, "gasLimit"))
+    {
+        return rlpEncodeUint64(toU64(*gasLimit));
+    }
+    return rlpEncodeUint64(0);
+}
+
+bcos::bytes rlpEncodeNonceField(pt::ptree const& tx)
+{
+    return rlpEncodeUint64(toU64(opt(tx, "nonce").value_or("0x0")));
+}
+
+bcos::bytes rlpEncodeChainIdField(pt::ptree const& tx)
+{
+    if (auto const chainId = opt(tx, "chainId"))
+    {
+        return rlpEncodeU256(bcos::fromBigQuantity(*chainId));
+    }
+    return rlpEncodeU256(0);
+}
+
+bcos::bytes rlpEncodeParityField(pt::ptree const& tx)
+{
+    if (auto const yParity = opt(tx, "yParity"))
+    {
+        return rlpEncodeUint64(toU64(*yParity));
+    }
+    if (auto const v = opt(tx, "v"))
+    {
+        return rlpEncodeUint64(toU64(*v));
+    }
+    return rlpEncodeUint64(0);
+}
+
+bcos::bytes rlpEncodeAccessListFromJson(pt::ptree const& tx)
+{
+    std::vector<bcos::bytes> entries;
+    if (auto const listNode = tx.get_child_optional("accessList"))
+    {
+        for (auto const& [_, entryNode] : *listNode)
+        {
+            std::vector<bcos::bytes> storageKeys;
+            if (auto const storage = entryNode.get_child_optional("storageKeys"))
+            {
+                for (auto const& [slotKey, slotNode] : *storage)
+                {
+                    static_cast<void>(slotKey);
+                    storageKeys.push_back(
+                        rlpEncodeRaw(hash32ToBytes(slotNode.get_value<std::string>())));
+                }
+            }
+            entries.push_back(
+                rlpEncodeList({rlpEncodeRaw(addressToBytes(entryNode.get<std::string>("address"))),
+                    rlpEncodeList(storageKeys)}));
+        }
+    }
+    return rlpEncodeList(entries);
+}
+
+bcos::bytes rlpEncodeAuthorizationListFromJson(pt::ptree const& tx)
+{
+    std::vector<bcos::bytes> entries;
+    if (auto const authNode = tx.get_child_optional("authorizationList"))
+    {
+        for (auto const& [_, entryNode] : *authNode)
+        {
+            bcos::bytes yParity = rlpEncodeParityField(entryNode);
+            bcos::bytes sigR = opt(entryNode, "r").has_value() ?
+                                   rlpEncodeScalarHex(*opt(entryNode, "r")) :
+                                   rlpEncodeRaw({});
+            bcos::bytes sigS = opt(entryNode, "s").has_value() ?
+                                   rlpEncodeScalarHex(*opt(entryNode, "s")) :
+                                   rlpEncodeRaw({});
+            entries.push_back(rlpEncodeList(
+                {rlpEncodeU256(bcos::fromBigQuantity(entryNode.get<std::string>("chainId", "0x0"))),
+                    rlpEncodeRaw(addressToBytes(entryNode.get<std::string>("address"))),
+                    rlpEncodeUint64(toU64(entryNode.get<std::string>("nonce", "0x0"))),
+                    std::move(yParity), std::move(sigR), std::move(sigS)}));
+        }
+    }
+    return rlpEncodeList(entries);
+}
+
+bcos::bytes rlpEncodeBlobVersionedHashesFromJson(pt::ptree const& tx)
+{
+    std::vector<bcos::bytes> hashes;
+    if (auto const blobHashes = tx.get_child_optional("blobVersionedHashes"))
+    {
+        for (auto const& [key, hashNode] : *blobHashes)
+        {
+            static_cast<void>(key);
+            hashes.push_back(rlpEncodeRaw(hash32ToBytes(hashNode.get_value<std::string>())));
+        }
+    }
+    return rlpEncodeList(hashes);
+}
+
+uint8_t txTypeFromJson(pt::ptree const& tx)
+{
+    if (auto const type = opt(tx, "type"))
+    {
+        return static_cast<uint8_t>(toU64(*type));
+    }
+    return 0;
+}
+
+bcos::bytes encodeSignedTxFromJson(pt::ptree const& tx)
+{
+    auto const nonce = rlpEncodeNonceField(tx);
+    auto const gasLimit = rlpEncodeGasLimitField(tx);
+    auto const to = rlpEncodeToField(tx);
+    auto const value = rlpEncodeValueField(tx);
+    auto const data = rlpEncodeDataField(tx);
+    auto const sigR =
+        opt(tx, "r").has_value() ? rlpEncodeScalarHex(*opt(tx, "r")) : rlpEncodeRaw({});
+    auto const sigS =
+        opt(tx, "s").has_value() ? rlpEncodeScalarHex(*opt(tx, "s")) : rlpEncodeRaw({});
+
+    auto const type = txTypeFromJson(tx);
+    bcos::bytes body;
+    switch (type)
+    {
+    case 0:
+        body = rlpEncodeList(
+            {nonce, rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "gasPrice").value_or("0x0"))),
+                gasLimit, to, value, data,
+                opt(tx, "v").has_value() ? rlpEncodeScalarHex(*opt(tx, "v")) : rlpEncodeUint64(0),
+                sigR, sigS});
+        return body;
+    case 1:
+        body = rlpEncodeList({rlpEncodeChainIdField(tx), nonce,
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "gasPrice").value_or("0x0"))), gasLimit, to,
+            value, data, rlpEncodeAccessListFromJson(tx), rlpEncodeParityField(tx), sigR, sigS});
+        break;
+    case 2:
+        body = rlpEncodeList({rlpEncodeChainIdField(tx), nonce,
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "maxPriorityFeePerGas").value_or("0x0"))),
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "maxFeePerGas").value_or("0x0"))), gasLimit,
+            to, value, data, rlpEncodeAccessListFromJson(tx), rlpEncodeParityField(tx), sigR,
+            sigS});
+        break;
+    case 3:
+        body = rlpEncodeList({rlpEncodeChainIdField(tx), nonce,
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "maxPriorityFeePerGas").value_or("0x0"))),
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "maxFeePerGas").value_or("0x0"))), gasLimit,
+            to, value, data, rlpEncodeAccessListFromJson(tx),
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "maxFeePerBlobGas").value_or("0x0"))),
+            rlpEncodeBlobVersionedHashesFromJson(tx), rlpEncodeParityField(tx), sigR, sigS});
+        break;
+    case 4:
+        body = rlpEncodeList({rlpEncodeChainIdField(tx), nonce,
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "maxPriorityFeePerGas").value_or("0x0"))),
+            rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "maxFeePerGas").value_or("0x0"))), gasLimit,
+            to, value, data, rlpEncodeAccessListFromJson(tx),
+            rlpEncodeAuthorizationListFromJson(tx), rlpEncodeParityField(tx), sigR, sigS});
+        break;
+    default:
+        body = rlpEncodeList(
+            {nonce, rlpEncodeU256(bcos::fromBigQuantity(opt(tx, "gasPrice").value_or("0x0"))),
+                gasLimit, to, value, data,
+                opt(tx, "v").has_value() ? rlpEncodeScalarHex(*opt(tx, "v")) : rlpEncodeUint64(0),
+                sigR, sigS});
+        return body;
+    }
+
+    bcos::bytes out;
+    out.push_back(type);
+    out.insert(out.end(), body.begin(), body.end());
+    return out;
 }
 
 BlobSchedule parseBlobSchedule(pt::ptree const& scheduleTree)
@@ -174,7 +433,10 @@ TestBlock parseTestBlock(pt::ptree const& j, std::string_view /*network*/)
     if (auto txs = src->get_child_optional("transactions"))
     {
         for (auto const& [_, txTree] : *txs)
+        {
             tb.transactions.push_back(parseTransactionTemplate(txTree));
+            tb.rawTxRlp.push_back(encodeSignedTxFromJson(txTree));
+        }
     }
 
     if (auto ws = src->get_child_optional("withdrawals"))

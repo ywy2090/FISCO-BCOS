@@ -50,68 +50,6 @@ void rlpAppendLength(bcos::bytes& out, size_t length, uint8_t offset)
     out.insert(out.end(), lenBytes.begin(), lenBytes.end());
 }
 
-bcos::bytes rlpEncodeRaw(bcos::bytes const& input)
-{
-    bcos::bytes out;
-    if (input.size() == 1 && input[0] < 0x80)
-    {
-        out.push_back(input[0]);
-        return out;
-    }
-    rlpAppendLength(out, input.size(), 0x80);
-    out.insert(out.end(), input.begin(), input.end());
-    return out;
-}
-
-bcos::bytes rlpEncodeUint64(uint64_t value)
-{
-    if (value == 0)
-    {
-        return {0x80};
-    }
-    bcos::bytes encoded;
-    while (value > 0)
-    {
-        encoded.insert(encoded.begin(), static_cast<uint8_t>(value & 0xff));
-        value >>= 8;
-    }
-    if (encoded.size() == 1 && encoded[0] < 0x80)
-    {
-        return encoded;
-    }
-    bcos::bytes out;
-    rlpAppendLength(out, encoded.size(), 0x80);
-    out.insert(out.end(), encoded.begin(), encoded.end());
-    return out;
-}
-
-bcos::bytes rlpEncodeU256(bcos::u256 value)
-{
-    if (value == 0)
-    {
-        return {0x80};
-    }
-    auto encoded = bcos::toBigEndian(value);
-    while (!encoded.empty() && encoded.front() == 0)
-    {
-        encoded.erase(encoded.begin());
-    }
-    return rlpEncodeRaw(encoded);
-}
-
-bcos::bytes rlpEncodeList(std::vector<bcos::bytes> const& items)
-{
-    bcos::bytes payload;
-    for (auto const& item : items)
-    {
-        payload.insert(payload.end(), item.begin(), item.end());
-    }
-    bcos::bytes out;
-    rlpAppendLength(out, payload.size(), 0xc0);
-    out.insert(out.end(), payload.begin(), payload.end());
-    return out;
-}
-
 std::vector<uint8_t> keyToNibbles(bcos::bytes const& key)
 {
     std::vector<uint8_t> nibbles;
@@ -464,6 +402,68 @@ evmc_bytes32 computeLogsHashImpl(std::vector<state::LogEntry> const& logs)
 }
 
 }  // namespace
+
+bcos::bytes rlpEncodeRaw(bcos::bytes const& input)
+{
+    bcos::bytes out;
+    if (input.size() == 1 && input[0] < 0x80)
+    {
+        out.push_back(input[0]);
+        return out;
+    }
+    rlpAppendLength(out, input.size(), 0x80);
+    out.insert(out.end(), input.begin(), input.end());
+    return out;
+}
+
+bcos::bytes rlpEncodeUint64(uint64_t value)
+{
+    if (value == 0)
+    {
+        return {0x80};
+    }
+    bcos::bytes encoded;
+    while (value > 0)
+    {
+        encoded.insert(encoded.begin(), static_cast<uint8_t>(value & 0xff));
+        value >>= 8;
+    }
+    if (encoded.size() == 1 && encoded[0] < 0x80)
+    {
+        return encoded;
+    }
+    bcos::bytes out;
+    rlpAppendLength(out, encoded.size(), 0x80);
+    out.insert(out.end(), encoded.begin(), encoded.end());
+    return out;
+}
+
+bcos::bytes rlpEncodeU256(bcos::u256 value)
+{
+    if (value == 0)
+    {
+        return {0x80};
+    }
+    auto encoded = bcos::toBigEndian(value);
+    while (!encoded.empty() && encoded.front() == 0)
+    {
+        encoded.erase(encoded.begin());
+    }
+    return rlpEncodeRaw(encoded);
+}
+
+bcos::bytes rlpEncodeList(std::vector<bcos::bytes> const& items)
+{
+    bcos::bytes payload;
+    for (auto const& item : items)
+    {
+        payload.insert(payload.end(), item.begin(), item.end());
+    }
+    bcos::bytes out;
+    rlpAppendLength(out, payload.size(), 0xc0);
+    out.insert(out.end(), payload.begin(), payload.end());
+    return out;
+}
 
 GstPostStateView buildPostStateView(
     std::vector<std::pair<evmc_address, state::Account>> const& preState,

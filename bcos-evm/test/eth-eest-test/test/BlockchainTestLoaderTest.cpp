@@ -63,4 +63,16 @@ BOOST_AUTO_TEST_CASE(loads_blob_schedule_and_chain_id)
     BOOST_CHECK(tests.front().blobSchedule.count("Cancun") > 0);
 }
 
+BOOST_AUTO_TEST_CASE(captures_raw_tx_rlp_for_cancun_block)
+{
+    boost::property_tree::ptree root;
+    boost::property_tree::read_json(fixture().string(), root);
+    auto tests = loadBlockchainTests(root);
+    BOOST_REQUIRE(!tests.empty());
+    auto const& blk = tests.front().testBlocks.front();
+    BOOST_CHECK_EQUAL(blk.rawTxRlp.size(), blk.transactions.size());
+    if (!blk.rawTxRlp.empty())
+        BOOST_CHECK(!blk.rawTxRlp.front().empty());
+}
+
 }  // namespace bcos::evm::reference_tests
