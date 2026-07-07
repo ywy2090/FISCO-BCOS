@@ -145,4 +145,23 @@ BOOST_AUTO_TEST_CASE(requires_variant_key_for_multi_variant_map)
     std::filesystem::remove(path);
 }
 
+BOOST_AUTO_TEST_CASE(unsupported_format_returns_status_not_throw)
+{
+#ifdef SPECS_TESTS_SOURCE_DIR
+    auto const path =
+        std::filesystem::path(SPECS_TESTS_SOURCE_DIR) / "assets/eest/unsupported/not_gst.json";
+#else
+    auto const path =
+        std::filesystem::path("bcos-evm/test/eth-eest-test/assets/eest/unsupported/not_gst.json");
+#endif
+    BOOST_REQUIRE(std::filesystem::exists(path));
+
+    auto const result = tryLoadGeneralStateTestFile(path);
+    BOOST_CHECK_EQUAL(
+        static_cast<int>(result.status), static_cast<int>(StateTestLoadStatus::UnsupportedFormat));
+    BOOST_CHECK(result.cases.empty());
+    BOOST_CHECK(!result.reason.empty());
+    BOOST_CHECK_THROW(loadGeneralStateTestFile(path), std::runtime_error);
+}
+
 }  // namespace bcos::evm::reference_tests

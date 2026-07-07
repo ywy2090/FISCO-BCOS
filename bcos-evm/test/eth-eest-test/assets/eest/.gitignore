@@ -1,3 +1,5 @@
 # Fetched via FetchContent at configure time; pin in upstream-pins.json
 *
 !.gitignore
+!unsupported/
+!unsupported/**

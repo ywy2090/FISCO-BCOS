@@ -378,6 +378,78 @@ bool isLegacyStateTestRoot(pt::ptree const& tree)
            tree.get_child_optional("post").has_value();
 }
 
+bool isGstCaseBody(pt::ptree const& body)
+{
+    return body.get_child_optional("env").has_value() &&
+           body.get_child_optional("pre").has_value() &&
+           body.get_child_optional("transaction").has_value() &&
+           body.get_child_optional("post").has_value();
+}
+
+bool isEngineOrBlockchainRoot(pt::ptree const& tree)
+{
+    return tree.get_child_optional("blocks").has_value() ||
+           tree.get_child_optional("engineNewPayloads").has_value() ||
+           tree.get_child_optional("engineForkchoiceUpdateds").has_value();
+}
+
+std::optional<pt::ptree> tryReadJsonTree(std::filesystem::path const& jsonPath, std::string& error)
+{
+    std::ifstream input(jsonPath);
+    if (!input.good())
+    {
+        error = "Failed to open GST JSON: " + jsonPath.string();
+        return std::nullopt;
+    }
+
+    try
+    {
+        pt::ptree tree;
+        pt::read_json(input, tree);
+        return tree;
+    }
+    catch (pt::json_parser_error const& ex)
+    {
+        error = "Malformed GST JSON (" + jsonPath.string() + "): " + ex.message();
+        return std::nullopt;
+    }
+    catch (std::exception const& ex)
+    {
+        error = "Failed to parse GST JSON (" + jsonPath.string() + "): " + ex.what();
+        return std::nullopt;
+    }
+}
+
+std::optional<StateTestCase> tryParseStateTestBody(pt::ptree const& body, std::string variantKey,
+    std::filesystem::path const& sourcePath, std::string& error)
+{
+    try
+    {
+        return parseStateTestBody(body, std::move(variantKey), sourcePath);
+    }
+    catch (std::exception const& ex)
+    {
+        error = ex.what();
+        return std::nullopt;
+    }
+}
+
+StateTestLoadResult makeUnsupportedResult(std::string reason)
+{
+    StateTestLoadResult result;
+    result.status = StateTestLoadStatus::UnsupportedFormat;
+    result.reason = std::move(reason);
+    return result;
+}
+
+StateTestLoadResult makeParseErrorResult(std::string reason)
+{
+    StateTestLoadResult result;
+    result.status = StateTestLoadStatus::ParseError;
+    result.reason = std::move(reason);
+    return result;
+}
+
 pt::ptree const* findDirectChild(pt::ptree const& tree, std::string const& key)
 {
     for (auto const& [childKey, child] : tree)
@@ -656,6 +728,61 @@ std::vector<StateTestCase> loadGeneralStateTestFile(std::filesystem::path const&
         return {loadFromLegacyRoot(tree, jsonPath)};
     }
     return loadAllFromNamedMap(tree, jsonPath);
+}
+
+StateTestLoadResult tryLoadGeneralStateTestFile(std::filesystem::path const& jsonPath)
+{
+    std::string error;
+    auto const treeOpt = tryReadJsonTree(jsonPath, error);
+    if (!treeOpt.has_value())
+    {
+        return makeParseErrorResult(std::move(error));
+    }
+
+    auto const& tree = *treeOpt;
+    if (isLegacyStateTestRoot(tree))
+    {
+        StateTestLoadResult result;
+        result.status = StateTestLoadStatus::Ok;
+        if (auto const caseOpt =
+                tryParseStateTestBody(tree, jsonPath.stem().string(), jsonPath, result.reason))
+        {
+            result.cases.push_back(std::move(*caseOpt));
+            return result;
+        }
+        return makeParseErrorResult(std::move(result.reason));
+    }
+
+    if (tree.empty())
+    {
+        return makeUnsupportedResult("GST JSON map is empty: " + jsonPath.string());
+    }
+
+    if (isEngineOrBlockchainRoot(tree))
+    {
+        return makeUnsupportedResult("Not a general state test JSON: " + jsonPath.string());
+    }
+
+    StateTestLoadResult result;
+    result.status = StateTestLoadStatus::Ok;
+    for (auto const& key : sortedVariantKeys(tree))
+    {
+        auto const* child = findDirectChild(tree, key);
+        if (child == nullptr || !isGstCaseBody(*child))
+        {
+            return makeUnsupportedResult(
+                "Variant '" + key + "' missing GST env/pre/transaction/post: " + jsonPath.string());
+        }
+
+        if (auto const caseOpt = tryParseStateTestBody(*child, key, jsonPath, result.reason))
+        {
+            result.cases.push_back(std::move(*caseOpt));
+            continue;
+        }
+        return makeParseErrorResult(std::move(result.reason));
+    }
+
+    return result;
 }
 
 StateTestCase loadGeneralStateTest(

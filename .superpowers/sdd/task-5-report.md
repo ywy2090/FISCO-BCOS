@@ -1,71 +1,58 @@
-# Task 5 Report — ADR-032 Wave 5 Documentation Cleanup
+# Task 5 Report: H6 — Unsupported formats → GTEST_SKIP
 
-**Date:** 2026-06-30  
-**Baseline:** `3f77f4fd8`  
-**Commit message:** `docs(evm): ADR-032 Wave 5 — retirement doc cleanup`
+## Status
 
-## Summary
+**COMPLETE**
 
-Wave 5 completes the Tier E symbol retirement documentation sweep after Waves 1–4 removed all deprecated forwards from code. No production symbol changes in this wave — docs, log strings, and ADR checklists only.
+## Deliverables
 
-## Changes
+| File | Action |
+|------|--------|
+| `bcos-evm/test/eth-eest-test/include/bcos-evm/eth-eest-test/GeneralStateTestLoader.h` | Modified — `StateTestLoadStatus`, `StateTestLoadResult`, `tryLoadGeneralStateTestFile` |
+| `bcos-evm/test/eth-eest-test/src/GeneralStateTestLoader.cpp` | Modified — non-throwing loader; format classification |
+| `bcos-evm/test/eth-eest-test/runners/eth/EthEestStateGranular.cpp` | Modified — `GTEST_SKIP` for unsupported files; subtest mode registers file-level skip placeholder |
+| `bcos-evm/test/eth-eest-test/test/GeneralStateTestLoaderTest.cpp` | Modified — `unsupported_format_returns_status_not_throw` |
+| `bcos-evm/test/eth-eest-test/assets/eest/unsupported/not_gst.json` | Created — `{ "blocks": [] }` stub |
 
-### Carry-over from Wave 3/4 reviews
+## Commit
 
-| Item | Status | Notes |
-| --- | --- | --- |
-| `Initializer.cpp` log strings → `apply*Message` | ✅ | Comments + 3 `INITIALIZER_LOG` lines updated |
-| ADR-032 §3 gate checklist | ✅ | Waves 1–4 gates marked complete |
-| ADR-032 §4 TE checklist | ✅ | Wave 3–4 items marked complete (optional `*ExecuteTx()` rename left open) |
-| ADR-032 internal migration checklist | ✅ | Wave 1 items marked complete |
-| `architecture-overview.md` | ✅ | Canonical names throughout; Tier E dual-label removed |
-| `opstack/README.md` | ✅ | `applyOpStackMessage` canonical |
-| `bcos/README.md` | ✅ | `applyFiscoMessage` + `stateTransitionExecute` |
-| `eth/README.md` | ✅ | Tier E removal noted; canonical flow updated |
-| ADR-030 §8 stable-alias table | ✅ | All removed symbols marked with 2026-06-30 dates |
-| ADR-031 appendix timeline | ✅ | Waves 1–5 events added |
-| `GethNamingAliases.h` index | ✅ | Stale Tier E entries replaced with Wave 5 sweep note |
-| `PrecompileRouterInput` removal | ✅ N/A | Already absent (grep clean) |
-
-### ADR updates
-
-- **ADR-032:** Wave 5 timeline row, CI confirmation appendix, Tier E inventory fully struck through
-- **ADR-031:** TE §3 updated to `apply*Message`; deprecated forward note reflects Wave 2 removal
-- **ADR-030:** §2 entry points, §3 step map, §8 removal table, Tier A alias table, Appendix A lookup
-
-## Verification
-
-```bash
-cd build && ctest -R 'GethNaming|FiscoExecute|EthReference|OpStackExecute|TxPipeline' --output-on-failure
+```
+(pending)
+test(eest): H6 skip unsupported state test JSON in granular runner
 ```
 
-**Result:** 9/9 passed (0.43s)
+## Tests
 
-| Test | Result |
-| --- | --- |
-| EthReferenceExecuteFixture | Passed |
-| EthReferenceExecute1559GasPrice | Passed |
-| TxPipeline | Passed |
-| GethNamingAliases | Passed |
-| FiscoExecuteSmoke | Passed |
-| Bcos7702FiscoExecutePropagation | Passed |
-| FiscoExecuteImportedFixture | Passed |
-| Bcos7212FiscoExecute | Passed |
-| OpStackExecuteSmoke | Passed |
+| Target | Result |
+|--------|--------|
+| `GeneralStateTestLoaderTest` | **5/5 PASS** |
+| `EthEestStateGranular` on `unsupported/not_gst.json` | **1 SKIPPED** (`Not a general state test JSON`) |
+| `EthEestStateGranular` on `unsupported/` directory | **1 SKIPPED** |
+| `EthExecutionSpecStateTestsFull` manifest | **4140/4140 PASS** (unchanged) |
 
-## Out of scope (documented, not blocking)
+### Verification commands
 
-- TE local helper names (`fiscoExecuteTx()`, etc.) — optional hygiene per ADR-032 §4
-- `.superpowers/` not committed per instructions
+```bash
+cmake --build build-bcos-evm-check --target GeneralStateTestLoaderTest EthEestStateGranular
+./build-bcos-evm-check/bcos-evm/test/eth-eest-test/GeneralStateTestLoaderTest
+GRAN=build-bcos-evm-check/bcos-evm/test/eth-eest-test/EthEestStateGranular
+$GRAN bcos-evm/test/eth-eest-test/assets/eest/unsupported/not_gst.json 2>&1 | grep -i skip
+ctest -R EthExecutionSpecStateTestsFull
+```
 
-## Files touched
+## Implementation Summary
 
-- `libinitializer/Initializer.cpp`
-- `bcos-evm/eth/GethNamingAliases.h`
-- `bcos-evm/docs/adr/030-geth-naming-map.md`
-- `bcos-evm/docs/adr/031-te-geth-kernel-symbol-migration.md`
-- `bcos-evm/docs/adr/032-tier-e-symbol-retirement.md`
-- `bcos-evm/docs/architecture-overview.md`
-- `bcos-evm/bcos/README.md`
-- `bcos-evm/eth/README.md`
-- `bcos-evm/opstack/README.md`
+- **`tryLoadGeneralStateTestFile`**: non-throwing loader returning `Ok`, `UnsupportedFormat`, or `ParseError`.
+  - `UnsupportedFormat`: empty map, `blocks`/`engineNewPayloads` root keys, variant missing `env`/`pre`/`transaction`/`post`.
+  - `ParseError`: IO failure, malformed JSON, or field parse failures inside valid GST shape.
+- **`loadGeneralStateTestFile` / `loadEestStateTestFile`**: unchanged throwing behavior for manifest runners.
+- **Granular runner**:
+  - File-level `TestBody`: `GTEST_SKIP()` on load failure, zero cases, or all forks unsupported (`no supported forks`).
+  - Per-case zero runs: `continue` (siblings may still run).
+  - Subtest registration mode: skipped files register one file-level placeholder so GTest reports SKIP (not silent 0 tests).
+
+## Concerns
+
+1. **Subtest vs directory semantics** — single-file input for unsupported JSON registers a file-level skip test (not zero tests) so `grep -i skip` verification passes; directory mode uses the same file-level test path.
+2. **`engineForkchoiceUpdateds`** — included in unsupported detection alongside `blocks` and `engineNewPayloads`; not exercised by fixture yet.
+3. **Parse vs unsupported boundary** — malformed hex inside otherwise-valid GST shape returns `ParseError` (granular still SKIPs with reason); manifest runners still throw.

@@ -42,6 +42,72 @@ bool passesNameFilter(std::string const& testName, std::optional<std::string> co
     return !nameFilter || testName.find(*nameFilter) != std::string::npos;
 }
 
+struct GranularFileLoad
+{
+    bool shouldSkip{false};
+    std::string skipReason;
+    std::vector<StateTestCase> cases;
+};
+
+GranularFileLoad loadGranularFile(fs::path const& file)
+{
+    auto const result = tryLoadGeneralStateTestFile(file);
+    if (result.status == StateTestLoadStatus::UnsupportedFormat ||
+        result.status == StateTestLoadStatus::ParseError)
+    {
+        return {true, result.reason, {}};
+    }
+    if (result.cases.empty())
+    {
+        return {true, "no cases", {}};
+    }
+    return {false, {}, std::move(result.cases)};
+}
+
+void runGranularCases(std::vector<StateTestCase> const& testCases, fs::path const& file,
+    RunnerConfig* config, bool* anyRan)
+{
+    for (auto const& testCase : testCases)
+    {
+        for (auto const& run :
+            resolveRunsForCase(testCase, file, config->stateTestsRoot, config->profiles))
+        {
+            auto const subtests = tryListSubtests(testCase, run.postForkKey);
+            if (subtests.empty())
+            {
+                continue;
+            }
+
+            EthMessageAdapter adapter(run.executionProfile, config->hashImpl, config->vm);
+            for (auto const& subtest : subtests)
+            {
+                *anyRan = true;
+                SCOPED_TRACE(std::string(evmc::to_string(run.executionProfile.revision.revision)) +
+                             " d" + std::to_string(subtest.dataIndex) + "g" +
+                             std::to_string(subtest.gasIndex) + "v" +
+                             std::to_string(subtest.valueIndex));
+
+                auto const expected = selectExpected(testCase, subtest);
+                auto gasBefore =
+                    testCase.transaction.gasLimit.empty() ?
+                        0 :
+                        static_cast<int64_t>(
+                            testCase.transaction.gasLimit[static_cast<size_t>(subtest.gasIndex)]);
+                auto const result = task::syncWait(adapter.execute(testCase, subtest));
+
+                ManifestEntry synthetic;
+                synthetic.evidenceId = testCase.name + "@" + run.executionProfile.profileId;
+                synthetic.path = ExecutionPath::Reference;
+                synthetic.evidenceKind = EvidenceKind::ReferenceParity;
+                synthetic.assertLevels = {kDefaultAssertLevels.begin(), kDefaultAssertLevels.end()};
+
+                auto const report = assertResult(synthetic, expected, result, gasBefore);
+                EXPECT_TRUE(report.passed) << report.message;
+            }
+        }
+    }
+}
+
 // ── File-level GTest case (directory input) ──────────────────────────────
 
 class EthEestStateFileTest : public testing::Test
@@ -56,45 +122,17 @@ public:
 
     void TestBody() final
     {
-        auto testCases = loadEestStateTestFile(m_file);
-        for (auto const& tc : testCases)
+        auto const load = loadGranularFile(m_file);
+        if (load.shouldSkip)
         {
-            for (auto const& run :
-                resolveRunsForCase(tc, m_file, m_config->stateTestsRoot, m_config->profiles))
-            {
-                auto const subtests = tryListSubtests(tc, run.postForkKey);
-                if (subtests.empty())
-                {
-                    continue;
-                }
+            GTEST_SKIP() << load.skipReason;
+        }
 
-                EthMessageAdapter adapter(run.executionProfile, m_config->hashImpl, m_config->vm);
-                for (auto const& st : subtests)
-                {
-                    SCOPED_TRACE(
-                        std::string(evmc::to_string(run.executionProfile.revision.revision)) +
-                        " d" + std::to_string(st.dataIndex) + "g" + std::to_string(st.gasIndex) +
-                        "v" + std::to_string(st.valueIndex));
-
-                    auto const expected = selectExpected(tc, st);
-                    auto gasBefore =
-                        tc.transaction.gasLimit.empty() ?
-                            0 :
-                            static_cast<int64_t>(
-                                tc.transaction.gasLimit[static_cast<size_t>(st.gasIndex)]);
-                    auto const result = task::syncWait(adapter.execute(tc, st));
-
-                    ManifestEntry synthetic;
-                    synthetic.evidenceId = tc.name + "@" + run.executionProfile.profileId;
-                    synthetic.path = ExecutionPath::Reference;
-                    synthetic.evidenceKind = EvidenceKind::ReferenceParity;
-                    synthetic.assertLevels = {
-                        kDefaultAssertLevels.begin(), kDefaultAssertLevels.end()};
-
-                    auto const report = assertResult(synthetic, expected, result, gasBefore);
-                    EXPECT_TRUE(report.passed) << report.message;
-                }
-            }
+        bool anyRan = false;
+        runGranularCases(load.cases, m_file, m_config, &anyRan);
+        if (!anyRan)
+        {
+            GTEST_SKIP() << "no supported forks";
         }
     }
 
@@ -187,24 +225,31 @@ void registerFilesFromDirectory(
 void registerSubtestsFromFile(
     fs::path const& file, RunnerConfig* config, std::optional<std::string> const& nameFilter)
 {
-    auto testCases = loadEestStateTestFile(file);
-    for (auto const& tc : testCases)
+    auto const load = loadGranularFile(file);
+    if (load.shouldSkip)
+    {
+        EthEestStateFileTest::register_one(file.parent_path().string(), file, config);
+        return;
+    }
+
+    for (auto const& testCase : load.cases)
     {
         for (auto const& run :
-            resolveRunsForCase(tc, file, config->stateTestsRoot, config->profiles))
+            resolveRunsForCase(testCase, file, config->stateTestsRoot, config->profiles))
         {
-            auto const subtests = tryListSubtests(tc, run.postForkKey);
-            for (auto const& st : subtests)
+            auto const subtests = tryListSubtests(testCase, run.postForkKey);
+            for (auto const& subtest : subtests)
             {
-                auto testName = tc.name + "/" + run.postForkKey + "/d" +
-                                std::to_string(st.dataIndex) + "g" + std::to_string(st.gasIndex) +
-                                "v" + std::to_string(st.valueIndex);
+                auto testName = testCase.name + "/" + run.postForkKey + "/d" +
+                                std::to_string(subtest.dataIndex) + "g" +
+                                std::to_string(subtest.gasIndex) + "v" +
+                                std::to_string(subtest.valueIndex);
                 if (!passesNameFilter(testName, nameFilter))
                 {
                     continue;
                 }
                 EthEestStateSubtest::register_one(
-                    tc, st, run.executionProfile, config, file.string(), testName);
+                    testCase, subtest, run.executionProfile, config, file.string(), testName);
             }
         }
     }

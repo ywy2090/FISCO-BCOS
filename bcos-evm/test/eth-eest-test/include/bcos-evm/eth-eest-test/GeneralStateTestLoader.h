@@ -65,12 +65,27 @@ struct StateTestCase
     std::map<std::string, std::vector<ExpectedPostState>> postByFork;
 };
 
+enum class StateTestLoadStatus
+{
+    Ok,
+    UnsupportedFormat,
+    ParseError,
+};
+
+struct StateTestLoadResult
+{
+    StateTestLoadStatus status{StateTestLoadStatus::Ok};
+    std::vector<StateTestCase> cases;
+    std::string reason;
+};
+
 std::filesystem::path resolveEthereumTestsRoot();
 void ensureGeneralStateTestsExtracted(std::filesystem::path const& ethereumTestsRoot);
 std::string generalStateTestCaseId(
     std::filesystem::path const& ethereumTestsRoot, std::filesystem::path const& jsonPath);
 
 std::vector<std::string> listGeneralStateTestVariantKeys(std::filesystem::path const& jsonPath);
+StateTestLoadResult tryLoadGeneralStateTestFile(std::filesystem::path const& jsonPath);
 std::vector<StateTestCase> loadGeneralStateTestFile(std::filesystem::path const& jsonPath);
 StateTestCase loadGeneralStateTest(std::filesystem::path const& jsonPath,
     std::optional<std::string_view> variantKey = std::nullopt);
