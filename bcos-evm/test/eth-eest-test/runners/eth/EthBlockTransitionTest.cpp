@@ -1,3 +1,4 @@
+#include "bcos-evm/eth-eest-test/BlockchainTestTypes.h"
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
@@ -447,6 +448,47 @@ TEST(ApplyEthBlockLogsBloom, SingleLogTxProducesNonZeroBloom)
     auto const allZero =
         std::all_of(result.bloom.begin(), result.bloom.end(), [](bcos::byte b) { return b == 0; });
     EXPECT_FALSE(allZero) << "block logs bloom must be non-zero when logs exist";
+}
+
+TEST(ApplyEthBlockWithdrawal, CreditsWithdrawalAmountToExistingAccount)
+{
+    using namespace bcos::evm::reference_tests;
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+    auto const profile = ForkProfileRegistry::instance().findByProfileId("eth-shanghai");
+    ASSERT_TRUE(profile.has_value());
+
+    TestStateView preState;
+    auto const addr =
+        bcos::evm::state::parseHexAddress("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b");
+    bcos::u256 const preBalance = 1000;
+    preState.insertAccount(addr, bcos::evm::state::Account{.balance = preBalance, .nonce = 0});
+
+    bcos::evm::state::BlockInfo blockInfo;
+    blockInfo.coinbase =
+        bcos::evm::state::parseHexAddress("0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba");
+    blockInfo.gasLimit = 30'000'000;
+    blockInfo.number = 1;
+    blockInfo.timestamp = 1;
+    blockInfo.baseFee = 7;
+
+    std::vector<GstTransactionTemplate> transactions;
+
+    Withdrawal withdrawal;
+    withdrawal.index = 0;
+    withdrawal.validatorIndex = 0;
+    withdrawal.address = addr;
+    withdrawal.amount = 42;
+
+    std::vector<Withdrawal> withdrawals{withdrawal};
+
+    auto const result = applyEthBlock(preState, transactions, blockInfo, *profile, vm, hashImpl, {},
+        std::span<const Withdrawal>(withdrawals));
+
+    auto const after = result.postState.get_account(addr);
+    ASSERT_TRUE(after.has_value());
+    EXPECT_EQ(after->balance, preBalance + bcos::u256(42) * bcos::u256(1'000'000'000));
 }
 
 int main(int argc, char** argv)

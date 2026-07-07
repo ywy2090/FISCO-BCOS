@@ -282,7 +282,7 @@ std::optional<std::string> runOneTest(BlockchainTest const& test, ForkProfile co
 
             TestStateView parentState = parentIt->second.postState;
             auto res = applyEthBlock(parentState, tb.transactions, tb.blockInfo, profile, vm,
-                hashImpl, std::move(blockHashesLookup));
+                hashImpl, std::move(blockHashesLookup), tb.withdrawals);
 
             // Level 2: transaction rejection.
             if (!res.rejected.empty())
@@ -328,7 +328,7 @@ std::optional<std::string> runOneTest(BlockchainTest const& test, ForkProfile co
 
         TestStateView parentState = parentIt->second.postState;
         auto res = applyEthBlock(parentState, tb.transactions, tb.blockInfo, profile, vm, hashImpl,
-            std::move(blockHashesLookup));
+            std::move(blockHashesLookup), tb.withdrawals);
 
         if (auto err = validateValidBlockHeaders(tb, res, rev, test.blobSchedule, test.network))
             return *err;

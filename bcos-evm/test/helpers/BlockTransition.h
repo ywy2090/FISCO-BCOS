@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth-eest-test/BlockchainTestTypes.h"
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
@@ -81,7 +82,7 @@ struct BlockApplyResult
 inline BlockApplyResult applyEthBlock(TestStateView& preState,
     std::span<GstTransactionTemplate const> transactions, state::BlockInfo const& blockInfo,
     ForkProfile const& profile, evmc::VM& vm, bcos::crypto::Hash& hashImpl,
-    state::BlockHashes blockHashes = {})
+    state::BlockHashes blockHashes = {}, std::span<const Withdrawal> withdrawals = {})
 {
     BlockApplyResult result;
     result.gasUsed = 0;
@@ -216,6 +217,26 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
     {
         BlobParams const blobParams = blobParamsFor({}, profile.upstreamForkName);
         result.blobGasLeft = maxBlobGasPerBlock(blobParams) - blobGasConsumed;
+    }
+
+    for (auto const& w : withdrawals)
+    {
+        bool found = false;
+        for (auto& [addr, acc] : preStatePairs)
+        {
+            if (state::AddressEqual{}(addr, w.address))
+            {
+                acc.balance += bcos::u256(w.amount) * bcos::u256(1000000000);
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            state::Account acc;
+            acc.balance = bcos::u256(w.amount) * bcos::u256(1000000000);
+            preStatePairs.emplace_back(w.address, std::move(acc));
+        }
     }
 
     // Build post-state from pre-state + accumulated diff
