@@ -1,9 +1,10 @@
 # EEST Blockchain Test Runner Parity — Design Spec
 
-**Date:** 2026-07-03
-**Status:** Draft — pending user review
+**Date:** 2026-07-03 (updated 2026-07-07)
+**Status:** Approved
 **Scope:** 补齐 `eth-eest-test` 的 Blockchain Test Runner，达到与 evmone `blockchaintest_runner` 同等覆盖水平
 **Architecture choice:** 路线 1 — 分层架构（Loader + Validation + Runner），测试专用类型
+**Success strategy:** **B + C** — 分 fork 里程碑（Cancun 先 ≥90%）+ CI 硬门禁（smoke manifest + nightly full 不 crash）
 
 **Frozen decisions (brainstorming):**
 
@@ -14,6 +15,8 @@
 | 代码组织 | **方案 B** — 分层（Loader + Validation + Runner），和 state test 侧一致 |
 | 错误码 | **方案 A** — 新建测试专用 `BlockValidationErrors` 常量集 |
 | 实现路线 | **路线 1** — 重构 Runner + 新建 Loader + 独立 Validation 层 |
+| 验收策略 | **B + C** — fork 里程碑 + CI 硬门禁（通过率 secondary） |
+| CI 辅助 | **方案 C** — 可选 `eth-eest-blockchain-smoke.json` manifest（PR 门禁），不替代 full tree |
 
 **Related specs:**
 
@@ -824,16 +827,62 @@ ctest -L 'specs-tests-full' -R 'blockchain' --test-dir build-ref -C Debug
 
 ---
 
-## 15. 验收标准
+## 15. 验收标准（B + C）
 
-1. **Smoke**：`EthEestBlockchainSmoke` 在 `blockchain_tests/cancun` 下至少有 5 个测试通过（当前 0 个有意义的结构化比较）
-2. **Granular**：`EthEestBlockGranularSmoke` 可以按 `--gtest_filter` 按分叉筛选并输出 per-file pass/fail
-3. **全量**：`EthEestBlockchainFull` 扫描 `blockchain_tests/` 全目录无 segfault/exception 崩溃
-4. **现有测试不受影响**：所有 `specs-tests-smoke` 中的 state test target 全部通过
+### 15.1 CI 硬门禁（策略 C — 优先）
+
+| 门禁 | Target | 通过条件 | 标签 |
+|------|--------|----------|------|
+| PR smoke | `EthEestBlockchainSmoke` | curated manifest 或 `cancun --limit 10` **全部 PASS**；无 crash | `specs-tests-smoke` |
+| PR smoke | `EthEestBlockGranularSmoke` | Cancun filter 可运行；per-file pass/fail 可解析 | `specs-tests-smoke` |
+| Nightly full | `EthEestBlockchainFull` | 扫描 `blockchain_tests/` **无 segfault/未捕获 exception** | `specs-tests-full;nightly` |
+| Nightly full | `EthEestBlockGranularFull` | 同上（GTest 形态） | `specs-tests-full;nightly` |
+| 回归 | 现有 state test targets | 全部保持 PASS（4140/4140 manifest 不退化） | `specs-tests-smoke` |
+
+**CI 原则：** nightly full 的 **crash-free 是硬门禁**；全树通过率不作为 nightly 阻塞条件，仅记录 baseline 供 parity loop 追踪。
+
+### 15.2 Fork 里程碑（策略 B — 分阶段达标）
+
+| 阶段 | Fork / 目录 | 目标通过率 | 阻塞 CI？ |
+|------|-------------|-----------|----------|
+| M1 | `blockchain_tests/cancun/` | **≥ 90%** 标准格式用例 | ✅ PR smoke（manifest 选自 Cancun） |
+| M2 | `blockchain_tests/prague/` | **≥ 90%** | 记录 baseline；smoke 可选扩 1 条 |
+| M3 | `blockchain_tests/osaka/` | **≥ 90%** | 记录 baseline |
+| M4 | `blockchain_tests/shanghai/` + `berlin/` + `london/` + `paris/` | **≥ 80%** | 记录 baseline |
+| M5 | 历史 fork（`istanbul/` … `frontier/`）+ `static/` | 记录 baseline；不阻塞 | ❌ |
+
+**M1 完成定义：** `validateBlock()` + MPT root 校验 + invalid block 三段检查在 Cancun corpus 上 ≥90%；`EthEestBlockGranular --gtest_filter=*cancun*` 与 CLI runner 结果一致。
+
+### 15.3 可选 manifest（策略 C 辅助）
+
+新增 `manifests/eth/eth-eest-blockchain-smoke.json`（~20–50 vectors，全部来自 Cancun M1 已通过用例）：
+
+- PR CI 跑 manifest 而非 `--limit 10` 随机文件，保证门禁稳定
+- Full tree 仍由 nightly granular/runner 扫描，不依赖 manifest 维护全量语料
+
+### 15.4 非目标（本 spec 不阻塞）
+
+- `blockchain_tests_engine*` / `blockchain_tests_sync` — Phase 5 单独 spec
+- Engine-only 格式（无 `pre` + `genesisBlockHeader`）— 跳过计数，不计入通过率分母
 
 ---
 
-## 16. Open Questions
+## 16. 分阶段实施计划
+
+| Phase | 名称 | 估时 | 产出 | 里程碑 |
+|-------|------|------|------|--------|
+| **0** | 脚手架 | 1–2d | `BlockchainTestTypes.h`、`BlockchainTestLoader` 骨架、`resolveRevision()` | Loader 单测可解析 Cancun fixture |
+| **1** | 验证引擎 P0 | 3–4d | `BlockValidation.h`、`BlockApplyResult` 扩展、invalid block 三段检查 | Cancun invalid-block vectors PASS |
+| **2** | MPT + Runner 重构 | 2–3d | `MptHash.h`、`EthEestBlockchainRunner` 调用 Loader+Validation | Cancun 标准格式 **≥50%**（M1 中途） |
+| **3** | P1 特性 + Granular | 2–3d | blob gas、withdrawal、EIP-7934；`EthEestBlockGranular` 执行 | Cancun **≥90%**（**M1 完成**） |
+| **4** | Full + CI | 1–2d | `EthEestBlockchainFull`、`EthEestBlockGranularFull`、nightly workflow、可选 manifest | CI 硬门禁上线 |
+| **5** | Engine/Sync | deferred | 单独 spec | — |
+
+**合计：** ~10–14 人天（Phase 0–4）。
+
+---
+
+## 17. Open Questions
 
 1. **`applyEthBlock` 扩展**：当前 `BlockTransition.h` 的 `applyEthBlock()` 只做逐 tx 执行 + state 累积。Phase 1 必须扩展 `BlockApplyResult` 添加 `bloom`、`blob_gas_left`、`requests`、`rejected` 字段（§11）。`miningReward()` Phase 1 仅声明不调用；Phase 2 重构 `apply_block()` 时启用（evmone reward 值: <BYZANTIUM=5ETH, <CONSTANTINOPLE=3ETH, <PARIS=2ETH, >=PARIS=0）。
 
