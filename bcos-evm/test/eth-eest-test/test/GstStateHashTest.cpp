@@ -1,7 +1,9 @@
 #define BOOST_TEST_MODULE GstStateHashTest
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
+#include "bcos-evm/eth-eest-test/BlockchainTestTypes.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include <boost/test/included/unit_test.hpp>
+#include <cstring>
 
 namespace bcos::evm::reference_tests
 {
@@ -116,6 +118,30 @@ BOOST_AUTO_TEST_CASE(add11_post_state_root_from_fixture)
         0xbc, 0x4e, 0x51, 0x5a, 0xa5, 0x30};
     auto const actual = computeStateRoot(postState);
     BOOST_CHECK_EQUAL(std::memcmp(actual.bytes, expected.bytes, 32), 0);
+}
+
+BOOST_AUTO_TEST_CASE(empty_tx_root_is_empty_mpt)
+{
+    auto const r = computeTxRoot({});
+    // EMPTY_MPT_HASH = keccak256(RLP("")) = 0x56e81f...b421
+    evmc_bytes32 const empty = {0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45,
+        0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62,
+        0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21};
+    BOOST_CHECK_EQUAL(std::memcmp(r.bytes, empty.bytes, 32), 0);
+}
+
+BOOST_AUTO_TEST_CASE(single_withdrawal_root_is_deterministic)
+{
+    Withdrawal w;
+    w.index = 0;
+    w.validatorIndex = 0;
+    w.amount = 0x5209;
+    auto const r = computeWithdrawalRoot(std::span<const Withdrawal>(&w, 1));
+    // Non-empty, and stable across runs.
+    BOOST_CHECK(std::memcmp(r.bytes, decltype(r){}.bytes, 32) != 0);
+    BOOST_CHECK_EQUAL(
+        std::memcmp(r.bytes, computeWithdrawalRoot(std::span<const Withdrawal>(&w, 1)).bytes, 32),
+        0);
 }
 
 }  // namespace bcos::evm::reference_tests

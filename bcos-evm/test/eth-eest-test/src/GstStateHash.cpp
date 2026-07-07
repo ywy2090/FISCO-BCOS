@@ -1,5 +1,6 @@
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 
+#include "bcos-evm/eth-eest-test/BlockchainTestTypes.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include <algorithm>
@@ -7,6 +8,7 @@
 #include <bit>
 #include <cstring>
 #include <evmone_precompiles/keccak.hpp>
+#include <functional>
 #include <optional>
 #include <stdexcept>
 #include <unordered_map>
@@ -401,6 +403,40 @@ evmc_bytes32 computeLogsHashImpl(std::vector<state::LogEntry> const& logs)
     return keccak256(rlpEncodeList(encodedLogs));
 }
 
+bcos::bytes encodeReceipt(ReceiptForRoot const& receipt)
+{
+    bcos::bytes statusByte =
+        receipt.status == EVMC_SUCCESS ? rlpEncodeUint64(1) : bcos::bytes{0x80};
+    std::vector<bcos::bytes> encodedLogs;
+    encodedLogs.reserve(receipt.logs.size());
+    for (auto const& log : receipt.logs)
+    {
+        encodedLogs.push_back(encodeLog(log));
+    }
+    return rlpEncodeList({std::move(statusByte), rlpEncodeUint64(receipt.cumulativeGasUsed),
+        rlpEncodeRaw(receipt.bloom), rlpEncodeList(encodedLogs)});
+}
+
+bcos::bytes encodeWithdrawal(Withdrawal const& withdrawal)
+{
+    bcos::bytes addressBytes(
+        withdrawal.address.bytes, withdrawal.address.bytes + sizeof(withdrawal.address.bytes));
+    return rlpEncodeList(
+        {rlpEncodeUint64(withdrawal.index), rlpEncodeUint64(withdrawal.validatorIndex),
+            rlpEncodeRaw(addressBytes), rlpEncodeUint64(withdrawal.amount)});
+}
+
+evmc_bytes32 computeIndexedTrieRoot(size_t count, std::function<bcos::bytes(size_t)> encodeEntry)
+{
+    std::vector<TrieEntry> entries;
+    entries.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+    {
+        entries.push_back(TrieEntry{.key = rlpEncodeUint64(i), .value = encodeEntry(i)});
+    }
+    return hashTrieEntries(std::move(entries));
+}
+
 }  // namespace
 
 bcos::bytes rlpEncodeRaw(bcos::bytes const& input)
@@ -540,6 +576,23 @@ evmc_bytes32 computeStateRoot(GstPostStateView const& postState)
 evmc_bytes32 computeLogsHash(std::vector<state::LogEntry> const& logs)
 {
     return computeLogsHashImpl(logs);
+}
+
+evmc_bytes32 computeTxRoot(std::span<const bcos::bytes> signedTxRlps)
+{
+    return computeIndexedTrieRoot(signedTxRlps.size(), [&](size_t i) { return signedTxRlps[i]; });
+}
+
+evmc_bytes32 computeReceiptsRoot(std::span<const ReceiptForRoot> receipts)
+{
+    return computeIndexedTrieRoot(
+        receipts.size(), [&](size_t i) { return encodeReceipt(receipts[i]); });
+}
+
+evmc_bytes32 computeWithdrawalRoot(std::span<const Withdrawal> withdrawals)
+{
+    return computeIndexedTrieRoot(
+        withdrawals.size(), [&](size_t i) { return encodeWithdrawal(withdrawals[i]); });
 }
 
 }  // namespace bcos::evm::reference_tests

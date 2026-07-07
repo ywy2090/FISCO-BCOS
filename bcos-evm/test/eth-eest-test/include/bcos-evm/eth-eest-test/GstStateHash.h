@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth-eest-test/ReceiptForRoot.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
@@ -7,11 +8,14 @@
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.h>
 #include <cstdint>
+#include <span>
 #include <utility>
 #include <vector>
 
 namespace bcos::evm::reference_tests
 {
+
+struct Withdrawal;
 
 struct GstPostStateView
 {
@@ -26,6 +30,9 @@ GstPostStateView buildPostStateView(
 
 evmc_bytes32 computeStateRoot(GstPostStateView const& postState);
 evmc_bytes32 computeLogsHash(std::vector<state::LogEntry> const& logs);
+evmc_bytes32 computeTxRoot(std::span<const bcos::bytes> signedTxRlps);
+evmc_bytes32 computeReceiptsRoot(std::span<const ReceiptForRoot> receipts);
+evmc_bytes32 computeWithdrawalRoot(std::span<const Withdrawal> withdrawals);
 
 bcos::bytes rlpEncodeRaw(bcos::bytes const& input);
 bcos::bytes rlpEncodeUint64(uint64_t value);
