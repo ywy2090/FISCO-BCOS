@@ -64,7 +64,7 @@ EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input)
     m_intrinsicPolicy.authTupleCount = input.authorizations.size();
     m_intrinsicPolicy.accessList = input.accessList;
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
-    m_intrinsicPolicy.revision = input.revisionConfig.revision;
+    m_intrinsicPolicy.eip3860 = input.revisionConfig.eip3860;
 }
 
 void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
@@ -141,7 +141,7 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
         return;
     }
 
-    if (isInitCodeSizeExceeded(m_input.revisionConfig.revision, m_input.message.kind,
+    if (isInitCodeSizeExceeded(m_input.revisionConfig.eip3860, m_input.message.kind,
             static_cast<size_t>(m_input.message.input_size)))
     {
         ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::Malformed);

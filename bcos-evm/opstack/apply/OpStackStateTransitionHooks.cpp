@@ -65,7 +65,7 @@ OpStackStateTransitionHooks::OpStackStateTransitionHooks(OpStackSettlementProjec
     m_intrinsicPolicy.authTupleCount = view.authTupleCount();
     m_intrinsicPolicy.accessList = view.accessList();
     m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();
-    m_intrinsicPolicy.revision = view.input.revisionConfig.revision;
+    m_intrinsicPolicy.eip3860 = view.input.revisionConfig.eip3860;
 }
 
 void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContext& ctx) const
@@ -181,7 +181,7 @@ void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContex
             return;
         }
 
-        if (isInitCodeSizeExceeded(input.revisionConfig.revision, input.message.kind,
+        if (isInitCodeSizeExceeded(input.revisionConfig.eip3860, input.message.kind,
                 static_cast<size_t>(input.message.input_size)))
         {
             ctx.evmcResult = makePreCheckError(protocol::TransactionStatus::Malformed);

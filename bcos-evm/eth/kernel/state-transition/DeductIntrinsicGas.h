@@ -41,7 +41,8 @@ enum class IntrinsicGasFailure
     GasLimitMinimum,
     CalldataOutOfGas,
     AuthTupleOutOfGas,
-    OpStackIntrinsicOutOfGas
+    OpStackIntrinsicOutOfGas,
+    InvalidMode
 };
 
 struct DeductIntrinsicGasParams
@@ -51,7 +52,9 @@ struct DeductIntrinsicGasParams
     uint64_t authTupleCount{0};
     Eip2930AccessList const* accessList{nullptr};
     uint8_t web3TypedTxKind{0};
-    evmc_revision revision{EVMC_SHANGHAI};
+    // EIP-3860 initcode word gas gate. Canonical value is RevisionConfig.eip3860; hooks
+    // must copy it in. Defaults to inactive (matches RevisionConfig flag convention).
+    bool eip3860{false};
 };
 
 struct DeductIntrinsicGasOutcome
@@ -99,7 +102,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         auto const calldataRef = bcos::bytesConstRef(message.input_data, message.input_size);
         auto const calldataGas = gas::calcEip7623CalldataGas(calldataRef);
         auto const intrinsic = gas::computeTxIntrinsicGas(
-            message, policy.accessList, policy.web3TypedTxKind, policy.revision);
+            message, policy.accessList, policy.web3TypedTxKind, policy.eip3860);
         int64_t const authCost = policy.authorizationListPresent ?
                                      gas::calcAuthTupleIntrinsicGas(policy.authTupleCount) :
                                      0;
@@ -135,7 +138,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
     case IntrinsicGasMode::OpStack:
     {
         auto const intrinsic = gas::computeTxIntrinsicGas(
-            message, policy.accessList, policy.web3TypedTxKind, policy.revision);
+            message, policy.accessList, policy.web3TypedTxKind, policy.eip3860);
         int64_t const authCost = gas::calcAuthTupleIntrinsicGas(policy.authTupleCount);
         int64_t const preDebit = intrinsic.preExecutionDebit();
         int64_t const totalDebit = preDebit + authCost;
@@ -152,6 +155,13 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
         return outcome;
     }
     }
+
+    // Unreachable for valid IntrinsicGasMode values. An out-of-range mode (bad cast, future
+    // enumerator) must fail deterministically instead of falling off a value-returning function.
+    outcome.ok = false;
+    outcome.failure = IntrinsicGasFailure::InvalidMode;
+    outcome.gasLeftOnFailure = message.gas;
+    return outcome;
 }
 
 }  // namespace bcos::evm

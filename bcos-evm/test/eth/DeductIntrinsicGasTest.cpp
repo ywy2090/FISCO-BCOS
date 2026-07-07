@@ -71,10 +71,11 @@ BOOST_AUTO_TEST_CASE(london_create_skips_eip3860_initcode_word_gas)
     message.input_data = initCode.data();
     message.input_size = initCode.size();
 
+    // eip3860=false: pre-Shanghai (e.g. London); eip3860=true: Shanghai+.
     auto const london =
-        gas::computeTxIntrinsicGas(message, nullptr, 0, EVMC_LONDON).createIntrinsic;
+        gas::computeTxIntrinsicGas(message, nullptr, 0, /*eip3860=*/false).createIntrinsic;
     auto const shanghai =
-        gas::computeTxIntrinsicGas(message, nullptr, 0, EVMC_SHANGHAI).createIntrinsic;
+        gas::computeTxIntrinsicGas(message, nullptr, 0, /*eip3860=*/true).createIntrinsic;
 
     BOOST_CHECK_EQUAL(london, gas::CREATE_BASE_GAS);
     BOOST_CHECK_EQUAL(shanghai, gas::CREATE_BASE_GAS + 8);

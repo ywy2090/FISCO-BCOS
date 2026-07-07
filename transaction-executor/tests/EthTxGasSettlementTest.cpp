@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_emptyCalldata)
 {
     evmc_message msg{};
     msg.kind = EVMC_CALL;
-    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0);
+    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0, /*eip3860=*/true);
     BOOST_CHECK_EQUAL(intrinsic.normalCalldata, 0);
     BOOST_CHECK_EQUAL(intrinsic.floorReserve, 0);
     BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), TX_BASE_GAS);
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_mixedCalldata_preExecutionUsesNormalN
     msg.kind = EVMC_CALL;
     msg.input_data = mixed.data();
     msg.input_size = mixed.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0);
+    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0, /*eip3860=*/true);
     BOOST_CHECK_EQUAL(intrinsic.normalCalldata, 1000);
     BOOST_CHECK_EQUAL(intrinsic.floorReserve, 2500);
     BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), TX_BASE_GAS + 1000);
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_accessList_cost)
         "0x00000000000000000000000000000000000000aa", std::vector<h256>{h256(1), h256(2)});
     evmc_message msg{};
     msg.kind = EVMC_CALL;
-    auto const intrinsic = computeTxIntrinsicGas(msg, std::addressof(list), 2);
+    auto const intrinsic = computeTxIntrinsicGas(msg, std::addressof(list), 2, /*eip3860=*/true);
     BOOST_CHECK_EQUAL(
         intrinsic.accessListCost, ACCESS_LIST_ADDRESS_COST + 2 * ACCESS_LIST_STORAGE_KEY_COST);
     BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), TX_BASE_GAS + ACCESS_LIST_ADDRESS_COST + 3800);
@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_gasLimitMinimum_gethAligned_accessLis
     msg.kind = EVMC_CALL;
     msg.input_data = input.data();
     msg.input_size = input.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, std::addressof(list), 1);
+    auto const intrinsic = computeTxIntrinsicGas(msg, std::addressof(list), 1, /*eip3860=*/true);
 
     constexpr int64_t accessListCost = ACCESS_LIST_ADDRESS_COST + 2 * ACCESS_LIST_STORAGE_KEY_COST;
     constexpr int64_t floorTotal = TX_BASE_GAS + 40;
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_gasLimitMinimum_gethAligned_dataHeavy
     msg.kind = EVMC_CALL;
     msg.input_data = mixed.data();
     msg.input_size = mixed.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, std::addressof(list), 1);
+    auto const intrinsic = computeTxIntrinsicGas(msg, std::addressof(list), 1, /*eip3860=*/true);
 
     constexpr int64_t accessListCost = ACCESS_LIST_ADDRESS_COST + 2 * ACCESS_LIST_STORAGE_KEY_COST;
     constexpr int64_t floorTotal = TX_BASE_GAS + 2500;
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_gasLimitMinimumWithAuth_floorDominate
     msg.kind = EVMC_CALL;
     msg.input_data = calldata.data();
     msg.input_size = calldata.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 4);
+    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 4, /*eip3860=*/true);
     auto const authCost = calcAuthTupleIntrinsicGas(1);
 
     constexpr int64_t floorTotal = TX_BASE_GAS + 42120;
@@ -186,7 +186,7 @@ BOOST_AUTO_TEST_CASE(ComputeTxIntrinsicGas_createIntrinsic_words)
     msg.kind = EVMC_CREATE;
     msg.input_data = initcode.data();
     msg.input_size = initcode.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0);
+    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 0, /*eip3860=*/true);
     BOOST_CHECK_EQUAL(intrinsic.createIntrinsic, CREATE_BASE_GAS + INITCODE_WORD_GAS * 2);
     BOOST_CHECK_EQUAL(intrinsic.normalCalldata, 132);
     BOOST_CHECK_EQUAL(intrinsic.preExecutionDebit(), TX_BASE_GAS + 132 + CREATE_BASE_GAS + 4);
@@ -319,7 +319,7 @@ BOOST_AUTO_TEST_CASE(SettleTopLevelTransactionGas_postEvmOOG_chargesFullGasLimit
     msg.kind = EVMC_CALL;
     msg.input_data = mixed.data();
     msg.input_size = mixed.size();
-    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 2);
+    auto const intrinsic = computeTxIntrinsicGas(msg, nullptr, 2, /*eip3860=*/true);
     auto const gasLimit = intrinsic.gasLimitMinimum();
 
     BOOST_CHECK_EQUAL(settleTopLevelTransactionGas(gasLimit, 0, 0, 10, components), gasLimit);

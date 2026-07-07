@@ -49,16 +49,17 @@ inline int64_t calcAuthTupleIntrinsicGas(uint64_t authTupleCount) noexcept
     return static_cast<int64_t>(authTupleCount) * static_cast<int64_t>(PER_EMPTY_ACCOUNT_COST);
 }
 
-/// CREATE/CREATE2 intrinsic: CREATE_BASE_GAS + EIP-3860 initcode word cost (Shanghai+ only).
-inline int64_t calcCreateIntrinsic(
-    evmc_message const& message, evmc_revision revision = EVMC_SHANGHAI) noexcept
+/// CREATE/CREATE2 intrinsic: CREATE_BASE_GAS + EIP-3860 initcode word cost (when active).
+/// eip3860 comes from RevisionConfig (single source of truth for fork gating) — callers must
+/// pass it explicitly; there is no default so an omitted flag is a compile error.
+inline int64_t calcCreateIntrinsic(evmc_message const& message, bool eip3860) noexcept
 {
     if (message.kind != EVMC_CREATE && message.kind != EVMC_CREATE2)
     {
         return 0;
     }
     int64_t initcodeWordGas = 0;
-    if (revision >= EVMC_SHANGHAI)
+    if (eip3860)
     {
         auto const inputSize = static_cast<int64_t>(message.input_size);
         auto const words = (inputSize + 31) / 32;
@@ -70,9 +71,10 @@ inline int64_t calcCreateIntrinsic(
 /// Aggregate intrinsic components for a top-level message (geth IntrinsicGas).
 /// Used by deductIntrinsicGas, txpool validator, and gasLimitMinimum prechecks.
 /// web3TypedTxKind reserved for future typed-tx intrinsic rules; currently unused.
+/// eip3860 comes from RevisionConfig.eip3860 — no default, so callers can't silently
+/// inherit the wrong fork's gating.
 inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
-    Eip2930AccessList const* accessList, uint8_t web3TypedTxKind,
-    evmc_revision revision = EVMC_SHANGHAI)
+    Eip2930AccessList const* accessList, uint8_t web3TypedTxKind, bool eip3860)
 {
     (void)web3TypedTxKind;
     TxIntrinsicGas intrinsic;
@@ -86,7 +88,7 @@ inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
         intrinsic.accessListCost = calcAccessListCost(accessList);
     }
 
-    intrinsic.createIntrinsic = calcCreateIntrinsic(message, revision);
+    intrinsic.createIntrinsic = calcCreateIntrinsic(message, eip3860);
     return intrinsic;
 }
 

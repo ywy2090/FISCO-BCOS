@@ -63,7 +63,8 @@ int64_t createDepositIntrinsicDebit(bcos::bytes const& initCode)
     probe.kind = EVMC_CREATE;
     probe.input_data = initCode.data();
     probe.input_size = initCode.size();
-    auto const intrinsic = gas::computeTxIntrinsicGas(probe, {}, bcos::executor::DEPOSIT_TX_TYPE);
+    auto const intrinsic =
+        gas::computeTxIntrinsicGas(probe, {}, bcos::executor::DEPOSIT_TX_TYPE, /*eip3860=*/true);
     return intrinsic.preExecutionDebit() + gas::calcAuthTupleIntrinsicGas(0);
 }
 

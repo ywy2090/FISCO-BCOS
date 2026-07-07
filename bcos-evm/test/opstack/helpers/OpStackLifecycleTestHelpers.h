@@ -203,7 +203,7 @@ inline OpStackMessageRequest makeLifecycleDepositInput(state::test::InMemoryStat
 
 inline int64_t lifecycleGasBelowIntrinsic(evmc_message const& message)
 {
-    auto const intrinsic = gas::computeTxIntrinsicGas(message, {}, 0u);
+    auto const intrinsic = gas::computeTxIntrinsicGas(message, {}, 0u, /*eip3860=*/true);
     return static_cast<int64_t>(intrinsic.preExecutionDebit() + gas::calcAuthTupleIntrinsicGas(0)) -
            1;
 }

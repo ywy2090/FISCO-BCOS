@@ -150,6 +150,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
                        << LOG_KV("gasUsed", settled.gasUsed);
 
         output.gasUsed = settled.gasUsed;
+        output.topLevelIncludedTxVmError = ctx.topLevelIncludedTxVmError;
         output.stateDiff = ctx.state.build_diff();
         co_return output;
     }
@@ -178,6 +179,8 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
     output.gasAccounting = ctx.gasAccounting;
 
     co_await settlement.completeAfterPipeline(view, feeParams, gasPool, output);
+
+    output.topLevelIncludedTxVmError = ctx.topLevelIncludedTxVmError;
 
     if (isNormalPreExecutionReject(ctx.exitKind))
     {

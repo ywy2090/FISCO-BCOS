@@ -64,8 +64,8 @@ BOOST_AUTO_TEST_CASE(apply_op_stack_message_records_gas_at_evm_entry)
 
     auto output = task::syncWait(applyOpStackMessage(input));
 
-    auto const intrinsic =
-        gas::computeTxIntrinsicGas(message, input.accessList, input.web3TypedTxKind);
+    auto const intrinsic = gas::computeTxIntrinsicGas(
+        message, input.accessList, input.web3TypedTxKind, input.revisionConfig.eip3860);
     auto const intrinsicDebit = static_cast<int64_t>(intrinsic.preExecutionDebit()) +
                                 gas::calcAuthTupleIntrinsicGas(input.authorizations.size());
 

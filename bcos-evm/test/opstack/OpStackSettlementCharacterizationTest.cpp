@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(characterize_intrinsic_reject_gas_used_is_zero)
 
     evmc_message probe{};
     probe.kind = EVMC_CALL;
-    auto const intrinsic = gas::computeTxIntrinsicGas(probe, {}, 0u);
+    auto const intrinsic = gas::computeTxIntrinsicGas(probe, {}, 0u, /*eip3860=*/true);
     auto const gasBelowIntrinsic =
         static_cast<int64_t>(intrinsic.preExecutionDebit() + gas::calcAuthTupleIntrinsicGas(0)) - 1;
 

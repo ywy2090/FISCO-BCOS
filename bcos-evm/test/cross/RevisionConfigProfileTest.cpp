@@ -41,6 +41,7 @@ inline void assertRevisionConfigMatches(
     BOOST_CHECK_EQUAL(actual.eip1559, expected.eip1559);
     BOOST_CHECK_EQUAL(actual.eip3651, expected.eip3651);
     BOOST_CHECK_EQUAL(actual.eip7702, expected.eip7702);
+    BOOST_CHECK_EQUAL(actual.eip3860, expected.eip3860);
     BOOST_CHECK_EQUAL(actual.calldata_floor_per_token, expected.calldata_floor_per_token);
 }
 
@@ -58,6 +59,7 @@ inline void assertIsthmusHelperProfile(bcos::evm::RevisionConfig const& actual)
     expected.eip6780 = true;
     expected.eip1559 = true;
     expected.eip3651 = true;
+    expected.eip3860 = true;
     expected.calldata_floor_per_token = 10;
     assertRevisionConfigMatches(actual, expected);
 }
@@ -67,7 +69,7 @@ BOOST_AUTO_TEST_SUITE(RevisionConfigProfileTest)
 
 BOOST_AUTO_TEST_CASE(revision_config_bool_field_count)
 {
-    BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 13U);
+    BOOST_CHECK_EQUAL(revisionConfigBoolFieldCount(), 14U);
 }
 
 BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
@@ -90,6 +92,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                             .eip2929 = true,
                             .eip1559 = true,
                             .eip3651 = true,
+                            .eip3860 = true,
                             .calldata_floor_per_token = 0}},
         {EVMC_CANCUN, {.revision = EVMC_CANCUN,
                           .eip2929 = true,
@@ -99,6 +102,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                           .eip6780 = true,
                           .eip1559 = true,
                           .eip3651 = true,
+                          .eip3860 = true,
                           .calldata_floor_per_token = 0}},
         {EVMC_PRAGUE, {.revision = EVMC_PRAGUE,
                           .eip2929 = true,
@@ -111,6 +115,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                           .eip1559 = true,
                           .eip3651 = true,
                           .eip7702 = true,
+                          .eip3860 = true,
                           .calldata_floor_per_token = 10}},
         {EVMC_OSAKA, {.revision = EVMC_OSAKA,
                          .eip2929 = true,
@@ -126,6 +131,7 @@ BOOST_AUTO_TEST_CASE(derive_canonical_full_fork_snapshots)
                          .eip1559 = true,
                          .eip3651 = true,
                          .eip7702 = true,
+                         .eip3860 = true,
                          .calldata_floor_per_token = 10}},
     };
     for (auto const& row : rows)
@@ -163,6 +169,7 @@ BOOST_AUTO_TEST_CASE(apply_fisco_feature_gates_masks_only_a_class)
         BOOST_CHECK(cfg.eip6780);
         BOOST_CHECK(cfg.eip1559);
         BOOST_CHECK(cfg.eip3651);
+        BOOST_CHECK(cfg.eip3860);
     }
     // Prague flag ON: prague-group A-class survive, osaka-group still masked.
     {
@@ -198,6 +205,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip2929 = true,
                          .eip1559 = true,
                          .eip3651 = true,
+                         .eip3860 = true,
                          .calldata_floor_per_token = 0}},
         {19'426'587, {.revision = EVMC_CANCUN,
                          .eip2929 = true,
@@ -207,6 +215,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip6780 = true,
                          .eip1559 = true,
                          .eip3651 = true,
+                         .eip3860 = true,
                          .calldata_floor_per_token = 0}},
         {22'000'000, {.revision = EVMC_PRAGUE,
                          .eip2929 = true,
@@ -219,6 +228,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip1559 = true,
                          .eip3651 = true,
                          .eip7702 = true,
+                         .eip3860 = true,
                          .calldata_floor_per_token = 10}},
         {25'000'000, {.revision = EVMC_OSAKA,
                          .eip2929 = true,
@@ -234,6 +244,7 @@ BOOST_AUTO_TEST_CASE(eth_policy_full_fork_snapshots)
                          .eip1559 = true,
                          .eip3651 = true,
                          .eip7702 = true,
+                         .eip3860 = true,
                          .calldata_floor_per_token = 10}},
     };
     for (auto const& row : rows)
@@ -268,6 +279,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip6780 = true,
                 .eip1559 = true,
                 .eip3651 = true,
+                .eip3860 = true,
                 .calldata_floor_per_token = 0}},
         {[&](ledger::Features& f) {
              f.set(Flag::feature_evm_cancun);
@@ -285,6 +297,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip1559 = true,
                 .eip3651 = true,
                 .eip7702 = true,
+                .eip3860 = true,
                 .calldata_floor_per_token = 10}},
         {[&](ledger::Features& f) {
              f.set(Flag::feature_evm_cancun);
@@ -306,6 +319,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                 .eip1559 = true,
                 .eip3651 = true,
                 .eip7702 = true,
+                .eip3860 = true,
                 .calldata_floor_per_token = 10}},
         {[&](ledger::Features& /*unused*/) {}, {.revision = EVMC_CANCUN,
                                                    .eip2929 = false,
@@ -315,6 +329,7 @@ BOOST_AUTO_TEST_CASE(fisco_policy_feature_gate_snapshots)
                                                    .eip6780 = true,
                                                    .eip1559 = true,
                                                    .eip3651 = true,
+                                                   .eip3860 = true,
                                                    .calldata_floor_per_token = 0}},
     };
     for (auto const& row : rows)

@@ -119,6 +119,7 @@ public:
             evmc_address m_origin{};
             uint64_t m_nonce{0};
             evmc::VM m_vm;
+            bcos::evm::RevisionConfig m_revisionConfig{};
             std::optional<EVMCResult> m_evmcResult;
             OpStackReceiptMeta m_receiptMeta;
             std::vector<protocol::LogEntry> m_logs;
@@ -143,6 +144,8 @@ public:
                              evmc_address{}),
                 m_nonce(hex2u(transaction.nonce()).convert_to<uint64_t>()),
                 m_vm(evmc_create_evmone()),
+                m_revisionConfig(
+                    makeOpStackRevisionConfigFromBlock(blockHeader, ledgerConfig.features())),
                 m_blockGasPool(executor.m_blockGasPool ?
                                    executor.m_blockGasPool :
                                    std::make_shared<opstack_tx::BlockGasPool>(
@@ -178,15 +181,25 @@ public:
                     opstack_tx::resolveOpStackBaseFee(m_data->m_blockHeader.get()));
 
                 // eth_call must not persist; abort paths leave an empty diff (buyGas revert).
-                // Hard vm failures (non-SUCCESS/REVERT) may carry a non-empty fee diff for receipt
-                // meta only — do not apply those to storage (see hard_failure fixture).
-                if (!m_data->m_call && !output.stateDiff.accounts.empty() &&
-                    (m_data->m_evmcResult->status_code == EVMC_SUCCESS ||
-                        m_data->m_evmcResult->status_code == EVMC_REVERT))
+                // Included top-level vmerr (ADR-015) normalizes status_code to SUCCESS for gas
+                // settlement but must not commit fee debits to production storage (OpStack TE).
+                bool const persistStateDiff =
+                    !m_data->m_call && !output.stateDiff.accounts.empty() &&
+                    !output.topLevelIncludedTxVmError &&
+                    (m_data->m_evmcResult->status_code == EVMC_REVERT ||
+                        (m_data->m_evmcResult->status_code == EVMC_SUCCESS &&
+                            m_data->m_evmcResult->status == protocol::TransactionStatus::None));
+                if (persistStateDiff)
                 {
                     co_await state::applyStateDiff(m_data->m_rollbackableStorage, output.stateDiff,
                         false, *m_data->m_executor.get().m_hashImpl,
                         m_data->m_transaction.get().abi());
+                }
+                else if (!m_data->m_call)
+                {
+                    // Fee settlement may build a non-empty diff for receipt meta only (ADR-015
+                    // included-vmerr); discard any accidental rollbackable writes.
+                    co_await m_data->m_rollbackableStorage.rollback(m_data->m_startSavepoint);
                 }
             }
             else if constexpr (phase == static_cast<int>(OpStackExecutePhase::Finalize))
@@ -211,7 +224,7 @@ public:
             input.message = message;
             input.nonce = m_data->m_nonce;
             input.call = m_data->m_call;
-            input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
+            input.revisionConfig = m_data->m_revisionConfig;
             input.blockInfo = opstack_tx::buildOpStackBlockInfo(
                 m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get());
             input.blockHashes = state::buildBlockHashesFromStorage(

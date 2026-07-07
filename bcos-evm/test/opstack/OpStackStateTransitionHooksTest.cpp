@@ -87,6 +87,7 @@ BOOST_AUTO_TEST_CASE(entry_rules_rejects_oversized_initcode)
     OpStackMessageRequest input;
     input.message = message;
     input.revisionConfig.revision = EVMC_SHANGHAI;
+    input.revisionConfig.eip3860 = true;
 
     auto error = runOpStackEntryLifecycleCheck(input, stateView);
     BOOST_REQUIRE(error.has_value());

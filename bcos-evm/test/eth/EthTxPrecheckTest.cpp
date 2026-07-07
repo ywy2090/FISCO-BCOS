@@ -193,6 +193,7 @@ BOOST_AUTO_TEST_CASE(rejects_oversized_initcode_on_shanghai)
     input.message.input_data = initcode.data();
     input.message.input_size = initcode.size();
     input.revisionConfig.revision = EVMC_SHANGHAI;
+    input.revisionConfig.eip3860 = true;
 
     auto error = ethPreCheckRulesError(input, stateView);
     BOOST_REQUIRE(error.has_value());
@@ -210,6 +211,7 @@ BOOST_AUTO_TEST_CASE(allows_max_initcode_size_on_shanghai)
     input.message.input_data = initcode.data();
     input.message.input_size = initcode.size();
     input.revisionConfig.revision = EVMC_SHANGHAI;
+    input.revisionConfig.eip3860 = true;
 
     auto error = ethPreCheckRulesError(input, stateView);
     BOOST_CHECK(!error.has_value());
