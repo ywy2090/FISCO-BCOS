@@ -1,5 +1,7 @@
 #pragma once
 
+#include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
+#include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
@@ -11,7 +13,9 @@
 #include "helpers/BlockSystemCalls.h"
 #include <bcos-task/Wait.h>
 #include <cstdint>
+#include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace bcos::evm::reference_tests
@@ -27,6 +31,10 @@ struct TransactionReceipt
     StateTransitionExitKind exitKind{StateTransitionExitKind::None};
     state::LogEntry log;
     int64_t gasUsed = 0;
+    evmc_status_code status = EVMC_SUCCESS;
+    int64_t gasRefund = 0;              // EIP-7778
+    bcos::bytes bloom;                  // 256-byte logs bloom for this tx
+    std::vector<state::LogEntry> logs;  // all logs (supersedes single `log`; `log` kept for compat)
 };
 
 struct BlockApplyResult
@@ -34,6 +42,11 @@ struct BlockApplyResult
     TestStateView postState;
     std::vector<TransactionReceipt> receipts;
     int64_t gasUsed = 0;
+    bcos::bytes bloom;                  // aggregate 256-byte block logs bloom
+    std::vector<bcos::bytes> requests;  // EIP-7685 requests (Prague+); see §8.3.1
+    std::optional<std::string> requestsError;
+    std::vector<size_t> rejected;  // indices of txs rejected during block apply
+    uint64_t blobGasLeft = 0;      // maxBlobGasPerBlock - consumed
 };
 
 /// Apply a sequence of transactions to the pre-state within a single block.

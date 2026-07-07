@@ -1,5 +1,6 @@
 #define BOOST_TEST_MODULE BlockValidationTest
 #include "helpers/BlockValidation.h"
+#include "helpers/BlockTransition.h"
 #include <boost/test/included/unit_test.hpp>
 
 namespace bcos::evm::reference_tests
@@ -130,5 +131,19 @@ BOOST_AUTO_TEST_CASE(rejects_oversized_rlp_block_on_osaka)
     auto err = validateBlock(EVMC_OSAKA, {}, tb, &parent);
     BOOST_REQUIRE(err.has_value());
     BOOST_CHECK_EQUAL(*err, std::string(BlockError::RLP_BLOCK_LIMIT_EXCEEDED));
+}
+
+BOOST_AUTO_TEST_CASE(block_apply_result_has_extended_fields)
+{
+    BlockApplyResult r;
+    r.bloom.resize(256, 0);
+    r.rejected.push_back(0);
+    r.requests.emplace_back();
+    r.requestsError = std::nullopt;
+    r.blobGasLeft = 0;
+    TransactionReceipt rc;
+    rc.bloom.resize(256, 0);
+    rc.logs.clear();
+    BOOST_CHECK_EQUAL(r.bloom.size(), 256u);
 }
 }  // namespace bcos::evm::reference_tests
