@@ -16,10 +16,10 @@
 | **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular **2722/2722** (H1–H7 + WP-HIST harness) | **Full tree** recursive scan | Manifest + default-profile granular **closed**; WP-HIST phase 2 = expand historical post coverage |
 | **State (static GST)** | 58 suites under `static/state_tests/` | **19 suites** in `eth-eest-static-regression-full.json` | Included in statetest scan | Partial static coverage; no nightly full static |
 | **Transaction tests** | `transaction_tests/prague/eip7702_set_code_tx` | **106/106 pass** (`eth-eest-tx-full.json`) | **No dedicated runner** | bcos ahead |
-| **Blockchain tests** | 12 fork dirs + `static/` | Cancun **2181/2181** (M1); Shanghai **128/128** (M4 partial) | **Full tree** | M2–M3 Prague/Osaka; M4 Berlin/London/Paris; engine format |
+| **Blockchain tests** | 12 fork dirs + `static/` | M1 Cancun **2181/2181**; M4 **Berlin 282/282 · London 2/2 · Paris 46/46 · Shanghai 128/128** | **Full tree** | M2–M3 Prague/Osaka; engine format |
 | **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Not integrated** | Partial (engine variants) | Format + CL payload decoding |
 
-**Bottom line:** Manifest state-full **4140/4140** and granular full-tree **2722/2722** (2026-07-07). Blockchain **M1 ACHIEVED** — Cancun **2181/2181** @ `f28d19659`; **M4 Shanghai ACHIEVED** — **128/128** @ withdrawal post-diff fix (2026-07-07). M2 Prague / M3 Osaka / M4 Berlin·London·Paris / M5 historical remain. Remaining: **WP-HIST phase 2**, optional H8 trace.
+**Bottom line:** Manifest state-full **4140/4140** and granular full-tree **2722/2722** (2026-07-07). Blockchain **M1 ACHIEVED** — Cancun **2181/2181** @ `f28d19659`; **M4 ACHIEVED** — Shanghai **128/128** + Berlin **282/282** + London **2/2** + Paris **46/46** (PoW `miningReward` + withdrawal post-diff). M2 Prague / M3 Osaka / M5 historical remain. Remaining: **WP-HIST phase 2**, optional H8 trace.
 
 ---
 
@@ -210,7 +210,15 @@ Historical baseline (pre-M1): **302 / 2181 = 13.8%** case rate — superseded.
 
 **Fix:** withdrawal balance credit moved to **after** `buildPostStateView` (geth: post-tx, not overwritten by `accumulatedDiff`). Affected `eip4895_withdrawals` CREATE/SELFDESTRUCT + withdrawal combos (3 cases).
 
-M4 remainder: `berlin/` (7), `london/` (2), `paris/` (3) — not yet swept.
+### M4 baseline — Berlin / London / Paris (`blockchain_tests/{berlin,london,paris}/`, 2026-07-07)
+
+| Fork | Files | Cases | Pass rate |
+|------|-------|-------|-----------|
+| Berlin | 7 | 282 | **100%** |
+| London | 2 | 2 | **100%** |
+| Paris | 3 | 46 | **100%** |
+
+**Fix:** PoW block reward via `miningReward()` — evmone schedule: &lt;Byzantium 5 ETH, &lt;Constantinople 3 ETH, &lt;Paris 2 ETH, Paris+ none. Credited to coinbase after `buildPostStateView` (pre-merge fixtures expect reward + tx fees in stateRoot). Root cause of 144 Berlin + 1 London `stateRoot` mismatches.
 
 ### Milestones (blockchain parity loop)
 
@@ -219,7 +227,7 @@ M4 remainder: `berlin/` (7), `london/` (2), `paris/` (3) — not yet swept.
 | **M1** | Cancun | ≥90% standard-format files; PR smoke manifest | **ACHIEVED** — 105/105 file / 2181/2181 case (2026-07-07) |
 | **M2** | Prague+ | `requestsHash` (EIP-7685) + system-contract collection | XFAIL-guarded; `computeRequestsHash` implemented |
 | **M3** | Osaka+ | EIP-7918 blob-base-fee refinement | deferred |
-| **M4** | Shanghai+ dirs | ≥80% withdrawal + multi-fork | **Shanghai ACHIEVED** 128/128; Berlin/London/Paris pending |
+| **M4** | Shanghai+ dirs | ≥80% withdrawal + multi-fork | **ACHIEVED** — Shanghai 128/128; Berlin 282/282; London 2/2; Paris 46/46 (2026-07-07) |
 | **M5** | Reorg / PoW | canonical tip + TD semantics | deferred |
 
 M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseline without blocking CI.
@@ -310,9 +318,9 @@ M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseli
 | Prague | `eth-prague` | ✅ (2537) | 🔵 | 7623/7702 run at `eth-osaka` profile |
 | Osaka | `eth-osaka` | ✅ | 🔵 | |
 | Homestead | `eth-homestead` (H5) | ❌ manifest | 🔵 granular | Default granular profile; targeted post filter |
-| Berlin | `eth-berlin` (H5) | ❌ manifest | 🔵 granular | Default granular profile; targeted post filter |
-| London | `eth-london` (H5) | static/probe only | 🔵 | Registry only; not in default granular list |
-| Paris / Merge | `eth-paris` (H5) | ❌ | 🔵 | Registry only; Merge alias |
+| Berlin | `eth-berlin` (H5) | ❌ manifest | ✅ blockchain **282/282** | M4 closed 2026-07-07 |
+| London | `eth-london` (H5) | static/probe only | ✅ blockchain **2/2** | M4 closed 2026-07-07 |
+| Paris / Merge | `eth-paris` (H5) | ❌ | ✅ blockchain **46/46** | M4 closed 2026-07-07 |
 | Istanbul / Byzantium / Constantinople | ❌ missing | ❌ | 🔵 | No dedicated profile; granular via manifest-fork posts |
 | Amsterdam | ❌ missing | ❌ | ❌ | evmone supports; bcos does not |
 | OsakaToBPO1AtTime15k, BPO*, BPO2ToAmsterdamAtTime15k | ❌ missing | ❌ | ❌ | evmone `blob_schedule.cpp` |
@@ -330,7 +338,7 @@ fixtures/state_tests/           fixtures/state_tests/
                                    └─ EthEestStateGranularSmoke (cancun PR)
 
 fixtures/blockchain_tests/      fixtures/blockchain_tests/
-  └─ full runner                  └─ EthEestBlockchainRunner (Cancun 2181/2181, Shanghai 128/128)
+  └─ full runner                  └─ EthEestBlockchainRunner (Cancun 2181/2181; M4 Berlin/London/Paris/Shanghai)
                                    └─ EthEestBlockGranularFull (nightly)
 
 (no tx runner)                  fixtures/transaction_tests/
@@ -387,10 +395,11 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] RLP-only invalid block Level-1 handling
 - [x] Cross-tx EIP-158 state merge (EIP-6780 selfdestruct recreate)
 - [x] Shanghai M4 parity — **128/128** (withdrawal after diff merge)
+- [x] Berlin/London/Paris M4 parity — **282/282 + 2/2 + 46/46** (PoW `miningReward`)
 - [ ] RLP block decoding path in `EthEestBlockchainRunner` (beyond rlp_decoded fixtures)
 - [ ] `engineNewPayloads` / engine sync formats
 - [ ] Full `postState` account diff
-- [ ] Prague+ / other fork blockchain dirs (M2–M4)
+- [ ] Prague+ blockchain dirs (M2–M3)
 
 ### P2 — Fork / corpus expansion
 
@@ -463,4 +472,4 @@ ctest -R EthExecutionSpecSliceEip7823 -V --test-dir build-ref -C Debug
 | Harness plan | `docs/superpowers/plans/2026-07-07-eest-statetest-harness-h2-h7.md` |
 | Parity loop reports | `docs/superpowers/plans/2026-07-06-eest-parity-loop-*-report.md` |
 
-**Last updated:** 2026-07-07 (M1 Cancun **2181/2181** @ `f28d19659`; M4 Shanghai **128/128** withdrawal fix)
+**Last updated:** 2026-07-07 (M4 **ACHIEVED**: Berlin 282/282 + London 2/2 + Paris 46/46 + Shanghai 128/128; M1 Cancun 2181/2181)

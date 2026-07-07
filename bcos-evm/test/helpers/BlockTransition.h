@@ -235,6 +235,26 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
     auto postView =
         buildPostStateView(preStatePairs, accumulatedDiff, true, blockInfo.coinbase, eip158);
 
+    if (auto const reward = miningReward(profile.revision.revision))
+    {
+        bool found = false;
+        for (auto& [addr, acc] : postView.accounts)
+        {
+            if (state::AddressEqual{}(addr, blockInfo.coinbase))
+            {
+                acc.balance += *reward;
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            state::Account acc;
+            acc.balance = *reward;
+            postView.accounts.emplace_back(blockInfo.coinbase, std::move(acc));
+        }
+    }
+
     bcos::u256 const gweiToWei{1000000000};
     for (auto const& w : withdrawals)
     {
@@ -263,8 +283,8 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
     return result;
 }
 
-/// Finalize block-level state (coinbase reward, etc.)
-/// For Ethereum tests, coinbase reward is set to 0 (no block reward in test fixtures).
+/// Finalize block-level state (reserved for future block-level hooks).
+/// PoW mining reward is credited in applyEthBlock via miningReward() (pre-Paris only).
 inline void finalizeBlockState(
     TestStateView& /*state*/, state::BlockInfo const& /*block*/, evmc_revision /*rev*/)
 {}

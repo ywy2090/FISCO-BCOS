@@ -350,7 +350,12 @@ void runFixtures(fs::path const& fixturesDir, bool smokeOnly, size_t limit,
                 }
 
                 // Reject typed txs on forks that do not support them (EEST parity).
-                if (!bcos::evm::isTypedTxKindSupportedByRevision(
+                // 0x7E deposits are OP Stack-native and bypass the eth/ L1 gate.
+                bool const isOpStackDeposit =
+                    fixture.input.web3TypedTxKind ==
+                    bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::OpStackDeposit);
+                if (!isOpStackDeposit &&
+                    !bcos::evm::isTypedTxKindSupportedByRevision(
                         fixture.input.web3TypedTxKind, fixture.input.revisionConfig))
                 {
                     ++executed;

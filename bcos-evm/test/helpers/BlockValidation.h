@@ -143,4 +143,16 @@ inline std::optional<std::string> validateBlock(evmc_revision rev, BlobSchedule 
     return std::nullopt;
 }
 
+/// PoW block reward (evmone mining_reward): pre-merge only; Paris+ returns nullopt.
+inline std::optional<bcos::u256> miningReward(evmc_revision rev)
+{
+    if (rev >= EVMC_PARIS)
+        return std::nullopt;
+    if (rev < EVMC_BYZANTIUM)
+        return bcos::u256{5'000'000'000'000'000'000ull};
+    if (rev < EVMC_CONSTANTINOPLE)
+        return bcos::u256{3'000'000'000'000'000'000ull};
+    return bcos::u256{2'000'000'000'000'000'000ull};
+}
+
 }  // namespace bcos::evm::reference_tests

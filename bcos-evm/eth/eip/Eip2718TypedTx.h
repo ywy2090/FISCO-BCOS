@@ -87,9 +87,9 @@ inline bool isTypedTxKindSupportedByRevision(
         return revision.eip4844;
     case toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702):
         return revision.eip7702;
-    case toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit):
-        // OP Stack-only (op-geth DepositTxType); not gated by Ethereum L1 fork flags.
-        return true;
+    // 0x7E (OpStackDeposit) deliberately absent: Ethereum L1 rejects deposit txs
+    // (geth ErrTxTypeNotSupported). OP Stack paths accept 0x7E in their own layer,
+    // never via this shared eth/ gate.
     default:
         return false;
     }

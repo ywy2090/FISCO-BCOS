@@ -7,6 +7,7 @@
 #include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/eip/Eip7623.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
+#include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
@@ -166,7 +167,8 @@ task::Task<ExecutionResult> OpStackManifestAdapter::execute(
 
     if (m_profile.revision.eip7623)
     {
-        auto const eip7623Components = gas::calcEip7623Components(bcos::ref(tx.data));
+        auto const eip7623Components =
+            gas::calcEip7623Components(bcos::ref(tx.data), m_profile.revision.revision);
         input.floorDataGas =
             gas::calcFloorDataGas(m_profile.revision.calldata_floor_per_token, eip7623Components);
     }
