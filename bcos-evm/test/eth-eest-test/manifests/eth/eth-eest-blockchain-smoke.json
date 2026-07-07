@@ -1,0 +1,10 @@
+[
+  "cancun/eip4844_blobs/test_insufficient_balance_blob_tx.json",
+  "cancun/eip4844_blobs/test_insufficient_balance_blob_tx_combinations.json",
+  "cancun/eip4844_blobs/test_invalid_blob_gas_used_in_header.json",
+  "cancun/eip4844_blobs/test_invalid_blob_hash_versioning_multiple_txs.json",
+  "cancun/eip4844_blobs/test_invalid_blob_hash_versioning_single_tx.json",
+  "cancun/eip4844_blobs/test_invalid_block_blob_count.json",
+  "cancun/eip4844_blobs/test_invalid_normal_gas.json",
+  "cancun/eip4844_blobs/test_invalid_tx_blob_count.json"
+]

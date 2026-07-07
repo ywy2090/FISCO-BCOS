@@ -1,4 +1,5 @@
 #include "bcos-evm/eth-eest-test/BlockchainTestLoader.h"
+#include "bcos-evm/eth-eest-test/EestStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "helpers/BlockchainRunCore.h"
 
@@ -21,6 +22,41 @@ namespace
 {
 
 using namespace bcos::evm::reference_tests;
+
+std::string inferForkFromPath(fs::path const& file)
+{
+    std::string forkStr = "Cancun";
+    auto pathStr = file.generic_string();
+    constexpr std::string_view bcPrefix = "blockchain_tests/";
+    auto statePos = pathStr.find(bcPrefix);
+    if (statePos != std::string::npos)
+    {
+        auto start = statePos + bcPrefix.size();
+        auto end = pathStr.find('/', start);
+        if (end != std::string::npos)
+        {
+            forkStr = pathStr.substr(start, end - start);
+            if (!forkStr.empty())
+                forkStr[0] =
+                    static_cast<char>(std::toupper(static_cast<unsigned char>(forkStr[0])));
+        }
+    }
+    return forkStr;
+}
+
+std::vector<std::string> loadBlockchainManifestPaths(fs::path const& manifestPath)
+{
+    pt::ptree root;
+    pt::read_json(manifestPath.string(), root);
+
+    std::vector<std::string> paths;
+    for (auto const& [key, val] : root)
+        paths.push_back(val.get_value<std::string>());
+
+    if (paths.empty())
+        throw std::runtime_error("manifest contains no fixture paths: " + manifestPath.string());
+    return paths;
+}
 
 void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
     bcos::crypto::Hash& hashImpl, evmc::VM& vm, size_t& passed, size_t& failed)
@@ -93,21 +129,7 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
         if (limit > 0 && executed >= limit)
             break;
 
-        std::string forkStr = "Cancun";
-        auto pathStr = jsonPath.generic_string();
-        constexpr std::string_view bcPrefix = "blockchain_tests/";
-        auto statePos = pathStr.find(bcPrefix);
-        if (statePos != std::string::npos)
-        {
-            auto start = statePos + bcPrefix.size();
-            auto end = pathStr.find('/', start);
-            if (end != std::string::npos)
-            {
-                forkStr = pathStr.substr(start, end - start);
-                if (!forkStr.empty())
-                    forkStr[0] = static_cast<char>(std::toupper(forkStr[0]));
-            }
-        }
+        auto const forkStr = inferForkFromPath(jsonPath);
 
         auto profile = ForkProfileRegistry::instance().findByUpstreamFork(forkStr);
         if (!profile.has_value())
@@ -124,6 +146,47 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
 
     std::cout << "\nResults: " << passed << " passed, " << failed << " failed, " << skipped
               << " skipped (" << executed << " files)\n";
+    if (failed > 0)
+        std::exit(1);
+}
+
+void runBlockchainManifest(fs::path const& manifestPath, fs::path const& eestRoot)
+{
+    ensureEestFixturesExtracted(eestRoot);
+    auto const bcRoot = eestRoot / "fixtures" / "blockchain_tests";
+
+    auto paths = loadBlockchainManifestPaths(manifestPath);
+
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+
+    size_t passed = 0;
+    size_t failed = 0;
+
+    for (auto const& rel : paths)
+    {
+        auto jsonPath = bcRoot / rel;
+        if (!fs::exists(jsonPath))
+        {
+            std::cerr << "FAIL " << rel << " (file not found)\n";
+            ++failed;
+            continue;
+        }
+
+        auto const forkStr = inferForkFromPath(jsonPath);
+        auto profile = ForkProfileRegistry::instance().findByUpstreamFork(forkStr);
+        if (!profile.has_value())
+        {
+            std::cerr << "FAIL " << rel << " (unknown fork " << forkStr << ")\n";
+            ++failed;
+            continue;
+        }
+
+        runOneFixture(jsonPath, forkStr, hashImpl, vm, passed, failed);
+    }
+
+    std::cout << "\nResults: " << passed << " passed, " << failed << " failed (" << paths.size()
+              << " manifest entries)\n";
     if (failed > 0)
         std::exit(1);
 }
@@ -150,18 +213,31 @@ int main(int argc, char** argv)
             eestRoot = argv[++i];
     }
 
+    if (!manifestPath.empty() && !fixturesDir.empty())
+    {
+        std::cerr << "--manifest and --fixtures are mutually exclusive\n";
+        return 1;
+    }
+
     if (!manifestPath.empty())
     {
-        std::cerr << "manifest mode lands in Phase 4 (--manifest " << manifestPath.string();
-        if (!eestRoot.empty())
-            std::cerr << " --eest-root " << eestRoot.string();
-        std::cerr << ")\n";
-        return 1;
+        if (eestRoot.empty())
+            eestRoot = resolveEestRoot();
+        try
+        {
+            runBlockchainManifest(manifestPath, eestRoot);
+        }
+        catch (std::exception const& e)
+        {
+            std::cerr << "manifest error: " << e.what() << '\n';
+            return 1;
+        }
+        return 0;
     }
 
     if (fixturesDir.empty())
     {
-        std::cerr << "Missing --fixtures\n";
+        std::cerr << "Missing --fixtures or --manifest\n";
         return 1;
     }
     runBlockchainFixtures(fixturesDir, limit);

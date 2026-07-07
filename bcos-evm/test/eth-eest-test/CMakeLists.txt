@@ -223,7 +223,8 @@ target_include_directories(EthEestBlockchainRunner PRIVATE
 target_link_libraries(EthEestBlockchainRunner PRIVATE
     bcos-evm-specs-tests-eth)
 add_test(NAME EthEestBlockchainSmoke COMMAND EthEestBlockchainRunner
-    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests --limit 10)
+    --manifest ${CMAKE_CURRENT_SOURCE_DIR}/manifests/eth/eth-eest-blockchain-smoke.json
+    --eest-root ${EVM_REF_EEST_ROOT})
 set_tests_properties(EthEestBlockchainSmoke PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
 
