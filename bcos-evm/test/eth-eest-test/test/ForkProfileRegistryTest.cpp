@@ -54,6 +54,16 @@ BOOST_AUTO_TEST_CASE(osaka_profile_find_by_upstream_fork)
     BOOST_CHECK_EQUAL(profile->profileId, "eth-osaka");
 }
 
+BOOST_AUTO_TEST_CASE(find_berlin_london_paris_by_upstream_fork)
+{
+    auto& reg = ForkProfileRegistry::instance();
+    BOOST_REQUIRE(reg.findByUpstreamFork("Berlin").has_value());
+    BOOST_REQUIRE(reg.findByUpstreamFork("London").has_value());
+    BOOST_REQUIRE(reg.findByUpstreamFork("Paris").has_value());
+    BOOST_REQUIRE(reg.findByUpstreamFork("Merge").has_value());
+    BOOST_CHECK(reg.findByUpstreamFork("Paris")->revision.revision == EVMC_PARIS);
+}
+
 BOOST_AUTO_TEST_CASE(unknown_profile_returns_empty)
 {
     BOOST_CHECK(!ForkProfileRegistry::instance().findByProfileId("eth-unknown").has_value());

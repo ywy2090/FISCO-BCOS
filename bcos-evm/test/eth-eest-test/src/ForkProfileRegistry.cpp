@@ -71,6 +71,48 @@ PathProfile referenceParityProfile()
     return profile;
 }
 
+ForkProfile makeBerlinProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_BERLIN);
+    ForkProfile profile;
+    profile.profileId = "eth-berlin";
+    profile.canonicalName = "Ethereum Berlin";
+    profile.aliases = {"Berlin"};
+    profile.upstreamForkName = "Berlin";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
+ForkProfile makeLondonProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_LONDON);
+    ForkProfile profile;
+    profile.profileId = "eth-london";
+    profile.canonicalName = "Ethereum London";
+    profile.aliases = {"London"};
+    profile.upstreamForkName = "London";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
+ForkProfile makeParisProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_PARIS);
+    ForkProfile profile;
+    profile.profileId = "eth-paris";
+    profile.canonicalName = "Ethereum Paris (Merge)";
+    profile.aliases = {"Paris", "Merge"};
+    profile.upstreamForkName = "Paris";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
 ForkProfile makeShanghaiProfile()
 {
     auto const revision = makeReferenceRevisionConfig(EVMC_SHANGHAI);
@@ -141,6 +183,9 @@ bool matchesForkName(ForkProfile const& profile, std::string_view fork)
 
 ForkProfileRegistry::ForkProfileRegistry()
 {
+    m_profiles.push_back(makeBerlinProfile());
+    m_profiles.push_back(makeLondonProfile());
+    m_profiles.push_back(makeParisProfile());
     m_profiles.push_back(makeShanghaiProfile());
     m_profiles.push_back(makeCancunProfile());
     m_profiles.push_back(makePragueProfile());
