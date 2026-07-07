@@ -235,7 +235,7 @@ target_link_libraries(EthEestBlockGranular PRIVATE
     bcos-evm-specs-tests-eth GTest::gtest)
 add_test(NAME EthEestBlockGranularSmoke COMMAND EthEestBlockGranular
     ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests
-    --gtest_filter="*Cancun*")
+    --gtest_filter=*cancun*)
 set_tests_properties(EthEestBlockGranularSmoke PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
 
