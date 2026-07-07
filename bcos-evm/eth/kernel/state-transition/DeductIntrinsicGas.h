@@ -51,6 +51,7 @@ struct DeductIntrinsicGasParams
     uint64_t authTupleCount{0};
     Eip2930AccessList const* accessList{nullptr};
     uint8_t web3TypedTxKind{0};
+    evmc_revision revision{EVMC_SHANGHAI};
 };
 
 struct DeductIntrinsicGasOutcome
@@ -97,8 +98,8 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
     {
         auto const calldataRef = bcos::bytesConstRef(message.input_data, message.input_size);
         auto const calldataGas = gas::calcEip7623CalldataGas(calldataRef);
-        auto const intrinsic =
-            gas::computeTxIntrinsicGas(message, policy.accessList, policy.web3TypedTxKind);
+        auto const intrinsic = gas::computeTxIntrinsicGas(
+            message, policy.accessList, policy.web3TypedTxKind, policy.revision);
         int64_t const authCost = policy.authorizationListPresent ?
                                      gas::calcAuthTupleIntrinsicGas(policy.authTupleCount) :
                                      0;
@@ -133,8 +134,8 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
 
     case IntrinsicGasMode::OpStack:
     {
-        auto const intrinsic =
-            gas::computeTxIntrinsicGas(message, policy.accessList, policy.web3TypedTxKind);
+        auto const intrinsic = gas::computeTxIntrinsicGas(
+            message, policy.accessList, policy.web3TypedTxKind, policy.revision);
         int64_t const authCost = gas::calcAuthTupleIntrinsicGas(policy.authTupleCount);
         int64_t const preDebit = intrinsic.preExecutionDebit();
         int64_t const totalDebit = preDebit + authCost;

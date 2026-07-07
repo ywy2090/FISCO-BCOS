@@ -64,6 +64,7 @@ EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input)
     m_intrinsicPolicy.authTupleCount = input.authorizations.size();
     m_intrinsicPolicy.accessList = input.accessList;
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
+    m_intrinsicPolicy.revision = input.revisionConfig.revision;
 }
 
 void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const

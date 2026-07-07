@@ -66,9 +66,11 @@ std::string joinProfileIds(std::vector<std::string_view> const& ids)
 }
 
 /// WP-HIST profiles appended to manifest defaults for granular full-tree runs.
-static constexpr std::array<char const*, 2> kGranularHistoricalProfileIds = {
+static constexpr std::array<char const*, 4> kGranularHistoricalProfileIds = {
     "eth-homestead",
     "eth-berlin",
+    "eth-london",
+    "eth-paris",
 };
 
 void appendProfileIdIfKnown(

@@ -52,6 +52,7 @@ FiscoStateTransitionHooks::FiscoStateTransitionHooks(
     m_intrinsicPolicy.authTupleCount = input.authorizations.size();
     m_intrinsicPolicy.accessList = input.accessList.get();
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
+    m_intrinsicPolicy.revision = input.revisionConfig.revision;
 }
 
 void FiscoStateTransitionHooks::onNormalizeMessage(StateTransitionContext& ctx) const

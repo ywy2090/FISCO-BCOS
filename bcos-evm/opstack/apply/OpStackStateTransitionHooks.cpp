@@ -65,6 +65,7 @@ OpStackStateTransitionHooks::OpStackStateTransitionHooks(OpStackSettlementProjec
     m_intrinsicPolicy.authTupleCount = view.authTupleCount();
     m_intrinsicPolicy.accessList = view.accessList();
     m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();
+    m_intrinsicPolicy.revision = view.input.revisionConfig.revision;
 }
 
 void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContext& ctx) const

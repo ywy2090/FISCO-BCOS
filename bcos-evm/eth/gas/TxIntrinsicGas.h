@@ -49,23 +49,30 @@ inline int64_t calcAuthTupleIntrinsicGas(uint64_t authTupleCount) noexcept
     return static_cast<int64_t>(authTupleCount) * static_cast<int64_t>(PER_EMPTY_ACCOUNT_COST);
 }
 
-/// CREATE/CREATE2 intrinsic: CREATE_BASE_GAS + EIP-3860 initcode word cost (pre-EVM debit only).
-inline int64_t calcCreateIntrinsic(evmc_message const& message) noexcept
+/// CREATE/CREATE2 intrinsic: CREATE_BASE_GAS + EIP-3860 initcode word cost (Shanghai+ only).
+inline int64_t calcCreateIntrinsic(
+    evmc_message const& message, evmc_revision revision = EVMC_SHANGHAI) noexcept
 {
     if (message.kind != EVMC_CREATE && message.kind != EVMC_CREATE2)
     {
         return 0;
     }
-    auto const inputSize = static_cast<int64_t>(message.input_size);
-    auto const words = (inputSize + 31) / 32;
-    return CREATE_BASE_GAS + INITCODE_WORD_GAS * words;
+    int64_t initcodeWordGas = 0;
+    if (revision >= EVMC_SHANGHAI)
+    {
+        auto const inputSize = static_cast<int64_t>(message.input_size);
+        auto const words = (inputSize + 31) / 32;
+        initcodeWordGas = INITCODE_WORD_GAS * words;
+    }
+    return CREATE_BASE_GAS + initcodeWordGas;
 }
 
 /// Aggregate intrinsic components for a top-level message (geth IntrinsicGas).
 /// Used by deductIntrinsicGas, txpool validator, and gasLimitMinimum prechecks.
 /// web3TypedTxKind reserved for future typed-tx intrinsic rules; currently unused.
-inline TxIntrinsicGas computeTxIntrinsicGas(
-    evmc_message const& message, Eip2930AccessList const* accessList, uint8_t web3TypedTxKind)
+inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
+    Eip2930AccessList const* accessList, uint8_t web3TypedTxKind,
+    evmc_revision revision = EVMC_SHANGHAI)
 {
     (void)web3TypedTxKind;
     TxIntrinsicGas intrinsic;
@@ -79,7 +86,7 @@ inline TxIntrinsicGas computeTxIntrinsicGas(
         intrinsic.accessListCost = calcAccessListCost(accessList);
     }
 
-    intrinsic.createIntrinsic = calcCreateIntrinsic(message);
+    intrinsic.createIntrinsic = calcCreateIntrinsic(message, revision);
     return intrinsic;
 }
 

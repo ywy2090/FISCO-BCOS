@@ -61,4 +61,22 @@ BOOST_AUTO_TEST_CASE(opstack_entry_mode_debits_intrinsic_without_floor_mapping)
     BOOST_CHECK_EQUAL(out.debitAmount, gas::TX_BASE_GAS);
     BOOST_CHECK_EQUAL(message.gas, 100'000 - gas::TX_BASE_GAS);
 }
+
+BOOST_AUTO_TEST_CASE(london_create_skips_eip3860_initcode_word_gas)
+{
+    bcos::bytes initCode(114, 0x01);
+    evmc_message message{};
+    message.kind = EVMC_CREATE;
+    message.gas = 1'000'000;
+    message.input_data = initCode.data();
+    message.input_size = initCode.size();
+
+    auto const london =
+        gas::computeTxIntrinsicGas(message, nullptr, 0, EVMC_LONDON).createIntrinsic;
+    auto const shanghai =
+        gas::computeTxIntrinsicGas(message, nullptr, 0, EVMC_SHANGHAI).createIntrinsic;
+
+    BOOST_CHECK_EQUAL(london, gas::CREATE_BASE_GAS);
+    BOOST_CHECK_EQUAL(shanghai, gas::CREATE_BASE_GAS + 8);
+}
 }  // namespace bcos::evm::test

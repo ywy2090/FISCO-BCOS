@@ -38,6 +38,8 @@ BOOST_AUTO_TEST_CASE(build_runner_config_defaults_from_manifest)
     BOOST_CHECK(hasId("eth-osaka"));
     BOOST_CHECK(hasId("eth-homestead"));
     BOOST_CHECK(hasId("eth-berlin"));
+    BOOST_CHECK(hasId("eth-london"));
+    BOOST_CHECK(hasId("eth-paris"));
 }
 
 }  // namespace bcos::evm::reference_tests

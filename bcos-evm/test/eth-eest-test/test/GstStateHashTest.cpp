@@ -44,6 +44,47 @@ BOOST_AUTO_TEST_CASE(self_balance_post_state_root_from_fixture)
     BOOST_CHECK_EQUAL(std::memcmp(actual.bytes, expected.bytes, 32), 0);
 }
 
+BOOST_AUTO_TEST_CASE(pre_eip158_coinbase_touch_included_in_post_state)
+{
+    std::vector<std::pair<evmc_address, state::Account>> preState;
+    state::StateDiff diff;
+    auto const sender = state::parseHexAddress("0xcc6872e307074e29d88504ef9cc7cc22c0310bba");
+    auto const contract = state::parseHexAddress("0x30e2c29a12092a510c50bcdba5d7b2de7c8bc840");
+    auto const coinbase = state::parseHexAddress("0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba");
+
+    state::Account senderAccount;
+    senderAccount.nonce = 1;
+    senderAccount.balance = bcos::fromBigQuantity("0x3635c9adc5dea00000");
+    diff.accounts.emplace(sender, senderAccount);
+
+    state::Account contractAccount;
+    contractAccount.nonce = 1;
+    contractAccount.code = bcos::fromHex("600160005500");
+    evmc_bytes32 slot{};
+    evmc_bytes32 value{};
+    value.bytes[31] = 0x01;
+    contractAccount.storage.emplace(slot, value);
+    diff.accounts.emplace(contract, contractAccount);
+
+    auto const postState = buildPostStateView(preState, diff, true, coinbase, false);
+    BOOST_REQUIRE_EQUAL(postState.accounts.size(), 3u);
+    BOOST_REQUIRE_EQUAL(postState.eip158ClearEmpty, false);
+
+    evmc_bytes32 const expected = {0x86, 0xd5, 0xed, 0x0d, 0xe0, 0x1c, 0xab, 0x26, 0x22, 0xb7, 0xd4,
+        0x41, 0xcc, 0x36, 0x62, 0xd5, 0x28, 0x9a, 0x4f, 0x00, 0x8d, 0xe0, 0x58, 0x5f, 0x1d, 0xef,
+        0x99, 0xeb, 0xe7, 0xdf, 0xf4, 0x79};
+    auto const actual = computeStateRoot(postState);
+    BOOST_CHECK_EQUAL(std::memcmp(actual.bytes, expected.bytes, 32), 0);
+
+    auto const eip158PostState = buildPostStateView(preState, diff, true, coinbase, true);
+    BOOST_CHECK_EQUAL(eip158PostState.accounts.size(), 2u);
+    evmc_bytes32 const eip158Expected = {0xe4, 0x75, 0xc3, 0xef, 0x3a, 0xc0, 0x0e, 0x3f, 0x08, 0x0a,
+        0x34, 0x0c, 0xcb, 0x9c, 0xca, 0x46, 0x1f, 0x0d, 0xcf, 0xf5, 0x76, 0xc0, 0x14, 0xf8, 0xc3,
+        0x9b, 0x64, 0x36, 0x7c, 0x7d, 0x33, 0x96};
+    auto const eip158Actual = computeStateRoot(eip158PostState);
+    BOOST_CHECK_EQUAL(std::memcmp(eip158Actual.bytes, eip158Expected.bytes, 32), 0);
+}
+
 BOOST_AUTO_TEST_CASE(add11_post_state_root_from_fixture)
 {
     GstPostStateView postState;

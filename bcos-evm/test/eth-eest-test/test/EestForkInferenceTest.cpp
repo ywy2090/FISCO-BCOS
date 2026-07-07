@@ -110,4 +110,36 @@ BOOST_AUTO_TEST_CASE(resolve_runs_skips_berlin_post_on_unlisted_frontier_opcode)
     BOOST_CHECK(runs.empty());
 }
 
+BOOST_AUTO_TEST_CASE(resolve_runs_london_post_on_london_fixture_path)
+{
+    StateTestCase tc;
+    tc.name = "london_fixture";
+    tc.postByFork.emplace("London", std::vector<ExpectedPostState>{});
+
+    fs::path root = "/fixtures/state_tests";
+    fs::path file = root / "london/eip1559_fee_market_change/test_eip1559_tx_validity.json";
+
+    auto const profiles = buildRunnerConfig({});
+    auto const runs = resolveRunsForCase(tc, file, root, profiles);
+    BOOST_REQUIRE(!runs.empty());
+    BOOST_CHECK_EQUAL(runs.front().postForkKey, "London");
+    BOOST_CHECK_EQUAL(runs.front().executionProfile.profileId, "eth-london");
+}
+
+BOOST_AUTO_TEST_CASE(resolve_runs_paris_post_on_paris_fixture_path)
+{
+    StateTestCase tc;
+    tc.name = "paris_fixture";
+    tc.postByFork.emplace("Paris", std::vector<ExpectedPostState>{});
+
+    fs::path root = "/fixtures/state_tests";
+    fs::path file = root / "paris/eip7610_create_collision/test_schema.json";
+
+    auto const profiles = buildRunnerConfig({});
+    auto const runs = resolveRunsForCase(tc, file, root, profiles);
+    BOOST_REQUIRE(!runs.empty());
+    BOOST_CHECK_EQUAL(runs.front().postForkKey, "Paris");
+    BOOST_CHECK_EQUAL(runs.front().executionProfile.profileId, "eth-paris");
+}
+
 }  // namespace bcos::evm::reference_tests
