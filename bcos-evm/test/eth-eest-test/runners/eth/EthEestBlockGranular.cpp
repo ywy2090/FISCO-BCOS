@@ -1,7 +1,7 @@
+#include "bcos-evm/eth-eest-test/BlockchainTestLoader.h"
 #include "bcos-evm/eth-eest-test/EestStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
-#include "bcos-evm/eth-eest-test/GstStateHash.h"
-#include "bcos-evm/eth-eest-test/TestStateView.h"
+#include "helpers/BlockchainRunCore.h"
 
 #include "bcos-crypto/hash/Keccak256.h"
 #include <evmone/evmone.h>
@@ -10,52 +10,112 @@
 #include <boost/property_tree/ptree.hpp>
 #include <filesystem>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
+namespace pt = boost::property_tree;
 
+namespace bcos::evm::reference_tests
+{
 namespace
 {
+
+struct RunnerConfig
+{
+    bcos::crypto::Keccak256 hashImpl;
+    evmc::VM vm{evmc_create_evmone()};
+};
+
+std::string joinFailures(std::vector<std::string> const& failures)
+{
+    std::ostringstream oss;
+    for (size_t i = 0; i < failures.size(); ++i)
+    {
+        if (i > 0)
+            oss << "; ";
+        oss << failures[i];
+    }
+    return oss.str();
+}
+
+std::string inferForkFromPath(fs::path const& file)
+{
+    std::string forkStr = "Cancun";
+    auto pathStr = file.generic_string();
+    constexpr std::string_view bcPrefix = "blockchain_tests/";
+    auto statePos = pathStr.find(bcPrefix);
+    if (statePos != std::string::npos)
+    {
+        auto start = statePos + bcPrefix.size();
+        auto end = pathStr.find('/', start);
+        if (end != std::string::npos)
+        {
+            forkStr = pathStr.substr(start, end - start);
+            if (!forkStr.empty())
+                forkStr[0] =
+                    static_cast<char>(std::toupper(static_cast<unsigned char>(forkStr[0])));
+        }
+    }
+    return forkStr;
+}
 
 class EestBlockFileTest : public testing::Test
 {
     fs::path m_file;
+    RunnerConfig* m_config;
 
 public:
-    explicit EestBlockFileTest(fs::path file) : m_file(std::move(file)) {}
+    EestBlockFileTest(fs::path file, RunnerConfig* config) noexcept
+      : m_file(std::move(file)), m_config(config)
+    {}
 
     void TestBody() final
     {
-        // Validate JSON fixture is loadable, has pre-state and at least one block.
-        // Full state-root validation is performed by EthEestBlockchainRunner.
-        // This test provides gtest-filterable per-file smoke coverage.
-        boost::property_tree::ptree root;
-        boost::property_tree::read_json(m_file.string(), root);
-
-        for (auto const& [testName, testTree] : root)
+        pt::ptree root;
+        try
         {
-            ASSERT_TRUE(testTree.count("pre")) << testName << ": missing pre-state";
-            ASSERT_TRUE(testTree.count("genesisBlockHeader"))
-                << testName << ": missing genesis block header";
+            pt::read_json(m_file.string(), root);
+        }
+        catch (std::exception const& e)
+        {
+            FAIL() << "parse error: " << e.what();
+        }
 
-            // Verify at least one supported format exists
-            bool hasBlocks = testTree.count("blocks") > 0;
-            bool hasPayloads = testTree.count("engineNewPayloads") > 0;
-            EXPECT_TRUE(hasBlocks || hasPayloads)
-                << testName << ": no blocks or engine payloads found";
+        auto tests = loadBlockchainTests(root);
+        if (tests.empty())
+        {
+            GTEST_SKIP() << "no supported tests";
+        }
+
+        auto const forkFilter = inferForkFromPath(m_file);
+        size_t ran = 0;
+        for (auto const& test : tests)
+        {
+            if (test.network != forkFilter)
+                continue;
+            ++ran;
+            SCOPED_TRACE(test.name);
+            auto failures = runBlockchainTest(test, m_config->vm, m_config->hashImpl);
+            EXPECT_TRUE(failures.empty()) << test.name << ": " << joinFailures(failures);
+        }
+        if (ran == 0)
+        {
+            GTEST_SKIP() << "no tests for fork " << forkFilter;
         }
     }
 
-    static void register_one(std::string const& suite, fs::path const& file)
+    static void register_one(std::string const& suite, fs::path const& file, RunnerConfig* config)
     {
         testing::RegisterTest(suite.c_str(), file.stem().string().c_str(), nullptr, nullptr,
             file.string().c_str(), 0,
-            [file]() -> testing::Test* { return new EestBlockFileTest(file); });
+            [file, config]() -> testing::Test* { return new EestBlockFileTest(file, config); });
     }
 };
 
 }  // namespace
+}  // namespace bcos::evm::reference_tests
 
 int main(int argc, char** argv)
 {
@@ -71,6 +131,8 @@ int main(int argc, char** argv)
     fs::path root(argv[1]);
     ensureEestFixturesExtracted(resolveEestRoot());
 
+    RunnerConfig config;
+
     if (is_directory(root))
     {
         std::vector<fs::path> files;
@@ -80,7 +142,8 @@ int main(int argc, char** argv)
                 files.push_back(entry.path());
         std::ranges::sort(files);
         for (auto& f : files)
-            EestBlockFileTest::register_one(fs::relative(f, root).parent_path().string(), f);
+            EestBlockFileTest::register_one(
+                fs::relative(f, root).parent_path().string(), f, &config);
     }
 
     return RUN_ALL_TESTS();

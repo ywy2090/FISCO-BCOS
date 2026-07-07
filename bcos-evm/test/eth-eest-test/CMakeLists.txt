@@ -228,6 +228,8 @@ set_tests_properties(EthEestBlockchainSmoke PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
 
 add_executable(EthEestBlockGranular runners/eth/EthEestBlockGranular.cpp)
+target_include_directories(EthEestBlockGranular PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(EthEestBlockGranular PRIVATE
     bcos-evm-specs-tests-eth GTest::gtest)
 add_test(NAME EthEestBlockGranularSmoke COMMAND EthEestBlockGranular
