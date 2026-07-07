@@ -39,5 +39,7 @@ struct Account
     bool nonceDirty{false};
     bool codeDirty{false};
     bool selfDestructed{false};
+    /// Sticky tx-end deletion (evmone `destructed`): survives CREATE recreate touch.
+    bool selfDestructScheduled{false};
 };
 }  // namespace bcos::evm::state

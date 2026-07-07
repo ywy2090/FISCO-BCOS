@@ -73,7 +73,7 @@ task::Task<EthMessageResult> applyEthMessage(EthMessageRequest input)
     ctx.inputs.hashImpl = input.hashImpl;
     ctx.inputs.blockInfo = input.blockInfo;
     ctx.inputs.blockHashes = input.blockHashes;
-    ctx.inputs.accessList = input.accessList;
+    ctx.inputs.accessList = input.accessList.get();
     ctx.inputs.authorizationListPresent = input.authorizationListPresent;
     ctx.inputs.authorizations = input.authorizations;
     ctx.inputs.web3TypedTxKind = input.web3TypedTxKind;

@@ -22,6 +22,7 @@
 #include <bcos-framework/protocol/LogEntry.h>
 #include <bcos-utilities/Common.h>
 #include <evmc/evmc.hpp>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -51,7 +52,10 @@ struct EthMessageRequest
     std::vector<bcos::h256> blobVersionedHashes;
     uint8_t web3TypedTxKind{0};
     bool hasExplicitFeeCaps{false};
-    const Eip2930AccessList* accessList{nullptr};
+    /// Owned by the request so the list outlives execution (Fisco request uses the same
+    /// model); downstream consumers observe via .get(). A raw pointer here dangled when
+    /// the builder's resolver local was the sole owner.
+    std::shared_ptr<const Eip2930AccessList> accessList{};
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;
     uint64_t txNonce{0};

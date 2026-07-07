@@ -49,8 +49,8 @@ bool isActiveEmptyPrecompileTarget(state::State const& state,
     {
         return false;
     }
-    auto const code = state.get_code(target);
-    if (!code.empty())
+    // Size probe only — avoids copying the whole bytecode just to test emptiness.
+    if (state.get_code_size(target) != 0)
     {
         return false;
     }
@@ -86,8 +86,8 @@ ClassifiedCallTarget classifyCallTarget(state::State& state,
         if (auto const delegate =
                 parseDelegationTarget(bcos::bytesConstRef{code.data(), code.size()}))
         {
-            auto const delegateCode = state.get_code(*delegate);
-            if (delegateCode.empty() && is7702NonCallEmptyDelegateOpcode(msg))
+            // Size probe only — the delegate's code is loaded later by loadFrameBytecode.
+            if (state.get_code_size(*delegate) == 0 && is7702NonCallEmptyDelegateOpcode(msg))
             {
                 return ClassifiedCallTarget{.route = CallTargetRoute::EmptyAccount,
                     .dispatchAddress = executionAddress,

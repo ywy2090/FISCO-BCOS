@@ -13,6 +13,31 @@ evmc_bytes32 LedgerStateView::get_storage(
     return m_storageRead(address, key);
 }
 
+bool LedgerStateView::account_exists(const evmc_address& address) const
+{
+    return m_existsRead(address);
+}
+
+bcos::u256 LedgerStateView::get_balance(const evmc_address& address) const
+{
+    return m_balanceRead(address);
+}
+
+uint64_t LedgerStateView::get_nonce(const evmc_address& address) const
+{
+    return m_nonceRead(address);
+}
+
+bcos::bytes LedgerStateView::get_code(const evmc_address& address) const
+{
+    return m_codeRead(address);
+}
+
+evmc_bytes32 LedgerStateView::get_code_hash(const evmc_address& address) const
+{
+    return m_codeHashRead(address);
+}
+
 bool LedgerStateView::isZeroHash(const evmc_bytes32& value)
 {
     for (auto byte : value.bytes)

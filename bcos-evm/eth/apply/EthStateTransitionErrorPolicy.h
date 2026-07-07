@@ -11,6 +11,8 @@ namespace bcos::evm
 
 struct EthStateTransitionErrorPolicy : StateTransitionErrorPolicy
 {
+    bool isCall{false};
+
     void onIntrinsicGasFailure(
         StateTransitionContext& ctx, IntrinsicGasFailure /*failure*/) const override
     {
@@ -43,6 +45,8 @@ struct EthStateTransitionErrorPolicy : StateTransitionErrorPolicy
 
     void onFinalizeGasUsed(StateTransitionContext& ctx) const override
     {
+        if (isCall)
+            return;
         normalizeSetCodeTransactionVmerr(
             ctx.evmcResult, ctx.message.depth, ctx.inputs.authorizationListPresent);
         ctx.topLevelIncludedTxVmError =

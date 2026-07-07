@@ -27,6 +27,7 @@
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/eip/Eip7825.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
+#include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/kernel/state-transition/FeeInputsMapping.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -50,19 +51,28 @@ namespace bcos::evm
 
 EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input) : m_input(input)
 {
-    // Pre-7623 Eth reference txs debit full intrinsic (base + calldata + access list) before EVM.
-    m_intrinsicPolicy.mode = IntrinsicGasMode::OpStack;
-    if (input.revisionConfig.eip7623)
+    // System calls (EIP-4788/2935/7002/7251): evmone vm.execute() with no tx intrinsic debit.
+    if (input.isCall)
     {
-        m_intrinsicPolicy.mode = IntrinsicGasMode::FloorDataGas;
+        m_intrinsicPolicy.mode = IntrinsicGasMode::Skip;
     }
-    else if (input.authorizationListPresent && !input.authorizations.empty())
+    else
     {
-        m_intrinsicPolicy.mode = IntrinsicGasMode::AuthTuples;
+        // Pre-7623 Eth reference txs debit full intrinsic (base + calldata + access list) before
+        // EVM.
+        m_intrinsicPolicy.mode = IntrinsicGasMode::OpStack;
+        if (input.revisionConfig.eip7623)
+        {
+            m_intrinsicPolicy.mode = IntrinsicGasMode::FloorDataGas;
+        }
+        else if (input.authorizationListPresent && !input.authorizations.empty())
+        {
+            m_intrinsicPolicy.mode = IntrinsicGasMode::AuthTuples;
+        }
     }
     m_intrinsicPolicy.authorizationListPresent = input.authorizationListPresent;
     m_intrinsicPolicy.authTupleCount = input.authorizations.size();
-    m_intrinsicPolicy.accessList = input.accessList;
+    m_intrinsicPolicy.accessList = input.accessList.get();
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
     m_intrinsicPolicy.eip3860 = input.revisionConfig.eip3860;
     m_intrinsicPolicy.revision = input.revisionConfig.revision;
@@ -224,6 +234,12 @@ void EthStateTransitionHooks::onPreCheckCanTransfer(StateTransitionContext& ctx)
             protocol::TransactionStatus::InsufficientFunds, EVMC_INSUFFICIENT_BALANCE);
         ctx.earlyExit = true;
     }
+}
+
+void EthStateTransitionHooks::onTuneInnerExecuteInput(InnerExecuteInput& input) const
+{
+    if (m_input.isCall)
+        input.skipTopLevelSenderNonceBump = true;
 }
 
 }  // namespace bcos::evm

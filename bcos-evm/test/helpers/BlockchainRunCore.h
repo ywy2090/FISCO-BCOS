@@ -42,9 +42,10 @@ inline std::string formatBytes32(evmc_bytes32 const& value)
     return bcos::toHex(bcos::bytes(value.bytes, value.bytes + sizeof(value.bytes)));
 }
 
-inline evmc_bytes32 computeStateRootFromView(TestStateView const& view)
+inline evmc_bytes32 computeStateRootFromView(TestStateView const& view, bool eip158 = true)
 {
     GstPostStateView postView;
+    postView.eip158ClearEmpty = eip158;
     for (auto const& [addr, acc] : view.accounts())
         postView.accounts.emplace_back(addr, acc);
     return computeStateRoot(postView);
@@ -167,26 +168,11 @@ inline std::vector<ReceiptForRoot> receiptsForRoot(std::vector<TransactionReceip
     return out;
 }
 
-inline void logRequestsHashXfailOnce()
-{
-    static bool logged = false;
-    if (logged)
-        return;
-    logged = true;
-    std::cerr << "XFAIL: Prague+ requestsHash validation skipped "
-                 "(requests collection not wired, B2/M2)\n";
-}
-
 inline std::optional<std::string> checkRequestsHash(
     TestBlock const& tb, BlockApplyResult const& res, evmc_revision rev)
 {
     if (rev < EVMC_PRAGUE)
         return std::nullopt;
-    if (res.requests.empty())
-    {
-        logRequestsHashXfailOnce();
-        return std::nullopt;
-    }
     if (!bytes32Equal(computeRequestsHash(res.requests), tb.expectedBlockHeader.requestsHash))
         return "requestsHash";
     return std::nullopt;
@@ -287,7 +273,7 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
         TestBlockHeader const* parentHeader =
             (parentIt != blockData.end()) ? parentIt->second.header : nullptr;
 
-        auto blockError = validateBlock(rev, test.blobSchedule, tb, parentHeader);
+        auto blockError = validateBlock(rev, test.blobSchedule, test.network, tb, parentHeader);
 
         if (!tb.expectException.empty())
         {

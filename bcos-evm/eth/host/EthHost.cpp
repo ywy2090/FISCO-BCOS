@@ -86,14 +86,15 @@ bool EthHost::account_exists(const address& addr) const noexcept
 {
     // Pre-Byzantium GST: CALL to a precompile pays G_newaccount and leaves a touched
     // empty account (0x01–0x04) in the state trie even though dispatch is precompile.
+    // Pre-Byzantium GST: CALL to a precompile pays G_newaccount and leaves a touched
+    // empty account (0x01–0x04) in the state trie even though dispatch is precompile.
+    // Post-Byzantium: mirror evmone statetest host — existence is state-backed only
+    // (SELFDESTRUCT/CALL new-account gas uses account_exists; precompile slots are not
+    // implicit accounts unless present in pre/post state).
     if (m_revisionConfig.revision < EVMC_BYZANTIUM &&
         precompiled::isActivePrecompile(m_revisionConfig, addr))
     {
         return false;
-    }
-    if (precompiled::isActivePrecompile(m_revisionConfig, addr))
-    {
-        return true;
     }
     return m_state.account_exists(addr);
 }
@@ -239,6 +240,13 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     auto const selfBeneficiary =
         std::memcmp(addr.bytes, beneficiary.bytes, sizeof(addr.bytes)) == 0;
 
+    // evmone: materialize beneficiary before balance transfer (incl. zero-balance touch).
+    if (!selfBeneficiary && m_state.find_overlay_account(beneficiary) == nullptr &&
+        !m_state.account_exists(beneficiary))
+    {
+        m_state.touchOverlayAccount(beneficiary);
+    }
+
     if (m_revisionConfig.eip6780 && !wasCreatedInTx(addr))
     {
         // EIP-6780: contracts that existed before this tx cannot be destroyed.
@@ -260,6 +268,24 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     }
 
     // Full destruction path: transfer balance, then wipe or mark per revision.
+    // evmone: only the first registered SELFDESTRUCT per account returns true (refund once).
+    if (m_state.has_self_destructed(addr))
+    {
+        if (balance != 0)
+        {
+            if (!selfBeneficiary)
+            {
+                m_state.set_balance(addr, 0);
+                m_state.add_balance(beneficiary, balance);
+            }
+            else
+            {
+                m_state.set_balance(addr, 0);
+            }
+        }
+        return false;
+    }
+
     if (balance != 0)
     {
         if (!selfBeneficiary)
@@ -280,9 +306,12 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
         return true;
     }
 
-    // Pre-Cancun: mark for tx-end finalization; CREATE re-init clears via
-    // touchCreateDeploymentAccount.
+    // Pre-6780: mark for tx-end removal; code stays observable until finalize (geth/evmone).
     m_state.mark_self_destructed(addr);
+    if (m_revisionConfig.revision < EVMC_LONDON)
+    {
+        m_state.add_refund(24000);
+    }
     return true;
 }
 
@@ -319,10 +348,33 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
     };
     ExecutionAddressGuard guard{m_executionAddress};
 
-    execution::CallFrameContext frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
-        m_txContext.tx_origin, m_executionAddress, m_callTargetPort};
-    auto fr = execution::runCallFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
-    return Result(std::move(fr.result));
+    // This callback is evmc-mandated noexcept, but runCallFrame runs the full nested-call
+    // engine (state reads, allocation, chain hooks) — an escaping exception would hit the
+    // noexcept boundary and std::terminate the node. The top-level driver already maps
+    // exceptions to a failed tx (StateTransitionExecute catch → errorPolicy.onException);
+    // mirror that here: rebalance any checkpoints this frame left open, fail the nested
+    // call deterministically, and let the outer frame continue.
+    auto const entryCheckpointDepth = m_state.checkpoint_depth();
+    try
+    {
+        execution::CallFrameContext frameCtx{m_state, m_vm, m_revisionConfig, m_extension,
+            m_txContext.tx_origin, m_executionAddress, m_callTargetPort};
+        auto fr = execution::runCallFrame(frameCtx, msg, execution::FrameScope::Nested, *this);
+        return Result(std::move(fr.result));
+    }
+    catch (...)
+    {
+        EVM_LOG(WARNING) << LOG_DESC("EthHost::call exception in nested frame")
+                         << LOG_KV("kind", trace::callKind(msg.kind)) << LOG_KV("depth", msg.depth);
+        while (m_state.checkpoint_depth() > entryCheckpointDepth)
+        {
+            m_state.revert();
+        }
+        evmc_result raw{};
+        raw.status_code = EVMC_INTERNAL_ERROR;
+        raw.gas_left = 0;
+        return Result(evmc::Result(raw));
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "../../bcos-evm/test/state/InMemoryStateView.h"
+#include "../../bcos-evm/test/helpers/InMemoryStateView.h"
 #include "Eip2929TestHelpers.h"
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
 #include "bcos-evm/bcos/FiscoEvmHostHooks.h"

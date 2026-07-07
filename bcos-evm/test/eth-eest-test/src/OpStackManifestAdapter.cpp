@@ -157,7 +157,9 @@ task::Task<ExecutionResult> OpStackManifestAdapter::execute(
             testCase.transaction.maxFeePerBlobGasKeyPresent,
             tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0,
             !testCase.transaction.accessLists.empty());
-    input.accessList = accessList.empty() ? nullptr : &accessList;
+    input.accessList = accessList.empty() ?
+                           nullptr :
+                           std::make_shared<bcos::evm::Eip2930AccessList const>(accessList);
     input.authorizationListPresent = testCase.transaction.authorizationListKeyPresent;
     input.authorizations = authorizations;
     input.skipNonceChecks = false;

@@ -336,7 +336,9 @@ BOOST_AUTO_TEST_CASE(completed_path_non_eip7623_keeps_snapshot_values)
     BOOST_CHECK_EQUAL(
         static_cast<int>(ctx.exitKind), static_cast<int>(StateTransitionExitKind::Completed));
     BOOST_CHECK(ctx.snapshot.eip7623SnapshotActive);
-    BOOST_CHECK_EQUAL(ctx.snapshot.evmGasRefund, 456);
+    // EIP-3529: evmGasRefund is always captured from EVM output (456 pre-set is overwritten);
+    // only the EIP-7623 fields are conditional on FloorDataGas mode.
+    BOOST_CHECK_EQUAL(ctx.snapshot.evmGasRefund, 789);
 }
 
 // INT-04: completed pipeline path invokes Eth post-execute normalization.
@@ -385,7 +387,7 @@ BOOST_AUTO_TEST_CASE(pipeline_passes_ctx_state_pointer_to_execute_message)
     ctx.inputs.hashImpl = &hashImpl;
 
     auto const warmAddr = ctx.message.recipient;
-    ctx.state.warm_up_address_no_journal(warmAddr);
+    (void)ctx.state.warm_up_address_no_journal(warmAddr);
     BOOST_REQUIRE(ctx.state.is_address_warm(warmAddr));
 
     state::State* capturedState = nullptr;

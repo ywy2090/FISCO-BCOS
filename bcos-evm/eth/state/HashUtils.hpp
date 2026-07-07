@@ -164,7 +164,9 @@ inline void appendRlpUint64(bcos::bytes& out, uint64_t value)
     out.insert(out.end(), encoded.begin(), encoded.end());
 }
 
-inline evmc_address predictLegacyCreateAddress(evmc_address const& sender, uint64_t nonce) noexcept
+// Not noexcept: the bcos::bytes RLP buffers allocate (bad_alloc must propagate, not terminate) —
+// matches the neighbouring allocating helpers (keccak256Code, appendRlpUint64).
+inline evmc_address predictLegacyCreateAddress(evmc_address const& sender, uint64_t nonce)
 {
     bcos::bytes payload;
     payload.push_back(0x94);

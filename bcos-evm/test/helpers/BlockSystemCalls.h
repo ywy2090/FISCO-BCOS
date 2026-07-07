@@ -27,8 +27,10 @@ inline constexpr evmc_address kHistoryStorageAddress{0x00, 0x00, 0xf9, 0x08, 0x2
 inline void mergeStateDiffAccount(
     state::Account& merged, state::Account const& patch, bool eraseZeroStorage = true)
 {
-    merged.nonce = patch.nonce;
-    merged.balance = patch.balance;
+    if (patch.nonceDirty)
+        merged.nonce = patch.nonce;
+    if (patch.balanceDirty)
+        merged.balance = patch.balance;
     if (!patch.code.empty() || patch.codeDirty)
     {
         merged.code = patch.code;
@@ -75,10 +77,13 @@ inline void mergeStateDiffIntoView(TestStateView& view, state::StateDiff const& 
     }
 }
 
+/// Fixed gas budget for block-start/end system calls (evmone execute_system_call).
+inline constexpr int64_t kBlockSystemCallGas = 30'000'000;
+
 /// Cancun block-start system calls (EIP-4788 beacon block root). Returns state diff to merge.
 inline state::StateDiff applyCancunBlockSystemCalls(TestStateView& state,
     state::BlockInfo const& blockInfo, bcos::evm::RevisionConfig const& revision, evmc::VM& vm,
-    bcos::crypto::Hash& hashImpl)
+    bcos::crypto::Hash& hashImpl, state::BlockHashes const& blockHashes = {})
 {
     state::StateDiff empty{};
     if (revision.revision < EVMC_CANCUN)
@@ -93,7 +98,7 @@ inline state::StateDiff applyCancunBlockSystemCalls(TestStateView& state,
     evmc_message msg{};
     msg.kind = EVMC_CALL;
     msg.depth = 0;
-    msg.gas = blockInfo.gasLimit > 0 ? blockInfo.gasLimit : 30'000'000;
+    msg.gas = kBlockSystemCallGas;
     msg.sender = kSystemSenderAddress;
     msg.recipient = kBeaconRootsAddress;
     msg.code_address = kBeaconRootsAddress;
@@ -108,7 +113,10 @@ inline state::StateDiff applyCancunBlockSystemCalls(TestStateView& state,
     input.blockInfo = blockInfo;
     input.revisionConfig = revision;
     input.isCall = true;
-    input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
+    if (blockHashes)
+        input.blockHashes = blockHashes;
+    else
+        input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
 
     auto output = task::syncWait(applyEthMessage(std::move(input)));
     auto diff = output.stateDiff;
@@ -120,7 +128,7 @@ inline state::StateDiff applyCancunBlockSystemCalls(TestStateView& state,
 /// Prague block-start system calls (EIP-2935 parent block hash into history storage).
 inline state::StateDiff applyPragueBlockSystemCalls(TestStateView& state,
     state::BlockInfo const& blockInfo, bcos::evm::RevisionConfig const& revision, evmc::VM& vm,
-    bcos::crypto::Hash& hashImpl)
+    bcos::crypto::Hash& hashImpl, state::BlockHashes const& blockHashes = {})
 {
     state::StateDiff empty{};
     if (revision.revision < EVMC_PRAGUE)
@@ -132,13 +140,20 @@ inline state::StateDiff applyPragueBlockSystemCalls(TestStateView& state,
     if (!state.get_account(kHistoryStorageAddress).has_value())
         return empty;
 
-    bcos::bytes const calldata(blockInfo.parentHash.bytes,
-        blockInfo.parentHash.bytes + sizeof(blockInfo.parentHash.bytes));
+    evmc_bytes32 parentHash = blockInfo.parentHash;
+    if (blockHashes)
+    {
+        auto const fromLookup = blockHashes(blockInfo.number - 1);
+        if (!state::isZeroBytes32(fromLookup))
+            parentHash = fromLookup;
+    }
+
+    bcos::bytes const calldata(parentHash.bytes, parentHash.bytes + sizeof(parentHash.bytes));
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
     msg.depth = 0;
-    msg.gas = blockInfo.gasLimit > 0 ? blockInfo.gasLimit : 30'000'000;
+    msg.gas = kBlockSystemCallGas;
     msg.sender = kSystemSenderAddress;
     msg.recipient = kHistoryStorageAddress;
     msg.code_address = kHistoryStorageAddress;
@@ -153,7 +168,10 @@ inline state::StateDiff applyPragueBlockSystemCalls(TestStateView& state,
     input.blockInfo = blockInfo;
     input.revisionConfig = revision;
     input.isCall = true;
-    input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
+    if (blockHashes)
+        input.blockHashes = blockHashes;
+    else
+        input.blockHashes = [](int64_t) { return evmc_bytes32{}; };
 
     auto output = task::syncWait(applyEthMessage(std::move(input)));
     auto diff = output.stateDiff;

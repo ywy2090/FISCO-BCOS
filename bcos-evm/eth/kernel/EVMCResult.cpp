@@ -40,6 +40,16 @@ bcos::evm::EVMCResult::EVMCResult(EVMCResult&& from) noexcept
 
 bcos::evm::EVMCResult& bcos::evm::EVMCResult::operator=(EVMCResult&& from) noexcept
 {
+    if (this == &from)
+    {
+        return *this;
+    }
+    // Release the buffer we currently own before overwriting release/output_data,
+    // otherwise assigning into a non-empty result leaks its output buffer.
+    if (release != nullptr)
+    {
+        release(static_cast<evmc_result*>(this));
+    }
     evmc_result::operator=(from);
     status = from.status;
     cleanEVMCResult(from);

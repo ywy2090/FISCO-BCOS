@@ -25,6 +25,9 @@ struct TxOpcodeStats
     int64_t topLevelGasIn{0};
     int64_t topLevelGasOut{0};
     uint64_t frameCount{0};
+    // Depth of the frame currently executing on THIS thread. Lives here (thread_local),
+    // not on the tracer: one tracer instance is shared by every thread using the VM.
+    int execDepth{0};
 };
 
 thread_local TxOpcodeStats g_txOpcodeStats;
@@ -121,7 +124,7 @@ void EvmOpcodeProbe::on_execution_start(
     }
     s.lastGas = msg.gas;
     s.pendingOpcode = 0xFF;
-    m_execDepth = msg.depth;
+    s.execDepth = msg.depth;
 }
 
 void EvmOpcodeProbe::on_instruction_start(uint32_t pc, const intx::uint256* /*stack_top*/,
@@ -146,7 +149,7 @@ void EvmOpcodeProbe::on_execution_end(const evmc_result& result) noexcept
     s.lastGas = -1;
     s.pendingOpcode = 0xFF;
 
-    if (m_execDepth == 0)
+    if (s.execDepth == 0)
     {
         s.topLevelGasOut = result.gas_left;
     }

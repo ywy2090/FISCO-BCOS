@@ -65,7 +65,7 @@ state::BlockInfo const& OpStackSettlementProjection::blockInfo() const noexcept
 
 Eip2930AccessList const* OpStackSettlementProjection::accessList() const noexcept
 {
-    return input.accessList;
+    return input.accessList.get();
 }
 
 uint8_t OpStackSettlementProjection::web3TypedTxKind() const noexcept

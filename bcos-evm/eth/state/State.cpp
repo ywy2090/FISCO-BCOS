@@ -20,7 +20,7 @@
  *   - find() / get_*     overlay-first read merge
  *   - checkpoint/revert  LIFO journal unwind
  *   - journal_account_once  one snapshot per address per frame
- *   - build_diff()       export overlay → StateDiff (no transient storage)
+ *   - build_diff()       export overlay changes where current != tx-start (evmone parity)
  *   - finalize_self_destructs  end-of-tx SELFDESTRUCT materialization
  */
 
@@ -31,6 +31,7 @@
 #include "eth/state/StateKeyHash.hpp"
 #include "eth/state/StateView.hpp"
 #include <algorithm>
+#include <unordered_set>
 
 namespace bcos::evm::state
 {
@@ -132,7 +133,7 @@ evmc_bytes32 State::get_code_hash(const evmc_address& address) const
             // Lazy-load from base when the account pre-existed; tx-created touch-only
             // overlay entries (value transfer, warm pin) have no base account but still
             // exist on state — EIP-1052 EXTCODEHASH must return keccak256(""), not 0.
-            if (m_baseStateView->get_account(address).has_value())
+            if (m_baseStateView->account_exists(address))
             {
                 return m_baseStateView->get_code_hash(address);
             }
@@ -158,7 +159,7 @@ bool State::account_exists(const evmc_address& address) const
     {
         return true;
     }
-    return m_baseStateView->get_account(address).has_value();
+    return m_baseStateView->account_exists(address);
 }
 
 /// EIP-7610: any non-zero storage slot on merged overlay+base view.
@@ -201,11 +202,37 @@ evmc_bytes32 State::get_storage(const evmc_address& address, const evmc_bytes32&
     return m_baseStateView->get_storage(address, key);
 }
 
+void State::ensureStorageOriginal(const evmc_address& address, const evmc_bytes32& key)
+{
+    auto const storageKey = std::make_pair(address, key);
+    if (m_storageOriginal.contains(storageKey))
+    {
+        return;
+    }
+    m_storageOriginal.emplace(storageKey, get_storage(address, key));
+}
+
+evmc_bytes32 State::storageOriginalAtTxStart(
+    const evmc_address& address, const evmc_bytes32& key) const
+{
+    auto const storageKey = std::make_pair(address, key);
+    if (auto it = m_storageOriginal.find(storageKey); it != m_storageOriginal.end())
+    {
+        return it->second;
+    }
+    return m_baseStateView->get_storage(address, key);
+}
+
 // ── Checkpoint / journal / revert ────────────────────────────────────────────
 
 bool State::has_checkpoint() const noexcept
 {
     return !m_checkpoints.empty();
+}
+
+size_t State::checkpoint_depth() const noexcept
+{
+    return m_checkpoints.size();
 }
 
 /// Save journal cursor + gas refund; mutations after this point are revertible.
@@ -408,6 +435,7 @@ void State::set_code(const evmc_address& address, bcos::bytes code, evmc_bytes32
 void State::set_storage(
     const evmc_address& address, const evmc_bytes32& key, const evmc_bytes32& value)
 {
+    ensureStorageOriginal(address, key);
     auto const prior = get_storage(address, key);
     if (Bytes32Equal{}(prior, value))
     {
@@ -415,13 +443,37 @@ void State::set_storage(
     }
 
     journal_account_once(address);
-    mutable_account(address).storage[key] = value;
+    auto& account = mutable_account(address);
+    account.storage[key] = value;
+    // geth: SSTORE after same-tx SELFDESTRUCT cancels pending deletion (EIP-6780 recreate path).
+    account.selfDestructed = false;
+    account.selfDestructScheduled = false;
 }
 
 void State::clear_storage(const evmc_address& address)
 {
     journal_account_once(address);
-    mutable_account(address).storage.clear();
+    auto& account = mutable_account(address);
+
+    std::unordered_set<evmc_bytes32, Bytes32Hash, Bytes32Equal> keys;
+    if (auto const base = m_baseStateView->get_account(address); base.has_value())
+    {
+        for (auto const& [key, value] : base->storage)
+        {
+            (void)value;
+            keys.insert(key);
+        }
+    }
+    for (auto const& [key, value] : account.storage)
+    {
+        (void)value;
+        keys.insert(key);
+    }
+
+    for (auto const& key : keys)
+    {
+        set_storage(address, key, evmc_bytes32{});
+    }
 }
 
 // ── Transient storage (EIP-1153) ─────────────────────────────────────────────
@@ -585,9 +637,46 @@ StateDiff State::build_diff() const
     diff.accounts.reserve(m_accounts.size());
     for (auto const& [address, account] : m_accounts)
     {
-        Account persisted = account;
-        persisted.transientStorage.clear();
-        diff.accounts.emplace(address, std::move(persisted));
+        auto const baseAccount = m_baseStateView->get_account(address);
+
+        Account patch{};
+        bool touched = false;
+
+        if (account.nonceDirty ||
+            account.nonce != (baseAccount.has_value() ? baseAccount->nonce : 0U))
+        {
+            patch.nonce = account.nonce;
+            patch.nonceDirty = true;
+            touched = true;
+        }
+        if (account.balanceDirty ||
+            account.balance != (baseAccount.has_value() ? baseAccount->balance : bcos::u256{0}))
+        {
+            patch.balance = account.balance;
+            patch.balanceDirty = true;
+            touched = true;
+        }
+        if (account.codeDirty)
+        {
+            patch.code = account.code;
+            patch.codeHash = account.codeHash;
+            patch.codeDirty = true;
+            touched = true;
+        }
+
+        for (auto const& [key, current] : account.storage)
+        {
+            auto const original = storageOriginalAtTxStart(address, key);
+            if (!Bytes32Equal{}(current, original))
+            {
+                patch.storage[key] = current;
+            }
+        }
+
+        if (touched || !patch.storage.empty())
+        {
+            diff.accounts.emplace(address, std::move(patch));
+        }
     }
     return diff;
 }
@@ -597,7 +686,9 @@ StateDiff State::build_diff() const
 void State::mark_self_destructed(const evmc_address& address)
 {
     journal_account_once(address);
-    mutable_account(address).selfDestructed = true;
+    auto& account = mutable_account(address);
+    account.selfDestructed = true;
+    account.selfDestructScheduled = true;
 }
 
 bool State::has_self_destructed(const evmc_address& address) const
@@ -613,40 +704,60 @@ bool State::has_self_destructed(const evmc_address& address) const
     return false;
 }
 
-/// Materialize deletions at tx end: zero fields, write explicit zero storage slots.
-void State::finalize_self_destructs()
+bool State::is_self_destruct_scheduled(const evmc_address& address) const
 {
-    for (auto& [address, account] : m_accounts)
+    if (auto it = m_accounts.find(address); it != m_accounts.end())
     {
-        if (!account.selfDestructed)
+        return it->second.selfDestructScheduled;
+    }
+    return false;
+}
+
+/// Materialize deletions at tx end: drop self-destructed accounts from overlay (evmone
+/// deleted_accounts). EIP-6780 keeps zeroed entries until finalize clears persisted slots.
+void State::finalize_self_destructs(bool eip6780)
+{
+    for (auto it = m_accounts.begin(); it != m_accounts.end();)
+    {
+        if (!it->second.selfDestructed && !it->second.selfDestructScheduled)
         {
+            ++it;
             continue;
         }
-        std::unordered_map<evmc_bytes32, evmc_bytes32, Bytes32Hash, Bytes32Equal> slotsToClear;
-        if (auto const base = m_baseStateView->get_account(address); base.has_value())
+        if (eip6780)
         {
-            for (auto const& [key, value] : base->storage)
+            auto& account = it->second;
+            std::unordered_map<evmc_bytes32, evmc_bytes32, Bytes32Hash, Bytes32Equal> slotsToClear;
+            if (auto const base = m_baseStateView->get_account(it->first); base.has_value())
+            {
+                for (auto const& [key, value] : base->storage)
+                {
+                    slotsToClear.emplace(key, value);
+                }
+            }
+            for (auto const& [key, value] : account.storage)
             {
                 slotsToClear.emplace(key, value);
             }
+            account.code.clear();
+            account.codeHash = {};
+            account.codeDirty = true;
+            account.storage.clear();
+            for (auto const& [key, value] : slotsToClear)
+            {
+                (void)value;
+                account.storage[key] = {};
+            }
+            account.balance = 0;
+            account.nonce = 0;
+            account.balanceDirty = true;
+            account.nonceDirty = true;
+            account.selfDestructed = false;
+            account.selfDestructScheduled = false;
+            ++it;
+            continue;
         }
-        for (auto const& [key, value] : account.storage)
-        {
-            slotsToClear.emplace(key, value);
-        }
-        account.code.clear();
-        account.codeHash = {};
-        account.codeDirty = true;
-        account.storage.clear();
-        // Re-insert cleared slots so build_diff() / applyStateDiff persist zero writes.
-        for (auto const& [key, value] : slotsToClear)
-        {
-            (void)value;
-            account.storage[key] = {};
-        }
-        account.balance = 0;
-        account.nonce = 0;
-        account.selfDestructed = false;
+        it = m_accounts.erase(it);
     }
 }
 
@@ -665,13 +776,14 @@ void State::touchCreateDeploymentAccount(const evmc_address& address, evmc_revis
     account.codeHash = {};
     account.codeDirty = true;
     account.storage.clear();
-    // Legacy same-tx recreate after SELFDESTRUCT: cancel pending deletion (geth create reset).
+    // Cancel pending deletion for init/CALL visibility; sticky selfDestructScheduled still
+    // forces tx-end removal (evmone build_diff deleted_accounts).
     account.selfDestructed = false;
     // Fresh CREATE target starts at nonce 1 (Spurious Dragon+). Same-tx collision recreate
     // (EIP-6780) must preserve an existing contract nonce — geth does not reset it on re-init.
     if (account.nonce == 0 && revision >= EVMC_SPURIOUS_DRAGON)
     {
-        account.nonce = 1U;
+        set_nonce(address, 1);
     }
 }
 

@@ -414,8 +414,6 @@ std::optional<FrameResult> failIfCreateDeploymentBlocked(FrameWork& work)
     }
     auto const& createAddr = callMessage.recipient;
     if (isCreateDeploymentAddressCollision(
-            work.ctx.state, createAddr, work.ctx.revisionConfig.eip6780) ||
-        isSameTxSelfDestructedCreateBlocked(
             work.ctx.state, createAddr, work.ctx.revisionConfig.eip6780))
     {
         work.ctx.state.revert();

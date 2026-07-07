@@ -36,6 +36,8 @@ struct EthStateTransitionHooks : StateTransitionHooks
 
     void onPreCheckCanTransfer(StateTransitionContext& ctx) const override;
 
+    void onTuneInnerExecuteInput(InnerExecuteInput& input) const override;
+
 private:
     EthMessageRequest const& m_input;
     DeductIntrinsicGasParams m_intrinsicPolicy{};

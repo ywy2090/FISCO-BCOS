@@ -29,9 +29,11 @@ EthStateTransitionHooks EthStateTransitionBindings::buildStateTransitionHooks(Co
     return EthStateTransitionHooks{ctx.input};
 }
 
-EthStateTransitionErrorPolicy EthStateTransitionBindings::buildErrorPolicy(Context const& /*ctx*/)
+EthStateTransitionErrorPolicy EthStateTransitionBindings::buildErrorPolicy(Context const& ctx)
 {
-    return EthStateTransitionErrorPolicy{};
+    EthStateTransitionErrorPolicy policy;
+    policy.isCall = ctx.input.isCall;
+    return policy;
 }
 
 EthStateTransitionBindings::Result EthStateTransitionBindings::bind(Context& ctx)

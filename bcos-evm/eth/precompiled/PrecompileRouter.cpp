@@ -70,7 +70,7 @@ std::optional<evmc::Result> tryEnvelopeValueTransfer(state::State& state,
 
 // Shared skeleton: checkpoint → value transfer → dispatchFn → finalize.
 PrecompileRouterOutput envelopeAfterValueTransfer(
-    PrecompileEnvelopeInput const& input, std::function<evmc::Result()> dispatchFn)
+    PrecompileEnvelopeInput const& input, std::function<evmc::Result()> const& dispatchFn)
 {
     PrecompileRouterOutput output;
     input.state.checkpoint();

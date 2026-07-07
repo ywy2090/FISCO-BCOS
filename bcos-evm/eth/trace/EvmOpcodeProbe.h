@@ -25,12 +25,10 @@ class EvmOpcodeProbe final : public evmone::Tracer
 public:
     static bool enabled() noexcept
     {
-        static int cached = -1;
-        if (cached < 0)
-        {
-            cached = std::getenv("EEST_OPCODE_TRACE") != nullptr ? 1 : 0;
-        }
-        return cached != 0;
+        // Thread-safe function-local static init: the mutable read-modify-write form
+        // was a data race when called from concurrent tx execution.
+        static const bool cached = std::getenv("EEST_OPCODE_TRACE") != nullptr;
+        return cached;
     }
 
     static void reset() noexcept;
@@ -48,8 +46,6 @@ private:
     static char const* opcodeName(uint8_t op) noexcept;
 
     void flushPendingGas(int64_t gasAfter) noexcept;
-
-    int m_execDepth{0};
 };
 
 }  // namespace bcos::evm::trace

@@ -77,7 +77,8 @@ state::Transaction toStateTransaction(const evmc_message& message)
         }
         transaction.to = to;
     }
-    transaction.data.assign(message.input_data, message.input_data + message.input_size);
+    // data deliberately left empty: prepareState (the only consumer) never reads it,
+    // so copying the full calldata here was pure per-tx waste.
     transaction.value = state::fromEvmC(message.value);
     transaction.gasLimit = message.gas;
     return transaction;
@@ -228,7 +229,7 @@ InnerExecuteOutput finalizeAfterFrame(state::State& state, InnerExecuteInput con
     {
         output.gasRefund = static_cast<int64_t>(state.get_refund());
         state.commit();
-        state.finalize_self_destructs();
+        state.finalize_self_destructs(input.revisionConfig.eip6780);
         output.stateDiff = state.build_diff();
     }
     else

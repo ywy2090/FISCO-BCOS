@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(auth_only_mode_debits_auth_cost)
 BOOST_AUTO_TEST_CASE(eip7623_mode_reports_structured_gas_limit_minimum_failure)
 {
     bcos::bytes calldata{0x01};
-    auto const calldataGas = gas::calcEip7623CalldataGas(bcos::bytesConstRef(&calldata));
+    auto const calldataGas = gas::calcEip7623CalldataGas(bcos::bytesConstRef(&calldata), EVMC_PRAGUE);
 
     evmc_message message{};
     message.kind = EVMC_CALL;

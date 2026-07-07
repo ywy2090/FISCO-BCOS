@@ -36,6 +36,7 @@
 #include <bcos-task/Task.h>
 #include <bcos-utilities/Common.h>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -74,7 +75,10 @@ struct OpStackMessageRequest
     // ── Typed tx extensions (EIP-2930 / 4844 / 7702) ──────────────────────
     /// EIP-2718 type byte; OpStackDeposit selects the deposit settlement path.
     uint8_t web3TypedTxKind{0};
-    const Eip2930AccessList* accessList{nullptr};
+    /// Owned by the request so the list outlives execution (Fisco request uses the same
+    /// model); downstream consumers observe via .get(). A raw pointer here dangled when
+    /// the builder's resolver local was the sole owner.
+    std::shared_ptr<const Eip2930AccessList> accessList{};
     /// True when the typed tx envelope carries an EIP-7702 authorization list field.
     bool authorizationListPresent{false};
     std::vector<SetCodeAuthorization> authorizations;

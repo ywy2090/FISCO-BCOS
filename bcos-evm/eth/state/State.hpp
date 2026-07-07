@@ -94,7 +94,7 @@ public:
     [[nodiscard]] evmc_bytes32 get_code_hash(const evmc_address& address) const override;
     [[nodiscard]] evmc_bytes32 get_storage(
         const evmc_address& address, const evmc_bytes32& key) const override;
-    [[nodiscard]] bool account_exists(const evmc_address& address) const;
+    [[nodiscard]] bool account_exists(const evmc_address& address) const override;
     /// EIP-7610: true when any storage slot exists on the merged account view.
     [[nodiscard]] bool hasNonEmptyStorage(const evmc_address& address) const;
     /// Overlay-first merge; used by journal_account_once to capture pre-mutation snapshot.
@@ -111,6 +111,8 @@ public:
     /// Accept changes since checkpoint(); nested frames merge touchedAccounts into parent.
     void commit();
     [[nodiscard]] bool has_checkpoint() const noexcept;
+    /// Open checkpoint count; lets noexcept host boundaries rebalance the stack after a throw.
+    [[nodiscard]] size_t checkpoint_depth() const noexcept;
 
     // ── Account mutations (each sets the corresponding Account::*Dirty flag) ─
 
@@ -155,15 +157,17 @@ public:
 
     // ── Diff output (post-execution persistence candidate) ───────────────────
 
-    /// Snapshot all overlay accounts into StateDiff; strips transientStorage.
+    /// Snapshot overlay mutations into StateDiff; only exports fields/slots that differ
+    /// from tx-start committed state (storage uses first-SSTORE original; see evmone).
     [[nodiscard]] StateDiff build_diff() const;
 
     // ── SELFDESTRUCT (EIP-6780 semantics via host + finalize) ──────────────
 
     void mark_self_destructed(const evmc_address& address);
     [[nodiscard]] bool has_self_destructed(const evmc_address& address) const;
-    /// End-of-tx: zero balance/nonce/code, clear storage slots, cancel selfDestructed flag.
-    void finalize_self_destructs();
+    [[nodiscard]] bool is_self_destruct_scheduled(const evmc_address& address) const;
+    /// End-of-tx: legacy paths erase self-destructed overlay accounts; EIP-6780 zeroes fields.
+    void finalize_self_destructs(bool eip6780 = false);
 
     // ── CREATE / CREATE2 deployment prep ─────────────────────────────────────
 
@@ -214,6 +218,10 @@ private:
 
     /// Ensure overlay entry exists (copy-on-first-write from base).
     Account& mutable_account(const evmc_address& address);
+    /// Tx-start storage value before the first SSTORE to (address, key) in this execution.
+    void ensureStorageOriginal(const evmc_address& address, const evmc_bytes32& key);
+    [[nodiscard]] evmc_bytes32 storageOriginalAtTxStart(
+        const evmc_address& address, const evmc_bytes32& key) const;
     /// Record pre-mutation account snapshot once per address per checkpoint.
     void journal_account_once(const evmc_address& address);
     void push_journal_account(const evmc_address& address, std::optional<Account> previous);
@@ -232,6 +240,10 @@ private:
     std::vector<JournalEntry> m_journal;
     std::vector<Checkpoint> m_checkpoints;
     uint64_t m_gasRefund{0};
+    /// Committed storage at first SSTORE per (address, slot) in this tx (evmone original).
+    std::unordered_map<std::pair<evmc_address, evmc_bytes32>, evmc_bytes32, WarmStorageKeyHash,
+        WarmStorageKeyEqual>
+        m_storageOriginal;
 };
 
 /// Post-CREATE helper: copy successful initcode output into overlay code (Host callback path).

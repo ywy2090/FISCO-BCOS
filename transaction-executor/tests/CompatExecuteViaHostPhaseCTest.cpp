@@ -108,25 +108,25 @@ BOOST_AUTO_TEST_SUITE(CompatEip7623Extended)
 BOOST_AUTO_TEST_CASE(TE_FC_C_7_calldata_floor_formula_extended)
 {
     bytes empty;
-    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(empty)), 0);
+    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(empty), EVMC_PRAGUE), 0);
 
     bytes zeros(100, 0x00);
-    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(zeros)), 1000);
+    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(zeros), EVMC_PRAGUE), 1000);
 
     bytes nonzero(100, 0xff);
-    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(nonzero)), 4000);
+    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(nonzero), EVMC_PRAGUE), 4000);
 
     bytes oneNonZero{0x42};
-    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(oneNonZero)), 40);
+    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(oneNonZero), EVMC_PRAGUE), 40);
 
     bytes oneZero{0x00};
-    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(oneZero)), 10);
+    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(oneZero), EVMC_PRAGUE), 10);
 
     bytes fourZeros(4, 0x00);
-    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(fourZeros)), 40);
+    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(fourZeros), EVMC_PRAGUE), 40);
 
     bytes oneOne{0x42, 0x00};
-    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(oneOne)), 50);
+    BOOST_CHECK_EQUAL(bcos::evm::gas::calcEip7623CalldataGas(ref(oneOne), EVMC_PRAGUE), 50);
 }
 
 BOOST_AUTO_TEST_CASE(TE_FC_C_7_document_no_21000_base)

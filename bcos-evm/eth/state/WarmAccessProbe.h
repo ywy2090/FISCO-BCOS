@@ -29,12 +29,10 @@ struct WarmAccessProbe
 
     static bool enabled() noexcept
     {
-        static int cached = -1;
-        if (cached < 0)
-        {
-            cached = std::getenv("EEST_WARM_PROBE") != nullptr ? 1 : 0;
-        }
-        return cached != 0;
+        // Thread-safe function-local static init: the mutable read-modify-write form
+        // was a data race when called from concurrent tx execution.
+        static const bool cached = std::getenv("EEST_WARM_PROBE") != nullptr;
+        return cached;
     }
 
     static WarmAccessProbe& instance() noexcept

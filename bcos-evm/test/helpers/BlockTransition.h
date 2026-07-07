@@ -13,6 +13,7 @@
 #include "bcos-evm/eth/state/StateDiff.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"
 #include "bcos-protocol/TransactionStatus.h"
+#include "helpers/BlockRequests.h"
 #include "helpers/BlockSystemCalls.h"
 #include "helpers/BlockValidation.h"
 #include "helpers/BloomFilter.hpp"
@@ -119,16 +120,16 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
     // Cancun+: block-start system calls (EIP-4788) before user transactions.
     if (profile.revision.revision >= EVMC_CANCUN)
     {
-        auto const sysDiff =
-            applyCancunBlockSystemCalls(preState, blockInfo, profile.revision, vm, hashImpl);
+        auto const sysDiff = applyCancunBlockSystemCalls(
+            preState, blockInfo, profile.revision, vm, hashImpl, blockHashes);
         mergeStateDiffIntoPairs(preStatePairs, sysDiff);
     }
 
     // Prague+: block-start system calls (EIP-2935) before user transactions.
     if (profile.revision.revision >= EVMC_PRAGUE)
     {
-        auto const sysDiff =
-            applyPragueBlockSystemCalls(preState, blockInfo, profile.revision, vm, hashImpl);
+        auto const sysDiff = applyPragueBlockSystemCalls(
+            preState, blockInfo, profile.revision, vm, hashImpl, blockHashes);
         mergeStateDiffIntoPairs(preStatePairs, sysDiff);
     }
 
@@ -229,11 +230,34 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         result.blobGasLeft = maxBlobGasPerBlock(blobParams) - blobGasConsumed;
     }
 
-    // Build post-state from pre-state + accumulated diff, then apply withdrawals last
-    // (geth: withdrawal balance credit runs after all txs; must not be overwritten by diff).
+    // Prague+: collect EIP-7685 requests (deposit logs + block-end system calls) before finalize.
+    if (profile.revision.revision >= EVMC_PRAGUE)
+    {
+        TestStateView postTxState;
+        for (auto const& [addr, acc] : preStatePairs)
+            postTxState.insertAccount(addr, acc);
+
+        auto reqCollect = collectPragueBlockRequests(
+            postTxState, blockInfo, profile.revision, vm, hashImpl, blockHashes, result.receipts);
+        if (reqCollect.error)
+            result.requestsError = *reqCollect.error;
+        else
+            result.requests = std::move(reqCollect.requests);
+
+        // collectPragueBlockRequests mutates postTxState in place (evmone block_state).
+        // Do not merge reqCollect.stateDiff into preStatePairs: accumulated diff drops
+        // zero-valued storage clears (EIP-7002 count/head/tail reset after block-end).
+        preStatePairs.clear();
+        preStatePairs.reserve(postTxState.accounts().size());
+        for (auto const& [addr, acc] : postTxState.accounts())
+            preStatePairs.emplace_back(addr, acc);
+    }
+
+    // preStatePairs already includes tx + block-end request mutations; do not re-apply
+    // accumulatedDiff (evmone: single block_state mutated in place).
     bool const eip158 = profile.revision.revision >= EVMC_SPURIOUS_DRAGON;
     auto postView =
-        buildPostStateView(preStatePairs, accumulatedDiff, true, blockInfo.coinbase, eip158);
+        buildPostStateView(preStatePairs, accumulatedDiff, false, blockInfo.coinbase, eip158);
 
     if (auto const reward = miningReward(profile.revision.revision))
     {

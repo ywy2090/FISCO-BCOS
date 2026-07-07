@@ -32,6 +32,14 @@ public:
 
     virtual std::optional<Account> get_account(const evmc_address& address) const = 0;
 
+    /// Cheap existence probe. The default derives from get_account (which ledger-backed
+    /// views implement as a multi-read full load, code included) — backends that can
+    /// answer existence with a single read should override this.
+    [[nodiscard]] virtual bool account_exists(const evmc_address& address) const
+    {
+        return get_account(address).has_value();
+    }
+
     [[nodiscard]] virtual bcos::u256 get_balance(const evmc_address& address) const
     {
         auto const account = get_account(address);

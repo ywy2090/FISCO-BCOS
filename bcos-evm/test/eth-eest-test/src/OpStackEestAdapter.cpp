@@ -424,11 +424,13 @@ OpStackEestFixture adaptStateFixture(pt::ptree const& fixtureJson, std::string c
     {
         input.blockInfo.baseFee = 0;
     }
-    // Store access list in fixture and wire pointer for OPStack intrinsic gas + warm-up.
+    // Access list ownership now travels with the request (shared_ptr); the fixture copy
+    // stays for diagnostics/inspection.
     fixture.storedAccessList = std::move(accessList);
     if (!fixture.storedAccessList.empty())
     {
-        input.accessList = &fixture.storedAccessList;
+        input.accessList =
+            std::make_shared<bcos::evm::Eip2930AccessList const>(fixture.storedAccessList);
     }
 
     // 6. Parse post → expectedPost and expectSuccess

@@ -215,10 +215,9 @@ inline void fillWeb3Fields(protocol::Transaction const& tx, OpStackMessageReques
 {
     auto const resolved = executor::resolveWeb3AccessList(tx);
     input.web3TypedTxKind = resolved.web3TypedTxKind;
-    if (resolved.accessList)
-    {
-        input.accessList = resolved.accessList.get();
-    }
+    // Transfer ownership into the request: `resolved` is a local, so storing .get()
+    // here would dangle as soon as this function returns (use-after-free).
+    input.accessList = resolved.accessList;
     if (input.web3TypedTxKind ==
         bcos::evm::toWeb3TypedTxKindValue(bcos::evm::Web3TypedTxKind::EIP7702))
     {

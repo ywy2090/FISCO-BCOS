@@ -196,7 +196,7 @@ void applyAuthorizations(state::State& state,
             continue;
         }
 
-        if (state.get_account(authority).has_value())
+        if (state.account_exists(authority))
         {
             state.add_refund(PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST);
         }

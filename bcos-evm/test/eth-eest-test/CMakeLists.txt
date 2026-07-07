@@ -95,6 +95,7 @@ add_reference_test(EestForkInferenceTest test/EestForkInferenceTest.cpp)
 add_reference_test(EestStateFullManifestTest test/EestStateFullManifestTest.cpp)
 add_reference_test(BlockchainTestLoaderTest test/BlockchainTestLoaderTest.cpp)
 add_reference_test(BlockValidationTest test/BlockValidationTest.cpp)
+target_link_libraries(BlockValidationTest PRIVATE bcos-evm-specs-tests-eth)
 target_include_directories(BlockValidationTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_executable(EthMessageAdapterTest test/EthMessageAdapterTest.cpp)

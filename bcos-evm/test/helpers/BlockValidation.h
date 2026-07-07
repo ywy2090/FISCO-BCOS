@@ -68,20 +68,37 @@ inline uint64_t maxBlobGasPerBlock(BlobParams const& p)
     return uint64_t(p.max) * GAS_PER_BLOB;
 }
 
-/// evmone: calc_excess_blob_gas (Cancun/Prague form; EIP-7918 Osaka refinement deferred to M3).
-inline uint64_t calcExcessBlobGas(evmc_revision /*rev*/, BlobSchedule const& schedule,
-    uint64_t parentBlobGasUsed, uint64_t parentExcessBlobGas)
+/// evmone: calc_excess_blob_gas (EIP-4844; EIP-7918 reserve-price branch from Osaka).
+inline uint64_t calcExcessBlobGas(evmc_revision rev, BlobSchedule const& schedule,
+    std::string_view network, uint64_t parentBlobGasUsed, uint64_t parentExcessBlobGas,
+    uint64_t parentBaseFeePerGas)
 {
-    BlobParams const p = blobParamsFor(schedule, "Cancun");
+    BlobParams const p = blobParamsFor(schedule, network);
     uint64_t const targetGas = uint64_t(p.target) * GAS_PER_BLOB;
-    uint64_t const sum = parentExcessBlobGas + parentBlobGasUsed;
-    return sum < targetGas ? 0 : sum - targetGas;
+    uint64_t const parentBlobGas = parentExcessBlobGas + parentBlobGasUsed;
+    if (parentBlobGas < targetGas)
+        return 0;
+
+    if (rev >= EVMC_OSAKA)
+    {
+        constexpr uint64_t BLOB_BASE_COST = 1u << 13;  // EIP-7918
+        uint64_t const blobBaseFee = computeBlobGasPrice(p, parentExcessBlobGas);
+        uint64_t const targetBlobGasPrice = GAS_PER_BLOB * blobBaseFee;
+        uint64_t const baseBlobTxPrice = BLOB_BASE_COST * parentBaseFeePerGas;
+        if (baseBlobTxPrice > targetBlobGasPrice)
+        {
+            uint64_t const scheduleDelta = uint64_t(p.max - p.target);
+            return parentExcessBlobGas + parentBlobGasUsed * scheduleDelta / uint64_t(p.max);
+        }
+    }
+
+    return parentBlobGas - targetGas;
 }
 
 /// Validate block-level consensus rules unrelated to individual transactions.
 /// Returns nullopt if valid, else a BlockError code string.
 inline std::optional<std::string> validateBlock(evmc_revision rev, BlobSchedule const& schedule,
-    TestBlock const& tb, TestBlockHeader const* parent)
+    std::string_view network, TestBlock const& tb, TestBlockHeader const* parent)
 {
     auto const& h = tb.expectedBlockHeader;
 
@@ -125,8 +142,9 @@ inline std::optional<std::string> validateBlock(evmc_revision rev, BlobSchedule 
     {
         if (!tb.inputBlobGasUsed.has_value() || !tb.inputExcessBlobGas.has_value())  // #11
             return BlockError::INCORRECT_BLOCK_FORMAT;
-        uint64_t const expectedExcess = calcExcessBlobGas(rev, schedule,  // #12
-            parent->blobGasUsed.value_or(0), parent->excessBlobGas.value_or(0));
+        uint64_t const expectedExcess = calcExcessBlobGas(rev, schedule, network,  // #12
+            parent->blobGasUsed.value_or(0), parent->excessBlobGas.value_or(0),
+            static_cast<uint64_t>(parent->baseFeePerGas));
         if (tb.inputExcessBlobGas.value() != expectedExcess)
             return BlockError::INCORRECT_EXCESS_BLOB_GAS;
     }

@@ -534,8 +534,10 @@ GstPostStateView buildPostStateView(
         for (auto const& [address, account] : stateDiff.accounts)
         {
             auto& merged = accounts[address];
-            merged.nonce = account.nonce;
-            merged.balance = account.balance;
+            if (account.nonceDirty)
+                merged.nonce = account.nonce;
+            if (account.balanceDirty)
+                merged.balance = account.balance;
             if (!account.code.empty() || account.codeDirty)
             {
                 merged.code = account.code;
