@@ -20,6 +20,7 @@ add_library(bcos-evm-specs-tests-core STATIC
     src/EestForkInference.cpp
     src/EestStateFullManifest.cpp
     src/Eip7702StrictTxValidator.cpp
+    src/BlockchainTestLoader.cpp
 )
 
 target_include_directories(bcos-evm-specs-tests-core PUBLIC
@@ -92,6 +93,7 @@ add_reference_test(StateTestAssertTest test/StateTestAssertTest.cpp)
 add_reference_test(EestGranularCliTest test/EestGranularCliTest.cpp)
 add_reference_test(EestForkInferenceTest test/EestForkInferenceTest.cpp)
 add_reference_test(EestStateFullManifestTest test/EestStateFullManifestTest.cpp)
+add_reference_test(BlockchainTestLoaderTest test/BlockchainTestLoaderTest.cpp)
 
 add_executable(EthMessageAdapterTest test/EthMessageAdapterTest.cpp)
 target_link_libraries(EthMessageAdapterTest PRIVATE bcos-evm-specs-tests-eth)
