@@ -4,7 +4,6 @@
 #include "Web3SignedTxEncoder.h"
 #include "bcos-codec/rlp/RLPDecode.h"
 #include "bcos-codec/rlp/RLPEncode.h"
-#include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
@@ -13,6 +12,7 @@
 #include "bcos-evm/opstack/fee/RollupCost.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"
 #include "bcos-evm/opstack/types/OpStackBlockHeaderExtension.h"
+#include "bcos-evm/storage/LedgerBlockInfo.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/executor/OpStackTxType.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
@@ -107,7 +107,7 @@ inline void fillGasCaps(protocol::Transaction const& tx, OpStackMessageRequest& 
 inline state::BlockInfo buildOpStackBlockInfo(
     protocol::BlockHeader const& blockHeader, ledger::LedgerConfig const& ledgerConfig)
 {
-    auto blockInfo = state::buildFiscoBlockInfo(blockHeader, ledgerConfig);
+    auto blockInfo = state::buildBlockInfoFromHeader(blockHeader, ledgerConfig);
     auto const fees = requireOpStackHeaderFees(blockHeader);
     blockInfo.baseFee = fees.baseFee;
     blockInfo.blobBaseFee = calcOpStackBlobBaseFee(fees.excessBlobGas);

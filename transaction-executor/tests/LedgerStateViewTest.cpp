@@ -1,9 +1,9 @@
-#include "bcos-evm/bcos/FiscoStateView.h"
+#include "bcos-evm/storage/LedgerStateView.h"
 #include "../bcos-transaction-executor/RollbackableStorage.h"
 #include "TestMemoryStorage.h"
 #include "bcos-crypto/hash/Keccak256.h"
-#include "bcos-evm/bcos/FiscoBlockInfo.h"
-#include "bcos-evm/bcos/StateDiffApplier.h"
+#include "bcos-evm/storage/LedgerBlockInfo.h"
+#include "bcos-evm/storage/StateDiffApplier.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/LedgerTypeDef.h"
 #include "bcos-ledger/LedgerMethods.h"
@@ -30,7 +30,7 @@ evmc_bytes32 bytes32FromLastByte(uint8_t value)
 }
 }  // namespace
 
-BOOST_AUTO_TEST_SUITE(FiscoStateViewTest)
+BOOST_AUTO_TEST_SUITE(LedgerStateViewTest)
 
 BOOST_AUTO_TEST_CASE(read_account_from_storage)
 {
@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(read_account_from_storage)
     auto const value = bytes32FromLastByte(0x09);
     task::syncWait(account.setStorage(slot, value));
 
-    state::FiscoStateView view(rollbackableStorage, false, *hashImpl);
+    state::LedgerStateView view(rollbackableStorage, false, *hashImpl);
     auto loaded = view.get_account(address);
 
     BOOST_REQUIRE(loaded.has_value());
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(build_block_info_and_hash_reader)
     ledgerConfig.setGasLimit({30'000'000, 0});
     ledgerConfig.setChainId(toEvmC(bcos::u256(2025)));
 
-    auto blockInfo = state::buildFiscoBlockInfo(blockHeader, ledgerConfig);
+    auto blockInfo = state::buildBlockInfoFromHeader(blockHeader, ledgerConfig);
     BOOST_CHECK_EQUAL(blockInfo.number, 100);
     BOOST_CHECK_EQUAL(blockInfo.timestamp, 123456);
     BOOST_CHECK_EQUAL(blockInfo.gasLimit, 30'000'000);
@@ -135,7 +135,8 @@ BOOST_AUTO_TEST_CASE(build_block_info_and_hash_reader)
         storage2::writeOne(storage, executor_v1::StateKey{ledger::SYS_NUMBER_2_HASH, "99"},
             storage::Entry(bcos::concepts::bytebuffer::toView(hash))));
 
-    auto blockHashes = state::buildFiscoBlockHashes(rollbackableStorage, blockHeader.number());
+    auto blockHashes =
+        state::buildBlockHashesFromStorage(rollbackableStorage, blockHeader.number());
     auto loadedHash = blockHashes(99);
     BOOST_CHECK_EQUAL_COLLECTIONS(
         loadedHash.bytes, loadedHash.bytes + 32, hash.begin(), hash.end());

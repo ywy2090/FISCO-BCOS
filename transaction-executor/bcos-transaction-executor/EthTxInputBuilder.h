@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Web3Eip7702Decoder.h"
-#include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
+#include "bcos-evm/storage/LedgerBlockInfo.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
@@ -15,7 +15,7 @@ namespace bcos::evm::eth_tx
 inline state::BlockInfo buildEthBlockInfo(
     protocol::BlockHeader const& blockHeader, ledger::LedgerConfig const& ledgerConfig)
 {
-    auto blockInfo = state::buildFiscoBlockInfo(
+    auto blockInfo = state::buildBlockInfoFromHeader(
         blockHeader, ledgerConfig, [](int64_t timestamp) { return timestamp / 1000; });
     blockInfo.baseFee = u256(std::get<0>(ledgerConfig.gasPrice()));
     return blockInfo;

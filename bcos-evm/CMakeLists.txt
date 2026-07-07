@@ -6,13 +6,21 @@ include(GNUInstallDirs)
 file(GLOB_RECURSE BCOS_EVM_ETH_SOURCES CONFIGURE_DEPENDS eth/*.cpp)
 file(GLOB_RECURSE BCOS_EVM_BCOS_SOURCES CONFIGURE_DEPENDS bcos/*.cpp)
 file(GLOB_RECURSE BCOS_EVM_OP_SOURCES CONFIGURE_DEPENDS opstack/*.cpp)
+file(GLOB_RECURSE BCOS_EVM_STORAGE_SOURCES CONFIGURE_DEPENDS storage/*.cpp)
 
 add_library(bcos-evm-eth STATIC ${BCOS_EVM_ETH_SOURCES})
+add_library(bcos-evm-storage STATIC ${BCOS_EVM_STORAGE_SOURCES})
 add_library(bcos-evm-bcos STATIC ${BCOS_EVM_BCOS_SOURCES})
 add_library(bcos-evm-op STATIC ${BCOS_EVM_OP_SOURCES})
 add_library(bcos-evm ALIAS bcos-evm-bcos)
 
 target_include_directories(bcos-evm-eth PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+target_include_directories(bcos-evm-storage PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -40,15 +48,24 @@ target_link_libraries(bcos-evm-eth PUBLIC
     codec
 )
 
+target_link_libraries(bcos-evm-storage PUBLIC
+    bcos-evm-eth
+    bcos-framework
+    bcos-task
+    bcos-crypto
+    ledger
+)
+
 target_link_libraries(bcos-evm-bcos PUBLIC
     bcos-evm-eth
+    bcos-evm-storage
 )
 
 target_link_libraries(bcos-evm-op PUBLIC
     bcos-evm-eth
 )
 
-install(TARGETS bcos-evm-eth bcos-evm-bcos bcos-evm-op EXPORT fiscobcosTargets
+install(TARGETS bcos-evm-eth bcos-evm-storage bcos-evm-bcos bcos-evm-op EXPORT fiscobcosTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(DIRECTORY "include/bcos-evm" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")

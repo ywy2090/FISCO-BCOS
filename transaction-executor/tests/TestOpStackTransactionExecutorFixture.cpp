@@ -292,6 +292,14 @@ public:
         bytes code{0xfe};
         co_await account.setCode(code, "", crypto::HashType{});
     }
+
+    task::Task<void> seedStopTarget(evmc_address const& target)
+    {
+        ledger::account::EVMAccount account(storage, target, false);
+        co_await account.create();
+        bytes code{0x00};
+        co_await account.setCode(code, "", crypto::HashType{});
+    }
 };
 
 BOOST_FIXTURE_TEST_SUITE(OpStackTransactionExecutorFixture, OpStackExecutorFixtureHarness)
@@ -592,12 +600,38 @@ BOOST_AUTO_TEST_CASE(deposit_failure_reverts_but_keeps_mint)
     }());
 }
 
+BOOST_AUTO_TEST_CASE(eth_call_skips_state_diff_persistence)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto const sender = addressFromLastByte(0x71);
+        auto const target = addressFromLastByte(0x72);
+        co_await seedOpFeeParams(storage);
+        co_await seedSender(sender, 300'000, "0");
+        co_await seedStopTarget(target);
+
+        auto tx = makeEip1559Tx(transactionFactory, sender, target, 50'000);
+        auto header = makeBlockHeader();
+        auto receipt = co_await executor.executeTransaction(
+            storage, header, *tx, contextId++, ledgerConfig, true);
+
+        BOOST_REQUIRE(receipt);
+        BOOST_CHECK_EQUAL(receipt->status(), 0);
+
+        ledger::account::EVMAccount senderAccount(storage, sender, false);
+        BOOST_CHECK_EQUAL(co_await senderAccount.balance(), u256(300'000));
+        BOOST_CHECK_EQUAL((co_await senderAccount.nonce()).value(), "0");
+
+        ledger::account::EVMAccount l1Recipient(storage, OP_L1_FEE_RECIPIENT, false);
+        BOOST_CHECK_EQUAL(co_await l1Recipient.balance(), u256(0));
+    }());
+}
+
 BOOST_AUTO_TEST_CASE(hard_failure_status_propagates_without_state_commit)
 {
     task::syncWait([this]() -> task::Task<void> {
         BOOST_TEST_MESSAGE(
-            "Executor commits stateDiff only on SUCCESS/REVERT; INVALID hard failures keep "
-            "storage unchanged while still reporting gas/L1 meta on the receipt.");
+            "Executor commits stateDiff on SUCCESS/REVERT only; eth_call and INVALID hard "
+            "failures keep storage unchanged while still reporting gas/L1 meta on the receipt.");
 
         auto const sender = addressFromLastByte(0x61);
         auto const target = addressFromLastByte(0x62);

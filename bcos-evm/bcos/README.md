@@ -19,7 +19,7 @@
 | `ports/ChainPrecompilePort.h` | 链精编译分发 |
 | `FiscoPolicy.h` | Revision + feature flag 掩码 |
 | `FiscoPrepareTransaction.h` | FISCO `prepareTransaction()` warm-entry wrapper |
-| `FiscoStateView.*` | FISCO 状态视图适配 |
+| `../storage/LedgerStateView.*` | 三链共用 ledger/storage 读适配（见 `bcos-evm-storage`） |
 
 ## 执行流
 

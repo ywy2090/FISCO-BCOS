@@ -14,7 +14,7 @@ add_executable(test-transaction-executor ${SOURCES})
 
 find_package(Boost REQUIRED serialization unit_test_framework)
 
-target_link_libraries(test-transaction-executor transaction-executor executor ledger protocol-tars bcos-framework rpc evmone::evmone bcos-evm Boost::unit_test_framework)
+target_link_libraries(test-transaction-executor transaction-executor executor ledger protocol-tars bcos-framework bcos-evm-storage rpc evmone::evmone bcos-evm Boost::unit_test_framework)
 target_include_directories(test-transaction-executor PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../bcos-evm/test
 )
@@ -72,6 +72,7 @@ target_link_libraries(test-eth-transaction-executor-fixture PRIVATE
     transaction-executor
     protocol-tars
     bcos-evm-eth
+    bcos-evm-storage
     bcos-framework
     ledger
     executor
@@ -98,6 +99,7 @@ target_link_libraries(test-opstack-transaction-executor-fixture PRIVATE
     transaction-executor
     protocol-tars
     bcos-evm
+    bcos-evm-storage
     bcos-framework
     ledger
     executor

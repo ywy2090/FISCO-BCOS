@@ -2,8 +2,6 @@
 
 #include "OpStackTxInputBuilder.h"
 #include "RollbackableStorage.h"
-#include "bcos-evm/bcos/FiscoStateView.h"
-#include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -11,6 +9,9 @@
 #include "bcos-evm/opstack/policy/OpStackForkSchedule.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include "bcos-evm/opstack/settlement/OpStackFeeSettlement.h"
+#include "bcos-evm/storage/LedgerBlockInfo.h"
+#include "bcos-evm/storage/LedgerStateView.h"
+#include "bcos-evm/storage/StateDiffApplier.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-framework/protocol/Transaction.h"
@@ -176,8 +177,12 @@ public:
                     opstack_tx::parseU256Field(m_data->m_transaction.get().maxFeePerGas()),
                     opstack_tx::resolveOpStackBaseFee(m_data->m_blockHeader.get()));
 
-                if (m_data->m_evmcResult->status_code == EVMC_SUCCESS ||
-                    m_data->m_evmcResult->status_code == EVMC_REVERT)
+                // eth_call must not persist; abort paths leave an empty diff (buyGas revert).
+                // Hard vm failures (non-SUCCESS/REVERT) may carry a non-empty fee diff for receipt
+                // meta only — do not apply those to storage (see hard_failure fixture).
+                if (!m_data->m_call && !output.stateDiff.accounts.empty() &&
+                    (m_data->m_evmcResult->status_code == EVMC_SUCCESS ||
+                        m_data->m_evmcResult->status_code == EVMC_REVERT))
                 {
                     co_await state::applyStateDiff(m_data->m_rollbackableStorage, output.stateDiff,
                         false, *m_data->m_executor.get().m_hashImpl,
@@ -196,7 +201,7 @@ public:
             evmc_message message = newEVMCMessage(m_data->m_blockHeader.get().number(),
                 m_data->m_transaction.get(), m_data->m_gasLimit, m_data->m_origin);
 
-            state::FiscoStateView stateView(
+            state::LedgerStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
             OpStackMessageRequest input;
@@ -209,7 +214,7 @@ public:
             input.revisionConfig = bcos::evm::makeIsthmusRevisionConfig();
             input.blockInfo = opstack_tx::buildOpStackBlockInfo(
                 m_data->m_blockHeader.get(), m_data->m_ledgerConfig.get());
-            input.blockHashes = state::buildFiscoBlockHashes(
+            input.blockHashes = state::buildBlockHashesFromStorage(
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
             opstack_tx::fillGasCaps(m_data->m_transaction.get(), input);
             opstack_tx::fillWeb3Fields(m_data->m_transaction.get(), input);

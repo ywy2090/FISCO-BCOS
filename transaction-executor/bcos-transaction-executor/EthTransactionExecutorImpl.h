@@ -2,12 +2,13 @@
 
 #include "EthTxInputBuilder.h"
 #include "RollbackableStorage.h"
-#include "bcos-evm/bcos/FiscoStateView.h"
-#include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
+#include "bcos-evm/storage/LedgerBlockInfo.h"
+#include "bcos-evm/storage/LedgerStateView.h"
+#include "bcos-evm/storage/StateDiffApplier.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/LogEntry.h"
 #include "bcos-framework/protocol/Transaction.h"
@@ -166,7 +167,7 @@ public:
 
         task::Task<EthMessageResult> applyEthMessageTx()
         {
-            state::FiscoStateView stateView(
+            state::LedgerStateView stateView(
                 m_data->m_rollbackableStorage, false, *m_data->m_executor.get().m_hashImpl);
 
             EthMessageRequest input;
@@ -174,7 +175,7 @@ public:
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
             input.message = m_data->m_message;
-            input.blockHashes = state::buildFiscoBlockHashes(
+            input.blockHashes = state::buildBlockHashesFromStorage(
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
             input.revisionConfig = m_data->m_revisionConfig;
             input.gasPrice = m_data->m_gasPriceLegacy;

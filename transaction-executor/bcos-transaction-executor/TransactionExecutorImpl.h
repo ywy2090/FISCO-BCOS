@@ -8,13 +8,13 @@
 #include "adapters/PrecompiledImpl.h"
 #include "adapters/PrecompiledManager.h"
 #include "bcos-evm/bcos/ApplyFiscoMessage.h"
-#include "bcos-evm/bcos/FiscoBlockInfo.h"
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/bcos/FiscoStateView.h"
 #include "bcos-evm/bcos/FiscoTxFeeSettlement.h"
-#include "bcos-evm/bcos/StateDiffApplier.h"
 #include "bcos-evm/eth/gas/TopLevelGasSettlement.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
+#include "bcos-evm/storage/LedgerBlockInfo.h"
+#include "bcos-evm/storage/LedgerStateView.h"
+#include "bcos-evm/storage/StateDiffApplier.h"
 #include "bcos-executor/src/Web3AccessListResolver.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/protocol/BlockHeader.h"
@@ -243,11 +243,12 @@ public:
             input.vm = std::addressof(m_data->m_vm);
             input.hashImpl = m_data->m_executor.get().m_hashImpl.get();
             input.message = m_data->m_executionContext.message;
-            input.blockInfo = bcos::evm::state::buildFiscoBlockInfo(m_data->m_blockHeader.get(),
-                m_data->m_ledgerConfig.get(), [policy = m_data->m_policy](int64_t timestamp) {
-                    return policy.convertTimestamp(timestamp);
-                });
-            input.blockHashes = bcos::evm::state::buildFiscoBlockHashes(
+            input.blockInfo =
+                bcos::evm::state::buildBlockInfoFromHeader(m_data->m_blockHeader.get(),
+                    m_data->m_ledgerConfig.get(), [policy = m_data->m_policy](int64_t timestamp) {
+                        return policy.convertTimestamp(timestamp);
+                    });
+            input.blockHashes = bcos::evm::state::buildBlockHashesFromStorage(
                 m_data->m_rollbackableStorage, m_data->m_blockHeader.get().number());
             input.revisionConfig = m_data->m_executionContext.revisionConfig;
             input.nonce = m_data->m_nonce;
@@ -272,7 +273,7 @@ public:
             input.accessList = m_data->m_web3AccessListResolved.accessList;
             input.txHash = m_data->m_transaction.get().hash();
 
-            bcos::evm::state::FiscoStateView stateView(m_data->m_rollbackableStorage,
+            bcos::evm::state::LedgerStateView stateView(m_data->m_rollbackableStorage,
                 m_data->m_executionContext.revisionConfig.use_raw_address,
                 *m_data->m_executor.get().m_hashImpl);
             input.stateView = std::addressof(stateView);
