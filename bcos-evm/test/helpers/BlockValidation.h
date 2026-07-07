@@ -28,10 +28,55 @@ inline uint64_t calcBaseFee(uint64_t parentGasLimit, uint64_t parentGasUsed, uin
     return parentBaseFee - delta;
 }
 
-// Forward decls for blob helpers (implemented in Task 1.2, same header).
-uint64_t calcExcessBlobGas(evmc_revision rev, BlobSchedule const& schedule,
-    uint64_t parentBlobGasUsed, uint64_t parentExcessBlobGas);
-BlobParams blobParamsFor(BlobSchedule const& schedule, std::string_view network);
+// ── Blob helpers (EIP-4844) ─────────────────────────────────
+inline BlobParams blobParamsFor(BlobSchedule const& schedule, std::string_view network)
+{
+    if (auto it = schedule.find(std::string(network)); it != schedule.end())
+        return it->second;
+    // Defaults keyed by fork (used when fixture omits an explicit schedule).
+    if (network == "Prague")
+        return BlobParams{6, 9, 5007716};
+    if (network == "Osaka" || network == "Amsterdam")
+        return BlobParams{6, 9, 5007716};
+    return BlobParams{3, 6, 3338477};  // Cancun
+}
+
+inline uint64_t fakeExponential(uint64_t factor, uint64_t numerator, uint64_t denominator)
+{
+    // Sum_{i>=0} factor * (numerator/denominator)^i / i!  (integer approximation, EIP-4844).
+    unsigned __int128 i = 1;
+    unsigned __int128 output = 0;
+    unsigned __int128 numeratorAccum = static_cast<unsigned __int128>(factor) * denominator;
+    while (numeratorAccum > 0)
+    {
+        output += numeratorAccum;
+        numeratorAccum =
+            (numeratorAccum * numerator) / (static_cast<unsigned __int128>(denominator) * i);
+        ++i;
+    }
+    return static_cast<uint64_t>(output / denominator);
+}
+
+inline uint64_t computeBlobGasPrice(BlobParams const& p, uint64_t excessBlobGas)
+{
+    constexpr uint64_t MIN_BLOB_BASE_FEE = 1;
+    return fakeExponential(MIN_BLOB_BASE_FEE, excessBlobGas, p.baseFeeUpdateFraction);
+}
+
+inline uint64_t maxBlobGasPerBlock(BlobParams const& p)
+{
+    return uint64_t(p.max) * GAS_PER_BLOB;
+}
+
+/// evmone: calc_excess_blob_gas (Cancun/Prague form; EIP-7918 Osaka refinement deferred to M3).
+inline uint64_t calcExcessBlobGas(evmc_revision /*rev*/, BlobSchedule const& schedule,
+    uint64_t parentBlobGasUsed, uint64_t parentExcessBlobGas)
+{
+    BlobParams const p = blobParamsFor(schedule, "Cancun");
+    uint64_t const targetGas = uint64_t(p.target) * GAS_PER_BLOB;
+    uint64_t const sum = parentExcessBlobGas + parentBlobGasUsed;
+    return sum < targetGas ? 0 : sum - targetGas;
+}
 
 /// Validate block-level consensus rules unrelated to individual transactions.
 /// Returns nullopt if valid, else a BlockError code string.
@@ -74,9 +119,19 @@ inline std::optional<std::string> validateBlock(evmc_revision rev, BlobSchedule 
             return BlockError::INVALID_BASEFEE_PER_GAS;
     }
 
-    // #11-#13 blob checks: added in Task 1.2.
+    if (rev >= EVMC_CANCUN)
+    {
+        if (!tb.inputBlobGasUsed.has_value() || !tb.inputExcessBlobGas.has_value())  // #11
+            return BlockError::INCORRECT_BLOCK_FORMAT;
+        uint64_t const expectedExcess = calcExcessBlobGas(rev, schedule,  // #12
+            parent->blobGasUsed.value_or(0), parent->excessBlobGas.value_or(0));
+        if (tb.inputExcessBlobGas.value() != expectedExcess)
+            return BlockError::INCORRECT_EXCESS_BLOB_GAS;
+    }
+    else if (tb.inputBlobGasUsed.has_value() || tb.inputExcessBlobGas.has_value())  // #13
+        return BlockError::INCORRECT_BLOCK_FORMAT;
+
     // #14 withdrawals parse, #15 EIP-7934 rlp size: added in Task 1.3.
-    (void)schedule;
     return std::nullopt;
 }
 

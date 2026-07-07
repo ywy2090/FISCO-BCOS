@@ -58,4 +58,51 @@ BOOST_AUTO_TEST_CASE(rejects_ommers_on_paris_plus)
     BOOST_REQUIRE(err.has_value());
     BOOST_CHECK_EQUAL(*err, std::string(BlockError::INCORRECT_BLOCK_FORMAT));
 }
+
+BOOST_AUTO_TEST_CASE(excess_blob_gas_zero_below_target)
+{
+    // Cancun target=3 -> TARGET_BLOB_GAS = 3*131072 = 393216.
+    // parentExcess=0, parentUsed=131072 (1 blob) -> sum < target -> 0
+    BlobSchedule sched;  // empty -> blobParamsFor returns Cancun defaults
+    BOOST_CHECK_EQUAL(calcExcessBlobGas(EVMC_CANCUN, sched, 131072, 0), 0ull);
+}
+
+BOOST_AUTO_TEST_CASE(excess_blob_gas_accumulates_above_target)
+{
+    // parentUsed = 6 blobs = 786432, parentExcess=0, target gas=393216
+    // -> 786432 + 0 - 393216 = 393216
+    BlobSchedule sched;
+    BOOST_CHECK_EQUAL(calcExcessBlobGas(EVMC_CANCUN, sched, 786432, 0), 393216ull);
+}
+
+BOOST_AUTO_TEST_CASE(blob_gas_price_min_at_zero_excess)
+{
+    BlobParams p;                                        // Cancun defaults
+    BOOST_CHECK_EQUAL(computeBlobGasPrice(p, 0), 1ull);  // MIN_BLOB_BASE_FEE
+}
+
+BOOST_AUTO_TEST_CASE(rejects_wrong_excess_blob_gas)
+{
+    TestBlockHeader parent;
+    parent.blockNumber = 0;
+    parent.gasLimit = 20000000;
+    parent.timestamp = 0;
+    parent.baseFeePerGas = 7;
+    parent.gasUsed = 0;
+    parent.blobGasUsed = 786432;
+    parent.excessBlobGas = 0;  // -> expected excess 393216
+    TestBlock tb;
+    auto& h = tb.expectedBlockHeader;
+    h.blockNumber = 1;
+    h.gasLimit = 20000000;
+    h.timestamp = 1;
+    h.baseFeePerGas = calcBaseFee(20000000, 0, 7);
+    h.blobGasUsed = 0;
+    h.excessBlobGas = 999999;  // wrong
+    tb.inputBlobGasUsed = 0;
+    tb.inputExcessBlobGas = 999999;
+    auto err = validateBlock(EVMC_CANCUN, {}, tb, &parent);
+    BOOST_REQUIRE(err.has_value());
+    BOOST_CHECK_EQUAL(*err, std::string(BlockError::INCORRECT_EXCESS_BLOB_GAS));
+}
 }  // namespace bcos::evm::reference_tests
