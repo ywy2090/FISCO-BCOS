@@ -1,3 +1,4 @@
+#include "bcos-evm/eth-eest-test/EestGranularSlowFilter.h"
 #include "bcos-evm/eth-eest-test/EestStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
@@ -190,7 +191,8 @@ int main(int argc, char** argv)
 
     try
     {
-        testing::InitGoogleTest(&argc, argv);
+        testing::FLAGS_gtest_filter = std::string(kEestGranularDefaultGtestFilter);
+        testing::InitGoogleTest(&argc, argv);  // CLI --gtest_filter overrides default
 
         if (argc < 2)
         {
