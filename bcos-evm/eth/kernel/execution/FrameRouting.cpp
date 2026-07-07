@@ -8,7 +8,7 @@
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/state/StateKeyHash.hpp"
 
 namespace bcos::evm::execution

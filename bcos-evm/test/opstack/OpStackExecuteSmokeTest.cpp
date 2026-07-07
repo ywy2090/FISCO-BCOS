@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackExecuteViaHostSmokeTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"

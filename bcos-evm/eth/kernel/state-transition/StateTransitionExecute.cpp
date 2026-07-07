@@ -18,7 +18,7 @@
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Common.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/core/StateTransitionHooks.h"
 #include "eth/gas/GasSettlementTypes.h"
 #include "eth/kernel/state-transition/DeductIntrinsicGas.h"

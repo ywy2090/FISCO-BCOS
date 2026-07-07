@@ -27,7 +27,7 @@
 #include "ModexpGas.h"
 #include "VMInstance.h"
 #include "bcos-codec/wrapper/CodecWrapper.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-executor/src/precompiled/common/Utilities.h"
 #include "bcos-framework/bcos-framework/ledger/LedgerTypeDef.h"
 #include "bcos-framework/executor/ExecutionMessage.h"

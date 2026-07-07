@@ -34,7 +34,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2930AccessList.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"

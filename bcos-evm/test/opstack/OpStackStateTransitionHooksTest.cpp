@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackStateTransitionHooksTest
 
 #include "bcos-evm/opstack/apply/OpStackStateTransitionHooks.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/eip/Eip3860.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"

@@ -4,7 +4,7 @@
 #include "Web3SignedTxEncoder.h"
 #include "bcos-codec/rlp/RLPDecode.h"
 #include "bcos-codec/rlp/RLPEncode.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/kernel/execution/CreateDeployment.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"

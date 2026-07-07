@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE BlobGasBalanceTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"

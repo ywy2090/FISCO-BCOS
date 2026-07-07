@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 

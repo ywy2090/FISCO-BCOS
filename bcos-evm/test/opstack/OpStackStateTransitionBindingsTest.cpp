@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStackStateTransitionBindingsTest
 
 #include "bcos-evm/opstack/apply/OpStackStateTransitionBindings.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/DeductIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/fee/OpStackFloorGas.h"

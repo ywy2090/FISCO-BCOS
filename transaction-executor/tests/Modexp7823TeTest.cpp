@@ -5,7 +5,7 @@
  *  @file Modexp7823TeTest.cpp
  */
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-executor/src/Common.h"
 #include "transaction-executor/bcos-transaction-executor/adapters/PrecompiledImpl.h"
 #include <bcos-crypto/hash/Keccak256.h>

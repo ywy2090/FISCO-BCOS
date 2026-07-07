@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bcos-evm/eth-eest-test/TestStateView.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include <bcos-crypto/interfaces/crypto/Hash.h>

@@ -16,7 +16,7 @@
 
 #define BOOST_TEST_MODULE PrepareStateTest
 #include "bcos-evm/eth/kernel/execution/PrepareState.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos/adapters/InMemoryChainCallTargetAdapter.h"
 #include "fixtures/BlockInfoBuilder.h"

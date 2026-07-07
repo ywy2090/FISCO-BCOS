@@ -34,7 +34,7 @@
 #include "bcos/FiscoRevisionConfig.h"
 #include "bcos/FiscoStateTransitionErrorPolicy.h"
 #include "bcos/FiscoStateTransitionHooks.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/eip/Eip7702.h"
 #include "eth/kernel/EVMCResult.h"
 #include "eth/kernel/state-transition/DeductIntrinsicGas.h"

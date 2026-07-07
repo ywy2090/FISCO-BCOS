@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE RevisionConfigProfileTest
 
 #include "bcos-evm/bcos/FiscoPolicy.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/policy/EthChainPolicy.h"
 #include "bcos-evm/opstack/policy/OpStackIsthmusRevision.h"
 #include <bcos-framework/ledger/Features.h>

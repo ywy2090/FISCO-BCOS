@@ -9,7 +9,7 @@
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-utilities/Common.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include <optional>
 
 namespace bcos::evm::execution

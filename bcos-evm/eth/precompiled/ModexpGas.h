@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-utilities/Common.h"
 #include <evmc/evmc.h>
 #include <cstddef>

@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE CallTargetResolverTest
 
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
-#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/EvmHostHooks.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/kernel/execution/FrameRouting.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"

@@ -1,5 +1,5 @@
 #pragma once
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include <evmc/evmc.h>
 #include <cstdint>
 

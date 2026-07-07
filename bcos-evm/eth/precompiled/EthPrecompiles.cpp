@@ -26,7 +26,7 @@
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/DataConvertUtility.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include <algorithm>
 #include <array>
 #include <cstddef>

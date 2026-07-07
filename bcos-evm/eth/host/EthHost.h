@@ -38,7 +38,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include "bcos-evm/eth/state/Transaction.hpp"

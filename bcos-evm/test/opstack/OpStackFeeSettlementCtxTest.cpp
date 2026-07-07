@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackFeeSettlementCtxTest
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackPostExecuteGas.h"

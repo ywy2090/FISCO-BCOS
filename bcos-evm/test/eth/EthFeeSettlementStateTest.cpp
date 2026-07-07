@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE EthFeeSettlementStateTest
-#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/gas/PostExecuteGasMetering.h"
 #include "bcos-evm/eth/gas/TopLevelGasSettlement.h"

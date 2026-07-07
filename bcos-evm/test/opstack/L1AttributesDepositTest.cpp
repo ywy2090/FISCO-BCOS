@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE L1AttributesDepositTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/fee/OpStackFeeParams.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"

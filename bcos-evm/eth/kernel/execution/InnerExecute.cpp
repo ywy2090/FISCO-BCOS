@@ -46,7 +46,7 @@
 #include "bcos-evm/eth/trace/EvmOpcodeProbe.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-utilities/BoostLog.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/state/BlockInfo.hpp"
 #include "eth/state/StateDiff.hpp"
 #include "eth/state/StateKeyHash.hpp"

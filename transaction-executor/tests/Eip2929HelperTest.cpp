@@ -2,7 +2,7 @@
  * Unit tests for Eip2929Util, Eip2929PrecompileWarm, and Eip2929TransactionPrewarm.
  */
 #include "Eip2929TestHelpers.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/vm/Eip2929AccessState.h"
 #include "bcos-executor/src/vm/Eip2929PrecompileWarm.h"

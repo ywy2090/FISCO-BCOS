@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE OpStackChainCallTargetAdapterTest
 
 #include "bcos-evm/opstack/adapter/OpStackChainCallTargetAdapter.h"
-#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/core/CallTargetTypes.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/execution/CallTargetResolver.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
 #include "bcos-evm/eth/state/State.hpp"

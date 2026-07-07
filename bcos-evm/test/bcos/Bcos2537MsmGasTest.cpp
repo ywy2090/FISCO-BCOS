@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE Bcos2537MsmGasTest
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"
 #include "bcos-evm/eth/precompiled/Eip2537Gas.h"
 #include "bcos-evm/eth/state/State.hpp"

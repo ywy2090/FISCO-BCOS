@@ -7,7 +7,7 @@
  */
 #define BOOST_TEST_MODULE OpStackPreDebitCharacterizationTest
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
 #include "bcos-evm/opstack/fee/OpStackPreDebitPlan.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"

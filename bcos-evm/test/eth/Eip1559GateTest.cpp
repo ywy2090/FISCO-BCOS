@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Eip1559GateTest
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
-#include "bcos-evm/eth/RevisionConfig.h"
 #include "bcos-evm/eth/apply/ApplyEthMessage.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"

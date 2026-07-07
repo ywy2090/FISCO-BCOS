@@ -29,7 +29,7 @@
 #include "bcos-evm/opstack/types/OpStackDepositTx.h"
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-utilities/Common.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/kernel/EVMCResult.h"
 #include "eth/state/BlockInfo.hpp"
 #include "eth/state/State.hpp"

@@ -20,7 +20,7 @@
 #include "bcos-task/Task.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Common.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/eip/Eip7702.h"
 #include "eth/gas/GasSettlementTypes.h"
 #include "eth/kernel/EVMCResult.h"

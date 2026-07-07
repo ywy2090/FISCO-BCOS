@@ -6,7 +6,7 @@
  */
 
 #include "../../bcos-executor/test/unittest/evmone/compat/CompatTestFixture.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-executor/src/Common.h"
 #include "bcos-executor/src/vm/EvmPrecompiledAddress.h"
 #include "bcos-executor/src/vm/VMInstance.h"

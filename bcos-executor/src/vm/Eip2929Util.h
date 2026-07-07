@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-framework/ledger/Features.h"
 #include <evmc/evmc.h>
 

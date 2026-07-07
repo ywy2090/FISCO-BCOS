@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE OpStackSettlementTest
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip1559Gate.h"
 #include "bcos-evm/eth/kernel/EVMCResult.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"

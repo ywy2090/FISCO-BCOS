@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE OpStack7702ExecuteViaHostPropagationTest
 
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/gas/TxIntrinsicGas.h"
 #include "bcos-evm/eth/kernel/execution/InnerExecute.h"

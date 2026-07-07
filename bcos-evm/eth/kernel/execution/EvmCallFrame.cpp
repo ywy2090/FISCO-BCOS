@@ -53,9 +53,9 @@
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-utilities/BoostLog.h"
 #include "bcos-utilities/Common.h"
-#include "eth/RevisionConfig.h"
 #include "eth/core/CallTargetTypes.h"
 #include "eth/core/EvmHostHooks.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/state/StateKeyHash.hpp"
 #include <cstring>
 #include <optional>

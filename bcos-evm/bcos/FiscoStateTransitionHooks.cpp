@@ -27,7 +27,7 @@
 #include "bcos-framework/protocol/Exceptions.h"
 #include "bcos/ApplyFiscoMessage.h"
 #include "bcos/FiscoRevisionConfig.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/eip/Eip7702.h"
 #include "eth/kernel/EVMCResult.h"
 #include "eth/state/BlockInfo.hpp"

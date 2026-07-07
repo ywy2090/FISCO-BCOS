@@ -2,7 +2,7 @@
 
 #include "../../../transaction-executor/bcos-transaction-executor/OpStackTxInputBuilder.h"
 #include "bcos-crypto/interfaces/crypto/Hash.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/opstack/apply/ApplyOpStackMessage.h"
 #include "bcos-evm/opstack/policy/OpStackConstants.h"

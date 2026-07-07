@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE TxFeeSettlementTest
 #include "bcos-evm/eth/gas/TxFeeSettlement.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip1559.h"
 #include <boost/test/included/unit_test.hpp>
 
