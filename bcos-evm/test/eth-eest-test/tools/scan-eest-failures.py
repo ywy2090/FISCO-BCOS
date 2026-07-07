@@ -377,6 +377,8 @@ def main() -> int:
     print(f"Wrote {inv_md}")
     print(f"Wrote {bucket_json}")
     print(f"Wrote {bucket_md}")
+    if all_failures:
+        return 1
     return 0
 
 

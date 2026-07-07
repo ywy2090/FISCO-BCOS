@@ -13,13 +13,13 @@
 
 | Corpus | EEST v5.4.0 | bcos-evm integration | evmone integration | Primary gap |
 |--------|-------------|----------------------|--------------------|-------------|
-| **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** via manifest (**4140/4140**); granular H1–H7 harness wired | **Full tree** recursive scan | Manifest parity **closed**; WP-HIST for 12 non-manifest dirs + full-tree granular parity |
+| **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular **2722/2722** (H1–H7 + WP-HIST harness) | **Full tree** recursive scan | Manifest + default-profile granular **closed**; WP-HIST phase 2 = expand historical post coverage |
 | **State (static GST)** | 58 suites under `static/state_tests/` | **19 suites** in `eth-eest-static-regression-full.json` | Included in statetest scan | Partial static coverage; no nightly full static |
 | **Transaction tests** | `transaction_tests/prague/eip7702_set_code_tx` | **106/106 pass** (`eth-eest-tx-full.json`) | **No dedicated runner** | bcos ahead |
 | **Blockchain tests** | 12 fork dirs + `static/` | Smoke only (`--limit 10`); runner partial | **Full tree** | RLP/engine payload + multi-block parity |
 | **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Not integrated** | Partial (engine variants) | Format + CL payload decoding |
 
-**Bottom line:** Manifest state-full **4140/4140** (2026-07-07). Harness H2–H7 complete (slow filter, CLI, fork inference, Berlin/London/Paris profiles, SKIP, failure buckets). Remaining work: **full-tree granular parity** (historical forks), **blockchain harness**, optional H8 trace.
+**Bottom line:** Manifest state-full **4140/4140** and granular full-tree **2722/2722** (2026-07-07, default profiles incl. Homestead/Berlin). Harness H2–H7 complete; nightly CI gates `--granular-full`. Remaining: **WP-HIST phase 2** (broader historical post runs), **blockchain harness**, optional H8 trace.
 
 ---
 
@@ -53,7 +53,7 @@
 | H2 | Slow-test default filter | `EestGranularSlowFilter.h` | `FLAGS_gtest_filter` in statetest.cpp | ✅ |
 | H3 | Multi-path + `-k` | `EestGranularCli` | CLI paths + `-k` | ✅ |
 | H4 | Per-case fork inference | `EestForkInference` + manifest profile map | post keys → `to_rev()` (no profile filter) | ✅ (diff: profile filter → SKIP) |
-| H5 | Berlin/London/Paris profiles | `ForkProfileRegistry` | `to_rev()` full history | ✅ (partial history) |
+| H5 | Historical fork profiles | `ForkProfileRegistry` (`eth-homestead`, `eth-berlin`, `eth-london`, `eth-paris`) | `to_rev()` full history | ✅ default granular appends Homestead/Berlin; targeted `shouldRunWpHistPost` |
 | H6 | Unsupported → SKIP | `tryLoadGeneralStateTestFile` | throw on bad JSON | ✅ |
 | H7 | Failure bucket reports | `scan-eest-failures.py` + `bucket-failures.py` | — | ✅ |
 | H8 | `--trace` | deferred | `--trace` VM option | ⏸ Phase 0 |
@@ -104,8 +104,8 @@ Legend:
 | | `eip198_modexp_precompile` | — | ❌ | — | — | 🔵 | ✅ auto |
 | **constantinople** | `eip1014_create2` | — | ❌ | — | — | 🔵 | ✅ auto |
 | | `eip145_bitwise_shift` | — | ❌ | — | — | 🔵 | ✅ auto |
-| **frontier** | — | — | — | — | — | — | ✅ auto |
-| **homestead** | — | — | — | — | — | — | ✅ auto |
+| **frontier** | `create`, `opcodes`, `precompiles`, … | — | ❌ | — | — | 🔵 granular | ✅ auto |
+| **homestead** | `coverage`, `identity_precompile` | — | ❌ | — | — | 🔵 granular | ✅ auto |
 
 ¹ Capability row `eip7623-calldata-cost` exists; state-full entry currently tags `eip2929-runtime-warm` (manifest metadata drift).  
 ² Covered indirectly via static regression or probe manifests, not native EIP directory.
@@ -122,6 +122,8 @@ Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Runner: `EthExe
 | All manifest dirs | — | — | 0 | 100% | incl. 4844, 7623, 7702, 6780, 7825 |
 
 **Granular manifest-16 scan** (`scan-eest-failures.py --manifest-16`, 2026-07-07): **0 subtest failures**, 210 JSON files.
+
+**Granular full-tree scan** (`scan-eest-failures.py --granular-full`, 2026-07-07): **2722/2722 JSON files clean**, 0 subtest failures. Default profiles: manifest (Shanghai/Cancun/Prague/Osaka) + `eth-homestead` + `eth-berlin`; historical posts filtered via `shouldRunWpHistPost`. Nightly CI: `specs-tests-nightly.yml` (hard gate).
 
 Historical (2026-07-06): **3075/4140 (74.3%)** — superseded.
 
@@ -259,10 +261,11 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 | Cancun | `eth-cancun` | ✅ | 🔵 | |
 | Prague | `eth-prague` | ✅ (2537) | 🔵 | 7623/7702 run at `eth-osaka` profile |
 | Osaka | `eth-osaka` | ✅ | 🔵 | |
-| Berlin | `eth-berlin` (H5) | ❌ manifest | 🔵 granular | WP-HIST |
-| London | `eth-london` (H5) | static/probe only | 🔵 | 1559 via static |
-| Paris / Merge | `eth-paris` (H5) | ❌ | 🔵 | Merge alias |
-| Istanbul / Byzantium / Constantinople | ❌ missing | ❌ | 🔵 | |
+| Homestead | `eth-homestead` (H5) | ❌ manifest | 🔵 granular | Default granular profile; targeted post filter |
+| Berlin | `eth-berlin` (H5) | ❌ manifest | 🔵 granular | Default granular profile; targeted post filter |
+| London | `eth-london` (H5) | static/probe only | 🔵 | Registry only; not in default granular list |
+| Paris / Merge | `eth-paris` (H5) | ❌ | 🔵 | Registry only; Merge alias |
+| Istanbul / Byzantium / Constantinople | ❌ missing | ❌ | 🔵 | No dedicated profile; granular via manifest-fork posts |
 | Amsterdam | ❌ missing | ❌ | ❌ | evmone supports; bcos does not |
 | OsakaToBPO1AtTime15k, BPO*, BPO2ToAmsterdamAtTime15k | ❌ missing | ❌ | ❌ | evmone `blob_schedule.cpp` |
 
@@ -293,7 +296,7 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 | Fixture pin | v5.4.0 CI; bal@v5.6.1 on some jobs | v5.4.0 |
 | Discovery | Zero-config directory scan | Manifest + granular (H3 multi-path, H4 fork inference) |
 | PR gate | gtest_filter exclusions | `specs-tests-smoke` (39 CTests @ 2026-07-07) |
-| Nightly | Full corpus | `specs-tests-full` + `EthEestStateGranularFull`; manifest **4140/4140** |
+| Nightly | Full corpus | `specs-tests-full` + `--granular-full` gate; manifest **4140/4140**, granular **2722/2722** |
 | Failure taxonomy | GTest pass/fail | H7 bucket reports; manifest `assertLevels` (no logsHash in granular default) |
 | OPStack | — | Parallel `opstack/` manifests + skip-list |
 
@@ -308,7 +311,8 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] CLI multi-path + `-k` (H3)
 - [x] Failure bucket reports (H7)
 - [ ] CTest: `EthEestBlockchainRunner --fixtures .../blockchain_tests` (no limit, nightly)
-- [ ] CI job artifact upload for `--granular-full` / `--manifest-16` reports
+- [x] CI job artifact upload for `--granular-full` reports (`specs-tests-nightly.yml`)
+- [x] Nightly `--granular-full` hard gate (`specs-tests-nightly.yml`, 2026-07-07)
 - [ ] Pin bump policy (track evmone v5.6.x bal)
 
 ### P0 — Parity (manifest — closed 2026-07-07)
@@ -320,8 +324,9 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] `eip7825_transaction_gas_limit_cap` — **35/35**
 - [x] `eip7823_modexp_upper_bounds` — **23/23**
 - [x] state-full aggregate — **4140/4140**
-- [ ] WP-HIST: Berlin/London/Paris granular execution parity
-- [ ] Full-tree granular nightly (historical dirs)
+- [x] Full-tree granular nightly gate — **2722/2722** @ default profiles (2026-07-07)
+- [x] WP-HIST harness phase 1 — `eth-homestead` profile, default append Homestead/Berlin, `shouldRunWpHistPost`, revision-aware GST state root
+- [ ] WP-HIST phase 2 — append London/Paris to defaults; relax post filters; fix parity as new posts run
 - [ ] Execution trace Phase 0 / H8 `--trace`
 
 ### P1 — Blockchain harness
@@ -334,7 +339,7 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 ### P2 — Fork / corpus expansion
 
 - [ ] Add manifest rows or rely on granular for: `eip7594`, `eip7939`, byzantium dirs
-- [ ] WP-HIST: berlin/london/paris execution parity (profiles H5 done)
+- [ ] WP-HIST phase 2: London/Paris default profiles + broader historical post coverage
 - [ ] `Amsterdam` + BPO transition profiles
 - [ ] Static suite full sweep (58 suites) or document intentional subset
 - [ ] `blockchain_tests_engine*` integration
@@ -363,10 +368,13 @@ ctest -L 'specs-tests-full' --test-dir build-ref -C Debug --output-on-failure
 # Nightly granular full tree
 ctest -R EthEestStateGranularFull --test-dir build-ref -C Debug --output-on-failure
 
-# Failure bucket scan (manifest-15 dirs)
+# Failure bucket scan (manifest-16 dirs)
 python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py --manifest-16
 
-# evmone-style directory scan (default manifest-16 profiles)
+# Full-tree granular scan (nightly gate)
+python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py --granular-full --build-dir build-ref
+
+# evmone-style directory scan (default manifest + Homestead/Berlin profiles)
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestStateGranular \
   $EEST_ROOT/fixtures/state_tests
 

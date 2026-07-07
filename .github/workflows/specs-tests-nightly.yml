@@ -63,8 +63,7 @@ jobs:
           build/bcos-evm/test/eth-eest-test/EthExecutionSpecTransactionTests \
             --manifest bcos-evm/test/eth-eest-test/manifests/eth-eest-tx-full.json \
             --eest-root bcos-evm/test/eth-eest-test/assets/eest
-      - name: Run EthEestStateGranular full tree (informational)
-        continue-on-error: true
+      - name: Run EthEestStateGranular full tree
         run: |
           python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py \
             --granular-full --build-dir build
