@@ -1,17 +1,20 @@
+#include "bcos-evm/eth-eest-test/BlockchainTestLoader.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
-#include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
-#include "bcos-evm/eth-eest-test/TestStateView.h"
+#include "bcos-evm/eth-eest-test/ReceiptForRoot.h"
+#include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include "helpers/BlockTransition.h"
+#include "helpers/BlockValidation.h"
 
 #include "bcos-crypto/hash/Keccak256.h"
-#include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -25,127 +28,16 @@ namespace
 
 using namespace bcos::evm;
 using namespace bcos::evm::reference_tests;
+using state::Bytes32Equal;
+using state::Bytes32Hash;
 
-/// Parse a hex string ("0x..." or bare hex) into bytes.
-bcos::bytes parseHex(std::string_view s)
-{
-    if (s.starts_with("0x") || s.starts_with("0X"))
-        s.remove_prefix(2);
-    if (s.empty())
-        return {};
-    bcos::bytes out;
-    out.reserve(s.size() / 2);
-    for (size_t i = 0; i + 1 < s.size(); i += 2)
-    {
-        char buf[3] = {s[i], s[i + 1], '\0'};
-        out.push_back(static_cast<uint8_t>(std::strtoul(buf, nullptr, 16)));
-    }
-    return out;
-}
+evmc_bytes32 const EMPTY_MPT_HASH = {0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83,
+    0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62,
+    0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21};
 
-/// Parse a 20-byte address from hex.
-evmc_address parseAddr(std::string_view hex)
+bool bytes32Equal(evmc_bytes32 const& a, evmc_bytes32 const& b)
 {
-    evmc_address addr{};
-    auto bytes = parseHex(hex);
-    if (bytes.size() >= sizeof(addr.bytes))
-        std::memcpy(addr.bytes, bytes.data(), sizeof(addr.bytes));
-    return addr;
-}
-
-/// Parse a 32-byte word from hex (right-aligned, matching GeneralStateTestLoader / EVM slots).
-evmc_bytes32 parseBytes32(std::string_view hex)
-{
-    evmc_bytes32 out{};
-    auto bytes = parseHex(hex);
-    if (bytes.size() > sizeof(out.bytes))
-        bytes.erase(bytes.begin(), bytes.end() - sizeof(out.bytes));
-    if (!bytes.empty())
-        std::memcpy(out.bytes + sizeof(out.bytes) - bytes.size(), bytes.data(), bytes.size());
-    return out;
-}
-
-/// Parse uint256 from hex or decimal string.
-bcos::u256 parseU256(std::string_view s)
-{
-    if (s.empty())
-        return 0;
-    return bcos::fromBigQuantity(s);
-}
-
-/// Parse a pre-state account map from JSON.
-std::vector<std::pair<evmc_address, state::Account>> parsePreState(pt::ptree const& preTree)
-{
-    std::vector<std::pair<evmc_address, state::Account>> accounts;
-    for (auto const& [addrStr, accTree] : preTree)
-    {
-        state::Account acc{};
-        if (auto nonce = accTree.get_optional<std::string>("nonce"))
-            acc.nonce = static_cast<uint64_t>(parseU256(*nonce));
-        if (auto bal = accTree.get_optional<std::string>("balance"))
-            acc.balance = parseU256(*bal);
-        if (auto codeStr = accTree.get_optional<std::string>("code"))
-        {
-            acc.code = parseHex(*codeStr);
-        }
-        if (auto storage = accTree.get_child_optional("storage"))
-        {
-            for (auto const& [keyStr, valStr] : *storage)
-            {
-                auto key = parseBytes32(keyStr);
-                auto val = parseBytes32(valStr.get_value<std::string>());
-                acc.storage[key] = val;
-            }
-        }
-        accounts.emplace_back(parseAddr(addrStr), std::move(acc));
-    }
-    return accounts;
-}
-
-/// Convert pre-state pairs to TestStateView.
-TestStateView buildTestStateView(
-    std::vector<std::pair<evmc_address, state::Account>> const& preState)
-{
-    TestStateView sv;
-    for (auto const& [addr, acc] : preState)
-        sv.insertAccount(addr, acc);
-    return sv;
-}
-
-/// Parse a simple transaction object from JSON.
-GstTransactionTemplate parseBlockchainTx(pt::ptree const& txTree)
-{
-    return parseTransactionTemplate(txTree);
-}
-
-/// Parse block info from JSON (EEST uses "number"; legacy callers may use "blockNumber").
-state::BlockInfo parseBlockInfo(pt::ptree const& headerTree)
-{
-    state::BlockInfo info{};
-    if (auto s = headerTree.get_optional<std::string>("blockNumber"))
-        info.number = static_cast<int64_t>(parseU256(*s));
-    else if (auto s = headerTree.get_optional<std::string>("number"))
-        info.number = static_cast<int64_t>(parseU256(*s));
-    if (auto s = headerTree.get_optional<std::string>("timestamp"))
-        info.timestamp = static_cast<int64_t>(parseU256(*s));
-    if (auto s = headerTree.get_optional<std::string>("gasLimit"))
-        info.gasLimit = static_cast<int64_t>(parseU256(*s));
-    if (auto s = headerTree.get_optional<std::string>("baseFeePerGas"))
-        info.baseFee = parseU256(*s);
-    if (auto s = headerTree.get_optional<std::string>("coinbase"))
-        info.coinbase = parseAddr(*s);
-    if (auto s = headerTree.get_optional<std::string>("prevRandao"))
-        info.prevRandao = parseBytes32(*s);
-    if (auto s = headerTree.get_optional<std::string>("parentBeaconBlockRoot"))
-        info.prevRandao = parseBytes32(*s);
-    if (auto s = headerTree.get_optional<std::string>("parentHash"))
-        info.parentHash = parseBytes32(*s);
-    return info;
-}
-
-std::string formatAddr(evmc_address const& address)
-{
-    return bcos::toHex(bcos::bytes(address.bytes, address.bytes + sizeof(address.bytes)));
+    return std::memcmp(a.bytes, b.bytes, 32) == 0;
 }
 
 std::string formatBytes32(evmc_bytes32 const& value)
@@ -153,104 +45,321 @@ std::string formatBytes32(evmc_bytes32 const& value)
     return bcos::toHex(bcos::bytes(value.bytes, value.bytes + sizeof(value.bytes)));
 }
 
-state::Account parseAccountTree(pt::ptree const& accTree)
+evmc_bytes32 computeStateRootFromView(TestStateView const& view)
 {
-    state::Account acc{};
-    if (auto nonce = accTree.get_optional<std::string>("nonce"))
-        acc.nonce = static_cast<uint64_t>(parseU256(*nonce));
-    if (auto bal = accTree.get_optional<std::string>("balance"))
-        acc.balance = parseU256(*bal);
-    if (auto codeStr = accTree.get_optional<std::string>("code"))
-        acc.code = parseHex(*codeStr);
-    if (auto storage = accTree.get_child_optional("storage"))
-    {
-        for (auto const& [keyStr, valStr] : *storage)
-        {
-            acc.storage[parseBytes32(keyStr)] = parseBytes32(valStr.get_value<std::string>());
-        }
-    }
-    return acc;
+    GstPostStateView postView;
+    for (auto const& [addr, acc] : view.accounts())
+        postView.accounts.emplace_back(addr, acc);
+    return computeStateRoot(postView);
 }
 
-void probePostStateMismatch(GstPostStateView const& actual, pt::ptree const& expectedPostTree,
-    evmc_bytes32 const& computedRoot, evmc_bytes32 const& expectedRoot)
+bool expectExceptionMatches(std::string_view expectException, std::string_view reason)
 {
-    std::cerr << "=== BLOCKCHAIN_PROBE ===\n"
-              << "computedRoot=0x" << formatBytes32(computedRoot) << "\n"
-              << "expectedRoot=0x" << formatBytes32(expectedRoot) << '\n';
+    if (expectException.find(reason) != std::string::npos)
+        return true;
+    size_t start = 0;
+    while (start < expectException.size())
+    {
+        auto end = expectException.find('|', start);
+        auto token = expectException.substr(
+            start, end == std::string::npos ? std::string::npos : end - start);
+        while (!token.empty() && (token.front() == ' ' || token.front() == '\t'))
+            token.remove_prefix(1);
+        while (!token.empty() && (token.back() == ' ' || token.back() == '\t'))
+            token.remove_suffix(1);
+        if (!token.empty() && reason.find(token) != std::string::npos)
+            return true;
+        if (end == std::string::npos)
+            break;
+        start = end + 1;
+    }
+    return false;
+}
+
+std::optional<std::string> validateGenesis(BlockchainTest const& test, evmc_revision genesisRev)
+{
+    auto const& g = test.genesisBlockHeader;
+    if (g.blockNumber != 0)
+        return "genesis blockNumber != 0";
+    if (g.gasUsed != 0)
+        return "genesis gasUsed != 0";
+    if (!bytes32Equal(g.transactionsRoot, EMPTY_MPT_HASH))
+        return "genesis transactionsRoot != EMPTY_MPT";
+    if (!bytes32Equal(g.receiptsRoot, EMPTY_MPT_HASH))
+        return "genesis receiptsRoot != EMPTY_MPT";
+    if (genesisRev >= EVMC_SHANGHAI)
+    {
+        if (!bytes32Equal(g.withdrawalsRoot, EMPTY_MPT_HASH))
+            return "genesis withdrawalsRoot != EMPTY_MPT";
+    }
+    else if (!bytes32Equal(g.withdrawalsRoot, evmc_bytes32{}))
+    {
+        return "genesis withdrawalsRoot != zero";
+    }
+    if (g.logsBloom.size() != 256)
+        return "genesis logsBloom size != 256";
+    for (auto b : g.logsBloom)
+    {
+        if (b != 0)
+            return "genesis logsBloom not zero";
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> expectPostStateMatches(
+    TestStateView const& canonical, BlockchainTest const& test)
+{
+    if (test.postStateHash.has_value())
+    {
+        auto computed = computeStateRootFromView(canonical);
+        if (!bytes32Equal(computed, *test.postStateHash))
+            return "postStateHash mismatch (computed=0x" + formatBytes32(computed) +
+                   " expected=0x" + formatBytes32(*test.postStateHash) + ")";
+        return std::nullopt;
+    }
+    if (test.postState.empty())
+        return std::nullopt;
 
     std::unordered_map<evmc_address, state::Account, state::AddressHash, state::AddressEqual>
-        actualAccounts;
-    for (auto const& [addr, acc] : actual.accounts)
-        actualAccounts.emplace(addr, acc);
+        actual;
+    for (auto const& [addr, acc] : canonical.accounts())
+        actual.emplace(addr, acc);
 
-    for (auto const& [addrStr, accTree] : expectedPostTree)
+    for (auto const& [addr, expectedAcc] : test.postState)
     {
-        auto const addr = parseAddr(addrStr);
-        auto const expectedAcc = parseAccountTree(accTree);
-        auto const it = actualAccounts.find(addr);
-        if (it == actualAccounts.end())
-        {
-            std::cerr << "MISSING account 0x" << formatAddr(addr) << " (in fixture postState)\n";
-            continue;
-        }
-        auto const& actualAcc = it->second;
-        bool mismatch = false;
-        if (actualAcc.nonce != expectedAcc.nonce)
-        {
-            std::cerr << "MISMATCH 0x" << formatAddr(addr) << " nonce got=" << actualAcc.nonce
-                      << " want=" << expectedAcc.nonce << '\n';
-            mismatch = true;
-        }
-        if (actualAcc.balance != expectedAcc.balance)
-        {
-            std::cerr << "MISMATCH 0x" << formatAddr(addr) << " balance got=0x"
-                      << actualAcc.balance.str(0, std::ios::hex) << " want=0x"
-                      << expectedAcc.balance.str(0, std::ios::hex) << '\n';
-            mismatch = true;
-        }
+        auto it = actual.find(addr);
+        if (it == actual.end())
+            return "postState missing account 0x" +
+                   bcos::toHex(bcos::bytes(addr.bytes, addr.bytes + sizeof(addr.bytes)));
+        auto const& got = it->second;
+        if (got.nonce != expectedAcc.nonce)
+            return "postState nonce mismatch";
+        if (got.balance != expectedAcc.balance)
+            return "postState balance mismatch";
         for (auto const& [slot, wantVal] : expectedAcc.storage)
         {
-            auto const slotIt = actualAcc.storage.find(slot);
+            auto slotIt = got.storage.find(slot);
             evmc_bytes32 gotVal{};
-            if (slotIt != actualAcc.storage.end())
+            if (slotIt != got.storage.end())
                 gotVal = slotIt->second;
-            if (std::memcmp(gotVal.bytes, wantVal.bytes, 32) != 0)
-            {
-                std::cerr << "MISMATCH 0x" << formatAddr(addr) << " storage[0x"
-                          << formatBytes32(slot) << "] got=0x" << formatBytes32(gotVal)
-                          << " want=0x" << formatBytes32(wantVal) << '\n';
-                mismatch = true;
-            }
-        }
-        if (!mismatch)
-            std::cerr << "OK 0x" << formatAddr(addr) << " matches fixture postState\n";
-    }
-
-    for (auto const& [addr, acc] : actual.accounts)
-    {
-        bool inExpected = false;
-        for (auto const& [addrStr, _] : expectedPostTree)
-        {
-            if (state::AddressEqual{}(addr, parseAddr(addrStr)))
-            {
-                inExpected = true;
-                break;
-            }
-        }
-        if (!inExpected && (!acc.code.empty() || acc.balance != 0 || !acc.storage.empty()))
-        {
-            std::cerr << "EXTRA account 0x" << formatAddr(addr) << " nonce=" << acc.nonce
-                      << " balance=0x" << acc.balance.str(0, std::ios::hex)
-                      << " storageSlots=" << acc.storage.size() << '\n';
+            if (!bytes32Equal(gotVal, wantVal))
+                return "postState storage mismatch";
         }
     }
+    return std::nullopt;
 }
 
-/// Run one blockchain test fixture. @p forkFilter skips variants whose "network" differs
-/// (e.g. directory blockchain_tests/cancun/ runs only Cancun, not Osaka in the same file).
+std::vector<ReceiptForRoot> receiptsForRoot(std::vector<TransactionReceipt> const& receipts)
+{
+    std::vector<ReceiptForRoot> out;
+    out.reserve(receipts.size());
+    uint64_t cumulative = 0;
+    for (auto const& rc : receipts)
+    {
+        ReceiptForRoot r;
+        r.status = rc.status;
+        cumulative += static_cast<uint64_t>(rc.gasUsed);
+        r.cumulativeGasUsed = cumulative;
+        r.bloom = rc.bloom;
+        r.logs = rc.logs;
+        out.push_back(std::move(r));
+    }
+    return out;
+}
+
+std::optional<std::string> firstHeaderFieldMismatch(TestBlock const& tb,
+    BlockApplyResult const& res, evmc_revision rev, BlobSchedule const& schedule,
+    std::string_view network)
+{
+    auto const& h = tb.expectedBlockHeader;
+    auto const computedState = computeStateRootFromView(res.postState);
+    if (!bytes32Equal(computedState, h.stateRoot))
+        return "stateRoot";
+    if (!bytes32Equal(computeTxRoot(tb.rawTxRlp), h.transactionsRoot))
+        return "transactionsRoot";
+    if (!bytes32Equal(computeReceiptsRoot(receiptsForRoot(res.receipts)), h.receiptsRoot))
+        return "receiptsRoot";
+    if (rev >= EVMC_SHANGHAI &&
+        !bytes32Equal(computeWithdrawalRoot(tb.withdrawals), h.withdrawalsRoot))
+        return "withdrawalsRoot";
+    if (res.gasUsed != h.gasUsed)
+        return "gasUsed";
+    if (res.bloom != h.logsBloom)
+        return "logsBloom";
+    if (rev >= EVMC_CANCUN)
+    {
+        BlobParams const p = blobParamsFor(schedule, network);
+        uint64_t const blobGasLimit = maxBlobGasPerBlock(p);
+        uint64_t const actualBlobUsed = blobGasLimit - res.blobGasLeft;
+        if (actualBlobUsed != h.blobGasUsed.value_or(0))
+            return "blobGasUsed";
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> validateValidBlockHeaders(TestBlock const& tb,
+    BlockApplyResult const& res, evmc_revision rev, BlobSchedule const& schedule,
+    std::string_view network)
+{
+    if (res.requestsError.has_value())
+        return "requests collection failed: " + *res.requestsError;
+    if (!res.rejected.empty())
+        return "unexpected rejected transactions in valid block";
+    if (auto mismatch = firstHeaderFieldMismatch(tb, res, rev, schedule, network))
+        return "header field mismatch: " + *mismatch;
+    return std::nullopt;
+}
+
+struct BlockData
+{
+    TestBlockHeader const* header = nullptr;
+    TestStateView postState;
+    uint64_t totalDifficulty = 0;
+};
+
+/// Run one blockchain test case. Returns failure reason on error.
+std::optional<std::string> runOneTest(BlockchainTest const& test, ForkProfile const& profile,
+    evmc::VM& vm, bcos::crypto::Hash& hashImpl)
+{
+    auto const genesisRevOpt = ForkProfileRegistry::instance().resolveRevision(
+        test.network, test.genesisBlockHeader.timestamp);
+    if (!genesisRevOpt.has_value())
+        return "unknown network " + test.network;
+    evmc_revision const genesisRev = *genesisRevOpt;
+
+    if (auto err = validateGenesis(test, genesisRev))
+        return *err;
+
+    auto const& genesis = test.genesisBlockHeader;
+    std::unordered_map<int64_t, evmc_bytes32> blockHashes;
+    blockHashes[0] = genesis.hash;
+
+    std::unordered_map<evmc_bytes32, BlockData, Bytes32Hash, Bytes32Equal> blockData;
+    blockData[genesis.hash] =
+        BlockData{&genesis, test.preState, static_cast<uint64_t>(genesis.difficulty)};
+
+    TestStateView const* canonicalState = &test.preState;
+    evmc_bytes32 canonicalTip = genesis.hash;
+    uint64_t maxTotalDifficulty = static_cast<uint64_t>(genesis.difficulty);
+
+    for (auto const& tb : test.testBlocks)
+    {
+        auto const revOpt =
+            ForkProfileRegistry::instance().resolveRevision(test.network, tb.blockInfo.timestamp);
+        if (!revOpt.has_value())
+            return "unknown revision for block " + std::to_string(tb.blockInfo.number);
+        evmc_revision const rev = *revOpt;
+
+        auto parentIt = blockData.find(tb.blockInfo.parentHash);
+        TestBlockHeader const* parentHeader =
+            (parentIt != blockData.end()) ? parentIt->second.header : nullptr;
+
+        auto blockError = validateBlock(rev, test.blobSchedule, tb, parentHeader);
+
+        if (!tb.expectException.empty())
+        {
+            // Level 1: header validation rejected the block.
+            if (blockError.has_value())
+            {
+                if (!expectExceptionMatches(tb.expectException, *blockError))
+                    return "expectException mismatch at level 1: got " + *blockError;
+                continue;
+            }
+            if (parentIt == blockData.end())
+                return "invalid block parent not in block_data";
+
+            state::BlockHashes blockHashesLookup = [&blockHashes, blockNum = tb.blockInfo.number](
+                                                       int64_t n) -> evmc_bytes32 {
+                if (n < 0 || n >= blockNum)
+                    return {};
+                if (n + 256 <= blockNum)
+                    return {};
+                auto it = blockHashes.find(n);
+                if (it != blockHashes.end())
+                    return it->second;
+                return {};
+            };
+
+            TestStateView parentState = parentIt->second.postState;
+            auto res = applyEthBlock(parentState, tb.transactions, tb.blockInfo, profile, vm,
+                hashImpl, std::move(blockHashesLookup));
+
+            // Level 2: transaction rejection.
+            if (!res.rejected.empty())
+            {
+                if (tb.expectException.find("TransactionException.") == std::string::npos)
+                    return "unexpected rejected txs without TransactionException expectException";
+                continue;
+            }
+
+            // Level 2.5: requests collection failure.
+            if (res.requestsError.has_value())
+            {
+                if (!expectExceptionMatches(tb.expectException, *res.requestsError))
+                    return "expectException mismatch at level 2.5: got " + *res.requestsError;
+                continue;
+            }
+
+            // Level 3: header field mismatch implies expected invalidity.
+            if (auto mismatch =
+                    firstHeaderFieldMismatch(tb, res, rev, test.blobSchedule, test.network))
+                continue;
+
+            return "expected block to be invalid but resulted valid";
+        }
+
+        // Valid block path.
+        if (blockError.has_value())
+            return "validateBlock failed on valid block: " + *blockError;
+        if (parentIt == blockData.end())
+            return "valid block parent not in block_data";
+
+        state::BlockHashes blockHashesLookup = [&blockHashes, blockNum = tb.blockInfo.number](
+                                                   int64_t n) -> evmc_bytes32 {
+            if (n < 0 || n >= blockNum)
+                return {};
+            if (n + 256 <= blockNum)
+                return {};
+            auto it = blockHashes.find(n);
+            if (it != blockHashes.end())
+                return it->second;
+            return {};
+        };
+
+        TestStateView parentState = parentIt->second.postState;
+        auto res = applyEthBlock(parentState, tb.transactions, tb.blockInfo, profile, vm, hashImpl,
+            std::move(blockHashesLookup));
+
+        if (auto err = validateValidBlockHeaders(tb, res, rev, test.blobSchedule, test.network))
+            return *err;
+
+        uint64_t const totalDifficulty = parentIt->second.totalDifficulty +
+                                         static_cast<uint64_t>(tb.expectedBlockHeader.difficulty);
+        auto [it, _] = blockData.insert_or_assign(tb.expectedBlockHeader.hash,
+            BlockData{&tb.expectedBlockHeader, res.postState, totalDifficulty});
+        blockHashes[tb.expectedBlockHeader.blockNumber] = tb.expectedBlockHeader.hash;
+
+        if (totalDifficulty >= maxTotalDifficulty)
+        {
+            canonicalState = &it->second.postState;
+            canonicalTip = tb.expectedBlockHeader.hash;
+            maxTotalDifficulty = totalDifficulty;
+        }
+    }
+
+    if (!bytes32Equal(canonicalTip, test.lastBlockHash))
+        return "canonical tip mismatch (got=0x" + formatBytes32(canonicalTip) + " want=0x" +
+               formatBytes32(test.lastBlockHash) + ")";
+
+    if (auto err = expectPostStateMatches(*canonicalState, test))
+        return *err;
+
+    return std::nullopt;
+}
+
 void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
-    bcos::crypto::Hash& hashImpl, evmc::VM& vm, size_t& passed, size_t& failed)
+    ForkProfile const& profile, bcos::crypto::Hash& hashImpl, evmc::VM& vm, size_t& passed,
+    size_t& failed)
 {
     pt::ptree root;
     try
@@ -265,160 +374,39 @@ void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
         return;
     }
 
-    size_t testCount = 0;
-    for (auto const& [testName, testTree] : root)
+    auto tests = loadBlockchainTests(root);
+    if (tests.empty())
     {
-        if (!testTree.count("pre") || !testTree.count("genesisBlockHeader"))
-        {
-            // Engine API sync format — requires payload RLP decoding (Phase 2)
+        std::cout << "SKIP " << jsonPath.filename().string() << " (no supported tests)\n";
+        return;
+    }
+
+    size_t filePassed = 0;
+    size_t fileFailed = 0;
+    for (auto const& test : tests)
+    {
+        if (!forkFilter.empty() && test.network != forkFilter)
             continue;
-        }
 
-        auto const network = testTree.get<std::string>("network", "");
-        if (!forkFilter.empty() && network != forkFilter)
-            continue;
-
-        auto const profileOpt = ForkProfileRegistry::instance().findByUpstreamFork(network);
-        if (!profileOpt.has_value())
+        if (auto err = runOneTest(test, profile, vm, hashImpl))
         {
-            std::cout << "SKIP " << testName << " (unknown network " << network << ")\n";
-            continue;
+            std::cerr << "FAIL " << test.name << " " << *err << '\n';
+            ++fileFailed;
         }
-        auto const& profile = *profileOpt;
-
-        try
+        else
         {
-            // ── 1. Build pre-state ──
-            auto prePairs = parsePreState(testTree.get_child("pre"));
-            TestStateView stateView = buildTestStateView(prePairs);
-
-            // ── 2. Parse genesis header ──
-            auto genesisHeader = parseBlockInfo(testTree.get_child("genesisBlockHeader"));
-
-            // ── 3. Process blocks ──
-            std::optional<evmc_bytes32> lastStateRoot;
-            std::unordered_map<int64_t, evmc_bytes32> blockHashByNumber;
-            if (auto genesisHash =
-                    testTree.get_child("genesisBlockHeader").get_optional<std::string>("hash"))
-                blockHashByNumber[0] = parseBytes32(*genesisHash);
-
-            // Legacy format: "blocks" array
-            if (auto blocksOpt = testTree.get_child_optional("blocks"))
-            {
-                for (auto const& [_, blockTree] : *blocksOpt)
-                {
-                    auto blockInfo = genesisHeader;
-                    if (auto headerOpt = blockTree.get_child_optional("blockHeader"))
-                        blockInfo = parseBlockInfo(*headerOpt);
-
-                    state::BlockHashes blockHashesLookup = [&blockHashByNumber,
-                                                               blockNum = blockInfo.number](
-                                                               int64_t n) -> evmc_bytes32 {
-                        if (n < 0 || n >= blockNum)
-                            return {};
-                        if (n + 256 <= blockNum)
-                            return {};
-                        if (auto it = blockHashByNumber.find(n); it != blockHashByNumber.end())
-                            return it->second;
-                        return {};
-                    };
-
-                    // Parse transactions
-                    std::vector<GstTransactionTemplate> txs;
-                    if (auto txsOpt = blockTree.get_child_optional("transactions"))
-                        for (auto const& [_, txTree] : *txsOpt)
-                            txs.push_back(parseBlockchainTx(txTree));
-
-                    if (txs.empty() && blockTree.count("rlp") &&
-                        !blockTree.get_child_optional("blockHeader"))
-                    {
-                        // Block has RLP hex but no parsed txs and no header — skip for now
-                        continue;
-                    }
-
-                    // Empty tx blocks still run block-start system calls (EIP-4788 / EIP-2935).
-                    auto blockResult = applyEthBlock(stateView, txs, blockInfo, profile, vm,
-                        hashImpl, std::move(blockHashesLookup));
-
-                    if (auto headerOpt = blockTree.get_child_optional("blockHeader"))
-                    {
-                        if (auto hashStr = headerOpt->get_optional<std::string>("hash"))
-                            blockHashByNumber[blockInfo.number] = parseBytes32(*hashStr);
-                    }
-
-                    // Compute post-state root
-                    GstPostStateView postView;
-                    for (auto const& [addr, acc] : blockResult.postState.accounts())
-                        postView.accounts.emplace_back(addr, acc);
-                    auto computedRoot = computeStateRoot(postView);
-                    lastStateRoot = computedRoot;
-
-                    // Validate against expected stateRoot
-                    if (auto expectedRootStr =
-                            blockTree.get_optional<std::string>("blockHeader.stateRoot"))
-                    {
-                        auto expectedRoot = parseBytes32(*expectedRootStr);
-                        bool match = (std::memcmp(computedRoot.bytes, expectedRoot.bytes, 32) == 0);
-                        if (!match)
-                        {
-                            std::cerr << "FAIL " << testName << " stateRoot mismatch\n";
-                            if (std::getenv("BLOCKCHAIN_PROBE") != nullptr)
-                            {
-                                if (auto postStateOpt = testTree.get_child_optional("postState"))
-                                {
-                                    probePostStateMismatch(
-                                        postView, *postStateOpt, computedRoot, expectedRoot);
-                                }
-                            }
-                            ++failed;
-                            return;
-                        }
-                    }
-
-                    // Update state view for next block
-                    stateView = std::move(blockResult.postState);
-                }
-            }
-
-            // ── 4. Validate post-state hash ──
-            if (auto postStateOpt = testTree.get_child_optional("postState"))
-            {
-                // Full post-state comparison (Phase 2)
-            }
-            else if (auto postHashOpt = testTree.get_optional<std::string>("postStateHash"))
-            {
-                if (lastStateRoot.has_value())
-                {
-                    auto expectedHash = parseBytes32(*postHashOpt);
-                    bool match = (std::memcmp(lastStateRoot->bytes, expectedHash.bytes, 32) == 0);
-                    if (!match)
-                    {
-                        std::cerr << "FAIL " << testName << " postStateHash mismatch\n";
-                        ++failed;
-                        return;
-                    }
-                }
-            }
-
-            ++testCount;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << "FAIL " << testName << " (exception: " << e.what() << ")\n";
-            ++failed;
-            return;
+            ++filePassed;
         }
     }
 
-    if (testCount > 0)
-    {
-        std::cout << "PASS " << jsonPath.filename().string() << " (" << testCount << " blocks)\n";
-        ++passed;
-    }
-    else
-    {
-        std::cout << "SKIP " << jsonPath.filename().string() << " (no supported blocks)\n";
-    }
+    passed += filePassed;
+    failed += fileFailed;
+
+    if (filePassed > 0 && fileFailed == 0)
+        std::cout << "PASS " << jsonPath.filename().string() << " (" << filePassed << " tests)\n";
+    else if (fileFailed > 0)
+        std::cout << "FAIL " << jsonPath.filename().string() << " (" << filePassed << " passed, "
+                  << fileFailed << " failed)\n";
 }
 
 void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
@@ -440,7 +428,6 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
         if (limit > 0 && executed >= limit)
             break;
 
-        // Fork detection from path
         std::string forkStr = "Cancun";
         auto pathStr = jsonPath.generic_string();
         constexpr std::string_view bcPrefix = "blockchain_tests/";
@@ -467,11 +454,11 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
         }
 
         ++executed;
-        runOneFixture(jsonPath, forkStr, hashImpl, vm, passed, failed);
+        runOneFixture(jsonPath, forkStr, *profile, hashImpl, vm, passed, failed);
     }
 
     std::cout << "\nResults: " << passed << " passed, " << failed << " failed, " << skipped
-              << " skipped (" << executed << " executed)\n";
+              << " skipped (" << executed << " files)\n";
     if (failed > 0)
         std::exit(1);
 }
@@ -481,6 +468,8 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
 int main(int argc, char** argv)
 {
     fs::path fixturesDir;
+    fs::path manifestPath;
+    fs::path eestRoot;
     size_t limit = 0;
 
     for (int i = 1; i < argc; ++i)
@@ -490,6 +479,19 @@ int main(int argc, char** argv)
             fixturesDir = argv[++i];
         else if (arg == "--limit" && i + 1 < argc)
             limit = static_cast<size_t>(std::stoull(argv[++i]));
+        else if (arg == "--manifest" && i + 1 < argc)
+            manifestPath = argv[++i];
+        else if (arg == "--eest-root" && i + 1 < argc)
+            eestRoot = argv[++i];
+    }
+
+    if (!manifestPath.empty())
+    {
+        std::cerr << "manifest mode lands in Phase 4 (--manifest " << manifestPath.string();
+        if (!eestRoot.empty())
+            std::cerr << " --eest-root " << eestRoot.string();
+        std::cerr << ")\n";
+        return 1;
     }
 
     if (fixturesDir.empty())
