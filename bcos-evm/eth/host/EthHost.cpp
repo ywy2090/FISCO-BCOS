@@ -228,7 +228,7 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
             }
             else
             {
-                m_state.set_balance(beneficiary, m_state.get_balance(beneficiary) + balance);
+                m_state.add_balance(beneficiary, balance);
             }
         }
         return false;
@@ -239,8 +239,8 @@ bool EthHost::selfdestruct(const address& addr, const address& beneficiary) noex
     {
         if (!selfBeneficiary)
         {
-            m_state.set_balance(addr, m_state.get_balance(addr) - balance);
-            m_state.set_balance(beneficiary, m_state.get_balance(beneficiary) + balance);
+            m_state.set_balance(addr, 0);
+            m_state.add_balance(beneficiary, balance);
         }
         else
         {

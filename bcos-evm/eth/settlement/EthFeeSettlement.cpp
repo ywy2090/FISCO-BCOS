@@ -2,8 +2,11 @@
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
  *
- * @brief State-based Eth fee settlement (buyGas / refundGas).
+ * @brief Eth ledger fee settlement (buyGas / refundGas).
  * @file EthFeeSettlement.cpp
+ *
+ * See EthFeeSettlement.h for formulas. Blob sidecar: debit uses block blobBaseFee;
+ * affordability uses sender blobGasFeeCap (EIP-4844).
  */
 
 #include "bcos-evm/eth/settlement/EthFeeSettlement.h"
@@ -32,19 +35,11 @@ namespace bcos::evm
 {
 namespace
 {
-void addBalance(state::State& state, evmc_address const& address, bcos::u256 const& delta)
-{
-    if (delta == 0)
-    {
-        return;
-    }
-    state.set_balance(address, state.get_balance(address) + delta);
-}
-
+/// EIP-4844 blob charge split: actual debit (base fee) vs cap check (max fee per blob gas).
 struct BlobGasPlan
 {
-    bcos::u256 debit{};
-    bcos::u256 balanceCheck{};
+    bcos::u256 debit{};         ///< blobGasUsed * blobBaseFee — debited at buyGas
+    bcos::u256 balanceCheck{};  ///< blobGasUsed * blobGasFeeCap — affordability only
 };
 
 BlobGasPlan planBlobGas(EthSettlementProjection const& view)
@@ -68,6 +63,7 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
     auto& ctx = view.pipelineContext();
     auto& sidecar = view.sidecar;
 
+    // eth_call and zero-gas-limit paths: no balance movement.
     if (view.isCall())
     {
         co_return true;
@@ -77,6 +73,7 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
         co_return true;
     }
 
+    // Phase 1: resolve effectiveGasPrice and preDebitAmount (state-free).
     auto const feeInputs = gas::toFeeInputs(ctx.revisionConfig, view.blockInfo(),
         gas::FeeCapsView{view.gasPriceLegacy(), view.gasTipCap(), view.gasFeeCap(),
             view.web3TypedTxKind(), view.hasExplicitFeeCaps()},
@@ -89,6 +86,7 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
         co_return true;
     }
 
+    // Phase 2: overflow guard on gasLimit * effectiveGasPrice.
     if (sidecar.effectiveGasPrice > 0 && ctx.originalGasLimit > 0)
     {
         bcos::u256 preDebitCheck{};
@@ -101,6 +99,7 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
         }
     }
 
+    // Phase 3: affordability — maxBalanceDebit (EIP-1559) + blob cap + value.
     auto blobBalanceCheck = blobPlan.balanceCheck;
     if (blobBalanceCheck == 0 && blobPlan.debit > 0)
     {
@@ -110,6 +109,7 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
     auto const senderBalance = ctx.state.get_balance(ctx.message.sender);
     if (senderBalance < totalRequired)
     {
+        // geth buyGas penalty: charge up to TX_BASE_GAS * effectiveGasPrice, then fail tx.
         auto const intrinsicCost = bcos::u256(gas::TX_BASE_GAS) * sidecar.effectiveGasPrice;
         auto const penalty = std::min(senderBalance, intrinsicCost);
         if (penalty > 0)
@@ -125,6 +125,7 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
         co_return false;
     }
 
+    // Phase 4: full pre-debit (execution gas + blob base fee).
     ctx.state.set_balance(ctx.message.sender, senderBalance - plan.preDebitAmount - blobPlan.debit);
     co_return true;
 }
@@ -146,9 +147,9 @@ task::Task<gas::FeeSettlementPlan> EthFeeSettlement::refundGas(
     auto const plan = gas::planPostExecution(
         feeInputs, settled.gasUsed, static_cast<int64_t>(settled.gasRemaining));
 
-    addBalance(ctx.state, ctx.message.sender, plan.unusedRefund);
-    addBalance(ctx.state, view.blockInfo().coinbase, plan.coinbaseTip);
-    // baseFeeAmount implicitly burned on Eth — no credit
+    // Credit sender unused gas; credit coinbase priority fee. Base fee is burned (no entry).
+    ctx.state.add_balance(ctx.message.sender, plan.unusedRefund);
+    ctx.state.add_balance(view.blockInfo().coinbase, plan.coinbaseTip);
 
     co_return plan;
 }

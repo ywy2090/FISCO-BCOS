@@ -129,8 +129,7 @@ task::Task<OpStackMessageResult> applyOpStackMessage(OpStackMessageRequest input
         if (input.depositTx.has_value() && input.depositTx->mint.has_value() &&
             *input.depositTx->mint > 0)
         {
-            ctx.state.set_balance(input.message.sender,
-                ctx.state.get_balance(input.message.sender) + *input.depositTx->mint);
+            ctx.state.add_balance(input.message.sender, *input.depositTx->mint);
         }
 
         ctx.state.checkpoint();

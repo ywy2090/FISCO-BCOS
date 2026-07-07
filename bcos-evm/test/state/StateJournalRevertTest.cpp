@@ -233,6 +233,35 @@ BOOST_AUTO_TEST_CASE(transfer_balance_zero_value_is_noop)
     BOOST_CHECK_EQUAL(state.get_balance(recipient), 0);
 }
 
+BOOST_AUTO_TEST_CASE(add_balance_credits_and_zero_delta_is_noop)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address address{};
+    address.bytes[19] = 0x01;
+
+    state.add_balance(address, 25);
+    BOOST_CHECK_EQUAL(state.get_balance(address), 125);
+    state.add_balance(address, 0);
+    BOOST_CHECK_EQUAL(state.get_balance(address), 125);
+}
+
+BOOST_AUTO_TEST_CASE(add_balance_reverts_with_checkpoint)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address address{};
+    address.bytes[19] = 0x01;
+
+    state.checkpoint();
+    state.add_balance(address, 10);
+    BOOST_CHECK_EQUAL(state.get_balance(address), 110);
+    state.revert();
+    BOOST_CHECK_EQUAL(state.get_balance(address), 100);
+}
+
 BOOST_AUTO_TEST_CASE(tx_created_empty_account_returns_empty_code_hash)
 {
     class EmptyBaseView : public StateView

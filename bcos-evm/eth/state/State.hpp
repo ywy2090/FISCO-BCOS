@@ -56,6 +56,8 @@ public:
     [[nodiscard]] bool has_checkpoint() const noexcept;
 
     void set_balance(const evmc_address& address, const bcos::u256& balance);
+    /// Credit @p delta wei to @p address (no-op when @p delta is zero).
+    void add_balance(const evmc_address& address, const bcos::u256& delta);
     /// Transfer @p value wei from @p from to @p to. Returns false when @p from is
     /// underfunded; leaves state unchanged on failure.
     [[nodiscard]] bool transfer_balance(

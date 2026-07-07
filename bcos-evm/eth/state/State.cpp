@@ -330,6 +330,15 @@ void State::set_balance(const evmc_address& address, const bcos::u256& balance)
     account.balanceDirty = true;
 }
 
+void State::add_balance(const evmc_address& address, const bcos::u256& delta)
+{
+    if (delta == 0)
+    {
+        return;
+    }
+    set_balance(address, get_balance(address) + delta);
+}
+
 bool State::transfer_balance(
     const evmc_address& from, const evmc_address& to, const bcos::u256& value)
 {

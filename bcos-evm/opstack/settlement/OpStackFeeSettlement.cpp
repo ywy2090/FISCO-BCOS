@@ -18,17 +18,6 @@
 
 namespace bcos::evm
 {
-namespace
-{
-void addBalance(state::State& state, evmc_address const& address, u256 const& delta)
-{
-    if (delta == 0)
-    {
-        return;
-    }
-    state.set_balance(address, state.get_balance(address) + delta);
-}
-}  // namespace
 
 task::Task<bool> OpStackFeeSettlement::buyGas(OpStackSettlementProjection view)
 {
@@ -108,20 +97,20 @@ task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
     auto const plan =
         planOpStackPostSettlement(toOpStackPostSettlementInputs(view, settled), hooks);
 
-    addBalance(state, ctx.message.sender, plan.core1559.unusedRefund + plan.senderOperatorRefund);
+    state.add_balance(ctx.message.sender, plan.core1559.unusedRefund + plan.senderOperatorRefund);
     // unusedRefund = gasRemaining * effectiveGasPrice; senderOperatorRefund from post-settlement
     // plan
-    addBalance(state, view.blockInfo().coinbase, plan.core1559.coinbaseTip);
+    state.add_balance(view.blockInfo().coinbase, plan.core1559.coinbaseTip);
     // coinbaseTip = gasUsed * (effectiveGasPrice - baseFee)
     // OP Stack: base/L1/operator fees go to system predeploy recipients (not burned).
-    addBalance(state, m_baseFeeRecipient, plan.core1559.baseFeeAmount);
+    state.add_balance(m_baseFeeRecipient, plan.core1559.baseFeeAmount);
     // baseFeeAmount = gasUsed * baseFee → OP_BASE_FEE_VAULT_PREDEPLOY
-    addBalance(state, m_l1FeeRecipient, plan.l1FeeRouted);
+    state.add_balance(m_l1FeeRecipient, plan.l1FeeRouted);
     // l1FeeRouted = l1CostCharged (full L1 fee from buyGas) → OP_L1_FEE_VAULT_PREDEPLOY
     if (hooks.operatorCostFunc != nullptr)
     {
         // operatorFeeCharged → OP_OPERATOR_FEE_VAULT_PREDEPLOY
-        addBalance(state, m_operatorFeeRecipient, plan.operatorFeeCharged);
+        state.add_balance(m_operatorFeeRecipient, plan.operatorFeeCharged);
     }
 
     co_return plan;
