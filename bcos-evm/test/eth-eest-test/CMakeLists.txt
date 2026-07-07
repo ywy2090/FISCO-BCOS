@@ -239,6 +239,16 @@ add_test(NAME EthEestBlockGranularSmoke COMMAND EthEestBlockGranular
 set_tests_properties(EthEestBlockGranularSmoke PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
 
+add_test(NAME EthEestBlockchainFull COMMAND EthEestBlockchainRunner
+    --fixtures ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests)
+set_tests_properties(EthEestBlockchainFull PROPERTIES
+    LABELS "specs-tests;specs-tests-full;eth-kernel;eest;nightly" TIMEOUT 14400)
+
+add_test(NAME EthEestBlockGranularFull COMMAND EthEestBlockGranular
+    ${EVM_REF_EEST_ROOT}/fixtures/blockchain_tests)
+set_tests_properties(EthEestBlockGranularFull PROPERTIES
+    LABELS "specs-tests;specs-tests-full;eth-kernel;eest;nightly" TIMEOUT 14400)
+
 set(EEST_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/manifests)
 
 add_executable(EthExecutionSpecStateTests runners/eth/EthExecutionSpecStateTests.cpp)
