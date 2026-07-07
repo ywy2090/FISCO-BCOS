@@ -20,6 +20,26 @@ add_test(
     COMMAND ${TEST_BINARY_NAME}
 )
 
+set(STATE_BUILD_DIFF_TEST_BINARY_NAME StateBuildDiffTest)
+
+add_executable(${STATE_BUILD_DIFF_TEST_BINARY_NAME}
+    state/StateBuildDiffTest.cpp
+)
+
+target_include_directories(${STATE_BUILD_DIFF_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${STATE_BUILD_DIFF_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
+)
+
+add_test(
+    NAME StateBuildDiff
+    COMMAND ${STATE_BUILD_DIFF_TEST_BINARY_NAME}
+)
+
 set(STATE_REFUND_TEST_BINARY_NAME StateRefundTest)
 
 add_executable(${STATE_REFUND_TEST_BINARY_NAME}

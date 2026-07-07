@@ -87,6 +87,33 @@ BOOST_AUTO_TEST_CASE(pre_eip158_coinbase_touch_included_in_post_state)
     BOOST_CHECK_EQUAL(std::memcmp(eip158Actual.bytes, eip158Expected.bytes, 32), 0);
 }
 
+BOOST_AUTO_TEST_CASE(build_post_state_view_removes_deleted_prestate_accounts)
+{
+    auto const deleted = state::parseHexAddress("0x1ff7e948c4172cea98805e48478badaec68bcb43");
+    auto const sender = state::parseHexAddress("0x8c0107aef7f9da541bb4f7b2d33c21f9a8151d63");
+    auto const coinbase = state::parseHexAddress("0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba");
+
+    std::vector<std::pair<evmc_address, state::Account>> preState;
+    state::Account deletedPre;
+    deletedPre.balance = 100000;
+    preState.emplace_back(deleted, deletedPre);
+
+    state::StateDiff diff;
+    diff.deletedAccounts.insert(deleted);
+    state::Account senderPatch;
+    senderPatch.nonce = 1;
+    senderPatch.balanceDirty = true;
+    senderPatch.nonceDirty = true;
+    diff.accounts.emplace(sender, senderPatch);
+
+    auto const postState = buildPostStateView(preState, diff, true, coinbase, true);
+    for (auto const& [address, account] : postState.accounts)
+    {
+        (void)account;
+        BOOST_CHECK(!state::AddressEqual{}(address, deleted));
+    }
+}
+
 BOOST_AUTO_TEST_CASE(add11_post_state_root_from_fixture)
 {
     GstPostStateView postState;

@@ -12,6 +12,7 @@ namespace bcos::evm::reference_tests
 {
 
 /// EIP-1559 base fee from parent header. Denominator 8, elasticity 2.
+/// Uses 128-bit intermediates so large parent base fees (7918 boundary tests) do not overflow.
 inline uint64_t calcBaseFee(uint64_t parentGasLimit, uint64_t parentGasUsed, uint64_t parentBaseFee)
 {
     constexpr uint64_t ELASTICITY = 2;
@@ -19,13 +20,15 @@ inline uint64_t calcBaseFee(uint64_t parentGasLimit, uint64_t parentGasUsed, uin
     uint64_t const target = parentGasLimit / ELASTICITY;
     if (parentGasUsed == target)
         return parentBaseFee;
+
+    unsigned __int128 const pbf = parentBaseFee;
     if (parentGasUsed > target)
     {
-        uint64_t const delta = parentBaseFee * (parentGasUsed - target) / target / DENOM;
-        return parentBaseFee + std::max<uint64_t>(delta, 1);
+        unsigned __int128 const delta = pbf * (parentGasUsed - target) / target / DENOM;
+        return parentBaseFee + static_cast<uint64_t>(std::max<unsigned __int128>(delta, 1));
     }
-    uint64_t const delta = parentBaseFee * (target - parentGasUsed) / target / DENOM;
-    return parentBaseFee - delta;
+    unsigned __int128 const delta = pbf * (target - parentGasUsed) / target / DENOM;
+    return parentBaseFee - static_cast<uint64_t>(delta);
 }
 
 // ── Blob helpers (EIP-4844) ─────────────────────────────────

@@ -34,6 +34,8 @@ public:
         m_accounts[address] = std::move(account);
     }
 
+    void erase_account(const evmc_address& address) { m_accounts.erase(address); }
+
     std::optional<Account> get_account(const evmc_address& address) const override
     {
         auto const it = m_accounts.find(address);

@@ -33,6 +33,14 @@ BOOST_AUTO_TEST_CASE(base_fee_rises_when_over_target)
     BOOST_CHECK_EQUAL(calcBaseFee(20000000, 15000000, 1000000000), 1062500000ull);
 }
 
+BOOST_AUTO_TEST_CASE(base_fee_large_parent_base_fee_no_uint64_overflow)
+{
+    // EIP-7918 boundary: parent base fee large enough that uint64 multiply would wrap.
+    constexpr uint64_t parentGasLimit = 0x07270e00;
+    constexpr uint64_t parentBaseFee = 0x023348b885c8;
+    BOOST_CHECK_EQUAL(calcBaseFee(parentGasLimit, 0, parentBaseFee), 0x01ecdfa1750full);
+}
+
 BOOST_AUTO_TEST_CASE(rejects_missing_parent)
 {
     TestBlock tb;
@@ -721,6 +729,84 @@ BOOST_AUTO_TEST_CASE(eip7685_multi_type_requests_header_fields)
         "stateRoot mismatch got=0x" << detail::formatBytes32(computedRoot) << " want=0x"
                                     << detail::formatBytes32(h.stateRoot)
                                     << " accounts=" << accountCount);
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(osaka_7934_typed_transaction_4_state_root)
+{
+#ifdef SPECS_TESTS_EEST_ROOT
+    namespace fs = std::filesystem;
+    namespace pt = boost::property_tree;
+    auto const path = fs::path(SPECS_TESTS_EEST_ROOT) /
+                      "fixtures/blockchain_tests/osaka/eip7934_block_rlp_limit/"
+                      "test_block_rlp_size_at_limit_with_all_typed_transactions.json";
+    pt::ptree root;
+    pt::read_json(path.string(), root);
+    auto tests = loadBlockchainTests(root);
+    BOOST_REQUIRE(!tests.empty());
+
+    std::string const wantKeySuffix = "typed_transaction_4";
+    BlockchainTest const* picked = nullptr;
+    for (auto const& t : tests)
+    {
+        if (t.name.find(wantKeySuffix) != std::string::npos)
+        {
+            picked = &t;
+            break;
+        }
+    }
+    BOOST_REQUIRE(picked != nullptr);
+
+    auto profile = ForkProfileRegistry::instance().findByUpstreamFork(picked->network);
+    BOOST_REQUIRE(profile.has_value());
+    evmc::VM vm{evmc_create_evmone()};
+    bcos::crypto::Keccak256 hashImpl;
+
+    auto const& test = *picked;
+    auto const& tb = test.testBlocks.front();
+    auto const execBlockInfo = blockInfoForExecution(
+        tb.blockInfo, tb, &test.genesisBlockHeader, EVMC_OSAKA, picked->chainId);
+
+    state::BlockHashes blockHashesLookup = [](int64_t) { return evmc_bytes32{}; };
+    TestStateView chain = test.preState;
+    auto const res = applyEthBlock(chain, tb.transactions, execBlockInfo, *profile, vm, hashImpl,
+        std::move(blockHashesLookup), tb.withdrawals);
+
+    auto const& h = tb.expectedBlockHeader;
+    BOOST_CHECK_EQUAL(res.gasUsed, h.gasUsed);
+    BOOST_CHECK(res.rejected.empty());
+
+    for (auto const& [expAddr, expAcc] : test.postState)
+    {
+        auto got = res.postState.get_account(expAddr);
+        BOOST_REQUIRE_MESSAGE(got.has_value(), "missing post account 0x" << bcos::toHex(
+                                                   bcos::bytes(expAddr.bytes, expAddr.bytes + 20)));
+        if (got->nonce != expAcc.nonce)
+            BOOST_FAIL("nonce mismatch on 0x" +
+                       bcos::toHex(bcos::bytes(expAddr.bytes, expAddr.bytes + 20)) + " got=0x" +
+                       std::to_string(got->nonce) + " want=0x" + std::to_string(expAcc.nonce));
+        if (got->balance != expAcc.balance)
+            BOOST_FAIL("balance mismatch on 0x" +
+                       bcos::toHex(bcos::bytes(expAddr.bytes, expAddr.bytes + 20)) + " got=0x" +
+                       got->balance.str(0, std::ios::hex) + " want=0x" +
+                       expAcc.balance.str(0, std::ios::hex));
+        if (got->code != expAcc.code)
+            BOOST_FAIL("code mismatch on 0x" +
+                       bcos::toHex(bcos::bytes(expAddr.bytes, expAddr.bytes + 20)));
+        for (auto const& [slot, want] : expAcc.storage)
+        {
+            auto it = got->storage.find(slot);
+            if (it == got->storage.end())
+                BOOST_FAIL("missing storage slot");
+            if (!state::Bytes32Equal{}(it->second, want))
+                BOOST_FAIL("storage mismatch");
+        }
+    }
+
+    auto const computedRoot = detail::computeStateRootFromView(res.postState);
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(computedRoot, h.stateRoot),
+        "stateRoot mismatch got=0x" << detail::formatBytes32(computedRoot) << " want=0x"
+                                    << detail::formatBytes32(h.stateRoot));
 #endif
 }
 }  // namespace bcos::evm::reference_tests

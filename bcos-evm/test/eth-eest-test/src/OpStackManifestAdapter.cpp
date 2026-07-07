@@ -217,7 +217,7 @@ task::Task<ExecutionResult> OpStackManifestAdapter::execute(
     // are documented divergences in opstack-skip-list.json (G1, G5).
     // StateRoot assertions for OPStack manifests should use transitional-only assertLevels.
 
-    auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty();
+    auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.empty();
     auto const postState = buildPostStateView(
         testCase.preState, result.stateDiff, applyDiff, testCase.env.coinbase, false);
     result.stateRoot = computeStateRoot(postState);

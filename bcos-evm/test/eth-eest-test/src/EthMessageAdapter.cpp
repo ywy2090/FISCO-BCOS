@@ -210,7 +210,7 @@ task::Task<ExecutionResult> EthMessageAdapter::execute(
         result.rejectionReason = std::to_string(static_cast<int>(result.status));
     }
 
-    auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.accounts.empty();
+    auto const applyDiff = result.status == EVMC_SUCCESS || !result.stateDiff.empty();
     auto const eip158 = m_profile.revision.revision >= EVMC_SPURIOUS_DRAGON;
     auto const postState = buildPostStateView(
         testCase.preState, result.stateDiff, applyDiff, testCase.env.coinbase, eip158);

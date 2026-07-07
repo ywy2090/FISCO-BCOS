@@ -29,7 +29,19 @@ namespace bcos::evm::gas
 
 constexpr uint64_t BLOB_GAS_PER_BLOB = 131'072;
 constexpr uint64_t MIN_BLOB_GAS_PRICE = 1;
+/// Cancun blob gas price update fraction (EIP-4844).
 constexpr uint64_t BLOB_GASPRICE_UPDATE_FRACTION = 3'338'477;
+/// Prague+ blob gas price update fraction (EIP-7691 schedule).
+constexpr uint64_t BLOB_GASPRICE_UPDATE_FRACTION_PRAGUE = 5'007'716;
+
+inline uint64_t blobGasPriceUpdateFraction(evmc_revision revision) noexcept
+{
+    if (revision >= EVMC_PRAGUE)
+    {
+        return BLOB_GASPRICE_UPDATE_FRACTION_PRAGUE;
+    }
+    return BLOB_GASPRICE_UPDATE_FRACTION;
+}
 /// Cancun per-tx blob cap (blobSchedule.max = 6).
 constexpr uint64_t MAX_BLOBS_PER_TX_CANCUN = 6;
 /// Prague+ per-tx blob cap (EIP-7691, blobSchedule.max = 9).
@@ -73,10 +85,11 @@ inline bcos::u256 fakeExponential(
     return output / denominator;
 }
 
-inline bcos::u256 calcBlobBaseFee(uint64_t excessBlobGas) noexcept
+inline bcos::u256 calcBlobBaseFee(
+    uint64_t excessBlobGas, evmc_revision revision = EVMC_CANCUN) noexcept
 {
     return fakeExponential(bcos::u256{MIN_BLOB_GAS_PRICE}, bcos::u256{excessBlobGas},
-        bcos::u256{BLOB_GASPRICE_UPDATE_FRACTION});
+        bcos::u256{blobGasPriceUpdateFraction(revision)});
 }
 
 }  // namespace bcos::evm::gas

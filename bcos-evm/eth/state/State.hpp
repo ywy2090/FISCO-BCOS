@@ -231,6 +231,8 @@ private:
 
     StateView const* m_baseStateView;
     std::unordered_map<evmc_address, Account, AddressHash, AddressEqual> m_accounts;
+    /// Populated by finalize_self_destructs (legacy erase path) for build_diff export.
+    std::unordered_set<evmc_address, AddressHash, AddressEqual> m_deletedAccounts;
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_warmAccounts;
     /// CREATE warm pins survive WarmAddressInsert revert until explicitly unpinned.
     std::unordered_set<evmc_address, AddressHash, AddressEqual> m_pinnedWarmAccounts;

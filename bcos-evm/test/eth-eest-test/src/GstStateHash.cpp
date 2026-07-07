@@ -531,6 +531,10 @@ GstPostStateView buildPostStateView(
 
     if (applyDiff)
     {
+        for (auto const& address : stateDiff.deletedAccounts)
+        {
+            accounts.erase(address);
+        }
         for (auto const& [address, account] : stateDiff.accounts)
         {
             auto& merged = accounts[address];

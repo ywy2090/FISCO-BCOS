@@ -66,8 +66,8 @@ inline void initializeCreateTargetAccount(state::State& st, evmc_address const& 
 }
 
 /// geth create/create2: fail when target already has nonce or code (EIP-684; storage via
-/// EIP-7610). Same-tx SELFDESTRUCT does not exempt collision — a second CREATE2 to the same
-/// address still hits nonce!=0 (EEST create2SmartInitCode d0).
+/// EIP-7610). SELFDESTRUCT has no immediate effect on nonce/code in-tx — same-tx recreate
+/// still collides when nonce != 0 (evmone is_create_collision; geth #17882).
 inline bool isCreateDeploymentAddressCollision(state::State const& st,
     evmc_address const& createAddr, bool /*eip6780*/) noexcept
 {

@@ -303,7 +303,8 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
             };
 
             TestStateView parentState = parentIt->second.postState;
-            auto const execBlockInfo = blockInfoForExecution(tb.blockInfo, tb, parentHeader, rev);
+            auto const execBlockInfo =
+                blockInfoForExecution(tb.blockInfo, tb, parentHeader, rev, test.chainId);
             auto res = applyEthBlock(parentState, tb.transactions, execBlockInfo, profile, vm,
                 hashImpl, std::move(blockHashesLookup), tb.withdrawals);
 
@@ -346,7 +347,8 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
         };
 
         TestStateView parentState = parentIt->second.postState;
-        auto const execBlockInfo = blockInfoForExecution(tb.blockInfo, tb, parentHeader, rev);
+        auto const execBlockInfo =
+            blockInfoForExecution(tb.blockInfo, tb, parentHeader, rev, test.chainId);
         auto res = applyEthBlock(parentState, tb.transactions, execBlockInfo, profile, vm, hashImpl,
             std::move(blockHashesLookup), tb.withdrawals);
 

@@ -21,13 +21,19 @@
 
 #include "bcos-evm/eth/state/Account.hpp"
 #include <unordered_map>
+#include <unordered_set>
 
 namespace bcos::evm::state
 {
 struct StateDiff
 {
     std::unordered_map<evmc_address, Account, AddressHash, AddressEqual> accounts;
+    /// Pre-EIP-6780 SELFDESTRUCT: overlay accounts erased at tx end (evmone deleted_accounts).
+    std::unordered_set<evmc_address, AddressHash, AddressEqual> deletedAccounts;
 
-    [[nodiscard]] bool empty() const noexcept { return accounts.empty(); }
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return accounts.empty() && deletedAccounts.empty();
+    }
 };
 }  // namespace bcos::evm::state

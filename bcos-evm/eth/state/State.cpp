@@ -445,9 +445,6 @@ void State::set_storage(
     journal_account_once(address);
     auto& account = mutable_account(address);
     account.storage[key] = value;
-    // geth: SSTORE after same-tx SELFDESTRUCT cancels pending deletion (EIP-6780 recreate path).
-    account.selfDestructed = false;
-    account.selfDestructScheduled = false;
 }
 
 void State::clear_storage(const evmc_address& address)
@@ -678,6 +675,7 @@ StateDiff State::build_diff() const
             diff.accounts.emplace(address, std::move(patch));
         }
     }
+    diff.deletedAccounts = m_deletedAccounts;
     return diff;
 }
 
@@ -757,6 +755,7 @@ void State::finalize_self_destructs(bool eip6780)
             ++it;
             continue;
         }
+        m_deletedAccounts.insert(it->first);
         it = m_accounts.erase(it);
     }
 }
@@ -776,8 +775,8 @@ void State::touchCreateDeploymentAccount(const evmc_address& address, evmc_revis
     account.codeHash = {};
     account.codeDirty = true;
     account.storage.clear();
-    // Cancel pending deletion for init/CALL visibility; sticky selfDestructScheduled still
-    // forces tx-end removal (evmone build_diff deleted_accounts).
+    // Cancel pending deletion for init/CALL visibility; selfDestructScheduled remains until
+    // tx-end finalize (evmone deleted_accounts / build_diff export).
     account.selfDestructed = false;
     // Fresh CREATE target starts at nonce 1 (Spurious Dragon+). Same-tx collision recreate
     // (EIP-6780) must preserve an existing contract nonce — geth does not reset it on re-init.

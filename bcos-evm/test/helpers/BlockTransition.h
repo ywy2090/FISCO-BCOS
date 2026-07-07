@@ -83,16 +83,17 @@ struct BlockApplyResult
 
 /// Execution-time block context: beacon root + blob base fee from parent excess (EIP-4844).
 inline state::BlockInfo blockInfoForExecution(state::BlockInfo const& base, TestBlock const& tb,
-    TestBlockHeader const* parent, evmc_revision rev)
+    TestBlockHeader const* parent, evmc_revision rev, bcos::u256 chainId = 0)
 {
     state::BlockInfo bi = base;
+    bi.chainId = chainId;
     bi.parentBeaconBlockRoot = tb.expectedBlockHeader.parentBeaconBlockRoot;
     if (rev >= EVMC_CANCUN)
     {
         if (tb.inputExcessBlobGas.has_value())
-            bi.blobBaseFee = gas::calcBlobBaseFee(*tb.inputExcessBlobGas);
+            bi.blobBaseFee = gas::calcBlobBaseFee(*tb.inputExcessBlobGas, rev);
         else if (parent != nullptr && parent->excessBlobGas.has_value())
-            bi.blobBaseFee = gas::calcBlobBaseFee(*parent->excessBlobGas);
+            bi.blobBaseFee = gas::calcBlobBaseFee(*parent->excessBlobGas, rev);
     }
     return bi;
 }
