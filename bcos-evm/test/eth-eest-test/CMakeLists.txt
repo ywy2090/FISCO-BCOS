@@ -16,6 +16,7 @@ add_library(bcos-evm-specs-tests-core STATIC
     src/GstStateHash.cpp
     src/EestStateTestLoader.cpp
     src/EestTransactionTestLoader.cpp
+    src/EestGranularCli.cpp
     src/Eip7702StrictTxValidator.cpp
 )
 
@@ -86,6 +87,7 @@ add_reference_test(ForkProfileRegistryTest test/ForkProfileRegistryTest.cpp)
 add_reference_test(Eip7702StrictTxValidatorTest test/Eip7702StrictTxValidatorTest.cpp)
 add_reference_test(StateTestMatcherTest test/StateTestMatcherTest.cpp)
 add_reference_test(StateTestAssertTest test/StateTestAssertTest.cpp)
+add_reference_test(EestGranularCliTest test/EestGranularCliTest.cpp)
 
 add_executable(EthMessageAdapterTest test/EthMessageAdapterTest.cpp)
 target_link_libraries(EthMessageAdapterTest PRIVATE bcos-evm-specs-tests-eth)
@@ -199,6 +201,13 @@ add_test(NAME EthEestStateGranularSmoke
     --gtest_filter="*eip1559*:*eip5656*:*eip3855*")
 set_tests_properties(EthEestStateGranularSmoke PROPERTIES
     LABELS "specs-tests;specs-tests-smoke;eth-kernel;eest")
+
+# evmone-statetest parity: recursive scan of native EEST state_tests (nightly / local).
+add_test(NAME EthEestStateGranularFull
+    COMMAND EthEestStateGranular ${EVM_REF_EEST_ROOT}/fixtures/state_tests)
+set_tests_properties(EthEestStateGranularFull PROPERTIES
+    LABELS "specs-tests;specs-tests-full;eest-statetest;nightly;eth-kernel;eest"
+    TIMEOUT 14400)
 
 add_executable(EthEestBlockchainRunner runners/eth/EthEestBlockchainRunner.cpp)
 target_include_directories(EthEestBlockchainRunner PRIVATE

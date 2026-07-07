@@ -1,3 +1,4 @@
+#include "bcos-evm/eth-eest-test/EestGranularCli.h"
 #include "bcos-evm/eth-eest-test/EestGranularSlowFilter.h"
 #include "bcos-evm/eth-eest-test/EestStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
@@ -12,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -29,6 +31,37 @@ struct RunnerConfig
     bcos::crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 };
+
+bool passesNameFilter(std::string const& testName, std::optional<std::string> const& nameFilter)
+{
+    return !nameFilter || testName.find(*nameFilter) != std::string::npos;
+}
+
+RunnerConfig buildRunnerConfig(std::vector<std::string> const& profileIds)
+{
+    RunnerConfig config;
+    if (profileIds.empty())
+    {
+        for (auto const& id : {"eth-cancun", "eth-prague", "eth-osaka"})
+        {
+            if (auto const p = ForkProfileRegistry::instance().findByProfileId(id))
+            {
+                if (std::ranges::none_of(config.profiles,
+                        [&](auto const& fp) { return fp.profileId == p->profileId; }))
+                    config.profiles.push_back(*p);
+            }
+        }
+    }
+    else
+    {
+        for (auto const& id : profileIds)
+        {
+            if (auto const p = ForkProfileRegistry::instance().findByProfileId(id))
+                config.profiles.push_back(*p);
+        }
+    }
+    return config;
+}
 
 // ── File-level GTest case (directory input) ──────────────────────────────
 
@@ -144,7 +177,8 @@ public:
 
 // ── Discovery ─────────────────────────────────────────────────────────────
 
-void registerFilesFromDirectory(fs::path const& root, RunnerConfig* config)
+void registerFilesFromDirectory(
+    fs::path const& root, RunnerConfig* config, std::optional<std::string> const& nameFilter)
 {
     std::vector<fs::path> testFiles;
     for (auto const& entry :
@@ -158,10 +192,16 @@ void registerFilesFromDirectory(fs::path const& root, RunnerConfig* config)
     }
     std::ranges::sort(testFiles);
     for (auto const& p : testFiles)
+    {
+        auto const testName = p.stem().string();
+        if (!passesNameFilter(testName, nameFilter))
+            continue;
         EthEestStateFileTest::register_one(fs::relative(p, root).parent_path().string(), p, config);
+    }
 }
 
-void registerSubtestsFromFile(fs::path const& file, RunnerConfig* config)
+void registerSubtestsFromFile(
+    fs::path const& file, RunnerConfig* config, std::optional<std::string> const& nameFilter)
 {
     std::ifstream f{file};
     auto testCases = loadEestStateTestFile(file);
@@ -175,6 +215,8 @@ void registerSubtestsFromFile(fs::path const& file, RunnerConfig* config)
                 auto testName = tc.name + "/" + profile.upstreamForkName + "/d" +
                                 std::to_string(st.dataIndex) + "g" + std::to_string(st.gasIndex) +
                                 "v" + std::to_string(st.valueIndex);
+                if (!passesNameFilter(testName, nameFilter))
+                    continue;
                 EthEestStateSubtest::register_one(tc, st, profile, config, file.string(), testName);
             }
         }
@@ -192,67 +234,37 @@ int main(int argc, char** argv)
     try
     {
         testing::FLAGS_gtest_filter = std::string(kEestGranularDefaultGtestFilter);
-        testing::InitGoogleTest(&argc, argv);  // CLI --gtest_filter overrides default
+        testing::InitGoogleTest(&argc, argv);
 
-        if (argc < 2)
+        auto opts = parseEestGranularCliRemaining(argc, argv);
+        if (opts.paths.empty())
         {
             std::cerr << "Usage: " << argv[0]
-                      << " <path> [--fork-profiles eth-cancun,eth-prague,eth-osaka]\n";
+                      << " <path> [<path>...] [-k SUBSTR] [--fork-profiles IDS]\n"
+                      << "       [--gtest_filter=...]   # standard GTest flags\n";
             return 1;
         }
 
-        fs::path root(argv[1]);
-        RunnerConfig config;
-
-        // Default profiles
-        for (auto const& id : {"eth-cancun", "eth-prague", "eth-osaka"})
-        {
-            if (auto const p = ForkProfileRegistry::instance().findByProfileId(id))
-            {
-                if (std::ranges::none_of(config.profiles,
-                        [&](auto const& fp) { return fp.profileId == p->profileId; }))
-                    config.profiles.push_back(*p);
-            }
-        }
-
-        // CLI: --fork-profiles
-        for (int i = 2; i < argc; ++i)
-        {
-            if (std::string_view(argv[i]) == "--fork-profiles" && i + 1 < argc)
-            {
-                config.profiles.clear();
-                std::string_view list(argv[++i]);
-                while (!list.empty())
-                {
-                    auto const comma = list.find(',');
-                    auto const token = list.substr(0, comma);
-                    if (!token.empty())
-                    {
-                        if (auto const p = ForkProfileRegistry::instance().findByProfileId(token))
-                            config.profiles.push_back(*p);
-                    }
-                    if (comma == std::string_view::npos)
-                        break;
-                    list.remove_prefix(comma + 1);
-                }
-            }
-        }
+        auto config = buildRunnerConfig(opts.profileIds);
 
         auto eestRoot = resolveEestRoot();
         ensureEestFixturesExtracted(eestRoot);
 
-        if (is_directory(root))
+        for (auto const& root : opts.paths)
         {
-            registerFilesFromDirectory(root, &config);
-        }
-        else if (is_regular_file(root))
-        {
-            registerSubtestsFromFile(root, &config);
-        }
-        else
-        {
-            std::cerr << "Error: '" << root << "' is not a valid directory or file\n";
-            return 1;
+            if (is_directory(root))
+            {
+                registerFilesFromDirectory(root, &config, opts.nameFilter);
+            }
+            else if (is_regular_file(root))
+            {
+                registerSubtestsFromFile(root, &config, opts.nameFilter);
+            }
+            else
+            {
+                std::cerr << "Error: '" << root << "' is not a valid directory or file\n";
+                return 1;
+            }
         }
 
         return RUN_ALL_TESTS();
