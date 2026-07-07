@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -17,5 +18,8 @@ struct EestGranularCliOptions
 
 /// Parse argv AFTER testing::InitGoogleTest (gtest flags removed).
 EestGranularCliOptions parseEestGranularCliRemaining(int argc, char** argv);
+
+/// Resolve fork profiles; empty profileIds => manifest-16 defaults.
+std::vector<ForkProfile> buildRunnerConfig(std::vector<std::string> const& profileIds);
 
 }  // namespace bcos::evm::reference_tests

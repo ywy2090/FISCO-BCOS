@@ -1,8 +1,8 @@
+#include "bcos-evm/eth-eest-test/EestForkInference.h"
 #include "bcos-evm/eth-eest-test/EestGranularCli.h"
 #include "bcos-evm/eth-eest-test/EestGranularSlowFilter.h"
 #include "bcos-evm/eth-eest-test/EestStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
-#include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/StateTestAssert.h"
 
@@ -10,6 +10,7 @@
 #include <bcos-task/Wait.h>
 #include <evmone/evmone.h>
 #include <gtest/gtest.h>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -25,9 +26,13 @@ namespace bcos::evm::reference_tests
 namespace
 {
 
+static constexpr std::array<char const*, 3> kDefaultAssertLevels = {
+    "transitional", "expectException", "stateRoot"};
+
 struct RunnerConfig
 {
     std::vector<ForkProfile> profiles;
+    fs::path stateTestsRoot;
     bcos::crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 };
@@ -35,32 +40,6 @@ struct RunnerConfig
 bool passesNameFilter(std::string const& testName, std::optional<std::string> const& nameFilter)
 {
     return !nameFilter || testName.find(*nameFilter) != std::string::npos;
-}
-
-RunnerConfig buildRunnerConfig(std::vector<std::string> const& profileIds)
-{
-    RunnerConfig config;
-    if (profileIds.empty())
-    {
-        for (auto const& id : {"eth-cancun", "eth-prague", "eth-osaka"})
-        {
-            if (auto const p = ForkProfileRegistry::instance().findByProfileId(id))
-            {
-                if (std::ranges::none_of(config.profiles,
-                        [&](auto const& fp) { return fp.profileId == p->profileId; }))
-                    config.profiles.push_back(*p);
-            }
-        }
-    }
-    else
-    {
-        for (auto const& id : profileIds)
-        {
-            if (auto const p = ForkProfileRegistry::instance().findByProfileId(id))
-                config.profiles.push_back(*p);
-        }
-    }
-    return config;
 }
 
 // ── File-level GTest case (directory input) ──────────────────────────────
@@ -80,19 +59,22 @@ public:
         auto testCases = loadEestStateTestFile(m_file);
         for (auto const& tc : testCases)
         {
-            for (auto const& profile : m_config->profiles)
+            for (auto const& run :
+                resolveRunsForCase(tc, m_file, m_config->stateTestsRoot, m_config->profiles))
             {
-                auto const postFork = profile.upstreamForkName;
-                auto const subtests = tryListSubtests(tc, postFork);
+                auto const subtests = tryListSubtests(tc, run.postForkKey);
                 if (subtests.empty())
+                {
                     continue;
+                }
 
-                EthMessageAdapter adapter(profile, m_config->hashImpl, m_config->vm);
+                EthMessageAdapter adapter(run.executionProfile, m_config->hashImpl, m_config->vm);
                 for (auto const& st : subtests)
                 {
-                    SCOPED_TRACE(std::string(evmc::to_string(profile.revision.revision)) + " d" +
-                                 std::to_string(st.dataIndex) + "g" + std::to_string(st.gasIndex) +
-                                 "v" + std::to_string(st.valueIndex));
+                    SCOPED_TRACE(
+                        std::string(evmc::to_string(run.executionProfile.revision.revision)) +
+                        " d" + std::to_string(st.dataIndex) + "g" + std::to_string(st.gasIndex) +
+                        "v" + std::to_string(st.valueIndex));
 
                     auto const expected = selectExpected(tc, st);
                     auto gasBefore =
@@ -103,11 +85,11 @@ public:
                     auto const result = task::syncWait(adapter.execute(tc, st));
 
                     ManifestEntry synthetic;
-                    synthetic.evidenceId = tc.name + "@" + profile.profileId;
+                    synthetic.evidenceId = tc.name + "@" + run.executionProfile.profileId;
                     synthetic.path = ExecutionPath::Reference;
                     synthetic.evidenceKind = EvidenceKind::ReferenceParity;
                     synthetic.assertLevels = {
-                        "transitional", "expectException", "stateRoot", "logsHash"};
+                        kDefaultAssertLevels.begin(), kDefaultAssertLevels.end()};
 
                     auto const report = assertResult(synthetic, expected, result, gasBefore);
                     EXPECT_TRUE(report.passed) << report.message;
@@ -158,7 +140,7 @@ public:
         synthetic.evidenceId = m_testCase.name;
         synthetic.path = ExecutionPath::Reference;
         synthetic.evidenceKind = EvidenceKind::ReferenceParity;
-        synthetic.assertLevels = {"transitional", "expectException", "stateRoot", "logsHash"};
+        synthetic.assertLevels = {kDefaultAssertLevels.begin(), kDefaultAssertLevels.end()};
 
         auto const report = assertResult(synthetic, expected, result, gasBefore);
         EXPECT_TRUE(report.passed) << report.message;
@@ -195,7 +177,9 @@ void registerFilesFromDirectory(
     {
         auto const testName = p.stem().string();
         if (!passesNameFilter(testName, nameFilter))
+        {
             continue;
+        }
         EthEestStateFileTest::register_one(fs::relative(p, root).parent_path().string(), p, config);
     }
 }
@@ -203,21 +187,24 @@ void registerFilesFromDirectory(
 void registerSubtestsFromFile(
     fs::path const& file, RunnerConfig* config, std::optional<std::string> const& nameFilter)
 {
-    std::ifstream f{file};
     auto testCases = loadEestStateTestFile(file);
     for (auto const& tc : testCases)
     {
-        for (auto const& profile : config->profiles)
+        for (auto const& run :
+            resolveRunsForCase(tc, file, config->stateTestsRoot, config->profiles))
         {
-            auto const subtests = tryListSubtests(tc, profile.upstreamForkName);
+            auto const subtests = tryListSubtests(tc, run.postForkKey);
             for (auto const& st : subtests)
             {
-                auto testName = tc.name + "/" + profile.upstreamForkName + "/d" +
+                auto testName = tc.name + "/" + run.postForkKey + "/d" +
                                 std::to_string(st.dataIndex) + "g" + std::to_string(st.gasIndex) +
                                 "v" + std::to_string(st.valueIndex);
                 if (!passesNameFilter(testName, nameFilter))
+                {
                     continue;
-                EthEestStateSubtest::register_one(tc, st, profile, config, file.string(), testName);
+                }
+                EthEestStateSubtest::register_one(
+                    tc, st, run.executionProfile, config, file.string(), testName);
             }
         }
     }
@@ -245,10 +232,12 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        auto config = buildRunnerConfig(opts.profileIds);
+        RunnerConfig config;
+        config.profiles = buildRunnerConfig(opts.profileIds);
 
         auto eestRoot = resolveEestRoot();
         ensureEestFixturesExtracted(eestRoot);
+        config.stateTestsRoot = eestRoot / "fixtures" / "state_tests";
 
         for (auto const& root : opts.paths)
         {

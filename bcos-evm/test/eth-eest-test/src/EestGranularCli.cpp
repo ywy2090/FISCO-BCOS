@@ -1,5 +1,7 @@
 #include "bcos-evm/eth-eest-test/EestGranularCli.h"
 
+#include <algorithm>
+#include <array>
 #include <stdexcept>
 #include <string_view>
 
@@ -59,6 +61,42 @@ EestGranularCliOptions parseEestGranularCliRemaining(int argc, char** argv)
         }
     }
     return opts;
+}
+
+std::vector<ForkProfile> buildRunnerConfig(std::vector<std::string> const& profileIds)
+{
+    static constexpr std::array<char const*, 4> kManifest16Profiles = {
+        "eth-shanghai", "eth-cancun", "eth-prague", "eth-osaka"};
+
+    std::vector<ForkProfile> profiles;
+    auto const& registry = ForkProfileRegistry::instance();
+
+    if (profileIds.empty())
+    {
+        for (auto const* id : kManifest16Profiles)
+        {
+            if (auto const profile = registry.findByProfileId(id))
+            {
+                if (std::ranges::none_of(profiles, [&](ForkProfile const& existing) {
+                        return existing.profileId == profile->profileId;
+                    }))
+                {
+                    profiles.push_back(*profile);
+                }
+            }
+        }
+    }
+    else
+    {
+        for (auto const& id : profileIds)
+        {
+            if (auto const profile = registry.findByProfileId(id))
+            {
+                profiles.push_back(*profile);
+            }
+        }
+    }
+    return profiles;
 }
 
 }  // namespace bcos::evm::reference_tests
