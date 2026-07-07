@@ -12,7 +12,7 @@ target_include_directories(${TEST_BINARY_NAME} PRIVATE
 )
 
 target_link_libraries(${TEST_BINARY_NAME} PRIVATE
-    bcos-evm
+    bcos-evm-eth
 )
 
 add_test(

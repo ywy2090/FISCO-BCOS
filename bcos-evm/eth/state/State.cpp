@@ -330,6 +330,26 @@ void State::set_balance(const evmc_address& address, const bcos::u256& balance)
     account.balanceDirty = true;
 }
 
+bool State::transfer_balance(
+    const evmc_address& from, const evmc_address& to, const bcos::u256& value)
+{
+    if (value == 0)
+    {
+        return true;
+    }
+
+    auto const fromBalance = get_balance(from);
+    if (fromBalance < value)
+    {
+        return false;
+    }
+
+    auto const toBalance = get_balance(to);
+    set_balance(from, fromBalance - value);
+    set_balance(to, toBalance + value);
+    return true;
+}
+
 void State::set_nonce(const evmc_address& address, uint64_t nonce)
 {
     journal_account_once(address);

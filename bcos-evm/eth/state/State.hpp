@@ -56,6 +56,10 @@ public:
     [[nodiscard]] bool has_checkpoint() const noexcept;
 
     void set_balance(const evmc_address& address, const bcos::u256& balance);
+    /// Transfer @p value wei from @p from to @p to. Returns false when @p from is
+    /// underfunded; leaves state unchanged on failure.
+    [[nodiscard]] bool transfer_balance(
+        const evmc_address& from, const evmc_address& to, const bcos::u256& value);
     void set_nonce(const evmc_address& address, uint64_t nonce);
     void set_code(const evmc_address& address, bcos::bytes code, evmc_bytes32 codeHash);
     void set_storage(

@@ -249,13 +249,7 @@ std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
     auto const value = state::fromEvmC(msg.value);
 
     auto transfer = [&](evmc_address const& from, evmc_address const& to) -> bool {
-        if (state.get_balance(from) < value)
-        {
-            return false;
-        }
-        state.set_balance(from, state.get_balance(from) - value);
-        state.set_balance(to, state.get_balance(to) + value);
-        return true;
+        return state.transfer_balance(from, to, value);
     };
 
     bool ok = false;

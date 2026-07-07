@@ -61,12 +61,10 @@ std::optional<evmc::Result> tryEnvelopeValueTransfer(state::State& state,
         return std::nullopt;
     }
     auto const value = state::fromEvmC(message.value);
-    if (state.get_balance(message.sender) < value)
+    if (!state.transfer_balance(message.sender, target, value))
     {
         return makeInsufficientBalanceResult(message.gas);
     }
-    state.set_balance(message.sender, state.get_balance(message.sender) - value);
-    state.set_balance(target, state.get_balance(target) + value);
     return std::nullopt;
 }
 

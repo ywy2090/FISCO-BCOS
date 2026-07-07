@@ -184,6 +184,55 @@ BOOST_AUTO_TEST_CASE(cleared_overlay_storage_does_not_read_base)
     BOOST_CHECK(bytes32Equal(state.get_storage(address, slot), evmc_bytes32{}));
 }
 
+BOOST_AUTO_TEST_CASE(transfer_balance_moves_value_and_reverts_with_checkpoint)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address sender{};
+    sender.bytes[19] = 0x01;
+    evmc_address recipient{};
+    recipient.bytes[19] = 0x02;
+
+    state.checkpoint();
+    BOOST_REQUIRE(state.transfer_balance(sender, recipient, 40));
+    BOOST_CHECK_EQUAL(state.get_balance(sender), 60);
+    BOOST_CHECK_EQUAL(state.get_balance(recipient), 40);
+    state.revert();
+    BOOST_CHECK_EQUAL(state.get_balance(sender), 100);
+    BOOST_CHECK_EQUAL(state.get_balance(recipient), 0);
+}
+
+BOOST_AUTO_TEST_CASE(transfer_balance_insufficient_leaves_state_unchanged)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address sender{};
+    sender.bytes[19] = 0x01;
+    evmc_address recipient{};
+    recipient.bytes[19] = 0x02;
+
+    BOOST_REQUIRE(!state.transfer_balance(sender, recipient, 101));
+    BOOST_CHECK_EQUAL(state.get_balance(sender), 100);
+    BOOST_CHECK_EQUAL(state.get_balance(recipient), 0);
+}
+
+BOOST_AUTO_TEST_CASE(transfer_balance_zero_value_is_noop)
+{
+    MockStateView view;
+    State state(view);
+
+    evmc_address sender{};
+    sender.bytes[19] = 0x01;
+    evmc_address recipient{};
+    recipient.bytes[19] = 0x02;
+
+    BOOST_REQUIRE(state.transfer_balance(sender, recipient, 0));
+    BOOST_CHECK_EQUAL(state.get_balance(sender), 100);
+    BOOST_CHECK_EQUAL(state.get_balance(recipient), 0);
+}
+
 BOOST_AUTO_TEST_CASE(tx_created_empty_account_returns_empty_code_hash)
 {
     class EmptyBaseView : public StateView
