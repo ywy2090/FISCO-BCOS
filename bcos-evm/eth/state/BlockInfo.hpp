@@ -35,6 +35,7 @@ struct BlockInfo
     evmc_address coinbase{};
     evmc_bytes32 prevRandao{};
     evmc_bytes32 parentHash{};
+    evmc_bytes32 parentBeaconBlockRoot{};  // EIP-4788 Cancun+ (distinct from prevRandao/mixHash)
     bcos::u256 baseFee{0};
     bcos::u256 chainId{0};
     bcos::u256 blobBaseFee{0};

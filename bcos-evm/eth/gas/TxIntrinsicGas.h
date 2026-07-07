@@ -74,12 +74,13 @@ inline int64_t calcCreateIntrinsic(evmc_message const& message, bool eip3860) no
 /// eip3860 comes from RevisionConfig.eip3860 — no default, so callers can't silently
 /// inherit the wrong fork's gating.
 inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
-    Eip2930AccessList const* accessList, uint8_t web3TypedTxKind, bool eip3860)
+    Eip2930AccessList const* accessList, uint8_t web3TypedTxKind, bool eip3860,
+    evmc_revision revision)
 {
     (void)web3TypedTxKind;
     TxIntrinsicGas intrinsic;
-    auto const components =
-        gas::calcEip7623Components(bcos::bytesConstRef(message.input_data, message.input_size));
+    auto const components = gas::calcEip7623Components(
+        bcos::bytesConstRef(message.input_data, message.input_size), revision);
     intrinsic.normalCalldata = components.normalCost;
     intrinsic.floorReserve = components.floorCost;  // data-floor term for gasLimitMinimum
 
@@ -90,6 +91,13 @@ inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
 
     intrinsic.createIntrinsic = calcCreateIntrinsic(message, eip3860);
     return intrinsic;
+}
+
+/// Backward-compatible overload (post-Istanbul calldata rate).
+inline TxIntrinsicGas computeTxIntrinsicGas(evmc_message const& message,
+    Eip2930AccessList const* accessList, uint8_t web3TypedTxKind, bool eip3860)
+{
+    return computeTxIntrinsicGas(message, accessList, web3TypedTxKind, eip3860, EVMC_LONDON);
 }
 
 }  // namespace gas

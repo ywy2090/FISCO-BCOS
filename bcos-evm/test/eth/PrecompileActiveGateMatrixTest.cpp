@@ -1,6 +1,6 @@
 #define BOOST_TEST_MODULE PrecompileActiveGateMatrixTest
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include <boost/test/included/unit_test.hpp>
@@ -32,9 +32,13 @@ BOOST_AUTO_TEST_CASE(isActivePrecompile_gate_matrix)
     };
 
     Row const rows[] = {
-        {0x01, 0x00, EVMC_ISTANBUL, false, false, false},
+        {0x01, 0x00, EVMC_FRONTIER, false, false, true},
+        {0x03, 0x00, EVMC_FRONTIER, false, false, true},
+        {0x05, 0x00, EVMC_HOMESTEAD, false, false, false},
+        {0x05, 0x00, EVMC_BYZANTIUM, false, false, true},
         {0x04, 0x00, EVMC_BERLIN, false, false, true},
-        {0x09, 0x00, EVMC_BERLIN, false, false, true},
+        {0x09, 0x00, EVMC_BERLIN, false, false, false},
+        {0x09, 0x00, EVMC_ISTANBUL, false, false, true},
         {0x0a, 0x00, EVMC_SHANGHAI, false, false, false},
         {0x0a, 0x00, EVMC_CANCUN, false, false, true},
         {0x0b, 0x00, EVMC_CANCUN, false, false, false},

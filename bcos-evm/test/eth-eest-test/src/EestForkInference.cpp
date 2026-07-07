@@ -36,26 +36,11 @@ std::optional<std::string_view> profileIdFromPathSegment(std::string_view segmen
     return ForkProfileRegistry::instance().profileIdForDirSegment(segment);
 }
 
-/// WP-HIST posts run without being in manifest default profiles (targeted paths only).
-bool shouldRunWpHistPost(std::string_view postForkKey, std::filesystem::path const& sourceFile)
+/// WP-HIST posts: Homestead/Berlin were previously path-gated in Phase 1; Phase 2 runs
+/// them wherever the selected fork profile matches the post fork label.
+bool shouldRunWpHistPost(
+    std::string_view /*postForkKey*/, std::filesystem::path const& /*sourceFile*/)
 {
-    auto const filename = sourceFile.filename().string();
-    if (postForkKey == "Homestead")
-    {
-        if (filename.find("homestead") != std::string::npos)
-        {
-            return true;
-        }
-        return sourceFile.parent_path().filename() == "touch";
-    }
-    if (postForkKey == "Berlin")
-    {
-        if (filename.find("byzantium") != std::string::npos)
-        {
-            return true;
-        }
-        return sourceFile.parent_path().filename() == "touch";
-    }
     return true;
 }
 
@@ -70,39 +55,7 @@ std::optional<std::string_view> inferUpstreamForkFromPath(
         return std::nullopt;
     }
     auto const segment = caseDir->begin()->string();
-    if (segment == "homestead")
-    {
-        return "Homestead";
-    }
-    if (segment == "berlin")
-    {
-        return "Berlin";
-    }
-    if (segment == "london")
-    {
-        return "London";
-    }
-    if (segment == "paris" || segment == "merge")
-    {
-        return "Paris";
-    }
-    if (segment == "shanghai")
-    {
-        return "Shanghai";
-    }
-    if (segment == "cancun")
-    {
-        return "Cancun";
-    }
-    if (segment == "prague")
-    {
-        return "Prague";
-    }
-    if (segment == "osaka")
-    {
-        return "Osaka";
-    }
-    return std::nullopt;
+    return ForkProfileRegistry::instance().upstreamForkForDirSegment(segment);
 }
 
 std::optional<std::string_view> manifestProfileIdForPath(

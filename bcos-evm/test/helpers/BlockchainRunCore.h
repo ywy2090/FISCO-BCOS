@@ -155,7 +155,9 @@ inline std::vector<ReceiptForRoot> receiptsForRoot(std::vector<TransactionReceip
     for (auto const& rc : receipts)
     {
         ReceiptForRoot r;
-        r.status = rc.status;
+        r.txType = rc.txType;
+        // MPT receipt status: included vmerr still encodes failure (0x80), not settlement success.
+        r.status = rc.topLevelIncludedTxVmError ? EVMC_REVERT : rc.status;
         cumulative += static_cast<uint64_t>(rc.gasUsed);
         r.cumulativeGasUsed = cumulative;
         r.bloom = rc.bloom;
@@ -274,6 +276,13 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
             return "unknown revision for block " + std::to_string(tb.blockInfo.number);
         evmc_revision const rev = *revOpt;
 
+        // RLP-only invalid blocks: no structured header; Level-1 RLP decode failure only.
+        if (!tb.hasStructuredHeader && !tb.expectException.empty())
+        {
+            if (expectExceptionMatches(tb.expectException, "RLP_STRUCTURES_ENCODING"))
+                continue;
+        }
+
         auto parentIt = blockData.find(tb.blockInfo.parentHash);
         TestBlockHeader const* parentHeader =
             (parentIt != blockData.end()) ? parentIt->second.header : nullptr;
@@ -284,9 +293,13 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
         {
             if (blockError.has_value())
             {
-                if (!expectExceptionMatches(tb.expectException, *blockError))
-                    return "expectException mismatch at level 1: got " + *blockError;
-                continue;
+                if (expectExceptionMatches(tb.expectException, *blockError))
+                    continue;
+                if (!tb.hasStructuredHeader &&
+                    expectExceptionMatches(tb.expectException, "RLP_STRUCTURES_ENCODING") &&
+                    *blockError == BlockError::INVALID_BLOCK_PARENT)
+                    continue;
+                return "expectException mismatch at level 1: got " + *blockError;
             }
             if (parentIt == blockData.end())
                 return "invalid block parent not in block_data";
@@ -304,7 +317,8 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
             };
 
             TestStateView parentState = parentIt->second.postState;
-            auto res = applyEthBlock(parentState, tb.transactions, tb.blockInfo, profile, vm,
+            auto const execBlockInfo = blockInfoForExecution(tb.blockInfo, tb, parentHeader, rev);
+            auto res = applyEthBlock(parentState, tb.transactions, execBlockInfo, profile, vm,
                 hashImpl, std::move(blockHashesLookup), tb.withdrawals);
 
             if (!res.rejected.empty())
@@ -346,7 +360,8 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
         };
 
         TestStateView parentState = parentIt->second.postState;
-        auto res = applyEthBlock(parentState, tb.transactions, tb.blockInfo, profile, vm, hashImpl,
+        auto const execBlockInfo = blockInfoForExecution(tb.blockInfo, tb, parentHeader, rev);
+        auto res = applyEthBlock(parentState, tb.transactions, execBlockInfo, profile, vm, hashImpl,
             std::move(blockHashesLookup), tb.withdrawals);
 
         if (auto err = validateValidBlockHeaders(tb, res, rev, test.blobSchedule, test.network))

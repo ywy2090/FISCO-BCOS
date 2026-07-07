@@ -29,10 +29,11 @@ inline void mergeStateDiffAccount(
 {
     merged.nonce = patch.nonce;
     merged.balance = patch.balance;
-    if (!patch.code.empty())
+    if (!patch.code.empty() || patch.codeDirty)
     {
         merged.code = patch.code;
         merged.codeHash = patch.codeHash;
+        merged.codeDirty = patch.codeDirty;
     }
     for (auto const& [slot, value] : patch.storage)
     {
@@ -86,8 +87,8 @@ inline state::StateDiff applyCancunBlockSystemCalls(TestStateView& state,
     if (!state.get_account(kBeaconRootsAddress).has_value())
         return empty;
 
-    bcos::bytes const calldata(blockInfo.prevRandao.bytes,
-        blockInfo.prevRandao.bytes + sizeof(blockInfo.prevRandao.bytes));
+    bcos::bytes const calldata(blockInfo.parentBeaconBlockRoot.bytes,
+        blockInfo.parentBeaconBlockRoot.bytes + sizeof(blockInfo.parentBeaconBlockRoot.bytes));
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;

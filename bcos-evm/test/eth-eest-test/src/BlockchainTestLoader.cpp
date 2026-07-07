@@ -411,6 +411,7 @@ TestBlock parseTestBlock(pt::ptree const& j, std::string_view /*network*/)
 
     if (auto hdr = src->get_child_optional("blockHeader"))
     {
+        tb.hasStructuredHeader = true;
         tb.expectedBlockHeader = parseBlockHeader(*hdr);
         if (auto s = opt(*hdr, "uncleHash"))
             tb.hasOmmers = uncleHashImpliesOmmers(*s);
@@ -423,6 +424,7 @@ TestBlock parseTestBlock(pt::ptree const& j, std::string_view /*network*/)
     bi.coinbase = tb.expectedBlockHeader.coinbase;
     bi.prevRandao = tb.expectedBlockHeader.prevRandao;
     bi.parentHash = tb.expectedBlockHeader.parentHash;
+    bi.parentBeaconBlockRoot = tb.expectedBlockHeader.parentBeaconBlockRoot;
     bi.baseFee = tb.expectedBlockHeader.baseFeePerGas;
 
     tb.inputBlobGasUsed = tb.expectedBlockHeader.blobGasUsed;

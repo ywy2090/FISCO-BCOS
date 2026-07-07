@@ -156,11 +156,12 @@ void FiscoEvmHostHooks::applyCreateNonceSemantics(const evmc_message& message)
 }
 
 void FiscoEvmHostHooks::applySstoreRefund(state::State& state, evmc_bytes32 const& current,
-    evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept
+    evmc_bytes32 const& original, evmc_bytes32 const& newValue,
+    evmc_revision revision) const noexcept
 {
     if (m_revisionFlags.fix_storage_status)
     {
-        state::applySstoreRefundEip3529(state, current, original, newValue);
+        state::applySstoreRefundEip3529(state, current, original, newValue, revision);
     }
 }
 

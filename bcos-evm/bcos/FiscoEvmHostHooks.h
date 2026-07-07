@@ -89,7 +89,8 @@ public:
     void bumpContractCreateNonce(const evmc_address& contractAddress) override;
 
     void applySstoreRefund(state::State& state, evmc_bytes32 const& current,
-        evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept override;
+        evmc_bytes32 const& original, evmc_bytes32 const& newValue,
+        evmc_revision revision) const noexcept override;
 
     evmc_storage_status classifyStorageStatus(evmc_bytes32 const& original,
         evmc_bytes32 const& current, evmc_bytes32 const& newValue) const noexcept override;

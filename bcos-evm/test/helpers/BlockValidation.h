@@ -102,7 +102,9 @@ inline std::optional<std::string> validateBlock(evmc_revision rev, BlobSchedule 
     if (gl < 5000)  // #6
         return BlockError::INVALID_GASLIMIT;
 
-    if (h.timestamp <= parent->timestamp)  // #7
+    auto const blockTs = static_cast<uint64_t>(h.timestamp);
+    auto const parentTs = static_cast<uint64_t>(parent->timestamp);
+    if (blockTs <= parentTs)  // #7 (uint64: UINT64_MAX timestamps)
         return BlockError::INVALID_BLOCK_TIMESTAMP_OLDER_THAN_PARENT;
 
     if (rev >= EVMC_PARIS && tb.hasOmmers)  // #8

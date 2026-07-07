@@ -421,8 +421,17 @@ bcos::bytes encodeReceipt(ReceiptForRoot const& receipt)
     {
         encodedLogs.push_back(encodeLog(log));
     }
-    return rlpEncodeList({std::move(statusByte), rlpEncodeUint64(receipt.cumulativeGasUsed),
-        rlpEncodeRaw(receipt.bloom), rlpEncodeList(encodedLogs)});
+    bcos::bytes payload =
+        rlpEncodeList({std::move(statusByte), rlpEncodeUint64(receipt.cumulativeGasUsed),
+            rlpEncodeRaw(receipt.bloom), rlpEncodeList(encodedLogs)});
+    if (receipt.txType != 0)
+    {
+        bcos::bytes typed;
+        typed.push_back(receipt.txType);
+        typed.insert(typed.end(), payload.begin(), payload.end());
+        return typed;
+    }
+    return payload;
 }
 
 bcos::bytes encodeWithdrawal(Withdrawal const& withdrawal)

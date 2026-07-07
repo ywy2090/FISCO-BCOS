@@ -73,10 +73,41 @@ BOOST_AUTO_TEST_CASE(find_berlin_london_paris_by_upstream_fork)
     BOOST_CHECK(reg.findByUpstreamFork("Paris")->revision.revision == EVMC_PARIS);
 }
 
+BOOST_AUTO_TEST_CASE(frontier_profile_maps_upstream_fork)
+{
+    auto const profile = ForkProfileRegistry::instance().findByUpstreamFork("Frontier");
+    BOOST_REQUIRE(profile.has_value());
+    BOOST_CHECK_EQUAL(profile->profileId, "eth-frontier");
+    BOOST_CHECK_EQUAL(profile->revision.revision, EVMC_FRONTIER);
+}
+
+BOOST_AUTO_TEST_CASE(byzantium_profile_maps_upstream_fork)
+{
+    auto const profile = ForkProfileRegistry::instance().findByProfileId("eth-byzantium");
+    BOOST_REQUIRE(profile.has_value());
+    BOOST_CHECK_EQUAL(profile->upstreamForkName, "Byzantium");
+    BOOST_CHECK_EQUAL(profile->revision.revision, EVMC_BYZANTIUM);
+}
+
+BOOST_AUTO_TEST_CASE(constantinople_profile_maps_constantinoplefix)
+{
+    auto const profile = ForkProfileRegistry::instance().findByUpstreamFork("ConstantinopleFix");
+    BOOST_REQUIRE(profile.has_value());
+    BOOST_CHECK_EQUAL(profile->profileId, "eth-constantinople");
+    BOOST_CHECK_EQUAL(profile->revision.revision, EVMC_PETERSBURG);
+}
+
+BOOST_AUTO_TEST_CASE(istanbul_profile_maps_upstream_fork)
+{
+    auto const profile = ForkProfileRegistry::instance().findByProfileId("eth-istanbul");
+    BOOST_REQUIRE(profile.has_value());
+    BOOST_CHECK_EQUAL(profile->upstreamForkName, "Istanbul");
+    BOOST_CHECK_EQUAL(profile->revision.revision, EVMC_ISTANBUL);
+}
+
 BOOST_AUTO_TEST_CASE(unknown_profile_returns_empty)
 {
     BOOST_CHECK(!ForkProfileRegistry::instance().findByProfileId("eth-unknown").has_value());
-    BOOST_CHECK(!ForkProfileRegistry::instance().findByUpstreamFork("Frontier").has_value());
 }
 
 BOOST_AUTO_TEST_CASE(dir_segment_maps_to_profile_id)
@@ -91,13 +122,18 @@ BOOST_AUTO_TEST_CASE(dir_segment_maps_to_profile_id)
     auto const cancun = reg.profileIdForDirSegment("cancun");
     BOOST_REQUIRE(cancun.has_value());
     BOOST_CHECK_EQUAL(*cancun, "eth-cancun");
-    BOOST_CHECK(!reg.profileIdForDirSegment("frontier").has_value());
+    auto const frontier = reg.profileIdForDirSegment("frontier");
+    BOOST_REQUIRE(frontier.has_value());
+    BOOST_CHECK_EQUAL(*frontier, "eth-frontier");
+    auto const istanbul = reg.profileIdForDirSegment("istanbul");
+    BOOST_REQUIRE(istanbul.has_value());
+    BOOST_CHECK_EQUAL(*istanbul, "eth-istanbul");
 }
 
 BOOST_AUTO_TEST_CASE(all_profile_ids_lists_registry)
 {
     auto const ids = ForkProfileRegistry::instance().allProfileIds();
-    BOOST_REQUIRE_EQUAL(ids.size(), 8u);
+    BOOST_REQUIRE_EQUAL(ids.size(), 12u);
     BOOST_CHECK(std::find(ids.begin(), ids.end(), "eth-osaka") != ids.end());
 }
 

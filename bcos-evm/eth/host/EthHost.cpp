@@ -25,12 +25,13 @@
 #include "bcos-evm/eth/eip/Eip2929Gate.h"
 #include "bcos-evm/eth/kernel/execution/EvmCallFrame.h"
 #include "bcos-evm/eth/kernel/execution/FrameScope.h"
+#include "bcos-evm/eth/precompiled/PrecompileActive.h"
 #include "bcos-evm/eth/state/HashUtils.hpp"
 #include "bcos-evm/eth/state/State.hpp"
 #include "bcos-evm/eth/state/WarmAccessProbe.h"
 #include "bcos-evm/eth/trace/EvmTrace.h"
 #include "bcos-utilities/BoostLog.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/state/Account.hpp"
 #include "eth/state/BlockInfo.hpp"
 #include "eth/state/StateKeyHash.hpp"
@@ -83,6 +84,17 @@ EthHost::EthHost(State& state, evmc_tx_context txContext, bcos::evm::RevisionCon
 
 bool EthHost::account_exists(const address& addr) const noexcept
 {
+    // Pre-Byzantium GST: CALL to a precompile pays G_newaccount and leaves a touched
+    // empty account (0x01–0x04) in the state trie even though dispatch is precompile.
+    if (m_revisionConfig.revision < EVMC_BYZANTIUM &&
+        precompiled::isActivePrecompile(m_revisionConfig, addr))
+    {
+        return false;
+    }
+    if (precompiled::isActivePrecompile(m_revisionConfig, addr))
+    {
+        return true;
+    }
     return m_state.account_exists(addr);
 }
 
@@ -112,21 +124,34 @@ evmc_storage_status EthHost::set_storage(
     }
 
     // Refund delta before mutation; extension may apply FISCO legacy refund rules.
-    if (m_extension != nullptr)
+    if (m_revisionConfig.revision < EVMC_CONSTANTINOPLE)
     {
-        m_extension->applySstoreRefund(m_state, current, original, value);
+        applySstoreRefundLegacy(m_state, current, value);
+    }
+    else if (m_extension != nullptr)
+    {
+        m_extension->applySstoreRefund(
+            m_state, current, original, value, m_revisionConfig.revision);
     }
     else
     {
-        applySstoreRefundEip3529(m_state, current, original, value);
+        applySstoreRefundEip3529(m_state, current, original, value, m_revisionConfig.revision);
     }
 
     m_state.set_storage(addr, key, value);
 
     // Return status drives evmone gas accounting (ADDED / MODIFIED / DELETED / …).
-    auto const status = m_extension != nullptr ?
-                            m_extension->classifyStorageStatus(original, current, value) :
-                            classifyStorageStatusPrecise(original, current, value);
+    evmc_storage_status status{};
+    if (m_revisionConfig.revision < EVMC_CONSTANTINOPLE)
+    {
+        status = classifyStorageStatusLegacy(current, value);
+    }
+    else
+    {
+        status = m_extension != nullptr ?
+                     m_extension->classifyStorageStatus(original, current, value) :
+                     classifyStorageStatusPrecise(original, current, value);
+    }
 
     if (m_extension != nullptr)
     {

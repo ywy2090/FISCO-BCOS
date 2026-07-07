@@ -2,7 +2,7 @@
 
 #include "bcos-evm/eth-eest-test/EvidenceKind.h"
 #include "bcos-evm/eth-eest-test/ExecutionPath.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include <evmc/evmc.h>
 #include <optional>
 #include <string>
@@ -48,6 +48,9 @@ public:
 
     /// Map state_tests top-level dir segment (e.g. "cancun") → profile id.
     std::optional<std::string_view> profileIdForDirSegment(std::string_view segment) const;
+
+    /// Map state_tests top-level dir segment (e.g. "istanbul") → EEST upstream fork name.
+    std::optional<std::string_view> upstreamForkForDirSegment(std::string_view segment) const;
 
     /// Apply postFork policy gates while keeping profile evmc_revision for VM execution.
     ForkProfile resolveExecutionProfile(

@@ -55,6 +55,7 @@ struct DeductIntrinsicGasParams
     // EIP-3860 initcode word gas gate. Canonical value is RevisionConfig.eip3860; hooks
     // must copy it in. Defaults to inactive (matches RevisionConfig flag convention).
     bool eip3860{false};
+    evmc_revision revision{EVMC_LONDON};
 };
 
 struct DeductIntrinsicGasOutcome
@@ -100,9 +101,9 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
     case IntrinsicGasMode::FloorDataGas:
     {
         auto const calldataRef = bcos::bytesConstRef(message.input_data, message.input_size);
-        auto const calldataGas = gas::calcEip7623CalldataGas(calldataRef);
+        auto const calldataGas = gas::calcEip7623CalldataGas(calldataRef, policy.revision);
         auto const intrinsic = gas::computeTxIntrinsicGas(
-            message, policy.accessList, policy.web3TypedTxKind, policy.eip3860);
+            message, policy.accessList, policy.web3TypedTxKind, policy.eip3860, policy.revision);
         int64_t const authCost = policy.authorizationListPresent ?
                                      gas::calcAuthTupleIntrinsicGas(policy.authTupleCount) :
                                      0;
@@ -138,7 +139,7 @@ inline DeductIntrinsicGasOutcome deductIntrinsicGas(
     case IntrinsicGasMode::OpStack:
     {
         auto const intrinsic = gas::computeTxIntrinsicGas(
-            message, policy.accessList, policy.web3TypedTxKind, policy.eip3860);
+            message, policy.accessList, policy.web3TypedTxKind, policy.eip3860, policy.revision);
         int64_t const authCost = gas::calcAuthTupleIntrinsicGas(policy.authTupleCount);
         int64_t const preDebit = intrinsic.preExecutionDebit();
         int64_t const totalDebit = preDebit + authCost;

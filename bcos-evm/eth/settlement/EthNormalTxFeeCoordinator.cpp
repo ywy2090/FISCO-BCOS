@@ -10,8 +10,8 @@
 #include "bcos-evm/eth/gas/PostExecuteGasMetering.h"
 #include "bcos-evm/eth/settlement/EthFeeSettlement.h"
 #include "bcos-task/Task.h"
-#include "eth/RevisionConfig.h"
 #include "eth/apply/ApplyEthMessage.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/gas/GasSettlementTypes.h"
 #include "eth/kernel/EVMCResult.h"
 #include "eth/kernel/state-transition/StateTransitionContext.h"
@@ -75,7 +75,7 @@ task::Task<void> EthNormalTxFeeCoordinator::completeAfterPipeline(
     //    fee 层【不 revert、不 commit】，一律 refund（gas 照收 + tip）。
     auto const settled = gas::meterPostExecuteGas(ctx.originalGasLimit, ctx.exitKind,
         ctx.revisionConfig.eip7623, ctx.revisionConfig.calldata_floor_per_token,
-        ctx.evmcResult.gas_left, output.gasSettlementSnapshot);
+        ctx.evmcResult.gas_left, output.gasSettlementSnapshot, ctx.revisionConfig.revision);
     co_await ledger.refundGas(view, settled);
 
     output.gasUsed = settled.gasUsed;

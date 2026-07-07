@@ -81,8 +81,9 @@ struct TestBlock
     std::optional<uint64_t> inputExcessBlobGas;  // Cancun+
     size_t rlpSize = 0;                          // Osaka+ (EIP-7934)
     bool withdrawalsParseSuccess = true;
-    bool hasOmmers = false;       // Paris+ rule #8
-    std::string expectException;  // empty => valid block
+    bool hasOmmers = false;            // Paris+ rule #8
+    bool hasStructuredHeader = false;  // false for rlp-only invalid blocks without rlp_decoded
+    std::string expectException;       // empty => valid block
     TestBlockHeader expectedBlockHeader;
 };
 

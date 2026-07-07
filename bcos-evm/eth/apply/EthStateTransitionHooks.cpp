@@ -33,7 +33,7 @@
 #include "bcos-protocol/TransactionStatus.h"
 #include "bcos-utilities/Common.h"
 #include "bcos-utilities/FixedBytes.h"
-#include "eth/RevisionConfig.h"
+#include "eth/core/RevisionConfig.h"
 #include "eth/gas/GasSettlementTypes.h"
 #include "eth/kernel/EVMCResult.h"
 #include "eth/state/BlockInfo.hpp"
@@ -65,10 +65,15 @@ EthStateTransitionHooks::EthStateTransitionHooks(EthMessageRequest const& input)
     m_intrinsicPolicy.accessList = input.accessList;
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
     m_intrinsicPolicy.eip3860 = input.revisionConfig.eip3860;
+    m_intrinsicPolicy.revision = input.revisionConfig.revision;
 }
 
 void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
 {
+    // System calls (EIP-4788/2935): skip fee-market and sender rules; gas is pre-funded.
+    if (m_input.isCall)
+        return;
+
     if (isTxGasLimitExceeded(m_input.revisionConfig, ctx.originalGasLimit))
     {
         ctx.evmcResult = makeEvmcResult(protocol::TransactionStatus::OutOfGasLimit);
@@ -209,6 +214,9 @@ void EthStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) const
 
 void EthStateTransitionHooks::onPreCheckCanTransfer(StateTransitionContext& ctx) const
 {
+    if (m_input.isCall)
+        return;
+
     auto const txValue = state::fromEvmC(ctx.message.value);
     if (txValue != 0 && ctx.state.get_balance(ctx.message.sender) < txValue)
     {

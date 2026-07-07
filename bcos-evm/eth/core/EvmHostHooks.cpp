@@ -28,9 +28,9 @@ namespace bcos::evm::state
 namespace
 {
 using bcos::evm::gas::COLD_SLOAD_COST_EIP2929;
-using bcos::evm::gas::SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529;
 using bcos::evm::gas::SSTORE_RESET_GAS_EIP2200;
 using bcos::evm::gas::SSTORE_SET_GAS_EIP2200;
+using bcos::evm::gas::sstoreClearsScheduleRefund;
 using bcos::evm::gas::WARM_STORAGE_READ_COST_EIP2929;
 }  // namespace
 
@@ -40,8 +40,9 @@ using bcos::evm::gas::WARM_STORAGE_READ_COST_EIP2929;
 //   - dirty slot (original != current): adjust prior clear refund; restore-to-original
 //     earns SET/RESET gas delta minus warm/cold read costs
 void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
-    evmc_bytes32 const& original, evmc_bytes32 const& value) noexcept
+    evmc_bytes32 const& original, evmc_bytes32 const& value, evmc_revision revision) noexcept
 {
+    auto const clearRefund = static_cast<int64_t>(sstoreClearsScheduleRefund(revision));
     if (Bytes32Equal{}(current, value))
     {
         return;
@@ -54,7 +55,7 @@ void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
         }
         if (isZeroBytes32(value))
         {
-            state.add_refund(SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
+            state.add_refund(clearRefund);
         }
         return;
     }
@@ -62,11 +63,11 @@ void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
     {
         if (isZeroBytes32(current))
         {
-            state.sub_refund(SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
+            state.sub_refund(clearRefund);
         }
         else if (isZeroBytes32(value))
         {
-            state.add_refund(SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529);
+            state.add_refund(clearRefund);
         }
     }
     if (Bytes32Equal{}(original, value))
@@ -137,10 +138,27 @@ evmc_storage_status classifyStorageStatusPrecise(evmc_bytes32 const& oldValue,
     return status;
 }
 
-void EvmHostHooks::applySstoreRefund(State& state, evmc_bytes32 const& current,
-    evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept
+evmc_storage_status classifyStorageStatusLegacy(
+    evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept
 {
-    applySstoreRefundEip3529(state, current, original, newValue);
+    return isZeroBytes32(newValue) ? EVMC_STORAGE_DELETED : EVMC_STORAGE_MODIFIED;
+}
+
+void applySstoreRefundLegacy(
+    State& state, evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept
+{
+    if (!isZeroBytes32(current) && isZeroBytes32(newValue))
+    {
+        state.add_refund(
+            static_cast<int64_t>(bcos::evm::gas::SSTORE_CLEARS_SCHEDULE_REFUND_LEGACY));
+    }
+}
+
+void EvmHostHooks::applySstoreRefund(State& state, evmc_bytes32 const& current,
+    evmc_bytes32 const& original, evmc_bytes32 const& newValue,
+    evmc_revision revision) const noexcept
+{
+    applySstoreRefundEip3529(state, current, original, newValue, revision);
 }
 
 evmc_storage_status EvmHostHooks::classifyStorageStatus(evmc_bytes32 const& original,

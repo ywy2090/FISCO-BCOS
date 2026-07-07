@@ -59,12 +59,20 @@ class State;
 /// EIP-3529 SSTORE refund helper shared by default `EvmHostHooks` and FISCO when
 /// `RevisionFlags::fix_storage_status` is enabled (standard Ethereum semantics).
 void applySstoreRefundEip3529(State& state, evmc_bytes32 const& current,
-    evmc_bytes32 const& original, evmc_bytes32 const& newValue) noexcept;
+    evmc_bytes32 const& original, evmc_bytes32 const& newValue, evmc_revision revision) noexcept;
 
 /// EIP-2200 / EIP-3529 storage status helper shared by default `EvmHostHooks` and FISCO when
 /// `RevisionFlags::fix_storage_status` is enabled (evmone precise mapping).
 evmc_storage_status classifyStorageStatusPrecise(evmc_bytes32 const& original,
     evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept;
+
+/// Pre-EIP-2200 host status mapping (evmone legacy SSTORE gas schedule).
+evmc_storage_status classifyStorageStatusLegacy(
+    evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept;
+
+/// Pre-EIP-2200 SSTORE refund counter (clear slot → 15000 refund).
+void applySstoreRefundLegacy(
+    State& state, evmc_bytes32 const& current, evmc_bytes32 const& newValue) noexcept;
 
 /// Injectable hooks for EthHost extension points inside evm.Call.
 /// Chain precompile dispatch is via `ChainCallTargetPort` on CallFrameContext.
@@ -114,7 +122,8 @@ struct EvmHostHooks
     /// Default delegates to `applySstoreRefundEip3529`; FISCO may use legacy matrix when
     /// `fix_storage_status` is off.
     virtual void applySstoreRefund(State& state, evmc_bytes32 const& current,
-        evmc_bytes32 const& original, evmc_bytes32 const& newValue) const noexcept;
+        evmc_bytes32 const& original, evmc_bytes32 const& newValue,
+        evmc_revision revision) const noexcept;
 
     /// EIP-2200 storage status returned to evmone after `set_storage`.
     /// Default uses `classifyStorageStatusPrecise`; FISCO overrides for legacy status matrix.

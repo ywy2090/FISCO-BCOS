@@ -33,12 +33,9 @@ inline bool isEthRulesEntryRejectAbort(StateTransitionExitKind exitKind) noexcep
     return exitKind == StateTransitionExitKind::RulesRejected;
 }
 
-/// Post-execution gasUsed/gasRemaining for Eth normal txs.
-/// EIP-7623 peak settlement when revision.eip7623 && snapshot.eip7623SnapshotActive;
-/// otherwise legacy gasLimit - gasLeft (pre-Prague / no snapshot capture).
 inline PostExecuteGasResult meterPostExecuteGas(int64_t originalGasLimit,
     StateTransitionExitKind exitKind, bool eip7623, uint8_t calldataFloorPerToken,
-    int64_t evmcGasLeft, TxGasSettlementContext const& snapshot) noexcept
+    int64_t evmcGasLeft, TxGasSettlementContext const& snapshot, evmc_revision revision) noexcept
 {
     PostExecuteGasResult out{};
     if (isPreExecutionGasReject(exitKind))
@@ -54,18 +51,28 @@ inline PostExecuteGasResult meterPostExecuteGas(int64_t originalGasLimit,
         if (eip7623 && snapshot.eip7623SnapshotActive)
         {
             out.gasUsed = settleTopLevelTransactionGas(originalGasLimit, evmcGasLeft,
-                snapshot.evmGasRefund, calldataFloorPerToken, snapshot.calldata);
+                snapshot.evmGasRefund, calldataFloorPerToken, snapshot.calldata, revision);
         }
         else
         {
-            // Pre-7623: EIP-3529 refund cap still applies (London–Cancun reference path).
             out.gasUsed = settleTopLevelTransactionGas(
-                originalGasLimit, evmcGasLeft, snapshot.evmGasRefund, 0);
+                originalGasLimit, evmcGasLeft, snapshot.evmGasRefund, 0, revision);
         }
         out.gasRemaining =
             static_cast<uint64_t>(std::max<int64_t>(0, originalGasLimit - out.gasUsed));
     }
     return out;
+}
+
+/// Post-execution gasUsed/gasRemaining for Eth normal txs.
+/// EIP-7623 peak settlement when revision.eip7623 && snapshot.eip7623SnapshotActive;
+/// otherwise legacy gasLimit - gasLeft (pre-Prague / no snapshot capture).
+inline PostExecuteGasResult meterPostExecuteGas(int64_t originalGasLimit,
+    StateTransitionExitKind exitKind, bool eip7623, uint8_t calldataFloorPerToken,
+    int64_t evmcGasLeft, TxGasSettlementContext const& snapshot) noexcept
+{
+    return meterPostExecuteGas(originalGasLimit, exitKind, eip7623, calldataFloorPerToken,
+        evmcGasLeft, snapshot, EVMC_LONDON);
 }
 
 }  // namespace bcos::evm::gas

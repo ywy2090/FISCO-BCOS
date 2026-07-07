@@ -6,6 +6,8 @@
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
+#include "bcos-evm/eth/eip/Eip2718TypedTx.h"
+#include "bcos-evm/eth/eip/Eip4844.h"
 #include "bcos-evm/eth/kernel/state-transition/StateTransitionContext.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/StateDiff.hpp"
@@ -15,6 +17,7 @@
 #include "helpers/BlockValidation.h"
 #include "helpers/BloomFilter.hpp"
 #include <bcos-task/Wait.h>
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -62,6 +65,7 @@ struct TransactionReceipt
     int64_t gasRefund = 0;              // EIP-7778
     bcos::bytes bloom;                  // 256-byte logs bloom for this tx
     std::vector<state::LogEntry> logs;  // all logs (supersedes single `log`; `log` kept for compat)
+    uint8_t txType = 0;                 // EIP-2718 typed receipt prefix
 };
 
 struct BlockApplyResult
@@ -75,6 +79,22 @@ struct BlockApplyResult
     std::vector<size_t> rejected;  // indices of txs rejected during block apply
     uint64_t blobGasLeft = 0;      // maxBlobGasPerBlock - consumed
 };
+
+/// Execution-time block context: beacon root + blob base fee from parent excess (EIP-4844).
+inline state::BlockInfo blockInfoForExecution(state::BlockInfo const& base, TestBlock const& tb,
+    TestBlockHeader const* parent, evmc_revision rev)
+{
+    state::BlockInfo bi = base;
+    bi.parentBeaconBlockRoot = tb.expectedBlockHeader.parentBeaconBlockRoot;
+    if (rev >= EVMC_CANCUN)
+    {
+        if (tb.inputExcessBlobGas.has_value())
+            bi.blobBaseFee = gas::calcBlobBaseFee(*tb.inputExcessBlobGas);
+        else if (parent != nullptr && parent->excessBlobGas.has_value())
+            bi.blobBaseFee = gas::calcBlobBaseFee(*parent->excessBlobGas);
+    }
+    return bi;
+}
 
 /// Apply a sequence of transactions to the pre-state within a single block.
 /// Each tx is executed via EthMessageAdapter::execute(); state diffs accumulate.
@@ -148,21 +168,7 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
 
             // Accumulate diff
             for (auto const& [addr, acc] : execResult.stateDiff.accounts)
-            {
-                auto& merged = accumulatedDiff.accounts[addr];
-                merged.nonce = acc.nonce;
-                merged.balance = acc.balance;
-                if (!acc.code.empty())
-                    merged.code = acc.code;
-                merged.codeHash = acc.codeHash;
-                for (auto const& [slot, value] : acc.storage)
-                {
-                    if (state::isZeroBytes32(value))
-                        merged.storage.erase(slot);
-                    else
-                        merged.storage[slot] = value;
-                }
-            }
+                mergeStateDiffAccount(accumulatedDiff.accounts[addr], acc);
 
             // Propagate state diff into preStatePairs so the next transaction
             // sees this transaction's balance/nonce/storage mutations.
@@ -173,24 +179,24 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
                 {
                     if (state::AddressEqual{}(pAddr, addr))
                     {
-                        pAcc.nonce = acc.nonce;
-                        pAcc.balance = acc.balance;
-                        if (!acc.code.empty())
-                            pAcc.code = acc.code;
-                        pAcc.codeHash = acc.codeHash;
-                        for (auto const& [slot, value] : acc.storage)
-                        {
-                            if (state::isZeroBytes32(value))
-                                pAcc.storage.erase(slot);
-                            else
-                                pAcc.storage[slot] = value;
-                        }
+                        mergeStateDiffAccount(pAcc, acc);
                         found = true;
                         break;
                     }
                 }
                 if (!found)
                     preStatePairs.emplace_back(addr, acc);
+            }
+
+            if (profile.revision.revision >= EVMC_SPURIOUS_DRAGON)
+            {
+                preStatePairs.erase(std::remove_if(preStatePairs.begin(), preStatePairs.end(),
+                                        [](auto const& entry) {
+                                            auto const& acc = entry.second;
+                                            return acc.nonce == 0 && acc.balance == 0 &&
+                                                   acc.code.empty();
+                                        }),
+                    preStatePairs.end());
             }
         }
 
@@ -206,6 +212,10 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         if (!execResult.logs.empty())
             receipt.log = execResult.logs.front();
         receipt.bloom = state::computeLogsBloom(execResult.logs);
+        receipt.txType = inferWeb3TypedTxKindFromFields(tmpl.authorizationListKeyPresent,
+            !tmpl.authorizationList.empty(), !tmpl.blobVersionedHashes.empty(),
+            tmpl.maxFeePerBlobGasKeyPresent,
+            tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0, !tmpl.accessLists.empty());
         result.receipts.push_back(std::move(receipt));
     }
 
@@ -240,8 +250,9 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
     }
 
     // Build post-state from pre-state + accumulated diff
-    auto postView = buildPostStateView(
-        preStatePairs, accumulatedDiff, true, blockInfo.coinbase, profile.revision.eip1559);
+    bool const eip158 = profile.revision.revision >= EVMC_SPURIOUS_DRAGON;
+    auto postView =
+        buildPostStateView(preStatePairs, accumulatedDiff, true, blockInfo.coinbase, eip158);
 
     // Populate TestStateView from GstPostStateView
     for (auto const& [addr, acc] : postView.accounts)

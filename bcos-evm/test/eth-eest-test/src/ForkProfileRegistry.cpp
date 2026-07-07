@@ -1,5 +1,5 @@
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 
 #include <algorithm>
 
@@ -71,6 +71,20 @@ PathProfile referenceParityProfile()
     return profile;
 }
 
+ForkProfile makeFrontierProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_FRONTIER);
+    ForkProfile profile;
+    profile.profileId = "eth-frontier";
+    profile.canonicalName = "Ethereum Frontier";
+    profile.aliases = {"Frontier"};
+    profile.upstreamForkName = "Frontier";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
 ForkProfile makeHomesteadProfile()
 {
     auto const revision = makeReferenceRevisionConfig(EVMC_HOMESTEAD);
@@ -79,6 +93,48 @@ ForkProfile makeHomesteadProfile()
     profile.canonicalName = "Ethereum Homestead";
     profile.aliases = {"Homestead"};
     profile.upstreamForkName = "Homestead";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
+ForkProfile makeByzantiumProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_BYZANTIUM);
+    ForkProfile profile;
+    profile.profileId = "eth-byzantium";
+    profile.canonicalName = "Ethereum Byzantium";
+    profile.aliases = {"Byzantium"};
+    profile.upstreamForkName = "Byzantium";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
+ForkProfile makeConstantinopleProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_PETERSBURG);
+    ForkProfile profile;
+    profile.profileId = "eth-constantinople";
+    profile.canonicalName = "Ethereum Constantinople";
+    profile.aliases = {"Constantinople", "ConstantinopleFix", "Petersburg"};
+    profile.upstreamForkName = "Constantinople";
+    profile.revision = revision;
+    profile.activatedEips = activatedEipsFor(revision);
+    profile.pathProfiles = {referenceParityProfile()};
+    return profile;
+}
+
+ForkProfile makeIstanbulProfile()
+{
+    auto const revision = makeReferenceRevisionConfig(EVMC_ISTANBUL);
+    ForkProfile profile;
+    profile.profileId = "eth-istanbul";
+    profile.canonicalName = "Ethereum Istanbul";
+    profile.aliases = {"Istanbul"};
+    profile.upstreamForkName = "Istanbul";
     profile.revision = revision;
     profile.activatedEips = activatedEipsFor(revision);
     profile.pathProfiles = {referenceParityProfile()};
@@ -195,9 +251,25 @@ bool matchesForkName(ForkProfile const& profile, std::string_view fork)
 
 std::optional<std::string_view> upstreamForkFromDirSegment(std::string_view segment)
 {
+    if (segment == "frontier")
+    {
+        return "Frontier";
+    }
     if (segment == "homestead")
     {
         return "Homestead";
+    }
+    if (segment == "byzantium")
+    {
+        return "Byzantium";
+    }
+    if (segment == "constantinople")
+    {
+        return "Constantinople";
+    }
+    if (segment == "istanbul")
+    {
+        return "Istanbul";
     }
     if (segment == "berlin")
     {
@@ -234,7 +306,11 @@ std::optional<std::string_view> upstreamForkFromDirSegment(std::string_view segm
 
 ForkProfileRegistry::ForkProfileRegistry()
 {
+    m_profiles.push_back(makeFrontierProfile());
     m_profiles.push_back(makeHomesteadProfile());
+    m_profiles.push_back(makeByzantiumProfile());
+    m_profiles.push_back(makeConstantinopleProfile());
+    m_profiles.push_back(makeIstanbulProfile());
     m_profiles.push_back(makeBerlinProfile());
     m_profiles.push_back(makeLondonProfile());
     m_profiles.push_back(makeParisProfile());
@@ -283,6 +359,12 @@ std::vector<std::string_view> ForkProfileRegistry::allProfileIds() const
         ids.emplace_back(profile.profileId);
     }
     return ids;
+}
+
+std::optional<std::string_view> ForkProfileRegistry::upstreamForkForDirSegment(
+    std::string_view segment) const
+{
+    return upstreamForkFromDirSegment(segment);
 }
 
 std::optional<std::string_view> ForkProfileRegistry::profileIdForDirSegment(

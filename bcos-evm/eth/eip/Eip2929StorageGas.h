@@ -7,15 +7,23 @@
  */
 #pragma once
 
+#include <evmc/evmc.h>
 #include <cstdint>
 
 namespace bcos::evm::gas
 {
 
+inline constexpr uint64_t SSTORE_CLEARS_SCHEDULE_REFUND_LEGACY = 15'000;
 inline constexpr uint64_t SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529 = 4'800;
 inline constexpr uint64_t SSTORE_SET_GAS_EIP2200 = 20'000;
 inline constexpr uint64_t SSTORE_RESET_GAS_EIP2200 = 5'000;
 inline constexpr uint64_t COLD_SLOAD_COST_EIP2929 = 2'100;
 inline constexpr uint64_t WARM_STORAGE_READ_COST_EIP2929 = 100;
+
+inline constexpr uint64_t sstoreClearsScheduleRefund(evmc_revision revision) noexcept
+{
+    return revision >= EVMC_LONDON ? SSTORE_CLEARS_SCHEDULE_REFUND_EIP3529 :
+                                     SSTORE_CLEARS_SCHEDULE_REFUND_LEGACY;
+}
 
 }  // namespace bcos::evm::gas

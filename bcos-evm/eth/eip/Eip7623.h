@@ -38,7 +38,7 @@ struct Eip7623Components
     int64_t tokenCount = 0;
 };
 
-inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data)
+inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data, int64_t nonzeroByteCost)
 {
     constexpr auto maxSafeBytes =
         static_cast<size_t>(std::numeric_limits<int64_t>::max() /
@@ -59,7 +59,7 @@ inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data)
         }
         else
         {
-            components.normalCost += NONZERO_BYTE_INTRINSIC_COST;
+            components.normalCost += nonzeroByteCost;
             components.tokenCount += TOKENS_PER_NONZERO_BYTE;
         }
     }
@@ -67,9 +67,19 @@ inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data)
     return components;
 }
 
-inline int64_t calcEip7623CalldataGas(bcos::bytesConstRef data)
+inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data, evmc_revision revision)
 {
-    auto const components = calcEip7623Components(data);
+    return calcEip7623Components(data, nonzeroByteIntrinsicCost(revision));
+}
+
+inline Eip7623Components calcEip7623Components(bcos::bytesConstRef data)
+{
+    return calcEip7623Components(data, NONZERO_BYTE_INTRINSIC_COST);
+}
+
+inline int64_t calcEip7623CalldataGas(bcos::bytesConstRef data, evmc_revision revision)
+{
+    auto const components = calcEip7623Components(data, revision);
     return std::max(components.normalCost, components.floorCost);
 }
 

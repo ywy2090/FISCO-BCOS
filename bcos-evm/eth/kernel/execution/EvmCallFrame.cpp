@@ -177,6 +177,10 @@ std::optional<FrameResult> runCallTargetFastPath(FrameWork& work, FrameScope sco
     case CallTargetRoute::BuiltinPrecompile:
     case CallTargetRoute::ChainPrecompile:
     {
+        if (work.ctx.revisionConfig.revision < EVMC_BYZANTIUM)
+        {
+            work.ctx.state.touchOverlayAccount(desc.dispatchAddress);
+        }
         auto out = precompiled::executePrecompileEnvelope(envInput);
         return FrameResult{
             .result = std::move(out.result), .gasRefund = out.gasRefund, .envelopeComplete = true};

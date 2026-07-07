@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "bcos-evm/eth/RevisionConfig.h"
+#include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/precompiled/PrecompiledAddress.h"
 #include <evmc/evmc.h>
 #include <cstdint>
@@ -43,9 +43,17 @@ inline bool isActivePrecompile(
         return false;
     }
     auto const suffix = addr.bytes[19];
-    if (suffix >= ETH_PRECOMPILE_INDEX_FIRST && suffix <= CLASSIC_PRECOMPILE_INDEX_LAST)
+    if (suffix >= ETH_PRECOMPILE_INDEX_FIRST && suffix <= 0x04)
     {
-        return cfg.revision >= EVMC_BERLIN;
+        return cfg.revision >= EVMC_FRONTIER;
+    }
+    if (suffix >= 0x05 && suffix <= 0x08)
+    {
+        return cfg.revision >= EVMC_BYZANTIUM;
+    }
+    if (suffix == CLASSIC_PRECOMPILE_INDEX_LAST)
+    {
+        return cfg.revision >= EVMC_ISTANBUL;
     }
     if (suffix == POINT_EVALUATION_PRECOMPILE_INDEX)
     {

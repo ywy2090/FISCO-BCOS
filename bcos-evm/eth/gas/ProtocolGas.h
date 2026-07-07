@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <evmc/evmc.h>
 #include <cstddef>
 #include <cstdint>
 
@@ -41,8 +42,17 @@ inline constexpr int64_t ACCESS_LIST_STORAGE_KEY_COST = 1'900;
 /// Calldata zero-byte intrinsic cost (legacy + EIP-7623 "normal" component).
 inline constexpr int64_t ZERO_BYTE_INTRINSIC_COST = 4;
 
-/// Calldata non-zero-byte intrinsic cost (legacy + EIP-7623 "normal" component).
+/// Calldata non-zero-byte intrinsic cost (legacy pre-EIP-2028).
+inline constexpr int64_t NONZERO_BYTE_INTRINSIC_COST_LEGACY = 68;
+
+/// Calldata non-zero-byte intrinsic cost from Istanbul (EIP-2028).
 inline constexpr int64_t NONZERO_BYTE_INTRINSIC_COST = 16;
+
+inline constexpr int64_t nonzeroByteIntrinsicCost(evmc_revision revision) noexcept
+{
+    return revision >= EVMC_ISTANBUL ? NONZERO_BYTE_INTRINSIC_COST :
+                                       NONZERO_BYTE_INTRINSIC_COST_LEGACY;
+}
 
 // --- Contract creation limits & runtime deposit ---
 
@@ -52,7 +62,15 @@ inline constexpr size_t MAX_CODE_SIZE_EIP170 = 0x6000;
 /// Gas charged per byte when persisting returned runtime code (CREATE path).
 inline constexpr int64_t CODE_DEPOSIT_GAS_PER_BYTE = 200;
 
+/// Pre-London: max gas refund = gasUsed / 2.
+inline constexpr int64_t REFUND_QUOTIENT_LEGACY = 2;
+
 /// EIP-3529: max gas refund = gasUsed / REFUND_QUOTIENT (was /2 pre-London).
 inline constexpr int64_t REFUND_QUOTIENT_EIP3529 = 5;
+
+inline constexpr int64_t refundQuotient(evmc_revision revision) noexcept
+{
+    return revision >= EVMC_LONDON ? REFUND_QUOTIENT_EIP3529 : REFUND_QUOTIENT_LEGACY;
+}
 
 }  // namespace bcos::evm::gas
