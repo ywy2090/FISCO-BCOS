@@ -131,7 +131,13 @@ inline std::optional<std::string> validateBlock(evmc_revision rev, BlobSchedule 
     else if (tb.inputBlobGasUsed.has_value() || tb.inputExcessBlobGas.has_value())  // #13
         return BlockError::INCORRECT_BLOCK_FORMAT;
 
-    // #14 withdrawals parse, #15 EIP-7934 rlp size: added in Task 1.3.
+    if (!tb.withdrawalsParseSuccess)  // #14
+        return BlockError::INCORRECT_BLOCK_FORMAT;
+
+    constexpr size_t MAX_RLP_BLOCK_SIZE = 10u * 1024 * 1024 - 2u * 1024 * 1024;  // 8 MiB (EIP-7934)
+    if (rev >= EVMC_OSAKA && tb.rlpSize > MAX_RLP_BLOCK_SIZE)                    // #15
+        return BlockError::RLP_BLOCK_LIMIT_EXCEEDED;
+
     return std::nullopt;
 }
 

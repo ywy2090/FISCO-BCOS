@@ -105,4 +105,30 @@ BOOST_AUTO_TEST_CASE(rejects_wrong_excess_blob_gas)
     BOOST_REQUIRE(err.has_value());
     BOOST_CHECK_EQUAL(*err, std::string(BlockError::INCORRECT_EXCESS_BLOB_GAS));
 }
+
+BOOST_AUTO_TEST_CASE(rejects_oversized_rlp_block_on_osaka)
+{
+    TestBlockHeader parent;
+    parent.blockNumber = 0;
+    parent.gasLimit = 20000000;
+    parent.timestamp = 0;
+    parent.baseFeePerGas = 7;
+    parent.gasUsed = 0;
+    parent.blobGasUsed = 0;
+    parent.excessBlobGas = 0;
+    TestBlock tb;
+    auto& h = tb.expectedBlockHeader;
+    h.blockNumber = 1;
+    h.gasLimit = 20000000;
+    h.timestamp = 1;
+    h.baseFeePerGas = calcBaseFee(20000000, 0, 7);
+    h.blobGasUsed = 0;
+    h.excessBlobGas = 0;
+    tb.inputBlobGasUsed = 0;
+    tb.inputExcessBlobGas = 0;
+    tb.rlpSize = 9 * 1024 * 1024;  // > 8MB
+    auto err = validateBlock(EVMC_OSAKA, {}, tb, &parent);
+    BOOST_REQUIRE(err.has_value());
+    BOOST_CHECK_EQUAL(*err, std::string(BlockError::RLP_BLOCK_LIMIT_EXCEEDED));
+}
 }  // namespace bcos::evm::reference_tests
