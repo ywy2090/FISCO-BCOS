@@ -16,10 +16,10 @@
 | **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular **2722/2722** (H1–H7 + WP-HIST harness) | **Full tree** recursive scan | Manifest + default-profile granular **closed**; WP-HIST phase 2 = expand historical post coverage |
 | **State (static GST)** | 58 suites under `static/state_tests/` | **19 suites** in `eth-eest-static-regression-full.json` | Included in statetest scan | Partial static coverage; no nightly full static |
 | **Transaction tests** | `transaction_tests/prague/eip7702_set_code_tx` | **106/106 pass** (`eth-eest-tx-full.json`) | **No dedicated runner** | bcos ahead |
-| **Blockchain tests** | 12 fork dirs + `static/` | `validateBlock` + MPT + invalid-block; Cancun **13.8%** case / **7.6%** file (M1 **open**) | **Full tree** | stateRoot execution parity; engine format |
+| **Blockchain tests** | 12 fork dirs + `static/` | Cancun **2181/2181** (M1); Shanghai **128/128** (M4 partial) | **Full tree** | M2–M3 Prague/Osaka; M4 Berlin/London/Paris; engine format |
 | **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Not integrated** | Partial (engine variants) | Format + CL payload decoding |
 
-**Bottom line:** Manifest state-full **4140/4140** and granular full-tree **2722/2722** (2026-07-07, default profiles incl. Homestead/Berlin). Harness H2–H7 complete; nightly CI gates `--granular-full` (hard) + blockchain full sweep (crash-free, `continue-on-error`). Blockchain M1 (Cancun ≥90%) **not met** — baseline **13.8%** case rate; M2–M5 tracked in §6. Remaining: **WP-HIST phase 2**, blockchain stateRoot parity loop, optional H8 trace.
+**Bottom line:** Manifest state-full **4140/4140** and granular full-tree **2722/2722** (2026-07-07). Blockchain **M1 ACHIEVED** — Cancun **2181/2181** @ `f28d19659`; **M4 Shanghai ACHIEVED** — **128/128** @ withdrawal post-diff fix (2026-07-07). M2 Prague / M3 Osaka / M4 Berlin·London·Paris / M5 historical remain. Remaining: **WP-HIST phase 2**, optional H8 trace.
 
 ---
 
@@ -168,7 +168,7 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 
 | Corpus dir | evmone | bcos-evm runner | CI today | Blockers |
 |------------|--------|-----------------|----------|----------|
-| `blockchain_tests/{fork}/` | Full scan | `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` manifest (PR); `EthEestBlockchainFull` nightly (`continue-on-error`) | stateRoot execution parity |
+| `blockchain_tests/{fork}/` | Full scan | `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` manifest (PR); `EthEestBlockchainFull` nightly (`continue-on-error`) | M2–M5 forks; engine format |
 | `blockchain_tests/static/` | Full scan | same | nightly full sweep (non-blocking) | static blockchain parity |
 | `blockchain_tests_engine/` | partial | ❌ | — | `engineNewPayloads` decode |
 | `blockchain_tests_engine_x/` | partial | ❌ | — | extended engine format |
@@ -180,21 +180,46 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 
 | Metric | bcos-evm | evmone target | M1 gate |
 |--------|----------|---------------|---------|
-| Corpus size | 105 files / 8389 subtests | full tree | — |
-| CLI case pass rate | **302 / 2181 = 13.8%** | ~100% | ≥90% — **NOT MET** |
-| Granular file pass rate | **8 / 105 = 7.6%** | ~100% | ≥90% — **NOT MET** |
+| Corpus size | 105 files / 2181 subtests | full tree | — |
+| CLI case pass rate | **2181 / 2181 = 100%** | ~100% | ≥90% — **ACHIEVED** |
+| Granular file pass rate | **105 / 105 = 100%** | ~100% | ≥90% — **ACHIEVED** |
 | Crash-free nightly | `EthEestBlockchainFull` + `EthEestBlockGranularFull` CTests wired | — | ✅ (failures allowed) |
 
-Dominant failure: `header field mismatch: stateRoot` on valid blocks. Passing files are predominantly eip4844 invalid/reject vectors (Task 3.3).
+Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Commit `f28d19659`.
+
+**Parity fixes (M1 closure):**
+
+| Cluster | Root cause | Fix |
+|---------|------------|-----|
+| EIP-4788 beacon (~61) | System call hit EIP-1559 precheck; calldata used `prevRandao` not `parentBeaconBlockRoot` | `isCall` fee bypass; `BlockInfo.parentBeaconBlockRoot` + loader wiring |
+| receiptsRoot (~1300+) | Typed receipt missing EIP-2718 prefix; included vmerr encoded as success | `ReceiptForRoot.txType`; `encodeReceipt` prefix; `receiptsForRoot` failure bit |
+| blob gas (~17) | `blobBaseFee` unset; valid path skipped `blockInfoForExecution` | `calcBlobBaseFee(excessBlobGas)`; unified exec block info on both paths |
+| RLP-only invalid (4) | No structured header → false `INVALID_BLOCK_PARENT` | `hasStructuredHeader` + Level-1 `RLP_STRUCTURES_ENCODING` pass |
+| UINT64_MAX timestamp (16) | int64 compare on `timestamp` | Rule #7 uint64 comparison |
+| EIP-6780 cross-tx (6) | Empty accounts lingered in `preStatePairs` after SELFDESTRUCT | `mergeStateDiffAccount` + EIP-158 prune between txs |
+
+Historical baseline (pre-M1): **302 / 2181 = 13.8%** case rate — superseded.
+
+### M4 baseline — Shanghai (`blockchain_tests/shanghai/`, 2026-07-07)
+
+| Metric | bcos-evm | M4 gate (Shanghai subset) |
+|--------|----------|---------------------------|
+| Corpus size | 20 files / 128 subtests | — |
+| CLI case pass rate | **128 / 128 = 100%** | ≥80% — **ACHIEVED** |
+| Granular file pass rate | **20 / 20 = 100%** | ≥80% — **ACHIEVED** |
+
+**Fix:** withdrawal balance credit moved to **after** `buildPostStateView` (geth: post-tx, not overwritten by `accumulatedDiff`). Affected `eip4895_withdrawals` CREATE/SELFDESTRUCT + withdrawal combos (3 cases).
+
+M4 remainder: `berlin/` (7), `london/` (2), `paris/` (3) — not yet swept.
 
 ### Milestones (blockchain parity loop)
 
 | Milestone | Fork / scope | Gate | Status |
 |-----------|--------------|------|--------|
-| **M1** | Cancun | ≥90% standard-format files; PR smoke manifest | **OPEN** — 7.6% file / 13.8% case |
+| **M1** | Cancun | ≥90% standard-format files; PR smoke manifest | **ACHIEVED** — 105/105 file / 2181/2181 case (2026-07-07) |
 | **M2** | Prague+ | `requestsHash` (EIP-7685) + system-contract collection | XFAIL-guarded; `computeRequestsHash` implemented |
 | **M3** | Osaka+ | EIP-7918 blob-base-fee refinement | deferred |
-| **M4** | Shanghai+ dirs | withdrawal + multi-fork coverage | partial (B1 credit wired) |
+| **M4** | Shanghai+ dirs | ≥80% withdrawal + multi-fork | **Shanghai ACHIEVED** 128/128; Berlin/London/Paris pending |
 | **M5** | Reorg / PoW | canonical tip + TD semantics | deferred |
 
 M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseline without blocking CI.
@@ -280,8 +305,8 @@ M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseli
 
 | EEST fork / network | Profile | State manifest | Blockchain | Notes |
 |---------------------|---------|----------------|------------|-------|
-| Shanghai | `eth-shanghai` | ✅ | 🔵 granular | |
-| Cancun | `eth-cancun` | ✅ | 🔵 | |
+| Shanghai | `eth-shanghai` | ✅ | ✅ blockchain **128/128** | M4 Shanghai closed 2026-07-07 |
+| Cancun | `eth-cancun` | ✅ | ✅ blockchain **2181/2181** | M1 closed 2026-07-07 |
 | Prague | `eth-prague` | ✅ (2537) | 🔵 | 7623/7702 run at `eth-osaka` profile |
 | Osaka | `eth-osaka` | ✅ | 🔵 | |
 | Homestead | `eth-homestead` (H5) | ❌ manifest | 🔵 granular | Default granular profile; targeted post filter |
@@ -305,7 +330,8 @@ fixtures/state_tests/           fixtures/state_tests/
                                    └─ EthEestStateGranularSmoke (cancun PR)
 
 fixtures/blockchain_tests/      fixtures/blockchain_tests/
-  └─ full runner                  └─ limit 10 + partial applyEthBlock
+  └─ full runner                  └─ EthEestBlockchainRunner (Cancun 2181/2181, Shanghai 128/128)
+                                   └─ EthEestBlockGranularFull (nightly)
 
 (no tx runner)                  fixtures/transaction_tests/
                                   └─ 106/106 pass
@@ -354,10 +380,17 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 
 ### P1 — Blockchain harness
 
-- [ ] RLP block decoding path in `EthEestBlockchainRunner`
+- [x] Cancun M1 parity — **2181/2181** (`f28d19659`, 2026-07-07)
+- [x] EIP-4788 block system calls (`parentBeaconBlockRoot`, `isCall` bypass)
+- [x] Typed receipt MPT roots (EIP-2718 prefix + included-vmerr status)
+- [x] Blob tx execution context (`blobBaseFee` from `excessBlobGas`)
+- [x] RLP-only invalid block Level-1 handling
+- [x] Cross-tx EIP-158 state merge (EIP-6780 selfdestruct recreate)
+- [x] Shanghai M4 parity — **128/128** (withdrawal after diff merge)
+- [ ] RLP block decoding path in `EthEestBlockchainRunner` (beyond rlp_decoded fixtures)
 - [ ] `engineNewPayloads` / engine sync formats
 - [ ] Full `postState` account diff
-- [ ] `applyEthBlock` system calls across multi-block chains
+- [ ] Prague+ / other fork blockchain dirs (M2–M4)
 
 ### P2 — Fork / corpus expansion
 
@@ -391,7 +424,14 @@ ctest -L 'specs-tests-full' --test-dir build-ref -C Debug --output-on-failure
 # Nightly granular full tree
 ctest -R EthEestStateGranularFull --test-dir build-ref -C Debug --output-on-failure
 
-# Nightly blockchain full sweep (crash-free; failures non-blocking in CI)
+# Shanghai blockchain sweep (128/128)
+./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
+  --fixtures $EEST_ROOT/fixtures/blockchain_tests/shanghai
+
+# Nightly blockchain full sweep (Cancun 2181/2181; failures non-blocking in CI)
+./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
+  --fixtures $EEST_ROOT/fixtures/blockchain_tests/cancun
+
 ctest -L 'specs-tests-full' -R 'BlockchainFull|BlockGranularFull' --test-dir build-ref -C Debug --output-on-failure
 
 # Failure bucket scan (manifest-16 dirs)
@@ -423,4 +463,4 @@ ctest -R EthExecutionSpecSliceEip7823 -V --test-dir build-ref -C Debug
 | Harness plan | `docs/superpowers/plans/2026-07-07-eest-statetest-harness-h2-h7.md` |
 | Parity loop reports | `docs/superpowers/plans/2026-07-06-eest-parity-loop-*-report.md` |
 
-**Last updated:** 2026-07-07
+**Last updated:** 2026-07-07 (M1 Cancun **2181/2181** @ `f28d19659`; M4 Shanghai **128/128** withdrawal fix)

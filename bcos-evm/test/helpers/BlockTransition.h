@@ -229,14 +229,21 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         result.blobGasLeft = maxBlobGasPerBlock(blobParams) - blobGasConsumed;
     }
 
+    // Build post-state from pre-state + accumulated diff, then apply withdrawals last
+    // (geth: withdrawal balance credit runs after all txs; must not be overwritten by diff).
+    bool const eip158 = profile.revision.revision >= EVMC_SPURIOUS_DRAGON;
+    auto postView =
+        buildPostStateView(preStatePairs, accumulatedDiff, true, blockInfo.coinbase, eip158);
+
+    bcos::u256 const gweiToWei{1000000000};
     for (auto const& w : withdrawals)
     {
         bool found = false;
-        for (auto& [addr, acc] : preStatePairs)
+        for (auto& [addr, acc] : postView.accounts)
         {
             if (state::AddressEqual{}(addr, w.address))
             {
-                acc.balance += bcos::u256(w.amount) * bcos::u256(1000000000);
+                acc.balance += bcos::u256(w.amount) * gweiToWei;
                 found = true;
                 break;
             }
@@ -244,15 +251,10 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
         if (!found)
         {
             state::Account acc;
-            acc.balance = bcos::u256(w.amount) * bcos::u256(1000000000);
-            preStatePairs.emplace_back(w.address, std::move(acc));
+            acc.balance = bcos::u256(w.amount) * gweiToWei;
+            postView.accounts.emplace_back(w.address, std::move(acc));
         }
     }
-
-    // Build post-state from pre-state + accumulated diff
-    bool const eip158 = profile.revision.revision >= EVMC_SPURIOUS_DRAGON;
-    auto postView =
-        buildPostStateView(preStatePairs, accumulatedDiff, true, blockInfo.coinbase, eip158);
 
     // Populate TestStateView from GstPostStateView
     for (auto const& [addr, acc] : postView.accounts)
