@@ -53,6 +53,9 @@ FiscoStateTransitionHooks::FiscoStateTransitionHooks(
     m_intrinsicPolicy.accessList = input.accessList.get();
     m_intrinsicPolicy.web3TypedTxKind = input.web3TypedTxKind;
     m_intrinsicPolicy.eip3860 = input.revisionConfig.eth().eip3860;
+    // Match the Eth hook: deductIntrinsicGas selects nonzeroByteIntrinsicCost / CREATE base by
+    // revision. Leaving the EVMC_LONDON default would mis-price calldata on a pre-Istanbul fork.
+    m_intrinsicPolicy.revision = input.revisionConfig.eth().revision;
 }
 
 void FiscoStateTransitionHooks::onNormalizeMessage(StateTransitionContext& ctx) const
@@ -71,8 +74,7 @@ void FiscoStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) con
 {
     if (m_input.revisionConfig.enable_auth_check && m_input.authPort != nullptr)
     {
-        if (auto authResult = m_input.authPort->checkAuth(ctx.message);
-            authResult.has_value())
+        if (auto authResult = m_input.authPort->checkAuth(ctx.message); authResult.has_value())
         {
             ctx.evmcResult = std::move(*authResult);
             ctx.earlyExit = true;

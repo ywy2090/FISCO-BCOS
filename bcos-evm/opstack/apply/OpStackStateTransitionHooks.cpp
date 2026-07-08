@@ -66,6 +66,9 @@ OpStackStateTransitionHooks::OpStackStateTransitionHooks(OpStackSettlementProjec
     m_intrinsicPolicy.accessList = view.accessList();
     m_intrinsicPolicy.web3TypedTxKind = view.web3TypedTxKind();
     m_intrinsicPolicy.eip3860 = view.input.revisionConfig.eip3860;
+    // Match the Eth hook: deductIntrinsicGas selects nonzeroByteIntrinsicCost / CREATE base by
+    // revision. Leaving the EVMC_LONDON default would mis-price calldata on a pre-Istanbul fork.
+    m_intrinsicPolicy.revision = view.input.revisionConfig.revision;
 }
 
 void OpStackStateTransitionHooks::lifecycleCheckEntryRules(StateTransitionContext& ctx) const
