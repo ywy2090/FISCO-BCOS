@@ -196,8 +196,15 @@ evmc_bytes32 State::get_storage(const evmc_address& address, const evmc_bytes32&
         {
             return storageIt->second;
         }
-        // Overlay owns storage namespace: missing key ⇒ zero, do not read base.
-        return evmc_bytes32{};
+        // Reset accounts (CREATE deployment / clear_storage) own their namespace: absent
+        // keys are deleted-zero. Every other overlay account is a copy-on-write
+        // materialization whose storage map is NOT authoritative (LedgerStateView loads
+        // accounts without storage) — read through to base, matching geth's originStorage.
+        if (it->second.storageReset)
+        {
+            return evmc_bytes32{};
+        }
+        return m_baseStateView->get_storage(address, key);
     }
     return m_baseStateView->get_storage(address, key);
 }
@@ -471,6 +478,10 @@ void State::clear_storage(const evmc_address& address)
     {
         set_storage(address, key, evmc_bytes32{});
     }
+    // Set AFTER the zero-write loop: the loop's set_storage calls must still read
+    // pre-reset values so full-storage views journal/export explicit zeros. The flag
+    // then covers keys a sparse base view could not enumerate above.
+    account.storageReset = true;
 }
 
 // ── Transient storage (EIP-1153) ─────────────────────────────────────────────
@@ -781,6 +792,9 @@ void State::touchCreateDeploymentAccount(const evmc_address& address, evmc_revis
     account.codeHash = {};
     account.codeDirty = true;
     account.storage.clear();
+    // Fresh CREATE deployment owns its storage namespace from here on: absent keys are
+    // deleted-zero, never the base view's residual slots.
+    account.storageReset = true;
     // Cancel pending deletion for init/CALL visibility; selfDestructScheduled remains until
     // tx-end finalize (evmone deleted_accounts / build_diff export).
     account.selfDestructed = false;

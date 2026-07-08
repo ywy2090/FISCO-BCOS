@@ -41,5 +41,9 @@ struct Account
     bool selfDestructed{false};
     /// Sticky tx-end deletion (evmone `destructed`): survives CREATE recreate touch.
     bool selfDestructScheduled{false};
+    /// Storage namespace reset this tx (CREATE deployment / clear_storage): absent keys
+    /// mean deleted-zero, do NOT fall back to base (geth: block-scoped stateObjectsDestruct
+    /// suppression, applied here per reset account).
+    bool storageReset{false};
 };
 }  // namespace bcos::evm::state
