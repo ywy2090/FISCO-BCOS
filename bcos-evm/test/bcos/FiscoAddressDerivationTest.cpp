@@ -344,6 +344,34 @@ BOOST_AUTO_TEST_CASE(nested_feature_evm_address_enables_legacy_without_web3_tx)
     BOOST_CHECK(addressEqual(out.message.code_address, expected));
 }
 
+// Production wires feature_evm_address directly via deps.featureEvmAddress (FiscoMessageRequest
+// carries no LedgerConfig). Nested derivation must honor it identically to the ledgerConfig path.
+BOOST_AUTO_TEST_CASE(nested_feature_evm_address_direct_flag_matches_ledger_config_path)
+{
+    state::test::InMemoryStateView view;
+    state::State state(view);
+    auto const origin = addressFromTailByte(0x83);
+    auto const contract = addressFromTailByte(0x84);
+    state.set_nonce(contract, 2);
+
+    auto message = makeEmptyCreateMessage(contract, /*depth=*/1);
+    auto const& hashImpl = keccakHashImpl();
+    auto const expected = legacyAddressFromSenderNonce(contract, u256{2});
+
+    int64_t nestedSeq = 0;
+    FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
+    deps.state = &state;
+    deps.hashImpl = &hashImpl;
+    deps.origin = origin;
+    deps.seq = &nestedSeq;
+    deps.revisionFlags.web3Tx = false;
+    // Direct flag, no ledgerConfig — the exact production wiring.
+    deps.featureEvmAddress = true;
+
+    auto const out = runNestedPrepare(std::move(deps), message);
+    BOOST_CHECK(addressEqual(out.message.code_address, expected));
+}
+
 BOOST_AUTO_TEST_CASE(top_level_depth_zero_skips_nested_prepare_derivation)
 {
     state::test::InMemoryStateView view;

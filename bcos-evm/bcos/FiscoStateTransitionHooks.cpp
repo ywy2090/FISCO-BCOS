@@ -71,7 +71,7 @@ void FiscoStateTransitionHooks::onPreCheckRules(StateTransitionContext& ctx) con
 {
     if (m_input.revisionConfig.enable_auth_check && m_input.authPort != nullptr)
     {
-        if (auto authResult = const_cast<AuthPort*>(m_input.authPort)->checkAuth(ctx.message);
+        if (auto authResult = m_input.authPort->checkAuth(ctx.message);
             authResult.has_value())
         {
             ctx.evmcResult = std::move(*authResult);

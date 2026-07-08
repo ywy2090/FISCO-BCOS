@@ -69,7 +69,7 @@ struct FiscoMessageRequest
     std::vector<SetCodeAuthorization> authorizations;
 
     // Optional adapters for integration layering.
-    AuthPort const* authPort{nullptr};
+    AuthPort* authPort{nullptr};
     ChainCallTargetPort* callTargetPort{nullptr};
     std::function<void(const evmc_address&, uint64_t)> persistContractCreateNonce;
     FiscoEvmHostHooks::RecipientPathResolver recipientPathResolver;

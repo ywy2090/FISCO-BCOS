@@ -109,7 +109,7 @@ void FiscoEvmHostHooks::onCreateTargetInitialized(evmc_revision rev, evmc_messag
 
     if (m_blockNumber != 0 && m_authPort != nullptr)
     {
-        const_cast<AuthPort*>(m_authPort)->createAuthTable(msg, resolveAuthTablePath(msg));
+        m_authPort->createAuthTable(msg, resolveAuthTablePath(msg));
     }
     applyCreateNonceSemantics(msg);
 }

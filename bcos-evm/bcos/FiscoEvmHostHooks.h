@@ -78,7 +78,7 @@ public:
         RevisionFlags revisionFlags{};
         state::State* state{nullptr};
         RecipientPathResolver recipientPathResolver{};
-        AuthPort const* authPort{nullptr};
+        AuthPort* authPort{nullptr};
     };
 
     explicit FiscoEvmHostHooks(bool skipEvmNativeValueTransfer, FiscoEvmHostHooksDeps deps);
@@ -131,7 +131,7 @@ private:
     RevisionFlags m_revisionFlags{};
     state::State* m_state{nullptr};
     RecipientPathResolver m_recipientPathResolver;
-    AuthPort const* m_authPort{nullptr};
+    AuthPort* m_authPort{nullptr};
 };
 
 }  // namespace bcos::evm

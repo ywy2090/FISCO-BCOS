@@ -78,9 +78,11 @@ task::Task<OpStackPostSettlementPlan> OpStackFeeSettlement::refundGas(
         // Deposits use a separate settlement path (settleDeposit); no fee routing here.
         co_return OpStackPostSettlementPlan{};
     }
-    // Zero-fee eth_call (gasFeeCap=0, gasTipCap=0, noBaseFee): skip all balance mutations.
-    if (view.isCall() && view.skipTransactionChecks() && view.noBaseFee() &&
-        view.gasFeeCap() == 0 && view.gasTipCap() == 0)
+    // buyGas skips the pre-debit for every eth_call (isCall), so refundGas must skip the
+    // credit/fee-routing for every eth_call too — otherwise a call with non-zero fee caps
+    // (or noBaseFee=false) is refunded/routed gas it never bought, minting an unbalanced
+    // state diff. The two branches must gate on the same condition.
+    if (view.isCall())
     {
         co_return OpStackPostSettlementPlan{};
     }

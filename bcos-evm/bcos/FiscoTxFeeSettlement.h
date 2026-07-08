@@ -47,6 +47,12 @@ struct FiscoTxFeeSettlement
 
         if (data.m_gasLimit <= 0)
         {
+            // No pre-deduction here, but refundGas() still rolls back to m_afterBuyGasSavepoint
+            // on EVM failure (it does not early-return on gasLimit<=0 the way it does for
+            // call/gasPrice==0). Anchor the savepoint at the current (post-nonce-update) point
+            // so that rollback preserves the replay-protection nonce bump instead of targeting
+            // the default {0} savepoint, which predates it.
+            data.m_afterBuyGasSavepoint = data.m_rollbackableStorage.current();
             co_return true;
         }
 
@@ -109,12 +115,13 @@ struct FiscoTxFeeSettlement
     template <class Data>
     task::Task<void> refundGas(Data& data)
     {
-        auto& evmcResult = *data.m_evmcResult;
-
         if (data.m_call)
         {
             co_return;
         }
+        // Deref after the call guard: on the call path m_evmcResult may be unset (buyGas
+        // returns early for calls without emplacing it).
+        auto& evmcResult = *data.m_evmcResult;
 
         // FIB-75: mirror buyGas() — use the tx's effective gas price.
         const auto gasPrice = protocol::effectiveGasPrice(data.m_transaction.get());
