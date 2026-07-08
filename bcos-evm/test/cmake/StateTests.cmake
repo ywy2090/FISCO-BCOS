@@ -169,3 +169,23 @@ add_test(
     NAME EvmoneRefundSpike
     COMMAND ${EVMONE_REFUND_SPIKE_TEST_BINARY_NAME}
 )
+
+set(SPARSE_STORAGE_OVERLAY_TEST_BINARY_NAME SparseStorageOverlayTest)
+
+add_executable(${SPARSE_STORAGE_OVERLAY_TEST_BINARY_NAME}
+    state/SparseStorageOverlayTest.cpp
+)
+
+target_include_directories(${SPARSE_STORAGE_OVERLAY_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(${SPARSE_STORAGE_OVERLAY_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-eth
+)
+
+add_test(
+    NAME SparseStorageOverlay
+    COMMAND ${SPARSE_STORAGE_OVERLAY_TEST_BINARY_NAME}
+)
