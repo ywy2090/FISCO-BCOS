@@ -117,7 +117,12 @@ task::Task<bool> EthFeeSettlement::buyGas(EthSettlementProjection view)
             ctx.state.set_balance(ctx.message.sender, senderBalance - penalty);
         }
 
-        sidecar.penaltyGasUsed = (penalty / sidecar.effectiveGasPrice).convert_to<int64_t>();
+        // effectiveGasPrice can be 0 here (a blob tx with baseFee=0 and zero fee caps still
+        // reaches this branch via blobPlan.debit > 0); guard the division — no per-gas price
+        // means no gas-denominated penalty.
+        sidecar.penaltyGasUsed = sidecar.effectiveGasPrice > 0 ?
+                                     (penalty / sidecar.effectiveGasPrice).convert_to<int64_t>() :
+                                     0;
 
         evmc_result failResult{};
         failResult.status_code = EVMC_INSUFFICIENT_BALANCE;

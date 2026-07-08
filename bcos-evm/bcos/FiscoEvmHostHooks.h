@@ -66,6 +66,9 @@ public:
         void* storageRef{nullptr};
         protocol::BlockHeader const* blockHeader{nullptr};
         ledger::LedgerConfig const* ledgerConfig{nullptr};
+        /// Direct feature_evm_address flag; production wires this from RevisionConfig
+        /// (FiscoMessageRequest carries no LedgerConfig). Tests may instead set ledgerConfig.
+        bool featureEvmAddress{false};
         int64_t blockNumber{0};
         int64_t contextID{0};
         int64_t* seq{nullptr};
@@ -116,6 +119,8 @@ private:
     void* m_storageRef{nullptr};
     protocol::BlockHeader const* m_blockHeader{nullptr};
     ledger::LedgerConfig const* m_ledgerConfig{nullptr};
+    /// Unified feature_evm_address: deps.featureEvmAddress OR deps.ledgerConfig lookup.
+    bool m_featureEvmAddress{false};
     int64_t m_blockNumber{0};
     int64_t m_contextID{0};
     int64_t* m_seq{nullptr};

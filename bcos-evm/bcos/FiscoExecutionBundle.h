@@ -37,6 +37,12 @@ private:
         FiscoEvmHostHooks::FiscoEvmHostHooksDeps deps;
         deps.state = &ctx.state;
         deps.blockNumber = input.blockInfo.number;
+        // Nested-CREATE address derivation must see the same contextID and
+        // feature_evm_address the top-level derivation uses (FiscoStateTransitionHooks);
+        // without these, nested frames derived addresses with contextID=0 and the feature
+        // forced off, colliding across txs and diverging from top-level derivation.
+        deps.contextID = input.contextID;
+        deps.featureEvmAddress = input.revisionConfig.feature_evm_address;
         deps.revisionFlags.fix_auth_check = input.revisionConfig.fix_auth_check;
         deps.revisionFlags.use_raw_address = input.revisionConfig.use_raw_address;
         deps.revisionFlags.fix_storage_status = input.revisionConfig.fix_storage_status;

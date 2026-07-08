@@ -41,6 +41,13 @@ FiscoEvmHostHooks::FiscoEvmHostHooks(bool skipEvmNativeValueTransfer, FiscoEvmHo
     m_storageRef = deps.storageRef;
     m_blockHeader = deps.blockHeader;
     m_ledgerConfig = deps.ledgerConfig;
+    // Single source of truth for nested-CREATE derivation: prefer the directly-wired flag
+    // (production), fall back to a LedgerConfig lookup (tests). Previously nested derivation
+    // only consulted ledgerConfig, which production never set — so it silently saw false.
+    m_featureEvmAddress =
+        deps.featureEvmAddress ||
+        (deps.ledgerConfig != nullptr &&
+            deps.ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address));
     m_blockNumber = deps.blockNumber;
     m_contextID = deps.contextID;
     m_seq = deps.seq;
@@ -70,11 +77,8 @@ void FiscoEvmHostHooks::deriveNestedCreateAddress(evmc_message& message)
         return;
     }
 
-    bool const featureEvmAddress =
-        m_ledgerConfig != nullptr &&
-        m_ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address);
     applyNestedCreateDerivation(message, FiscoNestedCreateParams{.web3Tx = m_revisionFlags.web3Tx,
-                                             .featureEvmAddress = featureEvmAddress,
+                                             .featureEvmAddress = m_featureEvmAddress,
                                              .callerAddress = m_callerAddress,
                                              .origin = m_origin,
                                              .blockNumber = m_blockNumber,
@@ -134,9 +138,7 @@ void FiscoEvmHostHooks::bumpContractCreateNonce(const evmc_address& contractAddr
         return;
     }
 
-    if (m_revisionFlags.web3Tx ||
-        (m_ledgerConfig != nullptr &&
-            m_ledgerConfig->features().get(ledger::Features::Flag::feature_evm_address)))
+    if (m_revisionFlags.web3Tx || m_featureEvmAddress)
     {
         m_persistContractCreateNonce(contractAddress, m_state->get_nonce(contractAddress));
     }
