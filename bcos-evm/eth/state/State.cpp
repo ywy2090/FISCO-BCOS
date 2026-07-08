@@ -162,7 +162,8 @@ bool State::account_exists(const evmc_address& address) const
     return m_baseStateView->account_exists(address);
 }
 
-/// EIP-7610: any non-zero storage slot on merged overlay+base view.
+/// EIP-7610: any non-zero storage slot on merged overlay+base view. A reset account
+/// (storageReset) owns its namespace — residual base slots no longer exist for it.
 bool State::hasNonEmptyStorage(const evmc_address& address) const
 {
     if (auto const* overlay = find_overlay_account(address))
@@ -170,6 +171,10 @@ bool State::hasNonEmptyStorage(const evmc_address& address) const
         if (!overlay->storage.empty())
         {
             return true;
+        }
+        if (overlay->storageReset)
+        {
+            return false;
         }
     }
     if (auto const account = m_baseStateView->get_account(address))

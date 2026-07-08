@@ -8,6 +8,7 @@
 
 #define BOOST_TEST_MODULE SparseStorageOverlayTest
 #include "bcos-evm/eth/state/State.hpp"
+#include "helpers/InMemoryStateView.h"
 #include "helpers/SparseStorageStateView.h"
 #include <boost/test/included/unit_test.hpp>
 #include <cstring>
@@ -236,5 +237,24 @@ BOOST_AUTO_TEST_CASE(clear_storage_reset_suppresses_base_read)
 
     state.clear_storage(kContract);
     BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), evmc_bytes32{}));
+}
+
+// EIP-7610 consistency: a reset account's residual base storage must not count as
+// non-empty. Uses the FULL-storage InMemoryStateView — the predicate enumerates
+// base->get_account()->storage, which a sparse view leaves empty (that sparse-view
+// false-negative is the documented residual gap, NOT closed by this change).
+BOOST_AUTO_TEST_CASE(has_non_empty_storage_honors_storage_reset)
+{
+    InMemoryStateView view;
+    Account seeded;
+    seeded.balance = 100;
+    seeded.storage[kSlotKey] = kSlotValue;
+    view.insert_account(kContract, std::move(seeded));
+
+    State state(view);
+    BOOST_CHECK(state.hasNonEmptyStorage(kContract));  // pre-reset: base slot counts
+
+    state.touchCreateDeploymentAccount(kContract, EVMC_CANCUN);
+    BOOST_CHECK(!state.hasNonEmptyStorage(kContract));  // reset: namespace is empty
 }
 }  // namespace bcos::evm::state::test
