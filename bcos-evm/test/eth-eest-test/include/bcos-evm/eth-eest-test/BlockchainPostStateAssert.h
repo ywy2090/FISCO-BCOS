@@ -62,7 +62,8 @@ struct PostStateAssertReport
 
 struct AssertOptions
 {
-    /// Derived by caller from `genesisRev >= EVMC_SPURIOUS_DRAGON`; affects hash path only.
+    /// Derived by caller from the canonical-tip revision `>= EVMC_SPURIOUS_DRAGON`;
+    /// affects the hash path only.
     bool eip158ClearEmpty{true};
 };
 

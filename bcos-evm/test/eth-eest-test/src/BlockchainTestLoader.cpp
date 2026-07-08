@@ -515,6 +515,19 @@ std::vector<BlockchainTest> loadBlockchainTests(pt::ptree const& root)
             {
                 auto const addr = toAddr(addrStr);
 
+                // EEST: a JSON `null` account means "must be absent". boost's
+                // json_parser stores the null literal as data()=="null",
+                // distinguishable from an empty object `{}` (data()==""), so we
+                // emit Kind::Absent. (On a boost build that stored null as "",
+                // this degrades to presence-only Present — no worse than before.)
+                if (accTree.data() == "null")
+                {
+                    ExpectedPostAccount absent;
+                    absent.kind = ExpectedPostAccount::Kind::Absent;
+                    bt.postExpectation.accounts.emplace_back(addr, std::move(absent));
+                    continue;  // no raw state::Account for an absent account
+                }
+
                 // Raw state::Account (legacy probes).
                 state::Account acc{};
                 // Presence-aware expectation (normative path).
@@ -549,12 +562,6 @@ std::vector<BlockchainTest> loadBlockchainTests(pt::ptree const& root)
                         exp.storage.emplace_back(slot, val);
                     }
                 }
-                // NOTE: boost::property_tree cannot distinguish JSON null from {} (Task 0);
-                // absent accounts are not derivable from the corpus here and stay Present.
-                // TODO: if a future EEST pin introduces explicit `null` postState accounts
-                // (absent), switch to a null-preserving parser and emit
-                // ExpectedPostAccount::Kind::Absent; property_tree currently maps them to
-                // presence-only Present.
                 bt.postState.emplace_back(addr, std::move(acc));
                 bt.postExpectation.accounts.emplace_back(addr, std::move(exp));
             }

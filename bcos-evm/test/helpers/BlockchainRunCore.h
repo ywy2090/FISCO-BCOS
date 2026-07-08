@@ -217,6 +217,7 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
 
     TestStateView const* canonicalState = &test.preState;
     evmc_bytes32 canonicalTip = genesis.hash;
+    evmc_revision canonicalRev = genesisRev;
     uint64_t maxTotalDifficulty = static_cast<uint64_t>(genesis.difficulty);
 
     for (auto const& tb : test.testBlocks)
@@ -330,6 +331,7 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
         {
             canonicalState = &it->second.postState;
             canonicalTip = tb.expectedBlockHeader.hash;
+            canonicalRev = rev;
             maxTotalDifficulty = totalDifficulty;
         }
     }
@@ -338,7 +340,10 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
         return "canonical tip mismatch (got=0x" + formatBytes32(canonicalTip) + " want=0x" +
                formatBytes32(test.lastBlockHash) + ")";
 
-    AssertOptions const postOpts{.eip158ClearEmpty = (genesisRev >= EVMC_SPURIOUS_DRAGON)};
+    // EIP-158 empty-account clearing is governed by the revision at the state we
+    // hash — the canonical tip — not genesis (matters only for the hash path on a
+    // chain that transitions across the Spurious Dragon boundary).
+    AssertOptions const postOpts{.eip158ClearEmpty = (canonicalRev >= EVMC_SPURIOUS_DRAGON)};
     if (auto report = assertPostState(*canonicalState, test.postExpectation, postOpts);
         !report.passed)
         return report.summary;
