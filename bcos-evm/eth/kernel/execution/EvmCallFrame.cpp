@@ -272,6 +272,7 @@ std::optional<FrameResult> transferOrFail(FrameWork& work, FrameScope scope)
     if (!ok)
     {
         work.ctx.state.revert();
+        work.host.revertLogs();
         return FrameResult{
             .result = makeFrameResult(EVMC_INSUFFICIENT_BALANCE, work.callMessage().gas)};
     }
@@ -303,6 +304,7 @@ void bindCreateForInit(FrameWork& work)
 /// Open a journal checkpoint so this frame's state changes can commit or revert atomically.
 void checkpointFrame(FrameWork& work)
 {
+    work.host.checkpointLogs();
     work.ctx.state.checkpoint();
 }
 
@@ -417,6 +419,7 @@ std::optional<FrameResult> failIfCreateDeploymentBlocked(FrameWork& work)
             work.ctx.state, createAddr, work.ctx.revisionConfig.eip6780))
     {
         work.ctx.state.revert();
+        work.host.revertLogs();
         return FrameResult{.result = makeFrameResult(EVMC_FAILURE, 0)};
     }
     return std::nullopt;
@@ -473,6 +476,7 @@ void commitFailedCreateDepositOutOfGas(
             work.ctx.state.journal_warm_address_for_revert(createAddr);
         }
         work.ctx.state.commit();
+        work.host.commitLogs();
         return;
     }
     // TopLevel: tx journal owns revert; partial CREATE state stays committed in overlay.
@@ -577,6 +581,7 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
                 }
             }
             work.ctx.state.commit();
+            work.host.commitLogs();
             if (!(callMessage.kind == EVMC_CREATE || callMessage.kind == EVMC_CREATE2))
             {
                 // CALL / DELEGATECALL: advance execution context for nested delegate routing.
@@ -611,6 +616,7 @@ FrameResult finalizeFrame(FrameWork& work, FrameScope scope, evmc::Result result
         else
         {
             work.ctx.state.revert();
+            work.host.revertLogs();
             if (isCreateFailure && !state::isZeroAddress(failedCreateAddr) &&
                 isCreateWarmPinEnabled(work.ctx.revisionConfig) && !work.ctx.state.has_checkpoint())
             {

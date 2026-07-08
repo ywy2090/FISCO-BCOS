@@ -141,6 +141,12 @@ public:
     /// Move accumulated LOG entries out; host log buffer is cleared after call.
     std::vector<LogEntry> take_logs();
 
+    /// Pair with `State::checkpoint` / `commit` / `revert` so LOG emissions roll back on
+    /// failed nested frames (geth receipt parity: OOG during LOG must not leak into receipt).
+    void checkpointLogs() noexcept;
+    void revertLogs() noexcept;
+    void commitLogs() noexcept;
+
 private:
     /// Pre-EIP-6780 path: zero code hash + clear all storage slots on SELFDESTRUCT.
     void destroyContractState(evmc_address const& addr) noexcept;
@@ -165,6 +171,8 @@ private:
         m_storageOriginalValues;
     /// LOG0..4 buffer; moved out via `take_logs()` after execution.
     std::vector<LogEntry> m_logs;
+    /// Saved `m_logs.size()` at each frame checkpoint (mirrors state journal stack).
+    std::vector<size_t> m_logCheckpoints;
     /// Active frame address for nested CREATE/CREATE2 side effects.
     evmc_address m_executionAddress{};
     /// Addresses created via CREATE/CREATE2 in this tx; drives EIP-6780 selfdestruct.

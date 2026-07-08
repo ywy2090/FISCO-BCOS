@@ -373,6 +373,7 @@ EthHost::Result EthHost::call(const evmc_message& msg) noexcept
         while (m_state.checkpoint_depth() > entryCheckpointDepth)
         {
             m_state.revert();
+            revertLogs();
         }
         evmc_result raw{};
         raw.status_code = EVMC_INTERNAL_ERROR;
@@ -423,6 +424,29 @@ void EthHost::emit_log(const address& addr, const uint8_t* data, size_t data_siz
 std::vector<LogEntry> EthHost::take_logs()
 {
     return std::exchange(m_logs, {});
+}
+
+void EthHost::checkpointLogs() noexcept
+{
+    m_logCheckpoints.push_back(m_logs.size());
+}
+
+void EthHost::revertLogs() noexcept
+{
+    if (m_logCheckpoints.empty())
+    {
+        return;
+    }
+    m_logs.resize(m_logCheckpoints.back());
+    m_logCheckpoints.pop_back();
+}
+
+void EthHost::commitLogs() noexcept
+{
+    if (!m_logCheckpoints.empty())
+    {
+        m_logCheckpoints.pop_back();
+    }
 }
 
 // ---------------------------------------------------------------------------

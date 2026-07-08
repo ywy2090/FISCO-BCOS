@@ -848,6 +848,61 @@ BOOST_AUTO_TEST_CASE(prague_deposit_oog_receipts_root)
 #endif
 }
 
+BOOST_AUTO_TEST_CASE(static_logInOOG_call_receipts_root)
+{
+#ifdef SPECS_TESTS_EEST_ROOT
+    namespace fs = std::filesystem;
+    namespace pt = boost::property_tree;
+    auto const path = fs::path(SPECS_TESTS_EEST_ROOT) /
+                      "fixtures/blockchain_tests/static/state_tests/stLogTests/logInOOG_Call.json";
+    pt::ptree root;
+    pt::read_json(path.string(), root);
+    auto tests = loadBlockchainTests(root);
+    BOOST_REQUIRE(!tests.empty());
+
+    BlockchainTest const* picked = nullptr;
+    for (auto const& t : tests)
+    {
+        if (t.network == "Cancun" && t.name.find("logInOOG_Call") != std::string::npos)
+        {
+            picked = &t;
+            break;
+        }
+    }
+    BOOST_REQUIRE(picked != nullptr);
+
+    auto profile = ForkProfileRegistry::instance().findByUpstreamFork(picked->network);
+    BOOST_REQUIRE(profile.has_value());
+    evmc::VM vm{evmc_create_evmone()};
+    bcos::crypto::Keccak256 hashImpl;
+
+    auto const& tb = picked->testBlocks.front();
+    auto const execBlockInfo = blockInfoForExecution(
+        tb.blockInfo, tb, &picked->genesisBlockHeader, profile->revision.revision, picked->chainId);
+    TestStateView chain = picked->preState;
+    auto res = applyEthBlock(
+        chain, tb.transactions, execBlockInfo, *profile, vm, hashImpl, {}, tb.withdrawals);
+
+    auto const& h = tb.expectedBlockHeader;
+    BOOST_REQUIRE_EQUAL(res.receipts.size(), 1u);
+    auto const& rc = res.receipts.front();
+    std::cerr << "gasUsed block=" << res.gasUsed << " want=" << h.gasUsed << " txGas=" << rc.gasUsed
+              << " topLevelIncludedTxVmError=" << rc.topLevelIncludedTxVmError
+              << " receiptStatus=" << static_cast<int>(rc.receiptStatus)
+              << " settlementStatus=" << static_cast<int>(rc.status) << " logs=" << rc.logs.size()
+              << " mptStatus="
+              << static_cast<int>(
+                     receiptMptStatus(rc.status, rc.receiptStatus, rc.topLevelIncludedTxVmError))
+              << '\n';
+
+    auto const gotRoot = computeReceiptsRoot(detail::receiptsForRoot(res.receipts));
+    BOOST_CHECK_MESSAGE(detail::bytes32Equal(gotRoot, h.receiptsRoot),
+        "receiptsRoot got=0x" << detail::formatBytes32(gotRoot) << " want=0x"
+                              << detail::formatBytes32(h.receiptsRoot));
+    BOOST_CHECK_EQUAL(res.gasUsed, h.gasUsed);
+#endif
+}
+
 BOOST_AUTO_TEST_CASE(prague_7702_selfdestruct_same_tx_state_root)
 {
 #ifdef SPECS_TESTS_EEST_ROOT
