@@ -68,12 +68,9 @@ public:
             GTEST_SKIP() << "no supported tests";
         }
 
-        auto const forkFilter = inferBlockchainForkFromPath(m_file);
         size_t ran = 0;
         for (auto const& test : tests)
         {
-            if (!forkFilter.empty() && test.network != forkFilter)
-                continue;
             if (!ForkProfileRegistry::instance().findByUpstreamFork(test.network).has_value())
                 continue;
             ++ran;
@@ -83,7 +80,7 @@ public:
         }
         if (ran == 0)
         {
-            GTEST_SKIP() << "no tests for fork " << forkFilter;
+            GTEST_SKIP() << "no tests with registry-known network";
         }
     }
 

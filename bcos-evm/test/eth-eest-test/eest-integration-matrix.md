@@ -221,12 +221,15 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 
 | Metric | bcos-evm | evmone target | M1 gate |
 |--------|----------|---------------|---------|
-| Corpus size | 105 files / 2181 subtests | full tree | — |
-| CLI case pass rate | **2181 / 2181 = 100%** | ~100% | ≥90% — **ACHIEVED** |
+| Corpus size | 105 files / 8389 test objects (8334 registry-known) | full tree | — |
+| CLI case pass rate (pre-A1, path-filtered) | **2181 / 2181 = 100%** | ~100% | ≥90% — **ACHIEVED** |
+| CLI case pass rate (post-A1, JSON `network`) | **8334 / 8334 = 100%** | ~100% | A0 probe @ `20260708` |
 | Granular file pass rate | **105 / 105 = 100%** | ~100% | ≥90% — **ACHIEVED** |
 | Crash-free nightly | `EthEestBlockchainFull` + `EthEestBlockGranularFull` CTests wired | — | ✅ (failures allowed) |
 
-Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Commit `f28d19659`.
+Verified **2026-07-07** on `build-bcos-evm-check` (EEST v5.4.0). Commit `f28d19659`. Post-A1 harness re-probe **8334/8334** @ `20260708` (55 `*AtTime15k` objects skipped — unknown network).
+
+**A1 harness (2026-07-08):** native dirs no longer filter `test.network != inferBlockchainForkFromPath()`; selection is JSON `network` + `ForkProfileRegistry` (aligned with evmone / static M6). Report: `reports/a0-probe-cancun-20260708T052600Z.log`.
 
 **Parity fixes (M1 closure):**
 
@@ -349,6 +352,7 @@ Report: local CLI/granular run only (not checked into `reports/`).
 | **M3** | Osaka+ | EIP-7918 blob-base-fee + Osaka blockchain dirs | **ACHIEVED** — 69/69 file / 1321/1321 case (2026-07-07) |
 | **M4** | Shanghai+ dirs | ≥80% withdrawal + multi-fork | **ACHIEVED** — Shanghai 128/128; Berlin 282/282; London 2/2; Paris 46/46 (2026-07-07) |
 | **M6** | Static blockchain (`blockchain_tests/static/`) | Run + ≥90% legacy GST blockchain vectors | **ACHIEVED** — **2446/2446** file / **40855/40855** case (2026-07-08) |
+| **M7** | Cross-fork JSON `network` (evmone parity) | Remove path fork filter (B1); Cancun probe | **ACHIEVED (probe)** — Cancun **8334/8334** @ `20260708`; full-tree baseline TBD |
 | **M5** | Reorg / PoW | canonical tip + TD semantics | deferred |
 
 M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseline without blocking CI.
@@ -358,9 +362,10 @@ M2–M5 are Phase 4.x parity loop items; nightly blockchain sweep records baseli
 1. Skips fixtures without parsed `pre` + `genesisBlockHeader` (engine-only format).
 2. Blocks with RLP hex but no parsed txs/headers → skip.
 3. `postState` full account diff — **DONE (2026-07-08)**: `assertPostState` compares nonce/balance/code/listed-storage/empty-storage/absent per EEST partial semantics; extra accounts/slots ignored.
-4. No Amsterdam / BPO transition networks (`OsakaToBPO1AtTime15k`, etc.) — **out of scope** unless explicitly requested.
-5. **M2 — Prague+ `requestsHash`:** `computeRequestsHash` + `collectPragueBlockRequests` wired; EIP-7685 cluster green. `receiptsRoot` tail closed. **7702 same-tx selfdestruct/sendall stateRoot closed** @ `160708Z` (`EthHost::selfdestruct` beneficiary touch gated `< SPURIOUS_DRAGON`).
-6. **Engine / sync formats (`blockchain_tests_engine*`, `blockchain_tests_sync`):** intentionally **out of scope** for this integration track.
+4. ~~Cross-fork path filter (B1)~~ — **CLOSED (A1, 2026-07-08)**: native dirs use JSON `network` like static; only unknown `network` strings skip (~307 transition/BPO corpus-wide).
+5. No Amsterdam / BPO transition networks (`OsakaToBPO1AtTime15k`, `*AtTime15k`, etc.) — registry skip until `resolveRevision(network, timestamp)` (P2).
+6. **M2 — Prague+ `requestsHash`:** closed @ `160708Z` (see M2 baseline).
+7. **Engine / sync formats (`blockchain_tests_engine*`, `blockchain_tests_sync`):** intentionally **out of scope** for this integration track.
 
 ---
 
@@ -528,6 +533,8 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 - [x] Osaka M3 parity — **1321/1321** (EIP-7918 blob fraction, `calcBaseFee` 128-bit, fixture `chainId`)
 - [x] Prague M2 parity — **2302/2302** (7702 same-tx selfdestruct/sendall stateRoot closed @ `160708Z`)
 - [x] Static blockchain M6 parity — **40855/40855** (2446 files; fork inference + nested log revert @ `a111344` + `3e87a76`)
+- [x] Cross-fork JSON `network` harness (A1 / M7) — Cancun probe **8334/8334** @ `20260708`; removes B1 path filter
+- [ ] Full-tree post-A1 native blockchain baseline (~64k registry-known cases)
 - [ ] RLP block decoding path in `EthEestBlockchainRunner` (beyond rlp_decoded fixtures)
 - [x] Full `postState` account diff — partial-semantics field diff via `BlockchainPostStateAssert` (`assertPostState`)
 - [x] ~~`engineNewPayloads` / engine sync formats~~ — **out of scope**

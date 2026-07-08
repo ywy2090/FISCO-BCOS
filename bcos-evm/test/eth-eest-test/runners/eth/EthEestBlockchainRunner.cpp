@@ -37,8 +37,8 @@ std::vector<std::string> loadBlockchainManifestPaths(fs::path const& manifestPat
     return paths;
 }
 
-void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
-    bcos::crypto::Hash& hashImpl, evmc::VM& vm, size_t& passed, size_t& failed)
+void runOneFixture(fs::path const& jsonPath, bcos::crypto::Hash& hashImpl, evmc::VM& vm,
+    size_t& passed, size_t& failed, size_t& registrySkipped)
 {
     pt::ptree root;
     try
@@ -64,10 +64,11 @@ void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
     size_t fileFailed = 0;
     for (auto const& test : tests)
     {
-        if (!forkFilter.empty() && test.network != forkFilter)
-            continue;
         if (!ForkProfileRegistry::instance().findByUpstreamFork(test.network).has_value())
+        {
+            ++registrySkipped;
             continue;
+        }
 
         auto failures = runBlockchainTest(test, vm, hashImpl);
         if (!failures.empty())
@@ -96,7 +97,7 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
     bcos::crypto::Keccak256 hashImpl;
     evmc::VM vm{evmc_create_evmone()};
 
-    size_t passed = 0, failed = 0, skipped = 0, executed = 0;
+    size_t passed = 0, failed = 0, skipped = 0, executed = 0, registrySkipped = 0;
 
     std::vector<fs::path> jsonFiles;
     for (auto& entry : fs::recursive_directory_iterator{
@@ -125,11 +126,12 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
         }
 
         ++executed;
-        runOneFixture(jsonPath, forkStr, hashImpl, vm, passed, failed);
+        runOneFixture(jsonPath, hashImpl, vm, passed, failed, registrySkipped);
     }
 
     std::cout << "\nResults: " << passed << " passed, " << failed << " failed, " << skipped
-              << " skipped (" << executed << " files)\n";
+              << " files skipped, " << registrySkipped
+              << " test objects skipped (unknown network) (" << executed << " files)\n";
     if (failed > 0)
         std::exit(1);
 }
@@ -146,6 +148,7 @@ void runBlockchainManifest(fs::path const& manifestPath, fs::path const& eestRoo
 
     size_t passed = 0;
     size_t failed = 0;
+    size_t registrySkipped = 0;
 
     for (auto const& rel : paths)
     {
@@ -157,22 +160,11 @@ void runBlockchainManifest(fs::path const& manifestPath, fs::path const& eestRoo
             continue;
         }
 
-        auto const forkStr = inferBlockchainForkFromPath(jsonPath);
-        if (!forkStr.empty())
-        {
-            auto profile = ForkProfileRegistry::instance().findByUpstreamFork(forkStr);
-            if (!profile.has_value())
-            {
-                std::cerr << "FAIL " << rel << " (unknown fork " << forkStr << ")\n";
-                ++failed;
-                continue;
-            }
-        }
-
-        runOneFixture(jsonPath, forkStr, hashImpl, vm, passed, failed);
+        runOneFixture(jsonPath, hashImpl, vm, passed, failed, registrySkipped);
     }
 
-    std::cout << "\nResults: " << passed << " passed, " << failed << " failed (" << paths.size()
+    std::cout << "\nResults: " << passed << " passed, " << failed << " failed, " << registrySkipped
+              << " test objects skipped (unknown network) (" << paths.size()
               << " manifest entries)\n";
     if (failed > 0)
         std::exit(1);
