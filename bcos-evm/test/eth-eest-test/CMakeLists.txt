@@ -21,6 +21,7 @@ add_library(bcos-evm-specs-tests-core STATIC
     src/EestStateFullManifest.cpp
     src/Eip7702StrictTxValidator.cpp
     src/BlockchainTestLoader.cpp
+    src/BlockchainPostStateAssert.cpp
 )
 
 target_include_directories(bcos-evm-specs-tests-core PUBLIC
@@ -94,6 +95,7 @@ add_reference_test(EestGranularCliTest test/EestGranularCliTest.cpp)
 add_reference_test(EestForkInferenceTest test/EestForkInferenceTest.cpp)
 add_reference_test(EestStateFullManifestTest test/EestStateFullManifestTest.cpp)
 add_reference_test(BlockchainTestLoaderTest test/BlockchainTestLoaderTest.cpp)
+add_reference_test(BlockchainPostStateAssertTest test/BlockchainPostStateAssertTest.cpp)
 add_reference_test(BlockValidationTest test/BlockValidationTest.cpp)
 target_link_libraries(BlockValidationTest PRIVATE bcos-evm-specs-tests-eth)
 target_include_directories(BlockValidationTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
