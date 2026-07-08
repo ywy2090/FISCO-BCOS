@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth-eest-test/BlockchainPostStateAssert.h"
 #include "bcos-evm/eth-eest-test/BlockchainTestTypes.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
@@ -101,49 +102,6 @@ inline std::optional<std::string> validateGenesis(
     {
         if (b != 0)
             return "genesis logsBloom not zero";
-    }
-    return std::nullopt;
-}
-
-inline std::optional<std::string> expectPostStateMatches(
-    TestStateView const& canonical, BlockchainTest const& test)
-{
-    if (test.postStateHash.has_value())
-    {
-        auto computed = computeStateRootFromView(canonical);
-        if (!bytes32Equal(computed, *test.postStateHash))
-            return "postStateHash mismatch (computed=0x" + formatBytes32(computed) +
-                   " expected=0x" + formatBytes32(*test.postStateHash) + ")";
-        return std::nullopt;
-    }
-    if (test.postState.empty())
-        return std::nullopt;
-
-    std::unordered_map<evmc_address, state::Account, state::AddressHash, state::AddressEqual>
-        actual;
-    for (auto const& [addr, acc] : canonical.accounts())
-        actual.emplace(addr, acc);
-
-    for (auto const& [addr, expectedAcc] : test.postState)
-    {
-        auto it = actual.find(addr);
-        if (it == actual.end())
-            return "postState missing account 0x" +
-                   bcos::toHex(bcos::bytes(addr.bytes, addr.bytes + sizeof(addr.bytes)));
-        auto const& got = it->second;
-        if (got.nonce != expectedAcc.nonce)
-            return "postState nonce mismatch";
-        if (got.balance != expectedAcc.balance)
-            return "postState balance mismatch";
-        for (auto const& [slot, wantVal] : expectedAcc.storage)
-        {
-            auto slotIt = got.storage.find(slot);
-            evmc_bytes32 gotVal{};
-            if (slotIt != got.storage.end())
-                gotVal = slotIt->second;
-            if (!bytes32Equal(gotVal, wantVal))
-                return "postState storage mismatch";
-        }
     }
     return std::nullopt;
 }
@@ -380,8 +338,10 @@ inline std::optional<std::string> runOneTest(BlockchainTest const& test, ForkPro
         return "canonical tip mismatch (got=0x" + formatBytes32(canonicalTip) + " want=0x" +
                formatBytes32(test.lastBlockHash) + ")";
 
-    if (auto err = expectPostStateMatches(*canonicalState, test))
-        return *err;
+    AssertOptions const postOpts{.eip158ClearEmpty = (genesisRev >= EVMC_SPURIOUS_DRAGON)};
+    if (auto report = assertPostState(*canonicalState, test.postExpectation, postOpts);
+        !report.passed)
+        return report.summary;
 
     return std::nullopt;
 }

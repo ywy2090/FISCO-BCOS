@@ -513,23 +513,53 @@ std::vector<BlockchainTest> loadBlockchainTests(pt::ptree const& root)
         {
             for (auto const& [addrStr, accTree] : *ps)
             {
+                auto const addr = toAddr(addrStr);
+
+                // Raw state::Account (legacy probes).
                 state::Account acc{};
+                // Presence-aware expectation (normative path).
+                ExpectedPostAccount exp;
+
                 if (auto s = opt(accTree, "nonce"))
+                {
                     acc.nonce = toU64(*s);
+                    exp.hasNonce = true;
+                    exp.nonce = acc.nonce;
+                }
                 if (auto s = opt(accTree, "balance"))
+                {
                     acc.balance = bcos::fromBigQuantity(*s);
+                    exp.hasBalance = true;
+                    exp.balance = acc.balance;
+                }
                 if (auto s = opt(accTree, "code"))
+                {
                     acc.code = hexToBytes(*s);
+                    exp.hasCode = true;
+                    exp.code = acc.code;
+                }
                 if (auto st = accTree.get_child_optional("storage"))
                 {
+                    exp.hasStorage = true;
                     for (auto const& [k, v] : *st)
-                        acc.storage[toBytes32(k)] = toBytes32(v.get_value<std::string>());
+                    {
+                        auto slot = toBytes32(k);
+                        auto val = toBytes32(v.get_value<std::string>());
+                        acc.storage[slot] = val;
+                        exp.storage.emplace_back(slot, val);
+                    }
                 }
-                bt.postState.emplace_back(toAddr(addrStr), std::move(acc));
+                // NOTE: boost::property_tree cannot distinguish JSON null from {} (Task 0);
+                // absent accounts are not derivable from the corpus here and stay Present.
+                bt.postState.emplace_back(addr, std::move(acc));
+                bt.postExpectation.accounts.emplace_back(addr, std::move(exp));
             }
         }
         else if (auto s = t.get_optional<std::string>("postStateHash"))
+        {
             bt.postStateHash = toBytes32(*s);
+            bt.postExpectation.hash = bt.postStateHash;
+        }
 
         out.push_back(std::move(bt));
     }

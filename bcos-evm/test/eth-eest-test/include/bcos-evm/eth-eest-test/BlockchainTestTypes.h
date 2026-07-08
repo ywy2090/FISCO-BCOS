@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bcos-evm/eth-eest-test/BlockchainPostStateAssert.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
@@ -98,9 +99,11 @@ struct BlockchainTest
     BlobSchedule blobSchedule;  // from config.blobSchedule
     bcos::u256 chainId{0};      // from config.chainid
     evmc_bytes32 lastBlockHash{};
-    /// postState account map (empty => compare via postStateHash instead).
+    /// Raw parsed post map/hash — retained for legacy BlockValidationTest probes.
     std::vector<std::pair<evmc_address, state::Account>> postState;
     std::optional<evmc_bytes32> postStateHash;
+    /// Normative, presence-aware expectation used by the runner (spec §4.3).
+    PostStateExpectation postExpectation;
 };
 
 }  // namespace bcos::evm::reference_tests

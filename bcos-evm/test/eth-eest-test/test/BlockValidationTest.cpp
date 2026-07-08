@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE BlockValidationTest
 #include "helpers/BlockValidation.h"
 #include "bcos-crypto/hash/Keccak256.h"
+#include "bcos-evm/eth-eest-test/BlockchainPostStateAssert.h"
 #include "bcos-evm/eth-eest-test/BlockchainTestLoader.h"
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
@@ -653,47 +654,11 @@ BOOST_AUTO_TEST_CASE(eip7685_multi_type_requests_header_fields)
             computeReceiptsRoot(detail::receiptsForRoot(res.receipts)), h.receiptsRoot),
         "receiptsRoot mismatch");
 
-    if (auto postErr = detail::expectPostStateMatches(res.postState, *picked))
-        BOOST_FAIL("postState field mismatch: " + *postErr);
-
-    TestStateView fixturePost;
-    for (auto const& [addr, acc] : picked->postState)
-        fixturePost.insertAccount(addr, acc);
-    auto const fixtureRoot = detail::computeStateRootFromView(fixturePost);
-    BOOST_CHECK_MESSAGE(detail::bytes32Equal(fixtureRoot, h.stateRoot),
-        "fixture postState does not hash to header stateRoot got=0x"
-            << detail::formatBytes32(fixtureRoot) << " want=0x"
-            << detail::formatBytes32(h.stateRoot));
-
-    for (auto const& [expAddr, expAcc] : picked->postState)
-    {
-        auto got = res.postState.get_account(expAddr);
-        BOOST_REQUIRE(got.has_value());
-        if (got->code != expAcc.code)
-            BOOST_FAIL("code mismatch on 0x" +
-                       bcos::toHex(bcos::bytes(expAddr.bytes, expAddr.bytes + 20)));
-        for (auto const& [slot, val] : got->storage)
-        {
-            auto it = expAcc.storage.find(slot);
-            evmc_bytes32 want{};
-            if (it != expAcc.storage.end())
-                want = it->second;
-            if (!state::Bytes32Equal{}(val, want))
-            {
-                BOOST_FAIL("storage slot mismatch on 0x" +
-                           bcos::toHex(bcos::bytes(expAddr.bytes, expAddr.bytes + 20)) +
-                           " slot=0x" + bcos::toHex(bcos::bytes(slot.bytes, slot.bytes + 32)) +
-                           " got=0x" + bcos::toHex(bcos::bytes(val.bytes, val.bytes + 32)) +
-                           " want=0x" + bcos::toHex(bcos::bytes(want.bytes, want.bytes + 32)));
-            }
-        }
-        for (auto const& [slot, want] : expAcc.storage)
-        {
-            auto it = got->storage.find(slot);
-            if (it == got->storage.end())
-                BOOST_FAIL("missing expected storage slot");
-        }
-    }
+    AssertOptions const postOpts{
+        .eip158ClearEmpty = (profile->revision.revision >= EVMC_SPURIOUS_DRAGON)};
+    if (auto report = assertPostState(res.postState, picked->postExpectation, postOpts);
+        !report.passed)
+        BOOST_FAIL("postState mismatch: " + report.summary);
 
     std::vector<std::pair<evmc_address, state::Account>> pairs;
     for (auto const& [addr, acc] : res.postState.accounts())
