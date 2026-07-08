@@ -213,4 +213,28 @@ BOOST_AUTO_TEST_CASE(nested_commit_then_outer_revert_restores_read_through)
 
     BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), kSlotValue));
 }
+
+// ── [G] guards: pass pre- and post-fix — pin the reset semantics the flag preserves ──
+
+// Scenario 10: CREATE deployment resets the namespace — base slot must read 0.
+BOOST_AUTO_TEST_CASE(create_deployment_reset_suppresses_base_read)
+{
+    auto const view = makeBaseWithSlot();
+    State state(view);
+
+    state.touchCreateDeploymentAccount(kContract, EVMC_CANCUN);
+    BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), evmc_bytes32{}));
+}
+
+// Scenario 11: clear_storage resets the namespace — base slot must read 0.
+// NOTE: do NOT assert build_diff export here — under a sparse view clear_storage
+// enumerates an empty base->storage (documented out-of-scope limitation).
+BOOST_AUTO_TEST_CASE(clear_storage_reset_suppresses_base_read)
+{
+    auto const view = makeBaseWithSlot();
+    State state(view);
+
+    state.clear_storage(kContract);
+    BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), evmc_bytes32{}));
+}
 }  // namespace bcos::evm::state::test
