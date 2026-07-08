@@ -67,6 +67,11 @@ jobs:
         run: |
           python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py \
             --granular-full --build-dir build
+      - name: Run EEST static full sweep
+        run: |
+          ctest -R EthEestStateGranularStaticFull --test-dir build --output-on-failure
+          python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py \
+            --static-only --build-dir build
       - name: Run EthEest blockchain full sweep
         continue-on-error: true
         run: |
@@ -79,7 +84,10 @@ jobs:
           path: |
             bcos-evm/test/eth-eest-test/reports/eest-granular-full-failures.json
             bcos-evm/test/eth-eest-test/reports/eest-granular-full-failures.md
+            bcos-evm/test/eth-eest-test/reports/eest-static-full-failures.json
+            bcos-evm/test/eth-eest-test/reports/eest-static-full-failures.md
             bcos-evm/test/eth-eest-test/reports/eest-granular-failures-*.json
             bcos-evm/test/eth-eest-test/reports/eest-granular-failures-*.md
             bcos-evm/test/eth-eest-test/reports/gtest-xml/granular_full.xml
+            bcos-evm/test/eth-eest-test/reports/gtest-xml/static_full.xml
           if-no-files-found: ignore

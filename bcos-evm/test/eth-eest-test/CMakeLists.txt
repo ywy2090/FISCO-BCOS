@@ -218,6 +218,14 @@ set_tests_properties(EthEestStateGranularFull PROPERTIES
     LABELS "specs-tests;specs-tests-full;eest-statetest;nightly;eth-kernel;eest"
     TIMEOUT 14400)
 
+# Static GST full sweep (58 suites under static/state_tests/; WP-HIST profiles via runner defaults).
+add_test(NAME EthEestStateGranularStaticFull
+    COMMAND EthEestStateGranular
+        ${EVM_REF_EEST_ROOT}/fixtures/state_tests/static/state_tests)
+set_tests_properties(EthEestStateGranularStaticFull PROPERTIES
+    LABELS "specs-tests;specs-tests-full;eest-statetest;nightly;eth-kernel;eest;static-regression"
+    TIMEOUT 7200)
+
 add_executable(EthEestBlockchainRunner runners/eth/EthEestBlockchainRunner.cpp)
 target_include_directories(EthEestBlockchainRunner PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -685,4 +693,10 @@ if(Python3_FOUND)
             --build-dir ${CMAKE_BINARY_DIR}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Run EthEestStateGranular full tree + failure bucket report (nightly)")
+    add_custom_target(eest-static-full-report
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tools/scan-eest-failures.py --static-only
+            --build-dir ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Run EthEestStateGranular static full sweep + failure bucket report (nightly)")
 endif()

@@ -14,7 +14,7 @@
 | Corpus | EEST v5.4.0 | bcos-evm integration | evmone integration | Primary gap |
 |--------|-------------|----------------------|--------------------|-------------|
 | **State (native EIP dirs)** | 28 dirs across 10 forks | **15/28** manifest (**4140/4140**); granular full-tree **2722/2722** file-clean (**100%** @ `160604Z`) | **Full tree** recursive scan | Manifest **closed** |
-| **State (static GST)** | 58 suites under `static/state_tests/` | **19 suites** in `eth-eest-static-regression-full.json` | Included in statetest scan | Partial static coverage; no nightly full static |
+| **State (static GST)** | 58 suites under `static/state_tests/` | **58/58** via `EthEestStateGranularStaticFull` (**100%** @ `160604Z`); manifest **19** curated (`eth-eest-static-regression-full.json`) | Included in statetest scan | Manifest subset only (capability rows) |
 | **Transaction tests** | `transaction_tests/prague/eip7702_set_code_tx` | **106/106 pass** (`eth-eest-tx-full.json`) | **No dedicated runner** | bcos ahead |
 | **Blockchain tests** | 12 fork dirs + `static/` | M1 Cancun **2181/2181**; **M3 Osaka 1321/1321**; **M2 Prague 2302/2302**; M4 **Berlin 282/282 · London 2/2 · Paris 46/46 · Shanghai 128/128** | **Full tree** | static blockchain |
 | **Blockchain engine/sync** | `blockchain_tests_engine*`, `blockchain_tests_sync` | **Out of scope** (not integrated) | Partial (engine variants) | Format + CL payload decoding — intentionally deferred |
@@ -28,7 +28,7 @@
 | bcos-evm runner | Binary / CTest | Execution path | evmone equivalent | Integration mode |
 |-----------------|----------------|----------------|-------------------|------------------|
 | `EthExecutionSpecStateTests` | manifest-driven CTests | `EthMessageAdapter` → `applyEthMessage` | — | Curated manifest entries + `assertLevels` |
-| `EthEestStateGranular` | `EthEestStateGranularSmoke` / `EthEestStateGranularFull` | Same (file-per-GTest) | `evmone-statetest` | H1 full tree CTest; H2–H7 harness (see §2.1) |
+| `EthEestStateGranular` | `EthEestStateGranularSmoke` / `EthEestStateGranularFull` / `EthEestStateGranularStaticFull` | Same (file-per-GTest) | `evmone-statetest` | H1 full tree CTest; static GST full (58 suites); H2–H7 harness (see §2.1) |
 | `EthExecutionSpecTransactionTests` | `EthExecutionSpecTransactionTestsFull` | Tx decode / precheck (no EVM exec) | — | Full `transaction_tests/` dir |
 | `EthEestBlockchainRunner` | `EthEestBlockchainSmoke` / `EthEestBlockchainFull` | `validateBlock` + `applyEthBlock` + MPT roots + invalid-block | `evmone-blockchaintest` | Smoke manifest (8 files); nightly full sweep |
 | `EthEestBlockGranular` | `EthEestBlockGranularSmoke` / `EthEestBlockGranularFull` | Same via `BlockchainRunCore` (per-file GTest) | `evmone-blockchaintest` | Cancun filter smoke; nightly full tree |
@@ -177,17 +177,18 @@ EEST ships **58** legacy GST suites under `static/state_tests/`.
 | Integration | Manifest | CTest | Suites covered |
 |-------------|----------|-------|----------------|
 | Smoke (7 files) | `eth-eest-static-regression-smoke.json` | `EthExecutionSpecStaticRegressionSmoke` | Cancun×2, Shanghai×2, stChainId, stSelfBalance, stBugs |
-| Full (19 dirs) | `eth-eest-static-regression-full.json` | `EthExecutionSpecStaticRegressionFull` | Cancun, Shanghai, stEIP1559, stEIP2930, stCreate2, stRevertTest, stRefundTest, stSStoreTest, stCreateTest, stInitCodeTest, stExtCodeHash, stDelegatecallTestHomestead, stCallCodes, stStaticCall, stSelfBalance, stChainId, stBadOpcode, stReturnDataTest, stLogTests, stBugs |
+| Full (58 suites) | — | `EthEestStateGranularStaticFull` | All dirs under `fixtures/state_tests/static/state_tests/` (WP-HIST + modern profiles) |
+| Curated (19 dirs) | `eth-eest-static-regression-full.json` | `EthExecutionSpecStaticRegressionFull` | Cancun, Shanghai, stEIP1559, stEIP2930, stCreate2, stRevertTest, stRefundTest, stSStoreTest, stCreateTest, stInitCodeTest, stExtCodeHash, stDelegatecallTestHomestead, stCallCodes, stStaticCall, stSelfBalance, stChainId, stBadOpcode, stReturnDataTest, stLogTests, stBugs |
 | Nonce smoke (4) | `eth-eest-nonce-smoke.json` | `EthExecutionSpecNonceTests` | stRevertTest×2, stCreateTest×2, 7702 nonce |
 | 1559 probe (1) | `eth-eest-1559-gasprice-probe.json` | `EthExecutionSpec1559GaspriceProbe` | stExample/eip1559 |
 
-**Not integrated:** ~39 static suites (VMTests, stAttackTest, stMemoryStressTest, stEIP150*, homestead-specific, etc.)
+**Static full gate:** `EthEestStateGranularStaticFull` + `scan-eest-failures.py --static-only` (nightly). Manifest full (19 dirs) remains a **curated** capability-row subset for PR/nightly manifest sweeps.
 
-**Granular full-tree (WP-HIST):** static suites in the 2722-file corpus — **0 failure entries** @ `150449Z` (incl. `stCreate2` 51/51, `stRandom` 310/310). Manifest static-full (19 dirs) remains separate.
+**Granular static baseline (WP-HIST):** **0 failure entries** @ `160604Z` (incl. `stCreate2` 51/51, `stRandom` 310/310, `stStaticCall` 286/286).
 
 | evmone | bcos-evm |
 |--------|----------|
-| All static JSON picked up by recursive statetest scan | Manifest-only subset (19 dirs); granular full-tree static **green** @ `150449Z` |
+| All static JSON picked up by recursive statetest scan | `EthEestStateGranularStaticFull` (58 suites); manifest curated subset (19 dirs) |
 
 ---
 
@@ -504,7 +505,7 @@ test/state::transition          EthMessageAdapter → applyEthMessage
 ### P2 — Fork / corpus expansion
 
 - [ ] `Amsterdam` + BPO transition profiles
-- [ ] Static suite full sweep (58 suites) or document intentional subset
+- [x] Static suite full sweep (58 suites) — `EthEestStateGranularStaticFull` + `--static-only` scan
 - [x] ~~`blockchain_tests_engine*` integration~~ — **out of scope**
 
 ### P3 — Hygiene
@@ -530,6 +531,11 @@ ctest -L 'specs-tests-full' --test-dir build-ref -C Debug --output-on-failure
 
 # Nightly granular full tree
 ctest -R EthEestStateGranularFull --test-dir build-ref -C Debug --output-on-failure
+
+# Nightly static GST full (58 suites)
+ctest -R EthEestStateGranularStaticFull --test-dir build-ref -C Debug --output-on-failure
+python3 bcos-evm/test/eth-eest-test/tools/scan-eest-failures.py \
+  --static-only --build-dir build-ref
 
 # Shanghai blockchain sweep (128/128)
 ./build-ref/bcos-evm/test/eth-eest-test/EthEestBlockchainRunner \
@@ -586,4 +592,4 @@ ctest -R EthExecutionSpecSliceEip7823 -V --test-dir build-ref -C Debug
 | Harness plan | `docs/superpowers/plans/2026-07-07-eest-statetest-harness-h2-h7.md` |
 | Parity loop reports | `docs/superpowers/plans/2026-07-06-eest-parity-loop-*-report.md` |
 
-**Last updated:** 2026-07-08 — Granular **2722/2722** @ `160604Z`; Prague blockchain **2302/2302** @ `160708Z`; manifest **4140/4140**
+**Last updated:** 2026-07-08 — Granular **2722/2722** @ `160604Z`; Static granular **58/58** (`EthEestStateGranularStaticFull`); Prague blockchain **2302/2302** @ `160708Z`; manifest **4140/4140**

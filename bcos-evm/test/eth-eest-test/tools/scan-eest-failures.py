@@ -83,12 +83,18 @@ def parse_args(manifest_dirs: list[tuple[str, str]]) -> argparse.Namespace:
         action="store_true",
         help="One full-tree EthEestStateGranular run + XML parse (nightly artifact)",
     )
+    parser.add_argument(
+        "--static-only",
+        action="store_true",
+        help="Static GST full sweep (fixtures/state_tests/static/state_tests) + XML parse",
+    )
     args = parser.parse_args()
 
-    if args.dir and args.granular_full:
-        parser.error("--dir and --granular-full are mutually exclusive")
+    mode_flags = sum(bool(x) for x in (args.dir, args.granular_full, args.static_only))
+    if mode_flags > 1:
+        parser.error("--dir, --granular-full, and --static-only are mutually exclusive")
 
-    if not args.dir and not args.granular_full:
+    if mode_flags == 0:
         args.manifest_16 = True
 
     if args.dir and not args.profile:
@@ -178,19 +184,34 @@ def parse_granular_full_results(
     return fails, dir_stats
 
 
-def run_granular_full(
-    granular: Path, eest_root: Path, xml_out: Path
+STATIC_STATE_TESTS_REL = "static/state_tests"
+
+
+def run_granular_tree(
+    granular: Path,
+    scan_root: Path,
+    xml_out: Path,
+    *,
+    timeout_s: int,
+    scope_label: str,
 ) -> tuple[list[Failure], dict[str, dict[str, int]]]:
     cmd = [
         str(granular.resolve()),
-        str(eest_root),
+        str(scan_root),
         f"--gtest_output=xml:{xml_out}",
     ]
     try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=14400, check=False)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, check=False)
     except subprocess.TimeoutExpired:
         return (
-            [Failure("(full tree)", "(runner error)", "(runner error)", "timeout after 14400s")],
+            [
+                Failure(
+                    scope_label,
+                    "(runner error)",
+                    "(runner error)",
+                    f"timeout after {timeout_s}s",
+                )
+            ],
             {},
         )
 
@@ -198,13 +219,41 @@ def run_granular_full(
         return (
             [
                 Failure(
-                    "(full tree)", "(runner error)", "(runner error)", "no gtest xml produced"
+                    scope_label,
+                    "(runner error)",
+                    "(runner error)",
+                    "no gtest xml produced",
                 )
             ],
             {},
         )
 
     return parse_granular_full_results(xml_out)
+
+
+def run_granular_full(
+    granular: Path, eest_root: Path, xml_out: Path
+) -> tuple[list[Failure], dict[str, dict[str, int]]]:
+    return run_granular_tree(
+        granular,
+        eest_root,
+        xml_out,
+        timeout_s=14400,
+        scope_label="(full tree)",
+    )
+
+
+def run_granular_static_full(
+    granular: Path, eest_root: Path, xml_out: Path
+) -> tuple[list[Failure], dict[str, dict[str, int]]]:
+    static_root = eest_root / STATIC_STATE_TESTS_REL
+    return run_granular_tree(
+        granular,
+        static_root,
+        xml_out,
+        timeout_s=7200,
+        scope_label="(static full)",
+    )
 
 
 def scan_directories(
@@ -327,18 +376,20 @@ def main() -> int:
         xml_out = xml_dir / "granular_full.xml"
         all_failures, dir_stats = run_granular_full(granular, eest, xml_out)
         inventory_stem = "eest-granular-full-failures"
-        total_files = sum(st["json_files"] for st in dir_stats.values())
-        clean_files = sum(st["json_files_all_pass"] for st in dir_stats.values())
-        print(
-            f"full tree: {len(all_failures)} file failures "
-            f"({clean_files}/{total_files} files clean, {len(dir_stats)} dirs)"
+        summary_label = "full tree"
+    elif args.static_only:
+        static_root = eest / STATIC_STATE_TESTS_REL
+        if not static_root.is_dir():
+            print(f"Missing static fixtures {static_root}", file=sys.stderr)
+            return 1
+        scope = (
+            "EthEestStateGranular static full "
+            "(fixtures/state_tests/static/state_tests)"
         )
-        for rel, st in sorted(dir_stats.items()):
-            if st["subtest_failures"]:
-                print(
-                    f"  {rel}: {st['subtest_failures']} failures "
-                    f"({st['json_files_all_pass']}/{st['json_files']} files clean)"
-                )
+        xml_out = xml_dir / "static_full.xml"
+        all_failures, dir_stats = run_granular_static_full(granular, eest, xml_out)
+        inventory_stem = "eest-static-full-failures"
+        summary_label = "static full"
     elif args.dir:
         scope = f"single dir {args.dir} (profile {args.profile})"
         all_failures, dir_stats = scan_directories(
@@ -349,6 +400,7 @@ def main() -> int:
         )
         safe = args.dir.replace("/", "_")
         inventory_stem = f"eest-dir-{safe}-failures"
+        summary_label = ""
     else:
         scope = "eth-eest-state-full.json (16 manifest dirs)"
         all_failures, dir_stats = scan_directories(
@@ -358,6 +410,21 @@ def main() -> int:
             xml_dir=xml_dir,
         )
         inventory_stem = "eest-state-full-failures"
+        summary_label = ""
+
+    if args.granular_full or args.static_only:
+        total_files = sum(st["json_files"] for st in dir_stats.values())
+        clean_files = sum(st["json_files_all_pass"] for st in dir_stats.values())
+        print(
+            f"{summary_label}: {len(all_failures)} file failures "
+            f"({clean_files}/{total_files} files clean, {len(dir_stats)} dirs)"
+        )
+        for rel, st in sorted(dir_stats.items()):
+            if st["subtest_failures"]:
+                print(
+                    f"  {rel}: {st['subtest_failures']} failures "
+                    f"({st['json_files_all_pass']}/{st['json_files']} files clean)"
+                )
 
     inv_json, inv_md = write_inventory_reports(
         out_dir,
