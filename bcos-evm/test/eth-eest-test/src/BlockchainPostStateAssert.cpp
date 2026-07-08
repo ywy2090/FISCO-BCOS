@@ -1,9 +1,11 @@
 #include "bcos-evm/eth-eest-test/BlockchainPostStateAssert.h"
 
 #include "bcos-evm/eth-eest-test/GstStateHash.h"
-#include "bcos-evm/eth/state/StateKeyHash.hpp"
 #include <bcos-utilities/DataConvertUtility.h>
+#include <algorithm>
 #include <cstring>
+#include <utility>
+#include <vector>
 
 namespace bcos::evm::reference_tests
 {
@@ -140,10 +142,10 @@ PostStateAssertReport assertPostState(
             PostStateFieldDiff d;
             d.address = address;
             d.field = "balance";
-            d.got = bcos::toHex(bcos::toCompactBigEndian(acc.balance));
-            d.want = bcos::toHex(bcos::toCompactBigEndian(exp.balance));
-            d.message = "postState balance mismatch addr=" + hexAddr(address) + " got=0x" + d.got +
-                        " want=0x" + d.want;
+            d.got = "0x" + bcos::toHex(bcos::toCompactBigEndian(acc.balance));
+            d.want = "0x" + bcos::toHex(bcos::toCompactBigEndian(exp.balance));
+            d.message = "postState balance mismatch addr=" + hexAddr(address) + " got=" + d.got +
+                        " want=" + d.want;
             record(report, std::move(d));
         }
 
@@ -164,7 +166,15 @@ PostStateAssertReport assertPostState(
             if (exp.storage.empty())
             {
                 // storage: {} ⇒ every actual slot must be zero.
-                for (auto const& [slot, val] : acc.storage)
+                // acc.storage is an unordered_map; sort by slot key (memcmp) so the
+                // reported first-diff is deterministic (spec §4.4).
+                std::vector<std::pair<evmc_bytes32, evmc_bytes32>> sortedStorage(
+                    acc.storage.begin(), acc.storage.end());
+                std::sort(sortedStorage.begin(), sortedStorage.end(),
+                    [](auto const& lhs, auto const& rhs) {
+                        return std::memcmp(lhs.first.bytes, rhs.first.bytes, 32) < 0;
+                    });
+                for (auto const& [slot, val] : sortedStorage)
                 {
                     if (!isZero(val))
                     {

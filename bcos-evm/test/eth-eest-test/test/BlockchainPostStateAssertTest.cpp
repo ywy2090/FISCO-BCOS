@@ -197,6 +197,30 @@ BOOST_AUTO_TEST_CASE(presence_only_empty_object_requires_existence)
     BOOST_CHECK(!assertPostState(TestStateView{}, exp).passed);
 }
 
+BOOST_AUTO_TEST_CASE(empty_storage_all_zero_diff_is_deterministic)
+{
+    // storage: {} (all-zero) mode over an unordered_map with multiple non-zero slots.
+    // Insert in an order that differs from sorted (memcmp) order; the reported
+    // first-diff must always be the LOWEST slot key (word(1)).
+    state::Account acc;
+    acc.storage.emplace(word(3), word(0x33));
+    acc.storage.emplace(word(2), word(0x22));
+    acc.storage.emplace(word(1), word(0x11));
+    TestStateView actual = viewWith(addr(1), acc);
+
+    ExpectedPostAccount e;
+    e.hasStorage = true;  // empty storage list ⇒ all-zero mode
+    PostStateExpectation exp;
+    exp.accounts.emplace_back(addr(1), e);
+
+    auto rep = assertPostState(actual, exp);
+    BOOST_CHECK(!rep.passed);
+    // Lowest slot by memcmp is word(1) = 0x...01.
+    std::string const lowestSlot =
+        "slot=0x0000000000000000000000000000000000000000000000000000000000000001";
+    BOOST_CHECK(rep.summary.find(lowestSlot) != std::string::npos);
+}
+
 BOOST_AUTO_TEST_CASE(accounts_take_precedence_over_hash)
 {
     // both set: accounts path must be used, wrong hash ignored

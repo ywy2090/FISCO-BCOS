@@ -551,6 +551,10 @@ std::vector<BlockchainTest> loadBlockchainTests(pt::ptree const& root)
                 }
                 // NOTE: boost::property_tree cannot distinguish JSON null from {} (Task 0);
                 // absent accounts are not derivable from the corpus here and stay Present.
+                // TODO: if a future EEST pin introduces explicit `null` postState accounts
+                // (absent), switch to a null-preserving parser and emit
+                // ExpectedPostAccount::Kind::Absent; property_tree currently maps them to
+                // presence-only Present.
                 bt.postState.emplace_back(addr, std::move(acc));
                 bt.postExpectation.accounts.emplace_back(addr, std::move(exp));
             }
