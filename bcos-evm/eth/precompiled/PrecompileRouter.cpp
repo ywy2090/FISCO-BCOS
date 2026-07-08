@@ -129,6 +129,12 @@ PrecompileRouterOutput executePrecompileEnvelope(PrecompileEnvelopeInput const& 
 PrecompileRouterOutput executeEmptyAccountEnvelope(PrecompileEnvelopeInput const& input)
 {
     auto output = envelopeAfterValueTransfer(input, [&input]() -> evmc::Result {
+        // Pre-EIP158: CALL into empty code (e.g. post-suicide target) materializes a touched
+        // empty account in the state trie (EEST double_kill / Frontier scenarios).
+        if (input.revision.revision < EVMC_SPURIOUS_DRAGON)
+        {
+            input.state.touchOverlayAccount(input.target.dispatchAddress);
+        }
         evmc_result result{};
         result.status_code = EVMC_SUCCESS;
         result.gas_left = input.message.gas;

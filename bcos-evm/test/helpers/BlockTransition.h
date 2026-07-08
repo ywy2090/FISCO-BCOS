@@ -4,6 +4,7 @@
 #include "bcos-evm/eth-eest-test/EthMessageAdapter.h"
 #include "bcos-evm/eth-eest-test/ForkProfileRegistry.h"
 #include "bcos-evm/eth-eest-test/GeneralStateTestLoader.h"
+#include "bcos-evm/eth-eest-test/GstStateHash.h"
 #include "bcos-evm/eth-eest-test/ReceiptForRoot.h"
 #include "bcos-evm/eth-eest-test/TestStateView.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
@@ -67,6 +68,8 @@ struct TransactionReceipt
     bcos::bytes bloom;                  // 256-byte logs bloom for this tx
     std::vector<state::LogEntry> logs;  // all logs (supersedes single `log`; `log` kept for compat)
     uint8_t txType = 0;                 // EIP-2718 typed receipt prefix
+    /// Pre-Byzantium: intermediate post-tx state root for receipt trie (excludes block reward).
+    std::optional<evmc_bytes32> postStateRoot;
 };
 
 struct BlockApplyResult
@@ -81,6 +84,16 @@ struct BlockApplyResult
     uint64_t blobGasLeft = 0;      // maxBlobGasPerBlock - consumed
 };
 
+/// Pre-merge: DIFFICULTY opcode reads block_prev_randao filled with header difficulty (evmone).
+inline evmc_bytes32 difficultyAsPrevRandao(int64_t difficulty)
+{
+    evmc_bytes32 out{};
+    auto const v = static_cast<uint64_t>(difficulty);
+    for (size_t i = 0; i < 8; ++i)
+        out.bytes[24 + i] = static_cast<uint8_t>(v >> (8 * (7 - i)));
+    return out;
+}
+
 /// Execution-time block context: beacon root + blob base fee from parent excess (EIP-4844).
 inline state::BlockInfo blockInfoForExecution(state::BlockInfo const& base, TestBlock const& tb,
     TestBlockHeader const* parent, evmc_revision rev, bcos::u256 chainId = 0)
@@ -88,6 +101,8 @@ inline state::BlockInfo blockInfoForExecution(state::BlockInfo const& base, Test
     state::BlockInfo bi = base;
     bi.chainId = chainId;
     bi.parentBeaconBlockRoot = tb.expectedBlockHeader.parentBeaconBlockRoot;
+    if (rev < EVMC_PARIS)
+        bi.prevRandao = difficultyAsPrevRandao(tb.expectedBlockHeader.difficulty);
     if (rev >= EVMC_CANCUN)
     {
         if (tb.inputExcessBlobGas.has_value())
@@ -212,6 +227,13 @@ inline BlockApplyResult applyEthBlock(TestStateView& preState,
             !tmpl.authorizationList.empty(), !tmpl.blobVersionedHashes.empty(),
             tmpl.maxFeePerBlobGasKeyPresent,
             tmpl.maxFeePerGas != 0 || tmpl.maxPriorityFeePerGas != 0, !tmpl.accessLists.empty());
+        if (profile.revision.revision < EVMC_BYZANTIUM && !consensusRejected)
+        {
+            bool const eip158 = profile.revision.revision >= EVMC_SPURIOUS_DRAGON;
+            auto const txPostView = buildPostStateView(
+                preStatePairs, state::StateDiff{}, false, blockInfo.coinbase, eip158);
+            receipt.postStateRoot = computeStateRoot(txPostView);
+        }
         result.receipts.push_back(std::move(receipt));
     }
 

@@ -411,10 +411,22 @@ evmc_bytes32 computeLogsHashImpl(std::vector<state::LogEntry> const& logs)
     return keccak256(rlpEncodeList(encodedLogs));
 }
 
-bcos::bytes encodeReceipt(ReceiptForRoot const& receipt)
+bcos::bytes encodeReceipt(ReceiptForRoot const& receipt, evmc_revision rev)
 {
-    bcos::bytes statusByte =
-        receipt.status == EVMC_SUCCESS ? rlpEncodeUint64(1) : bcos::bytes{0x80};
+    bcos::bytes firstField;
+    if (rev < EVMC_BYZANTIUM)
+    {
+        if (!receipt.postStateRoot.has_value())
+        {
+            throw std::logic_error("pre-Byzantium receipt missing postStateRoot");
+        }
+        firstField = rlpEncodeRaw(bcos::bytes(receipt.postStateRoot->bytes,
+            receipt.postStateRoot->bytes + sizeof(receipt.postStateRoot->bytes)));
+    }
+    else
+    {
+        firstField = receipt.status == EVMC_SUCCESS ? rlpEncodeUint64(1) : bcos::bytes{0x80};
+    }
     std::vector<bcos::bytes> encodedLogs;
     encodedLogs.reserve(receipt.logs.size());
     for (auto const& log : receipt.logs)
@@ -422,7 +434,7 @@ bcos::bytes encodeReceipt(ReceiptForRoot const& receipt)
         encodedLogs.push_back(encodeLog(log));
     }
     bcos::bytes payload =
-        rlpEncodeList({std::move(statusByte), rlpEncodeUint64(receipt.cumulativeGasUsed),
+        rlpEncodeList({std::move(firstField), rlpEncodeUint64(receipt.cumulativeGasUsed),
             rlpEncodeRaw(receipt.bloom), rlpEncodeList(encodedLogs)});
     if (receipt.txType != 0)
     {
@@ -610,10 +622,10 @@ evmc_bytes32 computeTxRoot(std::span<const bcos::bytes> signedTxRlps)
     return computeIndexedTrieRoot(signedTxRlps.size(), [&](size_t i) { return signedTxRlps[i]; });
 }
 
-evmc_bytes32 computeReceiptsRoot(std::span<const ReceiptForRoot> receipts)
+evmc_bytes32 computeReceiptsRoot(std::span<const ReceiptForRoot> receipts, evmc_revision rev)
 {
     return computeIndexedTrieRoot(
-        receipts.size(), [&](size_t i) { return encodeReceipt(receipts[i]); });
+        receipts.size(), [&](size_t i) { return encodeReceipt(receipts[i], rev); });
 }
 
 evmc_bytes32 computeWithdrawalRoot(std::span<const Withdrawal> withdrawals)

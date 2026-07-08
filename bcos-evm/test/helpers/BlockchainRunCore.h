@@ -115,6 +115,7 @@ inline std::vector<ReceiptForRoot> receiptsForRoot(std::vector<TransactionReceip
     {
         ReceiptForRoot r;
         r.txType = rc.txType;
+        r.postStateRoot = rc.postStateRoot;
         r.status = receiptMptStatus(rc.status, rc.receiptStatus, rc.topLevelIncludedTxVmError);
         if (r.status != EVMC_SUCCESS)
         {
@@ -148,12 +149,13 @@ inline std::optional<std::string> firstHeaderFieldMismatch(TestBlock const& tb,
     std::string_view network)
 {
     auto const& h = tb.expectedBlockHeader;
-    auto const computedState = computeStateRootFromView(res.postState);
+    bool const eip158 = rev >= EVMC_SPURIOUS_DRAGON;
+    auto const computedState = computeStateRootFromView(res.postState, eip158);
     if (!bytes32Equal(computedState, h.stateRoot))
         return "stateRoot";
     if (!bytes32Equal(computeTxRoot(tb.rawTxRlp), h.transactionsRoot))
         return "transactionsRoot";
-    if (!bytes32Equal(computeReceiptsRoot(receiptsForRoot(res.receipts)), h.receiptsRoot))
+    if (!bytes32Equal(computeReceiptsRoot(receiptsForRoot(res.receipts), rev), h.receiptsRoot))
         return "receiptsRoot";
     if (rev >= EVMC_SHANGHAI &&
         !bytes32Equal(computeWithdrawalRoot(tb.withdrawals), h.withdrawalsRoot))
