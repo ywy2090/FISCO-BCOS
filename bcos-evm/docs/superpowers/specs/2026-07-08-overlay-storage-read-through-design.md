@@ -185,8 +185,12 @@ base account with slot `K=5`. **[B]** = bug-exposing (fails pre-fix, passes post
     out-of-scope enumeration limitation.)
 12. **[B]** checkpoint → `touchCreateDeploymentAccount` (flag set) → revert → SLOAD `K`
     returns 5 (read-through restored; base account pre-exists so the snapshot is non-null).
-13. **[G]** nested: outer checkpoint → inner checkpoint → reset in inner → inner `commit` →
-    outer `revert` → SLOAD `K` returns 5 (guards journal dedup + commit-bubbling interaction).
+13. **[B]** nested: outer checkpoint → inner checkpoint → reset in inner → inner `commit` →
+    outer `revert` → SLOAD `K` returns 5 (also exercises journal dedup + commit-bubbling).
+    Bug-exposing, not a guard: the journal snapshot is `find()`'s non-null base copy (empty
+    storage under a sparse view), inner commit only bubbles the touched set, and outer revert
+    re-inserts that copy into the overlay — identical mechanism to scenario 12, so pre-fix
+    this reads 0.
 
 **Existing gates (must stay green — they prove the fix is inert under full-storage views;
 by construction they cannot exercise the new branches, so the new suite is the sole

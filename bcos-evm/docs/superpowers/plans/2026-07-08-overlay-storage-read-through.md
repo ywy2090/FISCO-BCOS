@@ -206,15 +206,21 @@ add_test(
 )
 ```
 
-- [ ] **Step 4: Build and run the sanity test**
+- [ ] **Step 4: Reconfigure, build and run the sanity test**
 
 ```bash
 cd /Users/octopus/octo/code/FISCO-BCOS/.claude/worktrees/feat-evm-refactor/build
+cmake .                                                   # register the newly added target
 cmake --build . --target SparseStorageOverlayTest -j8
 ./bcos-evm/test/SparseStorageOverlayTest
 ```
 
-Expected: build succeeds (CMake re-runs automatically for the new target); test output ends with `*** No errors detected`.
+The explicit `cmake .` is REQUIRED: with the Unix Makefiles generator a brand-new
+`add_executable` has no forwarding rule yet, so `cmake --build . --target …` fails with
+"No rule to make target" before any auto-reconfigure can run. (Subsequent builds of the
+target in later tasks don't need it.)
+
+Expected: reconfigure + build succeed; test output ends with `*** No errors detected`.
 
 - [ ] **Step 5: Commit**
 
@@ -238,10 +244,13 @@ git commit -m "test(evm): sparse-storage StateView helper + overlay suite scaffo
 - Modify: `bcos-evm/eth/state/State.cpp` — `get_storage` (~:191), `clear_storage` (~:450), `touchCreateDeploymentAccount` (~:771)
 
 **Interfaces:**
-- Consumes: Task 1's helpers (`makeBaseWithSlot`, `kContract`, `kSlotKey`, `kSlotValue`, `addr`, `b32`, `eq`); `State` public API: `set_balance(const evmc_address&, const bcos::u256&)`, `set_nonce(const evmc_address&, uint64_t)`, `set_code(const evmc_address&, bcos::bytes, evmc_bytes32)`, `set_storage(const evmc_address&, const evmc_bytes32&, const evmc_bytes32&)`, `set_transient_storage(const evmc_address&, const evmc_bytes32&, const evmc_bytes32&)`, `mark_self_destructed(const evmc_address&)`, `touchOverlayAccount(const evmc_address&)`, `touchCreateDeploymentAccount(const evmc_address&, evmc_revision)`, `checkpoint()/revert()`, `get_storage(...) const`, `build_diff() const` → `StateDiff{ .accounts: map<evmc_address, Account> }`.
+- Consumes: Task 1's helpers (`makeBaseWithSlot`, `kContract`, `kSlotKey`, `kSlotValue`, `addr`, `b32`, `eq`); `State` public API: `set_balance(const evmc_address&, const bcos::u256&)`, `set_nonce(const evmc_address&, uint64_t)`, `set_code(const evmc_address&, bcos::bytes, evmc_bytes32)`, `set_storage(const evmc_address&, const evmc_bytes32&, const evmc_bytes32&)`, `set_transient_storage(const evmc_address&, const evmc_bytes32&, const evmc_bytes32&)`, `mark_self_destructed(const evmc_address&)`, `touchOverlayAccount(const evmc_address&)`, `touchCreateDeploymentAccount(const evmc_address&, evmc_revision)`, `checkpoint()/commit()/revert()`, `get_storage(...) const`, `build_diff() const` → `StateDiff{ .accounts: map<evmc_address, Account> }`.
 - Produces: `Account::storageReset` (`bool`, default `false`) — consumed by Tasks 3 and 4.
 
-- [ ] **Step 1: Append the ten bug-exposing tests**
+- [ ] **Step 1: Append the eleven bug-exposing tests**
+
+(Scenario numbers interleave by category — [B] = 1-9,12,13 here; [G] = 10,11 in Task 3 —
+so numbering is non-contiguous within each file section. Each test's name is descriptive.)
 
 Append to `bcos-evm/test/state/SparseStorageOverlayTest.cpp`, immediately before the final `}  // namespace bcos::evm::state::test`:
 
@@ -361,6 +370,9 @@ BOOST_AUTO_TEST_CASE(original_value_correct_after_materialization_write_back)
 }
 
 // Scenario 12: revert across a CREATE reset restores read-through.
+// Journal subtlety: the snapshot is find(kContract) — a NON-NULL base copy (sparse ⇒
+// empty storage), so revert RE-INSERTS it into the overlay rather than erasing; the
+// restored copy has storageReset=false, so post-fix reads fall through to base.
 BOOST_AUTO_TEST_CASE(revert_across_create_reset_restores_read_through)
 {
     auto const view = makeBaseWithSlot();
@@ -372,9 +384,27 @@ BOOST_AUTO_TEST_CASE(revert_across_create_reset_restores_read_through)
 
     BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), kSlotValue));
 }
+
+// Scenario 13: nested frames — inner commit bubbles, outer revert restores read-through.
+// [B], NOT a guard: identical journal mechanism to scenario 12 (inner commit only bubbles
+// the touched set; the AccountSnapshot stays in the outer range, and outer revert
+// re-inserts the empty-storage base copy) — so pre-fix this reads 0 and FAILS.
+BOOST_AUTO_TEST_CASE(nested_commit_then_outer_revert_restores_read_through)
+{
+    auto const view = makeBaseWithSlot();
+    State state(view);
+
+    state.checkpoint();  // outer
+    state.checkpoint();  // inner
+    state.touchCreateDeploymentAccount(kContract, EVMC_CANCUN);
+    state.commit();  // inner commit bubbles touched set to outer
+    state.revert();  // outer revert must undo the reset
+
+    BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), kSlotValue));
+}
 ```
 
-- [ ] **Step 2: Run — verify all ten FAIL (and the sanity test still passes)**
+- [ ] **Step 2: Run — verify all eleven FAIL (and the sanity test still passes)**
 
 ```bash
 cd /Users/octopus/octo/code/FISCO-BCOS/.claude/worktrees/feat-evm-refactor/build
@@ -382,7 +412,7 @@ cmake --build . --target SparseStorageOverlayTest -j8
 ./bcos-evm/test/SparseStorageOverlayTest
 ```
 
-Expected: **10 failures** — scenarios 1,4,5,6,7,8,12 fail their `eq(..., kSlotValue)` check (get 0); scenario 2 fails its `BOOST_REQUIRE(slotIt != ...)`; scenarios 3 and 9 fail their absent-slot check (a spurious slot IS exported). If any of the ten PASSES pre-fix, STOP — the scenario is not exercising the bug; re-check against the spec before touching production code.
+Expected: **11 failures** — scenarios 1,4,5,6,7,8,12,13 fail their `eq(..., kSlotValue)` check (get 0); scenario 2 fails its `BOOST_REQUIRE(slotIt != ...)`; scenarios 3 and 9 fail their absent-slot check (a spurious slot IS exported). If any of the eleven PASSES pre-fix, STOP — the scenario is not exercising the bug; re-check against the spec before touching production code.
 
 - [ ] **Step 3: Add the `storageReset` flag to `Account`**
 
@@ -508,11 +538,12 @@ cmake --build . --target SparseStorageOverlayTest -j8
 ./bcos-evm/test/SparseStorageOverlayTest
 ```
 
-Expected: `*** No errors detected` (11 tests: sanity + ten [B]).
+Expected: `*** No errors detected` (12 tests: sanity + eleven [B]).
 
 - [ ] **Step 7: Run the neighboring unit gates**
 
 ```bash
+cd /Users/octopus/octo/code/FISCO-BCOS/.claude/worktrees/feat-evm-refactor/build
 cmake --build . --target StateJournalRevertTest StateBuildDiffTest EvmCallFrameTest -j8
 ctest -R "StateJournalRevert|StateBuildDiff" --output-on-failure
 ./bcos-evm/test/EvmCallFrameTest
@@ -539,18 +570,20 @@ Account::storageReset (geth stateObjectsDestruct analog); whole-Account
 journal snapshots give revert-correctness for free."
 ```
 
+(clang-format retry per Global Constraints applies.)
+
 ---
 
-### Task 3: Guard + nested-revert scenarios (reset semantics stay pinned)
+### Task 3: Guard scenarios (reset semantics stay pinned)
 
 **Files:**
 - Modify: `bcos-evm/test/state/SparseStorageOverlayTest.cpp` (append before the closing namespace)
 
 **Interfaces:**
-- Consumes: Task 1 helpers; `State::clear_storage(const evmc_address&)`, `State::commit()`; `Account::storageReset` from Task 2.
+- Consumes: Task 1 helpers; `State::clear_storage(const evmc_address&)`; `Account::storageReset` from Task 2.
 - Produces: nothing new (terminal test task).
 
-- [ ] **Step 1: Append the three tests**
+- [ ] **Step 1: Append the two guard tests**
 
 ```cpp
 // ── [G] guards: pass pre- and post-fix — pin the reset semantics the flag preserves ──
@@ -576,21 +609,6 @@ BOOST_AUTO_TEST_CASE(clear_storage_reset_suppresses_base_read)
     state.clear_storage(kContract);
     BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), evmc_bytes32{}));
 }
-
-// Scenario 13: nested frames — inner commit bubbles, outer revert restores read-through.
-BOOST_AUTO_TEST_CASE(nested_commit_then_outer_revert_restores_read_through)
-{
-    auto const view = makeBaseWithSlot();
-    State state(view);
-
-    state.checkpoint();  // outer
-    state.checkpoint();  // inner
-    state.touchCreateDeploymentAccount(kContract, EVMC_CANCUN);
-    state.commit();  // inner commit bubbles touched set to outer
-    state.revert();  // outer revert must undo the reset
-
-    BOOST_CHECK(eq(state.get_storage(kContract, kSlotKey), kSlotValue));
-}
 ```
 
 - [ ] **Step 2: Run the suite**
@@ -608,8 +626,10 @@ Expected: `*** No errors detected` (14 tests).
 ```bash
 cd /Users/octopus/octo/code/FISCO-BCOS/.claude/worktrees/feat-evm-refactor
 git add bcos-evm/test/state/SparseStorageOverlayTest.cpp
-git commit -m "test(evm): pin storage-reset guard and nested-revert semantics"
+git commit -m "test(evm): pin storage-reset guard semantics"
 ```
+
+(clang-format retry per Global Constraints applies.)
 
 ---
 
@@ -716,6 +736,7 @@ bool State::hasNonEmptyStorage(const evmc_address& address) const
 - [ ] **Step 4: Run — suite fully green**
 
 ```bash
+cd /Users/octopus/octo/code/FISCO-BCOS/.claude/worktrees/feat-evm-refactor/build
 cmake --build . --target SparseStorageOverlayTest -j8
 ./bcos-evm/test/SparseStorageOverlayTest
 ```
@@ -730,6 +751,8 @@ git add bcos-evm/eth/state/State.cpp \
         bcos-evm/test/state/SparseStorageOverlayTest.cpp
 git commit -m "fix(evm): hasNonEmptyStorage treats storage-reset accounts as empty"
 ```
+
+(clang-format retry per Global Constraints applies.)
 
 ---
 
@@ -754,6 +777,7 @@ Expected: all `Built target …`, zero errors.
 - [ ] **Step 2: Run unit gates**
 
 ```bash
+cd /Users/octopus/octo/code/FISCO-BCOS/.claude/worktrees/feat-evm-refactor/build
 ctest -R "StateJournalRevert|StateBuildDiff|SparseStorageOverlay" --output-on-failure
 ./bcos-evm/test/EvmCallFrameTest
 ```
@@ -763,6 +787,7 @@ Expected: `100% tests passed, 0 tests failed out of 3`; `*** No errors detected`
 - [ ] **Step 3: Run the EEST / execution-spec smokes**
 
 ```bash
+cd /Users/octopus/octo/code/FISCO-BCOS/.claude/worktrees/feat-evm-refactor/build
 ctest -R "EthEestStateGranularSmoke|EthEestBlockchainSmoke|EthEestBlockGranularSmoke" --output-on-failure
 ctest -R "OpStackEestStateSmoke|OpStackEestBlockchainSmoke" --output-on-failure
 ctest -R "EthExecutionSpec1153TstoreSmoke|EthExecutionSpec7702CoreSmoke|EthExecutionSpec6780Smoke" --output-on-failure
