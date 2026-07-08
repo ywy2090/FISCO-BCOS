@@ -40,27 +40,6 @@ std::string joinFailures(std::vector<std::string> const& failures)
     return oss.str();
 }
 
-std::string inferForkFromPath(fs::path const& file)
-{
-    std::string forkStr = "Cancun";
-    auto pathStr = file.generic_string();
-    constexpr std::string_view bcPrefix = "blockchain_tests/";
-    auto statePos = pathStr.find(bcPrefix);
-    if (statePos != std::string::npos)
-    {
-        auto start = statePos + bcPrefix.size();
-        auto end = pathStr.find('/', start);
-        if (end != std::string::npos)
-        {
-            forkStr = pathStr.substr(start, end - start);
-            if (!forkStr.empty())
-                forkStr[0] =
-                    static_cast<char>(std::toupper(static_cast<unsigned char>(forkStr[0])));
-        }
-    }
-    return forkStr;
-}
-
 class EestBlockFileTest : public testing::Test
 {
     fs::path m_file;
@@ -89,11 +68,13 @@ public:
             GTEST_SKIP() << "no supported tests";
         }
 
-        auto const forkFilter = inferForkFromPath(m_file);
+        auto const forkFilter = inferBlockchainForkFromPath(m_file);
         size_t ran = 0;
         for (auto const& test : tests)
         {
-            if (test.network != forkFilter)
+            if (!forkFilter.empty() && test.network != forkFilter)
+                continue;
+            if (!ForkProfileRegistry::instance().findByUpstreamFork(test.network).has_value())
                 continue;
             ++ran;
             SCOPED_TRACE(test.name);

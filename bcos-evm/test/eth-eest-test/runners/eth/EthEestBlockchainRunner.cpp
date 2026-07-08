@@ -23,27 +23,6 @@ namespace
 
 using namespace bcos::evm::reference_tests;
 
-std::string inferForkFromPath(fs::path const& file)
-{
-    std::string forkStr = "Cancun";
-    auto pathStr = file.generic_string();
-    constexpr std::string_view bcPrefix = "blockchain_tests/";
-    auto statePos = pathStr.find(bcPrefix);
-    if (statePos != std::string::npos)
-    {
-        auto start = statePos + bcPrefix.size();
-        auto end = pathStr.find('/', start);
-        if (end != std::string::npos)
-        {
-            forkStr = pathStr.substr(start, end - start);
-            if (!forkStr.empty())
-                forkStr[0] =
-                    static_cast<char>(std::toupper(static_cast<unsigned char>(forkStr[0])));
-        }
-    }
-    return forkStr;
-}
-
 std::vector<std::string> loadBlockchainManifestPaths(fs::path const& manifestPath)
 {
     pt::ptree root;
@@ -87,6 +66,8 @@ void runOneFixture(fs::path const& jsonPath, std::string_view forkFilter,
     {
         if (!forkFilter.empty() && test.network != forkFilter)
             continue;
+        if (!ForkProfileRegistry::instance().findByUpstreamFork(test.network).has_value())
+            continue;
 
         auto failures = runBlockchainTest(test, vm, hashImpl);
         if (!failures.empty())
@@ -129,15 +110,18 @@ void runBlockchainFixtures(fs::path const& fixturesDir, size_t limit)
         if (limit > 0 && executed >= limit)
             break;
 
-        auto const forkStr = inferForkFromPath(jsonPath);
+        auto const forkStr = inferBlockchainForkFromPath(jsonPath);
 
-        auto profile = ForkProfileRegistry::instance().findByUpstreamFork(forkStr);
-        if (!profile.has_value())
+        if (!forkStr.empty())
         {
-            std::cout << "SKIP " << jsonPath.filename().string() << " (unknown fork " << forkStr
-                      << ")\n";
-            ++skipped;
-            continue;
+            auto profile = ForkProfileRegistry::instance().findByUpstreamFork(forkStr);
+            if (!profile.has_value())
+            {
+                std::cout << "SKIP " << jsonPath.filename().string() << " (unknown fork " << forkStr
+                          << ")\n";
+                ++skipped;
+                continue;
+            }
         }
 
         ++executed;
@@ -173,13 +157,16 @@ void runBlockchainManifest(fs::path const& manifestPath, fs::path const& eestRoo
             continue;
         }
 
-        auto const forkStr = inferForkFromPath(jsonPath);
-        auto profile = ForkProfileRegistry::instance().findByUpstreamFork(forkStr);
-        if (!profile.has_value())
+        auto const forkStr = inferBlockchainForkFromPath(jsonPath);
+        if (!forkStr.empty())
         {
-            std::cerr << "FAIL " << rel << " (unknown fork " << forkStr << ")\n";
-            ++failed;
-            continue;
+            auto profile = ForkProfileRegistry::instance().findByUpstreamFork(forkStr);
+            if (!profile.has_value())
+            {
+                std::cerr << "FAIL " << rel << " (unknown fork " << forkStr << ")\n";
+                ++failed;
+                continue;
+            }
         }
 
         runOneFixture(jsonPath, forkStr, hashImpl, vm, passed, failed);
