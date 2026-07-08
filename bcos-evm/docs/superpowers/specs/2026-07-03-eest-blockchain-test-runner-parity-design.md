@@ -596,10 +596,11 @@ void runBlockchainTest(const BlockchainTest& test, ForkProfile& profile,
 
     // ── 4. 最终验证 ──
     EXPECT_EQ(canonical_tip, test.expectation.last_block_hash);
-    // Expectation.post_state 为 variant<TestStateView, h256>：
-    //   - 持 h256：直接比 computeStateRoot(*canonical_state) == 该 hash
-    //   - 持 TestStateView：比 computeStateRoot(canonical) == computeStateRoot(expectedView)
-    expectPostStateMatches(*canonical_state, test.expectation.post_state);
+    // postState 比对（见 2026-07-08 postState diff spec §4.4）：
+    //   - postStateHash：computeStateRoot(*canonical_state) == hash
+    //   - postState 账户表：逐账户 **部分字段 diff**（非 root-of-view 相等），
+    //     仅比 JSON 出现的 nonce/balance/code/storage；未列账户/槽位忽略。
+    assertPostState(*canonical_state, test.postExpectation, {eip158ClearEmpty});
 }
 ```
 
