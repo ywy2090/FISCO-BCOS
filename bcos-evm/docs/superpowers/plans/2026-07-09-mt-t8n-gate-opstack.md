@@ -1,8 +1,37 @@
 # M-T：op-geth 差分 gate 架设到 `bcos-evm/opstack/`
 
+> **状态**：v1 + 生态检验记录（2026-07-09）。**待 v2 修订两点**：向量格式改用 op-test-vectors 的 `ethereum/tests + _op_*` 设计；矩阵吸收 deposit/l1_info 种子场景。其余（opt8n 生成器、回放器、预注册纪律）不变。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 给 `bcos-evm/opstack/`（4,485 行、目前只有 6 份**人工** parity 审计文档守护）架设**机器可验**的 op-geth 差分 gate：离线生成向量入库，CI 纯 C++ 回放，任何分歧即 finding。这是 spec §7.0 认定的"唯一能为 evmone 替换论证提供*正确性*证据的实验"——若 gate 打出 opstack 的真实缺陷，替换论证才第一次获得正确性依据；若全绿，则以机器强度确认 opstack 的 op-geth 等价性。
+
+## 生态方案检验记录（2026-07-09，v1 追加——写入正式结论）
+
+**发现**：optimism monorepo 本地检出存在 `op-test-vectors/`（自建于 2026-06-24，含 spec/plan：
+`docs/superpowers/{specs,plans}/2026-06-24-op-test-vectors-*.md`），目标与本 plan 相同——语言无关
+JSON 向量供 C++ 执行客户端消费。含 14 条向量（bedrock→jovian）。本 plan v1 的生态调查只搜了
+`t8n/opt8n` 关键词，**漏掉了它**——记录在案。
+
+**14 条向量逐类检验结论（实证）**：
+
+| 类别 | 条数 | 判定 | 依据 |
+|---|---|---|---|
+| L1-fee receipt（bedrock/ecotone/isthmus×2/jovian） | 4 | ❌ **期望值与自带交易不匹配** | Ecotone 条实证：用向量自带 tx 字段重建签名 envelope（103B，20 零/83 非零）→ 实算 rollupDataGas=**1408**、l1Fee=**2,818,640**；向量声称 480 / 960,900（480=30 非零字节×16，是 op-reth 单测合成常量，导出时嫁接给了对不上的交易）。且 4 条的 1559 tx 均缺 `maxFeePerGas` 字段（feeCap=0 < baseFee）——不可执行、不可复算 |
+| deposit receipt（pre/post Canyon） | 2 | ⚠️ 语义正确、覆盖极薄 | depositNonce=0、receiptVersion=null/1 与 op-geth 语义一致；每条只测两个字段 |
+| l1_info_isthmus | 1 | ⚠️ 解析单测非执行向量 | `blocks` 为空，expected 是 attributes calldata 的解析结果（含 Jovian da_footprint/operator fee 槽） |
+| config/SDM 类 | 5 | ❌ 不适用 | 测 op-reth 内部概念（SpecId、SDM 对 0x7d 的节点模式、chain_id 配置），bcos-evm 无对应物 |
+| **Provenance（全部）** | 14 | ❌ **不可再生** | 被 optimism `.gitignore:66` 忽略、无提交历史；声称的导出器 `crates/evm/src/*_tv.rs` 在 op-reth 检出不存在；`generator_commit 34b4b55bf3` 无从追溯 |
+
+**结论与对本 plan 的约束**：
+1. **14 条现有向量不得作为差分判据采信**——4 条主力实证有错，恰好是本 plan 预注册纪律第 2 条
+   （"期望值只许来自生成器真跑，手工/嫁接常量视为缺陷"）要防的病，反面教材记录于此。
+2. **op-test-vectors 的格式设计采纳**（ethereum/tests 兼容 + `_op_*` 命名空间 + `_info` 元数据 + semver）
+   ——替代本 plan v1 自创的 JSON schema。**待 v2 修订**：向量格式节按其 spec 重写。
+3. opt8n 生成器（op-geth 真跑出期望值）**仍是必建项**，不因该方案存在而省略。
+4. 2 条 deposit + 1 条 l1_info 的**场景**吸收为矩阵种子，由 opt8n 重新生成核实后入库；原文件不直接拷贝。
+
+---
 
 **关键事实修正（本 plan 与 spec rev.3 原设想的偏差，实地核查所得）：**
 op-geth v1.101702.2 的 `evm t8n` **不支持 OP**——fork 注册表（`tests/init.go`）只含 L1 fork（…Prague/Osaka/Verkle，无 Ecotone/Isthmus/Jovian）；`t8ntool` 无 0x7E deposit 处理（唯一 "Deposit" 命中是 EIP-6110 的 L1 requests 解析，无关）；`loadTransactions` 无法解析 deposit tx。optimism monorepo 本地检出亦无现成 OP 版 t8n。**故生成器自建**：一个 ~300 行的 Go 程序，把 op-geth **当库用**，执行循环照抄它自己的 `cmd/evm/internal/t8ntool/execution.go`，仅替换两处——① chainConfig 构造（手工装配含 OP 字段的 `params.ChainConfig`，全部 fork time 置 0 或按向量指定）② tx 解析（支持 deposit 字段）。生成器源码**提交进本仓库**保证可追溯，构建时拷入 op-geth 检出编译（离线一次性，CI 不需要 Go）。
