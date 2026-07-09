@@ -11,3 +11,12 @@ target_link_libraries(bcos-evm-ref-eth-tests PRIVATE
     GTest::gtest_main
 )
 add_test(NAME BcosEvmRefEthTests COMMAND bcos-evm-ref-eth-tests)
+
+add_executable(bcos-evm-ref-opstack-tests
+    opstack/OpForkScheduleTest.cpp
+)
+target_link_libraries(bcos-evm-ref-opstack-tests PRIVATE
+    bcosevmref::opstack
+    GTest::gtest_main
+)
+add_test(NAME BcosEvmRefOpstackTests COMMAND bcos-evm-ref-opstack-tests)
