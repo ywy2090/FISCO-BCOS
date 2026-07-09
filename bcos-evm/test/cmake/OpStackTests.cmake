@@ -789,3 +789,31 @@ add_test(
     NAME DaFootprintReceipt
     COMMAND ${DA_FOOTPRINT_RECEIPT_TEST_BINARY_NAME}
 )
+
+# M-T: op-geth differential gate -- t8n vector replayer (see
+# bcos-evm/docs/superpowers/plans/2026-07-09-mt-t8n-gate-opstack.md).
+set(OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME OpStackT8nVectorReplayTest)
+
+add_executable(${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME}
+    opstack/T8nVectorReplayTest.cpp
+)
+
+target_include_directories(${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/bcos-rpc
+)
+
+target_compile_definitions(${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME} PRIVATE
+    T8N_VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/opstack/t8n/vectors"
+)
+
+target_link_libraries(${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME} PRIVATE
+    bcos-evm-op
+    rpc
+)
+
+add_test(
+    NAME OpStackT8nVectorReplay
+    COMMAND ${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME}
+)
