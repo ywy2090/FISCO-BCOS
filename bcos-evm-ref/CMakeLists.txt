@@ -21,6 +21,7 @@ target_link_libraries(bcos-evm-ref-eth PUBLIC evmone::state evmone::evmone evmon
 
 add_library(bcos-evm-ref-opstack STATIC
     opstack/OpForkSchedule.cpp
+    opstack/OpHost.cpp
     opstack/OpPrecompiles.cpp
     opstack/OpFeeParams.cpp
     opstack/OpPredeploys.cpp

@@ -14,6 +14,7 @@ add_test(NAME BcosEvmRefEthTests COMMAND bcos-evm-ref-eth-tests)
 
 add_executable(bcos-evm-ref-opstack-tests
     opstack/OpForkScheduleTest.cpp
+    opstack/OpHostTest.cpp
     opstack/OpPrecompilesTest.cpp
     opstack/OpFeeParamsTest.cpp
     opstack/OpDepositTxTest.cpp
