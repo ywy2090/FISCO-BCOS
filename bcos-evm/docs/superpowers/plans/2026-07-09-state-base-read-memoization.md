@@ -1,5 +1,21 @@
 # M-N：`State` 账户字段读记忆化（读穿缓存 + 负缓存）实施计划 v2
 
+> ## ❌ 已取消（2026-07-09，用户裁定，最终状态）
+>
+> 用户原则「**要尽量复用 evmone 的代码**」下的三选一裁定：**A——转入替换路径**。
+>
+> 理由：本 plan 本质是在 `bcos-evm/eth/state/State`（按 rev.7 D2 属**待替换代码**）里手写一遍
+> evmone `State::find()` 原生就有的读穿缓存——代码无法直接搬（Account/journal 结构不同），
+> 只能移植设计；而替换路径上这层缓存**就是 evmone 的代码本身**，免费获得。
+>
+> **工作去向**：并入 **M3.5 Phase 2**（真实账本 ↔ `evmone::state` 桥接原型 + 三项开销实测）——
+> evmone 读穿缓存免费；唯一缺口（负查询不缓存，spike 实测占账本读 27.9%）以 **~5 行加在
+> bcos-evm-ref 侧适配器**解决，不碰 evmone。本 plan 的调查产出随之转移：
+> 23 调用点普查、`LedgerStateView` 逐方法读代价表、`CountingStateView`/`weightedReads()` 测量设计、
+> ETH/OP 路径不变量验证口径（"谁写 view 底下的存储"）、附录 A 的 FISCO 反例记录。
+>
+> v1 → HOLD（FISCO 反例）→ v2（裁定豁免 + 四路审查吸收）→ **v3 = 本取消记录**。全文保留作设计档案。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > ## 版本与授权状态
