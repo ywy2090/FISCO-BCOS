@@ -105,16 +105,20 @@ foreach(_state_lib_base IN ITEMS "evmone-state" "evmone.testutils")
         "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/${_state_lib_name}")
 
     if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
-        if(NOT _state_dbg_libs)
-            message(FATAL_ERROR "debug ${_state_lib_name} not found in evmone build tree")
+        list(LENGTH _state_dbg_libs _state_dbg_libs_n)
+        if(NOT _state_dbg_libs_n EQUAL 1)
+            message(FATAL_ERROR
+                "expected exactly one debug ${_state_lib_name} in evmone build tree, found ${_state_dbg_libs_n}: ${_state_dbg_libs}")
         endif()
         list(GET _state_dbg_libs 0 _state_dbg_lib)
         file(INSTALL "${_state_dbg_lib}" DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib")
     endif()
 
     if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
-        if(NOT _state_rel_libs)
-            message(FATAL_ERROR "release ${_state_lib_name} not found in evmone build tree")
+        list(LENGTH _state_rel_libs _state_rel_libs_n)
+        if(NOT _state_rel_libs_n EQUAL 1)
+            message(FATAL_ERROR
+                "expected exactly one release ${_state_lib_name} in evmone build tree, found ${_state_rel_libs_n}: ${_state_rel_libs}")
         endif()
         list(GET _state_rel_libs 0 _state_rel_lib)
         file(INSTALL "${_state_rel_lib}" DESTINATION "${CURRENT_PACKAGES_DIR}/lib")
@@ -126,9 +130,15 @@ endforeach()
 #       <test/utils/...>, and evmone-state's PUBLIC include dir is the project
 #       root, so include/test/{state,utils} keeps every include path working.
 file(GLOB _evmone_state_headers "${SOURCE_PATH}/test/state/*.hpp")
+if(NOT _evmone_state_headers)
+    message(FATAL_ERROR "no test/state/*.hpp headers found in evmone source tree")
+endif()
 file(INSTALL ${_evmone_state_headers}
     DESTINATION "${CURRENT_PACKAGES_DIR}/include/test/state")
 file(GLOB _evmone_testutils_headers "${SOURCE_PATH}/test/utils/*.hpp")
+if(NOT _evmone_testutils_headers)
+    message(FATAL_ERROR "no test/utils/*.hpp headers found in evmone source tree")
+endif()
 file(INSTALL ${_evmone_testutils_headers}
     DESTINATION "${CURRENT_PACKAGES_DIR}/include/test/utils")
 file(INSTALL "${SOURCE_PATH}/test/utils/stdx"
@@ -168,6 +178,21 @@ file(INSTALL "${SOURCE_PATH}/lib/evmone_precompiles/pairing"
 # 5. Write a manual cmake config file (avoids install(EXPORT) issues)
 #    Creates evmone::evmone imported target with proper dependencies.
 #    Uses platform-aware library suffixes (.lib on Windows, .a on Unix).
+#
+#    F6/F7/F9 (review wave 1): single-config triplets (VCPKG_BUILD_TYPE set to
+#    "release" or "debug") only build+install ONE of lib/ or debug/lib/ (see
+#    the install loops above) — a config that unconditionally declares both
+#    IMPORTED_LOCATION_DEBUG and IMPORTED_LOCATION_RELEASE would reference a
+#    path that was never installed under such triplets. The segments affected
+#    (evmone::precompiles' debug slot, evmone::state, evmone::testutils) are
+#    therefore assembled via `if(VCPKG_BUILD_TYPE ...)` conditionals evaluated
+#    HERE, at portfile time, then spliced in with file(APPEND); each appended
+#    chunk is a bracket argument ([=[ ... ]=]), so CMake does NOT expand
+#    `${...}` inside it — it is written verbatim into evmoneConfig.cmake and
+#    only evaluated later, when a downstream project actually includes that
+#    generated config. evmone::evmone's own IMPORTED_LOCATION_DEBUG/_RELEASE
+#    pair keeps its pre-existing unconditional form; that is a separate,
+#    pre-existing issue out of scope for this fix.
 set(EVMONE_CONFIG "${CURRENT_PACKAGES_DIR}/share/evmone/evmoneConfig.cmake")
 file(WRITE "${EVMONE_CONFIG}" [=[
 include(CMakeFindDependencyMacro)
@@ -199,8 +224,36 @@ if(NOT TARGET evmone::evmone)
     # Separate target for evmone_precompiles so blst can be a proper dependency
     add_library(evmone::precompiles STATIC IMPORTED)
     set_target_properties(evmone::precompiles PROPERTIES
+]=])
+
+# F7: evmone::precompiles was missing IMPORTED_LOCATION_DEBUG entirely, so a
+# debug consumer would link the release archive (MSVC: LNK2038 mismatch;
+# macOS: silently mixes debug/release object code). Add whichever configs
+# this triplet actually installed.
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+    file(APPEND "${EVMONE_CONFIG}" [=[
+        IMPORTED_LOCATION_RELEASE
+            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+]=])
+endif()
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
+    file(APPEND "${EVMONE_CONFIG}" [=[
+        IMPORTED_LOCATION_DEBUG
+            "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+]=])
+endif()
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+    file(APPEND "${EVMONE_CONFIG}" [=[
         IMPORTED_LOCATION
             "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+]=])
+else()
+    file(APPEND "${EVMONE_CONFIG}" [=[
+        IMPORTED_LOCATION
+            "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+]=])
+endif()
+file(APPEND "${EVMONE_CONFIG}" [=[
         INTERFACE_LINK_LIBRARIES "blst"
     )
 endif()
@@ -209,9 +262,12 @@ endif()
 # loaders, TestState, mpt_hash) for bcos-evm-ref. Upstream links evmone
 # PRIVATE into evmone-state, which does not propagate through an imported
 # target, so evmone::evmone is added to the interface explicitly.
-if(NOT TARGET evmone::state)
-    find_dependency(nlohmann_json)
-
+#
+# F8: guard checks both prerequisite targets exist — otherwise, if an
+# external/foreign evmoneConfig had already defined evmone::evmone without
+# evmone::precompiles, this block would still run and reference a
+# non-existent target, turning a previously no-op configure into an error.
+if(NOT TARGET evmone::state AND TARGET evmone::evmone AND TARGET evmone::precompiles)
     if(WIN32)
         set(_evmone_lib_prefix "")
         set(_evmone_lib_suffix ".lib")
@@ -222,29 +278,79 @@ if(NOT TARGET evmone::state)
 
     add_library(evmone::state STATIC IMPORTED)
     set_target_properties(evmone::state PROPERTIES
+]=])
+
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+    file(APPEND "${EVMONE_CONFIG}" [=[
         IMPORTED_LOCATION_RELEASE
             "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone-state${_evmone_lib_suffix}"
+]=])
+endif()
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
+    file(APPEND "${EVMONE_CONFIG}" [=[
         IMPORTED_LOCATION_DEBUG
             "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone-state${_evmone_lib_suffix}"
+]=])
+endif()
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+    file(APPEND "${EVMONE_CONFIG}" [=[
         IMPORTED_LOCATION
             "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone-state${_evmone_lib_suffix}"
+]=])
+else()
+    file(APPEND "${EVMONE_CONFIG}" [=[
+        IMPORTED_LOCATION
+            "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone-state${_evmone_lib_suffix}"
+]=])
+endif()
+file(APPEND "${EVMONE_CONFIG}" [=[
         INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/../../include"
         INTERFACE_LINK_LIBRARIES
             "evmone::precompiles;evmone::evmone;intx::intx"
     )
 
-    add_library(evmone::testutils STATIC IMPORTED)
-    set_target_properties(evmone::testutils PROPERTIES
-        IMPORTED_LOCATION_RELEASE
-            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone.testutils${_evmone_lib_suffix}"
-        IMPORTED_LOCATION_DEBUG
-            "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone.testutils${_evmone_lib_suffix}"
-        IMPORTED_LOCATION
-            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone.testutils${_evmone_lib_suffix}"
-        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/../../include"
-        INTERFACE_LINK_LIBRARIES
-            "evmone::state;nlohmann_json::nlohmann_json"
-    )
+    # F9: evmone::testutils is the only new target that needs nlohmann_json;
+    # find_dependency() unconditionally would hard-fail configure for any
+    # consumer that only sees evmone::evmone (e.g. a vcpkg-export or a
+    # prefix-trimmed install missing nlohmann_json's own share/ tree),
+    # breaking the port-version 0 promise that this port stays satisfiable
+    # without it. testutils is therefore only defined when nlohmann_json can
+    # actually be resolved; evmone::state itself never depends on it.
+    find_package(nlohmann_json CONFIG QUIET)
+    if(TARGET nlohmann_json::nlohmann_json)
+        add_library(evmone::testutils STATIC IMPORTED)
+        set_target_properties(evmone::testutils PROPERTIES
+]=])
+
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+    file(APPEND "${EVMONE_CONFIG}" [=[
+            IMPORTED_LOCATION_RELEASE
+                "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone.testutils${_evmone_lib_suffix}"
+]=])
+endif()
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
+    file(APPEND "${EVMONE_CONFIG}" [=[
+            IMPORTED_LOCATION_DEBUG
+                "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone.testutils${_evmone_lib_suffix}"
+]=])
+endif()
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+    file(APPEND "${EVMONE_CONFIG}" [=[
+            IMPORTED_LOCATION
+                "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone.testutils${_evmone_lib_suffix}"
+]=])
+else()
+    file(APPEND "${EVMONE_CONFIG}" [=[
+            IMPORTED_LOCATION
+                "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone.testutils${_evmone_lib_suffix}"
+]=])
+endif()
+file(APPEND "${EVMONE_CONFIG}" [=[
+            INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/../../include"
+            INTERFACE_LINK_LIBRARIES
+                "evmone::state;nlohmann_json::nlohmann_json"
+        )
+    endif()
 endif()
 ]=])
 
