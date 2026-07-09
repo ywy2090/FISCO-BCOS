@@ -24,3 +24,10 @@ if(BCOS_EVM_REF_TESTS)
     enable_testing()
     add_subdirectory(test)
 endif()
+
+# M3.5 Phase 1 spike：读放大测量工具（非测试目标，不进 ctest）
+option(BCOS_EVM_REF_SPIKE "Build bcos-evm-ref spike tools" ${BCOS_EVM_REF_STANDALONE})
+if(BCOS_EVM_REF_SPIKE)
+    add_executable(bcos-evm-ref-read-amplification spike/ReadAmplification.cpp)
+    target_link_libraries(bcos-evm-ref-read-amplification PRIVATE bcosevmref::eth)
+endif()
