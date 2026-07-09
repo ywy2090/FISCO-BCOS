@@ -19,7 +19,10 @@ add_library(bcosevmref::eth ALIAS bcos-evm-ref-eth)
 target_include_directories(bcos-evm-ref-eth PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(bcos-evm-ref-eth PUBLIC evmone::state evmone::evmone evmone::testutils)
 
-add_library(bcos-evm-ref-opstack STATIC opstack/OpForkSchedule.cpp)
+add_library(bcos-evm-ref-opstack STATIC
+    opstack/OpForkSchedule.cpp
+    opstack/OpPrecompiles.cpp
+)
 add_library(bcosevmref::opstack ALIAS bcos-evm-ref-opstack)
 target_include_directories(bcos-evm-ref-opstack PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(bcos-evm-ref-opstack PUBLIC bcosevmref::eth)
