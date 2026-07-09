@@ -387,7 +387,7 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 | **M1 适配器** | ✅ **已完成**：`StateDiffWriteback` 缝 + 契约测试（含 EIP-6780/EIP-161 删除语义、code 保留、storage merge） | M0 | 小 |
 | **M2 ETH 跑通** | ✅ **已完成**：`eth::runTransaction`/`runBlockFinalize`；EEST v5.4.0 state 对照 **2723 文件 / 55,233 个 Cancun+ case 全绿**（harness 经变异测试证伪假绿） | M1 | 小 |
 | **M3 ETH blockchain** | ✅ **已完成**（2026-07-09）：移植 `blockchaintest_runner` 核心（块执行循环、`validate_block` 头校验、侧链/canonical 追踪、四 root + requests_hash 判据、过渡 fork `RevisionSchedule`）；smoke（进 ctest）+ full（`EVM_REF_EEST_BLOCKCHAIN_FULL=1` 门控）拆分。**实测：2848 文件 / 0 失败 / 61 秒**。附带发现：`bcos-evm` 的 405 个失败全为 pre-Cancun（404 Frontier + 1 Homestead），**不构成 parity gap 证据**，见 §7.0 更正 | M2 | 中 |
-| **M3.5 StateView 桥接 spike（go/no-go）** | **rev.4 新增，前置**。**Phase 1 ✅ 已完成**（2026-07-09，见 `bcos-evm-ref/spike/README.md`）：读放大实测 **1.16x**，判定 **GO**。Phase 2：测 `ledger::EVMAccount` 单次读延迟 × 63.85 读/tx 得绝对开销。Phase 3（仅当 Phase 2 超标）：块级缓存适配器 | M3（Phase 1 已提前完成，不阻塞） | 小–中 |
+| **M3.5 StateView 桥接 spike（go/no-go）** | **rev.4 新增，前置**。⚠️ **rev.6 更正：Phase 1 的 GO 判定只是暂定，不构成充分证据。** rev.4 原文要求“把 `StateViewAdapter` **接一次真实账本**（或其协程存储的最小切片），度量 ①同步 noexcept 桥接开销 ②每 tx 重建 `State` 开销 ③code 按值返回开销”。实际 Phase 1（`514d3ad62`）**未接任何账本**，只做了内存计数 + 手推成本模型，**三项被点名的开销一项未测**；且该提交在交付的同时把本行任务描述改写成与交付物匹配的措辞，未标注为范围收窄——此为流程缺陷，如实记录。Phase 1 的产出（读放大 1.16x、负缓存省 27.9%）**算术已被独立复算与实机重跑验证为真**，作为“接口宽度不构成障碍”的证据有效；但“桥接开销可接受”仍**只有生产存在性佐证，无实测**。**Phase 2（必做，解冻 M4/M5 的条件之一）**：真正接 `LedgerStateView`/`ledger::EVMAccount`（或协程存储切片），测三项开销的绝对值。Phase 3（仅当 Phase 2 超标）：块级缓存适配器 | M3 | 小–中 |
 | **决策点** | 依据 M3.5 Phase 2 的性能数据 + §7.0 的量化检验 + （建议先做的）t8n-on-opstack 结果，由用户裁定 §7.2 终局身份，并据此确定 M4/M5 的**代码归属**（本模块 vs `bcos-evm/opstack/`）。**rev.6：M3 的对照表不能作为输入**——它不构成 parity gap 证据 | M3.5 Phase 2 | — |
 | **M4 OP 数据层** | 🔒 **硬冻结**（rev.6）。解冻条件：① M3.5 Phase 2 出绝对延迟数据 ② 用户在 rev.5/rev.6 事实下裁定 §7.2 终局 ③ **OP 路径的账算清**——须先回答"为何不把 t8n gate 直接架到已有 4,485 行 / 6 份审计 / 已达 Jovian 的 `bcos-evm/opstack/` 上"。内容：`OpForkSchedule`（Isthmus 条目）+ `OpPredeploys` + `PrecompileOverrides` 数据 + op-geth 向量格式定义与版本 pin | 决策点 | 小 |
 | **M5 OP fee/tx** | 🔒 **硬冻结**（同 M4 解冻条件）。内容：`OpHost`（三修正 + 派发照抄）、`op_validate`、`op_transition`、`runDeposit`（intrinsic/7623/receipt 扩展）、`RollupCost`（Fjord + FastLZ）、区块级编排 harness；op-geth 黄金向量绿 | M4 | 中 |
@@ -416,13 +416,13 @@ OP 区块级 receiptRoot（OpDepositReceipt RLP 编码）与 Isthmus withdrawals
 
 1. **EEST 对照**（M2 ✅ / M3 ✅）：state 55,233/55,233 全绿；blockchain 2848 文件 / 0 失败。**判据满足，但须注意它不构成替换理由**（rev.5 更正）：`bcos-evm` 在同一批 blockchain fixture 的 Cancun+ 区间上**同样是干净的**，其 405 个失败 100% 落在 pre-Cancun（404 `fork_Frontier` + 1 `fork_Homestead`）。因此本条只证明"新模块不比旧模块差"，转向理由须落在维护经济学（§7.0）。
    - 遗留的可选实验（低优先级，与 OP 执行客户端目标无关）：去掉 Cancun+ 过滤，用本模块跑那 405 个 Frontier/Homestead fixture——若 evmone 通过，则 `bcos-evm` 在 legacy fork 上确有真实缺陷；若同样失败，则是 fixture/期望值问题。FISCO 自有链的历史语义可能关心此结论。
-2. **桥接可行性**（M3.5，**go/no-go**）——**Phase 1 已实测，判定 GO**（2026-07-09，`bcos-evm-ref/spike/README.md`）：
+2. **桥接可行性**（M3.5，**go/no-go**）——**Phase 1 的 GO 为暂定，尚不充分**（rev.6 更正：Phase 1 未接真实账本，rev.4 点名的三项开销均未测，详见 §7.1 M3.5 行）。Phase 1 已确立的事实（算术经独立复算与实机重跑验证）：
    - "同步 `noexcept` 接口能否接协程账本"**已被生产回答**：`bcos-evm/storage/LedgerStateView.h` 就是 StateView-over-`ledger::EVMAccount` 的生产适配器（每读 `task::syncWait`），配 `StateDiffApplier.h` 协程写回。对抗性审查的挑战 7c 前提不成立。
    - **两侧的 State 缓存策略并不相同**（rev.5 更正 rev.4 "架构同构" 的不准确表述）：evmone `State::find()` 命中 view 后**写入 `m_modified` 缓存**（读穿缓存），故粗粒度 `get_account` 只在每 (tx, 地址) 付一次；而 `bcos-evm` 的 `State::find()`（`eth/state/State.cpp:43`）在 `m_accounts` 未命中时**直接返回 `m_baseStateView->get_account()`、不写入缓存**——未被修改的账户每次访问都回账本。这正是它必须加宽为 7 个窄读方法的根因（粗粒度回落 = 每个 opcode 5 次读）。**换言之，evmone 的读路径设计在这一点上优于现状**，本条实测的 1.16x 放大是低估了 evmone 的优势。
    - 唯一实质差异是**接口宽度**（evmone 3 方法 vs bcos-evm 加宽的 7 方法，加宽理由见 `LedgerStateView.h:139-142` 的 "five-read full account load per lookup"）。实测读放大 **仅 1.16x**：83% 的 `get_account` 是 miss（两种接口下都只花 1 次 `exists()` 读），命中的 17% 被 evmone 的 `m_modified` 缓存摊薄到每 (tx, 地址) 一次。
    - **更大的一笔浪费在上游 TODO**（`state.cpp:249`：`State::find()` 不缓存 nullopt）：同一 tx 内对同一不存在地址的重复 `get_account` 占全部调用的 70%、占全部账本读的 **27.9%**。**适配器侧加负缓存（~5 行，不碰 evmone）即可消除，收益是"加宽接口"（≤13.6%，需 fork 上游）的两倍。**
    - `has_storage` 是伪问题：仅 9.1% 的命中需真实探测，无条件探测也只 +3.2%。
-   - **剩余**：Phase 2 测单次读真实延迟得绝对开销；Phase 3（仅当超标）块级缓存适配器——evmone 的 `State` 每 tx 重建，同一区块内同一账户会被反复冷读，块级缓存同时消掉该项与冷填成本，同样在适配器侧。
+   - **剩余（Phase 2 必做，是解冻 M4/M5 的条件之一）**：真正接 `LedgerStateView`/`ledger::EVMAccount` 或协程存储切片，实测 rev.4 点名的三项开销绝对值（同步桥接、每 tx 重建 `State`、code 按值返回）。**在 Phase 2 完成前，不得把 Phase 1 的读放大比例当作桥接可行性的充分证据。** Phase 3（仅当超标）：块级缓存适配器——evmone 的 `State` 每 tx 重建，同一区块内同一账户会被反复冷读。
    - 若 Phase 2/3 后开销仍不可接受 → 终局为**差分 oracle**（为现有 `bcos-evm` 提供共识对照），M4/M5 的 OP 语义工作应贡献到 `bcos-evm/opstack/` 而非在本模块重写；否则终局为**生产替换候选**，M4/M5 写在本模块。评估报告须明确二选一。
 3. **op-geth 黄金向量 + t8n gate 全绿**（M5/M6）：仅在终局为"生产替换候选"时构成合并前提。
 4. 评估期内现有 `bcos-evm/opstack/` 的 fork 跟进**不冻结**（旧模块已达 Jovian）；若判定切换，由新模块按 `OpForkSchedule` 扩展位补齐差距。

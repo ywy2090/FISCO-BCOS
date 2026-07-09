@@ -2,6 +2,21 @@
 
 对应 spec §7.2 的 go/no-go 第 1 步。工具：`ReadAmplification.cpp`（`bcos-evm-ref-read-amplification`）。
 
+> ## ⚠️ 范围声明（2026-07-09 合规审计后补，必读）
+>
+> spec rev.4 对 M3.5 的原始要求是**「把 `StateViewAdapter` 接一次真实账本（或其协程存储的最小切片），
+> 度量 ①同步 noexcept 桥接开销 ②每 tx 重建 `State` 开销 ③code 按值返回开销」**。
+>
+> **本文记录的 Phase 1 没有做这件事**：它包装的是纯内存的 `test::TestState`，**未接触任何账本或协程
+> 存储**；成本模型是**阅读** `LedgerStateView.h` 源码后人工推算的常量，不是**运行**它实测的延迟。
+> 上述三项开销**一项都未测**。
+>
+> 因此 Phase 1 证明的是：**接口宽度（3 方法 vs 7 方法）不构成障碍**——该结论有效，算术已被独立复算与
+> 实机重跑验证。它**不能**证明「桥接开销可接受」；后者目前只有一条佐证：`LedgerStateView` 在生产里跑
+> 着（存在性），而非开销实测。
+>
+> **本文的「判定 GO」应读作暂定。** 解冻 M4/M5 需要 Phase 2 真正接一次账本并测出那三项的绝对值。
+
 ```bash
 EVM_REF_EEST_ROOT=<fixtures> ./build/bcos-evm-ref-read-amplification [max_files]
 ```
@@ -33,6 +48,17 @@ StateView 只有 3 个方法（`get_account` 粗粒度 / `get_account_code` / `g
 | `get_account` | 4（exists+balance+nonce+codeHash）+1 若需探测 `has_storage` | **1**（仅 exists） |
 | `get_account_code` | 2（exists+code） | 1 |
 | `get_storage` | 2（exists+storage） | 1 |
+
+**为什么 `get_account` 记 4 读，而 `LedgerStateView.h:139-142` 自己说「five-read」？**（合规审计指出的
+内部矛盾，此处澄清）bcos-evm 的 `m_accountRead` lambda 实测有 **5 次** `syncWait`——exists + balance +
+nonce + **code** + codeHash——因为 bcos-evm 自己的 `Account` 结构**带 code 字段**。而 **evmone 的
+`StateView::Account` 没有 code 字段**（`{nonce, balance, code_hash, has_storage}`），code 由独立的
+`get_account_code` 单独计费。所以一个 evmone 形状的 `LedgerStateView` 适配器，`get_account` 只需 4 读。
+模型取 4 是正确的，但此前未写明理由。
+
+**`get_account_code` / `get_storage` 的「未命中」列在本工作负载下不会发生**：evmone 只在
+`code_hash != EMPTY` 时调 `get_code`、只在账户已存在（`State::get()` 断言）后调 `get_storage`，
+两者恒为命中，故模型统一按 2 计费与真实行为一致。
 
 `has_storage` 的唯一消费者是 evmone `host.cpp:91` 的 EIP-7610 CREATE 碰撞检查，且被
 `nonce != 0 || code_hash != EMPTY` 短路——只有 nonce=0 且无 code 的账户才真需探测。
