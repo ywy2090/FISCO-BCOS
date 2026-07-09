@@ -10,8 +10,14 @@ EVM_REF_EEST_ROOT=<fixtures> ./build/bcos-evm-ref-read-amplification [max_files]
 
 `bcos-evm/storage/LedgerStateView.h` 就是 "Production storage read adapter: StateView backed by
 `ledger::EVMAccount`"——每个读方法内 `task::syncWait(...)` 协程存储。配套 `storage/StateDiffApplier.h`
-是协程写回。且 `bcos-evm/eth/state/State.hpp` = `State(StateView const&)` + `unordered_map` 缓存、
-生存期在每 tx 的 `StateTransitionContext`——**与 evmone 的 `State{m_initial, m_modified}` 同构**。
+是协程写回。
+
+> **更正（2026-07-09，spec 提交 `66ca1015c`）**：本文最初写"两侧 `State` 架构同构"，**这是错的**。
+> evmone 的 `State::find()` 命中 view 后**写入 `m_modified` 缓存**（读穿缓存），粗粒度 `get_account`
+> 只在每 (tx, 地址) 付一次；而 `bcos-evm` 的 `State::find()`（`eth/state/State.cpp:43`）在
+> `m_accounts` 未命中时**直接返回 `m_baseStateView->get_account()`、不写入缓存**——未修改的账户每次
+> 访问都回账本。这正是它必须把 StateView 加宽到 7 个窄读方法的根因（粗粒度回落 = 每个 opcode 5 次读）。
+> **结论方向不变但更强：evmone 的读路径设计在这一点上优于现状，下文实测的 1.16x 放大低估了它的优势。**
 
 所以"同步 noexcept 接口能否接协程账本"**已经被回答：能，今天就在跑**。真正未知的是：evmone 的
 StateView 只有 3 个方法（`get_account` 粗粒度 / `get_account_code` / `get_storage`），而 bcos-evm 把
@@ -68,7 +74,9 @@ evmone `state.cpp:249` 有个上游 TODO——`State::find()` 命中 `m_modified
 ## 对 §7.2 的影响
 
 对抗性审查当初把"同步 StateView vs 协程账本"列为可能否决替换的风险（挑战 7c）。**该风险被高估了**：
-桥接已在生产验证，架构同构，粗粒度接口的实测放大仅 1.16x，且最大的一笔浪费有一个不碰 evmone 的 5 行解法。
+桥接已在生产验证（`LedgerStateView` + `StateDiffApplier`），粗粒度接口的实测放大仅 1.16x，且最大的
+一笔浪费有一个不碰 evmone 的 5 行解法。（注意：两侧 `State` 缓存策略**并不相同**，见上方更正框——
+evmone 是读穿缓存，`bcos-evm` 无读缓存，这一差异使 1.16x 成为 evmone 优势的下界而非上界。）
 
 **Phase 1 判定：GO。** 剩余工作：
 - **Phase 2**：测 `ledger::EVMAccount` 单次读的真实延迟，× 63.85 读/tx（或加负缓存后的 46.05）得到
