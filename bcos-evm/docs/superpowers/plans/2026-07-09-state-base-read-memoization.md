@@ -24,6 +24,19 @@
 > - 补充项（无论选哪条）：先做 **M3.5 Phase 2** 给"每省一次读"定价——若单次重复读只是微秒级内存查找
 >   （executor 存储是 storage2 View 分层 + 后端缓存，"协程账本往返"的时间成本从未实测），本 plan 应降级为
 >   仅 Task 2 的负缓存或干脆不做。
+> - **可编译性审查的必改项（第四路审查，2026-07-09）**：
+>   1. 测试框架错误——`bcos-evm/test` 全部用 **Boost.Test**（`BOOST_TEST_MODULE` included 变体 + `BOOST_AUTO_TEST_CASE`），
+>      GTest 只在 eth-eest-test 独立子项目里。本 plan 全部测试代码须改写为 Boost.Test，否则编译/链接失败
+>      （included 头会内联生成 main()，混入 GTest 文件会重复 main）。
+>   2. 命名空间错误——`SparseStorageStateView` 实际在 `bcos::evm::state::test`（非 `bcos::evm::test`）；
+>      `CountingStateView` 应放同一命名空间。
+>   3. CMake 注册错误——仓库约定是**每测试文件一个独立 `add_executable` + `add_test`**（见 `test/cmake/StateTests.cmake`
+>      的 `SparseStorageOverlayTest` 先例）；且新测试应落 `test/state/` + `StateTests.cmake`（复用 SparseStorageStateView
+>      的分类惯例），链接 `bcos-evm-eth` 即可。
+>   4. `copy_code()` 有局部变量 `baseCode`（`State.cpp:106`）与 Task 4 新增方法同名遮蔽——须改名（与 Task 5
+>      的 `build_diff` 改名提醒同类，plan 原文漏了这处）。
+>   5. 其余经逐字核对**正确可编译**：`BaseCacheEntry` 结构、六个访问器实现、`evmc_address{{0x01}}` 聚合初始化、
+>      explicit 构造的直接列表初始化、`unordered_map` 引用在 rehash 下的稳定性（标准保证）、23 处调用点计数表。
 > - 其余审查发现（须在解除 HOLD 后的修订版吸收）：`mutable_account()` 裸读须纳入（Task 5 的"必然命中"
 >   因果链原文是错的，真实机制是 `journal_account_once→find()` 且依赖 checkpoint 非空）；覆盖面如实改为
 >   13/23 调用点；code 在 memo 与 overlay 双份拷贝的内存成本入风险表；Task 6 用代价表加权计读数 + 记录
