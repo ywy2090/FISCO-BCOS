@@ -17,6 +17,7 @@ add_executable(bcos-evm-ref-opstack-tests
     opstack/OpPrecompilesTest.cpp
     opstack/OpFeeParamsTest.cpp
     opstack/OpDepositTxTest.cpp
+    opstack/OpPredeploysTest.cpp
 )
 target_link_libraries(bcos-evm-ref-opstack-tests PRIVATE
     bcosevmref::opstack
