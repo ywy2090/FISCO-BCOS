@@ -26,6 +26,7 @@
 1. spec §3.1 列 `StateViewAdapter.h` + `BlockHashesAdapter.h` 两个占位头 → plan 合并为一个 `StateViewAdapter.h`（两个 using 别名都在，功能等价）。
 2. spec §3.1 列 `StateDiffWriteback.h/.cpp` → plan 为 header-only（v1 委托 `TestState::apply` 仅一行）。注意由此 `adapter/` 依赖 `test/utils/test_state.hpp`（属 `evmone::testutils`）——超出 spec §3.2 "只依赖 evmone::state 公开头"的字面边界，v1 明示豁免：该依赖仅限此头，且 `bcos-evm-ref-eth` 库本身不链接 testutils（`TestState::apply` 的实现在 testutils 库中，只有链接 testutils 的目标——本 plan 中即测试目标——可用此缝）。
 3. spec §8.6 "顶层平铺 add_subdirectory（M1）" → plan 移至 Task 6 且以 `option(BCOS_EVM_REF ... OFF)` 门控（默认不构建，避免影响主构建；standalone 模式已覆盖 M1–M2 期间的构建需求）。
+4. review fix wave 1（用户裁定）：公开头移至 bcos-evm-ref/include/bcos-evm-ref/，PUBLIC include 从仓库根收窄为该 include 目录（编译期强制隔离）；bcos-evm-ref-eth PUBLIC 链接增加 evmone::testutils（公开缝头依赖 TestState::apply）。
 
 ## File Structure
 

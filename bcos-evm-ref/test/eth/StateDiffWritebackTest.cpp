@@ -1,9 +1,12 @@
 #include <bcos-evm-ref/adapter/StateDiffWriteback.h>
+#include <bcos-evm-ref/adapter/StateViewAdapter.h>
 #include <evmone/evmone.h>
 #include <gtest/gtest.h>
 #include <test/state/host.hpp>  // compute_create_address
 #include <test/state/state.hpp>
 #include <test/utils/test_state.hpp>
+
+static_assert(std::is_abstract_v<bcos::evmref::StateView>);
 
 using namespace evmone;
 using namespace evmc::literals;
@@ -13,6 +16,10 @@ namespace
 {
 constexpr auto kSender = 0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b_address;
 constexpr int64_t kCancunBlobGasLeft = 786432;  // 6 blobs * 131072 (EIP-4844)
+// NOTE: 原始数字分隔符写法 1'000'...'_u256 在本仓库 vcpkg 锁定的 intx 0.15.0 下编译失败：
+// intx::from_string 的 from_dec_digit 不识别 '\'' 分隔符（consteval 求值直接抛错，
+// 见 intx.hpp from_dec_digit/from_string）。数值不变（仍为 1e18 wei），仅去除分隔符使其可编译。
+constexpr auto kFunding = 1000000000000000000_u256;  // 1 ETH in wei
 
 state::BlockInfo makeBlock()
 {
@@ -37,7 +44,7 @@ state::Transaction makeTx()
 }
 
 // validate + transition；校验失败时报告并返回 nullopt。diff 不写回。
-std::optional<state::TransactionReceipt> run(test::TestState& pre, const state::Transaction& tx)
+std::optional<state::TransactionReceipt> run(const test::TestState& pre, const state::Transaction& tx)
 {
     const auto block = makeBlock();
     test::TestBlockHashes hashes;
@@ -76,9 +83,11 @@ TEST(StateDiffWriteback, ContractStorageZeroMeansErase)
     const auto acct = 0x00000000000000000000000000000000dead0002_address;
     const auto k1 = 0x01_bytes32;
     const auto k2 = 0x02_bytes32;
+    const auto k3 = 0x03_bytes32;
     test::TestState state;
     state[acct] = {.nonce = 1, .balance = 0};
     state[acct].storage[k2] = 0xaa_bytes32;
+    state[acct].storage[k3] = 0xcc_bytes32;
 
     state::StateDiff diff;
     auto& entry = diff.modified_accounts.emplace_back();
@@ -94,6 +103,27 @@ TEST(StateDiffWriteback, ContractStorageZeroMeansErase)
 
     EXPECT_EQ(state.at(acct).storage.at(k1), 0x0b_bytes32);
     EXPECT_EQ(state.at(acct).storage.count(k2), 0u);  // erase 而非存零（真账本最易做错的一条）
+    EXPECT_EQ(state.at(acct).storage.at(k3), 0xcc_bytes32);  // 未触及槽必须存活（merge 而非 replace）
+}
+
+TEST(StateDiffWriteback, ContractNulloptCodePreservesExisting)
+{
+    const auto acct = 0x00000000000000000000000000000000dead0003_address;
+    test::TestState state;
+    state[acct] = {.nonce = 1, .balance = 0};
+    state[acct].code = *evmc::from_hex("6001600155");  // 任意非空字节码
+    const auto originalCode = state.at(acct).code;
+
+    state::StateDiff diff;
+    auto& entry = diff.modified_accounts.emplace_back();
+    entry.addr = acct;
+    entry.nonce = 1;
+    entry.balance = 42;               // 仅改余额
+    entry.code = std::nullopt;        // 契约：不得动 code
+    bcos::evmref::applyStateDiff(state, diff);
+
+    EXPECT_EQ(state.at(acct).balance, 42);
+    EXPECT_EQ(state.at(acct).code, originalCode);  // code 必须原样保留
 }
 
 // ============ 语义发现测试（真实交易全链路产生 diff） ============
@@ -104,10 +134,7 @@ TEST(StateDiffWriteback, ContractStorageZeroMeansErase)
 TEST(StateDiffWriteback, DeletesSameTxSelfdestruct)
 {
     test::TestState pre;
-    // NOTE: 原始数字分隔符写法 1'000'...'_u256 在本仓库 vcpkg 锁定的 intx 0.15.0 下编译失败：
-    // intx::from_string 的 from_dec_digit 不识别 '\'' 分隔符（consteval 求值直接抛错，
-    // 见 intx.hpp from_dec_digit/from_string）。数值不变（仍为 1e18 wei），仅去除分隔符使其可编译。
-    pre[kSender] = {.nonce = 0, .balance = 1000000000000000000_u256};
+    pre[kSender] = {.nonce = 0, .balance = kFunding};
 
     auto tx = makeTx();
     tx.to = {};    // 合约创建
@@ -131,7 +158,7 @@ TEST(StateDiffWriteback, ErasesTouchedEmptyAccount)
 {
     const auto empty = 0x00000000000000000000000000000000c0ffee00_address;
     test::TestState pre;
-    pre[kSender] = {.nonce = 0, .balance = 1000000000000000000_u256};  // 1e18 wei，见上一 TEST 内 NOTE
+    pre[kSender] = {.nonce = 0, .balance = kFunding};
     pre[empty] = {};  // 空账户：nonce=0, balance=0, 无 code
 
     auto tx = makeTx();

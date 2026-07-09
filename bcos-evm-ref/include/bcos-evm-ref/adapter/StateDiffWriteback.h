@@ -1,6 +1,7 @@
-// bcos-evm-ref/adapter/StateDiffWriteback.h
+// bcos-evm-ref/include/bcos-evm-ref/adapter/StateDiffWriteback.h
 #pragma once
 
+#include <test/state/state_diff.hpp>
 #include <test/utils/test_state.hpp>
 
 namespace bcos::evmref

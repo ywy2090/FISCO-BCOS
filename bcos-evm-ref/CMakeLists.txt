@@ -14,9 +14,10 @@ find_package(evmone CONFIG REQUIRED)
 
 add_library(bcos-evm-ref-eth STATIC eth/EthTransition.cpp)
 add_library(bcosevmref::eth ALIAS bcos-evm-ref-eth)
-# PUBLIC include = 仓库根，使消费者以 <bcos-evm-ref/eth/EthTransition.h> 引用
-target_include_directories(bcos-evm-ref-eth PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
-target_link_libraries(bcos-evm-ref-eth PUBLIC evmone::state evmone::evmone)
+# PUBLIC include = bcos-evm-ref/include，使消费者以 <bcos-evm-ref/eth/EthTransition.h> 引用，
+# 且编译期强制隔离（无法静默 #include <bcos-evm/...> 越界到仓库根）。
+target_include_directories(bcos-evm-ref-eth PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(bcos-evm-ref-eth PUBLIC evmone::state evmone::evmone evmone::testutils)
 
 option(BCOS_EVM_REF_TESTS "Build bcos-evm-ref tests" ${BCOS_EVM_REF_STANDALONE})
 if(BCOS_EVM_REF_TESTS)

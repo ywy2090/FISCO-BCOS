@@ -6,7 +6,6 @@ add_executable(bcos-evm-ref-eth-tests
 )
 target_link_libraries(bcos-evm-ref-eth-tests PRIVATE
     bcosevmref::eth
-    evmone::testutils
     GTest::gtest
     GTest::gtest_main
 )
