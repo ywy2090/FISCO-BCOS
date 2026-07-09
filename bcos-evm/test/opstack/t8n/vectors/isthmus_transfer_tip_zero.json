@@ -1,0 +1,103 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_transfer_tip_zero": {
+    "_info": {
+      "id": "isthmus_transfer_tip_zero",
+      "comment": "Plain EIP-1559 transfer with maxPriorityFeePerGas=0 (explicit zero tip; feeCap still above baseFee). Coinbase's priority-fee cut should be exactly zero while base fee / L1 fee / operator fee vaults still accrue normally.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "transfer",
+        "l1-fee",
+        "tip-zero"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        },
+        "balance": "0x0",
+        "nonce": "0x1"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x8ac7230489e80000"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "eip1559",
+            "type": "0x02",
+            "nonce": "0x0",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x0",
+            "gasLimit": "0x5208",
+            "to": "0x00000000000000000000000000000000b0b0b0b0",
+            "value": "0x16345785d8a0000",
+            "data": "0x",
+            "chainId": "0x2105",
+            "accessList": [],
+            "v": "0x1",
+            "r": "0x40e04ef8122d874bd4e30ada1b9e1da896c57f859b8779dbd30fe592542f95e4",
+            "s": "0x283491abf5890b1d6cb8ae0f22650c2a6ce4da455e8add54db44c722ad6bde8c",
+            "_op_raw": "0x02f870822105808084773594008252089400000000000000000000000000000000b0b0b0b088016345785d8a000080c001a040e04ef8122d874bd4e30ada1b9e1da896c57f859b8779dbd30fe592542f95e4a0283491abf5890b1d6cb8ae0f22650c2a6ce4da455e8add54db44c722ad6bde8c"
+          }
+        ]
+      }
+    ],
+    "postState": {
+      "0x00000000000000000000000000000000b0b0b0b0": {
+        "balance": "0x16345785d8a0000"
+      },
+      "0x4200000000000000000000000000000000000019": {
+        "balance": "0x1319718a5000"
+      },
+      "0x420000000000000000000000000000000000001a": {
+        "balance": "0x5f5e1000"
+      },
+      "0x420000000000000000000000000000000000001b": {
+        "balance": "0xf42a9"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x8963ca725b665d57",
+        "nonce": "0x1"
+      }
+    },
+    "_op_expected": {
+      "receipts": [
+        {
+          "type": "0x2",
+          "status": "0x1",
+          "gasUsed": "0x5208",
+          "logsCount": 0
+        }
+      ],
+      "blockGasUsed": "0x5208"
+    }
+  }
+}

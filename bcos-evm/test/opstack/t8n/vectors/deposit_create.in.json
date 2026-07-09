@@ -1,0 +1,53 @@
+{
+  "isthmus_deposit_create": {
+    "_info": {
+      "id": "isthmus_deposit_create",
+      "comment": "User deposit with to=null (contract creation). Init code (PUSH1 0x00 PUSH1 0x00 MSTORE8 PUSH1 0x01 PUSH1 0x00 RETURN) deploys a trivial 1-byte STOP runtime. Known generator limitation (see generator/README.md): the created contract's address is not in the tx's from/to set, so opt8n's bounded postState candidate set does not capture it; only the depositor's own nonce/balance are checked here.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "deposit",
+        "create"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0005": {
+        "balance": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0005",
+              "to": null,
+              "is_system_tx": false,
+              "source_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "mint": "1000000000000000000",
+              "value": "0"
+            },
+            "gasLimit": "200000",
+            "data": "0x600060005360016000f3"
+          }
+        ]
+      }
+    ]
+  }
+}

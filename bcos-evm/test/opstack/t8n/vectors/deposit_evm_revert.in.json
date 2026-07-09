@@ -1,0 +1,57 @@
+{
+  "isthmus_deposit_evm_revert": {
+    "_info": {
+      "id": "isthmus_deposit_evm_revert",
+      "comment": "User deposit whose call target unconditionally REVERTs (PUSH1 0 PUSH1 0 REVERT). Post-Regolith deposit semantics: EVM-level revert reports the *actual* gas used (not the full gas limit); mint (credited before the call, outside the reverted call frame) is retained; nonce still bumps; value transfer (0 here) is rolled back with the rest of the call's state changes.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "deposit",
+        "revert"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0003": {
+        "balance": "0"
+      },
+      "0x0000000000000000000000000000000000c0de01": {
+        "balance": "0",
+        "code": "0x60006000fd"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0003",
+              "to": "0x0000000000000000000000000000000000c0de01",
+              "is_system_tx": false,
+              "source_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "mint": "500000000000000000",
+              "value": "0"
+            },
+            "gasLimit": "100000",
+            "data": "0x"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "isthmus_deposit_processing_failure": {
+    "_info": {
+      "id": "isthmus_deposit_processing_failure",
+      "comment": "User deposit that fails at the pre-EVM 'clause 6' check (insufficient balance for the topmost call's value transfer: mint=0, depositor pre-balance=0, value=1 ETH). op-geth's execute() catches this failure specifically for deposits: state is reverted to right after the (no-op) mint credit, the depositor's nonce is still incremented by exactly one, and the full gasLimit is recorded as gasUsed (not the tiny amount actually spent before the check failed).",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "deposit",
+        "processing-failure"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0004": {
+        "balance": "0"
+      },
+      "0x00000000000000000000000000000000b0b0b0b0": {
+        "balance": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0004",
+              "to": "0x00000000000000000000000000000000b0b0b0b0",
+              "is_system_tx": false,
+              "source_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "mint": "0",
+              "value": "1000000000000000000"
+            },
+            "gasLimit": "100000",
+            "data": "0x"
+          }
+        ]
+      }
+    ]
+  }
+}

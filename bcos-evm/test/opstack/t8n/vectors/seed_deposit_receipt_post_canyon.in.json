@@ -1,0 +1,56 @@
+{
+  "isthmus_seed_deposit_receipt_post_canyon": {
+    "_info": {
+      "id": "isthmus_seed_deposit_receipt_post_canyon",
+      "comment": "Wave-0 seed: minimal successful user deposit (mint-only credit, no value transfer, no calldata) isolating deposit receipt semantics (DepositNonce=0, DepositReceiptVersion=1, post-Canyon since Isthmus config has CanyonTime=0) from the fee/value-transfer scenarios covered by the wave-1 user-deposit matrix. Pre-Canyon (version=null) is NOT representable by opt8n (fork times are fixed per --fork isthmus|jovian, both post-Canyon) -- documented as a generator limitation rather than attempted.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "seed",
+        "deposit",
+        "receipt-semantics"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0009": {
+        "balance": "0"
+      },
+      "0x00000000000000000000000000000000b0b0b0b0": {
+        "balance": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0009",
+              "to": "0x00000000000000000000000000000000b0b0b0b0",
+              "is_system_tx": false,
+              "source_hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+              "mint": "1000000000000000000"
+            },
+            "gasLimit": "100000",
+            "data": "0x"
+          }
+        ]
+      }
+    ]
+  }
+}

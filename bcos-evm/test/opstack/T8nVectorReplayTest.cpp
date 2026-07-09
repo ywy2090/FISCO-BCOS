@@ -48,9 +48,12 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <optional>
+#include <regex>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifndef T8N_VECTORS_DIR
@@ -159,6 +162,84 @@ evmc_address addressFromFixed(bcos::Address const& address)
     return out;
 }
 
+// ── Divergence ledger: DIVERGENCES.md is the *only* exemption source ───────────────────────────
+// Predeclared gate discipline (plan §"预注册的 gate 纪律" + this task's brief): a replay
+// mismatch is always a finding, filed in DIVERGENCES.md under one of three attributions
+// (a: bcos-evm/opstack defect pending its own fix plan; b: generator defect, already fixed and
+// the whole vector batch regenerated, so it should never reach this code; c: accepted difference,
+// but ONLY once a human has signed off). This ledger's parser knows nothing about *what* value is
+// expected anywhere -- it only reads which (vectorId, field) pairs DIVERGENCES.md has already
+// filed, under which attribution/status, from the ledger file itself. No expected/actual value is
+// ever hardcoded here; that would be exactly the "手改期望值" the plan's rule 2 forbids, just
+// relocated into C++ instead of JSON.
+struct DivergenceEntry
+{
+    std::string entryId;
+    std::string attribution;  // "a" | "b" | "c"
+    std::string status;       // "PENDING-FIX" | "SIGNED-OFF" | ...
+};
+
+class DivergenceLedger
+{
+public:
+    // Missing file => empty ledger => every mismatch is unexempted (fails), same as before this
+    // mechanism existed. This is intentional: an absent ledger must never silently mean "anything
+    // goes".
+    static DivergenceLedger loadFromFile(std::filesystem::path const& path)
+    {
+        DivergenceLedger ledger;
+        std::ifstream input(path);
+        if (!input.is_open())
+        {
+            return ledger;
+        }
+        // Machine-parseable line, invisible in rendered Markdown (HTML comment). Order of
+        // key=value pairs is fixed; see DIVERGENCES.md's own header for the authoring contract
+        // this regex mirrors. Example:
+        //   <!-- ALLOWLIST vectorId=isthmus_transfer_basic field=receipts[0].gasUsed
+        //        entry=FINDING-1 attribution=a status=PENDING-FIX -->
+        static std::regex const linePattern(
+            R"(<!--\s*ALLOWLIST\s+vectorId=(\S+)\s+field=(\S+)\s+entry=(\S+)\s+attribution=(\S+)\s+status=(\S+)\s*-->)");
+        std::string line;
+        while (std::getline(input, line))
+        {
+            std::smatch match;
+            if (std::regex_search(line, match, linePattern))
+            {
+                ledger.m_entries[{match[1].str(), match[2].str()}] =
+                    DivergenceEntry{match[3].str(), match[4].str(), match[5].str()};
+            }
+        }
+        return ledger;
+    }
+
+    // Returns the covering entry only when the ledger records it under a status that exempts it
+    // from failing the build right now: attribution "a" while its own fix is still pending, or
+    // attribution "c" once a human has signed off. An unlisted (vectorId, field), or one listed
+    // under any other status (e.g. attribution "c" awaiting signoff), returns nullopt -- the
+    // caller must still fail, per rule 1 ("分歧即 finding，不许静默 skip").
+    [[nodiscard]] std::optional<DivergenceEntry> lookupExempt(
+        std::string const& vectorId, std::string const& field) const
+    {
+        auto const it = m_entries.find({vectorId, field});
+        if (it == m_entries.end())
+        {
+            return std::nullopt;
+        }
+        auto const& entry = it->second;
+        bool const exempt = (entry.attribution == "a" && entry.status == "PENDING-FIX") ||
+                            (entry.attribution == "c" && entry.status == "SIGNED-OFF");
+        if (!exempt)
+        {
+            return std::nullopt;
+        }
+        return entry;
+    }
+
+private:
+    std::map<std::pair<std::string, std::string>, DivergenceEntry> m_entries;
+};
+
 // ── Diagnostic hex formatting for DIVERGE messages ─────────────────────────────────────────────
 
 std::string hexU256(bcos::u256 const& value)
@@ -190,41 +271,100 @@ std::string hexAddress(evmc_address const& value)
     return bcos::toHexStringWithPrefix(bcos::bytesConstRef(value.bytes, sizeof(value.bytes)));
 }
 
-// ── Divergence-reporting comparators: "DIVERGE <vector_id> <field> want=<..> got=<..>" ─────────
+// ── Divergence-reporting comparators ────────────────────────────────────────────────────────────
+// On mismatch: an unlisted (or not-yet-exempt) (vectorId, field) still fails the build via
+// BOOST_CHECK_MESSAGE ("DIVERGE ..."), same as before this mechanism existed. A mismatch the
+// ledger already accounts for under an exempting status instead prints
+// "KNOWN-DIVERGE <vector> <entry-id>" via BOOST_WARN_MESSAGE (visible in ctest output, never
+// counted as a failed assertion) -- this is the mechanism that turns the gate from "permanently
+// red" into "red only for un-filed divergences" per this task's brief.
 
-void checkU256(std::string const& vectorId, std::string const& field, bcos::u256 const& want,
-    bcos::u256 const& got)
+void reportKnownDivergence(std::string const& vectorId, std::string const& field,
+    DivergenceEntry const& entry, std::string const& want, std::string const& got)
 {
-    BOOST_CHECK_MESSAGE(want == got, "DIVERGE " << vectorId << " " << field << " want="
-                                                << hexU256(want) << " got=" << hexU256(got));
+    BOOST_WARN_MESSAGE(false, "KNOWN-DIVERGE " << vectorId << " " << entry.entryId << " field="
+                                               << field << " want=" << want << " got=" << got);
 }
 
-void checkU64(std::string const& vectorId, std::string const& field, uint64_t want, uint64_t got)
+void checkU256(DivergenceLedger const& ledger, std::string const& vectorId,
+    std::string const& field, bcos::u256 const& want, bcos::u256 const& got)
 {
-    BOOST_CHECK_MESSAGE(want == got, "DIVERGE " << vectorId << " " << field << " want="
-                                                << hexU64(want) << " got=" << hexU64(got));
+    if (want == got)
+    {
+        return;
+    }
+    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    {
+        reportKnownDivergence(vectorId, field, *entry, hexU256(want), hexU256(got));
+        return;
+    }
+    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want=" << hexU256(want)
+                                          << " got=" << hexU256(got));
 }
 
-void checkBytes(std::string const& vectorId, std::string const& field, bcos::bytes const& want,
-    bcos::bytes const& got)
+void checkU64(DivergenceLedger const& ledger, std::string const& vectorId, std::string const& field,
+    uint64_t want, uint64_t got)
 {
-    BOOST_CHECK_MESSAGE(want == got, "DIVERGE " << vectorId << " " << field << " want="
-                                                << hexBytes(want) << " got=" << hexBytes(got));
+    if (want == got)
+    {
+        return;
+    }
+    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    {
+        reportKnownDivergence(vectorId, field, *entry, hexU64(want), hexU64(got));
+        return;
+    }
+    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want=" << hexU64(want)
+                                          << " got=" << hexU64(got));
 }
 
-void checkBytes32(std::string const& vectorId, std::string const& field, evmc_bytes32 const& want,
-    evmc_bytes32 const& got)
+void checkBytes(DivergenceLedger const& ledger, std::string const& vectorId,
+    std::string const& field, bcos::bytes const& want, bcos::bytes const& got)
+{
+    if (want == got)
+    {
+        return;
+    }
+    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    {
+        reportKnownDivergence(vectorId, field, *entry, hexBytes(want), hexBytes(got));
+        return;
+    }
+    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want=" << hexBytes(want)
+                                          << " got=" << hexBytes(got));
+}
+
+void checkBytes32(DivergenceLedger const& ledger, std::string const& vectorId,
+    std::string const& field, evmc_bytes32 const& want, evmc_bytes32 const& got)
 {
     bool const equal = std::memcmp(want.bytes, got.bytes, sizeof(want.bytes)) == 0;
-    BOOST_CHECK_MESSAGE(equal, "DIVERGE " << vectorId << " " << field << " want="
+    if (equal)
+    {
+        return;
+    }
+    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    {
+        reportKnownDivergence(vectorId, field, *entry, hexBytes32(want), hexBytes32(got));
+        return;
+    }
+    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want="
                                           << hexBytes32(want) << " got=" << hexBytes32(got));
 }
 
-void checkAddress(std::string const& vectorId, std::string const& field, evmc_address const& want,
-    evmc_address const& got)
+void checkAddress(DivergenceLedger const& ledger, std::string const& vectorId,
+    std::string const& field, evmc_address const& want, evmc_address const& got)
 {
     bool const equal = std::memcmp(want.bytes, got.bytes, sizeof(want.bytes)) == 0;
-    BOOST_CHECK_MESSAGE(equal, "DIVERGE " << vectorId << " " << field << " want="
+    if (equal)
+    {
+        return;
+    }
+    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    {
+        reportKnownDivergence(vectorId, field, *entry, hexAddress(want), hexAddress(got));
+        return;
+    }
+    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want="
                                           << hexAddress(want) << " got=" << hexAddress(got));
 }
 
@@ -369,8 +509,9 @@ state::BlockInfo parseEnv(pt::ptree const& vectorNode)
     return blockInfo;
 }
 
-void checkAccount(std::string const& vectorId, std::string const& addressHex,
-    pt::ptree const& acctNode, state::test::InMemoryStateView const& stateView)
+void checkAccount(DivergenceLedger const& ledger, std::string const& vectorId,
+    std::string const& addressHex, pt::ptree const& acctNode,
+    state::test::InMemoryStateView const& stateView)
 {
     auto const address = state::parseHexAddress(addressHex);
     auto const account = stateView.get_account(address).value_or(state::Account{});
@@ -378,15 +519,15 @@ void checkAccount(std::string const& vectorId, std::string const& addressHex,
 
     if (auto const balance = acctNode.get_optional<std::string>("balance"))
     {
-        checkU256(vectorId, field + "balance", parseQuantity(*balance), account.balance);
+        checkU256(ledger, vectorId, field + "balance", parseQuantity(*balance), account.balance);
     }
     if (auto const nonce = acctNode.get_optional<std::string>("nonce"))
     {
-        checkU64(vectorId, field + "nonce", parseUint64(*nonce), account.nonce);
+        checkU64(ledger, vectorId, field + "nonce", parseUint64(*nonce), account.nonce);
     }
     if (auto const code = acctNode.get_optional<std::string>("code"))
     {
-        checkBytes(vectorId, field + "code", parseHexBytes(*code), account.code);
+        checkBytes(ledger, vectorId, field + "code", parseHexBytes(*code), account.code);
     }
     if (auto const storageNode = acctNode.get_child_optional("storage"))
     {
@@ -396,39 +537,39 @@ void checkAccount(std::string const& vectorId, std::string const& addressHex,
             auto const want = parseBytes32Str(valueNode.get_value<std::string>());
             auto const it = account.storage.find(slot);
             evmc_bytes32 const got = (it != account.storage.end()) ? it->second : evmc_bytes32{};
-            checkBytes32(vectorId, field + "storage[" + slotHex + "]", want, got);
+            checkBytes32(ledger, vectorId, field + "storage[" + slotHex + "]", want, got);
         }
     }
 }
 
-void checkReceipt(std::string const& vectorId, size_t txIndex, pt::ptree const& expected,
-    OpStackMessageResult const& output, uint8_t txKind)
+void checkReceipt(DivergenceLedger const& ledger, std::string const& vectorId, size_t txIndex,
+    pt::ptree const& expected, OpStackMessageResult const& output, uint8_t txKind)
 {
     std::string const field = "receipts[" + std::to_string(txIndex) + "].";
 
     if (auto const wantType = expected.get_optional<std::string>("type"))
     {
-        checkU64(vectorId, field + "type", parseUint64(*wantType), txKind);
+        checkU64(ledger, vectorId, field + "type", parseUint64(*wantType), txKind);
     }
 
     auto const wantStatus = parseUint64(expected.get<std::string>("status"));
     auto const gotStatus =
         (output.evmcResult.status_code == EVMC_SUCCESS) ? uint64_t{1} : uint64_t{0};
-    checkU64(vectorId, field + "status", wantStatus, gotStatus);
+    checkU64(ledger, vectorId, field + "status", wantStatus, gotStatus);
 
     auto const wantGasUsed = parseUint64(expected.get<std::string>("gasUsed"));
     auto const gotGasUsed = static_cast<uint64_t>(std::max<int64_t>(0, output.gasUsed));
-    checkU64(vectorId, field + "gasUsed", wantGasUsed, gotGasUsed);
+    checkU64(ledger, vectorId, field + "gasUsed", wantGasUsed, gotGasUsed);
 
     auto const wantLogsCount = static_cast<uint64_t>(expected.get<int>("logsCount", 0));
-    checkU64(vectorId, field + "logsCount", wantLogsCount, output.logs.size());
+    checkU64(ledger, vectorId, field + "logsCount", wantLogsCount, output.logs.size());
 
     if (auto const depositNonce = expected.get_optional<std::string>("_op_deposit_nonce"))
     {
         BOOST_REQUIRE_MESSAGE(output.receiptMeta.depositNonce.has_value(),
             "DIVERGE " << vectorId << " " << field << "_op_deposit_nonce want=" << *depositNonce
                        << " got=<absent>");
-        checkU64(vectorId, field + "_op_deposit_nonce", parseUint64(*depositNonce),
+        checkU64(ledger, vectorId, field + "_op_deposit_nonce", parseUint64(*depositNonce),
             *output.receiptMeta.depositNonce);
     }
     if (auto const depositVersion =
@@ -437,15 +578,16 @@ void checkReceipt(std::string const& vectorId, size_t txIndex, pt::ptree const& 
         BOOST_REQUIRE_MESSAGE(output.receiptMeta.depositReceiptVersion.has_value(),
             "DIVERGE " << vectorId << " " << field << "_op_deposit_receipt_version want="
                        << *depositVersion << " got=<absent>");
-        checkU64(vectorId, field + "_op_deposit_receipt_version", parseUint64(*depositVersion),
-            *output.receiptMeta.depositReceiptVersion);
+        checkU64(ledger, vectorId, field + "_op_deposit_receipt_version",
+            parseUint64(*depositVersion), *output.receiptMeta.depositReceiptVersion);
     }
     if (auto const l1Fee = expected.get_optional<std::string>("_op_l1_fee"))
     {
         BOOST_REQUIRE_MESSAGE(output.receiptMeta.l1Fee.has_value(),
             "DIVERGE " << vectorId << " " << field << "_op_l1_fee want=" << *l1Fee
                        << " got=<absent>");
-        checkU256(vectorId, field + "_op_l1_fee", parseQuantity(*l1Fee), *output.receiptMeta.l1Fee);
+        checkU256(ledger, vectorId, field + "_op_l1_fee", parseQuantity(*l1Fee),
+            *output.receiptMeta.l1Fee);
     }
 }
 
@@ -463,7 +605,17 @@ OpStackMessageResult applyDepositTx(pt::ptree const& txNode,
     deposit.from = state::parseHexAddress(depositNode.get<std::string>("from"));
     deposit.to = parseOptionalAddress(depositNode, "to");
     deposit.mint = parseOptionalQuantity(depositNode, "mint");
-    deposit.value = parseOptionalQuantity(txNode, "value").value_or(0);
+    // `value` lives inside `_op_deposit` (parallel to `mint`), matching op-geth's
+    // types.DepositTx (Mint/Value are sibling fields of the same struct) and the generator's
+    // `inputDeposit`/`outputDepositTx` Go structs (main.go). Found during Task 3 vector
+    // authoring: this function previously read `value` from the outer tx object, which the
+    // generator never populates for deposits (buildTx's "deposit" branch only reads
+    // `in.OpDeposit.Value`) -- so every deposit vector with a non-zero intended `value` was
+    // silently generated with value=0 by opt8n while the replayer would have read a different
+    // (also-zero, coincidentally never populated) location. Not a real bcos-evm/opstack
+    // divergence; a replayer/vector-schema bug fixed before any vector relying on deposit
+    // `value` was committed.
+    deposit.value = parseOptionalQuantity(depositNode, "value").value_or(0);
     deposit.gas = parseUint64(txNode.get<std::string>("gasLimit"));
     deposit.isSystemTransaction = parseBool(depositNode, "is_system_tx", false);
     deposit.data = parseHexBytes(txNode.get<std::string>("data", "0x"));
@@ -508,9 +660,9 @@ OpStackMessageResult applyDepositTx(pt::ptree const& txNode,
 // normalization for no additional coverage -- sender recovery from the signature is already
 // exercised end-to-end via decoded.sender() below (feeds directly into message.sender, and thus
 // into every balance/nonce postState check for the signing account).
-OpStackMessageResult applyEip1559Tx(std::string const& vectorId, size_t txIndex,
-    pt::ptree const& txNode, state::test::InMemoryStateView& stateView, evmc::VM& vm,
-    crypto::Hash const& hashImpl, state::BlockInfo const& blockInfo,
+OpStackMessageResult applyEip1559Tx(DivergenceLedger const& ledger, std::string const& vectorId,
+    size_t txIndex, pt::ptree const& txNode, state::test::InMemoryStateView& stateView,
+    evmc::VM& vm, crypto::Hash const& hashImpl, state::BlockInfo const& blockInfo,
     OpStackForkSchedule const& forkSchedule, SimpleBlockGasPool& gasPool)
 {
     auto const rawBytes = parseHexBytes(txNode.get<std::string>("_op_raw"));
@@ -526,27 +678,27 @@ OpStackMessageResult applyEip1559Tx(std::string const& vectorId, size_t txIndex,
     }
 
     std::string const field = "tx[" + std::to_string(txIndex) + "].rawConsistency.";
-    checkU64(
-        vectorId, field + "nonce", parseUint64(txNode.get<std::string>("nonce")), decoded.nonce);
-    checkU256(vectorId, field + "maxFeePerGas",
+    checkU64(ledger, vectorId, field + "nonce", parseUint64(txNode.get<std::string>("nonce")),
+        decoded.nonce);
+    checkU256(ledger, vectorId, field + "maxFeePerGas",
         parseQuantity(txNode.get<std::string>("maxFeePerGas")), decoded.maxFeePerGas);
-    checkU256(vectorId, field + "maxPriorityFeePerGas",
+    checkU256(ledger, vectorId, field + "maxPriorityFeePerGas",
         parseQuantity(txNode.get<std::string>("maxPriorityFeePerGas")),
         decoded.maxPriorityFeePerGas);
-    checkU64(vectorId, field + "gasLimit", parseUint64(txNode.get<std::string>("gasLimit")),
+    checkU64(ledger, vectorId, field + "gasLimit", parseUint64(txNode.get<std::string>("gasLimit")),
         decoded.gasLimit);
-    checkU256(
-        vectorId, field + "value", parseQuantity(txNode.get<std::string>("value")), decoded.value);
-    checkU64(vectorId, field + "chainId", parseUint64(txNode.get<std::string>("chainId")),
+    checkU256(ledger, vectorId, field + "value", parseQuantity(txNode.get<std::string>("value")),
+        decoded.value);
+    checkU64(ledger, vectorId, field + "chainId", parseUint64(txNode.get<std::string>("chainId")),
         decoded.chainId.value_or(0));
-    checkBytes(vectorId, field + "data", parseHexBytes(txNode.get<std::string>("data", "0x")),
-        decoded.data);
+    checkBytes(ledger, vectorId, field + "data",
+        parseHexBytes(txNode.get<std::string>("data", "0x")), decoded.data);
     if (auto const toStr = txNode.get_optional<std::string>("to"))
     {
         BOOST_REQUIRE_MESSAGE(decoded.to.has_value(),
             "DIVERGE " << vectorId << " " << field << "to want=" << *toStr << " got=<absent>");
-        checkAddress(
-            vectorId, field + "to", state::parseHexAddress(*toStr), addressFromFixed(*decoded.to));
+        checkAddress(ledger, vectorId, field + "to", state::parseHexAddress(*toStr),
+            addressFromFixed(*decoded.to));
     }
 
     auto const sender = state::parseHexAddress(decoded.sender());
@@ -588,8 +740,8 @@ OpStackMessageResult applyEip1559Tx(std::string const& vectorId, size_t txIndex,
 
 // ── Vector-level replay ──────────────────────────────────────────────────────────────────────────
 
-void replayVector(
-    std::string const& vectorId, pt::ptree const& vectorNode, std::string const& forkName)
+void replayVector(DivergenceLedger const& ledger, std::string const& vectorId,
+    pt::ptree const& vectorNode, std::string const& forkName)
 {
     state::test::InMemoryStateView stateView;
     seedPreState(vectorNode.get_child("pre"), stateView);
@@ -636,7 +788,7 @@ void replayVector(
             else if (opType == "eip1559")
             {
                 txKind = toWeb3TypedTxKindValue(Web3TypedTxKind::EIP1559);
-                output = applyEip1559Tx(vectorId, txIndex, txNode, stateView, vm, hashImpl,
+                output = applyEip1559Tx(ledger, vectorId, txIndex, txNode, stateView, vm, hashImpl,
                     blockInfo, forkSchedule, gasPool);
             }
             else
@@ -653,7 +805,7 @@ void replayVector(
 
             BOOST_REQUIRE_MESSAGE(receiptIt != expectedReceipts.end(),
                 "DIVERGE " << vectorId << " tx[" << txIndex << "] no matching expected receipt");
-            checkReceipt(vectorId, txIndex, receiptIt->second, output, txKind);
+            checkReceipt(ledger, vectorId, txIndex, receiptIt->second, output, txKind);
 
             blockGasUsed += static_cast<uint64_t>(std::max<int64_t>(0, output.gasUsed));
             applyStateDiffMerged(output.stateDiff, stateView);
@@ -665,11 +817,11 @@ void replayVector(
 
     auto const wantBlockGasUsed =
         parseUint64(vectorNode.get<std::string>("_op_expected.blockGasUsed"));
-    checkU64(vectorId, "blockGasUsed", wantBlockGasUsed, blockGasUsed);
+    checkU64(ledger, vectorId, "blockGasUsed", wantBlockGasUsed, blockGasUsed);
 
     for (auto const& [addressHex, acctNode] : vectorNode.get_child("postState"))
     {
-        checkAccount(vectorId, addressHex, acctNode, stateView);
+        checkAccount(ledger, vectorId, addressHex, acctNode, stateView);
     }
 }
 
@@ -703,6 +855,11 @@ BOOST_AUTO_TEST_CASE(replay_t8n_vectors)
     std::sort(files.begin(), files.end());
     BOOST_REQUIRE_MESSAGE(!files.empty(), "no t8n vector files found in " << vectorsDir);
 
+    // DIVERGENCES.md is the sole exemption source (see DivergenceLedger's doc comment); loaded
+    // once here and threaded down through every comparator so a KNOWN-DIVERGE finding is reported
+    // instead of failing the build, while anything not yet filed there still turns the build red.
+    auto const ledger = DivergenceLedger::loadFromFile(vectorsDir / "DIVERGENCES.md");
+
     for (auto const& path : files)
     {
         pt::ptree root;
@@ -724,7 +881,7 @@ BOOST_AUTO_TEST_CASE(replay_t8n_vectors)
             }
             BOOST_TEST_CONTEXT("vector=" << vectorId << " file=" << path.filename().string())
             {
-                replayVector(vectorId, vectorNode, forkName);
+                replayVector(ledger, vectorId, vectorNode, forkName);
             }
         }
     }

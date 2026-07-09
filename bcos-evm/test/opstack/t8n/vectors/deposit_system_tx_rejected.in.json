@@ -1,0 +1,41 @@
+{
+  "isthmus_deposit_system_tx_rejected": {
+    "_info": {
+      "id": "isthmus_deposit_system_tx_rejected",
+      "comment": "NOT an executable vector -- documents that opt8n (and real op-geth) refuses to produce a transition at all for is_system_tx=true once Regolith is active (Isthmus config has RegolithTime=0): stateTransition.preCheck() returns ErrSystemTxNotSupported, which propagates as a hard Go error out of core.ApplyTransactionWithEVM and aborts opt8n's whole-vector generation (no output file is written). See generator/README.md 'Known limitations' and DIVERGENCES.md for the captured error text and disposition.",
+      "source": "opt8n",
+      "hardforks": ["isthmus"],
+      "tags": ["deposit", "system-tx", "rejected", "not-a-vector"]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0011": { "balance": "0" },
+      "0x00000000000000000000000000000000b0b0b0b0": { "balance": "0" }
+    },
+    "blocks": [
+      {
+        "blockHeader": { "number": "2", "timestamp": "100", "gasLimit": "30000000" },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0011",
+              "to": "0x00000000000000000000000000000000b0b0b0b0",
+              "is_system_tx": true,
+              "source_hash": "0x3333333333333333333333333333333333333333333333333333333333333333"
+            },
+            "gasLimit": "100000",
+            "data": "0x"
+          }
+        ]
+      }
+    ]
+  }
+}

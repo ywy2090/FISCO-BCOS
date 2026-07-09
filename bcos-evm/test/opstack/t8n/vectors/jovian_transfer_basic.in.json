@@ -1,0 +1,63 @@
+{
+  "jovian_transfer_basic": {
+    "_info": {
+      "id": "jovian_transfer_basic",
+      "comment": "Plain EIP-1559 transfer under the Jovian fork, mirroring isthmus_transfer_value_zero. Surfaces the Jovian operator-fee formula (gas*scalar*100+constant) vs. Isthmus's (gas*scalar/1e6+constant) -- op-geth: core/types/rollup_cost.go newOperatorCostFuncOperatorFeeFix; bcos-evm: opstack/fee/OpStackFeeParams.cpp operatorCostJovian.",
+      "source": "opt8n",
+      "hardforks": [
+        "jovian"
+      ],
+      "tags": [
+        "transfer",
+        "jovian",
+        "operator-fee"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        }
+      },
+      "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf": {
+        "balance": "10000000000000000000",
+        "nonce": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "nonce": "0",
+            "to": "0x00000000000000000000000000000000b0b0b0b0",
+            "value": "0",
+            "gasLimit": "21000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000001"
+          }
+        ]
+      }
+    ]
+  }
+}

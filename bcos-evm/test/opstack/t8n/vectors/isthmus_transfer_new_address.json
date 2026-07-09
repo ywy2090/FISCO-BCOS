@@ -1,0 +1,106 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_transfer_new_address": {
+    "_info": {
+      "id": "isthmus_transfer_new_address",
+      "comment": "Plain EIP-1559 transfer to a recipient address absent from `pre` (account creation via value transfer).",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "transfer",
+        "l1-fee",
+        "new-address"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        },
+        "balance": "0x0",
+        "nonce": "0x1"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x8ac7230489e80000"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "eip1559",
+            "type": "0x02",
+            "nonce": "0x0",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "gasLimit": "0x5208",
+            "to": "0x0000000000000000000000000000000000beef01",
+            "value": "0x6f05b59d3b20000",
+            "data": "0x",
+            "chainId": "0x2105",
+            "accessList": [],
+            "v": "0x0",
+            "r": "0xec5b96081f771967c0f11baa9384f267040f3bfd5ea51bb9f7a3ab1d36cc4d6c",
+            "s": "0x6c43ccbb4d80f1a8156646e4df02cf885f15173910a6c90d6353a3ae39b4d3a5",
+            "_op_raw": "0x02f87482210580843b9aca008477359400825208940000000000000000000000000000000000beef018806f05b59d3b2000080c080a0ec5b96081f771967c0f11baa9384f267040f3bfd5ea51bb9f7a3ab1d36cc4d6ca06c43ccbb4d80f1a8156646e4df02cf885f15173910a6c90d6353a3ae39b4d3a5"
+          }
+        ]
+      }
+    ],
+    "postState": {
+      "0x0000000000000000000000000000000000beef01": {
+        "balance": "0x6f05b59d3b20000"
+      },
+      "0x4200000000000000000000000000000000000011": {
+        "balance": "0x1319718a5000"
+      },
+      "0x4200000000000000000000000000000000000019": {
+        "balance": "0x1319718a5000"
+      },
+      "0x420000000000000000000000000000000000001a": {
+        "balance": "0x5f5e1000"
+      },
+      "0x420000000000000000000000000000000000001b": {
+        "balance": "0xf42a9"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x83d6a17773b40d57",
+        "nonce": "0x1"
+      }
+    },
+    "_op_expected": {
+      "receipts": [
+        {
+          "type": "0x2",
+          "status": "0x1",
+          "gasUsed": "0x5208",
+          "logsCount": 0
+        }
+      ],
+      "blockGasUsed": "0x5208"
+    }
+  }
+}

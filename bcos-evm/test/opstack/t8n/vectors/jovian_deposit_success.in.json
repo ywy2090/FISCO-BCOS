@@ -1,0 +1,57 @@
+{
+  "jovian_deposit_success": {
+    "_info": {
+      "id": "jovian_deposit_success",
+      "comment": "Plain successful user deposit under the Jovian fork, mirroring isthmus_deposit_success (mint==value, no calldata). Sanity check that deposit success/nonce/receipt semantics are fork-independent.",
+      "source": "opt8n",
+      "hardforks": [
+        "jovian"
+      ],
+      "tags": [
+        "deposit",
+        "jovian",
+        "success"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0007": {
+        "balance": "0"
+      },
+      "0x00000000000000000000000000000000b0b0b0b0": {
+        "balance": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0007",
+              "to": "0x00000000000000000000000000000000b0b0b0b0",
+              "is_system_tx": false,
+              "source_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "mint": "1000000000000000000",
+              "value": "1000000000000000000"
+            },
+            "gasLimit": "100000",
+            "data": "0x"
+          }
+        ]
+      }
+    ]
+  }
+}

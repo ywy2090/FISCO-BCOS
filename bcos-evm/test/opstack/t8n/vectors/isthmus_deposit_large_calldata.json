@@ -1,0 +1,82 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_deposit_large_calldata": {
+    "_info": {
+      "id": "isthmus_deposit_large_calldata",
+      "comment": "User deposit with 2000 bytes of non-zero calldata (0xAB repeated), amplifying the EIP-7623 floor-data-gas delta from GATE FINDING #1 (DIVERGENCES.md entry FINDING-1): floorDataGas = tokens(data)*10 where tokens=nonzero*4 = 8000, so floor=21000+80000=101000, vs normal calldata-gas intrinsic=21000+2000*16=53000 -- a ~48000 gas delta, versus the ~1380 gas delta in the first (176-byte) vector. Same root cause, not a new finding.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "deposit",
+        "large-calldata",
+        "floor-gas"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x00000000000000000000000000000000b0b0b0b0": {
+        "balance": "0x0"
+      },
+      "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0008": {
+        "balance": "0x0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0008",
+              "to": "0x00000000000000000000000000000000b0b0b0b0",
+              "mint": "0xde0b6b3a7640000",
+              "value": "0x0",
+              "is_system_tx": false,
+              "source_hash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "gasLimit": "0x30d40",
+            "data": "0xabababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab"
+          }
+        ]
+      }
+    ],
+    "postState": {
+      "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0008": {
+        "balance": "0xde0b6b3a7640000",
+        "nonce": "0x1"
+      }
+    },
+    "_op_expected": {
+      "receipts": [
+        {
+          "type": "0x7e",
+          "status": "0x1",
+          "gasUsed": "0x18a88",
+          "logsCount": 0,
+          "_op_deposit_nonce": "0x0",
+          "_op_deposit_receipt_version": "0x1"
+        }
+      ],
+      "blockGasUsed": "0x18a88"
+    }
+  }
+}

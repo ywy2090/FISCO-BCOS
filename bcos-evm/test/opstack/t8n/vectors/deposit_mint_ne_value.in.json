@@ -1,0 +1,56 @@
+{
+  "isthmus_deposit_mint_ne_value": {
+    "_info": {
+      "id": "isthmus_deposit_mint_ne_value",
+      "comment": "User deposit where mint (2 ETH) != value (1 ETH): mint credits the depositor first (unconditionally, before the value-transfer call), then the call transfers only `value` to `to`. Depositor should retain mint-value.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "deposit",
+        "mint"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001": {
+        "balance": "0"
+      },
+      "0x00000000000000000000000000000000b0b0b0b0": {
+        "balance": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "deposit",
+            "_op_deposit": {
+              "from": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001",
+              "to": "0x00000000000000000000000000000000b0b0b0b0",
+              "is_system_tx": false,
+              "source_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "mint": "2000000000000000000",
+              "value": "1000000000000000000"
+            },
+            "gasLimit": "100000",
+            "data": "0x"
+          }
+        ]
+      }
+    ]
+  }
+}

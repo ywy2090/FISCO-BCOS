@@ -318,3 +318,62 @@ consistent with Regolith deposit-nonce semantics.
   ("intrinsic 不足", "blob tx 拒绝", etc.) will need this if those cases are
   meant to prove the tx cannot be included in a block at all, rather than
   exercise a specific EVM revert.
+
+## Known limitations found during Task 3 (wave-1 vector authoring)
+
+Three matrix cells could not be produced as executable vectors at all with this generator's
+design. None of these are `bcos-evm/opstack` bugs or generator bugs to fix — they are structural
+scope boundaries of "op-geth as a library, L1Block values pre-seeded rather than deployed as real
+bytecode, fixed `--fork isthmus|jovian` chain configs". Recorded here (and cross-referenced from
+`../vectors/DIVERGENCES.md`'s "Non-divergence known limitations" section) so Task 4/5 don't
+rediscover them:
+
+1. **`is_system_tx=true` once Regolith is active aborts the whole vector, not just the tx.**
+   `stateTransition.preCheck()` returns `ErrSystemTxNotSupported` for any deposit with
+   `is_system_tx=true` once Regolith is active (both `--fork isthmus` and `--fork jovian` have
+   `RegolithTime=0`). `execute()`'s deposit-failure-absorbing branch explicitly excludes this
+   error (`!errors.Is(err, ErrSystemTxNotSupported)`), so it propagates as a genuine Go error out
+   of `core.ApplyTransactionWithEVM`, and `processVector` aborts (returns an error, no output file
+   is written) rather than producing a vector with a "rejected" receipt. Verified by running it:
+   ```
+   $ ./opt8n --fork isthmus --input .../deposit_system_tx_rejected.in.json --output ... 
+   opt8n: vector "isthmus_deposit_system_tx_rejected": tx 0: ApplyTransactionWithEVM: system tx not supported: address 0xdeadDEADdeAddeadDeadDeadDeaDDEADdead0011
+   ```
+   The attempted input case is kept as `../vectors/deposit_system_tx_rejected.in.json` for
+   documentation purposes only (its `_info.comment` says so); it has no corresponding output
+   `.json` and the replayer never sees it (only `*.in.json` are skipped by the replayer's file
+   scan, and there is no matching output file to skip in the first place).
+2. **No per-vector Canyon-time knob**, so a pre-Canyon (`DepositReceiptVersion=nil`) deposit
+   receipt vector cannot be produced — `buildChainConfig` only exposes the two fixed,
+   fully-post-Canyon presets (`--fork isthmus|jovian`). Out of scope per the plan's own escape
+   hatch for this case ("若生成器暂不支持按向量调 fork time，就只做 post-Canyon 并在 README 记录限制").
+3. **L1Block calldata-parsing ground truth is not achievable.** This generator deliberately never
+   deploys `L1Block.sol` bytecode (see "L1Block predeploy" above); its own execution loop is real
+   op-geth, and a `CALL` to a code-less account is a pure no-op in real EVM semantics. So real
+   op-geth's ground truth for what an L1-attributes deposit's *own* calldata does to `L1Block`'s
+   storage is always "no change", for any calldata content whatsoever — `bcos-evm/opstack`, in
+   contrast, dispatches L1Block calls natively (`bcos-evm/opstack/l1/L1BlockStorage.cpp` always
+   parses calldata and writes slots, independent of "code" being present at that address). A
+   vector built to test this parsing path would therefore either have `L1Block` silently excluded
+   from `postState` entirely (this generator's diff only emits accounts with an actual change
+   relative to `pre`, and there never is one here), or, if `pre` were deliberately pre-seeded to
+   match what the calldata implies, produce a vacuously "passing" comparison that doesn't actually
+   exercise the parsing logic (bcos-evm reproducing values that were hand-placed into `pre` proves
+   nothing about whether its parser is correct). This sank the originally planned wave-0 "l1_info
+   attributes 解析场景" seed vector as an *executable* differential test; testing
+   `L1BlockStorage.cpp`'s parsing correctness would need a different harness entirely (a
+   hand-computed oracle, or teaching this generator to deploy compiled `L1Block.sol` bytecode into
+   `pre`) — out of scope for this task.
+4. **L1Block's `onlyDepositor` access control has no ground-truth counterpart either, for the same
+   reason as #3** — but unlike #3 this one is a trap, not just a coverage gap: because op-geth
+   never executes real `L1Block.sol` bytecode, its ground truth assumes *any* sender can call
+   `setL1BlockValues*` successfully. `bcos-evm/opstack`'s native dispatch correctly enforces
+   `msg.sender == OP_DEPOSITOR_ACCOUNT` (`0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001`,
+   `L1BlockPredeploy.cpp:56-65`, `NotDepositor()` revert otherwise) — mirroring the real
+   `L1Block.sol` contract a live chain deploys. Any vector whose L1-attributes deposit's `from` is
+   *not* that exact address will replay as a spurious "divergence" (the deposit reverts in
+   `bcos-evm/opstack`, succeeds in the generator's ground truth) that is really just a vector
+   authoring mistake, not a finding — caught once, while authoring `isthmus_transfer_multi_nonce`
+   (see `../vectors/DIVERGENCES.md`'s "Fixed pre-commit" section for the full story). **Every
+   L1-attributes deposit vector's `_op_deposit.from` must be
+   `0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001`.**
