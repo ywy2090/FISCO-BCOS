@@ -1,6 +1,6 @@
 # M-T：op-geth 差分 gate 架设到 `bcos-evm/opstack/`
 
-> **状态**：v1 + 生态检验记录（2026-07-09）。**待 v2 修订两点**：向量格式改用 op-test-vectors 的 `ethereum/tests + _op_*` 设计；矩阵吸收 deposit/l1_info 种子场景。其余（opt8n 生成器、回放器、预注册纪律）不变。
+> **状态**：**v2（2026-07-09，可执行版）**——格式节已改用 op-test-vectors 的 `ethereum/tests + _op_*` 设计（以其兼容 profile 扩展），矩阵新增波次 0 种子场景。opt8n 生成器、回放器、预注册纪律与 v1 不变。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -56,36 +56,57 @@ bcos-evm/test/opstack/t8n/generator/*.go          bcos-evm/test/opstack/T8nVecto
 2. **期望值只能来自生成器输出**，不许手工调整任何 expected 字段——手改期望值 = Phase 1 式挪门柱，一律视为缺陷。
 3. 生成器与向量**同 commit 入库**；重生成必须整批（防止新旧生成器输出混排）。
 
-## 向量 JSON 格式（v1，字段级定案——这正是 rev.3 终审要求的"M4 第一交付物"，移交至此）
+## 向量 JSON 格式（v2：op-test-vectors 兼容 profile）
+
+采用 optimism monorepo `op-test-vectors` 的既有设计（ethereum/tests 兼容骨架 + `_op_*` 下划线命名空间 + `_info` 元数据 + semver），在其上做**加法扩展**（全部带下划线前缀，标准解析器可忽略）。与其 14 条现存向量的差异均为补它检验中暴露的洞：
 
 ```json
 {
-  "meta": { "generator": "opt8n@<op-geth-commit>", "fork": "isthmus|jovian", "description": "..." },
-  "env": {
-    "coinbase": "0x4200...0011", "number": "0x2", "timestamp": "0x64",
-    "gasLimit": "0x1c9c380", "baseFee": "0x7", "prevRandao": "0x...",
-    "parentBeaconBlockRoot": "0x..."
-  },
-  "pre":  { "<address>": { "balance": "0x..", "nonce": "0x..", "code": "0x..", "storage": { "<slot>": "<value>" } } },
-  "txs": [
-    { "type": "0x7e", "sourceHash": "0x..", "from": "0x..", "to": "0x..|null",
-      "mint": "0x..", "value": "0x..", "gas": "0x..", "isSystemTx": false, "input": "0x.." },
-    { "raw": "0x02f8..." }
-  ],
-  "expected": {
-    "post": { "<address>": { "balance": "0x..", "nonce": "0x..", "code": "0x..", "storage": { } } },
-    "receipts": [ { "status": 1, "gasUsed": "0x..", "logsCount": 2, "logsBloom": "0x..",
-                    "depositNonce": "0x..", "depositReceiptVersion": 1 } ],
-    "blockGasUsed": "0x.."
+  "_op_test_vectors": { "version": "1.1.0", "generator": "opt8n", "generator_commit": "<op-geth checkout HEAD>" },
+  "<vector_id>": {
+    "_info": { "id": "...", "comment": "...", "source": "opt8n", "hardforks": ["isthmus"], "tags": [...] },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2", "currentTimestamp": "100",
+      "currentGasLimit": "30000000", "currentBaseFee": "7",
+      "currentRandom": "0x...", "parentBeaconBlockRoot": "0x..."
+    },
+    "pre": { "<address>": { "balance": "...", "nonce": "...", "code": "0x...", "storage": { "<slot>": "<value>" } } },
+    "blocks": [ { "blockHeader": { "number": "2", "timestamp": "100", "gasLimit": "30000000" },
+      "transactions": [
+        { "_op_type": "deposit",
+          "_op_deposit": { "from": "0x..", "to": "0x..|null", "mint": "0", "is_system_tx": false,
+                            "source_hash": "0x.." },
+          "gasLimit": "...", "data": "0x.." },
+        { "_op_type": "eip1559", "type": "0x02", "nonce": "1",
+          "maxFeePerGas": "1000", "maxPriorityFeePerGas": "10",
+          "gasLimit": "21000", "to": "0x..", "value": "0", "data": "0x",
+          "chainId": "8453", "accessList": [], "v": "..", "r": "..", "s": "..",
+          "_op_raw": "0x02f8..." }
+      ] } ],
+    "postState": { "<address>": { "balance": "...", "nonce": "...", "code": "0x..", "storage": { } } },
+    "_op_expected": {
+      "receipts": [ { "type": "deposit", "status": "1", "gasUsed": "...", "logsCount": 0,
+                      "_op_deposit_nonce": "0", "_op_deposit_receipt_version": "1" } ],
+      "blockGasUsed": "..."
+    }
   }
 }
 ```
-普通 tx 一律 `raw`（签名后 envelope，与 L1 cost 计算的输入一致）；deposit 用字段形式（无签名）。`post` 只列**被触碰**的账户（生成器 dump 后按触碰集过滤），storage 只列非零槽。
 
-## 向量矩阵（目标 ~50 条，两个 fork：Isthmus 与 Jovian——opstack 已实现到 Jovian）
+**相对 op-test-vectors 现存向量的四点强化（针对检验发现的缺陷，均为加法）**：
+1. **普通签名 tx 必须带 `_op_raw`**（签名后完整 envelope，权威来源）——L1 fee 的计算输入就是它，回放器一律用 `_op_raw` 执行；字段形式仅供人读。杜绝"期望值与交易对不上"（480 vs 1408）这类病。
+2. **deposit 补 `source_hash`**（现存向量缺失，回放/receipt 需要）。
+3. **`postState` 必须非空**（现存向量全部留空）——列出全部被触碰账户的 balance/nonce/code/非零槽；这是差分 gate 的主判据，receipt 是副判据。
+4. **`_op_expected.receipts` 补全 `status`/`gasUsed`/`logsCount`**（现存向量只有 nonce/version）。
+
+**生成器职责**：`expected` 段与 `postState` **只能**由 opt8n 对交易的真实执行产出（预注册纪律第 2 条）；`_op_raw` 由生成器签名产出。
+
+## 向量矩阵（目标 ~50+3 条，两个 fork：Isthmus 与 Jovian——opstack 已实现到 Jovian）
 
 | 类别 | 条数 | 覆盖点 |
 |---|---|---|
+| **波次 0：op-test-vectors 种子场景重生成** | 3 | deposit receipt pre/post Canyon（nonce/version 语义）+ l1_info attributes 解析（Isthmus 布局，作回放器解析单测）——场景采自其现存向量，期望值**由 opt8n 重新真跑产出**，原文件不拷贝 |
 | L1 attributes deposit（首笔） | 4 | 两 fork × {`test/fixtures/opstack/{isthmus,jovian}_l1_attributes.bin` 的真实 calldata}；receipt 的 gasUsed/depositNonce |
 | 用户 deposit | 8 | mint≠value、成功、EVM revert（gasUsed=实际）、处理级失败（gasUsed=gasLimit、nonce 仍 bump）、to=null 创建、mint=0 |
 | 普通转账 + L1 fee | 6 | L1Block 预置槽（两 fork 布局）、fee 三/四 vault 入账、sender 守恒式 |
