@@ -1,7 +1,12 @@
 # bcos-evm-ref：最大化复用 evmone 的标准以太坊 EVM（含 OpStack）设计
 
-**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 里程碑重排 → rev.5 撤回 405 动因 → **rev.6 维护经济学量化入账；ETH 路径替换论证成立，OP 路径 M4/M5 硬冻结**；FISCO 折扣按用户指示不计入）
-**状态：** rev.1 经 brainstorming 逐节获批；rev.2/rev.3 为审查驱动修订（第三轮终审 9/10、判可冻结）；**rev.4 按用户指示重排 §7**：新增 §7.0 目的链条与排序原则、M3.5 StateView 桥接 spike 与决策点，M4/M5 改为依赖决策点。M0–M2 已实施完成（见 §7.1 里程碑表）；**四项方案级决策已经用户确认**：① Host 三处必改点走 OpHost 子类照抄（不改库）② OP 范围 Isthmus 先行 ③ 与现有 bcos-evm 严格隔离 ④ op-geth t8n 差分为 M6 硬 gate
+**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 重排 → rev.5 撤回 405 → rev.6 量化经济学 → **rev.7 四项决策定案**）
+**状态：** **rev.7 = 决策定案版**（2026-07-09，用户裁定）：
+① **OpStack 路径不在本模块做——M4/M5 永久取消**，OP 语义留在已有 `bcos-evm/opstack/`（4,485 行 / 6 份 op-geth 审计 / 已达 Jovian）；
+② **终局身份 = ETH 生产替换候选 + 不做 OP**（混合终局，此前 spec 未列此选项）；
+③ **授权改动现有 `bcos-evm`** 两项纯增益动作：t8n gate 架到 `opstack/`、负缓存优化落到 `eth/state/`；
+④ **工作流：先 plan 后动手**——任何新里程碑须先有 plan 文档并经用户过目；spec 的任何范围收窄须显式标注为「更正」，不得静默改写后宣布达标。已交付的 M3/M3.5 予以追认。
+历史：rev.1 brainstorming 逐节获批；rev.2/rev.3 审查驱动修订；rev.4 里程碑重排；rev.5 撤回 405 动因；rev.6 维护经济学量化 + M4/M5 冻结。
 **参考基线（唯一，已确认）：** vcpkg port 锁定的 fork REF `3585c2cb`（= 上游 tag v0.21.0 `35b7e1ee` 后第 3 个提交，仅 SM3 补丁；`test/state` 相对 v0.21.0 tag 零改动）。本文所有 API 描述、行号、照抄源均以此 REF 为准；本地 `blockchain-impl/evmone` HEAD（v0.21.0+75，含 `gas_refund` 字段、EIP-7778——均来自 tag 后未发布提交 `aee9aedd`，将随 v0.22.0 发布）**不作为**设计依据，待 v0.22.0 发布后按 §8.5 清单整体评估升级
 **OP 对照基准：** op-geth v1.101702.2（本地 `blockchain-impl/op-geth`），关键行号引用 `core/state_transition.go` / `core/types/rollup_cost.go` / `core/vm/contracts.go` / `core/state_processor.go`
 **关联文档：** `bcos-evm/docs/DESIGN-standard-eth-evm-opstack.md`（架构总述 rev.2）
@@ -12,14 +17,18 @@
 
 ### 1.1 一句话
 
+> **rev.7 决策定案**：**OpStack 部分（六块薄层、M4/M5）已永久取消**，本模块只做 ETH 路径。
+> 下文 §4.3 / §5.2 / §5.3 的 OP 设计**保留作参考规格**（经三轮审查、与 op-geth 逐行核对过），
+> 但不实现。OP 语义留在 `bcos-evm/opstack/`，其正确性由 **M-T t8n gate** 验证。
+
 新建仓库顶层独立模块 `bcos-evm-ref`，**链接 `evmone::state` 库**复用整套状态转换：Ethereum 主网直接调用 `validate_transaction()` / `transition()` / `finalize()`（零重写）；OpStack 自建**六块薄层**——`op_validate`（OP 校验含 L1/operator fee 余额、拒 blob tx）、`op_transition`（最小 fork，仅改 fee 结算段）、**`OpHost`**（`Host` 子类：修 CHAINID、修 deposit GASPRICE、拦截 precompile 派发）、Deposit 路径、`RollupCost`（L1 data fee + operator fee）、OP precompile override 表（数据）；predeploy / vault 账户预填为数据，fork 语义由 `OpForkSchedule` 映射（返回 `OpForkConfig` 结构体）驱动。**第一版 OP 只实现并验证 Isthmus**（fork 矩阵留扩展位）。第一版由 EEST / op-geth 测试 harness 驱动。
 
 ### 1.2 决策汇总（rev.3 修订项标注）
 
 | 维度 | 决策 |
 |------|------|
-| 与现有 `bcos-evm/eth/` 关系 | **并行干净模块，严格隔离**（rev.3 用户确认）：互不 `#include`、不共享代码——FastLZ 等现有 `bcos-evm/opstack/` 已有实现的算法在本模块**重新实现**，旧实现仅作黑盒对照校验用。注意此"并行"是**替换尝试的风险控制**而非终局（目的链条见 §7.0）；终局身份与切换判据见 §7.2。**rev.6：本决策前提已实质变化**（405 动因被证伪、`opstack/` 无已证缺陷且有 6 份 op-geth 审计、fork 已达 Jovian）——隔离在 oracle 终局下正确，在替换终局下意味着重写 4,485 行已审计代码，**应作为独立议题重新提请用户裁定，不得默认沿用** |
-| 首个里程碑范围 | Ethereum（Cancun/Prague/Osaka*）+ **OpStack Isthmus 先行**（rev.3 用户确认）：只实现/测试 Isthmus（连带其沿用的 Fjord L1 cost 公式与 FastLZ）；Ecotone/Fjord/Granite/Holocene 四个历史 fork 在 `OpForkSchedule`/`OpFork` 枚举中保留扩展位但**不实现不测试**（Fjord 仅其公式被 Isthmus 借用，fork 本身同为留位） |
+| 与现有 `bcos-evm/eth/` 关系 | **rev.7 定案**：模块级严格隔离**维持**（互不 `#include`/不链接）；但 §1.3 已为 M-T / M-N 两项动作解禁「不改动 bcos-evm」这条非目标。终局 = **ETH 生产替换候选**（§7.2），OP 不做。原「隔离导致必须重写 FastLZ」的争议随 M4/M5 取消而消失 |
+| 首个里程碑范围 | **rev.7 定案**：**仅 Ethereum**（Cancun / Prague / Osaka*）。原「OpStack Isthmus 先行」**已取消**——复用为零，而 `bcos-evm/opstack/` 已有 4,485 行 / 6 份 op-geth 审计 / 覆盖到 Jovian，重写是用更少覆盖换更多覆盖 |
 | 驱动/验证方式 | 独立库 + EEST/op-geth 测试 harness；`StateView` 接内存 fixture，暂不接真账本 |
 | OpStack fee 分账 | 最小 fork `op_transition()`：照抄面 = transition 本体 89 行 + 匿名 ns 助手 ~113 行（含 3 个常量）+ **OpHost 派发段 ~50 行 + get_tx_context 覆写**（rev.3 上调）≈ **250 行** |
 | **Host 三处必改点** | **rev.3 新增（用户确认）**：CHAINID 硬编码 1（`host.cpp:422`）、deposit GASPRICE 观测错（`host.cpp:408-410` 上游 TODO）、precompile 派发缝不存在（private 非虚 `execute_message`，`host.cpp:366`）——统一以 **`OpHost : evmone::state::Host` 子类**解决，不改库、不打源码补丁；照抄面计入 §9 漂移风险 |
@@ -31,7 +40,7 @@
 
 ### 1.3 非目标
 
-- 不改动现有 `bcos-evm/`（并行验证，严格隔离）。
+- ~~不改动现有 `bcos-evm/`~~ → **rev.7 部分解禁（用户授权 D3）**：`bcos-evm-ref` 模块自身仍不 `#include`/不链接 `bcos-evm`；但**授权在 `bcos-evm` 内实施两项独立动作**——**M-T**（t8n gate 架到 `opstack/`）与 **M-N**（负缓存优化落到 `eth/state/`）。二者各自独立立项、各自先写 plan，不通过本模块的代码路径。
 - 不接共识 / TxPool / 区块调度 / P2P / JSON-RPC；不接 FISCO 私链语义。
 - 第一版不接真实账本持久化（仅内存 fixture）。
 - 区块 RLP 解码路径（EEST blockchain fixture 的 `rlp` 字段）不做，只消费 JSON 展开字段；`blockchain_test_engine` 格式不支持。
@@ -388,10 +397,12 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 | **M2 ETH 跑通** | ✅ **已完成**：`eth::runTransaction`/`runBlockFinalize`；EEST v5.4.0 state 对照 **2723 文件 / 55,233 个 Cancun+ case 全绿**（harness 经变异测试证伪假绿） | M1 | 小 |
 | **M3 ETH blockchain** | ✅ **已完成**（2026-07-09）：移植 `blockchaintest_runner` 核心（块执行循环、`validate_block` 头校验、侧链/canonical 追踪、四 root + requests_hash 判据、过渡 fork `RevisionSchedule`）；smoke（进 ctest）+ full（`EVM_REF_EEST_BLOCKCHAIN_FULL=1` 门控）拆分。**实测：2848 文件 / 0 失败 / 61 秒**。附带发现：`bcos-evm` 的 405 个失败全为 pre-Cancun（404 Frontier + 1 Homestead），**不构成 parity gap 证据**，见 §7.0 更正 | M2 | 中 |
 | **M3.5 StateView 桥接 spike（go/no-go）** | **rev.4 新增，前置**。⚠️ **rev.6 更正：Phase 1 的 GO 判定只是暂定，不构成充分证据。** rev.4 原文要求“把 `StateViewAdapter` **接一次真实账本**（或其协程存储的最小切片），度量 ①同步 noexcept 桥接开销 ②每 tx 重建 `State` 开销 ③code 按值返回开销”。实际 Phase 1（`514d3ad62`）**未接任何账本**，只做了内存计数 + 手推成本模型，**三项被点名的开销一项未测**；且该提交在交付的同时把本行任务描述改写成与交付物匹配的措辞，未标注为范围收窄——此为流程缺陷，如实记录。Phase 1 的产出（读放大 1.16x、负缓存省 27.9%）**算术已被独立复算与实机重跑验证为真**，作为“接口宽度不构成障碍”的证据有效；但“桥接开销可接受”仍**只有生产存在性佐证，无实测**。**Phase 2（必做，解冻 M4/M5 的条件之一）**：真正接 `LedgerStateView`/`ledger::EVMAccount`（或协程存储切片），测三项开销的绝对值。Phase 3（仅当 Phase 2 超标）：块级缓存适配器 | M3 | 小–中 |
-| **决策点** | 依据 M3.5 Phase 2 的性能数据 + §7.0 的量化检验 + （建议先做的）t8n-on-opstack 结果，由用户裁定 §7.2 终局身份，并据此确定 M4/M5 的**代码归属**（本模块 vs `bcos-evm/opstack/`）。**rev.6：M3 的对照表不能作为输入**——它不构成 parity gap 证据 | M3.5 Phase 2 | — |
-| **M4 OP 数据层** | 🔒 **硬冻结**（rev.6）。解冻条件：① M3.5 Phase 2 出绝对延迟数据 ② 用户在 rev.5/rev.6 事实下裁定 §7.2 终局 ③ **OP 路径的账算清**——须先回答"为何不把 t8n gate 直接架到已有 4,485 行 / 6 份审计 / 已达 Jovian 的 `bcos-evm/opstack/` 上"。内容：`OpForkSchedule`（Isthmus 条目）+ `OpPredeploys` + `PrecompileOverrides` 数据 + op-geth 向量格式定义与版本 pin | 决策点 | 小 |
-| **M5 OP fee/tx** | 🔒 **硬冻结**（同 M4 解冻条件）。内容：`OpHost`（三修正 + 派发照抄）、`op_validate`、`op_transition`、`runDeposit`（intrinsic/7623/receipt 扩展）、`RollupCost`（Fjord + FastLZ）、区块级编排 harness；op-geth 黄金向量绿 | M4 | 中 |
-| **M6 差分回归 + t8n gate + 收尾** | 零值差分常驻 CI；t8n 离线向量库生成 + CI 回放 gate；upstream `transition()`/`host.cpp` diff 提醒脚本；文档/CI gate | M5 | 中 |
+| **决策点** | ✅ **已裁定**（rev.7，2026-07-09）：见本文状态栏四项。剩余待验证项转入 M3.5 Phase 2（ETH 替换的 go/no-go） | — | — |
+| ~~**M4 OP 数据层**~~ | ❌ **永久取消**（rev.7 用户裁定 D1）。OP 语义留在 `bcos-evm/opstack/`；其 op-geth 一致性由 **t8n gate（新 M-T）** 验证，不需要本模块任何 OP 代码 | — | — |
+| ~~**M5 OP fee/tx**~~ | ❌ **永久取消**（同上）。§4.3 的 OpHost / op_validate / op_transition / runDeposit / RollupCost / precompile override 设计**保留作参考**（若将来 opstack 需要，可作为对照实现的规格），但本模块不实现 | — | — |
+| **M-T t8n gate on `opstack/`**（rev.7 新增，**已授权**） | 用 pinned op-geth `evm t8n` 离线生成向量入库、CI 回放，验证 **`bcos-evm/opstack/`** 的 op-geth 一致性。唯一能为「替换」论证提供*正确性*证据的实验，且无论终局如何都是纯增益。**须先写 plan** | — | 中 |
+| **M-N 负缓存优化**（rev.7 新增，**已授权**） | 把 M3.5 的发现落到 `bcos-evm/eth/state/State.cpp`：`State::find()` 当前连命中都不缓存，未修改账户每次访问都回账本。实测口径下负查询浪费占全部账本读 **27.9%**。本次会话唯一能立刻改善正在跑的代码的产出。**须先写 plan** | — | 小 |
+| **M6 收尾（ETH 侧）** | 零值差分护栏不再需要（无 OP fork 面）；保留 upstream `transition()` diff 提醒脚本 + CI gate + 文档 | M3.5 Phase 2 | 小 |
 
 关键路径：M0 → M1 → M2 → **M3 → M3.5 → 决策点** → M4 → M5 → M6。
 （rev.4 变更：原 "M3 ∥ (M4→M5)" 的并行被取消——M4/M5 现在依赖决策点，因为它们的代码归属未定；原 M6 里的 "§7.1 切换判据评估报告" 前移为 M3.5 + 决策点。）
@@ -410,7 +421,15 @@ OP 区块级 receiptRoot（OpDepositReceipt RLP 编码）与 Isthmus withdrawals
 - M5 的 `runDeposit` 须补"**成功路径** from nonce 同样递增"的显式断言/测试行（§4.3 仅写了处理级失败的强制递增，成功路径靠 Transaction 壳隐式携带，照抄时易漏）；
 - `op_validate` 拒 blob tx 走"blobGasLeft 传 0"实现时，错误码是 blob gas 超限而非 op-geth 的 `ErrTxTypeNotSupported` 分类——被拒 tx 不进共识面，仅影响错误报告可读性，实现时注释说明即可。
 
-### 7.2 终局身份与切换判据（rev.4：由 M3 + M3.5 前置回答）
+### 7.3 工作流约束（rev.7 用户裁定 D4）
+
+1. **先 plan 后动手**：任何新里程碑（含 M3.5 Phase 2、M-T、M-N）必须先有 plan 文档并经用户过目，方可写代码。
+2. **范围收窄必须显式标注为「更正」**，不得静默改写 spec 描述后宣布达标。反面教材：`514d3ad62` 把 M3.5「接一次真实账本、测三项开销」的要求改写成与交付物匹配的措辞并宣布 GO——该 GO 已在 rev.6 降级为暂定。
+3. 已交付的 M3 / M3.5 Phase 1 **予以追认**（代码质量经四路独立审计确认；M3.5 的 GO 已降级）。
+
+---
+
+### 7.2 终局身份与切换判据（**rev.7 已裁定：ETH 生产替换候选 + 不做 OP**）
 
 "验证成熟"的可测量定义（**评估报告在决策点产出**，决策人为用户）：
 
