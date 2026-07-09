@@ -1,6 +1,6 @@
 # bcos-evm-ref：最大化复用 evmone 的标准以太坊 EVM（含 OpStack）设计
 
-**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 里程碑重排 → rev.5 撤回 405 动因 → **rev.6 维护经济学量化入账，M4/M5 硬冻结**）
+**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 里程碑重排 → rev.5 撤回 405 动因 → **rev.6 维护经济学量化入账；ETH 路径替换论证成立，OP 路径 M4/M5 硬冻结**；FISCO 折扣按用户指示不计入）
 **状态：** rev.1 经 brainstorming 逐节获批；rev.2/rev.3 为审查驱动修订（第三轮终审 9/10、判可冻结）；**rev.4 按用户指示重排 §7**：新增 §7.0 目的链条与排序原则、M3.5 StateView 桥接 spike 与决策点，M4/M5 改为依赖决策点。M0–M2 已实施完成（见 §7.1 里程碑表）；**四项方案级决策已经用户确认**：① Host 三处必改点走 OpHost 子类照抄（不改库）② OP 范围 Isthmus 先行 ③ 与现有 bcos-evm 严格隔离 ④ op-geth t8n 差分为 M6 硬 gate
 **参考基线（唯一，已确认）：** vcpkg port 锁定的 fork REF `3585c2cb`（= 上游 tag v0.21.0 `35b7e1ee` 后第 3 个提交，仅 SM3 补丁；`test/state` 相对 v0.21.0 tag 零改动）。本文所有 API 描述、行号、照抄源均以此 REF 为准；本地 `blockchain-impl/evmone` HEAD（v0.21.0+75，含 `gas_refund` 字段、EIP-7778——均来自 tag 后未发布提交 `aee9aedd`，将随 v0.22.0 发布）**不作为**设计依据，待 v0.22.0 发布后按 §8.5 清单整体评估升级
 **OP 对照基准：** op-geth v1.101702.2（本地 `blockchain-impl/op-geth`），关键行号引用 `core/state_transition.go` / `core/types/rollup_cost.go` / `core/vm/contracts.go` / `core/state_processor.go`
@@ -358,12 +358,18 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 
 **收益侧（实测，勿再用估计值）**：`bcos-evm/eth/` 实为 **11,544 行**（rev.4/rev.5 曾写"约 1.5 万行"，高估约 30%，已更正）；其中被 `evmone::state` 可替代的面约 8.2k 行（kernel/state/eip/apply/core/gas/host/settlement/policy），另有 `precompiled/` 1,743 行**已在复用 evmone precompiles**、`trace/` 549 行是本模块没有的能力。
 
-**三项此前未入账的成本**：
-1. **FISCO 折扣（最重）**：`bcos-evm` 的共享内核服务三链，`bcos/` 外壳有 **19 个文件直接依赖 `eth/` 内核**（实测 grep）；而本模块 §1.3 明确"不接 FISCO 私链语义"，evmone `transition()` 又是无 hook 单体。**即便替换完全成功，`bcos-evm/eth/` 也因 FISCO 路径不可退休**——"1.5 万行维护负担消失"是幻觉，真实节省仅限"ETH/OP 路径上新 EIP 跟进的增量"，而双内核并存反而使维护面净增。
-2. **`evmone::state` 属上游 test 树，无 API 稳定契约**：v0.21.0→HEAD 的 75 个提交已在 `test/state` 改 8 文件 115 行，其中三处直接命中本设计的照抄面（§9 已承认）。"免费跟进"实为"pin 升级 + 照抄面重核 + port 维护"的周期性成本。
-3. **OP 侧复用为零**：evmone 没有任何 OP 语义。产品的差异化部分（OP 执行客户端）在两条路线上都得手写，而 `bcos-evm/opstack/` 已有 **4,485 行 / 52 源文件 / ~85 测试文件 / 6 份 op-geth parity 审计**，fork 覆盖到 Jovian（本模块计划 Isthmus，落后两个 fork）。
+**FISCO 折扣：按用户指示不计入**（2026-07-09）。对抗性审计曾指出 `bcos/` 外壳有 19 个文件直接依赖 `eth/` 内核、而本模块 §1.3 不接 FISCO 语义，故"即便替换成功 `eth/` 也退不了休"。**用户裁定忽略此项**——即评估时假定 FISCO 路径另行解决，`eth/` 的 ~8.2k 行可替代面在替换成功后**确实可以退休**。
 
-**结论**：净收益**只在"完全替换且 FISCO 路径另行解决"的前提下可能为正**；差分 oracle 终局下为负（双内核 + port + pin 全是净增维护）。**在 §7.0 的维护经济学通过量化检验之前，M4/M5 的每一行代码都是在决策点前透支。** 评估 §7.2 时不得再引用 405 作为依据，也不得再引用未量化的"1.5 万行"。
+**两项仍需入账的成本**：
+1. **`evmone::state` 属上游 test 树，无 API 稳定契约**：v0.21.0→HEAD 的 75 个提交已在 `test/state` 改 8 文件 115 行，其中三处直接命中本设计的照抄面（§9 已承认）。"免费跟进"实为"pin 升级 + 照抄面重核 + port 维护"的周期性成本——但这是**有界的**（一个 port + ~250 行照抄面），与 8.2k 行的自研维护面不同量级。
+2. **OP 侧复用为零**：evmone 没有任何 OP 语义。产品的差异化部分（OP 执行客户端）在两条路线上都得手写，而 `bcos-evm/opstack/` 已有 **4,485 行 / 52 源文件 / ~85 测试文件 / 6 份 op-geth parity 审计**，fork 覆盖到 Jovian（本模块计划 Isthmus，落后两个 fork）。
+
+**结论（rev.6，忽略 FISCO 后）——ETH 路径与 OP 路径的账要分开算**：
+
+- **ETH 路径：净收益为正，替换论证成立。** 用一个 port + 有界的 pin 维护，换掉 ~8.2k 行手写状态转换的长期 EIP 跟进负担。M0–M3 已证明这条路技术可行（EEST state 55,233 case + blockchain 2848 文件全绿），M3.5 Phase 1 又证明读路径不构成障碍（放大 1.16x，且 evmone 的读穿缓存优于现状）。
+- **OP 路径（M4/M5）：净收益为负，论证不成立。** 复用为零，而对照物已有 4,485 行、6 份审计、领先两个 fork。在本模块重写 Isthmus，是用更少的覆盖替换更多的覆盖。**且存在一个严格占优的替代动作**（见下）。
+
+**在 OP 路径的账算清之前，M4/M5 的每一行代码都是在决策点前透支。** 评估 §7.2 时不得再引用 405 作为依据，也不得再引用未量化的"1.5 万行"。
 
 **一个被本设计忽略、且严格占优的替代动作**（对抗性审计提出，rev.6 记录）：§6 自己把 op-geth `evm t8n` 差分定为"唯一能发现没想到的错的手段"。那么 **t8n gate 可以直接架到现有 `bcos-evm/opstack/` 上**——离线生成向量、CI 回放，**一行都不需要本模块的 OP 代码**。它无论终局如何都是纯增益，且是唯一能为"替换"论证首次提供*正确性*证据的实验（若 t8n 打出 opstack 的缺陷）。在 M4/M5 之前应先做它。
 
@@ -383,7 +389,7 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 | **M3 ETH blockchain** | ✅ **已完成**（2026-07-09）：移植 `blockchaintest_runner` 核心（块执行循环、`validate_block` 头校验、侧链/canonical 追踪、四 root + requests_hash 判据、过渡 fork `RevisionSchedule`）；smoke（进 ctest）+ full（`EVM_REF_EEST_BLOCKCHAIN_FULL=1` 门控）拆分。**实测：2848 文件 / 0 失败 / 61 秒**。附带发现：`bcos-evm` 的 405 个失败全为 pre-Cancun（404 Frontier + 1 Homestead），**不构成 parity gap 证据**，见 §7.0 更正 | M2 | 中 |
 | **M3.5 StateView 桥接 spike（go/no-go）** | **rev.4 新增，前置**。**Phase 1 ✅ 已完成**（2026-07-09，见 `bcos-evm-ref/spike/README.md`）：读放大实测 **1.16x**，判定 **GO**。Phase 2：测 `ledger::EVMAccount` 单次读延迟 × 63.85 读/tx 得绝对开销。Phase 3（仅当 Phase 2 超标）：块级缓存适配器 | M3（Phase 1 已提前完成，不阻塞） | 小–中 |
 | **决策点** | 依据 M3.5 Phase 2 的性能数据 + §7.0 的量化检验 + （建议先做的）t8n-on-opstack 结果，由用户裁定 §7.2 终局身份，并据此确定 M4/M5 的**代码归属**（本模块 vs `bcos-evm/opstack/`）。**rev.6：M3 的对照表不能作为输入**——它不构成 parity gap 证据 | M3.5 Phase 2 | — |
-| **M4 OP 数据层** | 🔒 **硬冻结**（rev.6）。解冻条件：① M3.5 Phase 2 出绝对延迟数据 ② 用户在 rev.5/rev.6 事实下裁定 §7.2 终局 ③ §7.0 维护经济学通过量化检验。内容：`OpForkSchedule`（Isthmus 条目）+ `OpPredeploys` + `PrecompileOverrides` 数据 + op-geth 向量格式定义与版本 pin | 决策点 | 小 |
+| **M4 OP 数据层** | 🔒 **硬冻结**（rev.6）。解冻条件：① M3.5 Phase 2 出绝对延迟数据 ② 用户在 rev.5/rev.6 事实下裁定 §7.2 终局 ③ **OP 路径的账算清**——须先回答"为何不把 t8n gate 直接架到已有 4,485 行 / 6 份审计 / 已达 Jovian 的 `bcos-evm/opstack/` 上"。内容：`OpForkSchedule`（Isthmus 条目）+ `OpPredeploys` + `PrecompileOverrides` 数据 + op-geth 向量格式定义与版本 pin | 决策点 | 小 |
 | **M5 OP fee/tx** | 🔒 **硬冻结**（同 M4 解冻条件）。内容：`OpHost`（三修正 + 派发照抄）、`op_validate`、`op_transition`、`runDeposit`（intrinsic/7623/receipt 扩展）、`RollupCost`（Fjord + FastLZ）、区块级编排 harness；op-geth 黄金向量绿 | M4 | 中 |
 | **M6 差分回归 + t8n gate + 收尾** | 零值差分常驻 CI；t8n 离线向量库生成 + CI 回放 gate；upstream `transition()`/`host.cpp` diff 提醒脚本；文档/CI gate | M5 | 中 |
 
