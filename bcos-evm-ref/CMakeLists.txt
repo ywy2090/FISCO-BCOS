@@ -26,6 +26,7 @@ add_library(bcos-evm-ref-opstack STATIC
     opstack/OpFeeParams.cpp
     opstack/OpPredeploys.cpp
     opstack/RollupCost.cpp
+    opstack/OpValidate.cpp
 )
 add_library(bcosevmref::opstack ALIAS bcos-evm-ref-opstack)
 target_include_directories(bcos-evm-ref-opstack PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

@@ -20,6 +20,7 @@ add_executable(bcos-evm-ref-opstack-tests
     opstack/OpDepositTxTest.cpp
     opstack/OpPredeploysTest.cpp
     opstack/RollupCostTest.cpp
+    opstack/OpValidateTest.cpp
 )
 target_compile_definitions(bcos-evm-ref-opstack-tests PRIVATE
     EVM_REF_OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/opstack"
