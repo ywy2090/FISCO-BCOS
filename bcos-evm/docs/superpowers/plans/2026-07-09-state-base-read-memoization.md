@@ -1,5 +1,35 @@
 # M-N：`State` base-view 读记忆化（读穿缓存 + 负缓存）实施计划
 
+> ## 🔴 状态：ON HOLD——核心不变量被审查证伪（2026-07-09，四路审查后）
+>
+> **本 plan 的不变量（"base view 在 `State` 生存期内不可变"）在 FISCO 路径上不成立**，反例链条已实证闭合：
+> 1. CREATE 到地址 A → 碰撞检查先读 A（`eth/kernel/execution/CreateDeployment.h:79`）→ memo 将缓存"A 不存在"；
+> 2. `FiscoEvmHostHooks::bumpContractCreateNonce`（`bcos/FiscoEvmHostHooks.cpp:133`）**执行中途**经
+>    `persistContractCreateNonce`（`transaction-executor/.../TransactionExecutorImpl.h:261`）把 A 的 nonce
+>    **直写进 `LedgerStateView` 底下的 `m_rollbackableStorage`**；
+> 3. 内层 revert → journal 撤掉 A 的 overlay 条目；
+> 4. 同 tx 再读 A：现行代码重读 base（看到 nonce），memo 版返回过期的"不存在"——**FISCO 共识路径行为分歧**。
+>
+> （已核实安全的两处：FISCO `buyGas` 在 `applyFiscoMessageTx()` 之前、`refundGas` 在其之后——均在 `State`
+> 生存期外，`TransactionExecutorImpl.h:166/169/183` 时序为证。ETH/OP 路径未发现中途写 base。）
+>
+> **原 Task 1 Step 1 的审计范围（只 grep `eth/kernel`+`eth/apply`+`applyStateDiff`）看不见上述反例**——
+> 正确范围必须含 `transaction-executor/` 与 `bcos-evm/bcos/`，且要查的是"谁写 view 底下的存储"，
+> 不是"谁碰 State"。
+>
+> **解除 HOLD 的条件（任选其一 + 补充项）**：
+> - (a) memo 范围收窄为 ETH/OP 路径专用（FISCO 经构造参数禁用），或
+> - (b) 给 `persistContractCreateNonce` 加 memo 失效钩子（耦合面大，不推荐），或
+> - (c) 证明该分歧点不可达（须给出可复核的论证，而非 grep 缺席）。
+> - 补充项（无论选哪条）：先做 **M3.5 Phase 2** 给"每省一次读"定价——若单次重复读只是微秒级内存查找
+>   （executor 存储是 storage2 View 分层 + 后端缓存，"协程账本往返"的时间成本从未实测），本 plan 应降级为
+>   仅 Task 2 的负缓存或干脆不做。
+> - 其余审查发现（须在解除 HOLD 后的修订版吸收）：`mutable_account()` 裸读须纳入（Task 5 的"必然命中"
+>   因果链原文是错的，真实机制是 `journal_account_once→find()` 且依赖 checkpoint 非空）；覆盖面如实改为
+>   13/23 调用点；code 在 memo 与 overlay 双份拷贝的内存成本入风险表；Task 6 用代价表加权计读数 + 记录
+>   墙钟时间；标题改"账户字段读记忆化"并写明 storage（占总读 ~31%）留存在外；ADR 记 `State` 单线程前提。
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 消除 `bcos::evm::state::State` 对 base `StateView` 的重复读——同一笔交易内对同一账户/字段的重复冷读，以及 `build_diff()` 对每个 overlay 条目的整账户重载。在 `LedgerStateView` 背书下，每一次 base 读都是一次 `task::syncWait` 协程账本往返。
