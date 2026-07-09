@@ -9,7 +9,7 @@ namespace bcos::evmref
 /// 测试后端直接用 evmone::test::TestState。
 /// 真账本桥接时在此实现 evmone::state::StateView 的三个只读方法；
 /// 注意 StateView 是同步 noexcept 接口且 get_account_code 按值返回整段代码，
-/// 桥接协程账本的性能评估见 spec §7.1。
+/// 桥接协程账本的性能评估见 spec §7.2（M3.5 spike，go/no-go）。
 using StateView = evmone::state::StateView;
 using BlockHashes = evmone::state::BlockHashes;
 }  // namespace bcos::evmref

@@ -429,7 +429,7 @@ namespace bcos::evmref
 /// 测试后端直接用 evmone::test::TestState。
 /// 真账本桥接时在此实现 evmone::state::StateView 的三个只读方法；
 /// 注意 StateView 是同步 noexcept 接口且 get_account_code 按值返回整段代码，
-/// 桥接协程账本的性能评估见 spec §7.1。
+/// 桥接协程账本的性能评估见 spec §7.2（M3.5 spike）。
 using StateView = evmone::state::StateView;
 using BlockHashes = evmone::state::BlockHashes;
 }  // namespace bcos::evmref
@@ -995,5 +995,6 @@ git commit -m "feat(bcos-evm-ref): wire into root build (BCOS_EVM_REF option) an
 ## 后续 Plan（本 plan 范围外，按 spec §7 关键路径）
 
 - **M3 plan**：ETH blockchain fixtures（区块头验证按 spec §1.3 裁剪移植 `blockchaintest_runner` 逻辑）。
-- **M4+M5 plan**：OpStack Isthmus（OpForkSchedule/OpPredeploys 数据层 → OpHost/op_validate/op_transition/runDeposit/RollupCost），依赖本 plan 的 Task 4 接口。
-- **M6 plan**：零值差分 CI 护栏 + op-geth t8n 离线向量 gate + upstream diff 脚本 + §7.1 切换判据评估报告。
+- **M4+M5 plan**：OpStack Isthmus（OpForkSchedule/OpPredeploys 数据层 → OpHost/op_validate/op_transition/runDeposit/RollupCost），依赖本 plan 的 Task 4 接口。**rev.4：代码归属待决策点裁定**（本模块 vs bcos-evm/opstack/），故排在 M3.5 之后。
+- **M3.5 plan**（rev.4 前置）：StateView 桥接真账本 spike → §7.2 go/no-go 评估报告 → 决策点（M4/M5 代码归属）。
+- **M6 plan**：零值差分 CI 护栏 + op-geth t8n 离线向量 gate + upstream diff 脚本。
