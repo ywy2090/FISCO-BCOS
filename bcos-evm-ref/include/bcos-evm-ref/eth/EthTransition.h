@@ -1,7 +1,9 @@
 #pragma once
 
 #include <evmc/evmc.hpp>
+#include <optional>
 #include <span>
+#include <system_error>
 #include <test/state/state.hpp>
 #include <variant>
 

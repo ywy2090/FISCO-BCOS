@@ -7,7 +7,6 @@ add_executable(bcos-evm-ref-eth-tests
 )
 target_link_libraries(bcos-evm-ref-eth-tests PRIVATE
     bcosevmref::eth
-    GTest::gtest
     GTest::gtest_main
 )
 add_test(NAME BcosEvmRefEthTests COMMAND bcos-evm-ref-eth-tests)
