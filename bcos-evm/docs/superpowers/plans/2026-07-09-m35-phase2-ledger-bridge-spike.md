@@ -1,5 +1,15 @@
 # M3.5 Phase 2：真实账本 ↔ `evmone::state` 桥接原型与三项开销实测
 
+> ## ⏸️ 状态：已记录，优先级降低（2026-07-09 用户指示）
+>
+> 本 plan 完整就绪但**暂不执行**。两个待办挂起：
+> 1. **阈值未裁定**——预注册判据的 0.5×/2× 是提案值，用户尚未三选一（收紧/保持/放宽）也未决定
+>    是否加绝对上限（如 O ≤ 200µs/tx）。**执行前必须先裁定**，裁定后阈值焊死不再动。
+> 2. 排期由用户后续指定。
+>
+> 依赖提醒：spec §7.2 判据 2（ETH 替换 go/no-go）依赖本 plan 的实测——本 plan 未执行期间，
+> ETH 替换的"生产替换候选"定位维持**未定价**状态（技术可行已证，性能开销未测）。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 兑现 spec rev.4 对 M3.5 的原始要求（Phase 1 未完成的部分）：把 `StateViewAdapter` **接一次真实账本存储栈**（`EVMAccount` over `Rollbackable<MutableStorage>`——生产读路径去掉持久化后端的内存底板），实测三项开销的绝对值——①同步 `noexcept` 桥接开销 ②每 tx 重建 `State` 开销 ③code 按值返回开销——并按**预注册判据**给出 ETH 替换的 go/no-go。同时交付原 M-N 并入的**适配器侧负缓存**（~5 行）并测出其真实收益。
