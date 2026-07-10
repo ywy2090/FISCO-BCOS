@@ -3,7 +3,7 @@
 
 namespace bcos::evmref::opstack
 {
-std::variant<OpTxProperties, std::error_code> op_validate(const evmone::state::StateView& view,
+std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::Transaction& tx,
     evmc::bytes_view signedTxEnvelope, const OpForkConfig& cfg, const OpFeeParams& fee,
     int64_t blockGasLeft)

@@ -44,7 +44,7 @@ TEST(OpValidate, RejectsBlobTx)
     tx.to = 0x0000000000000000000000000000000000001234_address;
     tx.blob_hashes = {0x0100000000000000000000000000000000000000000000000000000000000001_bytes32};
     tx.max_blob_gas_price = 1;
-    const auto r = op_validate(ts, blk(), tx, {}, isthmusConfig(), OpFeeParams{}, 30000000);
+    const auto r = opValidate(ts, blk(), tx, {}, isthmusConfig(), OpFeeParams{}, 30000000);
     ASSERT_TRUE(std::holds_alternative<std::error_code>(r));
     EXPECT_EQ(std::get<std::error_code>(r), std::errc::not_supported);
 }
@@ -59,7 +59,7 @@ TEST(OpValidate, InsufficientForL1CostFails)
         .blob_base_fee = 10000000_u256};
     std::vector<uint8_t> env(50, 0x11);
     const auto r =
-        op_validate(ts, blk(), baseTx(), {env.data(), env.size()}, isthmusConfig(), fee, 30000000);
+        opValidate(ts, blk(), baseTx(), {env.data(), env.size()}, isthmusConfig(), fee, 30000000);
     ASSERT_TRUE(std::holds_alternative<std::error_code>(r));
 }
 
@@ -67,7 +67,7 @@ TEST(OpValidate, SufficientBalancePasses)
 {
     test::TestState ts;
     ts[kSender] = {.nonce = 0, .balance = 1000000000000000000000_u256};
-    const auto r = op_validate(ts, blk(), baseTx(), {}, isthmusConfig(), OpFeeParams{}, 30000000);
+    const auto r = opValidate(ts, blk(), baseTx(), {}, isthmusConfig(), OpFeeParams{}, 30000000);
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(r));
     EXPECT_EQ(std::get<OpTxProperties>(r).l1_cost, intx::uint256{0});
 }

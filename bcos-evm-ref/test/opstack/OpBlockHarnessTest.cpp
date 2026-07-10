@@ -174,10 +174,10 @@ TEST(OpBlockHarness, IsthmusBlockWithAttributesDeposit)
     tx.nonce = 0;
     std::vector<uint8_t> env(50, 0x11);
     const auto v =
-        op_validate(ts, block, tx, {env.data(), env.size()}, isthmusConfig(), fee, blockGasLeft);
+        opValidate(ts, block, tx, {env.data(), env.size()}, isthmusConfig(), fee, blockGasLeft);
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(v));
     const auto& props = std::get<OpTxProperties>(v);
-    const auto txR = op_transition(ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234);
+    const auto txR = opTransition(ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234);
     ASSERT_EQ(txR.status, EVMC_SUCCESS);
     bcos::evmref::applyStateDiff(ts, txR.state_diff);
     blockGasLeft -= txR.gas_used;

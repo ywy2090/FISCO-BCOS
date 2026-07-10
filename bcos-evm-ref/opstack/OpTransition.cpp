@@ -133,7 +133,7 @@ evmc_message build_message(
 }
 }  // namespace
 
-evmone::state::TransactionReceipt op_transition(const evmone::state::StateView& view,
+evmone::state::TransactionReceipt opTransition(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     const evmone::state::Transaction& tx, const OpForkConfig& cfg, evmc::VM& vm,
     const OpTxProperties& props, const OpFeeParams& fee, uint64_t chainId)

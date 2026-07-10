@@ -1,9 +1,33 @@
 # bcos-evm-ref
 
-Spec: `bcos-evm/docs/superpowers/specs/2026-07-08-bcos-evm-ref-evmone-reuse-design.md` (rev.5)
+Spec: `bcos-evm/docs/superpowers/specs/2026-07-09-bcos-evm-ref-rev8-opstack-foundation-design.md` (rev.8.2)
+（前置：`2026-07-08-bcos-evm-ref-evmone-reuse-design.md` rev.7，evmone 基线 / §4.3 OP 接口草图仍有效，冲突以 rev.8 为准）
 
-复用 evmone::state（vcpkg overlay port，REF 3585c2cb）的标准 ETH/OpStack 参考模块。
-与现有 bcos-evm/ 严格隔离（互不 include）。
+复用 evmone::state（vcpkg overlay port，REF 3585c2cb = evmone 0.21.0 + SM3）的 **ETH + OP 统一 evmone 执行底座**：
+`eth/` 为 OpStack 与纯 ETH 的共享内核，`opstack/` 在其之上实现 OP 薄层。
+生产编排仍留 `bcos-evm/opstack/`；与现有 `bcos-evm/` 严格隔离（互不 include / 不链接）。
+
+## 当前阶段（rev.8.2）
+
+| 里程碑 | 状态 |
+|--------|------|
+| M0 overlay 导出 / M1 writeback / M2 EEST state / M3 EEST blockchain / M3.5 P1 读放大 spike | ✅ 完成（见下方验收记录） |
+| M4 OP 数据层（`OpForkSchedule`/`OpPredeploys`/`OpPrecompiles`/`OpFeeParams`/`OpDepositTx` + 向量 schema） | ✅ 完成（11 单测 + `docs/vector-schema.md`） |
+| M5 OP 执行层（`OpHost`/`opValidate`/`opTransition`/`runDeposit`/`RollupCost` + 块级 harness） | ✅ 完成（29 单测含 §4.4 冒烟；零值差分归 M6） |
+| M6 零值差分 + upstream diff 脚本 | ⏳ 待 |
+| M3.5 P2 真账本桥接 / E-b（ref t8n gate + 生产切内核） | 🅿️ **park**（E-b 解冻前不得宣称 OP 路径生产可用 / op-geth 等价，见 spec §1.1 R2） |
+
+## Naming
+
+| 类别 | 风格 | 例 |
+|------|------|-----|
+| 类 / 结构体 | PascalCase | `OpHost`、`DepositTx`、`OpFeeParams` |
+| 自由函数 / 方法 | camelCase | `runTransaction`、`opValidate`、`opTransition`、`runDeposit`、`applyStateDiff` |
+| 结构体字段 | snake_case | `l1_base_fee`、`gas_limit`、`has_operator_fee` |
+| 成员变量 | `m_` + snake_case | `m_chain_id` |
+| 常量 | `OP_*` / `kCamel` | `OP_L1_BLOCK`、`kL1CostIntercept` |
+
+例外：从 evmone 逐行照抄的匿名 ns 助手（如 `build_message`、`process_authorization_list`）保留母本 snake_case，不改名。
 
 ## Build (standalone)
 

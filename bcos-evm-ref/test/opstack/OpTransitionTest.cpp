@@ -48,12 +48,11 @@ TEST(OpTransition, RoutesFeesToFourVaults)
         .operator_fee_constant = 0};
     std::vector<uint8_t> env(50, 0x11);
     const auto v =
-        op_validate(ts, block, tx, {env.data(), env.size()}, isthmusConfig(), fee, 30000000);
+        opValidate(ts, block, tx, {env.data(), env.size()}, isthmusConfig(), fee, 30000000);
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(v));
     const auto& props = std::get<OpTxProperties>(v);
 
-    const auto receipt =
-        op_transition(ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234);
+    const auto receipt = opTransition(ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234);
     ASSERT_EQ(receipt.status, EVMC_SUCCESS);
     bcos::evmref::applyStateDiff(ts, receipt.state_diff);
 
