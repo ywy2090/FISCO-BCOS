@@ -8,8 +8,11 @@
 #include <evmone/constants.hpp>
 #include <evmone/delegation.hpp>
 #include <evmone_precompiles/secp256k1.hpp>
+#include <optional>
+#include <span>
 #include <test/state/bloom_filter.hpp>
 #include <test/state/hash_utils.hpp>
+#include <test/utils/rlp.hpp>
 
 using namespace intx;
 
@@ -23,6 +26,22 @@ constexpr auto SECP256K1N_OVER_2 = evmmax::secp256k1::Curve::ORDER / 2;
 constexpr auto AUTHORIZATION_EMPTY_ACCOUNT_COST = 25000;
 /// EIP-7702: The cost of authorization that sets delegation to an account that already exists.
 constexpr auto AUTHORIZATION_BASE_COST = 12500;
+/// EIP-7702 authorization magic byte (prefix of signing hash).
+constexpr uint8_t kSetCodeMagic = 0x05;
+
+/// Recover the authority address from an EIP-7702 authorization via ecrecover.
+/// signing hash = keccak256(0x05 || rlp([chain_id, address, nonce]))
+std::optional<evmc::address> recoverAuthority(const evmone::state::Authorization& auth)
+{
+    auto msg = evmone::bytes{kSetCodeMagic} +
+               evmone::rlp::encode_tuple(auth.chain_id, auth.addr, auth.nonce);
+    const auto h = evmone::keccak256(msg);
+    const auto r = intx::be::store<evmc::bytes32>(auth.r);
+    const auto s = intx::be::store<evmc::bytes32>(auth.s);
+    return evmmax::secp256k1::ecrecover(std::span<const uint8_t, 32>{h.bytes, 32},
+        std::span<const uint8_t, 32>{r.bytes, 32}, std::span<const uint8_t, 32>{s.bytes, 32},
+        auth.v != 0);
+}
 
 int64_t process_authorization_list(evmone::state::State& state, uint64_t chain_id,
     const evmone::state::AuthorizationList& authorization_list)
@@ -43,25 +62,28 @@ int64_t process_authorization_list(evmone::state::State& state, uint64_t chain_i
         // y_parity must be 0 or 1 for EIP-7702/2930 signatures.
         if (auth.v > 1)
             continue;
-        // TODO: We actually only do "partial" verification by assuming the signature is valid
-        //   when the test has the signer specified.
-        if (!auth.signer.has_value())
-            continue;
-
         // s value must be less than or equal to secp256k1n/2, as specified in EIP-2.
+        // Validated before ecrecover, as op-geth does (ValidateSignatureValues before Recover).
         if (auth.s > SECP256K1N_OVER_2)
             continue;
 
+        // Recover signer: use pre-set signer if available (test shortcut); otherwise ecrecover.
+        std::optional<evmc::address> signer = auth.signer;
+        if (!signer.has_value())
+            signer = recoverAuthority(auth);
+        if (!signer.has_value())
+            continue;  // ecrecover failed → skip this authorization
+
         // Get or create the authority account.
         // It is still empty at this point until nonce bump following successful authorization.
-        auto& authority = state.get_or_insert(*auth.signer, {.erase_if_empty = true});
+        auto& authority = state.get_or_insert(*signer, {.erase_if_empty = true});
 
         // 4. Add authority to accessed_addresses (as defined in EIP-2929.)
         authority.access_status = EVMC_ACCESS_WARM;
 
         // 5. Verify the code of authority is either empty or already delegated.
         if (authority.code_hash != evmone::state::Account::EMPTY_CODE_HASH &&
-            !evmone::is_code_delegated(state.get_code(*auth.signer)))
+            !evmone::is_code_delegated(state.get_code(*signer)))
             continue;
 
         // 6. Verify the nonce of authority is equal to nonce.
