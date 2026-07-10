@@ -1,0 +1,162 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_7702_extcodesize_extcodehash": {
+    "_info": {
+      "id": "isthmus_7702_extcodesize_extcodehash",
+      "comment": "Two txs in one block: tx0 installs a 7702 delegation on AUTH (addr5) pointing at MARKER (reusing the B1 pattern, but this vector's `to` is a no-op call target -- the deadbeef predeploy stand-in address 0x...dEaD -- so nothing else runs in tx0 besides authorization processing); tx1 is a plain EIP-1559 call into a PROBER contract that does EXTCODESIZE(AUTH)-\u003eslot0 and EXTCODEHASH(AUTH)-\u003eslot1. Per EIP-7702, both opcodes must observe the 23-byte delegation indicator (0xef0100||target), NOT MARKER's own (6-byte) code or codehash -- a classic 7702 gotcha (external observers see the indicator, only internal calls actually execute the delegate's code).",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "eip7702",
+        "delegation",
+        "extcodesize",
+        "extcodehash"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x000000000000000000000000000000000000beef": {
+        "code": "0x602a60005500",
+        "balance": "0x0"
+      },
+      "0x000000000000000000000000000000000000c0de": {
+        "code": "0x73e1ab8145f7e55dc933d51a18c793f901a3a0b2763b60005573e1ab8145f7e55dc933d51a18c793f901a3a0b2763f60015500",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "balance": "0x0"
+      },
+      "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf": {
+        "balance": "0x8ac7230489e80000"
+      },
+      "0x4200000000000000000000000000000000000015": {
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        },
+        "balance": "0x0",
+        "nonce": "0x1"
+      },
+      "0xe1ab8145f7e55dc933d51a18c793f901a3a0b276": {
+        "balance": "0x0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "setcode",
+            "type": "0x04",
+            "_op_from": "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+            "nonce": "0x0",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "gasLimit": "0x30d40",
+            "to": "0x00000000000000000000000000000000deaddead",
+            "value": "0x0",
+            "data": "0x",
+            "chainId": "0x2105",
+            "accessList": [],
+            "_op_authorization_list": [
+              {
+                "chainId": "0x2105",
+                "address": "0x000000000000000000000000000000000000beef",
+                "nonce": "0x0",
+                "authority": "0xe1ab8145f7e55dc933d51a18c793f901a3a0b276",
+                "yParity": "0x1",
+                "r": "0x600b6282cb7dec776cc621cb31b471c204aef7deef45d6a1067e857a81a4cdcd",
+                "s": "0x41e7f7bfe497613e4240901171c5ed8eb28869b346560f93b25523f350ce7aea"
+              }
+            ],
+            "v": "0x1",
+            "r": "0x1687d9a6ce434065e2e668e256c30f8634e58b66a8c5320a58cabd8a5376401b",
+            "s": "0x5c68a6e10a510129698a41d5ec3853622ebe14730f7278da2b0269ed4df08e7b",
+            "_op_raw": "0x04f8cd82210580843b9aca00847735940083030d409400000000000000000000000000000000deaddead8080c0f85ef85c82210594000000000000000000000000000000000000beef8001a0600b6282cb7dec776cc621cb31b471c204aef7deef45d6a1067e857a81a4cdcda041e7f7bfe497613e4240901171c5ed8eb28869b346560f93b25523f350ce7aea01a01687d9a6ce434065e2e668e256c30f8634e58b66a8c5320a58cabd8a5376401ba05c68a6e10a510129698a41d5ec3853622ebe14730f7278da2b0269ed4df08e7b"
+          },
+          {
+            "_op_type": "eip1559",
+            "type": "0x02",
+            "nonce": "0x1",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "gasLimit": "0x186a0",
+            "to": "0x000000000000000000000000000000000000c0de",
+            "value": "0x0",
+            "data": "0x",
+            "chainId": "0x2105",
+            "accessList": [],
+            "v": "0x1",
+            "r": "0xb30bac738a2d0b55421f031cec7a1a693cf0351913ff899e683395aea29fe1c5",
+            "s": "0x129ec5f1906eafd558472b764b85f6826529b6c34e7d2aa8b05756b23d8b69f5",
+            "_op_raw": "0x02f86d82210501843b9aca008477359400830186a094000000000000000000000000000000000000c0de8080c001a0b30bac738a2d0b55421f031cec7a1a693cf0351913ff899e683395aea29fe1c5a0129ec5f1906eafd558472b764b85f6826529b6c34e7d2aa8b05756b23d8b69f5"
+          }
+        ]
+      }
+    ],
+    "postState": {
+      "0x000000000000000000000000000000000000c0de": {
+        "code": "0x73e1ab8145f7e55dc933d51a18c793f901a3a0b2763b60005573e1ab8145f7e55dc933d51a18c793f901a3a0b2763f60015500",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000017",
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0xf613cfbc304513d0ab3f8d6cafc5a27b8b09034b1c0d9097305679bbf4571844"
+        },
+        "balance": "0x0"
+      },
+      "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf": {
+        "balance": "0x8ac6648b69ed9e75",
+        "nonce": "0x2"
+      },
+      "0x4200000000000000000000000000000000000011": {
+        "balance": "0x5f3c29905000"
+      },
+      "0x4200000000000000000000000000000000000019": {
+        "balance": "0x5f3c29905000"
+      },
+      "0x420000000000000000000000000000000000001a": {
+        "balance": "0xccbb3b00"
+      },
+      "0x420000000000000000000000000000000000001b": {
+        "balance": "0x1e868b"
+      }
+    },
+    "_op_expected": {
+      "receipts": [
+        {
+          "type": "0x4",
+          "status": "0x1",
+          "gasUsed": "0x8fc0",
+          "logsCount": 0
+        },
+        {
+          "type": "0x2",
+          "status": "0x1",
+          "gasUsed": "0x10948",
+          "logsCount": 0
+        }
+      ],
+      "blockGasUsed": "0x19908"
+    }
+  }
+}

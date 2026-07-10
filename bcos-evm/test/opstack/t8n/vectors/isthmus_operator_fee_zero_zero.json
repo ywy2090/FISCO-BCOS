@@ -1,0 +1,103 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_operator_fee_zero_zero": {
+    "_info": {
+      "id": "isthmus_operator_fee_zero_zero",
+      "comment": "operatorFeeScalar=0, operatorFeeConstant=0 (Isthmus formula gas*scalar/1e6+constant): OperatorFeeVault's balance must be unchanged by this tx (delta=0) -- both terms vanish.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "operator-fee",
+        "isthmus",
+        "zero"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "balance": "0x0",
+        "nonce": "0x1"
+      },
+      "0x420000000000000000000000000000000000001b": {
+        "balance": "0x0"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x8ac7230489e80000"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "eip1559",
+            "type": "0x02",
+            "nonce": "0x0",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "gasLimit": "0x5208",
+            "to": "0x00000000000000000000000000000000b0b0b0b0",
+            "value": "0x0",
+            "data": "0x",
+            "chainId": "0x2105",
+            "accessList": [],
+            "v": "0x0",
+            "r": "0x462a379ff68d95d2f03ec158c3d636430a7f9296f91c1521809f62eede1a591a",
+            "s": "0x65d9a958f0bc17b7020b57fea50ed85fd420331d088a5638ebe35f0806f1e702",
+            "_op_raw": "0x02f86c82210580843b9aca0084773594008252089400000000000000000000000000000000b0b0b0b08080c080a0462a379ff68d95d2f03ec158c3d636430a7f9296f91c1521809f62eede1a591aa065d9a958f0bc17b7020b57fea50ed85fd420331d088a5638ebe35f0806f1e702"
+          }
+        ]
+      }
+    ],
+    "postState": {
+      "0x4200000000000000000000000000000000000011": {
+        "balance": "0x1319718a5000"
+      },
+      "0x4200000000000000000000000000000000000019": {
+        "balance": "0x1319718a5000"
+      },
+      "0x420000000000000000000000000000000000001a": {
+        "balance": "0x5f5e1000"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x8ac6fcd147755000",
+        "nonce": "0x1"
+      }
+    },
+    "_op_expected": {
+      "receipts": [
+        {
+          "type": "0x2",
+          "status": "0x1",
+          "gasUsed": "0x5208",
+          "logsCount": 0
+        }
+      ],
+      "blockGasUsed": "0x5208"
+    }
+  }
+}

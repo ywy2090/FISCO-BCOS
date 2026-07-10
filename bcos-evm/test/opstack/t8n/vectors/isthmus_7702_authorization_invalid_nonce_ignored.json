@@ -1,0 +1,125 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_7702_authorization_invalid_nonce_ignored": {
+    "_info": {
+      "id": "isthmus_7702_authorization_invalid_nonce_ignored",
+      "comment": "AUTH (addr7) has state nonce 5, but the authorization tuple claims nonce 7 (mismatch, too high). Per EIP-7702, an authorization whose nonce does not match the authority's current state nonce is silently skipped (not an error) -- the outer tx still succeeds (status=1), but AUTH's code/nonce are left completely unchanged (no delegation installed, no nonce bump). Negative-space companion to B4.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "eip7702",
+        "authorization",
+        "nonce",
+        "invalid",
+        "negative"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x000000000000000000000000000000000000beef": {
+        "code": "0x602a60005500",
+        "balance": "0x0"
+      },
+      "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf": {
+        "balance": "0x8ac7230489e80000"
+      },
+      "0x4200000000000000000000000000000000000015": {
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        },
+        "balance": "0x0",
+        "nonce": "0x1"
+      },
+      "0xd41c057fd1c78805aac12b0a94a405c0461a6fbb": {
+        "balance": "0x0",
+        "nonce": "0x5"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "setcode",
+            "type": "0x04",
+            "_op_from": "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+            "nonce": "0x0",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "gasLimit": "0x30d40",
+            "to": "0x00000000000000000000000000000000deaddead",
+            "value": "0x0",
+            "data": "0x",
+            "chainId": "0x2105",
+            "accessList": [],
+            "_op_authorization_list": [
+              {
+                "chainId": "0x2105",
+                "address": "0x000000000000000000000000000000000000beef",
+                "nonce": "0x7",
+                "authority": "0xd41c057fd1c78805aac12b0a94a405c0461a6fbb",
+                "yParity": "0x1",
+                "r": "0x58476d211560478df43dd7e92342770cc4a8bdbbffe8d2c6b41857a2ba32e4cc",
+                "s": "0x474349c9bafe51fb25862a2347f0f273d14c60c239d57f0d115ceb274fc7dec3"
+              }
+            ],
+            "v": "0x0",
+            "r": "0xadcb8905b07a69eef4c45c5516d2c0d026dc6009c1436dfd898b818f12b8ff5c",
+            "s": "0x147cb9478c9ff2c8443fef6c7c129af3b5efd5db9a01fcbf723047294ed34d4e",
+            "_op_raw": "0x04f8cd82210580843b9aca00847735940083030d409400000000000000000000000000000000deaddead8080c0f85ef85c82210594000000000000000000000000000000000000beef0701a058476d211560478df43dd7e92342770cc4a8bdbbffe8d2c6b41857a2ba32e4cca0474349c9bafe51fb25862a2347f0f273d14c60c239d57f0d115ceb274fc7dec380a0adcb8905b07a69eef4c45c5516d2c0d026dc6009c1436dfd898b818f12b8ff5ca0147cb9478c9ff2c8443fef6c7c129af3b5efd5db9a01fcbf723047294ed34d4e"
+          }
+        ]
+      }
+    ],
+    "postState": {
+      "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf": {
+        "balance": "0x8ac6cf57b129d1da",
+        "nonce": "0x1"
+      },
+      "0x4200000000000000000000000000000000000011": {
+        "balance": "0x29d635a8e000"
+      },
+      "0x4200000000000000000000000000000000000019": {
+        "balance": "0x29d635a8e000"
+      },
+      "0x420000000000000000000000000000000000001a": {
+        "balance": "0x6d5d2b00"
+      },
+      "0x420000000000000000000000000000000000001b": {
+        "balance": "0xf4326"
+      }
+    },
+    "_op_expected": {
+      "receipts": [
+        {
+          "type": "0x4",
+          "status": "0x1",
+          "gasUsed": "0xb3b0",
+          "logsCount": 0
+        }
+      ],
+      "blockGasUsed": "0xb3b0"
+    }
+  }
+}

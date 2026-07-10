@@ -1,0 +1,84 @@
+{
+  "jovian_7702_authorize_and_call": {
+    "_info": {
+      "id": "jovian_7702_authorize_and_call",
+      "comment": "Same scenario as isthmus_7702_authorize_and_call (SPONSOR authorizes+calls AUTH in one tx) but under the Jovian fork -- confirms EIP-7702 delegation-install-then-call semantics are fork-independent, exercised simultaneously with Jovian's different operator-fee formula (gas*scalar*100+constant) on the very same tx.",
+      "source": "opt8n",
+      "hardforks": [
+        "jovian"
+      ],
+      "tags": [
+        "eip7702",
+        "authorization",
+        "delegation",
+        "jovian"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        }
+      },
+      "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF": {
+        "balance": "10000000000000000000",
+        "nonce": "0"
+      },
+      "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69": {
+        "balance": "0",
+        "nonce": "0",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000000": "0x00"
+        }
+      },
+      "0x000000000000000000000000000000000000BEEF": {
+        "balance": "0",
+        "code": "0x602a60005500"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "setcode",
+            "nonce": "0",
+            "to": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",
+            "value": "0",
+            "gasLimit": "200000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+            "_op_authorization_list": [
+              {
+                "chainId": "8453",
+                "address": "0x000000000000000000000000000000000000BEEF",
+                "nonce": "0",
+                "authSecretKey": "0x0000000000000000000000000000000000000000000000000000000000000003"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

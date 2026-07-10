@@ -1,0 +1,54 @@
+{
+  "isthmus_boundary_l1cost_insufficient": {
+    "_info": {
+      "id": "isthmus_boundary_l1cost_insufficient",
+      "comment": "Sender balance is exactly 1 wei short of the total funds this tx requires (gasUsed*effectiveGasPrice + l1Fee = 21000*2000000000 + 1600000000 = 42001600000000 wei, learned from a first dry run of this exact tx with a generous balance -- see generator/README.md's 'D1/D5: two-pass precision derivation' section). Uses _op_expect_rejected: op-geth's buyGas() must refuse for insufficient funds before any execution.",
+      "source": "opt8n",
+      "hardforks": ["isthmus"],
+      "tags": ["boundary", "l1-cost", "rejected"]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf": {
+        "balance": "42001599999999",
+        "nonce": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": { "number": "2", "timestamp": "100", "gasLimit": "30000000" },
+        "transactions": [
+          {
+            "nonce": "0",
+            "to": "0x00000000000000000000000000000000B0B0B0B0",
+            "value": "0",
+            "gasLimit": "21000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "_op_expect_rejected": true
+          }
+        ]
+      }
+    ]
+  }
+}

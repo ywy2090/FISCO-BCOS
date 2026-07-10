@@ -1,0 +1,87 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_operator_fee_insufficient_balance": {
+    "_info": {
+      "id": "isthmus_operator_fee_insufficient_balance",
+      "comment": "operatorFeeConstant is set to an absurdly large flat fee (10 ether) that the sender's balance (exactly gasLimit*maxFeePerGas, zero headroom for L1 cost or operator fee) cannot possibly cover. Uses the new _op_expect_rejected mechanism: op-geth's own buyGas() must refuse this tx for insufficient funds before any execution happens (ErrInsufficientFunds family), so the generator records `_op_expected.rejected` instead of a receipt. Exercises whether bcos-evm/opstack's own entry-level balance precheck folds the operator fee into the total-funds-required computation (not just L1 cost + gas*price).",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "operator-fee",
+        "isthmus",
+        "insufficient-balance",
+        "rejected"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x0000000000000000000000000000000000000000000000008ac7230489e80000"
+        },
+        "balance": "0x0",
+        "nonce": "0x1"
+      },
+      "0x420000000000000000000000000000000000001b": {
+        "balance": "0x0"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x2632e314a000"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "eip1559",
+            "type": "0x02",
+            "nonce": "0x0",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "gasLimit": "0x5208",
+            "to": "0x00000000000000000000000000000000b0b0b0b0",
+            "value": "0x0",
+            "data": "0x",
+            "chainId": "0x2105",
+            "accessList": [],
+            "v": "0x0",
+            "r": "0x462a379ff68d95d2f03ec158c3d636430a7f9296f91c1521809f62eede1a591a",
+            "s": "0x65d9a958f0bc17b7020b57fea50ed85fd420331d088a5638ebe35f0806f1e702",
+            "_op_raw": "0x02f86c82210580843b9aca0084773594008252089400000000000000000000000000000000b0b0b0b08080c080a0462a379ff68d95d2f03ec158c3d636430a7f9296f91c1521809f62eede1a591aa065d9a958f0bc17b7020b57fea50ed85fd420331d088a5638ebe35f0806f1e702"
+          }
+        ]
+      }
+    ],
+    "postState": {},
+    "_op_expected": {
+      "receipts": [],
+      "blockGasUsed": "0x0",
+      "rejected": {
+        "txIndex": 0,
+        "reason": "insufficient funds for gas * price + value: address 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf have 42000000000000 want 10000042001600000000"
+      }
+    }
+  }
+}

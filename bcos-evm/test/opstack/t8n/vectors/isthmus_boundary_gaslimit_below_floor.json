@@ -1,0 +1,84 @@
+{
+  "_op_test_vectors": {
+    "version": "1.1.0",
+    "generator": "opt8n",
+    "generator_commit": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07",
+    "fork": "isthmus"
+  },
+  "isthmus_boundary_gaslimit_below_floor": {
+    "_info": {
+      "id": "isthmus_boundary_gaslimit_below_floor",
+      "comment": "1000 bytes of all-nonzero calldata to a plain (code-less) recipient: normal intrinsic gas is 21000+1000*16=37000, but EIP-7623's floorDataGas is 21000+(4*1000)*10=61000. gasLimit=39000 clears the normal-intrinsic check (39000 \u003e= 37000) but not the floor check (39000 \u003c 61000) -- op-geth (state_transition.go's innerExecute, `rules.IsPrague` branch) rejects with ErrFloorDataGas. Uses _op_expect_rejected. Companion to isthmus_boundary_7623_floor_raises_gasused, which uses the identical calldata with a gasLimit large enough to succeed.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "boundary",
+        "eip7623",
+        "floor-gas",
+        "rejected"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "0x2",
+      "currentTimestamp": "0x64",
+      "currentGasLimit": "0x1c9c380",
+      "currentBaseFee": "0x3b9aca00",
+      "currentRandom": "0x1"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "balance": "0x0",
+        "nonce": "0x1"
+      },
+      "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf": {
+        "balance": "0x8ac7230489e80000"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "0x2",
+          "timestamp": "0x64",
+          "gasLimit": "0x1c9c380"
+        },
+        "transactions": [
+          {
+            "_op_type": "eip1559",
+            "type": "0x02",
+            "nonce": "0x0",
+            "maxFeePerGas": "0x77359400",
+            "maxPriorityFeePerGas": "0x3b9aca00",
+            "gasLimit": "0x9858",
+            "to": "0x00000000000000000000000000000000b0b0b0b0",
+            "value": "0x0",
+            "data": "0xabababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab",
+            "chainId": "0x2105",
+            "accessList": [],
+            "v": "0x1",
+            "r": "0x8523f144184dee4ec9b34f5a933d4adc85ecd4a7d0d9d5f5d725b2f310f72297",
+            "s": "0x5b0b71cf85e3abe3c2a8d285aa4e79571290de31889cf7e5e843f57f3484b9d9",
+            "_op_raw": "0x02f9045682210580843b9aca0084773594008298589400000000000000000000000000000000b0b0b0b080b903e8ababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababc001a08523f144184dee4ec9b34f5a933d4adc85ecd4a7d0d9d5f5d725b2f310f72297a05b0b71cf85e3abe3c2a8d285aa4e79571290de31889cf7e5e843f57f3484b9d9"
+          }
+        ]
+      }
+    ],
+    "postState": {},
+    "_op_expected": {
+      "receipts": [],
+      "blockGasUsed": "0x0",
+      "rejected": {
+        "txIndex": 0,
+        "reason": "insufficient gas for floor data gas cost: have 39000, want 61000"
+      }
+    }
+  }
+}

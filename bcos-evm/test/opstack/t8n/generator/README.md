@@ -377,3 +377,195 @@ rediscover them:
    (see `../vectors/DIVERGENCES.md`'s "Fixed pre-commit" section for the full story). **Every
    L1-attributes deposit vector's `_op_deposit.from` must be
    `0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001`.**
+
+## Task 4 (wave 2): fee-env observers, EIP-7702, operator fee, boundaries
+
+Task 4 added ~31 vectors across four categories (fee-environment observer contracts, EIP-7702 ×
+OP-Stack, operator fee, and boundary/rejection cases) plus two generator enhancements
+(`_op_type: "setcode"` and `_op_expect_rejected`). This section documents the design decisions;
+`../vectors/DIVERGENCES.md` records the findings this wave produced.
+
+### Fee-env observer contract (bytecode ↔ mnemonic table)
+
+The observer contract used by every `*_observer_*` vector reads a fixed set of execution-time
+environment values and `SSTORE`s each into a dedicated slot, so a single postState comparison
+exposes every opcode's actual value — this is the "灵魂" of the wave: a hand-audited contract can
+never catch a wrong `CHAINID`/`GASPRICE`/vault-balance-timing bug the way an actual op-geth-vs-
+bcos-evm *execution* comparison can. Deployed at `0x00000000000000000000000000000000FEEDF00D`
+(141 bytes). `pre` must declare all 14 slots with a placeholder value (`"0x00"`, doesn't matter
+which — see "Why `pre` must pre-declare every observed slot" below) or the generator's diff never
+looks at them and the vector's `postState` silently omits the contract entirely.
+
+| Bytes (hex) | Mnemonic | Effect |
+|---|---|---|
+| `46 6000 55` | `CHAINID` `PUSH1 0x00` `SSTORE` | slot0 = chain ID |
+| `3a 6001 55` | `GASPRICE` `PUSH1 0x01` `SSTORE` | slot1 = effective gas price |
+| `41 6002 55` | `COINBASE` `PUSH1 0x02` `SSTORE` | slot2 = block coinbase |
+| `48 6003 55` | `BASEFEE` `PUSH1 0x03` `SSTORE` | slot3 = block base fee |
+| `32 6004 55` | `ORIGIN` `PUSH1 0x04` `SSTORE` | slot4 = tx origin |
+| `43 6005 55` | `NUMBER` `PUSH1 0x05` `SSTORE` | slot5 = block number |
+| `42 6006 55` | `TIMESTAMP` `PUSH1 0x06` `SSTORE` | slot6 = block timestamp |
+| `5a 6007 55` | `GAS` `PUSH1 0x07` `SSTORE` | slot7 = gas remaining at this point |
+| `73<vault11> 31 6008 55` | `PUSH20 <SequencerFeeVault/coinbase>` `BALANCE` `PUSH1 0x08` `SSTORE` | slot8 = vault 0x...0011 balance |
+| `73<vault19> 31 6009 55` | `PUSH20 <BaseFeeVault>` `BALANCE` `PUSH1 0x09` `SSTORE` | slot9 = vault 0x...0019 balance |
+| `73<vault1a> 31 600a 55` | `PUSH20 <L1FeeVault>` `BALANCE` `PUSH1 0x0a` `SSTORE` | slot10 = vault 0x...001a balance |
+| `73<vault1b> 31 600b 55` | `PUSH20 <OperatorFeeVault>` `BALANCE` `PUSH1 0x0b` `SSTORE` | slot11 = vault 0x...001b balance |
+| `47 600c 55` | `SELFBALANCE` `PUSH1 0x0c` `SSTORE` | slot12 = own balance (post value-transfer) |
+| `34 600d 55` | `CALLVALUE` `PUSH1 0x0d` `SSTORE` | slot13 = msg.value |
+| `00` | `STOP` | — |
+
+Full literal: `0x466000553a60015541600255486003553260045543600555426006555a600755734200000000000000000000000000000000000011316008557342000000000000000000000000000000000000193160095573420000000000000000000000000000000000001a31600a5573420000000000000000000000000000000000001b31600b5547600c5534600d5500`
+(assembled programmatically in the vector-authoring script, not hand-typed — see
+`isthmus_observer_normal_basic.in.json`'s `pre` for the deployed copy).
+
+**Design decisions embedded in the vectors, not the contract itself:**
+- Every observer vector pre-funds the four OP-Stack vaults with small, distinct **marker**
+  balances (e.g. 1001/1002/1003/1004) that are *not* what this same tx's own fee settlement would
+  credit. The observed `BALANCE(vault)` reading back exactly the marker (not marker+credit) is the
+  machine-checked confirmation that op-geth defers vault crediting until *after* EVM execution
+  (`core.ApplyTransactionWithEVM` settlement runs after `stateTransitionExecute` returns) — spec
+  §4.3's warning about not crediting vaults before execution, verified empirically rather than
+  assumed. `isthmus_observer_deposit_vault_timing` is the cross-tx companion: it credits the vaults
+  for real via an ordinary transfer in tx0, then reads them in tx1 to check *cross-tx* (not
+  same-tx) visibility.
+- `GAS` (slot7) is compared **exactly**, not just asserted non-zero as the plan's own escape hatch
+  allowed ("如无法稳定则改为只 SSTORE 高位或干脆不测 GAS"). Between two spec-compliant EVMs executing
+  identical fixed bytecode, gas remaining at a fixed point is deterministic — comparing it exactly
+  is strictly more informative (a warm/cold access-list divergence, e.g. EIP-3651 warm-COINBASE,
+  would show up here) and it did not prove flaky across any of the 12 observer vectors actually run.
+- Deposit-context observer vectors (`*_observer_deposit_*`) exist specifically to empirically check
+  `GASPRICE == 0` for a deposit tx's execution — the plan flagged this as resembling "spec §2's
+  recorded Host defect", but reading `ApplyOpStackMessage.cpp` shows `ctx.gasPrice` is only ever set
+  away from its zero default on the *normal*-tx path (`ctx.gasPrice = sidecar.effectiveGasPrice;`
+  runs after the `view.isDeposit()` branch already returned) — i.e. the code looked correct by
+  inspection. The vectors were built anyway (not skipped on the strength of that reading) per the
+  plan's own instruction that this wave's job is to *empirically confirm or refute*, not assume; the
+  replay confirmed op-geth and bcos-evm/opstack agree (`GASPRICE == 0` on both sides).
+
+**Why `pre` must pre-declare every observed slot** (a load-bearing quirk of `diffPostState` in this
+file — see the function's own comments): the diff only re-reads storage slots that were keys in
+`pre[addr].storage`; a `SSTORE` to a slot that was never mentioned in `pre` never shows up in
+`postState`, no matter what value it wrote. This was caught empirically: the first
+`isthmus_observer_normal_basic` run produced a `postState` with the observer contract **entirely
+absent** (balance/nonce/code all matched `pre`, and the diff never looked at any of the 14 slots
+since none were pre-declared) despite the tx succeeding.
+
+**Gas budget**: the observer contract's ~14 `SSTORE`s (most cold zero→nonzero, ~22100 gas each)
+plus 4 cold `BALANCE` reads add up to roughly 300000-320000 gas — the first generation attempt used
+`gasLimit=200000` (copied from the deposit/transfer vectors' convention) and every observer vector
+reverted out of gas; bumped to `gasLimit=800000` (and the nested-call forwarder's own hardcoded
+forwarded-gas amount to `1000000`, outer tx to `1200000`) fixes it with comfortable headroom.
+
+### EIP-7702 vectors: field-form, not `_op_raw`-authoritative
+
+Unlike every other tx kind in this vector matrix, `_op_type: "setcode"` (type 0x04) vectors are
+**not** decoded from `_op_raw` by the replayer — they are read field-by-field (`_op_from`, `nonce`,
+`to`, `value`, `gasLimit`, `maxFeePerGas`, `maxPriorityFeePerGas`, `data`, `_op_authorization_list`),
+the same pattern `_op_deposit` already uses. `_op_raw` is still emitted by the generator (a real
+`tx.MarshalBinary()` signed envelope) for documentation and as an optional DA-size source for
+`rollupCostData`, but the replayer never RLP-decodes it for message construction or sender recovery.
+
+**Why**: `bcos-rpc`'s `Web3Transaction` RLP codec (`bcos-rpc/web3jsonrpc/model/Web3Transaction.h`/
+`.cpp`) only implements EIP-2718 types 0x00–0x03 (`TransactionType` enum tops out at `EIP4844 = 3`)
+— there is no type-0x04/authorization-list decode path to reuse, and building one (plus replicating
+its ecrecover-based `sender()` derivation for the type-0x04 signing-hash locally) is disproportionate
+engineering for a 6-vector wave. It would also mean modifying `bcos-rpc`, a directory outside this
+plan's authorized scope (spec rev.7 D3 authorizes changes to `bcos-evm` only).
+
+**What this scope decision does *not* sacrifice**: the part of EIP-7702 this wave is actually
+testing — authorization-tuple / delegation-installation semantics — is still exercised end-to-end
+against a real op-geth signature. Each `_op_authorization_list` entry carries the genuine
+`chainId`/`address`/`nonce`/`yParity`/`r`/`s` op-geth produced via `types.SignSetCode`; the replayer
+feeds these unmodified into `bcos::evm::SetCodeAuthorization` (leaving `.authority` unset) so that
+`bcos-evm/opstack`'s **own** `recoverAuthorizationAuthority` (`eth/eip/Eip7702.cpp`) performs the
+real secp256k1 recovery at apply time — the same code path a live chain would exercise. Only the
+*outer* tx's sender is taken on trust from the generator's `_op_from` (itself `crypto.PubkeyToAddress`
+over the real signing key, not invented). See `T8nVectorReplayTest.cpp`'s `applySetCodeTx` doc
+comment for the same writeup colocated with the code.
+
+`generator/main.go`'s `"setcode"` case needed no chainConfig or signer changes at all:
+`types.SetCodeTx` already exists upstream, and `types.MakeSigner` already returns an
+Isthmus/Prague-capable signer for this generator's fixed chain config (`IsthmusTime=0` implies
+Prague-equivalent rules are already active) — confirming the plan's own escape hatch ("先查 op-geth
+的 types.SetCodeTx 与 t8ntool 的解析路径，若 _op_raw 已能覆盖则不必改生成器") in the negative direction:
+the generator *did* need a new `buildTx` case (to actually construct+sign the tx and its
+authorization tuples), but no signer/chainConfig plumbing.
+
+**`DeriveFields` two-tx assumption caught by `isthmus_7702_extcodesize_extcodehash`**: this vector
+is the first (across both Task 3 and Task 4) whose block has 2 transactions where the *first* is not
+an L1-attributes deposit (it's a setcode tx). `types.Receipts.DeriveFields` unconditionally parses
+`includedTxs[0].Data()` as 176-byte L1-attributes calldata whenever `len(txs) >= 2` — with a
+non-deposit tx0 this fails (`"expected at least 260 L1 info bytes, got 0"`). Not an op-geth bug
+(DeriveFields is documented as assuming a deposit-first block, the only shape upstream itself ever
+produces) — fixed by gating the call on `includedTxs[0].Type() == types.DepositTxType`, which cannot
+regress any existing deposit-first vector (the check is unconditionally true for all of them).
+
+### `_op_expect_rejected`: vectors whose tx op-geth never includes
+
+Some boundary cases are about a tx that a real block builder would never include at all
+(insufficient funds, `gasLimit` below intrinsic/EIP-7623-floor gas) — Task 1's own "Known
+simplifications" flagged this gap ("No `rejectedTxs`/gas-pool-rollback handling ... Task 3's
+boundary-case row will need this"). Task 4 closes it: an input case tx may set
+`"_op_expect_rejected": true`. The generator then:
+
+1. Still attempts `TransactionToMessage`/`ApplyTransactionWithEVM` as normal.
+2. On error, records `{txIndex, reason}` into the output vector's `_op_expected.rejected` (`reason`
+   is op-geth's own Go error string, kept for human debugging only — never string-matched by the
+   replayer) and **stops processing the rest of that block's transactions** (mirroring real
+   block-building: a tx a builder would never include can't have "the next tx" be well-defined
+   either).
+3. If the tx instead succeeds, generation itself fails loudly (`"_op_expect_rejected=true but the
+   tx was applied successfully"`) — a wrong boundary-case premise is a generation error, not a
+   silently-accepted vector.
+4. A `statedb.Snapshot()`/`RevertToSnapshot()` pair wraps the attempt: some rejections (EIP-7623
+   floor gas, plain intrinsic gas) fire *after* `buyGas()` has already deducted fees from the
+   sender's balance (`state_transition.go`'s `preCheck()` runs before the `IntrinsicGas`/
+   `FloorDataGas` checks in `innerExecute()`) — without the snapshot/revert, a "rejected" tx's
+   balance deduction would leak into `postState` despite the tx never actually being included.
+
+On the replayer side, a vector whose `_op_expected.rejected.txIndex` matches the current tx index
+skips `checkReceipt` (there is no receipt to compare against) and instead asserts `gasUsed == 0` —
+this is deliberately reason-agnostic rather than trying to match op-geth's specific Go error string
+(which `bcos-evm/opstack`'s own error messages never would anyway): any tx `applyOpStackMessage`'s
+entry checks reject takes the `ctx.earlyExit` path and returns *before* settlement/execution, so
+`gasUsed` stays at its zero default, while every genuinely-applied tx burns at least its intrinsic
+gas (≥21000 for a plain transfer) — making `gasUsed == 0` a robust proxy for "op-geth and
+bcos-evm/opstack agree this tx was never included," regardless of *why*.
+
+**Two-pass precision derivation (`isthmus_boundary_l1cost_insufficient`,
+`isthmus_boundary_value_zeroes_balance`)**: these vectors need the sender's balance to land on an
+*exact* boundary (1 wei short of / exactly enough for `gasUsed × effectiveGasPrice + l1Fee`) that
+depends on `l1Fee`, which is a Fjord fastlz-formula function of the raw signed tx's *bytes* — not
+something hand-derivable without either replicating fastlz or just running the generator. The
+authoring process was: (1) generate the same tx once with a generous placeholder balance, (2) read
+the exact `pre.balance − postState.balance` delta off the real output (this delta already nets
+gasUsed×price + l1Fee + operatorFee, no separate fastlz computation needed), (3) patch the case
+file's balance to `delta − 1` (rejected) or `value + delta` (exactly zeroes out) and mark
+`_op_expect_rejected` as appropriate, (4) regenerate for real. Both vectors' comments record the
+exact numbers this produced (`42001600000000` wei for the shared 21000-gas/no-calldata/scalar=0/
+constant=0 tx shape both vectors reuse).
+
+**`isthmus_boundary_gaslimit_below_floor`/`isthmus_boundary_7623_floor_raises_gasused`**: EIP-7623's
+`FloorDataGas` (`op-geth core/state_transition.go`) is `params.TxGas + tokens*10`
+(**not** just `tokens*10`) — the `TxGas` (21000) base is included in the floor, not only in the
+"normal" intrinsic-gas computation. Caught empirically: the first draft of these two vectors assumed
+floor=40000 for 1000 bytes of all-nonzero calldata (`tokens=4000`, `4000*10=40000`); the real
+generator output was `61000` (`21000 + 4000*10`), both in the rejection's `"want"` field and in the
+succeeding vector's actual `gasUsed`. Comments in both `.in.json` files record the corrected formula
+and the empirical value, not the original (wrong) hand-derivation.
+
+**Not built as an executable vector: blob tx (type 0x03) rejection.** The plan's boundary row
+included "blob tx（type 0x03）应被拒". Investigated and deliberately not attempted: this generator's
+fixed chain configs (`--fork isthmus|jovian`) are both post-Cancun, and vanilla L1 Ethereum *does*
+support blob transactions once Cancun is active — op-geth-as-a-library would process a well-formed
+blob tx **normally**, not reject it. The rejection this boundary case wants to prove is a pure
+OP-Stack-specific *policy* decision (no L1 beacon-chain blob availability at L2), which has no basis
+in plain op-geth L1 execution semantics at all — there is no "op-geth ground truth" to differ
+against in the sense this whole gate is built around. This is already covered by dedicated unit
+tests (`bcos-evm/test/opstack/OpStackPreCheck4844Test.cpp`'s `rejects_type03_with_empty_hashes` et
+al.), which is the right home for a pure-policy assertion; forcing it into this generator-truth
+format would either need building full blob-tx (`types.BlobTx`) support into the generator for a
+result the differential gate can't actually validate against (op-geth would say "succeeds", making
+bcos-evm's correct rejection look like a divergence needing an attribution-(c) signoff), or produce
+a vacuous vector. Recorded here — and in `../vectors/DIVERGENCES.md`'s "Non-divergence known
+limitations" — instead.

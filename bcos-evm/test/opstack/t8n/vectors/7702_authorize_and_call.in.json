@@ -1,0 +1,84 @@
+{
+  "isthmus_7702_authorize_and_call": {
+    "_info": {
+      "id": "isthmus_7702_authorize_and_call",
+      "comment": "SPONSOR (addr2) sends a type-0x04 tx authorizing AUTH (addr3, an empty/fresh EOA) to delegate to MARKER (a 6-byte contract that SSTOREs 42 to slot0), and the tx's own `to` targets AUTH itself -- so within the *same* tx, AUTH's delegation installs first (EIP-7702 authorization processing precedes the top-level call) and then the top-level CALL to AUTH executes MARKER's code in AUTH's own storage/balance context. Checks: AUTH.code becomes the 23-byte delegation indicator (0xef0100 || MARKER), AUTH.nonce bumps from 0 to 1 (one authorization consumed), and AUTH's slot0 becomes 42 (delegated code actually ran).",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "eip7702",
+        "authorization",
+        "delegation",
+        "same-tx-call"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        }
+      },
+      "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF": {
+        "balance": "10000000000000000000",
+        "nonce": "0"
+      },
+      "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69": {
+        "balance": "0",
+        "nonce": "0",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000000": "0x00"
+        }
+      },
+      "0x000000000000000000000000000000000000BEEF": {
+        "balance": "0",
+        "code": "0x602a60005500"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "setcode",
+            "nonce": "0",
+            "to": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",
+            "value": "0",
+            "gasLimit": "200000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+            "_op_authorization_list": [
+              {
+                "chainId": "8453",
+                "address": "0x000000000000000000000000000000000000BEEF",
+                "nonce": "0",
+                "authSecretKey": "0x0000000000000000000000000000000000000000000000000000000000000003"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

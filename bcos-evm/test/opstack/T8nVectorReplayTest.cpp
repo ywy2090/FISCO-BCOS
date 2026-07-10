@@ -23,6 +23,7 @@
 #include "bcos-crypto/interfaces/crypto/Hash.h"
 #include "bcos-evm/eth/core/RevisionConfig.h"
 #include "bcos-evm/eth/eip/Eip2718TypedTx.h"
+#include "bcos-evm/eth/eip/Eip7702.h"
 #include "bcos-evm/eth/state/Account.hpp"
 #include "bcos-evm/eth/state/BlockInfo.hpp"
 #include "bcos-evm/eth/state/HashUtils.hpp"
@@ -65,6 +66,16 @@ namespace bcos::evm::test
 namespace
 {
 namespace pt = boost::property_tree;
+
+// The chain ID every vector in this matrix was generated under: generator/main.go's
+// buildChainConfig() hardcodes `conf.ChainID = big.NewInt(8453)` for both `--fork isthmus` and
+// `--fork jovian` (see its own doc comment: "Base mainnet, matches the plan's v2-format example").
+// Used as the CHAINID opcode's source (`bcos::evm::state::BlockInfo::chainId`,
+// InnerExecute.cpp: `context.chain_id = state::toEvmC(block.chainId)`) for deposit txs, which
+// carry no chainId field of their own (pre-EIP-155 Bedrock deposit semantics) -- eip1559/setcode
+// txs instead read their own signed `chainId` field per-tx (see applyEip1559Tx/applySetCodeTx),
+// which is authoritative and happens to always equal this same constant in every vector here too.
+constexpr uint64_t T8N_CHAIN_ID = 8453;
 
 class FakeHash final : public crypto::Hash
 {
@@ -622,6 +633,24 @@ void checkReceipt(DivergenceLedger const& ledger, std::string const& vectorId, s
     }
 }
 
+// checkRejectedTx is the counterpart of checkReceipt for a tx the vector's `_op_expected.rejected`
+// says op-geth refused to include in the block at all (insufficient funds, gasLimit below
+// intrinsic/EIP-7623 floor gas, etc. -- see generator/main.go's `_op_expect_rejected` field and
+// `expectedRejection` struct). There is no receipt to compare against for this tx (op-geth itself
+// produced none), so the signal used here is generic rather than reason-specific: any tx that
+// `applyOpStackMessage`'s entry checks actually reject takes the `ctx.earlyExit` path (see
+// ApplyOpStackMessage.cpp), which returns *before* settlement/execution ever runs -- gasUsed stays
+// at its zero default. Conversely, every tx that *is* applied (deposit or normal) burns at least
+// its intrinsic gas (>= 21000 for a plain transfer), so gasUsed == 0 is a robust, reason-agnostic
+// proxy for "this tx was never included" that doesn't require matching op-geth's specific error
+// string (which bcos-evm/opstack's own error messages never would anyway).
+void checkRejectedTx(
+    DivergenceLedger const& ledger, std::string const& vectorId, size_t txIndex, int64_t gasUsed)
+{
+    std::string const field = "tx[" + std::to_string(txIndex) + "].rejected.gasUsed";
+    checkU64(ledger, vectorId, field, 0, static_cast<uint64_t>(std::max<int64_t>(0, gasUsed)));
+}
+
 // ── Per-tx-kind input construction + execution ──────────────────────────────────────────────────
 
 OpStackMessageResult applyDepositTx(pt::ptree const& txNode,
@@ -651,6 +680,11 @@ OpStackMessageResult applyDepositTx(pt::ptree const& txNode,
     deposit.isSystemTransaction = parseBool(depositNode, "is_system_tx", false);
     deposit.data = parseHexBytes(txNode.get<std::string>("data", "0x"));
 
+    // Deposit envelopes carry no chainId field of their own (see T8N_CHAIN_ID's doc comment);
+    // CHAINID must still read the chain's real ID during execution.
+    state::BlockInfo depositBlockInfo = blockInfo;
+    depositBlockInfo.chainId = T8N_CHAIN_ID;
+
     evmc_message message{};
     message.kind = deposit.to.has_value() ? EVMC_CALL : EVMC_CREATE;
     message.sender = deposit.from;
@@ -669,7 +703,7 @@ OpStackMessageResult applyDepositTx(pt::ptree const& txNode,
     input.vm = &vm;
     input.hashImpl = &hashImpl;
     input.message = message;
-    input.blockInfo = blockInfo;
+    input.blockInfo = depositBlockInfo;
     input.revisionConfig = makeIsthmusRevisionConfig();
     input.forkSchedule = forkSchedule;
     input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::OpStackDeposit);
@@ -734,6 +768,13 @@ OpStackMessageResult applyEip1559Tx(DivergenceLedger const& ledger, std::string 
 
     auto const sender = state::parseHexAddress(decoded.sender());
 
+    // CHAINID must read the tx's own signed chainId (RLP-decoded above, already cross-checked
+    // against the vector's field-form `chainId` via the rawConsistency check a few lines up) -- see
+    // T8N_CHAIN_ID's doc comment for why this must be set explicitly (BlockInfo's own default is
+    // 0).
+    state::BlockInfo txBlockInfo = blockInfo;
+    txBlockInfo.chainId = decoded.chainId.value_or(T8N_CHAIN_ID);
+
     evmc_message message{};
     message.kind = decoded.to.has_value() ? EVMC_CALL : EVMC_CREATE;
     message.sender = sender;
@@ -756,11 +797,103 @@ OpStackMessageResult applyEip1559Tx(DivergenceLedger const& ledger, std::string 
     input.nonce = decoded.nonce;
     input.gasTipCap = decoded.maxPriorityFeePerGas;
     input.gasFeeCap = decoded.maxFeePerGas;
-    input.blockInfo = blockInfo;
+    input.blockInfo = txBlockInfo;
     input.revisionConfig = makeIsthmusRevisionConfig();
     input.forkSchedule = forkSchedule;
     input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::EIP1559);
     input.rollupCostData = newRollupCostData(bcos::ref(rawBytes));
+    input.gasPoolSubGasHook = [&gasPool](uint64_t gas) { return gasPool.subGas(gas); };
+    input.gasPoolReturnGasHook = [&gasPool](uint64_t remaining, uint64_t used) {
+        gasPool.returnGas(remaining, used);
+    };
+
+    return task::syncWait(applyOpStackMessage(std::move(input)));
+}
+
+// Applies an EIP-7702 (type 0x04) tx. Unlike applyEip1559Tx, this does NOT decode `_op_raw` to
+// build the message or recover the sender: `bcos-rpc`'s `Web3Transaction` RLP codec
+// (bcos-rpc/web3jsonrpc/model/Web3Transaction.h/.cpp) only knows types 0x00-0x03, and extending it
+// to 0x04 (a full authorization-list RLP schema, plus replicating its ecrecover-based sender
+// derivation locally) is out of proportion for a 6-vector wave -- and, per the plan's authorization
+// scope (spec rev.7 D3), only `bcos-evm` is authorized for changes; `bcos-rpc` is not. Instead this
+// reads the *field-form* tx (nonce/fee-caps/gasLimit/to/value/data + `_op_authorization_list`) that
+// the generator emits alongside `_op_raw`, and trusts `_op_from` (the sender op-geth's own
+// `crypto.PubkeyToAddress` derived from the signing key -- see generator/main.go's "setcode" case)
+// for the outer tx's sender only. This is a real, if narrower, scope decision, not a shortcut on
+// what actually matters: the authorization *tuples* (chainId/address/nonce/yParity/r/s) are fed
+// unmodified into `SetCodeAuthorization` and it is bcos-evm/opstack's own `Eip7702.cpp`
+// (`recoverAuthorizationAuthority`) that performs the real secp256k1 recovery over them at apply
+// time -- so the part of EIP-7702 this wave is actually testing (authorization/delegation
+// semantics, not outer-tx RLP framing) is exercised end-to-end against a genuine op-geth-signed
+// signature, same as every other tx kind here. See generator/README.md's "EIP-7702 vectors:
+// field-form, not _op_raw-authoritative" section for the fuller writeup.
+OpStackMessageResult applySetCodeTx(pt::ptree const& txNode,
+    state::test::InMemoryStateView& stateView, evmc::VM& vm, crypto::Hash const& hashImpl,
+    state::BlockInfo const& blockInfo, OpStackForkSchedule const& forkSchedule,
+    SimpleBlockGasPool& gasPool)
+{
+    auto const from = state::parseHexAddress(txNode.get<std::string>("_op_from"));
+    auto const to = state::parseHexAddress(txNode.get<std::string>("to"));
+    auto const nonce = parseUint64(txNode.get<std::string>("nonce"));
+    auto const gasLimit = parseUint64(txNode.get<std::string>("gasLimit"));
+    auto const maxFeePerGas = parseQuantity(txNode.get<std::string>("maxFeePerGas"));
+    auto const maxPriorityFeePerGas =
+        parseQuantity(txNode.get<std::string>("maxPriorityFeePerGas"));
+    auto const value = parseQuantity(txNode.get<std::string>("value"));
+    auto const data = parseHexBytes(txNode.get<std::string>("data", "0x"));
+    // CHAINID must read the tx's own signed chainId; see T8N_CHAIN_ID's doc comment.
+    auto const chainId = parseUint64(txNode.get<std::string>("chainId", "0"));
+    state::BlockInfo txBlockInfo = blockInfo;
+    txBlockInfo.chainId = chainId != 0 ? chainId : T8N_CHAIN_ID;
+
+    std::vector<SetCodeAuthorization> authorizations;
+    for (auto const& [authKey, authNode] : txNode.get_child("_op_authorization_list"))
+    {
+        (void)authKey;
+        SetCodeAuthorization auth;
+        auth.chainId = parseQuantity(authNode.get<std::string>("chainId"));
+        auth.address = state::parseHexAddress(authNode.get<std::string>("address"));
+        auth.nonce = parseUint64(authNode.get<std::string>("nonce"));
+        auth.yParity = parseUint64(authNode.get<std::string>("yParity"));
+        auth.signatureR = parseHexBytes(authNode.get<std::string>("r"));
+        auth.signatureS = parseHexBytes(authNode.get<std::string>("s"));
+        // auth.authority intentionally left default: hasSignatureMaterial() (Eip7702.cpp) sees
+        // yParity+r/s and recovers the real authority via recoverAuthorizationAuthority, the code
+        // path this vector wave actually wants to exercise.
+        authorizations.push_back(std::move(auth));
+    }
+
+    evmc_message message{};
+    message.kind = EVMC_CALL;  // EIP-7702 txs always carry `to` (no contract-creation form).
+    message.sender = from;
+    message.recipient = to;
+    message.code_address = to;
+    message.gas = static_cast<int64_t>(gasLimit);
+    message.input_data = data.data();
+    message.input_size = data.size();
+    message.value = state::toEvmC(value);
+
+    OpStackMessageRequest input;
+    input.stateView = &stateView;
+    input.vm = &vm;
+    input.hashImpl = &hashImpl;
+    input.message = message;
+    input.nonce = nonce;
+    input.gasTipCap = maxPriorityFeePerGas;
+    input.gasFeeCap = maxFeePerGas;
+    input.blockInfo = txBlockInfo;
+    input.revisionConfig = makeIsthmusRevisionConfig();
+    input.forkSchedule = forkSchedule;
+    input.web3TypedTxKind = toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702);
+    input.authorizationListPresent = true;
+    input.authorizations = std::move(authorizations);
+    if (auto const raw = txNode.get_optional<std::string>("_op_raw"))
+    {
+        // Informational only (L1 fee DA-size sourcing): the raw envelope's byte content, not its
+        // structure, is all newRollupCostData needs -- no RLP decode of the 0x04 payload required.
+        auto const rawBytes = parseHexBytes(*raw);
+        input.rollupCostData = newRollupCostData(bcos::ref(rawBytes));
+    }
     input.gasPoolSubGasHook = [&gasPool](uint64_t gas) { return gasPool.subGas(gas); };
     input.gasPoolReturnGasHook = [&gasPool](uint64_t remaining, uint64_t used) {
         gasPool.returnGas(remaining, used);
@@ -787,6 +920,17 @@ void replayVector(DivergenceLedger const& ledger, std::string const& vectorId,
     auto receiptIt = expectedReceipts.begin();
     size_t txIndex = 0;
     uint64_t blockGasUsed = 0;
+
+    // A vector whose generation hit an expected rejection (generator/main.go's
+    // `_op_expect_rejected`) carries `_op_expected.rejected.txIndex`: that tx (always the last one
+    // in `blocks[0].transactions`, since op-geth's own block-building stops there too -- see
+    // processVector's `break` on rejection) gets no expected receipt at all and is checked via
+    // checkRejectedTx instead of checkReceipt.
+    std::optional<size_t> rejectedTxIndex;
+    if (auto const rejected = vectorNode.get_child_optional("_op_expected.rejected"))
+    {
+        rejectedTxIndex = static_cast<size_t>(parseUint64(rejected->get<std::string>("txIndex")));
+    }
 
     for (auto const& [blockKey, blockNode] : vectorNode.get_child("blocks"))
     {
@@ -822,15 +966,32 @@ void replayVector(DivergenceLedger const& ledger, std::string const& vectorId,
                 output = applyEip1559Tx(ledger, vectorId, txIndex, txNode, stateView, vm, hashImpl,
                     blockInfo, forkSchedule, gasPool);
             }
+            else if (opType == "setcode")
+            {
+                txKind = toWeb3TypedTxKindValue(Web3TypedTxKind::EIP7702);
+                output = applySetCodeTx(
+                    txNode, stateView, vm, hashImpl, blockInfo, forkSchedule, gasPool);
+            }
             else
             {
-                BOOST_ERROR("DIVERGE " << vectorId << " tx[" << txIndex << "] unsupported _op_type="
-                                       << opType << " (replayer scope so far: deposit, eip1559)");
+                BOOST_ERROR("DIVERGE " << vectorId << " tx[" << txIndex
+                                       << "] unsupported _op_type=" << opType
+                                       << " (replayer scope so far: deposit, eip1559, setcode)");
                 ++txIndex;
                 if (receiptIt != expectedReceipts.end())
                 {
                     ++receiptIt;
                 }
+                continue;
+            }
+
+            if (rejectedTxIndex.has_value() && *rejectedTxIndex == txIndex)
+            {
+                // Op-geth never included this tx (see the field's doc comment above); there is no
+                // expected receipt to consume, and (being always the last tx in the block) nothing
+                // downstream depends on merging its state diff.
+                checkRejectedTx(ledger, vectorId, txIndex, output.gasUsed);
+                ++txIndex;
                 continue;
             }
 

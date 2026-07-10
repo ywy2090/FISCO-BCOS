@@ -201,14 +201,28 @@ type inputDeposit struct {
 	SourceHash common.Hash           `json:"source_hash"`
 }
 
-// inputTx is a tagged union: _op_type == "deposit" uses OpDeposit; anything
-// else (including the empty string, defaulting to "eip1559") is a normal
+// inputAuthorization is one EIP-7702 authorization-tuple case entry: the
+// generator signs it (types.SignSetCode) with AuthSecretKey, independently of
+// the outer tx's own SecretKey (the two keys are usually different -- the
+// whole point of EIP-7702 is that a *different* EOA delegates code to itself
+// while a *sponsor* EOA pays for and sends the tx).
+type inputAuthorization struct {
+	ChainID       *math.HexOrDecimal256 `json:"chainId,omitempty"`
+	Address       common.Address        `json:"address"`
+	Nonce         math.HexOrDecimal64   `json:"nonce"`
+	AuthSecretKey hexutil.Bytes         `json:"authSecretKey"`
+}
+
+// inputTx is a tagged union: _op_type == "deposit" uses OpDeposit,
+// "setcode" uses OpAuthorizations (EIP-7702, type 0x04); anything else
+// (including the empty string, defaulting to "eip1559") is a normal
 // signed transaction, either given pre-signed via OpRaw, or given field-by-
 // field plus a SecretKey for the generator to sign.
 type inputTx struct {
-	OpType    string        `json:"_op_type,omitempty"`
-	OpDeposit *inputDeposit `json:"_op_deposit,omitempty"`
-	OpRaw     string        `json:"_op_raw,omitempty"`
+	OpType           string               `json:"_op_type,omitempty"`
+	OpDeposit        *inputDeposit        `json:"_op_deposit,omitempty"`
+	OpAuthorizations []inputAuthorization `json:"_op_authorization_list,omitempty"`
+	OpRaw            string               `json:"_op_raw,omitempty"`
 
 	Nonce                *math.HexOrDecimal64  `json:"nonce,omitempty"`
 	To                   *common.Address       `json:"to,omitempty"`
@@ -220,6 +234,22 @@ type inputTx struct {
 	ChainID              *math.HexOrDecimal256 `json:"chainId,omitempty"`
 	AccessList           types.AccessList      `json:"accessList,omitempty"`
 	SecretKey            *hexutil.Bytes        `json:"secretKey,omitempty"`
+
+	// OpExpectRejected marks a tx that this case *intends* to be rejected before
+	// or during application (insufficient funds, gasLimit below intrinsic/EIP-7623
+	// floor gas, etc.) -- i.e. a tx that a real block builder would never include.
+	// Normally any error from TransactionToMessage/ApplyTransactionWithEVM aborts
+	// the whole vector's generation (`Known limitations` #1 in README.md: a Go
+	// error is otherwise indistinguishable from a vector-authoring mistake). This
+	// flag lets Task 4's boundary-case row ("intrinsic 不足", "gasLimit < floor
+	// 的拒绝", "余额差 1 wei 付不起 l1Cost") turn that into an *expected*, checked
+	// outcome instead: the generator records the failure into
+	// `_op_expected.rejected` and stops processing that block's remaining
+	// transactions (matching real block-building semantics -- a tx a builder
+	// would never include can't have "the next tx after it" be well-defined
+	// either). If the tx instead *succeeds*, that is now itself a generation
+	// error (the case's premise was wrong), not a silently-accepted vector.
+	OpExpectRejected bool `json:"_op_expect_rejected,omitempty"`
 }
 
 // ---------------------------------------------------------------------
@@ -257,6 +287,53 @@ type outputSignedTx struct {
 	OpRaw                string                `json:"_op_raw"`
 }
 
+// outputAuthorization is the field-form -- not RLP -- record of one signed
+// EIP-7702 authorization tuple. `Authority` is included purely as a
+// documentation/self-check convenience (computed via op-geth's own
+// SetCodeAuthorization.Authority(), i.e. real secp256k1 recovery over the
+// real signed payload); the replayer does NOT trust it -- it feeds
+// ChainID/Address/Nonce/YParity/R/S into bcos-evm/opstack's own
+// recoverAuthorizationAuthority (eth/eip/Eip7702.cpp) and lets *that*
+// production code do its own recovery, so a wrong `Authority` value here
+// would never mask an authority-recovery bug (see generator/README.md's
+// "EIP-7702 vectors: field-form, not _op_raw-authoritative" section for why
+// this tx kind is field-form while eip1559/deposit are _op_raw-driven).
+type outputAuthorization struct {
+	ChainID   *math.HexOrDecimal256 `json:"chainId"`
+	Address   common.Address        `json:"address"`
+	Nonce     math.HexOrDecimal64   `json:"nonce"`
+	Authority common.Address        `json:"authority"`
+	YParity   math.HexOrDecimal64   `json:"yParity"`
+	R         *math.HexOrDecimal256 `json:"r"`
+	S         *math.HexOrDecimal256 `json:"s"`
+}
+
+// outputSetCodeTx mirrors outputSignedTx but for EIP-7702 (type 0x04).
+// `_op_raw` is still emitted (real op-geth signed envelope, `tx.MarshalBinary()`)
+// for documentation/future-proofing and DA-size sourcing (rollupCostData), but
+// -- unlike eip1559 -- the replayer does not RLP-decode it to build the
+// message or recover the sender; see the OpAuthorizations/outputAuthorization
+// doc comments for why, and `_op_from` below for the substitute.
+type outputSetCodeTx struct {
+	OpType               string                `json:"_op_type"`
+	Type                 string                `json:"type"`
+	OpFrom               common.Address        `json:"_op_from"`
+	Nonce                math.HexOrDecimal64   `json:"nonce"`
+	MaxFeePerGas         *math.HexOrDecimal256 `json:"maxFeePerGas"`
+	MaxPriorityFeePerGas *math.HexOrDecimal256 `json:"maxPriorityFeePerGas"`
+	GasLimit             math.HexOrDecimal64   `json:"gasLimit"`
+	To                   common.Address        `json:"to"`
+	Value                *math.HexOrDecimal256 `json:"value"`
+	Data                 hexutil.Bytes         `json:"data"`
+	ChainID              *math.HexOrDecimal256 `json:"chainId"`
+	AccessList           types.AccessList      `json:"accessList"`
+	OpAuthorizationList  []outputAuthorization `json:"_op_authorization_list"`
+	V                    *math.HexOrDecimal256 `json:"v"`
+	R                    *math.HexOrDecimal256 `json:"r"`
+	S                    *math.HexOrDecimal256 `json:"s"`
+	OpRaw                string                `json:"_op_raw"`
+}
+
 type outputBlock struct {
 	BlockHeader  inputBlockHeader  `json:"blockHeader"`
 	Transactions []json.RawMessage `json:"transactions"`
@@ -272,9 +349,22 @@ type expectedReceipt struct {
 	OpL1Fee                 *string `json:"_op_l1_fee,omitempty"`
 }
 
+// expectedRejection records that block inclusion stopped at TxIndex because
+// that tx would never be included in a real block (see inputTx.OpExpectRejected).
+// Reason is op-geth's own error string, kept for human debugging only -- the
+// replayer does not string-match it (op-geth's and bcos-evm/opstack's error
+// messages are naturally different); it only checks that bcos-evm/opstack
+// *also* refuses to apply the tx (empty state diff, zero gasUsed -- see
+// T8nVectorReplayTest.cpp's applyExpectRejectedTx).
+type expectedRejection struct {
+	TxIndex int    `json:"txIndex"`
+	Reason  string `json:"reason"`
+}
+
 type opExpected struct {
-	Receipts     []expectedReceipt `json:"receipts"`
-	BlockGasUsed string            `json:"blockGasUsed"`
+	Receipts     []expectedReceipt  `json:"receipts"`
+	BlockGasUsed string             `json:"blockGasUsed"`
+	Rejected     *expectedRejection `json:"rejected,omitempty"`
 }
 
 type outputVector struct {
@@ -380,14 +470,21 @@ func processVector(chainConfig *params.ChainConfig, id string, raw json.RawMessa
 	)
 	preSnapshot := snapshotAccounts(in.Pre, candidates) // extended below, per-tx, before it fades from scope
 
+	var rejected *expectedRejection
 	for i := range blk.Transactions {
 		txIn := &blk.Transactions[i]
 		tx, outTx, err := buildTx(txIn, signer)
 		if err != nil {
 			return nil, fmt.Errorf("tx %d: %w", i, err)
 		}
+		outTxs = append(outTxs, outTx)
+
 		msg, err := core.TransactionToMessage(tx, signer, baseFee)
 		if err != nil {
+			if txIn.OpExpectRejected {
+				rejected = &expectedRejection{TxIndex: i, Reason: err.Error()}
+				break
+			}
 			return nil, fmt.Errorf("tx %d: TransactionToMessage: %w", i, err)
 		}
 		candidates[msg.From] = struct{}{}
@@ -398,17 +495,33 @@ func processVector(chainConfig *params.ChainConfig, id string, raw json.RawMessa
 		// this tx mutates it.
 		addMissingSnapshots(preSnapshot, in.Pre, candidates)
 
+		// Snapshot statedb too: some rejections (EIP-7623 floor gas, intrinsic
+		// gas) fire *after* buyGas() has already deducted the fee from the
+		// sender's balance (state_transition.go: preCheck()/buyGas() runs
+		// before the IntrinsicGas/FloorDataGas checks in innerExecute()) --
+		// unlike a real block builder (miner/worker.go's commitTransaction),
+		// this loop has no surrounding snapshot/revert of its own, so without
+		// this the rejected tx's balance deduction would leak into postState
+		// despite the tx never actually being included.
+		stateSnapshot := statedb.Snapshot()
 		statedb.SetTxContext(tx.Hash(), i)
 		receipt, err := core.ApplyTransactionWithEVM(msg, gaspool, statedb, vmContext.BlockNumber, blockHash, blockTime, tx, evm)
 		if err != nil {
+			if txIn.OpExpectRejected {
+				statedb.RevertToSnapshot(stateSnapshot)
+				rejected = &expectedRejection{TxIndex: i, Reason: err.Error()}
+				break
+			}
 			return nil, fmt.Errorf("tx %d: ApplyTransactionWithEVM: %w", i, err)
+		}
+		if txIn.OpExpectRejected {
+			return nil, fmt.Errorf("tx %d: _op_expect_rejected=true but the tx was applied successfully (status=%d) -- the case's premise is wrong", i, receipt.Status)
 		}
 		if receipt.Logs == nil {
 			receipt.Logs = []*types.Log{}
 		}
 		includedTxs = append(includedTxs, tx)
 		receipts = append(receipts, receipt)
-		outTxs = append(outTxs, outTx)
 	}
 
 	statedb.IntermediateRoot(chainConfig.IsEIP158(vmContext.BlockNumber))
@@ -422,9 +535,17 @@ func processVector(chainConfig *params.ChainConfig, id string, raw json.RawMessa
 	}
 
 	// Populate OP-Stack receipt display fields (L1Fee/L1GasPrice/scalars).
-	// Requires >= 2 txs (L1 attributes deposit + >=1 user tx); see
-	// types.Receipts.deriveOPStackFields doc comment.
-	if len(includedTxs) >= 2 {
+	// Requires >= 2 txs *and* the first one to be a real L1-attributes deposit
+	// (types.Receipts.deriveOPStackFields parses includedTxs[0].Data() as the
+	// 176-byte Isthmus L1-attributes calldata layout unconditionally whenever
+	// len(txs) >= 2 -- its doc comment's ">= 2 txs" description assumes a
+	// deposit-first block, which is the only shape upstream ever produces;
+	// Task 4 introduced vectors whose first tx is a plain eip1559/setcode tx
+	// with a *second* tx following it (e.g. isthmus_7702_extcodesize_extcodehash's
+	// setcode-then-eip1559 pair), which trips this: "expected at least 260 L1
+	// info bytes, got 0". Guarded here rather than upstream since this is this
+	// generator's own trimmed-loop assumption, not an op-geth bug.
+	if len(includedTxs) >= 2 && includedTxs[0].Type() == types.DepositTxType {
 		if err := receipts.DeriveFields(chainConfig, blockHash, blockNumber, blockTime, baseFee, nil, includedTxs); err != nil {
 			return nil, fmt.Errorf("DeriveFields: %w", err)
 		}
@@ -469,6 +590,7 @@ func processVector(chainConfig *params.ChainConfig, id string, raw json.RawMessa
 		OpExpected: opExpected{
 			Receipts:     expReceipts,
 			BlockGasUsed: hexutil.EncodeUint64(blockGasUsed),
+			Rejected:     rejected,
 		},
 	}
 	return json.Marshal(out)
@@ -508,6 +630,131 @@ func buildTx(in *inputTx, signer types.Signer) (*types.Transaction, json.RawMess
 			OpDeposit: *d,
 			GasLimit:  math.HexOrDecimal64(gas),
 			Data:      in.Data,
+		})
+		return tx, outJSON, err
+
+	case "setcode":
+		// EIP-7702 (type 0x04). Per README.md's "Substitution 2" and the plan's
+		// own escape hatch ("先查 op-geth 的 types.SetCodeTx ... 若 _op_raw 已能覆盖则不必改生成器"):
+		// types.SetCodeTx already exists upstream and MakeSigner already returns an
+		// Isthmus/Prague-capable signer for our chainConfig (IsthmusTime=0 implies
+		// PragueTime=0 is also active), so building+signing this tx type needs no
+		// signer/chainConfig changes at all -- only a new buildTx case.
+		if in.SecretKey == nil {
+			return nil, nil, fmt.Errorf(`_op_type="setcode" requires "secretKey" (the sponsor/sender)`)
+		}
+		if in.To == nil {
+			return nil, nil, fmt.Errorf(`_op_type="setcode" requires "to" (EIP-7702 txs cannot create contracts)`)
+		}
+		prv, err := crypto.ToECDSA(*in.SecretKey)
+		if err != nil {
+			return nil, nil, fmt.Errorf("parsing secretKey: %w", err)
+		}
+		fromAddr := crypto.PubkeyToAddress(prv.PublicKey)
+		chainID := big.NewInt(0)
+		if in.ChainID != nil {
+			chainID = (*big.Int)(in.ChainID)
+		}
+		var nonce uint64
+		if in.Nonce != nil {
+			nonce = uint64(*in.Nonce)
+		}
+		var gas uint64
+		if in.GasLimit != nil {
+			gas = uint64(*in.GasLimit)
+		}
+		value := big.NewInt(0)
+		if in.Value != nil {
+			value = (*big.Int)(in.Value)
+		}
+		tip, feeCap := big.NewInt(0), big.NewInt(0)
+		if in.MaxPriorityFeePerGas != nil {
+			tip = (*big.Int)(in.MaxPriorityFeePerGas)
+		}
+		if in.MaxFeePerGas != nil {
+			feeCap = (*big.Int)(in.MaxFeePerGas)
+		}
+		al := in.AccessList
+		if al == nil {
+			al = types.AccessList{}
+		}
+		if len(in.OpAuthorizations) == 0 {
+			return nil, nil, fmt.Errorf(`_op_type="setcode" requires a non-empty "_op_authorization_list"`)
+		}
+		authList := make([]types.SetCodeAuthorization, len(in.OpAuthorizations))
+		outAuths := make([]outputAuthorization, len(in.OpAuthorizations))
+		for i, a := range in.OpAuthorizations {
+			authPrv, err := crypto.ToECDSA(a.AuthSecretKey)
+			if err != nil {
+				return nil, nil, fmt.Errorf("_op_authorization_list[%d]: parsing authSecretKey: %w", i, err)
+			}
+			authChainID := big.NewInt(0)
+			if a.ChainID != nil {
+				authChainID = (*big.Int)(a.ChainID)
+			}
+			unsigned := types.SetCodeAuthorization{
+				ChainID: *uint256.MustFromBig(authChainID),
+				Address: a.Address,
+				Nonce:   uint64(a.Nonce),
+			}
+			signed, err := types.SignSetCode(authPrv, unsigned)
+			if err != nil {
+				return nil, nil, fmt.Errorf("_op_authorization_list[%d]: SignSetCode: %w", i, err)
+			}
+			authList[i] = signed
+			authority, err := signed.Authority()
+			if err != nil {
+				return nil, nil, fmt.Errorf("_op_authorization_list[%d]: Authority(): %w", i, err)
+			}
+			outAuths[i] = outputAuthorization{
+				ChainID:   (*math.HexOrDecimal256)(authChainID),
+				Address:   a.Address,
+				Nonce:     a.Nonce,
+				Authority: authority,
+				YParity:   math.HexOrDecimal64(signed.V),
+				R:         (*math.HexOrDecimal256)(signed.R.ToBig()),
+				S:         (*math.HexOrDecimal256)(signed.S.ToBig()),
+			}
+		}
+		txdata := &types.SetCodeTx{
+			ChainID:    uint256.MustFromBig(chainID),
+			Nonce:      nonce,
+			GasTipCap:  uint256.MustFromBig(tip),
+			GasFeeCap:  uint256.MustFromBig(feeCap),
+			Gas:        gas,
+			To:         *in.To,
+			Value:      uint256.MustFromBig(value),
+			Data:       []byte(in.Data),
+			AccessList: al,
+			AuthList:   authList,
+		}
+		tx, err := types.SignNewTx(prv, signer, txdata)
+		if err != nil {
+			return nil, nil, fmt.Errorf("signing setcode tx: %w", err)
+		}
+		rawBin, err := tx.MarshalBinary()
+		if err != nil {
+			return nil, nil, err
+		}
+		v, r, s := tx.RawSignatureValues()
+		outJSON, err := json.Marshal(outputSetCodeTx{
+			OpType:               "setcode",
+			Type:                 "0x04",
+			OpFrom:               fromAddr,
+			Nonce:                math.HexOrDecimal64(nonce),
+			MaxFeePerGas:         (*math.HexOrDecimal256)(feeCap),
+			MaxPriorityFeePerGas: (*math.HexOrDecimal256)(tip),
+			GasLimit:             math.HexOrDecimal64(gas),
+			To:                   *in.To,
+			Value:                (*math.HexOrDecimal256)(value),
+			Data:                 in.Data,
+			ChainID:              (*math.HexOrDecimal256)(chainID),
+			AccessList:           al,
+			OpAuthorizationList:  outAuths,
+			V:                    (*math.HexOrDecimal256)(v),
+			R:                    (*math.HexOrDecimal256)(r),
+			S:                    (*math.HexOrDecimal256)(s),
+			OpRaw:                hexutil.Encode(rawBin),
 		})
 		return tx, outJSON, err
 

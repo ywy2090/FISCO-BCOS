@@ -1,0 +1,80 @@
+{
+  "isthmus_7702_authorization_nonce_consumed": {
+    "_info": {
+      "id": "isthmus_7702_authorization_nonce_consumed",
+      "comment": "AUTH (addr6) starts with a nonzero nonce (3, as if it had already sent 3 txs before ever being delegated). The authorization tuple's nonce field is 3 (matching state), so it must apply: AUTH.nonce becomes 4 post-tx. Dedicated nonce-consumption check distinct from B1 (whose AUTH starts at nonce 0) -- confirms the nonce match is against AUTH's *current* state nonce, not hardcoded to zero.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "eip7702",
+        "authorization",
+        "nonce"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        }
+      },
+      "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF": {
+        "balance": "10000000000000000000",
+        "nonce": "0"
+      },
+      "0xE57bFE9F44b819898F47BF37E5AF72a0783e1141": {
+        "balance": "0",
+        "nonce": "3"
+      },
+      "0x000000000000000000000000000000000000BEEF": {
+        "balance": "0",
+        "code": "0x602a60005500"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "setcode",
+            "nonce": "0",
+            "to": "0x00000000000000000000000000000000DeaDDeaD",
+            "value": "0",
+            "gasLimit": "200000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+            "_op_authorization_list": [
+              {
+                "chainId": "8453",
+                "address": "0x000000000000000000000000000000000000BEEF",
+                "nonce": "3",
+                "authSecretKey": "0x0000000000000000000000000000000000000000000000000000000000000006"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

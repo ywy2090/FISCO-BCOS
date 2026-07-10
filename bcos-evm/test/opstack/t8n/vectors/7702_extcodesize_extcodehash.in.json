@@ -1,0 +1,100 @@
+{
+  "isthmus_7702_extcodesize_extcodehash": {
+    "_info": {
+      "id": "isthmus_7702_extcodesize_extcodehash",
+      "comment": "Two txs in one block: tx0 installs a 7702 delegation on AUTH (addr5) pointing at MARKER (reusing the B1 pattern, but this vector's `to` is a no-op call target -- the deadbeef predeploy stand-in address 0x...dEaD -- so nothing else runs in tx0 besides authorization processing); tx1 is a plain EIP-1559 call into a PROBER contract that does EXTCODESIZE(AUTH)->slot0 and EXTCODEHASH(AUTH)->slot1. Per EIP-7702, both opcodes must observe the 23-byte delegation indicator (0xef0100||target), NOT MARKER's own (6-byte) code or codehash -- a classic 7702 gotcha (external observers see the indicator, only internal calls actually execute the delegate's code).",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "eip7702",
+        "delegation",
+        "extcodesize",
+        "extcodehash"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        }
+      },
+      "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF": {
+        "balance": "10000000000000000000",
+        "nonce": "0"
+      },
+      "0xe1AB8145F7E55DC933d51a18c793F901A3A0b276": {
+        "balance": "0",
+        "nonce": "0"
+      },
+      "0x000000000000000000000000000000000000BEEF": {
+        "balance": "0",
+        "code": "0x602a60005500"
+      },
+      "0x000000000000000000000000000000000000C0DE": {
+        "balance": "0",
+        "code": "0x73e1AB8145F7E55DC933d51a18c793F901A3A0b2763b60005573e1AB8145F7E55DC933d51a18c793F901A3A0b2763f60015500",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000000": "0x00",
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x00"
+        }
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "setcode",
+            "nonce": "0",
+            "to": "0x00000000000000000000000000000000DeaDDeaD",
+            "value": "0",
+            "gasLimit": "200000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+            "_op_authorization_list": [
+              {
+                "chainId": "8453",
+                "address": "0x000000000000000000000000000000000000BEEF",
+                "nonce": "0",
+                "authSecretKey": "0x0000000000000000000000000000000000000000000000000000000000000005"
+              }
+            ]
+          },
+          {
+            "nonce": "1",
+            "to": "0x000000000000000000000000000000000000C0DE",
+            "value": "0",
+            "gasLimit": "100000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000002"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "isthmus_7702_authorization_invalid_nonce_ignored": {
+    "_info": {
+      "id": "isthmus_7702_authorization_invalid_nonce_ignored",
+      "comment": "AUTH (addr7) has state nonce 5, but the authorization tuple claims nonce 7 (mismatch, too high). Per EIP-7702, an authorization whose nonce does not match the authority's current state nonce is silently skipped (not an error) -- the outer tx still succeeds (status=1), but AUTH's code/nonce are left completely unchanged (no delegation installed, no nonce bump). Negative-space companion to B4.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "eip7702",
+        "authorization",
+        "nonce",
+        "invalid",
+        "negative"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        }
+      },
+      "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF": {
+        "balance": "10000000000000000000",
+        "nonce": "0"
+      },
+      "0xd41c057fd1c78805AAC12B0A94a405c0461A6FBb": {
+        "balance": "0",
+        "nonce": "5"
+      },
+      "0x000000000000000000000000000000000000BEEF": {
+        "balance": "0",
+        "code": "0x602a60005500"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "_op_type": "setcode",
+            "nonce": "0",
+            "to": "0x00000000000000000000000000000000DeaDDeaD",
+            "value": "0",
+            "gasLimit": "200000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+            "_op_authorization_list": [
+              {
+                "chainId": "8453",
+                "address": "0x000000000000000000000000000000000000BEEF",
+                "nonce": "7",
+                "authSecretKey": "0x0000000000000000000000000000000000000000000000000000000000000007"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

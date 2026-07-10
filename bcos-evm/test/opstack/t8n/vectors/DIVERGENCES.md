@@ -139,6 +139,72 @@ root cause above.
 
 ---
 
+## FINDING-2 (CONFIRMED, attribution a — `bcos-evm/opstack` consensus-level defect)
+
+**Root cause** (`bcos-evm/opstack/settlement/OpStackTxFinalize.cpp:28-34`, `applyPostExecuteSettlement`):
+
+```cpp
+void applyPostExecuteSettlement(
+    StateTransitionContext const& ctx, uint64_t floorDataGas, OpStackTxFinalizeResult& out)
+{
+    auto const stateRefund =
+        gas::isEip1559GasRefundEnabled(ctx.revisionConfig) ?
+            static_cast<uint64_t>(std::max<int64_t>(0, ctx.evmcResult.gas_refund)) :
+            uint64_t{0};
+    ...
+```
+
+This sources the EIP-3529-capped refund from **`ctx.evmcResult.gas_refund`** — evmone's own internal SSTORE-clear refund counter, embedded in the raw EVMC result evmone hands back. That counter has **no visibility into refunds added host-side** via `bcos-evm`'s own `State::add_refund()` — in particular, EIP-7702's authorization-processing refund
+(`bcos-evm/eth/eip/Eip7702.cpp:applyAuthorizations`: `state.add_refund(PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST)` = `state.add_refund(12500)`, credited once per authorization tuple whose authority account already exists — the ordinary case for a first-time delegation of an existing EOA).
+
+The **correct, already-existing** source is `ctx.evmGasRefund` (`StateTransitionContext`), populated at `bcos-evm/eth/kernel/state-transition/StateTransitionExecute.cpp:167` (`ctx.evmGasRefund = kernelOutput.gasRefund;`, itself sourced from `state.get_refund()` at EVM exit) — this is the exact field `GasSettlementTypes.h:103-104`'s own doc comment names as authoritative: *"state.get_refund() at EVM exit (authoritative over evmc gas_refund)"*. `OpStackTxFinalize.cpp` never reads `ctx.evmGasRefund` at all; it independently re-derives `stateRefund` from the wrong (evmc-native) field. Confirmed empirically: the replayer's own debug trace shows `stateTransitionExecute done ... gasRefund=12500` (i.e. `ctx.evmGasRefund` is computed correctly) immediately followed by `applyOpStackMessage done ... gasUsed=<value with no refund subtracted>`.
+
+**Consequence**: any OP-Stack normal (non-deposit) transaction carrying an EIP-7702 authorization tuple that installs a delegation on an *already-existing* account reports `gasUsed` (and therefore `blockGasUsed`, and every fee amount derived from `gasUsed × effectiveGasPrice` — coinbase tip, BaseFeeVault, OperatorFeeVault, and the sender's net debit) too **high** by the dropped refund, capped at `min(12500 × authTupleCount, peakGasUsed / 5)` per EIP-3529 — a receipts-root- and state-root-level consensus divergence, not a display quirk. `finalizeDeposit` calls the same `applyPostExecuteSettlement` function (via `applyDepositPostExecuteSettlement`), so a deposit tx carrying an authorization list would have the identical bug — no vector in this wave exercises that combination, but the code path is shared and the risk is the same.
+
+**Fix direction** (recorded for the follow-up plan, not applied here — gate is report-only): `applyPostExecuteSettlement` should read `stateRefund` from `ctx.evmGasRefund`, not `ctx.evmcResult.gas_refund`.
+
+**First discovered**: Task 4, on `isthmus_7702_authorization_nonce_consumed` (the simplest of the four — a single authorization tuple, no delegated-code execution at all, isolating the bug to pure authorization-refund accounting, not anything about the subsequent CALL).
+
+| Vector | auth tuples | delegated code executed same-tx? | fork |
+|---|---|---|---|
+| `isthmus_7702_authorization_nonce_consumed` | 1 (existing account) | no (`to` is an unrelated no-op address) | Isthmus |
+| `isthmus_7702_authorize_and_call` | 1 (existing account) | yes (`to` = the just-delegated AUTH itself) | Isthmus |
+| `isthmus_7702_extcodesize_extcodehash` | 1 (existing account, tx0 only) | no (tx0's `to` is an unrelated no-op address; tx1 is a plain, unaffected EIP-1559 call) | Isthmus |
+| `jovian_7702_authorize_and_call` | 1 (existing account) | yes | Jovian |
+
+Confirms the defect is fork-independent (Isthmus and Jovian both wrong the same way, expected since `applyPostExecuteSettlement` doesn't consult the fork schedule) and independent of whether the delegated code is invoked in the same tx (the bug is in authorization-tuple refund accounting itself, not in the delegated CALL). `isthmus_7702_delegated_sender_transfer` (a delegated EOA sending a plain transfer, no setcode tx at all) and `isthmus_7702_authorization_invalid_nonce_ignored` (an authorization whose nonce mismatch means `add_refund` is never called) both replay green — consistent with the root cause being specifically the EIP-7702 authorization refund, not EIP-7702 support in general.
+
+Every affected vector's non-gas fields (delegation install/code/nonce on the authority account, receipt `status`/`logsCount`, `_op_deposit_*` where applicable) all pass — scoped precisely to `gasUsed` and the fee amounts computed from it, consistent with the root cause above.
+
+```
+<!-- ALLOWLIST vectorId=isthmus_7702_authorization_nonce_consumed field=receipts[0].gasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0x8fc0 got=0xb3b0 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorization_nonce_consumed field=blockGasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0x8fc0 got=0xb3b0 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorization_nonce_consumed field=postState.0x2b5ad5c4795c026514f8317c7a215e218dccd6cf.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x8ac6e013c6a09208 got=0x8ac6cf57b129d1da -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorization_nonce_consumed field=postState.0x4200000000000000000000000000000000000011.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x21782aed8000 got=0x29d635a8e000 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorization_nonce_consumed field=postState.0x4200000000000000000000000000000000000019.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x21782aed8000 got=0x29d635a8e000 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorization_nonce_consumed field=postState.0x420000000000000000000000000000000000001b.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0xf42f8 got=0xf4326 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorize_and_call field=receipts[0].gasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0xd936 got=0x10a0a -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorize_and_call field=blockGasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0xd936 got=0x10a0a -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorize_and_call field=postState.0x2b5ad5c4795c026514f8317c7a215e218dccd6cf.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x8ac6bdde825b716a got=0x8ac6a721be3ce12c -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorize_and_call field=postState.0x4200000000000000000000000000000000000011.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x3292c7e09c00 got=0x3df129efe400 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorize_and_call field=postState.0x4200000000000000000000000000000000000019.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x3292c7e09c00 got=0x3df129efe400 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_authorize_and_call field=postState.0x420000000000000000000000000000000000001b.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0xf4356 got=0xf4394 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_extcodesize_extcodehash field=receipts[0].gasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0x8fc0 got=0xb3b0 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_extcodesize_extcodehash field=blockGasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0x19908 got=0x1bcf8 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_extcodesize_extcodehash field=postState.0x2b5ad5c4795c026514f8317c7a215e218dccd6cf.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x8ac6648b69ed9e75 got=0x8ac653cf5476de47 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_extcodesize_extcodehash field=postState.0x4200000000000000000000000000000000000011.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x5f3c29905000 got=0x679a344bb000 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_extcodesize_extcodehash field=postState.0x4200000000000000000000000000000000000019.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x5f3c29905000 got=0x679a344bb000 -->
+<!-- ALLOWLIST vectorId=isthmus_7702_extcodesize_extcodehash field=postState.0x420000000000000000000000000000000000001b.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x1e868b got=0x1e86b9 -->
+<!-- ALLOWLIST vectorId=jovian_7702_authorize_and_call field=receipts[0].gasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0xd936 got=0x10a0a -->
+<!-- ALLOWLIST vectorId=jovian_7702_authorize_and_call field=blockGasUsed entry=FINDING-2 attribution=a status=PENDING-FIX want=0xd936 got=0x10a0a -->
+<!-- ALLOWLIST vectorId=jovian_7702_authorize_and_call field=postState.0x2b5ad5c4795c026514f8317c7a215e218dccd6cf.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x8ac6bdd8092b55c0 got=0x8ac6a719d0855740 -->
+<!-- ALLOWLIST vectorId=jovian_7702_authorize_and_call field=postState.0x4200000000000000000000000000000000000011.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x3292c7e09c00 got=0x3df129efe400 -->
+<!-- ALLOWLIST vectorId=jovian_7702_authorize_and_call field=postState.0x4200000000000000000000000000000000000019.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x3292c7e09c00 got=0x3df129efe400 -->
+<!-- ALLOWLIST vectorId=jovian_7702_authorize_and_call field=postState.0x420000000000000000000000000000000000001b.balance entry=FINDING-2 attribution=a status=PENDING-FIX want=0x6793f5f00 got=0x7edc6cd80 -->
+```
+
+---
+
 ## Fixed pre-commit (never reached this ledger, recorded for the paper trail)
 
 Two bugs were found and fixed *before* the affected vectors/code were committed, per the plan's
@@ -170,9 +236,10 @@ gets fixed and everything downstream regenerated/rebuilt, not filed as a "diverg
 
 ## Non-divergence known limitations (documented, not attributed — no replay ever ran)
 
-Three wave-0/wave-1 matrix cells could not be produced as executable vectors at all, so they never
-reached the replayer and carry no attribution. Full detail in `generator/README.md`'s "Known
-limitations" section; summarized here for the ledger's completeness:
+Four matrix cells (three from wave-0/wave-1, one from wave-2/Task 4) could not be produced as
+executable vectors at all, so they never reached the replayer and carry no attribution. Full detail
+in `generator/README.md`'s "Known limitations" / "Task 4 (wave 2)" sections; summarized here for the
+ledger's completeness:
 
 - **`is_system_tx=true` post-Regolith deposit** (wave-1 item #7): op-geth's own
   `stateTransition.preCheck()` returns `ErrSystemTxNotSupported` once Regolith is active (Isthmus
@@ -209,3 +276,12 @@ limitations" section; summarized here for the ledger's completeness:
   (mint/value/nonce/receipt fields); a real test of `L1BlockStorage.cpp`'s parsing correctness
   would need a different harness (e.g. a hand-computed oracle, or compiling real `L1Block.sol`
   bytecode into the generator's prestate) — out of scope for this task.
+- **Blob tx (type 0x03) rejection** (Task 4 boundary row, "blob tx（type 0x03）应被拒"): this
+  generator's fixed chain configs are both post-Cancun, under which vanilla L1 op-geth *accepts*
+  blob transactions normally — there is no op-geth "ground truth rejection" to differentially test
+  against; the rejection this case wants to prove is a pure OP-Stack policy decision (no L1 blob
+  availability at L2), entirely outside what running real op-geth-as-a-library can ground-truth one
+  way or the other. Already covered by dedicated unit tests
+  (`bcos-evm/test/opstack/OpStackPreCheck4844Test.cpp`). Full reasoning in
+  `generator/README.md`'s "Task 4 (wave 2)" section, "Not built as an executable vector: blob tx
+  (type 0x03) rejection".

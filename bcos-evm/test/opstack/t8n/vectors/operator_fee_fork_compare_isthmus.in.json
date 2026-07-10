@@ -1,0 +1,66 @@
+{
+  "isthmus_operator_fee_fork_compare_isthmus": {
+    "_info": {
+      "id": "isthmus_operator_fee_fork_compare_isthmus",
+      "comment": "operatorFeeScalar=1, operatorFeeConstant=1000 under Isthmus: OperatorFeeVault += 21000*1/1e6+1000 = 1000 (integer division truncates the scalar term to 0). Paired with jovian_operator_fee_fork_compare_jovian, which uses the *identical* scalar/constant under Jovian's different formula (gas*scalar*100+constant = 21000*1*100+1000 = 2101000) -- the headline same-params-different-formula comparison the plan calls for.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "operator-fee",
+        "isthmus",
+        "fork-compare"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000000100000000000003e8"
+        }
+      },
+      "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf": {
+        "balance": "10000000000000000000",
+        "nonce": "0"
+      },
+      "0x420000000000000000000000000000000000001b": {
+        "balance": "0"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "nonce": "0",
+            "to": "0x00000000000000000000000000000000B0B0B0B0",
+            "value": "0",
+            "gasLimit": "21000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000001"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "isthmus_7702_delegated_sender_transfer": {
+    "_info": {
+      "id": "isthmus_7702_delegated_sender_transfer",
+      "comment": "AUTH (addr4) already has 7702-delegated code installed *before* this vector's own tx runs (pre-seeded directly into `pre`, simulating a delegation installed by some earlier tx/block -- op-geth's EIP-7702 does not disqualify a delegated EOA from being a tx sender). AUTH itself sends a completely ordinary EIP-1559 transfer (no setcode tx involved this time -- exercises the existing eip1559 tx path, not the new setcode one). Checks that fee buying / nonce checks / value transfer all work normally for a sender whose account has non-empty (delegation-indicator) code, exactly as they would for a plain EOA.",
+      "source": "opt8n",
+      "hardforks": [
+        "isthmus"
+      ],
+      "tags": [
+        "eip7702",
+        "delegation",
+        "delegated-sender",
+        "transfer"
+      ]
+    },
+    "env": {
+      "currentCoinbase": "0x4200000000000000000000000000000000000011",
+      "currentNumber": "2",
+      "currentTimestamp": "100",
+      "currentGasLimit": "30000000",
+      "currentBaseFee": "1000000000",
+      "currentRandom": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "pre": {
+      "0x4200000000000000000000000000000000000015": {
+        "balance": "0",
+        "nonce": "1",
+        "storage": {
+          "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000000000000000000000000000000000003b9aca00",
+          "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000000000000000000000000003e8000000640000000000000000",
+          "0x0000000000000000000000000000000000000000000000000000000000000007": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000000000000000000000000000008": "0x00000000000000000000000000000000000000000000138800000000000f4240"
+        }
+      },
+      "0x1efF47bc3a10a45D4B230B5d10E37751FE6AA718": {
+        "balance": "10000000000000000000",
+        "nonce": "5",
+        "code": "0xef0100000000000000000000000000000000000000BEEF"
+      }
+    },
+    "blocks": [
+      {
+        "blockHeader": {
+          "number": "2",
+          "timestamp": "100",
+          "gasLimit": "30000000"
+        },
+        "transactions": [
+          {
+            "nonce": "5",
+            "to": "0x00000000000000000000000000000000B0B0B0B0",
+            "value": "1000000000000000000",
+            "gasLimit": "21000",
+            "maxFeePerGas": "2000000000",
+            "maxPriorityFeePerGas": "1000000000",
+            "data": "0x",
+            "chainId": "8453",
+            "secretKey": "0x0000000000000000000000000000000000000000000000000000000000000004"
+          }
+        ]
+      }
+    ]
+  }
+}
