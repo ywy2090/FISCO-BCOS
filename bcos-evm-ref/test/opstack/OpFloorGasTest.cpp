@@ -37,6 +37,7 @@ TEST(OpFloorGas, UserTxGasUsedRaisedToFloor)
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
+    // 2^128 — ample sender balance for gas payment
     ts[sender] = {.nonce = 0, .balance = 340282366920938463463374607431768211456_u256};
     ts[dest] = {};  // 空账户，纯转账无执行开销
     seedOpPredeploys(ts);
@@ -69,11 +70,12 @@ TEST(OpFloorGas, UserTxGasUsedRaisedToFloor)
     const auto txR = opTransition(
         ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234, {env.data(), env.size()});
     ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
-    // 7623 floor 生效：gas_used 恰等于 min_gas_cost（floor），且严格大于 intrinsic
+    // 7623 floor 生效：gas_used 恰等于公式推导的 floor，且严格大于 intrinsic
+    constexpr int64_t kExpectedFloor3000 = 21000 + 3000 * 10;  // = 51000
+    constexpr int64_t kIntrinsic3000 = 21000 + 3000 * 4;       // = 33000
+    EXPECT_EQ(txR.receipt.gas_used, kExpectedFloor3000);
     EXPECT_EQ(txR.receipt.gas_used, props.props.min_gas_cost);
-    EXPECT_GT(props.props.min_gas_cost, props.props.execution_gas_limit == 0 ?
-                                            0 :
-                                            (tx.gas_limit - props.props.execution_gas_limit));
+    EXPECT_GT(props.props.min_gas_cost, kIntrinsic3000);  // floor 51000 > intrinsic 33000
 }
 
 TEST(OpFloorGas, DepositGasUsedRaisedToFloor)
@@ -103,9 +105,18 @@ TEST(OpFloorGas, DepositGasUsedRaisedToFloor)
     const auto r = runDeposit(ts, block, hashes, dep, isthmusConfig(), vm, 1234);
     ASSERT_EQ(r.receipt.status, EVMC_SUCCESS);
     // deposit 同样吃 7623 floor（op-geth Isthmus 无豁免）：gas_used == floor
-    // 对照：一条极小 data 的 deposit gas_used 应显著更小（证明 floor 抬升）
+    constexpr int64_t kExpectedFloor3000 = 21000 + 3000 * 10;  // = 51000
+    constexpr int64_t kExpectedFloorEmpty = 21000;             // empty calldata
+    EXPECT_EQ(r.receipt.gas_used, kExpectedFloor3000);
+
+    // 对照：空 calldata deposit 在独立 state 上运行，避免大 deposit 污染
     DepositTx small = dep;
     small.data = state::bytes{};
-    const auto rs = runDeposit(ts, block, hashes, small, isthmusConfig(), vm, 1234);
+    test::TestState ts2;
+    ts2[depositor] = {.nonce = 0, .balance = 0_u256};
+    seedOpPredeploys(ts2);
+    const auto rs = runDeposit(ts2, block, hashes, small, isthmusConfig(), vm, 1234);
+    ASSERT_EQ(rs.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(rs.receipt.gas_used, kExpectedFloorEmpty);
     EXPECT_GT(r.receipt.gas_used, rs.receipt.gas_used);
 }
