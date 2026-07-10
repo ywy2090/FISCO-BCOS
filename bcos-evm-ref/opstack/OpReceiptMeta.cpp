@@ -5,9 +5,8 @@
 
 namespace bcos::evmref::opstack
 {
-OpReceiptMeta deriveOpReceiptMeta(const OpForkConfig& cfg, const OpFeeParams& fee,
-    evmc::bytes_view signedTxEnvelope, intx::uint256 l1_cost, intx::uint256 operator_fee_at_used,
-    bool fill_operator_scalars) noexcept
+OpReceiptMeta deriveOpReceiptMeta(const OpForkConfig& cfg, const OpFeeParams& fee, uint32_t flzLen,
+    intx::uint256 l1_cost, intx::uint256 operator_fee_at_used, bool fill_operator_scalars) noexcept
 {
     OpReceiptMeta m;
     m.l1_gas_price = fee.l1_base_fee;
@@ -29,7 +28,7 @@ OpReceiptMeta deriveOpReceiptMeta(const OpForkConfig& cfg, const OpFeeParams& fe
     {
         const auto scalar = static_cast<uint64_t>(fee.da_footprint_gas_scalar);
         m.da_footprint_gas_scalar = scalar;
-        m.da_footprint = estimatedDaSize(signedTxEnvelope) * scalar;
+        m.da_footprint = estimatedDaSizeFromFlz(flzLen) * scalar;
     }
     return m;
 }

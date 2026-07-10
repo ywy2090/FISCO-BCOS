@@ -19,6 +19,7 @@ struct OpTxProperties
     // 直接复用它而非另收一个 fee 参数，避免 validate/transition 两次调用被灌入不同 OpFeeParams
     // 导致 operator_cost_at_gas_limit - opAtUsed 下溢（二者必须出自同一次费率读取）。
     OpFeeParams fee;
+    uint32_t flz_len = 0;  // Fjord+ 单次 FastLZ 结果；Ecotone 为 0
 };
 
 /// Reuses evmone validate_transaction then applies OP checks: reject blob tx; balance cap

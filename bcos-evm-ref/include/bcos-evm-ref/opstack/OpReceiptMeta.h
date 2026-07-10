@@ -35,7 +35,6 @@ struct OpTxReceipt
     OpReceiptMeta meta;
 };
 
-OpReceiptMeta deriveOpReceiptMeta(const OpForkConfig& cfg, const OpFeeParams& fee,
-    evmc::bytes_view signedTxEnvelope, intx::uint256 l1_cost, intx::uint256 operator_fee_at_used,
-    bool fill_operator_scalars) noexcept;
+OpReceiptMeta deriveOpReceiptMeta(const OpForkConfig& cfg, const OpFeeParams& fee, uint32_t flzLen,
+    intx::uint256 l1_cost, intx::uint256 operator_fee_at_used, bool fill_operator_scalars) noexcept;
 }  // namespace bcos::evmref::opstack

@@ -124,3 +124,25 @@ TEST(RollupCost, EstimatedDaSizeDividesScaledBy1e6)
     const auto scaled = estimatedDaSizeScaled(flzCompressLen(view(env)));
     EXPECT_EQ(estimatedDaSize(view(env)), static_cast<uint64_t>(scaled / 1000000_u256));
 }
+
+// D-14b：FastLZ 只压一次——分解 API 与原 API 等价
+TEST(RollupCost, FromFlzVariantsMatchEnvelopeVariants)
+{
+    std::vector<uint8_t> envBytes(120);
+    for (size_t i = 0; i < envBytes.size(); ++i)
+        envBytes[i] = static_cast<uint8_t>(i * 7 + 3);
+    const evmc::bytes_view env{envBytes.data(), envBytes.size()};
+    const auto flz = flzCompressLen(env);
+    ASSERT_GT(flz, 0u);
+    EXPECT_EQ(estimatedDaSizeFromFlz(flz), estimatedDaSize(env));
+    EXPECT_EQ(estimatedDaSizeFromFlz(0), 0u);
+
+    OpFeeParams fee{};
+    fee.l1_base_fee = intx::uint256{1000};
+    fee.base_fee_scalar = 11;
+    fee.blob_base_fee = intx::uint256{5};
+    fee.blob_base_fee_scalar = 7;
+    EXPECT_EQ(
+        computeL1CostFromFlz(fee, flz, fjordConfig()), computeL1Cost(fee, env, fjordConfig()));
+    EXPECT_EQ(computeL1CostFromFlz(fee, 0, fjordConfig()), intx::uint256{0});
+}

@@ -130,12 +130,19 @@ intx::uint256 estimatedDaSizeScaled(uint32_t fastlzSize) noexcept
     return intx::uint256{static_cast<uint64_t>(clamped)};
 }
 
+uint64_t estimatedDaSizeFromFlz(uint32_t flzLen) noexcept
+{
+    if (flzLen == 0)
+        return 0;
+    return static_cast<uint64_t>(
+        estimatedDaSizeScaled(flzLen) / intx::uint256{kDaSizeScaleDivisor});
+}
+
 uint64_t estimatedDaSize(evmc::bytes_view signedTxEnvelope) noexcept
 {
     if (signedTxEnvelope.empty())
         return 0;
-    const auto scaled = estimatedDaSizeScaled(flzCompressLen(signedTxEnvelope));
-    return static_cast<uint64_t>(scaled / intx::uint256{kDaSizeScaleDivisor});
+    return estimatedDaSizeFromFlz(flzCompressLen(signedTxEnvelope));
 }
 
 uint64_t bedrockCalldataGasUsed(evmc::bytes_view env) noexcept
@@ -148,28 +155,41 @@ uint64_t bedrockCalldataGasUsed(evmc::bytes_view env) noexcept
            nonZeroes * static_cast<uint64_t>(kNonzeroByteCost);
 }
 
+intx::uint256 computeL1CostFromFlz(
+    const OpFeeParams& params, uint32_t flzLen, const OpForkConfig& cfg) noexcept
+{
+    (void)cfg;
+    if (flzLen == 0)
+        return intx::uint256{0};
+    const auto calldataPerByte = params.l1_base_fee * intx::uint256{params.base_fee_scalar} *
+                                 intx::uint256{kNonzeroByteCost};
+    const auto blobPerByte = params.blob_base_fee * intx::uint256{params.blob_base_fee_scalar};
+    // op-geth Fjord+:
+    // estimatedDaSizeScaled(flz)*(l1BaseFee*16*baseScalar+blobBaseFee*blobScalar)/1e12
+    const auto scaled = estimatedDaSizeScaled(flzLen);
+    return scaled * (calldataPerByte + blobPerByte) / intx::uint256{kFjordDivisor};
+}
+
 intx::uint256 computeL1Cost(
     const OpFeeParams& params, evmc::bytes_view signedTxEnvelope, const OpForkConfig& cfg) noexcept
 {
     if (signedTxEnvelope.empty())
         return intx::uint256{0};
 
-    const auto calldataPerByte = params.l1_base_fee * intx::uint256{params.base_fee_scalar} *
-                                 intx::uint256{kNonzeroByteCost};
-    const auto blobPerByte = params.blob_base_fee * intx::uint256{params.blob_base_fee_scalar};
-
     if (cfg.has_ecotone_l1_formula)
     {
         // op-geth newL1CostFuncEcotone:
         //   calldataGas*(l1BaseFee*16*baseScalar + blobBaseFee*blobScalar)/16e6
+        const auto calldataPerByte = params.l1_base_fee * intx::uint256{params.base_fee_scalar} *
+                                     intx::uint256{kNonzeroByteCost};
+        const auto blobPerByte = params.blob_base_fee * intx::uint256{params.blob_base_fee_scalar};
         const auto calldataGas = intx::uint256{bedrockCalldataGasUsed(signedTxEnvelope)};
         return calldataGas * (calldataPerByte + blobPerByte) / intx::uint256{16'000'000};
     }
 
     // Fjord+（现实现）:
     //   estimatedDaSizeScaled(flz)*(l1BaseFee*16*baseScalar + blobBaseFee*blobScalar)/1e12
-    const auto scaled = estimatedDaSizeScaled(flzCompressLen(signedTxEnvelope));
-    return scaled * (calldataPerByte + blobPerByte) / intx::uint256{kFjordDivisor};
+    return computeL1CostFromFlz(params, flzCompressLen(signedTxEnvelope), cfg);
 }
 
 intx::uint256 computeOperatorCost(

@@ -19,7 +19,17 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
     if (auto* err = std::get_if<std::error_code>(&base))
         return *err;
 
-    const auto l1Cost = computeL1Cost(fee, signedTxEnvelope, cfg);
+    uint32_t flzLen = 0;
+    intx::uint256 l1Cost;
+    if (cfg.has_ecotone_l1_formula)
+    {
+        l1Cost = computeL1Cost(fee, signedTxEnvelope, cfg);
+    }
+    else
+    {
+        flzLen = flzCompressLen(signedTxEnvelope);
+        l1Cost = computeL1CostFromFlz(fee, flzLen, cfg);
+    }
     const auto opCost = cfg.has_operator_fee ?
                             computeOperatorCost(fee, static_cast<uint64_t>(tx.gas_limit), cfg) :
                             intx::uint256{0};
@@ -31,7 +41,7 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
         return make_error_code(std::errc::result_out_of_range);
 
     return OpTxProperties{
-        std::get<evmone::state::TransactionProperties>(base), l1Cost, opCost, fee};
+        std::get<evmone::state::TransactionProperties>(base), l1Cost, opCost, fee, flzLen};
 }
 
 std::variant<OpTxProperties, std::error_code> opValidateFromState(
