@@ -4,6 +4,7 @@
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
 #include <evmone/evmone.h>
 #include <gtest/gtest.h>
+#include <test/state/host.hpp>
 #include <test/state/state.hpp>
 #include <test/utils/test_state.hpp>
 
@@ -102,6 +103,36 @@ TEST(OpDeposit, EntryFailureChargesFullGasLimitButKeepsMint)
     EXPECT_EQ(r.receipt.gas_used, 20999);
     EXPECT_EQ(ts.at(kFrom).balance, intx::uint256{50});
     EXPECT_EQ(ts.at(kFrom).nonce, 1u);
+}
+
+TEST(OpDeposit, ContractCreationDerivesAddressFromPreExecutionNonce)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 5, .balance = intx::uint256{0}};
+    test::TestBlockHashes hashes;
+
+    // PUSH1 0x00 PUSH1 0x00 RETURN：部署空 runtime code，仅用于验证 CREATE 地址派生的 nonce。
+    const auto initCode = evmc::from_hex("60006000f3").value();
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = std::nullopt,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = initCode};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
+
+    // 地址须由「执行前」nonce（5）派生，而非 host.call 内部已 bump 过的 6。
+    const auto expectedAddr = evmone::state::compute_create_address(kFrom, 5);
+
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(r.deposit_nonce, 5u);
+    EXPECT_EQ(ts.at(kFrom).nonce, 6u);
+    ASSERT_EQ(ts.count(expectedAddr), 1u);
+    EXPECT_EQ(ts.at(expectedAddr).nonce, 1u);
 }
 
 TEST(OpDeposit, SystemTxIsBlockError)

@@ -2,6 +2,7 @@
 #include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpHost.h>
 #include <algorithm>
+#include <cassert>
 #include <stdexcept>
 #include <test/state/state.hpp>
 
@@ -78,6 +79,11 @@ OpDepositReceipt runDeposit(const evmone::state::StateView& view,
     {
         const auto& p = std::get<evmone::state::TransactionProperties>(props);
         OpHost host{cfg.rev, vm, state, block, hashes, tx, chainId, cfg.precompiles};
+        // Host::prepare_message 对 depth==0 消息不自行 bump nonce（母本假定调用方已 bump，
+        // CREATE 地址派生用 nonce-1 取"执行前" nonce）；此处照 opTransition 的成例先 bump，
+        // 否则合约创建 deposit 会用 preNonce-1 派生地址，偏离 op-geth。
+        assert(fromAcc.nonce < evmone::state::Account::NonceMax);
+        ++fromAcc.nonce;
         const auto result = host.call(build_deposit_message(tx, p.execution_gas_limit));
         const int64_t gasUsed =
             std::max<int64_t>(dep.gas_limit - result.gas_left, p.min_gas_cost);
