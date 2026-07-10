@@ -3,6 +3,56 @@
 
 namespace bcos::evmref::opstack
 {
+const OpForkConfig& ecotoneConfig() noexcept
+{
+    static const OpForkConfig cfg{
+        .fork = OpFork::Ecotone,
+        .rev = EVMC_CANCUN,
+        .precompiles = nullptr,
+        .disable_prague_requests = true,
+        .has_operator_fee = false,
+        .has_jovian_operator_formula = false,
+        .has_da_footprint = false,
+        .has_ecotone_l1_formula = true,
+    };
+    return cfg;
+}
+
+const OpForkConfig& fjordConfig() noexcept
+{
+    static const OpForkConfig cfg{
+        .fork = OpFork::Fjord,
+        .rev = EVMC_CANCUN,
+        .precompiles = nullptr,
+        .disable_prague_requests = true,
+        .has_operator_fee = false,
+        .has_jovian_operator_formula = false,
+        .has_da_footprint = false,
+        .has_ecotone_l1_formula = false,
+    };
+    return cfg;
+}
+
+const OpForkConfig& graniteConfig() noexcept
+{
+    static const OpForkConfig cfg = [] {
+        OpForkConfig c = fjordConfig();
+        c.fork = OpFork::Granite;
+        return c;
+    }();
+    return cfg;
+}
+
+const OpForkConfig& holoceneConfig() noexcept
+{
+    static const OpForkConfig cfg = [] {
+        OpForkConfig c = fjordConfig();
+        c.fork = OpFork::Holocene;
+        return c;
+    }();
+    return cfg;
+}
+
 const OpForkConfig& isthmusConfig() noexcept
 {
     static const OpForkConfig cfg{
@@ -13,6 +63,7 @@ const OpForkConfig& isthmusConfig() noexcept
         .has_operator_fee = true,
         .has_jovian_operator_formula = false,
         .has_da_footprint = false,
+        .has_ecotone_l1_formula = false,
     };
     return cfg;
 }
@@ -27,6 +78,7 @@ const OpForkConfig& jovianConfig() noexcept
         .has_operator_fee = true,
         .has_jovian_operator_formula = true,
         .has_da_footprint = true,
+        .has_ecotone_l1_formula = false,
     };
     return cfg;
 }
@@ -41,6 +93,7 @@ const OpForkConfig& karstConfig() noexcept
         .has_operator_fee = true,
         .has_jovian_operator_formula = true,
         .has_da_footprint = true,
+        .has_ecotone_l1_formula = false,
     };
     return cfg;
 }
