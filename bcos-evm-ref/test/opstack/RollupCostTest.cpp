@@ -54,13 +54,43 @@ TEST(RollupCost, EstimatedDaSizeFloorsToMinimum)
 
 TEST(RollupCost, EmptyEnvelopeIsZeroL1Cost)
 {
-    EXPECT_EQ(computeL1Cost(feeParams(1000000000, 10000000, 2, 3), {}), intx::uint256{0});
+    EXPECT_EQ(
+        computeL1Cost(feeParams(1000000000, 10000000, 2, 3), {}, fjordConfig()), intx::uint256{0});
 }
 
 TEST(RollupCost, FjordL1CostEmptyTxMatches3203000)
 {
     const auto env = readFixture("empty_tx.bin");
-    EXPECT_EQ(computeL1Cost(feeParams(1000000000, 10000000, 2, 3), view(env)), 3203000_u256);
+    EXPECT_EQ(computeL1Cost(feeParams(1000000000, 10000000, 2, 3), view(env), fjordConfig()),
+        3203000_u256);
+}
+
+TEST(RollupCost, BedrockCalldataGasUsedNoPlus68)
+{
+    // 3 个零字节 + 2 个非零字节 = 3*4 + 2*16 = 44；确认没有 pre-Regolith 的 +68。
+    const std::vector<uint8_t> env{0x00, 0x00, 0x00, 0x11, 0x22};
+    EXPECT_EQ(bedrockCalldataGasUsed({env.data(), env.size()}), 44u);
+    EXPECT_NE(bedrockCalldataGasUsed({env.data(), env.size()}), 44u + 68u);
+}
+
+TEST(RollupCost, EcotoneL1DiffersFromFjordSameEnvelope)
+{
+    OpFeeParams fee{.l1_base_fee = 1000000000_u256,
+        .base_fee_scalar = 2,
+        .blob_base_fee_scalar = 3,
+        .blob_base_fee = 10000000_u256};
+    std::vector<uint8_t> env(200, 0x11);
+    const auto ecotone = computeL1Cost(fee, {env.data(), env.size()}, ecotoneConfig());
+    const auto fjord = computeL1Cost(fee, {env.data(), env.size()}, fjordConfig());
+    EXPECT_NE(ecotone, fjord);
+
+    // Ecotone 公式钉死：calldataGas * (l1BaseFee*16*baseScalar + blobBaseFee*blobScalar) / 16e6
+    const auto calldataGas = intx::uint256{bedrockCalldataGasUsed({env.data(), env.size()})};
+    const auto expected = calldataGas *
+                          (fee.l1_base_fee * 16 * intx::uint256{fee.base_fee_scalar} +
+                              fee.blob_base_fee * intx::uint256{fee.blob_base_fee_scalar}) /
+                          intx::uint256{16'000'000};
+    EXPECT_EQ(ecotone, expected);
 }
 
 TEST(RollupCost, OperatorCostIsthmus)

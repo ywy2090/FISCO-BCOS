@@ -18,7 +18,7 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
     if (auto* err = std::get_if<std::error_code>(&base))
         return *err;
 
-    const auto l1Cost = computeL1Cost(fee, signedTxEnvelope);
+    const auto l1Cost = computeL1Cost(fee, signedTxEnvelope, cfg);
     const auto opCost = cfg.has_operator_fee ?
                             computeOperatorCost(fee, static_cast<uint64_t>(tx.gas_limit), cfg) :
                             intx::uint256{0};

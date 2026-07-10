@@ -12,6 +12,7 @@ constexpr int64_t kL1CostFastlzCoef = 836500;
 constexpr int64_t kMinTxSizeScaled = 100000000;
 constexpr int64_t kFjordDivisor = 1000000000000;
 constexpr int64_t kNonzeroByteCost = 16;
+constexpr int64_t kZeroByteCost = 4;
 constexpr int64_t kOperatorFeeScalarDivisor = 1000000;
 
 // Port of op-geth FlzCompressLen: length of output if serializedTx were FastLZ-compressed.
@@ -131,17 +132,37 @@ uint64_t estimatedDaSize(evmc::bytes_view signedTxEnvelope) noexcept
     return static_cast<uint64_t>(scaled / intx::uint256{1'000'000});
 }
 
-intx::uint256 computeL1Cost(const OpFeeParams& params, evmc::bytes_view signedTxEnvelope) noexcept
+uint64_t bedrockCalldataGasUsed(evmc::bytes_view env) noexcept
+{
+    uint64_t zeroes = 0;
+    uint64_t nonZeroes = 0;
+    for (const auto b : env)
+        (b == 0 ? zeroes : nonZeroes)++;
+    return zeroes * static_cast<uint64_t>(kZeroByteCost) +
+           nonZeroes * static_cast<uint64_t>(kNonzeroByteCost);
+}
+
+intx::uint256 computeL1Cost(
+    const OpFeeParams& params, evmc::bytes_view signedTxEnvelope, const OpForkConfig& cfg) noexcept
 {
     if (signedTxEnvelope.empty())
-    {
         return intx::uint256{0};
-    }
-    const auto fastlz = flzCompressLen(signedTxEnvelope);
-    const auto scaled = estimatedDaSizeScaled(fastlz);
+
     const auto calldataPerByte = params.l1_base_fee * intx::uint256{params.base_fee_scalar} *
                                  intx::uint256{kNonzeroByteCost};
     const auto blobPerByte = params.blob_base_fee * intx::uint256{params.blob_base_fee_scalar};
+
+    if (cfg.has_ecotone_l1_formula)
+    {
+        // op-geth newL1CostFuncEcotone:
+        //   calldataGas*(l1BaseFee*16*baseScalar + blobBaseFee*blobScalar)/16e6
+        const auto calldataGas = intx::uint256{bedrockCalldataGasUsed(signedTxEnvelope)};
+        return calldataGas * (calldataPerByte + blobPerByte) / intx::uint256{16'000'000};
+    }
+
+    // Fjord+（现实现）:
+    //   estimatedDaSizeScaled(flz)*(l1BaseFee*16*baseScalar + blobBaseFee*blobScalar)/1e12
+    const auto scaled = estimatedDaSizeScaled(flzCompressLen(signedTxEnvelope));
     return scaled * (calldataPerByte + blobPerByte) / intx::uint256{kFjordDivisor};
 }
 
