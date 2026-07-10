@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <test/state/state.hpp>
 #include <test/utils/test_state.hpp>
+#include <vector>
 
 using namespace bcos::evmref::opstack;
 using namespace evmone;
@@ -150,4 +151,31 @@ TEST(OpHost, DelegatedFlagToP256FallsBackToEmptyCode)
     // 母本：DELEGATED 命中 precompile 地址 → 空 code 成功，保留全 gas。
     EXPECT_EQ(r.status_code, EVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, msg.gas);
+}
+
+TEST(OpHost, JovianBn256PairingInputOverLimitFails)
+{
+    constexpr auto kBn256Pairing = 0x0000000000000000000000000000000000000008_address;
+    constexpr size_t kJovianMax = 81984;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    state::State st{ts};
+    test::TestBlockHashes hashes;
+    state::Transaction tx;
+    tx.sender = kSender;
+    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, 1234, &jovianPrecompileOverrides()};
+
+    std::vector<uint8_t> input(kJovianMax + 1, 0x00);
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.recipient = kBn256Pairing;
+    msg.code_address = kBn256Pairing;
+    msg.sender = kSender;
+    msg.gas = 100000;
+    msg.input_data = input.data();
+    msg.input_size = input.size();
+
+    const auto r = host.call(msg);
+    EXPECT_EQ(r.status_code, EVMC_FAILURE);
+    EXPECT_EQ(r.gas_left, 0);
 }
