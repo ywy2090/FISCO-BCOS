@@ -15,6 +15,8 @@ struct PrecompileOverrides;
 class OpHost : public evmone::state::Host
 {
 public:
+    /// 生命周期契约（同母本 Host）：state/block/hashes/tx 以引用保存，调用方必须保证
+    /// 其存活期覆盖 OpHost 整个生命周期——传临时对象（如 makeBlock()）会立即悬垂。
     OpHost(evmc_revision rev, evmc::VM& vm, evmone::state::State& state,
         const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
         const evmone::state::Transaction& tx, uint64_t chainId,

@@ -32,8 +32,9 @@ TEST(OpHost, GetTxContextUsesConfiguredChainId)
     test::TestBlockHashes hashes;
     state::Transaction tx;
     tx.sender = 0x00000000000000000000000000000000000000aa_address;
-    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, /*chainId=*/1234,
-        &isthmusPrecompileOverrides()};
+    const auto block = makeBlock();
+    OpHost host{
+        EVMC_PRAGUE, vm, st, block, hashes, tx, /*chainId=*/1234, &isthmusPrecompileOverrides()};
     const auto ctx = host.get_tx_context();
     EXPECT_EQ(intx::be::load<intx::uint256>(ctx.chain_id), intx::uint256{1234});
 }
@@ -45,7 +46,8 @@ TEST(OpHost, GetTxContextGasPriceZeroForSystemCall)
     state::State st{ts};
     test::TestBlockHashes hashes;
     state::Transaction tx;
-    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, 1234, &isthmusPrecompileOverrides()};
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, st, block, hashes, tx, 1234, &isthmusPrecompileOverrides()};
     EXPECT_EQ(intx::be::load<intx::uint256>(host.get_tx_context().tx_gas_price), intx::uint256{0});
 }
 
@@ -70,7 +72,8 @@ TEST(OpHost, CallToP256EmptyAccountIsNotSilentSuccess)
     test::TestBlockHashes hashes;
     state::Transaction tx;
     tx.sender = kSender;
-    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, 1234, &isthmusPrecompileOverrides()};
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, st, block, hashes, tx, 1234, &isthmusPrecompileOverrides()};
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -91,7 +94,8 @@ TEST(OpHost, CallToP256TransfersValue)
     test::TestBlockHashes hashes;
     state::Transaction tx;
     tx.sender = kSender;
-    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, 1234, &isthmusPrecompileOverrides()};
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, st, block, hashes, tx, 1234, &isthmusPrecompileOverrides()};
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -115,7 +119,8 @@ TEST(OpHost, DelegateCallToP256IsNotSilentSuccess)
     test::TestBlockHashes hashes;
     state::Transaction tx;
     tx.sender = kSender;
-    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, 1234, &isthmusPrecompileOverrides()};
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, st, block, hashes, tx, 1234, &isthmusPrecompileOverrides()};
 
     evmc_message msg{};
     msg.kind = EVMC_DELEGATECALL;
@@ -137,7 +142,8 @@ TEST(OpHost, DelegatedFlagToP256FallsBackToEmptyCode)
     test::TestBlockHashes hashes;
     state::Transaction tx;
     tx.sender = kSender;
-    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, 1234, &isthmusPrecompileOverrides()};
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, st, block, hashes, tx, 1234, &isthmusPrecompileOverrides()};
 
     evmc_message msg{};
     msg.kind = EVMC_CALL;
@@ -162,7 +168,8 @@ TEST(OpHost, JovianBn256PairingInputOverLimitFails)
     test::TestBlockHashes hashes;
     state::Transaction tx;
     tx.sender = kSender;
-    OpHost host{EVMC_PRAGUE, vm, st, makeBlock(), hashes, tx, 1234, &jovianPrecompileOverrides()};
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, st, block, hashes, tx, 1234, &jovianPrecompileOverrides()};
 
     std::vector<uint8_t> input(kJovianMax + 1, 0x00);
     evmc_message msg{};

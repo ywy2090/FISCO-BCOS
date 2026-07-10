@@ -246,7 +246,7 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
 
     auto meta = deriveOpReceiptMeta(cfg, props.fee, signedTxEnvelope, props.l1_cost, opAtUsed,
         /*fill_operator_scalars=*/true);
-    return OpTxReceipt{std::move(receipt), std::move(meta)};
+    return OpTxReceipt{std::move(receipt), meta};
 }
 
 OpTxReceipt opTransitionFromState(const evmone::state::StateView& view,
