@@ -2,14 +2,19 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
-#include <test/state/precompiles.hpp>
 #include <test/state/precompiles_internal.hpp>
+
+using namespace evmc::literals;
 
 namespace bcos::evmref::opstack
 {
 namespace
 {
+[[nodiscard]] bool isCreateKind(evmc_call_kind kind) noexcept
+{
+    return kind == EVMC_CREATE || kind == EVMC_CREATE2;
+}
+
 evmc::Result executeGasOverridePrecompile(const evmc_message& msg, int64_t gas_cost)
 {
     if (msg.gas < gas_cost)
@@ -26,6 +31,27 @@ evmc::Result executeGasOverridePrecompile(const evmc_message& msg, int64_t gas_c
         return evmc::Result{EVMC_SUCCESS, gas_left, 0, output.data(), exec.output_size};
 
     return evmc::Result{exec.status_code, gas_left};
+}
+
+/// 复刻母本 Host::execute_message 中 EVMC_CALL 的 journal_create / touch / value 转账。
+void applyCallValueSemantics(evmone::state::State& state, const evmc_message& msg) noexcept
+{
+    const auto exists = state.find(msg.recipient) != nullptr;
+    if (!exists)
+        state.journal_create(msg.recipient, exists);
+
+    if (evmc::is_zero(msg.value))
+    {
+        state.touch(msg.recipient);
+        return;
+    }
+
+    auto& dst_acc = state.get_or_insert(msg.recipient);
+    const auto value = intx::be::load<intx::uint256>(msg.value);
+    state.journal_balance_change(msg.sender, state.get(msg.sender).balance);
+    state.journal_balance_change(msg.recipient, dst_acc.balance);
+    state.get(msg.sender).balance -= value;
+    dst_acc.balance += value;
 }
 }  // namespace
 
@@ -66,20 +92,52 @@ evmc_tx_context OpHost::get_tx_context() const noexcept
 
 evmc::Result OpHost::call(const evmc_message& msg) noexcept
 {
-    if (m_overrides != nullptr && msg.kind == EVMC_CALL)
+    if (m_overrides == nullptr || isCreateKind(msg.kind))
+        return evmone::state::Host::call(msg);
+
+    const auto* entry = m_overrides->find(msg.code_address);
+    if (entry == nullptr)
+        return evmone::state::Host::call(msg);
+
+    // EIP-7702：经 delegation 命中 precompile 地址时执行空 code，不跑 precompile。
+    if ((msg.flags & EVMC_DELEGATED) != 0)
+        return evmone::state::Host::call(msg);
+
+    if (entry->max_input_size > 0 && static_cast<size_t>(msg.input_size) > entry->max_input_size)
+        return evmc::Result{EVMC_FAILURE, 0};
+
+    // 限长-only（0x08 / BLS）：回落基类（含 value/checkpoint/precompile 派发）。
+    if (entry->gas_cost_override < 0)
+        return evmone::state::Host::call(msg);
+
+    // gas-override（0x100）：母本 is_precompile(PRAGUE)=false，必须自派发。
+    // 复刻 Host::call 的 checkpoint + execute_message 派发前语义（无 logs：P256 不 emit）。
+    if (msg.depth == 0)
     {
-        if (const auto* entry = m_overrides->find(msg.code_address); entry != nullptr)
-        {
-            if (entry->max_input_size > 0 &&
-                static_cast<size_t>(msg.input_size) > entry->max_input_size)
-                return evmc::Result{EVMC_FAILURE, 0};
-
-            if (entry->gas_cost_override >= 0)
-                return executeGasOverridePrecompile(msg, entry->gas_cost_override);
-
-            return evmone::state::Host::call(msg);
-        }
+        if (const auto* sender = m_state.find(msg.sender);
+            sender != nullptr && sender->nonce == evmone::state::Account::NonceMax)
+            return evmc::Result{EVMC_FAILURE, msg.gas};
     }
-    return evmone::state::Host::call(msg);
+
+    const auto state_checkpoint = m_state.checkpoint();
+
+    if (msg.kind == EVMC_CALL)
+        applyCallValueSemantics(m_state, msg);
+
+    auto result = executeGasOverridePrecompile(msg, entry->gas_cost_override);
+
+    if (result.status_code != EVMC_SUCCESS)
+    {
+        static constexpr auto addr_03 = 0x03_address;
+        auto* const acc_03 = m_state.find(addr_03);
+        const auto is_03_touched = acc_03 != nullptr && acc_03->erase_if_empty;
+
+        m_state.rollback(state_checkpoint);
+
+        // 母本 0x03 quirk：对该地址的 touch 永不回滚。
+        if (is_03_touched && m_rev >= EVMC_SPURIOUS_DRAGON)
+            m_state.touch(addr_03);
+    }
+    return result;
 }
 }  // namespace bcos::evmref::opstack
