@@ -30,7 +30,8 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
     if (balance < maxCost)
         return make_error_code(std::errc::result_out_of_range);
 
-    return OpTxProperties{std::get<evmone::state::TransactionProperties>(base), l1Cost, opCost};
+    return OpTxProperties{
+        std::get<evmone::state::TransactionProperties>(base), l1Cost, opCost, fee};
 }
 
 std::variant<OpTxProperties, std::error_code> opValidateFromState(

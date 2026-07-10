@@ -182,7 +182,7 @@ TEST(OpBlockHarness, IsthmusBlockWithAttributesDeposit)
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(v));
     const auto& props = std::get<OpTxProperties>(v);
     const auto txR = opTransition(
-        ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234, {env.data(), env.size()});
+        ts, block, hashes, tx, isthmusConfig(), vm, props, 1234, {env.data(), env.size()});
     ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
 
     // FromState≡注入断言：同 tx 两路径 gas_used / l1_cost 相等。

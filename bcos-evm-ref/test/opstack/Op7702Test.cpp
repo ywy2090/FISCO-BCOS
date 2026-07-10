@@ -81,7 +81,7 @@ OpTxReceipt runWithAuth(
     }
     const auto& props = std::get<OpTxProperties>(v);
     return opTransition(
-        ts, block, hashes, tx, isthmusConfig(), vm, props, fee, chainId, {env.data(), env.size()});
+        ts, block, hashes, tx, isthmusConfig(), vm, props, chainId, {env.data(), env.size()});
 }
 
 [[nodiscard]] bool isDelegationDesignator(const evmc::bytes& code) noexcept
@@ -156,6 +156,9 @@ TEST(Op7702, BadSignatureRecoverFailsNoDelegation)
         .s = intx::be::load<intx::uint256>(kS_ok),
         .v = intx::uint256{kV_ok}};
     const auto r = runWithAuth(ts, vm, auth);
+    // 坏签名只 skip 该条 authorization，tx 本身必须成功——否则"无委托"断言会把
+    // "交易整体失败"误判为"正确跳过坏签名"。
+    ASSERT_EQ(r.receipt.status, EVMC_SUCCESS);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
 
     // 真实 kAuthority 必须没有被委托
@@ -270,7 +273,7 @@ TEST(Op7702, DelegatedCallAfterAuthorization)
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(v));
     const auto& props = std::get<OpTxProperties>(v);
     const auto txR = opTransition(
-        ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1, {env.data(), env.size()});
+        ts, block, hashes, tx, isthmusConfig(), vm, props, 1, {env.data(), env.size()});
 
     // 委托调用应成功执行 kDelegate 代码；SSTORE 在 authority 上下文中落槽
     EXPECT_EQ(txR.receipt.status, EVMC_SUCCESS);

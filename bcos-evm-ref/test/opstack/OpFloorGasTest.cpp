@@ -70,7 +70,7 @@ TEST(OpFloorGas, UserTxGasUsedRaisedToFloor)
     const auto& props = std::get<OpTxProperties>(v);
 
     const auto txR = opTransition(
-        ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234, {env.data(), env.size()});
+        ts, block, hashes, tx, isthmusConfig(), vm, props, 1234, {env.data(), env.size()});
     ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
     // 7623 floor 生效：gas_used 恰等于公式推导的 floor，且严格大于 intrinsic
     constexpr int64_t kExpectedFloor3000 = 21000 + 3000 * 10;  // = 51000

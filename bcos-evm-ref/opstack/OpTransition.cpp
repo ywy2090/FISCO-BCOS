@@ -159,8 +159,7 @@ evmc_message build_message(
 OpTxReceipt opTransition(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     const evmone::state::Transaction& tx, const OpForkConfig& cfg, evmc::VM& vm,
-    const OpTxProperties& props, const OpFeeParams& fee, uint64_t chainId,
-    evmc::bytes_view signedTxEnvelope)
+    const OpTxProperties& props, uint64_t chainId, evmc::bytes_view signedTxEnvelope)
 {
     const auto rev = cfg.rev;
     evmone::state::State state{view};
@@ -229,7 +228,7 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
     state.touch(block.coinbase).balance += gas_used * priority_gas_price;
 
     const auto opAtUsed = cfg.has_operator_fee ?
-                              computeOperatorCost(fee, static_cast<uint64_t>(gas_used), cfg) :
+                              computeOperatorCost(props.fee, static_cast<uint64_t>(gas_used), cfg) :
                               intx::uint256{0};
     state.touch(OP_BASE_FEE_VAULT).balance +=
         intx::uint256{static_cast<uint64_t>(gas_used)} * intx::uint256{base_fee};
@@ -245,7 +244,7 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
 
     receipt.logs_bloom_filter = evmone::state::compute_bloom_filter(receipt.logs);
 
-    auto meta = deriveOpReceiptMeta(cfg, fee, signedTxEnvelope, props.l1_cost, opAtUsed,
+    auto meta = deriveOpReceiptMeta(cfg, props.fee, signedTxEnvelope, props.l1_cost, opAtUsed,
         /*fill_operator_scalars=*/true);
     return OpTxReceipt{std::move(receipt), std::move(meta)};
 }
@@ -255,7 +254,6 @@ OpTxReceipt opTransitionFromState(const evmone::state::StateView& view,
     const evmone::state::Transaction& tx, const OpForkConfig& cfg, evmc::VM& vm,
     const OpTxProperties& props, uint64_t chainId, evmc::bytes_view signedTxEnvelope)
 {
-    return opTransition(
-        view, block, hashes, tx, cfg, vm, props, loadOpFeeParams(view), chainId, signedTxEnvelope);
+    return opTransition(view, block, hashes, tx, cfg, vm, props, chainId, signedTxEnvelope);
 }
 }  // namespace bcos::evmref::opstack

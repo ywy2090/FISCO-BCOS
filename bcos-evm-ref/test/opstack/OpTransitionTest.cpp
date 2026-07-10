@@ -55,14 +55,19 @@ TEST(OpTransition, RoutesFeesToFourVaults)
     const auto& props = std::get<OpTxProperties>(v);
 
     const auto txR = opTransition(
-        ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234, {env.data(), env.size()});
+        ts, block, hashes, tx, isthmusConfig(), vm, props, 1234, {env.data(), env.size()});
     ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
     bcos::evmref::applyStateDiff(ts, txR.receipt.state_diff);
 
-    EXPECT_GT(ts.at(OP_BASE_FEE_VAULT).balance, intx::uint256{0});
+    // 纯转账无 calldata：gas_used = intrinsic = 21000（7623 floor 空 calldata 亦为 21000）。
+    ASSERT_EQ(txR.receipt.gas_used, 21000);
+    const auto gasUsed = intx::uint256{static_cast<uint64_t>(txR.receipt.gas_used)};
+    // BaseFeeVault = gasUsed×baseFee(7)；Sequencer(coinbase) = gasUsed×priority(10)；
+    // Isthmus operator = gasUsed×scalar(1e6)/1e6 + 0 = gasUsed。
+    EXPECT_EQ(ts.at(OP_BASE_FEE_VAULT).balance, gasUsed * intx::uint256{7});
     EXPECT_EQ(ts.at(OP_L1_FEE_VAULT).balance, props.l1_cost);
-    EXPECT_GT(ts.at(OP_SEQUENCER_FEE_VAULT).balance, intx::uint256{0});
-    EXPECT_GT(ts.at(OP_OPERATOR_FEE_VAULT).balance, intx::uint256{0});
+    EXPECT_EQ(ts.at(OP_SEQUENCER_FEE_VAULT).balance, gasUsed * intx::uint256{10});
+    EXPECT_EQ(ts.at(OP_OPERATOR_FEE_VAULT).balance, gasUsed);
 }
 
 TEST(OpTransition, ReceiptCarriesL1AndOperatorMeta)
@@ -105,7 +110,7 @@ TEST(OpTransition, ReceiptCarriesL1AndOperatorMeta)
     const auto& props = std::get<OpTxProperties>(v);
 
     const auto txR = opTransition(
-        ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234, {env.data(), env.size()});
+        ts, block, hashes, tx, isthmusConfig(), vm, props, 1234, {env.data(), env.size()});
     ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
 
     ASSERT_TRUE(txR.meta.l1_fee.has_value());
@@ -113,7 +118,9 @@ TEST(OpTransition, ReceiptCarriesL1AndOperatorMeta)
     ASSERT_TRUE(txR.meta.l1_gas_price.has_value());
     EXPECT_EQ(*txR.meta.l1_gas_price, fee.l1_base_fee);
     ASSERT_TRUE(txR.meta.operator_fee.has_value());
-    EXPECT_GT(*txR.meta.operator_fee, intx::uint256{0});
+    // Isthmus operator = gasUsed×scalar(1e6)/1e6 + 0 = gasUsed（纯转账 21000）。
+    EXPECT_EQ(*txR.meta.operator_fee, intx::uint256{static_cast<uint64_t>(txR.receipt.gas_used)});
+    EXPECT_EQ(txR.receipt.gas_used, 21000);
 }
 
 TEST(OpTransition, JovianReceiptMetaAndOperatorFormula)
@@ -158,7 +165,7 @@ TEST(OpTransition, JovianReceiptMetaAndOperatorFormula)
     const auto& props = std::get<OpTxProperties>(v);
 
     const auto txR =
-        opTransition(ts, block, hashes, tx, cfg, vm, props, fee, 1234, {env.data(), env.size()});
+        opTransition(ts, block, hashes, tx, cfg, vm, props, 1234, {env.data(), env.size()});
     ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
 
     const auto expectedOp =
