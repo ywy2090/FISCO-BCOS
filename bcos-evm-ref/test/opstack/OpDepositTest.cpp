@@ -347,3 +347,95 @@ TEST(OpDeposit, WarmColdDifferentialIs2500)
     };
     EXPECT_EQ(run(kCold) - run(kFrom), 2500);
 }
+
+// D-01：标准 L1→L2 桥接——from 余额 0，mint 供资再转给收款人，必须成功
+TEST(OpDeposit, BridgeDepositSpendsMintedValue)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kTo = 0x00000000000000000000000000000000000000f1_address;
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
+        .mint = intx::uint256{100}, .value = intx::uint256{60}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(ts.at(kTo).balance, intx::uint256{60});
+    EXPECT_EQ(ts.at(kFrom).balance, intx::uint256{40});
+    EXPECT_EQ(ts.at(kFrom).nonce, 1u);
+}
+
+// D-01 反作弊（红队 F-1）：value 由既有余额供资（mint=nullopt）——
+// 可支付性对象必须是铸币后余额，不是 mint 本身
+TEST(OpDeposit, ValueFundedByPreexistingBalanceWithoutMint)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{100}};
+    constexpr auto kTo = 0x00000000000000000000000000000000000000f2_address;
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
+        .mint = std::nullopt, .value = intx::uint256{60}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(ts.at(kTo).balance, intx::uint256{60});
+    EXPECT_EQ(ts.at(kFrom).balance, intx::uint256{40});
+}
+
+// D-01 反作弊（红队 F-1）：余额+mint 联合供资（value > mint 但 ≤ 铸币后余额）
+TEST(OpDeposit, ValueFundedJointlyByBalanceAndMint)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{50}};
+    constexpr auto kTo = 0x00000000000000000000000000000000000000f3_address;
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
+        .mint = intx::uint256{20}, .value = intx::uint256{60}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(ts.at(kTo).balance, intx::uint256{60});
+    EXPECT_EQ(ts.at(kFrom).balance, intx::uint256{10});
+}
+
+// D-02：带（非委托）code 的 sender 发 deposit——op-geth 对 deposit 跳过 EOA 检查。
+// 注意不得用 ef0100 委托码：evmone state.cpp:496 对委托码本来就豁免，测不到面具。
+TEST(OpDeposit, SenderWithCodeIsAllowed)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 3, .balance = intx::uint256{0},
+        .code = evmc::from_hex("00").value()};  // 任意非委托字节码（STOP）
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kFrom,
+        .mint = intx::uint256{10}, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+}
+
+// D-01 边界（rev.2 更正）：value 超铸币后余额 = op-geth 共识层错误
+// （state_transition.go:578 clause 6）→ 失败 receipt 收满 gasLimit（:498），非 intrinsic。
+TEST(OpDeposit, ValueOverPostMintBalanceFailsWithFullGasLimit)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kTo = 0x00000000000000000000000000000000000000f1_address;
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
+        .mint = intx::uint256{5}, .value = intx::uint256{60}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
+    EXPECT_EQ(r.receipt.status, EVMC_FAILURE);
+    EXPECT_EQ(r.receipt.gas_used, 100000);
+    EXPECT_EQ(ts.at(kFrom).balance, intx::uint256{5});  // mint 保留，value 未动
+    EXPECT_EQ(ts.at(kFrom).nonce, 1u);
+}
