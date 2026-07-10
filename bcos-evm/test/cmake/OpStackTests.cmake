@@ -813,7 +813,12 @@ target_link_libraries(${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME} PRIVATE
     rpc
 )
 
+# --log_level=warning: KNOWN-DIVERGE lines (DivergenceLedger-exempted mismatches, see
+# vectors/DIVERGENCES.md) are emitted via BOOST_WARN, which Boost.Test's default log_level
+# (error) suppresses. Without this flag the gate would go "silently green" in CI even while
+# carrying 32 allowlisted divergences (FINDING-1/FINDING-2) -- the flag makes them visible in
+# every CI run's log without turning them into failures.
 add_test(
     NAME OpStackT8nVectorReplay
-    COMMAND ${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME}
+    COMMAND ${OPSTACK_T8N_VECTOR_REPLAY_TEST_BINARY_NAME} --log_level=warning
 )

@@ -211,6 +211,62 @@ whole matrix can be regenerated in one batch per the plan's rule 3
 no such fields, so hand-editing them into a case file has no effect on the
 next regeneration.
 
+## When a regeneration produces a new divergence: attribution + allowlist sign-off
+
+Every time the matrix is (re)generated and replayed
+(`OpStackT8nVectorReplayTest`, wired into the default ctest suite by
+`bcos-evm/test/cmake/OpStackTests.cmake`), any `(vectorId, field)` mismatch
+the replayer prints as `DIVERGE ... want=<> got=<>` (a hard ctest failure,
+not merely a log line) must be resolved through the plan's predeclared,
+three-way attribution before the gate can go green again — silently
+skipping or hand-adjusting a `want`/`got` value is itself a rule violation
+(see "Rule 2" above and the plan's "预注册的 gate 纪律"). The full,
+authoritative writeup of this discipline — including the exact
+machine-parseable `ALLOWLIST` HTML-comment format the replayer's
+`DivergenceLedger` parses — lives in
+`../vectors/DIVERGENCES.md`; summarized here for whoever is running a
+regeneration:
+
+1. **(a) `bcos-evm/opstack` defect** — a real correctness gap in production
+   code. File it in `DIVERGENCES.md` under a new or existing `## FINDING-N`
+   section (root cause, consequence, fix direction, an `ALLOWLIST` line per
+   affected `(vectorId, field)` with `attribution=a status=PENDING-FIX`) and
+   open an issue for the fix. **The gate itself never fixes `opstack`** —
+   the fix is a separate plan/PR; this gate only reports and tracks.
+2. **(b) generator (`opt8n`) defect** — fix `main.go`, then **regenerate the
+   entire vector batch** from the fixed generator in one commit (plan rule
+   3: "生成器与向量同 commit 入库；重生成必须整批", so old and new
+   generator output never co-exist in the repo). Once regenerated correctly
+   the divergence disappears on its own — there is no lasting
+   `DIVERGENCES.md` entry for a (b); if it was caught before the affected
+   vector was ever committed, it only needs a paper-trail note under
+   `DIVERGENCES.md`'s "Fixed pre-commit" section (see the two examples
+   already there).
+3. **(c) accepted difference** — a real, permanent behavioral difference
+   between this harness (op-geth-as-a-library, in-memory `pre`/`postState`
+   fixtures) and ground truth that a human has reviewed and decided not to
+   fix (e.g. the four "Non-divergence known limitations" already on file).
+   File it with `status=PENDING-USER-SIGNOFF`; **the gate never
+   self-authorizes a (c) entry** — only a user flipping the status to
+   `SIGNED-OFF` makes it exempt. Do not mark anything `SIGNED-OFF` on your
+   own judgment, including as the agent regenerating vectors or authoring
+   this file.
+
+**Fail-safe you can rely on, not just trust**: `lookupExempt` matches on
+the full `(vectorId, field, want, got)` four-tuple, not just
+`(vectorId, field)`. This means an `(a)` entry's exemption is pinned to the
+*exact* wrong value pair it was filed for — the moment `OpStackTxFinalize.cpp`
+(or whatever file the finding names) is actually fixed, the replayer's `got`
+for that field changes, the four-tuple no longer matches the `ALLOWLIST`
+line on file, and the ctest goes **red again automatically** — with no
+`DIVERGENCES.md` edit required to trigger it. This is deliberate: it is
+what forces whoever lands the fix to also clean up the ledger (delete or
+flip the now-stale `ALLOWLIST` line) in the *same* commit, rather than
+leaving a dangling exemption that could silently mask a future, unrelated
+regression on the same field. Verified empirically during Task 3 (a manual
+edit to one `ALLOWLIST` line's `want=`/`got=` value made the previously-green
+vector red; reverting made it green again) — see `mt-task-3-report.md`.
+
 ## `isthmus_transfer_basic`: what it exercises and why the numbers are what they are
 
 The vector is: (1) an L1 attributes deposit (first tx of the block, as on a
