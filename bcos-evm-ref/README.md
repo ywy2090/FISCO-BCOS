@@ -14,8 +14,20 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-09-bcos-evm-ref-rev8-opstack-foun
 | M0 overlay 导出 / M1 writeback / M2 EEST state / M3 EEST blockchain / M3.5 P1 读放大 spike | ✅ 完成（见下方验收记录） |
 | M4 OP 数据层（`OpForkSchedule`/`OpPredeploys`/`OpPrecompiles`/`OpFeeParams`/`OpDepositTx` + 向量 schema） | ✅ 完成（11 单测 + `docs/vector-schema.md`） |
 | M5 OP 执行层（`OpHost`/`opValidate`/`opTransition`/`runDeposit`/`RollupCost` + 块级 harness） | ✅ 完成（32 单测含 §4.4 冒烟） |
+| Jovian tx+receipt + Karst 占位 + G-1 空 envelope 护栏 | ✅ 完成（见 `2026-07-10-bcos-evm-ref-jovian-karst-tx-receipt-design.md`） |
 | M6 零值差分护栏 | ✅ 部分完成（`OpZeroDiff`：非 vault 账户 ≡ ETH；BaseFeeVault = gasUsed×baseFee；upstream diff 脚本仍待） |
 | M3.5 P2 真账本桥接 / E-b（ref t8n gate + 生产切内核） | 🅿️ **park**（E-b 解冻前不得宣称 OP 路径生产可用 / op-geth 等价，见 spec §1.1 R2） |
+
+### Jovian / Karst / Isthmus P0（2026-07-10）
+
+- **Jovian tx 执行**：operator 公式 `gas×scalar×100+constant`、precompile 限长、`da_footprint_gas_scalar` 解包、`jovianConfig()`
+- **Receipt**：`opTransition` 返回 `OpTxReceipt { receipt, meta }`；`deriveOpReceiptMeta` 填充 op-geth 对齐的 L1 直通字段（`l1_gas_price` / `l1_blob_base_fee` / 两个 L1 scalar / `l1_fee`）；Jovian+ 另填 `da_footprint_gas_scalar` / `da_footprint`；`operator_fee` 为 FISCO 扩展
+- **Karst**：`karstConfig()` 占位，执行与 receipt 行为暂等同 Jovian（`OpFork::Karst` 枚举值不同）
+- **G-1**：非 deposit 用户 tx 若 `signedTxEnvelope` 为空 → `opValidate` 失败（禁止静默 `l1_cost=0`）
+- **N-1（澄清）**：`opTransition` L1 vault 结算**不变**——无条件 `AddBalance(L1FeeVault, l1_cost)`，即使 `l1_cost==0` 也会 touch；**不**声称「l1_cost==0 时跳过 L1 vault」
+- **M6 不变**：零值差分断言层仍用 `nonVaultDeleted` 排除 vault 账户（含 L1 vault 被 touch 后剪除的空账户）
+
+**显式非目标**（本轮不做）：块头 DA / `extraData` / E-b t8n gate / receipt 字段 `L1GasUsed`（Fjord+ 恒 0）/ `FeeScalar`（pre-Ecotone 遗留）
 
 ### M6 零值差分口径
 
