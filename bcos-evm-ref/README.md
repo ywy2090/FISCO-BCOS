@@ -16,7 +16,7 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-09-bcos-evm-ref-rev8-opstack-foun
 | M5 OP 执行层（`OpHost`/`opValidate`/`opTransition`/`runDeposit`/`RollupCost` + 块级 harness） | ✅ 完成（32 单测含 §4.4 冒烟） |
 | Jovian tx+receipt + Karst 占位 + G-1 空 envelope 护栏 | ✅ 完成（见 `2026-07-10-bcos-evm-ref-jovian-karst-tx-receipt-design.md`） |
 | P1 tx-alignment（7702/7623/L1/vault/pre-Isthmus） | ✅ 完成（见 `bcos-evm/docs/superpowers/specs/2026-07-10-bcos-evm-ref-p1-tx-alignment-design.md`） |
-| M6 零值差分护栏 | ✅ 部分完成（`OpZeroDiff`：非 vault 账户 ≡ ETH；BaseFeeVault = gasUsed×baseFee；upstream diff 脚本仍待） |
+| M6 零值差分 + upstream diff | ✅ 完成（`OpZeroDiff` 运行时护栏 + `scripts/upstream-diff.sh` 照抄面静态漂移检测） |
 | M3.5 P2 真账本桥接 / E-b（ref t8n gate + 生产切内核） | 🅿️ **park**（E-b 解冻前不得宣称 OP 路径生产可用 / op-geth 等价，见 spec §1.1 R2） |
 
 ### Jovian / Karst / Isthmus P0（2026-07-10）
@@ -58,6 +58,19 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-10-bcos-evm-ref-p1-tx-alignment-d
 - OP 侧 `BaseFeeVault.balance == gasUsed × baseFee`（ETH 隐式销毁 → OP 显式入账）
 - 不验证 L1/operator fee 本身；t8n 仍属 E-b
 
+### M6 upstream diff（照抄面静态护栏）
+
+对比 `OpTransition.cpp` / `OpHost.cpp` 中与 evmone REF `3585c2cb` 对齐的源码片段；**有意 fork**（P1 ecrecover、OP fee 路径、OpHost precompile 派发等）编码在 `scripts/upstream-diff/golden/*.patch`。
+
+```bash
+export EVMONE_GIT=/path/to/evmone   # 须含 REF 3585c2cb
+./scripts/upstream-diff.sh          # CI / 本地检查
+./scripts/upstream-diff.sh --show build_message
+./scripts/upstream-diff.sh --regenerate-goldens   # 有意改照抄面后更新 golden 并提交
+```
+
+映射表：`scripts/upstream-diff/manifest.tsv`（改行号后同步更新）。
+
 ## Naming
 
 | 类别 | 风格 | 例 |
@@ -68,7 +81,8 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-10-bcos-evm-ref-p1-tx-alignment-d
 | 成员变量 | `m_` + snake_case | `m_chain_id` |
 | 常量 | `OP_*` / `kCamel` | `OP_L1_BLOCK`、`kL1CostIntercept` |
 
-例外：从 evmone 逐行照抄的匿名 ns 助手（如 `build_message`、`process_authorization_list`）保留母本 snake_case，不改名。
+例外：从 evmone 逐行照抄的匿名 ns 助手（如 `build_message`、`process_authorization_list`）保留母本 snake_case，不改名；
+照抄段内的常量（如 `SECP256K1N_OVER_2`、`AUTHORIZATION_*`，见 `scripts/upstream-diff/manifest.tsv` 的 `auth_constants` 段）同理保留母本 SCREAMING_SNAKE_CASE——改名会破坏 upstream-diff 护栏。
 
 ## Build (standalone)
 

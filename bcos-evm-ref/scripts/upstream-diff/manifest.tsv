@@ -1,0 +1,21 @@
+# M6 upstream diff manifest — bcos-evm-ref 照抄面 ↔ evmone REF (see EVMONE_REF).
+# Columns: id  ref_file  ref_begin  ref_end  upstream_file  up_begin  up_end
+# Update line ranges when editing copy surfaces; re-run with --regenerate-goldens after intentional forks.
+#
+# OpTransition.cpp (evmone test/state/state.cpp)
+auth_constants	opstack/OpTransition.cpp	22	27	test/state/state.cpp	20	25
+build_message	opstack/OpTransition.cpp	136	156	test/state/state.cpp	180	199
+auth_list_shared	opstack/OpTransition.cpp	80	133	test/state/state.cpp	124	177
+transition_buy_gas	opstack/OpTransition.cpp	174	184	test/state/state.cpp	574	584
+transition_access	opstack/OpTransition.cpp	192	202	test/state/state.cpp	599	612
+transition_delegate	opstack/OpTransition.cpp	204	213	test/state/state.cpp	614	623
+transition_gas_settle	opstack/OpTransition.cpp	217	228	test/state/state.cpp	627	639
+#
+# OpDepositTx.cpp (evmone test/state/state.cpp — build_message 的 deposit 变体，
+# 与上面 build_message 段同源；纳入追踪使 evmone 升级时两份拷贝都被脚本盯住)
+build_deposit_message	opstack/OpDepositTx.cpp	13	33	test/state/state.cpp	180	199
+#
+# OpHost.cpp (evmone test/state/host.cpp)
+apply_call_value	opstack/OpHost.cpp	54	66	test/state/host.cpp	345	364
+call_depth_guard	opstack/OpHost.cpp	127	132	test/state/host.cpp	224	226
+call_03_quirk	opstack/OpHost.cpp	142	151	test/state/host.cpp	390	400
