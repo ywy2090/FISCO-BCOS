@@ -1,4 +1,4 @@
-# bcos-evm-ref/opstack 代码审查缺陷台账（D-01 – D-14）
+# bcos-evm-ref/opstack 代码审查缺陷台账（D-01 – D-15）
 
 **日期：** 2026-07-10
 **范围：** `bcos-evm-ref/opstack/`（spec rev.8 追认的 M4/M5 交付物，2026-07-09 提交）
@@ -6,6 +6,7 @@
 **来源：** 两轮多 agent `/code-review`（high）：
 - 第一轮（workflow `w8udf73d1`，14 agent，**1 个 verifier 被限流** → 覆盖不完整）：产出 D-01/D-02/D-03/D-04/D-10 及 D-14 的 build_deposit_message 重复项。
 - 第二轮（workflow `w6nubzeyx`，31 agent，0 失败，指示跳过第一轮已确认项、扩展全目录覆盖）：产出 D-05–D-09、D-11–D-13 及 D-14 的 FastLZ 项。
+- 第三轮（2026-07-10，修复 plan 的五路对抗审查，非 /code-review）：追加 **D-15**；并勘误 D-01 对照措辞（vmerr → 共识层错误、gasUsed=gasLimit）。
 
 每条均经独立对抗 verifier 判 CONFIRMED；关键前提（evmone `host.cpp:239-240` nonce 约定、`state.cpp:629-636` refund→floor 顺序、`min_gas_cost` = EIP-7623 floor）另经主对话直读 evmone 源码复核。
 
@@ -33,8 +34,9 @@
 | D-12 | OpHost.cpp:93 | P256VERIFY（0x100）在 Isthmus/Jovian 不预热 | 🔴 | R2 |
 | D-13 | OpValidate.cpp:41 | OpFeeParams 每 tx 从存储重读 8 次（块级常量） | 🟢 | R2 |
 | D-14 | OpDepositTx.cpp:10 等 | 消息构造逐字节重复 + 同一 envelope FastLZ 压缩两遍 | 🟢 | R1+R2 |
+| D-15 | OpForkSchedule.cpp:21-54 | Fjord/Granite/Holocene 完全缺失 0x100 P256VERIFY（op-geth 自 Fjord 起活跃） | 🔴 | R3 |
 
-计：🔴 × 11、🟡 × 1、🟢 × 2。🔴 中 9 条集中在 `runDeposit`。
+计：🔴 × 12、🟡 × 1、🟢 × 2（D-01–D-14 两轮 /code-review + D-15 第三轮 plan 审查追加）。🔴 中 9 条集中在 `runDeposit`。
 
 ---
 
@@ -47,9 +49,9 @@
 - **位置**：`opstack/OpDepositTx.cpp:60-61`（mint 在 `:43-44`）
 - **严重度**：🔴 共识级
 - **机理**：mint 写在 `State state{view}` 的 overlay 上（`:43-44`），但 `validate_transaction(view, …)` 传入的是**原始 `view`**——余额检查看到的是铸币前余额。
-- **对照**：op-geth 对 deposit 跳过 `preCheck`/`buyGas`，mint 先记账，value 转账在 `evm.Call` 内对**铸币后**余额检查（`core/state_transition.go` deposit 路径）。
-- **失败场景**：标准 L1→L2 桥接 deposit（`from` 在 L2 余额 0，靠 `mint` 获得资金再转给 `to`）：`balance(0) < value` → `validate_transaction` 报 INSUFFICIENT_FUNDS → 走 `:67` 失败分支（gasUsed=gasLimit 的失败 receipt），**桥接资金送不到收款人**；op-geth 下同一笔成功。
-- **验证**：CONFIRMED（R1）。
+- **对照**（**2026-07-10 勘误**，经 op-geth 源码复核修正初版措辞）：op-geth 对 deposit 跳过 `preCheck`/`buyGas`，mint 在 `execute()` 开头、snapshot 之前记账（`core/state_transition.go:475-481`）；value 可支付性检查发生在 `innerExecute` clause 6（`:578-580`，对**铸币后**余额），失败返回 `ErrInsufficientFundsForTransfer`——这是**共识层错误而非 vmerr**（初版所写"在 `evm.Call` 内检查"不准确，`evm.Call` 的检查在顶层不可达），落入 failed-deposit 分支（`:486-513`）：nonce 强制 +1、**gasUsed = gasLimit 全额**（`:498`）。spec §4.3 的"处理级失败收 gasLimit"与此一致。
+- **失败场景**：标准 L1→L2 桥接 deposit（`from` 在 L2 余额 0，靠 `mint` 获得资金再转给 `to`）：`balance(0) < value` → `validate_transaction` 报 INSUFFICIENT_FUNDS → 走 `:67` 失败分支，**桥接资金送不到收款人**；op-geth 下同一笔成功。
+- **验证**：CONFIRMED（R1）；对照措辞经 2026-07-10 第三轮（plan 五路审查之 op-geth 语义路）修正。
 
 ### D-02 EIP-3607 sender-not-EOA 检查误用于 deposit
 
@@ -84,8 +86,9 @@
 - **严重度**：🔴 共识级
 - **机理**：evmone `Host::prepare_message` 的约定是调用方**先** nonce+1，CREATE 地址用 `nonce - 1` 计算（`test/state/host.cpp:239-240`：`// Nonce was already incremented, but creation calculation needs non-incremented value` + `assert(sender_acc.nonce != 0)`）。`runDeposit` 在 `host.call` 之后才写 `preNonce + 1`。普通路径 `OpTransition.cpp:171` 遵守了约定。
 - **对照**：op-geth `evm.Create` 用当前 nonce N 计算合约地址。
-- **失败场景**：合约创建型 deposit（`dep.to == nullopt`）：nonce=N 的账户 → 地址按 N-1 计算，与 op-geth 差一；**nonce=0 的新账户 → debug 构建 `assert` 直接崩溃，release 构建下溢到 2⁶⁴-1，部署到垃圾地址**。receipt、state diff、后续一切对该合约的交互全部错位。现有测试无一覆盖 `to=nullopt` 的 deposit。
+- **失败场景**：合约创建型 deposit（`dep.to == nullopt`）：nonce=N 的账户 → 地址按 N-1 计算，与 op-geth 差一；**nonce=0 的新账户 → debug 构建 `assert` 直接崩溃，release 构建下溢到 2⁶⁴-1，部署到垃圾地址**。receipt、state diff、后续一切对该合约的交互全部错位。现有测试无一覆盖 `to=nullopt` 的 deposit（截至本台账快照 HEAD `9ca799884`）。
 - **验证**：CONFIRMED（R2）；`host.cpp:239-240` 原文经主对话直读复核。
+- **状态注记（2026-07-10）**：并行会话（P1 tx-alignment）已在工作树以未提交改动修复本条（`OpDepositTx.cpp` 先递增再 call + `ContractCreationDerivesAddressFromPreExecutionNonce` 用例）——待其提交后按实际 commit 回填 FIXED。
 
 ### D-06 deposit receipt 类型标 legacy 而非 0x7E
 
@@ -153,6 +156,16 @@
 - **对照**：op-geth 经 `statedb.Prepare` 预热全部活跃 precompile（含 RIP-7212 的 0x100）→ 100 warm 费。
 - **失败场景**：任何使用 P256VERIFY 的区块：gasUsed 差 2500 → receipt/cumulative-gas 分歧；外加 state diff 中的幽灵空账户。
 - **验证**：CONFIRMED（R2）。
+
+### D-15 Fjord/Granite/Holocene 完全缺失 0x100 P256VERIFY
+
+- **位置**：`opstack/OpForkSchedule.cpp:21-54`（fjord/granite/holocene 的 `precompiles = nullptr` 或无 0x100 表项）
+- **严重度**：🔴 共识级
+- **发现轮次**：R3（2026-07-10，修复 plan 五路审查之 op-geth 语义路——两轮 /code-review 均未覆盖）
+- **机理**：op-geth 自 **Fjord** 硬分叉起把 RIP-7212 P256VERIFY（0x100，gas 3450）纳入活跃 precompile 表（`core/vm/contracts.go:193` Fjord 表；Granite `:209`、Isthmus `:231`、Jovian `:251` 沿用）。本模块只在 Isthmus/Jovian 的 override 表配了 0x100；Fjord/Granite/Holocene（rev=CANCUN，evmone 原生无 0x100）没有任何派发路径。
+- **对照**：op-geth `params/protocol_params.go:183`（`p256VerifyGas = 3450`）。
+- **失败场景**：Fjord/Granite/Holocene 链上任何调用 0x100 的交易：op-geth 执行 P256 验签（3450 gas）；本实现把 0x100 当普通空账户 CALL（成功返回空、只收 call 开销）→ 验签结果、gas、post-state 三重分歧。
+- **验证**：CONFIRMED（op-geth 源码行号直证）。**注意**：修复 plan v1 的 Task 5 曾把「Granite/Holocene 表不得含 0x100」写成测试断言——该断言是错的，plan rev.2 须连同 D-11 一起改为「Fjord 起三个 fork 均配 0x08 上限（Granite+）与 0x100（Fjord+）」的正确矩阵。
 
 ---
 

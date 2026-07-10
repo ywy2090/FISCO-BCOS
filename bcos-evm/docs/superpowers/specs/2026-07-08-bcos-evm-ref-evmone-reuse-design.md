@@ -1,11 +1,11 @@
 # bcos-evm-ref：最大化复用 evmone 的标准以太坊 EVM（含 OpStack）设计
 
-**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 重排 → rev.5 撤回 405 → rev.6 量化经济学 → rev.7 四项决策定案）· 2026-07-10（**rev.8 D5 独立性裁定**）
+**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 重排 → rev.5 撤回 405 → rev.6 量化经济学 → rev.7 四项决策定案）· 2026-07-10（**rev.8 D5 独立性裁定** → **rev.8.1 勘误**：五路审查修正 D5 作废点名覆盖面——M6 行恢复 OP gate、§7.0/§7.2 存废切分、黑盒对照义务删除、checklist 附注处置）
 **状态：** **rev.8**（2026-07-10，用户裁定 **D5**）：**「bcos-evm 与 bcos-evm-ref 之间没有任何关联，bcos-evm-ref 中要实现独立的功能」**。据此：
-- **D1 被 D5 推翻**：OP 路径（M4/M5）回到本模块范围内。已存在的 `opstack/` 实现（2026-07-09 并行提交，按 §4.3 规格）追认为 M4/M5 的在册交付；其**14 条已确认审查缺陷**（两轮 /code-review，2026-07-10，🔴 共识级 ×11 其中 9 条集中在 `runDeposit`、🟡 ×1、🟢 ×2）构成修复清单，台账见 `bcos-evm-ref/docs/audits/2026-07-10-opstack-code-review-defect-ledger.md`（D-01–D-14），修复按 D4 先立 plan。
-- **D2 终局更新**：终局 = **独立、完整的 ETH+OP 执行内核**。下文一切以「`bcos-evm/opstack/` 已有实现」为由不做/缓做 OP 的论证（§1.1 横幅、§1.2 首两行、§7.0 末段、§7.1 M4/M5 行、§7.2）**作废，原文保留作历史**。两模块间不再互为依据、互为对照义务；op-geth 仍是唯一 OP 正确性基准。
+- **D1 被 D5 推翻**：OP 路径（M4/M5）回到本模块范围内。已存在的 `opstack/` 实现（2026-07-09 并行提交，按 §4.3 规格）追认为 M4/M5 的在册交付；其**15 条已确认审查缺陷**（两轮 /code-review + 第三轮 plan 审查追加 D-15，2026-07-10，🔴 共识级 ×12 其中 9 条集中在 `runDeposit`、🟡 ×1、🟢 ×2）构成修复清单，台账见 `bcos-evm-ref/docs/audits/2026-07-10-opstack-code-review-defect-ledger.md`（D-01–D-15），修复按 D4 先立 plan。
+- **D2 终局更新**：终局 = **独立、完整的 ETH+OP 执行内核**。下文一切以「`bcos-evm/opstack/` 已有实现」为由不做/缓做 OP 的论证**作废**——其中 §1.1 横幅、§7.1 M4/M5/M6 行为**就地更新**（strike + 恢复标注），§1.2 首两行、§7.0（自 rev.6 结论起，节内已加勘误横幅）、§7.2（节首已加存废切分）、§3.2/§6/§9 的黑盒对照义务三处为**原文保留 + rev.8.1 就地标注**。两模块间不再互为依据、互为对照义务；op-geth 仍是唯一 OP 正确性基准。（rev.8.1 补：本文档物理位置在 `bcos-evm/docs/` 下系历史遗留，不构成模块关联；后续迁往 `bcos-evm-ref/docs/` 可选。）
 - **D3、D4 不受影响，继续有效**。M-T 及其 FINDING-1/2 属 `bcos-evm` 自己的轨道，与本模块无关。
-rev.7（2026-07-09，用户裁定；① 已被 D5 推翻，②③④ 经上述更新后继续有效）：
+rev.7（2026-07-09，用户裁定；① 被 D5 推翻，② 的 OP 半部被推翻/ETH 半部有效，③④ 继续有效）：
 ① ~~**OpStack 路径不在本模块做——M4/M5 永久取消**，OP 语义留在已有 `bcos-evm/opstack/`（4,485 行 / 6 份 op-geth 审计 / 已达 Jovian）~~（**rev.8 D5 推翻**）；
 ② **终局身份 = ETH 生产替换候选 + 不做 OP**（混合终局，此前 spec 未列此选项）→ rev.8 更新为「独立 ETH+OP 内核」；
 ③ **授权改动现有 `bcos-evm`** 两项纯增益动作：t8n gate 架到 `opstack/`、负缓存优化落到 `eth/state/`；
@@ -24,7 +24,7 @@ rev.7（2026-07-09，用户裁定；① 已被 D5 推翻，②③④ 经上述�
 > **rev.8 D5**：本模块与 `bcos-evm` **没有任何关联**，实现**独立的完整功能（ETH + OP）**。
 > ~~rev.7：OpStack 部分（六块薄层、M4/M5）已永久取消，本模块只做 ETH 路径~~（**D5 推翻**）。
 > §4.3 / §5.2 / §5.3 的 OP 设计恢复为**实施规格**；`opstack/` 已按其实现，
-> 待按修复 plan 消化两轮审查确认的 14 条缺陷（🔴×11，台账 D-01–D-14：
+> 待按修复 plan 消化三轮审查确认的 15 条缺陷（🔴×12，台账 D-01–D-15：
 > `bcos-evm-ref/docs/audits/2026-07-10-opstack-code-review-defect-ledger.md`）。
 
 新建仓库顶层独立模块 `bcos-evm-ref`，**链接 `evmone::state` 库**复用整套状态转换：Ethereum 主网直接调用 `validate_transaction()` / `transition()` / `finalize()`（零重写）；OpStack 自建**六块薄层**——`op_validate`（OP 校验含 L1/operator fee 余额、拒 blob tx）、`op_transition`（最小 fork，仅改 fee 结算段）、**`OpHost`**（`Host` 子类：修 CHAINID、修 deposit GASPRICE、拦截 precompile 派发）、Deposit 路径、`RollupCost`（L1 data fee + operator fee）、OP precompile override 表（数据）；predeploy / vault 账户预填为数据，fork 语义由 `OpForkSchedule` 映射（返回 `OpForkConfig` 结构体）驱动。**第一版 OP 只实现并验证 Isthmus**（fork 矩阵留扩展位）。第一版由 EEST / op-geth 测试 harness 驱动。
@@ -128,7 +128,7 @@ bcos-evm-ref/
   - `OpTransition`：`transition()` 本体 89 行（`state.cpp:561-649`）+ 匿名 ns 助手 `process_authorization_list`（~87 行，EIP-7702）+ `build_message`（20 行）+ 3 个常量（`SECP256K1N_OVER_2`/`AUTHORIZATION_BASE_COST`/`AUTHORIZATION_EMPTY_ACCOUNT_COST`，`state.cpp:20-25`）≈ 202 行。照抄时可删 `state.cpp:6` 的死 include（`../utils/stdx/utility.hpp`，全文件无使用）；
   - `OpHost`：`Host::call`/`execute_message` 中 precompile 派发前语义 ~50 行（depth 检查、journal_create/touch、value 转账、checkpoint/rollback、0x03 quirk，`host.cpp:337-404`）+ `get_tx_context` 覆写。
   - 照抄总面 ≈ **250 行**，全部计入 §9 漂移风险，由 M6 差分测试 + upstream diff 脚本护栏。
-- `bcos-evm-ref/` 与现有 `bcos-evm/` **严格隔离**（用户确认）：互不 `#include`、不共享代码。FastLZ、槽解包等在本模块重新实现；现有 `bcos-evm/opstack/` 的同名实现（`fee/RollupCost.cpp` 的 FlzCompressLen、`fee/OpStackFeeParams.h` 等）仅作黑盒对照校验（跑双方单测比数值），不构成代码依赖。此为显式 trade-off：接受一次重复实现，换取干净的验证边界。
+- `bcos-evm-ref/` 与现有 `bcos-evm/` **严格隔离**（用户确认）：互不 `#include`、不共享代码。FastLZ、槽解包等在本模块重新实现；~~现有 `bcos-evm/opstack/` 的同名实现（`fee/RollupCost.cpp` 的 FlzCompressLen、`fee/OpStackFeeParams.h` 等）仅作黑盒对照校验（跑双方单测比数值）~~（**rev.8.1 删除该对照义务**：D5 下两模块互不构成依据，op-geth 黄金值 + t8n 是唯一判据），不构成代码依赖。此为显式 trade-off：接受一次重复实现，换取干净的验证边界。
 - 测试 fixture 基础设施与现有 `bcos-evm/test/eth-eest-test` 共享 `EVM_REF_EEST_ROOT` 环境约定，不共享代码。
 
 ---
@@ -346,7 +346,7 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 | ETH blockchain | EEST blockchain fixtures：rejected tx、receipt trie、withdrawals、requests；区块头验证移植自 `blockchaintest_runner`（范围按 §1.3 裁剪） | 区块 stateRoot / receiptRoot |
 | OP attributes | attributes tx 自身 receipt（gasUsed 非零、depositNonce 逐块递增）；slot 1/3/7/8 解包逐字节单测（打包槽偏移是高频出错面） | receipt 字段 + OpFeeParams 值 |
 | OP Deposit | mint≠value、失败双路径两种 gasUsed、**intrinsic 超限**、**7623 floor 抬升 gasUsed**（rev.3 补）、system tx 块级错误、depositNonce/Version、零 fee 负向断言 | state_diff + gasUsed + receipt 字段 |
-| OP L1 fee | Fjord `computeL1Cost`（FastLZ）对照 rollup_cost_test 黄金值 + 现有 bcos-evm/opstack 实现黑盒对照；L1FeeVault 入账 | 数值 + Vault 余额 |
+| OP L1 fee | Fjord `computeL1Cost`（FastLZ）对照 rollup_cost_test 黄金值~~ + 现有 bcos-evm/opstack 实现黑盒对照~~（rev.8.1 删，D5）；L1FeeVault 入账 | 数值 + Vault 余额 |
 | OP fee 分账 | base→BaseFeeVault、tip→coinbase、operator 三段式含退差额 | 四 Vault 余额 + sender 守恒式：余额差 == gasUsed×effectiveGasPrice + l1Cost + operatorFee@gasUsed |
 | OP validate | 边界余额（差 1 wei 付不起 l1Cost）拒绝、blob tx 拒绝 | error_code |
 | OP precompile | 0x08 限长 112687、0x100 gas=3450（对照确认 execute 语义与 evmone 7951 版一致后可复用其实现）、BLS 三限长；**0x100 未拦截时被当空账户的负向用例** | 对照 op-geth |
@@ -379,6 +379,8 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 1. **`evmone::state` 属上游 test 树，无 API 稳定契约**：v0.21.0→HEAD 的 75 个提交已在 `test/state` 改 8 文件 115 行，其中三处直接命中本设计的照抄面（§9 已承认）。"免费跟进"实为"pin 升级 + 照抄面重核 + port 维护"的周期性成本——但这是**有界的**（一个 port + ~250 行照抄面），与 8.2k 行的自研维护面不同量级。
 2. **OP 侧复用为零**：evmone 没有任何 OP 语义。产品的差异化部分（OP 执行客户端）在两条路线上都得手写，而 `bcos-evm/opstack/` 已有 **4,485 行 / 52 源文件 / ~85 测试文件 / 6 份 op-geth parity 审计**，fork 覆盖到 Jovian（本模块计划 Isthmus，落后两个 fork）。
 
+> **rev.8.1 勘误**：自本行起至 §7.0 节末（含「OP 路径净收益为负」「每一行代码都是在决策点前透支」「OP 语义工作应贡献到 bcos-evm/opstack」「才决定 M4/M5 写在哪里」各句）均为 rev.6 时代论证，**其 OP 侧结论已被 D5 整体推翻**（ETH 侧结论仍有效），原文保留作历史。
+
 **结论（rev.6，忽略 FISCO 后）——ETH 路径与 OP 路径的账要分开算**：
 
 - **ETH 路径：净收益为正，替换论证成立。** 用一个 port + 有界的 pin 维护，换掉 ~8.2k 行手写状态转换的长期 EIP 跟进负担。M0–M3 已证明这条路技术可行（EEST state 55,233 case + blockchain 2848 文件全绿），M3.5 Phase 1 又证明读路径不构成障碍（放大 1.16x，且 evmone 的读穿缓存优于现状）。
@@ -403,15 +405,15 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 | **M2 ETH 跑通** | ✅ **已完成**：`eth::runTransaction`/`runBlockFinalize`；EEST v5.4.0 state 对照 **2723 文件 / 55,233 个 Cancun+ case 全绿**（harness 经变异测试证伪假绿） | M1 | 小 |
 | **M3 ETH blockchain** | ✅ **已完成**（2026-07-09）：移植 `blockchaintest_runner` 核心（块执行循环、`validate_block` 头校验、侧链/canonical 追踪、四 root + requests_hash 判据、过渡 fork `RevisionSchedule`）；smoke（进 ctest）+ full（`EVM_REF_EEST_BLOCKCHAIN_FULL=1` 门控）拆分。**实测：2848 文件 / 0 失败 / 61 秒**。附带发现：`bcos-evm` 的 405 个失败全为 pre-Cancun（404 Frontier + 1 Homestead），**不构成 parity gap 证据**，见 §7.0 更正 | M2 | 中 |
 | **M3.5 StateView 桥接 spike（go/no-go）** | **rev.4 新增，前置**。⚠️ **rev.6 更正：Phase 1 的 GO 判定只是暂定，不构成充分证据。** rev.4 原文要求“把 `StateViewAdapter` **接一次真实账本**（或其协程存储的最小切片），度量 ①同步 noexcept 桥接开销 ②每 tx 重建 `State` 开销 ③code 按值返回开销”。实际 Phase 1（`514d3ad62`）**未接任何账本**，只做了内存计数 + 手推成本模型，**三项被点名的开销一项未测**；且该提交在交付的同时把本行任务描述改写成与交付物匹配的措辞，未标注为范围收窄——此为流程缺陷，如实记录。Phase 1 的产出（读放大 1.16x、负缓存省 27.9%）**算术已被独立复算与实机重跑验证为真**，作为“接口宽度不构成障碍”的证据有效；但“桥接开销可接受”仍**只有生产存在性佐证，无实测**。**Phase 2（必做，ETH 替换 go/no-go）**：真正接 `LedgerStateView`/`ledger::EVMAccount`（或协程存储切片），测三项开销绝对值；**并入原 M-N 的交付**——适配器侧负缓存（~5 行）与 `CountingStateView`/`weightedReads()` 测量基建。Phase 3（仅当 Phase 2 超标）：块级缓存适配器 | M3 | 小–中 |
-| **决策点** | ✅ **已裁定**（rev.7，2026-07-09）：见本文状态栏四项。剩余待验证项转入 M3.5 Phase 2（ETH 替换的 go/no-go） | — | — |
+| **决策点** | ✅ **已裁定**（rev.7，2026-07-09；**rev.8 D5 对其中 ① 改判**——M4/M5 归属定为本模块）：见本文状态栏。剩余待验证项转入 M3.5 Phase 2（ETH 替换的 go/no-go） | — | — |
 | **M4 OP 数据层** | 🔁 **rev.8 D5 恢复**（~~rev.7 D1 永久取消~~）。已由 2026-07-09 并行提交按 §4.3 实现（OpForkSchedule / OpPredeploys / RollupCost 等）并追认；遗留缺陷见 M4/M5 修复清单行 | 决策点 | 中 |
-| **M5 OP fee/tx** | 🔁 **rev.8 D5 恢复**（同上）。OpHost / op_validate / op_transition / runDeposit 已实现并追认。**修复清单（两轮 /code-review 确认，修复须先立 plan）**：`runDeposit` 9 项——pre-mint 余额校验、gasUsed 不减 refund、GAS_LIMIT_REACHED 降级为失败 receipt、CREATE 前不递增 nonce（地址差一/nonce0 断言）、receipt.type=legacy 非 0x7E、无 logs bloom、无 7702 委托解析、无 2929/3651 预热、（前轮）EIP-3607 误用于 deposit；fork/host 3 项——`disable_prague_requests` 死配置（6110/7002/7251 抑制未实现）、Granite/Holocene 丢 bn256Pairing 输入上限、0x100 P256VERIFY 不预热；清理 2 项——OpFeeParams 每 tx 重读 8 次、FastLZ 双重压缩 + `build_deposit_message` 重复 | M4 | 中 |
+| **M5 OP fee/tx** | 🔁 **rev.8 D5 恢复**（同上）。OpHost / op_validate / op_transition / runDeposit 已实现并追认。**修复清单（两轮 /code-review 确认，修复须先立 plan）**：`runDeposit` 9 项——pre-mint 余额校验、gasUsed 不减 refund、GAS_LIMIT_REACHED 降级为失败 receipt、CREATE 前不递增 nonce（地址差一/nonce0 断言）、receipt.type=legacy 非 0x7E、无 logs bloom、无 7702 委托解析、无 2929/3651 预热、（前轮）EIP-3607 误用于 deposit；fork/host 4 项——`disable_prague_requests` 死配置（6110/7002/7251 抑制未实现）、Granite/Holocene 丢 bn256Pairing 输入上限、0x100 P256VERIFY 不预热、**Fjord/Granite/Holocene 完全缺失 0x100（D-15，第三轮追加）**；清理 2 项——OpFeeParams 每 tx 重读 8 次、FastLZ 双重压缩 + `build_deposit_message` 重复。台账 D-01–D-15 为准 | M4 | 中 |
 | **M-T t8n gate on `opstack/`** | ✅ **已完成**（2026-07-10，plan `plans/2026-07-09-mt-t8n-gate-opstack.md` v2，Task 1–5）。opt8n（op-geth v1.101702.2 当库用，执行循环照抄其 `t8ntool`）离线生成 50 条向量入库，`OpStackT8nVectorReplayTest`（CI 默认 ctest，`--log_level=warning` 使已知分歧在日志中可见）纯 C++ 回放。**结果不是全绿**：0 条未入账分歧，但打出 **2 个 CONFIRMED 共识级缺陷**（此前 6 份人工 parity 审计均未发现）——FINDING-1（deposit 硬编码 `floorDataGas=0`，漏 Isthmus+ 的 EIP-7623 calldata floor）、FINDING-2（refund 结算误取 `evmcResult.gas_refund` 而非权威的 `ctx.evmGasRefund`，丢弃 EIP-7702 每授权 refund），共 32 条向量字段以 `attribution=a status=PENDING-FIX` 计入 `t8n/vectors/DIVERGENCES.md` 台账，修复另立 plan（本 gate 报告不修）。完整方法、覆盖矩阵、两个 finding 的技术细节与对 §7.2 的意义见《opstack op-geth 机器差分报告》：`docs/audits/2026-07-10-opstack-opgeth-machine-differential-report.md` | — | 中 |
 | ~~**M-N 负缓存优化**~~ | ❌ **已取消并入 M3.5 Phase 2**（2026-07-09，用户按「尽量复用 evmone」原则裁定）：不再手写优化待替换的旧 `State`——evmone 的读穿缓存在替换路径上免费获得，负查询缺口（27.9%）以 ~5 行落在 bcos-evm-ref 侧适配器。plan 存档：`plans/2026-07-09-state-base-read-memoization.md`（v3 取消记录），其调查产出转为 Phase 2 测量基建 | — | — |
-| **M6 收尾（ETH 侧）** | 零值差分护栏不再需要（无 OP fork 面）；保留 upstream `transition()` diff 提醒脚本 + CI gate + 文档 | M3.5 Phase 2 | 小 |
+| **M6 收尾** | **rev.8.1 更正**（原文「零值差分护栏不再需要（无 OP fork 面）」写于 rev.7 期间，D5 下失效）：OP fork 面随 M4/M5 恢复而存在——**恢复零值差分护栏**与本模块自己的 **OP t8n 硬 gate**（M-T 的 gate 架在 `bcos-evm/opstack` 上，D5 口径下不能替代本模块的 gate）；保留 upstream `transition()` diff 提醒脚本 + CI gate + 文档 | M5 + M3.5 Phase 2 | 中 |
 
 关键路径：M0 → M1 → M2 → **M3 → M3.5 → 决策点** → M4 → M5 → M6。
-（rev.4 变更：原 "M3 ∥ (M4→M5)" 的并行被取消——M4/M5 现在依赖决策点，因为它们的代码归属未定；原 M6 里的 "§7.1 切换判据评估报告" 前移为 M3.5 + 决策点。）
+（rev.4 变更：原 "M3 ∥ (M4→M5)" 的并行被取消——M4/M5 现在依赖决策点，因为它们的代码归属未定（**rev.8.1 注：归属已由 D5 裁定为本模块，此句仅存历史意义**）；原 M6 里的 "§7.1 切换判据评估报告" 前移为 M3.5 + 决策点。）
 
 OP 区块级 receiptRoot（OpDepositReceipt RLP 编码）与 Isthmus withdrawalsRoot 仍留作 M6 后可选项。
 
@@ -422,10 +424,10 @@ OP 区块级 receiptRoot（OpDepositReceipt RLP 编码）与 Isthmus withdrawals
 - **纳入过渡 fork**（`CancunToPragueAtTime15k` 等）：`RevisionSchedule` 已在 testutils 内，成本近零；且逐块按时间戳切 revision 与 M4/M5 的 OP fork schedule 是同一模型；
 - **排除**：`blockchain_tests_engine*` / `_sync` 目录、pre-Cancun 网络、ommers 与 mining reward（post-merge 恒 nullopt/false）、`calculate_difficulty`（pre-Paris only）。EIP-7934 的 `MAX_RLP_BLOCK_SIZE` 检查用 loader 提供的 `rlp_size`（只量长度不解码），免费保留。
 
-**M4/M5 实施 checklist 附注**（第三轮终审给出，不改设计）：
-- M4 的**第一个交付物**是 op-geth 向量 JSON 的字段级 schema（签名 envelope、L1Block pre-state 槽值、期望 diff/receipt 的具体字段定义）；
-- M5 的 `runDeposit` 须补"**成功路径** from nonce 同样递增"的显式断言/测试行（§4.3 仅写了处理级失败的强制递增，成功路径靠 Transaction 壳隐式携带，照抄时易漏）；
-- `op_validate` 拒 blob tx 走"blobGasLeft 传 0"实现时，错误码是 blob gas 超限而非 op-geth 的 `ErrTxTypeNotSupported` 分类——被拒 tx 不进共识面，仅影响错误报告可读性，实现时注释说明即可。
+**M4/M5 实施 checklist 附注**（第三轮终审给出，不改设计；**rev.8.1 补处置状态**）：
+- M4 的**第一个交付物**是 op-geth 向量 JSON 的字段级 schema（签名 envelope、L1Block pre-state 槽值、期望 diff/receipt 的具体字段定义）——**未满足**（并行交付未附 schema），转入 M6 t8n gate 的向量 schema 工作；
+- M5 的 `runDeposit` 须补"**成功路径** from nonce 同样递增"的显式断言/测试行——**已应验为缺陷**：交付初版恰在此处出错（台账 D-05，nonce 递增时序错致 CREATE 地址差一），修复中；
+- `op_validate` 拒 blob tx 走"blobGasLeft 传 0"实现时，错误码是 blob gas 超限而非 op-geth 的 `ErrTxTypeNotSupported` 分类——被拒 tx 不进共识面，仅影响错误报告可读性，实现时注释说明即可——**已满足**（实际实现直接按 tx.type 拒绝，见 `OpValidate.cpp:12-13`）。
 
 ### 7.3 工作流约束（rev.7 用户裁定 D4）
 
@@ -435,7 +437,9 @@ OP 区块级 receiptRoot（OpDepositReceipt RLP 编码）与 Isthmus withdrawals
 
 ---
 
-### 7.2 终局身份与切换判据（**rev.7 已裁定：ETH 生产替换候选 + 不做 OP**）
+### 7.2 终局身份与切换判据（rev.7 裁定；**OP 半部已被 rev.8 D5 推翻，ETH 半部有效**）
+
+> **rev.8.1 存废切分**：本节 EEST 判据（第 1 条）、Phase 2 三项开销实测要求（第 2 条主体）与 ETH 侧经济学结论**仍有效**；以下各处**作废**——第 2 条末句「差分 oracle ↔ 生产替换候选」的二选一路由（D5 下无论哪种终局 OP 都在本模块，路由已死）、「解冻 M4/M5 的条件之一」（M4/M5 已由 D5 直接恢复，不再以 Phase 2 为解冻条件；Phase 2 仍是 **ETH 生产替换**的 go/no-go）、第 3 条的「仅在生产替换候选时」条件（本模块自己的 t8n gate 无条件是 M6 交付，见 §7.1 M6 行）、第 4 条预设的两模块 fork 接续关系（D5 下两模块互不接续）。
 
 "验证成熟"的可测量定义（**评估报告在决策点产出**，决策人为用户）：
 
@@ -482,7 +486,7 @@ OP 区块级 receiptRoot（OpDepositReceipt RLP 编码）与 Isthmus withdrawals
 - **Predeploy/attributes 时序**：OpFeeParams 必须在 attributes deposit 执行后读取；attributes 必须真执行。
 - **EEST 版本配对**：EEST release 与 evmone REF 配对 pin；Osaka skip 清单。
 - **intx/evmc 类型转换与打包槽解包**：slot 3/8 的字节偏移已入 §4.3 布局表并有逐字节单测行。
-- **严格隔离的重复实现**（rev.3 新增，用户确认的显式 trade-off）：FastLZ 等重写一遍，以现有 `bcos-evm/opstack/` 实现做黑盒数值对照降低移植错误风险。
+- **严格隔离的重复实现**（rev.3 新增，用户确认的显式 trade-off）：FastLZ 等重写一遍，~~以现有 `bcos-evm/opstack/` 实现做黑盒数值对照降低移植错误风险~~（rev.8.1 删该对照，D5；风险缓解改由 op-geth rollup_cost_test 黄金值 + t8n gate 承担）。
 - **共识等价性**：ETH 路径复用 evmone 天然等价（CHAINID 例外见上）；OP 路径靠黄金向量 + t8n gate。
 
 ---

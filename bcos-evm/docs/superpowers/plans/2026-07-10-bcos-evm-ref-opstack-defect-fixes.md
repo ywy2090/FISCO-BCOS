@@ -1,5 +1,7 @@
 # bcos-evm-ref/opstack 缺陷修复（D-01–D-14）Implementation Plan
 
+> ⛔ **v1 已冻结，禁止按本文执行**（2026-07-10 五路对抗审查后）。原因：① 工作树被并行会话（P1 tx-alignment）持续修改，本文基线（HEAD `9ca799884`）已漂移——D-05 已被其修复、`OpTxProperties.fee`/`opTransition` 签名已变；② 6 处照抄必炸的代码级 bug（Task 1 误删 delegation.hpp、Task 2 缺 OpForkSchedule.h include、Task 3 的 D-02 测试用委托码测不到东西、Task 5 打破 PreIsthmusConfigsPinned 且缺 include、Task 8 聚合初始化漏 fee、harness 编辑指令错）；③ Task 3 的 value-超铸币后余额场景 gasUsed 应为 gasLimit（op-geth `state_transition.go:578/:486/:498`），非本文的 intrinsic；④ 新缺陷 **D-15**（Fjord 起即需 0x100）证伪 Task 5 的测试断言；⑤ 测试网存在三个完整作弊实现（红队 12 个补强用例待并入），风险条款 1 须改为「改断言数值必须附差分锚定」。**待并行会话提交后，diff 其成果对照台账 D-01–D-15 出 rev.2。**
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 消化审计台账 `bcos-evm-ref/docs/audits/2026-07-10-opstack-code-review-defect-ledger.md` 的全部 14 条已确认缺陷（🔴×11、🟡×1、🟢×2），使 `bcos-evm-ref/opstack/` 的 deposit 与配置路径与 op-geth 语义一致。
