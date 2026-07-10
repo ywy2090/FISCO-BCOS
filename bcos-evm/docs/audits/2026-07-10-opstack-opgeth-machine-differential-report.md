@@ -5,7 +5,7 @@
 **台账：** [`bcos-evm/test/opstack/t8n/vectors/DIVERGENCES.md`](../../test/opstack/t8n/vectors/DIVERGENCES.md)
 **生成器：** [`bcos-evm/test/opstack/t8n/generator/README.md`](../../test/opstack/t8n/generator/README.md)
 **op-geth pin：** `v1.101702.2` @ `e8800cffe53d459cde8a07c8e8f1de9d86e79e07`（与 `bcos-evm/test/eth-eest-test/assets/upstream-pins.json` 一致）
-**关联的 6 份人工 parity 审计（同目录）：** `2026-06-20-opstack-isthmus-audit.md`、`2026-06-20-opstack-isthmus-work-list.md`、`2026-06-21-l2-tx-rlp-to-receipt-comparison.md`、`2026-06-21-opstack-isthmus-reaudit-wave3.md`、`2026-07-01-opstack-vs-op-geth-parity-phase0-2.md`、`2026-07-01-opstack-vs-op-geth-parity-round2-reverify.md`、`2026-07-01-opstack-vs-op-geth-parity-validation.md`
+**关联的 7 份既有人工文档（同目录，其中 6 份为 parity 审计，`*-work-list.md` 为工作清单）：** `2026-06-20-opstack-isthmus-audit.md`、`2026-06-20-opstack-isthmus-work-list.md`、`2026-06-21-l2-tx-rlp-to-receipt-comparison.md`、`2026-06-21-opstack-isthmus-reaudit-wave3.md`、`2026-07-01-opstack-vs-op-geth-parity-phase0-2.md`、`2026-07-01-opstack-vs-op-geth-parity-round2-reverify.md`、`2026-07-01-opstack-vs-op-geth-parity-validation.md`
 
 ---
 
@@ -205,7 +205,13 @@ spec §7.0 把这次 gate 定性为"唯一能为『替换』论证提供*正确�
 - **不是"0 分歧，opstack 的 op-geth 等价性首次获得机器强度确认"**——有 2 个 CONFIRMED 共识级缺陷。
 - **也不是"opstack 不可用"**——32 条已知分歧全部归并到 2 个根因（不是 32 个独立 bug），且都是窄范围的可修复缺陷（一处硬编码 0、一处读错字段），观测合约向量证明的另外 3 处（CHAINID/deposit-GASPRICE/四 vault 余额时机）是真的对的。
 
-**这次 gate 首次为 `bcos-evm/opstack` 的 op-geth 一致性提供了机器强度的证据——证据显示：既有大部分正确，也有具体、可定位、可修复的错误。** 这正是 6 份人工 parity 审计（4,485 行代码、~85 测试文件、覆盖到 Jovian）**没有做到**的：它们用阅读代码 + 逐条对照 op-geth 源码的方式核实了大量语义点（部署时机、fork 覆盖、deposit 失败路径的 nonce 语义等），其中 D8 项甚至记录过"floor gas 时机"的部分观察——但没有一份指出 deposit 路径完全不参与 floor **数值**计算，也没有一份指出 refund 结算读错了字段。这两个缺陷都需要**真实执行两条独立实现、逐字段比对数值**才能暴露，人工代码阅读做不到。
+**这次 gate 首次为 `bcos-evm/opstack` 的 op-geth 一致性提供了机器强度的证据——证据显示：既有大部分正确，也有具体、可定位、可修复的错误。**
+
+**比"未发现"更尖锐的事实（终审实证补记，2026-07-10）**：人工审计不只是漏掉了这两个缺陷，还曾把缺陷所在区域**逐条标绿**——
+- `2026-06-21-opstack-isthmus-reaudit-wave3.md:139` 把 "existence refund 12500" 对照 `Eip7702.cpp` 标为 ✅：它核实了 refund 被正确**记入**，但没有核实它是否被正确**读出**用于结算（FINDING-2 恰在读出侧）；
+- `2026-06-21-l2-tx-rlp-to-receipt-comparison.md:160` 把 "refund cap 1/5 peak" 标为 ✅：它核实了封顶**公式**正确，但没有核实封顶的**输入来自哪个字段**（同样是 FINDING-2）。
+
+这不是审计者的疏忽，而是**方法的固有边界**：逐条对照代码能验证"某个语义点被实现了"，无法验证"这个实现在完整执行路径上被正确接线"。两个 CONFIRMED finding 都发生在**接线处**（deposit 分支绕开 floor；OP 结算读了另一个字段），而非语义实现处——这类缺陷只有真实执行两条独立实现、逐字段比对数值才能暴露。 这正是 6 份人工 parity 审计（4,485 行代码、~85 测试文件、覆盖到 Jovian）**没有做到**的：它们用阅读代码 + 逐条对照 op-geth 源码的方式核实了大量语义点（部署时机、fork 覆盖、deposit 失败路径的 nonce 语义等），其中 D8 项甚至记录过"floor gas 时机"的部分观察——但没有一份指出 deposit 路径完全不参与 floor **数值**计算，也没有一份指出 refund 结算读错了字段。这两个缺陷都需要**真实执行两条独立实现、逐字段比对数值**才能暴露，人工代码阅读做不到。
 
 对"替换 vs oracle"决策（§7.2 的核心问题）的输入价值：这次 gate 只验证了 `bcos-evm/opstack`（现有生产模块），不涉及 `bcos-evm-ref`（评估中的 evmone 替换候选，M4/M5 已被 rev.7 D1 永久取消，不实现 OP 语义）；它回答的是一个更早、更基础的问题——**现有 OP 语义本身有多准**。答案是"总体扎实、有两处具体缺陷"，而不是"完全正确"或"大面积错误"。这份结果本身不替用户裁定任何后续动作（是否开 issue 修复、修复的优先级、是否影响 §7.2 决策点的时间线），只提供此前不存在的机器强度事实。
 
