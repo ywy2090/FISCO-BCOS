@@ -1,3 +1,4 @@
+#include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/RollupCost.h>
 #include <gtest/gtest.h>
 #include <fstream>
@@ -65,5 +66,30 @@ TEST(RollupCost, FjordL1CostEmptyTxMatches3203000)
 TEST(RollupCost, OperatorCostIsthmus)
 {
     const auto p = feeParams(0, 0, 0, 0, /*opScalar=*/2000000, /*opConst=*/500);
-    EXPECT_EQ(computeOperatorCost(p, 1000), intx::uint256{1000ull * 2000000 / 1000000 + 500});
+    EXPECT_EQ(computeOperatorCost(p, 1000, isthmusConfig()),
+        intx::uint256{1000ull * 2000000 / 1000000 + 500});
+}
+
+TEST(RollupCost, OperatorCostJovianUsesTimes100)
+{
+    const auto p = feeParams(0, 0, 0, 0, /*opScalar=*/2000000, /*opConst=*/500);
+    // Isthmus: 1000*2000000/1e6 + 500 = 2500
+    EXPECT_EQ(computeOperatorCost(p, 1000, isthmusConfig()), intx::uint256{2500});
+    // Jovian: 1000*2000000*100 + 500 = 200000000500
+    EXPECT_EQ(computeOperatorCost(p, 1000, jovianConfig()),
+        intx::uint256{1000ull * 2000000ull * 100ull + 500});
+    EXPECT_EQ(
+        computeOperatorCost(p, 1000, karstConfig()), computeOperatorCost(p, 1000, jovianConfig()));
+}
+
+TEST(RollupCost, EstimatedDaSizeDividesScaledBy1e6)
+{
+    EXPECT_EQ(estimatedDaSize({}), 0u);
+    // fastlz 0 → scaled floor 100e6 → size 100
+    EXPECT_EQ(estimatedDaSizeScaled(0) / 1000000_u256, intx::uint256{100});
+    std::vector<uint8_t> empty;
+    EXPECT_EQ(estimatedDaSize(view(empty)), 0u);
+    const auto env = readFixture("empty_tx.bin");
+    const auto scaled = estimatedDaSizeScaled(flzCompressLen(view(env)));
+    EXPECT_EQ(estimatedDaSize(view(env)), static_cast<uint64_t>(scaled / 1000000_u256));
 }

@@ -123,6 +123,14 @@ intx::uint256 estimatedDaSizeScaled(uint32_t fastlzSize) noexcept
     return intx::uint256{static_cast<uint64_t>(clamped)};
 }
 
+uint64_t estimatedDaSize(evmc::bytes_view signedTxEnvelope) noexcept
+{
+    if (signedTxEnvelope.empty())
+        return 0;
+    const auto scaled = estimatedDaSizeScaled(flzCompressLen(signedTxEnvelope));
+    return static_cast<uint64_t>(scaled / intx::uint256{1'000'000});
+}
+
 intx::uint256 computeL1Cost(const OpFeeParams& params, evmc::bytes_view signedTxEnvelope) noexcept
 {
     if (signedTxEnvelope.empty())
@@ -137,8 +145,14 @@ intx::uint256 computeL1Cost(const OpFeeParams& params, evmc::bytes_view signedTx
     return scaled * (calldataPerByte + blobPerByte) / intx::uint256{kFjordDivisor};
 }
 
-intx::uint256 computeOperatorCost(const OpFeeParams& params, uint64_t gas) noexcept
+intx::uint256 computeOperatorCost(
+    const OpFeeParams& params, uint64_t gas, const OpForkConfig& cfg) noexcept
 {
+    if (cfg.has_jovian_operator_formula)
+    {
+        return intx::uint256{gas} * intx::uint256{params.operator_fee_scalar} * intx::uint256{100} +
+               intx::uint256{params.operator_fee_constant};
+    }
     return intx::uint256{gas} * intx::uint256{params.operator_fee_scalar} /
                intx::uint256{kOperatorFeeScalarDivisor} +
            intx::uint256{params.operator_fee_constant};

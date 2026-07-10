@@ -209,7 +209,7 @@ evmone::state::TransactionReceipt opTransition(const evmone::state::StateView& v
     state.touch(OP_L1_FEE_VAULT).balance += props.l1_cost;
     if (cfg.has_operator_fee)
     {
-        const auto opAtUsed = computeOperatorCost(fee, static_cast<uint64_t>(gas_used));
+        const auto opAtUsed = computeOperatorCost(fee, static_cast<uint64_t>(gas_used), cfg);
         state.touch(OP_OPERATOR_FEE_VAULT).balance += opAtUsed;
         sender_acc.balance += props.operator_cost_at_gas_limit - opAtUsed;
     }
