@@ -11,10 +11,6 @@ transition_buy_gas	opstack/OpTransition.cpp	154	164	test/state/state.cpp	574	584
 # OpExecCommon.cpp::executeMessage（共享执行核，供 opTransition 与后续 runDeposit 复用）。
 exec_common_body	opstack/OpExecCommon.cpp	38	71	test/state/state.cpp	599	636
 #
-# OpDepositTx.cpp (evmone test/state/state.cpp — build_message 的 deposit 变体，
-# 与上面 build_message 段同源；纳入追踪使 evmone 升级时两份拷贝都被脚本盯住)
-build_deposit_message	opstack/OpDepositTx.cpp	13	33	test/state/state.cpp	180	199
-#
 # OpHost.cpp (evmone test/state/host.cpp)
 apply_call_value	opstack/OpHost.cpp	54	66	test/state/host.cpp	345	364
 call_depth_guard	opstack/OpHost.cpp	127	132	test/state/host.cpp	224	226

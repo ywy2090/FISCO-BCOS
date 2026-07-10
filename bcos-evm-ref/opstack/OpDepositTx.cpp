@@ -1,38 +1,14 @@
 #include <bcos-evm-ref/opstack/OpDepositTx.h>
+#include <bcos-evm-ref/opstack/OpExecCommon.h>
 #include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpHost.h>
-#include <algorithm>
 #include <cassert>
 #include <stdexcept>
+#include <test/state/bloom_filter.hpp>
 #include <test/state/state.hpp>
 
 namespace bcos::evmref::opstack
 {
-namespace
-{
-evmc_message build_deposit_message(
-    const evmone::state::Transaction& tx, int64_t execution_gas_limit) noexcept
-{
-    const auto recipient = tx.to.has_value() ? *tx.to : evmc::address{};
-
-    return {
-        .kind = tx.to.has_value() ? EVMC_CALL : EVMC_CREATE,
-        .flags = 0,
-        .depth = 0,
-        .gas = execution_gas_limit,
-        .recipient = recipient,
-        .sender = tx.sender,
-        .input_data = tx.data.data(),
-        .input_size = tx.data.size(),
-        .value = intx::be::store<evmc::uint256be>(tx.value),
-        .create2_salt = {},
-        .code_address = recipient,
-        .code = nullptr,
-        .code_size = 0,
-    };
-}
-}  // namespace
-
 OpDepositReceipt runDeposit(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     const DepositTx& dep, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId)
@@ -47,7 +23,7 @@ OpDepositReceipt runDeposit(const evmone::state::StateView& view,
         fromAcc.balance += *dep.mint;
 
     evmone::state::Transaction tx;
-    tx.type = evmone::state::Transaction::Type::legacy;
+    tx.type = evmone::state::Transaction::Type::legacy;  // 内部执行壳；receipt 用 kDepositTxType
     tx.sender = dep.from;
     tx.to = dep.to;
     tx.gas_limit = dep.gas_limit;
@@ -62,15 +38,14 @@ OpDepositReceipt runDeposit(const evmone::state::StateView& view,
     validateBlock.base_fee = 0;
     const auto props = evmone::state::validate_transaction(
         view, validateBlock, tx, cfg.rev, block.gas_limit, 0);
-    const auto snapshot = state.checkpoint();
 
     evmone::state::TransactionReceipt receipt;
-    receipt.type = evmone::state::Transaction::Type::legacy;
+    receipt.type = kDepositTxType;
 
-    if (auto* err = std::get_if<std::error_code>(&props))
+    if (std::holds_alternative<std::error_code>(props))
     {
-        (void)err;
-        state.rollback(snapshot);
+        // 处理级失败（op-geth Regolith，state_transition.go:486-513）：
+        // mint 保留、nonce 强制递增、gasUsed = gasLimit 全额（:498）。
         state.get(dep.from).nonce = preNonce + 1;
         receipt.status = EVMC_FAILURE;
         receipt.gas_used = dep.gas_limit;
@@ -78,31 +53,18 @@ OpDepositReceipt runDeposit(const evmone::state::StateView& view,
     else
     {
         const auto& p = std::get<evmone::state::TransactionProperties>(props);
-        OpHost host{cfg.rev, vm, state, block, hashes, tx, chainId, cfg.precompiles};
         // Host::prepare_message 对 depth==0 消息不自行 bump nonce（母本假定调用方已 bump，
-        // CREATE 地址派生用 nonce-1 取"执行前" nonce）；此处照 opTransition 的成例先 bump，
-        // 否则合约创建 deposit 会用 preNonce-1 派生地址，偏离 op-geth。
+        // CREATE 地址派生用 nonce-1 取"执行前" nonce）——保留 2327532 的修复。
         assert(fromAcc.nonce < evmone::state::Account::NonceMax);
         ++fromAcc.nonce;
-        const auto result = host.call(build_deposit_message(tx, p.execution_gas_limit));
-        const int64_t gasUsed =
-            std::max<int64_t>(dep.gas_limit - result.gas_left, p.min_gas_cost);
-        if (result.status_code != EVMC_SUCCESS)
-        {
-            state.rollback(snapshot);
-            state.get(dep.from).nonce = preNonce + 1;
-            receipt.status = result.status_code;
-            receipt.gas_used = gasUsed;
-            receipt.logs = host.take_logs();
-        }
-        else
-        {
-            state.get(dep.from).nonce = preNonce + 1;
-            receipt.status = EVMC_SUCCESS;
-            receipt.gas_used = gasUsed;
-            receipt.logs = host.take_logs();
-        }
+        OpHost host{cfg.rev, vm, state, block, hashes, tx, chainId, cfg.precompiles};
+        auto outcome = executeMessage(state, host, tx, cfg.rev, block.coinbase,
+            p.execution_gas_limit, p.min_gas_cost, /*delegation_refund=*/0);
+        receipt.status = outcome.result.status_code;
+        receipt.gas_used = outcome.gas_used;
+        receipt.logs = host.take_logs();
     }
+    receipt.logs_bloom_filter = evmone::state::compute_bloom_filter(receipt.logs);
     receipt.state_diff = state.build_diff(cfg.rev);
     return OpDepositReceipt{std::move(receipt), preNonce, 1};
 }

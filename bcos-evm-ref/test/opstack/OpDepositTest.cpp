@@ -4,6 +4,7 @@
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
 #include <evmone/evmone.h>
 #include <gtest/gtest.h>
+#include <test/state/bloom_filter.hpp>
 #include <test/state/host.hpp>
 #include <test/state/state.hpp>
 #include <test/utils/test_state.hpp>
@@ -46,6 +47,7 @@ TEST(OpDeposit, SuccessMintsAndAdvancesNonce)
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
 
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(r.receipt.type, kDepositTxType);
     EXPECT_EQ(r.deposit_nonce, 5u);
     EXPECT_EQ(r.deposit_receipt_version, 1u);
     EXPECT_EQ(ts.at(kFrom).nonce, 6u);
@@ -150,4 +152,198 @@ TEST(OpDeposit, SystemTxIsBlockError)
         .is_system_tx = true,
         .data = {}};
     EXPECT_THROW(runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234), std::runtime_error);
+}
+
+// D-03：SSTORE 清零 refund 从 deposit gasUsed 扣除（op-geth Regolith+ 无条件 calcRefund）
+// intrinsic 21000 + PUSH1(3)+PUSH1(3)+SSTORE(2100冷+2900重置=5000) = 26006；
+// refund = min(4800, 26006/5=5201) = 4800 → 21206；floor 21000 不抬。
+TEST(OpDeposit, RefundLowersDepositGasUsed)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kClear = 0x00000000000000000000000000000000000000ee_address;
+    ts[kClear] = {.nonce = 1,
+        .balance = intx::uint256{0},
+        .storage = {{0x00_bytes32, 0x01_bytes32}},
+        .code = evmc::from_hex("600060005500").value()};
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kClear,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(r.receipt.gas_used, 21206);
+}
+
+// D-03 反作弊（红队 F-4）：refund 受 EIP-3529 /5 上限约束。
+// 4 槽清零：pre-refund = 21000 + 4*(3+3+5000) = 41024；cap = 41024/5 = 8204 → 32820。
+// /2 或无上限作弊 → 21824，当场暴露。/5 结构性入断言。
+TEST(OpDeposit, RefundIsCappedAtOneFifthOfGasUsed)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kClear4 = 0x00000000000000000000000000000000000000e4_address;
+    ts[kClear4] = {.nonce = 1,
+        .balance = intx::uint256{0},
+        .storage = {{0x00_bytes32, 0x01_bytes32}, {0x01_bytes32, 0x01_bytes32},
+            {0x02_bytes32, 0x01_bytes32}, {0x03_bytes32, 0x01_bytes32}},
+        .code = evmc::from_hex("600060005560006001556000600255600060035500").value()};
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kClear4,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    constexpr int64_t kPreRefund = 41024;
+    EXPECT_EQ(r.receipt.gas_used, kPreRefund - kPreRefund / 5);
+}
+
+// D-07：有日志的 deposit receipt 携带非零 bloom
+TEST(OpDeposit, DepositReceiptCarriesLogsBloom)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kLogger = 0x00000000000000000000000000000000000000ef_address;
+    ts[kLogger] = {.nonce = 1, .balance = intx::uint256{0},
+        .code = evmc::from_hex("60006000a000").value()};
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kLogger,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    ASSERT_EQ(r.receipt.logs.size(), 1u);
+    const auto expected = evmone::state::compute_bloom_filter(r.receipt.logs);
+    EXPECT_TRUE(evmc::bytes_view{r.receipt.logs_bloom_filter} == evmc::bytes_view{expected});
+    EXPECT_FALSE(evmc::bytes_view{r.receipt.logs_bloom_filter} ==
+                 evmc::bytes_view{evmone::state::BloomFilter{}});
+}
+
+// D-07 反向（红队 F-5）：LOG 后 REVERT——logs 必须空、bloom 必须全零
+TEST(OpDeposit, RevertedDepositHasEmptyLogsAndZeroBloom)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kLogRevert = 0x00000000000000000000000000000000000000e5_address;
+    ts[kLogRevert] = {.nonce = 1, .balance = intx::uint256{0},
+        .code = evmc::from_hex("60006000a060006000fd").value()};
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kLogRevert,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    EXPECT_EQ(r.receipt.status, EVMC_REVERT);
+    EXPECT_TRUE(r.receipt.logs.empty());
+    EXPECT_TRUE(evmc::bytes_view{r.receipt.logs_bloom_filter} ==
+                evmc::bytes_view{evmone::state::BloomFilter{}});
+}
+
+// D-08：deposit 调用 7702 委托 EOA 执行委托目标代码（storage 落在 EOA 上下文）
+TEST(OpDeposit, DepositResolvesEip7702Delegation)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kImpl = 0x00000000000000000000000000000000000000aa_address;
+    constexpr auto kEoa = 0x00000000000000000000000000000000000000ab_address;
+    ts[kImpl] = {.nonce = 1, .balance = intx::uint256{0},
+        .code = evmc::from_hex("600160005500").value()};
+    ts[kEoa] = {.nonce = 1, .balance = intx::uint256{0},
+        .code = evmc::from_hex("ef0100").value() + evmone::state::bytes{kImpl.bytes, 20}};
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kEoa,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(ts.at(kEoa).storage.at(0x00_bytes32), 0x01_bytes32);
+}
+
+// D-08 反作弊（红队 F-7）：委托指向 0x100——必须带 EVMC_DELEGATED 走空码回退，gas=21000；
+// 未设旗的作弊实现派发 P256 override → 24450。
+TEST(OpDeposit, DelegationToPrecompileFallsBackToEmptyCode)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto k100 = 0x0000000000000000000000000000000000000100_address;
+    constexpr auto kEoa = 0x00000000000000000000000000000000000000ac_address;
+    ts[kEoa] = {.nonce = 1, .balance = intx::uint256{0},
+        .code = evmc::from_hex("ef0100").value() + evmone::state::bytes{k100.bytes, 20}};
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kEoa,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(r.receipt.gas_used, 21000);
+}
+
+// D-09：sender 预热——BALANCE(ORIGIN) 收 warm 100（修复前 cold 2600 → 23604）
+TEST(OpDeposit, DepositWarmsSenderPerEip2929)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kProbe = 0x00000000000000000000000000000000000000ba_address;
+    ts[kProbe] = {.nonce = 1, .balance = intx::uint256{0},
+        .code = evmc::from_hex("32315000").value()};  // ORIGIN BALANCE POP STOP
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kProbe,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(r.receipt.gas_used, 21104);
+}
+
+// D-09 补强（红队 F-2）：EIP-3651 coinbase 预热——BALANCE(COINBASE) 同价 21104
+TEST(OpDeposit, DepositWarmsCoinbasePerEip3651)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+    constexpr auto kProbe = 0x00000000000000000000000000000000000000bc_address;
+    ts[kProbe] = {.nonce = 1, .balance = intx::uint256{0},
+        .code = evmc::from_hex("41315000").value()};  // COINBASE BALANCE POP STOP
+    test::TestBlockHashes hashes;
+    auto b = blk();
+    b.coinbase = 0x00000000000000000000000000000000000000c1_address;
+    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kProbe,
+        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+        .is_system_tx = false, .data = {}};
+    const auto r = runDeposit(ts, b, hashes, dep, isthmusConfig(), vm, 1234);
+    EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(r.receipt.gas_used, 21104);
+}
+
+// 差分锚定（红队 F-2，「断言数值纪律」的锚）：同形探针（PUSH20 目标 BALANCE POP STOP），
+// 仅目标不同：sender（必暖）vs 表外冷地址。Δ = 2600-100 = 2500（EIP-2929 常数）。
+// sender 未预热 → Δ=0；全体乱暖 → Δ=0；均被抓。
+TEST(OpDeposit, WarmColdDifferentialIs2500)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    constexpr auto kCold = 0x00000000000000000000000000000000000000fe_address;
+    const auto probeCode = [](const evmc::address& target) {
+        return evmc::from_hex("73").value() + evmone::state::bytes{target.bytes, 20} +
+               evmc::from_hex("315000").value();
+    };
+    const auto run = [&](const evmc::address& target) {
+        test::TestState ts;
+        ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
+        constexpr auto kProbe = 0x00000000000000000000000000000000000000be_address;
+        ts[kProbe] = {.nonce = 1, .balance = intx::uint256{0}, .code = probeCode(target)};
+        test::TestBlockHashes hashes;
+        DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kProbe,
+            .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
+            .is_system_tx = false, .data = {}};
+        const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234);
+        EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
+        return r.receipt.gas_used;
+    };
+    EXPECT_EQ(run(kCold) - run(kFrom), 2500);
 }

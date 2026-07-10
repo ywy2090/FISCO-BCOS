@@ -32,6 +32,9 @@ struct DepositTx
     evmc::bytes data;
 };
 
+/// OP 0x7E deposit 交易/receipt 类型（EIP-2718 typed envelope 前缀）。
+constexpr auto kDepositTxType = static_cast<evmone::state::Transaction::Type>(0x7e);
+
 struct OpDepositReceipt
 {
     evmone::state::TransactionReceipt receipt;
