@@ -104,7 +104,7 @@ TEST(OpFloorGas, DepositGasUsedRaisedToFloor)
         .is_system_tx = false,
         .data = state::bytes(3000, 0x00)};
 
-    const auto r = runDeposit(ts, block, hashes, dep, isthmusConfig(), vm, 1234);
+    const auto r = runDeposit(ts, block, hashes, dep, isthmusConfig(), vm, 1234, block.gas_limit);
     ASSERT_EQ(r.receipt.status, EVMC_SUCCESS);
     // deposit 同样吃 7623 floor（op-geth Isthmus 无豁免）：gas_used == floor
     constexpr int64_t kExpectedFloor3000 = 21000 + 3000 * 10;  // = 51000
@@ -117,7 +117,8 @@ TEST(OpFloorGas, DepositGasUsedRaisedToFloor)
     test::TestState ts2;
     ts2[depositor] = {.nonce = 0, .balance = 0_u256};
     seedOpPredeploys(ts2);
-    const auto rs = runDeposit(ts2, block, hashes, small, isthmusConfig(), vm, 1234);
+    const auto rs =
+        runDeposit(ts2, block, hashes, small, isthmusConfig(), vm, 1234, block.gas_limit);
     ASSERT_EQ(rs.receipt.status, EVMC_SUCCESS);
     EXPECT_EQ(rs.receipt.gas_used, kExpectedFloorEmpty);
     EXPECT_GT(r.receipt.gas_used, rs.receipt.gas_used);

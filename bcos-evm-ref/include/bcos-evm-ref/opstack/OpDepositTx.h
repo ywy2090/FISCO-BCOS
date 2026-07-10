@@ -44,7 +44,9 @@ struct OpDepositReceipt
 
 /// 执行一笔 0x7E deposit：跳过 buyGas；mint 有值加余额；intrinsic + 7623 floor 照扣；
 /// 失败双路径保留 mint 且强制 nonce++；is_system_tx==true 抛 std::runtime_error（块级错误）。
+/// gas_limit 超 blockGasLeft 抛 std::runtime_error（op-geth ErrGasLimitReached，块级错误）。
 OpDepositReceipt runDeposit(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
-    const DepositTx& dep, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId);
+    const DepositTx& dep, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId,
+    int64_t blockGasLeft);
 }  // namespace bcos::evmref::opstack

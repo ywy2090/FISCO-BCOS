@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <test/state/bloom_filter.hpp>
+#include <test/state/errors.hpp>
 #include <test/state/state.hpp>
 
 namespace bcos::evmref::opstack
@@ -53,7 +54,8 @@ private:
 }  // namespace
 OpDepositReceipt runDeposit(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
-    const DepositTx& dep, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId)
+    const DepositTx& dep, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId,
+    int64_t blockGasLeft)
 {
     if (dep.is_system_tx)
         throw std::runtime_error("op deposit: is_system_tx not supported (block error)");
@@ -80,13 +82,15 @@ OpDepositReceipt runDeposit(const evmone::state::StateView& view,
     validateBlock.base_fee = 0;
     const DepositValidationView maskedView{view, dep.from};
     const auto props = evmone::state::validate_transaction(
-        maskedView, validateBlock, tx, cfg.rev, block.gas_limit, 0);
+        maskedView, validateBlock, tx, cfg.rev, blockGasLeft, 0);
 
     evmone::state::TransactionReceipt receipt;
     receipt.type = kDepositTxType;
 
-    if (std::holds_alternative<std::error_code>(props))
+    if (const auto* err = std::get_if<std::error_code>(&props))
     {
+        if (*err == evmone::state::make_error_code(evmone::state::GAS_LIMIT_REACHED))
+            throw std::runtime_error("op deposit: block gas limit reached (block error)");
         // 处理级失败（op-geth Regolith，state_transition.go:486-513）：
         // mint 保留、nonce 强制递增、gasUsed = gasLimit 全额（:498）。
         state.get(dep.from).nonce = preNonce + 1;

@@ -131,7 +131,8 @@ TEST(OpBlockHarness, IsthmusBlockWithAttributesDeposit)
         .gas_limit = 200000,
         .is_system_tx = false,
         .data = toBytes(attrData)};
-    const auto attrR = runDeposit(ts, block, hashes, attr, isthmusConfig(), vm, 1234);
+    const auto attrR =
+        runDeposit(ts, block, hashes, attr, isthmusConfig(), vm, 1234, block.gas_limit);
     ASSERT_EQ(attrR.receipt.status, EVMC_SUCCESS);
     bcos::evmref::applyStateDiff(ts, attrR.receipt.state_diff);
     blockGasLeft -= attrR.receipt.gas_used;
@@ -159,7 +160,8 @@ TEST(OpBlockHarness, IsthmusBlockWithAttributesDeposit)
         .gas_limit = 100000,
         .is_system_tx = false,
         .data = {}};
-    const auto depR = runDeposit(ts, block, hashes, dep, isthmusConfig(), vm, 1234);
+    const auto depR =
+        runDeposit(ts, block, hashes, dep, isthmusConfig(), vm, 1234, block.gas_limit);
     ASSERT_EQ(depR.receipt.status, EVMC_SUCCESS);
     bcos::evmref::applyStateDiff(ts, depR.receipt.state_diff);
     blockGasLeft -= depR.receipt.gas_used;
