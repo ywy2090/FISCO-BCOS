@@ -268,6 +268,7 @@ Deposit：不经 L1/operator buyGas；floor 仍经 `min_gas_cost`；`is_system_t
 - 继承 Jovian/Karst spec 的 N-1（L1 vault 无条件 touch）与 G-1（空 envelope）
 - 生产 FINDING-1 不在本范围；ref 侧用 7623 向量独立钉死同类语义
 - 禁止 `#include <bcos-evm/...>`
+- **E-b 接线安全护栏（终审记录）**：`process_authorization_list` 保留「若 `auth.signer` 已预置则信任、跳过 ecrecover」的捷径（仅为单测注入便利，signer 是 evmone test-state 字段，非从不可信 envelope 解码）。E-b 生产接线**绝不可**用不可信输入填充 `auth.signer`——生产路径必须始终走 `recoverAuthority` 真实恢复，否则等同放行伪造授权。
 
 ---
 
