@@ -1,5 +1,6 @@
 #include <bcos-evm-ref/opstack/OpHost.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
+#include <bcos-evm-ref/opstack/OpReceiptMeta.h>
 #include <bcos-evm-ref/opstack/OpTransition.h>
 #include <bcos-evm-ref/opstack/RollupCost.h>
 #include <algorithm>
@@ -133,10 +134,11 @@ evmc_message build_message(
 }
 }  // namespace
 
-evmone::state::TransactionReceipt opTransition(const evmone::state::StateView& view,
+OpTxReceipt opTransition(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     const evmone::state::Transaction& tx, const OpForkConfig& cfg, evmc::VM& vm,
-    const OpTxProperties& props, const OpFeeParams& fee, uint64_t chainId)
+    const OpTxProperties& props, const OpFeeParams& fee, uint64_t chainId,
+    evmc::bytes_view signedTxEnvelope)
 {
     const auto rev = cfg.rev;
     evmone::state::State state{view};
@@ -204,12 +206,14 @@ evmone::state::TransactionReceipt opTransition(const evmone::state::StateView& v
     sender_acc.balance += tx_max_cost - gas_used * effective_gas_price;
     state.touch(block.coinbase).balance += gas_used * priority_gas_price;
 
+    const auto opAtUsed = cfg.has_operator_fee ?
+                              computeOperatorCost(fee, static_cast<uint64_t>(gas_used), cfg) :
+                              intx::uint256{0};
     state.touch(OP_BASE_FEE_VAULT).balance +=
         intx::uint256{static_cast<uint64_t>(gas_used)} * intx::uint256{base_fee};
     state.touch(OP_L1_FEE_VAULT).balance += props.l1_cost;
     if (cfg.has_operator_fee)
     {
-        const auto opAtUsed = computeOperatorCost(fee, static_cast<uint64_t>(gas_used), cfg);
         state.touch(OP_OPERATOR_FEE_VAULT).balance += opAtUsed;
         sender_acc.balance += props.operator_cost_at_gas_limit - opAtUsed;
     }
@@ -219,6 +223,8 @@ evmone::state::TransactionReceipt opTransition(const evmone::state::StateView& v
 
     receipt.logs_bloom_filter = evmone::state::compute_bloom_filter(receipt.logs);
 
-    return receipt;
+    auto meta = deriveOpReceiptMeta(cfg, fee, signedTxEnvelope, props.l1_cost, opAtUsed,
+        /*fill_operator_scalars=*/true);
+    return OpTxReceipt{std::move(receipt), std::move(meta)};
 }
 }  // namespace bcos::evmref::opstack

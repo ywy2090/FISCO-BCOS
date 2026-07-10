@@ -118,8 +118,10 @@ TEST(OpZeroDiff, SimpleTransferMatchesEthExceptBaseFeeVault)
     EXPECT_EQ(props.l1_cost, intx::uint256{0});
     EXPECT_EQ(props.operator_cost_at_gas_limit, intx::uint256{0});
 
-    const auto opReceipt = opTransition(ts, block, hashes, tx, cfg, vm, props, fee, /*chainId=*/1);
-    ASSERT_EQ(opReceipt.status, EVMC_SUCCESS);
+    const auto opTxR = opTransition(
+        ts, block, hashes, tx, cfg, vm, props, fee, /*chainId=*/1, {env.data(), env.size()});
+    ASSERT_EQ(opTxR.receipt.status, EVMC_SUCCESS);
+    const auto& opReceipt = opTxR.receipt;
 
     const auto ethRes = bcos::evmref::eth::runTransaction(
         ts, block, hashes, tx, cfg.rev, vm, block.gas_limit, /*blobGasLeft=*/0);

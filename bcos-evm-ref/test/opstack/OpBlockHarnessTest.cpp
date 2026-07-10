@@ -177,18 +177,19 @@ TEST(OpBlockHarness, IsthmusBlockWithAttributesDeposit)
         opValidate(ts, block, tx, {env.data(), env.size()}, isthmusConfig(), fee, blockGasLeft);
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(v));
     const auto& props = std::get<OpTxProperties>(v);
-    const auto txR = opTransition(ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234);
-    ASSERT_EQ(txR.status, EVMC_SUCCESS);
-    bcos::evmref::applyStateDiff(ts, txR.state_diff);
-    blockGasLeft -= txR.gas_used;
-    cumulative += txR.gas_used;
+    const auto txR = opTransition(
+        ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234, {env.data(), env.size()});
+    ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
+    bcos::evmref::applyStateDiff(ts, txR.receipt.state_diff);
+    blockGasLeft -= txR.receipt.gas_used;
+    cumulative += txR.receipt.gas_used;
 
     // (4) 四 vault 守恒 + cumulative gas
     EXPECT_EQ(ts.at(OP_L1_FEE_VAULT).balance, props.l1_cost);
     EXPECT_GT(ts.at(OP_BASE_FEE_VAULT).balance, intx::uint256{0});
     EXPECT_GT(ts.at(OP_SEQUENCER_FEE_VAULT).balance, intx::uint256{0});
     EXPECT_GT(ts.at(OP_OPERATOR_FEE_VAULT).balance, intx::uint256{0});
-    EXPECT_EQ(cumulative, attrR.receipt.gas_used + depR.receipt.gas_used + txR.gas_used);
+    EXPECT_EQ(cumulative, attrR.receipt.gas_used + depR.receipt.gas_used + txR.receipt.gas_used);
     EXPECT_GT(blockGasLeft, 0);
     // finalize：OP 块 withdrawals 恒空；receiptRoot/withdrawalsRoot 属块头层非 M5 目标。
 }
