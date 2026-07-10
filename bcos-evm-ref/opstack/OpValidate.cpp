@@ -1,3 +1,4 @@
+#include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpValidate.h>
 #include <bcos-evm-ref/opstack/RollupCost.h>
 
@@ -30,5 +31,13 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
         return make_error_code(std::errc::result_out_of_range);
 
     return OpTxProperties{std::get<evmone::state::TransactionProperties>(base), l1Cost, opCost};
+}
+
+std::variant<OpTxProperties, std::error_code> opValidateFromState(
+    const evmone::state::StateView& view, const evmone::state::BlockInfo& block,
+    const evmone::state::Transaction& tx, evmc::bytes_view signedTxEnvelope,
+    const OpForkConfig& cfg, int64_t blockGasLeft)
+{
+    return opValidate(view, block, tx, signedTxEnvelope, cfg, loadOpFeeParams(view), blockGasLeft);
 }
 }  // namespace bcos::evmref::opstack

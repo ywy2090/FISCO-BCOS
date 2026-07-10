@@ -1,7 +1,10 @@
 #include <bcos-evm-ref/opstack/OpFeeParams.h>
+#include <bcos-evm-ref/opstack/OpPredeploys.h>
 #include <gtest/gtest.h>
+#include <test/utils/test_state.hpp>
 
 using namespace bcos::evmref::opstack;
+using intx::operator""_u256;
 
 namespace
 {
@@ -47,6 +50,33 @@ TEST(OpFeeParams, UnpacksScalarsFromPackedSlots)
     EXPECT_EQ(p.blob_base_fee, intx::uint256{2000});
     EXPECT_EQ(p.operator_fee_scalar, 11u);
     EXPECT_EQ(p.operator_fee_constant, 13u);
+}
+
+TEST(OpFeeParams, LoadFromStateEqualsManualUnpack)
+{
+    using namespace evmone;
+    test::TestState ts;
+    auto key = [](uint8_t s) {
+        evmc::bytes32 k{};
+        k.bytes[31] = s;
+        return k;
+    };
+    auto low8 = [](uint64_t v) {
+        evmc::bytes32 w{};
+        for (int i = 0; i < 8; ++i)
+            w.bytes[31 - i] = static_cast<uint8_t>(v >> (8 * i));
+        return w;
+    };
+    ts[OP_L1_BLOCK].storage[key(1)] = low8(1000000000);
+    ts[OP_L1_BLOCK].storage[key(7)] = low8(10000000);
+
+    const auto loaded = loadOpFeeParams(ts);
+    const auto manual =
+        unpackOpFeeParams(ts.get_storage(OP_L1_BLOCK, key(1)), ts.get_storage(OP_L1_BLOCK, key(3)),
+            ts.get_storage(OP_L1_BLOCK, key(7)), ts.get_storage(OP_L1_BLOCK, key(8)));
+    EXPECT_EQ(loaded.l1_base_fee, manual.l1_base_fee);
+    EXPECT_EQ(loaded.blob_base_fee, manual.blob_base_fee);
+    EXPECT_EQ(loaded.l1_base_fee, 1000000000_u256);
 }
 
 TEST(OpFeeParams, UnpacksDaFootprintGasScalarFromSlot8)

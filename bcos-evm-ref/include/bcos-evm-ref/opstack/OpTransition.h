@@ -17,4 +17,11 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
     const evmone::state::Transaction& tx, const OpForkConfig& cfg, evmc::VM& vm,
     const OpTxProperties& props, const OpFeeParams& fee, uint64_t chainId,
     evmc::bytes_view signedTxEnvelope);
+
+/// 配对约束：*FromState 必须成对使用；不得与注入式 (opValidate/opTransition) 混用。
+/// 从 view 读取 OP_L1_BLOCK 费用参数后委托给 opTransition。
+OpTxReceipt opTransitionFromState(const evmone::state::StateView& view,
+    const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
+    const evmone::state::Transaction& tx, const OpForkConfig& cfg, evmc::VM& vm,
+    const OpTxProperties& props, uint64_t chainId, evmc::bytes_view signedTxEnvelope);
 }  // namespace bcos::evmref::opstack

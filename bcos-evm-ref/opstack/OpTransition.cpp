@@ -1,3 +1,4 @@
+#include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpHost.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
 #include <bcos-evm-ref/opstack/OpReceiptMeta.h>
@@ -226,5 +227,14 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
     auto meta = deriveOpReceiptMeta(cfg, fee, signedTxEnvelope, props.l1_cost, opAtUsed,
         /*fill_operator_scalars=*/true);
     return OpTxReceipt{std::move(receipt), std::move(meta)};
+}
+
+OpTxReceipt opTransitionFromState(const evmone::state::StateView& view,
+    const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
+    const evmone::state::Transaction& tx, const OpForkConfig& cfg, evmc::VM& vm,
+    const OpTxProperties& props, uint64_t chainId, evmc::bytes_view signedTxEnvelope)
+{
+    return opTransition(
+        view, block, hashes, tx, cfg, vm, props, loadOpFeeParams(view), chainId, signedTxEnvelope);
 }
 }  // namespace bcos::evmref::opstack

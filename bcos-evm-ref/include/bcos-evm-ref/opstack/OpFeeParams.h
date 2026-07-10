@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
+#include <test/state/state_view.hpp>
 
 namespace bcos::evmref::opstack
 {
@@ -22,4 +23,7 @@ struct OpFeeParams
 /// 从四个存储槽解包（Isthmus 调用方可忽略 da_footprint_gas_scalar）。
 OpFeeParams unpackOpFeeParams(const evmc::bytes32& slot1, const evmc::bytes32& slot3,
     const evmc::bytes32& slot7, const evmc::bytes32& slot8) noexcept;
+
+/// 从 OP_L1_BLOCK 的 slot 1/3/7/8 读取并 unpack（缺槽视为零字）。
+OpFeeParams loadOpFeeParams(const evmone::state::StateView& view) noexcept;
 }  // namespace bcos::evmref::opstack

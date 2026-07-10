@@ -1,4 +1,5 @@
 #include <bcos-evm-ref/opstack/OpFeeParams.h>
+#include <bcos-evm-ref/opstack/OpPredeploys.h>
 
 namespace bcos::evmref::opstack
 {
@@ -28,5 +29,16 @@ OpFeeParams unpackOpFeeParams(const evmc::bytes32& slot1, const evmc::bytes32& s
         .operator_fee_constant = readBE(slot8, 24, 8),
         .da_footprint_gas_scalar = static_cast<uint16_t>(readBE(slot8, 18, 2)),
     };
+}
+OpFeeParams loadOpFeeParams(const evmone::state::StateView& view) noexcept
+{
+    auto slot = [](uint8_t s) {
+        evmc::bytes32 k{};
+        k.bytes[31] = s;
+        return k;
+    };
+    return unpackOpFeeParams(view.get_storage(OP_L1_BLOCK, slot(1)),
+        view.get_storage(OP_L1_BLOCK, slot(3)), view.get_storage(OP_L1_BLOCK, slot(7)),
+        view.get_storage(OP_L1_BLOCK, slot(8)));
 }
 }  // namespace bcos::evmref::opstack

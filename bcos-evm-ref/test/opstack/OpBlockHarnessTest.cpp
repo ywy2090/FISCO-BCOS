@@ -136,9 +136,12 @@ TEST(OpBlockHarness, IsthmusBlockWithAttributesDeposit)
     blockGasLeft -= attrR.receipt.gas_used;
     cumulative += attrR.receipt.gas_used;
 
-    const auto fee = unpackOpFeeParams(ts.get_storage(OP_L1_BLOCK, slotKey(1)),
+    const auto fee = loadOpFeeParams(ts);
+    // 对照：与手读四槽一致（保留一次断言）
+    const auto manualFee = unpackOpFeeParams(ts.get_storage(OP_L1_BLOCK, slotKey(1)),
         ts.get_storage(OP_L1_BLOCK, slotKey(3)), ts.get_storage(OP_L1_BLOCK, slotKey(7)),
         ts.get_storage(OP_L1_BLOCK, slotKey(8)));
+    EXPECT_EQ(fee.l1_base_fee, manualFee.l1_base_fee);
     EXPECT_EQ(fee.l1_base_fee, 1000000000_u256);
     EXPECT_EQ(fee.base_fee_scalar, 2u);
     EXPECT_EQ(fee.blob_base_fee_scalar, 3u);
@@ -180,6 +183,17 @@ TEST(OpBlockHarness, IsthmusBlockWithAttributesDeposit)
     const auto txR = opTransition(
         ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1234, {env.data(), env.size()});
     ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
+
+    // FromState≡注入断言：同 tx 两路径 gas_used / l1_cost 相等。
+    const auto vFS =
+        opValidateFromState(ts, block, tx, {env.data(), env.size()}, isthmusConfig(), blockGasLeft);
+    ASSERT_TRUE(std::holds_alternative<OpTxProperties>(vFS));
+    const auto& propsFS = std::get<OpTxProperties>(vFS);
+    const auto txRFS = opTransitionFromState(
+        ts, block, hashes, tx, isthmusConfig(), vm, propsFS, 1234, {env.data(), env.size()});
+    EXPECT_EQ(txRFS.receipt.gas_used, txR.receipt.gas_used);
+    EXPECT_EQ(propsFS.l1_cost, props.l1_cost);
+
     bcos::evmref::applyStateDiff(ts, txR.receipt.state_diff);
     blockGasLeft -= txR.receipt.gas_used;
     cumulative += txR.receipt.gas_used;
