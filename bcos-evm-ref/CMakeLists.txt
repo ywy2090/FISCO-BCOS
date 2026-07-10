@@ -29,6 +29,7 @@ add_library(bcos-evm-ref-opstack STATIC
     opstack/OpValidate.cpp
     opstack/OpTransition.cpp
     opstack/OpDepositTx.cpp
+    opstack/OpReceiptMeta.cpp
 )
 add_library(bcosevmref::opstack ALIAS bcos-evm-ref-opstack)
 target_include_directories(bcos-evm-ref-opstack PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
