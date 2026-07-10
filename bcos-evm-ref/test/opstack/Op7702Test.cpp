@@ -82,6 +82,21 @@ OpTxReceipt runWithAuth(
     return opTransition(
         ts, block, hashes, tx, isthmusConfig(), vm, props, fee, chainId, {env.data(), env.size()});
 }
+
+[[nodiscard]] bool isDelegationDesignator(const evmc::bytes& code) noexcept
+{
+    return code.size() == 23 && code[0] == 0xef && code[1] == 0x01 && code[2] == 0x00;
+}
+
+void expectNoDelegationDesignatorAnywhere(const test::TestState& ts)
+{
+    for (const auto& [addr, acc] : ts)
+    {
+        EXPECT_FALSE(isDelegationDesignator(acc.code))
+            << "account must NOT have delegation designator (0xef0100||addr)";
+        (void)addr;
+    }
+}
 }  // namespace
 
 // ─── 用例 1: 真实 ecrecover 成功 → 写 0xef0100||kDelegate，nonce 从 0→1 ───
@@ -119,8 +134,8 @@ TEST(Op7702, RecoversAuthorityAndWritesDelegation)
     EXPECT_EQ(acc.nonce, 1u);
 }
 
-// ─── 用例 2: 篡改 r → ecrecover 出错误地址 → nonce 不匹配 → 不写 delegation ───
-// signer = nullopt，强制走 ecrecover；由于恢复出的地址 nonce!=0 或恢复失败 → skip
+// ─── 用例 2: 无效 r → ecrecover 失败 → 不写 delegation ───
+// signer = nullopt，强制走 ecrecover；r=0 使恢复失败 → skip
 TEST(Op7702, BadSignatureRecoverFailsNoDelegation)
 {
     auto vm = evmc::VM{evmc_create_evmone()};
@@ -128,9 +143,8 @@ TEST(Op7702, BadSignatureRecoverFailsNoDelegation)
     ts[kSender] = {.nonce = 0, .balance = 340282366920938463463374607431768211456_u256};
     seedOpPredeploys(ts);
 
-    // 篡改 r 最后一字节 → 恢复出错误的 authority（nonce 不匹配 → skip），或恢复失败
-    auto badR = kR_ok;
-    badR.bytes[31] ^= 0x01;
+    // r=0 → ecrecover 失败，不写 delegation
+    const auto badR = evmc::bytes32{};
 
     // signer = nullopt → 必须走 ecrecover
     state::Authorization auth{.chain_id = 1,
@@ -147,6 +161,9 @@ TEST(Op7702, BadSignatureRecoverFailsNoDelegation)
     auto it = ts.find(kAuthority);
     if (it != ts.end())
         EXPECT_TRUE(it->second.code.empty()) << "kAuthority must NOT have delegation after bad sig";
+
+    // ecrecover 可能恢复出其他地址；任何账户都不应被写入 delegation designator
+    expectNoDelegationDesignatorAnywhere(ts);
 }
 
 // ─── 用例 3: nonce 不匹配 → 恢复出的正确 authority，但 auth.nonce=5 ≠ state_nonce=0 → skip ───
@@ -212,10 +229,8 @@ TEST(Op7702, DelegatedCallAfterAuthorization)
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
     ts[kSender] = {.nonce = 0, .balance = 340282366920938463463374607431768211456_u256};
-    // kDelegate 有一段简单代码：PUSH1 0x2a PUSH1 0x00 MSTORE PUSH1 0x20 PUSH1 0x00 RETURN
-    // 返回 0x2a (42)
-    ts[kDelegate] = {
-        .code = evmc::bytes{0x60, 0x2a, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3}};
+    // kDelegate: PUSH1 42 PUSH1 0 SSTORE — 在委托上下文中写入 kAuthority 的 slot0
+    ts[kDelegate] = {.code = evmc::bytes{0x60, 0x2a, 0x60, 0x00, 0x55}};
     // kAuthority 已有委托代码指向 kDelegate（nonce=1 已 bump）
     {
         auto delegation_code = evmone::state::bytes(evmone::DELEGATION_MAGIC) +
@@ -256,7 +271,13 @@ TEST(Op7702, DelegatedCallAfterAuthorization)
     const auto txR = opTransition(
         ts, block, hashes, tx, isthmusConfig(), vm, props, fee, 1, {env.data(), env.size()});
 
-    // 委托调用应该成功执行 kDelegate 的代码（RETURN 42）
-    // 通过 status=SUCCESS 确认委托路径正常（delegation code 被 opTransition 正确识别）
+    // 委托调用应成功执行 kDelegate 代码；SSTORE 在 authority 上下文中落槽
     EXPECT_EQ(txR.receipt.status, EVMC_SUCCESS);
+    bcos::evmref::applyStateDiff(ts, txR.receipt.state_diff);
+
+    constexpr auto kSlot0 = evmc::bytes32{};
+    const auto expectedSlot0 = intx::be::store<evmc::bytes32>(intx::uint256{42});
+    ASSERT_NE(ts.find(kAuthority), ts.end());
+    EXPECT_EQ(ts.at(kAuthority).storage.at(kSlot0), expectedSlot0)
+        << "delegated call must execute kDelegate SSTORE under kAuthority context";
 }
