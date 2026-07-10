@@ -185,3 +185,47 @@ TEST(OpTransition, JovianReceiptMetaAndOperatorFormula)
     EXPECT_EQ(ts.at(OP_OPERATOR_FEE_VAULT).balance, expectedOp);
     EXPECT_EQ(ts.at(OP_L1_FEE_VAULT).balance, props.l1_cost);
 }
+
+// 重构护栏：共享执行核不得丢 EIP-2930 access_list 预热。
+// gas = 21000 + accessList(2400+1900) + PUSH1(3)+SLOAD(warm 100)+POP(2) = 25405；
+// 预热被丢时 SLOAD 冷 2100 → 27405。
+TEST(OpTransition, AccessListKeepsStorageWarm)
+{
+    constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
+    constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[sender] = {.nonce = 0, .balance = 340282366920938463463374607431768211456_u256};
+    ts[dest] = {.nonce = 1,
+        .balance = intx::uint256{0},
+        .code = evmc::from_hex("6000545000").value()};  // PUSH1 0 SLOAD POP STOP
+    seedOpPredeploys(ts);
+    test::TestBlockHashes hashes;
+
+    state::BlockInfo block;
+    block.number = 1;
+    block.gas_limit = 30000000;
+    block.base_fee = 7;
+    block.coinbase = OP_SEQUENCER_FEE_VAULT;
+
+    state::Transaction tx;
+    tx.type = state::Transaction::Type::eip1559;
+    tx.sender = sender;
+    tx.to = dest;
+    tx.gas_limit = 100000;
+    tx.max_gas_price = 1000;
+    tx.max_priority_gas_price = 10;
+    tx.value = intx::uint256{0};
+    tx.nonce = 0;
+    tx.access_list = {{dest, {0x00_bytes32}}};
+
+    OpFeeParams fee{};
+    std::vector<uint8_t> env{0x02, 0x11};
+    const auto v =
+        opValidate(ts, block, tx, {env.data(), env.size()}, isthmusConfig(), fee, 30000000);
+    ASSERT_TRUE(std::holds_alternative<OpTxProperties>(v));
+    const auto txR = opTransition(ts, block, hashes, tx, isthmusConfig(), vm,
+        std::get<OpTxProperties>(v), 1234, {env.data(), env.size()});
+    ASSERT_EQ(txR.receipt.status, EVMC_SUCCESS);
+    EXPECT_EQ(txR.receipt.gas_used, 25405);
+}

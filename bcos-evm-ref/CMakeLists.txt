@@ -28,6 +28,7 @@ add_library(bcos-evm-ref-opstack STATIC
     opstack/RollupCost.cpp
     opstack/OpValidate.cpp
     opstack/OpTransition.cpp
+    opstack/OpExecCommon.cpp
     opstack/OpDepositTx.cpp
     opstack/OpReceiptMeta.cpp
 )

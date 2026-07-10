@@ -3,13 +3,13 @@
 # Update line ranges when editing copy surfaces; re-run with --regenerate-goldens after intentional forks.
 #
 # OpTransition.cpp (evmone test/state/state.cpp)
-auth_constants	opstack/OpTransition.cpp	22	27	test/state/state.cpp	20	25
-build_message	opstack/OpTransition.cpp	136	156	test/state/state.cpp	180	199
-auth_list_shared	opstack/OpTransition.cpp	80	133	test/state/state.cpp	124	177
-transition_buy_gas	opstack/OpTransition.cpp	174	184	test/state/state.cpp	574	584
-transition_access	opstack/OpTransition.cpp	192	202	test/state/state.cpp	599	612
-transition_delegate	opstack/OpTransition.cpp	204	213	test/state/state.cpp	614	623
-transition_gas_settle	opstack/OpTransition.cpp	217	228	test/state/state.cpp	627	639
+auth_constants	opstack/OpTransition.cpp	23	28	test/state/state.cpp	20	25
+build_message	opstack/OpExecCommon.cpp	11	31	test/state/state.cpp	180	199
+auth_list_shared	opstack/OpTransition.cpp	81	134	test/state/state.cpp	124	177
+transition_buy_gas	opstack/OpTransition.cpp	154	164	test/state/state.cpp	574	584
+# D-14a: transition_access/transition_delegate/transition_gas_settle 合并搬迁至
+# OpExecCommon.cpp::executeMessage（共享执行核，供 opTransition 与后续 runDeposit 复用）。
+exec_common_body	opstack/OpExecCommon.cpp	38	71	test/state/state.cpp	599	636
 #
 # OpDepositTx.cpp (evmone test/state/state.cpp — build_message 的 deposit 变体，
 # 与上面 build_message 段同源；纳入追踪使 evmone 升级时两份拷贝都被脚本盯住)

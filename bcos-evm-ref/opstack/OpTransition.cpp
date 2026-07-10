@@ -1,3 +1,4 @@
+#include <bcos-evm-ref/opstack/OpExecCommon.h>
 #include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpHost.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
@@ -133,27 +134,6 @@ int64_t process_authorization_list(evmone::state::State& state, uint64_t chain_i
     return delegation_refund;
 }
 
-evmc_message build_message(
-    const evmone::state::Transaction& tx, int64_t execution_gas_limit) noexcept
-{
-    const auto recipient = tx.to.has_value() ? *tx.to : evmc::address{};
-
-    return {
-        .kind = tx.to.has_value() ? EVMC_CALL : EVMC_CREATE,
-        .flags = 0,
-        .depth = 0,
-        .gas = execution_gas_limit,
-        .recipient = recipient,
-        .sender = tx.sender,
-        .input_data = tx.data.data(),
-        .input_size = tx.data.size(),
-        .value = intx::be::store<evmc::uint256be>(tx.value),
-        .create2_salt = {},
-        .code_address = recipient,
-        .code = nullptr,
-        .code_size = 0,
-    };
-}
 }  // namespace
 
 OpTxReceipt opTransition(const evmone::state::StateView& view,
@@ -189,40 +169,9 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
 
     OpHost host{cfg.rev, vm, state, block, hashes, tx, chainId, cfg.precompiles};
 
-    sender_acc.access_status = EVMC_ACCESS_WARM;
-    if (tx.to.has_value())
-        host.access_account(*tx.to);
-    for (const auto& [a, storage_keys] : tx.access_list)
-    {
-        host.access_account(a);
-        for (const auto& key : storage_keys)
-            state.get_storage(a, key).access_status = EVMC_ACCESS_WARM;
-    }
-    if (rev >= EVMC_SHANGHAI)
-        host.access_account(block.coinbase);
-
-    auto message = build_message(tx, props.props.execution_gas_limit);
-    if (tx.to.has_value())
-    {
-        if (const auto delegate = evmone::get_delegate_address(host, *tx.to))
-        {
-            message.code_address = *delegate;
-            message.flags |= EVMC_DELEGATED;
-            host.access_account(message.code_address);
-        }
-    }
-
-    const auto result = host.call(message);
-
-    auto gas_used = tx.gas_limit - result.gas_left;
-
-    const auto max_refund_quotient = rev >= EVMC_LONDON ? 5 : 2;
-    const auto refund_limit = gas_used / max_refund_quotient;
-    const auto refund = std::min(delegation_refund + result.gas_refund, refund_limit);
-    gas_used -= refund;
-    assert(gas_used > 0);
-
-    gas_used = std::max(gas_used, props.props.min_gas_cost);
+    auto outcome = executeMessage(state, host, tx, rev, block.coinbase,
+        props.props.execution_gas_limit, props.props.min_gas_cost, delegation_refund);
+    const auto gas_used = outcome.gas_used;
 
     sender_acc.balance += tx_max_cost - gas_used * effective_gas_price;
     state.touch(block.coinbase).balance += gas_used * priority_gas_price;
@@ -239,8 +188,8 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
         sender_acc.balance += props.operator_cost_at_gas_limit - opAtUsed;
     }
 
-    evmone::state::TransactionReceipt receipt{
-        tx.type, result.status_code, gas_used, {}, host.take_logs(), {}, state.build_diff(rev)};
+    evmone::state::TransactionReceipt receipt{tx.type, outcome.result.status_code, gas_used, {},
+        host.take_logs(), {}, state.build_diff(rev)};
 
     receipt.logs_bloom_filter = evmone::state::compute_bloom_filter(receipt.logs);
 
