@@ -179,7 +179,7 @@
 
 | 候选 | 处置 | 依据 |
 |------|------|------|
-| `StateDiffWriteback.h:4`——"公开签名用 `evmone::state::StateDiff` 却只 include `test_state.hpp`，依赖巧合的前向声明" | **驳回（误报）** | 该文件 `:4` 明确 `#include <test/state/state_diff.hpp>`，`StateDiff` 定义于 `state_diff.hpp:18`。前提为假（主对话直读驳回；R2 曾判 CONFIRMED，判错） |
+| `StateDiffWriteback.h:4`——"公开签名用 `evmone::state::StateDiff` 却只 include `test_state.hpp`，依赖巧合的前向声明" | **驳回（误报）** | 该文件 `:4` 明确 `#include <test/state/state_diff.hpp>`，`StateDiff` 定义于 `state_diff.hpp:18`。前提为假（主对话直读驳回；R1 曾判 CONFIRMED，判错） |
 | `spike/ReadAmplification.cpp:220`——`std::stoul(argv[1])` 无异常处理，非数字参数 `std::terminate` | **除名（不计入 14 条）** | 属实（R2 CONFIRMED），但为 spike 测量工具，非共识代码；顺手可修，不入共识缺陷清单 |
 
 ## 附录 B：覆盖声明
