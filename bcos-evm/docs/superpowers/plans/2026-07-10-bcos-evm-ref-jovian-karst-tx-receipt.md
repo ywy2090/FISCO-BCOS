@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Extend `bcos-evm-ref/opstack` with Jovian tx execution + receipt meta, Karst config placeholder, and Isthmus P0 fixes (empty-envelope reject; no L1 vault touch when `l1_cost==0`).
+**Goal:** Extend `bcos-evm-ref/opstack` with Jovian tx execution + receipt meta (incl. op-geth L1 pass-through fields), Karst config placeholder, and Isthmus guardrail G-1 (empty-envelope reject). **Note (二轮修订):** original P0-1 ("skip L1 vault touch when `l1_cost==0`") is **dropped** — ref's unconditional touch already matches op-geth `AddBalance(vault,0)` touch-when-empty; the zero-diff vault artifact is handled at the M6 assertion layer, not by changing transition logic.
 
-**Architecture:** Minimal incremental changes on existing opstack files (spec scheme A). Fork flags drive operator formula and da-footprint receipt fields; `opTransition` returns `OpTxReceipt{receipt,meta}` built via `deriveOpReceiptMeta`. No block-header DA validation.
+**Architecture:** Minimal incremental changes on existing opstack files (spec scheme A). Fork flags drive operator formula and da-footprint receipt fields; `opTransition` returns `OpTxReceipt{receipt,meta}` built via `deriveOpReceiptMeta`. `opTransition` vault settlement is **unchanged**. No block-header DA validation.
 
 **Tech Stack:** C++20, gtest, evmone `3585c2cb` state Host, intx; build via `bcos-evm-ref/build` + target `bcos-evm-ref-opstack-tests`.
 
@@ -27,9 +27,9 @@
 | `include/.../OpFeeParams.h` + `OpFeeParams.cpp` | `da_footprint_gas_scalar` unpack from slot8 `[18,20)` |
 | `include/.../OpPrecompiles.h` + `OpPrecompiles.cpp` | `jovianPrecompileOverrides()` |
 | `include/.../RollupCost.h` + `RollupCost.cpp` | fork-aware `computeOperatorCost`; `estimatedDaSize` |
-| `include/.../OpValidate.h` + `OpValidate.cpp` | P0-2 empty envelope |
-| `include/.../OpReceiptMeta.h` + `opstack/OpReceiptMeta.cpp` | `OpReceiptMeta` / `deriveOpReceiptMeta` / `OpTxReceipt` |
-| `include/.../OpTransition.h` + `OpTransition.cpp` | P0-1; return `OpTxReceipt`; wire meta |
+| `include/.../OpValidate.h` + `OpValidate.cpp` | G-1 empty envelope reject |
+| `include/.../OpReceiptMeta.h` + `opstack/OpReceiptMeta.cpp` | `OpReceiptMeta` (L1 直通 + operator + da) / `deriveOpReceiptMeta` / `OpTxReceipt` |
+| `include/.../OpTransition.h` + `OpTransition.cpp` | return `OpTxReceipt`; wire meta (vault settlement **unchanged**) |
 | `test/opstack/*` | TDD coverage per task |
 | `README.md`, `docs/vector-schema.md` | milestone + schema notes |
 
@@ -526,7 +526,7 @@ EOF
 
 ---
 
-### Task 5: OpValidate P0-2 — reject empty envelope
+### Task 5: OpValidate G-1 — reject empty envelope
 
 **Files:**
 - Modify: `bcos-evm-ref/opstack/OpValidate.cpp`
@@ -534,7 +534,7 @@ EOF
 
 **Interfaces:**
 - Consumes: `opValidate(...)` existing signature
-- Produces: if `signedTxEnvelope.empty()` → `std::errc::invalid_argument` (before L1 cost); blob check order unchanged (blob first)
+- Produces: if `signedTxEnvelope.empty()` → `std::errc::invalid_argument` (after blob check, before L1 cost). **Blob check stays first**, so `RejectsBlobTx` (passes `{}`) still returns `not_supported` and is unaffected.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -549,7 +549,7 @@ TEST(OpValidate, EmptyEnvelopeFails)
 }
 ```
 
-Ensure `SufficientBalancePasses` / other tests that pass `{}` envelope are updated to pass a non-empty dummy envelope (e.g. one byte `{0x02}` is enough for P0-2; L1 cost may be non-zero — fund balance accordingly **or** use fixture `empty_tx.bin` bytes and keep fee zeros only if FastLZ path allows — simplest: `std::vector<uint8_t> env{0x02};` and large balance already in those tests).
+Ensure `SufficientBalancePasses` / other tests that pass `{}` envelope are updated to pass a non-empty dummy envelope (e.g. one byte `{0x02}` is enough for G-1; L1 cost may be non-zero — fund balance accordingly **or** use fixture `empty_tx.bin` bytes and keep fee zeros only if FastLZ path allows — simplest: `std::vector<uint8_t> env{0x02};` and large balance already in those tests). `RejectsBlobTx` passes `{}` but is unaffected (blob check runs before the envelope check).
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -575,7 +575,7 @@ Expected: PASS.
 ```bash
 git add bcos-evm-ref/opstack/OpValidate.cpp bcos-evm-ref/test/opstack/OpValidateTest.cpp
 git commit -m "$(cat <<'EOF'
-fix(bcos-evm-ref): Reject empty signedTxEnvelope in opValidate (P0-2)
+fix(bcos-evm-ref): Reject empty signedTxEnvelope in opValidate (G-1)
 
 EOF
 )"
@@ -594,10 +594,12 @@ EOF
 
 **Interfaces:**
 - Produces: types + `deriveOpReceiptMeta` per spec §2.4
+- Always set L1 pass-through (op-geth `deriveOPStackFields`): `l1_gas_price = fee.l1_base_fee`, `l1_blob_base_fee = fee.blob_base_fee`, `l1_base_fee_scalar = fee.base_fee_scalar`, `l1_blob_base_fee_scalar = fee.blob_base_fee_scalar`, `l1_fee = l1_cost`
 - `fill_operator_scalars`: when true and (`operator_fee_scalar!=0` || `operator_fee_constant!=0`), set optional scalar/constant fields
 - Isthmus (`!has_da_footprint`): leave da optionals empty
 - Jovian: set `da_footprint_gas_scalar` and `da_footprint = estimatedDaSize(envelope) * scalar`
-- Always set `l1_fee = l1_cost`; if `cfg.has_operator_fee`, set `operator_fee = operator_fee_at_used`
+- If `cfg.has_operator_fee`, set `operator_fee = operator_fee_at_used` (FISCO 扩展，非 op-geth receipt 字段)
+- **Not derived (out of scope):** `L1GasUsed` (op-geth Fjord+ = 0), `FeeScalar` (pre-Ecotone legacy)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -614,6 +616,10 @@ using intx::operator""_u256;
 TEST(OpReceiptMeta, IsthmusHasFeesWithoutDa)
 {
     OpFeeParams fee{};
+    fee.l1_base_fee = 1000_u256;
+    fee.base_fee_scalar = 7;
+    fee.blob_base_fee = 2000_u256;
+    fee.blob_base_fee_scalar = 9;
     fee.operator_fee_scalar = 11;
     fee.operator_fee_constant = 13;
     std::vector<uint8_t> env{0x02};
@@ -621,10 +627,26 @@ TEST(OpReceiptMeta, IsthmusHasFeesWithoutDa)
         /*l1=*/100_u256, /*opUsed=*/50_u256, /*fill_operator_scalars=*/true);
     ASSERT_TRUE(m.l1_fee.has_value());
     EXPECT_EQ(*m.l1_fee, 100_u256);
+    ASSERT_TRUE(m.l1_gas_price.has_value());
+    EXPECT_EQ(*m.l1_gas_price, 1000_u256);
+    EXPECT_EQ(*m.l1_blob_base_fee, 2000_u256);
+    EXPECT_EQ(*m.l1_base_fee_scalar, 7u);
+    EXPECT_EQ(*m.l1_blob_base_fee_scalar, 9u);
     ASSERT_TRUE(m.operator_fee.has_value());
     EXPECT_EQ(*m.operator_fee, 50_u256);
     EXPECT_TRUE(m.operator_fee_scalar.has_value());
     EXPECT_FALSE(m.da_footprint.has_value());
+}
+
+TEST(OpReceiptMeta, OperatorScalarsOmittedWhenBothZero)
+{
+    OpFeeParams fee{};  // operator scalar/constant both 0
+    std::vector<uint8_t> env{0x02};
+    const auto m = deriveOpReceiptMeta(isthmusConfig(), fee, {env.data(), env.size()},
+        0_u256, 0_u256, /*fill_operator_scalars=*/true);
+    EXPECT_TRUE(m.operator_fee.has_value());          // 值始终填（FISCO 扩展）
+    EXPECT_FALSE(m.operator_fee_scalar.has_value());  // 守卫：全 0 不填 scalar/constant
+    EXPECT_FALSE(m.operator_fee_constant.has_value());
 }
 
 TEST(OpReceiptMeta, JovianFillsDaFootprint)
@@ -663,6 +685,10 @@ OpReceiptMeta deriveOpReceiptMeta(const OpForkConfig& cfg, const OpFeeParams& fe
     intx::uint256 operator_fee_at_used, bool fill_operator_scalars) noexcept
 {
     OpReceiptMeta m;
+    m.l1_gas_price = fee.l1_base_fee;
+    m.l1_blob_base_fee = fee.blob_base_fee;
+    m.l1_base_fee_scalar = fee.base_fee_scalar;
+    m.l1_blob_base_fee_scalar = fee.blob_base_fee_scalar;
     m.l1_fee = l1_cost;
     if (cfg.has_operator_fee)
     {
@@ -707,7 +733,7 @@ EOF
 
 ---
 
-### Task 7: OpTransition — P0-1 + return `OpTxReceipt`
+### Task 7: OpTransition — return `OpTxReceipt` (vault settlement unchanged)
 
 **Files:**
 - Modify: `bcos-evm-ref/include/bcos-evm-ref/opstack/OpTransition.h`
@@ -720,13 +746,7 @@ EOF
 - Consumes: `deriveOpReceiptMeta`, `computeOperatorCost(..., cfg)`
 - Produces: `OpTxReceipt opTransition(..., const OpFeeParams& fee, uint64_t chainId, evmc::bytes_view signedTxEnvelope)`  
   **Signature note:** meta needs envelope — **add** `evmc::bytes_view signedTxEnvelope` parameter (same bytes as validate). Update all call sites.
-- P0-1: replace unconditional L1 vault touch with:
-
-```cpp
-    if (props.l1_cost != 0)
-        state.touch(OP_L1_FEE_VAULT).balance += props.l1_cost;
-```
-
+- **Vault settlement UNCHANGED** (二轮修订): keep the existing unconditional L1 vault touch/credit — it already matches op-geth `AddBalance(L1FeeVault, l1Cost)` (touch-when-empty). Do **not** add an `l1_cost != 0` guard.
 - After building `receipt`, set:
 
 ```cpp
@@ -741,20 +761,20 @@ EOF
 - [ ] **Step 1: Write / adjust failing tests**
 
 1. `OpTransition.RoutesFeesToFourVaults` — use non-empty env (already has); call `opTransition(..., fee, 1234, {env.data(), env.size()})`; use `txR.receipt` for status/diff.
-2. `OpZeroDiff` — assert **no** `OP_L1_FEE_VAULT` in `opReceipt.receipt.state_diff.modified_accounts` **and** not in `deleted_accounts` when fee=0; pass non-empty envelope to validate+transition; use `.receipt` fields for comparisons.
-3. Add:
+2. `OpZeroDiff` — **assertion layer unchanged** (keep `nonVaultDeleted` excluding vaults); only mechanical edits: pass non-empty envelope to validate+transition and read `.receipt` fields (`txR.receipt.state_diff` / `.status` / `.gas_used`).
+3. Add a meta smoke assertion (not a vault-behavior change):
 
 ```cpp
-TEST(OpTransition, ZeroL1CostDoesNotTouchL1Vault)
+TEST(OpTransition, ReceiptCarriesL1AndOperatorMeta)
 {
-    // minimal transfer, OpFeeParams{}, non-empty env, isthmusConfig
-    // after opTransition, scan state_diff for OP_L1_FEE_VAULT — EXPECT none
+    // minimal transfer, non-zero OpFeeParams, non-empty env, isthmusConfig
+    // after opTransition: EXPECT txR.meta.l1_fee / l1_gas_price / operator_fee populated
 }
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Expected: signature mismatch and/or L1 vault still deleted/touched in zero-diff.
+Expected: signature mismatch (`OpTxReceipt` return + envelope param); `txR.meta` / `txR.receipt` members missing at call sites.
 
 - [ ] **Step 3: Implement header + cpp + fix all call sites**
 
@@ -770,7 +790,7 @@ OpTxReceipt opTransition(const evmone::state::StateView& view,
     evmc::bytes_view signedTxEnvelope);
 ```
 
-Implement P0-1 + meta return as above.
+Implement meta return as above. **Do not touch the existing vault-settlement block** (N-1: unconditional L1 vault credit stays).
 
 - [ ] **Step 4: Run full opstack suite**
 
@@ -789,7 +809,7 @@ git add bcos-evm-ref/include/bcos-evm-ref/opstack/OpTransition.h \
         bcos-evm-ref/test/opstack/OpBlockHarnessTest.cpp \
         bcos-evm-ref/test/opstack/OpZeroDiffTest.cpp
 git commit -m "$(cat <<'EOF'
-feat(bcos-evm-ref): Return OpTxReceipt and skip zero L1 vault touch
+feat(bcos-evm-ref): Return OpTxReceipt with derived op meta
 
 EOF
 )"
@@ -840,13 +860,13 @@ EOF
 | Jovian precompile limits | Task 4 |
 | `da_footprint_gas_scalar` unpack | Task 2 |
 | `jovianConfig` / flags | Task 1 |
-| `OpReceiptMeta` + derive | Task 6 |
-| `opTransition` → `OpTxReceipt` | Task 7 |
+| `OpReceiptMeta` + derive (incl. L1 直通字段) | Task 6 |
+| `opTransition` → `OpTxReceipt` (vault settlement unchanged) | Task 7 |
 | Karst placeholder | Task 1 (+4 pointer) |
-| P0-1 L1 vault | Task 7 |
-| P0-2 empty envelope | Task 5 |
+| N-1: vault settlement unchanged (P0-1 dropped) | Task 7 (no-op / doc) |
+| G-1 empty envelope | Task 5 |
 | README / vector-schema | Task 8 |
-| Non-goals (block DA, E-b) | Task 8 docs only |
+| Non-goals (block DA, E-b, L1GasUsed, FeeScalar) | Task 8 docs only |
 
 **Placeholder scan:** none intentional.  
 **Type consistency:** `OpTxReceipt` / `deriveOpReceiptMeta` / `computeOperatorCost(..., cfg)` / `estimatedDaSize` names match across tasks; Task 7 adds `signedTxEnvelope` to `opTransition` (required for meta — documented in Task 7 Interfaces).
