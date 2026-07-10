@@ -1,7 +1,9 @@
 #include <bcos-evm-ref/opstack/OpDepositTx.h>
+#include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpHost.h>
 #include <algorithm>
 #include <stdexcept>
+#include <test/state/state.hpp>
 
 namespace bcos::evmref::opstack
 {

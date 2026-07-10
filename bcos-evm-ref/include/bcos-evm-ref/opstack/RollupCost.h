@@ -1,13 +1,14 @@
 #pragma once
 
-#include <bcos-evm-ref/opstack/OpFeeParams.h>
-#include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <cstdint>
-#include <evmc/evmc.hpp>
+#include <evmc/bytes.hpp>
 #include <intx/intx.hpp>
 
 namespace bcos::evmref::opstack
 {
+struct OpFeeParams;
+struct OpForkConfig;
+
 /// FastLZ 压缩后长度（Fjord DA 回归输入）。移植 op-geth FlzCompressLen；逐字节对齐生产。
 uint32_t flzCompressLen(evmc::bytes_view data) noexcept;
 

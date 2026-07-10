@@ -1,11 +1,12 @@
 #pragma once
 
-#include <bcos-evm-ref/opstack/OpPrecompiles.h>
 #include <evmc/evmc.hpp>
 #include <test/state/host.hpp>
 
 namespace bcos::evmref::opstack
 {
+struct PrecompileOverrides;
+
 /// evmone::state::Host 子类，修三处缺陷（spec §4.3）：
 ///  1. get_tx_context：chain_id 用配置值；三 gas 字段=0 时 effective price=0；
 ///  2. call：命中 PrecompileOverrides（含 0x100）时按 OP precompile 语义派发，未命中回落基类。

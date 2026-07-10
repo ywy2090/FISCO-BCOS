@@ -7,6 +7,7 @@
 #include <bcos-evm-ref/opstack/OpValidate.h>
 #include <evmone/evmone.h>
 #include <gtest/gtest.h>
+#include <test/state/state.hpp>
 #include <test/utils/test_state.hpp>
 #include <vector>
 

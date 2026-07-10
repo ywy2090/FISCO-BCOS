@@ -1,14 +1,23 @@
 #pragma once
 
-#include <bcos-evm-ref/opstack/OpForkSchedule.h>
+#include <cstdint>
+#include <evmc/bytes.hpp>
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
-#include <cstdint>
 #include <optional>
-#include <test/state/state.hpp>
+#include <test/state/transaction.hpp>
+
+namespace evmone::state
+{
+class StateView;
+struct BlockInfo;
+class BlockHashes;
+}  // namespace evmone::state
 
 namespace bcos::evmref::opstack
 {
+struct OpForkConfig;
+
 /// 0x7E deposit tx（非 evmone Transaction）。mint 有值时无条件加到 from 余额（nullopt=不加）；
 /// value 在 call 中正常转账——两个独立字段。is_system_tx 在 Regolith 后必须为 false。
 struct DepositTx

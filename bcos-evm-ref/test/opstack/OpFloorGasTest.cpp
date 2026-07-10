@@ -17,12 +17,14 @@
 //   - Deposit：runDeposit 后 gas_used 亦走 7623 floor（无 Isthmus deposit 豁免）
 
 #include <bcos-evm-ref/opstack/OpDepositTx.h>
+#include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
 #include <bcos-evm-ref/opstack/OpTransition.h>
 #include <bcos-evm-ref/opstack/OpValidate.h>
 #include <evmone/evmone.h>
 #include <gtest/gtest.h>
+#include <test/state/state.hpp>
 #include <test/utils/test_state.hpp>
 #include <vector>
 

@@ -1,14 +1,16 @@
 #pragma once
 
-#include <bcos-evm-ref/opstack/OpFeeParams.h>
-#include <bcos-evm-ref/opstack/OpForkSchedule.h>
-#include <evmc/evmc.hpp>
+#include <cstdint>
+#include <evmc/bytes.hpp>
 #include <intx/intx.hpp>
 #include <optional>
-#include <test/state/state.hpp>
+#include <test/state/transaction.hpp>
 
 namespace bcos::evmref::opstack
 {
+struct OpFeeParams;
+struct OpForkConfig;
+
 struct OpReceiptMeta
 {
     // L1 直通（op-geth: L1GasPrice / L1BlobBaseFee / L1BaseFeeScalar / L1BlobBaseFeeScalar /

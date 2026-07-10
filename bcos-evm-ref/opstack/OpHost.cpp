@@ -1,5 +1,6 @@
 #include <bcos-evm-ref/opstack/OpHost.h>
 
+#include <bcos-evm-ref/opstack/OpPrecompiles.h>
 #include <algorithm>
 #include <array>
 #include <test/state/precompiles_internal.hpp>

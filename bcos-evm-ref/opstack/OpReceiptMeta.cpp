@@ -1,3 +1,5 @@
+#include <bcos-evm-ref/opstack/OpFeeParams.h>
+#include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpReceiptMeta.h>
 #include <bcos-evm-ref/opstack/RollupCost.h>
 

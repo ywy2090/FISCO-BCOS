@@ -1,4 +1,3 @@
-#include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpHost.h>
 #include <bcos-evm-ref/opstack/OpPrecompiles.h>
 #include <evmone/evmone.h>

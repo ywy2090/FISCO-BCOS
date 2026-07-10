@@ -1,5 +1,6 @@
 #include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
+#include <test/state/state_view.hpp>
 
 namespace bcos::evmref::opstack
 {

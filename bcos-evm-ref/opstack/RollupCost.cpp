@@ -1,5 +1,7 @@
 #include <bcos-evm-ref/opstack/RollupCost.h>
 
+#include <bcos-evm-ref/opstack/OpFeeParams.h>
+#include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <array>
 #include <cstdint>
 

@@ -5,7 +5,6 @@
 #include <bcos-evm-ref/opstack/OpTransition.h>
 #include <bcos-evm-ref/opstack/RollupCost.h>
 #include <algorithm>
-#include <evmone/constants.hpp>
 #include <evmone/delegation.hpp>
 #include <evmone_precompiles/secp256k1.hpp>
 #include <optional>

@@ -1,4 +1,5 @@
 #include <bcos-evm-ref/eth/EthTransition.h>
+#include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
 #include <bcos-evm-ref/opstack/OpTransition.h>

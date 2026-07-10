@@ -3,7 +3,11 @@
 #include <cstdint>
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
-#include <test/state/state_view.hpp>
+
+namespace evmone::state
+{
+class StateView;
+}
 
 namespace bcos::evmref::opstack
 {

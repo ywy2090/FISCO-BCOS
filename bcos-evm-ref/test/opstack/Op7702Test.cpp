@@ -6,6 +6,7 @@
 // 签名哈希公式: keccak256(0x05 || rlp([chain_id, address, nonce]))
 
 #include <bcos-evm-ref/adapter/StateDiffWriteback.h>
+#include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpForkSchedule.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
 #include <bcos-evm-ref/opstack/OpTransition.h>
