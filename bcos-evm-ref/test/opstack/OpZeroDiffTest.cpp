@@ -38,8 +38,9 @@ constexpr auto kFunding = 340282366920938463463374607431768211456_u256;
         if (!isOpFeeVaultExceptCoinbase(e.addr))
             out.push_back(e);
     }
-    std::sort(out.begin(), out.end(),
-        [](const auto& a, const auto& b) { return std::memcmp(a.addr.bytes, b.addr.bytes, 20) < 0; });
+    std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+        return std::memcmp(a.addr.bytes, b.addr.bytes, 20) < 0;
+    });
     return out;
 }
 
@@ -139,6 +140,16 @@ TEST(OpZeroDiff, SimpleTransferMatchesEthExceptBaseFeeVault)
         EXPECT_TRUE(entryEq(opNonVault[i], ethNonVault[i])) << "mismatch at non-vault index " << i;
 
     EXPECT_EQ(nonVaultDeleted(opReceipt.state_diff), nonVaultDeleted(ethReceipt.state_diff));
+
+    // fee=0 下四个 vault 因已有 stub code 不再被判为空账户删除
+    for (const auto& v :
+        {OP_BASE_FEE_VAULT, OP_L1_FEE_VAULT, OP_OPERATOR_FEE_VAULT, OP_SEQUENCER_FEE_VAULT})
+    {
+        EXPECT_EQ(std::count(opReceipt.state_diff.deleted_accounts.begin(),
+                      opReceipt.state_diff.deleted_accounts.end(), v),
+            0)
+            << "vault should not be deleted";
+    }
 
     const auto baseVaultBal = balanceOf(opReceipt.state_diff, OP_BASE_FEE_VAULT);
     ASSERT_TRUE(baseVaultBal.has_value());

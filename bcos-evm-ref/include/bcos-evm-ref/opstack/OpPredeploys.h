@@ -26,6 +26,7 @@ inline constexpr evmc::address OP_OPERATOR_FEE_VAULT =
 inline constexpr evmc::address OP_DEPOSITOR = 0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001_address;
 
 /// 把 6 个 predeploy/vault 账户预填为余额 0 的空账户（M5 块级 harness 创世准备）。
-/// 范围收窄：本 M4 只建账户存在性，真实 bytecode / 存储布点延后 M5。
+/// 四个 fee vault 带 1 字节 stub code（0x00），避免零费用下被 EIP-161 当空账户删除。
+/// OP_L1_BLOCK / OP_GAS_PRICE_ORACLE 的 code 仍由 harness setter 自管。
 void seedOpPredeploys(evmone::test::TestState& state);
 }  // namespace bcos::evmref::opstack

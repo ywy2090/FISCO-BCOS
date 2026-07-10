@@ -28,3 +28,17 @@ TEST(OpPredeploys, SeedCreatesSixPredeployAccounts)
     EXPECT_TRUE(state.contains(OP_OPERATOR_FEE_VAULT));
     EXPECT_FALSE(state.contains(OP_DEPOSITOR));  // 合成 sender 不预填
 }
+
+TEST(OpPredeploys, VaultsHaveNonEmptyCode)
+{
+    evmone::test::TestState ts;
+    seedOpPredeploys(ts);
+    for (const auto& v :
+        {OP_BASE_FEE_VAULT, OP_L1_FEE_VAULT, OP_OPERATOR_FEE_VAULT, OP_SEQUENCER_FEE_VAULT})
+    {
+        EXPECT_FALSE(ts[v].code.empty()) << "vault should have stub code";
+    }
+    // L1Block / oracle 的 code 不由本函数写入（harness setter 自管）。
+    EXPECT_TRUE(ts[OP_L1_BLOCK].code.empty());
+    EXPECT_TRUE(ts[OP_GAS_PRICE_ORACLE].code.empty());
+}
