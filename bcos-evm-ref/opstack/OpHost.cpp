@@ -152,4 +152,14 @@ evmc::Result OpHost::call(const evmc_message& msg) noexcept
     }
     return result;
 }
+
+evmc_access_status OpHost::access_account(const evmc::address& addr) noexcept
+{
+    // override 表内地址恒温：op-geth statedb.Prepare 预热全部活跃 precompile（Isthmus 含
+    // 0x100，母本 is_precompile 对 0x100 门槛为 OSAKA）；early-return 同时避免母本
+    // get_or_insert(erase_if_empty) 产生的幽灵空账户进入 state diff。
+    if (m_overrides != nullptr && m_overrides->contains(addr))
+        return EVMC_ACCESS_WARM;
+    return evmone::state::Host::access_account(addr);
+}
 }  // namespace bcos::evmref::opstack

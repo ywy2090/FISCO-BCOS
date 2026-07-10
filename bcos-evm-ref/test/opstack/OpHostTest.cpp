@@ -216,3 +216,36 @@ TEST(OpHost, JovianBn256PairingInputAtLimitExecutes)
     EXPECT_EQ(r.status_code, EVMC_SUCCESS);
     EXPECT_GT(r.gas_left, 0);
 }
+
+// D-12：0x100 在 Isthmus（rev=PRAGUE）必须预热（evmone is_precompile 门槛 OSAKA），
+// 且不得产生幽灵空账户进入 state diff 的 deleted_accounts。
+TEST(OpHost, OverrideTablePrecompilesAreWarm)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    evmone::state::State state{ts};
+    test::TestBlockHashes hashes;
+    evmone::state::Transaction tx;
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, state, block, hashes, tx, 1234, &isthmusPrecompileOverrides()};
+
+    constexpr auto k100 = 0x0000000000000000000000000000000000000100_address;
+    EXPECT_EQ(host.access_account(k100), EVMC_ACCESS_WARM);
+    EXPECT_EQ(state.find(k100), nullptr);
+}
+
+// D-12 反作弊（红队 F-8）：覆写不得吞掉基类冷→暖迁移（「不委托基类」的手滑在此暴露）
+TEST(OpHost, OffTableAccessTransitionsColdToWarm)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    evmone::state::State state{ts};
+    test::TestBlockHashes hashes;
+    evmone::state::Transaction tx;
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, state, block, hashes, tx, 1234, &isthmusPrecompileOverrides()};
+
+    constexpr auto kPlain = 0x00000000000000000000000000000000000000ce_address;
+    EXPECT_EQ(host.access_account(kPlain), EVMC_ACCESS_COLD);
+    EXPECT_EQ(host.access_account(kPlain), EVMC_ACCESS_WARM);
+}

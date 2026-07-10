@@ -12,6 +12,9 @@ struct PrecompileOverrides;
 ///  2. call：命中 PrecompileOverrides（含 0x100）时按 OP precompile 语义派发，未命中回落基类。
 ///     gas-override（0x100）路径复刻母本 execute_message 派发前语义：全 call-like kind、
 ///     EVMC_DELEGATED 排除、仅 EVMC_CALL 做 value/touch，失败 rollback。
+///  3. access_account：override 表内地址恒温（op-geth statedb.Prepare 预热全部活跃
+///     precompile，Isthmus 含 0x100；母本 is_precompile 对 0x100 门槛为 OSAKA）且不插入
+///     账户（避免幽灵空账户进 state diff）；表外委托基类，冷→暖迁移语义不变。
 class OpHost : public evmone::state::Host
 {
 public:
@@ -32,6 +35,7 @@ public:
 
     evmc::Result call(const evmc_message& msg) noexcept override;
     [[nodiscard]] evmc_tx_context get_tx_context() const noexcept override;
+    evmc_access_status access_account(const evmc::address& addr) noexcept override;
 
 private:
     evmone::state::State& m_state;
