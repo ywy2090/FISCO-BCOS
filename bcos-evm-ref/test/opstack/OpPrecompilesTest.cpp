@@ -56,3 +56,19 @@ TEST(OpPrecompiles, ForkConfigWiresPrecompiles)
 {
     EXPECT_EQ(isthmusConfig().precompiles, &isthmusPrecompileOverrides());
 }
+
+TEST(OpPrecompiles, JovianLimitsStricterThanIsthmus)
+{
+    const auto* j08 = jovianPrecompileOverrides().find(evmc::address{0x08});
+    const auto* i08 = isthmusPrecompileOverrides().find(evmc::address{0x08});
+    ASSERT_NE(j08, nullptr);
+    ASSERT_NE(i08, nullptr);
+    EXPECT_EQ(j08->max_input_size, 81984u);
+    EXPECT_LT(j08->max_input_size, i08->max_input_size);
+
+    EXPECT_EQ(jovianPrecompileOverrides().find(evmc::address{0x0c})->max_input_size, 288960u);
+    EXPECT_EQ(jovianPrecompileOverrides().find(evmc::address{0x0e})->max_input_size, 278784u);
+    EXPECT_EQ(jovianPrecompileOverrides().find(evmc::address{0x0f})->max_input_size, 156672u);
+    EXPECT_EQ(jovianConfig().precompiles, &jovianPrecompileOverrides());
+    EXPECT_EQ(karstConfig().precompiles, &jovianPrecompileOverrides());
+}

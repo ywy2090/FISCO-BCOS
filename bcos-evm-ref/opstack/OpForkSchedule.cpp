@@ -22,7 +22,7 @@ const OpForkConfig& jovianConfig() noexcept
     static const OpForkConfig cfg{
         .fork = OpFork::Jovian,
         .rev = EVMC_PRAGUE,
-        .precompiles = &isthmusPrecompileOverrides(),  // Task 4 switches to jovian table
+        .precompiles = &jovianPrecompileOverrides(),
         .disable_prague_requests = true,
         .has_operator_fee = true,
         .has_jovian_operator_formula = true,
@@ -36,7 +36,7 @@ const OpForkConfig& karstConfig() noexcept
     static const OpForkConfig cfg{
         .fork = OpFork::Karst,
         .rev = EVMC_PRAGUE,
-        .precompiles = &isthmusPrecompileOverrides(),  // Task 4: same as jovian
+        .precompiles = &jovianPrecompileOverrides(),
         .disable_prague_requests = true,
         .has_operator_fee = true,
         .has_jovian_operator_formula = true,
