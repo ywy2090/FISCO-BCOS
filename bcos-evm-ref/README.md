@@ -112,3 +112,9 @@ Cancun+ 区间上同样干净，其 405 个失败 100% 落在 pre-Cancun（404 `
 
 见 `spike/README.md`。判定 GO：粗粒度 `get_account` 放大 1.16x；最大浪费是上游负查询不缓存（占全部
 账本读 27.9%），适配器侧 5 行可修。
+
+## Include hygiene (IWYU)
+
+项目约定编码于 `iwyu-bcos-evm-ref.imp`（evmone `test/state/state.hpp` 伞形头、`<evmc/evmc.hpp>` 优先）。
+运行：`scripts/iwyu-check.sh`（需 `brew install include-what-you-use` + `CMAKE_EXPORT_COMPILE_COMMANDS=ON`）。
+评估报告：`docs/iwyu-evaluation.md`。
