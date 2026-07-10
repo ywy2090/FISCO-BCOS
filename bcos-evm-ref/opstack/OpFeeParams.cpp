@@ -26,6 +26,7 @@ OpFeeParams unpackOpFeeParams(const evmc::bytes32& slot1, const evmc::bytes32& s
         .blob_base_fee = intx::be::load<intx::uint256>(slot7),
         .operator_fee_scalar = static_cast<uint32_t>(readBE(slot8, 20, 4)),
         .operator_fee_constant = readBE(slot8, 24, 8),
+        .da_footprint_gas_scalar = static_cast<uint16_t>(readBE(slot8, 18, 2)),
     };
 }
 }  // namespace bcos::evmref::opstack

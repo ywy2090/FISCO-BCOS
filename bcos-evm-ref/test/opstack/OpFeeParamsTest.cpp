@@ -48,3 +48,30 @@ TEST(OpFeeParams, UnpacksScalarsFromPackedSlots)
     EXPECT_EQ(p.operator_fee_scalar, 11u);
     EXPECT_EQ(p.operator_fee_constant, 13u);
 }
+
+TEST(OpFeeParams, UnpacksDaFootprintGasScalarFromSlot8)
+{
+    const auto slot1 = fullWord(1000);
+    const auto slot3 = [] {
+        evmc::bytes32 w = wordWith(16, 7, 4);
+        auto blob = wordWith(20, 9, 4);
+        for (size_t i = 0; i < 32; ++i)
+            w.bytes[i] = static_cast<uint8_t>(w.bytes[i] | blob.bytes[i]);
+        return w;
+    }();
+    const auto slot7 = fullWord(2000);
+    const auto slot8 = [] {
+        // da=0x1234 at [18,20), opScalar=11 at [20,24), opConstant=13 at [24,32)
+        evmc::bytes32 w = wordWith(18, 0x1234, 2);
+        auto s = wordWith(20, 11, 4);
+        auto c = wordWith(24, 13, 8);
+        for (size_t i = 0; i < 32; ++i)
+            w.bytes[i] = static_cast<uint8_t>(w.bytes[i] | s.bytes[i] | c.bytes[i]);
+        return w;
+    }();
+
+    const auto p = unpackOpFeeParams(slot1, slot3, slot7, slot8);
+    EXPECT_EQ(p.da_footprint_gas_scalar, 0x1234u);
+    EXPECT_EQ(p.operator_fee_scalar, 11u);
+    EXPECT_EQ(p.operator_fee_constant, 13u);
+}
