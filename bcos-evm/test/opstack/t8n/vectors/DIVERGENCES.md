@@ -35,7 +35,7 @@ renders, trivially `std::regex`-parseable by `DivergenceLedger::loadFromFile` in
 `T8nVectorReplayTest.cpp`):
 
 ```
-<!-- ALLOWLIST vectorId=<id> field=<field> entry=<ENTRY-ID> attribution=<a|b|c> status=<STATUS> -->
+<!-- ALLOWLIST vectorId=<id> field=<field> entry=<ENTRY-ID> attribution=<a|b|c> status=<STATUS> want=<hex> got=<hex> -->
 ```
 
 `field` must match the comparator's own field string exactly (`receipts[N].gasUsed`,
@@ -45,6 +45,20 @@ each check uses). Only `attribution=a status=PENDING-FIX` and `attribution=c
 status=SIGNED-OFF` are treated as exempt; every other combination (including `attribution=c
 status=PENDING-USER-SIGNOFF`) still fails the build — this is deliberate: a `(c)` entry must never
 go green before a human has actually signed off.
+
+`want` and `got` are **required** and are matched exactly (as the same hex string the comparator
+itself would print in a `DIVERGE`/`KNOWN-DIVERGE` message: `checkU256`/`checkU64` produce
+`0x`-prefixed lowercase hex with no zero-padding via `hexU256`/`hexU64`; `checkBytes`/
+`checkBytes32`/`checkAddress` produce `bcos::toHexStringWithPrefix` output). They pin the
+exemption to the *one specific* wrong value pair this entry was filed for, not merely to the
+`(vectorId, field)` pair. `lookupExempt` (`T8nVectorReplayTest.cpp`) requires `(vectorId, field,
+want, got)` to match as a four-tuple before granting the exemption — matching on `(vectorId,
+field)` alone would let *any* future mismatch on that same field ride through as if it were the
+already-filed one, silently absorbing a brand-new, unrelated regression. If a mismatch's `want` or
+`got` ever drifts from what's on file here (the underlying defect changes shape, a new bug appears
+alongside the known one, the vector is regenerated with different values, etc.), the entry no
+longer matches and the build goes red again — exactly as it should, since "the value drifted" means
+this is no longer proven to be *only* the already-attributed divergence.
 
 ---
 
@@ -113,14 +127,14 @@ precisely to deposit `gasUsed` (and the `blockGasUsed` sum it feeds into), consi
 root cause above.
 
 ```
-<!-- ALLOWLIST vectorId=isthmus_transfer_basic field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
-<!-- ALLOWLIST vectorId=isthmus_transfer_basic field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
-<!-- ALLOWLIST vectorId=isthmus_transfer_multi_nonce field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
-<!-- ALLOWLIST vectorId=isthmus_transfer_multi_nonce field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
-<!-- ALLOWLIST vectorId=isthmus_deposit_large_calldata field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
-<!-- ALLOWLIST vectorId=isthmus_deposit_large_calldata field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
-<!-- ALLOWLIST vectorId=jovian_deposit_large_calldata field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
-<!-- ALLOWLIST vectorId=jovian_deposit_large_calldata field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX -->
+<!-- ALLOWLIST vectorId=isthmus_transfer_basic field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0x5b04 got=0x55a0 -->
+<!-- ALLOWLIST vectorId=isthmus_transfer_basic field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0xad0c got=0xa7a8 -->
+<!-- ALLOWLIST vectorId=isthmus_transfer_multi_nonce field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0x5b04 got=0x55a0 -->
+<!-- ALLOWLIST vectorId=isthmus_transfer_multi_nonce field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0x1511c got=0x14bb8 -->
+<!-- ALLOWLIST vectorId=isthmus_deposit_large_calldata field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0x18a88 got=0xcf08 -->
+<!-- ALLOWLIST vectorId=isthmus_deposit_large_calldata field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0x18a88 got=0xcf08 -->
+<!-- ALLOWLIST vectorId=jovian_deposit_large_calldata field=receipts[0].gasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0x18a88 got=0xcf08 -->
+<!-- ALLOWLIST vectorId=jovian_deposit_large_calldata field=blockGasUsed entry=FINDING-1 attribution=a status=PENDING-FIX want=0x18a88 got=0xcf08 -->
 ```
 
 ---

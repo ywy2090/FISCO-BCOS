@@ -169,14 +169,26 @@ evmc_address addressFromFixed(bcos::Address const& address)
 // the whole vector batch regenerated, so it should never reach this code; c: accepted difference,
 // but ONLY once a human has signed off). This ledger's parser knows nothing about *what* value is
 // expected anywhere -- it only reads which (vectorId, field) pairs DIVERGENCES.md has already
-// filed, under which attribution/status, from the ledger file itself. No expected/actual value is
-// ever hardcoded here; that would be exactly the "手改期望值" the plan's rule 2 forbids, just
-// relocated into C++ instead of JSON.
+// filed, under which attribution/status/want/got, from the ledger file itself. No expected/actual
+// value is ever hardcoded here; that would be exactly the "手改期望值" the plan's rule 2 forbids,
+// just relocated into C++ instead of JSON.
+//
+// An exemption is pinned to the *exact* mismatch it was filed for: the ledger line's own
+// want/got (copied verbatim from the replay output that produced the finding) must match the
+// want/got the comparator observes right now, in addition to (vectorId, field). This closes a
+// hole discovered during Task 3's own review: matching on (vectorId, field) alone would silently
+// swallow *any future* mismatch on that same field -- including one wholly unrelated to the filed
+// finding -- as long as its (vectorId, field) pair happened to coincide with an already-allowlisted
+// one. Pinning the value means a regression that changes *what* the wrong value is (or fixes it to
+// something still-wrong-but-different) turns the gate red again instead of being silently absorbed
+// by a stale allowlist entry.
 struct DivergenceEntry
 {
     std::string entryId;
     std::string attribution;  // "a" | "b" | "c"
     std::string status;       // "PENDING-FIX" | "SIGNED-OFF" | ...
+    std::string want;         // exact hex-formatted expected value this entry was filed for
+    std::string got;          // exact hex-formatted observed value this entry was filed for
 };
 
 class DivergenceLedger
@@ -197,29 +209,34 @@ public:
         // key=value pairs is fixed; see DIVERGENCES.md's own header for the authoring contract
         // this regex mirrors. Example:
         //   <!-- ALLOWLIST vectorId=isthmus_transfer_basic field=receipts[0].gasUsed
-        //        entry=FINDING-1 attribution=a status=PENDING-FIX -->
+        //        entry=FINDING-1 attribution=a status=PENDING-FIX want=0x5b04 got=0x55a0 -->
         static std::regex const linePattern(
-            R"(<!--\s*ALLOWLIST\s+vectorId=(\S+)\s+field=(\S+)\s+entry=(\S+)\s+attribution=(\S+)\s+status=(\S+)\s*-->)");
+            R"(<!--\s*ALLOWLIST\s+vectorId=(\S+)\s+field=(\S+)\s+entry=(\S+)\s+attribution=(\S+)\s+status=(\S+)\s+want=(\S+)\s+got=(\S+)\s*-->)");
         std::string line;
         while (std::getline(input, line))
         {
             std::smatch match;
             if (std::regex_search(line, match, linePattern))
             {
-                ledger.m_entries[{match[1].str(), match[2].str()}] =
-                    DivergenceEntry{match[3].str(), match[4].str(), match[5].str()};
+                ledger.m_entries[{match[1].str(), match[2].str()}] = DivergenceEntry{
+                    match[3].str(), match[4].str(), match[5].str(), match[6].str(), match[7].str()};
             }
         }
         return ledger;
     }
 
     // Returns the covering entry only when the ledger records it under a status that exempts it
-    // from failing the build right now: attribution "a" while its own fix is still pending, or
-    // attribution "c" once a human has signed off. An unlisted (vectorId, field), or one listed
-    // under any other status (e.g. attribution "c" awaiting signoff), returns nullopt -- the
-    // caller must still fail, per rule 1 ("分歧即 finding，不许静默 skip").
-    [[nodiscard]] std::optional<DivergenceEntry> lookupExempt(
-        std::string const& vectorId, std::string const& field) const
+    // from failing the build right now (attribution "a" while its own fix is still pending, or
+    // attribution "c" once a human has signed off) AND the want/got the caller just observed
+    // matches, byte-for-byte (as formatted hex strings), the want/got the entry was filed for. An
+    // unlisted (vectorId, field), one listed under any other status (e.g. attribution "c" awaiting
+    // signoff), or one whose want/got has drifted from what's on file, returns nullopt -- the
+    // caller must still fail, per rule 1 ("分歧即 finding，不许静默 skip"). This is what prevents
+    // an allowlist entry from silently absorbing an unrelated future regression on the same
+    // (vectorId, field): the exemption is pinned to "this one already-known wrong value", not to
+    // "this field, no matter what value shows up".
+    [[nodiscard]] std::optional<DivergenceEntry> lookupExempt(std::string const& vectorId,
+        std::string const& field, std::string const& want, std::string const& got) const
     {
         auto const it = m_entries.find({vectorId, field});
         if (it == m_entries.end())
@@ -227,9 +244,13 @@ public:
             return std::nullopt;
         }
         auto const& entry = it->second;
-        bool const exempt = (entry.attribution == "a" && entry.status == "PENDING-FIX") ||
-                            (entry.attribution == "c" && entry.status == "SIGNED-OFF");
-        if (!exempt)
+        bool const statusExempt = (entry.attribution == "a" && entry.status == "PENDING-FIX") ||
+                                  (entry.attribution == "c" && entry.status == "SIGNED-OFF");
+        if (!statusExempt)
+        {
+            return std::nullopt;
+        }
+        if (entry.want != want || entry.got != got)
         {
             return std::nullopt;
         }
@@ -293,13 +314,15 @@ void checkU256(DivergenceLedger const& ledger, std::string const& vectorId,
     {
         return;
     }
-    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    auto const wantStr = hexU256(want);
+    auto const gotStr = hexU256(got);
+    if (auto const entry = ledger.lookupExempt(vectorId, field, wantStr, gotStr))
     {
-        reportKnownDivergence(vectorId, field, *entry, hexU256(want), hexU256(got));
+        reportKnownDivergence(vectorId, field, *entry, wantStr, gotStr);
         return;
     }
-    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want=" << hexU256(want)
-                                          << " got=" << hexU256(got));
+    BOOST_CHECK_MESSAGE(
+        false, "DIVERGE " << vectorId << " " << field << " want=" << wantStr << " got=" << gotStr);
 }
 
 void checkU64(DivergenceLedger const& ledger, std::string const& vectorId, std::string const& field,
@@ -309,13 +332,15 @@ void checkU64(DivergenceLedger const& ledger, std::string const& vectorId, std::
     {
         return;
     }
-    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    auto const wantStr = hexU64(want);
+    auto const gotStr = hexU64(got);
+    if (auto const entry = ledger.lookupExempt(vectorId, field, wantStr, gotStr))
     {
-        reportKnownDivergence(vectorId, field, *entry, hexU64(want), hexU64(got));
+        reportKnownDivergence(vectorId, field, *entry, wantStr, gotStr);
         return;
     }
-    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want=" << hexU64(want)
-                                          << " got=" << hexU64(got));
+    BOOST_CHECK_MESSAGE(
+        false, "DIVERGE " << vectorId << " " << field << " want=" << wantStr << " got=" << gotStr);
 }
 
 void checkBytes(DivergenceLedger const& ledger, std::string const& vectorId,
@@ -325,13 +350,15 @@ void checkBytes(DivergenceLedger const& ledger, std::string const& vectorId,
     {
         return;
     }
-    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    auto const wantStr = hexBytes(want);
+    auto const gotStr = hexBytes(got);
+    if (auto const entry = ledger.lookupExempt(vectorId, field, wantStr, gotStr))
     {
-        reportKnownDivergence(vectorId, field, *entry, hexBytes(want), hexBytes(got));
+        reportKnownDivergence(vectorId, field, *entry, wantStr, gotStr);
         return;
     }
-    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want=" << hexBytes(want)
-                                          << " got=" << hexBytes(got));
+    BOOST_CHECK_MESSAGE(
+        false, "DIVERGE " << vectorId << " " << field << " want=" << wantStr << " got=" << gotStr);
 }
 
 void checkBytes32(DivergenceLedger const& ledger, std::string const& vectorId,
@@ -342,13 +369,15 @@ void checkBytes32(DivergenceLedger const& ledger, std::string const& vectorId,
     {
         return;
     }
-    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    auto const wantStr = hexBytes32(want);
+    auto const gotStr = hexBytes32(got);
+    if (auto const entry = ledger.lookupExempt(vectorId, field, wantStr, gotStr))
     {
-        reportKnownDivergence(vectorId, field, *entry, hexBytes32(want), hexBytes32(got));
+        reportKnownDivergence(vectorId, field, *entry, wantStr, gotStr);
         return;
     }
-    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want="
-                                          << hexBytes32(want) << " got=" << hexBytes32(got));
+    BOOST_CHECK_MESSAGE(
+        false, "DIVERGE " << vectorId << " " << field << " want=" << wantStr << " got=" << gotStr);
 }
 
 void checkAddress(DivergenceLedger const& ledger, std::string const& vectorId,
@@ -359,13 +388,15 @@ void checkAddress(DivergenceLedger const& ledger, std::string const& vectorId,
     {
         return;
     }
-    if (auto const entry = ledger.lookupExempt(vectorId, field))
+    auto const wantStr = hexAddress(want);
+    auto const gotStr = hexAddress(got);
+    if (auto const entry = ledger.lookupExempt(vectorId, field, wantStr, gotStr))
     {
-        reportKnownDivergence(vectorId, field, *entry, hexAddress(want), hexAddress(got));
+        reportKnownDivergence(vectorId, field, *entry, wantStr, gotStr);
         return;
     }
-    BOOST_CHECK_MESSAGE(false, "DIVERGE " << vectorId << " " << field << " want="
-                                          << hexAddress(want) << " got=" << hexAddress(got));
+    BOOST_CHECK_MESSAGE(
+        false, "DIVERGE " << vectorId << " " << field << " want=" << wantStr << " got=" << gotStr);
 }
 
 // ── Minimal block gas pool ──────────────────────────────────────────────────────────────────────
