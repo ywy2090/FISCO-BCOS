@@ -2,11 +2,11 @@
 
 **日期：** 2026-07-10
 **范围：** `bcos-evm-ref/opstack/`（spec rev.8 追认的 M4/M5 交付物，2026-07-09 提交）
-**性质：** **审计台账，只记事实，不含修法。** 修复按 spec D4 纪律另立 plan，引用本文编号（D-01 起，一经落盘不再重排；后续新发现追加 D-15+）。
+**性质：** **审计台账，只记事实，不含修法。** 修复按 spec D4 纪律另立 plan，引用本文编号（D-01 起，一经落盘不再重排；后续新发现追加 D-16+）。
 **来源：** 两轮多 agent `/code-review`（high）：
-- 第一轮（workflow `w8udf73d1`，14 agent，**1 个 verifier 被限流** → 覆盖不完整）：产出 D-01/D-02/D-03/D-04/D-10 及 D-14 的 build_deposit_message 重复项。
-- 第二轮（workflow `w6nubzeyx`，31 agent，0 失败，指示跳过第一轮已确认项、扩展全目录覆盖）：产出 D-05–D-09、D-11–D-13 及 D-14 的 FastLZ 项。
-- 第三轮（2026-07-10，修复 plan 的五路对抗审查，非 /code-review）：追加 **D-15**；并勘误 D-01 对照措辞（vmerr → 共识层错误、gasUsed=gasLimit）。
+- 第一轮（**R1**，workflow `w8udf73d1`，14 agent，**1 个 verifier 被限流** → 覆盖不完整）：产出 D-01/D-02/D-03/D-04/D-10 及 D-14 的 build_deposit_message 重复项。
+- 第二轮（**R2**，workflow `w6nubzeyx`，31 agent，0 失败，指示跳过第一轮已确认项、扩展全目录覆盖）：产出 D-05–D-09、D-11–D-13 及 D-14 的 FastLZ 项。
+- 第三轮（**R3**，2026-07-10，修复 plan 的五路对抗审查，非 /code-review）：追加 **D-15**；并勘误 D-01 对照措辞（vmerr → 共识层错误、gasUsed=gasLimit）。
 
 每条均经独立对抗 verifier 判 CONFIRMED；关键前提（evmone `host.cpp:239-240` nonce 约定、`state.cpp:629-636` refund→floor 顺序、`min_gas_cost` = EIP-7623 floor）另经主对话直读 evmone 源码复核。
 
@@ -88,7 +88,7 @@
 - **对照**：op-geth `evm.Create` 用当前 nonce N 计算合约地址。
 - **失败场景**：合约创建型 deposit（`dep.to == nullopt`）：nonce=N 的账户 → 地址按 N-1 计算，与 op-geth 差一；**nonce=0 的新账户 → debug 构建 `assert` 直接崩溃，release 构建下溢到 2⁶⁴-1，部署到垃圾地址**。receipt、state diff、后续一切对该合约的交互全部错位。现有测试无一覆盖 `to=nullopt` 的 deposit（截至本台账快照 HEAD `9ca799884`）。
 - **验证**：CONFIRMED（R2）；`host.cpp:239-240` 原文经主对话直读复核。
-- **状态注记（2026-07-10）**：并行会话（P1 tx-alignment）已在工作树以未提交改动修复本条（`OpDepositTx.cpp` 先递增再 call + `ContractCreationDerivesAddressFromPreExecutionNonce` 用例）——待其提交后按实际 commit 回填 FIXED。
+- **状态注记（2026-07-10）**：并行会话（P1 tx-alignment）已修复本条并提交（**`2327532`**，含先递增再 call + `ContractCreationDerivesAddressFromPreExecutionNonce` 用例）；状态列由修复 plan rev.2 Task 9 统一回填。
 
 ### D-06 deposit receipt 类型标 legacy 而非 0x7E
 
@@ -193,9 +193,9 @@
 | 候选 | 处置 | 依据 |
 |------|------|------|
 | `StateDiffWriteback.h:4`——"公开签名用 `evmone::state::StateDiff` 却只 include `test_state.hpp`，依赖巧合的前向声明" | **驳回（误报）** | 该文件 `:4` 明确 `#include <test/state/state_diff.hpp>`，`StateDiff` 定义于 `state_diff.hpp:18`。前提为假（主对话直读驳回；R1 曾判 CONFIRMED，判错） |
-| `spike/ReadAmplification.cpp:220`——`std::stoul(argv[1])` 无异常处理，非数字参数 `std::terminate` | **除名（不计入 14 条）** | 属实（R2 CONFIRMED），但为 spike 测量工具，非共识代码；顺手可修，不入共识缺陷清单 |
+| `spike/ReadAmplification.cpp:220`——`std::stoul(argv[1])` 无异常处理，非数字参数 `std::terminate` | **除名（不计入 15 条）** | 属实（R2 CONFIRMED），但为 spike 测量工具，非共识代码；顺手可修，不入共识缺陷清单 |
 
 ## 附录 B：覆盖声明
 
 - 两轮合计 45 agent；第一轮 1 个 verifier 限流未完成，其负责的候选已由第二轮重扫覆盖。
-- 审查为静态多 agent 代码审查 + 对抗验证，**不是机器差分**。deposit 路径至今没有任何 t8n 式差分覆盖（EEST 无 0x7E）——本台账不构成"仅此 14 条"的完备性声明。
+- 审查为静态多 agent 代码审查 + 对抗验证，**不是机器差分**。deposit 路径至今没有任何 t8n 式差分覆盖（EEST 无 0x7E）——本台账不构成"仅此 15 条"的完备性声明。

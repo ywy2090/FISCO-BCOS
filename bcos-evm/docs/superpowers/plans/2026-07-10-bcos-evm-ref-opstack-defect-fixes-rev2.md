@@ -9,7 +9,7 @@
 2. **Task 3 语义更正**（op-geth `state_transition.go:578/:486-513/:498`）：value 超铸币后余额是**共识层错误 → 失败 receipt 收满 gasLimit**，并入 validate 失败同款分支；v1 的"收 intrinsic"作废。
 3. **Task 5 重写**（台账 **D-15**）：op-geth 自 **Fjord** 起 0x100 P256VERIFY 活跃（`contracts.go:193`，gas 3450 `params:183`）；bn256 112687 上限自 **Granite** 起。fork×precompile 矩阵：Ecotone=null、Fjord={0x100}、Granite/Holocene={0x08:112687, 0x100}、Isthmus/Jovian 现表不动。
 4. **修正 v1 的 6 处代码级 bug**：保留 `delegation.hpp`/`OpForkSchedule.h` include；D-02 测试改用**非委托**代码（`ef0100` 前缀被 evmone `state.cpp:496 is_code_delegated` 天然豁免，v1 用例测不到东西）；`OpTxProperties` 聚合初始化含 `fee` 成员；同步修 `PreIsthmusConfigsPinned`；harness 不再改动（*FromState 保留）。
-5. **并入红队 12 个反作弊用例**（coinbase/to 预热、Δ=2500 差分锚定、refund cap、revert 空 bloom、blockGasLeft 边界、委托→precompile/不存在目标、表外冷→暖、Jovian 恰上限、失败 create、无 mint 供资、联合供资、access-list 护栏）。
+5. **并入红队 12 个反作弊用例**（coinbase 预热、Δ=2500 差分锚定、refund cap、revert 空 bloom、blockGasLeft 边界、委托→precompile、表外冷→暖、Jovian 恰上限、失败 create、无 mint 供资、联合供资、access-list 护栏）。
 6. **风险条款收紧**：改断言数值必须同时提交差分锚定用例证明，禁止孤立改数。
 
 **Architecture:** 与 v1 相同——`runDeposit` 重建到与 `opTransition` 共享的执行核 `OpExecCommon`（= evmone baseline `transition()` 中段照抄面，`state.cpp:600-637`），一步修 D-03/07/08/09 并消灭 D-14 的消息构造重复。
@@ -65,7 +65,7 @@
 **Files:**
 - Test: `test/opstack/OpTransitionTest.cpp`（先加护栏用例）
 - Create: `include/bcos-evm-ref/opstack/OpExecCommon.h`、`opstack/OpExecCommon.cpp`
-- Modify: `opstack/OpTransition.cpp`（删 :136-155 `build_message`；:192-226 改调核；**:8 的 `#include <evmone/delegation.hpp>` 保留**——`process_authorization_list` 仍用 `is_code_delegated`/:85 与 `DELEGATION_MAGIC`/:121）
+- Modify: `opstack/OpTransition.cpp`（删 :136-156 `build_message`（:156 为闭括号，manifest.tsv 同口径）；:192-226 改调核；**:8 的 `#include <evmone/delegation.hpp>` 保留**——`process_authorization_list` 仍用 `is_code_delegated`/:85 与 `DELEGATION_MAGIC`/:121）
 - Modify: `CMakeLists.txt:22-33`、`scripts/upstream-diff.sh`（照抄面清单加 OpExecCommon.cpp）
 
 **Interfaces:**
@@ -240,7 +240,7 @@ ExecOutcome executeMessage(evmone::state::State& state, OpHost& host,
 
 - [ ] **Step 5: OpTransition.cpp 改调核**
 
-删 `:136-155` 本地 `build_message`（**保留 :8 delegation.hpp include**），头部加 `#include <bcos-evm-ref/opstack/OpExecCommon.h>`。`:192-226`（自 `sender_acc.access_status = ...` 至 `gas_used = std::max(...)`，`OpHost host{...}` 行保留在前）替换为：
+删 `:136-156` 本地 `build_message`（**保留 :8 delegation.hpp include**），头部加 `#include <bcos-evm-ref/opstack/OpExecCommon.h>`。`:192-226`（自 `sender_acc.access_status = ...` 至 `gas_used = std::max(...)`，`OpHost host{...}` 行保留在前）替换为：
 
 ```cpp
     auto outcome = executeMessage(state, host, tx, rev, block.coinbase,
@@ -252,7 +252,7 @@ ExecOutcome executeMessage(evmone::state::State& state, OpHost& host,
 
 - [ ] **Step 6: CMake + guardrail 清单**
 
-`CMakeLists.txt` opstack 源列表加 `opstack/OpExecCommon.cpp`；`scripts/upstream-diff.sh` 的照抄面跟踪清单把 `build_message`/中段的归属从 OpTransition.cpp 改到 OpExecCommon.cpp（按该脚本现有格式）。
+`CMakeLists.txt` opstack 源列表加 `opstack/OpExecCommon.cpp`；`scripts/upstream-diff/manifest.tsv`（按行号跟踪）三处更新：① `build_message` 行改指 OpExecCommon.cpp 的新行区间；② 新增中段（executeMessage 体）行区间条目；③ `transition_buy_gas OpTransition.cpp 174 184` 等其后条目的行号按删除 :136-156 后重算（整体上移 21 行）。
 
 - [ ] **Step 7: 全量测试（纯重构必须全绿，护栏用例在内）+ Commit**
 
@@ -276,7 +276,7 @@ rtk git commit -m "refactor(evm-ref): 护栏用例先行，提取共享执行核
 - Consumes: Task 1 `executeMessage`
 - Produces: `constexpr auto kDepositTxType = static_cast<evmone::state::Transaction::Type>(0x7e);`（OpDepositTx.h）；`runDeposit` 签名此 task 不变（7 参）。
 
-- [ ] **Step 1: 写失败测试（8 个新用例 + 1 个既有用例强化）**
+- [ ] **Step 1: 写失败测试（9 个新用例 + 1 个既有用例强化）**
 
 `test/opstack/OpDepositTest.cpp` 头部补 `#include <test/state/bloom_filter.hpp>`（`compute_create_address` 所需的 `test/state/host.hpp` 若未经传递包含则一并补）。
 
@@ -476,18 +476,12 @@ TEST(OpDeposit, WarmColdDifferentialIs2500)
 }
 ```
 
-既有 `SuccessMintsAndAdvancesNonce` 加一行 D-06 断言：
-
-```cpp
-    EXPECT_EQ(r.receipt.type, kDepositTxType);
-```
-
 - [ ] **Step 2: 跑新用例确认失败**
 
 Run: `cmake --build build -j 8 --target bcos-evm-ref-opstack-tests && ./build/test/bcos-evm-ref-opstack-tests --gtest_filter='OpDeposit.*'`
-Expected: 上述 9 个新断言点全 FAIL（`WarmColdDifferentialIs2500` 修复前 Δ=0）；既有 5 个用例仍 PASS
+Expected: 9 个新用例中 **8 个 FAIL**（`WarmColdDifferentialIs2500` 修复前 Δ=0）；**`RevertedDepositHasEmptyLogsAndZeroBloom` 现即 PASS**——`Host::call` 失败自回滚 logs（REF host.cpp:383/:397），它是防回归钉，不是红-绿证据；既有 5 个用例仍 PASS
 
-- [ ] **Step 3: OpDepositTx.h 加类型常量**
+- [ ] **Step 3: OpDepositTx.h 加类型常量 + D-06 失败断言**
 
 `OpDepositReceipt` 定义前加：
 
@@ -495,6 +489,15 @@ Expected: 上述 9 个新断言点全 FAIL（`WarmColdDifferentialIs2500` 修复
 /// OP 0x7E deposit 交易/receipt 类型（EIP-2718 typed envelope 前缀）。
 constexpr auto kDepositTxType = static_cast<evmone::state::Transaction::Type>(0x7e);
 ```
+
+既有 `SuccessMintsAndAdvancesNonce` 加一行 D-06 断言（常量已存在，编译过、运行红——现实现 receipt.type=legacy）：
+
+```cpp
+    EXPECT_EQ(r.receipt.type, kDepositTxType);
+```
+
+Run: `cmake --build build -j 8 --target bcos-evm-ref-opstack-tests && ./build/test/bcos-evm-ref-opstack-tests --gtest_filter='OpDeposit.SuccessMints*'`
+Expected: FAIL（type==legacy）
 
 - [ ] **Step 4: 重写 runDeposit 主体**
 
@@ -582,9 +585,11 @@ Run: `cmake --build build -j 8 --target bcos-evm-ref-opstack-tests && ./build/te
 Expected: 全部 PASS（重点：既有 `EvmRevertKeepsMintAndChargesActualGas`、`ContractCreationDerivesAddressFromPreExecutionNonce`、`OpFloorGas.DepositGasUsedRaisedToFloor` 不回退）
 
 ```bash
-rtk git add include/bcos-evm-ref/opstack/OpDepositTx.h opstack/OpDepositTx.cpp test/opstack/OpDepositTest.cpp
+rtk git add include/bcos-evm-ref/opstack/OpDepositTx.h opstack/OpDepositTx.cpp test/opstack/OpDepositTest.cpp scripts/upstream-diff/manifest.tsv
 rtk git commit -m "fix(evm-ref): runDeposit 重建于执行核（D-03/06/07/08/09）+ 红队反作弊用例"
 ```
+
+（manifest.tsv：删除 `build_deposit_message OpDepositTx.cpp 13 33` 条目——该照抄段随重建消失，消息构造统一走 OpExecCommon。）
 
 ---
 
@@ -695,7 +700,7 @@ TEST(OpDeposit, ValueOverPostMintBalanceFailsWithFullGasLimit)
 - [ ] **Step 2: 跑新用例确认失败**
 
 Run: `./build/test/bcos-evm-ref-opstack-tests --gtest_filter='OpDeposit.Bridge*:OpDeposit.ValueFunded*:OpDeposit.SenderWithCode*:OpDeposit.ValueOver*'`（先构建）
-Expected: 前 4 个 FAIL（status=FAILURE——validate 用 pre-mint view）；第 5 个 FAIL 与否取决于现实现（pre-mint 下 5<60 同样进失败分支收 gasLimit，可能恰 PASS——它是防回归钉，PASS 亦可，记录实际结果即可）
+Expected: **3 个 FAIL**（Bridge / ValueFundedJointly / SenderWithCode——validate 用 pre-mint view 或 EIP-3607）；**2 个现即 PASS 的防回归钉**：`ValueFundedByPreexistingBalanceWithoutMint`（无 mint 时 pre/post 无差）、`ValueOverPostMintBalanceFailsWithFullGasLimit`（pre-mint 下 5<60 同进失败分支收 gasLimit）——记录实际结果
 
 - [ ] **Step 3: 实现面具 + 显式 CanTransfer**
 
@@ -844,7 +849,7 @@ TEST(OpDeposit, FailedCreateDepositStillBumpsNonceAndDeploysNothing)
     test::TestBlockHashes hashes;
     DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = std::nullopt,
         .mint = intx::uint256{7}, .value = intx::uint256{0},
-        .gas_limit = 21000,  // create intrinsic 53000 > 21000 → INTRINSIC_GAS_TOO_LOW
+        .gas_limit = 21000,  // create intrinsic 53006（21000+32000+data4+initcode2）> 21000 → INTRINSIC_GAS_TOO_LOW
         .is_system_tx = false, .data = evmc::from_hex("00").value()};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
@@ -938,6 +943,9 @@ TEST(OpHost, JovianBn256PairingInputAtLimitExecutes)
     constexpr auto kBn256 = 0x0000000000000000000000000000000000000008_address;
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
+    ts[kSender] = {.nonce = 0, .balance = intx::uint256{0}};  // prepare_message(depth==0) 会
+                                                              // get(sender)，必须先入账
+                                                              //（同 OpHostTest.cpp:139 先例）
     evmone::state::State st{ts};
     test::TestBlockHashes hashes;
     evmone::state::Transaction tx;
@@ -960,7 +968,7 @@ TEST(OpHost, JovianBn256PairingInputAtLimitExecutes)
 }
 ```
 
-同步修改 `PreIsthmusConfigsPinned`（:42-61）：granite/holocene 的 `EXPECT_EQ(cfg->precompiles, nullptr)` 断言改为 `EXPECT_NE(cfg->precompiles, nullptr)`（明细已由新用例覆盖），其余 pin（rev=CANCUN、operator/da/l1 flags、`disable_prague_requests`）保持。
+同步修改 `PreIsthmusConfigsPinned`（:42-61）——**注意其真实结构**：`precompiles == nullptr` 是**单条循环内断言**，循环体覆盖 ecotone+fjord+granite+holocene 四个 config（并非 granite/holocene 各一条）。正确改法：把该断言从循环中拆出——**仅 ecotone** 保留 `EXPECT_EQ(ecotoneConfig().precompiles, nullptr)`；fjord/granite/holocene 改为循环外（或新循环）`EXPECT_NE(cfg->precompiles, nullptr)`（明细已由新用例覆盖）。其余循环内 pin（rev=CANCUN、operator/da/l1 flags、`disable_prague_requests`）保持不动。
 
 - [ ] **Step 2: 跑确认失败**
 
@@ -1366,12 +1374,13 @@ rtk git commit -m "docs(evm-ref): 台账 D-01–D-15 回填（含 D-10/D-13 部�
 | D-07 | 2 | D-14 | 1 + 8 |
 | D-08 | 2 | D-15 | 5 |
 
-红队 12 用例落位：F-1×2→Task 3；F-2×3→Task 2；F-3→Task 1；F-4→Task 2；F-5→Task 2；F-6→Task 4；F-7×2→Task 2；F-8→Task 6；F-9→Task 5；F-11→Task 4。
+红队 12 用例落位：F-1×2→Task 3；F-2×2→Task 2（coinbase 探针 + Δ2500 差分）；F-3→Task 1；F-4→Task 2；F-5→Task 2；F-6→Task 4；F-7×1→Task 2（委托→precompile）；F-8→Task 6；F-9→Task 5；F-11→Task 4；另 2 个为缺陷主用例挂红队编号（sender 预热 21104、refund 21206）。
 
 ## 已知风险与注意事项
 
 1. **断言数值纪律**见 Global Constraints——改数必须附差分锚定（`WarmColdDifferentialIs2500` 是锚），禁止孤立改数、禁止反向改实现凑数。
 2. **基线**：执行前确认工作树干净且 HEAD 含 `e2abb6f45`；若并行会话再次活跃，停下重新对基线（v1 的教训）。
-3. **D-08 的 `DelegationToPrecompileFallsBackToEmptyCode` 依赖 OpHost.cpp:104 的 EVMC_DELEGATED 回退**——若 Step 落地顺序中 Task 2 在 Task 6 之前（本 plan 即如此），该用例在 Task 2 时点即可判定（0x100 派发走 `call` 覆写，与 `access_account` 无关）。
-4. **本 plan 不做**：deposit receipt 的块级 RLP/receipts-root 编码（M6 后可选项）；EIP-4788/2935 执行前系统调用（块级编排 §4.4 范围，已在 OpBlockFinalize.h 注明）；`ReadAmplification.cpp` 的 `std::stoul`（台账附录 A 除名项，顺手修不入清单）。
+3. **D-08 的 `DelegationToPrecompileFallsBackToEmptyCode` 依赖 OpHost.cpp:114-116 的 EVMC_DELEGATED 回退**——若 Step 落地顺序中 Task 2 在 Task 6 之前（本 plan 即如此），该用例在 Task 2 时点即可判定（0x100 派发走 `call` 覆写，与 `access_account` 无关）。
+4. **本 plan 不做**：deposit receipt 的块级 RLP/receipts-root 编码（M6 后可选项）；EIP-4788/2935 执行前系统调用（块级编排 §4.4 范围，已在 OpBlockFinalize.h 注明）；**本模块自己的 OP t8n 硬 gate**（spec rev.8.1 §7.1 M6 行的交付，不在本 plan）；`ReadAmplification.cpp` 的 `std::stoul`（台账附录 A 除名项，顺手修不入清单）。
+5. **可选增强用例**（审查建议、非必需，实施者可顺手加）：value 超铸币后余额的 **create 变体**（op-geth clause 6 对 CREATE/CALL 同路径，`state_transition.go:574-580`）；**委托指向不存在目标**（空码即返 21000 + 无幽灵账户，op-geth `evm.go:315-316`）。
 5. 执行技能：worktree 已存在，无需再建。
