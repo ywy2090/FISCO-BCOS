@@ -63,11 +63,22 @@ TEST(OpValidate, InsufficientForL1CostFails)
     ASSERT_TRUE(std::holds_alternative<std::error_code>(r));
 }
 
-TEST(OpValidate, SufficientBalancePasses)
+TEST(OpValidate, EmptyEnvelopeFails)
 {
     test::TestState ts;
     ts[kSender] = {.nonce = 0, .balance = 1000000000000000000000_u256};
     const auto r = opValidate(ts, blk(), baseTx(), {}, isthmusConfig(), OpFeeParams{}, 30000000);
+    ASSERT_TRUE(std::holds_alternative<std::error_code>(r));
+    EXPECT_EQ(std::get<std::error_code>(r), std::errc::invalid_argument);
+}
+
+TEST(OpValidate, SufficientBalancePasses)
+{
+    test::TestState ts;
+    ts[kSender] = {.nonce = 0, .balance = 1000000000000000000000_u256};
+    const std::vector<uint8_t> env{0x02};
+    const auto r = opValidate(
+        ts, blk(), baseTx(), {env.data(), env.size()}, isthmusConfig(), OpFeeParams{}, 30000000);
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(r));
     EXPECT_EQ(std::get<OpTxProperties>(r).l1_cost, intx::uint256{0});
 }

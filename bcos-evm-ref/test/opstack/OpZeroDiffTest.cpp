@@ -110,7 +110,9 @@ TEST(OpZeroDiff, SimpleTransferMatchesEthExceptBaseFeeVault)
     cfg.precompiles = nullptr;  // 避开 override 表，贴近母本 Host 派发
 
     const OpFeeParams fee{};
-    const auto validated = opValidate(ts, block, tx, {}, cfg, fee, block.gas_limit);
+    const std::vector<uint8_t> env{0x02};
+    const auto validated =
+        opValidate(ts, block, tx, {env.data(), env.size()}, cfg, fee, block.gas_limit);
     ASSERT_TRUE(std::holds_alternative<OpTxProperties>(validated));
     const auto& props = std::get<OpTxProperties>(validated);
     EXPECT_EQ(props.l1_cost, intx::uint256{0});
