@@ -42,4 +42,6 @@ struct PrecompileOverrides
 
 const PrecompileOverrides& isthmusPrecompileOverrides() noexcept;
 const PrecompileOverrides& jovianPrecompileOverrides() noexcept;
+const PrecompileOverrides& fjordPrecompileOverrides() noexcept;
+const PrecompileOverrides& granitePrecompileOverrides() noexcept;
 }  // namespace bcos::evmref::opstack

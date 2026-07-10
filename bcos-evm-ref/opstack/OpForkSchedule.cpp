@@ -23,7 +23,7 @@ const OpForkConfig& fjordConfig() noexcept
     static const OpForkConfig cfg{
         .fork = OpFork::Fjord,
         .rev = EVMC_CANCUN,
-        .precompiles = nullptr,
+        .precompiles = &fjordPrecompileOverrides(),
         .disable_prague_requests = true,
         .has_operator_fee = false,
         .has_jovian_operator_formula = false,
@@ -38,6 +38,7 @@ const OpForkConfig& graniteConfig() noexcept
     static const OpForkConfig cfg = [] {
         OpForkConfig c = fjordConfig();
         c.fork = OpFork::Granite;
+        c.precompiles = &granitePrecompileOverrides();
         return c;
     }();
     return cfg;
@@ -48,6 +49,7 @@ const OpForkConfig& holoceneConfig() noexcept
     static const OpForkConfig cfg = [] {
         OpForkConfig c = fjordConfig();
         c.fork = OpFork::Holocene;
+        c.precompiles = &granitePrecompileOverrides();
         return c;
     }();
     return cfg;

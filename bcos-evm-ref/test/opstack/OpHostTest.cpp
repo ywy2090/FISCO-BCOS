@@ -185,3 +185,34 @@ TEST(OpHost, JovianBn256PairingInputOverLimitFails)
     EXPECT_EQ(r.status_code, EVMC_FAILURE);
     EXPECT_EQ(r.gas_left, 0);
 }
+
+// D-11 边界（红队 F-9）：恰在 81984（=427×192）上限的输入必须执行（全零点对 → pairing 成功）。
+// 挡住 OpHost 限长比较符 > 被改成 >= 的回归。gas = 45000 + 427*34000 = 14,563,000。
+TEST(OpHost, JovianBn256PairingInputAtLimitExecutes)
+{
+    constexpr auto kBn256 = 0x0000000000000000000000000000000000000008_address;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kSender] = {.nonce = 0, .balance = intx::uint256{0}};  // prepare_message(depth==0) 会
+                                                              // get(sender)，必须先入账
+                                                              // （同 OpHostTest.cpp:139 先例）
+    evmone::state::State st{ts};
+    test::TestBlockHashes hashes;
+    evmone::state::Transaction tx;
+    tx.sender = kSender;
+    const auto block = makeBlock();
+    OpHost host{EVMC_PRAGUE, vm, st, block, hashes, tx, 1234, &jovianPrecompileOverrides()};
+
+    std::vector<uint8_t> input(81984, 0x00);
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.recipient = kBn256;
+    msg.code_address = kBn256;
+    msg.sender = kSender;
+    msg.gas = 15'000'000;
+    msg.input_data = input.data();
+    msg.input_size = input.size();
+    const auto r = host.call(msg);
+    EXPECT_EQ(r.status_code, EVMC_SUCCESS);
+    EXPECT_GT(r.gas_left, 0);
+}
