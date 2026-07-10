@@ -13,9 +13,18 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-09-bcos-evm-ref-rev8-opstack-foun
 |--------|------|
 | M0 overlay 导出 / M1 writeback / M2 EEST state / M3 EEST blockchain / M3.5 P1 读放大 spike | ✅ 完成（见下方验收记录） |
 | M4 OP 数据层（`OpForkSchedule`/`OpPredeploys`/`OpPrecompiles`/`OpFeeParams`/`OpDepositTx` + 向量 schema） | ✅ 完成（11 单测 + `docs/vector-schema.md`） |
-| M5 OP 执行层（`OpHost`/`opValidate`/`opTransition`/`runDeposit`/`RollupCost` + 块级 harness） | ✅ 完成（29 单测含 §4.4 冒烟；零值差分归 M6） |
-| M6 零值差分 + upstream diff 脚本 | ⏳ 待 |
+| M5 OP 执行层（`OpHost`/`opValidate`/`opTransition`/`runDeposit`/`RollupCost` + 块级 harness） | ✅ 完成（32 单测含 §4.4 冒烟） |
+| M6 零值差分护栏 | ✅ 部分完成（`OpZeroDiff`：非 vault 账户 ≡ ETH；BaseFeeVault = gasUsed×baseFee；upstream diff 脚本仍待） |
 | M3.5 P2 真账本桥接 / E-b（ref t8n gate + 生产切内核） | 🅿️ **park**（E-b 解冻前不得宣称 OP 路径生产可用 / op-geth 等价，见 spec §1.1 R2） |
+
+### M6 零值差分口径
+
+`OpFeeParams=0`、`has_operator_fee=false`、关闭 precompile override 时，同一笔普通转账：
+
+- `status` / `gas_used` 与 `eth::runTransaction` 相等
+- **非** BaseFee/L1/Operator vault 的 `state_diff`（含 coinbase=SequencerFeeVault tip）逐位相等
+- OP 侧 `BaseFeeVault.balance == gasUsed × baseFee`（ETH 隐式销毁 → OP 显式入账）
+- 不验证 L1/operator fee 本身；t8n 仍属 E-b
 
 ## Naming
 
