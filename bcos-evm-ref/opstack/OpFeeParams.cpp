@@ -1,5 +1,6 @@
 #include <bcos-evm-ref/opstack/OpFeeParams.h>
 #include <bcos-evm-ref/opstack/OpPredeploys.h>
+#include <cassert>
 #include <test/state/state_view.hpp>
 
 namespace bcos::evmref::opstack
@@ -9,6 +10,7 @@ namespace
 // 读大端 word 的 [byteOff, byteOff+len) 为无符号整数（len ≤ 8）。
 uint64_t readBE(const evmc::bytes32& w, size_t byteOff, size_t len) noexcept
 {
+    assert(len <= 8 && byteOff + len <= sizeof(w.bytes));
     uint64_t v = 0;
     for (size_t i = 0; i < len; ++i)
     {

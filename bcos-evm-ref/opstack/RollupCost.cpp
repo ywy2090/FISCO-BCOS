@@ -16,6 +16,10 @@ constexpr int64_t kFjordDivisor = 1000000000000;
 constexpr int64_t kNonzeroByteCost = 16;
 constexpr int64_t kZeroByteCost = 4;
 constexpr int64_t kOperatorFeeScalarDivisor = 1000000;
+// estimatedDaSizeScaled 的 1e6 定标因子（与 operator scalar 的 1e6 语义无关，勿合并）。
+constexpr int64_t kDaSizeScaleDivisor = 1'000'000;
+// Jovian operator fee: gas × scalar × 100 + constant（op-geth Jovian 规格系数）。
+constexpr int64_t kJovianOperatorFeeMultiplier = 100;
 
 // Port of op-geth FlzCompressLen: length of output if serializedTx were FastLZ-compressed.
 uint32_t flzCompressLenImpl(evmc::bytes_view ib) noexcept
@@ -131,7 +135,7 @@ uint64_t estimatedDaSize(evmc::bytes_view signedTxEnvelope) noexcept
     if (signedTxEnvelope.empty())
         return 0;
     const auto scaled = estimatedDaSizeScaled(flzCompressLen(signedTxEnvelope));
-    return static_cast<uint64_t>(scaled / intx::uint256{1'000'000});
+    return static_cast<uint64_t>(scaled / intx::uint256{kDaSizeScaleDivisor});
 }
 
 uint64_t bedrockCalldataGasUsed(evmc::bytes_view env) noexcept
@@ -173,7 +177,8 @@ intx::uint256 computeOperatorCost(
 {
     if (cfg.has_jovian_operator_formula)
     {
-        return intx::uint256{gas} * intx::uint256{params.operator_fee_scalar} * intx::uint256{100} +
+        return intx::uint256{gas} * intx::uint256{params.operator_fee_scalar} *
+                   intx::uint256{kJovianOperatorFeeMultiplier} +
                intx::uint256{params.operator_fee_constant};
     }
     return intx::uint256{gas} * intx::uint256{params.operator_fee_scalar} /
