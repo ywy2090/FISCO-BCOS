@@ -15,6 +15,7 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-09-bcos-evm-ref-rev8-opstack-foun
 | M4 OP 数据层（`OpForkSchedule`/`OpPredeploys`/`OpPrecompiles`/`OpFeeParams`/`OpDepositTx` + 向量 schema） | ✅ 完成（11 单测 + `docs/vector-schema.md`） |
 | M5 OP 执行层（`OpHost`/`opValidate`/`opTransition`/`runDeposit`/`RollupCost` + 块级 harness） | ✅ 完成（32 单测含 §4.4 冒烟） |
 | Jovian tx+receipt + Karst 占位 + G-1 空 envelope 护栏 | ✅ 完成（见 `2026-07-10-bcos-evm-ref-jovian-karst-tx-receipt-design.md`） |
+| P1 tx-alignment（7702/7623/L1/vault/pre-Isthmus） | ✅ 完成（见 `bcos-evm/docs/superpowers/specs/2026-07-10-bcos-evm-ref-p1-tx-alignment-design.md`） |
 | M6 零值差分护栏 | ✅ 部分完成（`OpZeroDiff`：非 vault 账户 ≡ ETH；BaseFeeVault = gasUsed×baseFee；upstream diff 脚本仍待） |
 | M3.5 P2 真账本桥接 / E-b（ref t8n gate + 生产切内核） | 🅿️ **park**（E-b 解冻前不得宣称 OP 路径生产可用 / op-geth 等价，见 spec §1.1 R2） |
 
@@ -28,6 +29,25 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-09-bcos-evm-ref-rev8-opstack-foun
 - **M6 不变**：零值差分断言层仍用 `nonVaultDeleted` 排除 vault 账户（含 L1 vault 被 touch 后剪除的空账户）
 
 **显式非目标**（本轮不做）：块头 DA / `extraData` / E-b t8n gate / receipt 字段 `L1GasUsed`（Fjord+ 恒 0）/ `FeeScalar`（pre-Ecotone 遗留）
+
+### P1 tx-alignment（2026-07-10）
+
+Spec: `bcos-evm/docs/superpowers/specs/2026-07-10-bcos-evm-ref-p1-tx-alignment-design.md`
+
+- **pre-Isthmus fork 配置**：`ecotoneConfig()` / `fjordConfig()` / `graniteConfig()` / `holoceneConfig()`；`OpForkConfig::has_ecotone_l1_formula` 区分 Ecotone calldata-gas 与 Fjord+ FastLZ L1 公式
+- **fork-aware L1 cost**：`computeL1Cost(fee, env, cfg)` — Ecotone 用 `bedrockCalldataGasUsed = zeroes×4 + nonzeroes×16`（**无** +68）；Fjord+ 用 FastLZ 公式
+- **L1Block 解 fee**：`loadOpFeeParams(StateView)` 读 OP_L1_BLOCK slots 1/3/7/8；`opValidateFromState` / `opTransitionFromState` 薄封装（**配对约束**：二者须成对使用，勿与注入 `OpFeeParams` 的 overload 混用）
+- **Vault stub**：`seedOpPredeploys` 为四 fee vault 写入非空 stub code，避免零费执行删光账户
+- **EIP-7702**：`process_authorization_list` 真 ecrecover（`keccak256(0x05‖rlp[chain_id,addr,nonce])` → secp256k1）；校验序 v→s→recover；金值由 `test/opstack/scripts/gen_7702_vectors.py` 产出
+- **EIP-7623 floor**：用户 tx 与 deposit 均受 calldata floor 约束（Isthmus 无豁免）；钉死金值 51000 / 33000 / 21000
+
+**pre-Isthmus `precompiles = nullptr`**：Ecotone/Fjord/Granite/Holocene 配置使用 evmone 基表（`precompiles = nullptr`）；**pre-Isthmus precompile 集合保真非本里程碑目标**。
+
+**继承不变量**：
+- **N-1**：`opTransition` L1 vault 结算不变——无条件 `AddBalance(L1FeeVault, l1_cost)`，即使 `l1_cost==0` 也会 touch
+- **G-1**：非 deposit 用户 tx 若 `signedTxEnvelope` 为空 → `opValidate` 失败
+
+**显式非目标 / 不宣称**：本里程碑**不**声称 op-geth 块级或生产路径等价；E-b t8n gate 解冻前仍不得宣称 OP 路径生产可用（同 spec §1.1 R2）。
 
 ### M6 零值差分口径
 
