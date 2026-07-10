@@ -1,12 +1,16 @@
 # bcos-evm-ref：最大化复用 evmone 的标准以太坊 EVM（含 OpStack）设计
 
-**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 重排 → rev.5 撤回 405 → rev.6 量化经济学 → **rev.7 四项决策定案**）
-**状态：** **rev.7 = 决策定案版**（2026-07-09，用户裁定）：
-① **OpStack 路径不在本模块做——M4/M5 永久取消**，OP 语义留在已有 `bcos-evm/opstack/`（4,485 行 / 6 份 op-geth 审计 / 已达 Jovian）；
-② **终局身份 = ETH 生产替换候选 + 不做 OP**（混合终局，此前 spec 未列此选项）；
+**日期：** 2026-07-08（rev.3）· 2026-07-09（rev.4 重排 → rev.5 撤回 405 → rev.6 量化经济学 → rev.7 四项决策定案）· 2026-07-10（**rev.8 D5 独立性裁定**）
+**状态：** **rev.8**（2026-07-10，用户裁定 **D5**）：**「bcos-evm 与 bcos-evm-ref 之间没有任何关联，bcos-evm-ref 中要实现独立的功能」**。据此：
+- **D1 被 D5 推翻**：OP 路径（M4/M5）回到本模块范围内。已存在的 `opstack/` 实现（2026-07-09 并行提交，按 §4.3 规格）追认为 M4/M5 的在册交付；其**14 条已确认审查缺陷**（两轮 /code-review，2026-07-10，🔴 共识级 ×11 其中 9 条集中在 `runDeposit`、🟡 ×1、🟢 ×2）构成修复清单，台账见 `bcos-evm-ref/docs/audits/2026-07-10-opstack-code-review-defect-ledger.md`（D-01–D-14），修复按 D4 先立 plan。
+- **D2 终局更新**：终局 = **独立、完整的 ETH+OP 执行内核**。下文一切以「`bcos-evm/opstack/` 已有实现」为由不做/缓做 OP 的论证（§1.1 横幅、§1.2 首两行、§7.0 末段、§7.1 M4/M5 行、§7.2）**作废，原文保留作历史**。两模块间不再互为依据、互为对照义务；op-geth 仍是唯一 OP 正确性基准。
+- **D3、D4 不受影响，继续有效**。M-T 及其 FINDING-1/2 属 `bcos-evm` 自己的轨道，与本模块无关。
+rev.7（2026-07-09，用户裁定；① 已被 D5 推翻，②③④ 经上述更新后继续有效）：
+① ~~**OpStack 路径不在本模块做——M4/M5 永久取消**，OP 语义留在已有 `bcos-evm/opstack/`（4,485 行 / 6 份 op-geth 审计 / 已达 Jovian）~~（**rev.8 D5 推翻**）；
+② **终局身份 = ETH 生产替换候选 + 不做 OP**（混合终局，此前 spec 未列此选项）→ rev.8 更新为「独立 ETH+OP 内核」；
 ③ **授权改动现有 `bcos-evm`** 两项纯增益动作：t8n gate 架到 `opstack/`、负缓存优化落到 `eth/state/`；
 ④ **工作流：先 plan 后动手**——任何新里程碑须先有 plan 文档并经用户过目；spec 的任何范围收窄须显式标注为「更正」，不得静默改写后宣布达标。已交付的 M3/M3.5 予以追认。
-历史：rev.1 brainstorming 逐节获批；rev.2/rev.3 审查驱动修订；rev.4 里程碑重排；rev.5 撤回 405 动因；rev.6 维护经济学量化 + M4/M5 冻结。
+历史：rev.1 brainstorming 逐节获批；rev.2/rev.3 审查驱动修订；rev.4 里程碑重排；rev.5 撤回 405 动因；rev.6 维护经济学量化 + M4/M5 冻结；rev.7 决策定案；rev.8 D5 独立性裁定推翻 D1。
 **参考基线（唯一，已确认）：** vcpkg port 锁定的 fork REF `3585c2cb`（= 上游 tag v0.21.0 `35b7e1ee` 后第 3 个提交，仅 SM3 补丁；`test/state` 相对 v0.21.0 tag 零改动）。本文所有 API 描述、行号、照抄源均以此 REF 为准；本地 `blockchain-impl/evmone` HEAD（v0.21.0+75，含 `gas_refund` 字段、EIP-7778——均来自 tag 后未发布提交 `aee9aedd`，将随 v0.22.0 发布）**不作为**设计依据，待 v0.22.0 发布后按 §8.5 清单整体评估升级
 **OP 对照基准：** op-geth v1.101702.2（本地 `blockchain-impl/op-geth`），关键行号引用 `core/state_transition.go` / `core/types/rollup_cost.go` / `core/vm/contracts.go` / `core/state_processor.go`
 **关联文档：** `bcos-evm/docs/DESIGN-standard-eth-evm-opstack.md`（架构总述 rev.2）
@@ -17,9 +21,11 @@
 
 ### 1.1 一句话
 
-> **rev.7 决策定案**：**OpStack 部分（六块薄层、M4/M5）已永久取消**，本模块只做 ETH 路径。
-> 下文 §4.3 / §5.2 / §5.3 的 OP 设计**保留作参考规格**（经三轮审查、与 op-geth 逐行核对过），
-> 但不实现。OP 语义留在 `bcos-evm/opstack/`，其正确性由 **M-T t8n gate** 验证。
+> **rev.8 D5**：本模块与 `bcos-evm` **没有任何关联**，实现**独立的完整功能（ETH + OP）**。
+> ~~rev.7：OpStack 部分（六块薄层、M4/M5）已永久取消，本模块只做 ETH 路径~~（**D5 推翻**）。
+> §4.3 / §5.2 / §5.3 的 OP 设计恢复为**实施规格**；`opstack/` 已按其实现，
+> 待按修复 plan 消化两轮审查确认的 14 条缺陷（🔴×11，台账 D-01–D-14：
+> `bcos-evm-ref/docs/audits/2026-07-10-opstack-code-review-defect-ledger.md`）。
 
 新建仓库顶层独立模块 `bcos-evm-ref`，**链接 `evmone::state` 库**复用整套状态转换：Ethereum 主网直接调用 `validate_transaction()` / `transition()` / `finalize()`（零重写）；OpStack 自建**六块薄层**——`op_validate`（OP 校验含 L1/operator fee 余额、拒 blob tx）、`op_transition`（最小 fork，仅改 fee 结算段）、**`OpHost`**（`Host` 子类：修 CHAINID、修 deposit GASPRICE、拦截 precompile 派发）、Deposit 路径、`RollupCost`（L1 data fee + operator fee）、OP precompile override 表（数据）；predeploy / vault 账户预填为数据，fork 语义由 `OpForkSchedule` 映射（返回 `OpForkConfig` 结构体）驱动。**第一版 OP 只实现并验证 Isthmus**（fork 矩阵留扩展位）。第一版由 EEST / op-geth 测试 harness 驱动。
 
@@ -398,8 +404,8 @@ uint256 computeOperatorCost(const OpFeeParams&, uint64_t gas);  // gas*scalar/1e
 | **M3 ETH blockchain** | ✅ **已完成**（2026-07-09）：移植 `blockchaintest_runner` 核心（块执行循环、`validate_block` 头校验、侧链/canonical 追踪、四 root + requests_hash 判据、过渡 fork `RevisionSchedule`）；smoke（进 ctest）+ full（`EVM_REF_EEST_BLOCKCHAIN_FULL=1` 门控）拆分。**实测：2848 文件 / 0 失败 / 61 秒**。附带发现：`bcos-evm` 的 405 个失败全为 pre-Cancun（404 Frontier + 1 Homestead），**不构成 parity gap 证据**，见 §7.0 更正 | M2 | 中 |
 | **M3.5 StateView 桥接 spike（go/no-go）** | **rev.4 新增，前置**。⚠️ **rev.6 更正：Phase 1 的 GO 判定只是暂定，不构成充分证据。** rev.4 原文要求“把 `StateViewAdapter` **接一次真实账本**（或其协程存储的最小切片），度量 ①同步 noexcept 桥接开销 ②每 tx 重建 `State` 开销 ③code 按值返回开销”。实际 Phase 1（`514d3ad62`）**未接任何账本**，只做了内存计数 + 手推成本模型，**三项被点名的开销一项未测**；且该提交在交付的同时把本行任务描述改写成与交付物匹配的措辞，未标注为范围收窄——此为流程缺陷，如实记录。Phase 1 的产出（读放大 1.16x、负缓存省 27.9%）**算术已被独立复算与实机重跑验证为真**，作为“接口宽度不构成障碍”的证据有效；但“桥接开销可接受”仍**只有生产存在性佐证，无实测**。**Phase 2（必做，ETH 替换 go/no-go）**：真正接 `LedgerStateView`/`ledger::EVMAccount`（或协程存储切片），测三项开销绝对值；**并入原 M-N 的交付**——适配器侧负缓存（~5 行）与 `CountingStateView`/`weightedReads()` 测量基建。Phase 3（仅当 Phase 2 超标）：块级缓存适配器 | M3 | 小–中 |
 | **决策点** | ✅ **已裁定**（rev.7，2026-07-09）：见本文状态栏四项。剩余待验证项转入 M3.5 Phase 2（ETH 替换的 go/no-go） | — | — |
-| ~~**M4 OP 数据层**~~ | ❌ **永久取消**（rev.7 用户裁定 D1）。OP 语义留在 `bcos-evm/opstack/`；其 op-geth 一致性由 **t8n gate（新 M-T）** 验证，不需要本模块任何 OP 代码 | — | — |
-| ~~**M5 OP fee/tx**~~ | ❌ **永久取消**（同上）。§4.3 的 OpHost / op_validate / op_transition / runDeposit / RollupCost / precompile override 设计**保留作参考**（若将来 opstack 需要，可作为对照实现的规格），但本模块不实现 | — | — |
+| **M4 OP 数据层** | 🔁 **rev.8 D5 恢复**（~~rev.7 D1 永久取消~~）。已由 2026-07-09 并行提交按 §4.3 实现（OpForkSchedule / OpPredeploys / RollupCost 等）并追认；遗留缺陷见 M4/M5 修复清单行 | 决策点 | 中 |
+| **M5 OP fee/tx** | 🔁 **rev.8 D5 恢复**（同上）。OpHost / op_validate / op_transition / runDeposit 已实现并追认。**修复清单（两轮 /code-review 确认，修复须先立 plan）**：`runDeposit` 9 项——pre-mint 余额校验、gasUsed 不减 refund、GAS_LIMIT_REACHED 降级为失败 receipt、CREATE 前不递增 nonce（地址差一/nonce0 断言）、receipt.type=legacy 非 0x7E、无 logs bloom、无 7702 委托解析、无 2929/3651 预热、（前轮）EIP-3607 误用于 deposit；fork/host 3 项——`disable_prague_requests` 死配置（6110/7002/7251 抑制未实现）、Granite/Holocene 丢 bn256Pairing 输入上限、0x100 P256VERIFY 不预热；清理 2 项——OpFeeParams 每 tx 重读 8 次、FastLZ 双重压缩 + `build_deposit_message` 重复 | M4 | 中 |
 | **M-T t8n gate on `opstack/`** | ✅ **已完成**（2026-07-10，plan `plans/2026-07-09-mt-t8n-gate-opstack.md` v2，Task 1–5）。opt8n（op-geth v1.101702.2 当库用，执行循环照抄其 `t8ntool`）离线生成 50 条向量入库，`OpStackT8nVectorReplayTest`（CI 默认 ctest，`--log_level=warning` 使已知分歧在日志中可见）纯 C++ 回放。**结果不是全绿**：0 条未入账分歧，但打出 **2 个 CONFIRMED 共识级缺陷**（此前 6 份人工 parity 审计均未发现）——FINDING-1（deposit 硬编码 `floorDataGas=0`，漏 Isthmus+ 的 EIP-7623 calldata floor）、FINDING-2（refund 结算误取 `evmcResult.gas_refund` 而非权威的 `ctx.evmGasRefund`，丢弃 EIP-7702 每授权 refund），共 32 条向量字段以 `attribution=a status=PENDING-FIX` 计入 `t8n/vectors/DIVERGENCES.md` 台账，修复另立 plan（本 gate 报告不修）。完整方法、覆盖矩阵、两个 finding 的技术细节与对 §7.2 的意义见《opstack op-geth 机器差分报告》：`docs/audits/2026-07-10-opstack-opgeth-machine-differential-report.md` | — | 中 |
 | ~~**M-N 负缓存优化**~~ | ❌ **已取消并入 M3.5 Phase 2**（2026-07-09，用户按「尽量复用 evmone」原则裁定）：不再手写优化待替换的旧 `State`——evmone 的读穿缓存在替换路径上免费获得，负查询缺口（27.9%）以 ~5 行落在 bcos-evm-ref 侧适配器。plan 存档：`plans/2026-07-09-state-base-read-memoization.md`（v3 取消记录），其调查产出转为 Phase 2 测量基建 | — | — |
 | **M6 收尾（ETH 侧）** | 零值差分护栏不再需要（无 OP fork 面）；保留 upstream `transition()` diff 提醒脚本 + CI gate + 文档 | M3.5 Phase 2 | 小 |
