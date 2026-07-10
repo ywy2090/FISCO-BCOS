@@ -1,6 +1,6 @@
 #pragma once
 
-#include <evmc/evmc.h>
+#include <evmc/evmc.hpp>
 
 namespace bcos::evmref::opstack
 {
