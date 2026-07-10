@@ -20,7 +20,8 @@ namespace
 class DepositValidationView final : public evmone::state::StateView
 {
 public:
-    DepositValidationView(const evmone::state::StateView& base, const evmc::address& sender) noexcept
+    DepositValidationView(
+        const evmone::state::StateView& base, const evmc::address& sender) noexcept
       : m_base{base}, m_sender{sender}
     {}
 

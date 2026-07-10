@@ -61,9 +61,8 @@ TEST(OpDeposit, EvmRevertKeepsMintAndChargesActualGas)
     test::TestState ts;
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kRevert = 0x00000000000000000000000000000000000000dd_address;
-    ts[kRevert] = {.nonce = 0,
-        .balance = intx::uint256{0},
-        .code = evmc::from_hex("60006000fd").value()};
+    ts[kRevert] = {
+        .nonce = 0, .balance = intx::uint256{0}, .code = evmc::from_hex("60006000fd").value()};
     test::TestBlockHashes hashes;
 
     DepositTx dep{.source_hash = 0x01_bytes32,
@@ -151,7 +150,8 @@ TEST(OpDeposit, SystemTxIsBlockError)
         .gas_limit = 100000,
         .is_system_tx = true,
         .data = {}};
-    EXPECT_THROW(runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000), std::runtime_error);
+    EXPECT_THROW(runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000),
+        std::runtime_error);
 }
 
 // D-03：SSTORE 清零 refund 从 deposit gasUsed 扣除（op-geth Regolith+ 无条件 calcRefund）
@@ -168,9 +168,14 @@ TEST(OpDeposit, RefundLowersDepositGasUsed)
         .storage = {{0x00_bytes32, 0x01_bytes32}},
         .code = evmc::from_hex("600060005500").value()};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kClear,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kClear,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
     EXPECT_EQ(r.receipt.gas_used, 21206);
@@ -191,9 +196,14 @@ TEST(OpDeposit, RefundIsCappedAtOneFifthOfGasUsed)
             {0x02_bytes32, 0x01_bytes32}, {0x03_bytes32, 0x01_bytes32}},
         .code = evmc::from_hex("600060005560006001556000600255600060035500").value()};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kClear4,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kClear4,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
     constexpr int64_t kPreRefund = 41024;
@@ -207,12 +217,17 @@ TEST(OpDeposit, DepositReceiptCarriesLogsBloom)
     test::TestState ts;
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kLogger = 0x00000000000000000000000000000000000000ef_address;
-    ts[kLogger] = {.nonce = 1, .balance = intx::uint256{0},
-        .code = evmc::from_hex("60006000a000").value()};
+    ts[kLogger] = {
+        .nonce = 1, .balance = intx::uint256{0}, .code = evmc::from_hex("60006000a000").value()};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kLogger,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kLogger,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     ASSERT_EQ(r.receipt.logs.size(), 1u);
     const auto expected = evmone::state::compute_bloom_filter(r.receipt.logs);
@@ -228,12 +243,18 @@ TEST(OpDeposit, RevertedDepositHasEmptyLogsAndZeroBloom)
     test::TestState ts;
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kLogRevert = 0x00000000000000000000000000000000000000e5_address;
-    ts[kLogRevert] = {.nonce = 1, .balance = intx::uint256{0},
+    ts[kLogRevert] = {.nonce = 1,
+        .balance = intx::uint256{0},
         .code = evmc::from_hex("60006000a060006000fd").value()};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kLogRevert,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kLogRevert,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     EXPECT_EQ(r.receipt.status, EVMC_REVERT);
     EXPECT_TRUE(r.receipt.logs.empty());
@@ -249,14 +270,20 @@ TEST(OpDeposit, DepositResolvesEip7702Delegation)
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kImpl = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto kEoa = 0x00000000000000000000000000000000000000ab_address;
-    ts[kImpl] = {.nonce = 1, .balance = intx::uint256{0},
-        .code = evmc::from_hex("600160005500").value()};
-    ts[kEoa] = {.nonce = 1, .balance = intx::uint256{0},
+    ts[kImpl] = {
+        .nonce = 1, .balance = intx::uint256{0}, .code = evmc::from_hex("600160005500").value()};
+    ts[kEoa] = {.nonce = 1,
+        .balance = intx::uint256{0},
         .code = evmc::from_hex("ef0100").value() + evmone::state::bytes{kImpl.bytes, 20}};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kEoa,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kEoa,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
@@ -272,12 +299,18 @@ TEST(OpDeposit, DelegationToPrecompileFallsBackToEmptyCode)
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto k100 = 0x0000000000000000000000000000000000000100_address;
     constexpr auto kEoa = 0x00000000000000000000000000000000000000ac_address;
-    ts[kEoa] = {.nonce = 1, .balance = intx::uint256{0},
+    ts[kEoa] = {.nonce = 1,
+        .balance = intx::uint256{0},
         .code = evmc::from_hex("ef0100").value() + evmone::state::bytes{k100.bytes, 20}};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kEoa,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kEoa,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
     EXPECT_EQ(r.receipt.gas_used, 21000);
@@ -290,12 +323,18 @@ TEST(OpDeposit, DepositWarmsSenderPerEip2929)
     test::TestState ts;
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kProbe = 0x00000000000000000000000000000000000000ba_address;
-    ts[kProbe] = {.nonce = 1, .balance = intx::uint256{0},
+    ts[kProbe] = {.nonce = 1,
+        .balance = intx::uint256{0},
         .code = evmc::from_hex("32315000").value()};  // ORIGIN BALANCE POP STOP
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kProbe,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kProbe,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
     EXPECT_EQ(r.receipt.gas_used, 21104);
@@ -308,14 +347,20 @@ TEST(OpDeposit, DepositWarmsCoinbasePerEip3651)
     test::TestState ts;
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kProbe = 0x00000000000000000000000000000000000000bc_address;
-    ts[kProbe] = {.nonce = 1, .balance = intx::uint256{0},
+    ts[kProbe] = {.nonce = 1,
+        .balance = intx::uint256{0},
         .code = evmc::from_hex("41315000").value()};  // COINBASE BALANCE POP STOP
     test::TestBlockHashes hashes;
     auto b = blk();
     b.coinbase = 0x00000000000000000000000000000000000000c1_address;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kProbe,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kProbe,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, b, hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
     EXPECT_EQ(r.receipt.gas_used, 21104);
@@ -338,9 +383,14 @@ TEST(OpDeposit, WarmColdDifferentialIs2500)
         constexpr auto kProbe = 0x00000000000000000000000000000000000000be_address;
         ts[kProbe] = {.nonce = 1, .balance = intx::uint256{0}, .code = probeCode(target)};
         test::TestBlockHashes hashes;
-        DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kProbe,
-            .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 100000,
-            .is_system_tx = false, .data = {}};
+        DepositTx dep{.source_hash = 0x01_bytes32,
+            .from = kFrom,
+            .to = kProbe,
+            .mint = std::nullopt,
+            .value = intx::uint256{0},
+            .gas_limit = 100000,
+            .is_system_tx = false,
+            .data = {}};
         const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
         EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
         return r.receipt.gas_used;
@@ -356,9 +406,14 @@ TEST(OpDeposit, BridgeDepositSpendsMintedValue)
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kTo = 0x00000000000000000000000000000000000000f1_address;
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
-        .mint = intx::uint256{100}, .value = intx::uint256{60}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kTo,
+        .mint = intx::uint256{100},
+        .value = intx::uint256{60},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
@@ -376,9 +431,14 @@ TEST(OpDeposit, ValueFundedByPreexistingBalanceWithoutMint)
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{100}};
     constexpr auto kTo = 0x00000000000000000000000000000000000000f2_address;
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
-        .mint = std::nullopt, .value = intx::uint256{60}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kTo,
+        .mint = std::nullopt,
+        .value = intx::uint256{60},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
@@ -394,9 +454,14 @@ TEST(OpDeposit, ValueFundedJointlyByBalanceAndMint)
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{50}};
     constexpr auto kTo = 0x00000000000000000000000000000000000000f3_address;
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
-        .mint = intx::uint256{20}, .value = intx::uint256{60}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kTo,
+        .mint = intx::uint256{20},
+        .value = intx::uint256{60},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
@@ -410,12 +475,18 @@ TEST(OpDeposit, SenderWithCodeIsAllowed)
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
-    ts[kFrom] = {.nonce = 3, .balance = intx::uint256{0},
+    ts[kFrom] = {.nonce = 3,
+        .balance = intx::uint256{0},
         .code = evmc::from_hex("00").value()};  // 任意非委托字节码（STOP）
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kFrom,
-        .mint = intx::uint256{10}, .value = intx::uint256{0}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kFrom,
+        .mint = intx::uint256{10},
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
 }
@@ -429,9 +500,14 @@ TEST(OpDeposit, ValueOverPostMintBalanceFailsWithFullGasLimit)
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     constexpr auto kTo = 0x00000000000000000000000000000000000000f1_address;
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kTo,
-        .mint = intx::uint256{5}, .value = intx::uint256{60}, .gas_limit = 100000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kTo,
+        .mint = intx::uint256{5},
+        .value = intx::uint256{60},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
     EXPECT_EQ(r.receipt.status, EVMC_FAILURE);
@@ -448,9 +524,14 @@ TEST(OpDeposit, GasLimitOverBlockBudgetIsBlockError)
     test::TestState ts;
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kFrom,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 60000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kFrom,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 60000,
+        .is_system_tx = false,
+        .data = {}};
     EXPECT_THROW(
         runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, /*blockGasLeft=*/50000),
         std::runtime_error);
@@ -463,9 +544,14 @@ TEST(OpDeposit, GasLimitExactlyBlockBudgetIsAccepted)
     test::TestState ts;
     ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = kFrom,
-        .mint = std::nullopt, .value = intx::uint256{0}, .gas_limit = 60000,
-        .is_system_tx = false, .data = {}};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kFrom,
+        .mint = std::nullopt,
+        .value = intx::uint256{0},
+        .gas_limit = 60000,
+        .is_system_tx = false,
+        .data = {}};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234,
         /*blockGasLeft=*/60000);
     EXPECT_EQ(r.receipt.status, EVMC_SUCCESS);
@@ -480,10 +566,15 @@ TEST(OpDeposit, FailedCreateDepositStillBumpsNonceAndDeploysNothing)
     test::TestState ts;
     ts[kFrom] = {.nonce = 5, .balance = intx::uint256{0}};
     test::TestBlockHashes hashes;
-    DepositTx dep{.source_hash = 0x01_bytes32, .from = kFrom, .to = std::nullopt,
-        .mint = intx::uint256{7}, .value = intx::uint256{0},
-        .gas_limit = 21000,  // create intrinsic 53006（21000+32000+data4+initcode2）> 21000 → INTRINSIC_GAS_TOO_LOW
-        .is_system_tx = false, .data = evmc::from_hex("00").value()};
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = std::nullopt,
+        .mint = intx::uint256{7},
+        .value = intx::uint256{0},
+        .gas_limit = 21000,  // create intrinsic 53006（21000+32000+data4+initcode2）> 21000 →
+                             // INTRINSIC_GAS_TOO_LOW
+        .is_system_tx = false,
+        .data = evmc::from_hex("00").value()};
     const auto r = runDeposit(ts, blk(), hashes, dep, isthmusConfig(), vm, 1234, 30000000);
     bcos::evmref::applyStateDiff(ts, r.receipt.state_diff);
     EXPECT_EQ(r.receipt.status, EVMC_FAILURE);

@@ -217,3 +217,4 @@
 - 两轮合计 45 agent；第一轮 1 个 verifier 限流未完成，其负责的候选已由第二轮重扫覆盖。
 - 审查为静态多 agent 代码审查 + 对抗验证，**不是机器差分**。deposit 路径至今没有任何 t8n 式差分覆盖（EEST 无 0x7E）——本台账不构成"仅此 15 条"的完备性声明。
 - op-geth 在 OP Isthmus 仍执行 EIP-4788/2935 执行前系统调用（`state_processor.go:90-95`），属块级编排范围，本轮（rev.2 plan）未实现。
+- 终审 defer 项（2026-07-10）：① opTransition/opTransitionFromState 的 signedTxEnvelope 形参自 D-14b 后为死参（公开 API 保持稳定，留待 §4.4 块级编排重触签名时一并清理）；② flz_len 无直接单测（da_footprint 端到端 + FromFlz 等价性用例间接覆盖，t8n gate 兜底）。
