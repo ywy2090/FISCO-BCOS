@@ -27,6 +27,7 @@ add_executable(bcos-evm-ref-opstack-tests
     opstack/OpZeroDiffTest.cpp
     opstack/OpReceiptMetaTest.cpp
     opstack/Op7702Test.cpp
+    opstack/OpFloorGasTest.cpp
 )
 target_compile_definitions(bcos-evm-ref-opstack-tests PRIVATE
     EVM_REF_OPSTACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/opstack"
