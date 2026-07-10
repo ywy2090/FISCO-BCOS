@@ -8,6 +8,9 @@
 
 namespace bcos::evmref::opstack
 {
+/// gas-override（非限长-only）precompile 目前唯一实现：0x100 P256Verify。
+inline constexpr evmc::address kP256VerifyAddress{0x100};
+
 struct PrecompileOverrides
 {
     struct Entry

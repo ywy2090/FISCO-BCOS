@@ -3,6 +3,7 @@
 #include <bcos-evm-ref/opstack/OpPrecompiles.h>
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <test/state/precompiles_internal.hpp>
 
 using namespace evmc::literals;
@@ -16,12 +17,21 @@ namespace
     return kind == EVMC_CREATE || kind == EVMC_CREATE2;
 }
 
-evmc::Result executeGasOverridePrecompile(const evmc_message& msg, int64_t gas_cost)
+evmc::Result executeGasOverridePrecompile(
+    const evmc::address& addr, const evmc_message& msg, int64_t gas_cost)
 {
     if (msg.gas < gas_cost)
         return evmc::Result{EVMC_OUT_OF_GAS, 0};
 
     const int64_t gas_left = msg.gas - gas_cost;
+
+    // gas-override 分支目前唯一实现是 P256Verify；未来新增另一个 gas-override 地址时必须在
+    // 此显式补分支——宁可在这里失败，也不要沉默地对陌生地址跑 P256Verify 逻辑。
+    if (addr != kP256VerifyAddress)
+    {
+        assert(false && "unhandled gas-override precompile address");
+        return evmc::Result{EVMC_INTERNAL_ERROR, gas_left};
+    }
 
     constexpr size_t kMaxOutput = 32;
     std::array<uint8_t, kMaxOutput> output{};
@@ -68,6 +78,7 @@ evmc_tx_context OpHost::get_tx_context() const noexcept
     }
     else
     {
+        assert(m_tx.max_gas_price >= base_fee);
         const auto priority_gas_price =
             std::min(m_tx.max_priority_gas_price, m_tx.max_gas_price - base_fee);
         effective_gas_price = base_fee + priority_gas_price;
@@ -125,7 +136,7 @@ evmc::Result OpHost::call(const evmc_message& msg) noexcept
     if (msg.kind == EVMC_CALL)
         applyCallValueSemantics(m_state, msg);
 
-    auto result = executeGasOverridePrecompile(msg, entry->gas_cost_override);
+    auto result = executeGasOverridePrecompile(entry->addr, msg, entry->gas_cost_override);
 
     if (result.status_code != EVMC_SUCCESS)
     {
