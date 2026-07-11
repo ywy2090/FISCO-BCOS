@@ -4,7 +4,7 @@ Spec: `bcos-evm/docs/superpowers/specs/2026-07-09-bcos-evm-ref-rev8-opstack-foun
 （前置：`2026-07-08-bcos-evm-ref-evmone-reuse-design.md` rev.7，evmone 基线 / §4.3 OP 接口草图仍有效，冲突以 rev.8 为准）
 
 复用 evmone::state（vcpkg overlay port，REF 3585c2cb = evmone 0.21.0 + SM3）的 **ETH + OP 统一 evmone 执行底座**：
-`eth/` 为 OpStack 与纯 ETH 的共享内核，`opstack/` 在其之上实现 OP 薄层。
+`bcos-evm-ref/eth/` 为 OpStack 与纯 ETH 的共享内核，`bcos-evm-ref/opstack/` 在其之上实现 OP 薄层（仓库主流双名布局，头源同居）。
 生产编排仍留 `bcos-evm/opstack/`；与现有 `bcos-evm/` 严格隔离（互不 include / 不链接）。
 
 ## 当前阶段（rev.8.2）
