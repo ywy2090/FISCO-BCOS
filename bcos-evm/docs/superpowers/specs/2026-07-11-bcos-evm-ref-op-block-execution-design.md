@@ -117,11 +117,11 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
 
 ## 6. 开放问题 / 决策点（plan 前须裁定或 plan 内钉定）
 
-1. **deposits-first 校验归属**（**rev.2 补事实**：op-geth EL **不校验**此不变量——`ValidateBody`/`Process` 全文无检查，`rollup_cost.go:573` 注释把它当前提用；不变量由 op-node derivation 维护；Jovian 起 EL 仅经 `CalcDAFootprint` 间接检查首笔是 deposit）。本文 §4.1 将其升级为 `processOpBlock` 内的块级错误——**这是超出 op-geth EL 的自加严**（语义 = 把 op-node 的 CL 不变量下沉到 EL）。**需用户裁定：自加严 or 对齐 op-geth EL（信任上游）**。
-2. **L1 attributes deposit 的识别方式**（**rev.2 钉死常量与层级**）：`DEPOSITOR_ACCOUNT = 0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001`（规范常量在 op-node `derive/l1_block_info.go:40`；op-geth 内仅 `eth/downloader/receiptreference.go:28` 非共识用途）；L1Block predeploy = `0x4200…0015`（`rollup_cost.go:67-68`）。**"首笔必须是 L1 info tx"的校验在 op-node CL 层**（`derive/payload_util.go:27-40`），op-geth EL（pre-Jovian）零检查。建议维持"按内容校验 + 位置约定"双重——同为**自加严**，与决策点 1 一并裁定。
+1. **deposits-first 校验归属**（**rev.2 补事实**：op-geth EL **不校验**此不变量——`ValidateBody`/`Process` 全文无检查，`rollup_cost.go:573` 注释把它当前提用；不变量由 op-node derivation 维护；Jovian 起 EL 仅经 `CalcDAFootprint` 间接检查首笔是 deposit）。本文 §4.1 将其升级为 `processOpBlock` 内的块级错误——**这是超出 op-geth EL 的自加严**（语义 = 把 op-node 的 CL 不变量下沉到 EL）。**✅ 已裁定（2026-07-11 用户）：自加严**——`processOpBlock` 内校验，违规抛块级错误；差分回放对坏块输入豁免此类用例（正常输入无行为差异）。
+2. **L1 attributes deposit 的识别方式**（**rev.2 钉死常量与层级**）：`DEPOSITOR_ACCOUNT = 0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001`（规范常量在 op-node `derive/l1_block_info.go:40`；op-geth 内仅 `eth/downloader/receiptreference.go:28` 非共识用途）；L1Block predeploy = `0x4200…0015`（`rollup_cost.go:67-68`）。**"首笔必须是 L1 info tx"的校验在 op-node CL 层**（`derive/payload_util.go:27-40`），op-geth EL（pre-Jovian）零检查。**✅ 已裁定（2026-07-11 用户，随决策点 1）：按内容校验 + 位置约定双重（自加严）**。
 3. **withdrawalsRoot 需要枚举账户 storage**，evmone `StateView` 无枚举接口——候选：(a) 由调用方（账本侧）提供该账户 storage 快照作 seal 的显式入参；(b) 扩宽本模块适配器（不动 evmone）。倾向 (a)（保持 3 方法窄接口，与 M3.5 的接口宽度结论一致）。**rev.2 补硬约束**：快照时点必须是块尾 finalize 之后（op-geth 构建侧 `consensus.go:413→421` 顺序）。M-B2 plan 定稿。
 4. ~~requestsHash 确切口径~~（**rev.2 已钉死**，见 §4.2——`EmptyRequestsHash`，不再是开放问题）。
-5. **M-B3 与 M6 合并立项**：建议合并（省一套生成器基建）；如分开，M6 先行（tx 级向量已有 M-T 方法论，交付更快）。
+5. **M-B3 与 M6 合并立项**：**✅ 已裁定（2026-07-11 用户）：合并**——一套 op-geth 库生成器同源产出 tx 级 + 块级向量，同一 DIVERGENCES 纪律，交付排在 M-B1/B2 之后。
 
 ## 7. 约束（沿主 spec，全文有效）
 
