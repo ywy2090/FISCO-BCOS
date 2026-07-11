@@ -1,6 +1,6 @@
 # bcos-evm-ref OP 区块执行适配设计（M-B1/B2/B3）
 
-**日期：** 2026-07-11（rev.1）
+**日期：** 2026-07-11（rev.1 → **rev.2：对抗性审查对 op-geth v1.101702.2 全文核验——0 处错误声称；5 个"待钉"项就地钉死（EncodeIndex root 编码、withdrawalsRoot 构建侧、requestsHash 定值、DEPOSITOR 常量与校验层级、Jovian BlobGasUsed 重用）；决策点 1/2 补"自加严"标注**）
 **状态：** 待用户审阅
 **上游文档：** 主 spec `2026-07-08-bcos-evm-ref-evmone-reuse-design.md`（rev.8.2）§4.4/§5.2 的块级编排草图——本文是其实施级展开；D5 口径（与 `bcos-evm` 无关联）与 D4 工作流（先 plan 后动手）继续约束本文全部里程碑。
 **基线：** evmone REF `3585c2cb`（system_contracts/finalize/mpt 相关 API 以此为准）；op-geth v1.101702.2（唯一 OP 正确性基准，`core/state_processor.go` / `core/types/receipt.go` / `block_validator.go`）。
@@ -77,8 +77,8 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
 
 执行顺序（= §4.4，逐条对 op-geth）：
 
-1. `evmone::state::system_call_block_start(view, block, hashes, cfg.rev, vm)` → `applyDiff`。该函数内部按 rev 门控（4788 需 Cancun+、2935 需 Prague+），与 OP fork→rev 映射（Ecotone/Fjord/Granite/Holocene=CANCUN、Isthmus+=PRAGUE）**天然对齐，无需自写门控**；op-geth 对 OP 不豁免这两个调用（`state_processor.go:90-95`，rev.2 审查已源码确证）。
-2. 首笔 L1 attributes deposit 经 `runDeposit` 执行、`applyDiff` 写回，**然后** `loadOpFeeParams(view)` 解包（时序：fee params 必须来自本块 attributes 写入后的槽值）。
+1. `evmone::state::system_call_block_start(view, block, hashes, cfg.rev, vm)` → `applyDiff`。该函数内部按 rev 门控（4788 需 Cancun+、2935 需 Prague+），与 OP fork→rev 映射（Ecotone/Fjord/Granite/Holocene=CANCUN、Isthmus+=PRAGUE）**天然对齐，无需自写门控**；op-geth 对 OP 不豁免这两个调用（`state_processor.go:90-95`）。**细化（rev.2 核验）**：op-geth 侧 4788 的直接触发条件是 `header.ParentBeaconRoot != nil` 而非 fork 判断（`state_processor.go:90`）——对 OP 恒真由 header 规则闭环（Cancun 块必有 beaconRoot：`consensus/beacon/consensus.go:296-299`；OP 强制 `CancunTime == EcotoneTime`：`params/config.go:1690-1691`）；2935 的 `IsPrague ≡ Isthmus` 同由 `PragueTime == IsthmusTime` 强制（`config.go:1693-1694`）。BlockInfo 需携带 parent beacon root 供 evmone 侧使用。
+2. 首笔 L1 attributes deposit 经 `runDeposit` 执行、`applyDiff` 写回，**然后** `loadOpFeeParams(view)` 解包（时序：fee params 必须来自本块 attributes 写入后的槽值）。**等价性依据（rev.2 核验）**：op-geth 是惰性 + **per-block 缓存**读槽（`rollup_cost.go:199-207`；deposit 短路不触发读 `:196-198`），首次读发生在第一笔普通 tx——其注释 `:162-164` 明言"允许本块 deposit 先处理…This behavior is consensus critical!"。「attributes 后解包一次、全块复用」与之等价（attributes 与首笔普通 tx 之间只可能有 deposit，而 L1Block 槽仅 DEPOSITOR 可写）。
 3. 逐笔：deposit → `runDeposit(…, blockGasLeft)`；普通 tx → `opValidate(…, fee, blockGasLeft)` → `opTransition`。每笔后：`applyDiff(receipt.state_diff)`；`blockGasLeft -= gasUsed`；`cumulative_gas_used = 前值 + gasUsed`（deposit 与普通 tx 混排累计，op-geth 同口径）。普通 tx 的 `opValidate` 返回 `GAS_LIMIT_REACHED` 时**同样升块级错误**（对齐 rev.2 给 deposit 定的口径；op-geth `gp.SubGas` 对两类 tx 同一 gas pool）。
 4. 块尾：`finalizeOpBlock(view, cfg, coinbase)` → `applyDiff`——D-10 台账状态由 🔶 升 ✅ 的条件即本步（回填须引用接线 commit）。
 
@@ -86,12 +86,12 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
 
 ### 4.2 receipt 编码与块头承诺（M-B2，新文件 `bcos-evm-ref/opstack/OpReceiptEncode.{h,cpp}` + `OpBlockSeal.{h,cpp}`）
 
-- **0x7E receipt envelope**（op-geth `core/types/receipt.go`）：`0x7E ‖ rlp([status, cumulativeGasUsed, logsBloom, logs])`，**Canyon+ 追加 `depositNonce`、`depositReceiptVersion(=1)` 两字段**（本模块支持面 Ecotone+ ⊂ Canyon+，恒附加；字段值已由 `OpDepositReceipt.deposit_nonce/deposit_receipt_version` 携带）。普通 tx 沿用标准 typed envelope（type 0/1/2/4，evmone 已有编码可对照）。
+- **0x7E receipt envelope**（**rev.2 钉死**）：**receipts-root 的编码语义 = `Receipts.EncodeIndex`（`core/types/receipt.go:568-592`），不是 `MarshalBinary`（`:279-288`）**——二者对"nonce 有、version 无"的 receipt 刻意不同（函数头注释 `:564-567` 明令不许改）。root 编码：`0x7E ‖ rlp([status, cumulativeGasUsed, logsBloom, logs, depositNonce, depositReceiptVersion])`，末两字段**成对**、以 `DepositReceiptVersion != nil` 为门（`depositReceiptRLP` 结构 `:136-148`，`rlp:"optional"`）；"只有 nonce"的形态永不进 root。赋值：Regolith+ 设 nonce、Canyon+ 设 version=1（`state_processor.go:217-227`、`receipt.go:52`）——本模块支持面 Ecotone+ ⊂ Canyon+，**恒成对附加**；字段值已由 `OpDepositReceipt.deposit_nonce/deposit_receipt_version` 携带。普通 tx 沿用标准 typed envelope（type 0/1/2/4，evmone 已有编码可对照）。
 - **receipts-root**：复用 evmone 的 MPT 机制（testutils 侧，eth 路径四 root 判据已在用），叶值换成上述 OP 编码；具体接缝（generic mpt insert vs 自建 trie 组装）在 M-B2 plan 里对 REF 源码钉定。
 - **块级 logsBloom**：`evmone::state::compute_bloom_filter(receipts)` 重载现成——但入参是 evmone `TransactionReceipt` 序列，deposit/普通混排的序列组装由 seal 函数负责。
-- **Isthmus withdrawalsRoot**：= L2ToL1MessagePasser `0x4200…0016` 的 storage root（op-geth `block_validator.go:195`）。需要"单账户 storage root"能力——evmone MPT 可算，输入是该账户执行后全量 storage（**注意：这要求 StateView 能枚举账户 storage，现接口只有按 key 点查——见 §6 决策点 3**）。
-- **requestsHash**：OP Isthmus 块头该字段的确切值（EIP-7685 空 requests 承诺 vs 缺省）**待钉**——M-B2 plan 的第一步以 op-geth 源码为准（查 `state_processor.go`/`block_validator.go` 对 OP 块头 RequestsHash 的赋值），本文不猜。
-- **Jovian**：`da_footprint` 聚合到块头 blobGasUsed 语义位——同样在 M-B2 plan 对 op-geth 钉行号。
+- **Isthmus withdrawalsRoot**：= L2ToL1MessagePasser `0x4200…0016`（`params/protocol_params.go:31`）的 storage root——验证侧 `block_validator.go:190-198`（读取在 `:195`）；**构建侧（rev.2 钉死）`consensus/beacon/consensus.go:416-427`：在 `IntermediateRoot`（块尾 finalize 后）之后取**，即快照时点必须是**块执行完毕后**的状态——这是 §6 决策点 3 的硬约束。需要"单账户 storage root"能力（StateView 无枚举接口，见 §6 决策点 3）。
+- **requestsHash**（**rev.2 钉死，从开放问题移除**）：OP Isthmus 块头 `RequestsHash` = **`EmptyRequestsHash` = sha256("") = `0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`**（`core/types/hashes.go:43-44`；构建侧 `miner/worker.go:283-290` 对空 requests 列表算 `CalcRequestsHash`；验证侧 `block_validator.go:177-184` 与 Process 的 nil requests 恒匹配）。
+- **Jovian**（**rev.2 钉死**）：**`header.BlobGasUsed` 被重用为 DA footprint 存储位**——验证 `block_validator.go:119-134`（nil 拒绝、须 == `CalcDAFootprint(txs)`、超块 gasLimit 拒绝）；构建 `consensus/beacon/consensus.go:429-437`；计算 `rollup_cost.go:563-593`（scalar 取自 txs[0] attributes 载荷，仅对非 deposit 累加）；4844 整数倍检查对 OP 豁免（`consensus/misc/eip4844/eip4844.go:113-123`）。
 
 ### 4.3 验证策略（M-B1 单测 + M-B3 差分）
 
@@ -117,10 +117,10 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
 
 ## 6. 开放问题 / 决策点（plan 前须裁定或 plan 内钉定）
 
-1. **deposits-first 校验归属**：§1.3 原口径"由 fixture/derivation 保证"；本文 §4.1 将其升级为 `processOpBlock` 内的块级错误（作为执行客户端的最终形态需要它，且成本一行）。**如不同意，改回信任上游**——需用户裁定。
-2. **L1 attributes deposit 的识别方式**：按位置（首笔 deposit 即视为 attributes）还是按内容（`to == L1_BLOCK_PREDEPLOY && from == DEPOSITOR_ACCOUNT`）？op-geth derivation 保证首笔即是；建议**按内容校验 + 位置约定**双重（校验失败 = 块级错误），plan 时对 op-geth 钉 `DEPOSITOR_ACCOUNT` 常量。
-3. **withdrawalsRoot 需要枚举账户 storage**，evmone `StateView` 无枚举接口——候选：(a) 由调用方（账本侧）提供该账户 storage 快照作 `processOpBlock`/seal 的显式入参；(b) 扩宽本模块适配器（不动 evmone）。倾向 (a)（保持 3 方法窄接口，与 M3.5 的接口宽度结论一致）；M-B2 plan 定稿。
-4. **requestsHash 确切口径**：待 M-B2 plan 对 op-geth 钉（见 §4.2）。
+1. **deposits-first 校验归属**（**rev.2 补事实**：op-geth EL **不校验**此不变量——`ValidateBody`/`Process` 全文无检查，`rollup_cost.go:573` 注释把它当前提用；不变量由 op-node derivation 维护；Jovian 起 EL 仅经 `CalcDAFootprint` 间接检查首笔是 deposit）。本文 §4.1 将其升级为 `processOpBlock` 内的块级错误——**这是超出 op-geth EL 的自加严**（语义 = 把 op-node 的 CL 不变量下沉到 EL）。**需用户裁定：自加严 or 对齐 op-geth EL（信任上游）**。
+2. **L1 attributes deposit 的识别方式**（**rev.2 钉死常量与层级**）：`DEPOSITOR_ACCOUNT = 0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001`（规范常量在 op-node `derive/l1_block_info.go:40`；op-geth 内仅 `eth/downloader/receiptreference.go:28` 非共识用途）；L1Block predeploy = `0x4200…0015`（`rollup_cost.go:67-68`）。**"首笔必须是 L1 info tx"的校验在 op-node CL 层**（`derive/payload_util.go:27-40`），op-geth EL（pre-Jovian）零检查。建议维持"按内容校验 + 位置约定"双重——同为**自加严**，与决策点 1 一并裁定。
+3. **withdrawalsRoot 需要枚举账户 storage**，evmone `StateView` 无枚举接口——候选：(a) 由调用方（账本侧）提供该账户 storage 快照作 seal 的显式入参；(b) 扩宽本模块适配器（不动 evmone）。倾向 (a)（保持 3 方法窄接口，与 M3.5 的接口宽度结论一致）。**rev.2 补硬约束**：快照时点必须是块尾 finalize 之后（op-geth 构建侧 `consensus.go:413→421` 顺序）。M-B2 plan 定稿。
+4. ~~requestsHash 确切口径~~（**rev.2 已钉死**，见 §4.2——`EmptyRequestsHash`，不再是开放问题）。
 5. **M-B3 与 M6 合并立项**：建议合并（省一套生成器基建）；如分开，M6 先行（tx 级向量已有 M-T 方法论，交付更快）。
 
 ## 7. 约束（沿主 spec，全文有效）
