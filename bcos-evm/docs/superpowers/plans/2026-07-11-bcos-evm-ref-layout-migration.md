@@ -21,7 +21,7 @@ bcos-evm-ref/
 ├── bcos-evm-ref/
 │   ├── adapter/   StateDiffWriteback.h  StateViewAdapter.h          （2 头，header-only）
 │   ├── eth/       EthTransition.h  EthTransition.cpp               （1+1）
-│   └── opstack/   Op*.h + Op*.cpp + RollupCost.*                   （13 头 + 12 源并排）
+│   └── opstack/   Op*.h + Op*.cpp + RollupCost.*                   （12 头 + 12 源并排；原文误写 13 头，执行审查勘正）
 ├── test/  docs/  scripts/  spike/                                   （不动）
 ├── CMakeLists.txt  README.md  vcpkg.json  vcpkg-configuration.json  iwyu-bcos-evm-ref.imp
 ```
