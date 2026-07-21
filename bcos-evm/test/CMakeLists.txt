@@ -2,6 +2,7 @@ find_package(Boost REQUIRED unit_test_framework)
 
 add_executable(bcos-evm-eth-tests
     eth/EthTransitionTest.cpp
+    eth/StateDiffWritebackTest.cpp
 )
 target_link_libraries(bcos-evm-eth-tests PRIVATE
     bcosevm::eth
