@@ -281,38 +281,20 @@ Expected: every hunk "succeeded", zero rejects.
 
 - [ ] **Step 13: Bump port-version, clean the portfile (review Findings), refresh its comment**
 
-In `ports/evmone/vcpkg.json`: `"port-version": 5,` → `"port-version": 6,`.
+In `ports/evmone/vcpkg.json`: `"port-version": 6,` → `"port-version": 7,`.
 
 In `ports/evmone/portfile.cmake`:
 
 1. DELETE step 1b (lines 20–25, the `vcpkg_replace_string` on `lib/evmone/CMakeLists.txt`) — its needle has an escaping bug and has NEVER matched (build log: "vcpkg_replace_string made no changes"); its target text no longer exists after patch Step 9 anyway.
 2. DELETE step 2 (lines 27–32, the `EXPORT evmoneTargets` removal) — official v0.21.0 has no `install(EXPORT)`/`export()` anywhere, so the export set never exists and the edit is dead logic.
 3. DELETE step 4b (the 6-header curated `file(INSTALL ...baseline.hpp vm.hpp execution_state.hpp tracing.hpp constants.hpp delegation.hpp...)` block) — fully redundant with the patch's `install(DIRECTORY .../lib/evmone/ ... PATTERN "*.hpp")`.
-4. In the hand-written config, give `evmone::precompiles` a debug location (latent MSVC LNK2038 / silent release-mix on Unix). Change:
+4. VERIFY (already fixed in #5351, commit `10fa81b27`) that the `evmone::precompiles` block carries `IMPORTED_LOCATION_RELEASE`/`IMPORTED_LOCATION_DEBUG`/`IMPORTED_LOCATION`; no edit expected:
 
-```cmake
-    add_library(evmone::precompiles STATIC IMPORTED)
-    set_target_properties(evmone::precompiles PROPERTIES
-        IMPORTED_LOCATION
-            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
-        INTERFACE_LINK_LIBRARIES "blst"
-    )
+```bash
+grep -A2 "IMPORTED_LOCATION_DEBUG" ports/evmone/portfile.cmake | grep -c evmone_precompiles
 ```
 
-to:
-
-```cmake
-    add_library(evmone::precompiles STATIC IMPORTED)
-    set_target_properties(evmone::precompiles PROPERTIES
-        IMPORTED_LOCATION_RELEASE
-            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
-        IMPORTED_LOCATION_DEBUG
-            "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
-        IMPORTED_LOCATION
-            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
-        INTERFACE_LINK_LIBRARIES "blst"
-    )
-```
+Expected: `1`.
 
 5. Replace comment lines 1–6 with:
 
