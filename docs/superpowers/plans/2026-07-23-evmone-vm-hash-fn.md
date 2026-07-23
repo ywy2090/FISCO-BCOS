@@ -18,7 +18,7 @@
 - ABI-ghost rule: after any evmone header/struct change, results only count after the port is rebuilt (port-version bump) **and** FISCO targets recompiled. Never judge a test run from a stale incremental build.
 - Test-methodology rule: `TransactionExecutorImpl/proxyReceive` FAILS in a full-suite run (pre-existing in-process ordering dependency, identical on base). Judge it **isolated-vs-isolated only**.
 - Known pre-existing ctest failures to ignore: `TestTiKVStorage/*` (needs live TiKV), `test-rpbft`, `WsToolsTest/test_WsToolsTest`.
-- Behavior invariants (spec §3): SM chain KECCAK256→SM3 unchanged; bcos-evm stays keccak even on SM nodes; exception propagation through evmone unchanged (`noexcept` removal and `-fno-exceptions` removal stay in the patch).
+- Behavior invariants (spec §3): SM chain KECCAK256→SM3 unchanged; bcos-evm stays keccak even on SM nodes; the `noexcept` removal and `-fno-exceptions` removal stay in the patch as **fork parity** (review-corrected: they do NOT enable exception propagation — intermediate frames are still noexcept; do not restore them here either, that is a separate behavioral experiment).
 - Two-commit split (spec §10): commit 1 = evmone port side; commit 2 = FISCO side. Commit 1 alone does not build FISCO — accepted by spec.
 
 ---
@@ -230,7 +230,36 @@ Replace with:
 
 (`evmc::bytes32 : evmc_bytes32` with no extra members — the reference cast is layout-safe; the current patch already relies on `intx::be::load<uint256>` over `evmc::bytes32`.)
 
-- [ ] **Step 9: Regenerate the patch and install it**
+- [ ] **Step 9: Edit `b/lib/evmone/CMakeLists.txt` — drop the dead cmake-config hunk (review Finding)**
+
+The current patch appends a `write_basic_package_version_file` / `Config.cmake.in` / `configure_package_config_file` / `install(FILES ...)` block whose only output (`lib/cmake/evmone/*`) the portfile deletes unconditionally. Delete that entire appended block from `b/lib/evmone/CMakeLists.txt` — everything from:
+
+```cmake
+write_basic_package_version_file(
+```
+
+through the closing:
+
+```cmake
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+)
+```
+
+Keep everything above it (including the `add_standalone_library(evmone)` line and the `-fno-exceptions` removal already applied by the current patch).
+
+- [ ] **Step 10: Hygiene — clean the noexcept-removal residue in `b` (review Finding)**
+
+```bash
+cd /private/tmp/evmone-regen/b
+sed -i '' -e 's/) $/)/' -e 's/) ;/);/' \
+  lib/evmone/advanced_execution.cpp lib/evmone/advanced_execution.hpp \
+  lib/evmone/baseline.hpp lib/evmone/baseline_execution.cpp
+grep -rn ") $\|) ;" lib/evmone/ | head
+```
+
+Expected: final grep prints nothing (no trailing `) ` or `) ;` tokens remain).
+
+- [ ] **Step 11: Regenerate the patch and install it**
 
 ```bash
 cd $W
@@ -241,7 +270,7 @@ grep -c "evmc/include" /Users/octopus/octo/code/FISCO-BCOS/ports/evmone/fisco-sm
 
 Expected: line count in the 130–200 range; the second grep prints `0` (no evmc header hunks at all).
 
-- [ ] **Step 10: Verify the new patch applies cleanly to pristine**
+- [ ] **Step 12: Verify the new patch applies cleanly to pristine**
 
 ```bash
 cd $W && rm -rf c && cp -R a c && cd c
@@ -250,19 +279,51 @@ patch -p1 --dry-run < /Users/octopus/octo/code/FISCO-BCOS/ports/evmone/fisco-sm3
 
 Expected: every hunk "succeeded", zero rejects.
 
-- [ ] **Step 11: Bump port-version and refresh the portfile comment**
+- [ ] **Step 13: Bump port-version, clean the portfile (review Findings), refresh its comment**
 
 In `ports/evmone/vcpkg.json`: `"port-version": 5,` → `"port-version": 6,`.
 
-In `ports/evmone/portfile.cmake`, replace comment lines 1–6 with:
+In `ports/evmone/portfile.cmake`:
+
+1. DELETE step 1b (lines 20–25, the `vcpkg_replace_string` on `lib/evmone/CMakeLists.txt`) — its needle has an escaping bug and has NEVER matched (build log: "vcpkg_replace_string made no changes"); its target text no longer exists after patch Step 9 anyway.
+2. DELETE step 2 (lines 27–32, the `EXPORT evmoneTargets` removal) — official v0.21.0 has no `install(EXPORT)`/`export()` anywhere, so the export set never exists and the edit is dead logic.
+3. DELETE step 4b (the 6-header curated `file(INSTALL ...baseline.hpp vm.hpp execution_state.hpp tracing.hpp constants.hpp delegation.hpp...)` block) — fully redundant with the patch's `install(DIRECTORY .../lib/evmone/ ... PATTERN "*.hpp")`.
+4. In the hand-written config, give `evmone::precompiles` a debug location (latent MSVC LNK2038 / silent release-mix on Unix). Change:
+
+```cmake
+    add_library(evmone::precompiles STATIC IMPORTED)
+    set_target_properties(evmone::precompiles PROPERTIES
+        IMPORTED_LOCATION
+            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+        INTERFACE_LINK_LIBRARIES "blst"
+    )
+```
+
+to:
+
+```cmake
+    add_library(evmone::precompiles STATIC IMPORTED)
+    set_target_properties(evmone::precompiles PROPERTIES
+        IMPORTED_LOCATION_RELEASE
+            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+        IMPORTED_LOCATION_DEBUG
+            "${CMAKE_CURRENT_LIST_DIR}/../../debug/lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+        IMPORTED_LOCATION
+            "${CMAKE_CURRENT_LIST_DIR}/../../lib/${_evmone_lib_prefix}evmone_precompiles${_evmone_lib_suffix}"
+        INTERFACE_LINK_LIBRARIES "blst"
+    )
+```
+
+5. Replace comment lines 1–6 with:
 
 ```cmake
 # Official evmone (ipsilon) v0.21.0. FISCO-BCOS's SM3 (national crypto) support is
 # applied as a transparent patch instead of consuming a private fork: evmone::VM
 # carries an optional host-provided hash_fn used by the KECCAK256 opcode, so SM
 # chains hash with SM3. The evmc/ headers are NOT modified (evmc_host_context stays
-# opaque upstream). The patch also carries the macOS static-lib combine and
-# exception-enabled build tweaks evmone needs here. See fisco-sm3.patch.
+# opaque upstream). The patch also carries the macOS static-lib combine and the
+# fork-parity exception-enabled build (noexcept stripped from the execute entry
+# points; NOT an exception-propagation guarantee). See fisco-sm3.patch.
 ```
 
 ---
@@ -329,7 +390,7 @@ Expected: commit created on `refactor-evmone-vm-hash-fn`.
 
 **Interfaces:**
 - Consumes: `evmone::VM::hash_fn` member (Task 1); opaque `evmc_host_context` (Task 2).
-- Produces: `bcos::executor::evm_hash_fn` declared in `HostContext.h` with signature `evmc_bytes32 evm_hash_fn(evmc_host_context* context, const uint8_t* data, size_t size);` — Task 4 uses the same pattern for executor_v1. `HostContext` keeps a public `const evmc_host_interface* interface` member (same spelling as the old inherited field → zero call-site churn).
+- Produces: `bcos::executor::evm_hash_fn` declared in `HostContext.h` with signature `evmc_bytes32 evm_hash_fn(evmc_host_context* context, const uint8_t* data, size_t size);` — Task 4 uses the same pattern for executor_v1. `HostContext` gains a public `const evmc_host_interface* hostInterface` member (renamed from the old inherited `interface` — that spelling collides with the Windows SDK `#define interface struct` macro; review finding).
 
 - [ ] **Step 1: HostContext.h — drop the base class, add the interface member and evm_hash_fn declaration**
 
@@ -348,9 +409,10 @@ to:
 class HostContext
 {
 public:
-    /// EVMC host interface table (formerly inherited from the concretized
-    /// evmc_host_context; the evmc type is upstream-opaque again).
-    const evmc_host_interface* interface = nullptr;
+    /// EVMC host interface table (formerly the inherited `interface` field of the
+    /// concretized evmc_host_context; the evmc type is upstream-opaque again).
+    /// Renamed: `interface` is a Windows SDK macro (#define interface struct).
+    const evmc_host_interface* hostInterface = nullptr;
 
     using UniquePtr = std::unique_ptr<HostContext>;
 ```
@@ -363,7 +425,7 @@ Then add, in namespace scope near the class (next to the other free-function dec
 evmc_bytes32 evm_hash_fn(evmc_host_context* context, const uint8_t* data, size_t size);
 ```
 
-- [ ] **Step 2: HostContext.cpp — remove the ctx-field hash assignment**
+- [ ] **Step 2: HostContext.cpp — remove the ctx-field hash assignment, rename the interface write**
 
 At lines 72–74, change:
 
@@ -376,7 +438,7 @@ At lines 72–74, change:
 to:
 
 ```cpp
-    interface = getHostInterface();
+    hostInterface = getHostInterface();
 ```
 
 (Keep the `evm_hash_fn` definition at line ~59 exactly as is — it is now installed on the VM by VMInstance instead.)
@@ -445,7 +507,7 @@ Result VMInstance::execute(HostContext& _hostContext, evmc_message* _msg)
     if (m_evmcVm)
     {
         return Result(m_evmcVm
-                          ->execute(*_hostContext.interface, hostCtx, m_revision, *_msg,
+                          ->execute(*_hostContext.hostInterface, hostCtx, m_revision, *_msg,
                               m_code.data(), m_code.size())
                           .release_raw());
     }
@@ -466,7 +528,7 @@ to:
     auto* evmoneVm = static_cast<evmone::VM*>(evm.get_raw_pointer());
     evmoneVm->hash_fn = evm_hash_fn;
     return Result(evmone::baseline::execute(
-        *evmoneVm, *_hostContext.interface, hostCtx, m_revision, *_msg, *m_analysis));
+        *evmoneVm, *_hostContext.hostInterface, hostCtx, m_revision, *_msg, *m_analysis));
 ```
 
 (`VMInstance.cpp` already includes `HostContext.h` and `<evmone/vm.hpp>` — no include changes.)
@@ -513,10 +575,11 @@ to:
 class HostContext
 {
 private:
-    /// EVMC host interface table (formerly inherited from the concretized
-    /// evmc_host_context; the evmc type is upstream-opaque again). Declared first
-    /// so the mem-init list order below matches declaration order.
-    const evmc_host_interface* interface = nullptr;
+    /// EVMC host interface table (formerly the inherited `interface` field of the
+    /// concretized evmc_host_context; the evmc type is upstream-opaque again).
+    /// Renamed: `interface` is a Windows SDK macro. Declared first so the
+    /// mem-init list order below matches declaration order.
+    const evmc_host_interface* m_hostInterface = nullptr;
 
     std::reference_wrapper<Storage> m_rollbackableStorage;
 ```
@@ -533,7 +596,7 @@ Change:
 to:
 
 ```cpp
-      : interface(hostInterface),
+      : m_hostInterface(hostInterface),
         m_rollbackableStorage(storage),
 ```
 
@@ -548,7 +611,7 @@ Change:
 to:
 
 ```cpp
-        co_return m_executable->m_vmInstance.execute(interface,
+        co_return m_executable->m_vmInstance.execute(m_hostInterface,
             reinterpret_cast<evmc_host_context*>(this), m_revision,
 ```
 
@@ -631,7 +694,124 @@ If the pre-commit hook reformats files, re-`git add` them and commit again.
 
 ---
 
-### Task 5: Full verification
+### Task 5: HashFnRoutingTest — seam-level assertion of the KECCAK256 routing
+
+**Files:**
+- Create: `bcos-executor/test/unittest/evmone/HashFnRoutingTest.cpp`
+
+**Interfaces:**
+- Consumes: `evmone::VM::hash_fn` (Task 1), upstream `evmc::VM::execute(const evmc_host_interface&, evmc_host_context*, ...)`.
+- Produces: nothing (leaf test). Collected automatically — `bcos-executor/test/unittest/CMakeLists.txt` uses `file(GLOB_RECURSE SOURCES "*.cpp" ...)`, no CMake edit needed.
+
+Closes the review-identified gap: the fork's evmone-level hook test was dropped and no FISCO test asserts the KECCAK256 *opcode* routing. A sentinel hash fn proves routing directly (independent of SM3 availability); a second VM without hash_fn proves the upstream-keccak fallback.
+
+- [ ] **Step 1: Write the test**
+
+```cpp
+/*
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  @brief Seam test: KECCAK256 opcode routes through evmone::VM::hash_fn when set,
+ *         falls back to upstream ethash::keccak256 when not.
+ *  @file HashFnRoutingTest.cpp
+ */
+#include <boost/test/unit_test.hpp>
+#include <evmc/evmc.hpp>
+#include <evmone/evmone.h>
+#include <evmone/vm.hpp>
+#include <cstring>
+
+namespace bcos::test
+{
+
+namespace
+{
+// PUSH1 0, PUSH1 0, KECCAK256, PUSH1 0, MSTORE, PUSH1 32, PUSH1 0, RETURN
+// => returns the 32-byte hash of the empty input.
+constexpr uint8_t kKeccakEmptyBytecode[] = {
+    0x60, 0x00, 0x60, 0x00, 0x20, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3};
+
+// keccak256("") — well-known constant.
+constexpr uint8_t kKeccakEmptyDigest[32] = {0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92,
+    0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b,
+    0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70};
+
+evmc_bytes32 sentinelHash(evmc_host_context* /*context*/, const uint8_t* /*data*/, size_t /*size*/)
+{
+    evmc_bytes32 h{};
+    for (size_t i = 0; i < sizeof(h.bytes); ++i)
+    {
+        h.bytes[i] = static_cast<uint8_t>(i + 1);
+    }
+    return h;
+}
+
+// No host callback fires for this bytecode; a zeroed interface is sufficient.
+const evmc_host_interface kEmptyHostInterface{};
+
+evmc::Result runKeccakEmpty(bool withSentinel)
+{
+    evmc::VM vm{evmc_create_evmone()};
+    if (withSentinel)
+    {
+        static_cast<evmone::VM*>(vm.get_raw_pointer())->hash_fn = sentinelHash;
+    }
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.gas = 100000;
+    return vm.execute(kEmptyHostInterface, nullptr, EVMC_SHANGHAI, msg, kKeccakEmptyBytecode,
+        sizeof(kKeccakEmptyBytecode));
+}
+}  // namespace
+
+BOOST_AUTO_TEST_SUITE(HashFnRoutingTest)
+
+BOOST_AUTO_TEST_CASE(keccak256OpcodeUsesVmHashFnWhenSet)
+{
+    auto result = runKeccakEmpty(true);
+    BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(result.output_size, 32U);
+    for (size_t i = 0; i < 32; ++i)
+    {
+        BOOST_CHECK_EQUAL(result.output_data[i], static_cast<uint8_t>(i + 1));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(keccak256OpcodeFallsBackToKeccakWhenUnset)
+{
+    auto result = runKeccakEmpty(false);
+    BOOST_CHECK_EQUAL(result.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(result.output_size, 32U);
+    BOOST_CHECK_EQUAL(std::memcmp(result.output_data, kKeccakEmptyDigest, 32), 0);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+}  // namespace bcos::test
+```
+
+- [ ] **Step 2: Build and run the two cases**
+
+```bash
+cd /Users/octopus/octo/code/FISCO-BCOS
+cmake --build build --target test-bcos-executor 2>&1 | grep -iE "error" | head
+build/bcos-executor/test/unittest/test-bcos-executor --run_test=HashFnRoutingTest 2>&1 | tail -3
+```
+
+Expected: no compile errors; `*** No errors detected`. The sentinel case fails if routing is broken; the fallback case fails if hash_fn leaks between VMs.
+
+- [ ] **Step 3: Fold into commit 2 (branch is unpushed — amend is safe)**
+
+```bash
+git add bcos-executor/test/unittest/evmone/HashFnRoutingTest.cpp
+git commit --amend --no-edit
+```
+
+Expected: commit 2 now contains the 7 refactor files + the new test.
+
+---
+
+### Task 6: Full verification
 
 **Files:** none (verification only; fixes → amend commit 2).
 
@@ -673,4 +853,4 @@ git log --oneline evmone-official-dep..HEAD
 git status --short | grep -v "^??"
 ```
 
-Expected: exactly 3 commits (spec doc, evmone side, FISCO side); clean tree.
+Expected: the docs commits (spec/plan and their review revision) followed by exactly two code commits — evmone side (Task 2) and FISCO side (Task 4, amended by Task 5); clean tree.

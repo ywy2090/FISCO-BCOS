@@ -51,9 +51,12 @@ hash_fn 挂到 **VM 对象**上即可覆盖全部路径。
 3. bcos-evm:不设 hash_fn → nullptr → 上游 `ethash::keccak256`
    (与今天 WrappedHostContext 携带 null 的回退等价);**SM 节点上 bcos-evm
    仍是 keccak** —— 这是 per-VM 隔离的硬要求(见 §7 变体 3 否决理由)
-4. 异常穿透 evmone 传播(`NotEnoughCashError`/`PrecompiledError`,
-   `TransactionExecutive.cpp:748/761` 依赖之)不变 —— patch 中 noexcept 移除与
-   `-fno-exceptions` 移除**保留**
+4. patch 中 noexcept 移除与 `-fno-exceptions` 移除**保留,定位为 fork parity**。
+   (评审更正:此前「异常穿透 evmone 传播刚需」的论断不成立——回调与 execute
+   之间各帧(`evmc.hpp` HostContext 包装、`call_impl`、`invoke`/`dispatch`)仍是
+   noexcept,逃逸异常一律 `std::terminate`;`NotEnoughCashError` 等实际在回调
+   **内部**被捕获,从不穿越 evmone。恢复 noexcept + 回调 catch-all 属独立行为
+   实验,不在本次范围。)
 5. `evmc_message` 保持上游布局(#5351 已达成)
 
 ## 4. 数据流
@@ -84,17 +87,22 @@ hash_fn 回调签名保持 EVMC 风格(首参 `evmc_host_context*`),ExecutionSta
 | 保留 | `lib/evmone/instructions.hpp` | KECCAK256 判空路由(与 #5351 相同) |
 | 保留 | noexcept 移除 + `-fno-exceptions` 移除 | 异常传播刚需(§3.4) |
 | 保留 | 构建打包 | macOS `libtool -static`、内部头安装、cmake config |
-| **删除** | `evmc/include/evmc/evmc.h` | 具体化整段 |
+| **删除** | `evmc/include/evmc/evmc.h` | 具体化整段(顺带消除 `interface` 字段名与 Windows SDK `#define interface struct` 宏的冲突) |
 | **删除** | `evmc/include/evmc/evmc.hpp` | WrappedHostContext/magic/internal:: 改写/set·get_hash_fn/VM::execute 出线 |
 | **删除** | `evmc/include/evmc/mocked_host.hpp` | hash 扩展(审查确认:全仓无使用者) |
+| **删除** | `lib/evmone/CMakeLists.txt` 的 cmake config 生成块 | 评审发现死链:其产物被 portfile 无条件 `REMOVE_RECURSE`,且 portfile step 1b 的 `vcpkg_replace_string` 因转义 bug 从未匹配过 |
+| 卫生 | noexcept 剥离残留的尾随空格/`) ;`(5 处) | 重新生成时清除 |
 
-`ports/evmone/vcpkg.json` port-version 5→6。
+`ports/evmone/vcpkg.json` port-version 5→6。**portfile.cmake 一并清理**(评审发现):
+删除 step 1b(转义 bug 静默 no-op)、step 2(官方源无 export set,死逻辑)、
+step 4b(与 patch 的 DIRECTORY 安装完全冗余);`evmone::precompiles` 目标补
+`IMPORTED_LOCATION_DEBUG`(缺失导致 Debug 消费者链 release 库,MSVC 上 LNK2038)。
 
 ## 6. FISCO 侧改动(~8 文件,测试 ~0)
 
 1. **bcos-executor `HostContext`**:去掉 `: public evmc_host_context`;
-   `interface` 改普通成员/访问器;删 ctor 里 `interface = getHostInterface();
-   hash_fn = evm_hash_fn;`
+   接口表改普通成员并**更名 `hostInterface`**(避开 Windows SDK
+   `#define interface struct` 宏,评审建议);删 ctor 里 `hash_fn = evm_hash_fn;`
 2. **bcos-executor `EVMHostInterface.cpp`**:**16 处**
    `static_cast<HostContext&>(*context)` → `reinterpret_cast`(机械替换;
    前提:这些路径的 ctx 恒为对应执行器的 HostContext,见 §8)
@@ -103,14 +111,18 @@ hash_fn 回调签名保持 EVMC 风格(首参 `evmc_host_context*`),ExecutionSta
    `vm->hash_fn = evm_hash_fn`(无条件,与今天一致);
    `VMInstance::execute` 读 interface 改经访问器
 4. **transaction-executor `HostContext.h`**:删基类与聚合初始化
-   (`:207`),hostInterface 改成员;`:885` 传
-   `reinterpret_cast<evmc_host_context*>(this)`
+   (`:207`),接口表改私有成员 `m_hostInterface`(贴合该类 m_ 前缀惯例;
+   更名理由同项 1);`:885` 传 `reinterpret_cast<evmc_host_context*>(this)`
 5. **transaction-executor `EVMHostInterface.h`**:**16 处**
    `static_cast<HostContextType&>` → `reinterpret_cast`
 6. **transaction-executor `VMInstance.cpp:20`**:fresh VM 设 `vm->hash_fn`
 7. **bcos-evm:零改动**
-8. **测试:预计零改动**(审查确认:全仓无直接聚合构造 `evmc_host_context`
-   的测试,无 MockedHost hash 使用者)
+8. **测试:现有测试零改动**(审查确认:全仓无直接聚合构造 `evmc_host_context`
+   的测试,无 MockedHost hash 使用者);**新增 1 个 seam 级测试**
+   `bcos-executor/test/unittest/evmone/HashFnRoutingTest.cpp`:直接构造 evmone
+   VM,断言(a)设 sentinel hash_fn 后 KECCAK256 opcode 输出 == sentinel,
+   (b)不设时输出 == keccak256("") 常量——补上评审指出的缺口(fork 曾有的
+   evmone 级 hook 测试被丢,且 FISCO 现有测试无 opcode 级 hash 路由断言)
 
 ## 7. 已否决的替代方案
 
@@ -142,14 +154,30 @@ hash_fn 回调签名保持 EVMC 风格(首参 `evmc_host_context*`),ExecutionSta
    (注:proxyReceive 在完整套件中的失败是 pre-existing 进程内顺序依赖,
    base 分支同样失败;判定回归必须同口径——隔离对隔离、ctest 对 ctest)
 4. bcos-evm EthTransitionTest(验证不变量 §3.3)
-5. ctest 全量:仅允许已知 pre-existing 失败(TiKV 需 live server、test-rpbft、
+5. **HashFnRoutingTest**(§6.8 新增):sentinel 路由 + keccak 回退两断言通过
+6. ctest 全量:仅允许已知 pre-existing 失败(TiKV 需 live server、test-rpbft、
    WsToolsTest)
 
 ## 10. 规模估计与交付
 
 - patch:~500 → ~150 行(evmc 头零改动)
-- FISCO 生产代码:~8 文件;测试:~0
+- FISCO 生产代码:~8 文件;测试:+1 新文件(现有零改动)
 - 分支:`refactor-evmone-vm-hash-fn`(基于 `evmone-official-dep`);
   #5351 合入后提独立 PR,commit 拆分建议:
-  1. patch 重写 + port-version bump(evmone 侧)
-  2. 两执行器 de-inherit + cast 扫 + VM 设置点(FISCO 侧)
+  1. patch 重写 + port-version bump + portfile 清理(evmone 侧)
+  2. 两执行器 de-inherit + cast 扫 + VM 设置点 + 新测试(FISCO 侧)
+
+## 11. 评审修订记录(2026-07-23,4-agent 审查)
+
+本 spec 依据对 #5351 的四视角审查(patch 语义/port 构建/FISCO 侧/共识等价)修订:
+
+- **共识等价获独立确证**:fork 源与官方 v0.21.0 逐字节比较,`lib/evmone/` 与
+  `evmc.hpp` 在 fork 与官方+patch 间完全一致;全部差异即死字段删除。
+- **§3.4 更正**:「noexcept 移除=异常传播刚需」被证伪,改为 fork parity 定位。
+- **本设计消除的评审 Major**:`internal::get_hash_fn` 兜底盲读 offset 8 的
+  type-pun 地雷(对下游安装头是隐患)——恢复 opaque 后整体消失。
+- **纳入范围**:portfile 死逻辑清理(step 1b/2/4b)、precompiles Debug 位置、
+  patch 卫生、`interface` 更名、HashFnRoutingTest。
+- **明确不纳入**:回调 no-throw 契约整治(v1 `EVMHostInterface.h:225` 按不存在
+  的传播契约抛 `GasOverflow`,触发即 terminate——fork parity 的 latent 问题,
+  留独立 PR)。
