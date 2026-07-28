@@ -30,6 +30,7 @@
 
 using namespace bcos;
 using namespace bcos::executor_v1;
+using namespace evmc::literals;
 using bcos::executor_v1::opstack::OpstackExecutor;
 
 namespace
@@ -139,19 +140,35 @@ TEST_F(Fixture, ExecutesNormalTransferEndToEnd)
     blockHeader.calculateHash(*cryptoSuite->hashImpl());
 
     auto tx = buildWeb3Tx();
-    // The recovered sender is derived from the signature; seed exactly that account so buy-gas +
-    // value transfer succeed. 1e18 wei comfortably covers gas_limit*0 + value.
-    auto const& senderBytes = tx.sender();
-    evmc::address sender{};
-    ASSERT_EQ(senderBytes.size(), sizeof(evmc_address));
-    std::copy_n(senderBytes.begin(), sizeof(evmc_address), sender.bytes);
+    // evmone validation does not verify signatures — the sender is an input. Force a known sender
+    // (recovering the real signer would need an ecrecover round-trip) and seed exactly that
+    // account. clearSenderAndHash() taints the tx so forceSender is permitted; the executor never
+    // reads hash(), so clearing it is harmless.
+    constexpr auto sender = 0xe0e794ca86d198042b64285c5ce667aee747509b_address;
+    tx.clearSenderAndHash();
+    tx.forceSender(bcos::bytes(sender.bytes, sender.bytes + sizeof(sender.bytes)));
 
     task::syncWait([&]() -> task::Task<void> {
         ledger::account::EVMAccount<MutableStorage> acc(storage, sender, false);
         co_await acc.create();
-        co_await acc.setBalance(u256("1000000000000000000"));
-        co_await acc.setNonce(
-            std::to_string(tx.nonce().empty() ? std::string("0") : std::string(tx.nonce())));
+        // Cover the fixture tx's ~2 ETH value plus gas_limit*gasPrice with headroom.
+        co_await acc.setBalance(u256("100000000000000000000"));
+        // EIP-3607: evmone validate_transaction (which opValidateFromState uses) rejects a sender
+        // whose code_hash != EMPTY_CODE_HASH. A freshly created BCOS account has code_hash 0x0,
+        // which StorageStateView passes through verbatim, so it reads as "has code". Seed the
+        // canonical empty-code hash so the sender is recognised as an EOA. (Finding:
+        // StorageStateView should normalise codeless accounts to EMPTY_CODE_HASH for the OP
+        // validate path — #5366's EthereumExecutor avoids it by skipping validate_transaction; see
+        // README.md.)
+        co_await acc.setCode({}, "",
+            bcos::crypto::HashType(
+                "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"));
+        // Seed the account nonce to match the tx nonce so validate_transaction's nonce check
+        // passes.
+        std::string nonceStr(tx.nonce());
+        if (nonceStr.empty())
+            nonceStr = "0";
+        co_await acc.setNonce(nonceStr);
         co_return;
     }());
 
@@ -159,16 +176,11 @@ TEST_F(Fixture, ExecutesNormalTransferEndToEnd)
         executor.executeTransaction(storage, blockHeader, tx, 0, ledgerConfig, false));
 
     ASSERT_NE(receipt, nullptr);
-    // A funded normal transfer runs to completion; the base intrinsic cost is charged.
-    EXPECT_GT(receipt->gasUsed(), 0U);
-
-    // Sender nonce advanced by exactly one (the executor incremented it via opTransition).
-    auto const finalNonce = task::syncWait([&]() -> task::Task<std::string> {
-        ledger::account::EVMAccount<MutableStorage> acc(storage, sender, false);
-        auto n = co_await acc.nonce();
-        co_return n.value_or("0");
-    }());
-    EXPECT_NE(finalNonce, "0");
+    // The tx ran end-to-end through opValidateFromState + opTransition. evmoneReceiptToBcos uses
+    // the Ethereum receipt convention (status 1 == success, 0 == failure/revert), and the base
+    // intrinsic gas (>= 21000) is charged.
+    EXPECT_EQ(receipt->status(), 1);
+    EXPECT_GE(receipt->gasUsed(), 21000U);
 }
 
 }  // namespace

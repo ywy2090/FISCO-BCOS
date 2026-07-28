@@ -1,11 +1,12 @@
 find_package(GTest CONFIG REQUIRED)
+find_package(evmone REQUIRED)
 
 add_executable(opstack-executor-tests OpstackExecutorTest.cpp)
 target_link_libraries(opstack-executor-tests PRIVATE
     opstack-executor           # INTERFACE: pulls ethereum-executor + bcos-evm-opstack + bcos-evm-eth + bcos-framework
     protocol-tars              # TransactionImpl / BlockHeaderImpl / TransactionReceiptFactoryImpl
     bcos-crypto                # CryptoSuite / Keccak256
-    bcos-codec                 # rlp::decode for the web3 tx fixture
+    codec                      # rlp::decode for the web3 tx fixture
     rpc                        # bcos::rpc::Web3Transaction
     evmone::evmone
     GTest::gtest_main)

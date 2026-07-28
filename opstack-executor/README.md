@@ -34,16 +34,31 @@ It reuses, verbatim, `ethereum-executor`'s:
   OP L1-cost envelope — and `web3AccessList()`).
 
 `#5366`'s branch has a stale merge-base relative to `feat-evm-opstack-port`, so it cannot be
-cleanly merged in locally today (a full merge drags in ~230 unrelated files and conflicts on the
-tars `TransactionImpl`). The intended sequencing is therefore:
+cleanly *merged* in (a full merge drags in ~230 unrelated files and conflicts on the tars
+`TransactionImpl`). Instead, its **true 25-file PR diff** is vendored onto this branch as a single
+squashed commit (`chore: vendor PR #5366 ...`) so the module builds and its tests run **now**. The
+intended sequencing is:
 
 1. `#5366` merges to `release-3.18.0`.
-2. This branch (or its PR) **rebases** on the updated `release-3.18.0`; the `ethereum-executor`
-   target and the framework additions then exist, and this module builds and its tests run
-   unchanged.
+2. This branch **rebases** onto the updated `release-3.18.0` and the vendor commit is dropped
+   (`git rebase --onto`); the real `ethereum-executor` + framework additions then supply what the
+   vendor commit did, and this module builds unchanged.
 
-Until then the repo-root `add_subdirectory(opstack-executor)` is **guarded on the
-`ethereum-executor` target existing**, so the tree stays buildable before #5366 lands.
+The repo-root `add_subdirectory(opstack-executor)` is **guarded on the `ethereum-executor` target
+existing**, so the tree stays buildable whether or not the vendor commit / #5366 is present.
+
+## Build status & findings
+
+Builds and passes 3 unit tests (`ConstructsWithForkAndExposesConcept`, `RejectsForkRevisionMismatch`,
+`ExecutesNormalTransferEndToEnd`) against the vendored #5366.
+
+**Finding — EIP-3607 vs codeless accounts:** `StorageStateView::getAccountImpl` passes a codeless
+account's `code_hash` through verbatim (BCOS stores `0x0`), but evmone's `validate_transaction`
+(used by `opValidateFromState`) rejects any sender whose `code_hash != EMPTY_CODE_HASH` as
+"sender not an eoa". #5366's `EthereumExecutor` avoids this by skipping `validate_transaction` and
+doing a manual precheck without EIP-3607; the OP path cannot. Before real EOA txs work through this
+executor, either `StorageStateView` must normalise codeless accounts to `EMPTY_CODE_HASH`, or BCOS
+EOAs must be stored with that hash. The end-to-end test seeds the empty-code hash to work around it.
 
 ## Files
 
