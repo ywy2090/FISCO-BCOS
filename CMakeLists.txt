@@ -86,6 +86,14 @@ if(FULLNODE)
     add_subdirectory(transaction-executor)
     add_subdirectory(transaction-scheduler)
 
+    # opstack-executor is the OP Stack analogue of ethereum-executor and reuses its adapter, so it
+    # depends on the ethereum-executor module (PR #5366). The guard keeps the tree buildable before
+    # #5366 lands; once #5366's add_subdirectory(ethereum-executor) runs, this enables automatically.
+    # (If #5366 adds ethereum-executor after this point, move this block below it on rebase.)
+    if(TARGET ethereum-executor)
+        add_subdirectory(opstack-executor)
+    endif()
+
     if(WITH_TARS_SERVICES)
         add_subdirectory(fisco-bcos-tars-service)
         add_subdirectory(bcos-leader-election)
