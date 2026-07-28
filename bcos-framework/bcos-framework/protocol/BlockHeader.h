@@ -76,8 +76,8 @@ public:
         if (signatures.size() < sealers.size())
         {
             throwTrace(InvalidBlockHeader()
-                           << errinfo_comment("Invalid blockHeader for the size of sealerList "
-                                              "is smaller than the size of signatureList"));
+                       << errinfo_comment("Invalid blockHeader for the size of sealerList "
+                                          "is smaller than the size of signatureList"));
         }
         for (const auto& signature : signatures)
         {
@@ -88,8 +88,8 @@ public:
                     hash(), bytesConstRef(signatureData.data(), signatureData.size())))
             {
                 throwTrace(InvalidSignatureList() << errinfo_comment(
-                                   "Invalid signatureList for verify failed, signatureData:" +
-                                   toHex(signatureData)));
+                               "Invalid signatureList for verify failed, signatureData:" +
+                               toHex(signatureData)));
             }
         }
     }
@@ -117,6 +117,7 @@ public:
     virtual bytesConstRef extraData() const = 0;
     virtual gsl::span<const Signature> signatureList() const = 0;
     virtual gsl::span<const uint64_t> consensusWeights() const = 0;
+    virtual bytes coinbase() const = 0;
 
     virtual void setVersion(uint32_t _version) = 0;
     virtual void setParentInfo(::ranges::any_view<bcos::protocol::ParentInfo> parentInfo) = 0;
@@ -136,6 +137,7 @@ public:
     virtual void setConsensusWeights(std::vector<uint64_t>&& _weightList) = 0;
 
     virtual void setExtraData(bytes _extraData) = 0;
+    virtual void setCoinbase(bytes _coinbase) = 0;
 
     virtual void setSignatureList(gsl::span<const Signature> const& _signatureList) = 0;
     virtual void setSignatureList(SignatureList&& _signatureList) = 0;
