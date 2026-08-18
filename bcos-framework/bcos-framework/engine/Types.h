@@ -160,6 +160,7 @@ struct ExecutionPayload
     // Required by ExecutionPayloadV4.
     std::optional<bytes> blockAccessList = std::nullopt;
     std::optional<std::uint64_t> slotNumber = std::nullopt;
+    std::optional<std::vector<bytes>> rawTransactions = std::nullopt;
 
     // Required by ExecutionPayloadV4/V5 (OP Stack, Isthmus onwards): storage root of
     // the L2ToL1MessagePasser predeploy. May carry a placeholder until real-value
