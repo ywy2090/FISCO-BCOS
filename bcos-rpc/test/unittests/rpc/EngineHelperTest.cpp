@@ -60,6 +60,8 @@ Json::Value makePayloadParams(
     ep["logsBloom"] = "0x" + std::string(512, '0');
     ep["extraData"] = "0x";
     ep["withdrawals"] = Json::Value(Json::arrayValue);
+    ep["blobGasUsed"] = "0x0";
+    ep["excessBlobGas"] = "0x0";
     if (withdrawalsRoot.size())
     {
         ep["withdrawalsRoot"] = std::string(withdrawalsRoot);
@@ -70,8 +72,13 @@ Json::Value makePayloadParams(
         txs.append(std::string(raw));
     }
     ep["transactions"] = txs;
+    // V4 wire shape (#5427): [executionPayload, expectedBlobVersionedHashes,
+    // parentBeaconBlockRoot, executionRequests] — parse enforces the full array.
     Json::Value params(Json::arrayValue);
     params.append(ep);
+    params.append(Json::Value(Json::arrayValue));
+    params.append("0x3333333333333333333333333333333333333333333333333333333333333333");
+    params.append(Json::Value(Json::arrayValue));
     return params;
 }
 
@@ -122,9 +129,12 @@ BOOST_AUTO_TEST_CASE(parseFillsWithdrawalsRoot)
 // withdrawalsRoot 缺省 → nullopt；错长（31/33 字节）→ bcos::rpc::JsonRpcException。
 BOOST_AUTO_TEST_CASE(parseWithdrawalsRootBoundaries)
 {
+    // Missing withdrawalsRoot on V4 is a malformed payload (#5427 shape gate):
+    // -32602 at parse time, not a silent nullopt (the engine-side INVALID-status
+    // rule covers in-process callers).
     auto noRoot = makePayloadParams({kEip1559RawTx}, "");
-    auto reqNoRoot = parseNewPayloadRequest(noRoot, engine::ApiVersion::V4);
-    BOOST_CHECK(!reqNoRoot.executionPayload.withdrawalsRoot.has_value());
+    BOOST_CHECK_EXCEPTION(parseNewPayloadRequest(noRoot, engine::ApiVersion::V4),
+        bcos::rpc::JsonRpcException, [](auto const& e) { return e.code() == InvalidParams; });
 
     // 31 字节（62 hex）
     auto badShort = makePayloadParams({kEip1559RawTx}, "0x" + std::string(62, '1'));
@@ -139,7 +149,7 @@ BOOST_AUTO_TEST_CASE(parseWithdrawalsRootBoundaries)
 // 缺 transactions 键 → rawTransactions 保持 nullopt（OP 校验 :299 仍拒）。
 BOOST_AUTO_TEST_CASE(parseMissingTransactionsLeavesRawNullopt)
 {
-    auto params = makePayloadParams({}, "");
+    auto params = makePayloadParams({}, kWithdrawalsRoot);
     params[0].removeMember("transactions");
     auto request = parseNewPayloadRequest(params, engine::ApiVersion::V4);
     BOOST_CHECK(!request.executionPayload.rawTransactions.has_value());
