@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE(parseMissingTransactionsLeavesRawNullopt)
 // transactions 存在但为空数组 → rawTransactions present-and-empty（OP 校验 :299 接受）。
 BOOST_AUTO_TEST_CASE(parseEmptyTransactionsIsPresentAndEmpty)
 {
-    auto params = makePayloadParams({}, "");
+    auto params = makePayloadParams({}, kWithdrawalsRoot);
     auto request = parseNewPayloadRequest(params, engine::ApiVersion::V4);
     BOOST_REQUIRE(request.executionPayload.rawTransactions.has_value());
     BOOST_CHECK(request.executionPayload.rawTransactions->empty());
