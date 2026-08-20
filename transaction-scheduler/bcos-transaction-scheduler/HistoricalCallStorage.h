@@ -68,8 +68,8 @@ namespace bcos::scheduler_v1
 ///    answer there is — a documented v1 limitation, not an accident.
 ///
 /// Read-only by construction: this class exposes no write surface, and the View above it
-/// sends every write to its own mutable layer. Trie reads can throw (MPTMissingNode /
-/// MPTDecodeError / MPTInvariantViolation on a corrupt store); callAtBlock catches them at
+/// sends every write to its own mutable layer. Trie reads can throw (MPTInvariantViolation on
+/// a missing referenced node / MPTDecodeError on a corrupt store); callAtBlock catches them at
 /// the scheduler boundary and turns them into an Error the RPC can report.
 ///
 /// NOT thread-safe: one instance serves one call coroutine (the per-address MPTAccount
