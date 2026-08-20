@@ -1,0 +1,213 @@
+name: OP-Stack C2 devnet e2e
+# Full OP-Stack interop loop: anvil L1 + op-deployer deployment + FISCO L2
+# + real op-node sequencer, then deposit→L2 and withdrawal→L2 assertions.
+#
+# Heavier than the B3/B3a gate (builds op-deployer and op-node from the
+# optimism monorepo) and depends on external tooling, so it runs on a
+# schedule + manual dispatch + on op-e2e changes rather than every PR.
+# The B3/B3a gate in workflow.yml remains the per-PR regression floor.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - "tools/op-e2e/setup_c2.sh"
+      - "tools/opstack-genesis/**"
+      - "bcos-l2-contracts/**"
+      - ".github/workflows/op-e2e-c2.yml"
+
+jobs:
+  c2-devnet:
+    name: C2 full loop (deposit/withdraw)
+    runs-on: ubuntu-24.04
+    env:
+      C2: /tmp/c2
+      FISCO_BIN: ${{ github.workspace }}/build/fisco-bcos-air/fisco-bcos
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - name: Initialize vcpkg submodule
+        run: git submodule update --init --recursive -- vcpkg
+
+      - name: Cache Foundry
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/forge
+          key: foundry-${{ runner.os }}-bin-v1
+
+      - name: Install linux deps (foundry + clang + JDK)
+        run: |
+          set -eo pipefail
+          sudo apt-get install -y --no-install-recommends clang openjdk-11-jdk
+          # Install foundry from GitHub releases (avoids foundryup installer pipe issue)
+          ARCH=$(uname -m); case "$ARCH" in x86_64) ARCH=amd64;; aarch64) ARCH=arm64;; esac
+          FOUNDRY_VER=$(curl -fsSL "https://api.github.com/repos/foundry-rs/foundry/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+          curl -fsSL "https://github.com/foundry-rs/foundry/releases/download/v${FOUNDRY_VER}/foundry_v${FOUNDRY_VER}_linux_${ARCH}.tar.gz" \
+            | tar xz -C /usr/local/bin
+          forge --version && cast --version && anvil --version
+
+      - name: Configure
+        run: |
+          mkdir -p build
+          cd build
+          CC=gcc-14 CXX=g++-14 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DLINKER=mold -DTESTS=OFF -DCOVERAGE=OFF \
+            -DWITH_L2_CONTRACTS=ON -DWITH_LIGHTNODE=ON -DWITH_CPPSDK=ON \
+            -DWITH_TIKV=OFF -DWITH_TARS_SERVICES=OFF -DTOOL=OFF \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-release ..
+
+      - name: Download fisco-bcos-air artifact (fallback build from source)
+        id: download-fisco
+        continue-on-error: true
+        run: |
+          RUN_ID=$(gh run list --workflow=workflow.yml --branch=main \
+            --status=success --limit=1 --json databaseId \
+            --jq '.[0].databaseId' 2>/dev/null) || true
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful workflow.yml run found on main; will build locally"
+            exit 1
+          fi
+          echo "Downloading fisco-bcos-air from workflow.yml run $RUN_ID"
+          gh run download "$RUN_ID" \
+            -n fisco-bcos-ubuntu-24-x86_64 \
+            -D build/fisco-bcos-air/
+          [ -x build/fisco-bcos-air/fisco-bcos ] || {
+            echo "::warning::Download succeeded but fisco-bcos binary is missing or not executable"
+            exit 1
+          }
+
+      - name: Build fisco-bcos-air
+        if: steps.download-fisco.outcome != 'success'
+        run: cmake --build build --target fisco-bcos-air
+
+      - name: Clone optimism monorepo (pinned commit)
+        # Pin to op_contracts_commit from op-fork-pin.toml so builds are
+        # deterministic instead of tracking latest main.  The commit
+        # a7c88c8d636ceb9944ea0edaf7d033da258778ab is the op-contracts/v7.0.0
+        # (Karst) source that both op-deployer v0.7.1 and op-node v1.19.3
+        # were released from.
+        run: |
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/ethereum-optimism/optimism /tmp/optimism
+          git -C /tmp/optimism fetch --depth 1 origin a7c88c8d636ceb9944ea0edaf7d033da258778ab
+          git -C /tmp/optimism checkout FETCH_HEAD
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-build-a7c88c8d
+          restore-keys: |
+            go-${{ runner.os }}-build-
+
+      - name: Build op-deployer from optimism monorepo
+        run: |
+          cd /tmp/optimism/op-deployer
+          go build -o "$C2/op-deployer" ./cmd/op-deployer
+
+      - name: Build op-node from optimism monorepo
+        run: |
+          cd /tmp/optimism/op-node
+          go build -o "$C2/op-node" ./cmd
+
+      - name: Install python deps
+        run: |
+          python3 -m pip install --quiet pyyaml 2>/dev/null || \
+          pip3 install --quiet pyyaml 2>/dev/null || \
+          pip3 install --break-system-packages --quiet pyyaml 2>/dev/null || true
+
+      - name: Cache Solc (svm)
+        uses: actions/cache@v4
+        with:
+          path: ~/.svm
+          key: svm-${{ runner.os }}-v0.5.17
+          restore-keys: |
+            svm-${{ runner.os }}-
+
+      - name: Run setup_c2.sh (full pipeline)
+        env:
+          MONOREPO: /tmp/optimism
+          L2CONTRACTS: ${{ github.workspace }}/bcos-l2-contracts
+          OPGEN: ${{ github.workspace }}/tools/opstack-genesis
+        run: |
+          bash tools/op-e2e/setup_c2.sh > "/tmp/c2-setup.log" 2>&1
+          tail -60 "/tmp/c2-setup.log"
+
+      - name: Assert C2 devnet producing blocks
+        run: |
+          BN=$(curl -s -m 10 -X POST http://127.0.0.1:8555 \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            | python3 -c "import sys,json; print(int(json.load(sys.stdin)['result'],16))")
+          if [ "$BN" -lt 5 ]; then
+            echo "::error::C2 chain not producing blocks (blockNumber=$BN)"
+            exit 1
+          fi
+          echo "C2 producing blocks (blockNumber=$BN)"
+
+      - name: Deposit to L2 assertion
+        # Send 1 ETH via the L1 deposit contract, wait for derivation, assert
+        # the recipient balance on L2 increased beyond the 10000 ETH pre-fund.
+        run: |
+          DEPOSIT=$(python3 -c "import json; print(json.load(open('$C2/rollup.json'))['deposit_contract_address'])")
+          cast send --rpc-url http://127.0.0.1:8549 \
+            --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+            "$DEPOSIT" "depositTransaction(address,uint256,uint64,bool,bytes)" \
+            0x70997970C51812dc3A010C7d01b50e0d17dc79C8 1000000000000000000 100000 false 0x \
+            --value 1000000000000000000 > /dev/null
+          for i in $(seq 1 20); do
+            BAL=$(cast balance 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 \
+              --rpc-url http://127.0.0.1:8555 2>/dev/null || echo "0")
+            # 10000 ETH pre-fund (fundDevAccounts); a deposit pushes above it.
+            if python3 -c "import sys; sys.exit(0 if int('$BAL') > 10000 * 10**18 else 1)"; then
+              echo "DEPOSIT CREDITED"
+              exit 0
+            fi
+            echo "poll $i (waiting)"
+            sleep 3
+          done
+          echo "::error::deposit not credited to L2 within 60s"
+          exit 1
+
+      - name: Withdrawal to L2 assertion
+        # Bridge ETH withdrawal via L2StandardBridge.withdraw (LEGACY_ERC20_ETH
+        # token address), assert the MessagePasser nonce advances.
+        run: |
+          BEFORE=$(cast call --rpc-url http://127.0.0.1:8555 \
+            0x4200000000000000000000000000000000000016 "messageNonce()" 2>/dev/null || echo "0x0")
+          cast send --rpc-url http://127.0.0.1:8555 \
+            --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d \
+            --legacy --gas-price 1000000000 --gas-limit 500000 \
+            --value 1000000000000000000 \
+            0x4200000000000000000000000000000000000010 \
+            "withdraw(address,uint256,uint32,bytes)" \
+            0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000 1000000000000000000 100000 0x \
+            > /dev/null 2>&1
+          sleep 20
+          AFTER=$(cast call --rpc-url http://127.0.0.1:8555 \
+            0x4200000000000000000000000000000000000016 "messageNonce()" 2>/dev/null || echo "0x0")
+          echo "messageNonce: before=$BEFORE after=$AFTER"
+          if [ "$BEFORE" = "$AFTER" ]; then
+            echo "::error::withdrawal did not advance the MessagePasser nonce"
+            exit 1
+          fi
+          echo "WITHDRAWAL OK (MessagePassed nonce advanced)"
+
+      - name: Upload diagnostic logs on failure
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-logs-${{ github.run_id }}
+          path: |
+            /tmp/c2-setup.log
+            /tmp/c2/anvil.log
+            /tmp/c2/op-node.log
+            /tmp/c2/fisco/nohup.out
+          retention-days: 7
