@@ -748,9 +748,8 @@ task::Task<void> EthEndpoint::sendRawTransaction(const Json::Value& request, Jso
     {
         BOOST_THROW_EXCEPTION(JsonRpcException(InvalidParams, error->errorMessage()));
     }
-    // Defense-in-depth (unreachable today): the first-byte dispatch above already rejects 0x7e,
-    // and decode cannot produce type==Deposit from any other first byte. Kept as a second gate in
-    // case the dispatch policy ever widens. op-geth likewise rejects Deposit from
+    // Defense-in-depth: the first-byte dispatch above already rejects 0x7e, and decode cannot
+    // produce type==Deposit from any other first byte. op-geth likewise rejects Deposit from
     // eth_sendRawTransaction (ErrTxTypeNotSupported); deposits only enter via the
     // derivation/engine path, never from a client RPC submission.
     if (web3Tx.type == TransactionType::Deposit) [[unlikely]]

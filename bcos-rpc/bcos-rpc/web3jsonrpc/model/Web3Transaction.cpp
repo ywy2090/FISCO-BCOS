@@ -166,11 +166,8 @@ bcostars::Transaction Web3Transaction::takeToTarsTransaction()
         // 0x-prefixed, matching the read side u256(...) (parsed in TransactionImpl.cpp mint())
         tarsTx.mint = "0x" + mint.str(0, std::ios_base::hex);
         tarsTx.isSystemTransaction = isSystemTx ? 1 : 0;
-        // Full 0x7E envelope (encode()). Fill extraTransactionHash so the canonical txHash is
-        // computable and eth_getTransactionByHash/Receipt can look deposits up — op-geth
-        // DepositTx.Hash() = keccak(0x7e || rlp(fields)) (prefixedRlpHash) and deposits ARE
-        // indexed like any other tx (core/rawdb/accessors_indexes.go has no deposit exemption);
-        // op-reth likewise returns them (hash = keccak256(encoded_2718)).
+        // Full 0x7E envelope (encode()); extraTransactionHash = keccak of it verbatim so
+        // deposits are indexable by hash (eth_getTransactionByHash/Receipt) like any other tx.
         auto encoded = encode();
         tarsTx.extraTransactionBytes.reserve(encoded.size());
         ::ranges::move(encoded, std::back_inserter(tarsTx.extraTransactionBytes));

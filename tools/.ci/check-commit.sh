@@ -14,10 +14,7 @@ SHELL_FOLDER=$(
 check_script="clang-format"
 commit_limit=1000
 file_limit=35
-# Raised 666 → 1000: the op-stack execution module split (#5429 decomposition) targets
-# valid insertions ≤ 1000 per review-size PR (S03/S04 land at ~997), and the previous
-# 666 limit forced padding with comment/blank lines purely to dodge the gate instead of
-# reflecting the actual per-PR review budget. 1000 is the budget those parts are sized to.
+# Raised 666 → 1000: the op-stack split PRs are sized to ≤1000 valid insertions.
 insert_limit=1000
 license_line=20
 

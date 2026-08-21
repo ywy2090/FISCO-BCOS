@@ -159,10 +159,7 @@ struct LegacyTxHandler : Web3TxHandler
             return BCOS_ERROR_UNIQUE_PTR(
                 codec::rlp::DecodingError::UnexpectedList, "Unexpected list");
         }
-        // op-geth parity (rlp.Stream List/ListEnd): field decoding must not cross the
-        // declared list payload boundary. The RLP stream tracks listLimit and rejects reads
-        // past it (errNotAtEOL); without this gate a crafted envelope whose fields consume
-        // more bytes than the header declares would read trailing bytes as fields and pass.
+        // Fields must stay within the declared list payload (op-geth ListEnd parity).
         bcos::byte* const payloadStart = in.data();
         auto const payloadLength = head.payloadLength;
         out.type = TransactionType::Legacy;
@@ -286,9 +283,7 @@ struct LegacyTxHandler : Web3TxHandler
             // rehandle signature and chainId
             padSignature(out.signatureR, out.signatureS);
         }
-        // op-geth ListEnd parity: reject if fields crossed the declared payload boundary.
-        // data() is nullptr only when a getCroppedData call failed (view exhausted beyond the
-        // buffer), which decode already reported as an error — guard before pointer arithmetic.
+        // Reject fields crossing the declared payload (data() is null only after a failed decode).
         if (in.data() != nullptr &&
             in.data() - payloadStart > static_cast<std::ptrdiff_t>(payloadLength))
         {
@@ -409,7 +404,7 @@ struct EIP2930TxHandler : Web3TxHandler
             return BCOS_ERROR_UNIQUE_PTR(
                 codec::rlp::DecodingError::UnexpectedString, "Unexpected String");
         }
-        // op-geth ListEnd parity: field decoding must not cross the declared payload boundary.
+        // Fields must stay within the declared list payload (op-geth ListEnd parity).
         bcos::byte* const payloadStart = in.data();
         auto const payloadLength = head.payloadLength;
         uint64_t chainId = 0;
@@ -593,7 +588,7 @@ struct EIP1559TxHandler : Web3TxHandler
             return BCOS_ERROR_UNIQUE_PTR(
                 codec::rlp::DecodingError::UnexpectedString, "Unexpected String");
         }
-        // op-geth ListEnd parity: field decoding must not cross the declared payload boundary.
+        // Fields must stay within the declared list payload (op-geth ListEnd parity).
         bcos::byte* const payloadStart = in.data();
         auto const payloadLength = head.payloadLength;
         uint64_t chainId = 0;
@@ -750,7 +745,7 @@ struct DepositTxHandler : Web3TxHandler
             return BCOS_ERROR_UNIQUE_PTR(
                 codec::rlp::DecodingError::UnexpectedString, "deposit: expected RLP list");
         }
-        // op-geth ListEnd parity: field decoding must not cross the declared payload boundary.
+        // Fields must stay within the declared list payload (op-geth ListEnd parity).
         bcos::byte* const payloadStart = in.data();
         auto const payloadLength = head.payloadLength;
         // Check and propagate errors on every field decode (must not swallow silently)
@@ -939,7 +934,7 @@ struct EIP4844TxHandler : Web3TxHandler
             return BCOS_ERROR_UNIQUE_PTR(
                 codec::rlp::DecodingError::UnexpectedString, "Unexpected String");
         }
-        // op-geth ListEnd parity: field decoding must not cross the declared payload boundary.
+        // Fields must stay within the declared list payload (op-geth ListEnd parity).
         bcos::byte* const payloadStart = in.data();
         auto const payloadLength = head.payloadLength;
         uint64_t chainId = 0;
@@ -1134,7 +1129,7 @@ struct EIP7702TxHandler : Web3TxHandler
             return BCOS_ERROR_UNIQUE_PTR(
                 codec::rlp::DecodingError::UnexpectedString, "Unexpected String");
         }
-        // op-geth ListEnd parity: field decoding must not cross the declared payload boundary.
+        // Fields must stay within the declared list payload (op-geth ListEnd parity).
         bcos::byte* const payloadStart = in.data();
         auto const payloadLength = head.payloadLength;
         uint64_t chainId = 0;
@@ -1239,16 +1234,12 @@ Web3TxHandler& handlerFor(TransactionType type)
     case TransactionType::EIP7702:
         return eip7702;
     }
-    // Unknown TransactionType: this is a programming error — a new enum value was added
-    // without updating this switch. Return a no-op sentinel handler instead of falling back
-    // to Legacy (which would silently decode/encode as wrong transaction format producing
-    // garbage fields). encode/encodeForSign return empty bytes (fail-safe), and decode
-    // returns UnsupportedTransactionType error.
-    // ERROR, not FATAL: the fatal level makes the log sink call std::abort()
-    // (BoostLogInitializer), so a FATAL here would kill the process instead of degrading
-    // gracefully — contradicting the fail-safe sentinel this branch returns. In production
-    // this branch is unreachable (every type value passes magic_enum::enum_cast at the
-    // decode entry, which rejects unknown bytes), so ERROR is the honest severity.
+    // Unknown TransactionType: a new enum value was added without updating this switch. Return a
+    // no-op sentinel handler instead of falling back to Legacy (which would silently decode/encode
+    // as the wrong format producing garbage fields); encode/encodeForSign return empty bytes
+    // (fail-safe) and decode returns UnsupportedTransactionType.
+    // ERROR, not FATAL: the fatal level makes the log sink call std::abort(), which would kill
+    // the process instead of degrading to the fail-safe sentinel below.
     BCOS_LOG(ERROR) << "handlerFor: unhandled TransactionType " << static_cast<int>(type)
                     << " — update the switch to handle the new type";
     static struct : Web3TxHandler

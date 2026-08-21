@@ -250,11 +250,9 @@ void bcostars::protocol::TransactionImpl::calculateHash(const bcos::crypto::Hash
     // The recompute is a byte splice plus one keccak, cheap enough to always run.
     if (type() == static_cast<uint8_t>(bcos::protocol::TransactionType::Web3Transaction))
     {
-        // Deposit (0x7e): unsigned, extraTransactionBytes already IS the full 0x7e envelope
-        // (Web3Transaction::takeToTarsTransaction deposit branch stores encode()). The hash is
-        // keccak of that envelope verbatim — op-geth DepositTx.Hash() (prefixedRlpHash) and
-        // op-reth TxDeposit::tx_hash() (= keccak256(encoded_2718)). reassembleWeb3RawTransaction
-        // cannot be used here: it requires a 65-byte signature, which deposits do not carry.
+        // Deposit (0x7e): unsigned — extraTransactionBytes already IS the full 0x7e envelope
+        // (stored by takeToTarsTransaction as encode()), so the hash is keccak of it verbatim;
+        // reassembleWeb3RawTransaction cannot be used (it needs a 65-byte signature).
         if (isDepositTx())
         {
             auto const depositHash =
@@ -427,13 +425,10 @@ uint8_t bcostars::protocol::TransactionImpl::web3TypedTxKind() const
 
 std::optional<uint64_t> bcostars::protocol::TransactionImpl::web3ChainIdFromEnvelope() const
 {
-    // The tars mirror (data.chainID) is unauthenticated — the signature binds only
-    // extraTransactionBytes + signatureData (see calculateHash), so chainId admission must be
-    // derived from the SIGNED envelope, exactly as op-geth derives it from the tx preimage
-    // (modernSigner reads the typed chainId field / EIP155Signer derives it from v).
-    // extraTransactionBytes holds the signing preimage (Web3Transaction::takeToTarsTransaction
-    // stores encodeForSign()): typed = type byte || rlp([chainId, ...]); legacy =
-    // rlp([nonce,gasPrice,gasLimit,to,value,data]) or rlp([...6 fields, chainId, 0, 0]).
+    // chainId admission must come from the SIGNED envelope, not the tars mirror (data.chainID):
+    // the signature binds only extraTransactionBytes + signatureData. extraTransactionBytes is
+    // the signing preimage: typed = type byte || rlp([chainId, ...]); legacy = 6 fields or
+    // [...6 fields, chainId, 0, 0].
     if (type() != static_cast<uint8_t>(bcos::protocol::TransactionType::Web3Transaction))
     {
         return std::nullopt;

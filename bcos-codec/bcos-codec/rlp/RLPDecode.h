@@ -230,12 +230,8 @@ inline bcos::Error::UniquePtr decode(bytesRef& from, UnsignedIntegral auto& to) 
     {
         return BCOS_ERROR_UNIQUE_PTR(DecodingError::UnexpectedList, "Unexpected list");
     }
-    // op-geth parity: the RLP decoder rejects integers wider than the target type at decode
-    // (uint64 > 8 bytes -> "uint overflow", U256 > 32 bytes -> "value too large for uint256";
-    // op-reth: Error::Overflow). Silently truncating via fromBigEndian widens the accept set
-    // relative to op-geth and changes the re-encoded hash on hash-sensitive bridges.
-    // Use numeric_limits::digits/8, NOT sizeof(T): boost::multiprecision u256 has sizeof 48
-    // (limbs + metadata) yet holds at most 32 payload bytes.
+    // Reject integers wider than the target type instead of silently truncating via fromBigEndian
+    // (op-geth parity). Use digits/8, NOT sizeof(T): boost u256 has sizeof 48 but 32 payload bytes.
     constexpr auto maxBytes = std::numeric_limits<std::decay_t<decltype(to)>>::digits / 8;
     if (header.payloadLength > maxBytes)
     {

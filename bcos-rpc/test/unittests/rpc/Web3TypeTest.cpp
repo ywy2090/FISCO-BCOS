@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(testEIP2930Transaction)
     BOOST_CHECK_EQUAL(tx.value, 2000000000000000000ull);
     BOOST_CHECK_EQUAL(toHex(tx.data), "6ebaf477f83e051589c1188bcc6ddccd");
     BOOST_CHECK_EQUAL(tx.getSignatureV(), tx.chainId.value() * 2 + 35);
-    // C2 (W8 review): typed-tx signatureV is the raw y_parity, restricted to 0/1. This
+    // Typed-tx signatureV is the raw y_parity (0/1). This
     // EIP-2930 sample carries yParity=0.
     BOOST_CHECK_EQUAL(tx.signatureV, 0u);
     BOOST_CHECK_EQUAL(
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(testEIP1559Transaction)
     BOOST_CHECK_EQUAL(tx.value, 2000000000000000000ull);
     BOOST_CHECK_EQUAL(toHex(tx.data), "6ebaf477f83e051589c1188bcc6ddccd");
     BOOST_CHECK_EQUAL(tx.getSignatureV(), tx.chainId.value() * 2 + 35);
-    // C2 (W8 review): typed-tx signatureV is the raw y_parity, restricted to 0/1. This
+    // Typed-tx signatureV is the raw y_parity (0/1). This
     // EIP-1559 sample carries yParity=0.
     BOOST_CHECK_EQUAL(tx.signatureV, 0u);
     BOOST_CHECK_EQUAL(
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(testEIP4844Transaction)
     BOOST_CHECK_EQUAL(toHex(tx.blobVersionedHashes[1]),
         "8aaeccaf3873d07cef005aca28c39f8a9f8bdb1ec8d79ffc25afc0a4fa2ab736");
     BOOST_CHECK_EQUAL(tx.getSignatureV(), tx.chainId.value() * 2 + 35 + 1);
-    // C2 (W8 review): typed-tx signatureV is the raw y_parity, restricted to 0/1. This
+    // Typed-tx signatureV is the raw y_parity (0/1). This
     // EIP-4844 sample carries yParity=1 (hence the +1 in getSignatureV above).
     BOOST_CHECK_EQUAL(tx.signatureV, 1u);
     BOOST_CHECK_EQUAL(
@@ -262,7 +262,7 @@ BOOST_AUTO_TEST_CASE(testEIP4844Transaction)
     BOOST_CHECK_EQUAL(rawTx, rawTx2);
 }
 
-// C2 (W8 review): typed-tx yParity is restricted to 0/1 (Web3TxHandler rejects signatureV > 1 with
+// Typed-tx yParity is restricted to 0/1 (Web3TxHandler rejects signatureV > 1 with
 // InvalidVInSignature). Flip the yParity wire byte of each legal typed-tx sample to 0x02
 // (single-byte self-encoding — same wire length, outer RLP prefix unaffected) and assert the
 // decoder rejects it. Wire offsets are RLP-decoding-verified: EIP-2930 field[8] at 178,

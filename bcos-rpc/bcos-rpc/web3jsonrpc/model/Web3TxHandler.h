@@ -1,13 +1,9 @@
 // bcos-rpc/bcos-rpc/web3jsonrpc/model/Web3TxHandler.h
-// ⚠️ isSystemTransaction encoding workaround: DepositTxHandler::encode() encodes
-// isSystemTransaction as uint32_t (not uint8_t) because RLPEncode.h's generic scalar
-// encoding for uint8_t odr-uses the non-template toCompactBigEndian(byte, unsigned)
-// overload, whose only definition lives in DataConvertUtility.cpp rather than a header
-// (a pre-existing bcos-utilities header/library boundary defect). uint32_t only matches
-// in-header templates and produces identical 1-byte RLP output (0x80 or 0x01). When the
-// underlying ODR defect is fixed, switch back to uint8_t — the round-trip test in
-// Web3TypeTest (depositRoundtrip) locks the correct output byte so the switch cannot
-// silently regress.
+// ⚠️ isSystemTransaction encoding workaround: DepositTxHandler::encode() encodes it as uint32_t
+// (not uint8_t) because RLPEncode.h's generic uint8_t encoding odr-uses the non-template
+// toCompactBigEndian(byte, unsigned), defined only in DataConvertUtility.cpp (a pre-existing
+// bcos-utilities header/library boundary defect). uint32_t matches in-header templates and emits
+// the identical 1-byte RLP (0x80 or 0x01); switch back to uint8_t once the defect is fixed.
 #pragma once
 #include <bcos-codec/rlp/Common.h>
 #include <bcos-utilities/Common.h>

@@ -296,7 +296,7 @@ BOOST_AUTO_TEST_CASE(getTransactionReceiptHappyPath)
         "0x1234567890123456789012345678901234567890", bcos::bytes{0x0a}, "0x2", 100, chainId,
         groupId, 0);
     BOOST_REQUIRE(tx);
-    // D8 (review ①): install a raw 20-byte sender so the read side must checksum the raw bytes.
+    // Install a raw 20-byte sender so the read side must checksum the raw bytes.
     // Mixed-case hex letters (0x5aAe...BeAed) make EIP-55 checksum casing observable (an
     // all-digit address would make toChecksumAddress a no-op).
     tx->forceSender(bcos::fromHex("5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"));
@@ -337,7 +337,7 @@ BOOST_AUTO_TEST_CASE(getTransactionReceiptHappyPath)
         return value;
     };
 
-    // eth_getTransactionReceipt returns a complete object with the checksummed from (review ①).
+    // eth_getTransactionReceipt returns a complete object with the checksummed from.
     {
         auto resp = callSeeded(req("eth_getTransactionReceipt", "[\"" + txHashHex + "\"]"));
         BOOST_REQUIRE(resp.isMember("result"));

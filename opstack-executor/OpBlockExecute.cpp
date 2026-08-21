@@ -37,13 +37,9 @@ void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig
     const auto& data = firstDep->data;
     if (data.size() == IsthmusL1AttributesLen)
     {
-        // Jovian activation block: Isthmus-length attributes, must be deposits-only (op-geth
-        // rollup_cost.go:568-576). op-geth checks only the last tx, relying on "deposits always
-        // precede non-deposits"; this function must NOT reuse that assumption because
-        // processOpBlock deliberately tolerates out-of-order deposits (accepts with a warning,
-        // op-geth parity) — under that relaxed ordering a [deposit, normal-tx, deposit] block
-        // would pass a last-tx-only check while still carrying a user tx. Scan the whole block:
-        // O(n), and the Jovian activation window is a single block.
+        // Jovian activation block: Isthmus-length attributes, must be deposits-only. Scan the
+        // whole block — op-geth's last-tx-only check relies on deposits preceding non-deposits,
+        // which processOpBlock does not enforce (out-of-order deposits are accepted).
         for (const auto& btx : txs)
         {
             if (!std::holds_alternative<DepositTx>(btx.tx))
@@ -259,14 +255,9 @@ bcos::bytes encodeReceiptForRoot(const bcos::protocol::TransactionReceipt& r, ui
 
     if (txType == static_cast<uint8_t>(kDepositTxType))
     {
-        // Deposit receipts must always carry opStackMeta (nonce + receipt version): the
-        // execution path (runDeposit, bcos-evm) sets deposit_receipt_version=1 for every
-        // post-Canyon deposit, and op-geth's depositReceiptRLP only omits the fields when the
-        // version pointer is nil (pre-Canyon receipts, which FISCO never produces for deposits).
-        // The 0-fill below is therefore dead-on-arrival for consensus blocks; it exists only so
-        // a hand-constructed receipt without meta does not silently emit a different-length
-        // leaf (which would diverge from op-geth's receiptsRoot). Do not "fix" by dropping the
-        // fill — the invariant lives in runDeposit, not here.
+        // Deposit receipts always carry opStackMeta (runDeposit sets version=1 for every
+        // post-Canyon deposit), so the 0-fill below is unreachable for consensus blocks; it
+        // exists only so a hand-built receipt without meta emits the same-length leaf.
         const auto& meta = r.opStackMeta();
         const uint64_t nonce = (meta && meta->deposit_nonce) ? *meta->deposit_nonce : uint64_t{0};
         const uint64_t version =

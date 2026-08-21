@@ -262,10 +262,9 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseEmitsOpExtensionFieldsFromMeta)
 {
     auto tx = makeWeb3Tx(m_blockFactory, chainId, groupId);
     BOOST_REQUIRE(tx);
-    // D8 (review ①): non-deposit from must be the checksum of the RAW sender bytes. Install a raw
-    // 20-byte sender; if the read side re-encoded a hex-string (double-encoded) sender this
-    // assertion would fail — that is exactly the bug review ① caught on the write side. The
-    // address carries mixed-case hex letters (0x5aAe...BeAed) so EIP-55 checksum casing is
+    // Non-deposit from must be the checksum of the RAW sender bytes: install a raw 20-byte
+    // sender; a read side that re-encoded a hex-string (double-encoded) sender would fail here.
+    // The address carries mixed-case hex letters (0x5aAe...BeAed) so EIP-55 checksum casing is
     // actually observable — an all-digit address makes toChecksumAddress a no-op and could never
     // regress-catch.
     tx->forceSender(bcos::fromHex("5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"));
@@ -273,8 +272,8 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseEmitsOpExtensionFieldsFromMeta)
     auto receipt = makeReceipt(m_blockFactory);
     BOOST_REQUIRE(receipt);
     protocol::OpStackReceiptMeta meta;
-    // D2 (P4-1): ALL 13 mappings positively asserted — a wrong JSON key or value on any field
-    // would otherwise pass (empty-meta test only proves absence-when-empty). Distinct values so
+    // ALL 13 mappings positively asserted — a wrong JSON key or value on any field would
+    // otherwise pass (empty-meta test only proves absence-when-empty). Distinct values so
     // cross-field mixups are caught too.
     meta.l1_gas_price = bcos::u256(5);
     meta.l1_gas_used = 6;
@@ -310,23 +309,23 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseEmitsOpExtensionFieldsFromMeta)
     BOOST_CHECK_EQUAL(result["depositNonce"].asString(), "0x12");
     BOOST_CHECK_EQUAL(result["depositReceiptVersion"].asString(), "0x13");
     BOOST_CHECK_EQUAL(result["operatorFee"].asString(), "0x14");  // FISCO 扩展
-    // from = checksum of the raw sender bytes (review ①). Pinned against the independently-known
+    // from = checksum of the raw sender bytes. Pinned against the independently-known
     // EIP-55 vector 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed (deliberately NOT derived via the
     // same toChecksumAddress under test, so a checksum-casing regression is actually caught).
     BOOST_CHECK_EQUAL(result["from"].asString(), "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed");
 }
 
-// Important #1 (whole-branch review): receipt `type` for a Web3 tx must equal the EIP-2718 kind
-// byte. The write side stores encodeForSign() (RLP WITHOUT the type byte) in extraTransactionBytes
-// for typed non-deposit txs, so byte-sniffing extraTransactionBytes collapsed EIP-2930/1559/4844
-// receipts into Legacy 0x0 while eth_getTransactionByHash reported the correct kind.
+// Receipt `type` for a Web3 tx must equal the EIP-2718 kind byte: the write side stores
+// encodeForSign() (RLP WITHOUT the type byte) in extraTransactionBytes for typed non-deposit
+// txs, so byte-sniffing extraTransactionBytes collapsed EIP-2930/1559/4844 receipts into
+// Legacy 0x0 while eth_getTransactionByHash reported the correct kind.
 // combineReceiptResponse now reads the `web3TypedTxKind` tars slot (populated by
 // takeToTarsTransaction for every Web3 kind).
 BOOST_AUTO_TEST_CASE(combineReceiptResponseTypedTxKindType)
 {
     auto makeWeb3TarsTx = [&](bcos::rpc::Web3Transaction web3Tx) {
         auto tarsTx = web3Tx.takeToTarsTransaction();
-        // D4: manual extraTransactionHash so combineReceiptResponse:19 tx.hash() does not throw.
+        // Manual extraTransactionHash so combineReceiptResponse:19 tx.hash() does not throw.
         bcos::h256 arbitraryHash(
             "0303030303030303030303030303030303030303030303030303030303030303");
         tarsTx.extraTransactionHash.assign(arbitraryHash.begin(), arbitraryHash.end());
@@ -408,7 +407,7 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseOmitsOpFieldsWhenMetaEmpty)
 }
 
 // Read-side deposit (0x7e) transaction shape. takeToTarsTransaction() does NOT fill
-// extraTransactionHash (review ③/D4), and combineTxResponse:44 calls tx.hash() which throws
+// extraTransactionHash, and combineTxResponse:44 calls tx.hash() which throws
 // EmptyTransactionHash on an empty one — so the test must install arbitrary 32 bytes.
 BOOST_AUTO_TEST_CASE(combineTxResponseDepositMinimalFields)
 {
@@ -422,7 +421,7 @@ BOOST_AUTO_TEST_CASE(combineTxResponseDepositMinimalFields)
     web3Deposit.isSystemTx = true;
 
     auto tarsTx = web3Deposit.takeToTarsTransaction();
-    // D4 (review ③): manual extraTransactionHash so combineTxResponse:44 does not throw.
+    // Manual extraTransactionHash so combineTxResponse:44 does not throw.
     bcos::h256 arbitraryHash("0101010101010101010101010101010101010101010101010101010101010101");
     tarsTx.extraTransactionHash.assign(arbitraryHash.begin(), arbitraryHash.end());
     bcostars::protocol::TransactionImpl txImpl(
@@ -460,7 +459,7 @@ BOOST_AUTO_TEST_CASE(combineTxResponseBlob4844)
     web3Tx.signatureV = 0;
 
     auto tarsTx = web3Tx.takeToTarsTransaction();
-    // D4 (review ③): manual extraTransactionHash so combineTxResponse:44 does not throw.
+    // Manual extraTransactionHash so combineTxResponse:44 does not throw.
     bcos::h256 arbitraryHash("0202020202020202020202020202020202020202020202020202020202020202");
     tarsTx.extraTransactionHash.assign(arbitraryHash.begin(), arbitraryHash.end());
     bcostars::protocol::TransactionImpl txImpl(

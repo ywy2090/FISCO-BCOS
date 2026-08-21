@@ -45,8 +45,7 @@ namespace test
 {
 namespace
 {
-// Distinct name from Issue5318InvalidToTest.cpp's makeValidator (both compile into the same
-// unity TU; two anonymous-namespace helpers with the same name would be a redefinition).
+// Distinct name from Issue5318InvalidToTest.cpp's makeValidator (same unity TU).
 TxValidator::Ptr makeAdmissionValidator(bcos::crypto::CryptoSuite::Ptr cryptoSuite = nullptr)
 {
     return std::make_shared<TxValidator>(
@@ -206,9 +205,7 @@ BOOST_AUTO_TEST_CASE(testValidateBalanceIncludesGasCost)
 }
 
 // A 0x7e deposit must be rejected at admission even when "self-signed": deposits are unsigned
-// system txs that only enter via the engine newPayload path — op-geth txpool validation.go
-// rejects them (ErrTxTypeNotSupported), and a forged envelope that passes signature recovery
-// would mint funds once part 5 assembles OP blocks from the txpool.
+// system txs that only enter via the engine newPayload path (op-geth: ErrTxTypeNotSupported).
 BOOST_AUTO_TEST_CASE(testRejectDepositAtAdmission)
 {
     auto hashImpl = std::make_shared<Keccak256>();
@@ -250,10 +247,8 @@ BOOST_AUTO_TEST_CASE(testRejectDepositAtAdmission)
     BOOST_CHECK(validator->verify(*normalTx) != TransactionStatus::Malformed);
 }
 
-// chainId must be validated from the SIGNED envelope, never from the unauthenticated tars
-// mirror (data.chainID): an attacker can rewrite the mirror to "0" to pass the old
-// "empty or 0 skip" exemption. Typed txs get no chainId=0 exemption (op-geth
-// modernSigner.Sender); only pre-EIP-155 unprotected legacy (no envelope chainId) is exempt.
+// chainId is validated from the SIGNED envelope, never the tars mirror: typed txs get no
+// chainId=0 exemption (op-geth); only pre-EIP-155 legacy (no envelope chainId) is exempt.
 BOOST_AUTO_TEST_CASE(testValidateChainIdFromEnvelope)
 {
     auto hashImpl = std::make_shared<Keccak256>();
@@ -320,10 +315,9 @@ BOOST_AUTO_TEST_CASE(testValidateChainIdFromEnvelope)
     }
 }
 
-// EIP-2 low-s must be enforced on the P2P import path too (Transaction::verify), not only on
-// the RPC decode path: without the symmetric gate a malleated (high-s) tx imported from a peer
-// would pass admission and diverge from op-geth/op-reth, which enforce low-s at both txpool
-// admission and block execution.
+// EIP-2 low-s must be enforced on the P2P import path too (Transaction::verify), not only at
+// RPC decode: without the symmetric gate a malleated (high-s) tx imported from a peer would
+// pass admission.
 BOOST_AUTO_TEST_CASE(testVerifyRejectsHighSOnP2P)
 {
     auto hashImpl = std::make_shared<Keccak256>();

@@ -56,7 +56,7 @@ struct OpBlockSeal
 }
 
 /// EIP-2718 tx-type classification, single home for the block-execution sites (the
-/// deposit-classification loop and the seal wiring's txTypes rebuild) so the mapping can't
+/// deposit-classification loop and the seal path's txTypes rebuild) so the mapping can't
 /// drift and silently emit a wrong receiptsRoot leaf. Maps a raw type byte to the per-receipt
 /// type byte:
 /// OP deposit 0x7e (kDepositTxType, OpTransition.h) → itself; legacy (>= 0xc0 RLP list prefix)

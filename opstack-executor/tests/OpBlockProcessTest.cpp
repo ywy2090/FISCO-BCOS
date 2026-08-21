@@ -1,13 +1,9 @@
 // FISCO BCOS
 // SPDX-License-Identifier: Apache-2.0
 
-// OpBlockProcessTest.cpp — direct block-loop coverage for processOpBlock /
-// validateJovianBlockShape (kyonRay review #5463 #4). The block loop previously had zero
-// direct tests: only the parts (executeDeposit/finalizeOpBlock/sealOpBlock/encodeReceiptForRoot)
-// were covered, so combination-level admissions like "Jovian activation block must be
-// deposits-only" could regress invisibly. These cases stop at the admission boundary (empty
-// block / non-deposit first tx / activation-block mixed tx), which is where the block-loop
-// logic lives; full execution is exercised end-to-end by OpstackExecutorTest.
+// OpBlockProcessTest.cpp — direct coverage for the processOpBlock admission boundary (empty
+// block / non-deposit first tx / Jovian activation-block shape), which per-part tests alone
+// cannot reach. Full execution is exercised end-to-end by OpstackExecutorTest.
 
 // BOOST_TEST_MODULE lives in TestMain.cpp (the single main for the whole suite).
 #include <boost/test/unit_test.hpp>
@@ -75,8 +71,7 @@ bcos::evm::opstack::DepositTx makeNormalJovianDeposit()
     return dep;
 }
 
-// A normal (non-deposit) tx — only needs to exist as an OpBlockTx variant member; admission
-// rejects it before execution touches its fields.
+// A normal (non-deposit) tx — admission rejects it before execution touches its fields.
 bcos::evm::opstack::OpBlockTx makeNormalTx()
 {
     bcos::evm::opstack::OpBlockTx btx;
@@ -84,8 +79,7 @@ bcos::evm::opstack::OpBlockTx makeNormalTx()
     return btx;
 }
 
-// Minimal BlockHashes impl: the admission tests never read a hash (they reject before the
-// execution loop touches hashes).
+// Admission tests reject before hashes are read.
 struct ZeroBlockHashes final : evmone::state::BlockHashes
 {
     evmc::bytes32 get_block_hash(int64_t) const noexcept override { return {}; }
@@ -111,8 +105,7 @@ struct Fixture
     }
 
     // Runs processOpBlock and expects a consensus rejection. Step 1 (system_call_block_start)
-    // runs before block-shape admission and does apply a diff, so we assert only the rejection —
-    // not "no diff applied".
+    // runs before shape admission and applies a diff, so only the rejection is asserted.
     void expectReject(std::span<const bcos::evm::opstack::OpBlockTx> txs,
         std::string_view expectMessageContains)
     {
@@ -146,8 +139,7 @@ BOOST_AUTO_TEST_CASE(NonDepositFirstTxRejected)
 }
 
 // Jovian activation block (Isthmus-length attributes) mixed with a normal tx must be rejected:
-// the activation block is deposits-only (op-geth CalcDAFootprint). Regression for the
-// last-tx-only check, which would have let [deposit, normal] through when the deposit is last.
+// activation blocks are deposits-only.
 BOOST_AUTO_TEST_CASE(ActivationBlockMixedTxRejected)
 {
     std::vector<bcos::evm::opstack::OpBlockTx> txs;
@@ -159,8 +151,7 @@ BOOST_AUTO_TEST_CASE(ActivationBlockMixedTxRejected)
     expectReject(txs, "Jovian activation block");
 }
 
-// The [deposit, normal, deposit] shape that defeated the old last-tx-only check: both a normal
-// tx in the middle AND a deposit at the end. Must be rejected by the full-block scan.
+// [deposit, normal, deposit]: the middle tx must be rejected by the full-block scan.
 BOOST_AUTO_TEST_CASE(ActivationBlockDepositNormalDepositRejected)
 {
     std::vector<bcos::evm::opstack::OpBlockTx> txs;
@@ -173,9 +164,7 @@ BOOST_AUTO_TEST_CASE(ActivationBlockDepositNormalDepositRejected)
     expectReject(txs, "Jovian activation block");
 }
 
-// A normal Jovian block with all-deposit txs and correct selector passes shape validation —
-// it reaches the execution loop (rejected later only if execution fails; here we only assert
-// the shape admission does not throw).
+// A normal Jovian all-deposit block with the correct selector passes shape validation.
 BOOST_AUTO_TEST_CASE(NormalJovianDepositsOnlyPassesShapeCheck)
 {
     std::vector<bcos::evm::opstack::OpBlockTx> txs;
