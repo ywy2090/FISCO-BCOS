@@ -283,8 +283,7 @@ static std::string storageValueToData(std::string_view value)
 {
     bcos::bytes word(32, 0);
     auto const copyLen = (std::min)(value.size(), word.size());
-    std::copy_n(
-        value.data(), copyLen, word.end() - static_cast<std::ptrdiff_t>(copyLen));
+    std::copy_n(value.data(), copyLen, word.end() - static_cast<std::ptrdiff_t>(copyLen));
     return toHex(word, "0x");
 }
 
@@ -301,8 +300,7 @@ task::Task<void> EthEndpoint::getStorageAt(const Json::Value& request, Json::Val
     boost::algorithm::to_lower(addressStr);
     auto position = toView(request[1u]);
     std::string positionStr = std::string(
-        (position.starts_with("0x") || position.starts_with("0X")) ? position.substr(2) :
-                                                                    position);
+        (position.starts_with("0x") || position.starts_with("0X")) ? position.substr(2) : position);
     if (position.size() % 2 != 0)
     {
         positionStr.insert(0, "0");
@@ -1195,8 +1193,8 @@ task::Task<void> EthEndpoint::newFilter(const Json::Value& request, Json::Value&
     auto const ledger = m_nodeService->ledger();
     auto const latest = co_await ledger::getCurrentBlockNumber(*ledger);
     auto params = m_filterSystem->requestFactory()->create();
-    params->fromJson(jParams, latest, m_nodeService->safeBlockDepth(),
-        m_nodeService->finalizedBlockDepth());
+    params->fromJson(
+        jParams, latest, m_nodeService->safeBlockDepth(), m_nodeService->finalizedBlockDepth());
     Json::Value result = co_await m_filterSystem->newFilter(params);
     buildJsonContent(result, response);
 }
@@ -1244,8 +1242,8 @@ task::Task<void> EthEndpoint::getLogs(const Json::Value& request, Json::Value& r
     auto const ledger = m_nodeService->ledger();
     auto const latest = co_await ledger::getCurrentBlockNumber(*ledger);
     auto params = m_filterSystem->requestFactory()->create();
-    params->fromJson(jParams, latest, m_nodeService->safeBlockDepth(),
-        m_nodeService->finalizedBlockDepth());
+    params->fromJson(
+        jParams, latest, m_nodeService->safeBlockDepth(), m_nodeService->finalizedBlockDepth());
     Json::Value result = co_await m_filterSystem->getLogs(params);
     buildJsonContent(result, response);
 }
@@ -1254,8 +1252,8 @@ task::Task<std::tuple<protocol::BlockNumber, bool>> EthEndpoint::getBlockNumberB
 {
     auto ledger = m_nodeService->ledger();
     auto latest = co_await ledger::getCurrentBlockNumber(*ledger);
-    auto [number, _] = bcos::rpc::getBlockNumberByTag(latest, blockTag,
-        m_nodeService->safeBlockDepth(), m_nodeService->finalizedBlockDepth());
+    auto [number, _] = bcos::rpc::getBlockNumberByTag(
+        latest, blockTag, m_nodeService->safeBlockDepth(), m_nodeService->finalizedBlockDepth());
     co_return std::make_tuple(number, std::cmp_equal(latest, number));
 }
 

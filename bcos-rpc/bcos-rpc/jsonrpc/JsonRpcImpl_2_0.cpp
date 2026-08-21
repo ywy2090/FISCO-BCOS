@@ -1488,8 +1488,8 @@ void JsonRpcImpl_2_0::newFilter(
         auto const nodeService = self->getNodeService(groupID, "", "newFilter");
         auto const latest = co_await ledger::getCurrentBlockNumber(*nodeService->ledger());
         auto params = self->filterSystem().requestFactory()->create();
-        params->fromJson(jParams, latest, nodeService->safeBlockDepth(),
-            nodeService->finalizedBlockDepth());
+        params->fromJson(
+            jParams, latest, nodeService->safeBlockDepth(), nodeService->finalizedBlockDepth());
         jRes = co_await self->filterSystem().newFilter(groupID, std::move(params));
         respFunc(nullptr, jRes);
     }(this, _groupID, std::move(_respFunc)));
@@ -1536,8 +1536,8 @@ void JsonRpcImpl_2_0::getLogs(
         auto const nodeService = self->getNodeService(groupID, "", "getLogs");
         auto const latest = co_await ledger::getCurrentBlockNumber(*nodeService->ledger());
         auto params = self->filterSystem().requestFactory()->create();
-        params->fromJson(jParams, latest, nodeService->safeBlockDepth(),
-            nodeService->finalizedBlockDepth());
+        params->fromJson(
+            jParams, latest, nodeService->safeBlockDepth(), nodeService->finalizedBlockDepth());
         Json::Value jRes = co_await self->filterSystem().getLogs(groupID, std::move(params));
         respFunc(nullptr, jRes);
     }(this, _groupID, jParams, std::move(_respFunc)));
