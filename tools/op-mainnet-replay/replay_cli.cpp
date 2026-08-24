@@ -50,6 +50,43 @@ std::map<int64_t, evmc::bytes32> loadBlockHashes(const Json::Value& doc)
     }
     return out;
 }
+
+// --allowlist JSON -> four-tuple exemption rows. Format (Task 7):
+//   {"<vectorId>.<field>": [["<want>","<got>","STATUS"], ...]}
+// Each row becomes a DivergenceLedger::addAllowEntry (PENDING-FIX / SIGNED-OFF
+// exempt) injected into the matching vector's ledger before it replays.
+struct AllowRow
+{
+    std::string vectorId, field, want, got, status;
+};
+
+std::vector<AllowRow> loadAllowlist(const std::string& path)
+{
+    std::vector<AllowRow> rows;
+    std::ifstream input(path);
+    if (!input.is_open())
+        throw std::runtime_error("cannot open allowlist: " + path);
+    Json::Value doc;
+    Json::Reader reader;
+    if (!reader.parse(input, doc))
+        throw std::runtime_error("allowlist parse failed: " + reader.getFormattedErrorMessages());
+    for (const auto& key : doc.getMemberNames())
+    {
+        const auto dot = key.find('.');
+        if (dot == std::string::npos)
+            throw std::runtime_error("allowlist key '" + key + "' must be '<vectorId>.<field>'");
+        const std::string vid = key.substr(0, dot);
+        const std::string field = key.substr(dot + 1);
+        for (const auto& row : doc[key])
+        {
+            if (row.size() != 3)
+                throw std::runtime_error(
+                    "allowlist row for '" + key + "' must be [want, got, STATUS]");
+            rows.push_back({vid, field, row[0].asString(), row[1].asString(), row[2].asString()});
+        }
+    }
+    return rows;
+}
 }  // namespace
 
 int main(int argc, char** argv)
@@ -92,11 +129,8 @@ int main(int argc, char** argv)
         std::cerr << "missing --chain\n";
         return 2;
     }
-    if (!allowlistPath.empty())
-    {
-        std::cerr << "--allowlist arrives with Task 7 (four-tuple exemption injection)\n";
-        return 2;
-    }
+    const auto allowRows =
+        allowlistPath.empty() ? std::vector<AllowRow>{} : loadAllowlist(allowlistPath);
 
     try
     {
@@ -157,6 +191,12 @@ int main(int argc, char** argv)
             ledger.opts.comparePostState = !skipPostState;
             ledger.opts.chainId = chainId;
             ledger.opts.blockHashes = blockHashes;
+            for (const auto& row : allowRows)
+                // Allowlist vectorIds carry the [i] block suffix ("vec[0].field");
+                // inject only into the matching vector's ledger (the four-tuple
+                // match in diverge() does the exact exemption).
+                if (row.vectorId.rfind(key, 0) == 0)
+                    ledger.addAllowEntry(row.vectorId, row.field, row.want, row.got, row.status);
             replayChainVector(key, vec, ledger, vm, receiptFactory, *backend);
             ledger.finish();
             any = true;

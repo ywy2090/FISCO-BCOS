@@ -433,6 +433,20 @@ public:
             "DIVERGE " << vectorId << " " << field << " want=" << want << " got=" << got);
     }
 
+    // CLI-injected exemption (Task 7): a four-tuple (vectorId, field, want, got)
+    // with a status label, same exempt semantics as the DIVERGENCES.md rows
+    // (PENDING-FIX / SIGNED-OFF exempt; any other status records without
+    // exempting). The CLI --allowlist JSON turns into these entries before the
+    // vector replays; finish()'s stale check applies to them too.
+    void addAllowEntry(const std::string& vectorId, const std::string& field,
+        const std::string& want, const std::string& got, const std::string& status)
+    {
+        AllowEntry e{vectorId, field, /*entryId=*/"cli",
+            /*attribution=*/status == "PENDING-FIX" ? "a" : "c", status, want, got};
+        e.exempt = (status == "PENDING-FIX") || (status == "SIGNED-OFF");
+        m_entries.push_back(std::move(e));
+    }
+
     // An exemption never hit this run = FAILURE (stale exemption turns red; must be cleared after
     // fix/vector regen).
     void finish() const
