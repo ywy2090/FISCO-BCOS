@@ -23,6 +23,10 @@ set_target_properties(opstack-executor-tests PROPERTIES UNITY_BUILD OFF)
 add_test(NAME OpstackExecutorTests COMMAND opstack-executor-tests)
 
 find_package(jsoncpp CONFIG REQUIRED)
+# StateBackendRocksDB drives raw rocksdb::DB directly (no bcos::storage::RocksDBStorage);
+# bcos-storage is added after this scope at the top level, so the RocksDB imported target
+# must be resolved here.
+find_package(RocksDB REQUIRED)
 
 # evmone_precompiles' interface adds a bare `-lblst`; with the shared-vcpkg worktree layout the
 # vcpkg lib dir is not on the linker search path, so resolve the library to a full path here.
@@ -50,6 +54,8 @@ add_executable(opstack-executor-block-tests
     OpGoldenCorpusProvenanceTest.cpp
     support/SeedPreStateTest.cpp
     support/GoldenSampleTest.cpp
+    support/StateBackendRocksDB.cpp
+    StateBackendRocksDBTest.cpp
     ${EVMONE_TEST_UTILS_DIR}/rlp_encode.cpp
 )
 # 与既有 GTest target 同因：Web3Transaction + tars aggregate init 不宜 unity-build
@@ -61,6 +67,8 @@ target_link_libraries(opstack-executor-block-tests PRIVATE
     opstack-executor bcosevm::opstack Boost::unit_test_framework
     codec protocol-tars ledger engine bcos-utilities jsoncpp_static rpc
     transaction-scheduler)  # OpSchedulerTest: SchedulerSkeleton::current() (BaselineScheduler.cpp)
+# StateBackendRocksDB: raw rocksdb::DB over the vcpkg RocksDB (live-chain state backend).
+target_link_libraries(opstack-executor-block-tests PRIVATE RocksDB::rocksdb)
 # evmone_precompiles' bare -lblst needs the vcpkg lib dir on the search path (shared-vcpkg
 # worktree layout does not put it in the implicit link directories).
 target_link_libraries(opstack-executor-block-tests PRIVATE ${BLST_LIBRARY})
