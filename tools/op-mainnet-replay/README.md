@@ -77,6 +77,20 @@ bash opstack-executor/tests/t8n/generator/ensure-vectors.sh          # corpus �
 - **跨 fork 回填**：不建议（FISCO 建模起点 ecotone；fork 切换模型需先改造
   `OpForkSchedule.cpp::configAt()`）。
 
+## 已确认的已知权衡（2026-08-24 review，不改代码）
+
+- **每块全状态 MPT 重建**（`stateRootOf` 每块 O(全状态)）：`StateRootCompute.h`
+  明确 correctness-first，是设计取舍；Go 侧 Process 已逐块验 root，C++ 侧重算为
+  防御层。大窗口的优化路径（增量 trie / 仅首末块全根）留待后续。
+- **单一 RPC 全链路信任**：header/状态/期望值全部来自同一节点，Process 交叉校验
+  只证执行一致性（stateRoot/gasUsed/receiptsRoot/bloom），不验 verifyHeader 类
+  共识字段（baseFee 派生/txRoot/extraData）。工具定位为"对诚实节点的差异发现"，
+  不声称可对抗篡改 RPC；多节点交叉核对留待后续。
+- **`get_account` storage 前缀探测 / `applyDiff` 全码 keccak**：每账户读放大
+  约 2×，热路径微优化（写入侧维护 storage 存在位）留待后续。
+- **hex 转换与 bcos-utilities `toQuantity` 语义重复**：低频路径，intx 类型差异
+  使部分无法直接复用。
+
 ## 交付物
 
 - `opstack-executor/tests/support/ReplayGate.h` — 共享重放机制（boost-free，泛化 StateBackend）

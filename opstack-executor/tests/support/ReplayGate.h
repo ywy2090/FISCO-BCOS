@@ -3,8 +3,8 @@
 // Extracted from OpT8nReplayTest.cpp (schema v3-block vectors) so the corpus
 // test gate and the op-mainnet-replay CLI run the same per-block comparison
 // machinery. Boost-free: the failure sink is ReplayReport (+ FailStream lazy
-// streaming). When the consuming TU defines OP_REPLAY_BOOST before including,
-// ReplayReport::fail() also routes every message through BOOST_ERROR.
+// streaming), routed to Boost.Test at runtime via ReplayReport::sink
+// (TestMain.cpp installs the BOOST_ERROR hook).
 //
 // Generalization (live-chain path): the replay functions no longer hold an
 // evmone::test::TestState directly. They read via StateBackend (a
@@ -46,6 +46,7 @@
 #include <opstack-executor/OpSchedulerSeam.h>
 #include <algorithm>
 #include <bcos-evm/eth/state/hash_utils.hpp>
+#include <cctype>
 #include <cstdint>
 #include <evmc/evmc.hpp>
 #include <evmc/hex.hpp>
@@ -128,6 +129,12 @@ struct ReplayReport
 {
     int failures = 0;
     std::vector<std::string> details;
+    // Per-program failure sink (runtime-installed). The Boost test TU installs
+    // a BOOST_ERROR hook (TestMain.cpp); the CLI leaves it empty. A runtime
+    // hook instead of an #ifdef'd inline body: two TUs giving the same inline
+    // function different bodies is an ODR violation — the linker may silently
+    // pick either definition, dropping the BOOST_ERROR routing.
+    std::function<void(const std::string&)> sink;
 
     void reset()
     {
@@ -138,9 +145,8 @@ struct ReplayReport
     {
         ++failures;
         details.push_back(msg);
-#ifdef OP_REPLAY_BOOST
-        BOOST_ERROR(msg);
-#endif
+        if (sink)
+            sink(msg);
     }
 };
 inline ReplayReport& replayReport()
@@ -216,10 +222,12 @@ inline int64_t from_json<int64_t>(const Json::Value& j)
         throw std::invalid_argument("from_json<int64_t>: must be integer or string of integer");
     const auto s = j.asString();
     size_t num_processed = 0;
-    const auto v = static_cast<int64_t>(std::stoull(s, &num_processed, 0));
-    if (num_processed == 0 || num_processed != s.size())
+    // Parse as uint64 first, then range-check: a bare static_cast of a >INT64_MAX
+    // value would silently wrap (e.g. 0xffffffffffffffff -> -1) instead of failing.
+    const auto v = std::stoull(s, &num_processed, 0);
+    if (num_processed == 0 || num_processed != s.size() || v > static_cast<uint64_t>(INT64_MAX))
         throw std::invalid_argument("from_json<int64_t>: must be integer or string of integer");
-    return v;
+    return static_cast<int64_t>(v);
 }
 
 template <>
@@ -853,13 +861,15 @@ inline bool loadBlockContext(const std::string& id, const JsonValue& blk, BlockC
                     }
                     else
                     {
-                        // Fill recovered signer + assert per tuple (evmone silently skips tuples
-                        // without a signer).
+                        // Fill recovered signer. An unmarked tuple whose signature
+                        // cannot be recovered is SKIPPED, matching op-geth and the
+                        // production OpTransition path (both skip such tuples; the
+                        // delegation is simply not applied) — real-chain 7702 txs
+                        // legally carry garbage-signature tuples. Only when marked
+                        // tuples coexist does the anchor check below require >=1
+                        // successfully recovered unmarked tuple.
                         auth.signer = replayRecoverAuthority(auth);
-                        if (!auth.signer.has_value())
-                            OP_REPLAY_FAIL(id << ": authorization signer recovery failed (unmarked "
-                                                 "tuple)");
-                        else
+                        if (auth.signer.has_value())
                         {
                             hasUnmarked = true;
                             // Non-empty delegation anchor existence: the authority must
@@ -884,7 +894,12 @@ inline bool loadBlockContext(const std::string& id, const JsonValue& blk, BlockC
                             }
                         }
                     }
-                    tx.authorization_list.push_back(std::move(auth));
+                    // Marked tuples are always pushed (signer stays empty —
+                    // production/evmone skip them); unmarked tuples are pushed
+                    // only when the signer recovered (garbage-signature tuples
+                    // are skipped, matching op-geth / production OpTransition).
+                    if (marked || auth.signer.has_value())
+                        tx.authorization_list.push_back(std::move(auth));
                 }
                 if (hasMarked && !hasUnmarked)
                     OP_REPLAY_FAIL(id

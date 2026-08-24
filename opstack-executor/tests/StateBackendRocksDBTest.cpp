@@ -8,6 +8,7 @@
 #include <boost/test/unit_test.hpp>
 #include <bcos-crypto/hash/Keccak256.h>
 #include <evmc/hex.hpp>
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 
@@ -21,9 +22,13 @@ namespace
 {
 std::string tempDir()
 {
+    // Monotonic counter (not rand — unseeded rand can collide across runs and a
+    // stale DB from a crashed run would then be reused by create_if_missing).
+    static std::atomic<uint64_t> counter{0};
     const auto dir =
         fs::temp_directory_path() / ("op-replay-rocks-" + std::to_string(::getpid()) + "-" +
-                                     std::to_string(std::rand()));
+                                     std::to_string(counter.fetch_add(1)));
+    fs::remove_all(dir);  // stale DB from an aborted run must not be reused
     fs::create_directories(dir);
     return dir.string();
 }
@@ -51,7 +56,7 @@ BOOST_AUTO_TEST_CASE(ImportReadApplyDiffAnchorRoundtrip)
         out << kAddrB << " 0x2 0x1 0x6001 0\n";
         out << kAddrC << " 0x3 0x2 0x600260015500 2 "
             << "0x0 0x5 0x1 0x7\n";
-        out << kAddrD << " 0x4 0x3 - 0\n";
+        out << kAddrD << " 0x4 0x3 - 1 0x9 0x2a\n";  // D carries 1 storage slot (delete-path pin)
         out << kAddrE << " 0x5 0x4 - 0\n";
     }
 
@@ -138,6 +143,9 @@ BOOST_AUTO_TEST_CASE(ImportReadApplyDiffAnchorRoundtrip)
                         cAddr, intx::be::store<evmc::bytes32>(intx::uint256{2})) ==
             intx::be::store<evmc::bytes32>(intx::uint256{11})));
         BOOST_CHECK(!reopened.get_account(dAddr).has_value());  // deleted account
+        // deleted-account storage erasure: D's slot-9 row must be gone too.
+        BOOST_CHECK(reopened.get_storage(dAddr, intx::be::store<evmc::bytes32>(intx::uint256{9})) ==
+                    evmc::bytes32{});
         BOOST_CHECK((reopened.get_account_code(bAddr) == evmone::bytes{0x60, 0xaa}));  // replaced
 
         // 4) Anchor round-trip.
@@ -157,6 +165,66 @@ BOOST_AUTO_TEST_CASE(ImportReadApplyDiffAnchorRoundtrip)
 
     fs::remove_all(dir);
     fs::remove(sidecar);
+}
+
+// Sidecar malformed-input fail-stop: every corruption class must throw
+// (never silently skip accounts/slots), and visitAccounts must honor a
+// visitor abort.
+BOOST_AUTO_TEST_CASE(MalformedSidecarFailStop)
+{
+    const auto dir = tempDir();
+    const auto writeSidecar = [](const std::string& path, const std::string& content) {
+        std::ofstream out(path);
+        out << content;
+    };
+    const fs::path sc = fs::temp_directory_path() / "op-replay-sidecar-bad.txt";
+    const std::string goodLine = kAddrA + " 0x1 0x0 - 0\n";
+
+    // Missing MAGIC header.
+    writeSidecar(sc.string(), "ROOT " + kRoot + "\n" + goodLine);
+    BOOST_CHECK_THROW(StateBackendRocksDB(dir).loadDumpSidecar(sc.string()), std::runtime_error);
+
+    // Missing ROOT line.
+    writeSidecar(sc.string(), "MAGIC v1\n" + goodLine);
+    BOOST_CHECK_THROW(StateBackendRocksDB(dir).loadDumpSidecar(sc.string()), std::runtime_error);
+
+    // Malformed ROOT (short hex).
+    writeSidecar(sc.string(), "MAGIC v1\nROOT 0x1234\n" + goodLine);
+    BOOST_CHECK_THROW(StateBackendRocksDB(dir).loadDumpSidecar(sc.string()), std::runtime_error);
+
+    // Short account line (missing storageCount).
+    writeSidecar(sc.string(), "MAGIC v1\nROOT " + kRoot + "\n" + kAddrA + " 0x1 0x0 -\n");
+    BOOST_CHECK_THROW(StateBackendRocksDB(dir).loadDumpSidecar(sc.string()), std::runtime_error);
+
+    // storageCount declared fewer pairs than the line carries (extra tokens).
+    writeSidecar(sc.string(),
+        "MAGIC v1\nROOT " + kRoot + "\n" + kAddrA + " 0x1 0x0 - 1 0x0 0x5 0x1 0x7\n");
+    BOOST_CHECK_THROW(StateBackendRocksDB(dir).loadDumpSidecar(sc.string()), std::runtime_error);
+
+    // storageCount declared more pairs than the line carries (truncated).
+    writeSidecar(sc.string(),
+        "MAGIC v1\nROOT " + kRoot + "\n" + kAddrA + " 0x1 0x0 - 2 0x0 0x5\n");
+    BOOST_CHECK_THROW(StateBackendRocksDB(dir).loadDumpSidecar(sc.string()), std::runtime_error);
+
+    // Zero accounts.
+    writeSidecar(sc.string(), "MAGIC v1\nROOT " + kRoot + "\n");
+    BOOST_CHECK_THROW(StateBackendRocksDB(dir).loadDumpSidecar(sc.string()), std::runtime_error);
+
+    // visitor abort: visitAccounts must stop at the first false and not visit the rest.
+    writeSidecar(sc.string(), "MAGIC v1\nROOT " + kRoot + "\n" + goodLine + goodLine + goodLine);
+    {
+        StateBackendRocksDB backend(dir);
+        backend.loadDumpSidecar(sc.string());
+        size_t seen = 0;
+        backend.visitAccounts([&](const AccountView&) {
+            ++seen;
+            return seen < 1;  // abort after the first account
+        });
+        BOOST_CHECK_EQUAL(seen, 1u);
+    }
+
+    fs::remove_all(dir);
+    fs::remove(sc);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

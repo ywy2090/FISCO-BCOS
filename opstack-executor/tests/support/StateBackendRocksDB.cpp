@@ -3,6 +3,7 @@
 
 #include <bcos-crypto/hash/Keccak256.h>
 #include <evmc/hex.hpp>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -221,6 +222,23 @@ void StateBackendRocksDB::loadDumpSidecar(const std::string& path)
     std::ifstream input(path);
     if (!input.is_open())
         throw std::runtime_error("StateBackendRocksDB: sidecar missing: " + path);
+    // Full-state replacement: drop previously imported account/code/storage rows
+    // so a re-import into the same DB is idempotent (stale accounts must not
+    // survive a new height's sidecar).
+    {
+        rocksdb::WriteBatch clearBatch;
+        rocksdb::Iterator* it = m_db->NewIterator(rocksdb::ReadOptions{});
+        for (const auto prefix : {kAccountPrefix, kCodePrefix, kStoragePrefix})
+            for (it->Seek(rocksdb::Slice(prefix.data(), prefix.size()));
+                 it->Valid() && it->key().starts_with(rocksdb::Slice(prefix.data(), prefix.size()));
+                 it->Next())
+                clearBatch.Delete(it->key());
+        delete it;
+        const auto clearStatus = m_db->Write(rocksdb::WriteOptions{}, &clearBatch);
+        if (!clearStatus.ok())
+            throw std::runtime_error(
+                "StateBackendRocksDB::loadDumpSidecar clear: " + clearStatus.ToString());
+    }
     std::string line;
     // Line 1: MAGIC v1 (version pin — a format drift must fail loudly, not misparse).
     if (!std::getline(input, line) || line != "MAGIC v1")
@@ -277,6 +295,14 @@ void StateBackendRocksDB::loadDumpSidecar(const std::string& path)
             if (!evmc::is_zero(val))
                 batch.Put(slotKey(*addr, slot),
                     rocksdb::Slice(reinterpret_cast<const char*>(val.bytes), 32));
+        }
+        // storageCount declared fewer pairs than the line carries = corrupted row;
+        // a truncated file must fail-stop, not silently drop slots.
+        {
+            std::string trailing;
+            if (row >> trailing)
+                throw std::runtime_error(
+                    "StateBackendRocksDB: extra tokens on sidecar line: " + line);
         }
         ++accounts;
     }

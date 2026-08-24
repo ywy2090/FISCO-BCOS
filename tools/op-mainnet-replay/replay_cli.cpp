@@ -82,10 +82,32 @@ std::vector<AllowRow> loadAllowlist(const std::string& path)
             if (row.size() != 3)
                 throw std::runtime_error(
                     "allowlist row for '" + key + "' must be [want, got, STATUS]");
-            rows.push_back({vid, field, row[0].asString(), row[1].asString(), row[2].asString()});
+            const auto status = row[2].asString();
+            if (status != "PENDING-FIX" && status != "SIGNED-OFF")
+                std::cerr << "allowlist row for '" << key << "': status '" << status
+                          << "' is not PENDING-FIX|SIGNED-OFF — recorded without exempting\n";
+            rows.push_back({vid, field, row[0].asString(), row[1].asString(), status});
         }
     }
     return rows;
+}
+
+// Parse --chain-id (base 0: decimal or 0x-hex). Reject empty/partial/negative:
+// std::stoull("0x") silently yields 0 and "-1" wraps to UINT64_MAX.
+bool parseChainId(const std::string& s, uint64_t& out)
+{
+    if (s.empty() || s[0] == '-')
+        return false;
+    std::size_t pos = 0;
+    try
+    {
+        out = std::stoull(s, &pos, 0);
+    }
+    catch (...)
+    {
+        return false;
+    }
+    return pos > 0 && pos == s.size();
 }
 }  // namespace
 
@@ -110,7 +132,14 @@ int main(int argc, char** argv)
         else if (a == "--rocks" && i + 1 < argc)
             rocksPath = argv[++i];
         else if (a == "--chain-id" && i + 1 < argc)
-            chainId = std::stoull(argv[++i], nullptr, 0);
+        {
+            const std::string v = argv[++i];
+            if (!parseChainId(v, chainId))
+            {
+                std::cerr << "bad --chain-id '" << v << "'\n";
+                return 2;
+            }
+        }
         else if (a == "--check-import-root" && i + 1 < argc)
             expectRoot = argv[++i];
         else if (a == "--skip-poststate")
@@ -129,8 +158,24 @@ int main(int argc, char** argv)
         std::cerr << "missing --chain\n";
         return 2;
     }
-    const auto allowRows =
-        allowlistPath.empty() ? std::vector<AllowRow>{} : loadAllowlist(allowlistPath);
+    if (!sidecarPath.empty() && rocksPath.empty())
+    {
+        std::cerr << "--sidecar requires --rocks <dir> (RocksDB state backend path)\n";
+        return 2;
+    }
+    std::vector<AllowRow> allowRows;
+    if (!allowlistPath.empty())
+    {
+        try
+        {
+            allowRows = loadAllowlist(allowlistPath);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "error: " << e.what() << "\n";
+            return 2;
+        }
+    }
 
     try
     {
@@ -152,18 +197,21 @@ int main(int argc, char** argv)
         {
             rocksBackend = std::make_unique<StateBackendRocksDB>(rocksPath);
             rocksBackend->loadDumpSidecar(sidecarPath);
-            if (!expectRoot.empty())
+            // Automatic import tripwire: the rebuilt MPT root must equal the
+            // sidecar's ROOT line (the generator wrote the real h0-1 root there).
+            // --check-import-root is an explicit override for odd flows.
+            const auto rebuilt = bcos::evm::stateRootOf(*rocksBackend);
+            const auto wantRoot = expectRoot.empty() ?
+                                      std::optional<evmc::bytes32>{rocksBackend->importRoot()} :
+                                      evmc::from_hex<evmc::bytes32>(expectRoot);
+            if (!wantRoot.has_value() || rebuilt != *wantRoot)
             {
-                const auto rebuilt = bcos::evm::stateRootOf(*rocksBackend);
-                const auto wantRoot = evmc::from_hex<evmc::bytes32>(expectRoot);
-                if (!wantRoot.has_value() || rebuilt != *wantRoot)
-                {
-                    std::cerr << "import root mismatch: rebuilt=" << hexHash(rebuilt)
-                              << " expected=" << expectRoot << "\n";
-                    return 1;
-                }
-                std::cout << "import root == ROOT (" << hexHash(rebuilt) << ")\n";
+                std::cerr << "import root mismatch: rebuilt=" << hexHash(rebuilt) << " expected="
+                          << (expectRoot.empty() ? hexHash(rocksBackend->importRoot()) : expectRoot)
+                          << "\n";
+                return 1;
             }
+            std::cout << "import root == ROOT (" << hexHash(rebuilt) << ")\n";
             backend = rocksBackend.get();
         }
         else

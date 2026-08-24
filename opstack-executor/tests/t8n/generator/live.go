@@ -41,6 +41,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -86,6 +88,21 @@ const (
 type liveAccountRange struct {
 	Accounts map[string]state.DumpAccount `json:"accounts"`
 	Next     hexutil.Bytes                `json:"next"`
+}
+
+// parseDumpBalance parses op-geth's debug_accountRange balance field:
+// big.Int.String() is decimal with no 0x prefix (core/state/dump.go); a
+// 0x-hex fallback covers odd node variants. Returns an error on garbage.
+func parseDumpBalance(s string) (*big.Int, error) {
+	numStr, base := s, 10
+	if strings.HasPrefix(numStr, "0x") {
+		numStr, base = numStr[2:], 16
+	}
+	v, ok := new(big.Int).SetString(numStr, base)
+	if !ok {
+		return nil, fmt.Errorf("bad balance %q", s)
+	}
+	return v, nil
 }
 
 // liveChainCtx serves the EVM's historical-header reads (BLOCKHASH) from the
@@ -288,13 +305,23 @@ func liveTxToOutput(tx *types.Transaction, signer types.Signer) (json.RawMessage
 		if err != nil {
 			return nil, err
 		}
+		// Presence checks: a truncated/RPC-damaged deposit must fail loudly, not
+		// silently become a zero-address / zero-gas / zero-sourceHash deposit.
+		if rtStr(rt, "from") == "" || rtStr(rt, "sourceHash") == "" || rtStr(rt, "gas") == "" {
+			return nil, fmt.Errorf("tx %s: deposit missing from/sourceHash/gas in RPC tx JSON", tx.Hash())
+		}
+		if rtBool(rt, "isSystemTx") {
+			// FISCO runDeposit rejects is_system_tx=true at block level; a live
+			// deposit with the flag set would fail the whole window obscurely.
+			return nil, fmt.Errorf("tx %s: deposit with isSystemTx=true is unsupported", tx.Hash())
+		}
 		dep := inputDeposit{
 			From:       common.HexToAddress(rtStr(rt, "from")),
 			To:         rtOptAddr(rt, "to"),
 			Mint:       rtOptBig(rt, "mint"),
 			Value:      rtOptBig(rt, "value"),
 			Gas:        math.HexOrDecimal64(rtUint64(rt, "gas")),
-			IsSystemTx: rtBool(rt, "isSystemTx"),
+			IsSystemTx: false,
 			SourceHash: common.HexToHash(rtStr(rt, "sourceHash")),
 		}
 		return json.Marshal(outputDepositTx{
@@ -339,11 +366,23 @@ func liveTxToOutput(tx *types.Transaction, signer types.Signer) (json.RawMessage
 				if !ok {
 					return nil, fmt.Errorf("tx %s: malformed authorizationList entry", tx.Hash())
 				}
+				// Field-presence + domain validation (mirrors the corpus arm's
+				// guards): missing fields or out-of-domain signatures must fail
+				// loudly, not silently become zero-valued tuples that poison the
+				// replayer's ecrecover.
+				if rtStr(m, "address") == "" || rtStr(m, "chainId") == "" ||
+					rtStr(m, "r") == "" || rtStr(m, "s") == "" {
+					return nil, fmt.Errorf("tx %s: setcode auth missing address/chainId/r/s", tx.Hash())
+				}
+				yp := rtUint64(m, "yParity")
+				if yp > 1 {
+					return nil, fmt.Errorf("tx %s: setcode auth yParity %d out of {0,1}", tx.Hash(), yp)
+				}
 				auths = append(auths, outputAuthorization{
 					ChainID: (*math.HexOrDecimal256)(rtBig(m, "chainId")),
 					Address: common.HexToAddress(rtStr(m, "address")),
 					Nonce:   math.HexOrDecimal64(rtUint64(m, "nonce")),
-					YParity: math.HexOrDecimal64(rtUint64(m, "yParity")),
+					YParity: math.HexOrDecimal64(yp),
 					R:       (*math.HexOrDecimal256)(rtBig(m, "r")),
 					S:       (*math.HexOrDecimal256)(rtBig(m, "s")),
 				})
@@ -495,14 +534,24 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 		return fmt.Errorf("sidecar create: %w", err)
 	}
 	defer sidecar.Close()
+	// Buffered: the full Sepolia state is millions of rows; unbuffered writes
+	// would be one syscall per account/slot.
+	sidecarBuf := bufio.NewWriter(sidecar)
+	defer sidecarBuf.Flush()
 	// ROOT = the real h0-1 header root (known upfront); the committed bootstrap
 	// root must equal it, making the sidecar self-verifying on the CLI side.
-	fmt.Fprintln(sidecar, "MAGIC v1")
-	fmt.Fprintf(sidecar, "ROOT %s\n", anchorHdr.Root)
+	fmt.Fprintln(sidecarBuf, "MAGIC v1")
+	fmt.Fprintf(sidecarBuf, "ROOT %s\n", anchorHdr.Root)
 
 	startKey := hexutil.Bytes{}
 	accountCount := 0
+	var lastStart []byte
+	pages := 0
 	for {
+		pages++
+		if pages > 1<<20 {
+			return fmt.Errorf("debug_accountRange: page cap exceeded (node not advancing)")
+		}
 		var dump liveAccountRange
 		callCtx, cc := context.WithTimeout(ctx, 2*time.Minute)
 		err := rc.CallContext(callCtx, &dump, "debug_accountRange",
@@ -516,9 +565,9 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 		}
 		for addrStr, acc := range dump.Accounts {
 			addr := common.HexToAddress(addrStr)
-			balance, ok := new(big.Int).SetString(strings.TrimPrefix(acc.Balance, "0x"), 16)
-			if !ok {
-				return fmt.Errorf("account %s: bad balance %q", addrStr, acc.Balance)
+			balance, err := parseDumpBalance(acc.Balance)
+			if err != nil {
+				return fmt.Errorf("account %s: %w", addrStr, err)
 			}
 			statedb.SetBalance(addr, uint256.MustFromBig(balance), tracing.BalanceChangeUnspecified)
 			statedb.SetNonce(addr, acc.Nonce, tracing.NonceChangeUnspecified)
@@ -530,7 +579,7 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 			if len(acc.Code) > 0 {
 				codeHex = hexutil.Encode(acc.Code)
 			}
-			fmt.Fprintf(sidecar, "%s %s %s %s %d",
+			fmt.Fprintf(sidecarBuf, "%s %s %s %s %d",
 				addr.Hex(), hexutil.EncodeBig(balance), hexutil.EncodeUint64(acc.Nonce), codeHex, len(acc.Storage))
 			for slot, valStr := range acc.Storage {
 				val, ok := new(big.Int).SetString(strings.TrimPrefix(valStr, "0x"), 16)
@@ -538,14 +587,20 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 					return fmt.Errorf("account %s: bad storage value %q", addrStr, valStr)
 				}
 				statedb.SetState(addr, slot, common.BigToHash(val))
-				fmt.Fprintf(sidecar, " %s %s", slot.Hex(), hexutil.EncodeBig(val))
+				fmt.Fprintf(sidecarBuf, " %s %s", slot.Hex(), hexutil.EncodeBig(val))
 			}
-			fmt.Fprintln(sidecar)
+			fmt.Fprintln(sidecarBuf)
 			accountCount++
 		}
 		if len(dump.Next) == 0 {
 			break
 		}
+		// Pagination guard: a non-advancing (or non-lexicographically-growing)
+		// cursor would loop forever re-fetching the same page.
+		if lastStart != nil && bytes.Compare(dump.Next, lastStart) <= 0 {
+			return fmt.Errorf("debug_accountRange: non-advancing next cursor")
+		}
+		lastStart = append(lastStart[:0], dump.Next...)
 		startKey = dump.Next
 	}
 	root, err := statedb.Commit(0, true, false)
@@ -588,9 +643,14 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 		}
 		headerByNum[h] = blk.Header()
 		headerByHash[blk.Hash()] = blk.Header()
+		// BLOCKHASH pre-fill for the window itself: block N reads [N-256, N-1],
+		// which includes earlier window heights (contracts reading historical
+		// hashes are the norm on real chains, unlike the transfer-safe corpus).
+		prefill[fmt.Sprintf("%d", h)] = blk.Hash().Hex()
 		blocks = append(blocks, blk)
 	}
-	fmt.Printf("fetched %d blocks (%d..%d)\n", len(blocks), from, toNum)
+	fmt.Printf("fetched %d blocks (%d..%d), blockhash prefill now %d entries\n",
+		len(blocks), from, toNum, len(prefill))
 
 	// --- golden-standard cross-check: StateProcessor.Process per block ---
 	// The real h0-1 root is the parent of block h0; each block's Process runs
@@ -781,6 +841,13 @@ func liveExpectedHeader(hdr *types.Header) expectedHeader {
 	}
 	if hdr.BlobGasUsed != nil {
 		exp.BlobGasUsed = hexutil.EncodeUint64(*hdr.BlobGasUsed)
+	}
+	// Isthmus+ (FISCO sealOpBlock) always emits requestsHash = sha256(""); the
+	// corpus generator does too — without it every live block would DIVERGE on
+	// the checkOptional (want=absent vs got=0xe3b0...). Mirror the real header.
+	if hdr.RequestsHash != nil {
+		s := hdr.RequestsHash.Hex()
+		exp.RequestsHash = &s
 	}
 	return exp
 }

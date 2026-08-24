@@ -44,7 +44,9 @@ echo "sync window: [$FROM, $LATEST] (latest ts $LATEST_TS < karst $KARST)"
 opt8n-ref --live "$RPC" --from "$FROM" --to latest --fork jovian \
   --out "$OUT/chain.json" --sidecar "$OUT/state.sidecar"
 ./build/opstack-executor/tests/opstack-mainnet-replay --chain "$OUT/chain.json" \
-  --sidecar "$OUT/state.sidecar" --skip-poststate --chain-id 11155420 \
+  --sidecar "$OUT/state.sidecar" --rocks "$OUT/rocks" --skip-poststate --chain-id 11155420 \
   --report "$OUT/report.json" || { echo "DIVERGENCE DETECTED"; exit 1; }
-echo "$LATEST <stateRoot>" > "$OUT/anchor.txt"   # 推进锚点
-echo "anchor advanced to $LATEST"
+# 锚点 = 真实 stateRoot（sidecar ROOT 行；readAnchor 期望 "height 0x<hex>" 格式）
+ROOT=$(sed -n 's/^ROOT //p' "$OUT/state.sidecar" | head -1)
+echo "$LATEST $ROOT" > "$OUT/anchor.txt"   # 推进锚点
+echo "anchor advanced to $LATEST ($ROOT)"

@@ -95,6 +95,28 @@ target_link_libraries(opstack-mainnet-replay PRIVATE
     opstack-executor bcosevm::opstack jsoncpp_static evmone::evmone intx::intx
     bcos-utilities protocol-tars RocksDB::rocksdb ${BLST_LIBRARY})
 
+# op-mainnet-replay smoke gates (fixtures committed under tools/op-mainnet-replay/fixtures).
+set(REPLAY_FIXTURES ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/op-mainnet-replay/fixtures)
+add_test(NAME ReplayCliSmokeGreen COMMAND opstack-mainnet-replay
+    --chain ${REPLAY_FIXTURES}/smoke_green.json)
+add_test(NAME ReplayCliSmokeRed COMMAND opstack-mainnet-replay
+    --chain ${REPLAY_FIXTURES}/smoke_red.json)
+set_tests_properties(ReplayCliSmokeRed PROPERTIES WILL_FAIL TRUE)
+add_test(NAME ReplayCliAllowlist COMMAND opstack-mainnet-replay
+    --chain ${REPLAY_FIXTURES}/smoke_red.json
+    --allowlist ${REPLAY_FIXTURES}/smoke_allowlist.json)
+add_test(NAME ReplayCliLiveSidecar COMMAND opstack-mainnet-replay
+    --chain ${REPLAY_FIXTURES}/live_smoke.json
+    --sidecar ${REPLAY_FIXTURES}/live_smoke.sidecar
+    --rocks ${CMAKE_CURRENT_BINARY_DIR}/replay-cli-live-rocks
+    --skip-poststate --chain-id 0x2105)
+add_test(NAME ReplayCliBadChainId COMMAND opstack-mainnet-replay
+    --chain ${REPLAY_FIXTURES}/smoke_green.json --chain-id abc)
+set_tests_properties(ReplayCliBadChainId PROPERTIES WILL_FAIL TRUE)
+add_test(NAME ReplayCliSidecarNeedsRocks COMMAND opstack-mainnet-replay
+    --chain ${REPLAY_FIXTURES}/live_smoke.json --sidecar ${REPLAY_FIXTURES}/live_smoke.sidecar)
+set_tests_properties(ReplayCliSidecarNeedsRocks PROPERTIES WILL_FAIL TRUE)
+
 # Extracted pure-function layer (OpRlpDecode.h / Storage2StateHelpers.h): direct unit tests
 # over the decode primitives and state-bridge helpers, no class-template instantiation.
 add_executable(opstack-executor-detail-tests
