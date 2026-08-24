@@ -166,17 +166,17 @@ bcos::Error::UniquePtr EthBlockHeader::decodeTarsHeader(
         return err;
     }
 
-    // Like toTarsHeader's field writes but WITHOUT validateHeader — usable for FISCO-native/OP
+    // Like toTarsHeader's field writes but WITHOUT validateHeader -- usable for FISCO-native/OP
     // (NON_ETH) headers that validateHeader rejects. TWO DELIBERATE omissions from toTarsHeader:
     //   1. ethBlockVersion is pinned to NON_ETH here instead of copying ethHeader.version()
     //      (which after rlpDecode is derived from the optional-field cascade). Headers decoded
     //      through this path are FISCO-native/OP, and downstream routing (e.g.
-    //      BlockHeaderImpl::calculateHash) keys off the version — write it explicitly instead
+    //      BlockHeaderImpl::calculateHash) keys off the version -- write it explicitly instead
     //      of relying on header->clear() leaving the tars field at its default 0 happening to
     //      equal NON_ETH. The timestamp domain does NOT depend on this pin: internal is always
     //      milliseconds, and rlpDecode/rlpEncode convert unconditionally for every version.
     //   2. rlpHash is NOT set (toTarsHeader writes it via rlpEncode+keccak256). Callers
-    //      that need the block hash should call computeHash() or calculateRLPHash() explicitly —
+    //      that need the block hash should call computeHash() or calculateRLPHash() explicitly --
     //      computing it here would force a full re-encode for every decode, even when the caller
     //      only needs field access.
     header->setEthBlockVersion(bcos::protocol::EthBlockVersion::NON_ETH);
@@ -467,14 +467,14 @@ void EthBlockHeader::rlpEncode(bcos::bytes& out) const
 {
     // Timestamp domain model: internal is always milliseconds (every EthBlockVersion,
     // NON_ETH included); the RLP surface always carries seconds; conversion happens
-    // unconditionally at this bridge (/1000 here, ×1000 in rlpDecode) — no per-version
+    // unconditionally at this bridge (/1000 here, x1000 in rlpDecode) -- no per-version
     // branching.
     //
-    // Integer division is lossy for sub-second precision (1001 ms → 1 s). Every producer
+    // Integer division is lossy for sub-second precision (1001 ms -> 1 s). Every producer
     // that reaches this bridge carries whole-second milliseconds by construction (the
     // Engine API boundary, the eth-genesis path and rlpDecode all multiply seconds by
     // 1000); sub-second input would produce an RLP hash not reproducible from the decoded
-    // form. Throw (not assert — assert is compiled out under NDEBUG).
+    // form. Throw (not assert -- assert is compiled out under NDEBUG).
     if (m_data.timestamp % 1000 != 0)
     {
         BOOST_THROW_EXCEPTION(std::invalid_argument(

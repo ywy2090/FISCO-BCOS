@@ -324,7 +324,7 @@ void State::rollback(size_t checkpoint)
 /// @return  Execution gas limit or transaction validation error.
 std::variant<TransactionProperties, std::error_code> validate_transaction(
     const StateView& state_view, const BlockInfo& block, const Transaction& tx, evmc_revision rev,
-    int64_t block_gas_left, int64_t blob_gas_left) noexcept
+    int64_t block_gas_left, int64_t blob_gas_left, bool skip_balance_check) noexcept
 {
     switch (tx.type)  // Validate "special" transaction types.
     {
@@ -388,7 +388,15 @@ std::variant<TransactionProperties, std::error_code> validate_transaction(
     if (tx.gas_limit > block_gas_left)
         return make_error_code(GAS_LIMIT_REACHED);
 
-    if (tx.max_gas_price < block.base_fee)
+    // op-geth parity (core/state_transition.go preCheck): eth_call/estimateGas run with
+    // NoBaseFee, where BOTH fee fields zero means "simulate unpriced" and the base-fee
+    // floor is skipped (skip_balance_check is exactly the RPC dry-run flag). Without this,
+    // foundry's default zero-gasPrice estimate dies in validation and the typed failure
+    // surfaces through the -fno-rtti boundary as an opaque -32603. A nonzero cap below
+    // the base fee is still rejected, for dry-runs and real transactions alike.
+    bool const unpricedDryRun =
+        skip_balance_check && tx.max_gas_price == 0 && tx.max_priority_gas_price == 0;
+    if (!unpricedDryRun && tx.max_gas_price < block.base_fee)
         return make_error_code(FEE_CAP_LESS_THAN_BLOCKS);
 
     // We need some information about the sender so lookup the account in the state.
@@ -403,11 +411,17 @@ std::variant<TransactionProperties, std::error_code> validate_transaction(
     if (sender_acc.nonce == Account::NonceMax)  // Nonce value limit (EIP-2681).
         return make_error_code(NONCE_HAS_MAX_VALUE);
 
-    if (sender_acc.nonce < tx.nonce)
-        return make_error_code(NONCE_TOO_HIGH);
+    // Simulations (skip_balance_check) tolerate both nonce directions as well: op-geth never
+    // nonce-validates an eth_call/estimateGas message, and a chain whose sender nonce has been
+    // advanced by real transactions would otherwise reject every simulation carrying nonce 0.
+    if (!skip_balance_check)
+    {
+        if (sender_acc.nonce < tx.nonce)
+            return make_error_code(NONCE_TOO_HIGH);
 
-    if (sender_acc.nonce > tx.nonce)
-        return make_error_code(NONCE_TOO_LOW);
+        if (sender_acc.nonce > tx.nonce)
+            return make_error_code(NONCE_TOO_LOW);
+    }
 
     // initcode size is limited by EIP-3860.
     if (rev >= EVMC_SHANGHAI && !tx.to.has_value() && tx.data.size() > MAX_INITCODE_SIZE)
@@ -425,7 +439,7 @@ std::variant<TransactionProperties, std::error_code> validate_transaction(
         // FIXME: Can overflow uint256.
         max_total_fee += total_blob_gas * tx.max_blob_gas_price;
     }
-    if (sender_acc.balance < max_total_fee)
+    if (!skip_balance_check && sender_acc.balance < max_total_fee)
         return make_error_code(INSUFFICIENT_FUNDS);
 
     const auto [intrinsic_cost, min_cost] = compute_tx_intrinsic_cost(rev, tx);

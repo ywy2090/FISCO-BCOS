@@ -6,8 +6,7 @@
 /// finalization) is ported from bcos-evm and integrated here so that it reads
 /// and writes BCOS storage directly through ledger::account::EVMAccount +
 /// storage2 — there is no evmone::state::StateView / BlockHashes / StateDiff
-/// adapter layer (StorageStateView / StorageBlockHashes / applyStateDiff are
-/// gone), transactions are the bcos protocol::Transaction directly, and block
+/// adapter layer, transactions are the bcos protocol::Transaction directly, and block
 /// headers are the bcos protocol::BlockHeader directly (see the
 /// Rollbackable / EthereumState / EthereumHost / EthereumTransition headers).
 ///
@@ -27,12 +26,12 @@
 #pragma once
 
 #include "EthereumTransition.h"
-#include "bcos-framework/storage2/RollbackableStorage.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/protocol/BlockHeader.h"
 #include "bcos-framework/protocol/Transaction.h"
 #include "bcos-framework/protocol/TransactionReceipt.h"
 #include "bcos-framework/protocol/TransactionReceiptFactory.h"
+#include "bcos-framework/storage2/RollbackableStorage.h"
 #include "bcos-framework/transaction-executor/TransactionExecutor.h"
 #include "bcos-task/TBBWait.h"
 #include <bcos-utilities/Exceptions.h>
@@ -45,7 +44,6 @@
 #include <optional>
 #include <string>
 #include <system_error>
-#include <bcos-utilities/BoostLog.h>
 
 namespace bcos::executor_v1::eth
 {
@@ -284,7 +282,8 @@ public:
                 //   state read, so it is resolved in execute() (the only
                 //   phase allowed to touch state).
             }
-            m_blobGasLeft = static_cast<int64_t>(evm::max_blob_gas_per_block(blobParamsForRevision(m_rev)));
+            m_blobGasLeft =
+                static_cast<int64_t>(evm::max_blob_gas_per_block(blobParamsForRevision(m_rev)));
             co_return;
         }
 
@@ -373,8 +372,7 @@ public:
                     // Genuinely invalid — skip execution; finish() produces a
                     // failure receipt and nothing is written for this transaction.
                     m_validationError = std::get<std::error_code>(validationResult);
-                    BCOS_LOG(INFO) << LOG_BADGE("EXECUTE")
-                                   << LOG_DESC("tx validation failed")
+                    BCOS_LOG(INFO) << LOG_BADGE("EXECUTE") << LOG_DESC("tx validation failed")
                                    << LOG_KV("error", m_validationError.value().message())
                                    << LOG_KV("code", m_validationError.value().value());
                 }

@@ -1,18 +1,17 @@
 name: L2 contracts
 # Forge build/test + storage-layout drift gate for the OP-Stack L2 Solidity
-# suite, plus the build-allocs.py pytest suite. Path-filtered so it only runs
-# when the L2 artifacts (or this workflow) change — the heavy C++ matrix in
-# workflow.yml stays untouched.
+# suite. Path-filtered so it only runs when the L2 contracts (or this
+# workflow) change — the heavy C++ matrix in workflow.yml stays untouched.
+# The genesis-tooling / e2e-static checks moved to e2e-assets-static.yml
+# together with the op-stack-e2e-tests asset migration.
 on:
   push:
     paths:
       - "bcos-l2-contracts/**"
-      - "tools/opstack-genesis/**"
       - ".github/workflows/l2-contracts.yml"
   pull_request:
     paths:
       - "bcos-l2-contracts/**"
-      - "tools/opstack-genesis/**"
       - ".github/workflows/l2-contracts.yml"
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -160,21 +159,3 @@ jobs:
           done
           exit "$fail"
 
-  genesis-tooling:
-    name: opstack-genesis pytest
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: tools/opstack-genesis
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install Python deps
-        # build-allocs.py imports pyyaml at module load, so the pytest suite
-        # (which loads it by path) needs pyyaml too. pytest runs the suite.
-        run: python3 -m pip install --upgrade pip pyyaml pytest
-      - name: Run pytest
-        run: python3 -m pytest test_build_allocs.py test_gen_rollup_config.py -v

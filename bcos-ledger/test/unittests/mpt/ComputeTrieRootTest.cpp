@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(VarKeyShortKeysBuildToNonEmptyRoot)
 
 // The prefix-free/distinct caller contract is ENFORCED, not just documented: a key that is a
 // prefix of another (or a duplicate) terminates inside a branch node and would silently
-// produce a malformed trie — the W6 shape. The build must throw instead of emitting a root.
+// produce a malformed trie -- the W6 shape. The build must throw instead of emitting a root.
 BOOST_AUTO_TEST_CASE(VarKeyRejectsPrefixAndDuplicateKeys)
 {
     std::vector<std::pair<bcos::bytes, bcos::bytes>> prefixEntries{

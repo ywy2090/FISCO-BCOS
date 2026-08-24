@@ -229,8 +229,8 @@ TrieBuildResult computeTrieRootVarKey(std::span<std::pair<bcos::bytes, bcos::byt
     // Enforce the documented precondition ("no key is a prefix of another", above) instead
     // of trusting it: after the nibble-path sort, a violating pair is necessarily ADJACENT,
     // and the sorted order guarantees prev is never longer than current. A duplicate or
-    // prefix key terminates inside a branch node and silently produces a malformed trie —
-    // the W6 shape recorded above — so fail loudly while computing the root, not at
+    // prefix key terminates inside a branch node and silently produces a malformed trie --
+    // the W6 shape recorded above -- so fail loudly while computing the root, not at
     // consensus verification where the mismatch surfaces as an unexplained fork.
     for (std::size_t i = 1; i < buildEntries.size(); ++i)
     {
@@ -243,7 +243,7 @@ TrieBuildResult computeTrieRootVarKey(std::span<std::pair<bcos::bytes, bcos::byt
                 MPTInvariantViolation() << bcos::errinfo_comment(
                     "computeTrieRootVarKey: key " + std::to_string(i - 1) +
                     " is a duplicate of, or a prefix of, key " + std::to_string(i) +
-                    " — variable-length trie keys must be prefix-free and distinct"));
+                    " -- variable-length trie keys must be prefix-free and distinct"));
         }
     }
 

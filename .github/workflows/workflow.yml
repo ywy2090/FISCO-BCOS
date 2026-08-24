@@ -132,6 +132,30 @@ jobs:
         run: |
           cd build
           cmake --build .
+      - name: Checkout op-stack-e2e-tests assets
+        # Black-box e2e drivers, genesis toolchain and t8n generator live in the
+        # standalone repo FISCO-BCOS/op-stack-e2e-tests (CI triggers stay here).
+        # Symlinked into the historical in-tree paths so scripts, CMake macros and
+        # the regen action below are unchanged. Pin = the asset-repo commit this
+        # repo's tests are verified against; bump deliberately.
+        if: matrix.os != 'windows-2025'
+        uses: actions/checkout@v4
+        with:
+          repository: FISCO-BCOS/op-stack-e2e-tests
+          ref: 1f1fd4d9a2e8d76a7f98231ad0a9606d01f84a8f
+          path: e2e-tests
+      - name: Symlink e2e assets into in-tree paths
+        if: matrix.os != 'windows-2025'
+        run: |
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/tools/op-e2e" "$GITHUB_WORKSPACE/tools/op-e2e"
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/tools/opstack-genesis" "$GITHUB_WORKSPACE/tools/opstack-genesis"
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/opstack-executor/tests/t8n" "$GITHUB_WORKSPACE/opstack-executor/tests/t8n"
+      - name: Regenerate opstack t8n vectors
+        # The opstack t8n tests (opstack-executor-block-tests) read reference vectors
+        # from the source tree at runtime; the JSON is git-ignored and regenerated here
+        # from pinned op-geth before `ctest`. Windows builds with -DTESTS=OFF, so no tests.
+        if: matrix.os != 'windows-2025'
+        uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@1f1fd4d9a2e8d76a7f98231ad0a9606d01f84a8f
       - name: Test
         if: matrix.os != 'windows-2025'
         run: |
@@ -376,6 +400,23 @@ jobs:
         run: |
           cd build
           cmake --build . --parallel 3
+      - name: Checkout op-stack-e2e-tests assets
+        # See the build-matrix job: e2e assets come from the standalone repo,
+        # symlinked into the in-tree paths for the regen action below.
+        uses: actions/checkout@v4
+        with:
+          repository: FISCO-BCOS/op-stack-e2e-tests
+          ref: 1f1fd4d9a2e8d76a7f98231ad0a9606d01f84a8f
+          path: e2e-tests
+      - name: Symlink e2e assets into in-tree paths
+        run: |
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/tools/op-e2e" "$GITHUB_WORKSPACE/tools/op-e2e"
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/tools/opstack-genesis" "$GITHUB_WORKSPACE/tools/opstack-genesis"
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/opstack-executor/tests/t8n" "$GITHUB_WORKSPACE/opstack-executor/tests/t8n"
+      - name: Regenerate opstack t8n vectors
+        # ctest below includes opstack-executor-block-tests, which needs the t8n vectors
+        # in the source tree at runtime (git-ignored, regenerated from pinned op-geth).
+        uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@1f1fd4d9a2e8d76a7f98231ad0a9606d01f84a8f
       - name: Run tests
         run: |
           cd build
@@ -525,3 +566,83 @@ jobs:
             'NodeConfigAllocsTest|GenesisStateRootTest|LedgerGenesisL2Test|LedgerGenesisAllocsHashTest|FeatureL2FlagTest|L2ConfigLoaderTest|PrecompiledMapDisabledInL2Test|PrecompiledMapProductionInvariantTest|KzgPrecompileRegisteredTest|EthEndpointSystemConfigTest'
       - name: L2 integration runner (SKIPs without the A8 devnet)
         run: bash tools/.ci/l2-integration/run-all.sh
+
+  op-e2e:
+    name: OP-Stack e2e (real node)
+    runs-on: ubuntu-24.04
+    # Reuse the C++ build artifact from the 5-OS build matrix (uploaded for
+    # ubuntu-24.04 only) instead of recompiling here — L2 mode is a runtime
+    # feature flag, not a compile-time variant, so the binary is identical.
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - name: Checkout op-stack-e2e-tests assets
+        # e2e drivers live in the standalone asset repo; symlinked into the
+        # in-tree tools/ paths so the scripts below are unchanged.
+        uses: actions/checkout@v4
+        with:
+          repository: FISCO-BCOS/op-stack-e2e-tests
+          ref: 1f1fd4d9a2e8d76a7f98231ad0a9606d01f84a8f
+          path: e2e-tests
+      - name: Symlink e2e assets into in-tree paths
+        run: |
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/tools/op-e2e" "$GITHUB_WORKSPACE/tools/op-e2e"
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/tools/opstack-genesis" "$GITHUB_WORKSPACE/tools/opstack-genesis"
+          ln -s "$GITHUB_WORKSPACE/e2e-tests/opstack-executor/tests/t8n" "$GITHUB_WORKSPACE/opstack-executor/tests/t8n"
+      - name: Download fisco-bcos-air artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fisco-bcos-ubuntu-24-x86_64
+          path: build/fisco-bcos-air/
+      - name: Fix binary permissions
+        run: chmod +x build/fisco-bcos-air/fisco-bcos
+      - name: Install linux dependencies (foundry + clang)
+        run: |
+          sudo apt-get install -y --no-install-recommends clang
+          curl -L https://foundry.paradigm.xyz | bash
+          export PATH="$HOME/.foundry/bin:$PATH"
+          foundryup
+      - name: Install python deps
+        run: |
+          python3 -m pip install --quiet pyyaml 2>/dev/null || \
+          pip3 install --quiet pyyaml 2>/dev/null || \
+          pip3 install --break-system-packages --quiet pyyaml 2>/dev/null || true
+      - name: Build sign_secp helper
+        # vcpkg secp256k1 is built in the build job; link sign_secp here against
+        # the vcpkg tree that setup_op_node.sh expects (or skip — scripts detect
+        # its absence and degrade gracefully).
+        run: |
+          cd build
+          SECP_PKG=$(find vcpkg_installed -name "libsecp256k1.a" 2>/dev/null | head -1 | xargs dirname | xargs dirname)
+          if [ -z "$SECP_PKG" ]; then
+            echo "libsecp256k1.a not found in artifact; sign_secp skipped — node still starts"
+          else
+            mkdir -p /tmp/op-e2e-sign
+            clang -O2 -I"$SECP_PKG/include" "${{ github.workspace }}/tools/op-e2e/sign_secp.c" \
+              -o /tmp/op-e2e-sign/sign_secp "$SECP_PKG/lib/libsecp256k1.a" \
+              "$SECP_PKG/lib/libsecp256k1_precomputed.a" -lssl -lcrypto 2>&1 | tail -5 || true
+          fi
+      - name: Rebuild B3/B3a nodes + run e2e suite
+        env:
+          WORK: ${{ runner.temp }}/op-spike
+          BINARY: ${{ github.workspace }}/build/fisco-bcos-air/fisco-bcos
+          BASE_ALLOCS: ${{ github.workspace }}/tools/opstack-genesis/op-fork-base-allocs.json
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          # Full log to a file (for the gate assertion) + tail to the step output.
+          bash tools/op-e2e/setup_op_node.sh > "${{ runner.temp }}/op-spike-setup.log" 2>&1
+          tail -120 "${{ runner.temp }}/op-spike-setup.log"
+      - name: Assert ALL OP-E2E GREEN
+        # run_all.sh prints ALL OP-E2E GREEN and exits 0 only when every suite
+        # passes (it exits 1 with OP-E2E FAILED otherwise). The setup script
+        # swallows run_all's exit code, so the gate must grep the captured log.
+        run: |
+          if grep -q "ALL OP-E2E GREEN" "${{ runner.temp }}/op-spike-setup.log"; then
+            echo "OP-E2E gate: ALL GREEN"
+          else
+            echo "::error::OP-E2E gate failed — see 'Rebuild B3/B3a nodes' step log"
+            grep -E "FAIL|failed|passed" "${{ runner.temp }}/op-spike-setup.log" | tail -20 || true
+            exit 1
+          fi

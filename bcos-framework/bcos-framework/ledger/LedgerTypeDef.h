@@ -41,8 +41,7 @@ using MerkleProof = std::vector<crypto::HashType>;
 
 /// Parse the web3 chain-id system-config string as u256. nullopt on a corrupted value (non
 /// numeric, empty, negative, or an unparsed remainder) — the single shared parse for the three
-/// config consumers (TxValidator::validateChainId — exists in base (reads the tars mirror);
-/// its envelope-keyed implementation migrates with part 4b, PR #5477 — EthEndpoint's
+/// config consumers (TxValidator::validateChainId [lands with part 4b, PR #5477], EthEndpoint's
 /// chainId gate, LedgerMethods::loadChainConfig [part 4b]) so width semantics and error
 /// behavior cannot drift. Note: the envelope side (web3ChainIdFromEnvelope / Web3TxHandler
 /// decodes) is uint64-capped with the RLP width gate, so in practice chainIds > 2^64-1 are
@@ -145,6 +144,13 @@ constexpr static std::string_view SYS_NUMBER_2_BLOCK_HEADER{"s_number_2_header"}
 constexpr static std::string_view SYS_NUMBER_2_TXS{"s_number_2_txs"};
 constexpr static std::string_view SYS_HASH_2_TX{"s_hash_2_tx"};
 constexpr static std::string_view SYS_HASH_2_RECEIPT{"s_hash_2_receipt"};
+/// Reorg undo journal (S-DRV-6/7 stage 1, one-level tip rollback): key = the decimal
+/// block number of a COMMITTED block, value = ReorgUndoBlob (opstack-executor/ReorgUndo.h)
+/// recording the pre-block value of every state-plane key the block's delta layer touched
+/// plus its tx counters — enough for a reorg sibling at the same height to rebuild the
+/// parent's flat state as its execution base. Rows are overwritten per height (a sibling's
+/// commit replaces the journal with its own) and pruned after a retention window.
+constexpr static std::string_view SYS_REORG_UNDO{"s_reorg_undo"};
 constexpr static std::string_view DAG_TRANSFER{"/tables/dag_transfer"};
 constexpr static std::string_view SMALLBANK_TRANSFER{"/tables/smallbank_transfer"};
 constexpr static std::string_view SYS_CODE_BINARY{"s_code_binary"};

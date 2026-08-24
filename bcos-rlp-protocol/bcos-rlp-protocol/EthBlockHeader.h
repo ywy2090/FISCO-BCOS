@@ -121,7 +121,7 @@ public:
     /// validateHeader rejects. Returns the 32-byte Ethereum block hash. The header's
     /// timestamp is internal milliseconds (every version); rlpEncode divides by 1000
     /// unconditionally and throws std::invalid_argument if it is not a whole number of
-    /// seconds (ms not divisible by 1000) — callers that cannot tolerate exceptions
+    /// seconds (ms not divisible by 1000) -- callers that cannot tolerate exceptions
     /// should use calculateRLPHash (which returns Error::UniquePtr) instead.
     static bcos::crypto::HashType computeHash(const bcos::protocol::BlockHeader& header) noexcept(
         false);
