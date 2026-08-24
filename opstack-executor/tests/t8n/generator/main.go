@@ -107,10 +107,27 @@ func main() {
 		invalidMode = flag.String("mode", "", "corrupt|static|invalid-tx: emit invalid vectors from a base case stem; chain:<N>[:fork|:break]: emit a linear chain / fork / break vector")
 		baseStem    = flag.String("base", "isthmus_transfer_basic", "base case stem for --mode=corrupt/static (e.g. isthmus_transfer_basic)")
 		invalidOut  = flag.String("out-dir", "", "output dir for --mode=corrupt/static invalid vectors")
+		// --live (live.go): real OP Sepolia chain replay vectors.
+		liveRPC     = flag.String("live", "", "RPC URL of an OP Sepolia node (debug API enabled); run the live vector generator")
+		liveFrom    = flag.Uint64("from", 0, "--live: first replay block height (state bootstrapped at from-1)")
+		liveTo      = flag.String("to", "latest", "--live: last replay block height, 'latest', or an explicit height")
+		liveCount   = flag.Uint64("count", 0, "--live: replay window length (overrides --to)")
+		liveOut     = flag.String("out", "", "--live: output chain vector JSON path")
+		liveSidecar = flag.String("sidecar", "", "--live: output state sidecar path")
+		liveFork    = flag.String("fork", "jovian", "--live: window fork (jovian|isthmus)")
 	)
 	flag.Parse()
 
 	switch {
+	case *liveRPC != "":
+		if *liveOut == "" || *liveSidecar == "" {
+			fmt.Fprintln(os.Stderr, "--live requires --out <chain.json> and --sidecar <state.sidecar>")
+			os.Exit(2)
+		}
+		if err := runLive(*liveRPC, *liveFrom, *liveTo, *liveCount, *liveOut, *liveSidecar, *opGethCommit, *liveFork); err != nil {
+			fmt.Fprintf(os.Stderr, "opt8n-ref: %v\n", err)
+			os.Exit(1)
+		}
 	case *probeWrap:
 		probeGenesisNumber()
 	case *probeSpec:
