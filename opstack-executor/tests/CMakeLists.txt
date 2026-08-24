@@ -82,6 +82,19 @@ target_compile_definitions(opstack-executor-block-tests PRIVATE
     OP_DA_MATRIX_PATH="${CMAKE_CURRENT_SOURCE_DIR}/da-matrix/da_matrix.json")
 add_test(NAME OpstackExecutorBlockTests COMMAND opstack-executor-block-tests)
 
+# opstack-mainnet-replay — live-chain replay CLI (ReplayGate.h + RocksDB backend).
+# Shares the replay machinery with the corpus gate; zero-tolerance per-block compare,
+# sidecar-bootstrapped RocksDB state, --check-import-root tripwire.
+add_executable(opstack-mainnet-replay
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/op-mainnet-replay/replay_cli.cpp
+    support/StateBackendRocksDB.cpp)
+set_target_properties(opstack-mainnet-replay PROPERTIES UNITY_BUILD OFF)
+target_include_directories(opstack-mainnet-replay PRIVATE
+    ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(opstack-mainnet-replay PRIVATE
+    opstack-executor bcosevm::opstack jsoncpp_static evmone::evmone intx::intx
+    bcos-utilities protocol-tars RocksDB::rocksdb ${BLST_LIBRARY})
+
 # Extracted pure-function layer (OpRlpDecode.h / Storage2StateHelpers.h): direct unit tests
 # over the decode primitives and state-bridge helpers, no class-template instantiation.
 add_executable(opstack-executor-detail-tests
