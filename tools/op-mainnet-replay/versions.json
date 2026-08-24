@@ -1,0 +1,10 @@
+{
+  "network": "op-sepolia",
+  "chain_id": 11155420,
+  "karst": 1781712001,
+  "jovian": 1763568001,
+  "isthmus": 1744905600,
+  "op-geth": {"pin": "e8800cffe53d459cde8a07c8e8f1de9d86e79e07", "tag": "v1.101702.2", "note": "EOL 2026-05-31，仅 Karst 前金标准"},
+  "op-node": {"ref": "5f90f749caea14398554afb75062f7111b1fc554", "note": "op-e2e 同 pin"},
+  "window_note": "Jovian 窗口 (1763568001, 1781712001) 为历史区间（Karst 2026-06-17 已激活）；需 FULL+archive 同步"
+}
