@@ -92,11 +92,22 @@ BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs)
 
     const auto& k = karstConfig();
     BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
-    BOOST_CHECK_EQUAL(k.rev, j.rev);
+    BOOST_CHECK_EQUAL(k.rev, EVMC_OSAKA);
     BOOST_CHECK_EQUAL(k.has_operator_fee, j.has_operator_fee);
     BOOST_CHECK_EQUAL(k.has_jovian_operator_formula, j.has_jovian_operator_formula);
     BOOST_CHECK_EQUAL(k.has_da_footprint, j.has_da_footprint);
-    BOOST_CHECK_EQUAL(k.precompiles, j.precompiles);
+    BOOST_CHECK_EQUAL(k.precompiles, &karstPrecompileOverrides());
+}
+
+BOOST_AUTO_TEST_CASE(KarstConfigOsakaSemantics)
+{
+    const auto& cfg = karstConfig();
+    BOOST_CHECK(cfg.rev == EVMC_OSAKA);
+    BOOST_CHECK(cfg.precompiles == &karstPrecompileOverrides());
+    BOOST_CHECK(cfg.has_jovian_operator_formula);
+    BOOST_CHECK(cfg.has_da_footprint);
+    BOOST_CHECK(cfg.disable_prague_requests);
+    BOOST_CHECK(cfg.deposit_exempt_from_max_tx_gas);
 }
 
 BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags)
@@ -126,7 +137,7 @@ BOOST_AUTO_TEST_CASE(ConfigAtSelectsForkByFeatureFlag)
 }
 
 // 覆盖剩余字段 has_ecotone_l1_formula（Ecotone 用 calldataGas、Fjord+ 用 FastLZ）
-// 与 configAt 永不返回 karstConfig()（Karst 是 op-reth-only 占位，无真实语义）。
+// 与 configAt 永不返回 karstConfig()（feature-flag configAt 仅 Isthmus/Jovian）。
 BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndKarstUnreachable)
 {
     BOOST_CHECK(ecotoneConfig().has_ecotone_l1_formula);

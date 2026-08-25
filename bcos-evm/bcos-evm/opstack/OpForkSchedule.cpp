@@ -71,6 +71,7 @@ const OpForkConfig& ecotoneConfig() noexcept
         .has_operator_fee = false,
         .has_jovian_operator_formula = false,
         .has_da_footprint = false,
+        .deposit_exempt_from_max_tx_gas = false,
         .has_ecotone_l1_formula = true,
     };
     return cfg;
@@ -86,6 +87,7 @@ const OpForkConfig& fjordConfig() noexcept
         .has_operator_fee = false,
         .has_jovian_operator_formula = false,
         .has_da_footprint = false,
+        .deposit_exempt_from_max_tx_gas = false,
         .has_ecotone_l1_formula = false,
     };
     return cfg;
@@ -123,6 +125,7 @@ const OpForkConfig& isthmusConfig() noexcept
         .has_operator_fee = true,
         .has_jovian_operator_formula = false,
         .has_da_footprint = false,
+        .deposit_exempt_from_max_tx_gas = false,
         .has_ecotone_l1_formula = false,
     };
     return cfg;
@@ -138,23 +141,25 @@ const OpForkConfig& jovianConfig() noexcept
         .has_operator_fee = true,
         .has_jovian_operator_formula = true,
         .has_da_footprint = true,
+        .deposit_exempt_from_max_tx_gas = false,
         .has_ecotone_l1_formula = false,
     };
     return cfg;
 }
 
-// Karst is NOT independently adapted yet: its execution/receipt behavior is temporarily an alias
-// of Jovian (placeholder). Do not treat karstConfig() as a real Karst adaptation. Derived from
-// jovianConfig, changing only the fork tag, the same pattern as granite/holocene deriving from
-// fjord -- future Jovian changes are automatically carried into Karst, avoiding parallel-literal
-// drift.
 const OpForkConfig& karstConfig() noexcept
 {
-    static const OpForkConfig cfg = [] {
-        OpForkConfig c = jovianConfig();
-        c.fork = OpFork::Karst;
-        return c;
-    }();
+    static const OpForkConfig cfg{
+        .fork = OpFork::Karst,
+        .rev = EVMC_OSAKA,
+        .precompiles = &karstPrecompileOverrides(),
+        .disable_prague_requests = true,
+        .has_operator_fee = true,
+        .has_jovian_operator_formula = true,
+        .has_da_footprint = true,
+        .deposit_exempt_from_max_tx_gas = true,
+        .has_ecotone_l1_formula = false,
+    };
     return cfg;
 }
 

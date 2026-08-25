@@ -257,4 +257,87 @@ BOOST_AUTO_TEST_CASE(OffTableAccessTransitionsColdToWarm)
     BOOST_CHECK_EQUAL(host.access_account(kPlain), EVMC_ACCESS_WARM);
 }
 
+BOOST_AUTO_TEST_CASE(KarstBn256PairingInputOverLimitFails)
+{
+    constexpr auto kBn256 = 0x0000000000000000000000000000000000000008_address;
+    constexpr size_t kKarstMax = 57600;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    state::State st{ts};
+    test::TestBlockHashes hashes;
+    state::Transaction tx;
+    tx.sender = kSender;
+    const auto block = makeBlock();
+    OpHost host{EVMC_OSAKA, vm, st, block, hashes, tx, 1234, &karstPrecompileOverrides()};
+
+    std::vector<uint8_t> input(kKarstMax + 1, 0x00);
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.recipient = kBn256;
+    msg.code_address = kBn256;
+    msg.sender = kSender;
+    msg.gas = 100000;
+    msg.input_data = input.data();
+    msg.input_size = input.size();
+
+    const auto r = host.call(msg);
+    BOOST_CHECK_EQUAL(r.status_code, EVMC_FAILURE);
+    BOOST_CHECK_EQUAL(r.gas_left, 0);
+}
+
+BOOST_AUTO_TEST_CASE(KarstBn256PairingInputAtLimitExecutes)
+{
+    constexpr auto kBn256 = 0x0000000000000000000000000000000000000008_address;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kSender] = {.nonce = 0, .balance = intx::uint256{0}, .storage = {}, .code = {}};
+    evmone::state::State st{ts};
+    test::TestBlockHashes hashes;
+    evmone::state::Transaction tx;
+    tx.sender = kSender;
+    const auto block = makeBlock();
+    OpHost host{EVMC_OSAKA, vm, st, block, hashes, tx, 1234, &karstPrecompileOverrides()};
+
+    std::vector<uint8_t> input(57600, 0x00);
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.recipient = kBn256;
+    msg.code_address = kBn256;
+    msg.sender = kSender;
+    msg.gas = 15'000'000;
+    msg.input_data = input.data();
+    msg.input_size = input.size();
+    const auto r = host.call(msg);
+    BOOST_CHECK_EQUAL(r.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_GT(r.gas_left, 0);
+}
+
+BOOST_AUTO_TEST_CASE(KarstP256GasBoundary)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    state::State st{ts};
+    test::TestBlockHashes hashes;
+    state::Transaction tx;
+    tx.sender = kSender;
+    const auto block = makeBlock();
+
+    constexpr int64_t kKarstP256Gas = 6900;
+    OpHost host{EVMC_OSAKA, vm, st, block, hashes, tx, 1234, &karstPrecompileOverrides()};
+
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.recipient = kP256;
+    msg.code_address = kP256;
+    msg.sender = kSender;
+    msg.gas = kKarstP256Gas;
+    const auto ok = host.call(msg);
+    BOOST_CHECK_EQUAL(ok.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL(ok.gas_left, 0);
+
+    msg.gas = kKarstP256Gas - 1;
+    const auto fail = host.call(msg);
+    BOOST_CHECK_EQUAL(fail.status_code, EVMC_OUT_OF_GAS);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

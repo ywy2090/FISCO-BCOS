@@ -31,18 +31,15 @@ namespace bcos::evm::opstack
 //   Isthmus      | Prague/Pectra | EVMC_PRAGUE       | modeled; EIP-7702/7623/2935/2537 + OP
 //                 |               |                   | deposit changes
 //   Jovian        | Prague        | EVMC_PRAGUE       | modeled; +DA footprint, operator fee ×100
-//   Karst         | TBD           | EVMC_PRAGUE (alias)| placeholder = Jovian (op-reth only)
+//   Karst         | Osaka         | EVMC_OSAKA        | modeled; Osaka EVM + Karst precompile caps
 //
 // Key facts:
 //   * Isthmus = all Prague/Pectra features that apply to L2s (optimism docs
 //     pectra-changes: "the upcoming Isthmus hardfork will contain all Prague
 //     features"); Jovian adds OP-only DA footprint + operator-fee-fix on the
 //     same Prague base — hence both map to EVMC_PRAGUE.
-//   * Karst has NO real semantics in FB (nor in op-geth v1.101702.2 — IsKarst
-//     carries no execution gating; Karst is developed on op-reth only).
-//     karstConfig() is an honest Jovian alias, and configAt() never returns it,
-//     so Karst is unreachable until a real upstream diff is adapted (its EVM
-//     base, likely Osaka, will be decided then).
+//   * Karst maps to EVMC_OSAKA with independent precompile overrides; schedule
+//     resolution (OpForkSchedule::configAt) selects it at the Karst activation timestamp.
 // ────────────────────────────────────────────────────────────────────────────
 enum class OpFork
 {
@@ -66,7 +63,8 @@ struct OpForkConfig
     bool has_operator_fee;
     bool has_jovian_operator_formula;
     bool has_da_footprint;
-    bool has_ecotone_l1_formula;  // true -> Ecotone calldataGas L1; false -> Fjord+ FastLZ
+    bool deposit_exempt_from_max_tx_gas;  // documentation only until Task 6 wires deposit policy
+    bool has_ecotone_l1_formula;          // true -> Ecotone calldataGas L1; false -> Fjord+ FastLZ
 };
 
 const OpForkConfig& ecotoneConfig() noexcept;
