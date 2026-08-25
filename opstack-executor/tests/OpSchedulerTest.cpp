@@ -16,7 +16,7 @@
 //    OpConsensusRejected.
 // 3. classifyException direct three-way mapping: OpConsensusError→OpConsensusRejected /
 //    OpStorageError→OpStorageFault / other→UnknownError.
-#include <opstack-executor/OpDepositEncode.h>  // encodeDepositEnvelope (deposit envelope reconstruction)
+#include <bcos-framework/engine/OpTime.h>
 #include <opstack-executor/OpScheduler.h>
 #include <opstack-executor/OpSchedulerSeam.h>
 #include <opstack-executor/ReorgUndo.h>             // ReorgUndoCodec (S-DRV-6/7 undo journal)
@@ -282,7 +282,9 @@ struct Fixture
     bcos::protocol::TransactionReceiptFactory::Ptr receiptFactory{makeReceiptFactory()};
     bcos::crypto::Hash::Ptr hashImpl{makeCryptoSuite()->hashImpl()};
     bcos::protocol::BlockFactory::Ptr blockFactory{makeBlockFactory()};
-    bcos::evm::opstack::OpForkFlags forkFlags{.jovianActive = false};
+    std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> forkSchedule{
+        std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+            bcos::evm::opstack::OpForkSchedule::parse("0:isthmus"))};
     // A real Ledger wired into the scheduler's m_ledger (the commit hook now calls
     // prewriteBlockToBuffer). prewriteBlockToBuffer writes through the commit hook's MutableStorage
     // (wrapped into a fresh LegacyStorageWrapper by prewriteBlock), so the Ledger's own
@@ -299,8 +301,9 @@ struct Fixture
             std::make_shared<bcos::storage::LegacyStorageWrapper<BackendMemStorage>>(
                 backendStorage)),
         ledger(std::make_shared<bcos::ledger::Ledger>(blockFactory, legacyLedgerStorage, 1000)),
-        scheduler(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
-            hashImpl, kChainId, forkFlags, blockFactory, multiLayerStorage, ledger, ioServicePool))
+        scheduler(
+            std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory, hashImpl,
+                kChainId, forkSchedule, blockFactory, multiLayerStorage, ledger, ioServicePool))
     {
         seedSender(multiLayerStorage, kSender, hashImpl);
         seedSysTables(multiLayerStorage);
@@ -448,7 +451,8 @@ bcos::evm::engine::OpExecuteBlockResult runExecutionProbe(Fixture& f, ViewType& 
 {
     namespace op = bcos::evm::opstack;
     namespace detail = bcos::evm::engine::detail;
-    const auto& cfg = op::configAt(f.forkFlags);
+    const auto timestampSeconds = bcos::engine::unixSecondsFromInternalMillis(header.timestamp());
+    const auto& cfg = f.forkSchedule->configAt(timestampSeconds);
     // Build block-order transactions first (mirroring buildOpBlock: opEnvelopeToTars + full
     // envelope overwrite).
     std::vector<bcos::protocol::Transaction::ConstPtr> transactions;

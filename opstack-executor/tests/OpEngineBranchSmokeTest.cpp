@@ -113,7 +113,9 @@ BOOST_AUTO_TEST_CASE(OpModeInstantiatesAndGatesV4)
     CheckpointBackend checkpointBackend(backendStorage);
     MLS storage(checkpointBackend);
 
-    bcos::evm::engine::OpSchedulerSeam<ViewType> scheduler(bcos::evm::opstack::OpForkFlags{});
+    bcos::evm::engine::OpSchedulerSeam<ViewType> scheduler(
+        std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+            bcos::evm::opstack::OpForkSchedule::parse("0:isthmus")));
     StubMemPool memPool;
     StubExecutor executor;
     static auto blockFactory =

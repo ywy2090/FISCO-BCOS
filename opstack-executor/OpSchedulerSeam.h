@@ -7,6 +7,7 @@
 // immediately). A pure template header, no .cpp.
 
 #include <bcos-evm/opstack/OpForkSchedule.h>
+#include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>
@@ -18,10 +19,13 @@
 #include <opstack-executor/OpCommon.h>
 #include <opstack-executor/OpDepositEncode.h>  // encodeDepositEnvelope (Tier-2 build)
 #include <cstdint>
+#include <limits>
+#include <memory>
 #include <optional>
 #include <range/v3/range/concepts.hpp>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace bcos::evm::engine
@@ -34,14 +38,21 @@ namespace bcos::evm::engine
 namespace detail
 {
 }  // namespace detail
-/// OP scheduler component: a pure engine-facing seam shim, constructed once per OpForkFlags
-/// combination (composition-root-owned). It only re-publishes the seam surface the engine reaches
-/// as dependent names on `SchedulerType`.
+/// OP scheduler component: a pure engine-facing seam shim, constructed once per immutable
+/// OpForkSchedule (composition-root-owned). It only re-publishes the seam surface the engine
+/// reaches as dependent names on `SchedulerType`.
 template <class Storage>
 class OpSchedulerSeam
 {
 public:
-    explicit OpSchedulerSeam(bcos::evm::opstack::OpForkFlags forkFlags) : m_forkFlags(forkFlags) {}
+    explicit OpSchedulerSeam(std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> schedule)
+      : m_schedule(std::move(schedule))
+    {
+        if (!m_schedule)
+        {
+            throw std::invalid_argument("OpSchedulerSeam: null fork schedule");
+        }
+    }
 
     // ---- engine-facing seam surface ----
     //
@@ -92,12 +103,58 @@ public:
         return computeOpTxRoot(rawTxBytes);
     }
 
-    /// Jovian activation predicate (feature-op_jovian). The engine needs it for fork-dependent
-    /// static checks: the header's blobGasUsed slot must be 0 under Isthmus, but under Jovian it is
-    /// the DA footprint (validated by seal comparison instead); base-fee derivation branches on it.
-    /// There is no isIsthmusActiveAt anymore — OP mode itself IS the Isthmus+ admission check
-    /// (executor_version>=3), and the -38005 gate no longer re-derives the fork from a timestamp.
-    [[nodiscard]] bool isJovianActive() const noexcept { return m_forkFlags.jovianActive; }
+    [[nodiscard]] bcos::engine::OpForkId forkIdAt(uint64_t timestampSeconds) const
+    {
+        switch (m_schedule->forkAt(timestampSeconds))
+        {
+        case bcos::evm::opstack::OpFork::Isthmus:
+            return bcos::engine::OpForkId::Isthmus;
+        case bcos::evm::opstack::OpFork::Jovian:
+            return bcos::engine::OpForkId::Jovian;
+        case bcos::evm::opstack::OpFork::Karst:
+            return bcos::engine::OpForkId::Karst;
+        default:
+            throw std::logic_error("OpSchedulerSeam: unsupported schedule fork");
+        }
+    }
+
+    [[nodiscard]] bcos::engine::EngineApiProfile engineApiFor(uint64_t timestampSeconds) const
+    {
+        const auto forkId = forkIdAt(timestampSeconds);
+        if (forkId == bcos::engine::OpForkId::Karst)
+        {
+            return bcos::engine::EngineApiProfile{
+                .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
+                .getPayload = bcos::engine::ApiVersion::V5,
+                .newPayload = bcos::engine::ApiVersion::V4,
+            };
+        }
+        return bcos::engine::EngineApiProfile{
+            .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
+            .getPayload = bcos::engine::ApiVersion::V4,
+            .newPayload = bcos::engine::ApiVersion::V4,
+        };
+    }
+
+    [[nodiscard]] bool hasDaFootprintAt(uint64_t timestampSeconds) const
+    {
+        return m_schedule->configAt(timestampSeconds).has_da_footprint;
+    }
+
+    [[nodiscard]] const bcos::evm::opstack::OpForkConfig& configAt(uint64_t timestampSeconds) const
+    {
+        return m_schedule->configAt(timestampSeconds);
+    }
+
+    /// TEMPORARY until Task 7 removes all call sites: true when the schedule tip is Jovian-capable
+    /// (Jovian or Karst baseline), not timestamp-aware.
+    [[deprecated("Use forkIdAt/hasDaFootprintAt until Task 7")]] [[nodiscard]] bool isJovianActive()
+        const noexcept
+    {
+        const auto tipFork = m_schedule->forkAt(std::numeric_limits<uint64_t>::max());
+        return tipFork == bcos::evm::opstack::OpFork::Jovian ||
+               tipFork == bcos::evm::opstack::OpFork::Karst;
+    }
 
     OpSchedulerSeam(const OpSchedulerSeam&) = delete;
     OpSchedulerSeam(OpSchedulerSeam&&) = delete;
@@ -144,7 +201,7 @@ public:
     }
 
 private:
-    bcos::evm::opstack::OpForkFlags m_forkFlags;
+    std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> m_schedule;
 };
 
 }  // namespace bcos::evm::engine

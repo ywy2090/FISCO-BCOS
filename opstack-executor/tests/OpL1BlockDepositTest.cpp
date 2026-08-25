@@ -18,6 +18,7 @@
 //     runtime storage fork, not the executor.
 //   - if slot1 stays 0x1234 -> the bug is REPRODUCED offline; the executor/bridge is at fault.
 
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-evm/opstack/OpFeeParams.h>
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-codec/rlp/RLPEncode.h>
@@ -278,8 +279,13 @@ bcos::evm::engine::OpExecuteBlockResult runOpBlock(StorageT& storage,
     namespace engine = bcos::evm::engine;
     namespace detail = engine::detail;
 
-    const auto forkFlags = op::OpForkFlags{.jovianActive = jovianActive};
-    const auto& cfg = op::configAt(forkFlags);
+    const auto forkSchedule = jovianActive ?
+                                  std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::legacy(true)) :
+                                  std::make_shared<const op::OpForkSchedule>(
+                                      op::OpForkSchedule::parse("0:isthmus"));
+    const auto timestampSeconds =
+        bcos::engine::unixSecondsFromInternalMillis(header.timestamp());
+    const auto& cfg = forkSchedule->configAt(timestampSeconds);
     bcos::executor_v1::opstack::OpstackExecutor executor{ctx.receiptFactory, ctx.hashImpl, cfg};
 
     // Block-order FISCO transactions + deposits re-derived from them (OpScheduler.h execute

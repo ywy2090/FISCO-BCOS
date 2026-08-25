@@ -811,8 +811,6 @@ public:
     {
         namespace op = bcos::evm::opstack;
 
-        checkForkRevision(ledgerConfig);
-
         auto blockInfo = buildBlockInfo(
             blockHeader, opBlockGasLimit(blockHeader, static_cast<uint64_t>(blockGasLeft)));
         bcos::evm::evmstate::Storage2State<Storage> stateView(storage, m_sharedError);
@@ -849,8 +847,6 @@ public:
         ledger::LedgerConfig const& ledgerConfig)
     {
         namespace op = bcos::evm::opstack;
-
-        checkForkRevision(ledgerConfig);
 
         bcos::evm::evmstate::Storage2State<Storage> stateView(storage, m_sharedError);
         evmc_address coinbase{};
@@ -915,22 +911,7 @@ private:
         }
     }
 
-    // Fork/revision gate shared by the execute stages: ledger evmcRevision must be configured and
-    // match this executor's fork. (m_finish only needs the configured check — the mismatch was
-    // already rejected at prepare.)
-    void checkForkRevision(ledger::LedgerConfig const& ledgerConfig) const
-    {
-        auto revOpt = ledgerConfig.evmcRevision();
-        if (!revOpt.has_value())
-            BOOST_THROW_EXCEPTION(OpEvmcRevisionNotConfigured{}
-                                  << bcos::errinfo_comment("evmcRevision not configured"));
-        if (m_forkConfig.rev != *revOpt)
-            BOOST_THROW_EXCEPTION(OpForkRevisionMismatch{} << bcos::errinfo_comment(
-                                      "OP fork revision does not match ledger evmcRevision"));
-    }
-
-
-    // Stage 1 — validate: fork/evmc revision check, block info + evmone tx + signed envelope, then
+    // Stage 1 — validate: block info + evmone tx + signed envelope, then
     // injection-style opValidate (props.fee snapshotted for the transition stage).
     template <class Storage>
     task::Task<bcos::evm::opstack::OpTxProperties> m_prepare(
@@ -942,8 +923,6 @@ private:
     {
         namespace op = bcos::evm::opstack;
         namespace eth = bcos::executor_v1::eth;
-
-        checkForkRevision(ledgerConfig);
 
         // BlockInfo is built once per tx by the caller (ExecuteContext::prepare /
         // executeTransaction) and shared with m_execute; built here only when not supplied.

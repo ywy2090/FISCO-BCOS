@@ -240,8 +240,9 @@ BOOST_AUTO_TEST_CASE(InjectsDepositAndEip1559Block)
     // Named-lvalue first: configAt takes const OpForkFlags&, and GCC-14's -Wdangling-reference
     // flags passing a prvalue `op::OpForkFlags{}` here even though the returned reference
     // aliases the static config, never the flags (false positive).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();
@@ -303,8 +304,9 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRejectedByBlockPreSteps)
     // Named-lvalue first: configAt takes const OpForkFlags&, and GCC-14's -Wdangling-reference
     // flags passing a prvalue `op::OpForkFlags{}` here even though the returned reference
     // aliases the static config, never the flags (false positive).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();
@@ -340,8 +342,9 @@ BOOST_AUTO_TEST_CASE(DepositAfterNonDepositAccepted)
     // Named-lvalue first: configAt takes const OpForkFlags&, and GCC-14's -Wdangling-reference
     // flags passing a prvalue `op::OpForkFlags{}` here (false positive, see
     // InjectsDepositAndEip1559Block).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();
@@ -394,8 +397,9 @@ BOOST_AUTO_TEST_CASE(FirstDepositNotL1AttributesAccepted)
     namespace op = bcos::evm::opstack;
 
     // Isthmus-active fork config (feature_op_jovian OFF).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();

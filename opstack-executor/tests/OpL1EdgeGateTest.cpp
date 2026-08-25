@@ -161,9 +161,15 @@ bcos::protocol::TransactionReceiptFactory::Ptr makeReceiptFactory()
 
 constexpr uint64_t kChainId = 0x2105;
 
-bcos::evm::opstack::OpForkFlags forkFlagsFor(bool jovian)
+std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> scheduleFor(bool jovian)
 {
-    return bcos::evm::opstack::OpForkFlags{.jovianActive = jovian};
+    if (jovian)
+    {
+        return std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+            bcos::evm::opstack::OpForkSchedule::legacy(true));
+    }
+    return std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::parse("0:isthmus"));
 }
 
 using EngineOpScheduler = bcos::evm::engine::OpSchedulerSeam<ViewType>;
@@ -182,8 +188,8 @@ struct OpE2eFixture
     bcos::protocol::BlockFactory::Ptr blockFactory{makeBlockFactory()};
     OpEngineService service;
 
-    explicit OpE2eFixture(bcos::evm::opstack::OpForkFlags forkFlags)
-      : scheduler(forkFlags),
+    explicit OpE2eFixture(std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> forkSchedule)
+      : scheduler(std::move(forkSchedule)),
         service(memPool, multiLayerStorage, executor, scheduler, blockFactory,
             /*ledger=*/nullptr, bcos::engine::c_defaultBlockTxCountLimit, /*maxEngineVersion=*/4,
             /*delegate=*/nullptr)
@@ -208,7 +214,7 @@ BOOST_AUTO_TEST_CASE(DAFootprintExceedsGasLimitRejected)
     // (GoldenSample.h:85-90 warns); quantityOf is correct.
     params[0u]["blobGasUsed"] = w6test::quantityOf(gasLimit + 1);
 
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(true));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(true));
     auto request = bcos::rpc::parseNewPayloadRequest(params, bcos::engine::ApiVersion::V4);
     auto status = bcos::task::syncWait(fixture->service.newPayload(request, 4));
     // PayloadValidationStatus is an enum class without operator<<; must compare via

@@ -168,9 +168,23 @@ bcos::protocol::BlockFactory::Ptr makeBlockFactory()
 
 constexpr uint64_t kChainId = 0x2105;
 
-bcos::evm::opstack::OpForkFlags forkFlagsFor(bool jovian)
+bcos::evm::opstack::OpForkSchedule isthmusOnly()
 {
-    return bcos::evm::opstack::OpForkFlags{.jovianActive = jovian};
+    return bcos::evm::opstack::OpForkSchedule::parse("0:isthmus");
+}
+
+bcos::evm::opstack::OpForkSchedule jovianOnly()
+{
+    return bcos::evm::opstack::OpForkSchedule::legacy(true);
+}
+
+std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> scheduleFor(bool jovian)
+{
+    if (jovian)
+    {
+        return std::make_shared<const bcos::evm::opstack::OpForkSchedule>(jovianOnly());
+    }
+    return std::make_shared<const bcos::evm::opstack::OpForkSchedule>(isthmusOnly());
 }
 
 struct Fixture
@@ -456,8 +470,8 @@ void runBlockEquivalence(const std::string& id, Fixture& fixture,
     // GCC-14's -Wdangling-reference flags passing a prvalue temporary here even though the
     // returned reference aliases the static config, never the flags (false positive). The named
     // lvalue preserves the reference + its address identity (the &cfg == &vectorCfg check below).
-    const auto forkFlags = forkFlagsFor(jovian);
-    const auto& cfg = op::configAt(forkFlags);
+    const auto forkSchedule = scheduleFor(jovian);
+    const auto& cfg = forkSchedule->configAt(0);
     BOOST_CHECK_MESSAGE(&cfg == &vectorCfg, id << ": fork parity broken: block cfg != vector cfg");
 
     const auto hardfork = jAt(jAt(vec, "_info"), "hardfork").asString();
@@ -508,7 +522,7 @@ void runBlockEquivalence(const std::string& id, Fixture& fixture,
         }
 
         auto opScheduler = std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(
-            fixture.receiptFactory, fixture.hashImpl, kChainId, forkFlagsFor(jovian),
+            fixture.receiptFactory, fixture.hashImpl, kChainId, scheduleFor(jovian),
             fixture.blockFactory, fixture.multiLayerStorage, /*ledger=*/nullptr,
             fixture.ioServicePool);
 
@@ -651,8 +665,8 @@ void runSingleVector(const std::string& id, const JsonValue& vec, Fixture& fixtu
     fillAnnouncedHeaderFromGolden(header, vec, rawTxBytes);
     // Named-lvalue first (see runBlockEquivalence's fork-parity comment): GCC-14
     // -Wdangling-reference false positive on a prvalue OpForkFlags argument.
-    const auto forkFlags = forkFlagsFor(jovian);
-    const auto& vectorCfg = op::configAt(forkFlags);
+    const auto forkSchedule = scheduleFor(jovian);
+    const auto& vectorCfg = forkSchedule->configAt(0);
     runBlockEquivalence(id, fixture, header, rawTxBytes, vec, jovian, vectorCfg, greenGuard, stats);
 }
 
@@ -674,8 +688,8 @@ void runChainVector(const std::string& id, const JsonValue& vec, Fixture& fixtur
         const auto rawTxBytes = buildRawTxBytes(blk, bid);
         fillAnnouncedHeaderFromGolden(header, blk, rawTxBytes);
         const bool jovian = (jAt(jAt(blk, "_info"), "hardfork").asString() == "jovian");
-        const auto forkFlags = forkFlagsFor(jovian);  // named-lvalue first (GCC-14 dangling false positive)
-        const auto& vectorCfg = op::configAt(forkFlags);
+        const auto forkSchedule = scheduleFor(jovian);  // named-lvalue first (GCC-14 dangling false positive)
+        const auto& vectorCfg = forkSchedule->configAt(0);
         runBlockEquivalence(bid, fixture, header, rawTxBytes, blk, jovian, vectorCfg,
             /*greenGuard=*/false, stats);
         ++stats.chainBlocks;

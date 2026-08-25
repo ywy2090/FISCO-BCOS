@@ -8,6 +8,8 @@
 //   2. the static seam surface the engine reaches as dependent names
 //      (computeTxRoot / commitmentsOf / isJovianActive);
 //   3. executeOpBlock's empty-block rejection (processOpBlock throws -> classified escape).
+#include <bcos-evm/opstack/OpForkSchedule.h>
+#include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/storage2/MemoryStorage.h>
 #include <bcos-framework/storage2/MultiLayerStorage.h>
 #include <bcos-framework/transaction-executor/StateKey.h>
@@ -71,15 +73,14 @@ BOOST_AUTO_TEST_CASE(ConstructAndSeamSurface)
     auto view = multiLayerStorage.fork();
     view.newMutable();
 
-    // The ctor takes only fork flags (feature-driven fork selection; this is a pure seam shim —
-    // no receipt factory / chain id / VM).
-    bcos::evm::engine::OpSchedulerSeam<ViewType> scheduler(
-        bcos::evm::opstack::OpForkFlags{.jovianActive = false});
+    const auto isthmusSchedule = std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::parse("0:isthmus"));
+    bcos::evm::engine::OpSchedulerSeam<ViewType> scheduler(isthmusSchedule);
 
-    // Fork predicate: feature-driven (feature_op_jovian), constant across blocks — no timestamps.
     BOOST_CHECK(!scheduler.isJovianActive());
-    bcos::evm::engine::OpSchedulerSeam<ViewType> jovianScheduler(
-        bcos::evm::opstack::OpForkFlags{.jovianActive = true});
+    const auto jovianSchedule = std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::legacy(true));
+    bcos::evm::engine::OpSchedulerSeam<ViewType> jovianScheduler(jovianSchedule);
     BOOST_CHECK(jovianScheduler.isJovianActive());
 
     // computeTxRoot over the empty range: the standard empty-trie root (0x56e81f...), which
@@ -106,6 +107,17 @@ BOOST_AUTO_TEST_CASE(ConstructAndSeamSurface)
     BOOST_CHECK_EQUAL(commitments.stateRoot, bcos::h256{});
     BOOST_CHECK_EQUAL(commitments.gasUsed, bcos::u256(0));
     BOOST_CHECK_EQUAL(commitments.txRoot, txRoot);
+}
+
+BOOST_AUTO_TEST_CASE(ScheduleForkIdAtTimestamps)
+{
+    const auto schedule = std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::parse("0:isthmus,2000:jovian,3000:karst"));
+    bcos::evm::engine::OpSchedulerSeam<ViewType> seam(schedule);
+
+    BOOST_CHECK(seam.forkIdAt(1999) == bcos::engine::OpForkId::Isthmus);
+    BOOST_CHECK(seam.forkIdAt(2000) == bcos::engine::OpForkId::Jovian);
+    BOOST_CHECK(seam.forkIdAt(3000) == bcos::engine::OpForkId::Karst);
 }
 
 // Note: the empty-block rejection test lives in OpBlockInjectorTest
