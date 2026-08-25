@@ -324,7 +324,8 @@ void State::rollback(size_t checkpoint)
 /// @return  Execution gas limit or transaction validation error.
 std::variant<TransactionProperties, std::error_code> validate_transaction(
     const StateView& state_view, const BlockInfo& block, const Transaction& tx, evmc_revision rev,
-    int64_t block_gas_left, int64_t blob_gas_left, bool skip_balance_check) noexcept
+    int64_t block_gas_left, int64_t blob_gas_left, bool skip_balance_check,
+    TxValidationPolicy policy) noexcept
 {
     switch (tx.type)  // Validate "special" transaction types.
     {
@@ -382,7 +383,7 @@ std::variant<TransactionProperties, std::error_code> validate_transaction(
 
     assert(tx.max_priority_gas_price <= tx.max_gas_price);
 
-    if (rev >= EVMC_OSAKA && tx.gas_limit > MAX_TX_GAS_LIMIT)
+    if (policy.enforce_max_tx_gas && rev >= EVMC_OSAKA && tx.gas_limit > MAX_TX_GAS_LIMIT)
         return make_error_code(MAX_GAS_LIMIT_EXCEEDED);
 
     if (tx.gas_limit > block_gas_left)

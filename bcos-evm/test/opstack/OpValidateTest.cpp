@@ -3,6 +3,7 @@
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpTransition.h>
 #include <boost/test/unit_test.hpp>
+#include <bcos-evm/eth/state/state.hpp>
 #include <limits>
 #include <test/utils/test_state.hpp>
 #include <vector>
@@ -39,6 +40,21 @@ state::Transaction baseTx()
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(OpValidateSuite)
+
+BOOST_AUTO_TEST_CASE(KarstOrdinaryTxRejectsGasOverEip7825Cap)
+{
+    test::TestState ts;
+    ts[kSender] = {.nonce = 0, .balance = 1000000000000000000000_u256, .storage = {}, .code = {}};
+    auto tx = baseTx();
+    tx.gas_limit = evmone::state::MAX_TX_GAS_LIMIT + 1;
+    tx.to = 0x0000000000000000000000000000000000001234_address;
+    const std::vector<uint8_t> env{0x02, 0x11};
+    const auto r =
+        opValidate(ts, blk(), tx, {env.data(), env.size()}, karstConfig(), OpFeeParams{}, 30000000);
+    BOOST_REQUIRE(std::holds_alternative<std::error_code>(r));
+    BOOST_CHECK(std::get<std::error_code>(r) ==
+                evmone::state::make_error_code(evmone::state::MAX_GAS_LIMIT_EXCEEDED));
+}
 
 BOOST_AUTO_TEST_CASE(RejectsBlobTx)
 {
