@@ -6,6 +6,17 @@
 #   python3 build-allocs.py --config chain-config.yaml \
 #       --contracts ../../bcos-l2-contracts \
 #       --base-allocs final-allocs.json --out allocs.ini
+#
+# Karst deployment gate (Task 11): the genesis ini MUST also carry an explicit
+# [opstack].fork_schedule (not duplicated here — it lives in config.ini /
+# genesis config, not in this YAML). Examples:
+#   Sepolia-style new chain: 0:jovian,1781712001:karst
+#   Mainnet-style:           0:isthmus,1764691201:jovian,1783526401:karst
+# At first init the node persists canonical schedule + keccak256 hash + genesis
+# hash into chain metadata. Every EL node and the paired op-node MUST agree on
+# the same canonical string and hash before Karst activation. After the first
+# safe/finalized Karst block, schedule rollback is forbidden — use offline
+# migration only before activation, via tools/op-fork-schedule-migrate.
 
 # The op-deployer-generated Karst terminal alloc JSON (--base-allocs) is the
 # ONLY source for the OP-Stack side of genesis: every 0x42... predeploy
