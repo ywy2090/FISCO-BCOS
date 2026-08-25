@@ -19,9 +19,9 @@
 //     fork's, so route A is expected to be rejected at the six-way verify → soft REPORT (never
 //     hard). Any OTHER failure (shape/validation) is a real bug → BOOST_ERROR.
 //
-// Fork model: `forkFlagsFor(bool jovian)` + `configAt` (feature-op_jovian: isthmus/jovian). Fork
-// parity is
-// asserted by resolving cfg from the same source as the scheduler's internal configAt.
+// Fork model: `isthmusOnly()` / `jovianOnly()` / `karstOnly()` schedule fixtures; `scheduleFor(bool)`
+// picks isthmus vs jovian for golden vectors. Fork parity is asserted by resolving cfg from the
+// same schedule the scheduler uses via `configAt(timestampSeconds)`.
 // Exception handling: per-vector catches use catch(std::exception)/catch(...) (libevmone -fno-rtti
 // makes typed catch unreliable) — catch → BOOST_ERROR + continue.
 // has_storage scan (same-block create pre-triage) + /sys tripwire derived-table prefix assertion
@@ -176,6 +176,11 @@ bcos::evm::opstack::OpForkSchedule isthmusOnly()
 bcos::evm::opstack::OpForkSchedule jovianOnly()
 {
     return bcos::evm::opstack::OpForkSchedule::legacy(true);
+}
+
+bcos::evm::opstack::OpForkSchedule karstOnly()
+{
+    return bcos::evm::opstack::OpForkSchedule::parse("0:isthmus,1:jovian,2:karst");
 }
 
 std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> scheduleFor(bool jovian)
@@ -464,12 +469,7 @@ void runBlockEquivalence(const std::string& id, Fixture& fixture,
     const JsonValue& vec, bool jovian, const bcos::evm::opstack::OpForkConfig& vectorCfg,
     bool greenGuard, GoldenStats& stats)
 {
-    // Fork parity: cfg = configAt(forkFlagsFor(jovian)), resolved from the same source as the
-    // scheduler's internal configAt (same forkFlagsFor, same static singleton object).
-    // Bind forkFlagsFor(jovian) to a named lvalue first: configAt takes const OpForkFlags&, and
-    // GCC-14's -Wdangling-reference flags passing a prvalue temporary here even though the
-    // returned reference aliases the static config, never the flags (false positive). The named
-    // lvalue preserves the reference + its address identity (the &cfg == &vectorCfg check below).
+    // Fork parity: cfg = forkSchedule->configAt(0), same schedule object the scheduler receives.
     const auto forkSchedule = scheduleFor(jovian);
     const auto& cfg = forkSchedule->configAt(0);
     BOOST_CHECK_MESSAGE(&cfg == &vectorCfg, id << ": fork parity broken: block cfg != vector cfg");
@@ -663,8 +663,8 @@ void runSingleVector(const std::string& id, const JsonValue& vec, Fixture& fixtu
     // The announced header carries the golden commitments (route A's six-way verify = the
     // FISCO-vs-op-geth gate).
     fillAnnouncedHeaderFromGolden(header, vec, rawTxBytes);
-    // Named-lvalue first (see runBlockEquivalence's fork-parity comment): GCC-14
-    // -Wdangling-reference false positive on a prvalue OpForkFlags argument.
+    // Named-lvalue first (see runBlockEquivalence's fork-parity comment): bind schedule before
+    // configAt so the cfg reference outlives the temporary if needed.
     const auto forkSchedule = scheduleFor(jovian);
     const auto& vectorCfg = forkSchedule->configAt(0);
     runBlockEquivalence(id, fixture, header, rawTxBytes, vec, jovian, vectorCfg, greenGuard, stats);
@@ -698,6 +698,16 @@ void runChainVector(const std::string& id, const JsonValue& vec, Fixture& fixtur
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(OpDualPathEquivalence)
+
+BOOST_AUTO_TEST_CASE(ForkScheduleFixtures)
+{
+    namespace op = bcos::evm::opstack;
+    BOOST_CHECK(isthmusOnly().forkAt(0) == op::OpFork::Isthmus);
+    BOOST_CHECK(jovianOnly().forkAt(0) == op::OpFork::Jovian);
+    BOOST_CHECK(karstOnly().forkAt(0) == op::OpFork::Isthmus);
+    BOOST_CHECK(karstOnly().forkAt(1) == op::OpFork::Jovian);
+    BOOST_CHECK(karstOnly().forkAt(2) == op::OpFork::Karst);
+}
 
 BOOST_AUTO_TEST_CASE(Vectors)
 {
