@@ -41,6 +41,24 @@ using namespace bcos::storage;
 
 namespace
 {
+constexpr size_t kHardcodedKeyPageSize = 10240;
+constexpr auto kHardcodedBlockVersion = protocol::BlockVersion::V3_18_0_VERSION;
+
+void printToolLimitations(std::ostream& out)
+{
+    out << "\nLimitations:\n"
+        << "  - KeyPage size is hardcoded to " << kHardcodedKeyPageSize
+        << " (config.ini is not read)\n"
+        << "  - Block version is hardcoded to V3_18_0\n"
+        << "  - Encrypted RocksDB storage is not supported\n";
+}
+
+void printUsage(std::ostream& out, po::options_description const& options)
+{
+    out << options << '\n';
+    printToolLimitations(out);
+}
+
 std::shared_ptr<std::set<std::string, std::less<>>> defaultKeyPageIgnoreTables()
 {
     return std::make_shared<std::set<std::string, std::less<>>>(
@@ -110,7 +128,8 @@ void commitKeyPageChanges(
     auto* keyPageStorage = dynamic_cast<TraverseStorageInterface*>(layeredStorage.get());
     if (keyPageStorage == nullptr)
     {
-        return;
+        BOOST_THROW_EXCEPTION(std::runtime_error(
+            "keypage storage backend unavailable; metadata write was not committed"));
     }
     bcos::protocol::TwoPCParams params;
     std::promise<Error::Ptr> preparePromise;
@@ -154,13 +173,13 @@ int runMigration(
     if (!fs::exists(storagePath))
     {
         std::cerr << "storage path does not exist: " << storagePath << '\n';
+        printToolLimitations(std::cerr);
         return 1;
     }
 
     auto rocksdbStorage = openWritableRocksDB(storagePath);
-    constexpr size_t keyPageSize = 10240;
-    auto layeredStorage = createKeyPageStorage(rocksdbStorage, keyPageSize,
-        static_cast<uint32_t>(protocol::BlockVersion::V3_18_0_VERSION));
+    auto layeredStorage = createKeyPageStorage(
+        rocksdbStorage, kHardcodedKeyPageSize, static_cast<uint32_t>(kHardcodedBlockVersion));
 
     auto blockFactory = createDefaultBlockFactory();
     auto ledger = std::make_shared<Ledger>(blockFactory, layeredStorage, 1);
@@ -267,26 +286,26 @@ int main(int argc, char** argv)
     catch (const std::exception& ex)
     {
         std::cerr << "argument error: " << ex.what() << '\n';
-        std::cerr << options << '\n';
+        printUsage(std::cerr, options);
         return 1;
     }
 
     if (params.count("help") != 0U)
     {
-        std::cout << options << '\n';
+        printUsage(std::cout, options);
         return 0;
     }
 
     if (!params.count("storage"))
     {
         std::cerr << "missing required --storage\n";
-        std::cerr << options << '\n';
+        printUsage(std::cerr, options);
         return 1;
     }
     if (!params.count("schedule"))
     {
         std::cerr << "missing required --schedule\n";
-        std::cerr << options << '\n';
+        printUsage(std::cerr, options);
         return 1;
     }
 
