@@ -31,6 +31,45 @@ BOOST_AUTO_TEST_CASE(ScheduleCodecAndTimestampForkSelection)
         "1600c14baa71d58ae7f8d3c07ff24a73e26b209e6d491577a34b879ce2c6df12");
 }
 
+BOOST_AUTO_TEST_CASE(ConstructorRejectsInvalidActivations)
+{
+    BOOST_CHECK_THROW(OpForkSchedule({}), InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({{OpFork::Ecotone, 0}}), InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({{OpFork::Isthmus, 1}}), InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({
+                          {OpFork::Isthmus, 0},
+                          {OpFork::Karst, 1783526401},
+                      }),
+        InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({
+                          {OpFork::Isthmus, 0},
+                          {OpFork::Isthmus, 1},
+                      }),
+        InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({
+                          {OpFork::Jovian, 0},
+                          {OpFork::Isthmus, 1},
+                      }),
+        InvalidOpForkSchedule);
+}
+
+BOOST_AUTO_TEST_CASE(ConstructorAcceptsValidActivations)
+{
+    OpForkSchedule schedule({
+        {OpFork::Isthmus, 0},
+        {OpFork::Jovian, 1764691201},
+        {OpFork::Karst, 1783526401},
+    });
+    BOOST_CHECK(schedule.forkAt(0) == OpFork::Isthmus);
+    BOOST_CHECK(schedule.forkAt(1764691201) == OpFork::Jovian);
+    BOOST_CHECK_EQUAL(schedule.canonicalString(), "0:isthmus,1764691201:jovian,1783526401:karst");
+}
+
 BOOST_AUTO_TEST_CASE(IsthmusMapsToPrague)
 {
     const auto& cfg = isthmusConfig();

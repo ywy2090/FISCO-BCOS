@@ -30,6 +30,35 @@ const OpForkConfig& configForFork(OpFork fork)
         throw ledger::InvalidOpForkSchedule("unsupported fork config");
     }
 }
+
+std::string forkNameFromEnum(OpFork fork)
+{
+    switch (fork)
+    {
+    case OpFork::Isthmus:
+        return "isthmus";
+    case OpFork::Jovian:
+        return "jovian";
+    case OpFork::Karst:
+        return "karst";
+    default:
+        throw ledger::InvalidOpForkSchedule("unknown or pre-Isthmus fork");
+    }
+}
+
+void validateActivations(std::span<const OpForkActivation> activations)
+{
+    std::vector<ledger::OpForkActivationRecord> records;
+    records.reserve(activations.size());
+    for (const auto& activation : activations)
+    {
+        records.push_back(ledger::OpForkActivationRecord{
+            .forkName = forkNameFromEnum(activation.fork),
+            .timestamp = activation.timestamp,
+        });
+    }
+    ledger::detail::validateScheduleRecords(records);
+}
 }  // namespace
 
 const OpForkConfig& ecotoneConfig() noexcept
@@ -163,7 +192,9 @@ OpForkSchedule OpForkSchedule::legacy(bool jovianActive)
 
 OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations)
   : m_activations(std::move(activations))
-{}
+{
+    validateActivations(m_activations);
+}
 
 OpFork OpForkSchedule::forkAt(uint64_t timestampSeconds) const
 {
@@ -188,26 +219,11 @@ std::string OpForkSchedule::canonicalString() const
     records.reserve(m_activations.size());
     for (const auto& activation : m_activations)
     {
-        std::string forkName;
-        switch (activation.fork)
-        {
-        case OpFork::Isthmus:
-            forkName = "isthmus";
-            break;
-        case OpFork::Jovian:
-            forkName = "jovian";
-            break;
-        case OpFork::Karst:
-            forkName = "karst";
-            break;
-        default:
-            throw ledger::InvalidOpForkSchedule("unsupported fork in schedule");
-        }
         records.push_back(ledger::OpForkActivationRecord{
-            .forkName = std::move(forkName),
+            .forkName = forkNameFromEnum(activation.fork),
             .timestamp = activation.timestamp,
         });
     }
-    return ledger::canonicalOpForkSchedule(records);
+    return ledger::detail::serializeScheduleRecords(records);
 }
 }  // namespace bcos::evm::opstack

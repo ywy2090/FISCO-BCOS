@@ -132,6 +132,20 @@ inline void validateScheduleRecords(std::span<const OpForkActivationRecord> acti
     if (hasKarst && baseline == "isthmus" && !hasJovian)
         throw InvalidOpForkSchedule("Jovian activation is required before Karst");
 }
+
+inline std::string serializeScheduleRecords(std::span<const OpForkActivationRecord> activations)
+{
+    std::string canonical;
+    for (std::size_t index = 0; index < activations.size(); ++index)
+    {
+        if (index != 0)
+            canonical.push_back(',');
+        canonical.append(std::to_string(activations[index].timestamp));
+        canonical.push_back(':');
+        canonical.append(activations[index].forkName);
+    }
+    return canonical;
+}
 }  // namespace detail
 
 inline std::vector<OpForkActivationRecord> parseOpForkSchedule(std::string_view canonical)
@@ -167,22 +181,13 @@ inline std::vector<OpForkActivationRecord> parseOpForkSchedule(std::string_view 
 inline std::string canonicalOpForkSchedule(std::span<const OpForkActivationRecord> activations)
 {
     detail::validateScheduleRecords(activations);
-
-    std::string canonical;
-    for (std::size_t index = 0; index < activations.size(); ++index)
-    {
-        if (index != 0)
-            canonical.push_back(',');
-        canonical.append(std::to_string(activations[index].timestamp));
-        canonical.push_back(':');
-        canonical.append(activations[index].forkName);
-    }
-    return canonical;
+    return detail::serializeScheduleRecords(activations);
 }
 
 inline crypto::HashType keccakOpForkScheduleHash(std::string_view canonical)
 {
-    const auto normalized = canonicalOpForkSchedule(parseOpForkSchedule(canonical));
+    const auto activations = parseOpForkSchedule(canonical);
+    const auto normalized = detail::serializeScheduleRecords(activations);
     return crypto::keccak256Hash(
         bytesConstRef(reinterpret_cast<const byte*>(normalized.data()), normalized.size()));
 }
