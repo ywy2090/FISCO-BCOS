@@ -138,16 +138,7 @@ std::vector<std::string> bcos::engine::detail::supportedCapabilities()
 
 std::vector<std::string> bcos::engine::detail::supportedOpCapabilities()
 {
-    // Tier-2 (08-19): the V4 endpoints are wired (forkchoiceUpdatedV4 / getPayloadV4 /
-    // newPayloadV4 delegate to the version-parameterized handlers) and the OP face is
-    // Isthmus+/V4-only (the attrs build and newPayload both gate on V4), so the V4 trio is
-    // advertised — the historical V3-only downgrade would negotiate op-node onto a version the
-    // engine then refuses with -38005.
-    auto caps = supportedCapabilities();
-    caps.push_back("engine_forkchoiceUpdatedV4");
-    caps.push_back("engine_getPayloadV4");
-    caps.push_back("engine_newPayloadV4");
-    return caps;
+    return supportedCapabilities();
 }
 
 bool bcos::engine::detail::isGetPayloadVersionCompatible(
@@ -253,7 +244,7 @@ std::optional<std::string> bcos::engine::detail::validatePayloadAttributes(
 }
 
 std::optional<std::string> bcos::engine::detail::validateOpPayloadAttributes(
-    const PayloadAttributes& payloadAttributes, bool jovianActive)
+    const PayloadAttributes& payloadAttributes, bcos::engine::OpForkId forkId)
 {
     // Rollup-mode FCU attrs validation (op-geth checkOptimismPayloadAttributes,
     // eth/catalyst/api_optimism.go:40-65, non-empty withdrawals rejection :55-58). The OP face
@@ -293,11 +284,12 @@ std::optional<std::string> bcos::engine::detail::validateOpPayloadAttributes(
     {
         return std::string("withdrawals must be empty on the OP path");
     }
-    if (jovianActive && !payloadAttributes.minBaseFee.has_value())
+    const bool jovianOrLater = forkId != bcos::engine::OpForkId::Isthmus;
+    if (jovianOrLater && !payloadAttributes.minBaseFee.has_value())
     {
         return std::string("minBaseFee is required after the Jovian fork");
     }
-    if (!jovianActive && payloadAttributes.minBaseFee.has_value())
+    if (!jovianOrLater && payloadAttributes.minBaseFee.has_value())
     {
         return std::string("minBaseFee must be null before the Jovian fork");
     }
@@ -384,7 +376,7 @@ bcos::h2048 bcos::engine::detail::toEthLogsBloom(const Bloom& logsBloom)
 }
 
 std::optional<std::string> bcos::engine::detail::validateOpNewPayloadRequest(
-    const NewPayloadRequest& request, bool jovianActive)
+    const NewPayloadRequest& request, bcos::engine::OpForkId forkId)
 {
     // Static validation. Every failure here is reported by the caller as INVALID +
     // latestValidHash = null (the blockHash-mismatch bucket): all of these checks run before
@@ -431,7 +423,8 @@ std::optional<std::string> bcos::engine::detail::validateOpNewPayloadRequest(
     {
         return std::string("blobGasUsed must be present on the OP path");
     }
-    if (!jovianActive && *payload.blobGasUsed != 0)
+    const bool jovianOrLater = forkId != bcos::engine::OpForkId::Isthmus;
+    if (!jovianOrLater && *payload.blobGasUsed != 0)
     {
         // Isthmus: the slot is a genuine blob-gas counter and OP blocks carry no blobs, so it
         // must be 0. From Jovian on the same header slot is repurposed as the DA footprint
@@ -502,7 +495,7 @@ std::optional<std::string> bcos::engine::detail::validateOpNewPayloadRequest(
     // below with a shape message instead of the generic bound.
     {
         const auto& extra = payload.extraData;
-        if (jovianActive)
+        if (jovianOrLater)
         {
             if (extra.size() != 17)
             {
@@ -561,7 +554,7 @@ std::optional<std::string> bcos::engine::detail::validateOpNewPayloadRequest(
     // to the computed footprint; it only ever widens rejection (single direction), never accepts a
     // block op-geth would reject. Isthmus keeps `blobGasUsed == 0` (checked above), so this is
     // Jovian-gated. Both operands are u256, compared directly.
-    if (jovianActive && *payload.blobGasUsed > payload.gasLimit)
+    if (jovianOrLater && *payload.blobGasUsed > payload.gasLimit)
     {
         return std::string("DA footprint (blobGasUsed) exceeds the block gas limit");
     }

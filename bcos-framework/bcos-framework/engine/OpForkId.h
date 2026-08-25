@@ -8,6 +8,7 @@
 #include <bcos-framework/engine/Types.h>
 
 #include <cstdint>
+#include <variant>
 
 namespace bcos::engine
 {
@@ -26,4 +27,19 @@ struct EngineApiProfile
     ApiVersion getPayload{};
     ApiVersion newPayload{};
 };
+
+enum class OpForkResolutionError : uint8_t
+{
+    UnsupportedTimestamp,
+    InconsistentExecutionConfig,
+};
+
+struct EngineForkContext
+{
+    OpForkId forkId{};
+    EngineApiProfile api{};
+    bool hasDaFootprint = false;
+};
+
+using EngineForkResolution = std::variant<EngineForkContext, OpForkResolutionError>;
 }  // namespace bcos::engine

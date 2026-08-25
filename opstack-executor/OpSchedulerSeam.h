@@ -26,6 +26,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace bcos::evm::engine
@@ -146,14 +147,50 @@ public:
         return m_schedule->configAt(timestampSeconds);
     }
 
-    /// TEMPORARY until Task 7 removes all call sites: true when the schedule tip is Jovian-capable
-    /// (Jovian or Karst baseline), not timestamp-aware.
-    [[deprecated("Use forkIdAt/hasDaFootprintAt until Task 7")]] [[nodiscard]] bool isJovianActive()
-        const noexcept
+    [[nodiscard]] bcos::engine::EngineForkResolution resolveEngineForkAt(
+        uint64_t timestampSeconds) const
     {
-        const auto tipFork = m_schedule->forkAt(std::numeric_limits<uint64_t>::max());
-        return tipFork == bcos::evm::opstack::OpFork::Jovian ||
-               tipFork == bcos::evm::opstack::OpFork::Karst;
+        if (timestampSeconds < m_schedule->baselineTimestamp())
+        {
+            return bcos::engine::OpForkResolutionError::UnsupportedTimestamp;
+        }
+        const auto forkId = forkIdAt(timestampSeconds);
+        const auto& cfg = m_schedule->configAt(timestampSeconds);
+        if (forkId == bcos::engine::OpForkId::Karst && cfg.rev != EVMC_OSAKA)
+        {
+            return bcos::engine::OpForkResolutionError::InconsistentExecutionConfig;
+        }
+        return bcos::engine::EngineForkContext{
+            .forkId = forkId,
+            .api = engineApiFor(timestampSeconds),
+            .hasDaFootprint = cfg.has_da_footprint,
+        };
+    }
+
+    /// Tier-2 attribute-driven build: the mandatory L1-attributes deposit envelope (OP blocks
+    /// hard-require a leading deposit). Phase-A field values are zeros (fixture chain without
+    /// an L1): Isthmus shape = 176 zero bytes; Jovian/Karst = selector(0x3db6be2b) + zeros to 178.
+    /// The deposit's execution against the Ecotone-era genesis L1Block reverts and is
+    /// tolerated (documented predeploy-matrix divergence).
+    static bcos::bytes synthesizeL1AttributesEnvelope(bcos::engine::OpForkId forkId)
+    {
+        namespace op = bcos::evm::opstack;
+        evmc::bytes data(op::IsthmusL1AttributesLen, 0);
+        if (forkId != bcos::engine::OpForkId::Isthmus)
+        {
+            data.resize(op::JovianL1AttributesLen, 0);
+            std::copy(op::JovianL1AttributesSelector.begin(), op::JovianL1AttributesSelector.end(),
+                data.begin());
+        }
+        op::DepositTx deposit{.source_hash = evmc::bytes32{},
+            .from = op::OP_DEPOSITOR,
+            .to = op::OP_L1_BLOCK,
+            .mint = std::nullopt,
+            .value = intx::uint256{0},
+            .gas_limit = 1'000'000,
+            .is_system_tx = false,
+            .data = std::move(data)};
+        return encodeDepositEnvelope(deposit);
     }
 
     OpSchedulerSeam(const OpSchedulerSeam&) = delete;
@@ -172,32 +209,6 @@ public:
     {
         throw std::logic_error("OpSchedulerSeam::executeBlock: not supported in OP mode");
         co_return {};  // unreachable; satisfies the coroutine's declared return type
-    }
-
-    /// Tier-2 attribute-driven build: the mandatory L1-attributes deposit envelope (OP blocks
-    /// hard-require a leading deposit). Phase-A field values are zeros (fixture chain without
-    /// an L1): Isthmus shape = 176 zero bytes; Jovian = selector(0x3db6be2b) + zeros to 178.
-    /// The deposit's execution against the Ecotone-era genesis L1Block reverts and is
-    /// tolerated (documented predeploy-matrix divergence).
-    static bcos::bytes synthesizeL1AttributesEnvelope(bool jovianActive)
-    {
-        namespace op = bcos::evm::opstack;
-        evmc::bytes data(op::IsthmusL1AttributesLen, 0);
-        if (jovianActive)
-        {
-            data.resize(op::JovianL1AttributesLen, 0);
-            std::copy(op::JovianL1AttributesSelector.begin(), op::JovianL1AttributesSelector.end(),
-                data.begin());
-        }
-        op::DepositTx deposit{.source_hash = evmc::bytes32{},
-            .from = op::OP_DEPOSITOR,
-            .to = op::OP_L1_BLOCK,
-            .mint = std::nullopt,
-            .value = intx::uint256{0},
-            .gas_limit = 1'000'000,
-            .is_system_tx = false,
-            .data = std::move(data)};
-        return encodeDepositEnvelope(deposit);
     }
 
 private:

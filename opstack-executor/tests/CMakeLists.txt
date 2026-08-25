@@ -51,6 +51,7 @@ add_executable(opstack-executor-block-tests
     OpL1BlockDepositTest.cpp
     OpDaMatrixSchemaTest.cpp
     OpJovianShapeTest.cpp
+    OpKarstReleaseGateTest.cpp
     OpGoldenCorpusProvenanceTest.cpp
     support/SeedPreStateTest.cpp
     support/GoldenSampleTest.cpp
@@ -81,6 +82,20 @@ target_compile_definitions(opstack-executor-block-tests PRIVATE
     OP_T8N_GOLDEN_ENGINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/t8n/golden/engine"
     OP_DA_MATRIX_PATH="${CMAKE_CURRENT_SOURCE_DIR}/da-matrix/da_matrix.json")
 add_test(NAME OpstackExecutorBlockTests COMMAND opstack-executor-block-tests)
+
+add_custom_target(op-karst-release-gate
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/check-op-karst-release-gate.sh
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/opstack-executor-block-tests --run_test=OpKarstReleaseGateSuite
+    DEPENDS opstack-executor-block-tests
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Karst atomic release gate (scanner + OpKarstReleaseGateSuite)")
+if(TARGET fisco-bcos)
+    add_custom_target(op-karst-release DEPENDS fisco-bcos op-karst-release-gate)
+endif()
+add_test(NAME OpKarstReleaseGate
+    COMMAND bash -c
+        "${CMAKE_SOURCE_DIR}/tools/check-op-karst-release-gate.sh && \
+        ${CMAKE_CURRENT_BINARY_DIR}/opstack-executor-block-tests --run_test=OpKarstReleaseGateSuite")
 
 # opstack-mainnet-replay — live-chain replay CLI (ReplayGate.h + RocksDB backend).
 # Shares the replay machinery with the corpus gate; zero-tolerance per-block compare,

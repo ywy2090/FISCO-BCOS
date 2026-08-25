@@ -648,7 +648,7 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
             m_globalStateStorageInitializer, m_protocolInitializer->blockFactory(), opScheduler,
             transactionExecutor, m_memPoolInitializer->memPool(), /*ledger=*/nullptr,
             bcos::engine::c_defaultBlockTxCountLimit, opDelegate,
-            /*maxEngineVersion=*/static_cast<std::uint32_t>(bcos::engine::ApiVersion::V4),
+            /*maxEngineVersion=*/static_cast<std::uint32_t>(bcos::engine::ApiVersion::V3),
             m_daCaps);
         // Compile-time proof that this production composition root activates the OP engine branch.
         // ⚠️ 必须用裸类型：decltype(*opScheduler) 是 OpSchedulerSeam<...>&（左值引用），若作

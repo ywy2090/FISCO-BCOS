@@ -163,15 +163,6 @@ const OpForkConfig& karstConfig() noexcept
     return cfg;
 }
 
-const OpForkConfig& configAt(const OpForkFlags& flags) noexcept
-{
-    // decision A5 (feature-flag variant): feature_op_jovian enabled -> Jovian, else Isthmus.
-    // Isthmus is the OP-mode baseline; there is no pre-Isthmus config in this minimal loop.
-    if (flags.jovianActive)
-        return jovianConfig();
-    return isthmusConfig();
-}
-
 OpForkSchedule OpForkSchedule::parse(std::string_view canonical)
 {
     const auto records = ledger::parseOpForkSchedule(canonical);
@@ -211,6 +202,11 @@ OpFork OpForkSchedule::forkAt(uint64_t timestampSeconds) const
         activeFork = activation.fork;
     }
     return activeFork;
+}
+
+uint64_t OpForkSchedule::baselineTimestamp() const
+{
+    return m_activations.front().timestamp;
 }
 
 const OpForkConfig& OpForkSchedule::configAt(uint64_t timestampSeconds) const

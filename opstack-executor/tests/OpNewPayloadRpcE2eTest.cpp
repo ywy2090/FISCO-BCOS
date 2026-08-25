@@ -1417,7 +1417,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMissingGasLimitInvalid)
     auto attrs = makeJovianAttrs();
     attrs.gasLimit = std::nullopt;
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1432,7 +1432,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMissingMinBaseFeeInvalid)
     auto attrs = makeJovianAttrs();
     attrs.minBaseFee = std::nullopt;
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1450,7 +1450,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMinBaseFeeBeforeJovianInvalid)
     registerVerifiedBlock(fixture->multiLayerStorage, knownBlock, /*number=*/0);
     auto attrs = makeJovianAttrs();
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{knownBlock, knownBlock, knownBlock}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{knownBlock, knownBlock, knownBlock}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1467,7 +1467,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsNonEmptyWithdrawalsInvalid)
     auto attrs = makeJovianAttrs();
     attrs.withdrawals = std::vector<bcos::engine::WithdrawalV1>{bcos::engine::WithdrawalV1{}};
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1484,7 +1484,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMissingEip1559ParamsInvalid)
     auto attrs = makeJovianAttrs();
     attrs.eip1559Params = std::nullopt;
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1505,7 +1505,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsWrongSizeEip1559ParamsInvalid)
         attrs.eip1559Params = bcos::bytes{0, 0, 0, 8};
         auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
             bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs,
-            /*version=*/4));
+            /*version=*/3));
         (void)payloadId;
         BOOST_CHECK_EQUAL(static_cast<int>(state.status),
             static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1518,7 +1518,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsWrongSizeEip1559ParamsInvalid)
         attrs.eip1559Params = bcos::bytes{0, 0, 0, 0, 0, 0, 0, 2};
         auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
             bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs,
-            /*version=*/4));
+            /*version=*/3));
         (void)payloadId;
         BOOST_CHECK_EQUAL(static_cast<int>(state.status),
             static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1824,7 +1824,7 @@ BOOST_AUTO_TEST_CASE(ReorgRebuildOnParentBuildsSibling)
     attrs.noTxPool = true;
     auto [rebuild, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
         bcos::engine::ForkchoiceState{parentHash, parentHash, parentHash}, &attrs,
-        /*version=*/4));
+        /*version=*/3));
     BOOST_REQUIRE_EQUAL(static_cast<int>(rebuild.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(payloadId.has_value());
@@ -1876,7 +1876,7 @@ BOOST_AUTO_TEST_CASE(ReorgCaseUReplacesUncommittedPending)
     auto attrs = makeJovianAttrs();
     attrs.noTxPool = true;
     auto [build, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{genesis, genesis, genesis}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{genesis, genesis, genesis}, &attrs, /*version=*/3));
     BOOST_REQUIRE_EQUAL(static_cast<int>(build.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(payloadId.has_value());

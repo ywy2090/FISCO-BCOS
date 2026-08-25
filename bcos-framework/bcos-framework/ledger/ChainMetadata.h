@@ -71,6 +71,26 @@ struct OpForkScheduleMetadataRows
     return false;
 }
 
+[[nodiscard]] inline bool opForkScheduleHasDaFootprintAt(
+    std::string_view canonical, uint64_t timestampSeconds)
+{
+    const auto activations = parseOpForkSchedule(canonical);
+    if (activations.empty() || timestampSeconds < activations.front().timestamp)
+    {
+        return false;
+    }
+    std::string activeFork = activations.front().forkName;
+    for (const auto& activation : activations)
+    {
+        if (activation.timestamp > timestampSeconds)
+        {
+            break;
+        }
+        activeFork = activation.forkName;
+    }
+    return activeFork == "jovian" || activeFork == "karst";
+}
+
 [[nodiscard]] inline std::string canonicalizeIniOpForkSchedule(std::string_view raw)
 {
     return canonicalOpForkSchedule(parseOpForkSchedule(raw));

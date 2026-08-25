@@ -6,7 +6,7 @@
 // that its engine-facing seam surface works. Exercises only:
 //   1. construction over a real MultiLayerStorage ViewType;
 //   2. the static seam surface the engine reaches as dependent names
-//      (computeTxRoot / commitmentsOf / isJovianActive);
+//      (computeTxRoot / commitmentsOf / resolveEngineForkAt);
 //   3. executeOpBlock's empty-block rejection (processOpBlock throws -> classified escape).
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-framework/engine/OpForkId.h>
@@ -77,11 +77,11 @@ BOOST_AUTO_TEST_CASE(ConstructAndSeamSurface)
         bcos::evm::opstack::OpForkSchedule::parse("0:isthmus"));
     bcos::evm::engine::OpSchedulerSeam<ViewType> scheduler(isthmusSchedule);
 
-    BOOST_CHECK(!scheduler.isJovianActive());
+    BOOST_CHECK(scheduler.forkIdAt(0) == bcos::engine::OpForkId::Isthmus);
     const auto jovianSchedule = std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
         bcos::evm::opstack::OpForkSchedule::legacy(true));
     bcos::evm::engine::OpSchedulerSeam<ViewType> jovianScheduler(jovianSchedule);
-    BOOST_CHECK(jovianScheduler.isJovianActive());
+    BOOST_CHECK(jovianScheduler.forkIdAt(0) == bcos::engine::OpForkId::Jovian);
 
     // computeTxRoot over the empty range: the standard empty-trie root (0x56e81f...), which
     // proves the trie built and hashed end-to-end.

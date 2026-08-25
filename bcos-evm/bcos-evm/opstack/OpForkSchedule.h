@@ -40,8 +40,6 @@ namespace bcos::evm::opstack
 //     same Prague base — hence both map to EVMC_PRAGUE.
 //   * Karst maps to EVMC_OSAKA with independent precompile overrides.
 //     OpForkSchedule::configAt(timestamp) selects Karst at/after its activation time.
-//     configAt(OpForkFlags) is a separate legacy/minimal-loop entry (Isthmus/Jovian only);
-//     it never returns karstConfig() — Karst requires the timestamp schedule path.
 // ────────────────────────────────────────────────────────────────────────────
 enum class OpFork
 {
@@ -77,29 +75,6 @@ const OpForkConfig& isthmusConfig() noexcept;
 const OpForkConfig& jovianConfig() noexcept;
 const OpForkConfig& karstConfig() noexcept;
 
-/// Fork-activation flags for the OP validator loop (op-validator-minimal-loop design §4.2,
-/// decision A5): no timestamp dimension — FISCO activates forks by feature flag, not by header
-/// timestamp. Injected via OpSchedulerSeam's constructor (same channel as chainId) rather than
-/// read from SystemConfigs — the minimal loop only distinguishes Isthmus/Jovian. Isthmus is the
-/// OP-mode baseline (the engine -38005 gate admits only Isthmus+ payloads), so a single boolean
-/// switch — `feature_op_jovian` (Features::Flag, read from genesis [features]) — selects Jovian
-/// over Isthmus. This replaces the former timestamp thresholds (isthmusTime/jovianTime): FISCO has
-/// no timestamp-based fork activation, only feature flags (the same channel that gates
-/// feature_l2_ethereum_compat / feature_evm_prague).
-struct OpForkFlags
-{
-    /// feature_op_jovian enabled → Jovian semantics (DA footprint, operator fee ×100,
-    /// 17B Jovian extraData); disabled → Isthmus semantics.
-    bool jovianActive = false;
-};
-
-/// Legacy/minimal-loop fork selection from feature_op_jovian (decision A5): jovianActive →
-/// Jovian, else Isthmus. Never returns karstConfig() — Karst is only reachable via
-/// OpForkSchedule::configAt(timestamp) once Karst is present in the persisted schedule.
-/// Distinct from OpForkSchedule::configAt(uint64_t), which resolves the full fork chain
-/// including Karst at/after its activation timestamp.
-const OpForkConfig& configAt(const OpForkFlags& flags) noexcept;
-
 struct OpForkActivation
 {
     OpFork fork;
@@ -113,6 +88,8 @@ public:
     static OpForkSchedule legacy(bool jovianActive);
     explicit OpForkSchedule(std::vector<OpForkActivation> activations);
     [[nodiscard]] OpFork forkAt(uint64_t timestampSeconds) const;
+    /// Unix-second baseline of the first activation record.
+    [[nodiscard]] uint64_t baselineTimestamp() const;
     /// Full schedule fork resolution (Isthmus / Jovian / Karst / …) at `timestampSeconds`.
     [[nodiscard]] const OpForkConfig& configAt(uint64_t timestampSeconds) const;
     [[nodiscard]] std::string canonicalString() const;
