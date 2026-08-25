@@ -146,8 +146,8 @@ BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndKarstUnreachable)
 
     const auto jovianSchedule = OpForkSchedule::legacy(true);
     BOOST_CHECK_EQUAL(&jovianSchedule.configAt(0), &jovianConfig());
-    const auto karstSchedule = OpForkSchedule::parse("0:karst");
-    BOOST_CHECK_EQUAL(&karstSchedule.configAt(0), &karstConfig());
+    const auto karstSchedule = OpForkSchedule::parse("0:jovian,1781712001:karst");
+    BOOST_CHECK_EQUAL(&karstSchedule.configAt(1781712001), &karstConfig());
 }
 
 BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
