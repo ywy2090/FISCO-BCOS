@@ -151,6 +151,8 @@ constexpr static std::string_view SYS_HASH_2_RECEIPT{"s_hash_2_receipt"};
 /// parent's flat state as its execution base. Rows are overwritten per height (a sibling's
 /// commit replaces the journal with its own) and pruned after a retention window.
 constexpr static std::string_view SYS_REORG_UNDO{"s_reorg_undo"};
+// OP fork schedule metadata (all-or-none triple; see ChainMetadata.h).
+constexpr static std::string_view SYS_CHAIN_METADATA{"s_chain_metadata"};
 constexpr static std::string_view DAG_TRANSFER{"/tables/dag_transfer"};
 constexpr static std::string_view SMALLBANK_TRANSFER{"/tables/smallbank_transfer"};
 constexpr static std::string_view SYS_CODE_BINARY{"s_code_binary"};

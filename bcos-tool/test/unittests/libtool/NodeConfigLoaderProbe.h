@@ -27,6 +27,7 @@ namespace bcos::test
 struct LoaderProbe : public bcos::tool::NodeConfig
 {
     using bcos::tool::NodeConfig::checkService;
+    using bcos::tool::NodeConfig::genesisConfig;
     using bcos::tool::NodeConfig::getServiceName;
     using bcos::tool::NodeConfig::loadCertConfig;
     using bcos::tool::NodeConfig::loadChainConfig;
@@ -38,6 +39,7 @@ struct LoaderProbe : public bcos::tool::NodeConfig
     using bcos::tool::NodeConfig::loadGenesisFeatures;
     using bcos::tool::NodeConfig::loadLedgerConfig;
     using bcos::tool::NodeConfig::loadOpEngineRpcConfig;
+    using bcos::tool::NodeConfig::loadOpstackConfig;
     using bcos::tool::NodeConfig::loadOthersConfig;
     using bcos::tool::NodeConfig::loadRpcConfig;
     using bcos::tool::NodeConfig::loadSealerConfig;
@@ -50,6 +52,8 @@ struct LoaderProbe : public bcos::tool::NodeConfig
     using bcos::tool::NodeConfig::loadWeb3ChainConfig;
     using bcos::tool::NodeConfig::loadWeb3RpcConfig;
     using bcos::tool::NodeConfig::NodeConfig;
+    using bcos::tool::NodeConfig::opForkScheduleRuntime;
+    using bcos::tool::NodeConfig::resolveOpForkSchedule;
 };
 
 inline boost::property_tree::ptree fromIni(std::string const& ini)

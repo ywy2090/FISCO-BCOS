@@ -24,6 +24,7 @@
 #include "Ledger.h"
 #include "GenesisStateRoot.h"
 #include "LedgerMethods.h"
+#include "bcos-framework/ledger/ChainMetadata.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/ledger/FeaturesStorage.h"
@@ -2268,6 +2269,7 @@ bool Ledger::buildGenesisBlock(
         SYS_NUMBER_2_TXS, SYS_VALUE,
         SYS_HASH_2_RECEIPT, SYS_VALUE,
         SYS_BLOCK_NUMBER_2_NONCES, SYS_VALUE,
+        SYS_CHAIN_METADATA, SYS_VALUE,
     });
     constexpr static auto moreTables = std::to_array<std::string_view>(
             {SYS_CODE_BINARY, SYS_VALUE, SYS_CONTRACT_ABI, SYS_VALUE});
@@ -2490,6 +2492,13 @@ bool Ledger::buildGenesisBlock(
                 SystemConfigEntry{std::to_string(*genesis.m_excessBlobGas), 0}));
             co_await storage2::writeOne(*m_stateStorage,
                 executor_v1::StateKey(SYS_CONFIG, SYSTEM_KEY_EXCESS_BLOB_GAS), excessBlobGasEntry);
+        }
+
+        if (genesis.m_opstackForkSchedule.has_value())
+        {
+            const auto metadata =
+                buildOpForkScheduleMetadata(*genesis.m_opstackForkSchedule, header->hash());
+            co_await writeOpForkScheduleMetadata(*m_stateStorage, metadata);
         }
 
         // write consensus node list

@@ -203,7 +203,97 @@ void NodeConfig::loadGenesisConfig(boost::property_tree::ptree const& _genesisCo
     loadAllocs(_genesisConfig);
     // === A3: B0 full Ethereum genesis header from the merged genesis artifact ===
     loadEthGenesisHeader(_genesisConfig);
+    loadOpstackConfig(_genesisConfig);
     validateL2Invariants();
+}
+
+void NodeConfig::loadOpstackConfig(boost::property_tree::ptree const& _genesisConfig)
+{
+    auto const rawSchedule = _genesisConfig.get<std::string>("opstack.fork_schedule", "");
+    if (rawSchedule.empty())
+    {
+        return;
+    }
+
+    try
+    {
+        m_genesisConfig.m_opstackForkSchedule = ledger::canonicalizeIniOpForkSchedule(rawSchedule);
+    }
+    catch (ledger::InvalidOpForkSchedule const& error)
+    {
+        BOOST_THROW_EXCEPTION(
+            InvalidConfig() << errinfo_comment(
+                std::string("opstack.fork_schedule is invalid: ") + error.what()));
+    }
+
+    if (opJovianActive())
+    {
+        BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
+                                  "[opstack].fork_schedule cannot be set together with "
+                                  "feature_op_jovian in [features]"));
+    }
+
+    if (m_genesisConfig.m_evmcRevision.has_value() || !m_genesisConfig.m_evmcRevisionForks.empty())
+    {
+        BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
+                                  "[opstack].fork_schedule cannot be set together with "
+                                  "executor.evm_revision / executor.evm_revision_forks"));
+    }
+}
+
+void NodeConfig::resolveOpForkSchedule(
+    std::optional<ledger::OpForkScheduleMetadata> const& metadata, bool genesisBlockExists,
+    crypto::HashType const& genesisHash)
+{
+    const auto& iniSchedule = m_genesisConfig.m_opstackForkSchedule;
+
+    if (metadata.has_value())
+    {
+        if (metadata->genesisHash != genesisHash)
+        {
+            BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
+                                      "op fork schedule metadata genesis binding mismatch"));
+        }
+        if (iniSchedule.has_value() && *iniSchedule != metadata->schedule)
+        {
+            BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
+                                      "[opstack].fork_schedule does not match persisted metadata"));
+        }
+        m_opForkScheduleRuntime =
+            std::make_shared<ledger::OpForkScheduleRuntime>(ledger::OpForkScheduleRuntime{
+                .canonical = metadata->schedule, .legacyMemoryOnly = false});
+        return;
+    }
+
+    if (genesisBlockExists)
+    {
+        if (iniSchedule.has_value() && ledger::opForkScheduleRequestsKarst(*iniSchedule))
+        {
+            BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
+                                      "existing chain without metadata cannot consume a Karst "
+                                      "[opstack].fork_schedule from ini; run offline migration"));
+        }
+
+        const auto legacyCanonical = opJovianActive() ? "0:jovian" : "0:isthmus";
+        m_opForkScheduleRuntime = std::make_shared<ledger::OpForkScheduleRuntime>(
+            ledger::OpForkScheduleRuntime{.canonical = legacyCanonical, .legacyMemoryOnly = true});
+        return;
+    }
+
+    if (!iniSchedule.has_value())
+    {
+        BOOST_THROW_EXCEPTION(
+            InvalidConfig() << errinfo_comment("new genesis requires [opstack].fork_schedule"));
+    }
+
+    m_opForkScheduleRuntime = std::make_shared<ledger::OpForkScheduleRuntime>(
+        ledger::OpForkScheduleRuntime{.canonical = *iniSchedule, .legacyMemoryOnly = false});
+}
+
+std::shared_ptr<const ledger::OpForkScheduleRuntime> const& NodeConfig::opForkScheduleRuntime()
+    const
+{
+    return m_opForkScheduleRuntime;
 }
 
 void NodeConfig::loadAllocs(boost::property_tree::ptree const& _genesisConfig)

@@ -149,5 +149,9 @@ public:
     // chain — Ledger then keeps the native Tars genesis-header path.
     std::optional<EthGenesisHeader> m_ethGenesisHeader;
 
+    // Canonical OP fork schedule from config.genesis [opstack].fork_schedule.
+    // Persisted into s_chain_metadata at genesis; not part of LedgerConfig.
+    std::optional<std::string> m_opstackForkSchedule;
+
 };  // namespace genesisConfig
 }  // namespace bcos::ledger
