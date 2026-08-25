@@ -333,4 +333,132 @@ BOOST_AUTO_TEST_CASE(fcu_v4_rejection_leaves_no_payload_cache_entry)
     BOOST_CHECK_NO_THROW(bcos::task::syncWait(fixture.engine.getPayload(*result.payloadId, 5)));
 }
 
+BOOST_AUTO_TEST_CASE(jovian_new_payload_v4_accepts_built_payload)
+{
+    OpProfileFixture fixture("0:isthmus,1:jovian");
+    auto result = fixture.buildPayload(1000);
+    BOOST_REQUIRE(result.payloadId.has_value());
+    auto payload = bcos::task::syncWait(fixture.engine.getPayload(*result.payloadId, 4));
+    BOOST_REQUIRE(payload);
+
+    bcos::engine::NewPayloadRequest request;
+    request.executionPayload = payload->executionPayload;
+    request.parentBeaconBlockRoot = payload->parentBeaconBlockRoot;
+    request.executionRequests = std::vector<bcos::bytes>{};
+    auto status = bcos::task::syncWait(fixture.engine.newPayload(request, 4));
+    BOOST_CHECK_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+}
+
+BOOST_AUTO_TEST_CASE(karst_new_payload_v4_accepts_built_payload)
+{
+    OpProfileFixture fixture("0:isthmus,1:jovian,2:karst");
+    auto result = fixture.buildPayload(2000);
+    BOOST_REQUIRE(result.payloadId.has_value());
+    auto payload = bcos::task::syncWait(fixture.engine.getPayload(*result.payloadId, 5));
+    BOOST_REQUIRE(payload);
+
+    bcos::engine::NewPayloadRequest request;
+    request.executionPayload = payload->executionPayload;
+    request.parentBeaconBlockRoot = payload->parentBeaconBlockRoot;
+    request.executionRequests = std::vector<bcos::bytes>{};
+    auto status = bcos::task::syncWait(fixture.engine.newPayload(request, 4));
+    BOOST_CHECK_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(OpForkDefenseSuite)
+
+/// Injects a fixed fork-resolution outcome for Engine defense-path tests.
+template <bcos::engine::OpForkResolutionError Err>
+struct ResolutionStubSeam
+{
+    template <class Range>
+    static bcos::h256 computeTxRoot(Range const& rawTxBytes)
+    {
+        return EngineOpScheduler::computeTxRoot(rawTxBytes);
+    }
+
+    template <class Storage, class Executor>
+    bcos::task::Task<std::vector<bcos::protocol::TransactionReceipt::Ptr>> executeBlock(Storage&,
+        Executor&, bcos::protocol::BlockHeader const&, ::ranges::input_range auto&&,
+        bcos::ledger::LedgerConfig const&)
+    {
+        co_return {};
+    }
+
+    [[nodiscard]] bcos::engine::EngineForkResolution resolveEngineForkAt(uint64_t) const
+    {
+        return Err;
+    }
+
+    [[nodiscard]] bcos::engine::EngineApiProfile engineApiFor(uint64_t) const
+    {
+        return bcos::engine::EngineApiProfile{
+            .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
+            .getPayload = bcos::engine::ApiVersion::V5,
+            .newPayload = bcos::engine::ApiVersion::V4,
+        };
+    }
+
+    [[nodiscard]] bool hasDaFootprintAt(uint64_t) const { return true; }
+
+    static bcos::bytes synthesizeL1AttributesEnvelope(bcos::engine::OpForkId) { return {}; }
+};
+
+using UnsupportedTimestampSeam =
+    ResolutionStubSeam<bcos::engine::OpForkResolutionError::UnsupportedTimestamp>;
+using InconsistentConfigSeam =
+    ResolutionStubSeam<bcos::engine::OpForkResolutionError::InconsistentExecutionConfig>;
+using UnsupportedTimestampEngine =
+    bcos::engine::EngineServiceImpl<StubMemPool, MLS, StubExecutor, UnsupportedTimestampSeam>;
+using InconsistentConfigEngine =
+    bcos::engine::EngineServiceImpl<StubMemPool, MLS, StubExecutor, InconsistentConfigSeam>;
+
+BOOST_AUTO_TEST_CASE(fcu_unsupported_timestamp_has_no_cache_side_effect)
+{
+    BackendMemStorage backendStorage{1};
+    CheckpointBackend checkpointBackend(backendStorage);
+    MLS storage(checkpointBackend);
+    seedHeadBlockNumber(storage, kHeadHash, kHeadNumber);
+
+    StubMemPool memPool;
+    StubExecutor executor;
+    UnsupportedTimestampSeam scheduler;
+    UnsupportedTimestampEngine engine(memPool, storage, executor, scheduler, blockFactory(),
+        /*ledger=*/nullptr, bcos::engine::c_defaultBlockTxCountLimit,
+        static_cast<std::uint32_t>(bcos::engine::ApiVersion::V4), nullptr);
+
+    auto forkchoice = makeForkchoiceState();
+    auto attrs = makeOpAttrs(2000);
+    BOOST_CHECK_THROW(bcos::task::syncWait(engine.updateForkchoice(forkchoice, &attrs, 3)),
+        bcos::engine::UnsupportedFork);
+    BOOST_CHECK_THROW(bcos::task::syncWait(engine.getPayload("0x0000000000000001", 5)),
+        bcos::engine::UnknownPayload);
+}
+
+BOOST_AUTO_TEST_CASE(fcu_inconsistent_config_has_no_cache_side_effect)
+{
+    BackendMemStorage backendStorage{1};
+    CheckpointBackend checkpointBackend(backendStorage);
+    MLS storage(checkpointBackend);
+    seedHeadBlockNumber(storage, kHeadHash, kHeadNumber);
+
+    StubMemPool memPool;
+    StubExecutor executor;
+    InconsistentConfigSeam scheduler;
+    InconsistentConfigEngine engine(memPool, storage, executor, scheduler, blockFactory(),
+        /*ledger=*/nullptr, bcos::engine::c_defaultBlockTxCountLimit,
+        static_cast<std::uint32_t>(bcos::engine::ApiVersion::V4), nullptr);
+
+    auto forkchoice = makeForkchoiceState();
+    auto attrs = makeOpAttrs(2000);
+    BOOST_CHECK_THROW(bcos::task::syncWait(engine.updateForkchoice(forkchoice, &attrs, 3)),
+        bcos::engine::OpExecutionInternalError);
+    BOOST_CHECK_THROW(bcos::task::syncWait(engine.getPayload("0x0000000000000001", 5)),
+        bcos::engine::UnknownPayload);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

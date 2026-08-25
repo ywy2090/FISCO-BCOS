@@ -87,6 +87,11 @@ public:
     static OpForkSchedule parse(std::string_view canonical);
     static OpForkSchedule legacy(bool jovianActive);
     explicit OpForkSchedule(std::vector<OpForkActivation> activations);
+    /// Test-only: skip ledger codec validation (nonzero baseline schedules).
+    struct TestBypass
+    {
+    };
+    OpForkSchedule(std::vector<OpForkActivation> activations, TestBypass);
     [[nodiscard]] OpFork forkAt(uint64_t timestampSeconds) const;
     /// Unix-second baseline of the first activation record.
     [[nodiscard]] uint64_t baselineTimestamp() const;

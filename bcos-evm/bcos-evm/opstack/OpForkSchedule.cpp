@@ -192,6 +192,10 @@ OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations)
     validateActivations(m_activations);
 }
 
+OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations, TestBypass)
+  : m_activations(std::move(activations))
+{}
+
 OpFork OpForkSchedule::forkAt(uint64_t timestampSeconds) const
 {
     OpFork activeFork = m_activations.front().fork;

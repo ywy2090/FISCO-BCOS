@@ -126,7 +126,7 @@ std::optional<std::string> validateOpNewPayloadRequest(
 /// Compute expected baseFeePerGas from the parent header — the shared
 /// implementation lives in bcos-framework/engine/OpBaseFee.h (one copy for the
 /// engine AND the RPC's eth_feeHistory prediction; included at the top).
-/// `parentIsJovian` is feature-driven (feature_op_jovian).
+/// Parent DA footprint is schedule-derived via `hasDaFootprintAt(parent timestamp)`.
 
 /// Populate the OP header's 3 post-merge constants (ommersHash/difficulty/nonce) into a header —
 /// the values live in EngineServiceImpl.cpp's anonymous namespace. The header's own
