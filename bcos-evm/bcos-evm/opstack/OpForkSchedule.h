@@ -38,8 +38,10 @@ namespace bcos::evm::opstack
 //     pectra-changes: "the upcoming Isthmus hardfork will contain all Prague
 //     features"); Jovian adds OP-only DA footprint + operator-fee-fix on the
 //     same Prague base — hence both map to EVMC_PRAGUE.
-//   * Karst maps to EVMC_OSAKA with independent precompile overrides; schedule
-//     resolution (OpForkSchedule::configAt) selects it at the Karst activation timestamp.
+//   * Karst maps to EVMC_OSAKA with independent precompile overrides.
+//     OpForkSchedule::configAt(timestamp) selects Karst at/after its activation time.
+//     configAt(OpForkFlags) is a separate legacy/minimal-loop entry (Isthmus/Jovian only);
+//     it never returns karstConfig() — Karst requires the timestamp schedule path.
 // ────────────────────────────────────────────────────────────────────────────
 enum class OpFork
 {
@@ -91,12 +93,11 @@ struct OpForkFlags
     bool jovianActive = false;
 };
 
-/// Resolves the OP fork config from the chain's feature flag (decision A5, feature-flag variant):
-/// `jovianActive` -> Jovian, otherwise Isthmus. Isthmus is always the baseline — there is no
-/// pre-Isthmus config (the minimal loop is Isthmus+-only and the engine gate rejects pre-Isthmus
-/// payloads by construction). This is the single function backing the OpSchedulerSeam
-/// execution-time fork selection (design §4.2); the engine's -38005 gate no longer re-derives the
-/// fork from a timestamp — OP mode itself is the Isthmus+ admission check.
+/// Legacy/minimal-loop fork selection from feature_op_jovian (decision A5): jovianActive →
+/// Jovian, else Isthmus. Never returns karstConfig() — Karst is only reachable via
+/// OpForkSchedule::configAt(timestamp) once Karst is present in the persisted schedule.
+/// Distinct from OpForkSchedule::configAt(uint64_t), which resolves the full fork chain
+/// including Karst at/after its activation timestamp.
 const OpForkConfig& configAt(const OpForkFlags& flags) noexcept;
 
 struct OpForkActivation
@@ -112,6 +113,7 @@ public:
     static OpForkSchedule legacy(bool jovianActive);
     explicit OpForkSchedule(std::vector<OpForkActivation> activations);
     [[nodiscard]] OpFork forkAt(uint64_t timestampSeconds) const;
+    /// Full schedule fork resolution (Isthmus / Jovian / Karst / …) at `timestampSeconds`.
     [[nodiscard]] const OpForkConfig& configAt(uint64_t timestampSeconds) const;
     [[nodiscard]] std::string canonicalString() const;
 

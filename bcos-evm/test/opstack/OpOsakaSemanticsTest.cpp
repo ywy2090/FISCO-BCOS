@@ -10,7 +10,6 @@
 #include <bcos-evm/opstack/OpTransition.h>
 #include <evmone/evmone.h>
 #include <boost/test/unit_test.hpp>
-#include <bcos-evm/eth/state/precompiles_internal.hpp>
 #include <filesystem>
 #include <fstream>
 #include <test/utils/test_state.hpp>
@@ -102,6 +101,88 @@ OpTxRun runContractWithCode(
     return runOpTx(ts, vm, tx, cfg);
 }
 
+int64_t modExpOpExecutionGasUsed(
+    test::TestState& ts, evmc::VM& vm, const std::vector<uint8_t>& input, const OpForkConfig& cfg)
+{
+    ts[kSender] = {.nonce = 0,
+        .balance = 340282366920938463463374607431768211456_u256,
+        .storage = {},
+        .code = {}};
+    seedOpPredeploys(ts);
+
+    state::Transaction tx;
+    tx.type = state::Transaction::Type::eip1559;
+    tx.sender = kSender;
+    tx.to = kModExp;
+    tx.gas_limit = 10'000'000;
+    tx.max_gas_price = 1000;
+    tx.max_priority_gas_price = 10;
+    tx.value = intx::uint256{0};
+    tx.nonce = 0;
+    tx.data = state::bytes(input.begin(), input.end());
+
+    test::TestBlockHashes hashes;
+    const auto block = makeBlock();
+    OpFeeParams fee{};
+    std::vector<uint8_t> env{0x02, 0x11};
+    const auto v = opValidate(ts, block, tx, {env.data(), env.size()}, cfg, fee, block.gas_limit);
+    BOOST_REQUIRE(std::holds_alternative<OpTxProperties>(v));
+    const auto& props = std::get<OpTxProperties>(v);
+
+    evmone::state::State state{ts};
+    ++state.get_or_insert(tx.sender).nonce;
+
+    OpHost host{cfg.rev, vm, state, block, hashes, tx, 1234, cfg.precompiles};
+    const auto outcome = runTxMessage(state, host, tx, cfg.rev, block.coinbase,
+        props.props.execution_gas_limit, props.props.min_gas_cost, 0);
+    BOOST_REQUIRE_EQUAL(outcome.result.status_code, EVMC_SUCCESS);
+    return props.props.execution_gas_limit - outcome.result.gas_left;
+}
+
+OpTxRun runModExpOpTx(
+    test::TestState& ts, evmc::VM& vm, const std::vector<uint8_t>& input, const OpForkConfig& cfg)
+{
+    ts[kSender] = {.nonce = 0,
+        .balance = 340282366920938463463374607431768211456_u256,
+        .storage = {},
+        .code = {}};
+    seedOpPredeploys(ts);
+
+    state::Transaction tx;
+    tx.type = state::Transaction::Type::eip1559;
+    tx.sender = kSender;
+    tx.to = kModExp;
+    tx.gas_limit = 10'000'000;
+    tx.max_gas_price = 1000;
+    tx.max_priority_gas_price = 10;
+    tx.value = intx::uint256{0};
+    tx.nonce = 0;
+    tx.data = state::bytes(input.begin(), input.end());
+    return runOpTx(ts, vm, tx, cfg);
+}
+
+OpTxRun runPrecompileOpTx(test::TestState& ts, evmc::VM& vm, const evmc::address& precompile,
+    const std::vector<uint8_t>& input, const OpForkConfig& cfg, int64_t gasLimit = 10'000'000)
+{
+    ts[kSender] = {.nonce = 0,
+        .balance = 340282366920938463463374607431768211456_u256,
+        .storage = {},
+        .code = {}};
+    seedOpPredeploys(ts);
+
+    state::Transaction tx;
+    tx.type = state::Transaction::Type::eip1559;
+    tx.sender = kSender;
+    tx.to = precompile;
+    tx.gas_limit = gasLimit;
+    tx.max_gas_price = 1000;
+    tx.max_priority_gas_price = 10;
+    tx.value = intx::uint256{0};
+    tx.nonce = 0;
+    tx.data = state::bytes(input.begin(), input.end());
+    return runOpTx(ts, vm, tx, cfg);
+}
+
 struct HostCallResult
 {
     evmc_status_code status_code;
@@ -151,12 +232,6 @@ std::vector<uint8_t> makeEip7823ModExpInput(size_t baseLen, uint8_t baseByte)
     input[96 + baseLen] = 0x00;
     input[96 + baseLen + 1] = 0x02;
     return input;
-}
-
-state::bytes makeEip7823ModExpData(size_t baseLen, uint8_t baseByte)
-{
-    const auto raw = makeEip7823ModExpInput(baseLen, baseByte);
-    return state::bytes(raw.begin(), raw.end());
 }
 
 intx::uint256 readStorageSlot(const test::TestState& ts, const evmc::address& addr, uint64_t slot)
@@ -230,82 +305,65 @@ BOOST_AUTO_TEST_CASE(Eip7823ModExpLengthBoundsThroughKarstOpPath)
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
-    ts[kSender] = {.nonce = 0,
-        .balance = 340282366920938463463374607431768211456_u256,
-        .storage = {},
-        .code = {}};
-    seedOpPredeploys(ts);
-
-    state::Transaction tx;
-    tx.type = state::Transaction::Type::eip1559;
-    tx.sender = kSender;
-    tx.to = kModExp;
-    tx.gas_limit = 5000000;
-    tx.max_gas_price = 1000;
-    tx.max_priority_gas_price = 10;
-    tx.value = intx::uint256{0};
-    tx.nonce = 0;
-    tx.data = makeEip7823ModExpData(1024, 0x01);
-
-    const auto ok = runOpTx(ts, vm, tx, karstConfig());
+    const auto ok = runModExpOpTx(ts, vm, makeEip7823ModExpInput(1024, 0x01), karstConfig());
     BOOST_REQUIRE_EQUAL(ok.receipt->status(), 0);
+    const auto output = ok.receipt->output();
+    BOOST_REQUIRE_EQUAL(output.size(), 1U);
+    BOOST_CHECK_EQUAL(output[0], 0x01);
 
     test::TestState tsFail;
-    auto senderCopy = ts.at(kSender);
-    senderCopy.nonce = 0;
-    tsFail[kSender] = senderCopy;
-    seedOpPredeploys(tsFail);
-    state::Transaction txFail = tx;
-    txFail.nonce = 0;
-    txFail.data = makeEip7823ModExpData(1025, 0x01);
-    const auto fail = runOpTx(tsFail, vm, txFail, karstConfig());
+    const auto fail = runModExpOpTx(tsFail, vm, makeEip7823ModExpInput(1025, 0x01), karstConfig());
     BOOST_CHECK_NE(fail.receipt->status(), 0);
-    BOOST_CHECK_EQUAL(static_cast<int64_t>(fail.receipt->gasUsed()), txFail.gas_limit);
+    BOOST_CHECK_EQUAL(static_cast<int64_t>(fail.receipt->gasUsed()), 10'000'000);
 }
 
 BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani1GasFromFixture)
 {
+    auto vm = evmc::VM{evmc_create_evmone()};
     const auto input = loadFixture("modexp_nagydani_1_square.input.bin");
-    const auto view = evmc::bytes_view{input.data(), input.size()};
-    const auto prague = evmone::state::expmod_analyze(view, EVMC_PRAGUE);
-    const auto osaka = evmone::state::expmod_analyze(view, EVMC_OSAKA);
-    BOOST_CHECK_EQUAL(prague.gas_cost, 200);
-    BOOST_CHECK_EQUAL(osaka.gas_cost, 500);
+    test::TestState tsPrague;
+    test::TestState tsOsaka;
+    const auto pragueExec = modExpOpExecutionGasUsed(tsPrague, vm, input, jovianConfig());
+    const auto osakaExec = modExpOpExecutionGasUsed(tsOsaka, vm, input, karstConfig());
+    BOOST_CHECK_EQUAL(osakaExec - pragueExec, 500 - 200);
 }
 
 BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani2PowGasFromFixture)
 {
+    auto vm = evmc::VM{evmc_create_evmone()};
     const auto input = loadFixture("modexp_nagydani_2_pow0x10001.input.bin");
-    const auto view = evmc::bytes_view{input.data(), input.size()};
-    const auto prague = evmone::state::expmod_analyze(view, EVMC_PRAGUE);
-    const auto osaka = evmone::state::expmod_analyze(view, EVMC_OSAKA);
-    BOOST_CHECK_EQUAL(prague.gas_cost, 1365);
-    BOOST_CHECK_EQUAL(osaka.gas_cost, 8192);
+    test::TestState tsPrague;
+    test::TestState tsOsaka;
+    const auto pragueExec = modExpOpExecutionGasUsed(tsPrague, vm, input, jovianConfig());
+    const auto osakaExec = modExpOpExecutionGasUsed(tsOsaka, vm, input, karstConfig());
+    BOOST_CHECK_EQUAL(osakaExec - pragueExec, 8192 - 1365);
 }
 
 BOOST_AUTO_TEST_CASE(Eip7951P256VerifyFromFixture)
 {
+    auto vm = evmc::VM{evmc_create_evmone()};
     const auto input = loadFixture("p256verify_valid_input.bin");
     std::vector<uint8_t> expectedSuccess(32, 0x00);
     expectedSuccess[31] = 0x01;
 
-    constexpr int64_t kForwardedGas = 100000;
-    const auto jovianOk = hostCall(EVMC_PRAGUE, &jovianPrecompileOverrides(), kP256, input, 3450);
-    BOOST_CHECK_EQUAL(jovianOk.status_code, EVMC_SUCCESS);
-    BOOST_CHECK_EQUAL(jovianOk.gas_left, 0);
-    BOOST_CHECK_EQUAL(jovianOk.output.size(), 32);
-    BOOST_CHECK_EQUAL_COLLECTIONS(jovianOk.output.begin(), jovianOk.output.end(),
-        expectedSuccess.begin(), expectedSuccess.end());
+    test::TestState jovTs;
+    const auto jovianOk = runPrecompileOpTx(jovTs, vm, kP256, input, jovianConfig());
+    BOOST_CHECK_EQUAL(jovianOk.receipt->status(), 0);
+    const auto jovOut = jovianOk.receipt->output();
+    BOOST_REQUIRE_EQUAL(jovOut.size(), 32U);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        jovOut.begin(), jovOut.end(), expectedSuccess.begin(), expectedSuccess.end());
+
+    test::TestState karstTs;
+    const auto karstOk = runPrecompileOpTx(karstTs, vm, kP256, input, karstConfig());
+    BOOST_CHECK_EQUAL(karstOk.receipt->status(), 0);
+    const auto karstOut = karstOk.receipt->output();
+    BOOST_REQUIRE_EQUAL(karstOut.size(), 32U);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        karstOut.begin(), karstOut.end(), expectedSuccess.begin(), expectedSuccess.end());
 
     const auto jovianFail = hostCall(EVMC_PRAGUE, &jovianPrecompileOverrides(), kP256, input, 3449);
     BOOST_CHECK_EQUAL(jovianFail.status_code, EVMC_OUT_OF_GAS);
-
-    const auto karstOk = hostCall(EVMC_OSAKA, &karstPrecompileOverrides(), kP256, input, 6900);
-    BOOST_CHECK_EQUAL(karstOk.status_code, EVMC_SUCCESS);
-    BOOST_CHECK_EQUAL(karstOk.gas_left, 0);
-    BOOST_CHECK_EQUAL(karstOk.output.size(), 32);
-    BOOST_CHECK_EQUAL_COLLECTIONS(karstOk.output.begin(), karstOk.output.end(),
-        expectedSuccess.begin(), expectedSuccess.end());
 
     const auto karstFail = hostCall(EVMC_OSAKA, &karstPrecompileOverrides(), kP256, input, 6899);
     BOOST_CHECK_EQUAL(karstFail.status_code, EVMC_OUT_OF_GAS);
