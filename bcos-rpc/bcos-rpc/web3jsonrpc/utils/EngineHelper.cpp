@@ -228,6 +228,18 @@ void requireNewPayloadV4ParamShape(Json::Value const& params)
             "engine_newPayloadV4 expects [executionPayload, expectedBlobVersionedHashes, "
             "parentBeaconBlockRoot, executionRequests]"));
     }
+    // Karst wire shape: both trailing lists must be present and empty. Non-empty arrays are
+    // malformed RPC input (-32602), not payload-validity questions the engine should judge.
+    if (!params[1].empty())
+    {
+        BOOST_THROW_EXCEPTION(bcos::rpc::JsonRpcException(
+            bcos::rpc::InvalidParams, "expectedBlobVersionedHashes must be present and empty"));
+    }
+    if (!params[3].empty())
+    {
+        BOOST_THROW_EXCEPTION(bcos::rpc::JsonRpcException(
+            bcos::rpc::InvalidParams, "executionRequests must be present and empty"));
+    }
 }
 
 /// ExecutionPayloadV4 required fields. op-geth's NewPayloadV4 rejects a nil
@@ -446,8 +458,7 @@ bcos::engine::NewPayloadRequest bcos::rpc::parseNewPayloadRequest(
     }
     if (version >= engine::ApiVersion::V4)
     {
-        // Shape already validated at the top of this function; emptiness of the two lists
-        // is a payload-validity question and is judged by the engine service, not here.
+        // Shape and emptiness already validated at the top of this function.
         std::vector<bytes> executionRequests;
         executionRequests.reserve(params[3].size());
         for (auto const& item : params[3])
