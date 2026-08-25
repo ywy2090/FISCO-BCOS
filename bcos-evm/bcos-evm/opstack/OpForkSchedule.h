@@ -1,6 +1,12 @@
 #pragma once
 
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <evmc/evmc.hpp>
+
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace bcos::evm::opstack
 {
@@ -94,4 +100,24 @@ struct OpForkFlags
 /// execution-time fork selection (design §4.2); the engine's -38005 gate no longer re-derives the
 /// fork from a timestamp — OP mode itself is the Isthmus+ admission check.
 const OpForkConfig& configAt(const OpForkFlags& flags) noexcept;
+
+struct OpForkActivation
+{
+    OpFork fork;
+    uint64_t timestamp;
+};
+
+class OpForkSchedule
+{
+public:
+    static OpForkSchedule parse(std::string_view canonical);
+    static OpForkSchedule legacy(bool jovianActive);
+    explicit OpForkSchedule(std::vector<OpForkActivation> activations);
+    [[nodiscard]] OpFork forkAt(uint64_t timestampSeconds) const;
+    [[nodiscard]] const OpForkConfig& configAt(uint64_t timestampSeconds) const;
+    [[nodiscard]] std::string canonicalString() const;
+
+private:
+    std::vector<OpForkActivation> m_activations;
+};
 }  // namespace bcos::evm::opstack

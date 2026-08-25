@@ -1,11 +1,35 @@
 #include "TestPrinters.h"
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
+#include <bcos-utilities/DataConvertUtility.h>
 #include <boost/test/unit_test.hpp>
 
 using namespace bcos::evm::opstack;
+using namespace bcos::ledger;
 
 BOOST_AUTO_TEST_SUITE(OpForkScheduleSuite)
+
+BOOST_AUTO_TEST_CASE(ScheduleCodecAndTimestampForkSelection)
+{
+    auto activations = parseOpForkSchedule("0:isthmus,1764691201:jovian,1783526401:karst");
+    BOOST_REQUIRE_EQUAL(activations.size(), 3u);
+
+    auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian,1783526401:karst");
+    BOOST_CHECK(schedule.forkAt(1764691200) == OpFork::Isthmus);
+    BOOST_CHECK(schedule.forkAt(1764691201) == OpFork::Jovian);
+    BOOST_CHECK(schedule.forkAt(1783526401) == OpFork::Karst);
+
+    auto legacy = OpForkSchedule::legacy(true);
+    BOOST_CHECK_EQUAL(legacy.canonicalString(), "0:jovian");
+    BOOST_CHECK(legacy.forkAt(0) == OpFork::Jovian);
+
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:ecotone"), InvalidOpForkSchedule);
+    BOOST_CHECK_NO_THROW(OpForkSchedule::parse("0:jovian,1783526401:karst"));
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:isthmus,1783526401:karst"), InvalidOpForkSchedule);
+    BOOST_CHECK_EQUAL(toHex(keccakOpForkScheduleHash("0:jovian,1781712001:karst")),
+        "1600c14baa71d58ae7f8d3c07ff24a73e26b209e6d491577a34b879ce2c6df12");
+}
 
 BOOST_AUTO_TEST_CASE(IsthmusMapsToPrague)
 {
