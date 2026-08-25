@@ -249,6 +249,20 @@ void NodeConfig::resolveOpForkSchedule(
 
     if (metadata.has_value())
     {
+        try
+        {
+            if (ledger::keccakOpForkScheduleHash(metadata->schedule) != metadata->scheduleHash)
+            {
+                BOOST_THROW_EXCEPTION(
+                    InvalidConfig() << errinfo_comment("op fork schedule hash mismatch"));
+            }
+        }
+        catch (ledger::InvalidOpForkSchedule const& error)
+        {
+            BOOST_THROW_EXCEPTION(
+                InvalidConfig() << errinfo_comment(
+                    std::string("op fork schedule metadata is invalid: ") + error.what()));
+        }
         if (metadata->genesisHash != genesisHash)
         {
             BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(

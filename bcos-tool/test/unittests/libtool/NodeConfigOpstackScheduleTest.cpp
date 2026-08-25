@@ -18,6 +18,7 @@ namespace
 {
 struct OpstackScheduleProbe : public LoaderProbe
 {
+    using LoaderProbe::loadExecutorConfig;
     using LoaderProbe::loadGenesisFeatures;
     using LoaderProbe::loadOpstackConfig;
     using LoaderProbe::resolveOpForkSchedule;
@@ -68,6 +69,28 @@ BOOST_AUTO_TEST_CASE(scheduleAndFeatureOpJovianRejected)
     auto pt = fromIni(minimalGenesis("[features]\nfeature_op_jovian=1\n[opstack]\nfork_schedule=" +
                                      std::string(kMainnetSchedule) + "\n"));
     probe.loadGenesisFeatures(pt);
+    BOOST_CHECK_THROW(probe.loadOpstackConfig(pt), InvalidConfig);
+}
+
+BOOST_AUTO_TEST_CASE(scheduleAndEvmRevisionRejected)
+{
+    OpstackScheduleProbe probe;
+    auto pt = fromIni(minimalGenesis(
+        "evm_revision=cancun\n[opstack]\nfork_schedule=" + std::string(kMainnetSchedule) + "\n"));
+    probe.loadGenesisFeatures(pt);
+    probe.loadExecutorConfig(pt);
+    BOOST_CHECK_THROW(probe.loadOpstackConfig(pt), InvalidConfig);
+}
+
+BOOST_AUTO_TEST_CASE(scheduleAndEvmRevisionForksRejected)
+{
+    OpstackScheduleProbe probe;
+    auto pt =
+        fromIni(minimalGenesis("evm_revision_forks=0:cancun,100000:osaka\n[opstack]\n"
+                               "fork_schedule=" +
+                               std::string(kMainnetSchedule) + "\n"));
+    probe.loadGenesisFeatures(pt);
+    probe.loadExecutorConfig(pt);
     BOOST_CHECK_THROW(probe.loadOpstackConfig(pt), InvalidConfig);
 }
 
@@ -138,6 +161,21 @@ BOOST_AUTO_TEST_CASE(metadataAuthoritativeAcceptsMatchingIni)
     BOOST_REQUIRE(probe.opForkScheduleRuntime());
     BOOST_CHECK_EQUAL(probe.opForkScheduleRuntime()->canonical, kMainnetSchedule);
     BOOST_CHECK(!probe.opForkScheduleRuntime()->legacyMemoryOnly);
+}
+
+BOOST_AUTO_TEST_CASE(metadataWithBadHashRejectedAtResolve)
+{
+    OpstackScheduleProbe probe;
+    auto pt = fromIni(minimalGenesis());
+    probe.loadGenesisFeatures(pt);
+    probe.loadOpstackConfig(pt);
+
+    OpForkScheduleMetadata metadata{
+        .schedule = kMainnetSchedule,
+        .scheduleHash = crypto::HashType("0x00"),
+        .genesisHash = kGenesisHash,
+    };
+    BOOST_CHECK_THROW(probe.resolveOpForkSchedule(metadata, true, kGenesisHash), InvalidConfig);
 }
 
 BOOST_AUTO_TEST_CASE(partialMetadataTripleRejected)
