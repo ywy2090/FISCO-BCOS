@@ -86,6 +86,37 @@ inline constexpr std::array<uint8_t, 4> JovianL1AttributesSelector = {0x3d, 0xb6
 /// No-op pre-Jovian. Throws std::runtime_error.
 void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig& cfg);
 
+// ---- Karst activation block: NUT deposit recognition + ordering ----
+// Pinned bundle: op-core/nuts/bundles/karst_nut_bundle.json (31 txs, UpgradeGas = 55_370_657).
+inline constexpr uint64_t KarstPinnedUpgradeGas = 55'370'657;
+inline constexpr uint64_t UpgradeDepositSourceDomain = 2;
+
+/// Segment of a Karst activation block's deposit prefix (L1 attributes → user deposits → NUT).
+enum class KarstActivationSegment
+{
+    L1Attributes,
+    UserDeposit,
+    NutUpgrade,
+};
+
+/// Qualified NUT intent string: "Karst {index}: {intent}" (capital K matches op-node/kona).
+[[nodiscard]] std::string karstNutQualifiedIntent(size_t index, std::string_view intent);
+
+/// Upgrade-deposit source hash (domain 2 || keccak256(intent)), byte-identical to op-node.
+[[nodiscard]] evmc::bytes32 upgradeDepositSourceHash(std::string_view qualifiedIntent);
+
+/// True when `dep.source_hash` matches the upgrade domain hash for `qualifiedIntent`.
+[[nodiscard]] bool isUpgradeDeposit(
+    const DepositTx& dep, std::string_view qualifiedIntent) noexcept;
+
+/// Classify a deposit within a Karst activation block (non-deposit → std::nullopt).
+[[nodiscard]] std::optional<KarstActivationSegment> classifyKarstActivationDeposit(
+    const DepositTx& dep, std::span<const std::string_view> nutQualifiedIntents);
+
+/// Enforce L1 attributes → optional user deposits → NUT deposits; throws std::runtime_error.
+void validateKarstActivationOrder(
+    std::span<const OpBlockTx> txs, std::span<const std::string_view> nutQualifiedIntents);
+
 // ---- shared per-receipt helpers (one implementation shared with the per-tx loop) ----
 
 

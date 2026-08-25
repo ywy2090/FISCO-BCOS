@@ -52,6 +52,7 @@ add_executable(opstack-executor-block-tests
     OpDaMatrixSchemaTest.cpp
     OpJovianShapeTest.cpp
     OpKarstReleaseGateTest.cpp
+    OpKarstActivationTest.cpp
     OpGoldenCorpusProvenanceTest.cpp
     support/SeedPreStateTest.cpp
     support/GoldenSampleTest.cpp
@@ -84,7 +85,8 @@ target_include_directories(opstack-executor-block-tests PRIVATE
 target_compile_definitions(opstack-executor-block-tests PRIVATE
     OP_T8N_VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/t8n/vectors"
     OP_T8N_GOLDEN_ENGINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/t8n/golden/engine"
-    OP_DA_MATRIX_PATH="${CMAKE_CURRENT_SOURCE_DIR}/da-matrix/da_matrix.json")
+    OP_DA_MATRIX_PATH="${CMAKE_CURRENT_SOURCE_DIR}/da-matrix/da_matrix.json"
+    OP_KARST_NUT_BUNDLE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/karst_nut_bundle.json")
 add_test(NAME OpstackExecutorBlockTests COMMAND opstack-executor-block-tests)
 
 add_custom_target(op-karst-release-gate
