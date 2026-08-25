@@ -60,13 +60,13 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -147,12 +147,13 @@ func (g liveStateGetter) GetState(addr common.Address, slot common.Hash) common.
 // block's txs against the pre-block state (EIP-2935/4788 system calls first) to
 // capture per-tx return data, serving BLOCKHASH from the real headers. Same
 // per-tx faithfulness gate (gasUsed/status must equal the Process receipts).
-func liveReexecuteOutputs(ctx context.Context, cfg *params.ChainConfig, db ethdb.Database, hc liveChainCtx,
+func liveReexecuteOutputs(ctx context.Context, cfg *params.ChainConfig, sdb state.Database, hc liveChainCtx,
 	header *types.Header, txs []*types.Transaction, receipts types.Receipts,
 	startRoot common.Hash) ([][]byte, error) {
-	tdb := triedb.NewDatabase(db, triedb.HashDefaults)
-	defer tdb.Close()
-	statedb, err := state.New(startRoot, state.NewDatabase(tdb, nil))
+	// Reuse the bootstrap/Process triedb (sdb): a fresh triedb here would have an
+	// empty clean cache and, if StateDB commits never hit the disk layer, a
+	// state.New on the bootstrap root would miss its trie nodes.
+	statedb, err := state.New(startRoot, sdb)
 	if err != nil {
 		return nil, fmt.Errorf("open re-execution state: %w", err)
 	}
@@ -619,9 +620,9 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 	headerByHash[anchorHdr.Hash()] = anchorHdr
 	headerByNum[from-1] = anchorHdr
 	prefill := make(map[string]string)
-	low := from - 256
-	if low < 1 {
-		low = 1
+	low := uint64(1)
+	if from > 256 {
+		low = from - 256
 	}
 	for h := low; h <= from-1; h++ {
 		hdr, err := ec.HeaderByNumber(ctx, big.NewInt(int64(h)))
@@ -668,6 +669,18 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 		if err != nil {
 			return fmt.Errorf("block %d Process (cross-check FAILED): %w", blk.NumberU64(), err)
 		}
+		// StateProcessor.Process uses ApplyTransactionWithEVM, which skips
+		// receipt.DeriveFields (the OP L1/operator fee fields) — that happens in
+		// the InsertChain/chain-maker post-process. Derive here so the emitted
+		// receipts carry L1Fee etc. (buildLiveExpectedReceipts requires them).
+		var blobGasPrice *big.Int
+		if blk.ExcessBlobGas() != nil {
+			blobGasPrice = eip4844.CalcBlobFee(cfg, blk.Header())
+		}
+		if err := result.Receipts.DeriveFields(cfg, blk.Hash(), blk.NumberU64(), blk.Time(),
+			blk.BaseFee(), blobGasPrice, blk.Transactions()); err != nil {
+			return fmt.Errorf("block %d DeriveFields: %w", blk.NumberU64(), err)
+		}
 		if root := blkStatedb.IntermediateRoot(true); root != blk.Root() {
 			return fmt.Errorf("block %d: stateRoot mismatch: executed %s vs real %s", blk.NumberU64(), root, blk.Root())
 		}
@@ -704,7 +717,7 @@ func runLive(rpcURL string, from uint64, toSpec string, count uint64,
 		if i > 0 {
 			parentRoot = blocks[i-1].Root()
 		}
-		outs, err := liveReexecuteOutputs(ctx, cfg, db, hc, hdr, blk.Transactions(), receipts, parentRoot)
+		outs, err := liveReexecuteOutputs(ctx, cfg, sdb, hc, hdr, blk.Transactions(), receipts, parentRoot)
 		if err != nil {
 			return fmt.Errorf("block %d outputs: %w", hdr.Number.Uint64(), err)
 		}
