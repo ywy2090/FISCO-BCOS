@@ -11,7 +11,6 @@
 #include <bcos-evm/eth/state/state.hpp>  // evmone::state::finalize
 #include <bcos-evm/eth/state/system_contracts.hpp>
 #include <cstring>
-#include <evmone_precompiles/keccak.hpp>
 #include <functional>
 #include <iomanip>
 #include <limits>
@@ -23,104 +22,6 @@
 
 namespace bcos::evm::opstack
 {
-std::string karstNutQualifiedIntent(size_t index, std::string_view intent)
-{
-    std::string out = "Karst ";
-    out += std::to_string(index);
-    out += ": ";
-    out.append(intent.data(), intent.size());
-    return out;
-}
-
-evmc::bytes32 upgradeDepositSourceHash(std::string_view qualifiedIntent)
-{
-    const auto intentHash = ethash::keccak256(
-        reinterpret_cast<const uint8_t*>(qualifiedIntent.data()), qualifiedIntent.size());
-    std::array<uint8_t, 64> domainInput{};
-    for (size_t i = 0; i < 8; ++i)
-        domainInput[24 + i] = static_cast<uint8_t>(UpgradeDepositSourceDomain >> (56 - 8 * i));
-    std::memcpy(domainInput.data() + 32, intentHash.bytes, sizeof(intentHash.bytes));
-    const auto out = ethash::keccak256(domainInput.data(), domainInput.size());
-    evmc::bytes32 hash{};
-    std::memcpy(hash.bytes, out.bytes, sizeof(hash.bytes));
-    return hash;
-}
-
-bool isUpgradeDeposit(const DepositTx& dep, std::string_view qualifiedIntent) noexcept
-{
-    return dep.source_hash == upgradeDepositSourceHash(qualifiedIntent);
-}
-
-std::optional<KarstActivationSegment> classifyKarstActivationDeposit(
-    const DepositTx& dep, std::span<const std::string_view> nutQualifiedIntents)
-{
-    if (isL1AttributesTx(dep))
-        return KarstActivationSegment::L1Attributes;
-    for (auto intent : nutQualifiedIntents)
-    {
-        if (isUpgradeDeposit(dep, intent))
-            return KarstActivationSegment::NutUpgrade;
-    }
-    return KarstActivationSegment::UserDeposit;
-}
-
-void validateKarstActivationOrder(
-    std::span<const OpBlockTx> txs, std::span<const std::string_view> nutQualifiedIntents)
-{
-    if (txs.empty())
-        throw std::runtime_error("op block: Karst activation block is empty");
-    enum class Phase
-    {
-        NeedL1,
-        UserOrNut,
-        NutOnly,
-    };
-    Phase phase = Phase::NeedL1;
-    size_t nutIndex = 0;
-    for (const auto& btx : txs)
-    {
-        if (!std::holds_alternative<DepositTx>(btx.tx))
-            throw std::runtime_error(
-                "op block: Karst activation block must not contain ordinary transactions");
-        const auto& dep = std::get<DepositTx>(btx.tx);
-        const auto segment = classifyKarstActivationDeposit(dep, nutQualifiedIntents);
-        if (!segment.has_value())
-            throw std::runtime_error("op block: Karst activation block has non-deposit tx");
-        switch (*segment)
-        {
-        case KarstActivationSegment::L1Attributes:
-            if (phase != Phase::NeedL1)
-                throw std::runtime_error(
-                    "op block: L1 attributes deposit must be first in Karst activation block");
-            phase = Phase::UserOrNut;
-            break;
-        case KarstActivationSegment::UserDeposit:
-            if (phase == Phase::NeedL1)
-                throw std::runtime_error(
-                    "op block: user deposit before L1 attributes in Karst activation block");
-            if (phase == Phase::NutOnly)
-                throw std::runtime_error(
-                    "op block: user deposit after NUT deposits in Karst activation block");
-            break;
-        case KarstActivationSegment::NutUpgrade:
-            if (phase == Phase::NeedL1)
-                throw std::runtime_error(
-                    "op block: NUT deposit before L1 attributes in Karst activation block");
-            phase = Phase::NutOnly;
-            if (nutIndex >= nutQualifiedIntents.size())
-                throw std::runtime_error("op block: unexpected extra NUT deposit");
-            if (!isUpgradeDeposit(dep, nutQualifiedIntents[nutIndex]))
-                throw std::runtime_error("op block: NUT deposit out of order or wrong source hash");
-            ++nutIndex;
-            break;
-        }
-    }
-    if (phase == Phase::NeedL1)
-        throw std::runtime_error("op block: Karst activation block missing L1 attributes deposit");
-    if (nutIndex != nutQualifiedIntents.size())
-        throw std::runtime_error("op block: Karst activation block missing NUT deposits");
-}
-
 void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig& cfg)
 {
     if (!cfg.has_da_footprint)  // Jovian-only (op-geth CalcDAFootprint)

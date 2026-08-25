@@ -18,10 +18,19 @@
 #include <string>
 #include <vector>
 
+#include "support/KarstNutHelpers.h"
+
 #include <openssl/evp.h>
 #include <test/utils/test_state.hpp>
 
 using namespace bcos::evm::opstack;
+using opstack_test::classifyKarstActivationDeposit;
+using opstack_test::isUpgradeDeposit;
+using opstack_test::KarstActivationSegment;
+using opstack_test::karstNutQualifiedIntent;
+using opstack_test::KarstPinnedUpgradeGas;
+using opstack_test::upgradeDepositSourceHash;
+using opstack_test::validateKarstActivationOrder;
 
 namespace
 {
@@ -225,14 +234,14 @@ BOOST_AUTO_TEST_CASE(ActivationBlockOrderingL1UserThen31Nuts)
     for (auto const& dep : bundle.deposits)
         txs.push_back(nutDeposit(dep));
     BOOST_CHECK_NO_THROW(validateKarstActivationOrder(txs, intents));
-    BOOST_CHECK(*classifyKarstActivationDeposit(std::get<DepositTx>(txs[0].tx), intents) ==
+    BOOST_CHECK(classifyKarstActivationDeposit(std::get<DepositTx>(txs[0].tx), intents) ==
                 KarstActivationSegment::L1Attributes);
-    BOOST_CHECK(*classifyKarstActivationDeposit(std::get<DepositTx>(txs[1].tx), intents) ==
+    BOOST_CHECK(classifyKarstActivationDeposit(std::get<DepositTx>(txs[1].tx), intents) ==
                 KarstActivationSegment::UserDeposit);
     for (size_t i = 0; i < bundle.deposits.size(); ++i)
     {
         BOOST_CHECK(isUpgradeDeposit(bundle.deposits[i], bundle.qualifiedIntents[i]));
-        BOOST_CHECK(*classifyKarstActivationDeposit(bundle.deposits[i], intents) ==
+        BOOST_CHECK(classifyKarstActivationDeposit(bundle.deposits[i], intents) ==
                     KarstActivationSegment::NutUpgrade);
     }
 }

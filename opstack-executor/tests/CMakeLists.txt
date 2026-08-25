@@ -56,6 +56,7 @@ add_executable(opstack-executor-block-tests
     OpGoldenCorpusProvenanceTest.cpp
     support/SeedPreStateTest.cpp
     support/GoldenSampleTest.cpp
+    support/KarstNutHelpers.cpp
     support/StateBackendRocksDB.cpp
     StateBackendRocksDBTest.cpp
     ${EVMONE_TEST_UTILS_DIR}/rlp_encode.cpp
