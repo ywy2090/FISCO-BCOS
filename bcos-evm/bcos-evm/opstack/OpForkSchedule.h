@@ -15,9 +15,9 @@ namespace bcos::evm::opstack
 //
 // Reference: op-geth v1.101702.2 (authority) + optimism docs / specs.
 // FB only MODELS Ecotone+ (the enum below): the minimal validator loop is
-// Isthmus+-only (decision A5) and the engine -38005 gate rejects pre-Isthmus
-// payloads, so Bedrock/Regolith/Canyon are unreachable — they are listed for
-// mapping completeness only, NOT implemented.
+// Isthmus+-only (decision A5). Production schedules always start at timestamp 0, so
+// Bedrock/Regolith/Canyon are unreachable — they are listed for mapping completeness
+// only, NOT implemented.
 //
 //   OP fork      | Ethereum base | EVM rev (FB)      | FB status
 //   -------------+---------------+-------------------+----------------------

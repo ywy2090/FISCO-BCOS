@@ -281,14 +281,26 @@ void NodeConfig::resolveOpForkSchedule(
 
     if (genesisBlockExists)
     {
-        if (iniSchedule.has_value() && ledger::opForkScheduleRequestsKarst(*iniSchedule))
+        // Without persisted metadata the only safe runtime is the synthesized legacy schedule.
+        // Any non-matching ini fork_schedule (Karst, Jovian activations, etc.) must fail closed
+        // and point operators at offline migration — never silently drop the configured schedule.
+        const auto legacyCanonical = opJovianActive() ? "0:jovian" : "0:isthmus";
+        if (iniSchedule.has_value() && *iniSchedule != legacyCanonical)
         {
-            BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
-                                      "existing chain without metadata cannot consume a Karst "
-                                      "[opstack].fork_schedule from ini; run offline migration"));
+            if (ledger::opForkScheduleRequestsKarst(*iniSchedule))
+            {
+                BOOST_THROW_EXCEPTION(
+                    InvalidConfig()
+                    << errinfo_comment("existing chain without metadata cannot consume a Karst "
+                                       "[opstack].fork_schedule from ini; run offline migration"));
+            }
+            BOOST_THROW_EXCEPTION(
+                InvalidConfig() << errinfo_comment(
+                    "existing chain without metadata cannot consume a non-legacy "
+                    "[opstack].fork_schedule from ini; run offline migration (configured='" +
+                    *iniSchedule + "', effective_legacy='" + legacyCanonical + "')"));
         }
 
-        const auto legacyCanonical = opJovianActive() ? "0:jovian" : "0:isthmus";
         m_opForkScheduleRuntime = std::make_shared<ledger::OpForkScheduleRuntime>(
             ledger::OpForkScheduleRuntime{.canonical = legacyCanonical, .legacyMemoryOnly = true});
         return;

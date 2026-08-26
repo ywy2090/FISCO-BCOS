@@ -104,6 +104,28 @@ BOOST_AUTO_TEST_CASE(existingDbWithoutMetadataRejectsIniKarst)
     BOOST_CHECK_THROW(probe.resolveOpForkSchedule(std::nullopt, true, kGenesisHash), InvalidConfig);
 }
 
+BOOST_AUTO_TEST_CASE(existingDbWithoutMetadataRejectsNonLegacyIniSchedule)
+{
+    // Jovian activation in ini must not be silently dropped to 0:isthmus.
+    OpstackScheduleProbe probe;
+    auto pt = fromIni(minimalGenesis("[opstack]\nfork_schedule=0:isthmus,1764691201:jovian\n"));
+    probe.loadGenesisFeatures(pt);
+    probe.loadOpstackConfig(pt);
+    BOOST_CHECK_THROW(probe.resolveOpForkSchedule(std::nullopt, true, kGenesisHash), InvalidConfig);
+}
+
+BOOST_AUTO_TEST_CASE(existingDbWithoutMetadataAcceptsMatchingLegacyIni)
+{
+    OpstackScheduleProbe probe;
+    auto pt = fromIni(minimalGenesis("[opstack]\nfork_schedule=0:isthmus\n"));
+    probe.loadGenesisFeatures(pt);
+    probe.loadOpstackConfig(pt);
+    BOOST_REQUIRE_NO_THROW(probe.resolveOpForkSchedule(std::nullopt, true, kGenesisHash));
+    BOOST_REQUIRE(probe.opForkScheduleRuntime());
+    BOOST_CHECK_EQUAL(probe.opForkScheduleRuntime()->canonical, "0:isthmus");
+    BOOST_CHECK(probe.opForkScheduleRuntime()->legacyMemoryOnly);
+}
+
 BOOST_AUTO_TEST_CASE(existingDbWithoutMetadataUsesLegacyMemoryOnly)
 {
     OpstackScheduleProbe probe;

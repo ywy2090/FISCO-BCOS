@@ -246,7 +246,6 @@ namespace bcos::executor_v1::opstack
 // Prefixed with Op: ethereum-executor defines a same-named but distinct exception
 // (EthereumExecutor.h) — an unqualified cross-executor catch would silently mismatch.
 DERIVE_BCOS_EXCEPTION(OpEvmcRevisionNotConfigured);
-DERIVE_BCOS_EXCEPTION(OpForkRevisionMismatch);
 DERIVE_BCOS_EXCEPTION(OpTxValidationFailed);
 
 using bcos::evm::evmstate::SharedErrorSlot;  // Storage2State.h
@@ -896,10 +895,6 @@ private:
         catch (const OpEvmcRevisionNotConfigured&)
         {
             throw;  // local misconfiguration, not a consensus rejection
-        }
-        catch (const OpForkRevisionMismatch&)
-        {
-            throw;
         }
         catch (const std::exception& e)
         {

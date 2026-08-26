@@ -31,6 +31,14 @@ BOOST_AUTO_TEST_CASE(ScheduleCodecAndTimestampForkSelection)
         "1600c14baa71d58ae7f8d3c07ff24a73e26b209e6d491577a34b879ce2c6df12");
 }
 
+BOOST_AUTO_TEST_CASE(ScheduleCodecRejectsTimestampOverflow)
+{
+    // 20-digit tokens that wrap under naive `next < value` but must fail pre-multiply guard.
+    BOOST_CHECK_THROW(parseOpForkSchedule("25000000000000000000:isthmus"), InvalidOpForkSchedule);
+    BOOST_CHECK_THROW(parseOpForkSchedule("30000000000000000000:isthmus"), InvalidOpForkSchedule);
+    BOOST_CHECK_THROW(parseOpForkSchedule("18446744073709551617:isthmus"), InvalidOpForkSchedule);
+}
+
 BOOST_AUTO_TEST_CASE(ConstructorRejectsInvalidActivations)
 {
     BOOST_CHECK_THROW(OpForkSchedule({}), InvalidOpForkSchedule);

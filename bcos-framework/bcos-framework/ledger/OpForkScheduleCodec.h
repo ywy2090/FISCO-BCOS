@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -63,10 +64,11 @@ inline uint64_t parseTimestamp(std::string_view token)
     {
         if (ch < '0' || ch > '9')
             throw InvalidOpForkSchedule("invalid timestamp");
-        const uint64_t next = value * 10 + static_cast<uint64_t>(ch - '0');
-        if (next < value)
+        const auto digit = static_cast<uint64_t>(ch - '0');
+        // Pre-multiply guard: `next < value` misses wraps that land above value.
+        if (value > (std::numeric_limits<uint64_t>::max() - digit) / 10)
             throw InvalidOpForkSchedule("timestamp overflow");
-        value = next;
+        value = value * 10 + digit;
     }
     return value;
 }
