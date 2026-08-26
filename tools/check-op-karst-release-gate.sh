@@ -19,6 +19,8 @@ SCAN_ROOTS=(
   bcos-rpc
   bcos-evm/bcos-evm
   bcos-evm/bcos-evm/opstack
+  bcos-framework/bcos-framework
+  bcos-ledger/bcos-ledger
 )
 
 fail=0

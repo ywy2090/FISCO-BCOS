@@ -4,6 +4,7 @@
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <boost/test/unit_test.hpp>
+#include <string_view>
 
 using namespace bcos::evm::opstack;
 using namespace bcos::ledger;
@@ -33,10 +34,25 @@ BOOST_AUTO_TEST_CASE(ScheduleCodecAndTimestampForkSelection)
 
 BOOST_AUTO_TEST_CASE(ScheduleCodecRejectsTimestampOverflow)
 {
-    // 20-digit tokens that wrap under naive `next < value` but must fail pre-multiply guard.
-    BOOST_CHECK_THROW(parseOpForkSchedule("25000000000000000000:isthmus"), InvalidOpForkSchedule);
-    BOOST_CHECK_THROW(parseOpForkSchedule("30000000000000000000:isthmus"), InvalidOpForkSchedule);
-    BOOST_CHECK_THROW(parseOpForkSchedule("18446744073709551617:isthmus"), InvalidOpForkSchedule);
+    // Pin what(): wrap-to-nonzero under a broken guard still fails via "missing timestamp-0
+    // baseline" (same exception type) — BOOST_CHECK_THROW alone is fake-green.
+    const auto isTimestampOverflow = [](InvalidOpForkSchedule const& error) {
+        return std::string_view{error.what()}.find("timestamp overflow") != std::string_view::npos;
+    };
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("25000000000000000000:isthmus"),
+        InvalidOpForkSchedule, isTimestampOverflow);
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("30000000000000000000:isthmus"),
+        InvalidOpForkSchedule, isTimestampOverflow);
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("18446744073709551617:isthmus"),
+        InvalidOpForkSchedule, isTimestampOverflow);
+}
+
+BOOST_AUTO_TEST_CASE(ScheduleCodecRejectsTooManyActivations)
+{
+    // Nine entries exceed kMaxOpForkActivations (8) before semantic validation.
+    BOOST_CHECK_THROW(parseOpForkSchedule("0:isthmus,1:jovian,2:karst,3:isthmus,4:jovian,5:karst,"
+                                          "6:isthmus,7:jovian,8:karst"),
+        InvalidOpForkSchedule);
 }
 
 BOOST_AUTO_TEST_CASE(ConstructorRejectsInvalidActivations)

@@ -150,16 +150,24 @@ inline std::string serializeScheduleRecords(std::span<const OpForkActivationReco
 }
 }  // namespace detail
 
+inline constexpr std::size_t kMaxOpForkActivations = 8;
+inline constexpr std::size_t kMaxOpForkScheduleBytes = 512;
+
 inline std::vector<OpForkActivationRecord> parseOpForkSchedule(std::string_view canonical)
 {
     const auto trimmed = detail::trimAscii(canonical);
     if (trimmed.empty())
         throw InvalidOpForkSchedule("empty schedule");
+    if (trimmed.size() > kMaxOpForkScheduleBytes)
+        throw InvalidOpForkSchedule("schedule too long");
 
     std::vector<OpForkActivationRecord> activations;
     std::string_view remaining{trimmed};
     while (!remaining.empty())
     {
+        if (activations.size() >= kMaxOpForkActivations)
+            throw InvalidOpForkSchedule("too many activations");
+
         const auto comma = remaining.find(',');
         const auto entry = remaining.substr(0, comma);
         const auto colon = entry.find(':');

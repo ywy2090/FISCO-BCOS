@@ -587,11 +587,11 @@ private:
     };
 
     /// Version-gate upper bound is member state, not a compile-time/static constant: the generic
-    /// composition root leaves `m_maxEngineVersion` at its default (V3, identical to the
-    /// pre-existing `static` bound -- zero drift); only the OP composition root passes
-    /// `maxEngineVersion = 4` at construction. The lower bound (V1) stays a compile-time constant
-    /// -- only the upper bound is a runtime (per-instance, constructor-time-fixed) gate ("version
-    /// upper bound is member state").
+    /// composition root leaves `m_maxEngineVersion` at its default (V3). The OP composition root
+    /// also passes `maxEngineVersion = V3` at construction; OP FCU is hardcoded to V3 while
+    /// getPayload/newPayload versions come from the schedule profile (Karst → V5/V4). The lower
+    /// bound (V1) stays a compile-time constant — only the upper bound is a runtime
+    /// (per-instance, constructor-time-fixed) gate.
     bool isForkchoiceVersionSupported(std::uint32_t version) const
     {
         return version >= static_cast<std::uint32_t>(ApiVersion::V1) &&
