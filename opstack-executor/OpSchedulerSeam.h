@@ -156,6 +156,9 @@ public:
         }
         const auto forkId = forkIdAt(timestampSeconds);
         const auto& cfg = m_schedule->configAt(timestampSeconds);
+        // Defense-in-depth: production karstConfig() is always EVMC_OSAKA, so this arm is
+        // unreachable unless OpForkSchedule::configAt is miswired. Kept so Engine can map
+        // InconsistentExecutionConfig → -32603 instead of silently serving a wrong rev.
         if (forkId == bcos::engine::OpForkId::Karst && cfg.rev != EVMC_OSAKA)
         {
             return bcos::engine::OpForkResolutionError::InconsistentExecutionConfig;

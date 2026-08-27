@@ -87,10 +87,11 @@ Karst 上线是**原子批次**：执行层 schedule、Engine profile、Osaka �
   --storage <datadir>/group0/data \
   --schedule '0:jovian,<karst_ts>:karst' \
   --dry-run
-# 确认 old/new canonical + hash、safe_head_timestamp 后再 --yes
+# 确认 old/new canonical + hash、history_freeze_tip_timestamp_seconds 后再 --yes
 ```
 
 - 校验规则：已激活前缀必须与旧 schedule 完全一致；仅允许**未来** fork 变更。
+- 冻结边界是 **ledger tip**（CLI 无 Engine safe/finalized 视图）。
 - 迁移写入 metadata 三件套；ini 中 `fork_schedule` 若与 DB 不一致则节点拒绝启动。
 - **不可逆**：首个 safe/finalized Karst 块之后禁止回滚 schedule 或降级二进制；
   无在线迁移、无块历史重写。

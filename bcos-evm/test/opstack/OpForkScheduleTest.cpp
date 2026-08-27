@@ -50,9 +50,15 @@ BOOST_AUTO_TEST_CASE(ScheduleCodecRejectsTimestampOverflow)
 BOOST_AUTO_TEST_CASE(ScheduleCodecRejectsTooManyActivations)
 {
     // Nine entries exceed kMaxOpForkActivations (8) before semantic validation.
-    BOOST_CHECK_THROW(parseOpForkSchedule("0:isthmus,1:jovian,2:karst,3:isthmus,4:jovian,5:karst,"
-                                          "6:isthmus,7:jovian,8:karst"),
-        InvalidOpForkSchedule);
+    // Pin what(): without the count cap this string still throws InvalidOpForkSchedule
+    // (duplicate fork / protocol order) — BOOST_CHECK_THROW alone is fake-green.
+    const auto isTooManyActivations = [](InvalidOpForkSchedule const& error) {
+        return std::string_view{error.what()}.find("too many activations") !=
+               std::string_view::npos;
+    };
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("0:isthmus,1:jovian,2:karst,3:isthmus,4:jovian,"
+                                              "5:karst,6:isthmus,7:jovian,8:karst"),
+        InvalidOpForkSchedule, isTooManyActivations);
 }
 
 BOOST_AUTO_TEST_CASE(ConstructorRejectsInvalidActivations)

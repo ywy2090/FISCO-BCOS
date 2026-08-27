@@ -50,7 +50,8 @@ void printToolLimitations(std::ostream& out)
         << "  - KeyPage size is hardcoded to " << kHardcodedKeyPageSize
         << " (config.ini is not read)\n"
         << "  - Block version is hardcoded to V3_18_0\n"
-        << "  - Encrypted RocksDB storage is not supported\n";
+        << "  - Encrypted RocksDB storage is not supported\n"
+        << "  - History freeze boundary is the ledger tip (not Engine safe/finalized)\n";
 }
 
 void printUsage(std::ostream& out, po::options_description const& options)
@@ -155,12 +156,14 @@ void commitKeyPageChanges(
     }
 }
 
-void printMigrationSummary(HashType const& genesisHash, uint64_t safeHeadTimestampSeconds,
+void printMigrationSummary(HashType const& genesisHash, uint64_t tipTimestampSeconds,
     std::string const& oldCanonical, HashType const& oldScheduleHash,
     std::string const& newCanonical, HashType const& newScheduleHash)
 {
+    // tip_* = ledger current head used as the past/future freeze boundary (not Engine
+    // safe/finalized). Kept as unix seconds for validateOpForkScheduleMigration.
     std::cout << "genesis_hash=" << genesisHash.hex() << '\n'
-              << "safe_head_timestamp_seconds=" << safeHeadTimestampSeconds << '\n'
+              << "history_freeze_tip_timestamp_seconds=" << tipTimestampSeconds << '\n'
               << "old_schedule=" << oldCanonical << '\n'
               << "old_schedule_hash=" << oldScheduleHash.hex() << '\n'
               << "new_schedule=" << newCanonical << '\n'
@@ -203,13 +206,14 @@ int runMigration(
             }
             const auto genesisHash = genesisBlock->blockHeader()->hash();
 
-            auto safeBlock = co_await getBlockData(*ledger, blockNumber, HEADER);
-            if (!safeBlock || !safeBlock->blockHeader())
+            // Freeze against ledger tip: this CLI has no Engine safe/finalized view.
+            auto tipBlock = co_await getBlockData(*ledger, blockNumber, HEADER);
+            if (!tipBlock || !tipBlock->blockHeader())
             {
-                throw std::runtime_error("safe head block header unavailable");
+                throw std::runtime_error("ledger tip block header unavailable");
             }
-            const auto safeHeadTimestampSeconds =
-                opForkScheduleSafeHeadSeconds(safeBlock->blockHeader()->timestamp());
+            const auto tipTimestampSeconds =
+                opForkScheduleSafeHeadSeconds(tipBlock->blockHeader()->timestamp());
 
             const auto oldMetadata =
                 co_await readOpForkScheduleMetadata(*layeredStorage, genesisHash);
@@ -219,10 +223,10 @@ int runMigration(
             }
 
             validateOpForkScheduleMigration(
-                oldMetadata->schedule, newCanonical, safeHeadTimestampSeconds);
+                oldMetadata->schedule, newCanonical, tipTimestampSeconds);
 
             const auto newMetadata = buildOpForkScheduleMetadata(newCanonical, genesisHash);
-            printMigrationSummary(genesisHash, safeHeadTimestampSeconds, oldMetadata->schedule,
+            printMigrationSummary(genesisHash, tipTimestampSeconds, oldMetadata->schedule,
                 oldMetadata->scheduleHash, newMetadata.schedule, newMetadata.scheduleHash);
 
             if (oldMetadata->schedule == newMetadata.schedule &&

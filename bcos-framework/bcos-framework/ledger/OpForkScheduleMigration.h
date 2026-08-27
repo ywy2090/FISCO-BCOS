@@ -16,6 +16,9 @@ public:
     using std::invalid_argument::invalid_argument;
 };
 
+/// Convert a block header timestamp (ms) to the unix-seconds freeze boundary used by
+/// `validateOpForkScheduleMigration`. Callers choose which head to freeze against; the
+/// migrate CLI currently passes the ledger tip (not Engine safe/finalized).
 [[nodiscard]] inline uint64_t opForkScheduleSafeHeadSeconds(uint64_t headerTimestampMs)
 {
     return headerTimestampMs / 1000;
