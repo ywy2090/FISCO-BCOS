@@ -43,16 +43,13 @@ namespace bcos::engine
 /// the shape), but the RPC may observe foreign/malformed ones and must not
 /// read out of bounds.
 ///
-/// @param parent        the parent block header (extraData carries the 1559
-///                      parameters; blobGasUsed carries the Jovian DA
-///                      footprint).
-/// @param parentIsJovian whether the Jovian rules apply to the parent. The
-///                      engine passes its scheduler feature flag; the RPC
-///                      passes its extraData length sniff (>= 17). The fork
-///                      DETECTION stays with the caller — only the formula is
-///                      shared.
+/// @param parent                 the parent block header (extraData carries the 1559
+///                               parameters; blobGasUsed carries the Jovian DA footprint).
+/// @param parentHasDaFootprint   whether the parent's fork enables DA-footprint metering
+///                               (from schedule `hasDaFootprintAt(parent timestamp)`).
 /// @return the predicted baseFee of the child block.
-inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool parentIsJovian)
+inline bcos::u256 calcOpBaseFee(
+    bcos::protocol::BlockHeader const& parent, bool parentHasDaFootprint)
 {
     auto const extra = parent.extraData();
 
@@ -72,7 +69,7 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
 
     // Jovian minBaseFee floor — only meaningful when the 8-byte tail exists.
     std::optional<bcos::u256> minBaseFee;
-    if (parentIsJovian && extra.size() >= 17)
+    if (parentHasDaFootprint && extra.size() >= 17)
     {
         uint64_t floor = 0;
         for (std::size_t i = 0; i < 8; ++i)
@@ -90,7 +87,8 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
     // Jovian meters baseFee on max(gasUsed, DA footprint); the DA footprint
     // lives in the blobGasUsed header slot (op-geth eip1559.go:99-107).
     bcos::u256 gasMetered = parent.gasUsed();
-    if (parentIsJovian && parent.blobGasUsed().has_value() && *parent.blobGasUsed() > gasMetered)
+    if (parentHasDaFootprint && parent.blobGasUsed().has_value() &&
+        *parent.blobGasUsed() > gasMetered)
     {
         gasMetered = *parent.blobGasUsed();
     }

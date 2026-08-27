@@ -61,19 +61,77 @@ rm -rf cmd/opt8n-ref; cp -r <repo>/opstack-executor/tests/t8n/generator cmd/opt8
 go build -o opt8n-ref ./cmd/opt8n-ref     # go.mod 需 go 1.24（GOTOOLCHAIN 自动下载）
 ```
 
+## Karst 部署门（operator）
+
+Karst 上线是**原子批次**：执行层 schedule、Engine profile、Osaka 预编译与 NUT 激活语义
+必须同版本一起发布；Task 7 的 `op-karst-release-gate` 扫描禁止 legacy fork API
+（`isJovianActive` / `OpForkFlags` / `configAt(OpForkFlags)`）残留在生产 OP 面。
+
+### 新链 genesis
+
+1. 在 genesis ini 写入完整 `[opstack].fork_schedule`（canonical 字符串，示例见
+   `tools/opstack-genesis/chain-config.template.yaml`）。新空库**必须**带 schedule；
+   与 `feature_op_jovian` / `executor.evm_revision*` 互斥。
+2. 启动前核对 `keccakOpForkScheduleHash(schedule)` 与链上 metadata 三件套
+   （`op_fork_schedule` / `op_fork_schedule_hash` / `op_fork_schedule_genesis_hash`）
+   一致；各 EL 节点与 op-node 的 schedule 字符串及 hash **必须逐字节相同**。
+3. 已知 Sepolia Karst 新链 baseline：`0:jovian,1781712001:karst` → hash
+   `1600c14baa71d58ae7f8d3c07ff24a73e26b209e6d491577a34b879ce2c6df12`。
+   Mainnet 形态：`0:isthmus,1764691201:jovian,1783526401:karst`（hash 由工具计算）。
+
+### 存量链离线迁移
+
+```bash
+# 仅 KeyPage V3_18 + 未加密 RocksDB；见 --help 的 Limitations
+./build/tools/op-fork-schedule-migrate/op-fork-schedule-migrate \
+  --storage <datadir>/group0/data \
+  --schedule '0:jovian,<karst_ts>:karst' \
+  --dry-run
+# 确认 old/new canonical + hash、history_freeze_tip_timestamp_seconds 后再 --yes
+```
+
+- 校验规则：已激活前缀必须与旧 schedule 完全一致；仅允许**未来** fork 变更。
+- 冻结边界是 **ledger tip**（CLI 无 Engine safe/finalized 视图）。
+- 迁移写入 metadata 三件套；ini 中 `fork_schedule` 若与 DB 不一致则节点拒绝启动。
+- **不可逆**：首个 safe/finalized Karst 块之后禁止回滚 schedule 或降级二进制；
+  无在线迁移、无块历史重写。
+
+### 发布前回归（Task 11 gate）
+
+```bash
+rtk git diff --check
+rtk cmake --build build --target bcos-evm-opstack-tests \
+  opstack-executor-block-tests opstack-executor-detail-tests \
+  test-bcos-engine test-bcos-rpc test-bcos-tool test-bcos-ledger \
+  op-fork-schedule-migrate opstack-mainnet-replay op-karst-release-gate -j8
+rtk ctest --test-dir build -R \
+  'BcosEvmOpstackTests|OpstackExecutorBlockTests|OpstackExecutorDetailTests|OpKarstReleaseGate|ReplayCli|OpMainnetReplay|test-bcos-tool|test-ethereum-state-smoke|EthereumExecutorDiffTests' \
+  --output-on-failure
+```
+
+### Karst 重放验收（op-reth oracle）
+
+- Jovian 窗口仍用 op-geth `e8800cff` + `opt8n-ref --live`；**Karst 拒绝 op-geth**，
+  须 pinned op-reth archive + `run_sync.sh --fork karst`（见 `versions.json`）。
+- 逐级：`--count 1` → `2` → `100` → `900`；记录 report.json、sidecar 大小、耗时。
+- 部署证据模板：FISCO commit、optimism `5f90f749`、specs `689a96f6`、NUT SHA-256
+  `08f5df36…`、canonical schedule + 各节点 keccak hash、重放摘要。
+
 ## 测试与回归
 
 ```bash
 cmake --build build --target opstack-executor-block-tests opstack-mainnet-replay -j 8
 ./build/opstack-executor/tests/opstack-executor-block-tests          # 全部单测
 bash opstack-executor/tests/t8n/generator/ensure-vectors.sh          # corpus 回归
+cmake --build build --target op-karst-release-gate -j8               # Karst 原子门
 ```
 
 ## 延后项
 
 - **5k+ 全量**：`run_sync.sh` 的 `--to latest` 放大即可（RocksDB 锚点已备）。
 - **连续哨兵**：`run_sync.sh` 挂 cron + 报警（Task 8 已是最小闭环）。
-- **Karst**：需实现 Karst 语义（31 条 NUT 升级 + gas 膨胀）——另立评估。
+- **Karst live archive**：离线代码与 pinned op-reth 路径已交付（Task 10）；live 1/2/100/900
+  块验收需外接 archive 存储 + 同步 op-reth（当前 BLOCKED）。
 - **跨 fork 回填**：不建议（FISCO 建模起点 ecotone；fork 切换模型需先改造
   `OpForkSchedule.cpp::configAt()`）。
 

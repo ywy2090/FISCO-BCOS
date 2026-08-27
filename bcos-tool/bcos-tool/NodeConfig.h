@@ -19,6 +19,7 @@
  * @date 2021-06-10
  */
 #pragma once
+#include "bcos-framework/ledger/ChainMetadata.h"
 #include "bcos-framework/ledger/GenesisConfig.h"
 #include "bcos-framework/ledger/LedgerConfig.h"
 #include "bcos-framework/security/CloudKmsType.h"
@@ -82,6 +83,11 @@ public:
         bool _enforceChainConfig = false, bool _enforceGroupId = true);
     virtual void loadGenesisConfig(boost::property_tree::ptree const& _genesisConfig);
 
+    virtual void loadOpstackConfig(boost::property_tree::ptree const& _genesisConfig);
+    virtual void resolveOpForkSchedule(
+        std::optional<ledger::OpForkScheduleMetadata> const& metadata, bool genesisBlockExists,
+        crypto::HashType const& genesisHash);
+
     // the txpool configurations
     size_t txpoolLimit() const;
     int64_t txsExpirationTime() const;
@@ -97,6 +103,8 @@ public:
     /// chain.isthmus_time / chain.jovian_time timestamp thresholds). Isthmus is the OP-mode
     /// baseline; this flag selects Jovian semantics (DA footprint, operator fee ×100).
     bool opJovianActive() const;
+
+    std::shared_ptr<const ledger::OpForkScheduleRuntime> const& opForkScheduleRuntime() const;
 
     std::string const& privateKeyPath() const;
     std::string const& hsmLibPath() const;
@@ -579,6 +587,8 @@ private:
     bool m_checkParallelConflict = true;
     bool m_singlePointConsensus = false;
     bytes m_forceSender;
+
+    std::shared_ptr<const ledger::OpForkScheduleRuntime> m_opForkScheduleRuntime;
 };
 
 std::string generateGenesisData(

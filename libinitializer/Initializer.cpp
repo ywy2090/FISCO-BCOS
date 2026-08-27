@@ -54,9 +54,11 @@
 #include <bcos-crypto/hasher/AnyHasher.h>
 #include <bcos-crypto/interfaces/crypto/CommonType.h>
 #include <bcos-crypto/signature/key/KeyFactoryImpl.h>
+#include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-framework/executor/NativeExecutionMessage.h>
 #include <bcos-framework/executor/ParallelTransactionExecutorInterface.h>
 #include <bcos-framework/executor/PrecompiledTypeDef.h>
+#include <bcos-framework/ledger/ChainMetadata.h>
 #include <bcos-framework/protocol/GlobalConfig.h>
 #include <bcos-framework/protocol/Protocol.h>
 #include <bcos-framework/protocol/ProtocolTypeDef.h>
@@ -96,6 +98,20 @@ using namespace bcos::tool;
 using namespace bcos::protocol;
 using namespace bcos::initializer;
 namespace fs = boost::filesystem;
+
+namespace
+{
+std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> makeSharedOpForkSchedule(
+    bcos::ledger::OpForkScheduleRuntime const& runtime)
+{
+    namespace op = bcos::evm::opstack;
+    if (runtime.legacyMemoryOnly && runtime.canonical == "0:jovian")
+    {
+        return std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::legacy(true));
+    }
+    return std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse(runtime.canonical));
+}
+}  // namespace
 
 namespace
 {
@@ -567,12 +583,23 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
     const bool opStackMode = (m_executorVersion >= scheduler_v1::OPSTACK_EXECUTOR_VERSION);
     if (opStackMode)
     {
-        // OP fork selection is feature-driven (feature_op_jovian in genesis [features]), NOT
-        // timestamp-based — FISCO has no timestamp fork-activation mechanism. Isthmus is the
-        // OP-mode baseline; jovianActive selects Jovian semantics.
-        auto forkFlags = bcos::evm::opstack::OpForkFlags{
-            .jovianActive = m_nodeConfig->opJovianActive(),
-        };
+        auto genesisBlock = task::syncWait(ledger::getBlockData(*m_ledger, 0, ledger::HEADER));
+        if (!genesisBlock || !genesisBlock->blockHeader())
+        {
+            BOOST_THROW_EXCEPTION(InvalidConfig() << bcos::errinfo_comment(
+                                      "OP mode: genesis block header unavailable"));
+        }
+        const auto genesisHash = genesisBlock->blockHeader()->hash();
+        const auto metadata = task::syncWait(ledger::readOpForkScheduleMetadata(
+            m_globalStateStorageInitializer->storage().latestBackend(), genesisHash));
+        m_nodeConfig->resolveOpForkSchedule(metadata, /*genesisBlockExists=*/true, genesisHash);
+        const auto& scheduleRuntime = m_nodeConfig->opForkScheduleRuntime();
+        if (!scheduleRuntime)
+        {
+            BOOST_THROW_EXCEPTION(
+                InvalidConfig() << bcos::errinfo_comment("OP mode: fork schedule not resolved"));
+        }
+        auto forkSchedule = makeSharedOpForkSchedule(*scheduleRuntime);
         // chainId: NodeConfig::chainId() 返回经 isalNumStr 校验的数字串，按 base-0 解析
         // （0x 前缀→hex，否则 decimal）；OP 模式下应为数字字符串。默认 genesis 值是 "chain"，
         // stoull 对非数字串抛裸 STL 异常 → 转成带 FISCO 上下文的 InvalidConfig。
@@ -595,15 +622,15 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
         }
         auto opScheduler =
             std::make_shared<bcos::evm::engine::OpSchedulerSeam<GlobalStateStorage::ViewType>>(
-                forkFlags);
+                forkSchedule);
         // Wiring Task 5a/5c: engine block-execution delegate = OpScheduler (slot-3, same instance).
         // A single OpSchedulerSeam serves the engine's SchedulerType seam surface (c_opMode probe /
-        // isJovianActive / computeTxRoot); OpScheduler itself owns the block
+        // schedule-derived fork resolution / computeTxRoot); OpScheduler itself owns the block
         // execution path (preBlockOpSteps → SchedulerSerialImpl per-tx → finalizeOpBlockResult).
         auto opDelegate =
             std::make_shared<bcos::executor_v1::opstack::OpScheduler<GlobalStateStorage>>(
                 m_protocolInitializer->blockFactory()->receiptFactory(),
-                m_protocolInitializer->cryptoSuite()->hashImpl(), opChainId, forkFlags,
+                m_protocolInitializer->cryptoSuite()->hashImpl(), opChainId, forkSchedule,
                 m_protocolInitializer->blockFactory(), m_globalStateStorageInitializer->storage(),
                 // Task 2: wire the OP delegate's ledger (same LedgerInterface::Ptr as the ethereum
                 // root) so Task 3's commit hook can call prewriteBlockToBuffer. The engine service
@@ -621,7 +648,7 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
             m_globalStateStorageInitializer, m_protocolInitializer->blockFactory(), opScheduler,
             transactionExecutor, m_memPoolInitializer->memPool(), /*ledger=*/nullptr,
             bcos::engine::c_defaultBlockTxCountLimit, opDelegate,
-            /*maxEngineVersion=*/static_cast<std::uint32_t>(bcos::engine::ApiVersion::V4),
+            /*maxEngineVersion=*/static_cast<std::uint32_t>(bcos::engine::ApiVersion::V3),
             m_daCaps);
         // Compile-time proof that this production composition root activates the OP engine branch.
         // ⚠️ 必须用裸类型：decltype(*opScheduler) 是 OpSchedulerSeam<...>&（左值引用），若作

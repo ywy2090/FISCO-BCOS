@@ -7,6 +7,7 @@
 // immediately). A pure template header, no .cpp.
 
 #include <bcos-evm/opstack/OpForkSchedule.h>
+#include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>
@@ -18,10 +19,14 @@
 #include <opstack-executor/OpCommon.h>
 #include <opstack-executor/OpDepositEncode.h>  // encodeDepositEnvelope (Tier-2 build)
 #include <cstdint>
+#include <limits>
+#include <memory>
 #include <optional>
 #include <range/v3/range/concepts.hpp>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace bcos::evm::engine
@@ -34,14 +39,21 @@ namespace bcos::evm::engine
 namespace detail
 {
 }  // namespace detail
-/// OP scheduler component: a pure engine-facing seam shim, constructed once per OpForkFlags
-/// combination (composition-root-owned). It only re-publishes the seam surface the engine reaches
-/// as dependent names on `SchedulerType`.
+/// OP scheduler component: a pure engine-facing seam shim, constructed once per immutable
+/// OpForkSchedule (composition-root-owned). It only re-publishes the seam surface the engine
+/// reaches as dependent names on `SchedulerType`.
 template <class Storage>
 class OpSchedulerSeam
 {
 public:
-    explicit OpSchedulerSeam(bcos::evm::opstack::OpForkFlags forkFlags) : m_forkFlags(forkFlags) {}
+    explicit OpSchedulerSeam(std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> schedule)
+      : m_schedule(std::move(schedule))
+    {
+        if (!m_schedule)
+        {
+            throw std::invalid_argument("OpSchedulerSeam: null fork schedule");
+        }
+    }
 
     // ---- engine-facing seam surface ----
     //
@@ -92,12 +104,97 @@ public:
         return computeOpTxRoot(rawTxBytes);
     }
 
-    /// Jovian activation predicate (feature-op_jovian). The engine needs it for fork-dependent
-    /// static checks: the header's blobGasUsed slot must be 0 under Isthmus, but under Jovian it is
-    /// the DA footprint (validated by seal comparison instead); base-fee derivation branches on it.
-    /// There is no isIsthmusActiveAt anymore — OP mode itself IS the Isthmus+ admission check
-    /// (executor_version>=3), and the -38005 gate no longer re-derives the fork from a timestamp.
-    [[nodiscard]] bool isJovianActive() const noexcept { return m_forkFlags.jovianActive; }
+    [[nodiscard]] bcos::engine::OpForkId forkIdAt(uint64_t timestampSeconds) const
+    {
+        switch (m_schedule->forkAt(timestampSeconds))
+        {
+        case bcos::evm::opstack::OpFork::Isthmus:
+            return bcos::engine::OpForkId::Isthmus;
+        case bcos::evm::opstack::OpFork::Jovian:
+            return bcos::engine::OpForkId::Jovian;
+        case bcos::evm::opstack::OpFork::Karst:
+            return bcos::engine::OpForkId::Karst;
+        default:
+            throw std::logic_error("OpSchedulerSeam: unsupported schedule fork");
+        }
+    }
+
+    [[nodiscard]] bcos::engine::EngineApiProfile engineApiFor(uint64_t timestampSeconds) const
+    {
+        const auto forkId = forkIdAt(timestampSeconds);
+        if (forkId == bcos::engine::OpForkId::Karst)
+        {
+            return bcos::engine::EngineApiProfile{
+                .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
+                .getPayload = bcos::engine::ApiVersion::V5,
+                .newPayload = bcos::engine::ApiVersion::V4,
+            };
+        }
+        return bcos::engine::EngineApiProfile{
+            .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
+            .getPayload = bcos::engine::ApiVersion::V4,
+            .newPayload = bcos::engine::ApiVersion::V4,
+        };
+    }
+
+    [[nodiscard]] bool hasDaFootprintAt(uint64_t timestampSeconds) const
+    {
+        return m_schedule->configAt(timestampSeconds).has_da_footprint;
+    }
+
+    [[nodiscard]] const bcos::evm::opstack::OpForkConfig& configAt(uint64_t timestampSeconds) const
+    {
+        return m_schedule->configAt(timestampSeconds);
+    }
+
+    [[nodiscard]] bcos::engine::EngineForkResolution resolveEngineForkAt(
+        uint64_t timestampSeconds) const
+    {
+        if (timestampSeconds < m_schedule->baselineTimestamp())
+        {
+            return bcos::engine::OpForkResolutionError::UnsupportedTimestamp;
+        }
+        const auto forkId = forkIdAt(timestampSeconds);
+        const auto& cfg = m_schedule->configAt(timestampSeconds);
+        // Defense-in-depth: production karstConfig() is always EVMC_OSAKA, so this arm is
+        // unreachable unless OpForkSchedule::configAt is miswired. Kept so Engine can map
+        // InconsistentExecutionConfig → -32603 instead of silently serving a wrong rev.
+        if (forkId == bcos::engine::OpForkId::Karst && cfg.rev != EVMC_OSAKA)
+        {
+            return bcos::engine::OpForkResolutionError::InconsistentExecutionConfig;
+        }
+        return bcos::engine::EngineForkContext{
+            .forkId = forkId,
+            .api = engineApiFor(timestampSeconds),
+            .hasDaFootprint = cfg.has_da_footprint,
+        };
+    }
+
+    /// Tier-2 attribute-driven build: the mandatory L1-attributes deposit envelope (OP blocks
+    /// hard-require a leading deposit). Phase-A field values are zeros (fixture chain without
+    /// an L1): Isthmus shape = 176 zero bytes; Jovian/Karst = selector(0x3db6be2b) + zeros to 178.
+    /// The deposit's execution against the Ecotone-era genesis L1Block reverts and is
+    /// tolerated (documented predeploy-matrix divergence).
+    static bcos::bytes synthesizeL1AttributesEnvelope(bcos::engine::OpForkId forkId)
+    {
+        namespace op = bcos::evm::opstack;
+        evmc::bytes data(op::IsthmusL1AttributesLen, 0);
+        if (forkId != bcos::engine::OpForkId::Isthmus)
+        {
+            data.resize(op::JovianL1AttributesLen, 0);
+            std::copy(op::JovianL1AttributesSelector.begin(), op::JovianL1AttributesSelector.end(),
+                data.begin());
+        }
+        op::DepositTx deposit{.source_hash = evmc::bytes32{},
+            .from = op::OP_DEPOSITOR,
+            .to = op::OP_L1_BLOCK,
+            .mint = std::nullopt,
+            .value = intx::uint256{0},
+            .gas_limit = 1'000'000,
+            .is_system_tx = false,
+            .data = std::move(data)};
+        return encodeDepositEnvelope(deposit);
+    }
 
     OpSchedulerSeam(const OpSchedulerSeam&) = delete;
     OpSchedulerSeam(OpSchedulerSeam&&) = delete;
@@ -117,34 +214,8 @@ public:
         co_return {};  // unreachable; satisfies the coroutine's declared return type
     }
 
-    /// Tier-2 attribute-driven build: the mandatory L1-attributes deposit envelope (OP blocks
-    /// hard-require a leading deposit). Phase-A field values are zeros (fixture chain without
-    /// an L1): Isthmus shape = 176 zero bytes; Jovian = selector(0x3db6be2b) + zeros to 178.
-    /// The deposit's execution against the Ecotone-era genesis L1Block reverts and is
-    /// tolerated (documented predeploy-matrix divergence).
-    static bcos::bytes synthesizeL1AttributesEnvelope(bool jovianActive)
-    {
-        namespace op = bcos::evm::opstack;
-        evmc::bytes data(op::IsthmusL1AttributesLen, 0);
-        if (jovianActive)
-        {
-            data.resize(op::JovianL1AttributesLen, 0);
-            std::copy(op::JovianL1AttributesSelector.begin(), op::JovianL1AttributesSelector.end(),
-                data.begin());
-        }
-        op::DepositTx deposit{.source_hash = evmc::bytes32{},
-            .from = op::OP_DEPOSITOR,
-            .to = op::OP_L1_BLOCK,
-            .mint = std::nullopt,
-            .value = intx::uint256{0},
-            .gas_limit = 1'000'000,
-            .is_system_tx = false,
-            .data = std::move(data)};
-        return encodeDepositEnvelope(deposit);
-    }
-
 private:
-    bcos::evm::opstack::OpForkFlags m_forkFlags;
+    std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> m_schedule;
 };
 
 }  // namespace bcos::evm::engine

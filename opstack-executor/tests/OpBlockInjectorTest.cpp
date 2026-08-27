@@ -237,11 +237,11 @@ BOOST_AUTO_TEST_CASE(InjectsDepositAndEip1559Block)
 
     // Isthmus-active fork config.
     // Isthmus-active fork config (feature_op_jovian OFF).
-    // Named-lvalue first: configAt takes const OpForkFlags&, and GCC-14's -Wdangling-reference
-    // flags passing a prvalue `op::OpForkFlags{}` here even though the returned reference
-    // aliases the static config, never the flags (false positive).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    // Named-lvalue first: configAt(timestamp) returns a reference into the schedule-owned
+    // config; GCC-14's -Wdangling-reference flags some prvalue temporaries here (false positive).
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();
@@ -300,11 +300,11 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRejectedByBlockPreSteps)
     namespace detail = bcos::evm::engine::detail;
 
     // Isthmus-active fork config (feature_op_jovian OFF).
-    // Named-lvalue first: configAt takes const OpForkFlags&, and GCC-14's -Wdangling-reference
-    // flags passing a prvalue `op::OpForkFlags{}` here even though the returned reference
-    // aliases the static config, never the flags (false positive).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    // Named-lvalue first: configAt(timestamp) returns a reference into the schedule-owned
+    // config; GCC-14's -Wdangling-reference flags some prvalue temporaries here (false positive).
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();
@@ -337,11 +337,11 @@ BOOST_AUTO_TEST_CASE(DepositAfterNonDepositAccepted)
     namespace op = bcos::evm::opstack;
 
     // Isthmus-active fork config (feature_op_jovian OFF).
-    // Named-lvalue first: configAt takes const OpForkFlags&, and GCC-14's -Wdangling-reference
-    // flags passing a prvalue `op::OpForkFlags{}` here (false positive, see
-    // InjectsDepositAndEip1559Block).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    // Named-lvalue first: configAt(timestamp) returns schedule-owned config (see GCC-14 note
+    // above).
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();
@@ -394,8 +394,9 @@ BOOST_AUTO_TEST_CASE(FirstDepositNotL1AttributesAccepted)
     namespace op = bcos::evm::opstack;
 
     // Isthmus-active fork config (feature_op_jovian OFF).
-    const auto forkFlags = op::OpForkFlags{};
-    const auto& cfg = op::configAt(forkFlags);
+    const auto forkSchedule =
+        std::make_shared<const op::OpForkSchedule>(op::OpForkSchedule::parse("0:isthmus"));
+    const auto& cfg = forkSchedule->configAt(0);
 
     MutableStorage storage;
     auto cryptoSuite = makeCryptoSuite();

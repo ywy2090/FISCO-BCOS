@@ -1,11 +1,104 @@
 #include "TestPrinters.h"
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
+#include <bcos-utilities/DataConvertUtility.h>
 #include <boost/test/unit_test.hpp>
+#include <string_view>
 
 using namespace bcos::evm::opstack;
+using namespace bcos::ledger;
 
 BOOST_AUTO_TEST_SUITE(OpForkScheduleSuite)
+
+BOOST_AUTO_TEST_CASE(ScheduleCodecAndTimestampForkSelection)
+{
+    auto activations = parseOpForkSchedule("0:isthmus,1764691201:jovian,1783526401:karst");
+    BOOST_REQUIRE_EQUAL(activations.size(), 3u);
+
+    auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian,1783526401:karst");
+    BOOST_CHECK(schedule.forkAt(1764691200) == OpFork::Isthmus);
+    BOOST_CHECK(schedule.forkAt(1764691201) == OpFork::Jovian);
+    BOOST_CHECK(schedule.forkAt(1783526401) == OpFork::Karst);
+
+    auto legacy = OpForkSchedule::legacy(true);
+    BOOST_CHECK_EQUAL(legacy.canonicalString(), "0:jovian");
+    BOOST_CHECK(legacy.forkAt(0) == OpFork::Jovian);
+
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:ecotone"), InvalidOpForkSchedule);
+    BOOST_CHECK_NO_THROW(OpForkSchedule::parse("0:jovian,1783526401:karst"));
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:isthmus,1783526401:karst"), InvalidOpForkSchedule);
+    BOOST_CHECK_EQUAL(toHex(keccakOpForkScheduleHash("0:jovian,1781712001:karst")),
+        "1600c14baa71d58ae7f8d3c07ff24a73e26b209e6d491577a34b879ce2c6df12");
+}
+
+BOOST_AUTO_TEST_CASE(ScheduleCodecRejectsTimestampOverflow)
+{
+    // Pin what(): wrap-to-nonzero under a broken guard still fails via "missing timestamp-0
+    // baseline" (same exception type) — BOOST_CHECK_THROW alone is fake-green.
+    const auto isTimestampOverflow = [](InvalidOpForkSchedule const& error) {
+        return std::string_view{error.what()}.find("timestamp overflow") != std::string_view::npos;
+    };
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("25000000000000000000:isthmus"),
+        InvalidOpForkSchedule, isTimestampOverflow);
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("30000000000000000000:isthmus"),
+        InvalidOpForkSchedule, isTimestampOverflow);
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("18446744073709551617:isthmus"),
+        InvalidOpForkSchedule, isTimestampOverflow);
+}
+
+BOOST_AUTO_TEST_CASE(ScheduleCodecRejectsTooManyActivations)
+{
+    // Nine entries exceed kMaxOpForkActivations (8) before semantic validation.
+    // Pin what(): without the count cap this string still throws InvalidOpForkSchedule
+    // (duplicate fork / protocol order) — BOOST_CHECK_THROW alone is fake-green.
+    const auto isTooManyActivations = [](InvalidOpForkSchedule const& error) {
+        return std::string_view{error.what()}.find("too many activations") !=
+               std::string_view::npos;
+    };
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("0:isthmus,1:jovian,2:karst,3:isthmus,4:jovian,"
+                                              "5:karst,6:isthmus,7:jovian,8:karst"),
+        InvalidOpForkSchedule, isTooManyActivations);
+}
+
+BOOST_AUTO_TEST_CASE(ConstructorRejectsInvalidActivations)
+{
+    BOOST_CHECK_THROW(OpForkSchedule({}), InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({{OpFork::Ecotone, 0}}), InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({{OpFork::Isthmus, 1}}), InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({
+                          {OpFork::Isthmus, 0},
+                          {OpFork::Karst, 1783526401},
+                      }),
+        InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({
+                          {OpFork::Isthmus, 0},
+                          {OpFork::Isthmus, 1},
+                      }),
+        InvalidOpForkSchedule);
+
+    BOOST_CHECK_THROW(OpForkSchedule({
+                          {OpFork::Jovian, 0},
+                          {OpFork::Isthmus, 1},
+                      }),
+        InvalidOpForkSchedule);
+}
+
+BOOST_AUTO_TEST_CASE(ConstructorAcceptsValidActivations)
+{
+    OpForkSchedule schedule({
+        {OpFork::Isthmus, 0},
+        {OpFork::Jovian, 1764691201},
+        {OpFork::Karst, 1783526401},
+    });
+    BOOST_CHECK(schedule.forkAt(0) == OpFork::Isthmus);
+    BOOST_CHECK(schedule.forkAt(1764691201) == OpFork::Jovian);
+    BOOST_CHECK_EQUAL(schedule.canonicalString(), "0:isthmus,1764691201:jovian,1783526401:karst");
+}
 
 BOOST_AUTO_TEST_CASE(IsthmusMapsToPrague)
 {
@@ -29,11 +122,22 @@ BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs)
 
     const auto& k = karstConfig();
     BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
-    BOOST_CHECK_EQUAL(k.rev, j.rev);
+    BOOST_CHECK_EQUAL(k.rev, EVMC_OSAKA);
     BOOST_CHECK_EQUAL(k.has_operator_fee, j.has_operator_fee);
     BOOST_CHECK_EQUAL(k.has_jovian_operator_formula, j.has_jovian_operator_formula);
     BOOST_CHECK_EQUAL(k.has_da_footprint, j.has_da_footprint);
-    BOOST_CHECK_EQUAL(k.precompiles, j.precompiles);
+    BOOST_CHECK_EQUAL(k.precompiles, &karstPrecompileOverrides());
+}
+
+BOOST_AUTO_TEST_CASE(KarstConfigOsakaSemantics)
+{
+    const auto& cfg = karstConfig();
+    BOOST_CHECK(cfg.rev == EVMC_OSAKA);
+    BOOST_CHECK(cfg.precompiles == &karstPrecompileOverrides());
+    BOOST_CHECK(cfg.has_jovian_operator_formula);
+    BOOST_CHECK(cfg.has_da_footprint);
+    BOOST_CHECK(cfg.disable_prague_requests);
+    BOOST_CHECK(cfg.deposit_exempt_from_max_tx_gas);
 }
 
 BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags)
@@ -43,27 +147,24 @@ BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags)
     BOOST_CHECK(!(i.has_da_footprint));
 }
 
-// Feature-flag fork selection (feature_op_jovian replaces the former timestamp thresholds):
-// OFF → Isthmus baseline, ON → Jovian semantics.
-BOOST_AUTO_TEST_CASE(ConfigAtSelectsForkByFeatureFlag)
+// Feature-flag fork selection replaced by schedule timestamps; configAt(timestamp) is
+// authoritative.
+BOOST_AUTO_TEST_CASE(ScheduleConfigAtSelectsForkByTimestamp)
 {
-    // Value copies, not references: configAt returns a reference to a static config, but the
-    // OpForkFlags{...} argument is a prvalue temporary — GCC-14 -Wdangling-reference flags the
-    // reference binding as potentially dangling (false positive; the returned ref never aliases
-    // the flags argument). Copy the ~32B config instead.
-    const auto ist = configAt(OpForkFlags{.jovianActive = false});
-    BOOST_CHECK_EQUAL(ist.fork, OpFork::Isthmus);
+    const auto isthmusSchedule = bcos::evm::opstack::OpForkSchedule::parse("0:isthmus");
+    const auto& ist = isthmusSchedule.configAt(0);
+    BOOST_CHECK_EQUAL(ist.fork, bcos::evm::opstack::OpFork::Isthmus);
     BOOST_CHECK(!ist.has_jovian_operator_formula);
     BOOST_CHECK(!ist.has_da_footprint);
 
-    const auto jov = configAt(OpForkFlags{.jovianActive = true});
-    BOOST_CHECK_EQUAL(jov.fork, OpFork::Jovian);
+    const auto jovianSchedule = bcos::evm::opstack::OpForkSchedule::legacy(true);
+    const auto& jov = jovianSchedule.configAt(0);
+    BOOST_CHECK_EQUAL(jov.fork, bcos::evm::opstack::OpFork::Jovian);
     BOOST_CHECK(jov.has_jovian_operator_formula);
     BOOST_CHECK(jov.has_da_footprint);
 }
 
-// 覆盖剩余字段 has_ecotone_l1_formula（Ecotone 用 calldataGas、Fjord+ 用 FastLZ）
-// 与 configAt 永不返回 karstConfig()（Karst 是 op-reth-only 占位，无真实语义）。
+// configAt(timestamp) never returns karstConfig() until Karst is present in the schedule.
 BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndKarstUnreachable)
 {
     BOOST_CHECK(ecotoneConfig().has_ecotone_l1_formula);
@@ -73,9 +174,10 @@ BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndKarstUnreachable)
     BOOST_CHECK(!(isthmusConfig().has_ecotone_l1_formula));
     BOOST_CHECK(!(jovianConfig().has_ecotone_l1_formula));
 
-    // configAt 只有 Isthmus/Jovian 两分支（引用稳定性：返回指向同一 static config）。
-    BOOST_CHECK_EQUAL(&configAt(OpForkFlags{.jovianActive = false}), &isthmusConfig());
-    BOOST_CHECK_EQUAL(&configAt(OpForkFlags{.jovianActive = true}), &jovianConfig());
+    const auto jovianSchedule = OpForkSchedule::legacy(true);
+    BOOST_CHECK_EQUAL(&jovianSchedule.configAt(0), &jovianConfig());
+    const auto karstSchedule = OpForkSchedule::parse("0:jovian,1781712001:karst");
+    BOOST_CHECK_EQUAL(&karstSchedule.configAt(1781712001), &karstConfig());
 }
 
 BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)

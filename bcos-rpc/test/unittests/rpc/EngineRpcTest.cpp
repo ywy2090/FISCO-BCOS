@@ -429,15 +429,38 @@ BOOST_AUTO_TEST_CASE(getPayloadV4)
 
 BOOST_AUTO_TEST_CASE(getPayloadV5)
 {
-    mockService.m_state->getPayloadResult->executionPayload.parentHash =
+    auto const parentHash =
         h256("1111111111111111111111111111111111111111111111111111111111111111");
-    mockService.m_state->getPayloadResult->executionPayload.blockHash =
-        h256("2222222222222222222222222222222222222222222222222222222222222222");
+    auto const blockHash = h256("2222222222222222222222222222222222222222222222222222222222222222");
+    auto const beaconRoot =
+        h256("169630f535b4a41330164c6e5c92b1224c0c407f582d407d0ac3d206cd32fd52");
+    auto const withdrawalsRoot =
+        h256("9999999999999999999999999999999999999999999999999999999999999999");
+
+    mockService.m_state->getPayloadResult->executionPayload.parentHash = parentHash;
+    mockService.m_state->getPayloadResult->executionPayload.blockHash = blockHash;
+    mockService.m_state->getPayloadResult->executionPayload.feeRecipient =
+        Address("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    mockService.m_state->getPayloadResult->executionPayload.stateRoot =
+        h256("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+    mockService.m_state->getPayloadResult->executionPayload.receiptsRoot =
+        h256("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
+    mockService.m_state->getPayloadResult->executionPayload.prevRandao =
+        h256("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+    mockService.m_state->getPayloadResult->executionPayload.blockNumber = 1;
+    mockService.m_state->getPayloadResult->executionPayload.gasLimit = 21000;
+    mockService.m_state->getPayloadResult->executionPayload.gasUsed = 0;
+    mockService.m_state->getPayloadResult->executionPayload.timestamp = 1000;
+    mockService.m_state->getPayloadResult->executionPayload.extraData = bytes{0x12, 0x34};
+    mockService.m_state->getPayloadResult->executionPayload.baseFeePerGas = 1;
     mockService.m_state->getPayloadResult->executionPayload.withdrawals =
         std::vector<engine::WithdrawalV1>{};
-    mockService.m_state->getPayloadResult->executionPayload.withdrawalsRoot = h256{};
+    mockService.m_state->getPayloadResult->executionPayload.blobGasUsed = 0;
+    mockService.m_state->getPayloadResult->executionPayload.excessBlobGas = 0;
+    mockService.m_state->getPayloadResult->executionPayload.withdrawalsRoot = withdrawalsRoot;
     mockService.m_state->getPayloadResult->blockValue = u256(100);
     mockService.m_state->getPayloadResult->executionRequests = std::vector<bytes>{};
+    mockService.m_state->getPayloadResult->parentBeaconBlockRoot = beaconRoot;
 
     Json::Value params(Json::arrayValue);
     params.append("0x0000000021f32cc1");
@@ -445,13 +468,26 @@ BOOST_AUTO_TEST_CASE(getPayloadV5)
     Json::Value response;
     CALL_ENGINE(getPayloadV5, params, response);
 
-    // op-node's expected V5 response shape: executionPayload (V4 form, with
-    // withdrawalsRoot) + blockValue + blobsBundle (three empty arrays) +
-    // shouldOverrideBuilder + executionRequests=[].
+    // op-node's expected V5 response shape: ExecutionPayloadV3 body + withdrawalsRoot,
+    // blockValue, empty BlobsBundleV1, shouldOverrideBuilder, empty executionRequests,
+    // and parentBeaconBlockRoot extension.
     auto const& result = response["result"];
-    BOOST_CHECK(result.isMember("executionPayload"));
-    BOOST_CHECK(result["executionPayload"].isMember("withdrawalsRoot"));
+    BOOST_REQUIRE(result.isMember("executionPayload"));
+    auto const& ep = result["executionPayload"];
+    for (auto const* field : {"parentHash", "feeRecipient", "stateRoot", "receiptsRoot",
+             "logsBloom", "prevRandao", "blockNumber", "gasLimit", "gasUsed", "timestamp",
+             "extraData", "baseFeePerGas", "blockHash", "transactions", "withdrawals",
+             "blobGasUsed", "excessBlobGas", "withdrawalsRoot"})
+    {
+        BOOST_CHECK(ep.isMember(field));
+    }
+    BOOST_CHECK_EQUAL(ep["parentHash"].asString(), parentHash.hexPrefixed());
+    BOOST_CHECK_EQUAL(ep["blockHash"].asString(), blockHash.hexPrefixed());
+    BOOST_CHECK_EQUAL(ep["withdrawalsRoot"].asString(), withdrawalsRoot.hexPrefixed());
+    BOOST_CHECK(ep["withdrawals"].isArray());
+    BOOST_CHECK_EQUAL(ep["withdrawals"].size(), 0);
     BOOST_CHECK(result.isMember("blockValue"));
+    BOOST_CHECK_EQUAL(result["blockValue"].asString(), "0x64");
     BOOST_REQUIRE(result.isMember("blobsBundle"));
     BOOST_CHECK(result["blobsBundle"]["commitments"].isArray());
     BOOST_CHECK_EQUAL(result["blobsBundle"]["commitments"].size(), 0);
@@ -462,6 +498,8 @@ BOOST_AUTO_TEST_CASE(getPayloadV5)
     BOOST_REQUIRE(result.isMember("executionRequests"));
     BOOST_CHECK(result["executionRequests"].isArray());
     BOOST_CHECK_EQUAL(result["executionRequests"].size(), 0);
+    BOOST_REQUIRE(result.isMember("parentBeaconBlockRoot"));
+    BOOST_CHECK_EQUAL(result["parentBeaconBlockRoot"].asString(), beaconRoot.hexPrefixed());
     BOOST_REQUIRE(mockService.m_state->capturedGetPayloadVersion.has_value());
     BOOST_CHECK_EQUAL(*mockService.m_state->capturedGetPayloadVersion, 5);
 }
@@ -832,6 +870,37 @@ BOOST_AUTO_TEST_CASE(newPayloadV4RejectsMalformedParamShapes)
     }
 
     // None of the rejected calls may have reached the engine service.
+    BOOST_CHECK(!mockService.m_state->capturedNewPayloadVersion.has_value());
+}
+
+// Non-empty expectedBlobVersionedHashes / executionRequests are RPC shape errors (-32602),
+// not Engine INVALID. The lists must be present and empty on the wire; semantic rejection
+// of blob txs / execution requests belongs to the engine for in-process callers only.
+BOOST_AUTO_TEST_CASE(newPayloadV4RejectsNonemptyParamArrays)
+{
+    auto expectInvalidParams = [&](Json::Value params) {
+        Json::Value response;
+        BOOST_CHECK_EXCEPTION(CALL_ENGINE(newPayloadV4, params, response), JsonRpcException,
+            [](JsonRpcException const& e) { return e.code() == InvalidParams; });
+    };
+    auto makeParams = [](Json::Value blobHashes, Json::Value executionRequests) {
+        Json::Value params(Json::arrayValue);
+        params.append(makeV4ExecutionPayloadJson());
+        params.append(std::move(blobHashes));
+        params.append(c_beaconRootHex);
+        params.append(std::move(executionRequests));
+        return params;
+    };
+    auto const emptyArray = Json::Value(Json::arrayValue);
+
+    Json::Value nonemptyBlobs(Json::arrayValue);
+    nonemptyBlobs.append("0x3333333333333333333333333333333333333333333333333333333333333333");
+    expectInvalidParams(makeParams(nonemptyBlobs, emptyArray));
+
+    Json::Value nonemptyRequests(Json::arrayValue);
+    nonemptyRequests.append("0x01");
+    expectInvalidParams(makeParams(emptyArray, nonemptyRequests));
+
     BOOST_CHECK(!mockService.m_state->capturedNewPayloadVersion.has_value());
 }
 

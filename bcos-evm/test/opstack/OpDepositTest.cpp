@@ -55,6 +55,58 @@ inline int64_t receiptGasUsed(const bcos::protocol::TransactionReceipt& r)
 
 BOOST_AUTO_TEST_SUITE(OpDepositSuite)
 
+BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}, .storage = {}, .code = {}};
+    test::TestBlockHashes hashes;
+    const int64_t overCap = static_cast<int64_t>(evmone::state::MAX_TX_GAS_LIMIT + 1);
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kFrom,
+        .mint = intx::uint256{100},
+        .value = intx::uint256{0},
+        .gas_limit = overCap,
+        .is_system_tx = false,
+        .data = {}};
+    evmone::state::StateDiff diff;
+    const auto r = runDeposit(
+        ts, blk(), hashes, dep, karstConfig(), vm, 1234, overCap, kOpTestReceiptFactory, diff);
+    bcos::evm::applyStateDiffStrict(ts, diff);
+
+    BOOST_CHECK_EQUAL(r->status(), 0);
+    BOOST_CHECK_EQUAL(receiptGasUsed(*r), 21000);
+    BOOST_CHECK_EQUAL(ts.at(kFrom).balance, intx::uint256{100});
+    BOOST_CHECK_EQUAL(ts.at(kFrom).nonce, 1u);
+}
+
+BOOST_AUTO_TEST_CASE(KarstDepositIntrinsicFailureStillChargesFullGasLimit)
+{
+    // EIP-7825 exemption must not disable intrinsic / EIP-7623 checks on Karst.
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 0, .balance = intx::uint256{0}, .storage = {}, .code = {}};
+    test::TestBlockHashes hashes;
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kFrom,
+        .mint = intx::uint256{50},
+        .value = intx::uint256{0},
+        .gas_limit = 20999,
+        .is_system_tx = false,
+        .data = {}};
+    evmone::state::StateDiff diff;
+    const auto r = runDeposit(
+        ts, blk(), hashes, dep, karstConfig(), vm, 1234, 30000000, kOpTestReceiptFactory, diff);
+    bcos::evm::applyStateDiffStrict(ts, diff);
+
+    BOOST_CHECK_EQUAL(r->status(), 1);
+    BOOST_CHECK_EQUAL(receiptGasUsed(*r), 20999);
+    BOOST_CHECK_EQUAL(ts.at(kFrom).balance, intx::uint256{50});
+    BOOST_CHECK_EQUAL(ts.at(kFrom).nonce, 1u);
+}
+
 BOOST_AUTO_TEST_CASE(SuccessMintsAndAdvancesNonce)
 {
     auto vm = evmc::VM{evmc_create_evmone()};

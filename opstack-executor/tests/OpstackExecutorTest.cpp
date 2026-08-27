@@ -234,23 +234,6 @@ BOOST_FIXTURE_TEST_CASE(ExecutesNormalTransferEndToEnd, Fixture)
     BOOST_CHECK(receipt->opStackMeta().has_value());
 }
 
-BOOST_FIXTURE_TEST_CASE(RejectsForkRevisionMismatch, Fixture)
-{
-    OpstackExecutor executor{receiptFactory, cryptoSuite->hashImpl(), fork};
-    ledgerConfig.setEVMCRevision(EVMC_FRONTIER);  // deliberately != fork.rev
-    bcostars::protocol::BlockHeaderImpl blockHeader;
-    blockHeader.setNumber(1);
-    blockHeader.setBaseFee(bcos::u256(1000000000));      // 1 gwei, required by new API
-    blockHeader.setParentBeaconBlockRoot(bcos::h256{});  // required by new API
-    blockHeader.setBlobGasUsed(0);                       // required by new API
-    blockHeader.setExcessBlobGas(0);                     // required by new API
-    auto tx = buildWeb3Tx();
-    bcos::evm::opstack::OpFeeParams fee{};
-    BOOST_CHECK_THROW(task::syncWait(executor.executeTransaction(storage, blockHeader, tx, 0,
-                          ledgerConfig, false, fee, 30000000, 10, nullptr)),
-        bcos::executor_v1::opstack::OpForkRevisionMismatch);
-}
-
 BOOST_FIXTURE_TEST_CASE(RejectsInvalidTx, Fixture)
 {
     // Balance 0 sender + value transfer -> insufficient balance -> OpTxValidationFailed.

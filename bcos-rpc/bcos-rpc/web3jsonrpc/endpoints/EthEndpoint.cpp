@@ -28,9 +28,11 @@
 #include "bcos-protocol/TransactionStatus.h"
 #include <bcos-codec/rlp/RLPDecode.h>
 #include <bcos-crypto/hash/Keccak256.h>
+#include <bcos-framework/engine/OpBaseFee.h>
+#include <bcos-framework/engine/OpTime.h>
+#include <bcos-framework/ledger/ChainMetadata.h>
 
 #include <bcos-executor/src/Common.h>
-#include <bcos-framework/engine/OpBaseFee.h>
 #include <bcos-framework/executor/PrecompiledTypeDef.h>
 #include <bcos-framework/storage/LegacyStorageMethods.h>
 #include <bcos-framework/storage2/Storage.h>
@@ -264,16 +266,30 @@ task::Task<void> EthEndpoint::gasPrice(const Json::Value&, Json::Value& response
 
 namespace
 {
-// OP-stack Holocene/Jovian next-baseFee prediction for eth_feeHistory's trailing entry.
-// predictNextBaseFee was a hand-mirrored port of the engine's calcOpBaseFee;
-// both layers now share ONE implementation: bcos-framework/engine/OpBaseFee.h
-// (linked by both bcos-engine and bcos-rpc). The RPC's fork detection stays
-// local — extraData length sniffing (>= 17 bytes => Jovian tail) — and feeds
-// the shared formula's parentIsJovian parameter.
-
-bool jovianFromExtraData(bcos::protocol::BlockHeader const& parent)
+/// Resolve parent DA-footprint semantics from the fork schedule at the parent header timestamp.
+/// Falls back to false when schedule metadata is unavailable (non-OP fixtures).
+bcos::task::Task<bool> parentHasDaFootprintForFeeHistory(
+    bcos::rpc::NodeService& nodeService, bcos::protocol::BlockHeader const& parent)
 {
-    return parent.extraData().size() >= 17;
+    const auto& provider = nodeService.stateStorageProvider();
+    if (!provider)
+    {
+        co_return false;
+    }
+    auto storage = provider();
+    if (!storage)
+    {
+        co_return false;
+    }
+    if (auto scheduleEntry = co_await bcos::storage2::readOne(
+            *storage, bcos::executor_v1::StateKey{bcos::ledger::SYS_CHAIN_METADATA,
+                          std::string(bcos::ledger::OP_FORK_SCHEDULE_KEY)});
+        scheduleEntry.has_value())
+    {
+        co_return bcos::ledger::opForkScheduleHasDaFootprintAt(
+            scheduleEntry->get(), bcos::engine::unixSecondsFromInternalMillis(parent.timestamp()));
+    }
+    co_return false;
 }
 }  // namespace
 
@@ -381,8 +397,10 @@ task::Task<void> EthEndpoint::feeHistory(const Json::Value& request, Json::Value
     // Trailing entry: the predicted base fee of newest+1 from newest's own header.
     if (newestHeader)
     {
-        result["baseFeePerGas"].append(toQuantity(
-            bcos::engine::calcOpBaseFee(*newestHeader, jovianFromExtraData(*newestHeader))));
+        const auto parentHasDaFootprint =
+            co_await parentHasDaFootprintForFeeHistory(*m_nodeService, *newestHeader);
+        result["baseFeePerGas"].append(
+            toQuantity(bcos::engine::calcOpBaseFee(*newestHeader, parentHasDaFootprint)));
     }
     buildJsonContent(result, response);
     co_return;

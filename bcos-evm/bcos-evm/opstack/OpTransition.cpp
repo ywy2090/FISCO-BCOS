@@ -527,8 +527,8 @@ bcos::protocol::TransactionReceipt::Ptr runDeposit(const evmone::state::StateVie
     evmone::state::BlockInfo validateBlock = block;
     validateBlock.base_fee = 0;
     const DepositValidationView maskedView{view, dep.from};
-    const auto props = evmone::state::validate_transaction(
-        maskedView, validateBlock, tx, cfg.rev, blockGasLeft, 0);
+    const auto props = evmone::state::validate_transaction(maskedView, validateBlock, tx, cfg.rev,
+        blockGasLeft, 0, false, {.enforce_max_tx_gas = !cfg.deposit_exempt_from_max_tx_gas});
 
     evmone::state::TransactionReceipt receipt;
     receipt.type = kDepositTxType;

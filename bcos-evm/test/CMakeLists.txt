@@ -31,6 +31,7 @@ if(NOT BCOS_EVM_STANDALONE)
         opstack/OpZeroFeeSpikeTest.cpp
         opstack/StateRootComputeTest.cpp
         opstack/OpCommonTest.cpp
+        opstack/OpOsakaSemanticsTest.cpp
         opstack/Storage2StateBridgeTest.cpp
         testutils/MemoryState.cpp
     )

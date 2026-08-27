@@ -76,7 +76,29 @@ BOOST_AUTO_TEST_CASE(JovianLimitsStricterThanIsthmus)
     BOOST_CHECK_EQUAL(
         jovianPrecompileOverrides().find(evmc::address{0x0f})->max_input_size, 156672u);
     BOOST_CHECK_EQUAL(jovianConfig().precompiles, &jovianPrecompileOverrides());
-    BOOST_CHECK_EQUAL(karstConfig().precompiles, &jovianPrecompileOverrides());
+    BOOST_CHECK_EQUAL(karstConfig().precompiles, &karstPrecompileOverrides());
+}
+
+BOOST_AUTO_TEST_CASE(KarstPrecompileLimits)
+{
+    const auto& overrides = karstPrecompileOverrides();
+    const auto* bn256 = overrides.find(evmc::address{0x08});
+    BOOST_REQUIRE((bn256) != nullptr);
+    BOOST_CHECK_EQUAL(bn256->max_input_size, 57600u);
+    BOOST_CHECK_LT(bn256->gas_cost_override, 0);
+
+    const auto* p256 = overrides.find(kP256VerifyAddress);
+    BOOST_REQUIRE((p256) != nullptr);
+    BOOST_CHECK_EQUAL(p256->gas_cost_override, 6900);
+    BOOST_CHECK_EQUAL(p256->max_input_size, 0U);
+
+    BOOST_CHECK_EQUAL(overrides.find(evmc::address{0x0c})->max_input_size, 288960u);
+    BOOST_CHECK_EQUAL(overrides.find(evmc::address{0x0e})->max_input_size, 278784u);
+    BOOST_CHECK_EQUAL(overrides.find(evmc::address{0x0f})->max_input_size, 156672u);
+
+    const auto* j08 = jovianPrecompileOverrides().find(evmc::address{0x08});
+    BOOST_REQUIRE((j08) != nullptr);
+    BOOST_CHECK_LT(bn256->max_input_size, j08->max_input_size);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

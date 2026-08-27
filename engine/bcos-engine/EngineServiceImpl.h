@@ -48,6 +48,8 @@
 #include "bcos-utilities/FixedBytes.h"
 #include <bcos-framework/engine/DACaps.h>
 #include <bcos-framework/engine/OpBaseFee.h>
+#include <bcos-framework/engine/OpForkId.h>
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-rlp-protocol/EthBlockHeader.h>
 #include <bcos-tars-protocol/protocol/Web3RawTransaction.h>
@@ -70,6 +72,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace bcos::engine
@@ -94,10 +97,10 @@ std::optional<std::string> validatePayloadAttributes(
     const PayloadAttributes& payloadAttributes, std::uint32_t version);
 
 /// OP-mode rollup attrs validation: gasLimit/eip1559Params/withdrawals/minBaseFee presence
-/// rules (op-geth checkOptimismPayloadAttributes). `jovianActive` is feature-driven
-/// (feature_op_jovian, constant across blocks).
+/// rules (op-geth checkOptimismPayloadAttributes). `forkId` is schedule-derived from the
+/// attributes timestamp.
 std::optional<std::string> validateOpPayloadAttributes(
-    const PayloadAttributes& payloadAttributes, bool jovianActive);
+    const PayloadAttributes& payloadAttributes, bcos::engine::OpForkId forkId);
 
 std::optional<std::string> validateExecutionPayload(
     const ExecutionPayload& executionPayload, std::uint32_t version);
@@ -116,14 +119,14 @@ bcos::h2048 toEthLogsBloom(const Bloom& logsBloom);
 
 /// OP static validation (everything except the blockHash comparison, which needs the
 /// caller-derived transactionsRoot). Returns a field-naming validationError string on rejection.
-/// `jovianActive` selects the fork-dependent `blobGasUsed` rule.
+/// `forkId` selects fork-dependent static rules (extraData shape, blobGasUsed).
 std::optional<std::string> validateOpNewPayloadRequest(
-    const NewPayloadRequest& request, bool jovianActive);
+    const NewPayloadRequest& request, bcos::engine::OpForkId forkId);
 
 /// Compute expected baseFeePerGas from the parent header — the shared
 /// implementation lives in bcos-framework/engine/OpBaseFee.h (one copy for the
 /// engine AND the RPC's eth_feeHistory prediction; included at the top).
-/// `parentIsJovian` is feature-driven (feature_op_jovian).
+/// Parent DA footprint is schedule-derived via `hasDaFootprintAt(parent timestamp)`.
 
 /// Populate the OP header's 3 post-merge constants (ommersHash/difficulty/nonce) into a header —
 /// the values live in EngineServiceImpl.cpp's anonymous namespace. The header's own
@@ -179,7 +182,7 @@ public:
     /// OP block execution is always the delegate's path (`m_delegate->executeBlock` →
     /// OpScheduler's preBlockOpSteps + SchedulerSerialImpl + finalizeOpBlockResult). `c_opMode` now
     /// only means "this is an
-    /// OP scheduler": the engine reaches `computeTxRoot` / `isJovianActive` as dependent names
+    /// OP scheduler": the engine reaches `computeTxRoot` / `resolveEngineForkAt` as dependent names
     /// inside `if constexpr (c_opMode)`.
     static constexpr bool c_opMode =
         requires { &SchedulerType::template computeTxRoot<std::vector<bcos::bytes>>; };
@@ -236,26 +239,26 @@ public:
         const ForkchoiceState& forkchoiceState, const PayloadAttributes* payloadAttributes,
         std::uint32_t version)
     {
-        if (!isForkchoiceVersionSupported(version))
+        if constexpr (c_opMode)
+        {
+            if (static_cast<ApiVersion>(version) != ApiVersion::V3)
+            {
+                BOOST_THROW_EXCEPTION(
+                    UnsupportedFork{} << bcos::errinfo_comment{
+                        "OP fork profiles require engine_forkchoiceUpdatedV3 (JSON-RPC -38005)"});
+            }
+        }
+        else if (!isForkchoiceVersionSupported(version))
         {
             BOOST_THROW_EXCEPTION(UnsupportedEngineApiVersion{}
                                   << bcos::errinfo_comment{"Unsupported Engine API version"});
         }
         if (payloadAttributes != nullptr)
         {
-            // OP-mode version gate first: V1/V2 attrs are refused with -38005 before any
-            // validation or state change (op-node sends FCU V3+ attrs for Isthmus+ builds;
-            // the historical gate placement AFTER the state update is superseded -- op-geth
-            // rejects a version-skewed FCU outright, eth/catalyst/api.go:164-178).
+            std::optional<bcos::engine::EngineForkContext> forkContext;
             if constexpr (c_opMode)
             {
-                if (version < 3)
-                {
-                    BOOST_THROW_EXCEPTION(
-                        UnsupportedFork{} << bcos::errinfo_comment{
-                            "Isthmus+ payload building requires engine_forkchoiceUpdatedV3 "
-                            "or V4 (JSON-RPC -38005)"});
-                }
+                forkContext = requireEngineForkAt(payloadAttributes->timestamp);
             }
             // Rollup mode validates the SAME attributes surface the generic path does, plus the
             // OP-only rules (gasLimit/eip1559Params/withdrawals/minBaseFee). A validation
@@ -277,7 +280,7 @@ public:
             if constexpr (c_opMode)
             {
                 if (auto validationError = detail::validateOpPayloadAttributes(
-                        *payloadAttributes, m_scheduler.get().isJovianActive());
+                        *payloadAttributes, forkContext->forkId);
                     validationError.has_value())
                 {
                     ForkchoiceUpdatedResult result{
@@ -564,6 +567,8 @@ private:
         /// exactly once — and op-geth's build cache is likewise not meant to outlive the
         /// commit.
         std::uint32_t version = 0;
+        uint64_t timestampSeconds = 0;
+        bcos::engine::OpForkId forkId = bcos::engine::OpForkId::Isthmus;
         ExecutionPayload executionPayload;
         u256 blockValue = 0;
         std::optional<BlobsBundleV1> blobsBundle;
@@ -582,11 +587,11 @@ private:
     };
 
     /// Version-gate upper bound is member state, not a compile-time/static constant: the generic
-    /// composition root leaves `m_maxEngineVersion` at its default (V3, identical to the
-    /// pre-existing `static` bound -- zero drift); only the OP composition root passes
-    /// `maxEngineVersion = 4` at construction. The lower bound (V1) stays a compile-time constant
-    /// -- only the upper bound is a runtime (per-instance, constructor-time-fixed) gate ("version
-    /// upper bound is member state").
+    /// composition root leaves `m_maxEngineVersion` at its default (V3). The OP composition root
+    /// also passes `maxEngineVersion = V3` at construction; OP FCU is hardcoded to V3 while
+    /// getPayload/newPayload versions come from the schedule profile (Karst → V5/V4). The lower
+    /// bound (V1) stays a compile-time constant — only the upper bound is a runtime
+    /// (per-instance, constructor-time-fixed) gate.
     bool isForkchoiceVersionSupported(std::uint32_t version) const
     {
         return version >= static_cast<std::uint32_t>(ApiVersion::V1) &&
@@ -659,6 +664,9 @@ private:
                     "buildOpPayload: payloadAttributes.transactions contains undecodable hex"});
         }
         auto payloadId = *payloadIdOpt;
+        const auto forkContext = requireEngineForkAt(payloadAttributes.timestamp);
+        const auto timestampSeconds =
+            bcos::engine::unixSecondsFromInternalMillis(payloadAttributes.timestamp);
         // Mempool hygiene + seal over a throwaway view (the delegate owns the real execution
         // view; this one only reads nonces to pick the gapless prefix, like the generic path).
         auto sealView = m_globalStateStorage.get().fork();
@@ -689,8 +697,8 @@ private:
         // attribute-less drivers (the single-node fixture) need the synthesized envelope.
         if (!payloadAttributes.transactions.has_value() || payloadAttributes.transactions->empty())
         {
-            forcedEnvelopes.push_back(m_scheduler.get().synthesizeL1AttributesEnvelope(
-                m_scheduler.get().isJovianActive()));
+            forcedEnvelopes.push_back(
+                m_scheduler.get().synthesizeL1AttributesEnvelope(forkContext.forkId));
         }
         if (payloadAttributes.transactions.has_value())
         {
@@ -764,7 +772,9 @@ private:
                 bcos::bytes parentHeaderBytes(stored.begin(), stored.end());
                 auto parentHeader =
                     m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
-                baseFee = calcOpBaseFee(*parentHeader, m_scheduler.get().isJovianActive());
+                baseFee = calcOpBaseFee(*parentHeader,
+                    m_scheduler.get().hasDaFootprintAt(
+                        bcos::engine::unixSecondsFromInternalMillis(parentHeader->timestamp())));
             }
         }
 
@@ -800,7 +810,7 @@ private:
                 // Decode from attrs.eip1559Params (8 bytes from SystemConfig via op-node); neutral
                 // 1/1 when absent/invalid so baseFee stays unchanged per Holocene recalculation.
                 .extraData =
-                    [this, &payloadAttributes]() {
+                    [&payloadAttributes, forkId = forkContext.forkId]() {
                         uint32_t denominator = 1, elasticity = 1;
                         if (auto const& params = payloadAttributes.eip1559Params;
                             params.has_value() && params->size() == 8)
@@ -823,7 +833,7 @@ private:
                             static_cast<uint8_t>(elasticity >> 16),
                             static_cast<uint8_t>(elasticity >> 8),
                             static_cast<uint8_t>(elasticity)};
-                        if (m_scheduler.get().isJovianActive())
+                        if (forkId != bcos::engine::OpForkId::Isthmus)
                         {
                             extra[0] = 0x01;
                             extra.resize(17, 0x00);
@@ -1011,6 +1021,8 @@ private:
         // it is in scope here (the canonical pass does not change the attributes).
         PayloadEntry entry{
             .version = version,
+            .timestampSeconds = timestampSeconds,
+            .forkId = forkContext.forkId,
             .executionPayload = std::move(payload),
             .blockValue = 0,
             .blobsBundle = std::nullopt,
@@ -1070,8 +1082,19 @@ private:
             {
                 BOOST_THROW_EXCEPTION(UnknownPayload{} << bcos::errinfo_comment{"Unknown payload"});
             }
-            if (!detail::isGetPayloadVersionCompatible(
-                    static_cast<ApiVersion>(version), it->second.version))
+            if constexpr (c_opMode)
+            {
+                const auto profile = m_scheduler.get().engineApiFor(it->second.timestampSeconds);
+                if (static_cast<ApiVersion>(version) != profile.getPayload)
+                {
+                    BOOST_THROW_EXCEPTION(
+                        UnsupportedFork{} << bcos::errinfo_comment{
+                            "getPayload method version is incompatible with the cached fork "
+                            "profile (JSON-RPC -38005)"});
+                }
+            }
+            else if (!detail::isGetPayloadVersionCompatible(
+                         static_cast<ApiVersion>(version), it->second.version))
             {
                 BOOST_THROW_EXCEPTION(
                     IncompatiblePayloadVersion{} << bcos::errinfo_comment{
@@ -1312,27 +1335,15 @@ private:
     {
         auto const& payload = request.executionPayload;
 
-        // ---- Step 1: version gate (-38005) ----
-        // The OP engine branch is scoped to Isthmus/Jovian: the minimal loop is Isthmus+-only, and
-        // fork selection is feature-driven (feature_op_jovian — Jovian vs Isthmus, both Isthmus+),
-        // NOT timestamp-based — so there is no "pre-Isthmus" timestamp to reject. Both Isthmus and
-        // Jovian payloads require V4 (Isthmus+ payloads are not allowed on V3).
-        //
-        // Deliberately OUTSIDE the barrier below: `UnsupportedFork` (-38005) is itself a
-        // classified outcome and must reach the caller unchanged, not be re-labelled.
-        constexpr std::uint32_t c_opIsthmusPayloadVersion = 4;
-        if (version != c_opIsthmusPayloadVersion)
+        // ---- Step 1: fork resolution + version gate (-38005) ----
+        const auto forkContext = requireEngineForkAt(payload.timestamp);
+        if (static_cast<ApiVersion>(version) != forkContext.api.newPayload)
         {
             BOOST_THROW_EXCEPTION(
                 UnsupportedFork{} << bcos::errinfo_comment{
-                    "Isthmus+ payloads require engine_newPayloadV4 (JSON-RPC -38005)"});
+                    "newPayload method version is incompatible with the payload fork profile "
+                    "(JSON-RPC -38005)"});
         }
-
-        // NOTE (audit v2, 2026-08-21): the historical "#5429 finding B" note claiming this
-        // V4-only gate is unreachable through the production composition root is obsolete --
-        // the OP root passes maxEngineVersion=4 (libinitializer/Initializer.cpp:620), the V4
-        // endpoints are registered (EndpointsMapping.cpp:63-71) and supportedOpCapabilities
-        // advertises the V4 trio (EngineServiceImpl.cpp:129-141).
 
         // ---- Classification barrier ----
         //
@@ -1385,6 +1396,7 @@ private:
     bcos::task::Task<PayloadStatus> runOpNewPayloadSteps(const NewPayloadRequest& request)
     {
         auto const& payload = request.executionPayload;
+        const auto forkContext = requireEngineForkAt(payload.timestamp);
 
         // ---- Step 2: static validation + blockHash ----
         // All rejections here carry latestValidHash = null: they happen before parentKnown, so no
@@ -1392,8 +1404,7 @@ private:
         // null). Note the status is `Invalid`, never `InvalidBlockHash` -- that Engine API status
         // has been deprecated since Shanghai and the OP branch does not use it (the enumerator
         // stays in Types.h for the generic path).
-        if (auto validationError =
-                detail::validateOpNewPayloadRequest(request, m_scheduler.get().isJovianActive());
+        if (auto validationError = detail::validateOpNewPayloadRequest(request, forkContext.forkId);
             validationError.has_value())
         {
             co_return makeStatus(PayloadValidationStatus::Invalid, std::nullopt, validationError);
@@ -1596,12 +1607,12 @@ private:
             // Step 3a-2: baseFee consistency (Holocene+ EIP-1559 with Optimism
             // extensions). op-geth checks this in consensus/misc/eip1559/eip1559.go's
             // VerifyEIP1559Header → CalcBaseFee. The parent header is already in hand
-            // from the timestamp check above; fork membership is feature-driven — feature_op_jovian
-            // (the chain's Jovian flag), constant across blocks — matching op-geth's
-            // config.IsJovian(parent.Time) for the feature-flag-era chain.
+            // from the timestamp check above; parent DA-footprint semantics come from the
+            // parent header timestamp on the schedule, not extraData length sniffing.
             {
-                auto expectedBaseFee =
-                    calcOpBaseFee(*parentHeader, m_scheduler.get().isJovianActive());
+                auto expectedBaseFee = calcOpBaseFee(*parentHeader,
+                    m_scheduler.get().hasDaFootprintAt(
+                        bcos::engine::unixSecondsFromInternalMillis(parentHeader->timestamp())));
                 if (payload.baseFeePerGas != expectedBaseFee)
                 {
                     co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
@@ -2207,6 +2218,27 @@ private:
     /// Upper bound on retained payload entries (both m_payloadCache and m_blockHashToPayloadId
     /// rows). A payload is only needed between updateForkchoice / getPayload and newPayload.
     static constexpr size_t c_maxPayloadEntries = 64;
+
+    [[nodiscard]] bcos::engine::EngineForkContext requireEngineForkAt(uint64_t timestampMs) const
+        requires c_opMode
+    {
+        auto resolution = m_scheduler.get().resolveEngineForkAt(
+            bcos::engine::unixSecondsFromInternalMillis(timestampMs));
+        if (auto* err = std::get_if<bcos::engine::OpForkResolutionError>(&resolution))
+        {
+            if (*err == bcos::engine::OpForkResolutionError::UnsupportedTimestamp)
+            {
+                BOOST_THROW_EXCEPTION(
+                    UnsupportedFork{} << bcos::errinfo_comment{
+                        "payload timestamp is before the OP fork schedule baseline "
+                        "(JSON-RPC -38005)"});
+            }
+            BOOST_THROW_EXCEPTION(
+                OpExecutionInternalError{} << bcos::errinfo_comment{
+                    "Karst fork requires EVMC_OSAKA execution config (JSON-RPC -32603)"});
+        }
+        return std::get<bcos::engine::EngineForkContext>(resolution);
+    }
 };
 
 }  // namespace bcos::engine

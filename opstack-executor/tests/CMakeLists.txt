@@ -51,17 +51,23 @@ add_executable(opstack-executor-block-tests
     OpL1BlockDepositTest.cpp
     OpDaMatrixSchemaTest.cpp
     OpJovianShapeTest.cpp
+    OpKarstReleaseGateTest.cpp
+    OpKarstActivationTest.cpp
     OpGoldenCorpusProvenanceTest.cpp
     support/SeedPreStateTest.cpp
     support/GoldenSampleTest.cpp
+    support/KarstNutHelpers.cpp
     support/StateBackendRocksDB.cpp
     StateBackendRocksDBTest.cpp
     ${EVMONE_TEST_UTILS_DIR}/rlp_encode.cpp
+    ${EVMONE_TEST_UTILS_DIR}/test_state.cpp
 )
 # 与既有 GTest target 同因：Web3Transaction + tars aggregate init 不宜 unity-build
 set_target_properties(opstack-executor-block-tests PROPERTIES UNITY_BUILD OFF)
 # Vendored evmone test util — same -Wno-missing-field-initializers as the upstream build.
 set_source_files_properties(${EVMONE_TEST_UTILS_DIR}/rlp_encode.cpp
+    PROPERTIES COMPILE_OPTIONS "-Wno-missing-field-initializers")
+set_source_files_properties(${EVMONE_TEST_UTILS_DIR}/test_state.cpp
     PROPERTIES COMPILE_OPTIONS "-Wno-missing-field-initializers")
 target_link_libraries(opstack-executor-block-tests PRIVATE
     opstack-executor bcosevm::opstack Boost::unit_test_framework
@@ -75,12 +81,28 @@ target_link_libraries(opstack-executor-block-tests PRIVATE ${BLST_LIBRARY})
 target_include_directories(opstack-executor-block-tests PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/bcos-ledger
-    ${CMAKE_SOURCE_DIR}/bcos-rpc)
+    ${CMAKE_SOURCE_DIR}/bcos-rpc
+    ${EVMONE_TEST_UTILS_DIR})
 target_compile_definitions(opstack-executor-block-tests PRIVATE
     OP_T8N_VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/t8n/vectors"
     OP_T8N_GOLDEN_ENGINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/t8n/golden/engine"
-    OP_DA_MATRIX_PATH="${CMAKE_CURRENT_SOURCE_DIR}/da-matrix/da_matrix.json")
+    OP_DA_MATRIX_PATH="${CMAKE_CURRENT_SOURCE_DIR}/da-matrix/da_matrix.json"
+    OP_KARST_NUT_BUNDLE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/karst_nut_bundle.json")
 add_test(NAME OpstackExecutorBlockTests COMMAND opstack-executor-block-tests)
+
+add_custom_target(op-karst-release-gate
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/check-op-karst-release-gate.sh
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/opstack-executor-block-tests --run_test=OpKarstReleaseGateSuite
+    DEPENDS opstack-executor-block-tests
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Karst atomic release gate (scanner + OpKarstReleaseGateSuite)")
+if(TARGET fisco-bcos)
+    add_custom_target(op-karst-release DEPENDS fisco-bcos op-karst-release-gate)
+endif()
+add_test(NAME OpKarstReleaseGate
+    COMMAND bash -c
+        "${CMAKE_SOURCE_DIR}/tools/check-op-karst-release-gate.sh && \
+        ${CMAKE_CURRENT_BINARY_DIR}/opstack-executor-block-tests --run_test=OpKarstReleaseGateSuite")
 
 # opstack-mainnet-replay — live-chain replay CLI (ReplayGate.h + RocksDB backend).
 # Shares the replay machinery with the corpus gate; zero-tolerance per-block compare,

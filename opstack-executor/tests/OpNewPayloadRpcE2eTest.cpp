@@ -140,9 +140,15 @@ bcos::protocol::TransactionReceiptFactory::Ptr makeReceiptFactory()
 
 constexpr uint64_t kChainId = 0x2105;
 
-bcos::evm::opstack::OpForkFlags forkFlagsFor(bool jovian)
+std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> scheduleFor(bool jovian)
 {
-    return bcos::evm::opstack::OpForkFlags{.jovianActive = jovian};
+    if (jovian)
+    {
+        return std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+            bcos::evm::opstack::OpForkSchedule::legacy(true));
+    }
+    return std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::parse("0:isthmus"));
 }
 
 using EngineOpScheduler = bcos::evm::engine::OpSchedulerSeam<ViewType>;
@@ -209,16 +215,17 @@ struct OpE2eFixture
     std::shared_ptr<bcos::executor_v1::opstack::OpScheduler<MLS>> opDelegate;
     OpEngineService service;
 
-    explicit OpE2eFixture(bcos::evm::opstack::OpForkFlags forkFlags)
+    explicit OpE2eFixture(std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> forkSchedule)
       : hashImpl(makeCryptoSuite()->hashImpl()),
         receiptFactory(makeReceiptFactory()),
-        scheduler(forkFlags),
+        scheduler(forkSchedule),
         legacyLedgerStorage(
             std::make_shared<bcos::storage::LegacyStorageWrapper<BackendMemStorage>>(
                 backendStorage)),
         ledger(std::make_shared<bcos::ledger::Ledger>(blockFactory, legacyLedgerStorage, 1000)),
-        opDelegate(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
-            hashImpl, kChainId, forkFlags, blockFactory, multiLayerStorage, ledger, ioServicePool)),
+        opDelegate(
+            std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory, hashImpl,
+                kChainId, forkSchedule, blockFactory, multiLayerStorage, ledger, ioServicePool)),
         service(memPool, multiLayerStorage, executor, scheduler, blockFactory,
             /*ledger=*/nullptr, bcos::engine::c_defaultBlockTxCountLimit, /*maxEngineVersion=*/4,
             opDelegate)
@@ -308,7 +315,7 @@ void assertSevenFields(std::string const& id, bcos::protocol::BlockHeader::Ptr c
 void runGoldenVector(std::string const& id)
 {
     auto sample = w6test::loadVectorSample(id);
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sample.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sample.jovian));
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     // Warning: parent pre-registration (gap A): without it -> SYNCING instead of VALID. parentHash
     // is decoded from the golden header
@@ -395,7 +402,7 @@ void runChainedPair(std::string const& aId, std::string const& bId)
     auto sampleB = w6test::loadChainedSample(bId);
     BOOST_REQUIRE(sampleA.jovian == sampleB.jovian);  // chained pair shares one fork (isthmus or
                                                       // jovian)
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sampleA.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sampleA.jovian));
 
     // Seed only A's pre (B's pre is A's postState; never re-seed)
     opstack_test::seedPreState(fixture->multiLayerStorage, sampleA.vector["pre"]);
@@ -466,7 +473,7 @@ std::tuple<std::unique_ptr<OpE2eFixture>, bcos::h256, bcos::protocol::BlockNumbe
 runVectorAndGetBlockHash(std::string const& id)
 {
     auto sample = w6test::loadVectorSample(id);
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sample.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sample.jovian));
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     const auto goldenHeader = w6test::decodeGoldenHeader(sample);
     registerVerifiedBlock(fixture->multiLayerStorage, goldenHeader->parentInfo().blockHash, 0);
@@ -666,7 +673,7 @@ void runInvalidVector(std::string const& id)
 {
     auto sample =
         (id.rfind("inline_", 0) == 0) ? makeInlineInvalidSample(id) : w6test::loadInvalidSample(id);
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sample.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sample.jovian));
     const auto& fisco = sample.vector["_op_expected"]["reject"]["fisco"];
     const auto classification = fisco["classification"].asString();
     // Consumer gate: for executor-consumer vectors (non-decode class), the
@@ -1373,7 +1380,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceHeadKnownValid)
 // :253-262)
 BOOST_AUTO_TEST_CASE(ForkchoiceHeadUnknownSyncing)
 {
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(/*jovian=*/false));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(/*jovian=*/false));
     bcos::h256 unknownHash(0xdeadbeef);  // no block registered
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
         bcos::engine::ForkchoiceState{unknownHash, unknownHash, unknownHash}, nullptr,
@@ -1410,7 +1417,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMissingGasLimitInvalid)
     auto attrs = makeJovianAttrs();
     attrs.gasLimit = std::nullopt;
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1425,7 +1432,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMissingMinBaseFeeInvalid)
     auto attrs = makeJovianAttrs();
     attrs.minBaseFee = std::nullopt;
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1438,12 +1445,12 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMinBaseFeeBeforeJovianInvalid)
     // Isthmus fixture: minBaseFee must be null pre-Jovian (jovian/exec-engine.md:59-79).
     // OpE2eFixture has no genesis-hash helper — register a known block instead
     // (pattern: ForkchoiceMonotonicityRejected).
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(/*jovian=*/false));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(/*jovian=*/false));
     bcos::h256 knownBlock("0x5555555555555555555555555555555555555555555555555555555555555555");
     registerVerifiedBlock(fixture->multiLayerStorage, knownBlock, /*number=*/0);
     auto attrs = makeJovianAttrs();
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{knownBlock, knownBlock, knownBlock}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{knownBlock, knownBlock, knownBlock}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1460,7 +1467,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsNonEmptyWithdrawalsInvalid)
     auto attrs = makeJovianAttrs();
     attrs.withdrawals = std::vector<bcos::engine::WithdrawalV1>{bcos::engine::WithdrawalV1{}};
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1477,7 +1484,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsMissingEip1559ParamsInvalid)
     auto attrs = makeJovianAttrs();
     attrs.eip1559Params = std::nullopt;
     auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs, /*version=*/3));
     (void)payloadId;
     BOOST_CHECK_EQUAL(static_cast<int>(state.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1498,7 +1505,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsWrongSizeEip1559ParamsInvalid)
         attrs.eip1559Params = bcos::bytes{0, 0, 0, 8};
         auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
             bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs,
-            /*version=*/4));
+            /*version=*/3));
         (void)payloadId;
         BOOST_CHECK_EQUAL(static_cast<int>(state.status),
             static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1511,7 +1518,7 @@ BOOST_AUTO_TEST_CASE(ForkchoiceAttrsWrongSizeEip1559ParamsInvalid)
         attrs.eip1559Params = bcos::bytes{0, 0, 0, 0, 0, 0, 0, 2};
         auto [state, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
             bcos::engine::ForkchoiceState{blockHash, blockHash, blockHash}, &attrs,
-            /*version=*/4));
+            /*version=*/3));
         (void)payloadId;
         BOOST_CHECK_EQUAL(static_cast<int>(state.status),
             static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
@@ -1703,7 +1710,7 @@ bcos::h256 canonicalHashAtHeight(MLS& multiLayerStorage, int64_t height)
 BOOST_AUTO_TEST_CASE(ReorgSiblingRetractsForkchoiceHead)
 {
     auto sample = forkVectorSample("invalid_isthmus_chain_3_fork");
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sample.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sample.jovian));
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     registerVerifiedBlock(fixture->multiLayerStorage, parseParentHashFromPayload(sample), 0);
 
@@ -1747,7 +1754,7 @@ BOOST_AUTO_TEST_CASE(ReorgSiblingRetractsForkchoiceHead)
 BOOST_AUTO_TEST_CASE(ReorgRetractNonCanonicalHeadStillRejected)
 {
     auto sample = forkVectorSample("invalid_isthmus_chain_3_fork");
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sample.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sample.jovian));
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     registerVerifiedBlock(fixture->multiLayerStorage, parseParentHashFromPayload(sample), 0);
     BOOST_REQUIRE_EQUAL(
@@ -1817,7 +1824,7 @@ BOOST_AUTO_TEST_CASE(ReorgRebuildOnParentBuildsSibling)
     attrs.noTxPool = true;
     auto [rebuild, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
         bcos::engine::ForkchoiceState{parentHash, parentHash, parentHash}, &attrs,
-        /*version=*/4));
+        /*version=*/3));
     BOOST_REQUIRE_EQUAL(static_cast<int>(rebuild.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(payloadId.has_value());
@@ -1860,7 +1867,7 @@ BOOST_AUTO_TEST_CASE(ReorgRebuildOnParentBuildsSibling)
 BOOST_AUTO_TEST_CASE(ReorgCaseUReplacesUncommittedPending)
 {
     auto sample = forkVectorSample("invalid_jovian_chain_3_fork");
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sample.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sample.jovian));
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     registerVerifiedBlock(fixture->multiLayerStorage, parseParentHashFromPayload(sample), 0);
     const auto genesis = parseParentHashFromPayload(sample);
@@ -1869,7 +1876,7 @@ BOOST_AUTO_TEST_CASE(ReorgCaseUReplacesUncommittedPending)
     auto attrs = makeJovianAttrs();
     attrs.noTxPool = true;
     auto [build, payloadId] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{genesis, genesis, genesis}, &attrs, /*version=*/4));
+        bcos::engine::ForkchoiceState{genesis, genesis, genesis}, &attrs, /*version=*/3));
     BOOST_REQUIRE_EQUAL(static_cast<int>(build.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(payloadId.has_value());
@@ -1893,7 +1900,7 @@ BOOST_AUTO_TEST_CASE(ReorgCaseUReplacesUncommittedPending)
 BOOST_AUTO_TEST_CASE(ReorgSiblingWithoutUndoJournalRefused)
 {
     auto sample = forkVectorSample("invalid_jovian_chain_3_fork");
-    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(sample.jovian));
+    auto fixture = std::make_unique<OpE2eFixture>(scheduleFor(sample.jovian));
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     registerVerifiedBlock(fixture->multiLayerStorage, parseParentHashFromPayload(sample), 0);
     BOOST_REQUIRE_EQUAL(
