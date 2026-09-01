@@ -1,4 +1,4 @@
-// bcos-evm-ref/bcos-evm-ref/adapter/StateRootCompute.h
+// bcos-evm/bcos-evm/adapter/StateRootCompute.h
 #pragma once
 
 // Root building via FISCO bcos-ledger/mpt computeTrieRoot (retired evmone mpt_hash) —
@@ -12,10 +12,12 @@
 #include <bcos-ledger/mpt/HashBuilder.h>
 #include <bcos-utilities/FixedBytes.h>
 #include <bcos-evm/eth/state/hash_utils.hpp>
+#include <cstring>
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
 #include <map>
 #include <stdexcept>
+#include <utility>
 
 namespace bcos::evm
 {

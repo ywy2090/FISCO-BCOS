@@ -15,6 +15,7 @@ namespace bcos::evm::opstack
 //
 //   OP fork      | Ethereum base | EVM rev (FB)      | FB status
 //   -------------+---------------+-------------------+----------------------
+//   (Delta is the pre-Bedrock devnet stage — outside this Bedrock-onward table.)
 //   Bedrock      | London        | —                 | not modeled (unreachable)
 //   Regolith     | London        | —                 | not modeled; deposit-tx fixes
 //   Canyon       | Shanghai      | —                 | not modeled; EIP-4895/1153/5656/6780

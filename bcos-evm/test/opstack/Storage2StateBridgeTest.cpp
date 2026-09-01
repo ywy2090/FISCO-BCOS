@@ -459,4 +459,28 @@ BOOST_AUTO_TEST_CASE(deleted_account_path)
     BOOST_CHECK(!bridge.poisoned());
 }
 
+BOOST_AUTO_TEST_CASE(ghost_delete_tripwire_throws)
+{
+    // X15: a deleted_accounts entry missing on the ledger is a usage error — the strict tripwire
+    // must throw (and poison), never silently no-op.
+    MutableStorage storage;
+    bcos::evm::evmstate::Storage2State<MutableStorage> bridge(storage);
+
+    evmone::state::StateDiff ghostDiff;
+    ghostDiff.deleted_accounts.push_back(kAddr);  // kAddr never seeded
+
+    bool threw = false;
+    try
+    {
+        bridge.applyDiff(ghostDiff);
+    }
+    catch (const std::runtime_error&)
+    {
+        threw = true;
+    }
+    BOOST_CHECK(threw);
+    BOOST_CHECK(bridge.poisoned());
+    BOOST_CHECK(bridge.firstError().find("ghost delete") != std::string::npos);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

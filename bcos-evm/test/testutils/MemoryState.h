@@ -8,6 +8,7 @@
 #include <evmc/evmc.hpp>
 #include <intx/intx.hpp>
 #include <map>
+#include <optional>
 #include <utility>
 
 namespace bcos::evm::evmstate

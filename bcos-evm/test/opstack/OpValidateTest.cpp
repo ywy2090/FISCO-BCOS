@@ -142,6 +142,9 @@ BOOST_AUTO_TEST_CASE(InsufficientForL1CostFails)
     const auto r = opValidate(
         ts, blkValidate(), baseTx(), {env.data(), env.size()}, isthmusConfig(), fee, 30000000);
     BOOST_REQUIRE(std::holds_alternative<std::error_code>(r));
+    // Pin the specific rejection reason (result_out_of_range = balance < maxCost), not just
+    // error-code presence — the L1 term is what makes the balance insufficient here.
+    BOOST_CHECK_EQUAL(std::get<std::error_code>(r), std::errc::result_out_of_range);
 }
 
 BOOST_AUTO_TEST_CASE(EmptyEnvelopeFails)

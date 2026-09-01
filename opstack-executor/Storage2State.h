@@ -35,9 +35,11 @@
 #include <bcos-evm/eth/state/state_view.hpp>
 #include <cstring>
 #include <evmc/evmc.hpp>
+#include <functional>
 #include <intx/intx.hpp>
 #include <limits>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
@@ -238,7 +240,11 @@ public:
     /// already rejected at the decode/block-shape gates), so none must ever be answered INVALID.
     /// The whole body is wrapped in one try/catch so every present and future throw point inherits
     /// that invariant; catch(...) guarantees the flag is set even when the standard exception
-    /// families cannot be matched. `seeding` (true only for SeedPreState, a
+    /// families cannot be matched. NOTE (failure atomicity): applyDiff is NOT transactional —
+    /// entries written before a mid-way throw stay persisted; the caller (part-3 scheduler) must
+    /// wrap each block's applyDiff in a storage2 transactional snapshot and roll it back on any
+    /// throw, or a failed block leaves a partially-updated ledger baseline. `seeding` (true only
+    /// for SeedPreState, a
     /// genesis snapshot) exempts the new-EIP-161-empty-account guard, which is otherwise on for
     /// the execution path.
     void applyDiff(const evmone::state::StateDiff& diff, bool seeding = false)
@@ -855,6 +861,10 @@ private:
     mutable std::map<evmc::address, evmc::bytes> m_codeCache;
     mutable std::map<std::pair<evmc::address, evmc::bytes32>, evmc::bytes32> m_storageCache;
 
+    // Per-instance poison state is intentionally NOT atomic: each Storage2State instance is
+    // single-threaded and owned by exactly one tx at a time (documented contract); cross-instance
+    // sharing goes through the mutex-guarded SharedErrorSlot only. Do not share one instance
+    // across threads.
     mutable bool m_poisoned{false};
     mutable std::string m_firstError;
     std::shared_ptr<SharedErrorSlot> m_sharedError;  // optional block-wide error slot (op-geth

@@ -163,7 +163,7 @@ struct OpReceiptMeta
     std::optional<uint32_t> l1_base_fee_scalar;
     std::optional<uint32_t> l1_blob_base_fee_scalar;
     std::optional<intx::uint256> l1_fee;  // = l1_cost
-    std::optional<uint64_t> l1_gas_used;  // Fjord+; wire index 11
+    std::optional<uint64_t> l1_gas_used;  // Ecotone: calldataGasUsed; Fjord+: FastLZ; wire index 11
     // operator (Isthmus+)
     std::optional<intx::uint256> operator_fee;    // FISCO extension: actually-charged value
                                                   // (op-geth receipt has no such field)

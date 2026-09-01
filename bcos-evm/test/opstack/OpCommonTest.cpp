@@ -1,6 +1,7 @@
 // OpCommon.h 工具函数单元测试——bounds-checked 窄化与 fixed-size 转换。
 // 这些是 block-execution 的转换面（narrowGasUsed 防回执 gas 污染 gas 池、toEvmc* 是
 // bcos↔evmc 的 memcpy 契约），此前零测试。
+#include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
 #include <opstack-executor/OpCommon.h>
 #include <boost/test/unit_test.hpp>
 #include <evmc/evmc.hpp>
@@ -43,7 +44,7 @@ BOOST_AUTO_TEST_CASE(narrowU256ToU64_bounds)
     BOOST_CHECK_EQUAL(narrowU256ToU64(bcos::u256{42}, "field"), 42u);
     BOOST_CHECK_EQUAL(narrowU256ToU64(bcos::u256{std::numeric_limits<uint64_t>::max()}, "field"),
         std::numeric_limits<uint64_t>::max());
-    // uint64 上界 + 1 = 2^64：字符串构造。narrowU256ToU64 带 [[nodiscard]]——if 消费。
+    // uint64 上界 + 1 = 2^64：字符串构造。narrowU256ToU64 无 [[nodiscard]]，if 消费仅为编译期防漏。
     const bcos::u256 overU64 = bcos::u256{"18446744073709551616"};
     bool threw = false;
     try
@@ -110,6 +111,43 @@ BOOST_AUTO_TEST_CASE(classifyTxType_branches)
     BOOST_CHECK_EQUAL(classifyTxType(0x05), 0x05);
     BOOST_CHECK_EQUAL(classifyTxType(0x7f), 0x7f);  // just above deposit
     BOOST_CHECK_EQUAL(classifyTxType(0x7d), 0x7d);  // just below deposit
+}
+
+
+BOOST_AUTO_TEST_CASE(ToBlockInfoTimestampDivision)
+{
+    // ms->s unit convention is REQUIRED (FISCO tars store ms; evmone wants seconds). A 1.5s
+    // header timestamp must reach the EVM as 1, not 1500.
+    bcostars::protocol::BlockHeaderImpl env;
+    env.setTimestamp(1500);
+    env.setGasLimit(bcos::u256{30000000});
+    env.setBaseFee(bcos::u256{0});
+    env.setPrevRandao(bcos::h256{});
+    env.setParentBeaconBlockRoot(bcos::h256{});
+    env.setBlobGasUsed(bcos::u256{0});
+
+    auto blk = detail::toBlockInfo(env);
+    BOOST_CHECK_EQUAL(blk.timestamp, 1u);  // 1500 ms / 1000 = 1 s
+
+    // gasLimitOverride wins over the header value
+    auto overridden = detail::toBlockInfo(env, /*gasLimitOverride=*/std::optional<uint64_t>{12345});
+    BOOST_CHECK_EQUAL(overridden.gas_limit, 12345);
+    BOOST_CHECK_EQUAL(blk.gas_limit, 30000000);
+
+    // strict path: a missing baseFee must throw OpConsensusError (never bad_optional_access)
+    bcostars::protocol::BlockHeaderImpl sparse;
+    sparse.setTimestamp(2000);
+    sparse.setGasLimit(bcos::u256{100000});
+    bool threw = false;
+    try
+    {
+        (void)detail::toBlockInfo(sparse);
+    }
+    catch (const OpConsensusError&)
+    {
+        threw = true;
+    }
+    BOOST_CHECK(threw);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

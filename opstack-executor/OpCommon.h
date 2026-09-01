@@ -4,6 +4,7 @@
 
 // OP block types and header conversions. Commitment comparison lives in OpCommitments.h.
 
+#include <bcos-evm/opstack/OpTransition.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>
 #include <bcos-utilities/Common.h>
@@ -16,7 +17,6 @@
 #include <evmc/evmc.hpp>
 #include <limits>
 #include <optional>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -92,8 +92,8 @@ struct OpBlockSeal
 /// (the deposit loop) keep their own guard.
 [[nodiscard]] constexpr uint8_t classifyTxType(uint8_t typeByte) noexcept
 {
-    constexpr uint8_t kDepositTypeByte = 0x7e;  // kDepositTxType (OpTransition.h)
-    constexpr uint8_t kRlpListBase = 0xc0;      // legacy RLP list prefix
+    constexpr uint8_t kDepositTypeByte = static_cast<uint8_t>(kDepositTxType);  // single source
+    constexpr uint8_t kRlpListBase = 0xc0;  // legacy RLP list prefix
     if (typeByte == kDepositTypeByte)
     {
         return typeByte;  // deposit stored as its own type byte

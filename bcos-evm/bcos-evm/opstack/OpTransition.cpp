@@ -87,7 +87,7 @@ inline bcos::protocol::LogEntries mapOpLogs(const std::vector<evmone::state::Log
 /// Local helper: intx::uint256 → bcos::u256, full-width big-endian conversion. intx only exposes
 /// an explicit low-64-bit cast operator, so a plain `static_cast<bcos::u256>` would silently drop
 /// the high 192 bits — go through a big-endian byte store + bcos::fromBigEndian instead (same
-/// pattern as ReceiptResponse.cpp's decode path).
+/// pattern as Eip7702Recover.h's be::store + fromBigEndian).
 inline bcos::u256 intxToBcosU256(intx::uint256 const& val)
 {
     auto be = intx::be::store<evmc::uint256be>(val);
@@ -253,6 +253,9 @@ OpReceiptMeta deriveOpReceiptMeta(const OpTxProperties& props, intx::uint256 ope
     if (props.has_operator_fee)
     {
         m.operator_fee = operator_fee_at_used;
+        // Scalars are emitted only when at least one is non-zero: nullopt therefore means either
+        // "no operator-fee charge" or "charged with an explicit zero scalar". This present/zero/
+        // absent fold is deliberate (receipt-meta only); keep it in sync with OpReceiptMeta docs.
         if (fill_operator_scalars &&
             (fee.operator_fee_scalar != 0 || fee.operator_fee_constant != 0))
         {
@@ -262,6 +265,12 @@ OpReceiptMeta deriveOpReceiptMeta(const OpTxProperties& props, intx::uint256 ope
     }
     if (props.has_da_footprint)
     {
+        // Bounds: flz_len is a uint32 (compressed calldata size, <= ~3.6e9) and
+        // da_footprint_gas_scalar is a uint16 (<= 65535), so the product is <= ~2.4e14 —
+        // comfortably inside uint64 and never near wrap.
+        // Oracle note: this Jovian-only formula has no independently verifiable op-geth
+        // v1.101702.2 counterpart (op-geth has no Jovian DA-footprint oracle); the unit tests
+        // self-anchor it. Re-validate against upstream when op-geth lands a Jovian formula.
         const auto scalar = static_cast<uint64_t>(fee.da_footprint_gas_scalar);
         m.da_footprint_gas_scalar = scalar;
         m.da_footprint = estimatedDaSizeFromFlz(props.flz_len) * scalar;
@@ -507,7 +516,13 @@ bcos::protocol::TransactionReceipt::Ptr runDeposit(const evmone::state::StateVie
     auto& fromAcc = state.get_or_insert(dep.from);
     const uint64_t preNonce = fromAcc.nonce;
     if (dep.mint.has_value())
+    {
+        // op-geth adds the mint with an unbounded big.Int; guard the wrap so a mint at or
+        // above 2^256 - balance fails loudly instead of silently wrapping the account balance.
+        if (*dep.mint > std::numeric_limits<intx::uint256>::max() - fromAcc.balance)
+            throw std::runtime_error("op deposit: mint overflows uint256 balance (block error)");
         fromAcc.balance += *dep.mint;
+    }
 
     evmone::state::Transaction tx;
     tx.type = evmone::state::Transaction::Type::legacy;  // internal execution shell; receipt uses

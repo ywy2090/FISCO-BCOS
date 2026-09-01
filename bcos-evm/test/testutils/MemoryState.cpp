@@ -54,7 +54,10 @@ void MemoryState::applyDiff(const evmone::state::StateDiff& diff, bool seeding)
     for (const auto& m : diff.modified_accounts)
     {
         // ensure-exists: unconditionally ensure the entry exists, even when no field actually
-        // changes (EIP-161 touch-only accounts / fully-empty account seeding) -- must not optimize
+        // changes (EIP-161 touch-only accounts / fully-empty account seeding) -- must not optimize.
+        // NOTE: unlike Storage2State, this test backend does NOT throw on a newly-created empty
+        // account (no EIP-161 empty-account guard); the divergence is accepted for the test
+        // backend and Storage2StateBridgeTest pins the production behavior instead.
         // to "skip when no field is writable".
         auto& account = m_accounts[m.addr];
         account.nonce = m.nonce;

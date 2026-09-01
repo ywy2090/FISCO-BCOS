@@ -72,4 +72,42 @@ BOOST_AUTO_TEST_CASE(single_account_root_matches_golden)
             0x26afd9d805a51c2d588429a29c18c3c23b14ba8c78b5f44be651867fc4815906_bytes32}));
 }
 
+// X14: MemoryState's ghost-delete strict tripwire — deleting an absent account must throw
+// (usage error), not silently no-op.
+BOOST_AUTO_TEST_CASE(memory_state_ghost_delete_throws)
+{
+    MemoryState ledger;
+    bool threw = false;
+    try
+    {
+        ledger.applyDiff(evmone::state::StateDiff{.modified_accounts = {},
+            .deleted_accounts = {0x00000000000000000000000000000000000000bb_address}});
+    }
+    catch (const std::runtime_error&)
+    {
+        threw = true;
+    }
+    BOOST_CHECK(threw);
+}
+
+// X14: zero-slot normalization — a zero-valued storage slot seeded via the write path is
+// normalized away (KEEP: zero slot = no slot), mirroring Storage2State's contract.
+BOOST_AUTO_TEST_CASE(memory_state_zero_slot_normalized)
+{
+    MemoryState ledger;
+    constexpr auto kAddr = 0x00000000000000000000000000000000000000cc_address;
+    constexpr auto kSlot =
+        0x0000000000000000000000000000000000000000000000000000000000000001_bytes32;
+    ledger.applyDiff(evmone::state::StateDiff{.modified_accounts = {{.addr = kAddr,
+                                                  .nonce = 1,
+                                                  .balance = 1000_u256,
+                                                  .code = std::nullopt,
+                                                  .modified_storage = {{kSlot, evmc::bytes32{}}}}},
+        .deleted_accounts = {}});
+    auto acc = ledger.get_account(kAddr);
+    BOOST_REQUIRE(acc.has_value());
+    auto val = ledger.get_storage(kAddr, kSlot);
+    BOOST_CHECK(evmc::is_zero(val));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
