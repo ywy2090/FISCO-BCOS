@@ -52,7 +52,7 @@ void PBFTCache::onCheckPointTimeout()
     auto encodedData = m_config->codec()->encode(checkPointMsg);
     // only broadcast message to consensus node
     // FIB-185: hand the owned payload to the front's serial send queue (off this thread); no copy.
-    m_config->frontService()->asyncBroadcastMessageByOwnedPayload(
+    m_config->frontService()->broadcastMessageByOwnedPayload(
         bcos::protocol::NodeType::CONSENSUS_NODE, ModuleID::PBFT, std::move(encodedData));
 }
 
@@ -245,7 +245,7 @@ bool PBFTCache::checkAndPreCommit()
     auto encodedData = m_config->codec()->encode(commitReq, m_config->pbftMsgDefaultVersion());
     // only broadcast message to consensus nodes
     // FIB-185: hand the owned payload to the front's serial send queue (off this thread); no copy.
-    m_config->frontService()->asyncBroadcastMessageByOwnedPayload(
+    m_config->frontService()->broadcastMessageByOwnedPayload(
         bcos::protocol::NodeType::CONSENSUS_NODE, ModuleID::PBFT, std::move(encodedData));
     m_precommitted = true;
     // collect the commitReq and try to commit
@@ -336,7 +336,7 @@ void PBFTCache::resetExceptionCache(ViewType _curView)
         return;
     }
     for (auto exceptionPrePrepare = m_exceptionPrePrepareList.begin();
-        exceptionPrePrepare != m_exceptionPrePrepareList.end();)
+         exceptionPrePrepare != m_exceptionPrePrepareList.end();)
     {
         PBFT_LOG(INFO) << LOG_DESC("resetCache: asyncResetTxsFlag exceptionPrePrepare")
                        << LOG_KV("prePrepare", m_prePrepare ? "true" : "false")
