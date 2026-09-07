@@ -305,9 +305,7 @@ void checkForkchoiceParity(
         legacyResult.payloadStatus.latestValidHash == newResult.payloadStatus.latestValidHash);
     BOOST_CHECK(
         legacyResult.payloadStatus.validationError == newResult.payloadStatus.validationError);
-    // Payload ID policy (option B): EthEngineService uses deterministic derivePayloadId
-    // (op-geth-aligned). release EngineServiceImpl still uses nextPayloadID(). Parity
-    // requires matching presence only — ID strings are not part of the cutover contract.
+    // Payload ID parity checks presence only, not the ID string.
     BOOST_CHECK_EQUAL(legacyResult.payloadId.has_value(), newResult.payloadId.has_value());
 }
 
@@ -668,11 +666,7 @@ BOOST_AUTO_TEST_CASE(generic_bounded_cache_evicts_front_after_sixty_five_builds)
 
 BOOST_AUTO_TEST_CASE(eth_derive_payload_id_stable_under_identical_attrs)
 {
-    // Matrix: E4 — presence-only FCU ID comparison is option B (checkForkchoiceParity).
-    // This case is the same-attrs overwrite contract, not an ID-string equality vs Impl.
-    // Option B: Eth contract is derivePayloadId — identical attrs → identical id and cache
-    // overwrite (no FIFO growth). Legacy nextPayloadID characterization kept alongside for
-    // cutover awareness; it is not a defect on the Eth path.
+    // Eth path uses stable derivePayloadId; legacy uses sequential IDs.
     ServicePair pair;
     auto forkchoiceState = makeForkchoiceState();
     setForkchoiceBlockNumbers(pair.legacyStorage, forkchoiceState, c_initialBlockNumber,
@@ -699,13 +693,13 @@ BOOST_AUTO_TEST_CASE(eth_derive_payload_id_stable_under_identical_attrs)
         }
     }
 
-    // Legacy characterization (sequential ids + FIFO eviction) — pre-cutover only.
+    // Legacy nextPayloadID behavior for comparison only.
     BOOST_CHECK_NE(legacyIds.front(), legacyIds.back());
     BOOST_CHECK_THROW(
         task::syncWait(pair.legacy.getPayload(legacyIds.front(), 3)), bcos::engine::UnknownPayload);
     BOOST_CHECK_NO_THROW(task::syncWait(pair.legacy.getPayload(legacyIds.back(), 3)));
 
-    // Eth contract under option B.
+    // Eth path reuses the same payload ID for identical attrs.
     BOOST_CHECK_EQUAL(newIds.front(), newIds.back());
     auto ethPayload = task::syncWait(pair.fresh.getPayload(newIds.front(), 3));
     BOOST_REQUIRE(ethPayload);

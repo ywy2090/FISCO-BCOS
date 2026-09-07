@@ -346,8 +346,6 @@ Json::Value makeForkchoiceParams()
 }
 }  // namespace
 
-// Finding AM: OpExecutionInternalError / leftover std::exception stay -32603 with a
-// short stable message, never INVALID and never a Boost diagnostic dump.
 BOOST_AUTO_TEST_CASE(engineRpcInternalFaultsMapToShort32603)
 {
     auto const params = makeForkchoiceParams();

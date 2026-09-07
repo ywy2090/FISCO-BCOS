@@ -13,13 +13,10 @@
 
 namespace bcos::initializer
 {
-/// Production composition root for the Engine API service.
+/// Wires EthEngineService or OpEngineService for production Engine API use.
 ///
-/// - build(...)  → EthEngineService (executor_version < 3 / single-node Eth / op_engine_rpc
-/// harness)
-/// - buildOp(...) → OpEngineService (executor_version >= 3 OP composition root)
-///
-/// EngineServiceImpl is compiled into test-bcos-engine only (excluded from libengine).
+/// - build(...)   → EthEngineService
+/// - buildOp(...) → OpEngineService
 class EngineServiceInitializer
 {
 public:
@@ -45,7 +42,7 @@ public:
         return initializer;
     }
 
-    /// OP composition: OpSchedulerSeam as SchedulerType + OpScheduler as execution delegate.
+    /// OP path: OpSchedulerSeam + OpScheduler delegate.
     template <class SchedulerType>
     static Ptr buildOp(std::shared_ptr<GlobalStateStorageInitializer> storageInitializer,
         bcos::protocol::BlockFactory::Ptr blockFactory, std::shared_ptr<SchedulerType> scheduler,

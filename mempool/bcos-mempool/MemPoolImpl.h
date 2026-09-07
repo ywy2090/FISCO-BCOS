@@ -253,9 +253,7 @@ public:
         }
     }
 
-    /// Exact eviction by pool key (the tx hash). Used by the engine's OP payload
-    /// build loop: a tx that fails validation during building is dropped from the
-    /// pool so a permanently-invalid tx cannot poison every subsequent build.
+    /// Drop txs by hash during OP payload building.
     void removeByHash(std::span<bcos::crypto::HashType const> hashes)
     {
         std::unique_lock lock(m_mutex);

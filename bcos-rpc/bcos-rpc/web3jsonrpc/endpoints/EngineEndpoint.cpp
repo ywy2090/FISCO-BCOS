@@ -50,9 +50,7 @@ struct OpPayloadBusyReset
     }
 };
 
-/// Map remaining typed / untyped service faults to JSON-RPC -32603 with a short
-/// stable message. Must not use boost::diagnostic_information (finding AM).
-/// OpExecutionInternalError without OpPayloadUndecodable stays -32603, never INVALID.
+/// Map unexpected service errors to -32603 without Boost diagnostics.
 [[noreturn]] void rethrowAsEngineInternalError(std::exception const& e)
 {
     auto const* what = e.what();
@@ -178,20 +176,13 @@ task::Task<void> EngineEndpoint::handleForkchoiceUpdated(
     }
     catch (engine::UnsupportedFork const& e)
     {
-        // The request's attribute shape cannot express the chain's fork era, or the chain
-        // lacks an on-chain EVM revision entirely. geth answers -38005 Unsupported fork
-        // for the same CL/chain mismatch; the service layer throws UnsupportedFork so this
-        // stays a diagnosable fork error instead of a generic -32603 InternalError. Keep
-        // the exception's errinfo_comment so the operator can tell which gate fired — the
-        // missing-revision case is a NODE-side misconfiguration and the generic shape
-        // message would wrongly point at the CL.
+        // Keep -38005 and preserve the service error text.
         BOOST_THROW_EXCEPTION(JsonRpcException(
             EngineError::UnsupportedFork, std::string("Unsupported fork: ") + e.what()));
     }
     catch (engine::UnsupportedEngineApiVersion const& e)
     {
-        // Service-layer method-version reject (finding AM). Same -38005 as UnsupportedFork
-        // and the FCU V4 endpoint stub; do not let this fall through to -32603.
+        // Method-version mismatch maps to -38005.
         BOOST_THROW_EXCEPTION(JsonRpcException(
             EngineError::UnsupportedFork, std::string("Unsupported fork: ") + e.what()));
     }
@@ -266,12 +257,7 @@ task::Task<void> EngineEndpoint::handleGetPayload(
     }
     catch (engine::IncompatiblePayloadVersion const&)
     {
-        // The build behind this payloadId is outside the requested method's version
-        // window (forkchoiceUpdated version vs getPayload version). newPayload keeps the
-        // FCU-built version tag. The mapping is -38005 to match op-geth, whose getPayload
-        // helper answers engine.UnsupportedFork when the payloadId's encoded build version
-        // is outside the method's allowed set (eth/catalyst/api.go:531-533, GetPayloadV5
-        // allowing only PayloadV3).
+        // Payload was built by a different Engine API method version.
         BOOST_THROW_EXCEPTION(JsonRpcException(EngineError::UnsupportedFork,
             "Unsupported fork: payload was built by a different method version"));
     }
