@@ -53,7 +53,10 @@ struct ResolvedForkchoice
 enum class ForkchoiceApplyResult
 {
     Applied,
-    Swallowed
+    Swallowed,
+    /// Older head with payload attributes: build a sibling at head+1 without rewinding
+    /// the tracked tip (OP sequencer rebuild-on-parent).
+    RebuildOnParent,
 };
 
 class EngineTracker

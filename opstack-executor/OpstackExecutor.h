@@ -24,6 +24,7 @@
 #include "opstack-executor/Storage2State.h"    // Storage2State / SharedErrorSlot
 #include <bcos-codec/rlp/Common.h>     // BYTES_HEAD_BASE (consensus deposit-envelope decode)
 #include <bcos-codec/rlp/RLPDecode.h>  // decodeHeader / decode / decodeItems
+#include <bcos-rlp-protocol/Web3Transaction.h>  // AuthorizationListEntry decode (EIP-7702 bind)
 #include <bcos-rlp-protocol/Web3TxEnvelope.h>   // isTypedWeb3Envelope (header-only)
 #include <bcos-utilities/BoostLog.h>            // BCOS_LOG
 #include <bcos-utilities/DataConvertUtility.h>  // safeFromHex / safeFromQuantity
@@ -314,8 +315,7 @@ namespace engine = bcos::evm::engine;
     namespace rlp = bcos::codec::rlp;
     if (!isList)
         return "accessList field is an RLP string";
-    bcos::bytesRef walker(
-        const_cast<bcos::byte*>(listPayload.data()), listPayload.size());
+    bcos::bytesRef walker(const_cast<bcos::byte*>(listPayload.data()), listPayload.size());
     size_t envEntries = 0;
     while (!walker.empty())
     {
@@ -344,8 +344,7 @@ namespace engine = bcos::evm::engine;
         while (!keys.empty())
         {
             auto [keyErr, keyHeader] = rlp::decodeHeader(keys);
-            if (keyErr || keyHeader.isList ||
-                keyHeader.payloadLength != sizeof(evmc::bytes32) ||
+            if (keyErr || keyHeader.isList || keyHeader.payloadLength != sizeof(evmc::bytes32) ||
                 keyHeader.payloadLength > keys.size())
                 return "accessList storage key is malformed";
             evmc::bytes32 key{};
@@ -376,14 +375,12 @@ namespace engine = bcos::evm::engine;
     namespace rlp = bcos::codec::rlp;
     if (!isList)
         return "blobVersionedHashes field is an RLP string";
-    bcos::bytesRef walker(
-        const_cast<bcos::byte*>(listPayload.data()), listPayload.size());
+    bcos::bytesRef walker(const_cast<bcos::byte*>(listPayload.data()), listPayload.size());
     size_t count = 0;
     while (!walker.empty())
     {
         auto [hashErr, hashHeader] = rlp::decodeHeader(walker);
-        if (hashErr || hashHeader.isList ||
-            hashHeader.payloadLength != sizeof(evmc::bytes32) ||
+        if (hashErr || hashHeader.isList || hashHeader.payloadLength != sizeof(evmc::bytes32) ||
             hashHeader.payloadLength > walker.size())
             return "blobVersionedHashes entry is malformed";
         evmc::bytes32 hash{};
@@ -395,6 +392,49 @@ namespace engine = bcos::evm::engine;
     }
     if (count != mirror.size())
         return "blobVersionedHashes is not bound to the signed envelope";
+    return std::nullopt;
+}
+
+/// Full authorizationList bind for 0x04: decode each signed tuple from the envelope and require
+/// element-wise equality with the mirror on chain_id/address/nonce/yParity/r/s. Signer recovery
+/// stays in processAuthorizationList at execution time — the mirror's signer field is not trusted.
+[[nodiscard]] inline std::optional<std::string> bindEnvelopeAuthorizationList(
+    bcos::bytesConstRef listPayload, bool isList,
+    std::vector<evmone::state::Authorization> const& mirror)
+{
+    namespace rlp = bcos::codec::rlp;
+    if (!isList)
+        return "authorizationList field is an RLP string";
+    bcos::bytesRef walker(const_cast<bcos::byte*>(listPayload.data()), listPayload.size());
+    size_t count = 0;
+    while (!walker.empty())
+    {
+        bcos::rpc::AuthorizationListEntry entry{};
+        if (auto err = rlp::decode(walker, entry); err != nullptr)
+            return "authorizationList entry is malformed";
+        if (count >= mirror.size())
+            return "authorizationList is not bound to the signed envelope";
+        const auto& m = mirror[count];
+        if (eth::toIntxU256(entry.chainId) != m.chain_id)
+            return "authorizationList is not bound to the signed envelope";
+        if (entry.address.size() < sizeof(evmc_address))
+            return "authorizationList address is malformed";
+        evmc::address envAddr{};
+        std::memcpy(envAddr.bytes, entry.address.data(), sizeof(envAddr.bytes));
+        if (envAddr != m.addr)
+            return "authorizationList is not bound to the signed envelope";
+        if (entry.nonce != m.nonce)
+            return "authorizationList is not bound to the signed envelope";
+        if (intx::uint256{entry.yParity} != m.v)
+            return "authorizationList is not bound to the signed envelope";
+        if (eth::toIntxU256(entry.r) != m.r)
+            return "authorizationList is not bound to the signed envelope";
+        if (eth::toIntxU256(entry.s) != m.s)
+            return "authorizationList is not bound to the signed envelope";
+        ++count;
+    }
+    if (count != mirror.size())
+        return "authorizationList is not bound to the signed envelope";
     return std::nullopt;
 }
 
@@ -452,7 +492,7 @@ namespace engine = bcos::evm::engine;
     std::optional<bcos::bytesRef> nonceItem, gasItem, valueItem;
     std::optional<size_t> noncePlen, gasPlen, valuePlen;
     std::optional<bcos::bytesRef> toPayload, dataPayload;
-    std::optional<bcos::bytesRef> accessListPayload, blobPayload;
+    std::optional<bcos::bytesRef> accessListPayload, blobPayload, authorizationListPayload;
     bool nonceIsList = false;
     bool gasIsList = false;
     bool valueIsList = false;
@@ -460,14 +500,15 @@ namespace engine = bcos::evm::engine;
     bool dataIsList = false;
     bool accessListIsList = false;
     bool blobIsList = false;
+    bool authorizationListIsList = false;
     // Bind field indices: accessList at 7 (0x01) / 8 (0x02/0x03/0x04); 0x7e deposits and
     // legacy carry no accessList field. blobVersionedHashes candidate at 10 (0x02/0x03 —
     // only consumed for 0x03, or 0x02 with the 4844 extension).
     constexpr size_t c_noField = std::numeric_limits<size_t>::max();
-    size_t const accessListIdx = !typed || envelopeKind == 0x7e ?
-                                     c_noField :
-                                     (envelopeKind == 0x01 ? 7 : 8);
+    size_t const accessListIdx =
+        !typed || envelopeKind == 0x7e ? c_noField : (envelopeKind == 0x01 ? 7 : 8);
     size_t const blobIdx = envelopeKind == 0x02 || envelopeKind == 0x03 ? 10 : c_noField;
+    size_t const authorizationListIdx = envelopeKind == 0x04 ? 9 : c_noField;
     size_t idx = 0;
     while (!walker.empty())
     {
@@ -516,6 +557,11 @@ namespace engine = bcos::evm::engine;
             blobPayload = payload;
             blobIsList = itemHeader.isList;
         }
+        if (idx == authorizationListIdx)
+        {
+            authorizationListPayload = payload;
+            authorizationListIsList = itemHeader.isList;
+        }
         walker = walker.getCroppedData(itemHeader.payloadLength);
         ++idx;
     }
@@ -523,7 +569,8 @@ namespace engine = bcos::evm::engine;
         (typed && envelopeKind != 0x7e && !accessListPayload) ||
         // A type-0x03 envelope must carry blobVersionedHashes (idx 10): without this arm a
         // 9/10-item 0x03 passed the guard and dereferenced a disengaged blobPayload below.
-        (typed && envelopeKind == 0x03 && !blobPayload))
+        (typed && envelopeKind == 0x03 && !blobPayload) ||
+        (typed && envelopeKind == 0x04 && !authorizationListPayload))
         return "envelope has fewer fields than the type requires";
 
     // nonce (uint64). rlp::decode rejects over-wide payloads (UnexpectedLength); the plen
@@ -606,8 +653,8 @@ namespace engine = bcos::evm::engine;
     // (legacy, 0x7e deposits) still reject a non-empty mirror list.
     if (accessListPayload)
     {
-        if (auto err = bindEnvelopeAccessList(*accessListPayload, accessListIsList,
-                evmTx.access_list))
+        if (auto err =
+                bindEnvelopeAccessList(*accessListPayload, accessListIsList, evmTx.access_list))
             return err;
     }
     else if (!evmTx.access_list.empty())
@@ -617,8 +664,7 @@ namespace engine = bcos::evm::engine;
     // blobVersionedHashes: 0x03 always has the field; 0x02 only with the 4844 extension
     // (>= 14 items — below that idx 10 is the signature and must not be read). 0x01/0x04
     // have no blob fields at all.
-    bool const blobFieldsPresent =
-        envelopeKind == 0x03 || (envelopeKind == 0x02 && idx >= 14);
+    bool const blobFieldsPresent = envelopeKind == 0x03 || (envelopeKind == 0x02 && idx >= 14);
     if (blobFieldsPresent)
     {
         if (auto err = bindEnvelopeBlobHashes(*blobPayload, blobIsList, evmTx.blob_hashes))
@@ -627,6 +673,16 @@ namespace engine = bcos::evm::engine;
     else if (!evmTx.blob_hashes.empty())
     {
         return "blobVersionedHashes is not bound to the signed envelope";
+    }
+    if (envelopeKind == 0x04)
+    {
+        if (auto err = bindEnvelopeAuthorizationList(
+                *authorizationListPayload, authorizationListIsList, evmTx.authorization_list))
+            return err;
+    }
+    else if (!evmTx.authorization_list.empty())
+    {
+        return "authorizationList is not bound to the signed envelope";
     }
     return std::nullopt;
 }
@@ -758,17 +814,13 @@ namespace engine = bcos::evm::engine;
     return std::nullopt;
 }
 
-/// Block-path only: 7702 authorizationList[].signer is copied from the tars mirror and is
-/// not recovered from the signed envelope (part-5 ecrecover). A non-empty list would let
-/// processAuthorizationList apply unbound signers. A set_code (0x04) transaction is rejected
-/// regardless of the mirror list: an empty mirror list would otherwise let the block producer
-/// strip the delegations while the envelope (whose type byte is bound by
-/// envelopeExecutionFieldsMismatch before this gate runs on both block paths) still says 0x04.
-/// Used by both m_prepare and processOpBlock.
+/// Block-path only: non-set_code txs must not carry a forgeable mirror authorization list.
+/// 0x04 tuples are envelope-bound in envelopeExecutionFieldsMismatch; signer recovery stays in
+/// processAuthorizationList at execution time.
 [[nodiscard]] inline std::optional<std::string> blockPathUnboundAuthorizationList(
     evmone::state::Transaction const& evmTx)
 {
-    if (evmTx.type == evmone::state::Transaction::Type::set_code ||
+    if (evmTx.type != evmone::state::Transaction::Type::set_code &&
         !evmTx.authorization_list.empty())
         return "authorizationList is not bound to the signed envelope";
     return std::nullopt;

@@ -193,7 +193,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
         .finalizedCanonical = engine_common::forkchoiceHashIsCanonical(
             forkchoiceState.finalizedBlockHash, canonicalFinalizedHash),
     };
-    if (m_tracker.applyForkchoice(resolved) == ForkchoiceApplyResult::Swallowed)
+    const auto applyResult = m_tracker.applyForkchoice(resolved);
+    if (applyResult == ForkchoiceApplyResult::Swallowed)
     {
         co_return ForkchoiceUpdatedResult{
             .payloadStatus = makeStatus(

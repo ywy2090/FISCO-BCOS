@@ -81,8 +81,8 @@ ForkchoiceApplyResult EngineTracker::applyForkchoice(const ResolvedForkchoice& r
         // Zero-hash sentinel (finding N6): the Engine-API "not set" hash must never
         // become the tracked head — the canonical gates below would otherwise depend
         // on every resolver pre-guarding it. Mirrors the safe/finalized treatment.
-        BOOST_THROW_EXCEPTION(InvalidForkchoiceState{} << bcos::errinfo_comment{
-                                  "Forkchoice head block hash is not set"});
+        BOOST_THROW_EXCEPTION(InvalidForkchoiceState{}
+                              << bcos::errinfo_comment{"Forkchoice head block hash is not set"});
     }
     if (requiresCanonical(resolved.state.safeBlockHash, safeBlockNumber) && !resolved.safeCanonical)
     {
@@ -102,8 +102,11 @@ ForkchoiceApplyResult EngineTracker::applyForkchoice(const ResolvedForkchoice& r
         auto const& trackedHeadBlock = *m_trackedHead;
         if (headBlockNumber < trackedHeadBlock.blockNumber)
         {
-            // Match release EngineServiceImpl: any older head is swallowed (VALID without
-            // payloadId). Rebuild-on-parent is intentionally not supported on this branch.
+            if (resolved.payloadAttributesPresent)
+            {
+                return ForkchoiceApplyResult::RebuildOnParent;
+            }
+            // Heartbeat / stale-head FCU without attributes: VALID, no build.
             return ForkchoiceApplyResult::Swallowed;
         }
         else if (headBlockNumber == trackedHeadBlock.blockNumber)
@@ -136,8 +139,8 @@ ForkchoiceApplyResult EngineTracker::applyForkchoice(const ResolvedForkchoice& r
     {
         // First apply: same fail-closed rule — an unconfirmed head must not seed the
         // tracker, or every later +1/conflict check runs against a bogus tip.
-        BOOST_THROW_EXCEPTION(InvalidForkchoiceState{} << bcos::errinfo_comment{
-                                  "Forkchoice head block is not canonical"});
+        BOOST_THROW_EXCEPTION(InvalidForkchoiceState{}
+                              << bcos::errinfo_comment{"Forkchoice head block is not canonical"});
     }
 
     m_forkchoiceState = resolved.state;
