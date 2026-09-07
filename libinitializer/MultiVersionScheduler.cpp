@@ -1,10 +1,36 @@
 #include "MultiVersionScheduler.h"
 #include "Common.h"
-#include <algorithm>
+
+bcos::scheduler::SchedulerInterface& bcos::scheduler_v1::MultiVersionScheduler::checkedSchedulerAt(
+    int version) const
+{
+    if (version < 0)
+    {
+        BOOST_THROW_EXCEPTION(ExecutorVersionNotSupported()
+                              << errinfo_comment("executor version " + std::to_string(version) +
+                                                 " is not supported (must be >= 0)"));
+    }
+    if (static_cast<size_t>(version) >= m_schedulers.size())
+    {
+        BOOST_THROW_EXCEPTION(ExecutorVersionNotSupported()
+                              << errinfo_comment("executor version " + std::to_string(version) +
+                                                 " is not supported (max wired slot is " +
+                                                 std::to_string(m_schedulers.size() - 1) + ")"));
+    }
+    auto const& scheduler = m_schedulers.at(static_cast<size_t>(version));
+    if (!scheduler)
+    {
+        BOOST_THROW_EXCEPTION(ExecutorVersionNotSupported() << errinfo_comment(
+                                  "executor_version " + std::to_string(version) +
+                                  " requires a wired scheduler at slot " + std::to_string(version) +
+                                  " but none was assembled at node startup"));
+    }
+    return *scheduler;
+}
 
 bcos::scheduler::SchedulerInterface& bcos::scheduler_v1::MultiVersionScheduler::getScheduler()
 {
-    return *m_schedulers.at(m_currentIndex);
+    return checkedSchedulerAt(m_currentIndex);
 }
 
 bcos::scheduler_v1::MultiVersionScheduler::MultiVersionScheduler(
@@ -82,44 +108,13 @@ void bcos::scheduler_v1::MultiVersionScheduler::stop()
     scheduler.stop();
 }
 void bcos::scheduler_v1::MultiVersionScheduler::setVersion(
-    int version, ledger::LedgerConfig::Ptr ledgerConfig)
+    int version, [[maybe_unused]] ledger::LedgerConfig::Ptr ledgerConfig)
 {
-    if (version < 0)
-    {
-        // BCOS exception (not std::out_of_range) so it stays within the codebase's
-        // exception taxonomy and carries the same error-channel conventions.
-        BOOST_THROW_EXCEPTION(ExecutorVersionNotSupported()
-                              << errinfo_comment("executor version " + std::to_string(version) +
-                                                 " is not supported "
-                                                 "(must be >= 0)"));
-    }
-    // Saturate to the last wired slot (not necessarily the last array index — slot 3
-    // is a refuse stub on non-OP nodes). Versions above that still pick the newest
-    // live executor so the version space stays open-ended.
-    auto const cap = static_cast<size_t>(
-        std::min(m_highestWiredIndex, static_cast<int>(m_schedulers.size()) - 1));
-    if (static_cast<size_t>(version) > cap)
-    {
-        INITIALIZER_LOG(WARNING) << LOG_DESC(
-                                        "executor version above the newest wired executor; "
-                                        "saturating to the newest wired slot")
-                                 << LOG_KV("requested", version) << LOG_KV("selected", cap);
-    }
-    m_currentIndex = static_cast<int>(std::min<size_t>(static_cast<size_t>(version), cap));
-}
-
-void bcos::scheduler_v1::MultiVersionScheduler::setHighestWiredIndex(int index)
-{
-    if (index < 0 || static_cast<size_t>(index) >= m_schedulers.size())
-    {
-        BOOST_THROW_EXCEPTION(
-            ExecutorVersionNotSupported() << errinfo_comment(
-                "highest wired executor index " + std::to_string(index) + " is out of range"));
-    }
-    m_highestWiredIndex = index;
+    checkedSchedulerAt(version);
+    m_currentIndex = version;
 }
 bcos::scheduler::SchedulerInterface& bcos::scheduler_v1::MultiVersionScheduler::scheduler(
     int version)
 {
-    return *m_schedulers.at(version);
+    return checkedSchedulerAt(version);
 }

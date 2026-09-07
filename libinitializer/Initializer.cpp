@@ -99,66 +99,6 @@ using namespace bcos::protocol;
 using namespace bcos::initializer;
 namespace fs = boost::filesystem;
 
-namespace
-{
-/// A loud refuse stub for the never-selected non-OP slot 3 (MultiVersionScheduler::scheduler(int)
-/// is a public direct-index call; a null slot would crash instead of refusing).
-class OpRefusingStubScheduler : public bcos::scheduler::SchedulerInterface
-{
-public:
-    void executeBlock(bcos::protocol::Block::Ptr, bool,
-        std::function<void(bcos::Error::Ptr, bcos::protocol::BlockHeader::Ptr, bool)> cb) override
-    {
-        cb(BCOS_ERROR_PTR(bcos::scheduler::SchedulerError::UnknownError,
-               "OpRefusingStubScheduler: OP scheduler not assembled (executor_version<3)"),
-            nullptr, false);
-    }
-    void commitBlock(bcos::protocol::BlockHeader::Ptr,
-        std::function<void(bcos::Error::Ptr, bcos::ledger::LedgerConfig::Ptr)> cb) override
-    {
-        cb(BCOS_ERROR_PTR(bcos::scheduler::SchedulerError::UnknownError,
-               "OpRefusingStubScheduler: OP scheduler not assembled (executor_version<3)"),
-            nullptr);
-    }
-    void call(bcos::protocol::Transaction::Ptr,
-        std::function<void(bcos::Error::Ptr, bcos::protocol::TransactionReceipt::Ptr)> cb) override
-    {
-        cb(BCOS_ERROR_PTR(bcos::scheduler::SchedulerError::UnknownError,
-               "OpRefusingStubScheduler: OP scheduler not assembled (executor_version<3)"),
-            nullptr);
-    }
-    void preExecuteBlock(
-        bcos::protocol::Block::Ptr, bool, std::function<void(bcos::Error::Ptr)> cb) override
-    {
-        cb(BCOS_ERROR_PTR(bcos::scheduler::SchedulerError::UnknownError,
-            "OpRefusingStubScheduler: OP scheduler not assembled (executor_version<3)"));
-    }
-    void getCode(std::string_view, std::function<void(bcos::Error::Ptr, bcos::bytes)> cb) override
-    {
-        cb(BCOS_ERROR_PTR(bcos::scheduler::SchedulerError::UnknownError,
-               "OpRefusingStubScheduler: OP scheduler not assembled (executor_version<3)"),
-            {});
-    }
-    void getABI(std::string_view, std::function<void(bcos::Error::Ptr, std::string)> cb) override
-    {
-        cb(BCOS_ERROR_PTR(bcos::scheduler::SchedulerError::UnknownError,
-               "OpRefusingStubScheduler: OP scheduler not assembled (executor_version<3)"),
-            {});
-    }
-    task::Task<std::optional<bcos::storage::Entry>> getPendingStorageAt(
-        std::string_view, std::string_view, bcos::protocol::BlockNumber) override
-    {
-        co_return std::nullopt;
-    }
-    void status(
-        std::function<void(bcos::Error::Ptr, bcos::protocol::Session::ConstPtr)> cb) override
-    {
-        cb({}, {});
-    }
-    void reset(std::function<void(bcos::Error::Ptr)> cb) override { cb({}); }
-};
-}  // namespace
-
 void Initializer::initAirNode(std::string const& _configFilePath, std::string const& _genesisFile,
     bcos::gateway::GatewayInterface::Ptr _gateway, const std::string& _logPath)
 {
@@ -415,17 +355,16 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
         std::move(ethereumBlockHashLookup));
 
     // Resolve the effective executor version BEFORE gating Engine API / wiring the
-    // schedulers. The on-chain value overrides the genesis-file value and can move to >= 2
-    // at runtime (executor_version is runtime-settable via SystemConfigPrecompiled, and
-    // MultiVersionScheduler::setVersion saturates versions above m_highestWiredIndex
-    // onto that newest wired slot — not unconditionally onto v2; non-OP nodes keep
-    // slot 3 as a refuse stub), so the gate below must read the ledger rather than the node
-    // config — a node whose genesis said v1 but whose ledger says v2 would otherwise build
-    // the Engine API on the v1 executor, the state-root divergence the gate exists to
-    // prevent. The residual risk of a runtime switch to v2 without genesis config is handled
-    // by the boot refusal below (no on-chain evmc_revision row), not by a per-block
-    // validator. Genesis is already built (LedgerInitializer), so m_ledger is readable at
-    // this point.
+    // schedulers. The on-chain value overrides the genesis-file value and can move at
+    // runtime (executor_version is runtime-settable via SystemConfigPrecompiled, and
+    // MultiVersionScheduler::setVersion selects the literal slot — an unwired slot fails
+    // closed at boot and on every runtime switch), so the gate below must read the ledger
+    // rather than the node config — a node whose genesis said v1 but whose ledger says v2
+    // would otherwise build the Engine API on the v1 executor, the state-root divergence
+    // the gate exists to prevent. The residual risk of a runtime switch to v2 without
+    // genesis config is handled by the boot refusal below (no on-chain evmc_revision row),
+    // not by a per-block validator. Genesis is already built (LedgerInitializer), so m_ledger
+    // is readable at this point.
     auto executorVersion = m_nodeConfig->executorVersion();
     if (auto versionConfig = task::syncWait(ledger::getSystemConfig(
             *m_ledger, magic_enum::enum_name(ledger::SystemConfig::executor_version))))
@@ -649,16 +588,12 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
             {std::make_shared<bcos::scheduler::SchedulerManager>(
                  schedulerSeq, factory, executorManager, m_ioServicePool),
                 m_baselineSchedulerHolder(), m_ethereumSchedulerHolder(),
-                // Slot 3 = OP scheduler (executor_version>=3). Non-OP mode: refuse stub so
-                // scheduler(3) fails loudly instead of null-dereferencing.
-                m_opScheduler ? m_opScheduler : std::make_shared<OpRefusingStubScheduler>()}));
-    // Saturate setVersion to the last wired slot. Without this, a non-OP node whose
-    // ledger version is >2 would land on the refuse stub at index 3.
-    multiVersionScheduler->setHighestWiredIndex(m_opScheduler ?
-                                                    scheduler_v1::OPSTACK_EXECUTOR_VERSION :
-                                                    scheduler_v1::ETHEREUM_EXECUTOR_VERSION);
+                // Slot 3 = OP scheduler (executor_version==3). nullptr on non-OP nodes;
+                // setVersion(3) fails closed at boot / runtime if unwired.
+                m_opScheduler}));
 
     // m_executorVersion was resolved earlier (before the Engine API gate); apply it now.
+    // Literal-slot selection: executor_version N requires slot N to be wired.
     INITIALIZER_LOG(INFO) << "Set executor version to: " << m_executorVersion;
     multiVersionScheduler->setVersion(m_executorVersion, {});
     m_scheduler = std::move(multiVersionScheduler);

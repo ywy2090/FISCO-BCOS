@@ -7,7 +7,7 @@
 namespace bcos::scheduler_v1
 {
 
-/// Thrown when setVersion() is asked to select a negative executor version.
+/// Thrown when setVersion() selects an unsupported executor version or an unwired slot.
 DERIVE_BCOS_EXCEPTION(ExecutorVersionNotSupported);
 
 /// The executor version that selects the pure-Ethereum EthereumExecutor
@@ -32,11 +32,9 @@ private:
 
     std::array<scheduler::SchedulerInterface::Ptr, SUPPORTED_EXECUTOR_VERSION_COUNT> m_schedulers;
     int m_currentIndex;
-    /// Last slot that is a real scheduler. Non-OP Initializer wires a refuse stub at
-    /// index 3; setVersion must not saturate onto that stub.
-    int m_highestWiredIndex = static_cast<int>(SUPPORTED_EXECUTOR_VERSION_COUNT) - 1;
 
     bcos::scheduler::SchedulerInterface& getScheduler();
+    bcos::scheduler::SchedulerInterface& checkedSchedulerAt(int version) const;
 
 public:
     bcos::scheduler::SchedulerInterface& scheduler(int version);
@@ -80,9 +78,5 @@ public:
     void stop() override;
 
     void setVersion(int version, ledger::LedgerConfig::Ptr ledgerConfig) override;
-
-    /// Cap setVersion saturation. Call before setVersion when the top array slot is a
-    /// refuse stub rather than a live executor.
-    void setHighestWiredIndex(int index);
 };
 }  // namespace bcos::scheduler_v1
