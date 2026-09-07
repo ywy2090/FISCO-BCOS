@@ -543,8 +543,8 @@ void PBFTInitializer::syncGroupNodeInfo()
         if (_error != nullptr)
         {
             INITIALIZER_LOG(WARNING)
-                << LOG_DESC("getGroupNodeInfo failed") << LOG_KV("code", _error->errorCode())
-                << LOG_KV("msg", _error->errorMessage());
+                << LOG_DESC("getGroupNodeInfo failed")
+                << LOG_KV("code", _error->errorCode()) << LOG_KV("msg", _error->errorMessage());
             co_return;
         }
         try

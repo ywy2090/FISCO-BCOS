@@ -336,7 +336,7 @@ void PBFTCache::resetExceptionCache(ViewType _curView)
         return;
     }
     for (auto exceptionPrePrepare = m_exceptionPrePrepareList.begin();
-         exceptionPrePrepare != m_exceptionPrePrepareList.end();)
+        exceptionPrePrepare != m_exceptionPrePrepareList.end();)
     {
         PBFT_LOG(INFO) << LOG_DESC("resetCache: asyncResetTxsFlag exceptionPrePrepare")
                        << LOG_KV("prePrepare", m_prePrepare ? "true" : "false")
