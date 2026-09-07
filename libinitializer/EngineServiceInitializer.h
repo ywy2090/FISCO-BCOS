@@ -115,9 +115,12 @@ private:
             m_scheduler(std::move(scheduler)),
             m_any(std::in_place_type<ConcreteEngineService>, m_memPool,
                 m_storageInitializer->storage(), *m_scheduler, std::move(blockFactory),
-                std::move(ledger), blockTxCountLimit, maxEngineVersion, std::move(delegate),
-                std::move(daCaps), allowSynthesizedL1Attributes)
-        {}
+                blockTxCountLimit, std::move(delegate), std::move(daCaps),
+                allowSynthesizedL1Attributes)
+        {
+            (void)ledger;
+            (void)maxEngineVersion;
+        }
 
         std::shared_ptr<GlobalStateStorageInitializer> m_storageInitializer;
         std::reference_wrapper<bcos::txpool::MemPoolImpl> m_memPool;
