@@ -8,6 +8,7 @@
 #include "bcos-task/Task.h"
 #include <bcos-crypto/interfaces/crypto/CommonType.h>
 #include <bcos-utilities/Common.h>
+#include <bcos-utilities/DataConvertUtility.h>
 
 #include <array>
 #include <optional>
@@ -25,12 +26,6 @@ struct OpForkScheduleMetadata
     std::string schedule;
     crypto::HashType scheduleHash;
     crypto::HashType genesisHash;
-};
-
-struct OpForkScheduleRuntime
-{
-    std::string canonical;
-    bool legacyMemoryOnly = false;
 };
 
 struct OpForkScheduleMetadataRows
@@ -57,12 +52,25 @@ struct OpForkScheduleMetadataRows
     return any && !all;
 }
 
+[[nodiscard]] inline crypto::HashType parseOpForkScheduleHexHash(std::string_view hex)
+{
+    try
+    {
+        return crypto::HashType{std::string(hex)};
+    }
+    catch (bcos::BadHexCharacter const&)
+    {
+        throw InvalidOpForkSchedule("op fork schedule hash hex is invalid");
+    }
+}
+
 [[nodiscard]] inline OpForkScheduleMetadata buildOpForkScheduleMetadata(
     std::string canonical, crypto::HashType genesisHash)
 {
-    const auto scheduleHash = keccakOpForkScheduleHash(canonical);
+    auto normalized = canonicalOpForkSchedule(parseOpForkSchedule(canonical));
+    const auto scheduleHash = keccakOpForkScheduleHash(normalized);
     return OpForkScheduleMetadata{
-        .schedule = std::move(canonical),
+        .schedule = std::move(normalized),
         .scheduleHash = scheduleHash,
         .genesisHash = std::move(genesisHash),
     };
@@ -81,25 +89,31 @@ struct OpForkScheduleMetadataRows
     }
 
     auto metadata =
-        buildOpForkScheduleMetadata(*rows.schedule, crypto::HashType{*rows.genesisHash});
+        buildOpForkScheduleMetadata(*rows.schedule, parseOpForkScheduleHexHash(*rows.genesisHash));
     if (metadata.genesisHash != expectedGenesisHash)
     {
         throw InvalidOpForkSchedule("op fork schedule genesis binding mismatch");
     }
-    if (metadata.scheduleHash != crypto::HashType{*rows.scheduleHash})
+    if (metadata.scheduleHash != parseOpForkScheduleHexHash(*rows.scheduleHash))
     {
         throw InvalidOpForkSchedule("op fork schedule hash mismatch");
     }
     return metadata;
 }
 
-// Fail-closed. Never fall back to feature flags when stored metadata exists but hash mismatches.
+// Fail-closed. Never fall back to feature flags when stored metadata exists but
+// hash or genesis binding mismatches. Boot must pass the hash from
+// readOpForkScheduleMetadata (or the live genesis header); do not skip that check.
 [[nodiscard]] inline std::string resolveOpForkScheduleCanonical(
     std::optional<OpForkScheduleMetadata> stored, std::optional<std::string> genesisCanonical,
-    bool featureOpJovian)
+    bool featureOpJovian, crypto::HashType const& expectedGenesisHash)
 {
     if (stored.has_value())
     {
+        if (stored->genesisHash != expectedGenesisHash)
+        {
+            throw InvalidOpForkSchedule("op fork schedule genesis binding mismatch");
+        }
         if (keccakOpForkScheduleHash(stored->schedule) != stored->scheduleHash)
         {
             throw InvalidOpForkSchedule("op fork schedule hash mismatch");
