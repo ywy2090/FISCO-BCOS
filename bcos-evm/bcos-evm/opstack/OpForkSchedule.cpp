@@ -222,4 +222,23 @@ const OpForkConfig& OpForkSchedule::configAt(uint64_t timestampSeconds) const
 {
     return configForFork(forkAt(timestampSeconds));
 }
+
+uint64_t OpForkSchedule::baselineTimestamp() const
+{
+    if (m_activations.empty())
+        throw ledger::InvalidOpForkSchedule("empty schedule");
+    return m_activations.front().timestamp;
+}
+
+std::vector<OpForkActivation> OpForkSchedule::jovianAndLaterActivations() const
+{
+    std::vector<OpForkActivation> out;
+    out.reserve(m_activations.size());
+    for (auto const& activation : m_activations)
+    {
+        if (static_cast<int>(activation.fork) >= static_cast<int>(OpFork::Jovian))
+            out.push_back(activation);
+    }
+    return out;
+}
 }  // namespace bcos::evm::opstack

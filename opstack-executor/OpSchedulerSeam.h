@@ -5,6 +5,7 @@
 // Engine-facing OP seam. executeBlock exists only for the scheduler concept check.
 
 #include <bcos-evm/opstack/OpForkSchedule.h>
+#include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/engine/Types.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
 #include <bcos-framework/protocol/BlockHeader.h>
@@ -17,11 +18,13 @@
 #include <opstack-executor/OpCommon.h>
 #include <opstack-executor/OpDepositEncode.h>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <range/v3/range/concepts.hpp>
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace bcos::evm::engine
@@ -32,10 +35,15 @@ template <class Storage>
 class OpSchedulerSeam
 {
 public:
-    explicit OpSchedulerSeam(
-        bcos::evm::opstack::OpForkFlags forkFlags, bcos::evm::opstack::L1BlockInfo l1BlockInfo)
-      : m_forkFlags(forkFlags), m_l1BlockInfo(std::move(l1BlockInfo))
-    {}
+    explicit OpSchedulerSeam(std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> schedule,
+        bcos::evm::opstack::L1BlockInfo l1BlockInfo)
+      : m_schedule(std::move(schedule)), m_l1BlockInfo(std::move(l1BlockInfo))
+    {
+        if (!m_schedule)
+        {
+            throw std::invalid_argument("OpSchedulerSeam: null fork schedule");
+        }
+    }
 
     using BlockEnv = bcos::protocol::BlockHeader;
     using ExecuteResult = OpExecuteBlockResult;
@@ -69,8 +77,69 @@ public:
         return computeOpTxRoot(rawTxBytes);
     }
 
-    /// Jovian is active (blobGasUsed is DA footprint; Isthmus keeps it 0).
-    [[nodiscard]] bool isJovianActive() const noexcept { return m_forkFlags.jovianActive; }
+    /// Deprecated (K4): baseline-only Jovian predicate. Prefer `configAt(ts).has_da_footprint`.
+    [[nodiscard]] bool isJovianActive() const noexcept
+    {
+        return m_schedule->configAt(0).has_da_footprint;
+    }
+
+    [[nodiscard]] bcos::engine::OpForkId forkIdAt(uint64_t timestampSeconds) const
+    {
+        switch (m_schedule->forkAt(timestampSeconds))
+        {
+        case bcos::evm::opstack::OpFork::Isthmus:
+            return bcos::engine::OpForkId::Isthmus;
+        case bcos::evm::opstack::OpFork::Jovian:
+            return bcos::engine::OpForkId::Jovian;
+        case bcos::evm::opstack::OpFork::Karst:
+            return bcos::engine::OpForkId::Karst;
+        default:
+            throw std::logic_error("OpSchedulerSeam: unsupported schedule fork");
+        }
+    }
+
+    [[nodiscard]] bcos::engine::EngineApiProfile engineApiFor(uint64_t timestampSeconds) const
+    {
+        // Engine triple: FCU stays V3, newPayload stays V4, only getPayload bumps V4→V5 at Karst.
+        if (forkIdAt(timestampSeconds) == bcos::engine::OpForkId::Karst)
+        {
+            return bcos::engine::EngineApiProfile{
+                .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
+                .getPayload = bcos::engine::ApiVersion::V5,
+                .newPayload = bcos::engine::ApiVersion::V4,
+            };
+        }
+        return bcos::engine::EngineApiProfile{
+            .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
+            .getPayload = bcos::engine::ApiVersion::V4,
+            .newPayload = bcos::engine::ApiVersion::V4,
+        };
+    }
+
+    [[nodiscard]] const bcos::evm::opstack::OpForkConfig& configAt(uint64_t timestampSeconds) const
+    {
+        return m_schedule->configAt(timestampSeconds);
+    }
+
+    [[nodiscard]] bcos::engine::EngineForkResolution resolveEngineForkAt(
+        uint64_t timestampSeconds) const
+    {
+        if (timestampSeconds < m_schedule->baselineTimestamp())
+        {
+            return bcos::engine::OpForkResolutionError::UnsupportedTimestamp;
+        }
+        const auto forkId = forkIdAt(timestampSeconds);
+        const auto& cfg = m_schedule->configAt(timestampSeconds);
+        if (forkId == bcos::engine::OpForkId::Karst && cfg.rev != EVMC_OSAKA)
+        {
+            return bcos::engine::OpForkResolutionError::InconsistentExecutionConfig;
+        }
+        return bcos::engine::EngineForkContext{
+            .forkId = forkId,
+            .api = engineApiFor(timestampSeconds),
+            .hasDaFootprint = cfg.has_da_footprint,
+        };
+    }
 
     /// Synthesize the L1-attributes deposit envelope from the configured L1 info.
     /// Refuses the unset snapshot sentinel (number/time/hash all zero) and an unset
@@ -90,8 +159,7 @@ public:
                 "OpSchedulerSeam: refuse to synthesize L1-attributes with an unset "
                 "SystemConfig (baseFeeScalar and batcherHash must be non-zero)");
         }
-        return bcos::evm::opstack::synthesizeL1AttributesDeposit(
-            m_l1BlockInfo, m_forkFlags.jovianActive);
+        return bcos::evm::opstack::synthesizeL1AttributesDeposit(m_l1BlockInfo, isJovianActive());
     }
 
     OpSchedulerSeam(const OpSchedulerSeam&) = delete;
@@ -112,7 +180,7 @@ public:
     }
 
 private:
-    bcos::evm::opstack::OpForkFlags m_forkFlags;
+    std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> m_schedule;
     bcos::evm::opstack::L1BlockInfo m_l1BlockInfo;
 };
 

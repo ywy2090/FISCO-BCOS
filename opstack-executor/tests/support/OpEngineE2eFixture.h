@@ -148,6 +148,12 @@ inline bcos::evm::opstack::OpForkFlags forkFlagsFor(bool jovian)
     return bcos::evm::opstack::OpForkFlags{.jovianActive = jovian};
 }
 
+inline std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> scheduleFor(bool jovian)
+{
+    return std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::legacy(jovian));
+}
+
 inline void seedSysTables(MLS& multiLayerStorage)
 {
     auto view = multiLayerStorage.fork();
@@ -329,13 +335,14 @@ struct OpE2eFixture
     explicit OpE2eFixture(bcos::evm::opstack::OpForkFlags forkFlags)
       : hashImpl(makeCryptoSuite()->hashImpl()),
         receiptFactory(makeReceiptFactory()),
-        scheduler(forkFlags, {}),
+        scheduler(scheduleFor(forkFlags.jovianActive), {}),
         legacyLedgerStorage(
             std::make_shared<bcos::storage::LegacyStorageWrapper<BackendMemStorage>>(
                 backendStorage)),
         ledger(std::make_shared<bcos::ledger::Ledger>(blockFactory, legacyLedgerStorage, 1000)),
         opDelegate(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
-            hashImpl, kChainId, forkFlags, blockFactory, multiLayerStorage, ledger, ioServicePool)),
+            hashImpl, kChainId, scheduleFor(forkFlags.jovianActive), blockFactory,
+            multiLayerStorage, ledger, ioServicePool)),
         service(memPool, multiLayerStorage, scheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, opDelegate, nullptr,
             /*allowSynthesizedL1Attributes=*/true)

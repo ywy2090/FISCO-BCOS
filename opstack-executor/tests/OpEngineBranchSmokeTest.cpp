@@ -10,6 +10,7 @@
 #include <bcos-rpc/web3jsonrpc/utils/EngineHelper.h>
 #include <bcos-task/Wait.h>
 #include <boost/test/unit_test.hpp>
+#include <memory>
 
 using namespace opstack_e2e;
 
@@ -21,7 +22,9 @@ BOOST_AUTO_TEST_CASE(OpModeInstantiatesAndGatesV4)
     CheckpointBackend checkpointBackend{backendStorage};
     MLS storage{checkpointBackend};
 
-    EngineOpScheduler scheduler(bcos::evm::opstack::OpForkFlags{}, {});
+    EngineOpScheduler scheduler(std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                                    bcos::evm::opstack::OpForkSchedule::legacy(false)),
+        {});
     StubMemPool memPool;
     static auto blockFactory =
         bcos::test::createBlockFactory(bcos::test::createNormalCryptoSuite());

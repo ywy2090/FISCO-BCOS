@@ -154,7 +154,9 @@ add_executable(opstack-executor-block-tests
     OpDualPathEquivalenceTest.cpp
     OpGoldenCorpusProvenanceTest.cpp
     OpDaMatrixSchemaTest.cpp
+    OpKarstActivationTest.cpp
     support/GoldenSampleTest.cpp
+    support/KarstNutHelpers.cpp
 )
 set_target_properties(opstack-executor-block-tests PROPERTIES UNITY_BUILD OFF)
 target_link_libraries(opstack-executor-block-tests PRIVATE

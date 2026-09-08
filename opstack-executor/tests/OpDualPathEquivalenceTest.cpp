@@ -508,7 +508,9 @@ void runBlockEquivalence(const std::string& id, Fixture& fixture,
         }
 
         auto opScheduler = std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(
-            fixture.receiptFactory, fixture.hashImpl, kChainId, forkFlagsFor(jovian),
+            fixture.receiptFactory, fixture.hashImpl, kChainId,
+            std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                bcos::evm::opstack::OpForkSchedule::legacy(jovian)),
             fixture.blockFactory, fixture.multiLayerStorage, /*ledger=*/nullptr,
             fixture.ioServicePool);
 

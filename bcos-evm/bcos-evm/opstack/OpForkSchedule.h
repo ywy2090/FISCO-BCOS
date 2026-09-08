@@ -112,7 +112,11 @@ public:
     };
     OpForkSchedule(std::vector<OpForkActivation> activations, TestBypass);
     [[nodiscard]] OpFork forkAt(uint64_t timestampSeconds) const;
+    /// Unix-second baseline of the first activation record.
+    [[nodiscard]] uint64_t baselineTimestamp() const;
     [[nodiscard]] const OpForkConfig& configAt(uint64_t timestampSeconds) const;
+    /// Activations at Jovian or later (Q5 deposits-only window).
+    [[nodiscard]] std::vector<OpForkActivation> jovianAndLaterActivations() const;
 
 private:
     std::vector<OpForkActivation> m_activations;

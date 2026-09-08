@@ -23,6 +23,7 @@
 #include <bcos-framework/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/dispatcher/SchedulerTypeDef.h>
 #include <bcos-framework/engine/Errors.h>
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/executor/PrecompiledTypeDef.h>
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/ledger/Features.h>
@@ -389,18 +390,22 @@ public:
     /// ledger may be null (execute only). ioServicePool is required (SchedulerSerialImpl GC).
     OpScheduler(bcos::protocol::TransactionReceiptFactory::Ptr receiptFactory,
         bcos::crypto::Hash::Ptr hashImpl, uint64_t chainId,
-        bcos::evm::opstack::OpForkFlags forkFlags, bcos::protocol::BlockFactory::Ptr blockFactory,
-        MultiLayerStorage& multiLayerStorage, bcos::ledger::LedgerInterface::Ptr ledger,
-        bcos::IOServicePool::Ptr ioServicePool)
+        std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> schedule,
+        bcos::protocol::BlockFactory::Ptr blockFactory, MultiLayerStorage& multiLayerStorage,
+        bcos::ledger::LedgerInterface::Ptr ledger, bcos::IOServicePool::Ptr ioServicePool)
       : m_receiptFactory(std::move(receiptFactory)),
         m_hashImpl(std::move(hashImpl)),
         m_chainId(chainId),
-        m_forkFlags(forkFlags),
+        m_schedule(std::move(schedule)),
         m_multiLayerStorage(&multiLayerStorage),
         m_blockFactory(std::move(blockFactory)),
         m_ledger(std::move(ledger)),
         m_ioServicePool(std::move(ioServicePool))
     {
+        if (!m_schedule)
+        {
+            throw std::invalid_argument("OpScheduler: null fork schedule");
+        }
         // execute() tolerates a null ledger; commit does not (see coCommitBlock).
         // Default no-op notifiers. An empty std::function would throw inside the async task.
         m_blockNumberNotifier = [](bcos::protocol::BlockNumber) {};
@@ -959,7 +964,9 @@ private:
         };
         try
         {
-            const auto& cfg = op::configAt(m_forkFlags);
+            auto const tsSec = bcos::engine::unixSecondsFromInternalMillis(
+                static_cast<uint64_t>(header.timestamp()));
+            const auto& cfg = m_schedule->configAt(tsSec);
 
             // Split deposits from other typed envelopes.
             std::vector<op::DepositTx> deposits;
@@ -1008,8 +1015,30 @@ private:
             std::optional<std::string> hashErr;
             std::optional<uint16_t> daFootprintGasScalar;
             std::optional<detail::RecentBlockHashes<ViewType>> hashes;
+            uint64_t parentTsSec = tsSec;
+            if (header.number() > 0)
+            {
+                try
+                {
+                    auto parentBlock = co_await ledger::getBlockData(
+                        view, header.number() - 1, ledger::HEADER, *m_blockFactory);
+                    if (parentBlock && parentBlock->blockHeader())
+                    {
+                        parentTsSec = bcos::engine::unixSecondsFromInternalMillis(
+                            static_cast<uint64_t>(parentBlock->blockHeader()->timestamp()));
+                    }
+                }
+                catch (...)
+                {
+                    parentTsSec = tsSec;
+                }
+            }
+            else
+            {
+                parentTsSec = 0;
+            }
             bcos::evm::engine::preBlockOpSteps(view, header, cfg, rawTxBytes, deposits, executor,
-                hashes, hashErr, daFootprintGasScalar);
+                hashes, hashErr, daFootprintGasScalar, m_schedule.get(), parentTsSec);
 
             // Fee params load on the first normal tx. blockGasLeft is narrowed from gasLimit.
             OpBlockExecutionContext ctx{.fee = {},
@@ -1422,7 +1451,8 @@ private:
         namespace op = bcos::evm::opstack;
         namespace detail = bcos::evm::engine::detail;
 
-        const auto& cfg = op::configAt(m_forkFlags);
+        const auto& cfg = m_schedule->configAt(
+            bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp())));
         bcos::evm::evmstate::Storage2State<AnyView> stateView(view);
         auto fee = op::loadOpFeeParams(stateView);
         // Fail if Storage2State poisoned the fee-param read.
@@ -1487,7 +1517,8 @@ private:
         auto blockHeader = block->blockHeader();
         auto const& header = *blockHeader;
 
-        const auto& cfg = op::configAt(m_forkFlags);
+        const auto& cfg = m_schedule->configAt(
+            bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp())));
 
         auto ledgerConfig = std::make_shared<bcos::ledger::LedgerConfig>();
         ledgerConfig->setBlockNumber(blockNumber);
@@ -1565,7 +1596,8 @@ private:
                 protocol::TransactionReceipt::Ptr{nullptr}};
         }
 
-        const auto& cfg = op::configAt(m_forkFlags);
+        const auto& cfg = m_schedule->configAt(
+            bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp())));
 
         auto ledgerConfig = std::make_shared<bcos::ledger::LedgerConfig>();
         ledgerConfig->setBlockNumber(blockNumber);
@@ -1586,7 +1618,7 @@ private:
     bcos::protocol::TransactionReceiptFactory::Ptr m_receiptFactory;
     bcos::crypto::Hash::Ptr m_hashImpl;
     uint64_t m_chainId;
-    bcos::evm::opstack::OpForkFlags m_forkFlags;
+    std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> m_schedule;
 
     MultiLayerStorage* m_multiLayerStorage = nullptr;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;

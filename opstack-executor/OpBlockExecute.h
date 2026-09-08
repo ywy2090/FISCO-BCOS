@@ -8,6 +8,7 @@
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-evm/opstack/OpTransition.h>
 #include <bcos-framework/engine/Constants.h>
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/engine/Types.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
 #include <bcos-framework/protocol/BlockFactory.h>
@@ -85,6 +86,19 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
 // ---- Jovian L1-attributes block shape ----
 // Lengths/selectors live in OpTransition.h (already included). Duplicating them here
 // redefines IsthmusL1AttributesLen / JovianL1AttributesLen / JovianL1AttributesSelector.
+
+/// Q5: any Jovian-or-later activation that is live at `blockTsSec` but not at `parentTsSec`.
+/// Timestamps are Unix seconds (convert header millis with `unixSecondsFromInternalMillis`).
+inline bool isNoUserTxActivationBlock(
+    OpForkSchedule const& schedule, uint64_t parentTsSec, uint64_t blockTsSec)
+{
+    for (auto const& act : schedule.jovianAndLaterActivations())
+    {
+        if (blockTsSec >= act.timestamp && parentTsSec < act.timestamp)
+            return true;
+    }
+    return false;
+}
 
 /// Shared Jovian L1-attributes shape (selector/length + activation deposits-only).
 /// `lastTxIsDeposit` is the path-specific last-tx probe: processOpBlock uses the DepositTx
@@ -283,7 +297,8 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
     std::vector<bcos::evm::opstack::DepositTx> const& deposits,
     bcos::executor_v1::opstack::OpstackExecutor& executor,
     std::optional<detail::RecentBlockHashes<Storage>>& hashes, std::optional<std::string>& hashErr,
-    std::optional<uint16_t>& daFootprintGasScalar)
+    std::optional<uint16_t>& daFootprintGasScalar,
+    bcos::evm::opstack::OpForkSchedule const* schedule = nullptr, uint64_t parentTsSec = 0)
 {
     namespace op = bcos::evm::opstack;
 
@@ -329,6 +344,18 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
         BCOS_LOG(WARNING) << LOG_BADGE("OP_BLOCK_EXEC")
                           << "op block: first tx is a deposit but not the L1 attributes tx — "
                              "accepted";
+    // Q5: Jovian+ activation blocks are deposits-only (timestamp schedule, not 176-byte attrs).
+    if (schedule != nullptr)
+    {
+        auto const blockTsSec =
+            bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp()));
+        if (op::isNoUserTxActivationBlock(*schedule, parentTsSec, blockTsSec) &&
+            (rawTxBytes.back().empty() || rawTxBytes.back()[0] != kDepositTypeByte))
+        {
+            throw OpConsensusError(
+                "op block: unexpected non-deposit transactions in fork activation block");
+        }
+    }
     if (cfg.has_da_footprint)
     {
         auto const& data = deposits[0].data;

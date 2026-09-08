@@ -335,7 +335,10 @@ struct Fixture
                 backendStorage)),
         ledger(std::make_shared<bcos::ledger::Ledger>(blockFactory, legacyLedgerStorage, 1000)),
         scheduler(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
-            hashImpl, kChainId, forkFlags, blockFactory, multiLayerStorage, ledger, ioServicePool))
+            hashImpl, kChainId,
+            std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                bcos::evm::opstack::OpForkSchedule::legacy(forkFlags.jovianActive)),
+            blockFactory, multiLayerStorage, ledger, ioServicePool))
     {
         seedSender(multiLayerStorage, kSender, hashImpl);
         seedSysTables(multiLayerStorage);
@@ -1139,9 +1142,11 @@ BOOST_AUTO_TEST_CASE(PendingSlotStateMachine)
 BOOST_AUTO_TEST_CASE(CommitWithoutLedgerReturnsInvalidStatus)
 {
     Fixture f;
-    auto execOnly =
-        std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(f.receiptFactory, f.hashImpl,
-            kChainId, f.forkFlags, f.blockFactory, f.multiLayerStorage, nullptr, f.ioServicePool);
+    auto execOnly = std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(f.receiptFactory,
+        f.hashImpl, kChainId,
+        std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+            bcos::evm::opstack::OpForkSchedule::legacy(f.forkFlags.jovianActive)),
+        f.blockFactory, f.multiLayerStorage, nullptr, f.ioServicePool);
     auto saved = f.scheduler;
     f.scheduler = execOnly;
 
@@ -2597,8 +2602,8 @@ BOOST_AUTO_TEST_CASE(CommitAfterResetReportsUnknownErrorNotConsensusRejected)
         });
     BOOST_REQUIRE(called);
     BOOST_REQUIRE(commitErr != nullptr);
-    BOOST_CHECK_EQUAL(commitErr->errorCode(),
-        static_cast<int>(bcos::scheduler::SchedulerError::UnknownError));
+    BOOST_CHECK_EQUAL(
+        commitErr->errorCode(), static_cast<int>(bcos::scheduler::SchedulerError::UnknownError));
     BOOST_CHECK_NE(commitErr->errorCode(),
         static_cast<int>(bcos::scheduler::SchedulerError::OpConsensusRejected));
     BOOST_CHECK(commitErr->errorMessage().find("Unexpected empty results") != std::string::npos);

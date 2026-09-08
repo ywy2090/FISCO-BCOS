@@ -45,11 +45,11 @@
 #include <bcos-tars-protocol/protocol/TransactionReceiptFactoryImpl.h>
 #include <bcos-task/Wait.h>
 #include <bcos-utilities/IOServicePool.h>
-#include <engine/bcos-engine/OpEngineService.inl>
 #include <opstack-executor/OpScheduler.h>
 #include <opstack-executor/OpSchedulerSeam.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/test/unit_test.hpp>
+#include <engine/bcos-engine/OpEngineService.inl>
 
 #include <algorithm>
 #include <filesystem>
@@ -262,13 +262,18 @@ struct OpE2eFixture
     explicit OpE2eFixture(bcos::evm::opstack::OpForkFlags forkFlags)
       : hashImpl(makeCryptoSuite()->hashImpl()),
         receiptFactory(makeReceiptFactory()),
-        scheduler(forkFlags, {}),
+        scheduler(std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                      bcos::evm::opstack::OpForkSchedule::legacy(forkFlags.jovianActive)),
+            {}),
         legacyLedgerStorage(
             std::make_shared<bcos::storage::LegacyStorageWrapper<BackendMemStorage>>(
                 backendStorage)),
         ledger(std::make_shared<bcos::ledger::Ledger>(blockFactory, legacyLedgerStorage, 1000)),
         opDelegate(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
-            hashImpl, kChainId, forkFlags, blockFactory, multiLayerStorage, ledger, ioServicePool)),
+            hashImpl, kChainId,
+            std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                bcos::evm::opstack::OpForkSchedule::legacy(forkFlags.jovianActive)),
+            blockFactory, multiLayerStorage, ledger, ioServicePool)),
         service(memPool, multiLayerStorage, scheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, opDelegate)
     {
@@ -322,8 +327,8 @@ void runGoldenVector(std::string const& id)
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     const auto goldenHeader = w6test::decodeGoldenHeader(sample);
     registerVerifiedBlock(fixture->multiLayerStorage, goldenHeader->parentInfo().blockHash, 0);
-    registerGoldenParentHeader(fixture->multiLayerStorage, fixture->blockFactory,
-        sample.vector["env"], sample.jovian);
+    registerGoldenParentHeader(
+        fixture->multiLayerStorage, fixture->blockFactory, sample.vector["env"], sample.jovian);
 
     auto params = w6test::makeParamsJson(sample);
     auto request = bcos::rpc::parseNewPayloadRequest(params, bcos::engine::ApiVersion::V4);
@@ -349,8 +354,8 @@ void runInvalidFieldParity(std::string const& vectorId, std::string const& corru
     opstack_test::seedPreState(fixture->multiLayerStorage, sample.vector["pre"]);
     const auto goldenHeader = w6test::decodeGoldenHeader(sample);
     registerVerifiedBlock(fixture->multiLayerStorage, goldenHeader->parentInfo().blockHash, 0);
-    registerGoldenParentHeader(fixture->multiLayerStorage, fixture->blockFactory,
-        sample.vector["env"], sample.jovian);
+    registerGoldenParentHeader(
+        fixture->multiLayerStorage, fixture->blockFactory, sample.vector["env"], sample.jovian);
 
     auto params = w6test::makeParamsJson(sample);
     if (corruptField == "stateRoot")

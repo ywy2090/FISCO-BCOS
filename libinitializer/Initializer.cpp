@@ -528,7 +528,6 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
         // Same StorageInterface as Ledger::buildGenesisBlock (decrypts via dataEncryption).
         // Not latestBackend() (ciphertext when encryption is on). Not getStateStorage()
         // (KeyPage hides SYS tables). storage2-over-legacy is LegacyStorageMethods.
-        bcos::evm::opstack::OpForkFlags forkFlags;
         try
         {
             auto genesisBlock = task::syncWait(ledger::getBlockData(*m_ledger, 0, ledger::HEADER));
@@ -540,10 +539,6 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
                 genesisHash);
             m_opForkSchedule = std::make_shared<bcos::evm::opstack::OpForkSchedule>(
                 bcos::evm::opstack::OpForkSchedule::parse(canonical));
-            // K1 uses configAt(0) only — 0:isthmus,TS:jovian is still Isthmus at ts=0.
-            forkFlags = bcos::evm::opstack::OpForkFlags{
-                .jovianActive = m_opForkSchedule->configAt(0).has_da_footprint,
-            };
             INITIALIZER_LOG(INFO) << LOG_DESC("OP fork schedule resolved")
                                   << LOG_KV("canonical", canonical)
                                   << LOG_KV(
@@ -557,11 +552,11 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
         }
         auto opScheduler =
             std::make_shared<bcos::evm::engine::OpSchedulerSeam<GlobalStateStorage::ViewType>>(
-                forkFlags, bcos::evm::opstack::L1BlockInfo{});
+                m_opForkSchedule, bcos::evm::opstack::L1BlockInfo{});
         auto opDelegate =
             std::make_shared<bcos::executor_v1::opstack::OpScheduler<GlobalStateStorage>>(
                 m_protocolInitializer->blockFactory()->receiptFactory(),
-                m_protocolInitializer->cryptoSuite()->hashImpl(), opChainId, forkFlags,
+                m_protocolInitializer->cryptoSuite()->hashImpl(), opChainId, m_opForkSchedule,
                 m_protocolInitializer->blockFactory(), m_globalStateStorageInitializer->storage(),
                 // Ledger on OpScheduler; engine keeps ledger=nullptr.
                 m_ledger, m_ioServicePool);
