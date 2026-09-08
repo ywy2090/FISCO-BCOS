@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 # FISCO BCOS — Karst atomic release gate: production OP surfaces must not keep
 # OpForkFlags / isJovianActive, and karstConfig must be Osaka + EIP-7825.
+#
+# Search with git grep -E (CI images may not have ripgrep). Fail-closed:
+# match → exit 1; tool error → exit 2; no match → OK.
+#
+# K1 legacy fallback is intentional: opJovianActive / feature_op_jovian via
+# resolveOpForkScheduleCanonical (when metadata and genesis section are absent)
+# stay allowed. This gate forbids isJovianActive / OpForkFlags /
+# configAt(OpForkFlags) only.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-if ! command -v rg >/dev/null 2>&1; then
-  echo "check-op-karst-release-gate: rg (ripgrep) is required" >&2
-  exit 1
+if ! command -v git >/dev/null 2>&1; then
+  echo "check-op-karst-release-gate: git is required" >&2
+  exit 2
 fi
 
 FORBIDDEN='isJovianActive|OpForkFlags|configAt\(OpForkFlags\)'
@@ -22,6 +30,22 @@ SCAN_ROOTS=(
   bcos-ledger
 )
 
+# git grep -E over production sources. Pathspecs keep the same globs/exclusions
+# as the former rg scan (*.h/hpp/cpp/cc/inl, skip test/tests/unittests).
+git_grep_src() {
+  local pattern="$1"
+  local dir="$2"
+  git grep -nE -e "$pattern" -- \
+    ":(glob)$dir/**/*.h" \
+    ":(glob)$dir/**/*.hpp" \
+    ":(glob)$dir/**/*.cpp" \
+    ":(glob)$dir/**/*.cc" \
+    ":(glob)$dir/**/*.inl" \
+    ":(exclude,glob)$dir/**/test/**" \
+    ":(exclude,glob)$dir/**/tests/**" \
+    ":(exclude,glob)$dir/**/unittests/**"
+}
+
 fail=0
 for dir in "${SCAN_ROOTS[@]}"; do
   if [[ ! -d "$dir" ]]; then
@@ -29,11 +53,9 @@ for dir in "${SCAN_ROOTS[@]}"; do
     fail=1
     continue
   fi
-  # Capture status explicitly: `if rg` would treat missing/error exits as "no match".
+  # Capture status explicitly: `if git grep` would treat missing/error as "no match".
   set +e
-  rg -n "$FORBIDDEN" "$dir" \
-    --glob '*.h' --glob '*.hpp' --glob '*.cpp' --glob '*.cc' --glob '*.inl' \
-    --glob '!**/test/**' --glob '!**/tests/**' --glob '!**/unittests/**'
+  git_grep_src "$FORBIDDEN" "$dir"
   status=$?
   set -e
   case "$status" in
@@ -44,7 +66,7 @@ for dir in "${SCAN_ROOTS[@]}"; do
     1)
       ;; # no match
     *)
-      echo "check-op-karst-release-gate: rg failed in $dir (exit $status)" >&2
+      echo "check-op-karst-release-gate: git grep failed in $dir (exit $status)" >&2
       exit 2
       ;;
   esac
@@ -57,21 +79,45 @@ if [[ ! -f "$KARST_CFG" ]]; then
   fail=1
 else
   set +e
-  karst_body="$(rg -n -A 20 'const OpForkConfig& karstConfig\(\) noexcept' "$KARST_CFG")"
+  karst_body="$(awk '/const OpForkConfig& karstConfig\(\) noexcept/,/^}/' "$KARST_CFG")"
   karst_status=$?
   set -e
   if [[ "$karst_status" -ne 0 ]]; then
+    echo "check-op-karst-release-gate: awk failed on $KARST_CFG (exit $karst_status)" >&2
+    exit 2
+  fi
+  if [[ -z "$karst_body" ]]; then
     echo "check-op-karst-release-gate: karstConfig() not found in $KARST_CFG" >&2
     fail=1
   else
-    if ! printf '%s\n' "$karst_body" | rg -q 'EVMC_OSAKA'; then
-      echo "check-op-karst-release-gate: karstConfig() must set EVMC_OSAKA" >&2
-      fail=1
-    fi
-    if ! printf '%s\n' "$karst_body" | rg -q 'deposit_exempt_from_max_tx_gas = true'; then
-      echo "check-op-karst-release-gate: karstConfig() must set deposit_exempt_from_max_tx_gas = true" >&2
-      fail=1
-    fi
+    set +e
+    printf '%s\n' "$karst_body" | grep -qE 'EVMC_OSAKA'
+    osaka_status=$?
+    printf '%s\n' "$karst_body" | grep -qE 'deposit_exempt_from_max_tx_gas = true'
+    exempt_status=$?
+    set -e
+    case "$osaka_status" in
+      0) ;;
+      1)
+        echo "check-op-karst-release-gate: karstConfig() must set EVMC_OSAKA" >&2
+        fail=1
+        ;;
+      *)
+        echo "check-op-karst-release-gate: grep failed checking EVMC_OSAKA (exit $osaka_status)" >&2
+        exit 2
+        ;;
+    esac
+    case "$exempt_status" in
+      0) ;;
+      1)
+        echo "check-op-karst-release-gate: karstConfig() must set deposit_exempt_from_max_tx_gas = true" >&2
+        fail=1
+        ;;
+      *)
+        echo "check-op-karst-release-gate: grep failed checking deposit exemption (exit $exempt_status)" >&2
+        exit 2
+        ;;
+    esac
   fi
 fi
 
@@ -88,9 +134,9 @@ for f in "${OP_GETPAYLOAD_FILES[@]}"; do
     continue
   fi
   set +e
-  rg -n 'm_tracker\.getPayload' "$f"
+  grep -nE 'm_tracker\.getPayload' "$f"
   tracker_status=$?
-  rg -n 'isGetPayloadVersionSupported' "$f"
+  grep -nE 'isGetPayloadVersionSupported' "$f"
   window_status=$?
   set -e
   case "$tracker_status" in
@@ -100,7 +146,7 @@ for f in "${OP_GETPAYLOAD_FILES[@]}"; do
       ;;
     1) ;; # no match
     *)
-      echo "check-op-karst-release-gate: rg failed in $f (exit $tracker_status)" >&2
+      echo "check-op-karst-release-gate: grep failed in $f (exit $tracker_status)" >&2
       exit 2
       ;;
   esac
@@ -111,7 +157,7 @@ for f in "${OP_GETPAYLOAD_FILES[@]}"; do
       ;;
     1) ;; # no match
     *)
-      echo "check-op-karst-release-gate: rg failed in $f (exit $window_status)" >&2
+      echo "check-op-karst-release-gate: grep failed in $f (exit $window_status)" >&2
       exit 2
       ;;
   esac
