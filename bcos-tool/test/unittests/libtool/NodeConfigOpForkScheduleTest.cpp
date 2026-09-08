@@ -29,15 +29,22 @@ BOOST_AUTO_TEST_CASE(parsesNormalizedCanonical)
     BOOST_CHECK_EQUAL(*probe.genesisConfig().m_opstackForkSchedule, "0:isthmus,1764691201:jovian");
 }
 
-BOOST_AUTO_TEST_CASE(rejectsKarst)
+BOOST_AUTO_TEST_CASE(acceptsKarstAfterJovian)
+{
+    LoaderProbe probe;
+    probe.loadOpForkSchedule(
+        fromIni("[op_fork_schedule]\n"
+                "canonical=0:jovian,1:karst\n"));
+    BOOST_REQUIRE(probe.genesisConfig().m_opstackForkSchedule.has_value());
+    BOOST_CHECK_EQUAL(*probe.genesisConfig().m_opstackForkSchedule, "0:jovian,1:karst");
+}
+
+BOOST_AUTO_TEST_CASE(rejectsKarstWithoutJovian)
 {
     LoaderProbe probe;
     BOOST_CHECK_EXCEPTION(probe.loadOpForkSchedule(fromIni("[op_fork_schedule]\n"
-                                                           "canonical=0:jovian,1:karst\n")),
-        InvalidConfig, [](auto const& e) {
-            return errinfoContains(e, "unknown") || errinfoContains(e, "karst") ||
-                   errinfoContains(e, "invalid");
-        });
+                                                           "canonical=0:isthmus,1:karst\n")),
+        InvalidConfig, [](auto const& e) { return errinfoContains(e, "Jovian"); });
 }
 
 BOOST_AUTO_TEST_CASE(emptyCanonicalFailsClosed)

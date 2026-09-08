@@ -185,9 +185,11 @@ BOOST_AUTO_TEST_CASE(KarstConfigIsOsakaNotJovianAlias)
     BOOST_CHECK(k.precompiles != jovianConfig().precompiles);
 }
 
-BOOST_AUTO_TEST_CASE(ProductionParseStillRejectsKarst)
+BOOST_AUTO_TEST_CASE(KarstImpliesOsakaConfig)
 {
-    BOOST_CHECK_THROW(OpForkSchedule::parse("0:jovian,1783526401:karst"), InvalidOpForkSchedule);
+    auto s = OpForkSchedule::parse("0:jovian,1783526401:karst");
+    BOOST_CHECK_EQUAL(s.configAt(1783526401).rev, EVMC_OSAKA);
+    BOOST_CHECK(s.configAt(1783526401).deposit_exempt_from_max_tx_gas);
 }
 
 BOOST_AUTO_TEST_CASE(TestBypassScheduleCanNameKarst)

@@ -3,6 +3,7 @@
 #include <evmc/evmc.hpp>
 
 #include <cstdint>
+#include <stdexcept>
 #include <string_view>
 #include <vector>
 
@@ -37,8 +38,8 @@ namespace bcos::evm::opstack
 //     features"); Jovian adds OP-only DA footprint + operator-fee-fix on the
 //     same Prague base — hence both map to EVMC_PRAGUE.
 //   * Karst maps to EVMC_OSAKA with an independent precompile-override object.
-//     Production parse still cannot name `karst` (codec / forkFromName reject it).
-//     Tests name Karst via OpForkSchedule::TestBypass.
+//     Production parse names Karst after a Jovian baseline or activation.
+//     Tests may still name Karst via OpForkSchedule::TestBypass.
 // ────────────────────────────────────────────────────────────────────────────
 enum class OpFork
 {
@@ -91,22 +92,29 @@ struct OpForkFlags
 /// Timestamp schedules use `OpForkSchedule::configAt(uint64_t)` instead.
 const OpForkConfig& configAt(const OpForkFlags& flags) noexcept;
 
+/// Thrown by OpForkSchedule parse/ctor when a Karst activation is present but
+/// karstConfig().rev is not EVMC_OSAKA (regression guard against a Jovian alias).
+class InconsistentExecutionConfig : public std::logic_error
+{
+public:
+    using std::logic_error::logic_error;
+};
+
 struct OpForkActivation
 {
     OpFork fork{};
     uint64_t timestamp{};
 };
 
-/// Timestamp schedule: Unix-second activations select Isthmus vs Jovian.
-/// Production parse goes through the ledger codec, which cannot name karst.
+/// Timestamp schedule: Unix-second activations select Isthmus / Jovian / Karst.
+/// Production parse goes through the ledger codec; Karst requires Jovian first.
 class OpForkSchedule
 {
 public:
     static OpForkSchedule parse(std::string_view canonical);
     static OpForkSchedule legacy(bool jovianActive);
     explicit OpForkSchedule(std::vector<OpForkActivation> activations);
-    /// Test-only: skip ledger codec validation so tests can name Karst
-    /// before the production codec unlocks it.
+    /// Test-only: skip ledger codec validation (and the Karst/Osaka consistency check).
     struct TestBypass
     {
     };

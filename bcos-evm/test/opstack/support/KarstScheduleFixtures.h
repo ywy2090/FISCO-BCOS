@@ -4,8 +4,8 @@
 
 namespace bcos::evm::opstack
 {
-/// Test-only Karst schedule. Production `parse("…:karst")` still throws until K3;
-/// this names Karst via `TestBypass` so later suites can resolve Osaka semantics.
+/// Test-only Karst schedule via `TestBypass`. Production `parse("…:karst")` is
+/// valid after Jovian; this helper still skips codec validation.
 /// Lives in `opstack` (not a nested `::test`) to avoid colliding with `evmone::test`
 /// under the unity-build `using namespace bcos::evm::opstack`.
 inline OpForkSchedule karstOnly()

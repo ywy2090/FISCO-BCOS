@@ -17,24 +17,20 @@ BOOST_AUTO_TEST_CASE(AcceptsIsthmusJovianOnly)
     BOOST_CHECK_EQUAL(acts[1].timestamp, 1764691201u);
 }
 
-BOOST_AUTO_TEST_CASE(RejectsKarstUntilK3)
+BOOST_AUTO_TEST_CASE(AcceptsKarstAfterJovian)
 {
-    const auto isKarstLocked = [](InvalidOpForkSchedule const& e) {
-        auto w = std::string_view{e.what()};
-        return w.find("karst") != std::string_view::npos ||
-               w.find("unknown") != std::string_view::npos;
-    };
-    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("0:isthmus,1764691201:jovian,1783526401:karst"),
-        InvalidOpForkSchedule, isKarstLocked);
-    BOOST_CHECK_EXCEPTION(
-        parseOpForkSchedule("0:jovian,1781712001:karst"), InvalidOpForkSchedule, isKarstLocked);
-    // Baseline is validated before forkOrder; 0:karst is invalid baseline, not unknown.
+    auto acts = parseOpForkSchedule("0:isthmus,1764691201:jovian,1783526401:karst");
+    BOOST_REQUIRE_EQUAL(acts.size(), 3u);
+    BOOST_CHECK_EQUAL(acts[2].forkName, "karst");
+}
+
+BOOST_AUTO_TEST_CASE(RejectsKarstWithoutJovian)
+{
+    BOOST_CHECK_THROW(parseOpForkSchedule("0:isthmus,1783526401:karst"), InvalidOpForkSchedule);
+    // Baseline cannot be karst (isAllowedBaseline stays isthmus|jovian).
     BOOST_CHECK_EXCEPTION(
         parseOpForkSchedule("0:karst"), InvalidOpForkSchedule, [](InvalidOpForkSchedule const& e) {
-            auto w = std::string_view{e.what()};
-            return w.find("invalid baseline") != std::string_view::npos ||
-                   w.find("unknown") != std::string_view::npos ||
-                   w.find("karst") != std::string_view::npos;
+            return std::string_view{e.what()}.find("invalid baseline") != std::string_view::npos;
         });
 }
 

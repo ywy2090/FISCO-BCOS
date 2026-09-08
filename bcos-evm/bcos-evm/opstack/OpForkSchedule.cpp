@@ -16,6 +16,8 @@ OpFork forkFromName(std::string_view forkName)
         return OpFork::Isthmus;
     if (forkName == "jovian")
         return OpFork::Jovian;
+    if (forkName == "karst")
+        return OpFork::Karst;
     throw ledger::InvalidOpForkSchedule("unknown fork");
 }
 
@@ -42,6 +44,8 @@ std::string forkNameFromEnum(OpFork fork)
         return "isthmus";
     case OpFork::Jovian:
         return "jovian";
+    case OpFork::Karst:
+        return "karst";
     default:
         throw ledger::InvalidOpForkSchedule("unknown or pre-Isthmus fork");
     }
@@ -59,6 +63,15 @@ void validateActivations(std::span<const OpForkActivation> activations)
         });
     }
     ledger::detail::validateScheduleRecords(records);
+}
+
+void ensureKarstIsOsaka(std::span<const OpForkActivation> activations)
+{
+    for (const auto& activation : activations)
+    {
+        if (activation.fork == OpFork::Karst && karstConfig().rev != EVMC_OSAKA)
+            throw InconsistentExecutionConfig("Karst execution config is not Osaka");
+    }
 }
 }  // namespace
 
@@ -197,6 +210,7 @@ OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations)
   : m_activations(std::move(activations))
 {
     validateActivations(m_activations);
+    ensureKarstIsOsaka(m_activations);
 }
 
 OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations, TestBypass)

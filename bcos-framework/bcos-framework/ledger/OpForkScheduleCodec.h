@@ -14,7 +14,8 @@
 #include <string_view>
 #include <vector>
 
-// Canonical fork-schedule codec aligned with op-reth / op-node；Karst 名在 K3 解锁.
+// Canonical fork-schedule codec aligned with op-reth / op-node. Karst is a named
+// activation after Jovian; baseline remains isthmus|jovian.
 
 namespace bcos::ledger
 {
@@ -38,7 +39,9 @@ inline constexpr int forkOrder(std::string_view forkName)
         return 4;
     if (forkName == "jovian")
         return 5;
-    return -1;  // K1–K2: karst unknown. K3 adds return 6
+    if (forkName == "karst")
+        return 6;
+    return -1;
 }
 
 inline bool isAllowedBaseline(std::string_view forkName)
@@ -96,6 +99,8 @@ inline void validateScheduleRecords(std::span<const OpForkActivationRecord> acti
     if (!isAllowedBaseline(baseline))
         throw InvalidOpForkSchedule("invalid baseline fork");
 
+    bool hasJovian = baseline == "jovian";
+    bool hasKarst = false;
     int previousOrder = -1;
     uint64_t previousTimestamp = 0;
     std::vector<std::string_view> seenForks;
@@ -120,9 +125,17 @@ inline void validateScheduleRecords(std::span<const OpForkActivationRecord> acti
             throw InvalidOpForkSchedule("duplicate fork");
         seenForks.push_back(forkView);
 
+        if (activation.forkName == "jovian")
+            hasJovian = true;
+        if (activation.forkName == "karst")
+            hasKarst = true;
+
         previousOrder = order;
         previousTimestamp = activation.timestamp;
     }
+
+    if (hasKarst && baseline == "isthmus" && !hasJovian)
+        throw InvalidOpForkSchedule("Jovian activation is required before Karst");
 }
 
 inline std::string serializeScheduleRecords(std::span<const OpForkActivationRecord> activations)

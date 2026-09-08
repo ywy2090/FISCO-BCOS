@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE(persistNormalizesCanonicalText)
     }());
 }
 
-BOOST_AUTO_TEST_CASE(genesisWriteRejectsKarst)
+BOOST_AUTO_TEST_CASE(genesisWriteRejectsKarstBaselineAndSkipJovian)
 {
     task::syncWait([this]() -> task::Task<void> {
         for (auto const* schedule : {"0:karst", "0:isthmus,1:karst"})
@@ -306,6 +306,24 @@ BOOST_AUTO_TEST_CASE(genesisWriteRejectsKarst)
             }
             BOOST_CHECK(threw);
         }
+        co_return;
+    }());
+}
+
+BOOST_AUTO_TEST_CASE(genesisWriteAcceptsKarstAfterJovian)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        constexpr auto* schedule = "0:jovian,1:karst";
+        auto storage = makeL2GenesisTestStorage();
+        auto ledger = std::make_shared<Ledger>(m_blockFactory, storage, 1);
+        BOOST_REQUIRE(co_await ledger::buildGenesisBlock(
+            *ledger, scheduleGenesis(schedule), emptyLedgerConfig()));
+        auto block = co_await ledger::getBlockData(*ledger, 0, HEADER);
+        BOOST_REQUIRE(block);
+        const auto stored =
+            co_await readOpForkScheduleMetadata(*storage, block->blockHeader()->hash());
+        BOOST_REQUIRE(stored.has_value());
+        BOOST_CHECK_EQUAL(stored->schedule, schedule);
         co_return;
     }());
 }
