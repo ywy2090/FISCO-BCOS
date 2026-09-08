@@ -40,6 +40,16 @@ constexpr PrecompileOverrides::Entry kJovianEntries[] = {
     {.addr = evmc::address{0x0f}, .gas_cost_override = -1, .max_input_size = 156672},
 };
 
+// Stub: copy of the Jovian table so karstConfig() can point at a distinct object.
+// Osaka gas/caps (EIP-7883/7823/7825) replace this in a later task.
+constexpr PrecompileOverrides::Entry kKarstEntries[] = {
+    {.addr = evmc::address{0x08}, .gas_cost_override = -1, .max_input_size = 81984},
+    {.addr = kP256VerifyAddress, .gas_cost_override = 3450, .max_input_size = 0},
+    {.addr = evmc::address{0x0c}, .gas_cost_override = -1, .max_input_size = 288960},
+    {.addr = evmc::address{0x0e}, .gas_cost_override = -1, .max_input_size = 278784},
+    {.addr = evmc::address{0x0f}, .gas_cost_override = -1, .max_input_size = 156672},
+};
+
 // Fjord: only P256Verify. No bn256 limit yet (that arrives with Granite) and no BLS at all
 // (CANCUN). Citations as above.
 constexpr PrecompileOverrides::Entry kFjordEntries[] = {
@@ -61,6 +71,12 @@ const PrecompileOverrides& isthmusPrecompileOverrides() noexcept
 const PrecompileOverrides& jovianPrecompileOverrides() noexcept
 {
     static const PrecompileOverrides overrides{.entries = kJovianEntries};
+    return overrides;
+}
+
+const PrecompileOverrides& karstPrecompileOverrides() noexcept
+{
+    static const PrecompileOverrides overrides{.entries = kKarstEntries};
     return overrides;
 }
 

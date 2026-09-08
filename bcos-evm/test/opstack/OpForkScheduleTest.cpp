@@ -1,4 +1,5 @@
 #include "TestPrinters.h"
+#include "support/KarstScheduleFixtures.h"
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
@@ -32,11 +33,9 @@ BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs)
 
     const auto& k = karstConfig();
     BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
-    BOOST_CHECK_EQUAL(k.rev, j.rev);
     BOOST_CHECK_EQUAL(k.has_operator_fee, j.has_operator_fee);
     BOOST_CHECK_EQUAL(k.has_jovian_operator_formula, j.has_jovian_operator_formula);
     BOOST_CHECK_EQUAL(k.has_da_footprint, j.has_da_footprint);
-    BOOST_CHECK_EQUAL(k.precompiles, j.precompiles);
 }
 
 BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags)
@@ -175,6 +174,33 @@ BOOST_AUTO_TEST_CASE(ConfigAtTimestampMatchesForkAndStaticConfigs)
     BOOST_CHECK_EQUAL(schedule.configAt(1764691201).fork, schedule.forkAt(1764691201));
     BOOST_CHECK_EQUAL(&schedule.configAt(1764691200), &isthmusConfig());
     BOOST_CHECK_EQUAL(&schedule.configAt(1764691201), &jovianConfig());
+}
+
+BOOST_AUTO_TEST_CASE(KarstConfigIsOsakaNotJovianAlias)
+{
+    const auto& k = karstConfig();
+    BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
+    BOOST_CHECK_EQUAL(k.rev, EVMC_OSAKA);
+    BOOST_CHECK(k.deposit_exempt_from_max_tx_gas);
+    BOOST_CHECK(k.precompiles != jovianConfig().precompiles);
+}
+
+BOOST_AUTO_TEST_CASE(ProductionParseStillRejectsKarst)
+{
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:jovian,1783526401:karst"), InvalidOpForkSchedule);
+}
+
+BOOST_AUTO_TEST_CASE(TestBypassScheduleCanNameKarst)
+{
+    auto s =
+        OpForkSchedule{{{OpFork::Jovian, 0}, {OpFork::Karst, 100}}, OpForkSchedule::TestBypass{}};
+    BOOST_CHECK_EQUAL(s.forkAt(99), OpFork::Jovian);
+    BOOST_CHECK_EQUAL(s.forkAt(100), OpFork::Karst);
+    BOOST_CHECK_EQUAL(s.configAt(100).rev, EVMC_OSAKA);
+
+    const auto only = karstOnly();
+    BOOST_CHECK_EQUAL(only.forkAt(2), OpFork::Karst);
+    BOOST_CHECK_EQUAL(only.configAt(2).rev, EVMC_OSAKA);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
