@@ -3,6 +3,7 @@
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <boost/test/unit_test.hpp>
+#include <utility>
 
 using namespace bcos::evm::opstack;
 using bcos::ledger::InvalidOpForkSchedule;
@@ -153,6 +154,27 @@ BOOST_AUTO_TEST_CASE(LegacyFlagsStillSelectIsthmusOrJovian)
 {
     BOOST_CHECK_EQUAL(OpForkSchedule::legacy(false).forkAt(0), OpFork::Isthmus);
     BOOST_CHECK_EQUAL(OpForkSchedule::legacy(true).forkAt(0), OpFork::Jovian);
+}
+
+BOOST_AUTO_TEST_CASE(EmptyScheduleRejected)
+{
+    BOOST_CHECK_THROW(OpForkSchedule::parse(""), InvalidOpForkSchedule);
+    BOOST_CHECK_THROW(OpForkSchedule{{}}, InvalidOpForkSchedule);
+
+    auto schedule = OpForkSchedule::legacy(false);
+    auto kept = std::move(schedule);
+    BOOST_CHECK_EQUAL(kept.forkAt(0), OpFork::Isthmus);
+    BOOST_CHECK_THROW(static_cast<void>(schedule.forkAt(0)), InvalidOpForkSchedule);
+    BOOST_CHECK_THROW(static_cast<void>(schedule.configAt(0)), InvalidOpForkSchedule);
+}
+
+BOOST_AUTO_TEST_CASE(ConfigAtTimestampMatchesForkAndStaticConfigs)
+{
+    auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
+    BOOST_CHECK_EQUAL(schedule.configAt(1764691200).fork, schedule.forkAt(1764691200));
+    BOOST_CHECK_EQUAL(schedule.configAt(1764691201).fork, schedule.forkAt(1764691201));
+    BOOST_CHECK_EQUAL(&schedule.configAt(1764691200), &isthmusConfig());
+    BOOST_CHECK_EQUAL(&schedule.configAt(1764691201), &jovianConfig());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

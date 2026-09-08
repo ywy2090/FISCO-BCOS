@@ -1,7 +1,9 @@
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 
 #include <span>
+#include <string>
 #include <utility>
 
 namespace bcos::evm::opstack
@@ -190,6 +192,9 @@ OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations)
 
 OpFork OpForkSchedule::forkAt(uint64_t timestampSeconds) const
 {
+    if (m_activations.empty())
+        throw ledger::InvalidOpForkSchedule("empty schedule");
+
     OpFork activeFork = m_activations.front().fork;
     for (const auto& activation : m_activations)
     {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <evmc/evmc.hpp>
 
 #include <cstdint>
@@ -76,15 +75,11 @@ const OpForkConfig& isthmusConfig() noexcept;
 const OpForkConfig& jovianConfig() noexcept;
 const OpForkConfig& karstConfig() noexcept;
 
-/// Fork-activation flags for the OP validator loop (op-validator-minimal-loop design §4.2,
-/// decision A5): no timestamp dimension — FISCO activates forks by feature flag, not by header
-/// timestamp. Injected via OpSchedulerSeam's constructor (same channel as chainId) rather than
-/// read from SystemConfigs — the minimal loop only distinguishes Isthmus/Jovian. Isthmus is the
-/// OP-mode baseline (the engine -38005 gate admits only Isthmus+ payloads), so a single boolean
-/// switch — `feature_op_jovian` (Features::Flag, read from genesis [features]) — selects Jovian
-/// over Isthmus. This replaces the former timestamp thresholds (isthmusTime/jovianTime): FISCO has
-/// no timestamp-based fork activation, only feature flags (the same channel that gates
-/// feature_l2_ethereum_compat / feature_evm_prague).
+/// K1 compatibility wrapper: `jovianActive` selects Jovian vs Isthmus when a timestamp
+/// schedule is not in use. Timestamp-based selection lives on `OpForkSchedule`
+/// (`parse` / `forkAt` / `configAt(uint64_t)`). Injected via OpSchedulerSeam's constructor
+/// (same channel as chainId). Isthmus is the OP-mode baseline; `feature_op_jovian`
+/// (Features::Flag, genesis [features]) selects Jovian over Isthmus.
 struct OpForkFlags
 {
     /// feature_op_jovian enabled → Jovian semantics (DA footprint, operator fee ×100,
@@ -92,18 +87,14 @@ struct OpForkFlags
     bool jovianActive = false;
 };
 
-/// Resolves the OP fork config from the chain's feature flag (decision A5, feature-flag variant):
-/// `jovianActive` -> Jovian, otherwise Isthmus. Isthmus is always the baseline — there is no
-/// pre-Isthmus config (the minimal loop is Isthmus+-only and the engine gate rejects pre-Isthmus
-/// payloads by construction). This is the single function backing the OpSchedulerSeam
-/// execution-time fork selection (design §4.2); the engine's -38005 gate no longer re-derives the
-/// fork from a timestamp — OP mode itself is the Isthmus+ admission check.
+/// Feature-flag wrapper (decision A5): `jovianActive` -> Jovian, otherwise Isthmus.
+/// Timestamp schedules use `OpForkSchedule::configAt(uint64_t)` instead.
 const OpForkConfig& configAt(const OpForkFlags& flags) noexcept;
 
 struct OpForkActivation
 {
-    OpFork fork;
-    uint64_t timestamp;
+    OpFork fork{};
+    uint64_t timestamp{};
 };
 
 /// Timestamp schedule: Unix-second activations select Isthmus vs Jovian.
