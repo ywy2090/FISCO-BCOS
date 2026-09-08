@@ -191,5 +191,9 @@ public:
     // them. validateL2Invariants binds it to m_ethereumForkSchedule both ways.
     bool m_ethereumELMode = false;
 
+    // Canonical OP fork schedule. Persisted into s_chain_metadata at genesis
+    // when set; not part of LedgerConfig. K1 does not parse [op_fork_schedule].
+    std::optional<std::string> m_opstackForkSchedule;
+
 };  // namespace genesisConfig
 }  // namespace bcos::ledger
