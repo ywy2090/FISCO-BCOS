@@ -153,17 +153,14 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
         }
         // Profile keys on attrs.timestamp (internal ms → Unix seconds), never head.
         // Isthmus/Jovian/Karst all advertise FCU V3, so Karst does not bump this.
+        uint64_t const tsSec = unixSecondsFromInternalMillis(payloadAttributes->timestamp);
+        auto const ctx = requireOpEngineForkAt(tsSec);
+        if (version != static_cast<std::uint32_t>(ctx.api.forkchoiceUpdated))
         {
-            uint64_t const tsSec =
-                unixSecondsFromInternalMillis(payloadAttributes->timestamp);
-            auto const ctx = requireOpEngineForkAt(tsSec);
-            if (version != static_cast<std::uint32_t>(ctx.api.forkchoiceUpdated))
-            {
-                BOOST_THROW_EXCEPTION(
-                    UnsupportedFork{} << bcos::errinfo_comment{
-                        "forkchoiceUpdated version does not match the OP Engine API profile "
-                        "at attributes timestamp"});
-            }
+            BOOST_THROW_EXCEPTION(
+                UnsupportedFork{} << bcos::errinfo_comment{
+                    "forkchoiceUpdated version does not match the OP Engine API profile "
+                    "at attributes timestamp"});
         }
         if (auto validationError = engine_common::validatePayloadAttributes(
                 *payloadAttributes, version, &decodedForcedTxs);
@@ -176,7 +173,7 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
             };
         }
         if (auto validationError = engine_common::op::validateOpPayloadAttributes(
-                *payloadAttributes, m_scheduler.isJovianActive());
+                *payloadAttributes, ctx.hasDaFootprint);
             validationError.has_value())
         {
             co_return ForkchoiceUpdatedResult{
@@ -329,7 +326,11 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
         bcos::bytes parentHeaderBytes(stored.begin(), stored.end());
         auto parentHeader =
             m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
-        baseFee = calcOpBaseFee(*parentHeader, m_scheduler.isJovianActive());
+        baseFee = calcOpBaseFee(*parentHeader,
+            m_scheduler
+                .configAt(unixSecondsFromInternalMillis(
+                    static_cast<uint64_t>(parentHeader->timestamp())))
+                .has_da_footprint);
     }
 
     requireDelegate();
@@ -348,7 +349,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
     // op_engine_rpc never invents this envelope (op-geth does not either).
     if (!payloadAttributes.transactions.has_value() || payloadAttributes.transactions->empty())
     {
-        forcedEnvelopes.push_back(m_scheduler.synthesizeL1AttributesEnvelope());
+        forcedEnvelopes.push_back(m_scheduler.synthesizeL1AttributesEnvelope(
+            unixSecondsFromInternalMillis(payloadAttributes.timestamp)));
     }
     if (payloadAttributes.transactions.has_value())
     {
@@ -711,8 +713,8 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     // "last executed" semantics the accessor documents.
     auto const& payload = request.executionPayload;
 
-    if (auto validationError =
-            engine_common::op::validateOpNewPayloadRequest(request, m_scheduler.isJovianActive());
+    if (auto validationError = engine_common::op::validateOpNewPayloadRequest(request,
+            m_scheduler.configAt(unixSecondsFromInternalMillis(payload.timestamp)).has_da_footprint);
         validationError.has_value())
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, std::nullopt, validationError);
@@ -819,7 +821,11 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
             std::string("timestamp must be strictly greater than the parent's"));
     }
     {
-        auto expectedBaseFee = calcOpBaseFee(*parentHeader, m_scheduler.isJovianActive());
+        auto expectedBaseFee = calcOpBaseFee(*parentHeader,
+            m_scheduler
+                .configAt(unixSecondsFromInternalMillis(
+                    static_cast<uint64_t>(parentHeader->timestamp())))
+                .has_da_footprint);
         if (payload.baseFeePerGas != expectedBaseFee)
         {
             co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,

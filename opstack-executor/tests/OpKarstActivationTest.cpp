@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Q5: Jovian+ activation blocks are deposits-only, driven by the timestamp schedule
-// (not the 176-byte L1-attributes heuristic). Karst profiles use TestBypass only.
+// (not the 176-byte L1-attributes heuristic). Karst fixtures parse after Jovian.
 
 #include "support/KarstNutHelpers.h"
 

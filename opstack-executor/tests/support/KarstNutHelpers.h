@@ -1,7 +1,8 @@
 #pragma once
 
-// Test-only Karst schedule helpers. Production parse still cannot name `karst`;
-// these use OpForkSchedule::TestBypass. Do not call from Initializer.
+// Test-only Karst schedule helpers. Production parse names `karst` after a
+// Jovian baseline or activation. TestBypass remains for fixtures that skip
+// the ledger codec. Do not call from Initializer.
 
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <cstdint>

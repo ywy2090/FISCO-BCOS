@@ -20,6 +20,7 @@
 
 #include <bcos-evm/opstack/OpFeeParams.h>
 #include <bcos-evm/opstack/OpPredeploys.h>
+#include <bcos-evm/test/opstack/support/OpForkFlagsCompat.h>
 #include <bcos-codec/rlp/RLPEncode.h>
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-framework/ledger/EVMAccount.h>

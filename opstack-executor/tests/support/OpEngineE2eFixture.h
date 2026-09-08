@@ -5,6 +5,7 @@
 
 #include <bcos-concepts/ByteBuffer.h>
 #include <bcos-crypto/hash/Keccak256.h>
+#include <bcos-evm/test/opstack/support/OpForkFlagsCompat.h>
 #include <bcos-framework/ledger/LedgerTypeDef.h>
 #include <bcos-framework/protocol/TransactionFactory.h>
 #include <bcos-framework/storage/Entry.h>
@@ -110,9 +111,10 @@ using EngineOpSchedulerBase = bcos::evm::engine::OpSchedulerSeam<ViewType>;
 struct EngineOpScheduler : EngineOpSchedulerBase
 {
     using EngineOpSchedulerBase::EngineOpSchedulerBase;
-    [[nodiscard]] bcos::bytes synthesizeL1AttributesEnvelope() const
+    [[nodiscard]] bcos::bytes synthesizeL1AttributesEnvelope(uint64_t timestampSeconds) const
     {
-        return bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(isJovianActive());
+        return bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(
+            configAt(timestampSeconds).has_da_footprint);
     }
 };
 using OpEngine = bcos::engine::OpEngineService<StubMemPool, MLS, EngineOpScheduler>;

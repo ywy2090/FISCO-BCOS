@@ -12,7 +12,7 @@ namespace bcos::evm::opstack
 // ────────────────────────────────────────────────────────────────────────────
 // OP-Stack fork schedule (Bedrock onward) ↔ Ethereum base fork
 //
-// Reference: op-geth v1.101702.2 (authority) + optimism docs / specs.
+// Reference: op-reth (authority for named Karst schedules) + op-geth / optimism docs.
 // FB only MODELS Ecotone+ (the enum below): the minimal validator loop is
 // Isthmus+-only (decision A5) and the engine -38005 gate rejects pre-Isthmus
 // payloads, so Bedrock/Regolith/Canyon are unreachable — they are listed for
@@ -75,22 +75,6 @@ const OpForkConfig& holoceneConfig() noexcept;
 const OpForkConfig& isthmusConfig() noexcept;
 const OpForkConfig& jovianConfig() noexcept;
 const OpForkConfig& karstConfig() noexcept;
-
-/// K1 compatibility wrapper: `jovianActive` selects Jovian vs Isthmus when a timestamp
-/// schedule is not in use. Timestamp-based selection lives on `OpForkSchedule`
-/// (`parse` / `forkAt` / `configAt(uint64_t)`). Injected via OpSchedulerSeam's constructor
-/// (same channel as chainId). Isthmus is the OP-mode baseline; `feature_op_jovian`
-/// (Features::Flag, genesis [features]) selects Jovian over Isthmus.
-struct OpForkFlags
-{
-    /// feature_op_jovian enabled → Jovian semantics (DA footprint, operator fee ×100,
-    /// 17B Jovian extraData); disabled → Isthmus semantics.
-    bool jovianActive = false;
-};
-
-/// Feature-flag wrapper (decision A5): `jovianActive` -> Jovian, otherwise Isthmus.
-/// Timestamp schedules use `OpForkSchedule::configAt(uint64_t)` instead.
-const OpForkConfig& configAt(const OpForkFlags& flags) noexcept;
 
 /// Thrown by OpForkSchedule parse/ctor when a Karst activation is present but
 /// karstConfig().rev is not EVMC_OSAKA (regression guard against a Jovian alias).

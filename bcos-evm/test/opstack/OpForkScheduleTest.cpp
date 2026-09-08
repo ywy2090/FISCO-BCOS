@@ -1,5 +1,6 @@
 #include "TestPrinters.h"
 #include "support/KarstScheduleFixtures.h"
+#include "support/OpForkFlagsCompat.h"
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>

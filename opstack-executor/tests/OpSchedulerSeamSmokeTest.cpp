@@ -6,7 +6,7 @@
 // that its engine-facing seam surface works. Exercises only:
 //   1. construction over a real MultiLayerStorage ViewType;
 //   2. the static seam surface the engine reaches as dependent names
-//      (computeTxRoot / commitmentsOf / isJovianActive).
+//      (computeTxRoot / commitmentsOf / configAt).
 //      (The block-pre shape checks live in PreBlockOpStepsTest; the seam itself no longer
 //      executes blocks — see the note at the end of this file.)
 #include "OpSchedulerSeamTestHelpers.h"
@@ -111,13 +111,11 @@ BOOST_AUTO_TEST_CASE(ConstructAndSeamSurface)
             bcos::evm::opstack::OpForkSchedule::legacy(false)),
         {});
 
-    BOOST_CHECK(!scheduler.isJovianActive());
     BOOST_CHECK(!scheduler.configAt(0).has_da_footprint);
     bcos::evm::engine::OpSchedulerSeam<ViewType> jovianScheduler(
         std::make_shared<bcos::evm::opstack::OpForkSchedule>(
             bcos::evm::opstack::OpForkSchedule::legacy(true)),
         {});
-    BOOST_CHECK(jovianScheduler.isJovianActive());
     BOOST_CHECK(jovianScheduler.configAt(0).has_da_footprint);
 
     // computeTxRoot over the empty range: the standard empty-trie root (0x56e81f...), which
@@ -159,7 +157,7 @@ BOOST_AUTO_TEST_CASE(SynthesizeRefusesUnsetL1BlockInfo)
         std::make_shared<bcos::evm::opstack::OpForkSchedule>(
             bcos::evm::opstack::OpForkSchedule::legacy(false)),
         {});
-    BOOST_CHECK_THROW((void)scheduler.synthesizeL1AttributesEnvelope(), std::invalid_argument);
+    BOOST_CHECK_THROW((void)scheduler.synthesizeL1AttributesEnvelope(0), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(SynthesizeRefusesZeroSystemConfig)
@@ -171,7 +169,7 @@ BOOST_AUTO_TEST_CASE(SynthesizeRefusesZeroSystemConfig)
         std::make_shared<bcos::evm::opstack::OpForkSchedule>(
             bcos::evm::opstack::OpForkSchedule::legacy(false)),
         l1Info);
-    BOOST_CHECK_THROW((void)scheduler.synthesizeL1AttributesEnvelope(), std::invalid_argument);
+    BOOST_CHECK_THROW((void)scheduler.synthesizeL1AttributesEnvelope(0), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(SynthesizedDepositMatchesIsthmusLayout)
@@ -219,7 +217,7 @@ BOOST_AUTO_TEST_CASE(SynthesizedDepositPinsCalldataFieldOffsets)
         std::make_shared<bcos::evm::opstack::OpForkSchedule>(
             bcos::evm::opstack::OpForkSchedule::legacy(true)),
         l1Info);
-    const auto env = scheduler.synthesizeL1AttributesEnvelope();
+    const auto env = scheduler.synthesizeL1AttributesEnvelope(0);
     auto const dep = bcos::executor_v1::opstack::decodeDepositEnvelope(
         bcos::bytesConstRef(env.data(), env.size()));
     BOOST_REQUIRE_EQUAL(dep.data.size(), bcos::evm::opstack::JovianL1AttributesLen);
@@ -274,7 +272,7 @@ BOOST_AUTO_TEST_CASE(SynthesizedDepositPinsIsthmusCalldataFieldOffsets)
         std::make_shared<bcos::evm::opstack::OpForkSchedule>(
             bcos::evm::opstack::OpForkSchedule::legacy(false)),
         l1Info);
-    const auto env = scheduler.synthesizeL1AttributesEnvelope();
+    const auto env = scheduler.synthesizeL1AttributesEnvelope(0);
     auto const dep = bcos::executor_v1::opstack::decodeDepositEnvelope(
         bcos::bytesConstRef(env.data(), env.size()));
     BOOST_REQUIRE_EQUAL(dep.data.size(), bcos::evm::opstack::IsthmusL1AttributesLen);

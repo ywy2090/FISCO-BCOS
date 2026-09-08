@@ -6,7 +6,19 @@
 #   python3 build-allocs.py --config chain-config.yaml \
 #       --contracts ../../bcos-l2-contracts \
 #       --base-allocs final-allocs.json --out allocs.ini
-
+#
+# Karst alloc pin: --base-allocs MUST be the op-deployer terminal alloc JSON generated
+# from bcos-l2-contracts/op-fork-pin.toml [karst_pin] (op-contracts/v7.0.0 +
+# op-deployer/v0.7.1). Mirror [karst_pin].base_allocs_sha256 into base_allocs_sha256
+# below once the artifact is frozen.
+#
+# Fork activation is NOT a YAML field here — it lives in config.ini / genesis
+# [opstack].fork_schedule. Do not enable Karst without K2 (Osaka + EIP-7825
+# deposit exemption) and K3 (getPayload V5 / -38005) shipping together:
+#   Sepolia-style new chain: 0:jovian,1781712001:karst
+#   Mainnet-style:           0:isthmus,1764691201:jovian,1783526401:karst
+# karstTime: 1783526401
+#
 # The op-deployer-generated Karst terminal alloc JSON (--base-allocs) is the
 # ONLY source for the OP-Stack side of genesis: every 0x42... predeploy
 # proxy, every 0xc0d3... implementation, ProxyAdmin ownership, prefunded

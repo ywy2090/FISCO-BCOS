@@ -375,9 +375,10 @@ using EngineOpSchedulerBase = bcos::evm::engine::OpSchedulerSeam<ViewType>;
 struct EngineOpScheduler : EngineOpSchedulerBase
 {
     using EngineOpSchedulerBase::EngineOpSchedulerBase;
-    [[nodiscard]] bcos::bytes synthesizeL1AttributesEnvelope() const
+    [[nodiscard]] bcos::bytes synthesizeL1AttributesEnvelope(uint64_t timestampSeconds) const
     {
-        return bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(isJovianActive());
+        return bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(
+            configAt(timestampSeconds).has_da_footprint);
     }
 };
 using EthLegacyEngine =
@@ -607,13 +608,11 @@ struct OpServicePair
     {}
 };
 
-/// TestBypass schedule: Jovian at 0s, Karst at 1000s. Never parse("…:karst").
+/// Production parse: Jovian at 0s, Karst at 1000s.
 inline std::shared_ptr<bcos::evm::opstack::OpForkSchedule> makeKarstProfileSchedule()
 {
-    using bcos::evm::opstack::OpFork;
     using bcos::evm::opstack::OpForkSchedule;
-    return std::make_shared<OpForkSchedule>(
-        OpForkSchedule{{{OpFork::Jovian, 0}, {OpFork::Karst, 1000}}, OpForkSchedule::TestBypass{}});
+    return std::make_shared<OpForkSchedule>(OpForkSchedule::parse("0:jovian,1000:karst"));
 }
 
 /// PayloadAttributes.timestamp is internal milliseconds (unix seconds × 1000).

@@ -21,6 +21,7 @@
 #include <bcos-crypto/interfaces/crypto/CryptoSuite.h>
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPredeploys.h>
+#include <bcos-evm/test/opstack/support/OpForkFlagsCompat.h>
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
 #include <bcos-framework/storage2/MemoryStorage.h>

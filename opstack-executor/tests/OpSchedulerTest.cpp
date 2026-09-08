@@ -10,6 +10,7 @@
 // 2. ConsensusRejectionClassifiedAsOpConsensusRejected: 0x03 type byte → OpConsensusRejected.
 // 3. classifyException: OpConsensusError→OpConsensusRejected / OpStorageError→OpStorageFault /
 //    other→UnknownError.
+#include <bcos-evm/test/opstack/support/OpForkFlagsCompat.h>
 #include <opstack-executor/OpCommitments.h>    // detail::toBcosH256
 #include <opstack-executor/OpDepositEncode.h>  // encodeDepositEnvelope
 #include <opstack-executor/OpScheduler.h>

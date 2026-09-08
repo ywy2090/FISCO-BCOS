@@ -155,6 +155,7 @@ add_executable(opstack-executor-block-tests
     OpGoldenCorpusProvenanceTest.cpp
     OpDaMatrixSchemaTest.cpp
     OpKarstActivationTest.cpp
+    OpKarstReleaseGateTest.cpp
     support/GoldenSampleTest.cpp
     support/KarstNutHelpers.cpp
 )
@@ -189,6 +190,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         -Wno-error=missing-field-initializers -Wno-error=dangling-reference)
 endif()
 add_test(NAME OpstackExecutorBlockTests COMMAND opstack-executor-block-tests)
+
+add_custom_target(op-karst-release-gate
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/check-op-karst-release-gate.sh
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/opstack-executor-block-tests --run_test=OpKarstReleaseGateSuite
+    DEPENDS opstack-executor-block-tests
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+add_test(NAME OpKarstReleaseGate
+    COMMAND bash -c
+    "${CMAKE_SOURCE_DIR}/tools/check-op-karst-release-gate.sh && \
+     ${CMAKE_CURRENT_BINARY_DIR}/opstack-executor-block-tests --run_test=OpKarstReleaseGateSuite")
 
 add_executable(opstack-executor-detail-tests
     TestMain.cpp

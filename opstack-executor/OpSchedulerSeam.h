@@ -77,12 +77,6 @@ public:
         return computeOpTxRoot(rawTxBytes);
     }
 
-    /// Deprecated (K4): baseline-only Jovian predicate. Prefer `configAt(ts).has_da_footprint`.
-    [[nodiscard]] bool isJovianActive() const noexcept
-    {
-        return m_schedule->configAt(0).has_da_footprint;
-    }
-
     [[nodiscard]] bcos::engine::OpForkId forkIdAt(uint64_t timestampSeconds) const
     {
         switch (m_schedule->forkAt(timestampSeconds))
@@ -147,7 +141,8 @@ public:
     /// Refuses the unset snapshot sentinel (number/time/hash all zero) and an unset
     /// SystemConfig (zero baseFeeScalar or batcherHash) so a missing CL snapshot cannot
     /// mint a plausible L1-attributes deposit.
-    [[nodiscard]] bcos::bytes synthesizeL1AttributesEnvelope() const
+    /// `timestampSeconds` is the block Unix seconds (FCU attrs / payload), never configAt(0).
+    [[nodiscard]] bcos::bytes synthesizeL1AttributesEnvelope(uint64_t timestampSeconds) const
     {
         if (bcos::evm::opstack::isUnsetL1BlockInfo(m_l1BlockInfo))
         {
@@ -161,7 +156,8 @@ public:
                 "OpSchedulerSeam: refuse to synthesize L1-attributes with an unset "
                 "SystemConfig (baseFeeScalar and batcherHash must be non-zero)");
         }
-        return bcos::evm::opstack::synthesizeL1AttributesDeposit(m_l1BlockInfo, isJovianActive());
+        return bcos::evm::opstack::synthesizeL1AttributesDeposit(
+            m_l1BlockInfo, configAt(timestampSeconds).has_da_footprint);
     }
 
     OpSchedulerSeam(const OpSchedulerSeam&) = delete;

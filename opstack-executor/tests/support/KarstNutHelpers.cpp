@@ -4,13 +4,12 @@
 
 namespace opstack_test
 {
-using bcos::evm::opstack::OpFork;
 using bcos::evm::opstack::OpForkSchedule;
 
 std::shared_ptr<OpForkSchedule> karstOnlySchedule(uint64_t karstTs)
 {
-    return std::make_shared<OpForkSchedule>(OpForkSchedule{
-        {{OpFork::Jovian, 0}, {OpFork::Karst, karstTs}}, OpForkSchedule::TestBypass{}});
+    return std::make_shared<OpForkSchedule>(
+        OpForkSchedule::parse("0:jovian," + std::to_string(karstTs) + ":karst"));
 }
 
 std::shared_ptr<OpForkSchedule> isthmusThenJovian(uint64_t jovianTs)
