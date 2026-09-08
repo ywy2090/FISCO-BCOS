@@ -17,9 +17,8 @@ namespace
 // why its bn256 limit stays at the Granite value rather than getting one of its own; Jovian
 // re-tightens all four.
 //
-// P256Verify gas 3450 = P256VerifyGasFjord (protocol_params.go:183), NOT the default
-// P256VerifyGas 6900 (:184) — op-geth binds 0x100 to p256VerifyFjord from Fjord onward
-// (contracts.go:193).
+// P256Verify gas 3450 = P256VerifyGasFjord (protocol_params.go:183) through Jovian.
+// Karst/Osaka switches to the protocol default P256VerifyGas 6900 (:184).
 //
 // Addresses 0x0c / 0x0e / 0x0f are EIP-2537 G1 MSM / G2 MSM / pairing. op-geth caps only the
 // MSM and pairing precompiles; G1Add (0x0b), G2Add (0x0d) and the Map ops (0x10, 0x11) carry no
@@ -40,11 +39,12 @@ constexpr PrecompileOverrides::Entry kJovianEntries[] = {
     {.addr = evmc::address{0x0f}, .gas_cost_override = -1, .max_input_size = 156672},
 };
 
-// Stub: copy of the Jovian table so karstConfig() can point at a distinct object.
-// Osaka gas/caps (EIP-7883/7823/7825) replace this in a later task.
+// Karst / Osaka: bn256 pairing tightens to 300 pairs (57600). P256Verify uses the
+// protocol default P256VerifyGas 6900 (protocol_params.go:184), not Fjord's 3450.
+// BLS MSM/pairing caps stay at the Jovian values.
 constexpr PrecompileOverrides::Entry kKarstEntries[] = {
-    {.addr = evmc::address{0x08}, .gas_cost_override = -1, .max_input_size = 81984},
-    {.addr = kP256VerifyAddress, .gas_cost_override = 3450, .max_input_size = 0},
+    {.addr = evmc::address{0x08}, .gas_cost_override = -1, .max_input_size = 57600},
+    {.addr = kP256VerifyAddress, .gas_cost_override = 6900, .max_input_size = 0},
     {.addr = evmc::address{0x0c}, .gas_cost_override = -1, .max_input_size = 288960},
     {.addr = evmc::address{0x0e}, .gas_cost_override = -1, .max_input_size = 278784},
     {.addr = evmc::address{0x0f}, .gas_cost_override = -1, .max_input_size = 156672},

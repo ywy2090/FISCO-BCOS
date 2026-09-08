@@ -18,6 +18,7 @@ if(NOT BCOS_EVM_STANDALONE)
         opstack/OpForkScheduleCodecTest.cpp
         opstack/OpHostTest.cpp
         opstack/OpPrecompilesTest.cpp
+        opstack/OpOsakaSemanticsTest.cpp
         opstack/OpFeeParamsTest.cpp
         opstack/OpDepositTxTest.cpp
         opstack/OpPredeploysTest.cpp
