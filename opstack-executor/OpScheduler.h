@@ -1015,27 +1015,31 @@ private:
             std::optional<std::string> hashErr;
             std::optional<uint16_t> daFootprintGasScalar;
             std::optional<detail::RecentBlockHashes<ViewType>> hashes;
-            uint64_t parentTsSec = tsSec;
+            uint64_t parentTsSec = 0;
             if (header.number() > 0)
             {
                 try
                 {
                     auto parentBlock = co_await ledger::getBlockData(
                         view, header.number() - 1, ledger::HEADER, *m_blockFactory);
-                    if (parentBlock && parentBlock->blockHeader())
+                    if (!parentBlock || !parentBlock->blockHeader())
                     {
-                        parentTsSec = bcos::engine::unixSecondsFromInternalMillis(
-                            static_cast<uint64_t>(parentBlock->blockHeader()->timestamp()));
+                        throw bcos::evm::engine::OpStorageError(
+                            "OpScheduler: parent block header is missing from storage");
                     }
+                    parentTsSec = bcos::engine::unixSecondsFromInternalMillis(
+                        static_cast<uint64_t>(parentBlock->blockHeader()->timestamp()));
                 }
-                catch (...)
+                catch (const bcos::evm::engine::OpStorageError&)
                 {
-                    parentTsSec = tsSec;
+                    throw;
                 }
-            }
-            else
-            {
-                parentTsSec = 0;
+                catch (const std::exception& e)
+                {
+                    throw bcos::evm::engine::OpStorageError(
+                        std::string("OpScheduler: parent block header is missing from storage: ") +
+                        e.what());
+                }
             }
             bcos::evm::engine::preBlockOpSteps(view, header, cfg, rawTxBytes, deposits, executor,
                 hashes, hashErr, daFootprintGasScalar, m_schedule.get(), parentTsSec);

@@ -121,6 +121,8 @@ public:
         return m_schedule->configAt(timestampSeconds);
     }
 
+    /// `timestampSeconds` is Unix seconds. Callers must convert payload/header internal
+    /// milliseconds with `unixSecondsFromInternalMillis`. Never pass raw header.timestamp().
     [[nodiscard]] bcos::engine::EngineForkResolution resolveEngineForkAt(
         uint64_t timestampSeconds) const
     {

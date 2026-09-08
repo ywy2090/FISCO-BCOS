@@ -9,18 +9,28 @@
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-crypto/signature/secp256k1/Secp256k1Crypto.h>
 #include <bcos-evm/opstack/OpForkSchedule.h>
+#include <bcos-framework/dispatcher/SchedulerTypeDef.h>
 #include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/engine/Types.h>
 #include <bcos-framework/storage2/MemoryStorage.h>
+#include <bcos-framework/storage2/MultiLayerStorage.h>
 #include <bcos-framework/transaction-executor/StateKey.h>
+#include <bcos-tars-protocol/protocol/BlockFactoryImpl.h>
+#include <bcos-tars-protocol/protocol/BlockHeaderFactoryImpl.h>
 #include <bcos-tars-protocol/protocol/BlockHeaderImpl.h>
+#include <bcos-tars-protocol/protocol/TransactionFactoryImpl.h>
+#include <bcos-tars-protocol/protocol/TransactionImpl.h>
 #include <bcos-tars-protocol/protocol/TransactionReceiptFactoryImpl.h>
+#include <bcos-utilities/IOServicePool.h>
 #include <opstack-executor/OpBlockExecute.h>
+#include <opstack-executor/OpDepositEncode.h>
+#include <opstack-executor/OpScheduler.h>
 #include <opstack-executor/OpSchedulerSeam.h>
 #include <opstack-executor/OpstackExecutor.h>
 #include <boost/test/unit_test.hpp>
 #include <cstring>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
@@ -37,6 +47,32 @@ namespace
 {
 using MutableStorage = memory_storage::MemoryStorage<StateKey, StateValue,
     memory_storage::Attribute(memory_storage::ORDERED | memory_storage::LOGICAL_DELETION)>;
+using BackendMemStorage = memory_storage::MemoryStorage<StateKey, StateValue,
+    memory_storage::Attribute(memory_storage::ORDERED | memory_storage::CONCURRENT),
+    std::hash<StateKey>>;
+
+template <class Key, class Value, bcos::storage2::ReadWriteStorage<Key, Value> Storage>
+struct TrivialCheckpointStorage
+{
+    using CheckpointName = bcos::h256;
+    Storage& m_storage;
+    explicit TrivialCheckpointStorage(Storage& storage) noexcept : m_storage(storage) {}
+    Storage& open() & { return m_storage; }
+    [[noreturn]] Storage& open(CheckpointName const&) & { std::abort(); }
+    void createCheckpoint(Storage&, CheckpointName const&) {}
+    void deleteCheckpoint(CheckpointName const&) {}
+    [[nodiscard]] std::optional<CheckpointName> latestCheckpointName() const
+    {
+        return std::nullopt;
+    }
+    [[nodiscard]] std::optional<CheckpointName> oldestCheckpointName() const
+    {
+        return std::nullopt;
+    }
+};
+
+using CheckpointBackend = TrivialCheckpointStorage<StateKey, StateValue, BackendMemStorage>;
+using MLS = bcos::storage2::MultiLayerStorage<MutableStorage, void, CheckpointBackend>;
 
 struct UnusedView
 {
@@ -98,6 +134,58 @@ void runPreBlock(op::OpForkConfig const& cfg, op::OpForkSchedule const& schedule
     engine::preBlockOpSteps(storage, *header, cfg, rawTxs, deposits, executor, hashes, hashErr,
         scalar, &schedule, parentTsSec);
 }
+
+bcos::protocol::Transaction::Ptr envelopeToTx(
+    bcos::bytes const& env, bcos::crypto::Hash::Ptr const& hashImpl)
+{
+    auto const txHash = hashImpl->hash(env);
+    bcostars::Transaction tars;
+    tars.type = static_cast<tars::Char>(bcos::protocol::TransactionType::Web3Transaction);
+    tars.extraTransactionHash.assign(txHash.begin(), txHash.end());
+    tars.extraTransactionBytes.assign(env.begin(), env.end());
+    if (!env.empty())
+        tars.web3TypedTxKind = static_cast<tars::Char>(env[0]);
+    return std::make_shared<bcostars::protocol::TransactionImpl>(
+        [tars = std::move(tars)]() mutable { return &tars; });
+}
+
+/// Execute an activation-height block with no parent header row in storage.
+bcos::Error::Ptr executeActivationWithoutParent(std::shared_ptr<op::OpForkSchedule> schedule)
+{
+    BackendMemStorage backendStorage{1};
+    CheckpointBackend checkpointBackend(backendStorage);
+    MLS mls(checkpointBackend);
+    auto crypto =
+        std::make_shared<bcos::crypto::CryptoSuite>(std::make_shared<bcos::crypto::Keccak256>(),
+            std::make_shared<bcos::crypto::Secp256k1Crypto>(), nullptr);
+    auto hashImpl = crypto->hashImpl();
+    auto headerFactory = std::make_shared<bcostars::protocol::BlockHeaderFactoryImpl>(crypto);
+    auto txFactory = std::make_shared<bcostars::protocol::TransactionFactoryImpl>(crypto);
+    auto receiptFactory =
+        std::make_shared<bcostars::protocol::TransactionReceiptFactoryImpl>(crypto);
+    auto blockFactory = std::make_shared<bcostars::protocol::BlockFactoryImpl>(
+        crypto, headerFactory, txFactory, receiptFactory);
+    auto io = std::make_shared<bcos::IOServicePool>(1);
+    auto scheduler = std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
+        hashImpl, /*chainId=*/0x2105, schedule, blockFactory, mls, /*ledger=*/nullptr, io);
+
+    auto depEnv = op::encodeDepositEnvelope(depositWithJovianAttrs());
+    auto header = makeHeader(kJovianTsMs);
+    auto block = blockFactory->createBlock();
+    block->setBlockHeader(header);
+    block->appendTransaction(envelopeToTx(depEnv, hashImpl));
+    block->appendTransaction(envelopeToTx(kTypedEnvelope, hashImpl));
+
+    bcos::Error::Ptr err;
+    bool called = false;
+    scheduler->executeBlock(
+        block, /*verify=*/true, [&](bcos::Error::Ptr e, bcos::protocol::BlockHeader::Ptr, bool) {
+            called = true;
+            err = std::move(e);
+        });
+    BOOST_REQUIRE(called);
+    return err;
+}
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(OpKarstActivationSuite)
@@ -148,6 +236,30 @@ BOOST_AUTO_TEST_CASE(ResolveEngineForkAtKarstSelectsGetPayloadV5)
     auto jov = seam.resolveEngineForkAt(99);
     BOOST_CHECK(std::get<bcos::engine::EngineForkContext>(jov).api.getPayload ==
                 bcos::engine::ApiVersion::V4);
+}
+
+BOOST_AUTO_TEST_CASE(ResolveEngineForkAtRejectsBelowBaseline)
+{
+    // TestBypass: nonzero baseline so baseline-1 is representable as uint64.
+    auto schedule = std::make_shared<op::OpForkSchedule>(
+        op::OpForkSchedule{{{op::OpFork::Jovian, 50}}, op::OpForkSchedule::TestBypass{}});
+    engine::OpSchedulerSeam<UnusedView> seam(schedule, op::L1BlockInfo{});
+    auto resolved = seam.resolveEngineForkAt(49);
+    auto* err = std::get_if<bcos::engine::OpForkResolutionError>(&resolved);
+    BOOST_REQUIRE(err);
+    BOOST_CHECK(*err == bcos::engine::OpForkResolutionError::UnsupportedTimestamp);
+}
+
+BOOST_AUTO_TEST_CASE(JovianActivationWithoutParentHeaderFailsClosed)
+{
+    auto err = executeActivationWithoutParent(opstack_test::isthmusThenJovian(kJovianTsSec));
+    BOOST_REQUIRE(err);
+    BOOST_CHECK(
+        err->errorCode() == static_cast<int>(bcos::scheduler::SchedulerError::OpStorageFault) ||
+        err->errorCode() == static_cast<int>(bcos::scheduler::SchedulerError::OpConsensusRejected));
+    auto const msg = err->errorMessage();
+    BOOST_CHECK_MESSAGE(msg.find("parent") != std::string::npos,
+        "missing parent must fail closed, not execute; got: " + msg);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
