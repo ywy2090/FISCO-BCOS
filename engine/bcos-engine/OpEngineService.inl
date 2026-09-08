@@ -306,6 +306,7 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
     auto payloadId = *payloadIdOpt;
 
     u256 baseFee;
+    uint64_t parentTsSec = 0;
     {
         auto view = m_globalStateStorage.fork();
         auto parentNumberStr = boost::lexical_cast<std::string>(nextBlockNumber - 1);
@@ -326,18 +327,38 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
         bcos::bytes parentHeaderBytes(stored.begin(), stored.end());
         auto parentHeader =
             m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
-        baseFee = calcOpBaseFee(*parentHeader,
-            m_scheduler
-                .configAt(unixSecondsFromInternalMillis(
-                    static_cast<uint64_t>(parentHeader->timestamp())))
-                .has_da_footprint);
+        parentTsSec = unixSecondsFromInternalMillis(
+            static_cast<uint64_t>(parentHeader->timestamp()));
+        baseFee = calcOpBaseFee(*parentHeader, m_scheduler.configAt(parentTsSec).has_da_footprint);
     }
 
     requireDelegate();
 
+    // Q5 builder half: activation blocks are deposits-only. Skip the mempool
+    // (treat as noTxPool) and FCU-INVALID any non-deposit already in attrs.
+    // Hash-less execute rejects used to flatten to -32603 here.
+    uint64_t const attrsTsSec = unixSecondsFromInternalMillis(payloadAttributes.timestamp);
+    bool const activation = m_scheduler.isNoUserTxActivationBlock(parentTsSec, attrsTsSec);
+    if (activation)
+    {
+        for (auto const& env : decodedForcedTxs)
+        {
+            if (dispatchRawTransaction(bcos::ref(env)) != RawTransactionKind::Deposit)
+            {
+                co_return ForkchoiceUpdatedResult{
+                    .payloadStatus = makeStatus(PayloadValidationStatus::Invalid,
+                        forkchoiceState.headBlockHash,
+                        std::string("op block: unexpected non-deposit transactions in fork "
+                                    "activation block")),
+                    .payloadId = std::nullopt,
+                };
+            }
+        }
+    }
+
     auto sealView = m_globalStateStorage.fork();
     std::vector<protocol::Transaction::Ptr> sealedTxs;
-    if (!payloadAttributes.noTxPool.value_or(false))
+    if (!activation && !payloadAttributes.noTxPool.value_or(false))
     {
         sealView.newMutable();
         m_memPool.remove(sealView);

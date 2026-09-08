@@ -1,0 +1,77 @@
+/**
+ *  Copyright (C) 2021 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @brief initializer for the TxPool module
+ * @file TxPoolInitializer.h
+ * @author: yujiechen
+ * @date 2021-06-10
+ */
+#pragma once
+#include "libinitializer/ProtocolInitializer.h"
+#include <boost/asio/io_context.hpp>
+#include <bcos-framework/dispatcher/SchedulerInterface.h>
+#include <bcos-framework/front/FrontServiceInterface.h>
+#include <bcos-framework/ledger/LedgerInterface.h>
+#include <bcos-framework/txpool/TxPoolInterface.h>
+#include <bcos-tool/NodeConfig.h>
+#include <bcos-utilities/Common.h>
+#include <bcos-utilities/FixedBytes.h>
+#include <bcos-utilities/IOServicePool.h>
+#include <memory>
+
+namespace bcos
+{
+namespace txpool
+{
+class TxPoolFactory;
+class TxPool;
+}  // namespace txpool
+
+namespace initializer
+{
+class TxPoolInitializer
+{
+public:
+    using Ptr = std::shared_ptr<TxPoolInitializer>;
+    TxPoolInitializer(bcos::tool::NodeConfig::Ptr _nodeConfig,
+        ProtocolInitializer::Ptr _protocolInitializer,
+        bcos::front::FrontServiceInterface::Ptr _frontService,
+        bcos::ledger::LedgerInterface::Ptr _ledger,
+        boost::asio::io_context& _ioContext,
+        bcos::IOServicePool::Ptr _ioServicePool);
+    virtual ~TxPoolInitializer() { stop(); }
+
+    virtual void init();
+    virtual void start();
+    virtual void stop();
+
+    void setScheduler(std::shared_ptr<bcos::scheduler::SchedulerInterface> _scheduler);
+
+    std::shared_ptr<bcos::txpool::TxPoolInterface> txpool();
+    bcos::crypto::CryptoSuite::Ptr cryptoSuite() { return m_protocolInitializer->cryptoSuite(); }
+
+private:
+    bcos::tool::NodeConfig::Ptr m_nodeConfig;
+    ProtocolInitializer::Ptr m_protocolInitializer;
+    bcos::front::FrontServiceInterface::Ptr m_frontService;
+    bcos::ledger::LedgerInterface::Ptr m_ledger;
+
+    std::shared_ptr<bcos::txpool::TxPoolFactory> m_txpoolFactory;
+    std::shared_ptr<bcos::txpool::TxPool> m_txpool;
+    bcos::IOServicePool::Ptr m_ioServicePool;
+    std::atomic_bool m_running = {false};
+};
+}  // namespace initializer
+}  // namespace bcos

@@ -210,7 +210,8 @@ BOOST_AUTO_TEST_CASE(op_does_not_advertise_unimplemented_fcu_v4)
     // render a PayloadV3 build. getPayloadV3 is never the live method
     // (engineApiFor is Jovian V4 / Karst V5) — advertising it strands a CL on -38005.
     for (auto const* dead : {"engine_newPayloadV1", "engine_newPayloadV2", "engine_newPayloadV3",
-             "engine_getPayloadV1", "engine_getPayloadV2", "engine_getPayloadV3"})
+             "engine_newPayloadV5", "engine_getPayloadV1", "engine_getPayloadV2",
+             "engine_getPayloadV3"})
     {
         BOOST_CHECK_MESSAGE(std::find(caps.begin(), caps.end(), dead) == caps.end(),
             "OP caps must not advertise " << dead);

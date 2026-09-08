@@ -645,12 +645,16 @@ inline bcos::engine::PayloadAttributes makeOpPayloadAttributesAt(std::uint64_t t
 }
 
 /// FCU V3 build keyed by attrs.timestamp (ms). Parent/head timestamp is seeded separately.
+/// Forced txs are deposits-only so a Jovian/Karst activation window (parent pre-fork,
+/// attrs on the new fork) stays VALID — user envelopes are FCU-INVALID there.
 inline bcos::engine::PayloadID buildPayloadAt(
     OpServicePair& pair, std::uint64_t attrsTimestampMs, std::uint64_t parentTimestampMs)
 {
-    auto decoded = makeDecodableWeb3Tx(1);
+    // Real L1-attributes deposit (not 0x7e00): buildOpBlock rejects undecodable
+    // envelopes as FCU INVALID. Jovian+ schedule always has DA footprint.
+    auto const deposit = bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(true);
     auto attrs = makeOpPayloadAttributesAt(attrsTimestampMs);
-    attrs.transactions = std::vector<std::string>{decoded.rawHex};
+    attrs.transactions = std::vector<std::string>{bcos::toHexStringWithPrefix(deposit)};
     auto const hash = fixtureHeadHash();
     bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
     registerVerifiedBlock(pair.storage, hash, 0);

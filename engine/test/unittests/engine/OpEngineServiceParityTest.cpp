@@ -1096,6 +1096,10 @@ BOOST_AUTO_TEST_CASE(op_getpayload_v5_response_json_shape)
     params.append(Json::Value(Json::arrayValue));
     auto parsed = bcos::rpc::parseNewPayloadRequest(params, bcos::engine::ApiVersion::V4);
     checkSameExecutionPayload(payload->executionPayload, parsed.executionPayload);
+
+    auto status = bcos::task::syncWait(fixture.pair.service.newPayload(parsed, 4));
+    BOOST_CHECK_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
 }
 
 BOOST_AUTO_TEST_CASE(op_newpayload_occupied_nontip_height_is_syncing)

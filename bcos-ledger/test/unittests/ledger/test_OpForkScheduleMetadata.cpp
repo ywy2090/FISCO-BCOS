@@ -1,6 +1,20 @@
 /**
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @file test_OpForkScheduleMetadata.cpp
+ * @brief SYS_CHAIN_METADATA op-fork-schedule triple persist / resolve / fail-closed.
  */
 #include "L2GenesisTestStorage.h"
 #include "bcos-framework/ledger/ChainMetadata.h"
@@ -27,7 +41,7 @@ namespace bcos::test
 {
 namespace
 {
-constexpr char const* kIsthmusJovianSchedule = "0:isthmus,1764691201:jovian";
+constexpr char const* c_isthmusJovianSchedule = "0:isthmus,1764691201:jovian";
 
 struct OpForkScheduleMetadataFixture
 {
@@ -83,7 +97,7 @@ BOOST_AUTO_TEST_CASE(genesisPersistsScheduleMetadataTriple)
         auto ledger = std::make_shared<Ledger>(m_blockFactory, storage, 1);
 
         BOOST_REQUIRE(co_await ledger::buildGenesisBlock(
-            *ledger, scheduleGenesis(kIsthmusJovianSchedule), emptyLedgerConfig()));
+            *ledger, scheduleGenesis(c_isthmusJovianSchedule), emptyLedgerConfig()));
 
         auto block = co_await ledger::getBlockData(*ledger, 0, HEADER);
         BOOST_REQUIRE(block);
@@ -91,25 +105,25 @@ BOOST_AUTO_TEST_CASE(genesisPersistsScheduleMetadataTriple)
 
         const auto metadata = co_await readOpForkScheduleMetadata(*storage, ledgerGenesisHash);
         BOOST_REQUIRE(metadata.has_value());
-        BOOST_CHECK_EQUAL(metadata->schedule, kIsthmusJovianSchedule);
+        BOOST_CHECK_EQUAL(metadata->schedule, c_isthmusJovianSchedule);
         BOOST_CHECK_EQUAL(metadata->genesisHash, ledgerGenesisHash);
         BOOST_CHECK_EQUAL(metadata->scheduleHash, keccakOpForkScheduleHash(metadata->schedule));
 
         BOOST_CHECK_EQUAL(
             resolveOpForkScheduleCanonical(metadata, std::nullopt, false, ledgerGenesisHash),
-            kIsthmusJovianSchedule);
+            c_isthmusJovianSchedule);
         co_return;
     }());
 }
 
 BOOST_AUTO_TEST_CASE(hashMismatchFailClosed)
 {
-    const auto goodHash = keccakOpForkScheduleHash(kIsthmusJovianSchedule);
+    const auto goodHash = keccakOpForkScheduleHash(c_isthmusJovianSchedule);
     auto badHash = goodHash;
     badHash[0] ^= 0x01;
 
     OpForkScheduleMetadata stored{
-        .schedule = kIsthmusJovianSchedule,
+        .schedule = c_isthmusJovianSchedule,
         .scheduleHash = badHash,
         .genesisHash = HashType{},
     };
@@ -124,7 +138,7 @@ BOOST_AUTO_TEST_CASE(hashMismatchFailClosed)
         auto ledger = std::make_shared<Ledger>(m_blockFactory, storage, 1);
 
         BOOST_REQUIRE(co_await ledger::buildGenesisBlock(
-            *ledger, scheduleGenesis(kIsthmusJovianSchedule), emptyLedgerConfig()));
+            *ledger, scheduleGenesis(c_isthmusJovianSchedule), emptyLedgerConfig()));
         auto block = co_await ledger::getBlockData(*ledger, 0, HEADER);
         BOOST_REQUIRE(block);
         const auto ledgerGenesisHash = block->blockHeader()->hash();
@@ -165,21 +179,21 @@ BOOST_AUTO_TEST_CASE(partialTripleIsNotAbsent)
 {
     const auto genesisHash = HashType{};
     OpForkScheduleMetadataRows oneOfThree;
-    oneOfThree.schedule = kIsthmusJovianSchedule;
+    oneOfThree.schedule = c_isthmusJovianSchedule;
     BOOST_CHECK_EXCEPTION((void)validateOpForkScheduleMetadataRows(oneOfThree, genesisHash),
         InvalidOpForkSchedule,
         [](InvalidOpForkSchedule const& e) { return messageContains(e, "partial"); });
 
     OpForkScheduleMetadataRows twoOfThree;
-    twoOfThree.schedule = kIsthmusJovianSchedule;
-    twoOfThree.scheduleHash = keccakOpForkScheduleHash(kIsthmusJovianSchedule).hex();
+    twoOfThree.schedule = c_isthmusJovianSchedule;
+    twoOfThree.scheduleHash = keccakOpForkScheduleHash(c_isthmusJovianSchedule).hex();
     BOOST_CHECK_EXCEPTION((void)validateOpForkScheduleMetadataRows(twoOfThree, genesisHash),
         InvalidOpForkSchedule,
         [](InvalidOpForkSchedule const& e) { return messageContains(e, "partial"); });
 
     task::syncWait([]() -> task::Task<void> {
         auto storage = makeL2GenesisTestStorage();
-        co_await writeMetadataRow(*storage, OP_FORK_SCHEDULE_KEY, kIsthmusJovianSchedule);
+        co_await writeMetadataRow(*storage, OP_FORK_SCHEDULE_KEY, c_isthmusJovianSchedule);
 
         bool oneKeyThrew = false;
         try
@@ -195,7 +209,7 @@ BOOST_AUTO_TEST_CASE(partialTripleIsNotAbsent)
         BOOST_CHECK(oneKeyThrew);
 
         co_await writeMetadataRow(*storage, OP_FORK_SCHEDULE_HASH_KEY,
-            keccakOpForkScheduleHash(kIsthmusJovianSchedule).hex());
+            keccakOpForkScheduleHash(c_isthmusJovianSchedule).hex());
 
         bool twoKeysThrew = false;
         try
@@ -220,7 +234,7 @@ BOOST_AUTO_TEST_CASE(genesisBindingMismatchFailClosed)
         auto ledger = std::make_shared<Ledger>(m_blockFactory, storage, 1);
 
         BOOST_REQUIRE(co_await ledger::buildGenesisBlock(
-            *ledger, scheduleGenesis(kIsthmusJovianSchedule), emptyLedgerConfig()));
+            *ledger, scheduleGenesis(c_isthmusJovianSchedule), emptyLedgerConfig()));
         auto block = co_await ledger::getBlockData(*ledger, 0, HEADER);
         BOOST_REQUIRE(block);
         const auto ledgerGenesisHash = block->blockHeader()->hash();
@@ -254,7 +268,7 @@ BOOST_AUTO_TEST_CASE(badHexIsInvalidOpForkSchedule)
 {
     const auto genesisHash = HashType{};
     OpForkScheduleMetadataRows badScheduleHash;
-    badScheduleHash.schedule = kIsthmusJovianSchedule;
+    badScheduleHash.schedule = c_isthmusJovianSchedule;
     badScheduleHash.scheduleHash = "not-a-hex-hash";
     badScheduleHash.genesisHash = genesisHash.hex();
     BOOST_CHECK_EXCEPTION((void)validateOpForkScheduleMetadataRows(badScheduleHash, genesisHash),
@@ -263,8 +277,8 @@ BOOST_AUTO_TEST_CASE(badHexIsInvalidOpForkSchedule)
         });
 
     OpForkScheduleMetadataRows badGenesisHash;
-    badGenesisHash.schedule = kIsthmusJovianSchedule;
-    badGenesisHash.scheduleHash = keccakOpForkScheduleHash(kIsthmusJovianSchedule).hex();
+    badGenesisHash.schedule = c_isthmusJovianSchedule;
+    badGenesisHash.scheduleHash = keccakOpForkScheduleHash(c_isthmusJovianSchedule).hex();
     badGenesisHash.genesisHash = "gg";
     BOOST_CHECK_EXCEPTION((void)validateOpForkScheduleMetadataRows(badGenesisHash, genesisHash),
         InvalidOpForkSchedule, [](InvalidOpForkSchedule const& e) {

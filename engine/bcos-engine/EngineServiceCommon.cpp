@@ -77,9 +77,11 @@ std::vector<std::string> supportedCapabilities()
     // here would also break the pre-Karst callers this node still serves — the v1 Engine
     // API harness behind unsafe_allow_v1_executor and the V1-V3 integration suites.
     //
-    // Eth and Op advertise the same list. FCU V4 is unimplemented (Endpoint -38005)
-    // and absent upstream (op-geth / op-node top out at V3), so it is not listed.
-    // A V4-shaped build still stores PayloadV3 (payloadShapeVersion).
+    // This is the Eth lane list. The OP lane uses supportedOpCapabilities() and
+    // drops the V1–V3 newPayload / getPayload methods its gates reject. FCU V4
+    // is unimplemented (Endpoint -38005) and absent upstream (op-geth / op-node
+    // top out at V3), so it is not listed. A V4-shaped build still stores
+    // PayloadV3 (payloadShapeVersion).
     static const std::vector<std::string> caps{"engine_exchangeCapabilities",
         "engine_forkchoiceUpdatedV1", "engine_forkchoiceUpdatedV2", "engine_forkchoiceUpdatedV3",
         "engine_getPayloadV1", "engine_getPayloadV2", "engine_getPayloadV3", "engine_getPayloadV4",

@@ -1,0 +1,17 @@
+{
+  "schema_version": 3,
+  "verdict": "INCOMPLETE",
+  "fisco_review_disposition": "COMMENT",
+  "head": "c83c153813ab5a62a9d585dbb4f411d504aa172e",
+  "base": "f22bb8b968ab703b0abd456bb32cde7bbcc21a03",
+  "mode": "incremental",
+  "last_full_head": "46f9bc9a933824fb41405bd5f85f599edab44a1c",
+  "last_full_base": "f22bb8b968ab703b0abd456bb32cde7bbcc21a03",
+  "round": 3,
+  "overall": "7.5/10",
+  "open_findings": ["F14"],
+  "conflict_of_interest": true,
+  "github_pr": null,
+  "fisco_review_pr_verdict": "INCOMPLETE",
+  "reason_incomplete": "no GitHub PR; cannot bind live head/base or run 5+1 blind"
+}

@@ -115,6 +115,15 @@ public:
         return m_schedule->configAt(timestampSeconds);
     }
 
+    /// Q5 window: Jovian+ activation live at `blockTsSec` but not at `parentTsSec`.
+    /// Both arguments are Unix seconds.
+    [[nodiscard]] bool isNoUserTxActivationBlock(
+        uint64_t parentTsSec, uint64_t blockTsSec) const
+    {
+        return bcos::evm::opstack::isNoUserTxActivationBlock(
+            *m_schedule, parentTsSec, blockTsSec);
+    }
+
     /// `timestampSeconds` is Unix seconds. Callers must convert payload/header internal
     /// milliseconds with `unixSecondsFromInternalMillis`. Never pass raw header.timestamp().
     [[nodiscard]] bcos::engine::EngineForkResolution resolveEngineForkAt(

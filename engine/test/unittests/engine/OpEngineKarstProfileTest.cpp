@@ -90,4 +90,75 @@ BOOST_AUTO_TEST_CASE(CapabilitiesAlwaysAdvertiseV4AndV5)
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV5") != caps.end());
 }
 
+static void seedKarstActivationHead(OpServicePair& pair)
+{
+    auto const hash = fixtureHeadHash();
+    registerVerifiedBlock(pair.storage, hash, 0);
+    registerParentHeader(
+        pair.storage, *pair.blockFactory, 0, static_cast<int64_t>(c_jovianPayloadTimestampMs));
+}
+
+// F17: attrs that already contain a user tx on a Jovian/Karst activation timestamp
+// must FCU-INVALID before execute. Never OpExecutionInternalError (-32603).
+BOOST_AUTO_TEST_CASE(ActivationFcuInvalidatesNonDepositAttrs)
+{
+    auto delegate = std::make_shared<RecordingScheduler>();
+    delegate->failFirst = false;
+    OpServicePair pair(/*allowSynthesizedL1Attributes=*/true, delegate, nullptr,
+        makeKarstProfileSchedule());
+    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+
+    auto decoded = makeDecodableWeb3Tx(1);
+    auto attrs = makeOpPayloadAttributesAt(c_karstPayloadTimestampMs);
+    attrs.noTxPool = false;
+    attrs.transactions = std::vector<std::string>{decoded.rawHex};
+    seedKarstActivationHead(pair);
+    auto const hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
+
+    bcos::engine::ForkchoiceUpdatedResult result;
+    BOOST_REQUIRE_NO_THROW(
+        result = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3)));
+    BOOST_CHECK_EQUAL(static_cast<int>(result.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
+    BOOST_CHECK(!result.payloadId.has_value());
+    BOOST_REQUIRE(result.payloadStatus.validationError.has_value());
+    BOOST_CHECK(result.payloadStatus.validationError->find("activation") != std::string::npos);
+    BOOST_CHECK_EQUAL(delegate->executeCalls, 0);
+}
+
+// F17: activation + noTxPool=false must not seal mempool user txs onto a
+// deposits-only attrs list (empty attrs → synthesized L1 deposit).
+BOOST_AUTO_TEST_CASE(ActivationFcuSkipsMempoolUserTxs)
+{
+    auto delegate = std::make_shared<RecordingScheduler>();
+    delegate->failFirst = false;
+    OpServicePair pair(/*allowSynthesizedL1Attributes=*/true, delegate, nullptr,
+        makeKarstProfileSchedule());
+    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+
+    auto decoded = makeDecodableWeb3Tx(1);
+    pair.memPool.pool.push_back(decoded.tx);
+
+    auto attrs = makeOpPayloadAttributesAt(c_karstPayloadTimestampMs);
+    attrs.noTxPool = false;
+    attrs.transactions.reset();
+    seedKarstActivationHead(pair);
+    auto const hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
+
+    auto result = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(result.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_REQUIRE(result.payloadId.has_value());
+    BOOST_CHECK_GE(delegate->executeCalls, 1);
+    BOOST_CHECK(pair.memPool.removed.empty());
+
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*result.payloadId, 5));
+    BOOST_REQUIRE(payload);
+    BOOST_REQUIRE_EQUAL(payload->executionPayload.transactions.size(), 1);
+    BOOST_REQUIRE(!payload->executionPayload.transactions[0].raw.empty());
+    BOOST_CHECK_EQUAL(payload->executionPayload.transactions[0].raw[0], 0x7e);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
