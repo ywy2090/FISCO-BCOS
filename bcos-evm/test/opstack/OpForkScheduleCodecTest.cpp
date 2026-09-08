@@ -14,6 +14,7 @@ BOOST_AUTO_TEST_CASE(AcceptsIsthmusJovianOnly)
     BOOST_CHECK_EQUAL(acts[0].forkName, "isthmus");
     BOOST_CHECK_EQUAL(acts[0].timestamp, 0u);
     BOOST_CHECK_EQUAL(acts[1].forkName, "jovian");
+    BOOST_CHECK_EQUAL(acts[1].timestamp, 1764691201u);
 }
 
 BOOST_AUTO_TEST_CASE(RejectsKarstUntilK3)
@@ -27,7 +28,14 @@ BOOST_AUTO_TEST_CASE(RejectsKarstUntilK3)
         InvalidOpForkSchedule, isKarstLocked);
     BOOST_CHECK_EXCEPTION(
         parseOpForkSchedule("0:jovian,1781712001:karst"), InvalidOpForkSchedule, isKarstLocked);
-    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("0:karst"), InvalidOpForkSchedule, isKarstLocked);
+    // Baseline is validated before forkOrder; 0:karst is invalid baseline, not unknown.
+    BOOST_CHECK_EXCEPTION(
+        parseOpForkSchedule("0:karst"), InvalidOpForkSchedule, [](InvalidOpForkSchedule const& e) {
+            auto w = std::string_view{e.what()};
+            return w.find("invalid baseline") != std::string_view::npos ||
+                   w.find("unknown") != std::string_view::npos ||
+                   w.find("karst") != std::string_view::npos;
+        });
 }
 
 BOOST_AUTO_TEST_CASE(RejectsTimestampOverflow)
@@ -62,10 +70,18 @@ BOOST_AUTO_TEST_CASE(RejectsEmptyMissingBaselineAndOrder)
         });
     BOOST_CHECK_EXCEPTION(
         parseOpForkSchedule("0:ecotone"), InvalidOpForkSchedule, [](auto const& e) {
-            return std::string_view{e.what()}.find("unknown") != std::string_view::npos;
+            auto w = std::string_view{e.what()};
+            return w.find("invalid baseline") != std::string_view::npos ||
+                   w.find("unknown") != std::string_view::npos;
         });
-    BOOST_CHECK_THROW(parseOpForkSchedule(""), InvalidOpForkSchedule);
-    BOOST_CHECK_THROW(parseOpForkSchedule("0:jovian,1:isthmus"), InvalidOpForkSchedule);
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule(""), InvalidOpForkSchedule, [](auto const& e) {
+        return std::string_view{e.what()}.find("empty schedule") != std::string_view::npos;
+    });
+    BOOST_CHECK_EXCEPTION(
+        parseOpForkSchedule("0:jovian,1:isthmus"), InvalidOpForkSchedule, [](auto const& e) {
+            return std::string_view{e.what()}.find("forks out of protocol order") !=
+                   std::string_view::npos;
+        });
 }
 
 BOOST_AUTO_TEST_SUITE_END()
