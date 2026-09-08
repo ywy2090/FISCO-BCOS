@@ -1,18 +1,38 @@
+/**
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @file OpForkScheduleCodec.h
+ * @brief Canonical OP fork-schedule codec (Isthmus+; Karst after Jovian).
+ */
 #pragma once
 
 #include <bcos-crypto/hash/Keccak256.h>
 #include <bcos-crypto/interfaces/crypto/CommonType.h>
 #include <bcos-utilities/Common.h>
+#include <bcos-utilities/Exceptions.h>
 
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <limits>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <boost/throw_exception.hpp>
 
 // Canonical fork-schedule codec aligned with op-reth / op-node. Karst is a named
 // activation after Jovian; baseline remains isthmus|jovian.
@@ -25,11 +45,12 @@ struct OpForkActivationRecord
     uint64_t timestamp = 0;
 };
 
-class InvalidOpForkSchedule : public std::invalid_argument
+DERIVE_BCOS_EXCEPTION(InvalidOpForkSchedule);
+
+[[noreturn]] inline void throwInvalidOpForkSchedule(std::string_view msg)
 {
-public:
-    using std::invalid_argument::invalid_argument;
-};
+    BOOST_THROW_EXCEPTION(InvalidOpForkSchedule() << errinfo_comment(std::string(msg)));
+}
 
 namespace detail
 {
@@ -61,16 +82,16 @@ inline std::string trimAscii(std::string_view input)
 inline uint64_t parseTimestamp(std::string_view token)
 {
     if (token.empty())
-        throw InvalidOpForkSchedule("empty timestamp");
+        throwInvalidOpForkSchedule("empty timestamp");
     uint64_t value = 0;
     for (const char ch : token)
     {
         if (ch < '0' || ch > '9')
-            throw InvalidOpForkSchedule("invalid timestamp");
+            throwInvalidOpForkSchedule("invalid timestamp");
         const auto digit = static_cast<uint64_t>(ch - '0');
         // Pre-multiply guard: `next < value` misses wraps that land above value.
         if (value > (std::numeric_limits<uint64_t>::max() - digit) / 10)
-            throw InvalidOpForkSchedule("timestamp overflow");
+            throwInvalidOpForkSchedule("timestamp overflow");
         value = value * 10 + digit;
     }
     return value;
@@ -90,14 +111,14 @@ inline std::string normalizeForkName(std::string_view token)
 inline void validateScheduleRecords(std::span<const OpForkActivationRecord> activations)
 {
     if (activations.empty())
-        throw InvalidOpForkSchedule("empty schedule");
+        throwInvalidOpForkSchedule("empty schedule");
 
     if (activations.front().timestamp != 0)
-        throw InvalidOpForkSchedule("missing timestamp-0 baseline");
+        throwInvalidOpForkSchedule("missing timestamp-0 baseline");
 
     const auto& baseline = activations.front().forkName;
     if (!isAllowedBaseline(baseline))
-        throw InvalidOpForkSchedule("invalid baseline fork");
+        throwInvalidOpForkSchedule("invalid baseline fork");
 
     bool hasJovian = baseline == "jovian";
     bool hasKarst = false;
@@ -109,20 +130,20 @@ inline void validateScheduleRecords(std::span<const OpForkActivationRecord> acti
     {
         const int order = forkOrder(activation.forkName);
         if (order < 0)
-            throw InvalidOpForkSchedule("unknown or pre-Isthmus fork");
+            throwInvalidOpForkSchedule("unknown or pre-Isthmus fork");
 
         if (activation.timestamp < previousTimestamp)
-            throw InvalidOpForkSchedule("timestamps out of order");
+            throwInvalidOpForkSchedule("timestamps out of order");
         if (activation.timestamp == previousTimestamp && !activations.empty() &&
             &activation != &activations.front())
-            throw InvalidOpForkSchedule("duplicate timestamp");
+            throwInvalidOpForkSchedule("duplicate timestamp");
 
         if (order <= previousOrder)
-            throw InvalidOpForkSchedule("forks out of protocol order");
+            throwInvalidOpForkSchedule("forks out of protocol order");
 
         const auto forkView = std::string_view{activation.forkName};
         if (std::find(seenForks.begin(), seenForks.end(), forkView) != seenForks.end())
-            throw InvalidOpForkSchedule("duplicate fork");
+            throwInvalidOpForkSchedule("duplicate fork");
         seenForks.push_back(forkView);
 
         if (activation.forkName == "jovian")
@@ -135,7 +156,7 @@ inline void validateScheduleRecords(std::span<const OpForkActivationRecord> acti
     }
 
     if (hasKarst && baseline == "isthmus" && !hasJovian)
-        throw InvalidOpForkSchedule("Jovian activation is required before Karst");
+        throwInvalidOpForkSchedule("Jovian activation is required before Karst");
 }
 
 inline std::string serializeScheduleRecords(std::span<const OpForkActivationRecord> activations)
@@ -153,29 +174,29 @@ inline std::string serializeScheduleRecords(std::span<const OpForkActivationReco
 }
 }  // namespace detail
 
-inline constexpr std::size_t kMaxOpForkActivations = 8;
-inline constexpr std::size_t kMaxOpForkScheduleBytes = 512;
+inline constexpr std::size_t c_maxOpForkActivations = 8;
+inline constexpr std::size_t c_maxOpForkScheduleBytes = 512;
 
 inline std::vector<OpForkActivationRecord> parseOpForkSchedule(std::string_view canonical)
 {
     const auto trimmed = detail::trimAscii(canonical);
     if (trimmed.empty())
-        throw InvalidOpForkSchedule("empty schedule");
-    if (trimmed.size() > kMaxOpForkScheduleBytes)
-        throw InvalidOpForkSchedule("schedule too long");
+        throwInvalidOpForkSchedule("empty schedule");
+    if (trimmed.size() > c_maxOpForkScheduleBytes)
+        throwInvalidOpForkSchedule("schedule too long");
 
     std::vector<OpForkActivationRecord> activations;
     std::string_view remaining{trimmed};
     while (!remaining.empty())
     {
-        if (activations.size() >= kMaxOpForkActivations)
-            throw InvalidOpForkSchedule("too many activations");
+        if (activations.size() >= c_maxOpForkActivations)
+            throwInvalidOpForkSchedule("too many activations");
 
         const auto comma = remaining.find(',');
         const auto entry = remaining.substr(0, comma);
         const auto colon = entry.find(':');
         if (colon == std::string_view::npos)
-            throw InvalidOpForkSchedule("invalid activation entry");
+            throwInvalidOpForkSchedule("invalid activation entry");
 
         OpForkActivationRecord record;
         record.timestamp = detail::parseTimestamp(entry.substr(0, colon));

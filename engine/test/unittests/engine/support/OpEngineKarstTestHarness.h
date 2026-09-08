@@ -1,6 +1,17 @@
 /**
  *  Copyright (C) 2026 FISCO BCOS.
  *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
  * @file OpEngineKarstTestHarness.h
  * @brief Shared OP Engine FCU/getPayload fixtures extracted from OpEngineServiceParityTest.
@@ -616,10 +627,10 @@ inline std::shared_ptr<bcos::evm::opstack::OpForkSchedule> makeKarstProfileSched
 }
 
 /// PayloadAttributes.timestamp is internal milliseconds (unix seconds × 1000).
-inline constexpr std::uint64_t kJovianPayloadTimestampMs = 999'000;
-inline constexpr std::uint64_t kKarstPayloadTimestampMs = 1'000'000;
-static_assert(kJovianPayloadTimestampMs / 1000 == 999);
-static_assert(kKarstPayloadTimestampMs / 1000 == 1000);
+inline constexpr std::uint64_t c_jovianPayloadTimestampMs = 999'000;
+inline constexpr std::uint64_t c_karstPayloadTimestampMs = 1'000'000;
+static_assert(c_jovianPayloadTimestampMs / 1000 == 999);
+static_assert(c_karstPayloadTimestampMs / 1000 == 1000);
 
 inline bcos::h256 fixtureHeadHash()
 {

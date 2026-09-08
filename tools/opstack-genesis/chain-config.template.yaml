@@ -13,7 +13,7 @@
 # below once the artifact is frozen.
 #
 # Fork activation is NOT a YAML field here — it lives in config.ini / genesis
-# [opstack].fork_schedule. Do not enable Karst without K2 (Osaka + EIP-7825
+# [op_fork_schedule] canonical=. Do not enable Karst without K2 (Osaka + EIP-7825
 # deposit exemption) and K3 (getPayload V5 / -38005) shipping together:
 #   Sepolia-style new chain: 0:jovian,1781712001:karst
 #   Mainnet-style:           0:isthmus,1764691201:jovian,1783526401:karst

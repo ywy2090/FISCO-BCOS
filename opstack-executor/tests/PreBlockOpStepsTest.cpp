@@ -12,6 +12,7 @@
 
 #include <bcos-evm/test/opstack/OpTestReceiptFactory.h>
 
+#include <bcos-evm/opstack/OpForkSchedule.h>
 #include <opstack-executor/OpBlockExecute.h>
 #include <opstack-executor/OpDepositEncode.h>
 #include <opstack-executor/OpstackExecutor.h>
@@ -399,9 +400,8 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockCapacityFaultIsNotAnEvictableCulprit)
         return out;
     };
     bcos::bytes payload;
-    auto append = [&payload](bcos::bytes const& b) {
-        payload.insert(payload.end(), b.begin(), b.end());
-    };
+    auto append = [&payload](
+                      bcos::bytes const& b) { payload.insert(payload.end(), b.begin(), b.end()); };
     append(intItem(10));  // chainId
     append(intItem(0));   // nonce
     append(intItem(30000000000));
@@ -411,7 +411,7 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockCapacityFaultIsNotAnEvictableCulprit)
     bcos::bytes toItem;
     rlp::encode(toItem, bcos::bytesConstRef{toBytes.data(), toBytes.size()});
     append(toItem);
-    append(intItem(0));  // value
+    append(intItem(0));       // value
     payload.push_back(0x80);  // empty data (bare byte)
     payload.push_back(0xc0);  // empty accessList
     bcos::bytes listHeader;
@@ -431,8 +431,7 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockCapacityFaultIsNotAnEvictableCulprit)
         normalTx.tx = tx;
         normalTx.signedEnvelope = envelope;
         std::vector<op::OpBlockTx> const txs{depTx, normalTx};
-        (void)op::processOpBlock(view, block, hashes, txs,
-            op::isthmusConfig(), vm, /*chainId=*/10,
+        (void)op::processOpBlock(view, block, hashes, txs, op::isthmusConfig(), vm, /*chainId=*/10,
             bcos::evm::opstack::testutil::kOpTestReceiptFactory,
             [](const evmone::state::StateDiff&) {});
         BOOST_FAIL("a tx over the remaining block gas must void the block");
@@ -442,14 +441,55 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockCapacityFaultIsNotAnEvictableCulprit)
         BOOST_CHECK(e.capacity);
         BOOST_REQUIRE(e.txHash.has_value());
         BOOST_CHECK_EQUAL(e.txHash->hex(),
-            bcos::crypto::keccak256Hash(
-                bcos::bytesConstRef{envelope.data(), envelope.size()})
+            bcos::crypto::keccak256Hash(bcos::bytesConstRef{envelope.data(), envelope.size()})
                 .hex());
         BOOST_CHECK_MESSAGE(
-            std::string(e.what()).find("does not fit the remaining block gas") !=
-                std::string::npos,
+            std::string(e.what()).find("does not fit the remaining block gas") != std::string::npos,
             "unexpected reject: " << e.what());
     }
+}
+
+BOOST_AUTO_TEST_CASE(ProcessOpBlockKarstActivationRejectsUserTx)
+{
+    // 178B Jovian attrs: the 176B heuristic cannot be what rejects. Q5 must.
+    MutableStorage storage;
+    bcos::evm::evmstate::Storage2State<MutableStorage> view(storage);
+    evmone::state::BlockInfo block;
+    block.gas_limit = 30'000'000;
+    block.timestamp = 100;
+    bcos::executor_v1::opstack::NullBlockHashes hashes;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    auto schedule = op::OpForkSchedule::parse("0:jovian,100:karst");
+
+    evmc::bytes data(op::JovianL1AttributesLen, uint8_t{0});
+    std::memcpy(
+        data.data(), op::JovianL1AttributesSelector.data(), op::JovianL1AttributesSelector.size());
+    op::DepositTx dep{};
+    dep.gas_limit = 1'000'000;
+    dep.data = std::move(data);
+
+    evmone::state::Transaction user{};
+    user.type = evmone::state::Transaction::Type::eip1559;
+    user.gas_limit = 21'000;
+
+    op::OpBlockTx depTx;
+    depTx.tx = dep;
+    auto const depEnvelope = bcos::evm::opstack::encodeDepositEnvelope(dep);
+    depTx.signedEnvelope.assign(depEnvelope.begin(), depEnvelope.end());
+    op::OpBlockTx userTx;
+    userTx.tx = user;
+    userTx.signedEnvelope = evmc::bytes{uint8_t{0x02}, uint8_t{0x01}};
+    std::vector<op::OpBlockTx> const txs{depTx, userTx};
+
+    BOOST_CHECK_EXCEPTION(
+        (void)op::processOpBlock(
+            view, block, hashes, txs, op::karstConfig(), vm, /*chainId=*/10,
+            bcos::evm::opstack::testutil::kOpTestReceiptFactory,
+            [](const evmone::state::StateDiff&) {}, &schedule, /*parentTsSec=*/99),
+        OpConsensusError, [](OpConsensusError const& e) {
+            return std::string_view{e.what()}.find("unexpected non-deposit") !=
+                   std::string_view::npos;
+        });
 }
 
 BOOST_AUTO_TEST_SUITE_END()

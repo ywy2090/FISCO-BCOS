@@ -18,7 +18,7 @@ OpFork forkFromName(std::string_view forkName)
         return OpFork::Jovian;
     if (forkName == "karst")
         return OpFork::Karst;
-    throw ledger::InvalidOpForkSchedule("unknown fork");
+    ledger::throwInvalidOpForkSchedule("unknown fork");
 }
 
 const OpForkConfig& configForFork(OpFork fork)
@@ -32,7 +32,7 @@ const OpForkConfig& configForFork(OpFork fork)
     case OpFork::Karst:
         return karstConfig();
     default:
-        throw ledger::InvalidOpForkSchedule("unsupported fork config");
+        ledger::throwInvalidOpForkSchedule("unsupported fork config");
     }
 }
 
@@ -47,7 +47,7 @@ std::string forkNameFromEnum(OpFork fork)
     case OpFork::Karst:
         return "karst";
     default:
-        throw ledger::InvalidOpForkSchedule("unknown or pre-Isthmus fork");
+        ledger::throwInvalidOpForkSchedule("unknown or pre-Isthmus fork");
     }
 }
 
@@ -213,7 +213,7 @@ OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations, TestBy
 OpFork OpForkSchedule::forkAt(uint64_t timestampSeconds) const
 {
     if (m_activations.empty())
-        throw ledger::InvalidOpForkSchedule("empty schedule");
+        ledger::throwInvalidOpForkSchedule("empty schedule");
 
     OpFork activeFork = m_activations.front().fork;
     for (const auto& activation : m_activations)
@@ -233,7 +233,7 @@ const OpForkConfig& OpForkSchedule::configAt(uint64_t timestampSeconds) const
 uint64_t OpForkSchedule::baselineTimestamp() const
 {
     if (m_activations.empty())
-        throw ledger::InvalidOpForkSchedule("empty schedule");
+        ledger::throwInvalidOpForkSchedule("empty schedule");
     return m_activations.front().timestamp;
 }
 

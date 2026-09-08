@@ -1064,23 +1064,10 @@ BOOST_AUTO_TEST_CASE(op_fcu_v4_is_outside_the_advertised_window)
 /// must re-parse to the built payload.
 BOOST_AUTO_TEST_CASE(op_getpayload_v5_response_json_shape)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
-    delegate->failFirst = false;
-    OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
-    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
-
-    auto decoded = makeDecodableWeb3Tx(1);
-    auto attrs = makeOpPayloadAttributes();
-    attrs.minBaseFee = std::nullopt;
-    attrs.transactions = std::vector<std::string>{decoded.rawHex};
-    auto const hash =
-        bcos::h256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
-    registerVerifiedBlock(pair.storage, hash, 0);
-    registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
-    auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
-    BOOST_REQUIRE(built.payloadId.has_value());
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
+    KarstProfilePair fixture;
+    auto const payloadId =
+        buildPayloadAt(fixture.pair, c_karstPayloadTimestampMs, c_jovianPayloadTimestampMs);
+    auto payload = bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 5));
     BOOST_REQUIRE(payload);
 
     Json::Value response;

@@ -149,7 +149,7 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
             BOOST_THROW_EXCEPTION(
                 UnsupportedFork{} << bcos::errinfo_comment{
                     "Isthmus+ payload building requires engine_forkchoiceUpdatedV3 "
-                    "or V4 (JSON-RPC -38005)"});
+                    "(JSON-RPC -38005)"});
         }
         // Profile keys on attrs.timestamp (internal ms → Unix seconds), never head.
         // Isthmus/Jovian/Karst all advertise FCU V3, so Karst does not bump this.

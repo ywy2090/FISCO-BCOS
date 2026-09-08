@@ -146,6 +146,13 @@ BOOST_AUTO_TEST_CASE(hashMismatchFailClosed)
     }());
 }
 
+BOOST_AUTO_TEST_CASE(genesisBranchReturnsNormalizedCanonical)
+{
+    BOOST_CHECK_EQUAL(
+        resolveOpForkScheduleCanonical(std::nullopt, std::string{"0:Isthmus"}, false, HashType{}),
+        "0:isthmus");
+}
+
 BOOST_AUTO_TEST_CASE(emptyMetadataFallsBackToLegacy)
 {
     BOOST_CHECK_EQUAL(

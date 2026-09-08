@@ -80,7 +80,8 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     std::span<const OpBlockTx> txs, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId,
     const bcos::protocol::TransactionReceiptFactory::Ptr& receiptFactory,
-    const std::function<void(const evmone::state::StateDiff&)>& applyDiff);
+    const std::function<void(const evmone::state::StateDiff&)>& applyDiff,
+    OpForkSchedule const* schedule = nullptr, uint64_t parentTsSec = 0);
 
 
 // ---- Jovian L1-attributes block shape ----

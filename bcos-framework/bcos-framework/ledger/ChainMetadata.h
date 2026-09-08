@@ -1,3 +1,21 @@
+/**
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @file ChainMetadata.h
+ * @brief Chain-level metadata helpers, including the OP fork-schedule triple.
+ */
 #pragma once
 
 #include "OpForkScheduleCodec.h"
@@ -60,7 +78,7 @@ struct OpForkScheduleMetadataRows
     }
     catch (bcos::BadHexCharacter const&)
     {
-        throw InvalidOpForkSchedule("op fork schedule hash hex is invalid");
+        throwInvalidOpForkSchedule("op fork schedule hash hex is invalid");
     }
 }
 
@@ -81,22 +99,22 @@ struct OpForkScheduleMetadataRows
 {
     if (opForkScheduleMetadataRowsAbsent(rows))
     {
-        throw InvalidOpForkSchedule("op fork schedule metadata is absent");
+        throwInvalidOpForkSchedule("op fork schedule metadata is absent");
     }
     if (opForkScheduleMetadataRowsPartial(rows))
     {
-        throw InvalidOpForkSchedule("partial op fork schedule metadata triple");
+        throwInvalidOpForkSchedule("partial op fork schedule metadata triple");
     }
 
     auto metadata =
         buildOpForkScheduleMetadata(*rows.schedule, parseOpForkScheduleHexHash(*rows.genesisHash));
     if (metadata.genesisHash != expectedGenesisHash)
     {
-        throw InvalidOpForkSchedule("op fork schedule genesis binding mismatch");
+        throwInvalidOpForkSchedule("op fork schedule genesis binding mismatch");
     }
     if (metadata.scheduleHash != parseOpForkScheduleHexHash(*rows.scheduleHash))
     {
-        throw InvalidOpForkSchedule("op fork schedule hash mismatch");
+        throwInvalidOpForkSchedule("op fork schedule hash mismatch");
     }
     return metadata;
 }
@@ -112,19 +130,18 @@ struct OpForkScheduleMetadataRows
     {
         if (stored->genesisHash != expectedGenesisHash)
         {
-            throw InvalidOpForkSchedule("op fork schedule genesis binding mismatch");
+            throwInvalidOpForkSchedule("op fork schedule genesis binding mismatch");
         }
         if (keccakOpForkScheduleHash(stored->schedule) != stored->scheduleHash)
         {
-            throw InvalidOpForkSchedule("op fork schedule hash mismatch");
+            throwInvalidOpForkSchedule("op fork schedule hash mismatch");
         }
         (void)parseOpForkSchedule(stored->schedule);
         return stored->schedule;
     }
     if (genesisCanonical.has_value())
     {
-        (void)parseOpForkSchedule(*genesisCanonical);
-        return *genesisCanonical;
+        return canonicalOpForkSchedule(parseOpForkSchedule(*genesisCanonical));
     }
     return featureOpJovian ? "0:jovian" : "0:isthmus";
 }

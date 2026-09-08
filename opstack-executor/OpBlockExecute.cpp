@@ -54,7 +54,8 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     std::span<const OpBlockTx> txs, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId,
     const bcos::protocol::TransactionReceiptFactory::Ptr& receiptFactory,
-    const std::function<void(const evmone::state::StateDiff&)>& applyDiff)
+    const std::function<void(const evmone::state::StateDiff&)>& applyDiff,
+    OpForkSchedule const* schedule, uint64_t parentTsSec)
 {
     // Storage write-back failures must leave as OpStorageError (-32603), never a bare
     // runtime_error — the same classification the per-tx path applies in m_finish /
@@ -101,6 +102,15 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
                           << "op block: first tx is a deposit but not the L1 attributes tx — "
                              "accepted";
     validateJovianBlockShape(txs, cfg);
+    // Q5: Jovian+ activation blocks are deposits-only. BlockInfo.timestamp is Unix
+    // seconds (toBlockInfo already converted header millis). Same predicate as
+    // preBlockOpSteps; the 176B L1-attrs heuristic is shape-only.
+    if (schedule != nullptr && isNoUserTxActivationBlock(*schedule, parentTsSec, block.timestamp) &&
+        !std::holds_alternative<DepositTx>(txs.back().tx))
+    {
+        throw OpConsensusError(
+            "op block: unexpected non-deposit transactions in fork activation block");
+    }
 
     OpBlockResult result;
     result.receipts.reserve(txs.size());
@@ -177,7 +187,7 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
             // `validateErrorCode` carries the opValidate table's typed classification for
             // validate-class rejects — empty for every other reject shape.
             auto rejectNonDeposit = [&](std::string message,
-                                    std::error_code validateErrorCode = {}) {
+                                        std::error_code validateErrorCode = {}) {
                 OpConsensusError err(std::move(message));
                 err.txHash = bcos::crypto::keccak256Hash(envRef);
                 err.validateErrorCode = std::move(validateErrorCode);
