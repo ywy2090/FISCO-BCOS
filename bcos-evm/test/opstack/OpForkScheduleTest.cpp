@@ -1,9 +1,11 @@
 #include "TestPrinters.h"
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <boost/test/unit_test.hpp>
 
 using namespace bcos::evm::opstack;
+using bcos::ledger::InvalidOpForkSchedule;
 
 BOOST_AUTO_TEST_SUITE(OpForkScheduleSuite)
 
@@ -133,6 +135,24 @@ BOOST_AUTO_TEST_CASE(FjordOnwardCarryP256VerifyAndGraniteCapsBn256)
         BOOST_CHECK_EQUAL(bn256->gas_cost_override, -1);
         BOOST_CHECK(!(cfg->precompiles->contains(evmc::address{0x0c})));  // BLS 是 PRAGUE 的
     }
+}
+
+BOOST_AUTO_TEST_CASE(ConfigAtTimestampSelectsIsthmusThenJovian)
+{
+    auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
+    BOOST_CHECK_EQUAL(schedule.forkAt(0), OpFork::Isthmus);
+    BOOST_CHECK_EQUAL(schedule.forkAt(1764691200), OpFork::Isthmus);
+    BOOST_CHECK_EQUAL(schedule.forkAt(1764691201), OpFork::Jovian);
+    BOOST_CHECK_EQUAL(schedule.configAt(1764691200).rev, EVMC_PRAGUE);
+    BOOST_CHECK(!schedule.configAt(1764691200).has_da_footprint);
+    BOOST_CHECK(schedule.configAt(1764691201).has_da_footprint);
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:isthmus,1:karst"), InvalidOpForkSchedule);
+}
+
+BOOST_AUTO_TEST_CASE(LegacyFlagsStillSelectIsthmusOrJovian)
+{
+    BOOST_CHECK_EQUAL(OpForkSchedule::legacy(false).forkAt(0), OpFork::Isthmus);
+    BOOST_CHECK_EQUAL(OpForkSchedule::legacy(true).forkAt(0), OpFork::Jovian);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

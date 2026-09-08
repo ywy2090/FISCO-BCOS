@@ -1,8 +1,63 @@
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
 
+#include <span>
+#include <utility>
+
 namespace bcos::evm::opstack
 {
+namespace
+{
+OpFork forkFromName(std::string_view forkName)
+{
+    if (forkName == "isthmus")
+        return OpFork::Isthmus;
+    if (forkName == "jovian")
+        return OpFork::Jovian;
+    throw ledger::InvalidOpForkSchedule("unknown fork");
+}
+
+const OpForkConfig& configForFork(OpFork fork)
+{
+    switch (fork)
+    {
+    case OpFork::Isthmus:
+        return isthmusConfig();
+    case OpFork::Jovian:
+        return jovianConfig();
+    default:
+        throw ledger::InvalidOpForkSchedule("unsupported fork config");
+    }
+}
+
+std::string forkNameFromEnum(OpFork fork)
+{
+    switch (fork)
+    {
+    case OpFork::Isthmus:
+        return "isthmus";
+    case OpFork::Jovian:
+        return "jovian";
+    default:
+        throw ledger::InvalidOpForkSchedule("unknown or pre-Isthmus fork");
+    }
+}
+
+void validateActivations(std::span<const OpForkActivation> activations)
+{
+    std::vector<ledger::OpForkActivationRecord> records;
+    records.reserve(activations.size());
+    for (const auto& activation : activations)
+    {
+        records.push_back(ledger::OpForkActivationRecord{
+            .forkName = forkNameFromEnum(activation.fork),
+            .timestamp = activation.timestamp,
+        });
+    }
+    ledger::detail::validateScheduleRecords(records);
+}
+}  // namespace
+
 const OpForkConfig& ecotoneConfig() noexcept
 {
     static const OpForkConfig cfg{
@@ -104,8 +159,49 @@ const OpForkConfig& configAt(const OpForkFlags& flags) noexcept
 {
     // decision A5 (feature-flag variant): feature_op_jovian enabled -> Jovian, else Isthmus.
     // Isthmus is the OP-mode baseline; there is no pre-Isthmus config in this minimal loop.
-    if (flags.jovianActive)
-        return jovianConfig();
-    return isthmusConfig();
+    return flags.jovianActive ? jovianConfig() : isthmusConfig();
+}
+
+OpForkSchedule OpForkSchedule::parse(std::string_view canonical)
+{
+    const auto records = ledger::parseOpForkSchedule(canonical);
+    std::vector<OpForkActivation> activations;
+    activations.reserve(records.size());
+    for (const auto& record : records)
+    {
+        activations.push_back(OpForkActivation{
+            .fork = forkFromName(record.forkName),
+            .timestamp = record.timestamp,
+        });
+    }
+    return OpForkSchedule(std::move(activations));
+}
+
+OpForkSchedule OpForkSchedule::legacy(bool jovianActive)
+{
+    return parse(jovianActive ? "0:jovian" : "0:isthmus");
+}
+
+OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations)
+  : m_activations(std::move(activations))
+{
+    validateActivations(m_activations);
+}
+
+OpFork OpForkSchedule::forkAt(uint64_t timestampSeconds) const
+{
+    OpFork activeFork = m_activations.front().fork;
+    for (const auto& activation : m_activations)
+    {
+        if (activation.timestamp > timestampSeconds)
+            break;
+        activeFork = activation.fork;
+    }
+    return activeFork;
+}
+
+const OpForkConfig& OpForkSchedule::configAt(uint64_t timestampSeconds) const
+{
+    return configForFork(forkAt(timestampSeconds));
 }
 }  // namespace bcos::evm::opstack
