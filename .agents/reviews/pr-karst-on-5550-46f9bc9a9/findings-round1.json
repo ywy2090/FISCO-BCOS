@@ -1,0 +1,82 @@
+[
+  {
+    "id": "F1",
+    "severity": "MEDIUM",
+    "origin": "INTRODUCED",
+    "scope": "tests",
+    "title": "V5 JSON pin never calls getPayload V5",
+    "location": "engine/test/unittests/engine/OpEngineServiceParityTest.cpp:1060",
+    "status": "fixed",
+    "fix_sha": null
+  },
+  {
+    "id": "F2",
+    "severity": "MEDIUM",
+    "origin": "INTRODUCED",
+    "scope": "live production path",
+    "title": "Genesis template names non-existent [opstack].fork_schedule",
+    "location": "tools/opstack-genesis/chain-config.template.yaml:16",
+    "status": "fixed",
+    "fix_sha": null
+  },
+  {
+    "id": "F3",
+    "severity": "LOW",
+    "origin": "INTRODUCED",
+    "scope": "new API",
+    "title": "resolveOpForkScheduleCanonical genesis branch returns raw text",
+    "location": "bcos-framework/bcos-framework/ledger/ChainMetadata.h:124",
+    "status": "fixed",
+    "fix_sha": null
+  },
+  {
+    "id": "F4",
+    "severity": "LOW",
+    "origin": "INTRODUCED",
+    "scope": "new API",
+    "title": "New codec headers miss license; kMax*; bare std::invalid_argument",
+    "location": "bcos-framework/bcos-framework/ledger/OpForkScheduleCodec.h:1",
+    "status": "fixed",
+    "fix_sha": null
+  },
+  {
+    "id": "F5",
+    "severity": "LOW",
+    "origin": "PRE-EXISTING",
+    "scope": "live production path",
+    "title": "FCU attrs error still names V4",
+    "location": "engine/bcos-engine/OpEngineService.inl:147",
+    "status": "fixed",
+    "fix_sha": null
+  },
+  {
+    "id": "F6",
+    "severity": "LOW",
+    "origin": "INTRODUCED",
+    "scope": "tests",
+    "title": "Karst profile tests: truncated license, stale RED comment, k* names",
+    "location": "engine/test/unittests/engine/OpEngineKarstProfileTest.cpp:1",
+    "status": "fixed",
+    "fix_sha": null
+  },
+  {
+    "id": "F7",
+    "severity": "LOW",
+    "origin": "INTRODUCED",
+    "scope": "tests",
+    "title": "Stale Karst-unreachable comment on flags-wrapper test",
+    "location": "bcos-evm/test/opstack/OpForkScheduleTest.cpp:68",
+    "status": "fixed",
+    "fix_sha": null
+  },
+  {
+    "id": "F8",
+    "severity": "LOW",
+    "origin": "INTRODUCED",
+    "scope": "leftover API",
+    "title": "Leftover processOpBlock cannot run Q5",
+    "location": "opstack-executor/OpBlockExecute.h:79",
+    "status": "fixed",
+    "fix_sha": null
+  }
+]

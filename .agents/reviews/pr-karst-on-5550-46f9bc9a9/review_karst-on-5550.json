@@ -1,0 +1,49 @@
+{
+  "schema_version": 3,
+  "verdict": "INCOMPLETE",
+  "head": "46f9bc9a933824fb41405bd5f85f599edab44a1c",
+  "base": "f22bb8b968ab703b0abd456bb32cde7bbcc21a03",
+  "mode": "incomplete",
+  "last_full_head": "aa0cdbeaca28651c5107fbcdf064601dc601db27",
+  "last_full_base": "f22bb8b968ab703b0abd456bb32cde7bbcc21a03",
+  "changed_files": [],
+  "covered_paths": [
+    "opstack-executor/OpBlockExecute.h",
+    "opstack-executor/OpBlockExecute.cpp",
+    "opstack-executor/tests/OpKarstActivationTest.cpp",
+    "engine/bcos-engine/OpEngineService.cpp",
+    "engine/bcos-engine/OpEngineService.inl",
+    "opstack-executor/OpSchedulerSeam.h",
+    "bcos-evm/bcos-evm/opstack/OpTransition.cpp",
+    "bcos-framework/bcos-framework/ledger/ChainMetadata.h",
+    "tools/opstack-genesis/chain-config.template.yaml"
+  ],
+  "full_covered_paths": [],
+  "findings": [
+    {"id": "F10", "severity": "MEDIUM", "status": "open"},
+    {"id": "F11", "severity": "MEDIUM", "status": "open"},
+    {"id": "F12", "severity": "MEDIUM", "status": "open"},
+    {"id": "F9", "severity": "LOW", "status": "open"},
+    {"id": "F13", "severity": "LOW", "status": "open"}
+  ],
+  "coverage_evidence": {
+    "consensus_surface": true,
+    "assigned_check_ids": [],
+    "blind_review": false,
+    "blind_result": null,
+    "routing_manifest": {
+      "reason": "no GitHub PR; local branch review; fisco-review-pr full+blind not executed"
+    },
+    "check_results": [],
+    "blocked": [
+      "no GitHub PR for live head/base CAS",
+      "consensus-surface full+blind not run"
+    ],
+    "unreviewed": [
+      "modules outside the 2-commit delta were not re-hunted this round"
+    ],
+    "exempted_paths": []
+  },
+  "fisco_review_disposition": "CHANGES_REQUESTED",
+  "conflict_of_interest": "reviewer session authored 46f9bc9 and directed 4e95c1094"
+}
