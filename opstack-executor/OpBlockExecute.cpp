@@ -106,7 +106,7 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     // seconds (toBlockInfo already converted header millis). Same predicate as
     // preBlockOpSteps; the 176B L1-attrs heuristic is shape-only.
     if (schedule != nullptr && isNoUserTxActivationBlock(*schedule, parentTsSec, block.timestamp) &&
-        !std::holds_alternative<DepositTx>(txs.back().tx))
+        hasNonDepositTx(txs))
     {
         throw OpConsensusError(
             "op block: unexpected non-deposit transactions in fork activation block");

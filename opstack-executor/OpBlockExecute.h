@@ -101,6 +101,37 @@ inline bool isNoUserTxActivationBlock(
     return false;
 }
 
+inline constexpr uint8_t kDepositTypeByte = 0x7e;
+
+/// Q5 envelope probe: empty or non-0x7e is a non-deposit. Used to scan every envelope
+/// on activation blocks. The DA-footprint 176B path still uses last-tx only.
+template <class Envelope>
+[[nodiscard]] inline bool envelopeIsDeposit(Envelope const& env) noexcept
+{
+    return !env.empty() && env[0] == kDepositTypeByte;
+}
+
+template <class RawTxRange>
+[[nodiscard]] inline bool hasNonDepositEnvelope(RawTxRange const& rawTxBytes)
+{
+    for (auto const& env : rawTxBytes)
+    {
+        if (!envelopeIsDeposit(env))
+            return true;
+    }
+    return false;
+}
+
+[[nodiscard]] inline bool hasNonDepositTx(std::span<const OpBlockTx> txs) noexcept
+{
+    for (auto const& btx : txs)
+    {
+        if (!std::holds_alternative<DepositTx>(btx.tx))
+            return true;
+    }
+    return false;
+}
+
 /// Shared Jovian L1-attributes shape (selector/length + activation deposits-only).
 /// `lastTxIsDeposit` is the path-specific last-tx probe: processOpBlock uses the DepositTx
 /// variant; preBlockOpSteps uses the raw envelope type byte. No-op pre-Jovian.
@@ -111,9 +142,9 @@ inline void validateJovianL1AttributesShape(
         return;
     if (data.size() == IsthmusL1AttributesLen)
     {
-        // Jovian activation block: Isthmus-length attributes, must be deposits-only (op-geth
-        // rollup_cost.go:568-576). Checking the last tx suffices (deposits always precede
-        // non-deposits).
+        // Jovian activation block: Isthmus-length attributes, deposits-only by last-tx
+        // only (op-geth CalcDAFootprint, rollup_cost.go:568-576). Scanning every
+        // envelope would be stricter than the reference client.
         if (!lastTxIsDeposit)
             throw OpConsensusError(
                 "op block: unexpected non-deposit transactions in Jovian activation block");
@@ -332,13 +363,12 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
         throw OpStorageError("pre-block system-call poisoned: " + stateView.firstError());
 
     // (2) deposit-first content check + Jovian shape (type-byte classification, no raw-tx parse).
-    constexpr uint8_t kDepositTypeByte = 0x7e;
     if (rawTxBytes.empty())
         throw OpConsensusError("op block: missing L1 attributes deposit (empty block)");
-    // Empty-envelope guard: the first envelope must be non-empty before its type byte is read
-    // (and before raw.back()[0] below). A block with NO deposit at all stays a hard reject: the
-    // L1-attributes deposit seeds the block's fee/DA context and deposits[0] is read below.
-    if (rawTxBytes[0].empty() || rawTxBytes[0][0] != kDepositTypeByte || deposits.empty())
+    // Empty-envelope guard: the first envelope must be a deposit before deposits[0] is read.
+    // A block with NO deposit at all stays a hard reject: the L1-attributes deposit seeds
+    // the block's fee/DA context.
+    if (!op::envelopeIsDeposit(rawTxBytes[0]) || deposits.empty())
         throw OpConsensusError("op block: no deposit transaction to seed the block");
     // First deposit is not L1 attributes: warn only. op-geth/op-reth accept this at validation.
     if (!op::isL1AttributesTx(deposits[0]))
@@ -351,7 +381,7 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
         auto const blockTsSec =
             bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp()));
         if (op::isNoUserTxActivationBlock(*schedule, parentTsSec, blockTsSec) &&
-            (rawTxBytes.back().empty() || rawTxBytes.back()[0] != kDepositTypeByte))
+            op::hasNonDepositEnvelope(rawTxBytes))
         {
             throw OpConsensusError(
                 "op block: unexpected non-deposit transactions in fork activation block");
@@ -363,8 +393,7 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
         // Last-tx-only deposits-only check matches op-geth CalcDAFootprint
         // (core/types/rollup_cost.go:563-577): iterating every envelope would be stricter than
         // the reference client. Empty trailing envelope is treated as non-deposit.
-        bool const lastTxIsDeposit =
-            !rawTxBytes.back().empty() && rawTxBytes.back()[0] == kDepositTypeByte;
+        bool const lastTxIsDeposit = op::envelopeIsDeposit(rawTxBytes.back());
         op::validateJovianL1AttributesShape(
             std::span<uint8_t const>{data.data(), data.size()}, lastTxIsDeposit, cfg);
         if (auto scalar =

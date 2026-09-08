@@ -117,8 +117,7 @@ std::shared_ptr<bcostars::protocol::BlockHeaderImpl> makeHeader(int64_t timestam
 bool isActivationUserTxError(OpConsensusError const& e)
 {
     auto const w = std::string_view{e.what()};
-    return w.find("unexpected non-deposit") != std::string_view::npos ||
-           w.find("UnexpectedNonDepositTxInForkActivationBlock") != std::string_view::npos;
+    return w.find("unexpected non-deposit") != std::string_view::npos;
 }
 
 void runPreBlock(op::OpForkConfig const& cfg, op::OpForkSchedule const& schedule,
@@ -211,6 +210,19 @@ BOOST_AUTO_TEST_CASE(JovianActivationBlockAllowsDepositsOnly)
     auto dep = depositWithJovianAttrs();
     BOOST_CHECK_NO_THROW(runPreBlock(
         op::jovianConfig(), *schedule, kParentTsSec, kJovianTsMs, {kDepositEnvelope}, {dep}));
+    BOOST_CHECK_NO_THROW(runPreBlock(op::jovianConfig(), *schedule, kParentTsSec, kJovianTsMs,
+        {kDepositEnvelope, kDepositEnvelope}, {dep, dep}));
+}
+
+BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTxBeforeTrailingDeposit)
+{
+    // Q5 must scan every envelope: a trailing deposit must not hide a user tx.
+    auto schedule = opstack_test::isthmusThenJovian(kJovianTsSec);
+    auto dep = depositWithJovianAttrs();
+    BOOST_CHECK_EXCEPTION(
+        runPreBlock(op::jovianConfig(), *schedule, kParentTsSec, kJovianTsMs,
+            {kDepositEnvelope, kTypedEnvelope, kDepositEnvelope}, {dep, op::DepositTx{}, dep}),
+        OpConsensusError, isActivationUserTxError);
 }
 
 BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTx)
@@ -219,6 +231,16 @@ BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTx)
     auto dep = depositWithJovianAttrs();
     BOOST_CHECK_EXCEPTION(runPreBlock(op::karstConfig(), *schedule, kParentTsSec, kJovianTsMs,
                               {kDepositEnvelope, kTypedEnvelope}, {dep, op::DepositTx{}}),
+        OpConsensusError, isActivationUserTxError);
+}
+
+BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTxBeforeTrailingDeposit)
+{
+    auto schedule = opstack_test::karstOnlySchedule(/*karstTs=*/kJovianTsSec);
+    auto dep = depositWithJovianAttrs();
+    BOOST_CHECK_EXCEPTION(
+        runPreBlock(op::karstConfig(), *schedule, kParentTsSec, kJovianTsMs,
+            {kDepositEnvelope, kTypedEnvelope, kDepositEnvelope}, {dep, op::DepositTx{}, dep}),
         OpConsensusError, isActivationUserTxError);
 }
 
