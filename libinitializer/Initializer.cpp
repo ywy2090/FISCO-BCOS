@@ -28,6 +28,8 @@
 #include "AuthInitializer.h"
 #include "BfsInitializer.h"
 #include "EngineServiceInitializer.h"
+// OpEngineService.h is declarations-only after the header split; this TU is the
+// #5550 production instantiator (buildOp) and must see newPayload/updateForkchoice.
 #include "EthereumBlockHashLookup.h"
 #include "GlobalStateStorageInitializer.h"
 #include "LedgerInitializer.h"
@@ -36,6 +38,7 @@
 #include "StorageInitializer.h"
 #include "bcos-executor/src/executor/SwitchExecutorManager.h"
 #include "bcos-framework/dispatcher/SchedulerInterface.h"
+#include "bcos-framework/ledger/ChainMetadata.h"
 #include "bcos-framework/ledger/Ledger.h"
 #include "bcos-framework/storage/StorageInterface.h"
 #include "bcos-ledger/LedgerMethods.h"
@@ -45,6 +48,7 @@
 #include "bcos-storage/RocksDBStorage.h"
 #include "bcos-task/Wait.h"
 #include "bcos-utilities/Error.h"
+#include "engine/bcos-engine/OpEngineService.inl"
 #include "ethereum-executor/EthereumExecutor.h"
 #include "fisco-bcos-tars-service/Common/TarsUtils.h"
 #include "libinitializer/BaselineSchedulerInitializer.h"
@@ -495,9 +499,6 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
                     "OP mode (executor_version>=3) requires engine-driven block production "
                     "([op_engine_rpc] enable)"));
         }
-        auto forkFlags = bcos::evm::opstack::OpForkFlags{
-            .jovianActive = m_nodeConfig->opJovianActive(),
-        };
         // OP mode uses [web3] chain_id for EIP-155, not FISCO chain_id.
         auto const& web3ChainId = m_nodeConfig->genesisConfig().m_web3ChainID;
         auto parsedChainId = ledger::parseWeb3ChainId(web3ChainId);
@@ -521,6 +522,38 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
                     "OP mode (executor_version>=3) [web3] chain_id exceeds uint64"));
         }
         uint64_t const opChainId = static_cast<uint64_t>(*parsedChainId);
+
+        // Resolve via Task 4 helper — do NOT invent a second hash policy.
+        // Ledger::buildGenesisBlock writes s_chain_metadata into m_stateStorage, which
+        // on AIR/RocksDB is the same ::rocksdb::DB as GlobalStateStorage::latestBackend().
+        // Do not use Ledger::getStateStorage(): that wraps KeyPage and can hide SYS tables.
+        bcos::evm::opstack::OpForkFlags forkFlags;
+        try
+        {
+            auto genesisBlock = task::syncWait(ledger::getBlockData(*m_ledger, 0, ledger::HEADER));
+            const auto genesisHash = genesisBlock->blockHeader()->hash();
+            auto stored = task::syncWait(ledger::readOpForkScheduleMetadata(
+                m_globalStateStorageInitializer->storage().latestBackend(), genesisHash));
+            auto canonical = ledger::resolveOpForkScheduleCanonical(stored,
+                m_nodeConfig->genesisConfig().m_opstackForkSchedule, m_nodeConfig->opJovianActive(),
+                genesisHash);
+            m_opForkSchedule = std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                bcos::evm::opstack::OpForkSchedule::parse(canonical));
+            // K1 uses configAt(0) only — 0:isthmus,TS:jovian is still Isthmus at ts=0.
+            forkFlags = bcos::evm::opstack::OpForkFlags{
+                .jovianActive = m_opForkSchedule->configAt(0).has_da_footprint,
+            };
+            INITIALIZER_LOG(INFO) << LOG_DESC("OP fork schedule resolved")
+                                  << LOG_KV("canonical", canonical)
+                                  << LOG_KV(
+                                         "hash", ledger::keccakOpForkScheduleHash(canonical).hex())
+                                  << LOG_KV("genesisHash", genesisHash.hex());
+        }
+        catch (ledger::InvalidOpForkSchedule const& e)
+        {
+            BOOST_THROW_EXCEPTION(bcos::tool::InvalidConfig() << bcos::errinfo_comment(
+                                      std::string("invalid OP fork schedule: ") + e.what()));
+        }
         auto opScheduler =
             std::make_shared<bcos::evm::engine::OpSchedulerSeam<GlobalStateStorage::ViewType>>(
                 forkFlags, bcos::evm::opstack::L1BlockInfo{});

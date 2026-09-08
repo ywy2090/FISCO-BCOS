@@ -30,6 +30,7 @@
 #include "bcos-utilities/Common.h"
 #include "fisco-bcos-tars-service/Common/TarsUtils.h"
 #include <bcos-framework/ledger/GenesisConfig.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <bcos-framework/protocol/GlobalConfig.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <bcos-utilities/FixedBytes.h>
@@ -42,8 +43,8 @@
 #include <boost/throw_exception.hpp>
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <cstdint>
 #include <limits>
 #include <set>
@@ -209,6 +210,7 @@ void NodeConfig::loadGenesisConfig(boost::property_tree::ptree const& _genesisCo
     // EVMC-revision / auth_admin_account guards exempt chains that declare EL mode
     // ([ethereum] mode=el, with its mandatory [fork_timestamps] section).
     loadForkTimestamps(_genesisConfig);
+    loadOpForkSchedule(_genesisConfig);
     loadExecutorConfig(_genesisConfig);
 
     // === A6.5: L2 genesis allocs; L2 mode is gated by feature_l2_ethereum_compat ===
@@ -1047,8 +1049,7 @@ void NodeConfig::loadEthereumConfig(boost::property_tree::ptree const& _pt)
     if (mode != "none" && mode != "el")
     {
         BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
-                                  "ethereum.mode invalid: \"" + mode +
-                                  "\" (supported: none, el)"));
+                                  "ethereum.mode invalid: \"" + mode + "\" (supported: none, el)"));
     }
     const bool enableEL = (mode == "el");
     // EL mode is a self-contained L1 sync client: it is mutually exclusive with the
@@ -1088,8 +1089,7 @@ void NodeConfig::loadEthereumConfig(boost::property_tree::ptree const& _pt)
                                   "ethereum.listen_port invalid: " + std::to_string(listenPort)));
     }
     m_ethereumListenPort = static_cast<uint16_t>(listenPort);
-    m_ethereumBootnodesFile =
-        _pt.get<std::string>("ethereum.bootnodes_file", "./bootnodes.json");
+    m_ethereumBootnodesFile = _pt.get<std::string>("ethereum.bootnodes_file", "./bootnodes.json");
     m_ethereumNodeKeyFile = _pt.get<std::string>("ethereum.node_key_file", "");
     uint32_t maxBatch = _pt.get<uint32_t>("ethereum.max_batch_size", 192);
     // This value will size RLPx GetBlockHeaders/GetBlockBodies requests once
@@ -1099,14 +1099,14 @@ void NodeConfig::loadEthereumConfig(boost::property_tree::ptree const& _pt)
     // config-compatibility change.
     if (maxBatch == 0 || maxBatch > 1024)
     {
-        BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
-                                  "ethereum.max_batch_size must be in [1, 1024], got " +
-                                  std::to_string(maxBatch)));
+        BOOST_THROW_EXCEPTION(
+            InvalidConfig() << errinfo_comment(
+                "ethereum.max_batch_size must be in [1, 1024], got " + std::to_string(maxBatch)));
     }
     m_ethereumMaxBatchSize = maxBatch;
 
-    NodeConfig_LOG(INFO) << LOG_DESC("loadEthereumConfig")
-                         << LOG_KV("mode", mode) << LOG_KV("listenIP", m_ethereumListenIP)
+    NodeConfig_LOG(INFO) << LOG_DESC("loadEthereumConfig") << LOG_KV("mode", mode)
+                         << LOG_KV("listenIP", m_ethereumListenIP)
                          << LOG_KV("listenPort", m_ethereumListenPort)
                          << LOG_KV("bootnodesFile", m_ethereumBootnodesFile)
                          << LOG_KV("nodeKeyFile", m_ethereumNodeKeyFile)
@@ -1135,9 +1135,9 @@ void NodeConfig::loadForkTimestamps(boost::property_tree::ptree const& _genesisC
         auto mode = ethSection->get<std::string>("mode", "none");
         if (mode != "none" && mode != "el")
         {
-            BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
-                                      "config.genesis [ethereum].mode invalid: \"" + mode +
-                                      "\" (supported: none, el)"));
+            BOOST_THROW_EXCEPTION(
+                InvalidConfig() << errinfo_comment("config.genesis [ethereum].mode invalid: \"" +
+                                                   mode + "\" (supported: none, el)"));
         }
         m_genesisConfig.m_ethereumELMode = (mode == "el");
     }
@@ -1235,12 +1235,12 @@ void NodeConfig::loadForkTimestamps(boost::property_tree::ptree const& _genesisC
     {
         if (ladder[i].second < ladder[i - 1].second)
         {
-            BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
-                                      "[fork_timestamps]." + std::string(ladder[i].first) + " (" +
-                                      std::to_string(ladder[i].second) + ") is earlier than " +
-                                      std::string(ladder[i - 1].first) + " (" +
-                                      std::to_string(ladder[i - 1].second) +
-                                      "): fork activation times must be non-decreasing"));
+            BOOST_THROW_EXCEPTION(
+                InvalidConfig() << errinfo_comment(
+                    "[fork_timestamps]." + std::string(ladder[i].first) + " (" +
+                    std::to_string(ladder[i].second) + ") is earlier than " +
+                    std::string(ladder[i - 1].first) + " (" + std::to_string(ladder[i - 1].second) +
+                    "): fork activation times must be non-decreasing"));
         }
     }
     // Stored on the GenesisConfig so generateGenesisData emits the REQUIRED ladder
@@ -1260,6 +1260,37 @@ void NodeConfig::loadForkTimestamps(boost::property_tree::ptree const& _genesisC
                          << LOG_KV("osaka", schedule.m_osakaTime)
                          << LOG_KV("bpo1", schedule.m_bpo1Time)
                          << LOG_KV("bpo2", schedule.m_bpo2Time);
+}
+
+void NodeConfig::loadOpForkSchedule(boost::property_tree::ptree const& _genesisConfig)
+{
+    // Reload must not keep a previous schedule: an absent section means "legacy via
+    // feature_op_jovian", and a stale optional would pin the wrong canonical.
+    m_genesisConfig.m_opstackForkSchedule.reset();
+    auto section = _genesisConfig.get_child_optional("op_fork_schedule");
+    if (!section)
+    {
+        return;
+    }
+    auto canonical = section->get_optional<std::string>("canonical");
+    if (!canonical)
+    {
+        BOOST_THROW_EXCEPTION(
+            InvalidConfig() << errinfo_comment("[op_fork_schedule].canonical is required"));
+    }
+    try
+    {
+        m_genesisConfig.m_opstackForkSchedule =
+            ledger::canonicalOpForkSchedule(ledger::parseOpForkSchedule(*canonical));
+    }
+    catch (ledger::InvalidOpForkSchedule const& e)
+    {
+        BOOST_THROW_EXCEPTION(
+            InvalidConfig() << errinfo_comment(
+                std::string("[op_fork_schedule].canonical invalid: ") + e.what()));
+    }
+    NodeConfig_LOG(INFO) << LOG_DESC("loadOpForkSchedule")
+                         << LOG_KV("canonical", *m_genesisConfig.m_opstackForkSchedule);
 }
 
 void NodeConfig::loadGatewayConfig(boost::property_tree::ptree const& _pt)
@@ -2205,13 +2236,12 @@ void NodeConfig::loadExecutorConfig(boost::property_tree::ptree const& _genesisC
         !m_genesisConfig.m_evmcRevision && m_genesisConfig.m_evmcRevisionForks.empty() &&
         !m_genesisConfig.m_ethereumELMode)
     {
-        BOOST_THROW_EXCEPTION(
-            InvalidConfig() << errinfo_comment(
-                "executor.version=2 (ethereum-executor) requires an explicit "
-                "executor.evm_revision (or executor.evm_revision_forks), or "
-                "[ethereum] mode=el with a [fork_timestamps] section (Ethereum "
-                "L1 EL mode) so the EVM revision is recorded on-chain; refusing "
-                "to run with an implicit binary-side default"));
+        BOOST_THROW_EXCEPTION(InvalidConfig() << errinfo_comment(
+                                  "executor.version=2 (ethereum-executor) requires an explicit "
+                                  "executor.evm_revision (or executor.evm_revision_forks), or "
+                                  "[ethereum] mode=el with a [fork_timestamps] section (Ethereum "
+                                  "L1 EL mode) so the EVM revision is recorded on-chain; refusing "
+                                  "to run with an implicit binary-side default"));
     }
     // A v2 chain must ALSO be able to persist that revision: Ledger::buildGenesisBlock only
     // writes evmc_revision for compatibility_version >= V3_18_0 (and executor_version for
