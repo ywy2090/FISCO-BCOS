@@ -208,6 +208,8 @@ OsakaHostCallResult osakaHostCall(evmc_revision rev, const PrecompileOverrides* 
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
+    // Host::prepare_message(depth==0) calls get(sender); the account must exist.
+    ts[kOsakaSender] = {.nonce = 0, .balance = 0_u256, .storage = {}, .code = {}};
     state::State st{ts};
     test::TestBlockHashes hashes;
     state::Transaction tx;
@@ -455,23 +457,30 @@ BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit)
 
 BOOST_AUTO_TEST_CASE(KarstBn256PairingCapsAt300Pairs)
 {
-    // Zero-filled pairs are invalid curve points and crash the pairing precompile.
-    // Pin the size tables (300 pairs = 57600, Jovian stays 427 pairs = 81984) and
-    // only hostCall once the Osaka cap is known to reject 301 pairs first.
-    const auto* karst08 = karstPrecompileOverrides().find(kOsakaBn256Pairing);
+    // All-zero G1/G2 is the BN254 point at infinity; e(∞, ∞) = 1 (same fixture as
+    // OpHostTest::JovianBn256PairingInputAtLimitExecutes). Gas = 45000 + n*34000.
     const auto* jovian08 = jovianPrecompileOverrides().find(kOsakaBn256Pairing);
-    BOOST_REQUIRE((karst08) != nullptr);
     BOOST_REQUIRE((jovian08) != nullptr);
-    BOOST_CHECK_EQUAL(karst08->max_input_size, 300 * kBn256PairSize);
     BOOST_CHECK_EQUAL(jovian08->max_input_size, 427 * kBn256PairSize);
 
-    if (karst08->max_input_size < 301 * kBn256PairSize)
-    {
-        const auto halt301 = osakaHostCall(EVMC_OSAKA, &karstPrecompileOverrides(),
-            kOsakaBn256Pairing, makeBn256PairingInput(301), 10'000'000);
-        BOOST_CHECK_EQUAL(halt301.status_code, EVMC_FAILURE);
-        BOOST_CHECK_EQUAL(halt301.gas_left, 0);
-    }
+    constexpr int64_t kPairingGas = 15'000'000;
+    const auto ok300 = osakaHostCall(EVMC_OSAKA, &karstPrecompileOverrides(), kOsakaBn256Pairing,
+        makeBn256PairingInput(300), kPairingGas);
+    BOOST_CHECK_EQUAL(ok300.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_GT(ok300.gas_left, 0);
+    BOOST_REQUIRE_EQUAL(ok300.output.size(), 32U);
+    BOOST_CHECK_EQUAL(ok300.output[31], 0x01);
+
+    const auto halt301 = osakaHostCall(EVMC_OSAKA, &karstPrecompileOverrides(), kOsakaBn256Pairing,
+        makeBn256PairingInput(301), kPairingGas);
+    BOOST_CHECK_EQUAL(halt301.status_code, EVMC_FAILURE);
+    BOOST_CHECK_EQUAL(halt301.gas_left, 0);
+
+    const auto empty =
+        osakaHostCall(EVMC_OSAKA, &karstPrecompileOverrides(), kOsakaBn256Pairing, {}, kPairingGas);
+    BOOST_CHECK_EQUAL(empty.status_code, EVMC_SUCCESS);
+    BOOST_REQUIRE_EQUAL(empty.output.size(), 32U);
+    BOOST_CHECK_EQUAL(empty.output[31], 0x01);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
