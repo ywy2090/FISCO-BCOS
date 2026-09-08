@@ -255,6 +255,12 @@ task::Task<void> EngineEndpoint::handleGetPayload(
         BOOST_THROW_EXCEPTION(JsonRpcException(EngineError::UnknownPayload,
             "Unknown payload: no build process identified by the given payloadId"));
     }
+    catch (engine::UnsupportedFork const& e)
+    {
+        // Profile mismatch (e.g. getPayload V4 at a Karst timestamp) is -38005.
+        BOOST_THROW_EXCEPTION(JsonRpcException(
+            EngineError::UnsupportedFork, std::string("Unsupported fork: ") + e.what()));
+    }
     catch (engine::IncompatiblePayloadVersion const&)
     {
         // Payload was built by a different Engine API method version.

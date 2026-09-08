@@ -80,6 +80,57 @@ inline std::optional<ForkchoiceUpdatedResult> fcuInvalidIfUndecodable(
 }  // namespace detail
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
+EngineForkContext
+OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::requireOpEngineForkAt(
+    uint64_t timestampSeconds) const
+{
+    auto const resolved = m_scheduler.resolveEngineForkAt(timestampSeconds);
+    if (auto const* ctx = std::get_if<EngineForkContext>(&resolved))
+    {
+        return *ctx;
+    }
+    auto const error = std::get<OpForkResolutionError>(resolved);
+    if (error == OpForkResolutionError::UnsupportedTimestamp)
+    {
+        BOOST_THROW_EXCEPTION(UnsupportedFork{} << bcos::errinfo_comment{
+                                  "Unsupported timestamp for OP Engine API profile"});
+    }
+    BOOST_THROW_EXCEPTION(UnsupportedFork{} << bcos::errinfo_comment{
+                              "Inconsistent execution config for OP Engine API profile"});
+}
+
+template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
+task::Task<GetPayloadResult>
+OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::getPayload(
+    const PayloadID& payloadId, std::uint32_t version)
+{
+    BuiltPayloadPtr built;
+    {
+        auto shared = m_tracker.lockShared();
+        built = shared.findPayload(payloadId);
+    }
+    if (!built)
+    {
+        BOOST_THROW_EXCEPTION(UnknownPayload{} << bcos::errinfo_comment{"Unknown payload"});
+    }
+
+    // Payload timestamp is internal milliseconds; the seam takes Unix seconds.
+    uint64_t const tsSec = unixSecondsFromInternalMillis(built->executionPayload.timestamp);
+    auto const ctx = requireOpEngineForkAt(tsSec);
+    if (version != static_cast<std::uint32_t>(ctx.api.getPayload))
+    {
+        BOOST_THROW_EXCEPTION(
+            UnsupportedFork{} << bcos::errinfo_comment{
+                "getPayload version does not match the OP Engine API profile at payload "
+                "timestamp"});
+    }
+
+    engine_common::requireGetPayloadShape(
+        built->version, built->executionPayload, built->parentBeaconBlockRoot, version);
+    co_return engine_common::assembleGetPayloadData(*built, version);
+}
+
+template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
 task::Task<ForkchoiceUpdatedResult>
 OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkchoice(
     const ForkchoiceState& forkchoiceState, const PayloadAttributes* payloadAttributes,
@@ -99,6 +150,20 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
                 UnsupportedFork{} << bcos::errinfo_comment{
                     "Isthmus+ payload building requires engine_forkchoiceUpdatedV3 "
                     "or V4 (JSON-RPC -38005)"});
+        }
+        // Profile keys on attrs.timestamp (internal ms → Unix seconds), never head.
+        // Isthmus/Jovian/Karst all advertise FCU V3, so Karst does not bump this.
+        {
+            uint64_t const tsSec =
+                unixSecondsFromInternalMillis(payloadAttributes->timestamp);
+            auto const ctx = requireOpEngineForkAt(tsSec);
+            if (version != static_cast<std::uint32_t>(ctx.api.forkchoiceUpdated))
+            {
+                BOOST_THROW_EXCEPTION(
+                    UnsupportedFork{} << bcos::errinfo_comment{
+                        "forkchoiceUpdated version does not match the OP Engine API profile "
+                        "at attributes timestamp"});
+            }
         }
         if (auto validationError = engine_common::validatePayloadAttributes(
                 *payloadAttributes, version, &decodedForcedTxs);
@@ -602,6 +667,20 @@ task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
         BOOST_THROW_EXCEPTION(
             UnsupportedFork{} << bcos::errinfo_comment{
                 "Isthmus+ payloads require engine_newPayloadV4 (JSON-RPC -38005)"});
+    }
+    // Isthmus+ newPayload stays V4 (Karst does not bump). Gate is outside the
+    // catch-all so UnsupportedFork is not flattened into OpExecutionInternalError.
+    {
+        uint64_t const tsSec =
+            unixSecondsFromInternalMillis(request.executionPayload.timestamp);
+        auto const ctx = requireOpEngineForkAt(tsSec);
+        if (version != static_cast<std::uint32_t>(ctx.api.newPayload))
+        {
+            BOOST_THROW_EXCEPTION(
+                UnsupportedFork{} << bcos::errinfo_comment{
+                    "newPayload version does not match the OP Engine API profile at payload "
+                    "timestamp"});
+        }
     }
 
     try

@@ -123,6 +123,10 @@ public:
         {
             BOOST_THROW_EXCEPTION(engine::UnknownPayload{});
         }
+        if (m_state->throwUnsupportedFork)
+        {
+            BOOST_THROW_EXCEPTION(engine::UnsupportedFork{});
+        }
         if (m_state->throwUnsupportedEngineApiVersion)
         {
             BOOST_THROW_EXCEPTION(engine::UnsupportedEngineApiVersion{});
@@ -572,6 +576,17 @@ BOOST_AUTO_TEST_CASE(getPayloadUnsupportedEngineApiVersionMapsTo38005)
     params.append("0x00000000deadbeef");
     Json::Value response;
     BOOST_CHECK_EXCEPTION(CALL_ENGINE(getPayloadV3, params, response), JsonRpcException,
+        [](JsonRpcException const& e) { return e.code() == EngineError::UnsupportedFork; });
+}
+
+BOOST_AUTO_TEST_CASE(getPayloadUnsupportedForkMapsTo38005)
+{
+    mockService.m_state->throwUnsupportedFork = true;
+
+    Json::Value params(Json::arrayValue);
+    params.append("0x00000000deadbeef");
+    Json::Value response;
+    BOOST_CHECK_EXCEPTION(CALL_ENGINE(getPayloadV4, params, response), JsonRpcException,
         [](JsonRpcException const& e) { return e.code() == EngineError::UnsupportedFork; });
 }
 

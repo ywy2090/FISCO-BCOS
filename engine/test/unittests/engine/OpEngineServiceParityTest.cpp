@@ -580,7 +580,7 @@ BOOST_AUTO_TEST_CASE(op_da_skip_drops_higher_nonce_regardless_of_seal_order)
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(result.payloadId.has_value());
 
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*result.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*result.payloadId, 4));
     BOOST_REQUIRE(payload);
     for (auto const& tx : payload->executionPayload.transactions)
     {
@@ -711,7 +711,7 @@ BOOST_AUTO_TEST_CASE(op_fcu_getpayload_newpayload_roundtrip)
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(built.payloadId.has_value());
 
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
     BOOST_REQUIRE(payload);
     BOOST_REQUIRE_EQUAL(bcos::toHex(payload->executionPayload.extraData), "00000000fa00000006");
 
@@ -753,7 +753,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_failure_keeps_last_executed_header)
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(built.payloadId.has_value());
 
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
     BOOST_REQUIRE(payload);
 
     bcos::engine::NewPayloadRequest request;
@@ -807,7 +807,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_wire_roundtrip_survives_engine_helper_v4)
     BOOST_REQUIRE_EQUAL(static_cast<int>(built.payloadStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(built.payloadId.has_value());
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
     BOOST_REQUIRE(payload);
 
     auto const& original = payload->executionPayload;
@@ -850,7 +850,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_honest_retry_does_not_recommit)
     registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
     auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
     BOOST_REQUIRE(built.payloadId.has_value());
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
     BOOST_REQUIRE(payload);
 
     bcos::engine::NewPayloadRequest request;
@@ -893,7 +893,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_retry_after_failed_commit_recommits)
     registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
     auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
     BOOST_REQUIRE(built.payloadId.has_value());
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
     BOOST_REQUIRE(payload);
 
     bcos::engine::NewPayloadRequest request;
@@ -937,7 +937,7 @@ BOOST_AUTO_TEST_CASE(op_commit_error_routing_unknown_error_is_never_invalid)
         registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
         auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
         BOOST_REQUIRE(built.payloadId.has_value());
-        auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+        auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
         BOOST_REQUIRE(payload);
         bcos::engine::NewPayloadRequest request;
         request.executionRequests =
@@ -1019,18 +1019,14 @@ BOOST_AUTO_TEST_CASE(op_getpayload_v4_v5_serve_the_built_payload)
     registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
     auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
     BOOST_REQUIRE(built.payloadId.has_value());
-    auto v3 = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
-    BOOST_REQUIRE(v3);
-
-    for (std::uint32_t version : {4U, 5U})
-    {
-        auto response = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, version));
-        BOOST_REQUIRE(response);
-        BOOST_REQUIRE(response->executionPayload.withdrawalsRoot.has_value());
-        BOOST_CHECK_EQUAL(response->executionPayload.withdrawalsRoot->hex(),
-            delegate->executedWithdrawalsRoot.hex());
-        checkSameExecutionPayload(v3->executionPayload, response->executionPayload);
-    }
+    auto v4 = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
+    BOOST_REQUIRE(v4);
+    BOOST_REQUIRE(v4->executionPayload.withdrawalsRoot.has_value());
+    BOOST_CHECK_EQUAL(
+        v4->executionPayload.withdrawalsRoot->hex(), delegate->executedWithdrawalsRoot.hex());
+    // Jovian payload timestamp: getPayload is V4. V5 is Karst-only (-38005).
+    BOOST_CHECK_THROW(bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 5)),
+        bcos::engine::UnsupportedFork);
 }
 
 /// The OP lane's FCU window is exactly V1-V3 (the caps list advertises no
@@ -1084,7 +1080,7 @@ BOOST_AUTO_TEST_CASE(op_getpayload_v5_response_json_shape)
     registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
     auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
     BOOST_REQUIRE(built.payloadId.has_value());
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
     BOOST_REQUIRE(payload);
 
     Json::Value response;
@@ -1179,7 +1175,7 @@ BOOST_AUTO_TEST_CASE(op_fcu_getpayload_newpayload_roundtrip_messagepasser_root)
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(built.payloadId.has_value());
 
-    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 3));
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
     BOOST_REQUIRE(payload);
     BOOST_REQUIRE(payload->executionPayload.withdrawalsRoot.has_value());
     BOOST_CHECK_EQUAL(

@@ -86,10 +86,11 @@ std::vector<std::string> supportedOpCapabilities()
     // a pre-Isthmus CL on methods that deterministically fail, with no sync path
     // to recover. FCU V1/V2 stay listed (heartbeat FCUs are accepted); FCU V4 is
     // unimplemented (Endpoint -38005) and absent upstream.
+    // getPayload advertises V3+V4+V5; the live method is the payload-timestamp
+    // profile (Jovian V4, Karst V5). A mismatched getPayload version is -38005.
     static const std::vector<std::string> caps{"engine_exchangeCapabilities",
         "engine_forkchoiceUpdatedV1", "engine_forkchoiceUpdatedV2", "engine_forkchoiceUpdatedV3",
-        "engine_getPayloadV3", "engine_getPayloadV4", "engine_getPayloadV5",
-        "engine_newPayloadV4"};
+        "engine_getPayloadV3", "engine_getPayloadV4", "engine_getPayloadV5", "engine_newPayloadV4"};
     return caps;
 }
 
@@ -259,8 +260,7 @@ std::optional<std::string> validateOpNewPayloadRequest(
     // Isthmus contract than the wire — executionRequests must be present and empty.
     if (!request.executionRequests.has_value() || !request.executionRequests->empty())
     {
-        return std::string(
-            "executionRequests must be a present-but-empty list on the OP path");
+        return std::string("executionRequests must be a present-but-empty list on the OP path");
     }
     return std::nullopt;
 }

@@ -28,6 +28,8 @@
 #include <bcos-framework/engine/EngineService.h>
 #include <bcos-framework/engine/Errors.h>
 #include <bcos-framework/engine/OpBaseFee.h>
+#include <bcos-framework/engine/OpForkId.h>
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/engine/Types.h>
 
 #include <bcos-framework/ledger/Ledger.h>
@@ -56,6 +58,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace bcos::engine
@@ -164,10 +167,10 @@ public:
     task::Task<ForkchoiceUpdatedResult> updateForkchoice(const ForkchoiceState& forkchoiceState,
         const PayloadAttributes* payloadAttributes, std::uint32_t version);
 
-    task::Task<GetPayloadResult> getPayload(const PayloadID& payloadId, std::uint32_t version)
-    {
-        co_return m_tracker.getPayload(payloadId, version);
-    }
+    /// Profile-gated: payload timestamp (internal ms → Unix seconds) selects
+    /// Jovian V4 / Karst V5. Never keys on head. Does not use EngineTracker::getPayload
+    /// (that applies the Eth static V1–V5 window first).
+    task::Task<GetPayloadResult> getPayload(const PayloadID& payloadId, std::uint32_t version);
 
     task::Task<PayloadStatus> newPayload(const NewPayloadRequest& request, std::uint32_t version);
 
@@ -227,6 +230,9 @@ private:
     {
         return version == static_cast<std::uint32_t>(ApiVersion::V4);
     }
+
+    /// `timestampSeconds` is Unix seconds (callers convert internal ms first).
+    EngineForkContext requireOpEngineForkAt(uint64_t timestampSeconds) const;
 
     task::Task<ForkchoiceUpdatedResult> buildOpPayload(const ForkchoiceState& forkchoiceState,
         const PayloadAttributes& payloadAttributes, std::uint32_t version,
