@@ -15,6 +15,7 @@ if(NOT BCOS_EVM_STANDALONE)
     add_executable(bcos-evm-opstack-tests
         opstack/TestMain.cpp
         opstack/OpForkScheduleTest.cpp
+        opstack/OpForkScheduleCodecTest.cpp
         opstack/OpHostTest.cpp
         opstack/OpPrecompilesTest.cpp
         opstack/OpFeeParamsTest.cpp
