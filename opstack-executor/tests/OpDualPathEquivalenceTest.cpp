@@ -39,6 +39,7 @@
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-evm/test/opstack/support/OpForkFlagsCompat.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
+#include <bcos-framework/ledger/LedgerTypeDef.h>
 #include <bcos-framework/storage/Entry.h>
 #include <bcos-framework/storage2/MemoryStorage.h>
 #include <bcos-framework/storage2/MultiLayerStorage.h>
@@ -197,6 +198,44 @@ struct GoldenStats
     int mismatch = 0;
     int greenGuardOk = 0;
 };
+
+/// Q5 fail-closed reads SYS_NUMBER_2_BLOCK_HEADER for parentTs. Dual-path executeBlock uses
+/// ledger=nullptr, so seed a parent row (timestamp strictly before the current block).
+void seedParentHeaderForActivationCheck(MLS& mls, bcos::protocol::BlockHeader::Ptr const& header)
+{
+    if (!header || header->number() <= 0)
+        return;
+    auto parent = std::make_shared<bcostars::protocol::BlockHeaderImpl>();
+    auto const parentNumber = header->number() - 1;
+    parent->setNumber(parentNumber);
+    auto const ts = header->timestamp();
+    parent->setTimestamp(ts > 0 ? ts - 1 : 0);
+    parent->setParentInfo(bcos::protocol::ParentInfo{.blockNumber = 0, .blockHash = bcos::h256{}});
+    parent->setCoinbase(header->coinbase());
+    parent->setStateRoot(bcos::h256{});
+    parent->setTxsRoot(bcos::h256{});
+    parent->setReceiptsRoot(bcos::h256{});
+    parent->setGasLimit(header->gasLimit());
+    parent->setGasUsed(bcos::u256(0));
+    parent->setExtraData(bcos::bytes{});
+    parent->setPrevRandao(header->prevRandao());
+    parent->setBaseFee(header->baseFee().value_or(bcos::u256(0)));
+    parent->setWithdrawalsRoot(bcos::h256{});
+    parent->setBlobGasUsed(bcos::u256(0));
+    parent->setExcessBlobGas(bcos::u256(0));
+    parent->setParentBeaconBlockRoot(bcos::h256{});
+    parent->setRequestsHash(bcos::h256{});
+    bcos::bytes buf;
+    parent->encode(buf);
+    auto view = mls.fork();
+    view.newMutable();
+    bcos::storage::Entry e;
+    e.set(std::move(buf));
+    bcos::task::syncWait(bcos::storage2::writeOne(view,
+        StateKey{bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER, std::to_string(parentNumber)},
+        std::move(e)));
+    bcos::task::syncWait(mls.mergeView(std::move(view)));
+}
 
 // ── Helper functions ─────────────────────────────────────────────────────────────────
 
@@ -507,6 +546,8 @@ void runBlockEquivalence(const std::string& id, Fixture& fixture,
             }
             block->appendTransaction(std::move(tx));
         }
+
+        seedParentHeaderForActivationCheck(fixture.multiLayerStorage, header);
 
         auto opScheduler = std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(
             fixture.receiptFactory, fixture.hashImpl, kChainId,
