@@ -34,7 +34,37 @@ BOOST_AUTO_TEST_CASE(rejectsKarst)
     LoaderProbe probe;
     BOOST_CHECK_EXCEPTION(probe.loadOpForkSchedule(fromIni("[op_fork_schedule]\n"
                                                            "canonical=0:jovian,1:karst\n")),
+        InvalidConfig, [](auto const& e) {
+            return errinfoContains(e, "unknown") || errinfoContains(e, "karst") ||
+                   errinfoContains(e, "invalid");
+        });
+}
+
+BOOST_AUTO_TEST_CASE(emptyCanonicalFailsClosed)
+{
+    LoaderProbe probe;
+    BOOST_CHECK_EXCEPTION(probe.loadOpForkSchedule(fromIni("[op_fork_schedule]\n"
+                                                           "canonical=\n")),
         InvalidConfig, [](auto const& e) { return errinfoContains(e, "op_fork_schedule"); });
+}
+
+BOOST_AUTO_TEST_CASE(whitespaceCanonicalFailsClosed)
+{
+    LoaderProbe probe;
+    BOOST_CHECK_EXCEPTION(probe.loadOpForkSchedule(fromIni("[op_fork_schedule]\n"
+                                                           "canonical=   \n")),
+        InvalidConfig, [](auto const& e) { return errinfoContains(e, "op_fork_schedule"); });
+}
+
+BOOST_AUTO_TEST_CASE(sectionWithoutCanonicalFailsClosed)
+{
+    // boost::read_ini drops empty sections, so "[op_fork_schedule]\\n" never
+    // reaches the loader. Build the child explicitly: section present, no key.
+    boost::property_tree::ptree pt;
+    pt.put_child("op_fork_schedule", boost::property_tree::ptree{});
+    LoaderProbe probe;
+    BOOST_CHECK_EXCEPTION(probe.loadOpForkSchedule(pt), InvalidConfig,
+        [](auto const& e) { return errinfoContains(e, "canonical"); });
 }
 
 BOOST_AUTO_TEST_CASE(missingSectionLeavesScheduleUnset)

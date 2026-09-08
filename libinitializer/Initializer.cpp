@@ -28,8 +28,6 @@
 #include "AuthInitializer.h"
 #include "BfsInitializer.h"
 #include "EngineServiceInitializer.h"
-// OpEngineService.h is declarations-only after the header split; this TU is the
-// #5550 production instantiator (buildOp) and must see newPayload/updateForkchoice.
 #include "EthereumBlockHashLookup.h"
 #include "GlobalStateStorageInitializer.h"
 #include "LedgerInitializer.h"
@@ -40,6 +38,7 @@
 #include "bcos-framework/dispatcher/SchedulerInterface.h"
 #include "bcos-framework/ledger/ChainMetadata.h"
 #include "bcos-framework/ledger/Ledger.h"
+#include "bcos-framework/storage/LegacyStorageMethods.h"
 #include "bcos-framework/storage/StorageInterface.h"
 #include "bcos-ledger/LedgerMethods.h"
 #include "bcos-scheduler/src/TarsExecutorManager.h"
@@ -48,6 +47,8 @@
 #include "bcos-storage/RocksDBStorage.h"
 #include "bcos-task/Wait.h"
 #include "bcos-utilities/Error.h"
+// OpEngineService.h is declarations-only after the header split; this TU is the
+// #5550 production instantiator (buildOp) and must see newPayload/updateForkchoice.
 #include "engine/bcos-engine/OpEngineService.inl"
 #include "ethereum-executor/EthereumExecutor.h"
 #include "fisco-bcos-tars-service/Common/TarsUtils.h"
@@ -524,16 +525,16 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
         uint64_t const opChainId = static_cast<uint64_t>(*parsedChainId);
 
         // Resolve via Task 4 helper — do NOT invent a second hash policy.
-        // Ledger::buildGenesisBlock writes s_chain_metadata into m_stateStorage, which
-        // on AIR/RocksDB is the same ::rocksdb::DB as GlobalStateStorage::latestBackend().
-        // Do not use Ledger::getStateStorage(): that wraps KeyPage and can hide SYS tables.
+        // Same StorageInterface as Ledger::buildGenesisBlock (decrypts via dataEncryption).
+        // Not latestBackend() (ciphertext when encryption is on). Not getStateStorage()
+        // (KeyPage hides SYS tables). storage2-over-legacy is LegacyStorageMethods.
         bcos::evm::opstack::OpForkFlags forkFlags;
         try
         {
             auto genesisBlock = task::syncWait(ledger::getBlockData(*m_ledger, 0, ledger::HEADER));
             const auto genesisHash = genesisBlock->blockHeader()->hash();
-            auto stored = task::syncWait(ledger::readOpForkScheduleMetadata(
-                m_globalStateStorageInitializer->storage().latestBackend(), genesisHash));
+            auto stored =
+                task::syncWait(ledger::readOpForkScheduleMetadata(*m_storage, genesisHash));
             auto canonical = ledger::resolveOpForkScheduleCanonical(stored,
                 m_nodeConfig->genesisConfig().m_opstackForkSchedule, m_nodeConfig->opJovianActive(),
                 genesisHash);
