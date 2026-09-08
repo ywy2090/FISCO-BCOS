@@ -82,8 +82,10 @@ BOOST_AUTO_TEST_CASE(op_capabilities_include_op_methods)
     OpServicePair pair;
     auto caps = bcos::task::syncWait(pair.service.exchangeCapabilities({}));
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_newPayloadV4") != caps.end());
+    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV4") != caps.end());
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV5") != caps.end());
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_forkchoiceUpdatedV3") != caps.end());
+    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV3") == caps.end());
 }
 
 BOOST_AUTO_TEST_CASE(op_v3_new_payload_throws_unsupported_fork)

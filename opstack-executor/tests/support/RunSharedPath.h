@@ -87,7 +87,7 @@ inline bcos::evm::engine::OpExecuteBlockResult runSharedPath(MutableStorage& sto
     std::optional<uint16_t> daFootprintGasScalar;
     std::optional<detail::RecentBlockHashes<MutableStorage>> hashes;
     bcos::evm::engine::preBlockOpSteps(storage, header, cfg, rawTxBytes, deposits, executor, hashes,
-        hashErr, daFootprintGasScalar);
+        hashErr, daFootprintGasScalar, /*schedule=*/nullptr, /*parentTsSec=*/0);
     bcos::executor_v1::opstack::OpBlockExecutionContext ctx{.fee = {},
         .blockGasLeft = static_cast<int64_t>(
             detail::narrowU256ToU64(header.gasLimit(), "runSharedPath blockGasLeft")),

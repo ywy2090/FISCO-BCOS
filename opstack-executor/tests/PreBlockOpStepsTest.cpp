@@ -181,8 +181,8 @@ struct Fixture
     void run(const op::OpForkConfig& cfg, const std::vector<bcos::bytes>& rawTxBytes,
         const std::vector<op::DepositTx>& deposits)
     {
-        engine::preBlockOpSteps(
-            storage, header, cfg, rawTxBytes, deposits, executor, hashes, hashErr, scalar);
+        engine::preBlockOpSteps(storage, header, cfg, rawTxBytes, deposits, executor, hashes,
+            hashErr, scalar, /*schedule=*/nullptr, /*parentTsSec=*/0);
     }
 };
 
@@ -329,7 +329,8 @@ BOOST_AUTO_TEST_CASE(PrePoisonedSharedSlotFailsAtSystemCallStep)
     const std::vector<bcos::bytes> rawTxs{kDepositEnvelope};
     const std::vector<op::DepositTx> deps{dep};
     BOOST_CHECK_THROW(engine::preBlockOpSteps(f.storage, f.header, op::jovianConfig(), rawTxs, deps,
-                          executor, f.hashes, f.hashErr, f.scalar),
+                          executor, f.hashes, f.hashErr, f.scalar, /*schedule=*/nullptr,
+                          /*parentTsSec=*/0),
         engine::OpStorageError);
 }
 
@@ -349,12 +350,14 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockNormalizesWritebackFailure)
     bcos::executor_v1::opstack::NullBlockHashes hashes;
     auto vm = evmc::VM{evmc_create_evmone()};
 
-    BOOST_CHECK_EXCEPTION(
-        op::processOpBlock(view, block, hashes, /*txs=*/{}, op::jovianConfig(), vm,
-            /*chainId=*/10, bcos::evm::opstack::testutil::kOpTestReceiptFactory,
-            [](const evmone::state::StateDiff&) {
-                throw std::runtime_error("storage fault injected for the write-back test");
-            }),
+    BOOST_CHECK_EXCEPTION(op::processOpBlock(
+                              view, block, hashes, /*txs=*/{}, op::jovianConfig(), vm,
+                              /*chainId=*/10, bcos::evm::opstack::testutil::kOpTestReceiptFactory,
+                              [](const evmone::state::StateDiff&) {
+                                  throw std::runtime_error(
+                                      "storage fault injected for the write-back test");
+                              },
+                              /*schedule=*/nullptr, /*parentTsSec=*/0),
         bcos::evm::engine::OpStorageError, [](bcos::evm::engine::OpStorageError const& e) {
             return std::string(e.what()).find("storage write-back failed") != std::string::npos;
         });
@@ -431,9 +434,10 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockCapacityFaultIsNotAnEvictableCulprit)
         normalTx.tx = tx;
         normalTx.signedEnvelope = envelope;
         std::vector<op::OpBlockTx> const txs{depTx, normalTx};
-        (void)op::processOpBlock(view, block, hashes, txs, op::isthmusConfig(), vm, /*chainId=*/10,
+        (void)op::processOpBlock(
+            view, block, hashes, txs, op::isthmusConfig(), vm, /*chainId=*/10,
             bcos::evm::opstack::testutil::kOpTestReceiptFactory,
-            [](const evmone::state::StateDiff&) {});
+            [](const evmone::state::StateDiff&) {}, /*schedule=*/nullptr, /*parentTsSec=*/0);
         BOOST_FAIL("a tx over the remaining block gas must void the block");
     }
     catch (bcos::evm::OpConsensusError const& e)

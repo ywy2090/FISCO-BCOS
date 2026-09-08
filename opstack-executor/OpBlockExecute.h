@@ -81,7 +81,7 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     std::span<const OpBlockTx> txs, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId,
     const bcos::protocol::TransactionReceiptFactory::Ptr& receiptFactory,
     const std::function<void(const evmone::state::StateDiff&)>& applyDiff,
-    OpForkSchedule const* schedule = nullptr, uint64_t parentTsSec = 0);
+    OpForkSchedule const* schedule, uint64_t parentTsSec);
 
 
 // ---- Jovian L1-attributes block shape ----
@@ -101,14 +101,12 @@ inline bool isNoUserTxActivationBlock(
     return false;
 }
 
-inline constexpr uint8_t kDepositTypeByte = 0x7e;
-
 /// Q5 envelope probe: empty or non-0x7e is a non-deposit. Used to scan every envelope
 /// on activation blocks. The DA-footprint 176B path still uses last-tx only.
 template <class Envelope>
 [[nodiscard]] inline bool envelopeIsDeposit(Envelope const& env) noexcept
 {
-    return !env.empty() && env[0] == kDepositTypeByte;
+    return !env.empty() && env[0] == static_cast<uint8_t>(kDepositTxType);
 }
 
 template <class RawTxRange>
@@ -330,7 +328,7 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
     bcos::executor_v1::opstack::OpstackExecutor& executor,
     std::optional<detail::RecentBlockHashes<Storage>>& hashes, std::optional<std::string>& hashErr,
     std::optional<uint16_t>& daFootprintGasScalar,
-    bcos::evm::opstack::OpForkSchedule const* schedule = nullptr, uint64_t parentTsSec = 0)
+    bcos::evm::opstack::OpForkSchedule const* schedule, uint64_t parentTsSec)
 {
     namespace op = bcos::evm::opstack;
 

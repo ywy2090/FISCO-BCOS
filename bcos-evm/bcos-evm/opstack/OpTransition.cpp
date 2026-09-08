@@ -372,7 +372,7 @@ bcos::protocol::TransactionReceipt::Ptr opTransition(const evmone::state::StateV
 std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::Transaction& tx,
     evmc::bytes_view signedTxEnvelope, const OpForkConfig& cfg, const OpFeeParams& fee,
-    int64_t blockGasLeft)
+    int64_t blockGasLeft, evmone::state::TxValidationPolicy policy)
 {
     // Whitelist, not a blacklist. Transaction::Type has uint8_t as its underlying type and
     // validate_transaction's type switch (state.cpp:365-383) carries no default label, so EVERY
@@ -393,7 +393,8 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
     if (signedTxEnvelope.empty())
         return make_error_code(std::errc::invalid_argument);
 
-    auto base = evmone::state::validate_transaction(view, block, tx, cfg.rev, blockGasLeft, 0);
+    auto base =
+        evmone::state::validate_transaction(view, block, tx, cfg.rev, blockGasLeft, 0, policy);
     if (auto* err = std::get_if<std::error_code>(&base))
         return *err;
 
@@ -443,9 +444,10 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
 std::variant<OpTxProperties, std::error_code> opValidateFromState(
     const evmone::state::StateView& view, const evmone::state::BlockInfo& block,
     const evmone::state::Transaction& tx, evmc::bytes_view signedTxEnvelope,
-    const OpForkConfig& cfg, int64_t blockGasLeft)
+    const OpForkConfig& cfg, int64_t blockGasLeft, evmone::state::TxValidationPolicy policy)
 {
-    return opValidate(view, block, tx, signedTxEnvelope, cfg, loadOpFeeParams(view), blockGasLeft);
+    return opValidate(
+        view, block, tx, signedTxEnvelope, cfg, loadOpFeeParams(view), blockGasLeft, policy);
 }
 
 // ---- 0x7E deposit tx (formerly OpDepositTx.cpp) ----

@@ -65,7 +65,8 @@ PayloadAttributes holoceneAttributes(bytes eip1559Params)
 NewPayloadRequest makeIsthmusNewPayload(bytes extraData)
 {
     NewPayloadRequest request;
-    request.executionRequests = std::vector<bytes>{};  // present-but-empty: the Isthmus wire contract
+    request.executionRequests =
+        std::vector<bytes>{};  // present-but-empty: the Isthmus wire contract
     request.executionPayload.withdrawals = std::vector<WithdrawalV1>{};
     request.executionPayload.withdrawalsRoot = ledger::mpt::emptyRootHash();
     request.executionPayload.excessBlobGas = u256(0);
@@ -202,13 +203,14 @@ BOOST_AUTO_TEST_CASE(op_does_not_advertise_unimplemented_fcu_v4)
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_forkchoiceUpdatedV3") != caps.end());
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_forkchoiceUpdatedV4") == caps.end());
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV4") != caps.end());
+    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV5") != caps.end());
     BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_newPayloadV4") != caps.end());
     // The OP lane must not advertise methods its own gates deterministically reject:
-    // newPayload is Isthmus-only V4 (-38005 for V1-V3) and getPayloadV1/V2 cannot
-    // render a PayloadV3 build — a pre-Isthmus CL reading them has no sync path back.
-    for (auto const* dead :
-        {"engine_newPayloadV1", "engine_newPayloadV2", "engine_newPayloadV3",
-            "engine_getPayloadV1", "engine_getPayloadV2"})
+    // newPayload is Isthmus-only V4 (-38005 for V1-V3). getPayloadV1/V2 cannot
+    // render a PayloadV3 build. getPayloadV3 is never the live method
+    // (engineApiFor is Jovian V4 / Karst V5) — advertising it strands a CL on -38005.
+    for (auto const* dead : {"engine_newPayloadV1", "engine_newPayloadV2", "engine_newPayloadV3",
+             "engine_getPayloadV1", "engine_getPayloadV2", "engine_getPayloadV3"})
     {
         BOOST_CHECK_MESSAGE(std::find(caps.begin(), caps.end(), dead) == caps.end(),
             "OP caps must not advertise " << dead);
@@ -242,31 +244,31 @@ BOOST_AUTO_TEST_CASE(validate_op_newpayload_request_static_rules)
 
     expectReject(withViolation([](NewPayloadRequest& r) {
         r.executionRequests = std::vector<bytes>{bytes{0x01}};
-    }), "executionRequests must be a present-but-empty list");
-    expectReject(withViolation([](NewPayloadRequest& r) {
-        r.executionRequests.reset();
-    }), "executionRequests must be a present-but-empty list");
-    expectReject(withViolation([](NewPayloadRequest& r) {
-        r.executionPayload.withdrawals.reset();
-    }), "withdrawals must be present and empty");
+    }),
+        "executionRequests must be a present-but-empty list");
+    expectReject(withViolation([](NewPayloadRequest& r) { r.executionRequests.reset(); }),
+        "executionRequests must be a present-but-empty list");
+    expectReject(
+        withViolation([](NewPayloadRequest& r) { r.executionPayload.withdrawals.reset(); }),
+        "withdrawals must be present and empty");
     expectReject(withViolation([](NewPayloadRequest& r) {
         r.executionPayload.withdrawals = std::vector<WithdrawalV1>{WithdrawalV1{}};
-    }), "withdrawals must be present and empty");
-    expectReject(withViolation([](NewPayloadRequest& r) {
-        r.expectedBlobVersionedHashes = {h256(1)};
-    }), "expectedBlobVersionedHashes must be an empty array");
-    expectReject(withViolation([](NewPayloadRequest& r) {
-        r.executionPayload.withdrawalsRoot.reset();
-    }), "withdrawalsRoot is required");
-    expectReject(withViolation([](NewPayloadRequest& r) {
-        r.executionPayload.excessBlobGas = u256(1);
-    }), "excessBlobGas must be present and zero");
-    expectReject(withViolation([](NewPayloadRequest& r) {
-        r.executionPayload.blobGasUsed = u256(1);
-    }), "blobGasUsed must be zero before Jovian");
-    expectReject(withViolation([](NewPayloadRequest& r) {
-        r.executionPayload.blockNumber = -1;
-    }), "blockNumber must not be negative");
+    }),
+        "withdrawals must be present and empty");
+    expectReject(
+        withViolation([](NewPayloadRequest& r) { r.expectedBlobVersionedHashes = {h256(1)}; }),
+        "expectedBlobVersionedHashes must be an empty array");
+    expectReject(
+        withViolation([](NewPayloadRequest& r) { r.executionPayload.withdrawalsRoot.reset(); }),
+        "withdrawalsRoot is required");
+    expectReject(
+        withViolation([](NewPayloadRequest& r) { r.executionPayload.excessBlobGas = u256(1); }),
+        "excessBlobGas must be present and zero");
+    expectReject(
+        withViolation([](NewPayloadRequest& r) { r.executionPayload.blobGasUsed = u256(1); }),
+        "blobGasUsed must be zero before Jovian");
+    expectReject(withViolation([](NewPayloadRequest& r) { r.executionPayload.blockNumber = -1; }),
+        "blockNumber must not be negative");
 }
 
 /// Same treatment for the FCU attributes-side rules (validateOpPayloadAttributes).
@@ -283,15 +285,20 @@ BOOST_AUTO_TEST_CASE(validate_op_payload_attributes_static_rules)
             "reject \"" << *error << "\" does not mention " << needle);
     };
 
-    expectReject(withViolation([](PayloadAttributes& a) {
-        a.withdrawals = std::vector<WithdrawalV1>{WithdrawalV1{}};
-    }, false), "withdrawals must be empty on the OP path");
-    expectReject(withViolation([](PayloadAttributes& a) {
-        a.minBaseFee = std::nullopt;
-    }, /*jovianActive=*/true), "minBaseFee is required after the Jovian fork");
-    expectReject(withViolation([](PayloadAttributes& a) {
-        a.minBaseFee = 0;  // a pre-Jovian CL sending a floor is a reject
-    }, /*jovianActive=*/false), "minBaseFee must be null before the Jovian fork");
+    expectReject(
+        withViolation(
+            [](PayloadAttributes& a) { a.withdrawals = std::vector<WithdrawalV1>{WithdrawalV1{}}; },
+            false),
+        "withdrawals must be empty on the OP path");
+    expectReject(withViolation([](PayloadAttributes& a) { a.minBaseFee = std::nullopt; },
+                     /*jovianActive=*/true),
+        "minBaseFee is required after the Jovian fork");
+    expectReject(withViolation(
+                     [](PayloadAttributes& a) {
+                         a.minBaseFee = 0;  // a pre-Jovian CL sending a floor is a reject
+                     },
+                     /*jovianActive=*/false),
+        "minBaseFee must be null before the Jovian fork");
 }
 
 BOOST_AUTO_TEST_CASE(fcu_v4_missing_beacon_root_is_invalid)

@@ -1600,10 +1600,14 @@ private:
         // fresh sender) and lands in the simulated StateDiff — m_finish discards that diff for
         // call=true so none of it is written back. This is a decision on record, not an
         // accident (OpTransition.h CallSimulationView doc block).
-        auto validated = call ? op::opValidate(op::CallSimulationView{stateView, evmTx.sender},
-                                    blockInfo, evmTx, env, m_forkConfig, fee, blockGasLeft) :
-                                op::opValidate(stateView, blockInfo, evmTx, env, m_forkConfig, fee,
-                                    blockGasLeft);
+        // eth_call (geth #32641) skips EIP-7825. The TransactionExecutor dry-run
+        // (`call=true`) is also estimateGas, so both skip the 2^24 cap here.
+        evmone::state::TxValidationPolicy const policy{.enforce_max_tx_gas = !call};
+        auto validated = call ?
+                             op::opValidate(op::CallSimulationView{stateView, evmTx.sender},
+                                 blockInfo, evmTx, env, m_forkConfig, fee, blockGasLeft, policy) :
+                             op::opValidate(stateView, blockInfo, evmTx, env, m_forkConfig, fee,
+                                 blockGasLeft, policy);
         if (auto const* err = std::get_if<std::error_code>(&validated))
         {
             // On the block path, a full gas pool is a capacity fault, not a poisoned tx.

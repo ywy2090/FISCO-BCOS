@@ -429,6 +429,27 @@ BOOST_AUTO_TEST_CASE(KarstOrdinaryTxRejectsGasOverEip7825Cap)
                 evmone::state::make_error_code(evmone::state::MAX_GAS_LIMIT_EXCEEDED));
 }
 
+BOOST_AUTO_TEST_CASE(KarstEthCallSkipsEip7825MaxGasLimit)
+{
+    // geth #32641: eth_call skips the Osaka 2^24 cap. Block admission (default
+    // policy) still rejects — see KarstOrdinaryTxRejectsGasOverEip7825Cap.
+    test::TestState ts;
+    ts[kOsakaSender] = {
+        .nonce = 0, .balance = 1000000000000000000000_u256, .storage = {}, .code = {}};
+    state::Transaction tx;
+    tx.type = state::Transaction::Type::eip1559;
+    tx.sender = kOsakaSender;
+    tx.to = 0x0000000000000000000000000000000000001234_address;
+    tx.gas_limit = evmone::state::MAX_TX_GAS_LIMIT + 1;
+    tx.max_gas_price = 1000;
+    tx.max_priority_gas_price = 10;
+    tx.nonce = 0;
+    const std::vector<uint8_t> env{0x02, 0x11};
+    const auto r = opValidate(ts, makeOsakaBlock(), tx, {env.data(), env.size()}, osakaCfg(),
+        OpFeeParams{}, 30000000, evmone::state::TxValidationPolicy{.enforce_max_tx_gas = false});
+    BOOST_REQUIRE(std::holds_alternative<OpTxProperties>(r));
+}
+
 BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit)
 {
     auto vm = evmc::VM{evmc_create_evmone()};

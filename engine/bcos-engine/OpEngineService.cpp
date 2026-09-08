@@ -86,11 +86,12 @@ std::vector<std::string> supportedOpCapabilities()
     // a pre-Isthmus CL on methods that deterministically fail, with no sync path
     // to recover. FCU V1/V2 stay listed (heartbeat FCUs are accepted); FCU V4 is
     // unimplemented (Endpoint -38005) and absent upstream.
-    // getPayload advertises V3+V4+V5; the live method is the payload-timestamp
-    // profile (Jovian V4, Karst V5). A mismatched getPayload version is -38005.
+    // getPayload advertises V4+V5 only. The live method is the payload-timestamp
+    // profile (Jovian V4, Karst V5). Advertising V3 would let a CL pick it and
+    // then hit -38005 on every retrieve (engineApiFor never returns V3).
     static const std::vector<std::string> caps{"engine_exchangeCapabilities",
         "engine_forkchoiceUpdatedV1", "engine_forkchoiceUpdatedV2", "engine_forkchoiceUpdatedV3",
-        "engine_getPayloadV3", "engine_getPayloadV4", "engine_getPayloadV5", "engine_newPayloadV4"};
+        "engine_getPayloadV4", "engine_getPayloadV5", "engine_newPayloadV4"};
     return caps;
 }
 
