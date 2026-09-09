@@ -618,9 +618,13 @@ bcos::protocol::TransactionReceipt::Ptr runDeposit(const evmone::state::StateVie
 
     // Deposit nonce/version on opStackMeta (op-geth deposit receipt has no L1/operator/DA
     // fields); effectiveGasPrice is 0 for deposits (op-geth emits "0x0").
+    // Consensus-RLP gating (deposits spec): pre-Canyon receipts carry neither depositNonce nor
+    // version; from Canyon on both are present with version=1. OpFork is protocol-ordered, so
+    // >= Canyon covers every modeled later fork.
     bcos::protocol::OpStackReceiptMeta meta;
     meta.deposit_nonce = preNonce;
-    meta.deposit_receipt_version = 1;
+    if (cfg.fork >= OpFork::Canyon)
+        meta.deposit_receipt_version = 1;
     out->setOpStackMeta(std::move(meta));
     out->setEffectiveGasPrice("0x0");
     // Write the out-param only after the projection above has fully succeeded (see opTransition).

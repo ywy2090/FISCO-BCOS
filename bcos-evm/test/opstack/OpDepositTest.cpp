@@ -85,6 +85,62 @@ BOOST_AUTO_TEST_CASE(SuccessMintsAndAdvancesNonce)
     BOOST_CHECK_EQUAL(ts.count(OP_L1_FEE_VAULT), 0u);
 }
 
+// 共识 RLP：Canyon 前收据不得含 depositNonce/version（deposits spec）；API 字段从 Regolith 起才有
+// nonce。这里的 meta 是 FISCO 的 opStackMeta 扩展——version 必须缺席，nonce 仍在。
+BOOST_AUTO_TEST_CASE(RegolithDepositOmitsReceiptVersion)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 5, .balance = intx::uint256{0}, .storage = {}, .code = {}};
+    test::TestBlockHashes hashes;
+
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kFrom,
+        .mint = intx::uint256{100},
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
+    evmone::state::StateDiff diff;
+    const auto r = runDeposit(ts, blkDeposit(), hashes, dep, regolithConfig(), vm, 1234, 30000000,
+        kOpTestReceiptFactory, diff);
+    bcos::evm::applyStateDiffStrict(ts, diff);
+
+    BOOST_CHECK_EQUAL(r->status(), 0);
+    const auto& meta = r->opStackMeta();
+    BOOST_REQUIRE(meta.has_value());
+    BOOST_CHECK(meta->deposit_nonce.has_value());
+    BOOST_CHECK(!meta->deposit_receipt_version.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(CanyonDepositSetsReceiptVersion)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    ts[kFrom] = {.nonce = 5, .balance = intx::uint256{0}, .storage = {}, .code = {}};
+    test::TestBlockHashes hashes;
+
+    DepositTx dep{.source_hash = 0x01_bytes32,
+        .from = kFrom,
+        .to = kFrom,
+        .mint = intx::uint256{100},
+        .value = intx::uint256{0},
+        .gas_limit = 100000,
+        .is_system_tx = false,
+        .data = {}};
+    evmone::state::StateDiff diff;
+    const auto r = runDeposit(ts, blkDeposit(), hashes, dep, canyonConfig(), vm, 1234, 30000000,
+        kOpTestReceiptFactory, diff);
+    bcos::evm::applyStateDiffStrict(ts, diff);
+
+    BOOST_CHECK_EQUAL(r->status(), 0);
+    const auto& meta = r->opStackMeta();
+    BOOST_REQUIRE(meta.has_value());
+    BOOST_CHECK_EQUAL(*meta->deposit_nonce, 5u);
+    BOOST_CHECK_EQUAL(*meta->deposit_receipt_version, 1u);
+}
+
 BOOST_AUTO_TEST_CASE(EvmRevertKeepsMintAndChargesActualGas)
 {
     auto vm = evmc::VM{evmc_create_evmone()};
