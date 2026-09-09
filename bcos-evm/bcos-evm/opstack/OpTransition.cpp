@@ -234,21 +234,34 @@ OpReceiptMeta deriveOpReceiptMeta(const OpTxProperties& props, intx::uint256 ope
     const auto& fee = props.fee;
     OpReceiptMeta m;
     m.l1_gas_price = fee.l1_base_fee;
-    m.l1_blob_base_fee = fee.blob_base_fee;
-    m.l1_base_fee_scalar = fee.base_fee_scalar;
-    m.l1_blob_base_fee_scalar = fee.blob_base_fee_scalar;
     m.l1_fee = props.l1_cost;
-    // L1 calldata gas used. Ecotone: bedrockCalldataGasUsed on the envelope (zeroes*4 + ones*16),
-    // snapped into props at validate time. Fjord+ (op-geth rollup_cost.go:623-624):
-    //   L1GasUsed = estimatedDASizeScaled(fastLzSize) * 16 / 1e6.
-    // deriveOPStackFields emits it on every non-deposit receipt; ecotone_calldata_gas_used is
-    // unset under Fjord+, where flz_len drives the formula. Bounded: with uint32 flz the scaled
-    // term is ≤ 5.8e10, far below uint64 max, so the cast cannot wrap.
-    if (props.ecotone_calldata_gas_used.has_value())
-        m.l1_gas_used = *props.ecotone_calldata_gas_used;
+    if (props.bedrock_l1_gas_used.has_value())
+    {
+        // Pre-Ecotone receipt shape (op-geth deriveOPStackFields pre-Ecotone): L1GasUsed =
+        // rollupDataGas + overhead, L1FeeScalar = the raw Bedrock scalar. The Ecotone
+        // scalar/blob passthrough fields stay absent — op-geth leaves them nil pre-Ecotone.
+        m.l1_gas_used = *props.bedrock_l1_gas_used;
+        m.l1_fee_scalar = props.bedrock_l1_fee_scalar;
+    }
     else
-        m.l1_gas_used =
-            static_cast<uint64_t>(estimatedDaSizeScaled(props.flz_len) * 16 / 1'000'000);
+    {
+        // Ecotone/Fjord receipt shape: the L1 passthrough scalars ride along, and L1FeeScalar
+        // must be absent (design §4.6: FeeScalar 必须缺席 from Ecotone on).
+        m.l1_blob_base_fee = fee.blob_base_fee;
+        m.l1_base_fee_scalar = fee.base_fee_scalar;
+        m.l1_blob_base_fee_scalar = fee.blob_base_fee_scalar;
+        // L1 calldata gas used. Ecotone: bedrockCalldataGasUsed on the envelope (zeroes*4 +
+        // ones*16), snapped into props at validate time. Fjord+ (op-geth rollup_cost.go:623-624):
+        //   L1GasUsed = estimatedDASizeScaled(fastLzSize) * 16 / 1e6.
+        // deriveOPStackFields emits it on every non-deposit receipt; ecotone_calldata_gas_used is
+        // unset under Fjord+, where flz_len drives the formula. Bounded: with uint32 flz the
+        // scaled term is ≤ 5.8e10, far below uint64 max, so the cast cannot wrap.
+        if (props.ecotone_calldata_gas_used.has_value())
+            m.l1_gas_used = *props.ecotone_calldata_gas_used;
+        else
+            m.l1_gas_used =
+                static_cast<uint64_t>(estimatedDaSizeScaled(props.flz_len) * 16 / 1'000'000);
+    }
     if (props.has_operator_fee)
     {
         m.operator_fee = operator_fee_at_used;
@@ -400,14 +413,17 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
 
     uint32_t flzLen = 0;
     intx::uint256 l1Cost;
-    if (cfg.has_ecotone_l1_formula)
-    {
-        l1Cost = computeL1Cost(fee, signedTxEnvelope, cfg);
-    }
-    else
+    // FastLZ only prices the Fjord formula (Fjord model, no Ecotone flag). Bedrock and Ecotone
+    // (including its zero-slot fallback) both route through computeL1Cost — routing them through
+    // the flz branch here would price every pre-Fjord block as Fjord.
+    if (cfg.l1_fee_model == L1FeeModel::Fjord && !cfg.has_ecotone_l1_formula)
     {
         flzLen = flzCompressLen(signedTxEnvelope);
         l1Cost = computeL1CostFromFlz(fee, flzLen, cfg);
+    }
+    else
+    {
+        l1Cost = computeL1Cost(fee, signedTxEnvelope, cfg);
     }
     const auto opCost = cfg.has_operator_fee ?
                             computeOperatorCost(fee, static_cast<uint64_t>(tx.gas_limit), cfg) :
@@ -431,13 +447,27 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
 
     OpTxProperties props{std::get<evmone::state::TransactionProperties>(base), l1Cost, opCost, fee,
         flzLen, cfg.has_operator_fee, cfg.has_jovian_operator_formula, cfg.has_da_footprint};
-    // Under the Ecotone formula, snapshot the envelope's bedrockCalldataGasUsed (zeroes*4 +
-    // ones*16) for deriveOpReceiptMeta to read as l1_gas_used -- preserving the no-cfg invariant.
-    // Under Fjord+ it stays nullopt; l1_gas_used uses the Fjord formula on flz_len.
-    props.ecotone_calldata_gas_used =
-        cfg.has_ecotone_l1_formula ?
-            std::optional<uint64_t>{bcos::evm::opstack::bedrockCalldataGasUsed(signedTxEnvelope)} :
-            std::nullopt;
+    // Receipt-shape snapshot, frozen at validate time (deriveOpReceiptMeta takes no cfg):
+    // - Ecotone formula actually ran (slots live): calldataGas becomes l1_gas_used.
+    // - Bedrock formula ran (Bedrock model, or the Ecotone zero-slot fallback): the receipt gets
+    //   the pre-Ecotone shape — l1_gas_used = gas + overhead, L1FeeScalar = raw Bedrock scalar.
+    // - Fjord+: both stay unset; flz_len drives l1_gas_used.
+    const bool bedrockFormula =
+        cfg.l1_fee_model == L1FeeModel::Bedrock ||
+        (cfg.l1_fee_model == L1FeeModel::Ecotone && !bcos::evm::opstack::ecotoneL1SlotsLive(fee));
+    if (bedrockFormula)
+    {
+        // uint64 arithmetic like op-geth's (params.L1FeeOverhead is uint64 there).
+        props.bedrock_l1_gas_used =
+            static_cast<uint64_t>(bcos::evm::opstack::bedrockCalldataGasUsed(signedTxEnvelope)) +
+            static_cast<uint64_t>(fee.overhead);
+        props.bedrock_l1_fee_scalar = fee.bedrock_scalar;
+    }
+    else if (cfg.l1_fee_model == L1FeeModel::Ecotone)
+    {
+        props.ecotone_calldata_gas_used =
+            std::optional<uint64_t>{bcos::evm::opstack::bedrockCalldataGasUsed(signedTxEnvelope)};
+    }
     return props;
 }
 

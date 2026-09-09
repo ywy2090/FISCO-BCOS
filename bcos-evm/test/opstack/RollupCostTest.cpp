@@ -201,4 +201,47 @@ BOOST_AUTO_TEST_CASE(FromFlzVariantsMatchEnvelopeVariants)
     BOOST_CHECK_EQUAL(computeL1CostFromFlz(fee, 0, fjordConfig()), intx::uint256{0});
 }
 
+BOOST_AUTO_TEST_CASE(BedrockL1CostAddsOverheadToGas)
+{
+    OpFeeParams p{};
+    p.l1_base_fee = intx::uint256{1'000'000'000};
+    p.bedrock_scalar = intx::uint256{1'000'000};
+    p.overhead = intx::uint256{2100};
+    const auto gas = bedrockCalldataGasUsed(kEmptyTx);
+    const auto want = (intx::uint256{gas} + p.overhead) * p.l1_base_fee * p.bedrock_scalar /
+                      intx::uint256{1'000'000};
+    BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, regolithConfig()), want);
+    BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, canyonConfig()), want);
+}
+
+BOOST_AUTO_TEST_CASE(EcotoneConfigFallsBackToBedrockWhenNewSlotsZero)
+{
+    OpFeeParams p{};
+    p.l1_base_fee = intx::uint256{1'000'000'000};
+    p.bedrock_scalar = intx::uint256{1'000'000};
+    p.overhead = intx::uint256{2100};
+    // slot3/7 remain 0
+    const auto gas = bedrockCalldataGasUsed(kEmptyTx);
+    const auto want = (intx::uint256{gas} + p.overhead) * p.l1_base_fee * p.bedrock_scalar /
+                      intx::uint256{1'000'000};
+    BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, ecotoneConfig()), want);
+}
+
+BOOST_AUTO_TEST_CASE(EcotoneConfigUsesEcotoneWhenSlotsLive)
+{
+    const auto live = feeParams(1'000'000'000, 10'000'000, 2, 3);
+    const auto ecotone = computeL1Cost(live, kEmptyTx, ecotoneConfig());
+    const auto fjord = computeL1Cost(live, kEmptyTx, fjordConfig());
+    BOOST_CHECK(ecotone != fjord);
+    BOOST_CHECK(ecotone != intx::uint256{0});
+}
+
+BOOST_AUTO_TEST_CASE(BedrockEmptyEnvelopeIsZero)
+{
+    OpFeeParams p{};
+    p.overhead = intx::uint256{2100};
+    p.bedrock_scalar = intx::uint256{1};
+    BOOST_CHECK_EQUAL(computeL1Cost(p, {}, regolithConfig()), intx::uint256{0});
+}
+
 BOOST_AUTO_TEST_SUITE_END()

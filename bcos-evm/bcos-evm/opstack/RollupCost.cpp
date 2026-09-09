@@ -184,7 +184,28 @@ intx::uint256 computeL1Cost(
     if (signedTxEnvelope.empty())
         return intx::uint256{0};
 
-    if (cfg.has_ecotone_l1_formula)
+    // Ecotone-timestamped blocks keep the Pre-Ecotone formula until the new-formula slots go
+    // live: the Ecotone activation block still runs setL1BlockValues (specs.optimism.io/
+    // protocol/ecotone/l1-attributes.html), so slot3 scalars and slot7 are still zero and the
+    // formula selection falls back on the same zero-probe op-geth uses.
+    const bool bedrock = cfg.l1_fee_model == L1FeeModel::Bedrock ||
+                         (cfg.l1_fee_model == L1FeeModel::Ecotone && !ecotoneL1SlotsLive(params));
+    if (bedrock)
+    {
+        // op-geth newL1CostFuncBedrockHelper / l1CostHelper (exec-engine Pre-Ecotone):
+        //   (rollupDataGas + overhead) * l1BaseFee * scalar / 1e6, evaluated in that order.
+        // 512-bit intermediates + saturation, same as the Ecotone branch below: whole-slot
+        // fee reads can push the product past 2^256 where op-geth's big.Int does not wrap.
+        const auto fee =
+            intx::umul(intx::uint256{bedrockCalldataGasUsed(signedTxEnvelope)} + params.overhead,
+                params.l1_base_fee) *
+            intx::uint512{params.bedrock_scalar} / intx::uint512{1'000'000};
+        if (fee > intx::uint512{~intx::uint256{0}})
+            return ~intx::uint256{0};
+        return static_cast<intx::uint256>(fee);
+    }
+
+    if (cfg.l1_fee_model == L1FeeModel::Ecotone || cfg.has_ecotone_l1_formula)
     {
         // op-geth newL1CostFuncEcotone:
         //   calldataGas*(l1BaseFee*16*baseScalar + blobBaseFee*blobScalar)/16e6

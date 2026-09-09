@@ -51,10 +51,17 @@ struct OpTxProperties
     // forced to 0) and transition under Jovian would otherwise report a da_footprint_gas_scalar
     // for a transaction the Ecotone L1 formula priced, with da_footprint computed from flz_len 0.
     bool has_da_footprint = false;
-    // calldataGasUsed under the Ecotone formula (= zeroes*4 + ones*16); not filled under Fjord+
-    // (flz_len drives the Fjord formula). Snapshot at validate time (the envelope is available
-    // here); read by deriveOpReceiptMeta at transition -- preserving the no-cfg invariant.
+    // L1 calldata gas used under the Ecotone formula (= zeroes*4 + ones*16); not filled under
+    // Fjord+ (flz_len drives the Fjord formula). Snapshot at validate time (the envelope is
+    // available here); read by deriveOpReceiptMeta at transition -- preserving the no-cfg
+    // invariant.
     std::optional<uint64_t> ecotone_calldata_gas_used = std::nullopt;
+    // Bedrock-era pricing snapshot (Regolith/Canyon, and the Ecotone zero-slot fallback), in the
+    // receipt terms op-geth's pre-Ecotone deriveOPStackFields emits: L1GasUsed =
+    // rollupDataGas + overhead, L1FeeScalar = the raw Bedrock scalar. Presence switches
+    // deriveOpReceiptMeta to the pre-Ecotone receipt shape (no Ecotone scalar/blob passthrough).
+    std::optional<uint64_t> bedrock_l1_gas_used = std::nullopt;
+    std::optional<intx::uint256> bedrock_l1_fee_scalar = std::nullopt;
     // The fully-built evmone state::Transaction, carried from m_prepare (validate) to m_execute
     // (transition) so the hot path builds it once per tx instead of twice (calldata copy +
     // to-address hex decode + access_list/blob/auth allocation each time). Filled by
@@ -173,6 +180,9 @@ struct OpReceiptMeta
     std::optional<uint32_t> l1_blob_base_fee_scalar;
     std::optional<intx::uint256> l1_fee;  // = l1_cost
     std::optional<uint64_t> l1_gas_used;  // Fjord+; wire index 11
+    // Bedrock-era L1FeeScalar (pre-Ecotone only; op-geth leaves it nil from Ecotone on, where
+    // l1_base_fee_scalar/l1_blob_base_fee_scalar take over). Raw whole-slot Bedrock scalar.
+    std::optional<intx::uint256> l1_fee_scalar;
     // operator (Isthmus+)
     std::optional<intx::uint256> operator_fee;    // FISCO extension: actually-charged value
                                                   // (op-geth receipt has no such field)
