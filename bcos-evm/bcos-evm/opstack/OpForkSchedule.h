@@ -53,6 +53,19 @@ enum class OpFork
 
 struct PrecompileOverrides;
 
+/// L1 fee formula family for a fork (specs.optimism.io/protocol/exec-engine.html):
+/// Bedrock = (calldataGas + overhead) * l1BaseFee * scalar / 1e6 (slots 1/5/6),
+/// Ecotone = calldataGas * (16*l1BaseFee*l1BaseFeeScalar + blob...) / 16e6 (slots 1/3/7),
+/// Fjord   = FastLZ calldata estimate feeding the Ecotone formula.
+/// Never encode Bedrock via has_ecotone_l1_formula=false — that flag only
+/// separates Ecotone from Fjord's FastLZ.
+enum class L1FeeModel
+{
+    Bedrock,
+    Ecotone,
+    Fjord,
+};
+
 struct OpForkConfig
 {
     OpFork fork{};
@@ -64,7 +77,8 @@ struct OpForkConfig
     bool has_da_footprint{};
     // When true, runDeposit passes enforce_max_tx_gas=false (EIP-7825 deposit exemption).
     bool deposit_exempt_from_max_tx_gas{};
-    bool has_ecotone_l1_formula{};  // true -> Ecotone calldataGas L1; false -> Fjord+ FastLZ
+    L1FeeModel l1_fee_model{};
+    bool has_ecotone_l1_formula{};  // must equal (l1_fee_model == L1FeeModel::Ecotone)
 };
 
 const OpForkConfig& ecotoneConfig() noexcept;

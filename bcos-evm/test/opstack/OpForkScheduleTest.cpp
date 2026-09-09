@@ -82,6 +82,19 @@ BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndFlagsWrapperDoesNotSelectKarst)
     BOOST_CHECK_EQUAL(&configAt(OpForkFlags{.jovianActive = true}), &jovianConfig());
 }
 
+BOOST_AUTO_TEST_CASE(L1FeeModelPinnedOnExistingConfigs)
+{
+    BOOST_CHECK(ecotoneConfig().l1_fee_model == L1FeeModel::Ecotone);
+    BOOST_CHECK(fjordConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(graniteConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(holoceneConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(isthmusConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(jovianConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(karstConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(ecotoneConfig().has_ecotone_l1_formula);
+    BOOST_CHECK(!fjordConfig().has_ecotone_l1_formula);
+}
+
 BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
 {
     for (const auto* cfg : {&ecotoneConfig(), &fjordConfig(), &graniteConfig(), &holoceneConfig()})
