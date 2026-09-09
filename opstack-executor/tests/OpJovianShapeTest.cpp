@@ -6,10 +6,10 @@
 // t8n 覆盖，故本文件不建「提取」测试名）：
 //   - 178B + JovianL1AttributesSelector 0x3db6be2b（对照 op-geth rollup_cost.go）
 //     的 attributes tx → no-throw；
-//   - 176B 分支只查长度 + deposits-only，**不校验 0x098999be selector**
-//     （validateJovianBlockShape 的 activation-block 分支）——测试注明；
+//   - 176B 分支只查长度（DA scalar 0），**不校验 selector，也不做 last-tx deposits-only**
+//     （Q5 才扫 envelope）——测试注明；
 //   - 非 176/178 长度 → throw("too short")；错 selector → throw("does not have Jovian
-//     selector")；含非 deposit tx 的激活块 → throw("unexpected non-deposit transactions")；
+//     selector")；176B + 普通 tx 仍 no-throw（shape-only）；
 //   - pre-Jovian 配置（cfg.has_da_footprint==false）恒 no-op。
 
 #include <bcos-evm/opstack/OpForkSchedule.h>
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeAcceptReject)
         BOOST_CHECK_NO_THROW(validateJovianBlockShape(txs, jovian));
     }
     {
-        // 激活块：176B，deposits-only（多笔 deposit 仍合法）；176B 分支不校验 0x098999be selector
+        // 176B：多笔 deposit 合法；176B 分支不校验 0x098999be selector
         std::vector<OpBlockTx> txs;
         txs.push_back(attributesDeposit(IsthmusL1AttributesLen));
         txs.push_back(attributesDeposit(IsthmusL1AttributesLen));
@@ -126,14 +126,11 @@ BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeAcceptReject)
             "178B 错 selector 应报 does not have Jovian selector,got: " << shapeError(txs));
     }
     {
-        // 激活块（176B）带非 deposit tx → unexpected non-deposit transactions
+        // 176B + 普通 tx：shape 门不再看 last-tx（Q5 才拒激活窗 user tx）
         std::vector<OpBlockTx> txs;
         txs.push_back(attributesDeposit(IsthmusL1AttributesLen));
         txs.push_back(normalTx());
-        BOOST_CHECK_MESSAGE(
-            shapeError(txs).find("unexpected non-deposit transactions") != std::string::npos,
-            "176B 激活块带普通 tx 应报 unexpected non-deposit transactions,got: " << shapeError(
-                txs));
+        BOOST_CHECK_NO_THROW(validateJovianBlockShape(txs, jovian));
     }
 }
 

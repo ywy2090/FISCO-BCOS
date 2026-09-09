@@ -568,6 +568,11 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
                 // Ledger on OpScheduler; engine keeps ledger=nullptr.
                 m_ledger, m_ioServicePool);
         m_daCaps = std::make_shared<bcos::engine::DACaps>();
+        // Leftover inventory (Karst-on-#5550): this is the live OP Engine path
+        // (OpForkSchedule → OpSchedulerSeam → OpScheduler → AnyEngineService(OpEngineService)).
+        // EngineServiceImpl is test-only (EthLegacyEngine / parity). buildOp still takes
+        // maxEngineVersion=V4 and the Karst profile discards it in favor of timestamp-keyed
+        // getPayload V4/V5.
         m_engineServiceInitializer = EngineServiceInitializer::buildOp(
             m_globalStateStorageInitializer, m_protocolInitializer->blockFactory(), opScheduler,
             m_memPoolInitializer->memPool(), /*ledger=*/nullptr,

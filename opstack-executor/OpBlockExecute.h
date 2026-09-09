@@ -102,7 +102,7 @@ inline bool isNoUserTxActivationBlock(
 }
 
 /// Q5 envelope probe: empty or non-0x7e is a non-deposit. Used to scan every envelope
-/// on activation blocks. The DA-footprint 176B path still uses last-tx only.
+/// on activation blocks. The 176B DA-footprint path is length/shape only.
 template <class Envelope>
 [[nodiscard]] inline bool envelopeIsDeposit(Envelope const& env) noexcept
 {
@@ -130,22 +130,17 @@ template <class RawTxRange>
     return false;
 }
 
-/// Shared Jovian L1-attributes shape (selector/length + activation deposits-only).
-/// `lastTxIsDeposit` is the path-specific last-tx probe: processOpBlock uses the DepositTx
-/// variant; preBlockOpSteps uses the raw envelope type byte. No-op pre-Jovian.
-inline void validateJovianL1AttributesShape(
-    std::span<uint8_t const> data, bool lastTxIsDeposit, OpForkConfig const& cfg)
+/// Shared Jovian L1-attributes shape (selector/length). Deposits-only on a
+/// Jovian+ activation window is Q5 (`isNoUserTxActivationBlock`), not last-tx.
+/// No-op pre-Jovian.
+inline void validateJovianL1AttributesShape(std::span<uint8_t const> data, OpForkConfig const& cfg)
 {
     if (!cfg.has_da_footprint)
         return;
     if (data.size() == IsthmusL1AttributesLen)
     {
-        // Isthmus-length attributes on a Jovian+ block: DA-footprint shape only.
-        // Deposits-only on the activation window is Q5 (timestamp schedule, every
-        // envelope) — this last-tx probe does not decide that rule.
-        if (!lastTxIsDeposit)
-            throw OpConsensusError(
-                "op block: unexpected non-deposit transactions in Jovian activation block");
+        // Isthmus-length attributes on a Jovian+ block: DA-footprint scalar is 0.
+        // Do not treat last-tx as an activation deposits-only gate.
         return;
     }
     if (data.size() < JovianL1AttributesLen)
@@ -172,9 +167,9 @@ inline void validateJovianL1AttributesShape(
     return std::nullopt;
 }
 
-/// Validate the Jovian L1-attributes block shape (selector/length + activation deposits-only).
-/// No-op pre-Jovian. Throws OpConsensusError. Public wrapper around
-/// validateJovianL1AttributesShape for the processOpBlock data shape (`span<OpBlockTx>`).
+/// Validate the Jovian L1-attributes block shape (selector/length). No-op pre-Jovian.
+/// Throws OpConsensusError. Public wrapper around validateJovianL1AttributesShape
+/// for the processOpBlock data shape (`span<OpBlockTx>`).
 void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig& cfg);
 
 // ---- shared per-receipt helpers (one implementation shared with the per-tx loop) ----
@@ -390,13 +385,10 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
     if (cfg.has_da_footprint)
     {
         auto const& data = deposits[0].data;
-        // DA-footprint last-tx probe (op-geth CalcDAFootprint). Activation
-        // deposits-only is the Q5 scan above, which already rejected a middle
-        // user tx on a 176-byte activation block. Empty trailing envelope is
-        // treated as non-deposit.
-        bool const lastTxIsDeposit = op::envelopeIsDeposit(rawTxBytes.back());
+        // DA-footprint shape only (176B → scalar 0; ≥178B → selector + length).
+        // Activation deposits-only is the Q5 scan above.
         op::validateJovianL1AttributesShape(
-            std::span<uint8_t const>{data.data(), data.size()}, lastTxIsDeposit, cfg);
+            std::span<uint8_t const>{data.data(), data.size()}, cfg);
         if (auto scalar =
                 op::jovianDaFootprintGasScalar(std::span<uint8_t const>{data.data(), data.size()}))
             daFootprintGasScalar = *scalar;

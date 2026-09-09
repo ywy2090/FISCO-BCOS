@@ -236,8 +236,8 @@ BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTxBeforeTrailingDeposit)
 
 BOOST_AUTO_TEST_CASE(JovianActivationIsthmusLenAttrsRejectsMiddleUserTx)
 {
-    // 176-byte Isthmus attrs on a Jovian activation block: the last-tx-only
-    // DA-footprint probe would accept [deposit, user, deposit]; Q5 must not.
+    // 176-byte Isthmus attrs on a Jovian activation block: DA-shape last-tx
+    // would accept [deposit, user, deposit]; Q5 must not.
     auto schedule = opstack_test::isthmusThenJovian(kJovianTsSec);
     auto dep = depositWithIsthmusLenAttrs();
     BOOST_REQUIRE_EQUAL(dep.data.size(), op::IsthmusL1AttributesLen);
@@ -298,12 +298,12 @@ BOOST_AUTO_TEST_CASE(JovianActivationWithoutParentHeaderFailsClosed)
 {
     auto err = executeActivationWithoutParent(opstack_test::isthmusThenJovian(kJovianTsSec));
     BOOST_REQUIRE(err);
-    BOOST_CHECK(
-        err->errorCode() == static_cast<int>(bcos::scheduler::SchedulerError::OpStorageFault) ||
-        err->errorCode() == static_cast<int>(bcos::scheduler::SchedulerError::OpConsensusRejected));
+    BOOST_CHECK_EQUAL(
+        err->errorCode(), static_cast<int>(bcos::scheduler::SchedulerError::OpStorageFault));
     auto const msg = err->errorMessage();
-    BOOST_CHECK_MESSAGE(msg.find("parent") != std::string::npos,
-        "missing parent must fail closed, not execute; got: " + msg);
+    BOOST_CHECK_MESSAGE(
+        msg.find("parent block header is missing from storage") != std::string::npos,
+        "missing parent must fail closed as OpStorageFault; got: " + msg);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

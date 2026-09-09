@@ -4,6 +4,7 @@
 
 // OP block types and header conversions. Commitment comparison lives in OpCommitments.h.
 
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>
 #include <bcos-utilities/Common.h>
@@ -210,15 +211,16 @@ inline evmone::state::BlockInfo toBlockInfo(const bcos::protocol::BlockHeader& e
     evmone::state::BlockInfo blk;
     blk.number = static_cast<int64_t>(env.number());
     // TIMESTAMP UNIT CONVENTION (do not "fix" — see below):
-    // FISCO tars store MILLISECONDS; evmone wants SECONDS, so this /1000 is REQUIRED and correct.
+    // FISCO tars store MILLISECONDS; evmone wants SECONDS, so this conversion is REQUIRED.
     // The RPC boundary converts seconds→milliseconds on the way in (EngineHelper.cpp
     // engineSecondsToInternalMillis / EngineTimestampBoundaryTest), so a header built by the
     // engine already carries ms; feeding it to the EVM un-divided would make every timestamp
     // 1000× too large and diverge from op-geth (which stores seconds). Fork selection is
-    // the timestamp OpForkSchedule (configAt(unix seconds)); this division only converts
+    // the timestamp OpForkSchedule (configAt(unix seconds)); this helper only converts
     // the header unit for evmone. If a future header source writes seconds directly,
-    // convert at THAT boundary — never remove this division.
-    blk.timestamp = static_cast<uint64_t>(env.timestamp()) / 1000;
+    // convert at THAT boundary — never remove this conversion.
+    blk.timestamp =
+        bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(env.timestamp()));
     blk.gas_limit = gasLimitOverride.has_value() ?
                         narrowU256ToI64(bcos::u256(*gasLimitOverride), "BlockInfo::gasLimit") :
                         narrowU256ToI64(env.gasLimit(), "BlockInfo::gasLimit");

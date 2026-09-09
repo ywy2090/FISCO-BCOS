@@ -34,6 +34,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using bcos::evm::OpConsensusError;
@@ -198,11 +199,35 @@ BOOST_AUTO_TEST_CASE(RejectsNullSchedule)
 {
     Fixture f;
     auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
-    BOOST_CHECK_THROW(
+    BOOST_CHECK_EXCEPTION(
         engine::preBlockOpSteps(f.storage, f.header, op::isthmusConfig(),
             std::vector<bcos::bytes>{kDepositEnvelope}, std::vector<op::DepositTx>{dep}, f.executor,
             f.hashes, f.hashErr, f.scalar, nullptr, /*parentTsSec=*/0),
-        std::invalid_argument);
+        std::invalid_argument, [](std::invalid_argument const& e) {
+            return std::string_view{e.what()} == "preBlockOpSteps: OpForkSchedule is required";
+        });
+}
+
+BOOST_AUTO_TEST_CASE(ProcessOpBlockRejectsNullSchedule)
+{
+    MutableStorage storage;
+    bcos::evm::evmstate::Storage2State<MutableStorage> view(storage);
+    evmone::state::BlockInfo block;
+    block.gas_limit = 30'000'000;
+    bcos::executor_v1::opstack::NullBlockHashes hashes;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    op::DepositTx dep{};
+    dep.gas_limit = 1'000'000;
+    op::OpBlockTx depTx;
+    depTx.tx = dep;
+    std::vector<op::OpBlockTx> const txs{depTx};
+    BOOST_CHECK_EXCEPTION((void)op::processOpBlock(
+                              view, block, hashes, txs, op::isthmusConfig(), vm,
+                              /*chainId=*/10, bcos::evm::opstack::testutil::kOpTestReceiptFactory,
+                              [](const evmone::state::StateDiff&) {}, nullptr, /*parentTsSec=*/0),
+        std::invalid_argument, [](std::invalid_argument const& e) {
+            return std::string_view{e.what()} == "processOpBlock: OpForkSchedule is required";
+        });
 }
 
 BOOST_AUTO_TEST_CASE(RejectsEmptyBlock)
@@ -246,14 +271,13 @@ BOOST_AUTO_TEST_CASE(RejectsMissingDeposits)
         });
 }
 
-BOOST_AUTO_TEST_CASE(JovianActivationRejectsTrailingNonDeposit)
+BOOST_AUTO_TEST_CASE(JovianIsthmusLenAttrsAllowUserTxOffActivationWindow)
 {
     Fixture f;
-    // 176B attributes = the Jovian activation block, which must be deposits-only.
+    // Fixture schedule is Isthmus-only (no Q5 window). 176B attrs are DA-shape only.
     auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
-    BOOST_CHECK_THROW(
-        f.run(op::jovianConfig(), {kDepositEnvelope, kTypedEnvelope}, {dep, op::DepositTx{}}),
-        OpConsensusError);
+    BOOST_CHECK_NO_THROW(
+        f.run(op::jovianConfig(), {kDepositEnvelope, kTypedEnvelope}, {dep, op::DepositTx{}}));
 }
 
 BOOST_AUTO_TEST_CASE(JovianRejectsDataShorterThan178)

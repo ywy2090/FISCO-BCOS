@@ -736,14 +736,21 @@ BOOST_AUTO_TEST_CASE(JovianActivationDepositOnlySeals)
         {makeDepositEnvelope(makeIsthmusCalldata())}, static_cast<int64_t>(2000) * 1000 + 1000));
 }
 
-// C-4 violation: an Isthmus-length attributes deposit followed by a user tx in a Jovian block
-// must be rejected (op-geth rollup_cost.go:568-576, deposits-only activation block).
-BOOST_AUTO_TEST_CASE(JovianActivationWithUserTxRejected)
+// 176B Isthmus-length attrs on a Jovian config are DA-shape only. A trailing user tx
+// is legal off the Q5 timestamp window (activation deposits-only lives in OpKarstActivationTest).
+BOOST_AUTO_TEST_CASE(JovianIsthmusLenAttrsWithUserTxSealsOffActivationWindow)
 {
     JovianShapeFixture fx;
     std::vector<bcos::bytes> rawTxs{makeDepositEnvelope(makeIsthmusCalldata()),
         bcos::fromHex(kUserTxEnvelopeHex)};
-    BOOST_CHECK_THROW(fx.run(rawTxs, static_cast<int64_t>(2000) * 1000 + 1000), std::runtime_error);
+    try
+    {
+        fx.run(rawTxs, static_cast<int64_t>(2000) * 1000 + 1000);
+    }
+    catch (const std::exception& e)
+    {
+        BOOST_FAIL("176B Jovian block with user tx off Q5 window threw: " << e.what());
+    }
 }
 
 // C-3: a normal Jovian block (178B Jovian attributes) + a user tx must seal.

@@ -21,10 +21,24 @@
  */
 #include "support/OpEngineKarstTestHarness.h"
 
+#include <boost/exception/get_error_info.hpp>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
+#include <string_view>
 
 using namespace op_engine_parity_test;
+
+namespace
+{
+constexpr std::string_view kGetPayloadProfileMismatch =
+    "getPayload version does not match the OP Engine API profile at payload timestamp";
+
+bool isGetPayloadProfileMismatch(bcos::engine::UnsupportedFork const& e)
+{
+    auto const* comment = boost::get_error_info<bcos::errinfo_comment>(e);
+    return comment != nullptr && *comment == kGetPayloadProfileMismatch;
+}
+}  // namespace
 
 BOOST_AUTO_TEST_SUITE(OpEngineKarstProfileSuite)
 
@@ -35,8 +49,8 @@ BOOST_AUTO_TEST_CASE(KarstPayloadTimestampRejectsGetPayloadV4)
     KarstProfilePair fixture;
     auto const payloadId =
         buildPayloadAt(fixture.pair, c_karstPayloadTimestampMs, c_jovianPayloadTimestampMs);
-    BOOST_CHECK_THROW(bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 4)),
-        bcos::engine::UnsupportedFork);
+    BOOST_CHECK_EXCEPTION(bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 4)),
+        bcos::engine::UnsupportedFork, isGetPayloadProfileMismatch);
 }
 
 BOOST_AUTO_TEST_CASE(KarstPayloadTimestampAcceptsGetPayloadV5)
@@ -55,8 +69,8 @@ BOOST_AUTO_TEST_CASE(JovianPayloadTimestampRejectsGetPayloadV5)
     KarstProfilePair fixture;
     auto const payloadId =
         buildPayloadAt(fixture.pair, c_jovianPayloadTimestampMs, /*parent*/ 998'000);
-    BOOST_CHECK_THROW(bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 5)),
-        bcos::engine::UnsupportedFork);
+    BOOST_CHECK_EXCEPTION(bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 5)),
+        bcos::engine::UnsupportedFork, isGetPayloadProfileMismatch);
 }
 
 BOOST_AUTO_TEST_CASE(JovianPayloadTimestampAcceptsGetPayloadV4)
@@ -76,8 +90,8 @@ BOOST_AUTO_TEST_CASE(ActivationBlockFcuUsesAttrTimestampNotHead)
     KarstProfilePair fixture;
     auto const payloadId =
         buildPayloadAt(fixture.pair, c_karstPayloadTimestampMs, c_jovianPayloadTimestampMs);
-    BOOST_CHECK_THROW(bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 4)),
-        bcos::engine::UnsupportedFork);
+    BOOST_CHECK_EXCEPTION(bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 4)),
+        bcos::engine::UnsupportedFork, isGetPayloadProfileMismatch);
     auto v5 = bcos::task::syncWait(fixture.pair.service.getPayload(payloadId, 5));
     BOOST_REQUIRE(v5);
 }

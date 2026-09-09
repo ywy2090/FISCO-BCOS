@@ -26,7 +26,11 @@ BOOST_AUTO_TEST_CASE(AcceptsKarstAfterJovian)
 
 BOOST_AUTO_TEST_CASE(RejectsKarstWithoutJovian)
 {
-    BOOST_CHECK_THROW(parseOpForkSchedule("0:isthmus,1783526401:karst"), InvalidOpForkSchedule);
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("0:isthmus,1783526401:karst"), InvalidOpForkSchedule,
+        [](InvalidOpForkSchedule const& e) {
+            return std::string_view{e.what()}.find("Jovian activation is required before Karst") !=
+                   std::string_view::npos;
+        });
     // Baseline cannot be karst (isAllowedBaseline stays isthmus|jovian).
     BOOST_CHECK_EXCEPTION(
         parseOpForkSchedule("0:karst"), InvalidOpForkSchedule, [](InvalidOpForkSchedule const& e) {

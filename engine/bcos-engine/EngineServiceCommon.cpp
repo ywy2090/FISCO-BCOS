@@ -19,7 +19,7 @@
 
 #include "EngineServiceCommon.h"
 
-// Upstream pin: op-geth d401af16f2dd94b010a72eaef10e07ac10b31931
+// Upstream pin: op-geth v1.101702.2 e8800cff
 // (eth/catalyst/api.go GetPayloadVn / forkchoiceUpdated, miner/payload_building.go).
 
 #include "bcos-crypto/hash/Keccak256.h"
