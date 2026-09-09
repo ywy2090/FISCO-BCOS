@@ -117,11 +117,9 @@ public:
 
     /// Q5 window: Jovian+ activation live at `blockTsSec` but not at `parentTsSec`.
     /// Both arguments are Unix seconds.
-    [[nodiscard]] bool isNoUserTxActivationBlock(
-        uint64_t parentTsSec, uint64_t blockTsSec) const
+    [[nodiscard]] bool isNoUserTxActivationBlock(uint64_t parentTsSec, uint64_t blockTsSec) const
     {
-        return bcos::evm::opstack::isNoUserTxActivationBlock(
-            *m_schedule, parentTsSec, blockTsSec);
+        return bcos::evm::opstack::isNoUserTxActivationBlock(*m_schedule, parentTsSec, blockTsSec);
     }
 
     /// `timestampSeconds` is Unix seconds. Callers must convert payload/header internal

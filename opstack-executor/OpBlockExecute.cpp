@@ -57,6 +57,10 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     const std::function<void(const evmone::state::StateDiff&)>& applyDiff,
     OpForkSchedule const* schedule, uint64_t parentTsSec)
 {
+    if (schedule == nullptr)
+    {
+        throw std::invalid_argument("processOpBlock: OpForkSchedule is required");
+    }
     // Storage write-back failures must leave as OpStorageError (-32603), never a bare
     // runtime_error — the same classification the per-tx path applies in m_finish /
     // executeDeposit / finalizeBlock (Storage2State::applyDiff poisons AND rethrows raw).
@@ -105,8 +109,7 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     // Q5: Jovian+ activation blocks are deposits-only. BlockInfo.timestamp is Unix
     // seconds (toBlockInfo already converted header millis). Same predicate as
     // preBlockOpSteps; the 176B L1-attrs heuristic is shape-only.
-    if (schedule != nullptr && isNoUserTxActivationBlock(*schedule, parentTsSec, block.timestamp) &&
-        hasNonDepositTx(txs))
+    if (isNoUserTxActivationBlock(*schedule, parentTsSec, block.timestamp) && hasNonDepositTx(txs))
     {
         throw OpConsensusError(
             "op block: unexpected non-deposit transactions in fork activation block");

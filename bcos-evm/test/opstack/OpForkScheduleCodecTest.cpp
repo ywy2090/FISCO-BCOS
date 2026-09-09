@@ -80,4 +80,14 @@ BOOST_AUTO_TEST_CASE(RejectsEmptyMissingBaselineAndOrder)
         });
 }
 
+BOOST_AUTO_TEST_CASE(RejectsTrailingComma)
+{
+    const auto isTrailing = [](InvalidOpForkSchedule const& e) {
+        return std::string_view{e.what()}.find("trailing comma") != std::string_view::npos;
+    };
+    BOOST_CHECK_EXCEPTION(parseOpForkSchedule("0:isthmus,"), InvalidOpForkSchedule, isTrailing);
+    BOOST_CHECK_EXCEPTION(
+        parseOpForkSchedule("0:isthmus,1764691201:jovian,"), InvalidOpForkSchedule, isTrailing);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

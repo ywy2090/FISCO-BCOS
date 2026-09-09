@@ -9,11 +9,14 @@
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-evm/opstack/OpTransition.h>
+#include <bcos-utilities/DataConvertUtility.h>
 #include <evmone/evmone.h>
+#include <openssl/sha.h>
 #include <boost/test/unit_test.hpp>
 #include <bcos-evm/eth/state/state.hpp>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <test/utils/test_state.hpp>
 #include <vector>
 
@@ -56,6 +59,13 @@ std::vector<uint8_t> loadOsakaFixture(const char* name)
     in.read(reinterpret_cast<char*>(data.data()), size);
     BOOST_REQUIRE_MESSAGE(in, std::string("failed to read fixture: ") + path.string());
     return data;
+}
+
+std::string sha256Hex(std::span<uint8_t const> data)
+{
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(data.data(), data.size(), hash);
+    return bcos::toHex(bcos::bytesConstRef(hash, SHA256_DIGEST_LENGTH));
 }
 
 state::BlockInfo makeOsakaBlock()
@@ -354,6 +364,32 @@ BOOST_AUTO_TEST_CASE(Eip7883EmptyModExpFloorGasThroughKarstOpPath)
     BOOST_CHECK_EQUAL(ok.receipt->status(), 0);
 }
 
+BOOST_AUTO_TEST_CASE(OsakaFixtureManifestSha256Matches)
+{
+    struct Item
+    {
+        char const* file;
+        char const* sha256;
+    };
+    constexpr Item items[] = {
+        {"p256verify_valid_input.bin",
+            "97fb89c23bb467103846ad24b0405dc263a9745b9da3d20353a37cb106cb2f65"},
+        {"modexp_nagydani_1_square.input.bin",
+            "0138e3fb9e62139ad1d9fff645b9df84aae86e4745bfbb993f95af5a79f0307f"},
+        {"modexp_nagydani_1_square.expected.bin",
+            "173bc056487155483fe9eb19dd4a5af452d6d29787349b91c7b1dc8ec129b5c4"},
+        {"modexp_nagydani_2_pow0x10001.input.bin",
+            "2659dd123f53088594b9cbbaaf3ac4f3b42b557e60b42991da5162d02de7192a"},
+        {"modexp_nagydani_2_pow0x10001.expected.bin",
+            "e2fc81c754623d0c4f08842b0ae835bf06c3442394f513168c576d2efbd5f275"},
+    };
+    for (auto const& item : items)
+    {
+        auto const data = loadOsakaFixture(item.file);
+        BOOST_CHECK_EQUAL(sha256Hex(data), item.sha256);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani1GasFromFixture)
 {
     auto vm = evmc::VM{evmc_create_evmone()};
@@ -363,6 +399,13 @@ BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani1GasFromFixture)
     const auto pragueExec = osakaModExpExecutionGasUsed(tsPrague, vm, input, jovianConfig());
     const auto osakaExec = osakaModExpExecutionGasUsed(tsOsaka, vm, input, osakaCfg());
     BOOST_CHECK_EQUAL(osakaExec - pragueExec, 500 - 200);
+
+    const auto expected = loadOsakaFixture("modexp_nagydani_1_square.expected.bin");
+    const auto out =
+        osakaHostCall(EVMC_OSAKA, &karstPrecompileOverrides(), kOsakaModExp, input, 10'000'000);
+    BOOST_REQUIRE_EQUAL(out.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        out.output.begin(), out.output.end(), expected.begin(), expected.end());
 }
 
 BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani2PowGasFromFixture)
@@ -374,6 +417,13 @@ BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani2PowGasFromFixture)
     const auto pragueExec = osakaModExpExecutionGasUsed(tsPrague, vm, input, jovianConfig());
     const auto osakaExec = osakaModExpExecutionGasUsed(tsOsaka, vm, input, osakaCfg());
     BOOST_CHECK_EQUAL(osakaExec - pragueExec, 8192 - 1365);
+
+    const auto expected = loadOsakaFixture("modexp_nagydani_2_pow0x10001.expected.bin");
+    const auto out =
+        osakaHostCall(EVMC_OSAKA, &karstPrecompileOverrides(), kOsakaModExp, input, 10'000'000);
+    BOOST_REQUIRE_EQUAL(out.status_code, EVMC_SUCCESS);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        out.output.begin(), out.output.end(), expected.begin(), expected.end());
 }
 
 BOOST_AUTO_TEST_CASE(Eip7951P256VerifyFromFixture)

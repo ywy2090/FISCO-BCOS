@@ -46,6 +46,27 @@ git_grep_src() {
     ":(exclude,glob)$dir/**/unittests/**"
 }
 
+# Untracked (but not gitignored) production sources. `git grep` only sees the
+# index, so a new file that was never `git add`ed would otherwise bypass the gate.
+grep_untracked_src() {
+  local pattern="$1"
+  local dir="$2"
+  local hit=1
+  local f
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    case "$f" in
+      */test/*|*/tests/*|*/unittests/*) continue ;;
+      *.h|*.hpp|*.cpp|*.cc|*.inl) ;;
+      *) continue ;;
+    esac
+    if grep -nE -e "$pattern" -- "$f"; then
+      hit=0
+    fi
+  done < <(git ls-files --others --exclude-standard -- "$dir")
+  return "$hit"
+}
+
 fail=0
 for dir in "${SCAN_ROOTS[@]}"; do
   if [[ ! -d "$dir" ]]; then
@@ -57,6 +78,8 @@ for dir in "${SCAN_ROOTS[@]}"; do
   set +e
   git_grep_src "$FORBIDDEN" "$dir"
   status=$?
+  grep_untracked_src "$FORBIDDEN" "$dir"
+  ut_status=$?
   set -e
   case "$status" in
     0)
@@ -67,6 +90,18 @@ for dir in "${SCAN_ROOTS[@]}"; do
       ;; # no match
     *)
       echo "check-op-karst-release-gate: git grep failed in $dir (exit $status)" >&2
+      exit 2
+      ;;
+  esac
+  case "$ut_status" in
+    0)
+      echo "check-op-karst-release-gate: forbidden identifier in untracked $dir" >&2
+      fail=1
+      ;;
+    1)
+      ;;
+    *)
+      echo "check-op-karst-release-gate: untracked scan failed in $dir (exit $ut_status)" >&2
       exit 2
       ;;
   esac

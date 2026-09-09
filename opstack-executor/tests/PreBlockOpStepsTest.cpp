@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -177,12 +178,13 @@ struct Fixture
     std::optional<engine::detail::RecentBlockHashes<MutableStorage>> hashes;
     std::optional<std::string> hashErr;
     std::optional<uint16_t> scalar;
+    op::OpForkSchedule schedule{op::OpForkSchedule::legacy(false)};
 
     void run(const op::OpForkConfig& cfg, const std::vector<bcos::bytes>& rawTxBytes,
         const std::vector<op::DepositTx>& deposits)
     {
         engine::preBlockOpSteps(storage, header, cfg, rawTxBytes, deposits, executor, hashes,
-            hashErr, scalar, /*schedule=*/nullptr, /*parentTsSec=*/0);
+            hashErr, scalar, &schedule, /*parentTsSec=*/0);
     }
 };
 
@@ -191,6 +193,17 @@ const bcos::bytes kTypedEnvelope{bcos::byte{0x02}, bcos::byte{0x01}};
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(PreBlockOpStepsTest)
+
+BOOST_AUTO_TEST_CASE(RejectsNullSchedule)
+{
+    Fixture f;
+    auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
+    BOOST_CHECK_THROW(
+        engine::preBlockOpSteps(f.storage, f.header, op::isthmusConfig(),
+            std::vector<bcos::bytes>{kDepositEnvelope}, std::vector<op::DepositTx>{dep}, f.executor,
+            f.hashes, f.hashErr, f.scalar, nullptr, /*parentTsSec=*/0),
+        std::invalid_argument);
+}
 
 BOOST_AUTO_TEST_CASE(RejectsEmptyBlock)
 {
@@ -329,8 +342,7 @@ BOOST_AUTO_TEST_CASE(PrePoisonedSharedSlotFailsAtSystemCallStep)
     const std::vector<bcos::bytes> rawTxs{kDepositEnvelope};
     const std::vector<op::DepositTx> deps{dep};
     BOOST_CHECK_THROW(engine::preBlockOpSteps(f.storage, f.header, op::jovianConfig(), rawTxs, deps,
-                          executor, f.hashes, f.hashErr, f.scalar, /*schedule=*/nullptr,
-                          /*parentTsSec=*/0),
+                          executor, f.hashes, f.hashErr, f.scalar, &f.schedule, /*parentTsSec=*/0),
         engine::OpStorageError);
 }
 
@@ -350,6 +362,7 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockNormalizesWritebackFailure)
     bcos::executor_v1::opstack::NullBlockHashes hashes;
     auto vm = evmc::VM{evmc_create_evmone()};
 
+    auto const schedule = op::OpForkSchedule::legacy(false);
     BOOST_CHECK_EXCEPTION(op::processOpBlock(
                               view, block, hashes, /*txs=*/{}, op::jovianConfig(), vm,
                               /*chainId=*/10, bcos::evm::opstack::testutil::kOpTestReceiptFactory,
@@ -357,7 +370,7 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockNormalizesWritebackFailure)
                                   throw std::runtime_error(
                                       "storage fault injected for the write-back test");
                               },
-                              /*schedule=*/nullptr, /*parentTsSec=*/0),
+                              &schedule, /*parentTsSec=*/0),
         bcos::evm::engine::OpStorageError, [](bcos::evm::engine::OpStorageError const& e) {
             return std::string(e.what()).find("storage write-back failed") != std::string::npos;
         });
@@ -434,10 +447,11 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockCapacityFaultIsNotAnEvictableCulprit)
         normalTx.tx = tx;
         normalTx.signedEnvelope = envelope;
         std::vector<op::OpBlockTx> const txs{depTx, normalTx};
+        auto const schedule = op::OpForkSchedule::legacy(false);
         (void)op::processOpBlock(
             view, block, hashes, txs, op::isthmusConfig(), vm, /*chainId=*/10,
             bcos::evm::opstack::testutil::kOpTestReceiptFactory,
-            [](const evmone::state::StateDiff&) {}, /*schedule=*/nullptr, /*parentTsSec=*/0);
+            [](const evmone::state::StateDiff&) {}, &schedule, /*parentTsSec=*/0);
         BOOST_FAIL("a tx over the remaining block gas must void the block");
     }
     catch (bcos::evm::OpConsensusError const& e)

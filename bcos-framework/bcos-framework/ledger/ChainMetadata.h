@@ -72,6 +72,10 @@ struct OpForkScheduleMetadataRows
 
 [[nodiscard]] inline crypto::HashType parseOpForkScheduleHexHash(std::string_view hex)
 {
+    if (hex.size() >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X'))
+        hex.remove_prefix(2);
+    if (hex.size() != 64)
+        throwInvalidOpForkSchedule("op fork schedule hash hex must be 64 characters");
     try
     {
         return crypto::HashType{std::string(hex)};
@@ -143,7 +147,19 @@ struct OpForkScheduleMetadataRows
     {
         return canonicalOpForkSchedule(parseOpForkSchedule(*genesisCanonical));
     }
-    return featureOpJovian ? "0:jovian" : "0:isthmus";
+    return std::string(legacyOpForkScheduleCanonical(featureOpJovian));
+}
+
+/// True when on-chain metadata exists and the genesis `canonical` (after
+/// normalize) is a different schedule. Missing genesis is not a divergence.
+[[nodiscard]] inline bool storedOpForkScheduleDivergesFromGenesis(
+    std::string_view storedCanonical, std::optional<std::string> const& genesisCanonical)
+{
+    if (!genesisCanonical.has_value())
+    {
+        return false;
+    }
+    return storedCanonical != canonicalOpForkSchedule(parseOpForkSchedule(*genesisCanonical));
 }
 
 namespace detail

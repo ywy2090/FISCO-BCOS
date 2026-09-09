@@ -104,8 +104,8 @@ BOOST_AUTO_TEST_CASE(ActivationFcuInvalidatesNonDepositAttrs)
 {
     auto delegate = std::make_shared<RecordingScheduler>();
     delegate->failFirst = false;
-    OpServicePair pair(/*allowSynthesizedL1Attributes=*/true, delegate, nullptr,
-        makeKarstProfileSchedule());
+    OpServicePair pair(
+        /*allowSynthesizedL1Attributes=*/true, delegate, nullptr, makeKarstProfileSchedule());
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
 
     auto decoded = makeDecodableWeb3Tx(1);
@@ -133,8 +133,8 @@ BOOST_AUTO_TEST_CASE(ActivationFcuSkipsMempoolUserTxs)
 {
     auto delegate = std::make_shared<RecordingScheduler>();
     delegate->failFirst = false;
-    OpServicePair pair(/*allowSynthesizedL1Attributes=*/true, delegate, nullptr,
-        makeKarstProfileSchedule());
+    OpServicePair pair(
+        /*allowSynthesizedL1Attributes=*/true, delegate, nullptr, makeKarstProfileSchedule());
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
 
     auto decoded = makeDecodableWeb3Tx(1);

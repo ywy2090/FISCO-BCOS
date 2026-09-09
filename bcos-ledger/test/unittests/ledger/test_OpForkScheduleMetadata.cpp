@@ -107,7 +107,13 @@ BOOST_AUTO_TEST_CASE(genesisPersistsScheduleMetadataTriple)
         BOOST_REQUIRE(metadata.has_value());
         BOOST_CHECK_EQUAL(metadata->schedule, c_isthmusJovianSchedule);
         BOOST_CHECK_EQUAL(metadata->genesisHash, ledgerGenesisHash);
-        BOOST_CHECK_EQUAL(metadata->scheduleHash, keccakOpForkScheduleHash(metadata->schedule));
+        // Hardcoded keccak256("0:isthmus,1764691201:jovian") — not derived from the
+        // function under test (F12).
+        constexpr char const* c_isthmusJovianScheduleHash =
+            "ee13c471cf47a2a991c84a5790834730611bcca5e68c951e0d05c519a79567a7";
+        BOOST_CHECK_EQUAL(metadata->scheduleHash.hex(), c_isthmusJovianScheduleHash);
+        BOOST_CHECK_EQUAL(
+            keccakOpForkScheduleHash(c_isthmusJovianSchedule).hex(), c_isthmusJovianScheduleHash);
 
         BOOST_CHECK_EQUAL(
             resolveOpForkScheduleCanonical(metadata, std::nullopt, false, ledgerGenesisHash),
@@ -169,10 +175,19 @@ BOOST_AUTO_TEST_CASE(genesisBranchReturnsNormalizedCanonical)
 
 BOOST_AUTO_TEST_CASE(emptyMetadataFallsBackToLegacy)
 {
-    BOOST_CHECK_EQUAL(
-        resolveOpForkScheduleCanonical(std::nullopt, std::nullopt, true, HashType{}), "0:jovian");
-    BOOST_CHECK_EQUAL(
-        resolveOpForkScheduleCanonical(std::nullopt, std::nullopt, false, HashType{}), "0:isthmus");
+    BOOST_CHECK_EQUAL(resolveOpForkScheduleCanonical(std::nullopt, std::nullopt, true, HashType{}),
+        std::string(c_legacyJovianCanonical));
+    BOOST_CHECK_EQUAL(resolveOpForkScheduleCanonical(std::nullopt, std::nullopt, false, HashType{}),
+        std::string(c_legacyIsthmusCanonical));
+}
+
+BOOST_AUTO_TEST_CASE(storedScheduleDivergesFromGenesis)
+{
+    BOOST_CHECK(!storedOpForkScheduleDivergesFromGenesis(c_legacyIsthmusCanonical, std::nullopt));
+    BOOST_CHECK(!storedOpForkScheduleDivergesFromGenesis(
+        c_legacyIsthmusCanonical, std::string{"0:Isthmus"}));
+    BOOST_CHECK(storedOpForkScheduleDivergesFromGenesis(
+        c_legacyIsthmusCanonical, std::string{c_legacyJovianCanonical}));
 }
 
 BOOST_AUTO_TEST_CASE(partialTripleIsNotAbsent)
@@ -284,6 +299,14 @@ BOOST_AUTO_TEST_CASE(badHexIsInvalidOpForkSchedule)
         InvalidOpForkSchedule, [](InvalidOpForkSchedule const& e) {
             return messageContains(e, "hex") || messageContains(e, "hash");
         });
+
+    OpForkScheduleMetadataRows shortHash;
+    shortHash.schedule = c_isthmusJovianSchedule;
+    shortHash.scheduleHash = "aa";
+    shortHash.genesisHash = std::string(64, '0');
+    BOOST_CHECK_EXCEPTION((void)validateOpForkScheduleMetadataRows(shortHash, genesisHash),
+        InvalidOpForkSchedule,
+        [](InvalidOpForkSchedule const& e) { return messageContains(e, "64 characters"); });
 }
 
 BOOST_AUTO_TEST_CASE(persistNormalizesCanonicalText)

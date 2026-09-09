@@ -280,8 +280,7 @@ bcos::bytes encodeOptimismExtraData(const PayloadAttributes& payloadAttributes)
     }
     if (payloadAttributes.eip1559Params->size() != c_eip1559ParamsBytes)
     {
-        BOOST_THROW_EXCEPTION(InvalidEngineEncoding{} <<
-                              bcos::errinfo_comment{
+        BOOST_THROW_EXCEPTION(InvalidEngineEncoding{} << bcos::errinfo_comment{
                                   "encodeOptimismExtraData requires exactly 8 bytes of "
                                   "eip1559Params"});
     }
@@ -497,8 +496,8 @@ std::optional<std::string> compareWithBuiltPayload(
     // optionalMismatch only fires when BOTH sides carry the field and they differ. A
     // drop (built present, echo absent) is tolerated — the wire dialect cannot express
     // these fields, so an honest echo never carries them.
-    if (auto error = optionalMismatch(
-            "blockAccessList", submitted.blockAccessList, built.blockAccessList))
+    if (auto error =
+            optionalMismatch("blockAccessList", submitted.blockAccessList, built.blockAccessList))
     {
         return error;
     }

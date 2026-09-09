@@ -534,9 +534,16 @@ void Initializer::init(bcos::protocol::NodeArchitectureType _nodeArchType,
             const auto genesisHash = genesisBlock->blockHeader()->hash();
             auto stored =
                 task::syncWait(ledger::readOpForkScheduleMetadata(*m_storage, genesisHash));
-            auto canonical = ledger::resolveOpForkScheduleCanonical(stored,
-                m_nodeConfig->genesisConfig().m_opstackForkSchedule, m_nodeConfig->opJovianActive(),
-                genesisHash);
+            auto const& genesisSchedule = m_nodeConfig->genesisConfig().m_opstackForkSchedule;
+            auto canonical = ledger::resolveOpForkScheduleCanonical(
+                stored, genesisSchedule, m_nodeConfig->opJovianActive(), genesisHash);
+            if (stored.has_value() &&
+                ledger::storedOpForkScheduleDivergesFromGenesis(canonical, genesisSchedule))
+            {
+                INITIALIZER_LOG(WARNING)
+                    << LOG_DESC("on-chain OP fork schedule differs from genesis config")
+                    << LOG_KV("stored", canonical) << LOG_KV("genesis", *genesisSchedule);
+            }
             m_opForkSchedule = std::make_shared<bcos::evm::opstack::OpForkSchedule>(
                 bcos::evm::opstack::OpForkSchedule::parse(canonical));
             INITIALIZER_LOG(INFO) << LOG_DESC("OP fork schedule resolved")

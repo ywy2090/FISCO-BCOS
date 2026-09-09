@@ -20,6 +20,7 @@
 
 #include "CallRequest.h"
 #include "bcos-executor/src/precompiled/common/Utilities.h"
+#include "bcos-framework/protocol/TxGasModel.h"
 #include "bcos-task/Wait.h"
 #include <algorithm>
 
@@ -124,4 +125,31 @@ std::tuple<bool, CallRequest> rpc::decodeCallRequest(Json::Value const& _root)
         _request.maxFeePerGas = value->asString();
     }
     return {true, std::move(_request)};
+}
+
+void rpc::clampEstimateGasField(Json::Value& txObject)
+{
+    auto const cap = static_cast<uint64_t>(protocol::MAX_TX_GAS_LIMIT);
+    bool present = txObject.isMember("gas") && !txObject["gas"].isNull();
+    uint64_t gas = 0;
+    if (present)
+    {
+        auto const& g = txObject["gas"];
+        if (g.isString())
+        {
+            gas = fromQuantity(g.asString());
+        }
+        else if (g.isUInt64() || g.isUInt())
+        {
+            gas = g.asUInt64();
+        }
+        else
+        {
+            present = false;
+        }
+    }
+    if (!present || gas == 0 || gas > cap)
+    {
+        txObject["gas"] = toQuantity(cap);
+    }
 }

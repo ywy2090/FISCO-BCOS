@@ -347,8 +347,9 @@ bcos::evm::engine::OpExecuteBlockResult runOpBlock(StorageT& storage,
     std::optional<std::string> hashErr;
     std::optional<uint16_t> daFootprintGasScalar;
     std::optional<detail::RecentBlockHashes<StorageT>> hashes;
-    engine::preBlockOpSteps(storage, header, cfg, rawTxs, deposits, executor,
-        hashes, hashErr, daFootprintGasScalar, /*schedule=*/nullptr, /*parentTsSec=*/0);
+    auto const schedule = op::OpForkSchedule::legacy(false);
+    engine::preBlockOpSteps(storage, header, cfg, rawTxs, deposits, executor, hashes, hashErr,
+        daFootprintGasScalar, &schedule, /*parentTsSec=*/0);
     bcos::executor_v1::opstack::OpBlockExecutionContext blockCtx{.fee = {},
         .blockGasLeft = static_cast<int64_t>(header.gasLimit()),
         .blockHashes = &*hashes,

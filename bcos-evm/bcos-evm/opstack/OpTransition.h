@@ -67,11 +67,12 @@ struct OpTxProperties
 /// = gasLimit*maxGasPrice + value + l1Cost + operatorCost(gasLimit) (gasFeeCap pricing).
 /// The 512-bit cap always runs. eth_call/estimateGas must wrap the view with
 /// CallSimulationView so the comparison sees a funded sender — do not skip it.
-/// `policy.enforce_max_tx_gas` defaults on (block admission / estimate of a real tx).
+/// `policy.enforce_max_tx_gas` defaults on (block admission).
 /// eth_call passes `{.enforce_max_tx_gas = false}` (geth #32641). The dry-run
 /// `call=true` path is shared with estimateGas (TransactionExecutor has no
-/// isEstimate), so both skip the Osaka 2^24 cap; omitted-gas estimateGas still
-/// returns used gas, which cannot exceed the cap for a tx that would be mined.
+/// isEstimate), so the executor must not re-enable the Osaka 2^24 cap there.
+/// eth_estimateGas clamps the request gas to MAX_TX_GAS_LIMIT in the RPC layer
+/// (geth #32348) before it reaches this path.
 [[nodiscard]] std::variant<OpTxProperties, std::error_code> opValidate(
     const evmone::state::StateView& view, const evmone::state::BlockInfo& block,
     const evmone::state::Transaction& tx, evmc::bytes_view signedTxEnvelope,

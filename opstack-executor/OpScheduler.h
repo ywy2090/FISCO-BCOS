@@ -1015,8 +1015,10 @@ private:
             std::optional<std::string> hashErr;
             std::optional<uint16_t> daFootprintGasScalar;
             std::optional<detail::RecentBlockHashes<ViewType>> hashes;
+            // Parent timestamp is only needed for Q5 (Jovian+ activation windows).
+            // Isthmus-only schedules have an empty jovianAndLaterActivations() list.
             uint64_t parentTsSec = 0;
-            if (header.number() > 0)
+            if (header.number() > 0 && !m_schedule->jovianAndLaterActivations().empty())
             {
                 try
                 {

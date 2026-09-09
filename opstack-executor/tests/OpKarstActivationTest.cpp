@@ -96,6 +96,15 @@ op::DepositTx depositWithJovianAttrs()
     return dep;
 }
 
+op::DepositTx depositWithIsthmusLenAttrs()
+{
+    evmc::bytes data(op::IsthmusL1AttributesLen, uint8_t{0});
+    op::DepositTx dep{};
+    dep.gas_limit = 1'000'000;
+    dep.data = std::move(data);
+    return dep;
+}
+
 std::shared_ptr<bcostars::protocol::BlockHeaderImpl> makeHeader(int64_t timestampMs)
 {
     auto h = std::make_shared<bcostars::protocol::BlockHeaderImpl>();
@@ -219,6 +228,19 @@ BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTxBeforeTrailingDeposit)
     // Q5 must scan every envelope: a trailing deposit must not hide a user tx.
     auto schedule = opstack_test::isthmusThenJovian(kJovianTsSec);
     auto dep = depositWithJovianAttrs();
+    BOOST_CHECK_EXCEPTION(
+        runPreBlock(op::jovianConfig(), *schedule, kParentTsSec, kJovianTsMs,
+            {kDepositEnvelope, kTypedEnvelope, kDepositEnvelope}, {dep, op::DepositTx{}, dep}),
+        OpConsensusError, isActivationUserTxError);
+}
+
+BOOST_AUTO_TEST_CASE(JovianActivationIsthmusLenAttrsRejectsMiddleUserTx)
+{
+    // 176-byte Isthmus attrs on a Jovian activation block: the last-tx-only
+    // DA-footprint probe would accept [deposit, user, deposit]; Q5 must not.
+    auto schedule = opstack_test::isthmusThenJovian(kJovianTsSec);
+    auto dep = depositWithIsthmusLenAttrs();
+    BOOST_REQUIRE_EQUAL(dep.data.size(), op::IsthmusL1AttributesLen);
     BOOST_CHECK_EXCEPTION(
         runPreBlock(op::jovianConfig(), *schedule, kParentTsSec, kJovianTsMs,
             {kDepositEnvelope, kTypedEnvelope, kDepositEnvelope}, {dep, op::DepositTx{}, dep}),

@@ -140,9 +140,9 @@ inline void validateJovianL1AttributesShape(
         return;
     if (data.size() == IsthmusL1AttributesLen)
     {
-        // Jovian activation block: Isthmus-length attributes, deposits-only by last-tx
-        // only (op-geth CalcDAFootprint, rollup_cost.go:568-576). Scanning every
-        // envelope would be stricter than the reference client.
+        // Isthmus-length attributes on a Jovian+ block: DA-footprint shape only.
+        // Deposits-only on the activation window is Q5 (timestamp schedule, every
+        // envelope) — this last-tx probe does not decide that rule.
         if (!lastTxIsDeposit)
             throw OpConsensusError(
                 "op block: unexpected non-deposit transactions in Jovian activation block");
@@ -332,6 +332,11 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
 {
     namespace op = bcos::evm::opstack;
 
+    if (schedule == nullptr)
+    {
+        throw std::invalid_argument("preBlockOpSteps: OpForkSchedule is required");
+    }
+
     auto blk = detail::toBlockInfo(header);
     hashes.emplace(
         view, blk.number, detail::toEvmcBytes32(header.parentInfo().blockHash), &hashErr);
@@ -374,23 +379,21 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
                           << "op block: first tx is a deposit but not the L1 attributes tx — "
                              "accepted";
     // Q5: Jovian+ activation blocks are deposits-only (timestamp schedule, not 176-byte attrs).
-    if (schedule != nullptr)
+    auto const blockTsSec =
+        bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp()));
+    if (op::isNoUserTxActivationBlock(*schedule, parentTsSec, blockTsSec) &&
+        op::hasNonDepositEnvelope(rawTxBytes))
     {
-        auto const blockTsSec =
-            bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp()));
-        if (op::isNoUserTxActivationBlock(*schedule, parentTsSec, blockTsSec) &&
-            op::hasNonDepositEnvelope(rawTxBytes))
-        {
-            throw OpConsensusError(
-                "op block: unexpected non-deposit transactions in fork activation block");
-        }
+        throw OpConsensusError(
+            "op block: unexpected non-deposit transactions in fork activation block");
     }
     if (cfg.has_da_footprint)
     {
         auto const& data = deposits[0].data;
-        // Last-tx-only deposits-only check matches op-geth CalcDAFootprint
-        // (core/types/rollup_cost.go:563-577): iterating every envelope would be stricter than
-        // the reference client. Empty trailing envelope is treated as non-deposit.
+        // DA-footprint last-tx probe (op-geth CalcDAFootprint). Activation
+        // deposits-only is the Q5 scan above, which already rejected a middle
+        // user tx on a 176-byte activation block. Empty trailing envelope is
+        // treated as non-deposit.
         bool const lastTxIsDeposit = op::envelopeIsDeposit(rawTxBytes.back());
         op::validateJovianL1AttributesShape(
             std::span<uint8_t const>{data.data(), data.size()}, lastTxIsDeposit, cfg);

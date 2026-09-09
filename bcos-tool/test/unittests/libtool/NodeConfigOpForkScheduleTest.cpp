@@ -81,5 +81,17 @@ BOOST_AUTO_TEST_CASE(missingSectionLeavesScheduleUnset)
     BOOST_CHECK(!probe.genesisConfig().m_opstackForkSchedule.has_value());
 }
 
+BOOST_AUTO_TEST_CASE(reloadWithoutSectionClearsPreviousSchedule)
+{
+    LoaderProbe probe;
+    probe.loadOpForkSchedule(
+        fromIni("[op_fork_schedule]\n"
+                "canonical=0:isthmus,1764691201:jovian\n"));
+    BOOST_REQUIRE(probe.genesisConfig().m_opstackForkSchedule.has_value());
+
+    BOOST_CHECK_NO_THROW(probe.loadOpForkSchedule(fromIni("[chain]\nchain_id=1\n")));
+    BOOST_CHECK(!probe.genesisConfig().m_opstackForkSchedule.has_value());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace bcos::test

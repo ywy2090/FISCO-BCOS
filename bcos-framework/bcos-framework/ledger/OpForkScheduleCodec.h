@@ -47,6 +47,14 @@ struct OpForkActivationRecord
 
 DERIVE_BCOS_EXCEPTION(InvalidOpForkSchedule);
 
+inline constexpr std::string_view c_legacyIsthmusCanonical = "0:isthmus";
+inline constexpr std::string_view c_legacyJovianCanonical = "0:jovian";
+
+[[nodiscard]] inline std::string_view legacyOpForkScheduleCanonical(bool jovianActive) noexcept
+{
+    return jovianActive ? c_legacyJovianCanonical : c_legacyIsthmusCanonical;
+}
+
 [[noreturn]] inline void throwInvalidOpForkSchedule(std::string_view msg)
 {
     BOOST_THROW_EXCEPTION(InvalidOpForkSchedule() << errinfo_comment(std::string(msg)));
@@ -206,6 +214,8 @@ inline std::vector<OpForkActivationRecord> parseOpForkSchedule(std::string_view 
         if (comma == std::string_view::npos)
             break;
         remaining.remove_prefix(comma + 1);
+        if (remaining.empty())
+            throwInvalidOpForkSchedule("trailing comma");
     }
 
     detail::validateScheduleRecords(activations);

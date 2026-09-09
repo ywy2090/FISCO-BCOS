@@ -4,8 +4,8 @@ namespace bcos::evm::opstack
 {
 namespace
 {
-// All values below come from op-geth v1.101702.2; the citations are here so a future OP Stack
-// change can be diffed against a specific line rather than re-derived.
+// Granite / Jovian input-size limits come from op-geth v1.101702.2 (line citations
+// below). Karst / Osaka numbers are protocol defaults, not named op-geth constants.
 //
 // Input-size limits — params/protocol_params.go:
 //   bn256Pairing  112687 (:172, Bn256PairingMaxInputSizeGranite)
@@ -39,8 +39,8 @@ constexpr PrecompileOverrides::Entry kJovianEntries[] = {
     {.addr = evmc::address{0x0f}, .gas_cost_override = -1, .max_input_size = 156672},
 };
 
-// Karst / Osaka: bn256 pairing tightens to 300 pairs (57600). P256Verify uses the
-// protocol default P256VerifyGas 6900 (protocol_params.go:184), not Fjord's 3450.
+// Karst / Osaka: bn256 pairing 300 pairs → 57600 (Osaka default; no op-geth
+// Bn256PairingMaxInputSizeKarst). P256VerifyGas 6900 is protocol_params.go:184.
 // BLS MSM/pairing caps stay at the Jovian values.
 constexpr PrecompileOverrides::Entry kKarstEntries[] = {
     {.addr = evmc::address{0x08}, .gas_cost_override = -1, .max_input_size = 57600},

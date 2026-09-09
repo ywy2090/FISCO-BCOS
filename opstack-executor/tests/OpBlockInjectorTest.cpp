@@ -243,9 +243,9 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRejectedByBlockPreSteps)
     std::optional<std::string> hashErr;
     std::optional<uint16_t> daFootprintGasScalar;
     std::optional<detail::RecentBlockHashes<MutableStorage>> hashes;
+    auto const schedule = op::OpForkSchedule::legacy(false);
     BOOST_CHECK_THROW(engine::preBlockOpSteps(storage, *header, cfg, rawTxBytes, deposits, executor,
-                          hashes, hashErr, daFootprintGasScalar, /*schedule=*/nullptr,
-                          /*parentTsSec=*/0),
+                          hashes, hashErr, daFootprintGasScalar, &schedule, /*parentTsSec=*/0),
         std::runtime_error);
 }
 

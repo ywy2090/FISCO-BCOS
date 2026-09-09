@@ -196,7 +196,7 @@ OpForkSchedule OpForkSchedule::parse(std::string_view canonical)
 
 OpForkSchedule OpForkSchedule::legacy(bool jovianActive)
 {
-    return parse(jovianActive ? "0:jovian" : "0:isthmus");
+    return parse(ledger::legacyOpForkScheduleCanonical(jovianActive));
 }
 
 OpForkSchedule::OpForkSchedule(std::vector<OpForkActivation> activations)
