@@ -34,6 +34,7 @@ BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs)
 
     const auto& k = karstConfig();
     BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
+    BOOST_CHECK_EQUAL(k.rev, EVMC_OSAKA);
     BOOST_CHECK_EQUAL(k.has_operator_fee, j.has_operator_fee);
     BOOST_CHECK_EQUAL(k.has_jovian_operator_formula, j.has_jovian_operator_formula);
     BOOST_CHECK_EQUAL(k.has_da_footprint, j.has_da_footprint);

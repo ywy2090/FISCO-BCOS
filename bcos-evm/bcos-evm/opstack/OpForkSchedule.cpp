@@ -69,8 +69,11 @@ void ensureKarstIsOsaka(std::span<const OpForkActivation> activations)
 {
     for (const auto& activation : activations)
     {
+        // Same family as codec errors so Initializer's InvalidOpForkSchedule
+        // catch maps this to InvalidConfig. karstConfig().rev is EVMC_OSAKA;
+        // this fires only if that pin regresses to a Jovian alias.
         if (activation.fork == OpFork::Karst && karstConfig().rev != EVMC_OSAKA)
-            throw InconsistentExecutionConfig("Karst execution config is not Osaka");
+            ledger::throwInvalidOpForkSchedule("Karst execution config is not Osaka");
     }
 }
 }  // namespace

@@ -173,6 +173,29 @@ BOOST_AUTO_TEST_CASE(genesisBranchReturnsNormalizedCanonical)
         "0:isthmus");
 }
 
+BOOST_AUTO_TEST_CASE(storedBranchReturnsNormalizedCanonical)
+{
+    constexpr char const* leadingZero = "00:isthmus";
+    OpForkScheduleMetadata storedLeadingZero{
+        .schedule = leadingZero,
+        .scheduleHash = keccakOpForkScheduleHash(leadingZero),
+        .genesisHash = HashType{},
+    };
+    BOOST_CHECK_EQUAL(
+        resolveOpForkScheduleCanonical(storedLeadingZero, std::nullopt, false, HashType{}),
+        "0:isthmus");
+
+    constexpr char const* mixedCase = "0:Isthmus";
+    OpForkScheduleMetadata storedMixedCase{
+        .schedule = mixedCase,
+        .scheduleHash = keccakOpForkScheduleHash(mixedCase),
+        .genesisHash = HashType{},
+    };
+    BOOST_CHECK_EQUAL(
+        resolveOpForkScheduleCanonical(storedMixedCase, std::nullopt, false, HashType{}),
+        "0:isthmus");
+}
+
 BOOST_AUTO_TEST_CASE(emptyMetadataFallsBackToLegacy)
 {
     BOOST_CHECK_EQUAL(resolveOpForkScheduleCanonical(std::nullopt, std::nullopt, true, HashType{}),
@@ -188,6 +211,9 @@ BOOST_AUTO_TEST_CASE(storedScheduleDivergesFromGenesis)
         c_legacyIsthmusCanonical, std::string{"0:Isthmus"}));
     BOOST_CHECK(storedOpForkScheduleDivergesFromGenesis(
         c_legacyIsthmusCanonical, std::string{c_legacyJovianCanonical}));
+    BOOST_CHECK(!storedOpForkScheduleDivergesFromGenesis("00:isthmus", std::string{"0:isthmus"}));
+    BOOST_CHECK(!storedOpForkScheduleDivergesFromGenesis("0:Isthmus", std::string{"0:isthmus"}));
+    BOOST_CHECK(storedOpForkScheduleDivergesFromGenesis("0:isthmus", std::string{"0:jovian"}));
 }
 
 BOOST_AUTO_TEST_CASE(partialTripleIsNotAbsent)

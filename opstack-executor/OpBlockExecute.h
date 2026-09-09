@@ -120,11 +120,17 @@ template <class RawTxRange>
     return false;
 }
 
+/// Q5 probe for `processOpBlock`. Same 0x7e rule as `hasNonDepositEnvelope` when
+/// an envelope is present. Empty envelope keeps the `DepositTx` convention
+/// (`OpBlockTx::signedEnvelope` is empty for deposits). Either side saying
+/// non-deposit fails closed (variant user, or typed/empty-mismatch envelope).
 [[nodiscard]] inline bool hasNonDepositTx(std::span<const OpBlockTx> txs) noexcept
 {
     for (auto const& btx : txs)
     {
         if (!std::holds_alternative<DepositTx>(btx.tx))
+            return true;
+        if (!btx.signedEnvelope.empty() && !envelopeIsDeposit(btx.signedEnvelope))
             return true;
     }
     return false;

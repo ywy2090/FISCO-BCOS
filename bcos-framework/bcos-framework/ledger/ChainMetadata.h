@@ -140,8 +140,7 @@ struct OpForkScheduleMetadataRows
         {
             throwInvalidOpForkSchedule("op fork schedule hash mismatch");
         }
-        (void)parseOpForkSchedule(stored->schedule);
-        return stored->schedule;
+        return canonicalOpForkSchedule(parseOpForkSchedule(stored->schedule));
     }
     if (genesisCanonical.has_value())
     {
@@ -150,8 +149,9 @@ struct OpForkScheduleMetadataRows
     return std::string(legacyOpForkScheduleCanonical(featureOpJovian));
 }
 
-/// True when on-chain metadata exists and the genesis `canonical` (after
-/// normalize) is a different schedule. Missing genesis is not a divergence.
+/// True when on-chain metadata exists and the genesis `canonical` is a
+/// different schedule after both sides are normalized. Missing genesis is not
+/// a divergence. Compare parsed identity, not raw ASCII (`00:isthmus` == `0:isthmus`).
 [[nodiscard]] inline bool storedOpForkScheduleDivergesFromGenesis(
     std::string_view storedCanonical, std::optional<std::string> const& genesisCanonical)
 {
@@ -159,7 +159,8 @@ struct OpForkScheduleMetadataRows
     {
         return false;
     }
-    return storedCanonical != canonicalOpForkSchedule(parseOpForkSchedule(*genesisCanonical));
+    return canonicalOpForkSchedule(parseOpForkSchedule(storedCanonical)) !=
+           canonicalOpForkSchedule(parseOpForkSchedule(*genesisCanonical));
 }
 
 namespace detail

@@ -106,8 +106,8 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
                              "accepted";
     validateJovianBlockShape(txs, cfg);
     // Q5: Jovian+ activation blocks are deposits-only. BlockInfo.timestamp is Unix
-    // seconds (toBlockInfo already converted header millis). Same predicate as
-    // preBlockOpSteps; the 176B L1-attrs heuristic is shape-only.
+    // seconds (toBlockInfo already converted header millis). Same window as
+    // preBlockOpSteps; the non-deposit probe shares the 0x7e envelope rule.
     if (isNoUserTxActivationBlock(*schedule, parentTsSec, block.timestamp) && hasNonDepositTx(txs))
     {
         throw OpConsensusError(

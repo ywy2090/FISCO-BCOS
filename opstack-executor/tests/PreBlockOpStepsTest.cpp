@@ -534,4 +534,69 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockKarstActivationRejectsUserTx)
         });
 }
 
+BOOST_AUTO_TEST_CASE(HasNonDepositTxUsesEnvelopeWhenPresent)
+{
+    op::OpBlockTx depositEmpty;
+    depositEmpty.tx = op::DepositTx{};
+    std::vector<op::OpBlockTx> onlyEmpty{depositEmpty};
+    BOOST_CHECK(!op::hasNonDepositTx(onlyEmpty));
+
+    op::OpBlockTx depositTyped;
+    depositTyped.tx = op::DepositTx{};
+    depositTyped.signedEnvelope = evmc::bytes{uint8_t{0x02}, uint8_t{0x01}};
+    std::vector<op::OpBlockTx> typedOnDeposit{depositTyped};
+    BOOST_CHECK(op::hasNonDepositTx(typedOnDeposit));
+
+    op::OpBlockTx deposit7e;
+    deposit7e.tx = op::DepositTx{};
+    deposit7e.signedEnvelope = evmc::bytes{uint8_t{0x7e}, uint8_t{0x01}};
+    std::vector<op::OpBlockTx> depositEnvelope{deposit7e};
+    BOOST_CHECK(!op::hasNonDepositTx(depositEnvelope));
+
+    op::OpBlockTx user7e;
+    user7e.tx = evmone::state::Transaction{};
+    user7e.signedEnvelope = evmc::bytes{uint8_t{0x7e}, uint8_t{0x01}};
+    std::vector<op::OpBlockTx> typedVariant{user7e};
+    BOOST_CHECK(op::hasNonDepositTx(typedVariant));
+}
+
+BOOST_AUTO_TEST_CASE(ProcessOpBlockQ5RejectsDepositVariantWithTypedEnvelope)
+{
+    MutableStorage storage;
+    bcos::evm::evmstate::Storage2State<MutableStorage> view(storage);
+    evmone::state::BlockInfo block;
+    block.gas_limit = 30'000'000;
+    block.timestamp = 100;
+    bcos::executor_v1::opstack::NullBlockHashes hashes;
+    auto vm = evmc::VM{evmc_create_evmone()};
+    auto schedule = op::OpForkSchedule::parse("0:jovian,100:karst");
+
+    evmc::bytes data(op::JovianL1AttributesLen, uint8_t{0});
+    std::memcpy(
+        data.data(), op::JovianL1AttributesSelector.data(), op::JovianL1AttributesSelector.size());
+    op::DepositTx dep{};
+    dep.gas_limit = 1'000'000;
+    dep.data = std::move(data);
+
+    op::OpBlockTx depTx;
+    depTx.tx = dep;
+    auto const depEnvelope = bcos::evm::opstack::encodeDepositEnvelope(dep);
+    depTx.signedEnvelope.assign(depEnvelope.begin(), depEnvelope.end());
+
+    op::OpBlockTx mismatched;
+    mismatched.tx = op::DepositTx{};
+    mismatched.signedEnvelope = evmc::bytes{uint8_t{0x02}, uint8_t{0x01}};
+    std::vector<op::OpBlockTx> const txs{depTx, mismatched};
+
+    BOOST_CHECK_EXCEPTION(
+        (void)op::processOpBlock(
+            view, block, hashes, txs, op::karstConfig(), vm, /*chainId=*/10,
+            bcos::evm::opstack::testutil::kOpTestReceiptFactory,
+            [](const evmone::state::StateDiff&) {}, &schedule, /*parentTsSec=*/99),
+        OpConsensusError, [](OpConsensusError const& e) {
+            return std::string_view{e.what()}.find("unexpected non-deposit") !=
+                   std::string_view::npos;
+        });
+}
+
 BOOST_AUTO_TEST_SUITE_END()

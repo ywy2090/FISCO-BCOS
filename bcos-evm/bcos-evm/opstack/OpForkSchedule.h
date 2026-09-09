@@ -3,7 +3,6 @@
 #include <evmc/evmc.hpp>
 
 #include <cstdint>
-#include <stdexcept>
 #include <string_view>
 #include <vector>
 
@@ -75,14 +74,6 @@ const OpForkConfig& holoceneConfig() noexcept;
 const OpForkConfig& isthmusConfig() noexcept;
 const OpForkConfig& jovianConfig() noexcept;
 const OpForkConfig& karstConfig() noexcept;
-
-/// Thrown by OpForkSchedule parse/ctor when a Karst activation is present but
-/// karstConfig().rev is not EVMC_OSAKA (regression guard against a Jovian alias).
-class InconsistentExecutionConfig : public std::logic_error
-{
-public:
-    using std::logic_error::logic_error;
-};
 
 struct OpForkActivation
 {
