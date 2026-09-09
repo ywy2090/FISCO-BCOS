@@ -8,6 +8,7 @@
 #include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/engine/Types.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>
 #include <bcos-task/Task.h>
@@ -29,6 +30,28 @@
 
 namespace bcos::evm::engine
 {
+
+namespace detail
+{
+[[nodiscard]] inline std::optional<bcos::engine::OpForkId> tryEngineForkId(
+    bcos::evm::opstack::OpFork fork) noexcept
+{
+    switch (fork)
+    {
+    case bcos::evm::opstack::OpFork::Isthmus:
+        return bcos::engine::OpForkId::Isthmus;
+    case bcos::evm::opstack::OpFork::Jovian:
+        return bcos::engine::OpForkId::Jovian;
+    case bcos::evm::opstack::OpFork::Karst:
+        return bcos::engine::OpForkId::Karst;
+    case bcos::evm::opstack::OpFork::Ecotone:
+    case bcos::evm::opstack::OpFork::Fjord:
+    case bcos::evm::opstack::OpFork::Granite:
+    case bcos::evm::opstack::OpFork::Holocene:
+        return std::nullopt;
+    }
+}
+}  // namespace detail
 
 /// Re-exports the engine newPayload surface as dependent names on SchedulerType.
 template <class Storage>
@@ -79,17 +102,11 @@ public:
 
     [[nodiscard]] bcos::engine::OpForkId forkIdAt(uint64_t timestampSeconds) const
     {
-        switch (m_schedule->forkAt(timestampSeconds))
+        if (auto const id = detail::tryEngineForkId(m_schedule->forkAt(timestampSeconds)))
         {
-        case bcos::evm::opstack::OpFork::Isthmus:
-            return bcos::engine::OpForkId::Isthmus;
-        case bcos::evm::opstack::OpFork::Jovian:
-            return bcos::engine::OpForkId::Jovian;
-        case bcos::evm::opstack::OpFork::Karst:
-            return bcos::engine::OpForkId::Karst;
-        default:
-            throw std::logic_error("OpSchedulerSeam: unsupported schedule fork");
+            return *id;
         }
+        bcos::ledger::throwInvalidOpForkSchedule("OpSchedulerSeam: unsupported schedule fork");
     }
 
     [[nodiscard]] bcos::engine::EngineApiProfile engineApiFor(uint64_t timestampSeconds) const
@@ -131,14 +148,18 @@ public:
         {
             return bcos::engine::OpForkResolutionError::UnsupportedTimestamp;
         }
-        const auto forkId = forkIdAt(timestampSeconds);
+        auto const forkId = detail::tryEngineForkId(m_schedule->forkAt(timestampSeconds));
+        if (!forkId.has_value())
+        {
+            return bcos::engine::OpForkResolutionError::UnsupportedTimestamp;
+        }
         const auto& cfg = m_schedule->configAt(timestampSeconds);
-        if (forkId == bcos::engine::OpForkId::Karst && cfg.rev != EVMC_OSAKA)
+        if (*forkId == bcos::engine::OpForkId::Karst && cfg.rev != EVMC_OSAKA)
         {
             return bcos::engine::OpForkResolutionError::InconsistentExecutionConfig;
         }
         return bcos::engine::EngineForkContext{
-            .forkId = forkId,
+            .forkId = *forkId,
             .api = engineApiFor(timestampSeconds),
             .hasDaFootprint = cfg.has_da_footprint,
         };

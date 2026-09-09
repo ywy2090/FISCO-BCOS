@@ -246,8 +246,20 @@ std::vector<OpForkActivation> OpForkSchedule::jovianAndLaterActivations() const
     out.reserve(m_activations.size());
     for (auto const& activation : m_activations)
     {
-        if (static_cast<int>(activation.fork) >= static_cast<int>(OpFork::Jovian))
+        // No default: a new OpFork enumerator must be classified or -Wswitch/-Werror fails.
+        switch (activation.fork)
+        {
+        case OpFork::Ecotone:
+        case OpFork::Fjord:
+        case OpFork::Granite:
+        case OpFork::Holocene:
+        case OpFork::Isthmus:
+            break;
+        case OpFork::Jovian:
+        case OpFork::Karst:
             out.push_back(activation);
+            break;
+        }
     }
     return out;
 }

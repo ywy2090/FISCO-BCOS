@@ -87,19 +87,19 @@ struct OpForkScheduleMetadataRows
 }
 
 [[nodiscard]] inline OpForkScheduleMetadata buildOpForkScheduleMetadata(
-    std::string canonical, crypto::HashType genesisHash)
+    std::string_view canonical, crypto::HashType const& genesisHash)
 {
     auto normalized = canonicalOpForkSchedule(parseOpForkSchedule(canonical));
     const auto scheduleHash = keccakOpForkScheduleHash(normalized);
     return OpForkScheduleMetadata{
         .schedule = std::move(normalized),
         .scheduleHash = scheduleHash,
-        .genesisHash = std::move(genesisHash),
+        .genesisHash = genesisHash,
     };
 }
 
 [[nodiscard]] inline OpForkScheduleMetadata validateOpForkScheduleMetadataRows(
-    OpForkScheduleMetadataRows rows, crypto::HashType const& expectedGenesisHash)
+    OpForkScheduleMetadataRows const& rows, crypto::HashType const& expectedGenesisHash)
 {
     if (opForkScheduleMetadataRowsAbsent(rows))
     {
@@ -127,8 +127,9 @@ struct OpForkScheduleMetadataRows
 // hash or genesis binding mismatches. Boot must pass the hash from
 // readOpForkScheduleMetadata (or the live genesis header); do not skip that check.
 [[nodiscard]] inline std::string resolveOpForkScheduleCanonical(
-    std::optional<OpForkScheduleMetadata> stored, std::optional<std::string> genesisCanonical,
-    bool featureOpJovian, crypto::HashType const& expectedGenesisHash)
+    std::optional<OpForkScheduleMetadata> const& stored,
+    std::optional<std::string> const& genesisCanonical, bool featureOpJovian,
+    crypto::HashType const& expectedGenesisHash)
 {
     if (stored.has_value())
     {

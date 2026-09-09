@@ -13,6 +13,7 @@
 #include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/engine/Types.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <bcos-framework/storage2/MemoryStorage.h>
 #include <bcos-framework/storage2/MultiLayerStorage.h>
 #include <bcos-framework/transaction-executor/StateKey.h>
@@ -33,6 +34,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -292,6 +294,22 @@ BOOST_AUTO_TEST_CASE(ResolveEngineForkAtRejectsBelowBaseline)
     auto* err = std::get_if<bcos::engine::OpForkResolutionError>(&resolved);
     BOOST_REQUIRE(err);
     BOOST_CHECK(*err == bcos::engine::OpForkResolutionError::UnsupportedTimestamp);
+}
+
+BOOST_AUTO_TEST_CASE(ResolveEngineForkAtUnsupportedPreIsthmusFork)
+{
+    auto schedule = std::make_shared<op::OpForkSchedule>(
+        op::OpForkSchedule{{{op::OpFork::Ecotone, 0}}, op::OpForkSchedule::TestBypass{}});
+    engine::OpSchedulerSeam<UnusedView> seam(schedule, op::L1BlockInfo{});
+    auto resolved = seam.resolveEngineForkAt(0);
+    auto* err = std::get_if<bcos::engine::OpForkResolutionError>(&resolved);
+    BOOST_REQUIRE(err);
+    BOOST_CHECK(*err == bcos::engine::OpForkResolutionError::UnsupportedTimestamp);
+    BOOST_CHECK_EXCEPTION(static_cast<void>(seam.forkIdAt(0)), bcos::ledger::InvalidOpForkSchedule,
+        [](bcos::ledger::InvalidOpForkSchedule const& e) {
+            return std::string_view{e.what()}.find("unsupported schedule fork") !=
+                   std::string_view::npos;
+        });
 }
 
 BOOST_AUTO_TEST_CASE(JovianActivationWithoutParentHeaderFailsClosed)

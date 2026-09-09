@@ -194,6 +194,29 @@ BOOST_AUTO_TEST_CASE(KarstImpliesOsakaConfig)
     BOOST_CHECK(s.configAt(1783526401).deposit_exempt_from_max_tx_gas);
 }
 
+BOOST_AUTO_TEST_CASE(JovianAndLaterActivationsAreNamedForks)
+{
+    auto isthmusOnly = OpForkSchedule::parse("0:isthmus");
+    BOOST_CHECK(isthmusOnly.jovianAndLaterActivations().empty());
+
+    auto withJovian = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
+    auto const jovianSlice = withJovian.jovianAndLaterActivations();
+    BOOST_REQUIRE_EQUAL(jovianSlice.size(), 1);
+    BOOST_CHECK(jovianSlice[0].fork == OpFork::Jovian);
+
+    auto withKarst = OpForkSchedule::parse("0:jovian,1783526401:karst");
+    auto const karstSlice = withKarst.jovianAndLaterActivations();
+    BOOST_REQUIRE_EQUAL(karstSlice.size(), 2);
+    BOOST_CHECK(karstSlice[0].fork == OpFork::Jovian);
+    BOOST_CHECK(karstSlice[1].fork == OpFork::Karst);
+
+    auto preIsthmus =
+        OpForkSchedule{{{OpFork::Ecotone, 0}, {OpFork::Jovian, 10}}, OpForkSchedule::TestBypass{}};
+    auto const named = preIsthmus.jovianAndLaterActivations();
+    BOOST_REQUIRE_EQUAL(named.size(), 1);
+    BOOST_CHECK(named[0].fork == OpFork::Jovian);
+}
+
 BOOST_AUTO_TEST_CASE(TestBypassScheduleCanNameKarst)
 {
     auto s =
