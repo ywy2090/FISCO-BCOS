@@ -25,15 +25,26 @@ const OpForkConfig& configForFork(OpFork fork)
 {
     switch (fork)
     {
+    case OpFork::Regolith:
+        return regolithConfig();
+    case OpFork::Canyon:
+        return canyonConfig();
+    case OpFork::Ecotone:
+        return ecotoneConfig();
+    case OpFork::Fjord:
+        return fjordConfig();
+    case OpFork::Granite:
+        return graniteConfig();
+    case OpFork::Holocene:
+        return holoceneConfig();
     case OpFork::Isthmus:
         return isthmusConfig();
     case OpFork::Jovian:
         return jovianConfig();
     case OpFork::Karst:
         return karstConfig();
-    default:
-        ledger::throwInvalidOpForkSchedule("unsupported fork config");
     }
+    ledger::throwInvalidOpForkSchedule("unsupported fork config");
 }
 
 std::string forkNameFromEnum(OpFork fork)
@@ -77,6 +88,40 @@ void ensureKarstIsOsaka(std::span<const OpForkActivation> activations)
     }
 }
 }  // namespace
+
+const OpForkConfig& regolithConfig() noexcept
+{
+    static const OpForkConfig cfg{
+        .fork = OpFork::Regolith,
+        .rev = EVMC_LONDON,
+        .precompiles = nullptr,
+        .disable_prague_requests = true,
+        .has_operator_fee = false,
+        .has_jovian_operator_formula = false,
+        .has_da_footprint = false,
+        .deposit_exempt_from_max_tx_gas = false,
+        .l1_fee_model = L1FeeModel::Bedrock,
+        .has_ecotone_l1_formula = false,
+    };
+    return cfg;
+}
+
+const OpForkConfig& canyonConfig() noexcept
+{
+    static const OpForkConfig cfg{
+        .fork = OpFork::Canyon,
+        .rev = EVMC_SHANGHAI,
+        .precompiles = nullptr,
+        .disable_prague_requests = true,
+        .has_operator_fee = false,
+        .has_jovian_operator_formula = false,
+        .has_da_footprint = false,
+        .deposit_exempt_from_max_tx_gas = false,
+        .l1_fee_model = L1FeeModel::Bedrock,
+        .has_ecotone_l1_formula = false,
+    };
+    return cfg;
+}
 
 const OpForkConfig& ecotoneConfig() noexcept
 {
@@ -254,6 +299,8 @@ std::vector<OpForkActivation> OpForkSchedule::jovianAndLaterActivations() const
         // No default: a new OpFork enumerator must be classified or -Wswitch/-Werror fails.
         switch (activation.fork)
         {
+        case OpFork::Regolith:
+        case OpFork::Canyon:
         case OpFork::Ecotone:
         case OpFork::Fjord:
         case OpFork::Granite:

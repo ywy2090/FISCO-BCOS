@@ -95,6 +95,41 @@ BOOST_AUTO_TEST_CASE(L1FeeModelPinnedOnExistingConfigs)
     BOOST_CHECK(!fjordConfig().has_ecotone_l1_formula);
 }
 
+BOOST_AUTO_TEST_CASE(RegolithCanyonConfigsAndTimestampSelect)
+{
+    BOOST_CHECK_EQUAL(regolithConfig().rev, EVMC_LONDON);
+    BOOST_CHECK(regolithConfig().l1_fee_model == L1FeeModel::Bedrock);
+    BOOST_CHECK(!regolithConfig().has_operator_fee);
+    BOOST_CHECK(!regolithConfig().has_da_footprint);
+    BOOST_CHECK_EQUAL(canyonConfig().rev, EVMC_SHANGHAI);
+    BOOST_CHECK(canyonConfig().l1_fee_model == L1FeeModel::Bedrock);
+
+    OpForkSchedule sched(
+        {
+            {OpFork::Regolith, 0},
+            {OpFork::Canyon, 100},
+            {OpFork::Ecotone, 200},
+            {OpFork::Fjord, 300},
+            {OpFork::Holocene, 400},
+            {OpFork::Isthmus, 500},
+        },
+        OpForkSchedule::TestBypass{});
+
+    BOOST_CHECK_EQUAL(sched.forkAt(0), OpFork::Regolith);
+    BOOST_CHECK_EQUAL(sched.forkAt(99), OpFork::Regolith);
+    BOOST_CHECK_EQUAL(sched.forkAt(100), OpFork::Canyon);
+    BOOST_CHECK_EQUAL(sched.forkAt(200), OpFork::Ecotone);
+    BOOST_CHECK_EQUAL(&sched.configAt(0), &regolithConfig());
+    BOOST_CHECK_EQUAL(&sched.configAt(150), &canyonConfig());
+    BOOST_CHECK_EQUAL(&sched.configAt(200), &ecotoneConfig());
+    BOOST_CHECK(sched.jovianAndLaterActivations().empty());
+}
+
+BOOST_AUTO_TEST_CASE(ParseStillRejectsRegolithName)
+{
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:regolith"), InvalidOpForkSchedule);
+}
+
 BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
 {
     for (const auto* cfg : {&ecotoneConfig(), &fjordConfig(), &graniteConfig(), &holoceneConfig()})

@@ -12,20 +12,20 @@ namespace bcos::evm::opstack
 // OP-Stack fork schedule (Bedrock onward) ↔ Ethereum base fork
 //
 // Reference: op-reth (authority for named Karst schedules) + op-geth / optimism docs.
-// FB only MODELS Ecotone+ (the enum below): the minimal validator loop is
+// FB MODELS Regolith+ (the enum below): production parse / codec is still
 // Isthmus+-only (decision A5) and the engine -38005 gate rejects pre-Isthmus
-// payloads, so Bedrock/Regolith/Canyon are unreachable — they are listed for
-// mapping completeness only, NOT implemented.
+// payloads; Regolith..Holocene are reachable through isolated execution tests
+// (OpForkSchedule::TestBypass schedules), not through the production codec.
 //
 //   OP fork      | Ethereum base | EVM rev (FB)      | FB status
 //   -------------+---------------+-------------------+----------------------
-//   Bedrock      | London        | —                 | not modeled (unreachable)
-//   Regolith     | London        | —                 | not modeled; deposit-tx fixes
-//   Canyon       | Shanghai      | —                 | not modeled; EIP-4895/1153/5656/6780
-//   Ecotone      | Cancun        | EVMC_CANCUN       | modeled; blob L1 fee (EIP-4844/4788/7516)
-//   Fjord        | Cancun        | EVMC_CANCUN       | modeled; FastLZ L1 fee, p256 active
-//   Granite      | Cancun        | EVMC_CANCUN       | modeled; 8 precompile size limits
-//   Holocene     | Cancun        | EVMC_CANCUN       | modeled; EIP-1559 via 9B extraData
+//   Bedrock      | London        | —                 | not modeled (unreachable; first fork is
+//   Regolith) Regolith     | London        | EVMC_LONDON       | modeled; deposit-tx fixes, Bedrock
+//   L1 fee Canyon       | Shanghai      | EVMC_SHANGHAI     | modeled; EIP-4895/1153/5656/6780,
+//   Bedrock L1 fee Ecotone      | Cancun        | EVMC_CANCUN       | modeled; blob L1 fee
+//   (EIP-4844/4788/7516) Fjord        | Cancun        | EVMC_CANCUN       | modeled; FastLZ L1 fee,
+//   p256 active Granite      | Cancun        | EVMC_CANCUN       | modeled; 8 precompile size
+//   limits Holocene     | Cancun        | EVMC_CANCUN       | modeled; EIP-1559 via 9B extraData
 //   Isthmus      | Prague/Pectra | EVMC_PRAGUE       | modeled; EIP-7702/7623/2935/2537 + OP
 //                 |               |                   | deposit changes
 //   Jovian        | Prague        | EVMC_PRAGUE       | modeled; +DA footprint, operator fee ×100
@@ -42,6 +42,8 @@ namespace bcos::evm::opstack
 // ────────────────────────────────────────────────────────────────────────────
 enum class OpFork
 {
+    Regolith,
+    Canyon,
     Ecotone,
     Fjord,
     Granite,
@@ -81,6 +83,8 @@ struct OpForkConfig
     bool has_ecotone_l1_formula{};  // must equal (l1_fee_model == L1FeeModel::Ecotone)
 };
 
+const OpForkConfig& regolithConfig() noexcept;
+const OpForkConfig& canyonConfig() noexcept;
 const OpForkConfig& ecotoneConfig() noexcept;
 const OpForkConfig& fjordConfig() noexcept;
 const OpForkConfig& graniteConfig() noexcept;
