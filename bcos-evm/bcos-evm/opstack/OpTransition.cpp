@@ -126,6 +126,8 @@ inline bcos::protocol::OpStackReceiptMeta toOpStackMeta(const OpReceiptMeta& met
         out.l1_gas_used = *meta.l1_gas_used;
     if (meta.operator_fee)
         out.operator_fee = intxToBcosU256(*meta.operator_fee);
+    if (meta.l1_fee_scalar)
+        out.l1_fee_scalar = intxToBcosU256(*meta.l1_fee_scalar);
     return out;
 }
 

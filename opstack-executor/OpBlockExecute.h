@@ -216,10 +216,13 @@ inline const evmc::bytes32 OP_EMPTY_REQUESTS_HASH = [] {
     const std::map<evmc::bytes32, evmc::bytes32>& messagePasserStorage);
 
 /// Receipts-root leaf, byte-for-byte op-geth `Receipts.EncodeIndex` semantics:
-/// deposit 0x7E || rlp([status, cumGas, bloom, logs, nonce, version]);
-/// normal  typed prefix + rlp([status, cumGas, bloom, logs]).
+/// deposit 0x7E || rlp([status, cumGas, bloom, logs(, nonce, version)]); the version
+/// word gates the leaf shape — Canyon+ appends nonce+version, while the pre-Canyon
+/// (Regolith) receipt hash inadvertently omitted the nonce too. Meta presence must
+/// agree with the fork in both directions: cfg decides, a mismatch is a consensus
+/// error, never a silently different leaf.
 [[nodiscard]] bcos::bytes encodeReceiptForRoot(
-    const bcos::protocol::TransactionReceipt& r, uint8_t txType);
+    const bcos::protocol::TransactionReceipt& r, uint8_t txType, const OpForkConfig& cfg);
 }  // namespace bcos::evm::opstack
 
 // ---- block registration + execution ----

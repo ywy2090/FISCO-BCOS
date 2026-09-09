@@ -60,7 +60,8 @@ bool opStackMetaEmpty(bcostars::OpStackReceiptMeta const& s)
            s.l1_base_fee_scalar.empty() && s.l1_blob_base_fee_scalar.empty() &&
            s.operator_fee_scalar.empty() && s.operator_fee_constant.empty() &&
            s.da_footprint_gas_scalar.empty() && s.da_footprint.empty() && s.deposit_nonce.empty() &&
-           s.deposit_receipt_version.empty() && s.l1_gas_used.empty() && s.operator_fee.empty();
+           s.deposit_receipt_version.empty() && s.l1_gas_used.empty() && s.operator_fee.empty() &&
+           s.l1_fee_scalar.empty();
 }
 std::optional<bcos::u256> hexToU256(std::string const& s)
 {
@@ -249,6 +250,8 @@ bcostars::protocol::TransactionReceiptImpl::opStackMeta() const
         out.l1_gas_used = hexToU64(s.l1_gas_used);
     if (!s.operator_fee.empty())
         out.operator_fee = hexToU256(s.operator_fee);
+    if (!s.l1_fee_scalar.empty())
+        out.l1_fee_scalar = hexToU256(s.l1_fee_scalar);
     // A legacy receipt (field 8 never set) decodes to an all-empty opStackMeta. Report nullopt so
     // downstream `if (auto m = r.opStackMeta())` does not mistake it for an OP receipt.
     if (out.l1_gas_price == std::nullopt && out.l1_fee == std::nullopt &&
@@ -297,6 +300,8 @@ void bcostars::protocol::TransactionReceiptImpl::setOpStackMeta(
         s.l1_gas_used = u64ToHex(*meta.l1_gas_used);
     if (meta.operator_fee)
         s.operator_fee = u256ToHex(*meta.operator_fee);
+    if (meta.l1_fee_scalar)
+        s.l1_fee_scalar = u256ToHex(*meta.l1_fee_scalar);
 }
 const bcostars::TransactionReceipt& bcostars::protocol::TransactionReceiptImpl::inner() const
 {

@@ -384,7 +384,8 @@ evmone::hash256 opStorageRoot(const std::map<evmc::bytes32, evmc::bytes32>& stor
     return root;
 }
 
-bcos::bytes encodeReceiptForRoot(const bcos::protocol::TransactionReceipt& r, uint8_t txType)
+bcos::bytes encodeReceiptForRoot(
+    const bcos::protocol::TransactionReceipt& r, uint8_t txType, const OpForkConfig& cfg)
 {
     // RLP bool semantics: true → 0x01, false → 0x80 (raw push; the UnsignedByte encode path
     // mis-handles bool). Payload = rlp([status, cumGas, bloom, logs]) + (deposit) [nonce, version].
@@ -407,11 +408,25 @@ bcos::bytes encodeReceiptForRoot(const bcos::protocol::TransactionReceipt& r, ui
     if (txType == static_cast<uint8_t>(kDepositTxType))
     {
         const auto& meta = r.opStackMeta();
-        if (!meta || !meta->deposit_nonce || !meta->deposit_receipt_version)
+        // op-geth Receipts.EncodeIndex at the pin gates the leaf shape on the VERSION
+        // word: Canyon+ (version present) -> rlp([status, cum, bloom, logs, nonce,
+        // version]); Regolith (version absent) -> rlp([status, cum, bloom, logs]) —
+        // the pre-Canyon receipt hash inadvertently omitted the deposit nonce too
+        // (receipt.go depositReceiptRLP rlp:"optional" comments), so the meta's
+        // API-level deposit_nonce is NOT part of the consensus leaf pre-Canyon.
+        // runDeposit fills the version iff fork >= Canyon; meta presence and fork
+        // must agree in both directions or the leaf would silently change shape.
+        const bool wantsVersion = cfg.fork >= OpFork::Canyon;
+        if (!meta || meta->deposit_receipt_version.has_value() != wantsVersion)
             throw OpConsensusError(
-                "op block: deposit receipt missing deposit nonce/receipt version");
-        bcos::codec::rlp::encode(payload, *meta->deposit_nonce);
-        bcos::codec::rlp::encode(payload, *meta->deposit_receipt_version);
+                "op block: deposit receipt nonce/version missing or fork-inconsistent");
+        if (wantsVersion)
+        {
+            if (!meta->deposit_nonce)
+                throw OpConsensusError("op block: deposit receipt missing deposit nonce");
+            bcos::codec::rlp::encode(payload, *meta->deposit_nonce);
+            bcos::codec::rlp::encode(payload, *meta->deposit_receipt_version);
+        }
     }
 
     bcos::bytes out;
@@ -444,7 +459,7 @@ OpBlockSeal sealOpBlock(const OpBlockResult& result, const OpForkConfig& cfg,
     {
         bcos::bytes key;
         bcos::codec::rlp::encode(key, static_cast<uint64_t>(i));
-        auto leaf = encodeReceiptForRoot(*result.receipts[i], result.txTypes[i]);
+        auto leaf = encodeReceiptForRoot(*result.receipts[i], result.txTypes[i], cfg);
         receiptsEntries.emplace_back(std::move(key), std::move(leaf));
     }
     auto receiptsResult = bcos::ledger::mpt::computeTrieRootVarKey(receiptsEntries);
@@ -465,13 +480,15 @@ OpBlockSeal sealOpBlock(const OpBlockResult& result, const OpForkConfig& cfg,
     }
 
     // Isthmus+: withdrawalsRoot = MessagePasser storage root, requestsHash = sha256("").
-    // Pre-Isthmus: withdrawals list is always empty → empty-trie root; no requests field.
+    // Canyon..Holocene: withdrawals list is always empty → empty-trie root (EIP-4895).
+    // Regolith (London): EIP-4895 is not active — the header carries NO withdrawalsRoot,
+    // so the seal keeps the zero hash (= field absent; the replay gates on it).
     if (cfg.fork >= OpFork::Isthmus)
     {
         seal.withdrawalsRoot = opStorageRoot(messagePasserStorage);
         seal.requestsHash = OP_EMPTY_REQUESTS_HASH;
     }
-    else
+    else if (cfg.fork >= OpFork::Canyon)
     {
         auto const emptyRoot = bcos::ledger::mpt::emptyRootHash();
         std::memcpy(

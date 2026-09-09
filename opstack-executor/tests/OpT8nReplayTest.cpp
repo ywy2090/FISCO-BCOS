@@ -544,13 +544,17 @@ struct BlockContext
 
 bool loadBlockContext(const std::string& id, const JsonValue& blk, BlockContext& out)
 {
-    // _info.hardfork must be exactly ecotone|fjord|granite|holocene|isthmus|jovian,
-    // anything else = FAILURE. No default fork (the default-Isthmus precedent is a
-    // known hole, not ported). isJovian drives the blobGasUsed header gate and the
-    // _op_da_footprint expectation — ecotone/fjord/granite/holocene are all false,
-    // matching isthmus semantics (has_da_footprint true only on Jovian).
+    // _info.hardfork must be exactly regolith|canyon|ecotone|fjord|granite|holocene|
+    // isthmus|jovian, anything else = FAILURE. No default fork (the default-Isthmus
+    // precedent is a known hole, not ported). isJovian drives the blobGasUsed header
+    // gate and the _op_da_footprint expectation — ecotone/fjord/granite/holocene are
+    // all false, matching isthmus semantics (has_da_footprint true only on Jovian).
     const auto hardfork = jAt(jAt(blk, "_info"), "hardfork").asString();
-    if (hardfork == "isthmus")
+    if (hardfork == "regolith")
+        out.cfg = &regolithConfig();
+    else if (hardfork == "canyon")
+        out.cfg = &canyonConfig();
+    else if (hardfork == "isthmus")
         out.cfg = &isthmusConfig();
     else if (hardfork == "jovian")
     {
@@ -568,7 +572,7 @@ bool loadBlockContext(const std::string& id, const JsonValue& blk, BlockContext&
     else
     {
         BOOST_ERROR(id << ": _info.hardfork must be exactly "
-                          "ecotone|fjord|granite|holocene|isthmus|jovian, got '"
+                          "regolith|canyon|ecotone|fjord|granite|holocene|isthmus|jovian, got '"
                        << hardfork << "' (no default fork)");
         return false;
     }
@@ -985,8 +989,16 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
         }
         ctx.checkField("logsBloom", wantBloom, hexBytes(evmc::bytes_view(seal.logsBloom)));
     }
-    ctx.checkField("withdrawalsRoot", hexHash(test::from_json<hash256>(jAt(h, "withdrawalsRoot"))),
-        hexHash(seal.withdrawalsRoot));
+    // withdrawalsRoot is a header field from Shanghai (EIP-4895) on: Canyon..Holocene
+    // carry the empty-trie root, Isthmus+ the MessagePasser storage root. Regolith
+    // (London) headers carry NO withdrawalsRoot — the vector omits the key and the
+    // FISCO seal must keep the zero hash (field absent), not the empty-trie root.
+    if (h.isMember("withdrawalsRoot"))
+        ctx.checkField("withdrawalsRoot",
+            hexHash(test::from_json<hash256>(jAt(h, "withdrawalsRoot"))),
+            hexHash(seal.withdrawalsRoot));
+    else
+        ctx.checkField("withdrawalsRoot", hexHash(hash256{}), hexHash(seal.withdrawalsRoot));
     // ── header.stateRoot (single leg: execution+engine vs op-geth consensus root) ─
     // Timing: the seal-stage ts is already the full post-finalize world state (same
     // anchor as the messagePasserStorage snapshot); later postState comparisons only
@@ -1003,11 +1015,13 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
             std::optional{hexHash(test::from_json<hash256>(jAt(h, "requestsHash")))} :
             std::nullopt,
         seal.requestsHash.has_value() ? std::optional{hexHash(*seal.requestsHash)} : std::nullopt);
-    // blobGasUsed: all six forks emit it in vectors (op-geth headers really carry 0x0,
-    // a 4844 leftover field from Ecotone+). Jovian -> value compare ("0x0" is an
-    // in-place zero, e.g. jovian_first_block); the other five forks assert the C++
-    // side is absent (seal.blobGasUsed semantics = Jovian DA-footprint header field;
-    // pre-Isthmus has no such reuse bit, and the vector's 0x0 is informational only).
+    // blobGasUsed: Ecotone+ vectors always emit it (op-geth headers carry 0x0 for
+    // blob-less blocks); Regolith/Canyon (London/Shanghai) headers predate 4844 and
+    // the vectors omit the key — both sides must be absent. Jovian -> value compare
+    // ("0x0" is an in-place zero, e.g. jovian_first_block); the other Ecotone+ forks
+    // assert the C++ side is absent (seal.blobGasUsed semantics = Jovian
+    // DA-footprint header field; pre-Isthmus has no such reuse bit).
+    if (bc.cfg->fork >= OpFork::Ecotone)
     {
         const auto wantBlobGas =
             parseU256(jAt(h, "blobGasUsed"));  // required (always emitted on Ecotone+)
@@ -1017,6 +1031,11 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
             ctx.checkOptional("blobGasUsed", std::optional{hexU256(wantBlobGas)}, gotBlobGas);
         else
             ctx.checkOptional("blobGasUsed", std::nullopt, gotBlobGas);
+    }
+    else
+    {
+        BOOST_REQUIRE(!h.isMember("blobGasUsed"));  // generator omits it pre-Cancun
+        ctx.checkOptional("blobGasUsed", std::nullopt, std::nullopt);
     }
 
     // ── receipts ────────────────────────────────────────────────────────────
@@ -1041,7 +1060,8 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
         const auto& meta = receipt->opStackMeta();
         std::optional<std::string> gotDepNonce, gotDepVersion, gotL1Fee, gotOperatorFee,
             gotDaFootprint, gotL1GasPrice, gotL1BlobBaseFee, gotL1GasUsed, gotL1BaseFeeScalar,
-            gotL1BlobBaseFeeScalar, gotOpFeeScalar, gotOpFeeConstant, gotDaFootprintGasScalar;
+            gotL1BlobBaseFeeScalar, gotL1FeeScalar, gotOpFeeScalar, gotOpFeeConstant,
+            gotDaFootprintGasScalar;
         if (isDeposit)
         {
             if (meta && meta->deposit_nonce.has_value())
@@ -1084,6 +1104,11 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
                 gotL1BaseFeeScalar = hexU64(*meta->l1_base_fee_scalar);
             if (meta && meta->l1_blob_base_fee_scalar.has_value())
                 gotL1BlobBaseFeeScalar = hexU64(*meta->l1_blob_base_fee_scalar);
+            // Bedrock-era only (pre-Ecotone): FISCO stores the RAW slot-6 scalar;
+            // the vector pins op-geth's receipt FeeScalar = scalar/1e6 (big.Float,
+            // exact for every corpus scalar). Compare on the scaled value.
+            if (meta && meta->l1_fee_scalar.has_value())
+                gotL1FeeScalar = hexU256Bcos(*meta->l1_fee_scalar / bcos::u256{1'000'000});
             if (meta && meta->operator_fee_scalar.has_value())
                 gotOpFeeScalar = hexU64(*meta->operator_fee_scalar);
             if (meta && meta->operator_fee_constant.has_value())
@@ -1131,6 +1156,7 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
             p + "._op_l1_base_fee_scalar", optWant("_op_l1_base_fee_scalar"), gotL1BaseFeeScalar);
         ctx.checkOptional(p + "._op_l1_blob_base_fee_scalar",
             optWant("_op_l1_blob_base_fee_scalar"), gotL1BlobBaseFeeScalar);
+        ctx.checkOptional(p + "._op_l1_fee_scalar", optWant("_op_l1_fee_scalar"), gotL1FeeScalar);
         ctx.checkOptional(
             p + "._op_operator_fee_scalar", optWant("_op_operator_fee_scalar"), gotOpFeeScalar);
         ctx.checkOptional(p + "._op_operator_fee_constant", optWant("_op_operator_fee_constant"),

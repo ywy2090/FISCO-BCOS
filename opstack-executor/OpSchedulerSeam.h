@@ -44,10 +44,14 @@ namespace detail
         return bcos::engine::OpForkId::Jovian;
     case bcos::evm::opstack::OpFork::Karst:
         return bcos::engine::OpForkId::Karst;
+    case bcos::evm::opstack::OpFork::Regolith:
+    case bcos::evm::opstack::OpFork::Canyon:
     case bcos::evm::opstack::OpFork::Ecotone:
     case bcos::evm::opstack::OpFork::Fjord:
     case bcos::evm::opstack::OpFork::Granite:
     case bcos::evm::opstack::OpFork::Holocene:
+        // pre-Isthmus forks have no engine payload-version identity (A5/S3: the
+        // engine gate rejects pre-Isthmus payloads)
         return std::nullopt;
     }
 }
