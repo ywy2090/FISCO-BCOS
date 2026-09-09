@@ -55,16 +55,16 @@ struct PrecompileOverrides;
 
 struct OpForkConfig
 {
-    OpFork fork;
-    evmc_revision rev;
-    const PrecompileOverrides* precompiles;
-    bool disable_prague_requests;
-    bool has_operator_fee;
-    bool has_jovian_operator_formula;
-    bool has_da_footprint;
+    OpFork fork{};
+    evmc_revision rev{};
+    const PrecompileOverrides* precompiles{};
+    bool disable_prague_requests{};
+    bool has_operator_fee{};
+    bool has_jovian_operator_formula{};
+    bool has_da_footprint{};
     // When true, runDeposit passes enforce_max_tx_gas=false (EIP-7825 deposit exemption).
-    bool deposit_exempt_from_max_tx_gas = false;
-    bool has_ecotone_l1_formula;  // true -> Ecotone calldataGas L1; false -> Fjord+ FastLZ
+    bool deposit_exempt_from_max_tx_gas{};
+    bool has_ecotone_l1_formula{};  // true -> Ecotone calldataGas L1; false -> Fjord+ FastLZ
 };
 
 const OpForkConfig& ecotoneConfig() noexcept;
