@@ -40,8 +40,13 @@ OpFeeParams loadOpFeeParams(const evmone::state::StateView& view) noexcept
         k.bytes[31] = s;
         return k;
     };
-    return unpackOpFeeParams(view.get_storage(OP_L1_BLOCK, slot(1)),
+    // Bedrock slots 5/6 are whole-slot words; a missing slot reads as a zero word via
+    // StateView, matching op-geth GetState semantics (design §2.8).
+    OpFeeParams p = unpackOpFeeParams(view.get_storage(OP_L1_BLOCK, slot(1)),
         view.get_storage(OP_L1_BLOCK, slot(3)), view.get_storage(OP_L1_BLOCK, slot(7)),
         view.get_storage(OP_L1_BLOCK, slot(8)));
+    p.overhead = intx::be::load<intx::uint256>(view.get_storage(OP_L1_BLOCK, slot(5)));
+    p.bedrock_scalar = intx::be::load<intx::uint256>(view.get_storage(OP_L1_BLOCK, slot(6)));
+    return p;
 }
 }  // namespace bcos::evm::opstack

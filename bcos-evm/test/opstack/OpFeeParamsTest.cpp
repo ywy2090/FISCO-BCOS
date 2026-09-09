@@ -109,4 +109,48 @@ BOOST_AUTO_TEST_CASE(UnpacksDaFootprintGasScalarFromSlot8)
     BOOST_CHECK_EQUAL(p.operator_fee_constant, 13u);
 }
 
+BOOST_AUTO_TEST_CASE(LoadReadsBedrockOverheadAndScalarSlots)
+{
+    using namespace evmone;
+    test::TestState ts;
+    auto key = [](uint8_t s) {
+        evmc::bytes32 k{};
+        k.bytes[31] = s;
+        return k;
+    };
+    ts[OP_L1_BLOCK].storage[key(5)] = fullWord(2100);
+    ts[OP_L1_BLOCK].storage[key(6)] = fullWord(1'000'000);
+
+    const auto fee = loadOpFeeParams(ts);
+    BOOST_CHECK_EQUAL(fee.overhead, intx::uint256{2100});
+    BOOST_CHECK_EQUAL(fee.bedrock_scalar, intx::uint256{1'000'000});
+}
+
+BOOST_AUTO_TEST_CASE(MissingSlotsStayZero)
+{
+    using namespace evmone;
+    test::TestState ts;
+    const auto fee = loadOpFeeParams(ts);
+    BOOST_CHECK_EQUAL(fee.overhead, intx::uint256{0});
+    BOOST_CHECK_EQUAL(fee.bedrock_scalar, intx::uint256{0});
+    BOOST_CHECK_EQUAL(fee.l1_base_fee, intx::uint256{0});
+}
+
+BOOST_AUTO_TEST_CASE(EcotoneL1SlotsLiveDetectsPackedScalars)
+{
+    using namespace evmone;
+    test::TestState ts;
+    BOOST_CHECK(!ecotoneL1SlotsLive(loadOpFeeParams(ts)));
+    // slot3 bytes[16:24) and slot7 any non-zero => live
+    evmc::bytes32 slot3{};
+    slot3.bytes[19] = 1;  // base_fee_scalar LSB
+    auto key = [](uint8_t s) {
+        evmc::bytes32 k{};
+        k.bytes[31] = s;
+        return k;
+    };
+    ts[OP_L1_BLOCK].storage[key(3)] = slot3;
+    BOOST_CHECK(ecotoneL1SlotsLive(loadOpFeeParams(ts)));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
