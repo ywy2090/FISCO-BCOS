@@ -129,9 +129,16 @@ struct StubMemPool
     }
 };
 
-/// First executeBlock fails with a structured culprit; later calls succeed so the
-/// build retry loop can finish. Used to drive BH (capacity, no evict) and BC (evict).
-struct RecordingScheduler : bcos::scheduler::SchedulerInterface
+/// TEST DOUBLE — NOT the real import/commitment path. executeBlock/importExecute return
+/// a header with FABRICATED roots (stateRoot/receiptsRoot zero, txsRoot from a knob), so
+/// the engine's commitment gate is only exercised against invented values. First
+/// executeBlock fails with a structured culprit; later calls succeed so the build retry
+/// loop can finish (BH capacity / BC evict). Any test that needs the real import path
+/// (execution on the parent plane, the commitment gate, BLOCKHASH seeds) must use the
+/// real OpScheduler instead — see OpEngineImportFcuTest (real delegate) and
+/// OpNewPayloadRpcE2eTest (real delegate, end to end). Do not cite a suite built on
+/// this stub as import-path coverage.
+struct FabricatedRootsStub : bcos::scheduler::SchedulerInterface
 {
     bcos::h256 culprit;
     bool rejectAsCapacity = false;
@@ -186,9 +193,10 @@ struct RecordingScheduler : bcos::scheduler::SchedulerInterface
         }
         callback(nullptr, nullptr);
     }
-    /// S5 import arm: same stub semantics as executeBlock (the engine's commitment
-    /// gate — withdrawalsRoot / stateRoot / receiptsRoot compare — runs on whatever
-    /// header this returns). No commit happens on the import path by design.
+    /// S5 import arm: FABRICATED header (no execution happens here — see the struct's
+    /// doc). The engine's commitment gate runs on whatever this returns, which is why
+    /// this stub is NOT import-path coverage. No commit happens on the import path by
+    /// design.
     void importExecute(bcos::protocol::Block::Ptr,
         std::vector<bcos::protocol::BlockHeader::Ptr> const&,
         std::shared_ptr<void> const& parentFlat,
@@ -238,7 +246,7 @@ struct RecordingScheduler : bcos::scheduler::SchedulerInterface
 /// rejects it as a non-capacity nonce-gap (the R3-F1 production shape).
 /// `culprit`/`successor` are pool hashes (OpCulpritTxHash). `*EnvHash` are
 /// keccak(reassembled envelope), matching buildOpBlock's transactionHash.
-struct NonceChainScheduler : RecordingScheduler
+struct NonceChainScheduler : FabricatedRootsStub
 {
     bcos::h256 successor;
     bcos::h256 culpritEnvHash;
@@ -728,7 +736,7 @@ inline bcos::engine::PayloadID buildPayloadAt(
 
 struct KarstProfilePair
 {
-    std::shared_ptr<RecordingScheduler> delegate{std::make_shared<RecordingScheduler>()};
+    std::shared_ptr<FabricatedRootsStub> delegate{std::make_shared<FabricatedRootsStub>()};
     OpServicePair pair;
 
     KarstProfilePair() : pair(false, delegate, nullptr, makeKarstProfileSchedule())

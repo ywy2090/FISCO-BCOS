@@ -28,6 +28,10 @@
 //   - Shared FCU ordering exceptions vs EngineServiceImpl (safe/finalized)
 //   - EngineTracker exclusive/shared publish concurrency (op_fast_path)
 //   - op-geth golden rebuild pin (vendored corpus)
+// NOT import-path coverage: the delegate used here is FabricatedRootsStub, which
+// returns invented header roots. Real import/SetCanonical/commitment-gate behaviour is
+// pinned by OpEngineImportFcuTest (real OpScheduler delegate) and OpNewPayloadRpcE2eTest
+// (real delegate, end to end) — do not cite this suite for it (review F9).
 
 #include "support/GoldenSample.h"
 #include "support/OpEngineKarstTestHarness.h"
@@ -329,6 +333,39 @@ BOOST_AUTO_TEST_CASE(op_fcu_rejects_non_canonical_safe)
         });
 }
 
+// N6 regression: a ledger-canonical head above the tip pointer is unreachable in
+// production (commitBlock and canonicalize write NUMBER_2_HASH and SYS_CURRENT_STATE in
+// the same batch), and the design §4.2 atomicity rule forbids advancing the tip before
+// the safe/finalized validation succeeds. This seeds the impossible shape directly: the
+// rejected FCU must not leave SYS_CURRENT_STATE advanced to the un-validated head.
+BOOST_AUTO_TEST_CASE(op_fcu_rejected_does_not_advance_tip_pointer)
+{
+    OpServicePair pair;
+    bcos::engine::ForkchoiceState forkchoice{
+        bcos::h256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+        bcos::h256("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+        bcos::h256("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")};
+    auto const canonicalSafe =
+        bcos::h256("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
+    registerVerifiedBlock(pair.storage, forkchoice.headBlockHash, 10);
+    registerVerifiedBlock(pair.storage, canonicalSafe, 8);
+    registerHashToNumberOnly(pair.storage, forkchoice.safeBlockHash, 8);
+    registerVerifiedBlock(pair.storage, forkchoice.finalizedBlockHash, 7);
+    registerCurrentBlockNumber(pair.storage, 0);
+
+    BOOST_CHECK_EXCEPTION(
+        bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, nullptr, 3)),
+        bcos::engine::InvalidForkchoiceState, [&](bcos::engine::InvalidForkchoiceState const& e) {
+            auto const* comment = boost::get_error_info<bcos::errinfo_comment>(e);
+            return comment != nullptr && *comment == "Forkchoice safe block not in canonical chain";
+        });
+
+    auto view = pair.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        0);
+}
+
 BOOST_AUTO_TEST_CASE(op_fcu_rejects_empty_txs_when_synthesis_disabled)
 {
     // op_engine_rpc / op-geth: do not invent an L1-attributes deposit.
@@ -424,7 +461,7 @@ BOOST_AUTO_TEST_CASE(op_fcu_missing_parent_header_is_invalid)
 
 static void driveBuildWithCulprit(bool capacityReject)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->rejectAsCapacity = capacityReject;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/true, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -539,7 +576,7 @@ BOOST_AUTO_TEST_CASE(op_da_skip_drops_higher_nonce_regardless_of_seal_order)
     // The caps count ESTIMATED DA bytes (Fjord FastLZ estimate), not raw envelope
     // length, so the filler is incompressible (keeps n's estimate above n+1's) and
     // the cap is derived from the estimates themselves.
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     auto daCaps = std::make_shared<bcos::engine::DACaps>();
     bcos::crypto::Secp256k1Crypto secp;
@@ -628,7 +665,7 @@ BOOST_AUTO_TEST_CASE(op_fcu_unknown_nonzero_safe_is_invalid_forkchoice)
 BOOST_AUTO_TEST_CASE(op_fcu_undecodable_envelope_is_invalid_not_internal_error)
 {
     // AM — FCU build must answer INVALID, not throw OpExecutionInternalError (-32603).
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -654,7 +691,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_undecodable_envelope_is_short_invalid)
 {
     // Finding CG — newPayload must return the same stable phrase as FCU, without
     // appending boost::diagnostic_information to validationError.
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -694,7 +731,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_undecodable_envelope_is_short_invalid)
 BOOST_AUTO_TEST_CASE(op_fcu_getpayload_newpayload_roundtrip)
 {
     // AR — service-level FCU → getPayload → newPayload with a real delegate.
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -736,7 +773,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_failure_keeps_last_executed_header)
     // A duplicate newPayload arriving while another one is mid-flight used to clear a
     // header the concurrent success had just published; with assign-only-on-success
     // the previous payload's header survives any failed run.
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -791,7 +828,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_failure_keeps_last_executed_header)
 /// field set must survive the wire round trip and the parsed request must execute.
 BOOST_AUTO_TEST_CASE(op_newpayload_wire_roundtrip_survives_engine_helper_v4)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -837,7 +874,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_wire_roundtrip_survives_engine_helper_v4)
 /// committed payload's artifacts stay servable.
 BOOST_AUTO_TEST_CASE(op_newpayload_honest_retry_does_not_recommit)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -879,7 +916,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_honest_retry_does_not_recommit)
 /// the retained artifacts survive, and the retry re-attempts the commit and completes it.
 BOOST_AUTO_TEST_CASE(op_newpayload_retry_after_failed_commit_recommits)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     delegate->failCommit = true;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
@@ -928,7 +965,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_retry_after_failed_commit_recommits)
 /// pin both routes so a future change to either side cannot silently flip them.
 BOOST_AUTO_TEST_CASE(op_commit_error_routing_unknown_error_is_never_invalid)
 {
-    auto makeRequest = [](OpServicePair& pair, RecordingScheduler& delegate) {
+    auto makeRequest = [](OpServicePair& pair, FabricatedRootsStub& delegate) {
         auto decoded = makeDecodableWeb3Tx(1);
         auto attrs = makeOpPayloadAttributes();
         attrs.minBaseFee = std::nullopt;
@@ -953,7 +990,7 @@ BOOST_AUTO_TEST_CASE(op_commit_error_routing_unknown_error_is_never_invalid)
 
     // Dropped-pending shape: UnknownError → internal error (-32603), never INVALID.
     {
-        auto delegate = std::make_shared<RecordingScheduler>();
+        auto delegate = std::make_shared<FabricatedRootsStub>();
         delegate->failFirst = false;
         delegate->failCommit = true;
         delegate->commitErrorCode = static_cast<int>(bcos::scheduler::SchedulerError::UnknownError);
@@ -966,7 +1003,7 @@ BOOST_AUTO_TEST_CASE(op_commit_error_routing_unknown_error_is_never_invalid)
 
     // The one code that may answer INVALID: OpConsensusRejected → Invalid status.
     {
-        auto delegate = std::make_shared<RecordingScheduler>();
+        auto delegate = std::make_shared<FabricatedRootsStub>();
         delegate->failFirst = false;
         delegate->failCommit = true;
         delegate->commitErrorCode =
@@ -985,7 +1022,7 @@ BOOST_AUTO_TEST_CASE(op_commit_error_routing_unknown_error_is_never_invalid)
 /// never a silently-ignored proceed.
 BOOST_AUTO_TEST_CASE(op_reset_failure_is_internal_error)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     delegate->failReset = true;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
@@ -1006,7 +1043,7 @@ BOOST_AUTO_TEST_CASE(op_reset_failure_is_internal_error)
 
 BOOST_AUTO_TEST_CASE(op_getpayload_v4_v5_serve_the_built_payload)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -1039,7 +1076,7 @@ BOOST_AUTO_TEST_CASE(op_getpayload_v4_v5_serve_the_built_payload)
 /// not two divergent sources.
 BOOST_AUTO_TEST_CASE(op_fcu_v4_is_outside_the_advertised_window)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
     delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
@@ -1152,7 +1189,7 @@ BOOST_AUTO_TEST_CASE(op_newpayload_occupied_nontip_height_is_syncing)
 BOOST_AUTO_TEST_CASE(op_fcu_getpayload_newpayload_roundtrip_messagepasser_root)
 {
     // FCU stamps the executed MessagePasser storage root; newPayload must accept it.
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     delegate->executedWithdrawalsRoot = bcos::h256(1);
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
@@ -1194,7 +1231,7 @@ BOOST_AUTO_TEST_CASE(op_fcu_getpayload_newpayload_roundtrip_messagepasser_root)
 BOOST_AUTO_TEST_CASE(op_newpayload_rejects_executed_withdrawals_root_mismatch)
 {
     // Announced empty root hashes; execute returns a different MessagePasser root.
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     delegate->executedWithdrawalsRoot = bcos::h256(42);
     OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);

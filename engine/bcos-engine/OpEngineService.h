@@ -357,12 +357,18 @@ private:
     std::shared_ptr<DACaps> m_daCaps;
     bool m_allowSynthesizedL1Attributes;
     /// S5/S6 imported-tree lock (design §4.2): guards the ImportedStore decision
-    /// sequence (occupancy check -> put) and the whole canonicalizeImportedHead
-    /// body — NOT the importExecute execution (SchedulerSerialImpl may use the
-    /// IOServicePool; no POSIX mutex may be held across its threads). task::Task is
-    /// driven inline by task::syncWait on the calling thread, so holding this mutex
-    /// across the storage co_awaits inside these sections is deadlock-free.
+    /// sequence (occupancy check -> put) and the canonicalize gate — NOT the
+    /// importExecute execution and NOT any storage co_await. A POSIX mutex must never
+    /// be held across a suspension point: task::syncWait can complete the coroutine on
+    /// another thread (libtask/bcos-task/Wait.h), so the unlock would cross threads;
+    /// canonicalizeImportedHead takes this lock only for its sync entry and exit
+    /// sections, and m_canonicalizeInFlight (guarded by it) carries the exclusion
+    /// across the awaited body.
     mutable std::mutex m_importedTreeMutex;
+    /// True while canonicalizeImportedHead is between its entry and exit critical
+    /// sections. Guarded by m_importedTreeMutex. A concurrent newPayload that observes
+    /// it fails closed with SYNCING rather than interleaving with the batch.
+    bool m_canonicalizeInFlight = false;
     /// Guards m_lastExecutedHeader: newPayload requests can run concurrently on RPC
     /// threads (no serial executor), so the shared_ptr write/read must be synchronized.
     ///

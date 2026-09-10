@@ -234,6 +234,13 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
     // "SetCanonical 先于 safe/finalized 检查") — the head is imported, so it cannot
     // already be the canonical hash of its height (import never writes canonical keys).
     bcos::protocol::BlockNumber canonicalTipNumber = -1;
+    // N6: a ledger-canonical head above the tip pointer means the pointer lags the
+    // already-written canonical rows (commitBlock/canonicalizeImportedHead write
+    // SYS_NUMBER_2_HASH and SYS_CURRENT_STATE in one batch, so this is the partial
+    // persist / recovery shape). The head's rows exist — only the pointer move is
+    // missing. Record it here, but DO NOT write yet: a later safe/finalized rejection
+    // must not leave the pointer advanced (design §4.2 失败则全部回到调用前).
+    std::optional<bcos::protocol::BlockNumber> ledgerTipAdvance;
     if (headIsImported)
     {
         co_await canonicalizeImportedHead(forkchoiceState.headBlockHash);
@@ -253,33 +260,14 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
     {
         canonicalTipNumber =
             co_await bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage);
-        // SetCanonical for a LEDGER-canonical head above the tip pointer (skipped
-        // middle heights are already canonical rows): advance SYS_CURRENT_STATE —
-        // a stale tip pointer under a canonical head means SetCanonical's
-        // number-move has not happened yet (design §4.2: 沿新链写满).
         auto canonicalHeadHashEarly =
             co_await bcos::ledger::getBlockHash(view, *headBlockNumber, bcos::ledger::fromStorage);
         if (canonicalHeadHashEarly.has_value() &&
             *canonicalHeadHashEarly == forkchoiceState.headBlockHash &&
             *headBlockNumber > canonicalTipNumber)
         {
-            // Write the row straight into the backend. NOT mergeView/mergeBackStorage:
-            // those merge the OLDEST queued layer whenever the pending deque is
-            // non-empty (MultiLayerStorage.h's FIFO warning), which would commit
-            // another block's in-flight layer from inside an FCU.
-            auto row = std::make_shared<typename GlobalStateStorageType::MutableStorage>();
-            bcos::storage::Entry numberEntry;
-            numberEntry.set(std::to_string(*headBlockNumber));
-            co_await storage2::writeOne(*row,
-                executor_v1::StateKey{
-                    bcos::ledger::SYS_CURRENT_STATE, bcos::ledger::SYS_KEY_CURRENT_NUMBER},
-                std::move(numberEntry));
-            co_await m_globalStateStorage.mergeToBackends(*row);
             canonicalTipNumber = *headBlockNumber;
-            if (m_delegate)
-            {
-                m_delegate->canonicalizedTo(*headBlockNumber);
-            }
+            ledgerTipAdvance = *headBlockNumber;
         }
     }
     // All-zero safe/finalized hashes are the Engine-API "not set" value: skip number
@@ -350,6 +338,28 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
                 PayloadValidationStatus::Valid, forkchoiceState.headBlockHash, std::nullopt),
             .payloadId = std::nullopt,
         };
+    }
+
+    if (ledgerTipAdvance.has_value())
+    {
+        // N6: commit the deferred pointer move only now that the head is confirmed
+        // canonical, the safe/finalized fields passed, and the tracker accepted the FCU.
+        // The head's canonical rows already exist (the detection premise); only the tip
+        // pointer lagged. NOT mergeView/mergeBackStorage: those merge the OLDEST queued
+        // layer whenever the pending deque is non-empty (MultiLayerStorage.h's FIFO
+        // warning), which would commit another block's in-flight layer from inside an FCU.
+        auto row = std::make_shared<typename GlobalStateStorageType::MutableStorage>();
+        bcos::storage::Entry numberEntry;
+        numberEntry.set(std::to_string(*ledgerTipAdvance));
+        co_await storage2::writeOne(*row,
+            executor_v1::StateKey{
+                bcos::ledger::SYS_CURRENT_STATE, bcos::ledger::SYS_KEY_CURRENT_NUMBER},
+            std::move(numberEntry));
+        co_await m_globalStateStorage.mergeToBackends(*row);
+        if (m_delegate)
+        {
+            m_delegate->canonicalizedTo(*ledgerTipAdvance);
+        }
     }
 
     ForkchoiceUpdatedResult result{
@@ -1195,6 +1205,13 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::runOpNewPay
     }
     {
         std::lock_guard treeLock(m_importedTreeMutex);
+        if (m_canonicalizeInFlight)
+        {
+            // A canonicalize batch is mid-flight (it does not hold the POSIX lock
+            // across its awaits, review F5): the tree is not interruptible, so fail
+            // closed exactly like a competing import. CL retries.
+            co_return makeStatus(PayloadValidationStatus::Syncing, std::nullopt, std::nullopt);
+        }
         if (m_importedStore.occupantAt(payload.blockNumber) != observedOccupant)
         {
             // Another thread imported at this height while we were reading the ledger;
@@ -1285,61 +1302,29 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicaliz
 {
     namespace detail = bcos::evm::engine::detail;
     using MutableStorageT = typename GlobalStateStorageType::MutableStorage;
-    // Design §4.2 engine lock over the whole switch/forward canonicalize. The body
-    // awaits storage merges, and a guard spanning an await is only sound while the
-    // task stays on this thread; this follows the file's established shape (see
-    // OpScheduler's execute/commit guards, which document the same premise) and fails
-    // CLOSED when the lock is busy rather than queueing behind it.
-    std::unique_lock treeLock(m_importedTreeMutex, std::try_to_lock);
-    if (!treeLock.owns_lock())
+    // Design §4.2 engine exclusion over canonicalize. A POSIX mutex must not span the
+    // awaited storage body — task::syncWait can resume the coroutine on another thread
+    // (libtask/bcos-task/Wait.h) and the unlock would cross threads. The lock therefore
+    // covers only this sync entry section and the sync exit section at the end;
+    // m_canonicalizeInFlight, guarded by the same lock, is what excludes a concurrent
+    // import/canonicalize across the awaits. Fails CLOSED when a batch is already in
+    // flight rather than queueing behind it.
     {
-        BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                  "canonicalize: another import/canonicalize is in flight"});
-    }
-
-    // Collect the chain head → ... → child-of-canonical (store walk); the parent is
-    // canonical when HASH_2_NUMBER resolves it (import never writes that key).
-    std::vector<ImportedBlock> chain;  // genesis-side first after the reverse below
-    {
-        auto view = m_globalStateStorage.fork();
-        auto cursor = m_importedStore.get(headHash);
-        if (!cursor.has_value())
+        std::lock_guard gate(m_importedTreeMutex);
+        if (m_canonicalizeInFlight)
         {
             BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                      "canonicalize: head is not in the ImportedStore"});
+                                      "canonicalize: another import/canonicalize is in flight"});
         }
-        while (true)
-        {
-            chain.push_back(*cursor);
-            auto const parentNumber = co_await bcos::ledger::getBlockNumber(
-                view, cursor->parent, bcos::ledger::fromStorage);
-            if (parentNumber.has_value())
-            {
-                break;
-            }
-            auto parent = m_importedStore.get(cursor->parent);
-            if (!parent.has_value())
-            {
-                // A switch/reorg SetCanonical (head not a linear extension of the
-                // canonical tip) needs the §4.4.5 replay — not the forward merge.
-                BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                          "canonicalize: imported chain does not root in the "
-                                          "canonical chain (switch case is Task 7)"});
-            }
-            cursor = parent;
-        }
+        m_canonicalizeInFlight = true;
     }
-    std::reverse(chain.begin(), chain.end());
-
-    auto viewForTip = m_globalStateStorage.forkCommitted();
-    auto const currentTip =
-        co_await bcos::ledger::getCurrentBlockNumber(viewForTip, bcos::ledger::fromStorage);
 
     // Undo journal (review F3): the batch mutates the backend incrementally (per-block
     // merge or whole-plane replacement). Record every key's prior value before touching
     // it, so ANY failure — a null delta mid-chain, a merge error, or the state-root
     // post-condition — restores the backend to its pre-call rows instead of leaving a
-    // half-written plane. Not a general journal: scoped to this call.
+    // half-written plane. Not a general journal: scoped to this call. Declared before
+    // the try so the catch-time rollback can see it.
     std::vector<CanonicalizeUndoRow> undo;
     std::unordered_set<executor_v1::StateKey> undoSeen;
     auto& backend = m_globalStateStorage.m_latestBackend;
@@ -1349,6 +1334,44 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicaliz
     std::exception_ptr canonicalizeFailure;
     try
     {
+        // Collect the chain head → ... → child-of-canonical (store walk); the parent is
+        // canonical when HASH_2_NUMBER resolves it (import never writes that key).
+        std::vector<ImportedBlock> chain;  // genesis-side first after the reverse below
+        {
+            auto view = m_globalStateStorage.fork();
+            auto cursor = m_importedStore.get(headHash);
+            if (!cursor.has_value())
+            {
+                BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                          "canonicalize: head is not in the ImportedStore"});
+            }
+            while (true)
+            {
+                chain.push_back(*cursor);
+                auto const parentNumber = co_await bcos::ledger::getBlockNumber(
+                    view, cursor->parent, bcos::ledger::fromStorage);
+                if (parentNumber.has_value())
+                {
+                    break;
+                }
+                auto parent = m_importedStore.get(cursor->parent);
+                if (!parent.has_value())
+                {
+                    // A switch/reorg SetCanonical (head not a linear extension of the
+                    // canonical tip) needs the §4.4.5 replay — not the forward merge.
+                    BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                              "canonicalize: imported chain does not root in the "
+                                              "canonical chain (switch case is Task 7)"});
+                }
+                cursor = parent;
+            }
+        }
+        std::reverse(chain.begin(), chain.end());
+
+        auto viewForTip = m_globalStateStorage.forkCommitted();
+        auto const currentTip =
+            co_await bcos::ledger::getCurrentBlockNumber(viewForTip, bcos::ledger::fromStorage);
+
         // SWITCH detection: the head's height is at/below the current canonical tip —
         // the canonical chain must be ROLLED BACK to the fork point before overlaying.
         // Restoring the head's materialized post-state flat wholesale (captured at
@@ -1671,13 +1694,31 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicaliz
     }
     if (canonicalizeFailure)
     {
-        co_await rollbackCanonicalize(backend, undo);
+        // Restore, then release the gate (a rollback failure must not mask the original
+        // fault nor leave the tree permanently uninterruptible).
+        try
+        {
+            co_await rollbackCanonicalize(backend, undo);
+        }
+        catch (...)
+        {}
+        {
+            std::lock_guard gate(m_importedTreeMutex);
+            m_canonicalizeInFlight = false;
+        }
         std::rethrow_exception(canonicalizeFailure);
     }
 
-    m_importedStore.adoptCanonicalHead(newHeadNumber, newHeadHash);
-    m_importedStore.pruneFlatsAbove(newHeadNumber);
-    pruneFlatsAtOrBelowFinalized();
+    {
+        // Sync exit section: no await may sit under the lock. adopt + prune are
+        // memory-only (ImportedStore's own mutex) and stay serialized with an import's
+        // put by the same gate.
+        std::lock_guard gate(m_importedTreeMutex);
+        m_importedStore.adoptCanonicalHead(newHeadNumber, newHeadHash);
+        m_importedStore.pruneFlatsAbove(newHeadNumber);
+        pruneFlatsAtOrBelowFinalized();
+        m_canonicalizeInFlight = false;
+    }
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>

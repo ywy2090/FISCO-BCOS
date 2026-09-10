@@ -69,7 +69,7 @@ void expectUnsupportedFork(
 /// at requireDelegate.
 struct HistoricalPair
 {
-    std::shared_ptr<RecordingScheduler> delegate{std::make_shared<RecordingScheduler>()};
+    std::shared_ptr<FabricatedRootsStub> delegate{std::make_shared<FabricatedRootsStub>()};
     OpServicePair pair;
 
     HistoricalPair() : pair(/*allowSynthesized=*/true, delegate, nullptr, historical())

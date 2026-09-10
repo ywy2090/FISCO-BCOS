@@ -116,7 +116,7 @@ static void seedKarstActivationHead(OpServicePair& pair)
 // must FCU-INVALID before execute. Never OpExecutionInternalError (-32603).
 BOOST_AUTO_TEST_CASE(ActivationFcuInvalidatesNonDepositAttrs)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(
         /*allowSynthesizedL1Attributes=*/true, delegate, nullptr, makeKarstProfileSchedule());
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(ActivationFcuInvalidatesNonDepositAttrs)
 // deposits-only attrs list (empty attrs → synthesized L1 deposit).
 BOOST_AUTO_TEST_CASE(ActivationFcuSkipsMempoolUserTxs)
 {
-    auto delegate = std::make_shared<RecordingScheduler>();
+    auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
     OpServicePair pair(
         /*allowSynthesizedL1Attributes=*/true, delegate, nullptr, makeKarstProfileSchedule());

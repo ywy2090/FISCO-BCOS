@@ -1201,11 +1201,11 @@ BOOST_AUTO_TEST_CASE(CoverageMatrixFromManifest)
 }
 
 // INT-F1 end to end: a Regolith-current schedule must BUILD (FCU V1 -> getPayload V2) and
-// IMPORT (newPayload V2) against the REAL OpScheduler delegate, not the RecordingScheduler
-// stub. The announced pre-Canyon header carries no withdrawalsRoot, no parentBeaconBlockRoot
-// and no blob fields — the RLP shape rebuildOpEthHeader emits for Regolith — so this reaches
-// the scheduler's non-lenient header decode on the build pass and the engine's
-// withdrawalsRoot projection on the import pass.
+// IMPORT (newPayload V2) against the REAL OpScheduler delegate, not the
+// FabricatedRootsStub stub. The announced pre-Canyon header carries no withdrawalsRoot,
+// no parentBeaconBlockRoot and no blob fields — the RLP shape rebuildOpEthHeader emits
+// for Regolith — so this reaches the scheduler's non-lenient header decode on the build
+// pass and the engine's withdrawalsRoot projection on the import pass.
 namespace
 {
 std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> regolithOnlySchedule()

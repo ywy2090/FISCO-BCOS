@@ -24,6 +24,7 @@
 
 #include <opstack-executor/OpDepositEncode.h>  // encodeDepositEnvelope
 #include <opstack-executor/OpScheduler.h>
+#include <opstack-executor/RecentBlockHashes.h>
 #include <support/SeedPreState.h>
 
 #include <bcos-framework/ledger/EVMAccount.h>
@@ -32,6 +33,8 @@
 #include <bcos-ledger/mpt/Constants.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <boost/test/unit_test.hpp>
+
+#include <chrono>
 
 using namespace bcos;
 using namespace bcos::engine;
@@ -249,6 +252,47 @@ inline std::shared_ptr<bcos::scheduler::SchedulerInterface> makeImportDelegate(
         std::move(schedule), blockFactory, storage, /*ledger=*/nullptr, ioServicePool);
 }
 
+/// Two latches let a test park canonicalizeImportedHead inside an awaited section, so
+/// a concurrent import can be attempted while canonicalize is in flight (review F5).
+struct BlockingGate
+{
+    std::latch entered{1};
+    std::latch release{1};
+};
+
+/// Real OpScheduler whose canonicalize post-condition blocks on @p gate — the parked
+/// await a POSIX lock must NOT be held across (review F5).
+struct BlockingVerifyScheduler : bcos::executor_v1::opstack::OpScheduler<MLS>
+{
+    using Base = bcos::executor_v1::opstack::OpScheduler<MLS>;
+    using Base::Base;
+    std::shared_ptr<BlockingGate> gate;
+
+    void verifyCanonicalStateRoot(const bcos::h256& expectedStateRoot) override
+    {
+        if (gate)
+        {
+            gate->entered.count_down();
+            gate->release.wait();
+        }
+        Base::verifyCanonicalStateRoot(expectedStateRoot);
+    }
+};
+
+inline std::shared_ptr<bcos::scheduler::SchedulerInterface> makeBlockingVerifyDelegate(
+    std::shared_ptr<BlockingGate> const& gate,
+    bcos::protocol::BlockFactory::Ptr const& blockFactory, MLS& storage,
+    bcos::IOServicePool::Ptr const& ioServicePool)
+{
+    auto scheduler = std::make_shared<BlockingVerifyScheduler>(makeImportReceiptFactory(),
+        makeCryptoSuite()->hashImpl(), /*chainId=*/8453,
+        std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+            bcos::evm::opstack::OpForkSchedule::legacy(false)),
+        blockFactory, storage, /*ledger=*/nullptr, ioServicePool);
+    scheduler->gate = gate;
+    return scheduler;
+}
+
 /// OpEngineService composed with a REAL OpScheduler delegate (imports execute for
 /// real); the FCU build path is not exercised by these cases (no attrs).
 struct ImportServiceFixture
@@ -296,6 +340,20 @@ struct ImportServiceFixture
       : delegate(makeImportDelegate(stripImportDeltaAt, blockFactory, storage, ioServicePool)),
         service(memPool, storage, seamScheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, delegate, nullptr, false)
+    {
+        seedGenesisAndForkchoice();
+    }
+
+    /// Real scheduler whose canonicalize post-condition parks on @p gate (review F5).
+    explicit ImportServiceFixture(std::shared_ptr<BlockingGate> gate)
+      : delegate(makeBlockingVerifyDelegate(gate, blockFactory, storage, ioServicePool)),
+        service(memPool, storage, seamScheduler, blockFactory,
+            bcos::engine::c_defaultBlockTxCountLimit, delegate, nullptr, false)
+    {
+        seedGenesisAndForkchoice();
+    }
+
+    void seedGenesisAndForkchoice()
     {
         auto const g = fixtureHeadHash();
         registerVerifiedBlock(storage, g, 0);
@@ -681,8 +739,8 @@ BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
     // B3 的承诺必须来自「在 B2 后状态上执行」——探针在同一个平面链上算出期望根，
     // 服务端 VALID 要求真实导入逐位一致：在错误平面上执行会因承诺不符被 INVALID。
     // 平面本身由 ChainedImportMatchesCanonicalParentState 用独立口径（canonicalize
-    // 之后的后端状态）钉住；BLOCKHASH 操作码版断言仍缺（CALL 到 seedPreState 播种
-    // 的合约在本夹具下不执行字节码，属 harness 接缝，见报告）。
+    // 之后的后端状态）钉住。设计 §5 的 BLOCKHASH 行由下面 RecentBlockHashes 的真实
+    // 读路径断言（不是「播种行存在」的替代口径，review N4）。
     auto request3 = f.validRequest(request2.executionPayload.blockHash, 3);
     f.fillCommitmentsFromProbe(request3);
 
@@ -692,16 +750,28 @@ BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
         "B3 status " << static_cast<int>(status3.status)
                      << " err=" << status3.validationError.value_or("<none>"));
 
-    // §4.4.3：父链规范键已随导入视图播种（BLOCKHASH 回走的载体）。
+    // 设计 §5：第三块交易读 BLOCKHASH(第 1 块高度) ≠ 0。走真实读路径
+    // RecentBlockHashes（op-geth GetHashFn）：构造函数播种 {N-1: parentHash}，更早
+    // 祖先按需从导入视图的 SYS_NUMBER_2_HASH 读。仅断言「播种的行存在且 32 字节」是
+    // 自洽替代，不能证明读回的就是 B1（review N4）。
     {
         auto& probeDeltaStorage = *std::static_pointer_cast<MutableStorage>(f.deltaByNumber[3]);
-        auto seededHash = bcos::task::syncWait(storage2::readOne(
-            probeDeltaStorage, executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_HASH, "1"}));
-        BOOST_REQUIRE(seededHash.has_value());
-        BOOST_REQUIRE_EQUAL(seededHash->get().size(), 32U);
-        auto seededTwo = bcos::task::syncWait(storage2::readOne(
-            probeDeltaStorage, executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_HASH, "2"}));
-        BOOST_REQUIRE(seededTwo.has_value());
+        evmc::bytes32 parentSeed{};
+        std::memcpy(
+            parentSeed.bytes, request2.executionPayload.blockHash.data(), sizeof(parentSeed.bytes));
+        std::optional<std::string> hashError;
+        bcos::evm::engine::detail::RecentBlockHashes<MutableStorage> recentHashes(
+            probeDeltaStorage, /*blockNumber=*/3, parentSeed, &hashError);
+        auto const b1 = recentHashes.get_block_hash(1);
+        BOOST_CHECK_MESSAGE(
+            !hashError.has_value(), "RecentBlockHashes poisoned: " << hashError.value_or(""));
+        auto const b1Hash = bcos::h256(b1.bytes, sizeof(b1.bytes));
+        BOOST_CHECK(b1Hash != bcos::h256{});
+        BOOST_CHECK_EQUAL(b1Hash.hex(), request1.executionPayload.blockHash.hex());
+        // The direct parent is the constructor's zero-read seed.
+        auto const b2 = recentHashes.get_block_hash(2);
+        BOOST_CHECK_EQUAL(bcos::h256(b2.bytes, sizeof(b2.bytes)).hex(),
+            request2.executionPayload.blockHash.hex());
     }
 
     // latest 仍 G（committed tip 0）。
@@ -1223,6 +1293,56 @@ BOOST_AUTO_TEST_CASE(PrunedParentPlaneIsSyncingNotEmptyReExecute)
         static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing));
     BOOST_CHECK(!status4.latestValidHash.has_value());
     BOOST_CHECK(!f.service.hasImportedBlock(request4.executionPayload.blockHash));
+}
+
+// F5 regression: canonicalize must NOT hold the imported-tree POSIX mutex across a
+// suspension point. task::syncWait completes the coroutine via status.notify_one() on
+// whatever thread resumed it (libtask/bcos-task/Wait.h), so a mutex locked before an
+// await can be unlocked on another thread (UB); it also serializes an unrelated import
+// behind the whole canonicalize batch. The delegate parks canonicalize inside its
+// awaited post-condition, then a concurrent newPayload must still answer promptly
+// (SYNCING, fail-closed) instead of blocking on the lock.
+BOOST_AUTO_TEST_CASE(CanonicalizeHoldsNoLockAcrossAwait)
+{
+    auto gate = std::make_shared<BlockingGate>();
+    ImportServiceFixture f(gate);
+
+    auto request1 = f.validRequest(fixtureHeadHash(), 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request1, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    bcos::engine::ForkchoiceState fcuB1{request1.executionPayload.blockHash,
+        request1.executionPayload.blockHash, fixtureHeadHash()};
+    bcos::engine::ForkchoiceUpdatedResult fcuResult;
+    std::thread canonicalizer(
+        [&] { fcuResult = bcos::task::syncWait(f.service.updateForkchoice(fcuB1, nullptr, 3)); });
+    // canonicalizeImportedHead is now parked inside its awaited post-condition.
+    gate->entered.wait();
+
+    auto request2 = f.validRequest(request1.executionPayload.blockHash, 2);
+    std::atomic<bool> importFinished{false};
+    bcos::engine::PayloadStatus importStatus;
+    std::thread importer([&] {
+        importStatus = bcos::task::syncWait(f.service.newPayload(request2, 4));
+        importFinished.store(true, std::memory_order_release);
+    });
+    for (int i = 0; i < 2000 && !importFinished.load(std::memory_order_acquire); ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    bool const finished = importFinished.load(std::memory_order_acquire);
+    // Unblock canonicalize before asserting so a RED run cannot hang the suite.
+    gate->release.count_down();
+    canonicalizer.join();
+    importer.join();
+
+    BOOST_CHECK_MESSAGE(
+        finished, "concurrent newPayload blocked behind the canonicalize lock across an await");
+    BOOST_CHECK_EQUAL(static_cast<int>(fcuResult.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_CHECK_EQUAL(static_cast<int>(importStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
