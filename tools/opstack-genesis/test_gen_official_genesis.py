@@ -101,3 +101,32 @@ def test_build_and_selfcheck_london_header():
     fields = gen.build_header_fields(genesis, 0x648a5ce3, gen.EMPTY_TRIE_ROOT, present)
     digest = gen.keccak256(gen.encode_header_fields(fields, present)).hex()
     assert digest == "d043c3480e0aa1b2163f2790e622f8cf404bc188a4e4da0097f276a477f459a9"
+
+
+def test_compute_state_root_matches_reference_on_adapted_input():
+    alloc = {"0x" + "11" * 20: {"balance": "0x1", "nonce": "0x0"}}
+    # The adapter must be a pure re-shape: its result equals feeding the reference
+    # implementation the equivalent tuple.
+    reference = gen._trieroot.state_root(
+        [(bytes.fromhex("11" * 20), 0, 1, b"", {})])
+    assert gen.compute_state_root(alloc) == reference
+
+
+def test_compute_state_root_golden_with_code_and_storage():
+    # Independent golden (produced offline by gen_trieroot_golden.state_root):
+    # pins the tuple shape, the 32-byte storage word padding and the code hash.
+    alloc = {"0x" + "00" * 19 + "01": {"balance": "0x1", "nonce": "0x0",
+                                       "code": "0x6001", "storage": {"0x00": "0x02"}}}
+    assert gen.compute_state_root(alloc).hex() == (
+        "00aa0d47b052f7d85b6d74f013475f9fcaa8fef638ba9072ef750bb9f17fbe4e")
+
+
+def test_to_ini_allocs_preserves_code_and_storage():
+    alloc = {"0x" + "42" * 20: {"balance": "0xa", "nonce": "0x1",
+                                "code": "0x6001", "storage": {"0x00": "0x02"}}}
+    out = gen.to_ini_allocs(alloc)
+    assert out[0]["address"] == "42" * 20
+    assert out[0]["balance"] == 10 and out[0]["nonce"] == 1
+    assert gen._build_allocs.emit_ini(out) == (
+        "[alloc.0]\naddress=0x" + "42" * 20 + "\nbalance=10\nnonce=1\ncode=0x6001\n"
+        "[alloc.0.storage]\n0x" + "00" * 32 + "=0x" + "00" * 31 + "02\n")

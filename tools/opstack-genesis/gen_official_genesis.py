@@ -171,3 +171,62 @@ def build_header_fields(genesis, ts0, state_root, present):
 
 def encode_header_fields(fields, present):
     return _fixture.encode_header(fields, present)
+
+
+_trieroot = _load("gen_trieroot_golden", "gen_trieroot_golden.py")
+_build_allocs = _load("build_allocs", "build-allocs.py")
+
+
+def _strip0x(value):
+    text = str(value).strip().lower()
+    return text[2:] if text.startswith("0x") else text
+
+
+def _to_int(value):
+    """Registry quantities are hex strings ("0x1c9c380"); INI wants decimal ints.
+
+    `int(x)` on such a string would either raise or silently read it as decimal, so
+    every quantity goes through here.
+    """
+    if isinstance(value, int):
+        return value
+    text = str(value).strip()
+    if text in ("", "0x", "0X"):
+        return 0
+    return int(text, 16) if text.lower().startswith("0x") else int(text)
+
+
+def _word32(value):
+    return _to_int(value).to_bytes(32, "big")
+
+
+def compute_state_root(alloc):
+    """State root over the registry's alloc (address -> account), go-ethereum's
+    Genesis.ToBlock construction: see gen_trieroot_golden.state_root."""
+    tuples = []
+    for address, account in alloc.items():
+        storage = {_word32(slot): _word32(value)
+                   for slot, value in (account.get("storage") or {}).items()}
+        code_hex = _strip0x(account.get("code", ""))
+        code = bytes.fromhex(code_hex) if code_hex else b""
+        tuples.append((bytes.fromhex(_strip0x(address)),
+                       _to_int(account.get("nonce", 0)),
+                       _to_int(account.get("balance", 0)),
+                       code, storage))
+    return _trieroot.state_root(tuples)
+
+
+def to_ini_allocs(alloc):
+    """Shape the registry alloc as build-allocs.emit_ini expects: address lowercased,
+    balance/nonce decimal, storage slot/value as integers."""
+    out = []
+    for address, account in alloc.items():
+        out.append({
+            "address": _strip0x(address),
+            "balance": _to_int(account.get("balance", 0)),
+            "nonce": _to_int(account.get("nonce", 0)),
+            "code": account.get("code", ""),
+            "storage": {_to_int(slot): _to_int(value)
+                        for slot, value in (account.get("storage") or {}).items()},
+        })
+    return out
