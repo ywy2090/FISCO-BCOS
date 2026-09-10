@@ -39,12 +39,37 @@ BOOST_AUTO_TEST_CASE(acceptsKarstAfterJovian)
     BOOST_CHECK_EQUAL(*probe.genesisConfig().m_opstackForkSchedule, "0:jovian,1:karst");
 }
 
-BOOST_AUTO_TEST_CASE(rejectsKarstWithoutJovian)
+// Karst after Isthmus is still rejected, now because the schedule skips Jovian
+// rather than because of a Karst-specific rule.
+BOOST_AUTO_TEST_CASE(rejectsSkippedFork)
 {
     LoaderProbe probe;
     BOOST_CHECK_EXCEPTION(probe.loadOpForkSchedule(fromIni("[op_fork_schedule]\n"
                                                            "canonical=0:isthmus,1:karst\n")),
-        InvalidConfig, [](auto const& e) { return errinfoContains(e, "Jovian"); });
+        InvalidConfig, [](auto const& e) { return errinfoContains(e, "protocol order"); });
+}
+
+BOOST_AUTO_TEST_CASE(acceptsFullOfficialChain)
+{
+    LoaderProbe probe;
+    probe.loadOpForkSchedule(
+        fromIni("[op_fork_schedule]\n"
+                "canonical=0:regolith,1000:canyon,2000:ecotone,3000:fjord,4000:granite,"
+                "5000:holocene,6000:isthmus,7000:jovian,8000:karst\n"));
+    BOOST_REQUIRE(probe.genesisConfig().m_opstackForkSchedule.has_value());
+    BOOST_CHECK_EQUAL(*probe.genesisConfig().m_opstackForkSchedule,
+        "0:regolith,1000:canyon,2000:ecotone,3000:fjord,4000:granite,"
+        "5000:holocene,6000:isthmus,7000:jovian,8000:karst");
+}
+
+BOOST_AUTO_TEST_CASE(acceptsRegolithBaseline)
+{
+    LoaderProbe probe;
+    probe.loadOpForkSchedule(
+        fromIni("[op_fork_schedule]\n"
+                "canonical=0:regolith\n"));
+    BOOST_REQUIRE(probe.genesisConfig().m_opstackForkSchedule.has_value());
+    BOOST_CHECK_EQUAL(*probe.genesisConfig().m_opstackForkSchedule, "0:regolith");
 }
 
 BOOST_AUTO_TEST_CASE(emptyCanonicalFailsClosed)

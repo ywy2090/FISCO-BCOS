@@ -42,6 +42,11 @@ namespace bcos::test
 namespace
 {
 constexpr char const* c_isthmusJovianSchedule = "0:isthmus,1764691201:jovian";
+// Full op-geth EL fork chain (no delta): the shape a real OP Mainnet/Base
+// genesis produces once S1 emits it.
+constexpr char const* c_officialHistorySchedule =
+    "0:regolith,1000:canyon,2000:ecotone,3000:fjord,4000:granite,"
+    "5000:holocene,6000:isthmus,7000:jovian,8000:karst";
 
 struct OpForkScheduleMetadataFixture
 {
@@ -357,10 +362,26 @@ BOOST_AUTO_TEST_CASE(persistNormalizesCanonicalText)
     }());
 }
 
-BOOST_AUTO_TEST_CASE(genesisWriteRejectsKarstBaselineAndSkipJovian)
+// Baseline may be any EL fork, so `0:karst` now writes; a gap is still rejected,
+// by the general contiguity rule rather than the Karst/Jovian special case.
+BOOST_AUTO_TEST_CASE(genesisWriteAcceptsKarstBaselineButRejectsSkippedFork)
 {
     task::syncWait([this]() -> task::Task<void> {
-        for (auto const* schedule : {"0:karst", "0:isthmus,1:karst"})
+        {
+            constexpr auto* karstBaseline = "0:karst";
+            auto storage = makeL2GenesisTestStorage();
+            auto ledger = std::make_shared<Ledger>(m_blockFactory, storage, 1);
+            BOOST_REQUIRE(co_await ledger::buildGenesisBlock(
+                *ledger, scheduleGenesis(karstBaseline), emptyLedgerConfig()));
+            auto block = co_await ledger::getBlockData(*ledger, 0, HEADER);
+            BOOST_REQUIRE(block);
+            const auto stored =
+                co_await readOpForkScheduleMetadata(*storage, block->blockHeader()->hash());
+            BOOST_REQUIRE(stored.has_value());
+            BOOST_CHECK_EQUAL(stored->schedule, karstBaseline);
+        }
+
+        for (auto const* schedule : {"0:isthmus,1:karst", "0:regolith,1:ecotone"})
         {
             auto storage = makeL2GenesisTestStorage();
             auto ledger = std::make_shared<Ledger>(m_blockFactory, storage, 1);
@@ -370,14 +391,24 @@ BOOST_AUTO_TEST_CASE(genesisWriteRejectsKarstBaselineAndSkipJovian)
                 (void)co_await ledger::buildGenesisBlock(
                     *ledger, scheduleGenesis(schedule), emptyLedgerConfig());
             }
-            catch (InvalidOpForkSchedule const&)
+            catch (InvalidOpForkSchedule const& e)
             {
                 threw = true;
+                BOOST_CHECK(messageContains(e, "forks out of protocol order"));
             }
             BOOST_CHECK(threw);
         }
         co_return;
     }());
+}
+
+BOOST_AUTO_TEST_CASE(officialHistoryScheduleRoundTrips)
+{
+    const auto resolved = resolveOpForkScheduleCanonical(
+        std::nullopt, std::string{c_officialHistorySchedule}, false, HashType{});
+    BOOST_CHECK_EQUAL(resolved, c_officialHistorySchedule);
+    BOOST_CHECK_EQUAL(keccakOpForkScheduleHash(resolved).hex(),
+        keccakOpForkScheduleHash(c_officialHistorySchedule).hex());
 }
 
 BOOST_AUTO_TEST_CASE(genesisWriteAcceptsKarstAfterJovian)
