@@ -299,6 +299,27 @@ struct BlockingVerifyScheduler : bcos::executor_v1::opstack::OpScheduler<Storage
     }
 };
 
+/// Real OpScheduler whose canonicalize post-condition can be made to fail on demand:
+/// the switch-SetCanonical mid-flight failure injection (review NEW-3). By then the
+/// batch has already been merged, so the rollback must restore BOTH layers — backend
+/// AND cache — to the pre-call plane.
+template <class StorageType>
+struct FailVerifyScheduler : bcos::executor_v1::opstack::OpScheduler<StorageType>
+{
+    using Base = bcos::executor_v1::opstack::OpScheduler<StorageType>;
+    using Base::Base;
+    bool failVerify = false;
+
+    void verifyCanonicalStateRoot(const bcos::h256& expectedStateRoot) override
+    {
+        if (failVerify)
+        {
+            throw bcos::evm::OpConsensusError("injected post-condition failure (switch rollback)");
+        }
+        Base::verifyCanonicalStateRoot(expectedStateRoot);
+    }
+};
+
 template <class StorageType>
 inline std::shared_ptr<bcos::scheduler::SchedulerInterface> makeBlockingVerifyDelegate(
     std::shared_ptr<BlockingGate> const& gate,
@@ -383,6 +404,21 @@ struct ImportServiceFixtureT
     explicit ImportServiceFixtureT(std::shared_ptr<BlockingGate> gate)
       : delegate(
             makeBlockingVerifyDelegate<StorageType>(gate, blockFactory, storage, ioServicePool)),
+        service(memPool, storage, seamScheduler, blockFactory,
+            bcos::engine::c_defaultBlockTxCountLimit, delegate, nullptr, false)
+    {
+        seedGenesisAndForkchoice();
+    }
+
+    /// Delegate-factory ctor: the factory needs the fixture's storage reference, so it
+    /// runs here (members are already initialized). Lets a case supply its own
+    /// scheduler flavour (e.g. FailVerifyScheduler, review NEW-3).
+    struct DelegateFromFactory
+    {
+    };
+    template <class DelegateFactory>
+    explicit ImportServiceFixtureT(DelegateFromFactory, DelegateFactory makeDelegate)
+      : delegate(makeDelegate(blockFactory, storage, ioServicePool)),
         service(memPool, storage, seamScheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, delegate, nullptr, false)
     {
@@ -1275,6 +1311,141 @@ BOOST_AUTO_TEST_CASE(SwitchDropsReplacedSameHeightSiblingLedgerRows)
         "replaced same-height sibling still resolves by hash to the new head");
 }
 
+// NEW-3 regression (delta round 3, Part C): on the production composition the MLS
+// carries a process-lifetime cache layer that the forward canonicalize warms via
+// mergeToBackends, while the switch branch wrote only m_latestBackend. fork()/
+// forkCommitted() read the cache first, so after a same-height switch the committed
+// view still served the OLD plane (NUMBER_2_HASH[2]==B, SYS_CURRENT_STATE==3) and the
+// state-root post-condition — which reads through forkCommitted() — could never see
+// the new head's world state. The switch must reach the cache layer too.
+BOOST_AUTO_TEST_CASE(SwitchOnWarmCacheServesNewPlane)
+{
+    CacheImportServiceFixture f;
+    f.seedCanonicalChainABC();
+    auto const aHash = f.seededChainHash[1];
+    auto const bHash = f.seededChainHash[2];
+
+    // B' sibling of B, parent A (same construction as the ledger-row regression above).
+    auto requestBPrime = f.validRequest(aHash, 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto const bPrimeHash = requestBPrime.executionPayload.blockHash;
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    bcos::engine::ForkchoiceState fcuBPrime{bPrimeHash, bPrimeHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // The COMMITTED view reads the cache first; it must serve the NEW plane.
+    BOOST_CHECK_EQUAL(committedTipNumber(f.storage), 2);
+    auto height2 = committedHashAt(f.storage, 2);
+    BOOST_REQUIRE(height2.has_value());
+    BOOST_CHECK_MESSAGE(height2->hex() == bPrimeHash.hex(),
+        "committed NUMBER_2_HASH[2] still resolves to the replaced sibling");
+    BOOST_CHECK(!committedHashAt(f.storage, 3).has_value());
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockNumber(view, bHash, bcos::ledger::fromStorage))
+             .has_value());
+
+    // And the CACHE LAYER ITSELF holds the switch's rows — written from the same commit
+    // as the backend, not merely failing to shadow them — while the de-canonicalized
+    // rows are gone from it.
+    auto readCacheBytes = [&](executor_v1::StateKey key) -> std::optional<bcos::bytes> {
+        auto entry = bcos::task::syncWait(bcos::storage2::readOne(f.cache, std::move(key)));
+        if (!entry.has_value())
+        {
+            return std::nullopt;
+        }
+        auto const value = entry->get();
+        return bcos::bytes(value.begin(), value.end());
+    };
+    auto const number2Hash =
+        readCacheBytes(StateKey{bcos::ledger::SYS_NUMBER_2_HASH, std::to_string(2)});
+    BOOST_REQUIRE(number2Hash.has_value());
+    BOOST_CHECK(*number2Hash == bcos::bytes(bPrimeHash.begin(), bPrimeHash.end()));
+    auto const currentCache = readCacheBytes(
+        StateKey{bcos::ledger::SYS_CURRENT_STATE, bcos::ledger::SYS_KEY_CURRENT_NUMBER});
+    BOOST_REQUIRE(currentCache.has_value());
+    BOOST_CHECK(bcos::toHexStringWithPrefix(*currentCache) == "0x32");  // "2"
+    auto const primeHashNumber = readCacheBytes(
+        StateKey{bcos::ledger::SYS_HASH_2_NUMBER, bcos::concepts::bytebuffer::toView(bPrimeHash)});
+    BOOST_REQUIRE(primeHashNumber.has_value());
+    BOOST_CHECK(bcos::toHexStringWithPrefix(*primeHashNumber) == "0x32");  // "2"
+    BOOST_CHECK_MESSAGE(!readCacheBytes(StateKey{bcos::ledger::SYS_HASH_2_NUMBER,
+                                            bcos::concepts::bytebuffer::toView(bHash)})
+                             .has_value(),
+        "cache still holds the replaced sibling B's hash->number row");
+    BOOST_CHECK_MESSAGE(
+        !readCacheBytes(StateKey{bcos::ledger::SYS_NUMBER_2_HASH, std::to_string(3)}).has_value(),
+        "cache still holds the trimmed height-3 number->hash row");
+}
+
+// NEW-2 regression (delta round 3): the canonical-chain walk classified a chain by
+// height alone, so a re-org BACK onto an abandoned branch whose head is at/above the
+// current tip took the forward branch and merged the block's delta onto the WRONG
+// plane (the post-condition then rejected it with an opaque error). A chain whose
+// canonical root is not the current tip is a switch, whatever the head's height.
+BOOST_AUTO_TEST_CASE(SwitchBackToAbandonedSiblingBranch)
+{
+    ImportServiceFixture f;
+    f.seedCanonicalChainABC();
+    auto const aHash = f.seededChainHash[1];
+    auto const bHash = f.seededChainHash[2];
+
+    auto requestBPrime = f.validRequest(aHash, 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto const bPrimeHash = requestBPrime.executionPayload.blockHash;
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    bcos::engine::ForkchoiceState fcuBPrime{bPrimeHash, bPrimeHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // Back-reorg onto the abandoned sibling at the SAME height (its flat survives the
+    // prune; C@3's would not). The walk roots at A, not at the tip B', so this must be
+    // a switch, not a forward merge onto B''s plane.
+    bcos::engine::ForkchoiceState fcuBack{bHash, bHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBack, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    BOOST_CHECK_EQUAL(committedTipNumber(f.storage), 2);
+    auto height2 = committedHashAt(f.storage, 2);
+    BOOST_REQUIRE(height2.has_value());
+    BOOST_CHECK_MESSAGE(height2->hex() == bHash.hex(),
+        "back-reorg did not restore the abandoned branch as canonical");
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK(!bcos::task::syncWait(
+        bcos::ledger::getBlockNumber(view, bPrimeHash, bcos::ledger::fromStorage))
+                     .has_value());
+}
+
 // N3 regression: after a switch, the orphaned old-chain occupant must stop occupying
 // its height, or the next legal import there answers SYNCING forever (the old occupant
 // is no longer canonical, so the caller's occupantCanonical gate rejects it).
@@ -1491,6 +1662,454 @@ BOOST_AUTO_TEST_CASE(CanonicalizeRollsBackCacheLayerOnMidChainMergeFailure)
         !bcos::task::syncWait(bcos::ledger::getBlockNumber(view,
                                   request1.executionPayload.blockHash, bcos::ledger::fromStorage))
              .has_value());
+}
+
+// NEW-3 regression (switch SUCCESS path on a warm cache): the production composition's
+// cache layer is process-lifetime and read FIRST by fork()/forkCommitted()
+// (MultiLayerStorage.h), and the forward canonicalize warms it per block. A
+// switch-SetCanonical that wrote only m_latestBackend left the cache holding the OLD
+// chain's rows — the verifyCanonicalStateRoot post-condition then read a shadowed plane
+// and the design §5 mandatory same-height reorg could never succeed (or, after an LRU
+// eviction of the state rows, served stale canonical metadata). The switch must leave
+// backend AND cache coherent: cache-first reads serve the NEW plane.
+BOOST_AUTO_TEST_CASE(SwitchSetCanonicalServesNewPlaneThroughWarmCache)
+{
+    CacheImportServiceFixture f;
+    f.seedCanonicalChainABC();  // forward-canonicalize A-B-C: the cache is warm with C-era rows
+    auto const bHash = f.seededChainHash[2];
+    auto const cHash = f.seededChainHash[3];
+
+    // B' sibling of B, parent A — then the §5 mandatory same-height switch to B'@2.
+    auto requestBPrime = f.validRequest(f.seededChainHash[1], 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto const bPrimeHash = requestBPrime.executionPayload.blockHash;
+    BOOST_REQUIRE(bPrimeHash != bHash);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    bool switched = false;
+    std::string switchError;
+    try
+    {
+        bcos::engine::ForkchoiceState fcuBPrime{bPrimeHash, bPrimeHash, fixtureHeadHash()};
+        auto result = bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3));
+        switched = static_cast<int>(result.payloadStatus.status) ==
+                   static_cast<int>(bcos::engine::PayloadValidationStatus::Valid);
+        if (!switched)
+        {
+            switchError = result.payloadStatus.validationError.value_or("<no error>");
+        }
+    }
+    catch (std::exception const& e)
+    {
+        switchError = std::string("exception: ") + e.what();
+    }
+    // A plain-throw OpConsensusError rethrown through task::syncWait does not match
+    // catch(std::exception) on this toolchain — keep a catch(...) fallback for it.
+    catch (...)
+    {
+        switchError = "exception (non-std)";
+    }
+    BOOST_CHECK_MESSAGE(
+        switched, "switch-SetCanonical must succeed through a warm cache (NEW-3): " << switchError);
+    if (!switched)
+    {
+        return;  // keep the RED run's signal clean — the reads below would all fail too
+    }
+
+    // The cache-first committed view serves the NEW plane.
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        2);
+    auto height2 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height2.has_value());
+    BOOST_CHECK_EQUAL(height2->hex(), bPrimeHash.hex());
+    auto primeNumber = bcos::task::syncWait(
+        bcos::ledger::getBlockNumber(view, bPrimeHash, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(primeNumber.has_value());
+    BOOST_CHECK_EQUAL(*primeNumber, 2);
+    // A stale cache would still resolve the OLD chain here.
+    BOOST_CHECK_MESSAGE(
+        !bcos::task::syncWait(bcos::ledger::getBlockNumber(view, bHash, bcos::ledger::fromStorage))
+             .has_value(),
+        "cache-first read still resolves the replaced sibling B");
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockNumber(view, cHash, bcos::ledger::fromStorage))
+             .has_value());
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockHash(view, 3, bcos::ledger::fromStorage))
+             .has_value());
+
+    // And the CACHE LAYER ITSELF holds the switch's rows (written from the same commit
+    // as the backend — not merely failing to shadow them).
+    auto readCacheBytes = [&](executor_v1::StateKey key) -> std::optional<bcos::bytes> {
+        auto entry = bcos::task::syncWait(bcos::storage2::readOne(f.cache, std::move(key)));
+        if (!entry.has_value())
+        {
+            return std::nullopt;
+        }
+        auto const value = entry->get();
+        return bcos::bytes(value.begin(), value.end());
+    };
+    auto const number2Hash =
+        readCacheBytes(StateKey{bcos::ledger::SYS_NUMBER_2_HASH, std::to_string(2)});
+    BOOST_REQUIRE(number2Hash.has_value());
+    // Raw byte compare: h256::hex() is UNPREFIXED, so it must not be compared against
+    // toHexStringWithPrefix output.
+    BOOST_CHECK(*number2Hash == bcos::bytes(bPrimeHash.begin(), bPrimeHash.end()));
+    auto const currentCache = readCacheBytes(
+        StateKey{bcos::ledger::SYS_CURRENT_STATE, bcos::ledger::SYS_KEY_CURRENT_NUMBER});
+    BOOST_REQUIRE(currentCache.has_value());
+    BOOST_CHECK(bcos::toHexStringWithPrefix(*currentCache) == "0x32");  // "2"
+    auto const primeHashNumber = readCacheBytes(
+        StateKey{bcos::ledger::SYS_HASH_2_NUMBER, bcos::concepts::bytebuffer::toView(bPrimeHash)});
+    BOOST_REQUIRE(primeHashNumber.has_value());
+    BOOST_CHECK(bcos::toHexStringWithPrefix(*primeHashNumber) == "0x32");  // "2"
+    BOOST_CHECK_MESSAGE(!readCacheBytes(StateKey{bcos::ledger::SYS_HASH_2_NUMBER,
+                                            bcos::concepts::bytebuffer::toView(cHash)})
+                             .has_value(),
+        "cache still holds the de-canonicalized C's hash->number row");
+}
+
+// NEW-3 failure-atomicity on the SWITCH branch: a same-height switch that fails after
+// the batch was committed (injected post-condition failure) must restore BOTH layers —
+// backend AND cache — to the pre-call plane (design §4.2: 失败则全部回到调用前), and the
+// retried switch must then succeed.
+BOOST_AUTO_TEST_CASE(SwitchFailureRestoresWarmCacheAndBackend)
+{
+    std::shared_ptr<FailVerifyScheduler<CacheMLS>> failDelegate;
+    CacheImportServiceFixture f(CacheImportServiceFixture::DelegateFromFactory{},
+        [&failDelegate](auto& blockFactory, auto& storage, auto& ioServicePool) {
+            failDelegate = std::make_shared<FailVerifyScheduler<CacheMLS>>(
+                makeImportReceiptFactory(), makeCryptoSuite()->hashImpl(), /*chainId=*/8453,
+                std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                    bcos::evm::opstack::OpForkSchedule::legacy(false)),
+                blockFactory, storage, /*ledger=*/nullptr, ioServicePool);
+            return failDelegate;
+        });
+    f.seedCanonicalChainABC();
+    auto const bHash = f.seededChainHash[2];
+
+    auto requestBPrime = f.validRequest(f.seededChainHash[1], 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto const bPrimeHash = requestBPrime.executionPayload.blockHash;
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // Full raw-cache snapshot before the doomed switch.
+    auto snapshotCache = [&f]() {
+        std::map<std::string, bcos::bytes> out;
+        auto iterator = bcos::task::syncWait(bcos::storage2::range(f.cache));
+        while (true)
+        {
+            auto item = bcos::task::syncWait(iterator.next());
+            if (!item.has_value())
+            {
+                break;
+            }
+            auto const& [key, valueVariant] = *item;
+            if (auto* entry = std::get_if<bcos::storage::Entry>(&valueVariant))
+            {
+                auto const& value = entry->get();
+                out.emplace(key.m_tableAndKey, bcos::bytes(value.begin(), value.end()));
+            }
+            else
+            {
+                out.emplace(key.m_tableAndKey, bcos::bytes{'<', 'D', '>'});
+            }
+        }
+        return out;
+    };
+    auto const preCache = snapshotCache();
+    BOOST_REQUIRE(!preCache.empty());
+
+    failDelegate->failVerify = true;
+    bcos::engine::ForkchoiceState fcuBPrime{bPrimeHash, bPrimeHash, fixtureHeadHash()};
+    bool switchThrew = false;
+    try
+    {
+        (void)bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3));
+    }
+    // catch(...) fallback, not just std::exception: a plain-throw bcos::evm::OpConsensusError
+    // rethrown through task::syncWait does not match catch(std::exception) on this toolchain
+    // (the RTTI base-walk fails), even though boost's catch-all monitor translates it.
+    catch (std::exception const&)
+    {
+        switchThrew = true;
+    }
+    catch (...)
+    {
+        switchThrew = true;
+    }
+    BOOST_CHECK_MESSAGE(switchThrew, "a failed switch must not answer VALID");
+
+    // BOTH layers observably unchanged: the raw cache is byte-identical...
+    BOOST_CHECK_MESSAGE(snapshotCache() == preCache,
+        "the failed switch left the cache layer different from its pre-call state");
+    // ...and the cache-first committed view still serves the OLD chain.
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        3);
+    auto height2 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height2.has_value());
+    BOOST_CHECK_EQUAL(height2->hex(), bHash.hex());
+    BOOST_CHECK(!bcos::task::syncWait(
+        bcos::ledger::getBlockNumber(view, bPrimeHash, bcos::ledger::fromStorage))
+                     .has_value());
+
+    // The rollback was complete: the retried switch (post-condition live again)
+    // succeeds and serves the new plane.
+    failDelegate->failVerify = false;
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto viewAfter = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(
+                          viewAfter, bcos::ledger::fromStorage)),
+        2);
+    auto height2After =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(viewAfter, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height2After.has_value());
+    BOOST_CHECK_EQUAL(height2After->hex(), bPrimeHash.hex());
+}
+
+// NEW-2 regression (reorg BACK onto the abandoned branch): after A-B-C → B'@2, a
+// payload extending the de-canonicalized sibling B produces a chain whose canonical
+// ROOT is below the current tip. That is a switch (design §4.4.5 整表替换), not a
+// forward canonicalize — the forward branch merges E's delta onto B''s plane and fails
+// its post-condition with an opaque mismatch. The walk must classify by
+// root-attaches-at-tip, so the reorg-back lands on the abandoned branch's plane.
+BOOST_AUTO_TEST_CASE(SwitchClassifiesReorgBackOntoAbandonedBranch)
+{
+    ImportServiceFixture f;
+    f.seedCanonicalChainABC();
+    auto const aHash = f.seededChainHash[1];
+    auto const bHash = f.seededChainHash[2];
+    auto const cHash = f.seededChainHash[3];
+
+    // Switch to B'@2 (the §5 mandatory reorg).
+    auto requestBPrime = f.validRequest(aHash, 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto const bPrimeHash = requestBPrime.executionPayload.blockHash;
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    bcos::engine::ForkchoiceState fcuBPrime{bPrimeHash, bPrimeHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // Reorg BACK onto the abandoned branch: E@3 extends the de-canonicalized B. The
+    // timestamp bump keeps E distinct from C (identical parent/number/txs would
+    // reproduce C's exact hash).
+    auto requestE = f.validRequest(bHash, 3);
+    requestE.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestE.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestE.executionPayload, txRoot,
+            *requestE.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestE.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestE, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto const eHash = requestE.executionPayload.blockHash;
+
+    bool switched = false;
+    std::string switchError;
+    try
+    {
+        bcos::engine::ForkchoiceState fcuE{eHash, eHash, fixtureHeadHash()};
+        auto result = bcos::task::syncWait(f.service.updateForkchoice(fcuE, nullptr, 3));
+        switched = static_cast<int>(result.payloadStatus.status) ==
+                   static_cast<int>(bcos::engine::PayloadValidationStatus::Valid);
+        if (!switched)
+        {
+            switchError = result.payloadStatus.validationError.value_or("<no error>");
+        }
+    }
+    catch (std::exception const& e)
+    {
+        switchError = std::string("exception: ") + e.what();
+    }
+    // A plain-throw OpConsensusError rethrown through task::syncWait does not match
+    // catch(std::exception) on this toolchain — keep a catch(...) fallback for it.
+    catch (...)
+    {
+        switchError = "exception (non-std)";
+    }
+    BOOST_CHECK_MESSAGE(switched,
+        "reorg-back onto the abandoned branch must be classified and served as a switch "
+        "(NEW-2): "
+            << switchError);
+    if (!switched)
+    {
+        return;
+    }
+
+    // The canonical chain is now A - B - E: B is re-canonicalized at height 2, the
+    // B' branch is de-canonicalized, C never returns.
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        3);
+    auto height2 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height2.has_value());
+    BOOST_CHECK_EQUAL(height2->hex(), bHash.hex());
+    auto bNumber =
+        bcos::task::syncWait(bcos::ledger::getBlockNumber(view, bHash, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(bNumber.has_value());
+    BOOST_CHECK_EQUAL(*bNumber, 2);
+    auto height3 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 3, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height3.has_value());
+    BOOST_CHECK_EQUAL(height3->hex(), eHash.hex());
+    BOOST_CHECK(!bcos::task::syncWait(
+        bcos::ledger::getBlockNumber(view, bPrimeHash, bcos::ledger::fromStorage))
+                     .has_value());
+    // C (the abandoned branch's old head) stays de-canonicalized — E is a distinct
+    // block, so C's hash->number row must not have come back with the branch.
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockNumber(view, cHash, bcos::ledger::fromStorage))
+             .has_value());
+}
+
+// NEW-2 regression (reorg BACK onto a PRUNED branch): after A-B-C → B'@2 the B' switch
+// released C@3's materialized flat (pruneFlatsAbove), so a later FCU back to C@3 can no
+// longer restore the head flat directly. The walk yields [B, C] rooted at A (canonical
+// at 1) while the tip is B'@2 — a switch whose head flat is gone. The switch must
+// re-materialize C's world from the deepest surviving ancestor flat (B@2) plus the
+// chain deltas (design §4.4.5's replay stand-in), re-canonicalize EVERY height above
+// the fork point (B's rows were removed/overwritten by the B' switch), and
+// de-canonicalize B'.
+BOOST_AUTO_TEST_CASE(SwitchBackToPrunedBranchRecanonicalizesChain)
+{
+    ImportServiceFixture f;
+    f.seedCanonicalChainABC();
+    auto const aHash = f.seededChainHash[1];
+    auto const bHash = f.seededChainHash[2];
+    auto const cHash = f.seededChainHash[3];
+    // Independent oracle for the reconstruction: the state root the CL announced for C
+    // when it was first imported (captured before B' overwrites height 2's probes).
+    auto const cStateRoot = f.executedByNumber[3]->stateRoot();
+
+    auto requestBPrime = f.validRequest(aHash, 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto const bPrimeHash = requestBPrime.executionPayload.blockHash;
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    bcos::engine::ForkchoiceState fcuBPrime{bPrimeHash, bPrimeHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // FCU back to C@3 — the head's flat was pruned, only B@2's survives.
+    bool switched = false;
+    std::string switchError;
+    try
+    {
+        bcos::engine::ForkchoiceState fcuC{cHash, cHash, fixtureHeadHash()};
+        auto result = bcos::task::syncWait(f.service.updateForkchoice(fcuC, nullptr, 3));
+        switched = static_cast<int>(result.payloadStatus.status) ==
+                   static_cast<int>(bcos::engine::PayloadValidationStatus::Valid);
+        if (!switched)
+        {
+            switchError = result.payloadStatus.validationError.value_or("<no error>");
+        }
+    }
+    catch (std::exception const& e)
+    {
+        switchError = std::string("exception: ") + e.what();
+    }
+    catch (...)
+    {
+        switchError = "exception (non-std)";
+    }
+    BOOST_CHECK_MESSAGE(switched,
+        "reorg back to the pruned branch must reconstruct the head plane and switch "
+        "(NEW-2): "
+            << switchError);
+    if (!switched)
+    {
+        return;
+    }
+
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        3);
+    auto height3 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 3, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height3.has_value());
+    BOOST_CHECK_EQUAL(height3->hex(), cHash.hex());
+    auto height2 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height2.has_value());
+    BOOST_CHECK_EQUAL(height2->hex(), bHash.hex());
+    auto bNumber =
+        bcos::task::syncWait(bcos::ledger::getBlockNumber(view, bHash, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(bNumber.has_value());
+    BOOST_CHECK_EQUAL(*bNumber, 2);
+    BOOST_CHECK(!bcos::task::syncWait(
+        bcos::ledger::getBlockNumber(view, bPrimeHash, bcos::ledger::fromStorage))
+                     .has_value());
+
+    // The reconstructed plane is C's ORIGINAL world: the committed world root equals the
+    // root C's payload announced at first import.
+    bcos::evm::evmstate::Storage2State<ViewType> state(view);
+    auto const root = bcos::evm::stateRootOf(state);
+    BOOST_CHECK_MESSAGE(bcos::h256(root.bytes, 32).hex() == cStateRoot.hex(),
+        "reconstructed plane is not C's original world: " << bcos::h256(root.bytes, 32).hex()
+                                                          << " != " << cStateRoot.hex());
 }
 
 // F2 regression: an imported parent whose materialized plane is gone must be answered
