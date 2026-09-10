@@ -307,19 +307,24 @@ private:
     {
         executor_v1::StateKey key;
         std::optional<bcos::storage::Entry> prior;  // nullopt == key was absent
+        // Cache-layer prior (review F3). The production composition has a cache layer
+        // that mergeToBackends writes alongside the backend and fork()/forkCommitted()
+        // read FIRST, so restoring only the backend would leave a mid-chain failure's
+        // partial canonical state visible in the cache. nullopt == key was absent there.
+        std::optional<bcos::storage::Entry> cachePrior;
     };
 
-    /// Record @p key's current backend value (first occurrence only — the earliest
-    /// value is the one a rollback must restore) before canonicalize mutates it.
+    /// Record @p key's current backend AND cache value (first occurrence only — the
+    /// earliest value is the one a rollback must restore) before canonicalize mutates it.
     template <class BackendType>
-    static task::Task<void> recordCanonicalizeUndo(BackendType& backend,
+    task::Task<void> recordCanonicalizeUndo(BackendType& backend,
         std::vector<CanonicalizeUndoRow>& undo, std::unordered_set<executor_v1::StateKey>& seen,
         executor_v1::StateKeyView key);
 
-    /// Restore every journaled row: write the prior value back, or remove the key when
-    /// it did not exist before the call.
+    /// Restore every journaled row: write the prior value back (or remove the key when it
+    /// did not exist before the call) into BOTH the backend and the cache layer.
     template <class BackendType>
-    static task::Task<void> rollbackCanonicalize(
+    task::Task<void> rollbackCanonicalize(
         BackendType& backend, std::vector<CanonicalizeUndoRow> const& undo);
 
     /// Release the materialized flats of blocks at/below the finalized marker (review F4).

@@ -55,6 +55,11 @@ struct ImportedBlock
     // key/value on the import view). Restored wholesale when a switch-SetCanonical
     // makes this block the canonical tip at a height at/below the old tip.
     std::shared_ptr<void> postStateFlat;
+    // Set by adoptCanonicalHead when a switch de-canonicalizes this block (design
+    // §4.3: 丢掉未挂在新头上的 live imported 边). A detached block keeps its body
+    // hash-addressable through get()/hasBlock, but must not occupy a height nor keep
+    // put()'s descendant guard firing for a later legal import (review N3).
+    bool detached{false};
 };
 
 /// Imported payloads only: canonical-chain lookups must go through the ledger
@@ -80,12 +85,18 @@ public:
         }
         for (auto const& [hash, existing] : m_blocks)
         {
-            if (existing.number != block.number)
+            if (existing.number != block.number || existing.detached)
             {
                 continue;
             }
             for (auto const& [childHash, child] : m_blocks)
             {
+                if (child.detached)
+                {
+                    // A de-canonicalized branch's links are already orphaned by the
+                    // switch; they must not block the new chain (review N3).
+                    continue;
+                }
                 if (child.parent == hash && !occupantCanonical)
                 {
                     return false;
@@ -141,6 +152,20 @@ public:
     void adoptCanonicalHead(bcos::protocol::BlockNumber number, const bcos::h256& hash)
     {
         std::lock_guard lock(m_mutex);
+        // Recompute liveness for every stored block at/above the new head: a block is
+        // live iff it IS the new head or descends from it. Old-branch occupants and
+        // their descendants are marked detached (bodies stay hash-addressable), which
+        // makes put()'s descendant guard skip them; without this, A-B-C-D → B' leaves
+        // C (child D) occupying height 3 and the next legal import at 3 answers
+        // SYNCING forever (review N3). Blocks below the head are canonical ancestors
+        // and keep their prior state.
+        for (auto& [blockHash, block] : m_blocks)
+        {
+            if (block.number >= number)
+            {
+                block.detached = !descendsFrom(blockHash, hash);
+            }
+        }
         std::erase_if(m_byNumber, [number](auto const& item) { return item.first > number; });
         m_byNumber[number] = hash;
     }
@@ -179,6 +204,29 @@ public:
     }
 
 private:
+    /// True iff @p candidate is @p ancestorOrSelfHash itself or a stored descendant of
+    /// it. Walks parent links through m_blocks (all stored bodies keep their links), so
+    /// a live child of the new head is recognised while old-branch orphans are not.
+    [[nodiscard]] bool descendsFrom(
+        bcos::h256 const& candidate, bcos::h256 const& ancestorOrSelfHash) const
+    {
+        auto cursor = candidate;
+        for (std::size_t guard = 0; guard <= m_blocks.size(); ++guard)
+        {
+            if (cursor == ancestorOrSelfHash)
+            {
+                return true;
+            }
+            auto const it = m_blocks.find(cursor);
+            if (it == m_blocks.end() || it->second.parent == cursor)
+            {
+                return false;
+            }
+            cursor = it->second.parent;
+        }
+        return false;
+    }
+
     mutable std::mutex m_mutex;
     std::unordered_map<bcos::h256, ImportedBlock> m_blocks;
     std::unordered_map<bcos::protocol::BlockNumber, bcos::h256> m_byNumber;

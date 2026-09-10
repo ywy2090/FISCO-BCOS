@@ -9,13 +9,13 @@
 #include <oneapi/tbb/parallel_invoke.h>
 #include <boost/throw_exception.hpp>
 #include <concepts>
+#include <deque>
 #include <functional>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/zip.hpp>
 #include <type_traits>
 #include <variant>
-#include <deque>
 
 namespace bcos::storage2
 {
@@ -660,6 +660,41 @@ public:
     {
         std::unique_lock mergeLock(m_mergeMutex);
         co_await mergeIntoBackends(fromStorage...);
+    }
+
+    /// Cache-layer read (nullopt when this composition has no cache layer). The engine's
+    /// canonicalize undo journal pairs this with writeCacheLayer: mergeToBackends merges
+    /// into backend AND cache, so a failed batch must restore BOTH or the cache keeps
+    /// half-applied canonical state that fork()/forkCommitted() read first (review F3).
+    task::Task<std::optional<Value>> readCacheLayer(Key key)
+    {
+        if constexpr (withCacheStorage)
+        {
+            co_return co_await storage2::readOne(m_cacheStorage.get(), std::move(key));
+        }
+        else
+        {
+            co_return std::nullopt;
+        }
+    }
+
+    /// Cache-layer counterpart of readCacheLayer: write @p value, or remove the key when
+    /// absent. No-op without a cache layer.
+    task::Task<void> writeCacheLayer(Key key, std::optional<Value> value)
+    {
+        if constexpr (withCacheStorage)
+        {
+            if (value.has_value())
+            {
+                co_await storage2::writeOne(
+                    m_cacheStorage.get(), std::move(key), std::move(*value));
+            }
+            else
+            {
+                co_await storage2::removeOne(m_cacheStorage.get(), std::move(key));
+            }
+        }
+        co_return;
     }
 
     auto fork(CheckpointName const& blockhash)

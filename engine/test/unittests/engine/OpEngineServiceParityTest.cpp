@@ -29,9 +29,15 @@
 //   - EngineTracker exclusive/shared publish concurrency (op_fast_path)
 //   - op-geth golden rebuild pin (vendored corpus)
 // NOT import-path coverage: the delegate used here is FabricatedRootsStub, which
-// returns invented header roots. Real import/SetCanonical/commitment-gate behaviour is
-// pinned by OpEngineImportFcuTest (real OpScheduler delegate) and OpNewPayloadRpcE2eTest
-// (real delegate, end to end) — do not cite this suite for it (review F9).
+// returns invented header roots (kept deliberately for the API-gate and
+// fault-injection shapes on this suite). Real import/SetCanonical/commitment-gate
+// behaviour is pinned by OpEngineImportFcuTest against the real OpScheduler delegate
+// (ChainedImportMatchesCanonicalParentState, BadStateRootIsInvalidAndNotStored,
+// CanonicalImportedBlockHasNumberToTxsRow, ThreeImportsThenJumpFcu,
+// CanonicalizeRollsBackCacheLayerOnMidChainMergeFailure) and by
+// OpNewPayloadRpcE2eSuite/RegolithPayloadBuildsAndImportsAgainstRealScheduler end to
+// end — do not cite this suite for it (review F9 resolved by this contract plus those
+// real-path suites).
 
 #include "support/GoldenSample.h"
 #include "support/OpEngineKarstTestHarness.h"

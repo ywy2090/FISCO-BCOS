@@ -107,6 +107,17 @@ using CheckpointBackend = TrivialCheckpointStorage<StateKey, StateValue, Backend
 using MLS = bcos::storage2::MultiLayerStorage<MutableStorage, void, CheckpointBackend>;
 using ViewType = typename MLS::ViewType;
 
+/// Production-shaped CACHE layer: the OP composition is
+/// MultiLayerStorage<GlobalStateMutableStorage, GlobalStateCacheStorage, CheckpointRocksDB…>
+/// (libinitializer/GlobalStateStorageInitializer.h), i.e. cache-enabled. The default
+/// test MLS above is intentionally cache-LESS; use CacheMLS for cases that must prove
+/// behaviour under the production read order (cache first, then backend) — e.g. the
+/// canonicalize rollback (review F3).
+using CacheMemStorage = memory_storage::MemoryStorage<StateKey, StateValue,
+    memory_storage::Attribute(memory_storage::CONCURRENT | memory_storage::LRU)>;
+using CacheMLS =
+    bcos::storage2::MultiLayerStorage<MutableStorage, CacheMemStorage, CheckpointBackend>;
+
 struct StubMemPool
 {
     std::vector<bcos::crypto::HashType> removed;
@@ -131,12 +142,17 @@ struct StubMemPool
 
 /// TEST DOUBLE — NOT the real import/commitment path. executeBlock/importExecute return
 /// a header with FABRICATED roots (stateRoot/receiptsRoot zero, txsRoot from a knob), so
-/// the engine's commitment gate is only exercised against invented values. First
+/// the engine's commitment gate here runs only against invented values. First
 /// executeBlock fails with a structured culprit; later calls succeed so the build retry
-/// loop can finish (BH capacity / BC evict). Any test that needs the real import path
-/// (execution on the parent plane, the commitment gate, BLOCKHASH seeds) must use the
-/// real OpScheduler instead — see OpEngineImportFcuTest (real delegate) and
-/// OpNewPayloadRpcE2eTest (real delegate, end to end). Do not cite a suite built on
+/// loop can finish (BH capacity / BC evict). RESOLUTION (review F9, contract-only by
+/// decision): this stub is kept for API-gate/fault-injection coverage (e.g.
+/// OpEngineServiceParityTest/op_newpayload_rejects_executed_withdrawals_root_mismatch,
+/// op_build_capacity_reject_does_not_evict, op_commit_error_routing_*); real
+/// import/commitment-path coverage lives in OpEngineImportFcuTest against the real
+/// OpScheduler delegate — ChainedImportMatchesCanonicalParentState,
+/// BadStateRootIsInvalidAndNotStored, CanonicalImportedBlockHasNumberToTxsRow,
+/// ThreeImportsThenJumpFcu — plus OpNewPayloadRpcE2eSuite/
+/// RegolithPayloadBuildsAndImportsAgainstRealScheduler. Do not cite a suite built on
 /// this stub as import-path coverage.
 struct FabricatedRootsStub : bcos::scheduler::SchedulerInterface
 {
@@ -469,8 +485,9 @@ inline bcos::protocol::BlockFactory::Ptr makeBlockFactory()
         cryptoSuite, blockHeaderFactory, transactionFactory, receiptFactory);
 }
 
+template <class StorageType>
 inline void registerVerifiedBlock(
-    MLS& multiLayerStorage, bcos::h256 const& blockHash, int64_t number)
+    StorageType& multiLayerStorage, bcos::h256 const& blockHash, int64_t number)
 {
     auto view = multiLayerStorage.fork();
     view.newMutable();
@@ -486,8 +503,9 @@ inline void registerVerifiedBlock(
     bcos::task::syncWait(multiLayerStorage.mergeView(std::move(view)));
 }
 
+template <class StorageType>
 inline void registerHashToNumberOnly(
-    MLS& multiLayerStorage, bcos::h256 const& blockHash, int64_t number)
+    StorageType& multiLayerStorage, bcos::h256 const& blockHash, int64_t number)
 {
     auto view = multiLayerStorage.fork();
     view.newMutable();
@@ -499,7 +517,8 @@ inline void registerHashToNumberOnly(
     bcos::task::syncWait(multiLayerStorage.mergeView(std::move(view)));
 }
 
-inline void registerCurrentBlockNumber(MLS& multiLayerStorage, int64_t number)
+template <class StorageType>
+inline void registerCurrentBlockNumber(StorageType& multiLayerStorage, int64_t number)
 {
     auto view = multiLayerStorage.fork();
     view.newMutable();
@@ -511,8 +530,9 @@ inline void registerCurrentBlockNumber(MLS& multiLayerStorage, int64_t number)
     bcos::task::syncWait(multiLayerStorage.mergeView(std::move(view)));
 }
 
-inline void registerParentHeader(MLS& multiLayerStorage, bcos::protocol::BlockFactory& blockFactory,
-    int64_t number, int64_t timestampMs)
+template <class StorageType>
+inline void registerParentHeader(StorageType& multiLayerStorage,
+    bcos::protocol::BlockFactory& blockFactory, int64_t number, int64_t timestampMs)
 {
     auto header = blockFactory.blockHeaderFactory()->createBlockHeader();
     header->setNumber(number);

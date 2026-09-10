@@ -1264,6 +1264,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::recordCanon
     {
         row.prior.emplace(*prior);
     }
+    // The cache layer is written by the same merges but read first, so it needs its own
+    // prior (review F3). No-op on a cache-less composition.
+    row.cachePrior = co_await m_globalStateStorage.readCacheLayer(row.key);
     undo.push_back(std::move(row));
     co_return;
 }
@@ -1291,6 +1294,10 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::rollbackCan
         {
             co_await storage2::removeOne(backend, view);
         }
+        // Restore the cache-first read plane too (review F3): every merge this batch
+        // performed reached backend + cache, so a backend-only rollback would leave the
+        // cache holding de-canonicalized state. No-op without a cache layer.
+        co_await m_globalStateStorage.writeCacheLayer(it->key, it->cachePrior);
     }
     co_return;
 }
@@ -1457,11 +1464,31 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicaliz
 
             // (3) Canonical rows for the new head + explicit height trim above it. The
             // ancestors at/below the fork point keep their rows (step (1) left metadata
-            // alone); only heights strictly above the new head are de-canonicalized and lose
-            // their number mappings. Bodies stay hash-addressable (SYS_HASH_2_TX /
+            // alone); heights at/above the new head are de-canonicalized and lose their
+            // number mappings. Bodies stay hash-addressable (SYS_HASH_2_TX /
             // SYS_HASH_2_RECEIPT untouched, design §4.2).
             bcos::storage::Entry headNumberEntry;
             auto const headNumberStr = std::to_string(headBlock.number);
+            // Same-height switch (the design §5 mandatory L1 reorg A-B-C → B'@2): the
+            // block replaced at head.number must be de-canonicalized together with the
+            // heights above it. Capture its hash BEFORE the NUMBER_2_HASH[head] overwrite
+            // below; its HASH_2_NUMBER then has to go too, or eth_getBlockByHash(oldSibling)
+            // resolves hash→number→the NEW head (EthEndpoint detour) and handleOpNewPayload
+            // misclassifies the orphan as the canonical tip (review NEW-1).
+            std::optional<bcos::crypto::HashType> replacedHeadHash;
+            {
+                auto const oldHeadHashEntry = co_await storage2::readOne(backend,
+                    executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_HASH, headNumberStr));
+                if (oldHeadHashEntry.has_value())
+                {
+                    auto const oldHeadHashBytes = oldHeadHashEntry->get();
+                    if (oldHeadHashBytes.size() == bcos::crypto::HashType::SIZE)
+                    {
+                        replacedHeadHash.emplace(
+                            oldHeadHashBytes, bcos::crypto::HashType::FromBinary);
+                    }
+                }
+            }
             auto const headHashKeyView = executor_v1::StateKeyView(bcos::ledger::SYS_HASH_2_NUMBER,
                 bcos::concepts::bytebuffer::toView(headBlock.hash));
             co_await recordCanonicalizeUndo(backend, undo, undoSeen, headHashKeyView);
@@ -1522,6 +1549,23 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicaliz
                     *m_blockFactory, headBlock.txHashes, headBlock.txRecipients));
                 co_await storage2::writeOne(backend, executor_v1::StateKey(numberToTxsKeyView),
                     std::move(numberToTxsEntry));
+            }
+            // Same-height replacement: drop the replaced block's hash→number mapping and
+            // its height's nonces (never rewritten by this branch). The trim loop below
+            // starts above the head, so this height is handled here — but only via the
+            // captured old hash, never by re-reading NUMBER_2_HASH[head] (already the new
+            // head by now; that would delete the new head's own mapping).
+            if (replacedHeadHash.has_value() && *replacedHeadHash != headBlock.hash)
+            {
+                auto const replacedHashNumberView =
+                    executor_v1::StateKeyView(bcos::ledger::SYS_HASH_2_NUMBER,
+                        bcos::concepts::bytebuffer::toView(*replacedHeadHash));
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, replacedHashNumberView);
+                co_await storage2::removeOne(backend, replacedHashNumberView);
+                auto const headNoncesView = executor_v1::StateKeyView(
+                    bcos::ledger::SYS_BLOCK_NUMBER_2_NONCES, headNumberStr);
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, headNoncesView);
+                co_await storage2::removeOne(backend, headNoncesView);
             }
             for (auto k = headBlock.number + 1; k <= currentTip; ++k)
             {
