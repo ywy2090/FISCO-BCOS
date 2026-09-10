@@ -185,3 +185,44 @@ def test_build_rollup_carries_registry_fields():
     # lists only the forks the pin models.
     assert "karst_time" not in rollup
     assert rollup["interop_time"] is None
+
+
+def test_generate_end_to_end_synthetic(tmp_path):
+    result = gen.generate(_make_zip(tmp_path), "mainnet/base", l1_chain_id=1,
+                          decompress=lambda raw, dictionary: raw)
+    assert set(result) == {"genesis_ini", "rollup", "manifest"}
+    assert "[eth_genesis_header]" in result["genesis_ini"]
+    assert "hash=0x" in result["genesis_ini"]  # the 22nd field NodeConfig requires
+    assert "[alloc.0]" not in result["genesis_ini"]  # empty alloc
+    assert "canonical=0:regolith,1704992401:canyon" in result["genesis_ini"]
+    assert result["manifest"]["chain"] == "mainnet/base"
+
+
+def test_generate_hash_mismatch_raises(tmp_path):
+    # Break the toml's expected l2 hash: generation must fail loud, not emit artifacts.
+    import zipfile
+    src = _make_zip(tmp_path)
+    good = "d043c3480e0aa1b2163f2790e622f8cf404bc188a4e4da0097f276a477f459a9"
+    with zipfile.ZipFile(src) as zf:
+        toml = zf.read("configs/mainnet/base.toml").decode().replace(good, "99" * 32)
+    broken = tmp_path / "broken.zip"
+    with zipfile.ZipFile(broken, "w") as zf:
+        zf.writestr("COMMIT", "deadbeef")
+        zf.writestr("dictionary", b"")
+        zf.writestr("configs/mainnet/base.toml", toml)
+        zf.writestr("genesis/mainnet/base.json.zst", json.dumps(GENESIS))
+    with pytest.raises(gen.RegistryError):
+        gen.generate(str(broken), "mainnet/base", l1_chain_id=1,
+                     decompress=lambda raw, dictionary: raw)
+
+
+_OP_GETH_ZIP = Path("/Users/octopus/octo/code/op-geth/superchain/superchain-configs.zip")
+
+
+@pytest.mark.parametrize("chain", ["mainnet/base", "sepolia/op"])
+def test_real_registry_reconstructs_genesis_hash(chain):
+    import shutil
+    if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
+        pytest.skip("op-geth superchain zip / zstd CLI not available")
+    result = gen.generate(str(_OP_GETH_ZIP), chain)
+    assert result["manifest"]["header_hash"] == result["manifest"]["expected_l2_hash"]

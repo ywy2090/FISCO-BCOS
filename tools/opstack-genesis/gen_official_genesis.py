@@ -353,3 +353,84 @@ def build_rollup(toml, l1_chain_id):
             value = hardforks.get(f"{fork}_time")
             rollup[f"{fork}_time"] = None if value is None else int(value)
     return rollup
+
+
+def generate(zip_path, chain, *, extra_forks=None, l1_chain_id=None,
+             expect_chain_id=None, decompress=None):
+    """Build the FISCO genesis fragment, the op-node rollup config and a manifest.
+
+    Every artifact is derived from the registry plus the optional overlay, and the
+    header hash is asserted against the registry's own `genesis.l2.hash` before
+    anything is returned: a mismatch means the field set or a value is wrong, so it
+    fails loud rather than shipping an artifact the node would reject later.
+    """
+    data = load_registry_chain(zip_path, chain, decompress=decompress)
+    toml, genesis = data["toml"], data["genesis"]
+    if expect_chain_id is not None and int(toml["chain_id"]) != int(expect_chain_id):
+        raise RegistryError(
+            f"chain_id mismatch: toml={toml['chain_id']} expected={expect_chain_id}")
+    ts0 = int(genesis["timestamp"], 16)
+    alloc = genesis.get("alloc", {})
+    state_root = compute_state_root(alloc)
+    present = header_field_set(ts0, _fork_times(toml, extra_forks))
+    fields = build_header_fields(genesis, ts0, state_root, present)
+    computed = keccak256(encode_header_fields(fields, present)).hex()
+    expected = _strip0x(toml["genesis"]["l2"]["hash"])
+    if computed != expected:
+        raise RegistryError(
+            f"header hash mismatch for {chain}: computed={computed} expected={expected} "
+            f"fields={present}")
+    schedule = build_schedule(toml, ts0, extra_forks)
+    header_lines = ["[eth_genesis_header]"]
+    for key in present:
+        header_lines.append(f"{key}={fields[key]}")
+    header_lines.append(f"hash=0x{computed}")  # the 22nd required field
+    ini = "\n".join(header_lines) + "\n"
+    ini += _build_allocs.emit_ini(to_ini_allocs(alloc))
+    ini += "[op_fork_schedule]\ncanonical=" + schedule + "\n"
+    if l1_chain_id is None:
+        # The L1 chain id is not in the chain toml (op-node reads it from the
+        # superchain config), so derive it from the registry layout.
+        l1_chain_id = 1 if chain.startswith("mainnet/") else 11155111
+    rollup = build_rollup(toml, l1_chain_id)
+    manifest = {"commit": data["commit"], "chain": chain, "genesis_time": ts0,
+                "state_root": state_root.hex(), "header_hash": computed,
+                "expected_l2_hash": expected, "schedule": schedule}
+    return {"genesis_ini": ini, "rollup": rollup, "manifest": manifest}
+
+
+def parse_extra_fork(value):
+    name, _, timestamp = value.partition(":")
+    if not name or not timestamp.isdigit():
+        raise argparse.ArgumentTypeError("expected name:unix_seconds: " + value)
+    return name, int(timestamp)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--zip", required=True)
+    parser.add_argument("--chain", required=True, help="e.g. mainnet/base or sepolia/op")
+    parser.add_argument("--out-dir", required=True)
+    parser.add_argument("--extra-fork", action="append", default=[], type=parse_extra_fork)
+    parser.add_argument("--l1-chain-id", type=int, default=None)
+    parser.add_argument("--chain-id", type=int, default=None,
+                        help="cross-check the toml chain_id")
+    args = parser.parse_args(argv)
+    extra = {name: timestamp for name, timestamp in args.extra_fork}
+    try:
+        result = generate(args.zip, args.chain, extra_forks=extra,
+                          l1_chain_id=args.l1_chain_id, expect_chain_id=args.chain_id)
+    except RegistryError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    out = Path(args.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "genesis.ini").write_text(result["genesis_ini"])
+    (out / "rollup.json").write_text(json.dumps(result["rollup"], indent=2) + "\n")
+    (out / "manifest.json").write_text(json.dumps(result["manifest"], indent=2) + "\n")
+    print("header_hash = 0x" + result["manifest"]["header_hash"])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
