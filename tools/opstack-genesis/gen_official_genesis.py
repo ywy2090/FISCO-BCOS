@@ -291,30 +291,34 @@ def build_schedule(toml, ts0, extra_forks=None):
     return ",".join(parts)
 
 
-# The CL fork keys the pinned op-node models, in its own Config field order. `karst`
-# is absent on purpose: rollup/types.go has no KarstTime and parses with
-# DisallowUnknownFields, so a karst_time key would make the artifact unloadable.
-# `delta` and `pectra_blob_schedule` are CL-only forks (no EL semantics) but are part
-# of the CL config, so they come from the pin like any other.
+# The CL fork keys we emit. `delta` and `pectra_blob_schedule` are CL-only forks (no
+# EL semantics) but are part of the CL config, so they come from the pin like any
+# other; `karst` comes from the pin when present and from the --extra-fork overlay
+# otherwise, so the CL config and the EL schedule agree on its activation time.
+# NOTE: this targets a karst-aware op-node. The checkouts pin superchain.go/rollup
+# types.go with no KarstTime and parse rollup.json with DisallowUnknownFields, so a
+# karst_time key is rejected by that revision (S7 must pick the op-node version).
 _ROLLUP_FORK_KEYS = ["regolith", "canyon", "delta", "ecotone", "fjord",
                      "granite", "holocene", "pectra_blob_schedule",
-                     "isthmus", "jovian", "interop"]
+                     "isthmus", "jovian", "karst", "interop"]
 
 
 def _lower_hex(value):
     return "0x" + _strip0x(value)
 
 
-def build_rollup(toml, l1_chain_id):
+def build_rollup(toml, l1_chain_id, extra_forks=None):
     """op-node rollup.json for this chain, mapped as rollup/superchain.go does:
     chain parameters from the toml, regolith fixed at 0, unscheduled forks null, and
     ChannelTimeoutBedrock's 300 (not yet in the registry, so op-node hardcodes it).
 
     `l1_chain_id` is not in the chain toml — op-node reads it from the superchain
-    config — so the caller supplies it.
+    config — so the caller supplies it. `extra_forks` is the same overlay the EL
+    schedule gets, so a fork the pin lacks (karst) activates at one agreed time.
     """
     genesis = toml["genesis"]
-    hardforks = toml.get("hardforks", {})
+    hardforks = dict(toml.get("hardforks", {}))
+    el_times = _fork_times(toml, extra_forks)
     optimism = toml["optimism"]
     addresses = toml["addresses"]
     rollup = {
@@ -349,6 +353,10 @@ def build_rollup(toml, l1_chain_id):
     for fork in _ROLLUP_FORK_KEYS:
         if fork == "regolith":
             rollup["regolith_time"] = 0
+        elif fork in EL_FORKS:
+            # EL forks (incl. an overlaid karst) come from the validated map.
+            value = el_times.get(fork)
+            rollup[f"{fork}_time"] = None if value is None else int(value)
         else:
             value = hardforks.get(f"{fork}_time")
             rollup[f"{fork}_time"] = None if value is None else int(value)
@@ -392,7 +400,7 @@ def generate(zip_path, chain, *, extra_forks=None, l1_chain_id=None,
         # The L1 chain id is not in the chain toml (op-node reads it from the
         # superchain config), so derive it from the registry layout.
         l1_chain_id = 1 if chain.startswith("mainnet/") else 11155111
-    rollup = build_rollup(toml, l1_chain_id)
+    rollup = build_rollup(toml, l1_chain_id, extra_forks)
     manifest = {"commit": data["commit"], "chain": chain, "genesis_time": ts0,
                 "state_root": state_root.hex(), "header_hash": computed,
                 "expected_l2_hash": expected, "schedule": schedule}

@@ -179,11 +179,9 @@ def test_build_rollup_carries_registry_fields():
     assert rollup["chain_op_config"]["eip1559DenominatorCanyon"] == 250
     assert rollup["regolith_time"] == 0
     assert rollup["canyon_time"] == 1704992401
-    # `karst_time` is deliberately absent, not null: the pinned op-node has no such
-    # field and parses rollup.json with DisallowUnknownFields (rollup/types.go:850),
-    # so emitting the key would make the file unloadable. See the design §5.5, which
-    # lists only the forks the pin models.
-    assert "karst_time" not in rollup
+    # karst has no pin entry (the registry stops at jovian), so it is null until an
+    # overlay supplies it — see test_build_rollup_threads_extra_fork_overlay.
+    assert rollup["karst_time"] is None
     assert rollup["interop_time"] is None
 
 
@@ -226,3 +224,19 @@ def test_real_registry_reconstructs_genesis_hash(chain):
         pytest.skip("op-geth superchain zip / zstd CLI not available")
     result = gen.generate(str(_OP_GETH_ZIP), chain)
     assert result["manifest"]["header_hash"] == result["manifest"]["expected_l2_hash"]
+
+
+def test_build_rollup_threads_extra_fork_overlay():
+    # The CL config must agree with the EL schedule about a fork the pin lacks:
+    # otherwise op-node would treat karst as unscheduled while the EL activates it.
+    rollup = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1,
+                              extra_forks={"karst": 1781712001})
+    assert rollup["karst_time"] == 1781712001
+    # Everything else still comes from the pin: the overlay adds karst without
+    # inventing the forks this synthetic toml does not schedule.
+    assert rollup["canyon_time"] == 1704992401
+    assert rollup["jovian_time"] is None
+    # an overlay naming an EL fork the pin already schedules must not be applied silently
+    with pytest.raises(gen.RegistryError):
+        gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1,
+                         extra_forks={"canyon": 123})
