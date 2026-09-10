@@ -20,6 +20,7 @@
 #pragma once
 
 #include "Errors.h"
+#include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-utilities/Common.h>
 #include <bcos-utilities/DataConvertUtility.h>
@@ -87,6 +88,35 @@ inline std::optional<std::string> validateOpExtraDataShape(
         return std::string("must encode a non-zero EIP-1559 denominator and elasticity");
     }
     return std::nullopt;
+}
+
+/// Check a header's extraData against the layout its own fork requires
+/// (op-geth ValidateOptimismExtraData): empty before Holocene, exactly 9 bytes at
+/// Holocene/Isthmus, exactly 17 at Jovian and later. The genesis block is the one
+/// spec exception to the pre-Holocene rule; genesis never goes through newPayload,
+/// so that carve-out belongs to genesis loading, not here.
+inline std::optional<std::string> validateOpExtraDataForLayout(
+    std::span<const bcos::byte> extraData, OpExtraDataLayout layout)
+{
+    switch (layout)
+    {
+    case OpExtraDataLayout::Empty:
+        return extraData.empty() ? std::nullopt :
+                                   std::optional<std::string>{"must be empty before Holocene"};
+    case OpExtraDataLayout::Holocene9:
+        if (extraData.size() != c_holoceneExtraDataBytes)
+        {
+            return "must be exactly 9 bytes (Holocene/Isthmus)";
+        }
+        return validateOpExtraDataShape(extraData, /*allowEmpty=*/false);
+    case OpExtraDataLayout::Jovian17:
+        if (extraData.size() != c_jovianExtraDataBytes)
+        {
+            return "must be exactly 17 bytes (Jovian+)";
+        }
+        return validateOpExtraDataShape(extraData, /*allowEmpty=*/false);
+    }
+    return "unknown extraData layout";
 }
 
 /// Next-block baseFee (op-geth CalcBaseFee). Holocene-active and later only:

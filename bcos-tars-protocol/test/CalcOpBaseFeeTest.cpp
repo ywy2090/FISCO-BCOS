@@ -37,8 +37,7 @@ static void expectThrowMessage(const std::function<void()>& call, std::string_vi
         BOOST_CHECK_MESSAGE(std::string_view(e.what()).find(expectedText) != std::string_view::npos,
             "expected \"" << expectedText << "\" in what(): " << e.what());
     }
-    BOOST_CHECK_MESSAGE(
-        threw, "expected an exception containing \"" << expectedText << "\"");
+    BOOST_CHECK_MESSAGE(threw, "expected an exception containing \"" << expectedText << "\"");
 }
 
 namespace
@@ -328,6 +327,28 @@ BOOST_AUTO_TEST_CASE(ResolveDriverGasLimit)
     BOOST_CHECK_EQUAL(resolveDriverGasLimit(0), c_defaultDriverGasLimit);
     BOOST_CHECK_EQUAL(resolveDriverGasLimit(45'000'000), std::uint64_t{45'000'000});
     BOOST_CHECK_EQUAL(resolveDriverGasLimit(1), std::uint64_t{1});
+}
+
+// The extraData shape follows the fork that produced the block, so the engine picks
+// a layout from the timestamp and this checks the block against it: empty before
+// Holocene, exactly 9 bytes at Holocene/Isthmus, 17 at Jovian+.
+BOOST_AUTO_TEST_CASE(ValidateExtraDataByLayout)
+{
+    using L = bcos::engine::OpExtraDataLayout;
+    BOOST_CHECK(!bcos::engine::validateOpExtraDataForLayout({}, L::Empty));
+    BOOST_CHECK(
+        bcos::engine::validateOpExtraDataForLayout(bcos::bytes{0x00}, L::Empty).has_value());
+
+    bcos::bytes holocene{0x00, 0x00, 0x00, 0x00, 0xfa, 0x00, 0x00, 0x00, 0x06};
+    BOOST_CHECK(!bcos::engine::validateOpExtraDataForLayout(holocene, L::Holocene9));
+    BOOST_CHECK(bcos::engine::validateOpExtraDataForLayout({}, L::Holocene9).has_value());
+    BOOST_CHECK(bcos::engine::validateOpExtraDataForLayout(holocene, L::Empty).has_value());
+
+    bcos::bytes jovian = holocene;
+    jovian[0] = 0x01;
+    jovian.insert(jovian.end(), 8, 0x00);
+    BOOST_CHECK(!bcos::engine::validateOpExtraDataForLayout(jovian, L::Jovian17));
+    BOOST_CHECK(bcos::engine::validateOpExtraDataForLayout(holocene, L::Jovian17).has_value());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
