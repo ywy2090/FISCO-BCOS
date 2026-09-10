@@ -193,6 +193,62 @@ BOOST_AUTO_TEST_SUITE(OpEngineImportFcuTest)
 
 namespace
 {
+/// Real OpScheduler importExecute with the returned storage delta stripped for one block
+/// number. Injects a mid-chain canonicalize failure: earlier blocks merge into the backend,
+/// then the target block cannot, so the engine's canonicalize rollback must restore the
+/// backend observably (review F3).
+struct DeltaStrippingScheduler : bcos::executor_v1::opstack::OpScheduler<MLS>
+{
+    using Base = bcos::executor_v1::opstack::OpScheduler<MLS>;
+    using Base::Base;
+    bcos::protocol::BlockNumber stripDeltaAt{-1};
+
+    void importExecute(bcos::protocol::Block::Ptr block,
+        std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
+        std::shared_ptr<void> const& parentFlat,
+        std::function<void(bcos::Error::Ptr, bcos::protocol::BlockHeader::Ptr,
+            std::shared_ptr<void>, std::shared_ptr<void>)>
+            callback) override
+    {
+        auto const number = block ? block->blockHeader()->number() : -1;
+        // The commitment probe imports each height once before the real newPayload; strip
+        // only the later (real) import so the probe still gets a usable delta.
+        bool const strip = number == stripDeltaAt && m_seen[number]++ == 1;
+        Base::importExecute(block, parentHeaders, parentFlat,
+            [strip, cb = std::move(callback)](bcos::Error::Ptr error,
+                bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void> delta,
+                std::shared_ptr<void> flat) mutable {
+                if (strip)
+                {
+                    delta = nullptr;
+                }
+                cb(std::move(error), std::move(header), std::move(delta), std::move(flat));
+            });
+    }
+
+private:
+    std::map<bcos::protocol::BlockNumber, int> m_seen;
+};
+
+inline std::shared_ptr<bcos::scheduler::SchedulerInterface> makeImportDelegate(
+    bcos::protocol::BlockNumber stripDeltaAt, bcos::protocol::BlockFactory::Ptr const& blockFactory,
+    MLS& storage, bcos::IOServicePool::Ptr const& ioServicePool)
+{
+    auto schedule = std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::legacy(false));
+    if (stripDeltaAt >= 0)
+    {
+        auto scheduler = std::make_shared<DeltaStrippingScheduler>(makeImportReceiptFactory(),
+            makeCryptoSuite()->hashImpl(), /*chainId=*/8453, std::move(schedule), blockFactory,
+            storage, /*ledger=*/nullptr, ioServicePool);
+        scheduler->stripDeltaAt = stripDeltaAt;
+        return scheduler;
+    }
+    return std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(
+        makeImportReceiptFactory(), makeCryptoSuite()->hashImpl(), /*chainId=*/8453,
+        std::move(schedule), blockFactory, storage, /*ledger=*/nullptr, ioServicePool);
+}
+
 /// OpEngineService composed with a REAL OpScheduler delegate (imports execute for
 /// real); the FCU build path is not exercised by these cases (no attrs).
 struct ImportServiceFixture
@@ -234,12 +290,10 @@ struct ImportServiceFixture
 
     ImportSchedulerFixture imports;  // reuse the deposit-block helpers' receipt factory
 
-    ImportServiceFixture()
-      : delegate(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(
-            makeImportReceiptFactory(), makeCryptoSuite()->hashImpl(), /*chainId=*/8453,
-            std::make_shared<bcos::evm::opstack::OpForkSchedule>(
-                bcos::evm::opstack::OpForkSchedule::legacy(false)),
-            blockFactory, storage, /*ledger=*/nullptr, ioServicePool)),
+    ImportServiceFixture() : ImportServiceFixture(/*stripImportDeltaAt=*/-1) {}
+
+    explicit ImportServiceFixture(bcos::protocol::BlockNumber stripImportDeltaAt)
+      : delegate(makeImportDelegate(stripImportDeltaAt, blockFactory, storage, ioServicePool)),
         service(memPool, storage, seamScheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, delegate, nullptr, false)
     {
@@ -963,6 +1017,175 @@ BOOST_AUTO_TEST_CASE(ChainedImportMatchesCanonicalParentState)
         request2.executionPayload.timestamp / 1000, /*plane=*/nullptr);
     BOOST_REQUIRE(onParentPlane.header != nullptr);
     BOOST_CHECK_EQUAL(onParentPlane.header->stateRoot().hex(), acceptedRoot.hex());
+}
+
+// N1 regression: an imported block that FCU makes canonical must carry the by-number
+// transaction list. ledger::getBlockData reads SYS_NUMBER_2_TXS[number] and resolves
+// SYS_HASH_2_TX through it; the canonicalize branches wrote only the hash-keyed bodies,
+// so eth_getBlockByNumber returned the block with no transactions after SetCanonical.
+BOOST_AUTO_TEST_CASE(CanonicalImportedBlockHasNumberToTxsRow)
+{
+    ImportServiceFixture f;
+
+    auto request = f.validRequest(fixtureHeadHash(), 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    bcos::engine::ForkchoiceState fcu{
+        request.executionPayload.blockHash, request.executionPayload.blockHash, fixtureHeadHash()};
+    auto canonical = bcos::task::syncWait(f.service.updateForkchoice(fcu, nullptr, 3));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(canonical.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    auto view = f.storage.forkCommitted();
+    auto block = bcos::task::syncWait(bcos::ledger::getBlockData(
+        view, 1, bcos::ledger::HEADER | bcos::ledger::TRANSACTIONS, *f.blockFactory));
+    BOOST_REQUIRE(block != nullptr);
+    // The canonicalized block's deposit transaction must be retrievable by number.
+    BOOST_CHECK_EQUAL(block->transactionsSize(), 1U);
+}
+
+// N2 regression: a switch must not scrub the still-canonical ancestors' metadata rows.
+// The switch's "delete every backend row absent from the head flat" treated the state
+// plane as the whole backend, deleting A's SYS_HASH_2_NUMBER / hash-keyed rows.
+BOOST_AUTO_TEST_CASE(SwitchKeepsCanonicalAncestorLedgerRows)
+{
+    ImportServiceFixture f;
+    f.seedCanonicalChainABC();
+    auto const aHash = bcos::protocol::EthBlockHeader::computeHash(*f.executedByNumber[1]);
+
+    {
+        auto pre = f.storage.forkCommitted();
+        auto preA = bcos::task::syncWait(
+            bcos::ledger::getBlockNumber(pre, aHash, bcos::ledger::fromStorage));
+        BOOST_REQUIRE(preA.has_value());
+        BOOST_CHECK_EQUAL(*preA, 1);
+    }
+
+    // B' sibling of B, parent A.
+    auto requestBPrime = f.validRequest(aHash, 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    bcos::engine::ForkchoiceState fcuBPrime{requestBPrime.executionPayload.blockHash,
+        requestBPrime.executionPayload.blockHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    auto view = f.storage.forkCommitted();
+    // A stays canonical at height 1: its hash->number row must survive the switch.
+    auto aNumber =
+        bcos::task::syncWait(bcos::ledger::getBlockNumber(view, aHash, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(aNumber.has_value());
+    BOOST_CHECK_EQUAL(*aNumber, 1);
+    auto height1 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 1, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height1.has_value());
+    BOOST_CHECK_EQUAL(height1->hex(), aHash.hex());
+    // Above the new head the number mapping is gone.
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockHash(view, 3, bcos::ledger::fromStorage))
+             .has_value());
+}
+
+// N3 regression: after a switch, the orphaned old-chain occupant must stop occupying
+// its height, or the next legal import there answers SYNCING forever (the old occupant
+// is no longer canonical, so the caller's occupantCanonical gate rejects it).
+BOOST_AUTO_TEST_CASE(SwitchClearsOrphanedOccupantForNextImport)
+{
+    ImportServiceFixture f;
+    f.seedCanonicalChainABC();
+    auto const aHash = bcos::protocol::EthBlockHeader::computeHash(*f.executedByNumber[1]);
+
+    auto requestBPrime = f.validRequest(aHash, 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    bcos::engine::ForkchoiceState fcuBPrime{requestBPrime.executionPayload.blockHash,
+        requestBPrime.executionPayload.blockHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // Old-chain C@3 is now orphaned; the next legal payload extends the new tip B'@2.
+    auto request3 = f.validRequest(requestBPrime.executionPayload.blockHash, 3);
+    auto status = bcos::task::syncWait(f.service.newPayload(request3, 4));
+    BOOST_REQUIRE_MESSAGE(static_cast<int>(status.status) ==
+                              static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
+        "orphan occupant blocked import: status=" << static_cast<int>(status.status) << " err="
+                                                  << status.validationError.value_or("<none>"));
+    BOOST_CHECK(f.service.hasImportedBlock(request3.executionPayload.blockHash));
+}
+
+// F3 regression: canonicalize is one atomic batch. A mid-chain failure must leave the
+// backend observably as it was before the call (design §4.2: 失败则全部回到调用前), not
+// half-written: B1's rows merge first, then B2's delta is gone.
+BOOST_AUTO_TEST_CASE(CanonicalizeRollsBackOnMidChainMergeFailure)
+{
+    ImportServiceFixture f(/*stripImportDeltaAt=*/2);
+
+    auto request1 = f.validRequest(fixtureHeadHash(), 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request1, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto request2 = f.validRequest(request1.executionPayload.blockHash, 2);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request2, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    bcos::engine::ForkchoiceState fcu{request2.executionPayload.blockHash,
+        request2.executionPayload.blockHash, fixtureHeadHash()};
+    bool canonicalizeThrew = false;
+    try
+    {
+        (void)bcos::task::syncWait(f.service.updateForkchoice(fcu, nullptr, 3));
+    }
+    catch (std::exception const&)
+    {
+        canonicalizeThrew = true;
+    }
+    BOOST_CHECK_MESSAGE(canonicalizeThrew, "a half-merged canonicalize must not answer VALID");
+
+    // The failure must leave the committed plane exactly as it was (genesis only).
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        0);
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockHash(view, 1, bcos::ledger::fromStorage))
+             .has_value());
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage))
+             .has_value());
+    BOOST_CHECK(
+        !bcos::task::syncWait(bcos::ledger::getBlockNumber(view,
+                                  request1.executionPayload.blockHash, bcos::ledger::fromStorage))
+             .has_value());
 }
 
 // F2 regression: an imported parent whose materialized plane is gone must be answered

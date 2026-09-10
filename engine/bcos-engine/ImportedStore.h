@@ -42,6 +42,11 @@ struct ImportedBlock
     std::vector<bcos::h256> txHashes;
     std::vector<bcos::bytes> encodedTxs;
     std::vector<bcos::bytes> receipts;  // encoded FISCO receipts, index-aligned
+    // Recipients, index-aligned with txHashes/encodedTxs. Captured at import from the
+    // decoded transaction ("0x"-prefixed, or empty for contract creation) so canonicalize
+    // can write SYS_NUMBER_2_TXS (the by-number tx list ledger::getBlockData reads)
+    // without re-decoding the envelopes.
+    std::vector<std::string> txRecipients;
 
     // Per-block storage delta relative to parent. Task 3 replaces this placeholder
     // with the real executor delta type; `put` success == the delta exists.
@@ -125,6 +130,19 @@ public:
     {
         std::lock_guard lock(m_mutex);
         return m_blocks.size();
+    }
+
+    /// After a switch/forward FCU canonicalizes @p hash at @p number, the occupants at
+    /// heights above @p number are off the new canonical chain (design §4.3: 丢掉未挂在
+    /// 新头上的 live imported 边). Drop their number index — bodies stay hash-addressable
+    /// via m_blocks for a later re-FCU or re-import — and re-key @p number to the new head,
+    /// so the next legal import at those heights does not answer SYNCING forever because a
+    /// de-canonicalized occupant looks like a live conflicting branch (review N3).
+    void adoptCanonicalHead(bcos::protocol::BlockNumber number, const bcos::h256& hash)
+    {
+        std::lock_guard lock(m_mutex);
+        std::erase_if(m_byNumber, [number](auto const& item) { return item.first > number; });
+        m_byNumber[number] = hash;
     }
 
     /// Memory bounding (review P2): drop the materialized post-state flats of blocks

@@ -53,11 +53,13 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <exception>
 #include <mutex>
 #include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -294,10 +296,30 @@ private:
     /// canonical tip up to @p headHash — per block, the block's own delta carries
     /// its canonical keys (HASH_2_NUMBER / NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER)
     /// and merges once (一块一配, design §4.2/§4.4.4); SYS_CURRENT_STATE lands with
-    /// the head's merge. Throws on any failure — the FCU caller must not answer
-    /// VALID (rollback to a consistent plane is the caller's restart story; the
-    /// §5 matrix gates the happy paths).
+    /// the head's merge. Any failure restores the backend to its pre-call rows
+    /// (design §4.2 atomicity: 失败则全部回到调用前) before rethrowing — the FCU
+    /// caller must not answer VALID on a half-written plane.
     task::Task<void> canonicalizeImportedHead(const h256& headHash);
+
+    /// One backend row's original value for the canonicalize undo journal.
+    struct CanonicalizeUndoRow
+    {
+        executor_v1::StateKey key;
+        std::optional<bcos::storage::Entry> prior;  // nullopt == key was absent
+    };
+
+    /// Record @p key's current backend value (first occurrence only — the earliest
+    /// value is the one a rollback must restore) before canonicalize mutates it.
+    template <class BackendType>
+    static task::Task<void> recordCanonicalizeUndo(BackendType& backend,
+        std::vector<CanonicalizeUndoRow>& undo, std::unordered_set<executor_v1::StateKey>& seen,
+        executor_v1::StateKeyView key);
+
+    /// Restore every journaled row: write the prior value back, or remove the key when
+    /// it did not exist before the call.
+    template <class BackendType>
+    static task::Task<void> rollbackCanonicalize(
+        BackendType& backend, std::vector<CanonicalizeUndoRow> const& undo);
 
     /// Release the materialized flats of blocks at/below the finalized marker (review F4).
     void pruneFlatsAtOrBelowFinalized();

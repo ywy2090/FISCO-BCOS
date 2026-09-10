@@ -27,8 +27,8 @@
 // rlp-protocol and bcos-evm-opstack include dirs and link both (in-tree instantiators do).
 #include "OpEngineService.h"
 #include <bcos-evm/opstack/RollupCost.h>
-#include <opstack-executor/OpCommitments.h>
 #include <bcos-rlp-protocol/EthBlockHeader.h>
+#include <opstack-executor/OpCommitments.h>
 
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/view/transform.hpp>
@@ -182,8 +182,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
                 .payloadId = std::nullopt,
             };
         }
-        if (auto validationError = engine_common::op::validateOpPayloadAttributes(
-                *payloadAttributes, ctx.forkId);
+        if (auto validationError =
+                engine_common::op::validateOpPayloadAttributes(*payloadAttributes, ctx.forkId);
             validationError.has_value())
         {
             co_return ForkchoiceUpdatedResult{
@@ -249,14 +249,14 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
     }
     else
     {
-        canonicalTipNumber = co_await bcos::ledger::getCurrentBlockNumber(
-            view, bcos::ledger::fromStorage);
+        canonicalTipNumber =
+            co_await bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage);
         // SetCanonical for a LEDGER-canonical head above the tip pointer (skipped
         // middle heights are already canonical rows): advance SYS_CURRENT_STATE —
         // a stale tip pointer under a canonical head means SetCanonical's
         // number-move has not happened yet (design §4.2: 沿新链写满).
-        auto canonicalHeadHashEarly = co_await bcos::ledger::getBlockHash(
-            view, *headBlockNumber, bcos::ledger::fromStorage);
+        auto canonicalHeadHashEarly =
+            co_await bcos::ledger::getBlockHash(view, *headBlockNumber, bcos::ledger::fromStorage);
         if (canonicalHeadHashEarly.has_value() &&
             *canonicalHeadHashEarly == forkchoiceState.headBlockHash &&
             *headBlockNumber > canonicalTipNumber)
@@ -269,8 +269,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
             bcos::storage::Entry numberEntry;
             numberEntry.set(std::to_string(*headBlockNumber));
             co_await storage2::writeOne(*row,
-                executor_v1::StateKey{bcos::ledger::SYS_CURRENT_STATE,
-                    bcos::ledger::SYS_KEY_CURRENT_NUMBER},
+                executor_v1::StateKey{
+                    bcos::ledger::SYS_CURRENT_STATE, bcos::ledger::SYS_KEY_CURRENT_NUMBER},
                 std::move(numberEntry));
             co_await m_globalStateStorage.mergeToBackends(*row);
             canonicalTipNumber = *headBlockNumber;
@@ -377,9 +377,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
     // matching both the cache entry's version below and upstream: op-geth's
     // ForkchoiceUpdatedV3/V4 build the same PayloadV3 shape, so the same content under
     // either method must derive the same id (GetPayloadV4 accepts only PayloadV3 ids).
-    auto payloadIdOpt = engine_common::derivePayloadId(payloadAttributes,
-        forkchoiceState.headBlockHash, engine_common::payloadShapeVersion(version),
-        decodedForcedTxs);
+    auto payloadIdOpt =
+        engine_common::derivePayloadId(payloadAttributes, forkchoiceState.headBlockHash,
+            engine_common::payloadShapeVersion(version), decodedForcedTxs);
     if (!payloadIdOpt.has_value())
     {
         co_return ForkchoiceUpdatedResult{
@@ -393,8 +393,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
     // The header shape (and, below, the base-fee clock) key on the fork the attrs
     // timestamp selects. Re-resolving here is safe: the caller already proved this
     // timestamp resolves, and it is the same value.
-    auto const ctx = requireOpEngineForkAt(
-        unixSecondsFromInternalMillis(payloadAttributes.timestamp));
+    auto const ctx =
+        requireOpEngineForkAt(unixSecondsFromInternalMillis(payloadAttributes.timestamp));
 
     u256 baseFee;
     uint64_t parentTsSec = 0;
@@ -408,9 +408,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
             // Parent hash already resolved (canonical). Missing header is local-state
             // corruption — fail closed rather than pricing the block at 1 gwei.
             co_return ForkchoiceUpdatedResult{
-                .payloadStatus = makeStatus(PayloadValidationStatus::Invalid,
-                    forkchoiceState.headBlockHash,
-                    std::string("parent block header is missing from storage")),
+                .payloadStatus =
+                    makeStatus(PayloadValidationStatus::Invalid, forkchoiceState.headBlockHash,
+                        std::string("parent block header is missing from storage")),
                 .payloadId = std::nullopt,
             };
         }
@@ -418,8 +418,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
         bcos::bytes parentHeaderBytes(stored.begin(), stored.end());
         auto parentHeader =
             m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
-        parentTsSec = unixSecondsFromInternalMillis(
-            static_cast<uint64_t>(parentHeader->timestamp()));
+        parentTsSec =
+            unixSecondsFromInternalMillis(static_cast<uint64_t>(parentHeader->timestamp()));
         baseFee = calcOpNextBlockBaseFee(*parentHeader, baseFeeClockFor(*parentHeader, ctx.forkId));
     }
 
@@ -437,10 +437,10 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
             if (dispatchRawTransaction(bcos::ref(env)) != RawTransactionKind::Deposit)
             {
                 co_return ForkchoiceUpdatedResult{
-                    .payloadStatus = makeStatus(PayloadValidationStatus::Invalid,
-                        forkchoiceState.headBlockHash,
-                        std::string("op block: unexpected non-deposit transactions in fork "
-                                    "activation block")),
+                    .payloadStatus =
+                        makeStatus(PayloadValidationStatus::Invalid, forkchoiceState.headBlockHash,
+                            std::string("op block: unexpected non-deposit transactions in fork "
+                                        "activation block")),
                     .payloadId = std::nullopt,
                 };
             }
@@ -617,11 +617,10 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
         }
         payload = assemblePayload(std::move(candidateEnvelopes));
 
-        const auto transactionsRoot =
-            SchedulerType::computeTxRoot(detail::rawEnvelopes(payload));
-        auto provisionalHeader = engine_common::op::rebuildOpEthHeader(
-            m_blockFactory->blockHeaderFactory(), payload, transactionsRoot, parentBeaconBlockRoot,
-            ctx.forkId);
+        const auto transactionsRoot = SchedulerType::computeTxRoot(detail::rawEnvelopes(payload));
+        auto provisionalHeader =
+            engine_common::op::rebuildOpEthHeader(m_blockFactory->blockHeaderFactory(), payload,
+                transactionsRoot, parentBeaconBlockRoot, ctx.forkId);
         bcos::protocol::Block::Ptr block;
         try
         {
@@ -643,8 +642,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
             // The build loop's whole model rests on reset having done its documented effect
             // (dropping any uncommitted pending, restoring the watermark) before executeBlock
             // runs; a failed reset must not be silently ignored.
-            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                std::string("OP payload build reset failed: ") + resetError->errorMessage()});
+            BOOST_THROW_EXCEPTION(
+                OpExecutionInternalError{} << bcos::errinfo_comment{
+                    std::string("OP payload build reset failed: ") + resetError->errorMessage()});
         }
         bcos::Error::Ptr executeError;
         m_delegate->executeBlock(block, /*verify=*/false,
@@ -717,8 +717,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
     m_delegate->reset([&](bcos::Error::Ptr error) { resetError = std::move(error); });
     if (resetError)
     {
-        BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-            std::string("OP payload build reset failed: ") + resetError->errorMessage()});
+        BOOST_THROW_EXCEPTION(
+            OpExecutionInternalError{} << bcos::errinfo_comment{
+                std::string("OP payload build reset failed: ") + resetError->errorMessage()});
     }
     bcos::Error::Ptr canonicalError;
     bcos::protocol::BlockHeader::Ptr canonicalHeader;
@@ -754,8 +755,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
         // moved-from, and putStaged then hashes that reference into hashToId.
         const auto blockHash = commonEntry->executionPayload.blockHash;
         auto guard = m_tracker.lockExclusive();
-        publishBuiltPayload(guard, m_artifacts, payloadId, blockHash,
-            std::move(commonEntry), std::move(stagedArtifact));
+        publishBuiltPayload(guard, m_artifacts, payloadId, blockHash, std::move(commonEntry),
+            std::move(stagedArtifact));
     }
 
     co_return ForkchoiceUpdatedResult{
@@ -773,14 +774,45 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::newPayload(
     co_return co_await handleOpNewPayload(request, version);
 }
 
+/// The SYS_NUMBER_2_TXS row body, byte-for-byte the shape Ledger.cpp's
+/// prewriteBlockToBuffer writes: a metadata block of (txHash, recipient) pairs.
+inline bcos::bytes encodeNumberToTxsRow(bcos::protocol::BlockFactory& blockFactory,
+    std::vector<bcos::h256> const& txHashes, std::vector<std::string> const& recipients)
+{
+    auto metadataBlock = blockFactory.createBlock();
+    for (std::size_t i = 0; i < txHashes.size(); ++i)
+    {
+        metadataBlock->appendTransactionMetaData(blockFactory.createTransactionMetaData(
+            txHashes[i], i < recipients.size() ? recipients[i] : std::string{}));
+    }
+    bcos::bytes encoded;
+    metadataBlock->encode(encoded);
+    return encoded;
+}
+
+/// True for the ledger's canonical-index/metadata tables. A switch's whole-plane
+/// replacement must scope its flat-absence scrub to the STATE plane: these rows can
+/// belong to still-canonical ancestors (they are not part of the executed state) and
+/// are trimmed explicitly by height instead (design §4.4.5/§4.4.6, review N2).
+inline bool isLedgerCanonicalMetadataTable(std::string_view table)
+{
+    return table == bcos::ledger::SYS_CURRENT_STATE || table == bcos::ledger::SYS_HASH_2_NUMBER ||
+           table == bcos::ledger::SYS_NUMBER_2_HASH ||
+           table == bcos::ledger::SYS_BLOCK_NUMBER_2_NONCES ||
+           table == bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER ||
+           table == bcos::ledger::SYS_NUMBER_2_TXS || table == bcos::ledger::SYS_HASH_2_TX ||
+           table == bcos::ledger::SYS_HASH_2_RECEIPT || table == bcos::ledger::SYS_CHAIN_METADATA;
+}
+
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
-task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
-    SchedulerType>::handleOpNewPayload(const NewPayloadRequest& request, std::uint32_t version)
+task::Task<PayloadStatus>
+OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::handleOpNewPayload(
+    const NewPayloadRequest& request, std::uint32_t version)
 {
     if (!isNewPayloadVersionSupported(version))
     {
-        BOOST_THROW_EXCEPTION(UnsupportedFork{} << bcos::errinfo_comment{
-                                  "unsupported newPayload method version"});
+        BOOST_THROW_EXCEPTION(
+            UnsupportedFork{} << bcos::errinfo_comment{"unsupported newPayload method version"});
     }
     // The pair check stays OUTSIDE the try below: that catch (...) would fold
     // UnsupportedFork into an internal error (-32603) instead of -38005.
@@ -836,10 +868,9 @@ inline bcos::evm::engine::OpBlockCommitments commitmentsOfHeader(
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
-    task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
-        SchedulerType>::runOpNewPayloadSteps(
-            const NewPayloadRequest& request, const EngineForkContext& ctx,
-            std::uint32_t version)
+task::Task<PayloadStatus>
+OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::runOpNewPayloadSteps(
+    const NewPayloadRequest& request, const EngineForkContext& ctx, std::uint32_t version)
 {
     // No reset of m_lastExecutedHeader here: a duplicate newPayload
     // arriving while another one is mid-flight must not clear a header the
@@ -856,9 +887,9 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     }
 
     const auto transactionsRoot = SchedulerType::computeTxRoot(detail::rawEnvelopes(payload));
-    const auto ethHeader = engine_common::op::rebuildOpEthHeader(
-        m_blockFactory->blockHeaderFactory(), payload, transactionsRoot,
-        request.parentBeaconBlockRoot, ctx.forkId);
+    const auto ethHeader =
+        engine_common::op::rebuildOpEthHeader(m_blockFactory->blockHeaderFactory(), payload,
+            transactionsRoot, request.parentBeaconBlockRoot, ctx.forkId);
     if (bcos::protocol::EthBlockHeader::computeHash(*ethHeader) != payload.blockHash)
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, std::nullopt,
@@ -943,9 +974,9 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
         }
         catch (const std::exception& e)
         {
-            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                      std::string("imported parent block header is undecodable: ") +
-                                      e.what()});
+            BOOST_THROW_EXCEPTION(
+                OpExecutionInternalError{} << bcos::errinfo_comment{
+                    std::string("imported parent block header is undecodable: ") + e.what()});
         }
     }
     else
@@ -1072,8 +1103,7 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     std::shared_ptr<void> blockFlat;
     m_delegate->importExecute(block, parentHeaders, parentFlat,
         [&](bcos::Error::Ptr error, bcos::protocol::BlockHeader::Ptr header,
-            std::shared_ptr<void> delta, std::shared_ptr<void> flat)
-        {
+            std::shared_ptr<void> delta, std::shared_ptr<void> flat) {
             executeError = std::move(error);
             executedHeader = std::move(header);
             blockDelta = std::move(delta);
@@ -1138,6 +1168,7 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
         bcos::bytes encoded;
         tx->encode(encoded);
         imported.encodedTxs.push_back(std::move(encoded));
+        imported.txRecipients.emplace_back(tx->to());
     }
     // Same-height occupant check (§4.2 单分叉冲突 vs §4.3 ancestor sibling): an
     // imported-live occupant with descendants must not lose its ancestor; a
@@ -1182,8 +1213,8 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
-void OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::
-    pruneFlatsAtOrBelowFinalized()
+void OpEngineService<MemPoolType, GlobalStateStorageType,
+    SchedulerType>::pruneFlatsAtOrBelowFinalized()
 {
     // Memory bound (review F4): a block at/below the finalized marker can never be the
     // parent plane of a NEW import (op-node's promoteFinalized makes it irreversible),
@@ -1197,8 +1228,58 @@ void OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
-task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::
-    canonicalizeImportedHead(const h256& headHash)
+template <class BackendType>
+task::Task<void>
+OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::recordCanonicalizeUndo(
+    BackendType& backend, std::vector<CanonicalizeUndoRow>& undo,
+    std::unordered_set<executor_v1::StateKey>& seen, executor_v1::StateKeyView key)
+{
+    if (!seen.emplace(key.m_table, key.m_key).second)
+    {
+        co_return;
+    }
+    auto prior = co_await storage2::readOne(backend, key);
+    CanonicalizeUndoRow row;
+    row.key = executor_v1::StateKey(key);
+    if (prior.has_value())
+    {
+        row.prior.emplace(*prior);
+    }
+    undo.push_back(std::move(row));
+    co_return;
+}
+
+template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
+template <class BackendType>
+task::Task<void>
+OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::rollbackCanonicalize(
+    BackendType& backend, std::vector<CanonicalizeUndoRow> const& undo)
+{
+    // Reverse order is not required (each key is journaled once), but keeps the undo
+    // symmetric with the write order for readability.
+    for (auto it = undo.rbegin(); it != undo.rend(); ++it)
+    {
+        // substr on the string_view (not the string) keeps the views referencing the
+        // journaled key for the whole iteration — temporary std::string views would dangle.
+        auto const tableAndKey = std::string_view(it->key.m_tableAndKey);
+        auto const view = executor_v1::StateKeyView(
+            tableAndKey.substr(0, it->key.m_split), tableAndKey.substr(it->key.m_split + 1));
+        if (it->prior.has_value())
+        {
+            co_await storage2::writeOne(backend, view, bcos::storage::Entry(*it->prior));
+        }
+        else
+        {
+            co_await storage2::removeOne(backend, view);
+        }
+    }
+    co_return;
+}
+
+template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
+task::Task<void>
+OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicalizeImportedHead(
+    const h256& headHash)
 {
     namespace detail = bcos::evm::engine::detail;
     using MutableStorageT = typename GlobalStateStorageType::MutableStorage;
@@ -1248,233 +1329,353 @@ task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerT
     }
     std::reverse(chain.begin(), chain.end());
 
-    // SWITCH detection: the head's height is at/below the current canonical tip —
-    // the canonical chain must be ROLLED BACK to the fork point before overlaying.
-    // Restoring the head's materialized post-state flat wholesale (captured at
-    // import) replaces the backend observably: same accounts, same storage, no C-era
-    // keys surviving (design §4.4.5's "整表替换"; the memory-flat is this
-    // milestone's stand-in for the production MPT replay from finalized).
     auto viewForTip = m_globalStateStorage.forkCommitted();
-    auto const currentTip = co_await bcos::ledger::getCurrentBlockNumber(
-        viewForTip, bcos::ledger::fromStorage);
-    if (currentTip != -1 && chain.back().number <= currentTip)
+    auto const currentTip =
+        co_await bcos::ledger::getCurrentBlockNumber(viewForTip, bcos::ledger::fromStorage);
+
+    // Undo journal (review F3): the batch mutates the backend incrementally (per-block
+    // merge or whole-plane replacement). Record every key's prior value before touching
+    // it, so ANY failure — a null delta mid-chain, a merge error, or the state-root
+    // post-condition — restores the backend to its pre-call rows instead of leaving a
+    // half-written plane. Not a general journal: scoped to this call.
+    std::vector<CanonicalizeUndoRow> undo;
+    std::unordered_set<executor_v1::StateKey> undoSeen;
+    auto& backend = m_globalStateStorage.m_latestBackend;
+    bcos::protocol::BlockNumber newHeadNumber = -1;
+    bcos::h256 newHeadHash{};
+
+    std::exception_ptr canonicalizeFailure;
+    try
     {
-        auto const headBlock = chain.back();
-        auto flat =
-            std::static_pointer_cast<typename GlobalStateStorageType::MutableStorage>(
+        // SWITCH detection: the head's height is at/below the current canonical tip —
+        // the canonical chain must be ROLLED BACK to the fork point before overlaying.
+        // Restoring the head's materialized post-state flat wholesale (captured at
+        // import) replaces the backend observably: same accounts, same storage, no C-era
+        // keys surviving (design §4.4.5's "整表替换"; the memory-flat is this
+        // milestone's stand-in for the production MPT replay from finalized).
+        if (currentTip != -1 && chain.back().number <= currentTip)
+        {
+            auto const headBlock = chain.back();
+            auto flat = std::static_pointer_cast<typename GlobalStateStorageType::MutableStorage>(
                 headBlock.postStateFlat);
-        if (!flat)
-        {
-            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                      "canonicalize switch: head has no post-state flat"});
-        }
-
-        auto& backend = m_globalStateStorage.m_latestBackend;
-
-        // (1) Remove backend rows absent from the head flat (C-era keys: accounts,
-        // storage slots, the canonical rows above/at heights that moved).
-        {
-            // The collection iterator is scoped: MemoryStorage's range() holds the
-            // storage lock for the iterator's lifetime, so mutating the same storage
-            // before it is destroyed self-deadlocks on that lock.
-            std::vector<executor_v1::StateKey> doomed;
+            if (!flat)
             {
-                auto backendIterator = co_await backend.range();
+                BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                          "canonicalize switch: head has no post-state flat"});
+            }
+
+            // (1) Remove backend STATE-plane rows absent from the head flat (C-era accounts /
+            // storage slots). Ledger metadata is NOT in the flat (the flat is materialized at
+            // import, before SetCanonical writes its canonical rows), so scrubbing it here was
+            // deleting still-canonical ancestors' hash-keyed rows (review N2); those tables are
+            // trimmed by height in step (3) instead.
+            {
+                // The collection iterator is scoped: MemoryStorage's range() holds the
+                // storage lock for the iterator's lifetime, so mutating the same storage
+                // before it is destroyed self-deadlocks on that lock.
+                std::vector<executor_v1::StateKey> doomed;
+                {
+                    auto backendIterator = co_await backend.range();
+                    while (true)
+                    {
+                        auto item = co_await backendIterator.next();
+                        if (!item.has_value())
+                        {
+                            break;
+                        }
+                        auto const& backendKey = std::get<0>(*item);
+                        auto const tableAndKey = std::string_view(backendKey.m_tableAndKey);
+                        if (isLedgerCanonicalMetadataTable(
+                                tableAndKey.substr(0, backendKey.m_split)))
+                        {
+                            continue;
+                        }
+                        auto present = co_await storage2::readOne(*flat,
+                            executor_v1::StateKeyView(tableAndKey.substr(0, backendKey.m_split),
+                                tableAndKey.substr(backendKey.m_split + 1)));
+                        if (!present.has_value())
+                        {
+                            doomed.push_back(executor_v1::StateKey(backendKey.m_tableAndKey));
+                        }
+                    }
+                }
+                for (auto const& key : doomed)
+                {
+                    auto const tableAndKey = std::string_view(key.m_tableAndKey);
+                    auto const keyView = executor_v1::StateKeyView(
+                        tableAndKey.substr(0, key.m_split), tableAndKey.substr(key.m_split + 1));
+                    co_await recordCanonicalizeUndo(backend, undo, undoSeen, keyView);
+                    co_await storage2::removeOne(backend, keyView);
+                }
+            }
+
+            // (2) Write/overwrite every head-flat row.
+            {
+                auto flatIterator = co_await flat->range();
                 while (true)
                 {
-                    auto item = co_await backendIterator.next();
+                    auto item = co_await flatIterator.next();
                     if (!item.has_value())
                     {
                         break;
                     }
-                    auto const& backendKey = std::get<0>(*item);
-                    auto const tableAndKey = std::string_view(backendKey.m_tableAndKey);
-                    auto present = co_await storage2::readOne(*flat,
-                        executor_v1::StateKeyView(tableAndKey.substr(0, backendKey.m_split),
-                            tableAndKey.substr(backendKey.m_split + 1)));
-                    if (!present.has_value())
+                    auto& [stateKeyRef, valueVariant] = *item;
+                    if (auto* entry = std::get_if<bcos::storage::Entry>(&valueVariant))
                     {
-                        doomed.push_back(
-                            executor_v1::StateKey(backendKey.m_tableAndKey));
+                        co_await recordCanonicalizeUndo(
+                            backend, undo, undoSeen, executor_v1::StateKeyView(stateKeyRef));
+                        co_await storage2::writeOne(backend,
+                            executor_v1::StateKey(stateKeyRef.m_tableAndKey), std::move(*entry));
                     }
                 }
             }
-            for (auto const& key : doomed)
-            {
-                auto const tableAndKey = std::string_view(key.m_tableAndKey);
-                co_await storage2::removeOne(backend,
-                    executor_v1::StateKeyView(tableAndKey.substr(0, key.m_split),
-                        tableAndKey.substr(key.m_split + 1)));
-            }
-        }
 
-        // (2) Write/overwrite every head-flat row.
-        {
-            auto flatIterator = co_await flat->range();
-            while (true)
+            // (3) Canonical rows for the new head + explicit height trim above it. The
+            // ancestors at/below the fork point keep their rows (step (1) left metadata
+            // alone); only heights strictly above the new head are de-canonicalized and lose
+            // their number mappings. Bodies stay hash-addressable (SYS_HASH_2_TX /
+            // SYS_HASH_2_RECEIPT untouched, design §4.2).
+            bcos::storage::Entry headNumberEntry;
+            auto const headNumberStr = std::to_string(headBlock.number);
+            auto const headHashKeyView = executor_v1::StateKeyView(bcos::ledger::SYS_HASH_2_NUMBER,
+                bcos::concepts::bytebuffer::toView(headBlock.hash));
+            co_await recordCanonicalizeUndo(backend, undo, undoSeen, headHashKeyView);
+            headNumberEntry.set(headNumberStr);
+            co_await storage2::writeOne(
+                backend, executor_v1::StateKey(headHashKeyView), std::move(headNumberEntry));
+            auto const numberHashKeyView =
+                executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_HASH, headNumberStr);
+            co_await recordCanonicalizeUndo(backend, undo, undoSeen, numberHashKeyView);
+            bcos::storage::Entry hashEntry;
+            hashEntry.set(headBlock.hash.asBytes());
+            co_await storage2::writeOne(
+                backend, executor_v1::StateKey(numberHashKeyView), std::move(hashEntry));
+            auto const headerKeyView =
+                executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER, headNumberStr);
+            co_await recordCanonicalizeUndo(backend, undo, undoSeen, headerKeyView);
+            bcos::storage::Entry headerEntry;
+            headerEntry.set(headBlock.headerBytes);
+            co_await storage2::writeOne(
+                backend, executor_v1::StateKey(headerKeyView), std::move(headerEntry));
+            auto const currentKeyView = executor_v1::StateKeyView(
+                bcos::ledger::SYS_CURRENT_STATE, bcos::ledger::SYS_KEY_CURRENT_NUMBER);
+            co_await recordCanonicalizeUndo(backend, undo, undoSeen, currentKeyView);
+            bcos::storage::Entry numberEntry;
+            numberEntry.set(headNumberStr);
+            co_await storage2::writeOne(
+                backend, executor_v1::StateKey(currentKeyView), std::move(numberEntry));
+            for (std::size_t i = 0; i < headBlock.encodedTxs.size(); ++i)
             {
-                auto item = co_await flatIterator.next();
-                if (!item.has_value())
+                auto const txHashView = bcos::concepts::bytebuffer::toView(headBlock.txHashes[i]);
+                auto const txKeyView =
+                    executor_v1::StateKeyView(bcos::ledger::SYS_HASH_2_TX, txHashView);
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, txKeyView);
+                bcos::storage::Entry txEntry;
+                txEntry.set(headBlock.encodedTxs[i]);
+                co_await storage2::writeOne(
+                    backend, executor_v1::StateKey(txKeyView), std::move(txEntry));
+                if (i < headBlock.receipts.size())
                 {
-                    break;
+                    auto const receiptKeyView =
+                        executor_v1::StateKeyView(bcos::ledger::SYS_HASH_2_RECEIPT, txHashView);
+                    co_await recordCanonicalizeUndo(backend, undo, undoSeen, receiptKeyView);
+                    bcos::storage::Entry receiptEntry;
+                    receiptEntry.set(headBlock.receipts[i]);
+                    co_await storage2::writeOne(
+                        backend, executor_v1::StateKey(receiptKeyView), std::move(receiptEntry));
                 }
-                auto& [stateKeyRef, valueVariant] = *item;
-                if (auto* entry = std::get_if<bcos::storage::Entry>(&valueVariant))
+            }
+            // SYS_NUMBER_2_TXS[number]: the by-number tx list ledger::getBlockData reads
+            // before resolving SYS_HASH_2_TX. Without it eth_getBlockByNumber returns the
+            // canonical imported block with no transactions (review N1).
+            {
+                auto const numberToTxsKeyView =
+                    executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_TXS, headNumberStr);
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, numberToTxsKeyView);
+                bcos::storage::Entry numberToTxsEntry;
+                numberToTxsEntry.set(encodeNumberToTxsRow(
+                    *m_blockFactory, headBlock.txHashes, headBlock.txRecipients));
+                co_await storage2::writeOne(backend, executor_v1::StateKey(numberToTxsKeyView),
+                    std::move(numberToTxsEntry));
+            }
+            for (auto k = headBlock.number + 1; k <= currentTip; ++k)
+            {
+                auto const numberStr = std::to_string(k);
+                // Capture this height's OLD canonical hash before its number->hash row goes:
+                // the block is no longer canonical, so its hash->number entry must not
+                // outlive the mapping (it would resolve a de-canonicalized block).
+                auto const oldHashEntry = co_await storage2::readOne(
+                    backend, executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_HASH, numberStr));
+                auto const numberHashOldView =
+                    executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_HASH, numberStr);
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, numberHashOldView);
+                co_await storage2::removeOne(backend, numberHashOldView);
+                auto const headerOldView =
+                    executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER, numberStr);
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, headerOldView);
+                co_await storage2::removeOne(backend, headerOldView);
+                auto const txsOldView =
+                    executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_TXS, numberStr);
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, txsOldView);
+                co_await storage2::removeOne(backend, txsOldView);
+                auto const noncesOldView =
+                    executor_v1::StateKeyView(bcos::ledger::SYS_BLOCK_NUMBER_2_NONCES, numberStr);
+                co_await recordCanonicalizeUndo(backend, undo, undoSeen, noncesOldView);
+                co_await storage2::removeOne(backend, noncesOldView);
+                if (oldHashEntry.has_value())
                 {
-                    co_await storage2::writeOne(backend,
-                        executor_v1::StateKey(stateKeyRef.m_tableAndKey), std::move(*entry));
+                    auto const oldHashBytes = oldHashEntry->get();
+                    if (oldHashBytes.size() == bcos::crypto::HashType::SIZE)
+                    {
+                        bcos::crypto::HashType const oldHash(
+                            oldHashBytes, bcos::crypto::HashType::FromBinary);
+                        auto const oldHashNumberView =
+                            executor_v1::StateKeyView(bcos::ledger::SYS_HASH_2_NUMBER,
+                                bcos::concepts::bytebuffer::toView(oldHash));
+                        co_await recordCanonicalizeUndo(backend, undo, undoSeen, oldHashNumberView);
+                        co_await storage2::removeOne(backend, oldHashNumberView);
+                    }
                 }
             }
-        }
 
-        // (3) Canonical rows for the new head + trim above it.
-        bcos::storage::Entry headNumberEntry;
-        headNumberEntry.set(std::to_string(headBlock.number));
-        co_await storage2::writeOne(backend,
-            executor_v1::StateKey{bcos::ledger::SYS_HASH_2_NUMBER,
-                bcos::concepts::bytebuffer::toView(headBlock.hash)},
-            std::move(headNumberEntry));
-        bcos::storage::Entry hashEntry;
-        hashEntry.set(headBlock.hash.asBytes());
-        co_await storage2::writeOne(backend,
-            executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_HASH,
-                std::to_string(headBlock.number)},
-            std::move(hashEntry));
-        bcos::storage::Entry headerEntry;
-        headerEntry.set(headBlock.headerBytes);
-        co_await storage2::writeOne(backend,
-            executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER,
-                std::to_string(headBlock.number)},
-            std::move(headerEntry));
-        bcos::storage::Entry numberEntry;
-        numberEntry.set(std::to_string(headBlock.number));
-        co_await storage2::writeOne(backend,
-            executor_v1::StateKey{bcos::ledger::SYS_CURRENT_STATE,
-                bcos::ledger::SYS_KEY_CURRENT_NUMBER},
-            std::move(numberEntry));
-        for (std::size_t i = 0; i < headBlock.encodedTxs.size(); ++i)
-        {
-            bcos::storage::Entry txEntry;
-            txEntry.set(headBlock.encodedTxs[i]);
-            co_await storage2::writeOne(backend,
-                executor_v1::StateKey{bcos::ledger::SYS_HASH_2_TX,
-                    bcos::concepts::bytebuffer::toView(headBlock.txHashes[i])},
-                std::move(txEntry));
-            if (i < headBlock.receipts.size())
+            // Design §4.2 post-condition: the relabelled tip must really be backed by the
+            // head's world state — this is the check that catches a stale/partial plane.
+            if (m_delegate)
             {
-                bcos::storage::Entry receiptEntry;
-                receiptEntry.set(headBlock.receipts[i]);
-                co_await storage2::writeOne(backend,
-                    executor_v1::StateKey{bcos::ledger::SYS_HASH_2_RECEIPT,
-                        bcos::concepts::bytebuffer::toView(headBlock.txHashes[i])},
-                    std::move(receiptEntry));
+                auto headHeader =
+                    m_blockFactory->blockHeaderFactory()->createBlockHeader(headBlock.headerBytes);
+                m_delegate->verifyCanonicalStateRoot(headHeader->stateRoot());
+                m_delegate->canonicalizedTo(headBlock.number);
             }
+            newHeadNumber = headBlock.number;
+            newHeadHash = headBlock.hash;
         }
-        for (auto k = headBlock.number + 1; k <= currentTip; ++k)
+        else
         {
-            co_await storage2::removeOne(backend,
-                executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_HASH,
-                    std::to_string(k)));
-            co_await storage2::removeOne(backend,
-                executor_v1::StateKeyView(bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER,
-                    std::to_string(k)));
-        }
-
-        // Design §4.2 post-condition: the relabelled tip must really be backed by the
-        // head's world state — this is the check that catches a stale/partial plane.
-        if (m_delegate)
-        {
-            auto headHeader =
-                m_blockFactory->blockHeaderFactory()->createBlockHeader(headBlock.headerBytes);
-            m_delegate->verifyCanonicalStateRoot(headHeader->stateRoot());
-            m_delegate->canonicalizedTo(headBlock.number);
-        }
-        m_importedStore.pruneFlatsAbove(headBlock.number);
-        pruneFlatsAtOrBelowFinalized();
-        co_return;
-    }
-
-    using MutableStorageT = typename GlobalStateStorageType::MutableStorage;
-    for (auto& block : chain)
-    {
-        auto delta = std::static_pointer_cast<MutableStorageT>(block.storageDelta);
-        if (!delta)
-        {
-            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                      "canonicalize: imported block has no storage delta"});
-        }
-        auto header =
-            m_blockFactory->blockHeaderFactory()->createBlockHeader(block.headerBytes);
-        if (header->number() != block.number)
-        {
-            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                      "canonicalize: stored header height mismatch"});
-        }
-
-        // This height's canonical keys ride the SAME merge as the block's delta
-        // (一块一配): HASH_2_NUMBER / NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER, plus
-        // SYS_CURRENT_STATE on the head's own merge.
-        bcos::storage::Entry numberEntry;
-        numberEntry.set(std::to_string(block.number));
-        co_await storage2::writeOne(*delta,
-            executor_v1::StateKey{bcos::ledger::SYS_HASH_2_NUMBER,
-                bcos::concepts::bytebuffer::toView(block.hash)},
-            std::move(numberEntry));
-        bcos::storage::Entry hashEntry;
-        hashEntry.set(block.hash.asBytes());
-        co_await storage2::writeOne(*delta,
-            executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_HASH,
-                std::to_string(block.number)},
-            std::move(hashEntry));
-        bcos::storage::Entry headerEntry;
-        headerEntry.set(block.headerBytes);
-        co_await storage2::writeOne(*delta,
-            executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER,
-                std::to_string(block.number)},
-            std::move(headerEntry));
-        // Canonical tx/receipt rows (prewriteBlockToBuffer's phase-2 equivalent,
-        // writeNonces=false): keyed by tx hash, index-aligned with the block's txs.
-        for (std::size_t i = 0; i < block.encodedTxs.size(); ++i)
-        {
-            bcos::storage::Entry txEntry;
-            txEntry.set(block.encodedTxs[i]);
-            co_await storage2::writeOne(*delta,
-                executor_v1::StateKey{bcos::ledger::SYS_HASH_2_TX,
-                    bcos::concepts::bytebuffer::toView(block.txHashes[i])},
-                std::move(txEntry));
-            if (i < block.receipts.size())
+            for (auto& block : chain)
             {
-                bcos::storage::Entry receiptEntry;
-                receiptEntry.set(block.receipts[i]);
+                auto delta = std::static_pointer_cast<MutableStorageT>(block.storageDelta);
+                if (!delta)
+                {
+                    BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                              "canonicalize: imported block has no storage delta"});
+                }
+                auto header =
+                    m_blockFactory->blockHeaderFactory()->createBlockHeader(block.headerBytes);
+                if (header->number() != block.number)
+                {
+                    BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                              "canonicalize: stored header height mismatch"});
+                }
+
+                // This height's canonical keys ride the SAME merge as the block's delta
+                // (一块一配): HASH_2_NUMBER / NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER, plus
+                // SYS_CURRENT_STATE on the head's own merge.
+                bcos::storage::Entry numberEntry;
+                numberEntry.set(std::to_string(block.number));
                 co_await storage2::writeOne(*delta,
-                    executor_v1::StateKey{bcos::ledger::SYS_HASH_2_RECEIPT,
-                        bcos::concepts::bytebuffer::toView(block.txHashes[i])},
-                    std::move(receiptEntry));
+                    executor_v1::StateKey{bcos::ledger::SYS_HASH_2_NUMBER,
+                        bcos::concepts::bytebuffer::toView(block.hash)},
+                    std::move(numberEntry));
+                bcos::storage::Entry hashEntry;
+                hashEntry.set(block.hash.asBytes());
+                co_await storage2::writeOne(*delta,
+                    executor_v1::StateKey{
+                        bcos::ledger::SYS_NUMBER_2_HASH, std::to_string(block.number)},
+                    std::move(hashEntry));
+                bcos::storage::Entry headerEntry;
+                headerEntry.set(block.headerBytes);
+                co_await storage2::writeOne(*delta,
+                    executor_v1::StateKey{
+                        bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER, std::to_string(block.number)},
+                    std::move(headerEntry));
+                // Canonical tx/receipt rows (prewriteBlockToBuffer's phase-2 equivalent,
+                // writeNonces=false): keyed by tx hash, index-aligned with the block's txs.
+                for (std::size_t i = 0; i < block.encodedTxs.size(); ++i)
+                {
+                    bcos::storage::Entry txEntry;
+                    txEntry.set(block.encodedTxs[i]);
+                    co_await storage2::writeOne(*delta,
+                        executor_v1::StateKey{bcos::ledger::SYS_HASH_2_TX,
+                            bcos::concepts::bytebuffer::toView(block.txHashes[i])},
+                        std::move(txEntry));
+                    if (i < block.receipts.size())
+                    {
+                        bcos::storage::Entry receiptEntry;
+                        receiptEntry.set(block.receipts[i]);
+                        co_await storage2::writeOne(*delta,
+                            executor_v1::StateKey{bcos::ledger::SYS_HASH_2_RECEIPT,
+                                bcos::concepts::bytebuffer::toView(block.txHashes[i])},
+                            std::move(receiptEntry));
+                    }
+                }
+                // SYS_NUMBER_2_TXS[number]: mirrors the ledger's prewrite row so the block is
+                // retrievable by number after the FCU canonicalizes it (review N1).
+                {
+                    bcos::storage::Entry numberToTxsEntry;
+                    numberToTxsEntry.set(
+                        encodeNumberToTxsRow(*m_blockFactory, block.txHashes, block.txRecipients));
+                    co_await storage2::writeOne(*delta,
+                        executor_v1::StateKey{
+                            bcos::ledger::SYS_NUMBER_2_TXS, std::to_string(block.number)},
+                        std::move(numberToTxsEntry));
+                }
+                if (block.hash == headHash)
+                {
+                    bcos::storage::Entry currentEntry;
+                    currentEntry.set(std::to_string(block.number));
+                    co_await storage2::writeOne(*delta,
+                        executor_v1::StateKey{
+                            bcos::ledger::SYS_CURRENT_STATE, bcos::ledger::SYS_KEY_CURRENT_NUMBER},
+                        std::move(currentEntry));
+                }
+                // Journal every key this block's merge will write before touching the backend, so
+                // a failure in a later block (or the post-condition) undoes this block too
+                // (review F3).
+                {
+                    auto deltaIterator = co_await delta->range();
+                    while (true)
+                    {
+                        auto item = co_await deltaIterator.next();
+                        if (!item.has_value())
+                        {
+                            break;
+                        }
+                        co_await recordCanonicalizeUndo(
+                            backend, undo, undoSeen, executor_v1::StateKeyView(std::get<0>(*item)));
+                    }
+                }
+                // The imported chain never occupies the MLS pending deque — mergeToBackends
+                // (design §4.2: 不要对空 deque 调 mergeBackStorage).
+                co_await m_globalStateStorage.mergeToBackends(*delta);
             }
+
+            if (m_delegate)
+            {
+                auto headHeader = m_blockFactory->blockHeaderFactory()->createBlockHeader(
+                    chain.back().headerBytes);
+                m_delegate->verifyCanonicalStateRoot(headHeader->stateRoot());
+                m_delegate->canonicalizedTo(chain.back().number);
+            }
+            newHeadNumber = chain.back().number;
+            newHeadHash = chain.back().hash;
         }
-        if (block.hash == headHash)
-        {
-            bcos::storage::Entry currentEntry;
-            currentEntry.set(std::to_string(block.number));
-            co_await storage2::writeOne(*delta,
-                executor_v1::StateKey{bcos::ledger::SYS_CURRENT_STATE,
-                    bcos::ledger::SYS_KEY_CURRENT_NUMBER},
-                std::move(currentEntry));
-        }
-        // The imported chain never occupies the MLS pending deque — mergeToBackends
-        // (design §4.2: 不要对空 deque 调 mergeBackStorage).
-        co_await m_globalStateStorage.mergeToBackends(*delta);
+    }
+    catch (...)
+    {
+        // co_await is not permitted in a catch handler; save the failure, restore the
+        // backend observably, then rethrow the original exception.
+        canonicalizeFailure = std::current_exception();
+    }
+    if (canonicalizeFailure)
+    {
+        co_await rollbackCanonicalize(backend, undo);
+        std::rethrow_exception(canonicalizeFailure);
     }
 
-    m_importedStore.pruneFlatsAbove(chain.back().number);
+    m_importedStore.adoptCanonicalHead(newHeadNumber, newHeadHash);
+    m_importedStore.pruneFlatsAbove(newHeadNumber);
     pruneFlatsAtOrBelowFinalized();
-    if (m_delegate)
-    {
-        auto headHeader =
-            m_blockFactory->blockHeaderFactory()->createBlockHeader(chain.back().headerBytes);
-        m_delegate->verifyCanonicalStateRoot(headHeader->stateRoot());
-        m_delegate->canonicalizedTo(chain.back().number);
-    }
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
@@ -1491,10 +1692,10 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpBloc
         auto tarsTx = engine_common::op::opEnvelopeToTars(env, txHash);
         if (!tarsTx)
         {
-            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << OpPayloadUndecodable{true}
-                                                             << bcos::errinfo_comment{
-                                                                    "undecodable payload "
-                                                                    "transaction envelope"});
+            BOOST_THROW_EXCEPTION(OpExecutionInternalError{}
+                                  << OpPayloadUndecodable{true}
+                                  << bcos::errinfo_comment{"undecodable payload "
+                                                           "transaction envelope"});
         }
         tarsTx->extraTransactionBytes.assign(env.begin(), env.end());
         auto tx = std::make_shared<bcostars::protocol::TransactionImpl>(
