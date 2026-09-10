@@ -341,7 +341,10 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
         throw std::invalid_argument("preBlockOpSteps: OpForkSchedule is required");
     }
 
-    auto blk = detail::toBlockInfo(header);
+    // The Cancun/Ecotone beacon root and blob pair exist only from Ecotone on; a pre-Ecotone
+    // header must not be required to carry them.
+    auto blk = detail::toBlockInfo(header, std::nullopt, /*lenientOptionals=*/false,
+        /*requireEcotoneHeaderFields=*/cfg.fork >= op::OpFork::Ecotone);
     hashes.emplace(
         view, blk.number, detail::toEvmcBytes32(header.parentInfo().blockHash), &hashErr);
     bcos::evm::evmstate::Storage2State<Storage> stateView(view, executor.sharedError());

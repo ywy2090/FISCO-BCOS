@@ -1083,12 +1083,16 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     {
         co_return mapDelegateError(*executeError, latestValidHash);
     }
-    if (!executedHeader || !executedHeader->withdrawalsRoot().has_value())
+    if (!executedHeader)
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
-            std::string("executed header is missing withdrawalsRoot"));
+            std::string("execution returned no header"));
     }
-    if (executedHeader->withdrawalsRoot() != payload.withdrawalsRoot)
+    // Same presence-insensitive projection as commitmentsOfHeader below: below Canyon the
+    // executed header always carries the seal's present-zero sentinel while a pre-Canyon
+    // payload legitimately omits the field, and the pre-Canyon RLP defines neither value.
+    if (executedHeader->withdrawalsRoot().value_or(bcos::h256{}) !=
+        payload.withdrawalsRoot.value_or(bcos::h256{}))
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
             std::string("withdrawalsRoot does not match the executed header"));

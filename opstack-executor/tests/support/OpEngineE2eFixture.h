@@ -335,16 +335,22 @@ struct OpE2eFixture
     OpEngine service;
 
     explicit OpE2eFixture(bcos::evm::opstack::OpForkFlags forkFlags)
+      : OpE2eFixture(scheduleFor(forkFlags.jovianActive))
+    {}
+
+    /// Explicit schedule: lets a case pin a historical fork window (e.g. Regolith) while the
+    /// engine, the seam and the real OpScheduler delegate all share it.
+    explicit OpE2eFixture(std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> schedule)
       : hashImpl(makeCryptoSuite()->hashImpl()),
         receiptFactory(makeReceiptFactory()),
-        scheduler(scheduleFor(forkFlags.jovianActive), {}),
+        scheduler(schedule, {}),
         legacyLedgerStorage(
             std::make_shared<bcos::storage::LegacyStorageWrapper<BackendMemStorage>>(
                 backendStorage)),
         ledger(std::make_shared<bcos::ledger::Ledger>(blockFactory, legacyLedgerStorage, 1000)),
         opDelegate(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
-            hashImpl, kChainId, scheduleFor(forkFlags.jovianActive), blockFactory,
-            multiLayerStorage, ledger, ioServicePool)),
+            hashImpl, kChainId, std::move(schedule), blockFactory, multiLayerStorage, ledger,
+            ioServicePool)),
         service(memPool, multiLayerStorage, scheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, opDelegate, nullptr,
             /*allowSynthesizedL1Attributes=*/true)

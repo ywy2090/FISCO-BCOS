@@ -1200,6 +1200,106 @@ BOOST_AUTO_TEST_CASE(CoverageMatrixFromManifest)
             errStrings.count(s), "coverage: validation_error_contains '" << s << "' has no vector");
 }
 
+// INT-F1 end to end: a Regolith-current schedule must BUILD (FCU V1 -> getPayload V2) and
+// IMPORT (newPayload V2) against the REAL OpScheduler delegate, not the RecordingScheduler
+// stub. The announced pre-Canyon header carries no withdrawalsRoot, no parentBeaconBlockRoot
+// and no blob fields — the RLP shape rebuildOpEthHeader emits for Regolith — so this reaches
+// the scheduler's non-lenient header decode on the build pass and the engine's
+// withdrawalsRoot projection on the import pass.
+namespace
+{
+std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> regolithOnlySchedule()
+{
+    return std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+        std::vector<bcos::evm::opstack::OpForkActivation>{
+            {bcos::evm::opstack::OpFork::Regolith, 0}},
+        bcos::evm::opstack::OpForkSchedule::TestBypass{});
+}
+
+bcos::h256 regolithGenesisHash()
+{
+    return bcos::h256("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+}
+
+/// A London-shaped genesis header (pre-Canyon RLP: no withdrawals hash, no Cancun fields)
+/// registered as canonical height 0, the parent a Regolith block 1 prices and extends.
+void registerRegolithGenesis(OpE2eFixture& fixture, bcos::h256 const& hash)
+{
+    registerVerifiedBlock(fixture.multiLayerStorage, hash, 0);
+    auto header = fixture.blockFactory->blockHeaderFactory()->createBlockHeader();
+    header->setNumber(0);
+    header->setTimestamp(0);
+    header->setGasLimit(30'000'000);
+    header->setGasUsed(20'000'000);
+    header->setBaseFee(bcos::u256(1'000'000'000));
+    header->setExtraData(bcos::bytes{});
+    header->setParentInfo(bcos::protocol::ParentInfo{.blockNumber = 0, .blockHash = bcos::h256{}});
+    bcos::bytes encoded;
+    header->encode(encoded);
+    auto view = fixture.multiLayerStorage.fork();
+    view.newMutable();
+    bcos::storage::Entry entry;
+    entry.set(std::move(encoded));
+    bcos::task::syncWait(bcos::storage2::writeOne(view,
+        StateKey{bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER, std::to_string(0)}, std::move(entry)));
+    bcos::task::syncWait(fixture.multiLayerStorage.mergeView(std::move(view)));
+}
+
+/// The payload an op-node at Regolith submits to newPayloadV2: pre-Canyon means the
+/// withdrawals list, the Cancun blob pair and the Isthmus withdrawalsRoot are all absent.
+bcos::engine::NewPayloadRequest preCanyonRequestOf(bcos::engine::ExecutionPayload const& built)
+{
+    bcos::engine::NewPayloadRequest req;
+    req.executionPayload = built;
+    req.executionPayload.withdrawals.reset();
+    req.executionPayload.blobGasUsed.reset();
+    req.executionPayload.excessBlobGas.reset();
+    req.executionPayload.withdrawalsRoot.reset();
+    req.parentBeaconBlockRoot.reset();
+    return req;
+}
+}  // namespace
+
+BOOST_AUTO_TEST_CASE(RegolithPayloadBuildsAndImportsAgainstRealScheduler)
+{
+    auto const genesis = regolithGenesisHash();
+
+    bcos::engine::PayloadAttributes attrs;
+    attrs.timestamp = 1'000;  // internal ms -> 1 s, the Regolith window of this schedule
+    attrs.prevRandao = bcos::crypto::HashType{};
+    attrs.suggestedFeeRecipient = bcos::Address{};
+    attrs.gasLimit = 30'000'000;
+
+    auto builder = std::make_unique<OpE2eFixture>(regolithOnlySchedule());
+    registerRegolithGenesis(*builder, genesis);
+    bcos::engine::ForkchoiceState fc{genesis, genesis, genesis};
+    auto built = bcos::task::syncWait(builder->service.updateForkchoice(
+        fc, &attrs, static_cast<std::uint32_t>(bcos::engine::ApiVersion::V1)));
+    BOOST_REQUIRE_MESSAGE(
+        built.payloadStatus.status == bcos::engine::PayloadValidationStatus::Valid,
+        "Regolith FCU V1 build must be VALID, got "
+            << static_cast<int>(built.payloadStatus.status) << " "
+            << built.payloadStatus.validationError.value_or(""));
+    BOOST_REQUIRE(built.payloadId.has_value());
+
+    auto got = bcos::task::syncWait(builder->service.getPayload(
+        *built.payloadId, static_cast<std::uint32_t>(bcos::engine::ApiVersion::V2)));
+    BOOST_REQUIRE(got);
+    BOOST_CHECK(!got->parentBeaconBlockRoot.has_value());
+
+    // A second, freshly-seeded node imports the same payload: its artifact cache is empty, so
+    // newPayload takes the import path (no built-header commit shortcut) and runs importExecute
+    // on the real OpScheduler over the genesis parent plane.
+    auto importer = std::make_unique<OpE2eFixture>(regolithOnlySchedule());
+    registerRegolithGenesis(*importer, genesis);
+    auto status =
+        bcos::task::syncWait(importer->service.newPayload(preCanyonRequestOf(got->executionPayload),
+            static_cast<std::uint32_t>(bcos::engine::ApiVersion::V2)));
+    BOOST_REQUIRE_MESSAGE(status.status == bcos::engine::PayloadValidationStatus::Valid,
+        "Regolith newPayload V2 import must be VALID, got "
+            << static_cast<int>(status.status) << " " << status.validationError.value_or(""));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(OpForkchoiceRpcE2eSuite)

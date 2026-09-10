@@ -204,10 +204,14 @@ template <class T>
 /// Build the OP block context from a FISCO header. `gasLimitOverride` injects the head block's
 /// gasLimit as blockGasLeft (a minimal test header may leave gasLimit==0); `lenientOptionals`
 /// tolerates unset optional header fields as 0 (eth_call path), while block execution uses
-/// `.value()` and throws on an unset field.
+/// `.value()` and throws on an unset field. `requireEcotoneHeaderFields` separates a malformed
+/// Ecotone+ header (the beacon root and blob pair exist from Cancun/Ecotone on and must be
+/// present) from the pre-Ecotone RLP shape, where those fields do not exist at all.
 inline evmone::state::BlockInfo toBlockInfo(const bcos::protocol::BlockHeader& env,
-    std::optional<uint64_t> gasLimitOverride = std::nullopt, bool lenientOptionals = false)
+    std::optional<uint64_t> gasLimitOverride = std::nullopt, bool lenientOptionals = false,
+    bool requireEcotoneHeaderFields = true)
 {
+    bool const lenient = lenientOptionals || !requireEcotoneHeaderFields;
     evmone::state::BlockInfo blk;
     blk.number = static_cast<int64_t>(env.number());
     // TIMESTAMP UNIT CONVENTION (do not "fix" — see below):
@@ -231,14 +235,14 @@ inline evmone::state::BlockInfo toBlockInfo(const bcos::protocol::BlockHeader& e
     blk.coinbase = toEvmcAddress(env.coinbase());
     blk.prev_randao = toEvmcBytes32(env.prevRandao());
     blk.parent_beacon_block_root = toEvmcBytes32(
-        lenientOptionals ?
+        lenient ?
             env.parentBeaconBlockRoot().value_or(bcos::h256{}) :
             requireHeaderField(env.parentBeaconBlockRoot(), "BlockInfo::parentBeaconBlockRoot"));
     blk.extra_data = evmc::bytes(env.extraData().begin(), env.extraData().end());
-    blk.blob_gas_used = narrowU256ToU64(
-        lenientOptionals ? env.blobGasUsed().value_or(bcos::u256{0}) :
-                           requireHeaderField(env.blobGasUsed(), "BlockInfo::blobGasUsed"),
-        "BlockInfo::blobGasUsed");
+    blk.blob_gas_used =
+        narrowU256ToU64(lenient ? env.blobGasUsed().value_or(bcos::u256{0}) :
+                                  requireHeaderField(env.blobGasUsed(), "BlockInfo::blobGasUsed"),
+            "BlockInfo::blobGasUsed");
     return blk;
 }
 }  // namespace detail
