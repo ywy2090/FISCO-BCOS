@@ -155,7 +155,7 @@ inline void validateScheduleRecords(std::span<const OpForkActivationRecord> acti
         const auto& activation = activations[index];
         const int order = forkOrder(activation.forkName);
         if (order < 0)
-            throwInvalidOpForkSchedule("unknown or pre-Isthmus fork");
+            throwInvalidOpForkSchedule("unknown fork");
 
         if (activation.timestamp < previousTimestamp)
             throwInvalidOpForkSchedule("timestamps out of order");

@@ -7,6 +7,7 @@
 #include <boost/test/unit_test.hpp>
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <utility>
 
 using namespace bcos::evm::opstack;
@@ -136,20 +137,48 @@ BOOST_AUTO_TEST_CASE(ParseAcceptsRegolithBaseline)
     BOOST_CHECK_EQUAL(&s.configAt(0), &regolithConfig());
 }
 
-// OpFork's enumerator order is the codec table's index order; inserting a fork
-// in the middle of either one without the other fails here.
+// OpFork's enumerator order is the codec table's index order. The oracle below is
+// an explicit {literal name, literal ordinal, named enumerator} list written down
+// independently of both the table and the enum. Reordering either side (even a
+// same-size swap of two middle entries) breaks a different row:
+//   * table swap  -> c_opForkNames[ordinal] != name and parse() picks the wrong fork
+//   * enum  swap  -> static_cast<int>(enumerator) != ordinal and parse() picks it too
+// A plain parse(name[i]).forkAt(0) == static_cast<OpFork>(i) loop cannot fail, since
+// parse() returns static_cast<OpFork>(forkOrder(name)) by construction.
 BOOST_AUTO_TEST_CASE(ForkNameEnumRoundTripsAllNine)
 {
     using bcos::ledger::detail::c_opForkNames;
+    // Protocol order, spelled out: these literals are the oracle, not the table.
+    struct ForkNameOrdinal
+    {
+        std::string_view name;
+        int ordinal;
+        OpFork fork;
+    };
+    constexpr ForkNameOrdinal c_expected[] = {
+        {"regolith", 0, OpFork::Regolith},
+        {"canyon", 1, OpFork::Canyon},
+        {"ecotone", 2, OpFork::Ecotone},
+        {"fjord", 3, OpFork::Fjord},
+        {"granite", 4, OpFork::Granite},
+        {"holocene", 5, OpFork::Holocene},
+        {"isthmus", 6, OpFork::Isthmus},
+        {"jovian", 7, OpFork::Jovian},
+        {"karst", 8, OpFork::Karst},
+    };
     // The codec table infers its own size, so the protocol cardinality is pinned
     // here: exactly the nine op-geth EL forks, with no delta entry.
-    BOOST_CHECK_EQUAL(c_opForkNames.size(), 9u);
-    for (std::size_t i = 0; i < c_opForkNames.size(); ++i)
+    BOOST_REQUIRE_EQUAL(c_opForkNames.size(), 9u);
+    for (const auto& expected : c_expected)
     {
-        auto s = OpForkSchedule::parse("0:" + std::string(c_opForkNames[i]));
-        BOOST_CHECK_EQUAL(s.forkAt(0), static_cast<OpFork>(i));
+        // Enum side: the named enumerator must actually hold this literal ordinal.
+        BOOST_CHECK_EQUAL(static_cast<int>(expected.fork), expected.ordinal);
+        // Table side: the codec table at this literal ordinal must carry this name.
+        BOOST_CHECK_EQUAL(c_opForkNames[static_cast<std::size_t>(expected.ordinal)], expected.name);
+        // Runtime path: parsing the name must select this exact enumerator.
+        auto s = OpForkSchedule::parse("0:" + std::string(expected.name));
+        BOOST_CHECK_EQUAL(s.forkAt(0), expected.fork);
     }
-    BOOST_CHECK_EQUAL(static_cast<std::size_t>(OpFork::Karst), c_opForkNames.size() - 1);
 }
 
 BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
