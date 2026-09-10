@@ -154,6 +154,29 @@ public:
             }(this, std::move(header), std::move(callback)));
     }
 
+    /// S5: engine-driven import (newPayload = InsertBlockWithoutSetHead). Executes
+    /// @p block on the parent's post-state — the committed flat plus the parent-chain
+    /// deltas (genesis-side first, type-erased; empty = parent is canonical) — and
+    /// returns the commitment-filled header plus THIS block's storage delta. Nothing
+    /// canonical is written: no prewriteBlockToBuffer, no NUMBER_2_HASH / header /
+    /// SYS_CURRENT_STATE keys, no pending slot, no continuity check, no lastExecuted /
+    /// lastCommitted movement. Receipts are attached to @p block (commitPersist's
+    /// convention) so a later canonicalize can prewrite without a second channel.
+    void importExecute(bcos::protocol::Block::Ptr block,
+        std::vector<std::shared_ptr<void>> const& parentDeltas,
+        std::function<void(
+            Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void> blockDelta)>
+            callback) override
+    {
+        task::syncWait([](decltype(this) self, bcos::protocol::Block::Ptr block,
+                           std::vector<std::shared_ptr<void>> const& parentDeltas,
+                           std::function<void(
+                               Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void>)>
+                               callback) -> task::Task<void> {
+            std::apply(callback, co_await self->coImportExecute(std::move(block), parentDeltas));
+        }(this, std::move(block), parentDeltas, std::move(callback)));
+    }
+
     void status(
         std::function<void(Error::Ptr, bcos::protocol::Session::ConstPtr)> callback) override
     {
@@ -899,6 +922,107 @@ private:
             OP_SCHEDULER_LOG(ERROR) << message;
             co_return {BCOS_ERROR_UNIQUE_PTR(classifyException(std::current_exception()), message),
                 nullptr};
+        }
+    }
+
+    task::Task<std::tuple<Error::Ptr, protocol::BlockHeader::Ptr, std::shared_ptr<void>>>
+    coImportExecute(
+        protocol::Block::Ptr block, std::vector<std::shared_ptr<void>> const& parentDeltas)
+    {
+        try
+        {
+            auto blockHeader = block->blockHeader();
+            auto const number = blockHeader->number();
+            OP_SCHEDULER_LOG(INFO) << "Import execute: " << number;
+
+            // Same pair as coExecuteBlock: imports must not overlap an execute (shared
+            // m_executeMutex) or a commit's mergeBackStorage (m_commitMutex). Unlike
+            // coExecuteBlock: NO pending-slot classification, NO continuity check, NO
+            // fast path, NO lastExecuted/lastCommitted movement, NO pushView.
+            std::unique_lock executeLock(m_executeMutex, std::try_to_lock);
+            if (!executeLock.owns_lock())
+            {
+                auto message = std::string{"Another block is executing!"};
+                OP_SCHEDULER_LOG(INFO) << message;
+                co_return {BCOS_ERROR_UNIQUE_PTR(scheduler::SchedulerError::InvalidStatus, message),
+                    nullptr, nullptr};
+            }
+            std::unique_lock commitLock(m_commitMutex, std::try_to_lock);
+            if (!commitLock.owns_lock())
+            {
+                auto message = std::string{"Another block is committing!"};
+                OP_SCHEDULER_LOG(INFO) << message;
+                co_return {BCOS_ERROR_UNIQUE_PTR(scheduler::SchedulerError::InvalidStatus, message),
+                    nullptr, nullptr};
+            }
+
+            co_await hydrateCommittedTip();
+
+            // Parent post-state view: committed flat + the parent-chain deltas stacked
+            // NEWEST first (the direct parent's delta at the front — the same ordering
+            // View uses for its pending deque, first hit wins), then a fresh mutable
+            // layer for this block's own writes (design §4.4.2).
+            auto view = m_multiLayerStorage->forkCommitted();
+            for (auto it = parentDeltas.rbegin(); it != parentDeltas.rend(); ++it)
+            {
+                view.m_immutableStorages.push_back(
+                    std::static_pointer_cast<typename MultiLayerStorage::MutableStorage>(*it));
+            }
+            view.newMutable();
+
+            auto transactions = co_await getTransactions(*block, view);
+            if (std::any_of(transactions.begin(), transactions.end(),
+                    [](auto const& tx) { return tx == nullptr; }))
+            {
+                auto message =
+                    fmt::format("Not found transactions in txpool for import block: {}", number);
+                OP_SCHEDULER_LOG(ERROR) << message;
+                co_return {BCOS_ERROR_UNIQUE_PTR(scheduler::SchedulerError::InvalidBlocks, message),
+                    nullptr, nullptr};
+            }
+
+            auto ledgerConfig = co_await loadLedgerConfig(view, number);
+            // Imports never persist trie nodes incrementally: that path reads the parent
+            // header BY NUMBER, which cannot see imported (un-canonicalized) parents.
+            // Canonicalize owns every canonical-table write (design §4.2 SetCanonical).
+            auto outcome = co_await execute(
+                view, *blockHeader, transactions, *ledgerConfig, /*persistTrieNodes=*/false);
+
+            bool sysBlock = false;
+            auto executedHeader = co_await finishExecute(
+                view, outcome, *blockHeader, *block, transactions, *ledgerConfig, sysBlock);
+
+            // Receipts ride on the block (commitPersist's convention): a later
+            // canonicalize prewrites them without another execution channel.
+            block->clearReceipts();
+            for (auto const& r : outcome.result.receipts)
+            {
+                block->appendReceipt(r);
+            }
+
+            // The view's fresh mutable layer IS this block's delta. The view itself is
+            // never pushed: it dies here, the delta survives through the shared_ptr.
+            auto blockDelta = std::shared_ptr<void>(std::move(view.m_mutableStorage));
+            co_return {nullptr, std::move(executedHeader), std::move(blockDelta)};
+        }
+        catch (std::exception& e)
+        {
+            auto message =
+                fmt::format("Import execute failed! {}", boost::diagnostic_information(e));
+            OP_SCHEDULER_LOG(ERROR) << message;
+            auto error = BCOS_ERROR_PTR(classifyException(std::current_exception()), message);
+            attachOpRejectInfo(*error, std::current_exception());
+            co_return {std::move(error), nullptr, nullptr};
+        }
+        catch (...)
+        {
+            auto message = std::string{"Import execute failed! ("} +
+                           describeException(std::current_exception()) + ")";
+            OP_SCHEDULER_LOG(ERROR) << message;
+            auto error =
+                BCOS_ERROR_UNIQUE_PTR(classifyException(std::current_exception()), message);
+            attachOpRejectInfo(*error, std::current_exception());
+            co_return {std::move(error), nullptr, nullptr};
         }
     }
 

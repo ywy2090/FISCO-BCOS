@@ -97,5 +97,25 @@ public:
 
     virtual void stop(){};
     virtual void setVersion(int version, ledger::LedgerConfig::Ptr ledgerConfig){};
+
+    // S5 OP lane only (OpEngineService::newPayload): execute @p block on the parent
+    // block's post-state WITHOUT any canonical-table write (no NUMBER_2_HASH / no
+    // SYS_CURRENT_STATE / no prewriteBlockToBuffer / no pending slot).
+    // @p parentDeltas are the ImportedStore per-block storage deltas from genesis to
+    // the parent, ordered genesis-side FIRST, type-erased as shared_ptr<void> across
+    // this boundary (the real scheduler casts to its own MultiLayerStorage mutable
+    // type; empty = parent is canonical). Receipts are attached to @p block; the
+    // block's own storage delta returns type-erased for the caller's ImportedStore.
+    // Default: unsupported — the Eth/baseline schedulers have no import lane.
+    virtual void importExecute(bcos::protocol::Block::Ptr block,
+        std::vector<std::shared_ptr<void>> const& parentDeltas,
+        std::function<void(
+            Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void> blockDelta)>
+            callback)
+    {
+        callback(BCOS_ERROR_PTR(scheduler::SchedulerError::UnknownError,
+                     "importExecute is not supported by this scheduler"),
+            nullptr, nullptr);
+    }
 };
 }  // namespace bcos::scheduler
