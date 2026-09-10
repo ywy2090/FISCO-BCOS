@@ -289,3 +289,67 @@ def build_schedule(toml, ts0, extra_forks=None):
             break
         parts.append(f"{times[fork]}:{fork}")
     return ",".join(parts)
+
+
+# The CL fork keys the pinned op-node models, in its own Config field order. `karst`
+# is absent on purpose: rollup/types.go has no KarstTime and parses with
+# DisallowUnknownFields, so a karst_time key would make the artifact unloadable.
+# `delta` and `pectra_blob_schedule` are CL-only forks (no EL semantics) but are part
+# of the CL config, so they come from the pin like any other.
+_ROLLUP_FORK_KEYS = ["regolith", "canyon", "delta", "ecotone", "fjord",
+                     "granite", "holocene", "pectra_blob_schedule",
+                     "isthmus", "jovian", "interop"]
+
+
+def _lower_hex(value):
+    return "0x" + _strip0x(value)
+
+
+def build_rollup(toml, l1_chain_id):
+    """op-node rollup.json for this chain, mapped as rollup/superchain.go does:
+    chain parameters from the toml, regolith fixed at 0, unscheduled forks null, and
+    ChannelTimeoutBedrock's 300 (not yet in the registry, so op-node hardcodes it).
+
+    `l1_chain_id` is not in the chain toml — op-node reads it from the superchain
+    config — so the caller supplies it.
+    """
+    genesis = toml["genesis"]
+    hardforks = toml.get("hardforks", {})
+    optimism = toml["optimism"]
+    addresses = toml["addresses"]
+    rollup = {
+        "genesis": {
+            "l1": {"hash": _lower_hex(genesis["l1"]["hash"]),
+                   "number": genesis["l1"]["number"]},
+            "l2": {"hash": _lower_hex(genesis["l2"]["hash"]),
+                   "number": genesis["l2"]["number"]},
+            "l2_time": genesis["l2_time"],
+            "system_config": {
+                "batcherAddr": _lower_hex(genesis["system_config"]["batcherAddress"]),
+                "overhead": _lower_hex(genesis["system_config"]["overhead"]),
+                "scalar": _lower_hex(genesis["system_config"]["scalar"]),
+                "gasLimit": genesis["system_config"]["gasLimit"],
+            },
+        },
+        "block_time": toml["block_time"],
+        "max_sequencer_drift": toml["max_sequencer_drift"],
+        "seq_window_size": toml["seq_window_size"],
+        "channel_timeout": 300,
+        "l1_chain_id": l1_chain_id,
+        "l2_chain_id": toml["chain_id"],
+        "batch_inbox_address": _lower_hex(toml["batch_inbox_addr"]),
+        "deposit_contract_address": _lower_hex(addresses["OptimismPortalProxy"]),
+        "l1_system_config_address": _lower_hex(addresses["SystemConfigProxy"]),
+        "chain_op_config": {
+            "eip1559Elasticity": optimism["eip1559_elasticity"],
+            "eip1559Denominator": optimism["eip1559_denominator"],
+            "eip1559DenominatorCanyon": optimism["eip1559_denominator_canyon"],
+        },
+    }
+    for fork in _ROLLUP_FORK_KEYS:
+        if fork == "regolith":
+            rollup["regolith_time"] = 0
+        else:
+            value = hardforks.get(f"{fork}_time")
+            rollup[f"{fork}_time"] = None if value is None else int(value)
+    return rollup

@@ -165,3 +165,23 @@ def test_schedule_overlay_conflict_raises():
     # an overlay naming a pinned fork with a different time must not silently win
     with pytest.raises(gen.RegistryError):
         gen.build_schedule(TOML_FORKS, ts0=50, extra_forks={"canyon": 123})
+
+
+def test_build_rollup_carries_registry_fields():
+    rollup = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1)
+    assert rollup["genesis"]["l2"]["number"] == 0
+    assert rollup["genesis"]["l2_time"] == 1686789347
+    assert rollup["l2_chain_id"] == 8453
+    assert rollup["l1_chain_id"] == 1
+    assert rollup["block_time"] == 2
+    assert rollup["batch_inbox_address"] == "0xff00000000000000000000000000000000000010"
+    assert rollup["deposit_contract_address"] == "0xbeb5fc579115071764c7423a4f12edde41f106ed"
+    assert rollup["chain_op_config"]["eip1559DenominatorCanyon"] == 250
+    assert rollup["regolith_time"] == 0
+    assert rollup["canyon_time"] == 1704992401
+    # `karst_time` is deliberately absent, not null: the pinned op-node has no such
+    # field and parses rollup.json with DisallowUnknownFields (rollup/types.go:850),
+    # so emitting the key would make the file unloadable. See the design §5.5, which
+    # lists only the forks the pin models.
+    assert "karst_time" not in rollup
+    assert rollup["interop_time"] is None
