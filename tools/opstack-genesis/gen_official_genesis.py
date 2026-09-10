@@ -35,7 +35,10 @@ def default_decompress(zst_bytes, dictionary):
             ["zstd", "-d", "-D", dict_file.name, "-c"],
             input=zst_bytes, capture_output=True)
     if proc.returncode != 0:
-        raise RuntimeError("zstd decompression failed: " + proc.stderr.decode(errors="replace"))
+        # A frame the dictionary cannot decode is a registry problem, so report it as
+        # one: the CLI turns RegistryError into a message, while anything else would
+        # reach the operator as a traceback (design §7).
+        raise RegistryError("zstd decompression failed: " + proc.stderr.decode(errors="replace"))
     return proc.stdout
 
 
@@ -81,9 +84,11 @@ _fixture = _load("gen_eth_header_fixture", "gen_eth_header_fixture.py")
 keccak256 = _fixture.keccak256
 HEADER_FIELD_ORDER = _fixture.HEADER_FIELD_ORDER
 
-EMPTY_TRIE_ROOT = "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
-EMPTY_OMMERS_HASH = "1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"
-EMPTY_REQUESTS_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+# Derived from the fixture module (the canonical home for these consensus values) so
+# they cannot drift: the fixture's copies carry the 0x prefix, the INI wants bare hex.
+EMPTY_TRIE_ROOT = _fixture.EMPTY_TRIE_ROOT.removeprefix("0x")
+EMPTY_OMMERS_HASH = _fixture.EMPTY_OMMERS_HASH.removeprefix("0x")
+EMPTY_REQUESTS_HASH = _fixture.EMPTY_REQUESTS_HASH.removeprefix("0x")
 
 # The EL forks, in protocol order. `delta` is deliberately absent: it has no EL
 # semantics (op-geth params/config_op.go has no DeltaTime field).
@@ -298,9 +303,16 @@ def build_schedule(toml, ts0, extra_forks=None):
 # NOTE: this targets a karst-aware op-node. The checkouts pin superchain.go/rollup
 # types.go with no KarstTime and parse rollup.json with DisallowUnknownFields, so a
 # karst_time key is rejected by that revision (S7 must pick the op-node version).
-_ROLLUP_FORK_KEYS = ["regolith", "canyon", "delta", "ecotone", "fjord",
-                     "granite", "holocene", "pectra_blob_schedule",
-                     "isthmus", "jovian", "karst", "interop"]
+# Activation order (also the order the monotonicity check walks): op-geth's EL fork
+# sequence, with the CL-only forks in their op-node positions.
+_ROLLUP_FORK_KEYS = ["regolith", "canyon", "delta", "ecotone", "fjord", "granite",
+                     "holocene", "pectra_blob_schedule", "isthmus", "jovian", "karst",
+                     "interop"]
+# Non-fork fields the config must carry (everything else is a fork time).
+_ROLLUP_REQUIRED_FIELDS = ["block_time", "max_sequencer_drift", "seq_window_size",
+                           "channel_timeout", "l1_chain_id", "l2_chain_id",
+                           "batch_inbox_address", "deposit_contract_address",
+                           "l1_system_config_address", "chain_op_config"]
 
 
 def _lower_hex(value):
@@ -363,6 +375,31 @@ def build_rollup(toml, l1_chain_id, extra_forks=None):
     return rollup
 
 
+def check_registry_rollup(rollup):
+    """Validate a built rollup config: required non-fork fields present, and the fork
+    times monotonic in activation order (an unscheduled fork is absent, not zero).
+
+    The EL schedule gets the same treatment in build_schedule; without this the CL
+    config could carry an impossible ordering and only fail inside op-node at S7.
+    """
+    for key in _ROLLUP_REQUIRED_FIELDS:
+        if rollup.get(key) is None:
+            raise RegistryError(f"rollup config is missing {key}")
+    for section in ("l1", "l2", "system_config"):
+        if not rollup["genesis"].get(section):
+            raise RegistryError(f"rollup genesis is missing {section}")
+    previous = None
+    previous_fork = None
+    for fork in _ROLLUP_FORK_KEYS:
+        value = rollup.get(f"{fork}_time")
+        if value is None:
+            continue
+        if previous is not None and int(value) < previous:
+            raise RegistryError(
+                f"fork time regresses: {previous_fork}->{fork} ({previous}->{value})")
+        previous, previous_fork = int(value), fork
+
+
 def generate(zip_path, chain, *, extra_forks=None, l1_chain_id=None,
              expect_chain_id=None, decompress=None):
     """Build the FISCO genesis fragment, the op-node rollup config and a manifest.
@@ -401,6 +438,7 @@ def generate(zip_path, chain, *, extra_forks=None, l1_chain_id=None,
         # superchain config), so derive it from the registry layout.
         l1_chain_id = 1 if chain.startswith("mainnet/") else 11155111
     rollup = build_rollup(toml, l1_chain_id, extra_forks)
+    check_registry_rollup(rollup)
     manifest = {"commit": data["commit"], "chain": chain, "genesis_time": ts0,
                 "state_root": state_root.hex(), "header_hash": computed,
                 "expected_l2_hash": expected, "schedule": schedule}
@@ -428,7 +466,9 @@ def main(argv=None):
     try:
         result = generate(args.zip, args.chain, extra_forks=extra,
                           l1_chain_id=args.l1_chain_id, expect_chain_id=args.chain_id)
-    except RegistryError as error:
+    except (RegistryError, KeyError, OSError) as error:
+        # KeyError/OSError cover a toml whose shape changed and a missing zstd binary:
+        # both are environment/registry faults the operator should read as a message.
         print(f"error: {error}", file=sys.stderr)
         return 1
     out = Path(args.out_dir)

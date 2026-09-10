@@ -240,3 +240,55 @@ def test_build_rollup_threads_extra_fork_overlay():
     with pytest.raises(gen.RegistryError):
         gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1,
                          extra_forks={"canyon": 123})
+
+
+def _make_undecodable_zip(tmp_path, name="undecodable.zip"):
+    """A zip whose dictionary does not match its frame: the real decompressor fails."""
+    path = tmp_path / name
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("COMMIT", "deadbeef")
+        zf.writestr("dictionary", b"not-a-dictionary")
+        zf.writestr("configs/mainnet/base.toml", TOML)
+        zf.writestr("genesis/mainnet/base.json.zst", b"\x28\xb5\x2f\xfd not a zstd frame")
+    return str(path)
+
+
+def test_undecodable_registry_frame_is_a_registry_error(tmp_path):
+    # The real default_decompress runs here (no injection): design §7 wants a named
+    # error, not a RuntimeError escaping to the operator as a traceback.
+    import shutil
+    if shutil.which("zstd") is None:
+        pytest.skip("zstd CLI not available")
+    with pytest.raises(gen.RegistryError):
+        gen.generate(_make_undecodable_zip(tmp_path), "mainnet/base")
+
+
+def test_cli_reports_undecodable_frame_without_traceback(tmp_path, capsys):
+    import shutil
+    if shutil.which("zstd") is None:
+        pytest.skip("zstd CLI not available")
+    rc = gen.main(["--zip", _make_undecodable_zip(tmp_path), "--chain", "mainnet/base",
+                   "--out-dir", str(tmp_path / "out")])
+    assert rc == 1
+    assert "error:" in capsys.readouterr().err
+    assert not (tmp_path / "out").exists()  # no half-written artifacts
+
+
+def test_check_registry_rollup_validates_fields_and_fork_order():
+    rollup = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1)
+    gen.check_registry_rollup(rollup)  # the registry-derived config must pass
+
+    regressed = dict(rollup)
+    regressed["ecotone_time"] = 1  # before canyon/regolith
+    with pytest.raises(gen.RegistryError):
+        gen.check_registry_rollup(regressed)
+
+    missing = dict(rollup)
+    del missing["l1_chain_id"]
+    with pytest.raises(gen.RegistryError):
+        gen.check_registry_rollup(missing)
+
+    # A fork the registry does not schedule (null) is skipped, not compared.
+    with_overlay = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1,
+                                    extra_forks={"karst": 1781712001})
+    gen.check_registry_rollup(with_overlay)

@@ -118,5 +118,29 @@ BOOST_AUTO_TEST_CASE(reloadWithoutSectionClearsPreviousSchedule)
     BOOST_CHECK(!probe.genesisConfig().m_opstackForkSchedule.has_value());
 }
 
+// The canonical gen_official_genesis.py emits for mainnet/base (registry pin
+// 9cf0456a…, produced by the tool's own run): a regolith baseline plus the eight
+// pinned EL activations, with delta skipped. This joins the generator to the loader —
+// each side is pinned alone elsewhere, so only this case proves the seam.
+BOOST_AUTO_TEST_CASE(acceptsGeneratedBaseSchedule)
+{
+    constexpr auto* generated =
+        "0:regolith,1704992401:canyon,1710374401:ecotone,1720627201:fjord,"
+        "1726070401:granite,1736445601:holocene,1746806401:isthmus,1764691201:jovian";
+    LoaderProbe probe;
+    probe.loadOpForkSchedule(
+        fromIni(std::string("[op_fork_schedule]\ncanonical=") + generated + "\n"));
+    BOOST_REQUIRE(probe.genesisConfig().m_opstackForkSchedule.has_value());
+    BOOST_CHECK_EQUAL(*probe.genesisConfig().m_opstackForkSchedule, generated);
+
+    // Negative control: dropping one activation from the same schedule is exactly what
+    // the generator's contiguity rule exists to prevent, and the loader must reject it
+    // (otherwise the case above would pass for a loader that ignores order entirely).
+    constexpr auto* gap = "0:regolith,1704992401:canyon,1720627201:fjord";
+    BOOST_CHECK_EXCEPTION(probe.loadOpForkSchedule(
+                              fromIni(std::string("[op_fork_schedule]\ncanonical=") + gap + "\n")),
+        InvalidConfig, [](auto const& e) { return errinfoContains(e, "protocol order"); });
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace bcos::test
