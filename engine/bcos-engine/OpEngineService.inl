@@ -406,7 +406,15 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
             m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
         parentTsSec = unixSecondsFromInternalMillis(
             static_cast<uint64_t>(parentHeader->timestamp()));
-        baseFee = calcOpBaseFee(*parentHeader, m_scheduler.configAt(parentTsSec).has_da_footprint);
+        // Same two clocks as the newPayload comparison: the parent's fork supplies the
+        // 1559 parameters, the new block's fork the Canyon denominator.
+        auto const parentFork = m_scheduler.forkIdAt(parentTsSec);
+        baseFee = calcOpNextBlockBaseFee(*parentHeader,
+            OpBaseFeeClock{
+                .parentIsHolocene = extraDataLayoutFor(parentFork) != OpExtraDataLayout::Empty,
+                .parentIsJovian = extraDataLayoutFor(parentFork) == OpExtraDataLayout::Jovian17,
+                .newBlockIsCanyon = ctx.forkId != OpForkId::Regolith,
+            });
     }
 
     requireDelegate();
@@ -953,11 +961,19 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     }
 
     {
-        auto expectedBaseFee = calcOpBaseFee(*parentHeader,
-            m_scheduler
-                .configAt(unixSecondsFromInternalMillis(
-                    static_cast<uint64_t>(parentHeader->timestamp())))
-                .has_da_footprint);
+        // Two clocks (op-geth CalcBaseFee): the 1559 parameter source is the PARENT's
+        // fork, while the Canyon denominator follows the block being built (hence
+        // ctx.forkId below, not the parent's). A Holocene activation block therefore
+        // still prices with the chain constants, because its parent is pre-Holocene.
+        uint64_t const parentTsSec = unixSecondsFromInternalMillis(
+            static_cast<uint64_t>(parentHeader->timestamp()));
+        auto const parentFork = m_scheduler.forkIdAt(parentTsSec);
+        auto const expectedBaseFee = calcOpNextBlockBaseFee(*parentHeader,
+            OpBaseFeeClock{
+                .parentIsHolocene = extraDataLayoutFor(parentFork) != OpExtraDataLayout::Empty,
+                .parentIsJovian = extraDataLayoutFor(parentFork) == OpExtraDataLayout::Jovian17,
+                .newBlockIsCanyon = ctx.forkId != OpForkId::Regolith,
+            });
         if (payload.baseFeePerGas != expectedBaseFee)
         {
             co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,

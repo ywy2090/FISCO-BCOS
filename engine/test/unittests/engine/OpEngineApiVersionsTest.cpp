@@ -190,4 +190,134 @@ BOOST_AUTO_TEST_CASE(ValidateNewPayloadV3RequiresBeaconNotWithdrawalsRoot)
     BOOST_REQUIRE(err);
 }
 
+/// Parent written with PRE-Holocene extraData (empty), the shape the fork's layout
+/// requires. registerParentHeader stamps 9-byte Holocene params, which would make a
+/// pre-Holocene parent look Holocene and hide the clock under test.
+void registerPreHoloceneParent(
+    MLS& storage, bcos::protocol::BlockFactory& factory, int64_t number, int64_t timestampMs)
+{
+    auto header = factory.blockHeaderFactory()->createBlockHeader();
+    header->setNumber(number);
+    header->setTimestamp(timestampMs);
+    header->setGasLimit(30'000'000);
+    header->setGasUsed(20'000'000);
+    header->setExtraData({});
+    header->setBaseFee(bcos::u256(1'000'000'000));
+    bcos::bytes encoded;
+    header->encode(encoded);
+    auto view = storage.fork();
+    view.newMutable();
+    bcos::storage::Entry entry;
+    entry.set(std::move(encoded));
+    bcos::task::syncWait(bcos::storage2::writeOne(view,
+        bcos::executor_v1::StateKey{
+            bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER, std::to_string(number)},
+        std::move(entry)));
+    bcos::task::syncWait(storage.mergeView(std::move(view)));
+}
+
+// The pre-Holocene price comes from the chain constants (elasticity 6, denominator
+// 250 at Canyon), not from the parent's (empty) extraData.
+BOOST_AUTO_TEST_CASE(NewPayloadPreHoloceneBaseFeeMismatchIsInvalid)
+{
+    OpServicePair pair(false, nullptr, nullptr, historical());
+    auto hash = fixtureHeadHash();
+    registerVerifiedBlock(pair.storage, hash, 0);
+    registerPreHoloceneParent(pair.storage, *pair.blockFactory, 0, 99'000);
+    auto req = stubAt(100);
+    req.executionPayload.parentHash = hash;
+    req.executionPayload.blockNumber = 1;
+    req.executionPayload.withdrawals.emplace();
+    req.executionPayload.baseFeePerGas = 1;
+    // The header-hash check runs before the price check, so the announced hash must be
+    // the real one or the payload never reaches the clock under test.
+    auto const txRoot =
+        EngineOpScheduler::computeTxRoot(bcos::engine::detail::rawEnvelopes(req.executionPayload));
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        pair.blockFactory->blockHeaderFactory(), req.executionPayload, txRoot,
+        req.parentBeaconBlockRoot, bcos::engine::OpForkId::Canyon);
+    req.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
+
+    auto status = bcos::task::syncWait(
+        pair.service.newPayload(req, static_cast<std::uint32_t>(ApiVersion::V2)));
+    BOOST_CHECK(status.status == bcos::engine::PayloadValidationStatus::Invalid);
+    BOOST_REQUIRE(status.validationError);
+    BOOST_CHECK_MESSAGE(status.validationError->find("baseFeePerGas") != std::string::npos,
+        "got: " << *status.validationError);
+}
+
+// The Holocene activation block carries its own 9-byte extraData, but its PARENT is
+// pre-Holocene, so the constants still price it. Pricing it from its own fork would
+// decode an empty parent extraData (op-reth's #13060 regression).
+BOOST_AUTO_TEST_CASE(HoloceneActivationUsesConstantBaseFee)
+{
+    OpServicePair pair(false, nullptr, nullptr, historical());
+    auto hash = fixtureHeadHash();
+    registerVerifiedBlock(pair.storage, hash, 0);
+    // 299s is Ecotone: pre-Holocene, so its extraData is empty.
+    registerPreHoloceneParent(pair.storage, *pair.blockFactory, 0, 299'000);
+
+    auto parent = pair.blockFactory->blockHeaderFactory()->createBlockHeader();
+    parent->setGasLimit(30'000'000);
+    parent->setGasUsed(20'000'000);
+    parent->setBaseFee(bcos::u256(1'000'000'000));
+    parent->setExtraData({});
+    auto const expected = bcos::engine::calcOpNextBlockBaseFee(
+        *parent, {.parentIsHolocene = false, .parentIsJovian = false, .newBlockIsCanyon = true});
+    BOOST_CHECK_EQUAL(expected, bcos::u256(1'012'000'000));
+
+    // Feed that price to a V3 payload at the Holocene activation timestamp: whatever
+    // the outcome (the stub body may still be INVALID / SYNCING), it must not be the
+    // base-fee or extraData shape that rejects it — those are what this task owns.
+    auto req = stubAt(300);
+    req.executionPayload.parentHash = hash;
+    req.executionPayload.blockNumber = 1;
+    req.executionPayload.withdrawals.emplace();
+    req.executionPayload.blobGasUsed = 0;
+    req.executionPayload.excessBlobGas = 0;
+    req.executionPayload.extraData = {0x00, 0x00, 0x00, 0x00, 0xfa, 0x00, 0x00, 0x00, 0x06};
+    req.executionPayload.baseFeePerGas = expected;
+    req.parentBeaconBlockRoot = bcos::h256(1);
+    auto const txRoot =
+        EngineOpScheduler::computeTxRoot(bcos::engine::detail::rawEnvelopes(req.executionPayload));
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        pair.blockFactory->blockHeaderFactory(), req.executionPayload, txRoot,
+        req.parentBeaconBlockRoot, bcos::engine::OpForkId::Holocene);
+    req.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
+
+    // Positive: priced with the constants, the clock accepts it. A rejected clock is a
+    // returned status, so any throw here comes from a later stage — this pair has no
+    // delegate for the import to run against. The parent is well-formed (extraData and
+    // baseFee both set), so the price path itself cannot be the thrower.
+    std::string error;
+    try
+    {
+        auto accepted = bcos::task::syncWait(
+            pair.service.newPayload(req, static_cast<std::uint32_t>(ApiVersion::V3)));
+        error = accepted.validationError.value_or(std::string{});
+    }
+    catch (std::exception const& e)
+    {
+        error = e.what();
+    }
+    BOOST_CHECK_MESSAGE(error.find("baseFeePerGas") == std::string::npos, error);
+    BOOST_CHECK_MESSAGE(error.find("extraData") == std::string::npos, error);
+
+    // Negative control: the same payload one wei off must be rejected by the price
+    // check, which proves the positive case above actually reached it. The hash covers
+    // baseFeePerGas, so it is recomputed — otherwise the hash check would fire first.
+    req.executionPayload.baseFeePerGas = expected + 1;
+    auto const txRootOff =
+        EngineOpScheduler::computeTxRoot(bcos::engine::detail::rawEnvelopes(req.executionPayload));
+    auto headerOff = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        pair.blockFactory->blockHeaderFactory(), req.executionPayload, txRootOff,
+        req.parentBeaconBlockRoot, bcos::engine::OpForkId::Holocene);
+    req.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*headerOff);
+    auto const rejected = bcos::task::syncWait(
+        pair.service.newPayload(req, static_cast<std::uint32_t>(ApiVersion::V3)));
+    BOOST_REQUIRE(rejected.validationError);
+    BOOST_CHECK_MESSAGE(rejected.validationError->find("baseFeePerGas") != std::string::npos,
+        "got: " << *rejected.validationError);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
