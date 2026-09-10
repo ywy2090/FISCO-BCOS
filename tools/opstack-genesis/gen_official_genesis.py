@@ -230,3 +230,62 @@ def to_ini_allocs(alloc):
                         for slot, value in (account.get("storage") or {}).items()},
         })
     return out
+
+
+# RegistryError is defined above (Task 2): this section reuses it rather than
+# re-declaring the class.
+
+
+def _fork_times(toml, extra_forks):
+    """EL fork name -> activation time, from the pin plus any `--extra-fork` overlay.
+
+    `delta` never appears: it is not an EL fork. An overlay may only add forks the pin
+    lacks (karst) or repeat a pinned time exactly; a conflicting time is an error
+    rather than a silent override.
+    """
+    hardforks = dict(toml.get("hardforks", {}))
+    for name, timestamp in (extra_forks or {}).items():
+        if name not in EL_FORKS:
+            raise RegistryError("unknown EL fork in --extra-fork: " + name)
+        if name == "regolith":
+            raise RegistryError("regolith baseline is implicit; do not overlay it")
+        existing = hardforks.get(f"{name}_time")
+        if existing is not None and int(existing) != int(timestamp):
+            raise RegistryError(
+                f"overlay {name}:{timestamp} conflicts with pin {name}_time={existing}")
+        hardforks[f"{name}_time"] = timestamp
+    times = {"regolith": 0}
+    for fork in EL_FORKS[1:]:
+        value = hardforks.get(f"{fork}_time")
+        if value is not None:
+            times[fork] = int(value)
+    return times
+
+
+def build_schedule(toml, ts0, extra_forks=None):
+    """Canonical `[op_fork_schedule]` string for this chain.
+
+    The baseline is the EL fork active at genesis, written as `0:<fork>` (the S2 codec
+    requires a timestamp-0 baseline); only forks after it appear, and they must be
+    contiguous — the codec rejects a skipped fork, so a gap here is a hard error.
+    """
+    times = _fork_times(toml, extra_forks)
+    present = [f for f in EL_FORKS if f in times]
+    indices = [EL_FORKS.index(f) for f in present]
+    if indices != list(range(indices[0], indices[0] + len(indices))):
+        raise RegistryError("non-contiguous fork schedule: " + ",".join(present))
+    for earlier, later in zip(present, present[1:]):
+        if times[later] < times[earlier]:
+            raise RegistryError(f"fork time regresses: {earlier}->{later}")
+    baseline = EL_FORKS[0]
+    for fork in present:
+        if times[fork] <= ts0:
+            baseline = fork
+        else:
+            break
+    parts = [f"0:{baseline}"]
+    for fork in EL_FORKS[EL_FORKS.index(baseline) + 1:]:
+        if fork not in times:
+            break
+        parts.append(f"{times[fork]}:{fork}")
+    return ",".join(parts)

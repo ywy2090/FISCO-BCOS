@@ -130,3 +130,38 @@ def test_to_ini_allocs_preserves_code_and_storage():
     assert gen._build_allocs.emit_ini(out) == (
         "[alloc.0]\naddress=0x" + "42" * 20 + "\nbalance=10\nnonce=1\ncode=0x6001\n"
         "[alloc.0.storage]\n0x" + "00" * 32 + "=0x" + "00" * 31 + "02\n")
+
+
+TOML_FORKS = {"hardforks": {"canyon_time": 100, "delta_time": 150,
+                            "ecotone_time": 200, "fjord_time": 300,
+                            "granite_time": 400, "holocene_time": 500,
+                            "isthmus_time": 600, "jovian_time": 700}}
+
+
+def test_schedule_skips_delta_and_ends_at_jovian():
+    assert gen.build_schedule(TOML_FORKS, ts0=50) == (
+        "0:regolith,100:canyon,200:ecotone,300:fjord,400:granite,"
+        "500:holocene,600:isthmus,700:jovian")
+
+
+def test_schedule_overlay_adds_karst():
+    out = gen.build_schedule(TOML_FORKS, ts0=50, extra_forks={"karst": 800})
+    assert out.endswith(",800:karst")
+
+
+def test_schedule_gap_raises():
+    # skipping ecotone (canyon then fjord) is not contiguous
+    broken = {"hardforks": {"canyon_time": 100, "fjord_time": 300}}
+    with pytest.raises(gen.RegistryError):
+        gen.build_schedule(broken, ts0=50)
+
+
+def test_schedule_unknown_extra_fork_raises():
+    with pytest.raises(gen.RegistryError):
+        gen.build_schedule(TOML_FORKS, ts0=50, extra_forks={"delta": 999})
+
+
+def test_schedule_overlay_conflict_raises():
+    # an overlay naming a pinned fork with a different time must not silently win
+    with pytest.raises(gen.RegistryError):
+        gen.build_schedule(TOML_FORKS, ts0=50, extra_forks={"canyon": 123})
