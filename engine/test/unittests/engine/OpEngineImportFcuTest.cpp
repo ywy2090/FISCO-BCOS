@@ -226,6 +226,28 @@ namespace
 /// real); the FCU build path is not exercised by these cases (no attrs).
 struct ImportServiceFixture
 {
+    /// Seed + import + one-jump-FCU the canonical chain A(1)-B(2)-C(3).
+    void seedCanonicalChainABC()
+    {
+        auto requestA = validRequest(fixtureHeadHash(), 1);
+        BOOST_REQUIRE_EQUAL(
+            static_cast<int>(bcos::task::syncWait(service.newPayload(requestA, 4)).status),
+            static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+        auto requestB = validRequest(requestA.executionPayload.blockHash, 2);
+        BOOST_REQUIRE_EQUAL(
+            static_cast<int>(bcos::task::syncWait(service.newPayload(requestB, 4)).status),
+            static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+        auto requestC = validRequest(requestB.executionPayload.blockHash, 3);
+        BOOST_REQUIRE_EQUAL(
+            static_cast<int>(bcos::task::syncWait(service.newPayload(requestC, 4)).status),
+            static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+        bcos::engine::ForkchoiceState fcuC{requestC.executionPayload.blockHash,
+            requestC.executionPayload.blockHash, fixtureHeadHash()};
+        BOOST_REQUIRE_EQUAL(
+            static_cast<int>(bcos::task::syncWait(service.updateForkchoice(fcuC, nullptr, 3))
+                                 .payloadStatus.status),
+            static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    }
     BackendMemStorage backend{1};
     CheckpointBackend checkpoint{backend};
     MLS storage{checkpoint};
@@ -786,6 +808,86 @@ BOOST_AUTO_TEST_CASE(ImportedOverwriteWithDescendantsIsSyncing)
     auto status = bcos::task::syncWait(f.service.newPayload(request1Prime, 4));
     BOOST_CHECK_EQUAL(static_cast<int>(status.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing));
+}
+
+// ---- S5 Task 8: old-head 与 RebuildOnParent 边界 ----
+
+// 链 A-B-C 已 FCU。FCU(head=A) 无 attrs：VALID；latest 不变矮（仍 C=3）；
+// safe 可更新（op-geth Optimism old-head：不 ignore，也不 rewind Current）。
+BOOST_AUTO_TEST_CASE(OldCanonicalHeadDoesNotRewindLatest)
+{
+    ImportServiceFixture f;
+    f.seedCanonicalChainABC();
+
+    auto const aHash = bcos::protocol::EthBlockHeader::computeHash(*f.executedByNumber[1]);
+    bcos::engine::ForkchoiceState oldHead{aHash, aHash, fixtureHeadHash()};
+    auto fcu = bcos::task::syncWait(f.service.updateForkchoice(oldHead, nullptr, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(fcu.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_CHECK(!fcu.payloadId.has_value());
+
+    // latest 仍为 C=3；safe 推到 1。
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        3);
+    BOOST_REQUIRE(f.service.getSafeBlockNumber().has_value());
+    BOOST_CHECK_EQUAL(*f.service.getSafeBlockNumber(), 1);
+}
+
+// B' 已 import（非规范）。FCU(head=B', attrs)：先 SetCanonical(B')（latest=B'），
+// 再在 B' 上造块；build 的 parent 必须按 B' 哈希读（NUMBER_2_BLOCK_HEADER[2]=B'）。
+BOOST_AUTO_TEST_CASE(FcuToNonCanonicalWithAttrsSetsCanonicalFirst)
+{
+    ImportServiceFixture f;
+    f.seedCanonicalChainABC();
+
+    // 导入 B'（parent=A，时间戳偏移 → 哈希不同）。
+    auto requestBPrime =
+        f.validRequest(bcos::protocol::EthBlockHeader::computeHash(*f.executedByNumber[1]), 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestBPrime, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // SetCanonical 禁止 RebuildOnParent 冒充：attrs 存在也必须先换头。
+    bcos::engine::ForkchoiceState fcu{requestBPrime.executionPayload.blockHash,
+        requestBPrime.executionPayload.blockHash, fixtureHeadHash()};
+    auto attrs = makeOpPayloadAttributesAt(1'700'000'000'000ULL + 5 * 12'000ULL);
+    attrs.minBaseFee = std::nullopt;  // pre-Jovian: minBaseFee must be unset
+    auto const deposit = bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(false);
+    attrs.transactions = std::vector<std::string>{bcos::toHexStringWithPrefix(deposit)};
+    auto fcuResult = bcos::task::syncWait(f.service.updateForkchoice(fcu, &attrs, 3));
+    BOOST_REQUIRE_MESSAGE(static_cast<int>(fcuResult.payloadStatus.status) ==
+                              static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
+        "FCU(B',attrs) status " << static_cast<int>(fcuResult.payloadStatus.status) << " err="
+                                << fcuResult.payloadStatus.validationError.value_or("<none>"));
+    BOOST_REQUIRE(fcuResult.payloadId.has_value());
+
+    // latest 已是 B'（先 SetCanonical 再造块）。
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        2);
+    auto tipHash =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(tipHash.has_value());
+    BOOST_CHECK_EQUAL(tipHash->hex(), requestBPrime.executionPayload.blockHash.hex());
+
+    // build 的 parent 头按 B' 哈希取：产出的 payload parentHash 必须是 B'。
+    auto payload = bcos::task::syncWait(f.service.getPayload(*fcuResult.payloadId, 4));
+    BOOST_REQUIRE(payload);
+    BOOST_CHECK_EQUAL(
+        payload->executionPayload.parentHash.hex(), requestBPrime.executionPayload.blockHash.hex());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
