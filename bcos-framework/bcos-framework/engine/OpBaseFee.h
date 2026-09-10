@@ -110,7 +110,8 @@ inline std::optional<std::string> validateOpExtraDataForLayout(
     case OpExtraDataLayout::Holocene9:
         if (extraData.size() != c_holoceneExtraDataBytes)
         {
-            return "must be exactly 9 bytes (Holocene/Isthmus)";
+            // Wording pinned by the invalid-vector manifest (opstack-executor e2e).
+            return "must be exactly 9 bytes on the OP path (Isthmus)";
         }
         // Name the expected version byte here: the shared shape rule below can only
         // say "does not match length", while this caller knows which fork it expected.
@@ -122,7 +123,7 @@ inline std::optional<std::string> validateOpExtraDataForLayout(
     case OpExtraDataLayout::Jovian17:
         if (extraData.size() != c_jovianExtraDataBytes)
         {
-            return "must be exactly 17 bytes (Jovian+)";
+            return "must be exactly 17 bytes on the OP path (Jovian)";
         }
         if (extraData[0] != c_jovianExtraDataVersion)
         {

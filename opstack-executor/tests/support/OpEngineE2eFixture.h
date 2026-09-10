@@ -303,7 +303,7 @@ inline bcos::protocol::BlockHeader::Ptr productionHeaderOf(
     auto envelopes = rawEnvelopesFromPayload(payload);
     const auto transactionsRoot = EngineOpScheduler::computeTxRoot(envelopes);
     return bcos::engine::engine_common::op::rebuildOpEthHeader(blockFactory->blockHeaderFactory(),
-        payload, transactionsRoot, *request.parentBeaconBlockRoot);
+        payload, transactionsRoot, request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
 }
 
 inline bcos::protocol::Transaction::Ptr buildFiscoTxFromEnvelope(

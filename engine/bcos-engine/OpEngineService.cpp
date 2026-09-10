@@ -344,11 +344,16 @@ bcos::protocol::BlockHeader::Ptr rebuildOpEthHeader(
     // does on the Eth lane: a pre-Canyon block carries no withdrawals hash, a pre-Ecotone
     // block no blob pair or beacon root, a pre-Isthmus block no requests hash. Setting only
     // what the fork defines is what makes the RLP match op-geth, whose corresponding header
-    // fields are optional/nil there. OP blocks carry no withdrawals, so the hash is always
-    // the empty-trie root.
+    // fields are optional/nil there.
     if (forkId >= OpForkId::Canyon)
     {
-        header->setWithdrawalsRoot(bcos::engine::detail::withdrawalsRootFor(payload));
+        // Isthmus+ (V4) carries the root in the payload and it is authoritative: using it
+        // keeps the header byte-identical to what the CL hashed, and a wrong root still
+        // fails the blockHash comparison. Before Isthmus the field does not exist, so the
+        // EL derives it from the withdrawals list (always empty on OP).
+        header->setWithdrawalsRoot(forkId >= OpForkId::Isthmus ?
+                                       payload.withdrawalsRoot.value() :
+                                       bcos::engine::detail::withdrawalsRootFor(payload));
     }
     if (forkId >= OpForkId::Ecotone)
     {
