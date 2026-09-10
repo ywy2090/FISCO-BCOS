@@ -188,7 +188,12 @@ GetPayloadResult assembleGetPayloadData(const EntryT& entry, std::uint32_t versi
         .executionRequests = version >= static_cast<std::uint32_t>(ApiVersion::V4) ?
                                  std::optional<std::vector<bytes>>{std::in_place} :
                                  std::nullopt,
-        .parentBeaconBlockRoot = entry.parentBeaconBlockRoot,
+        // Beacon roots arrived with Cancun, so a V2 response must not carry one. A
+        // pre-Cancun build's artifact has none anyway, but gating here keeps the
+        // response shape a property of the version rather than of the builder.
+        .parentBeaconBlockRoot = version >= static_cast<std::uint32_t>(ApiVersion::V3) ?
+                                     entry.parentBeaconBlockRoot :
+                                     std::nullopt,
     });
 }
 }  // namespace engine_common

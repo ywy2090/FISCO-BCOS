@@ -45,6 +45,21 @@ void expectUnsupportedFork(
     BOOST_CHECK_EXCEPTION(bcos::task::syncWait(service.newPayload(req, version)), UnsupportedFork,
         [](UnsupportedFork const&) { return true; });
 }
+
+/// Payload building goes through the delegate, so a handshake that must return a
+/// payloadId needs the harness's recording scheduler: the default null delegate throws
+/// at requireDelegate.
+struct HistoricalPair
+{
+    std::shared_ptr<RecordingScheduler> delegate{std::make_shared<RecordingScheduler>()};
+    OpServicePair pair;
+
+    HistoricalPair() : pair(/*allowSynthesized=*/true, delegate, nullptr, historical())
+    {
+        delegate->failFirst = false;
+        delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+    }
+};
 }  // namespace
 
 BOOST_AUTO_TEST_CASE(NewPayloadWrongVersionIsUnsupportedFork)
@@ -318,6 +333,73 @@ BOOST_AUTO_TEST_CASE(HoloceneActivationUsesConstantBaseFee)
     BOOST_REQUIRE(rejected.validationError);
     BOOST_CHECK_MESSAGE(rejected.validationError->find("baseFeePerGas") != std::string::npos,
         "got: " << *rejected.validationError);
+}
+
+// Handshake matrix from Bedrock onward: op-node picks the method from the payload
+// timestamp, so every window must build with its own FCU version and answer getPayload
+// with the matching one.
+BOOST_AUTO_TEST_CASE(FcuV1RegolithReturnsPayloadIdThenGetPayloadV2)
+{
+    HistoricalPair h;
+    auto attrs = makeRegolithAttrs(1'000);
+    auto hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState fc{hash, hash, hash};
+    registerVerifiedBlock(h.pair.storage, hash, 0);
+    registerPreHoloceneParent(h.pair.storage, *h.pair.blockFactory, 0, 0);
+    auto built = bcos::task::syncWait(
+        h.pair.service.updateForkchoice(fc, &attrs, static_cast<std::uint32_t>(ApiVersion::V1)));
+    BOOST_REQUIRE(built.payloadId);
+    // The envelope is slimmed to the method's shape: a V2 response carries neither the
+    // beacon root (Cancun) nor execution requests (Prague).
+    auto got = bcos::task::syncWait(
+        h.pair.service.getPayload(*built.payloadId, static_cast<std::uint32_t>(ApiVersion::V2)));
+    BOOST_REQUIRE(got);
+    BOOST_CHECK(!got->executionRequests.has_value());
+    BOOST_CHECK(!got->parentBeaconBlockRoot.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(FcuV2CanyonReturnsPayloadIdThenGetPayloadV3IsUnsupportedFork)
+{
+    HistoricalPair h;
+    auto attrs = makeCanyonAttrs(100'000);
+    auto hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState fc{hash, hash, hash};
+    registerVerifiedBlock(h.pair.storage, hash, 0);
+    registerPreHoloceneParent(h.pair.storage, *h.pair.blockFactory, 0, 99'000);
+    auto built = bcos::task::syncWait(
+        h.pair.service.updateForkchoice(fc, &attrs, static_cast<std::uint32_t>(ApiVersion::V2)));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(built.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_REQUIRE(built.payloadId);
+    BOOST_CHECK_NO_THROW(static_cast<void>(bcos::task::syncWait(
+        h.pair.service.getPayload(*built.payloadId, static_cast<std::uint32_t>(ApiVersion::V2)))));
+    // Canyon's live getPayload is V2, so V3 is an unsupported fork, not an unknown id.
+    BOOST_CHECK_EXCEPTION(bcos::task::syncWait(h.pair.service.getPayload(
+                              *built.payloadId, static_cast<std::uint32_t>(ApiVersion::V3))),
+        UnsupportedFork, [](UnsupportedFork const&) { return true; });
+}
+
+BOOST_AUTO_TEST_CASE(FcuV3EcotoneReturnsPayloadId)
+{
+    HistoricalPair h;
+    auto attrs = makeEcotoneAttrs(200'000);
+    auto hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState fc{hash, hash, hash};
+    registerVerifiedBlock(h.pair.storage, hash, 0);
+    registerPreHoloceneParent(h.pair.storage, *h.pair.blockFactory, 0, 199'000);
+    auto built = bcos::task::syncWait(
+        h.pair.service.updateForkchoice(fc, &attrs, static_cast<std::uint32_t>(ApiVersion::V3)));
+    BOOST_REQUIRE(built.payloadId);
+}
+
+// The schedule production runs today resolves every timestamp to Isthmus+, so it must
+// behave exactly as before this change: V4 only.
+BOOST_AUTO_TEST_CASE(IsthmusOnlyScheduleStillV4)
+{
+    OpServicePair pair;
+    expectUnsupportedFork(pair.service, stubAt(1), static_cast<std::uint32_t>(ApiVersion::V3));
+    BOOST_CHECK_NO_THROW(static_cast<void>(bcos::task::syncWait(
+        pair.service.newPayload(stubAt(1), static_cast<std::uint32_t>(ApiVersion::V4)))));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
