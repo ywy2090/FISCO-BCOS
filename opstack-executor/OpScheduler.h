@@ -662,8 +662,12 @@ private:
             namespace engine = bcos::evm::engine;
             if (verify)
             {
-                if (executedHeader->withdrawalsRoot().has_value() !=
-                    blockHeader->withdrawalsRoot().has_value())
+                // Compare the projected values, matching headerCommitments below: below Canyon
+                // the announced header carries no withdrawalsRoot while finishExecute always
+                // writes the seal's zero sentinel, so absent and the zero hash are the same
+                // header there.
+                if (executedHeader->withdrawalsRoot().value_or(bcos::h256{}) !=
+                    blockHeader->withdrawalsRoot().value_or(bcos::h256{}))
                 {
                     throw bcos::evm::OpConsensusError(
                         "OpScheduler: commitment mismatch on field withdrawalsRoot");
