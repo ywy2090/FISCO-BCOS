@@ -79,7 +79,9 @@ inline constexpr auto c_opForkNames = std::to_array<std::string_view>({
     "karst",
 });
 
-[[nodiscard]] inline constexpr int forkOrder(std::string_view forkName)
+// Pure lookups: no allocation and no throw path, so they are noexcept like
+// legacyOpForkScheduleCanonical.
+[[nodiscard]] inline constexpr int forkOrder(std::string_view forkName) noexcept
 {
     for (std::size_t i = 0; i < c_opForkNames.size(); ++i)
     {
@@ -91,7 +93,7 @@ inline constexpr auto c_opForkNames = std::to_array<std::string_view>({
     return -1;
 }
 
-[[nodiscard]] inline constexpr bool isAllowedBaseline(std::string_view forkName)
+[[nodiscard]] inline constexpr bool isAllowedBaseline(std::string_view forkName) noexcept
 {
     return forkOrder(forkName) >= 0;
 }
