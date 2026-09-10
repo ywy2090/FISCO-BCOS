@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  * @file OpForkScheduleCodec.h
- * @brief Canonical OP fork-schedule codec (Isthmus+; Karst after Jovian).
+ * @brief Canonical OP fork-schedule codec (any contiguous EL fork range).
  */
 #pragma once
 
@@ -24,6 +24,7 @@
 #include <bcos-utilities/Exceptions.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <limits>
@@ -34,8 +35,8 @@
 
 #include <boost/throw_exception.hpp>
 
-// Canonical fork-schedule codec aligned with op-reth / op-node. Karst is a named
-// activation after Jovian; baseline remains isthmus|jovian.
+// Canonical fork-schedule codec aligned with op-geth / op-node. The schedule may
+// start at any EL fork and must be contiguous from there; baseline timestamp is 0.
 
 namespace bcos::ledger
 {
@@ -62,20 +63,37 @@ inline constexpr std::string_view c_legacyJovianCanonical = "0:jovian";
 
 namespace detail
 {
-inline constexpr int forkOrder(std::string_view forkName)
+// Protocol order is the array index; bcos-evm's OpFork enum must match it 1:1
+// (locked by ForkNameEnumRoundTripsAllNine). op-geth params/config_op.go, whose
+// OP EL fork fields have no Delta entry: delta does not affect the execution
+// layer, so it is not nameable here.
+inline constexpr std::array<std::string_view, 9> c_opForkNames = {
+    "regolith",
+    "canyon",
+    "ecotone",
+    "fjord",
+    "granite",
+    "holocene",
+    "isthmus",
+    "jovian",
+    "karst",
+};
+
+[[nodiscard]] inline constexpr int forkOrder(std::string_view forkName)
 {
-    if (forkName == "isthmus")
-        return 4;
-    if (forkName == "jovian")
-        return 5;
-    if (forkName == "karst")
-        return 6;
+    for (std::size_t i = 0; i < c_opForkNames.size(); ++i)
+    {
+        if (c_opForkNames[i] == forkName)
+        {
+            return static_cast<int>(i);
+        }
+    }
     return -1;
 }
 
-inline bool isAllowedBaseline(std::string_view forkName)
+[[nodiscard]] inline constexpr bool isAllowedBaseline(std::string_view forkName)
 {
-    return forkName == "isthmus" || forkName == "jovian";
+    return forkOrder(forkName) >= 0;
 }
 
 inline std::string trimAscii(std::string_view input)
@@ -124,47 +142,33 @@ inline void validateScheduleRecords(std::span<const OpForkActivationRecord> acti
     if (activations.front().timestamp != 0)
         throwInvalidOpForkSchedule("missing timestamp-0 baseline");
 
-    const auto& baseline = activations.front().forkName;
-    if (!isAllowedBaseline(baseline))
+    if (!isAllowedBaseline(activations.front().forkName))
         throwInvalidOpForkSchedule("invalid baseline fork");
 
-    bool hasJovian = baseline == "jovian";
-    bool hasKarst = false;
     int previousOrder = -1;
     uint64_t previousTimestamp = 0;
-    std::vector<std::string_view> seenForks;
 
-    for (const auto& activation : activations)
+    for (std::size_t index = 0; index < activations.size(); ++index)
     {
+        const auto& activation = activations[index];
         const int order = forkOrder(activation.forkName);
         if (order < 0)
             throwInvalidOpForkSchedule("unknown or pre-Isthmus fork");
 
         if (activation.timestamp < previousTimestamp)
             throwInvalidOpForkSchedule("timestamps out of order");
-        if (activation.timestamp == previousTimestamp && !activations.empty() &&
-            &activation != &activations.front())
+        if (index != 0 && activation.timestamp == previousTimestamp)
             throwInvalidOpForkSchedule("duplicate timestamp");
 
-        if (order <= previousOrder)
+        // The baseline is the anchor; every later activation must be the next
+        // fork exactly (op-node checkFork: a set fork's prior fork must be set).
+        // Contiguity forces order to strictly increase, so no `seenForks` scan.
+        if (index != 0 && order != previousOrder + 1)
             throwInvalidOpForkSchedule("forks out of protocol order");
-
-        const auto forkView = std::string_view{activation.forkName};
-        if (std::find(seenForks.begin(), seenForks.end(), forkView) != seenForks.end())
-            throwInvalidOpForkSchedule("duplicate fork");
-        seenForks.push_back(forkView);
-
-        if (activation.forkName == "jovian")
-            hasJovian = true;
-        if (activation.forkName == "karst")
-            hasKarst = true;
 
         previousOrder = order;
         previousTimestamp = activation.timestamp;
     }
-
-    if (hasKarst && baseline == "isthmus" && !hasJovian)
-        throwInvalidOpForkSchedule("Jovian activation is required before Karst");
 }
 
 inline std::string serializeScheduleRecords(std::span<const OpForkActivationRecord> activations)
@@ -182,7 +186,9 @@ inline std::string serializeScheduleRecords(std::span<const OpForkActivationReco
 }
 }  // namespace detail
 
-inline constexpr std::size_t c_maxOpForkActivations = 8;
+// 9 contiguous EL forks are 9 activations; headroom above that covers later
+// additions while staying far under c_maxOpForkScheduleBytes.
+inline constexpr std::size_t c_maxOpForkActivations = 16;
 inline constexpr std::size_t c_maxOpForkScheduleBytes = 512;
 
 inline std::vector<OpForkActivationRecord> parseOpForkSchedule(std::string_view canonical)
