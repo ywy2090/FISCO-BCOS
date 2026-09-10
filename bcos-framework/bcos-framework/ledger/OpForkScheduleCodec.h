@@ -23,9 +23,9 @@
 #include <bcos-utilities/Common.h>
 #include <bcos-utilities/Exceptions.h>
 
-#include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <span>
@@ -63,11 +63,11 @@ inline constexpr std::string_view c_legacyJovianCanonical = "0:jovian";
 
 namespace detail
 {
-// Protocol order is the array index; bcos-evm's OpFork enum must match it 1:1
-// (locked by ForkNameEnumRoundTripsAllNine). op-geth params/config_op.go, whose
-// OP EL fork fields have no Delta entry: delta does not affect the execution
-// layer, so it is not nameable here.
-inline constexpr std::array<std::string_view, 9> c_opForkNames = {
+// Protocol order is the array index; bcos-evm's OpFork enum must match it 1:1.
+// op-geth params/config_op.go, whose OP EL fork fields have no Delta entry: delta
+// does not affect the execution layer, so it is not nameable here. The count is
+// deduced from the list, so the two cannot drift apart.
+inline constexpr auto c_opForkNames = std::to_array<std::string_view>({
     "regolith",
     "canyon",
     "ecotone",
@@ -77,7 +77,7 @@ inline constexpr std::array<std::string_view, 9> c_opForkNames = {
     "isthmus",
     "jovian",
     "karst",
-};
+});
 
 [[nodiscard]] inline constexpr int forkOrder(std::string_view forkName)
 {

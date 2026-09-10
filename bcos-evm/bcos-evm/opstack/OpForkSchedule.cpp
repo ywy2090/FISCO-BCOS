@@ -2,12 +2,20 @@
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
 
+#include <cstddef>
 #include <span>
 #include <string>
 #include <utility>
 
 namespace bcos::evm::opstack
 {
+// The codec's protocol table is the single source of truth for fork names and this
+// enum indexes it, so any insert or size change on either side must be matched on
+// the other. Emits a compile error here rather than a mis-mapped name at run time
+// (an append past Karst is caught by the -Wswitch in configForFork).
+static_assert(ledger::detail::c_opForkNames.size() == static_cast<std::size_t>(OpFork::Karst) + 1,
+    "OpFork and c_opForkNames disagree: fork order/count changed on one side only");
+
 namespace
 {
 OpFork forkFromName(std::string_view forkName)

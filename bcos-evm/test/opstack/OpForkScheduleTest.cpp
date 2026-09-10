@@ -141,6 +141,9 @@ BOOST_AUTO_TEST_CASE(ParseAcceptsRegolithBaseline)
 BOOST_AUTO_TEST_CASE(ForkNameEnumRoundTripsAllNine)
 {
     using bcos::ledger::detail::c_opForkNames;
+    // The codec table infers its own size, so the protocol cardinality is pinned
+    // here: exactly the nine op-geth EL forks, with no delta entry.
+    BOOST_CHECK_EQUAL(c_opForkNames.size(), 9u);
     for (std::size_t i = 0; i < c_opForkNames.size(); ++i)
     {
         auto s = OpForkSchedule::parse("0:" + std::string(c_opForkNames[i]));
