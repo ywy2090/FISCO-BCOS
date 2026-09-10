@@ -12,25 +12,25 @@ namespace bcos::evm::opstack
 // OP-Stack fork schedule (Bedrock onward) ↔ Ethereum base fork
 //
 // Reference: op-geth params/config_op.go (EL fork order, no Delta) + op-node.
-// FB MODELS Regolith+ (the enum below, in protocol order). Production parse
-// accepts any contiguous EL fork range from the ledger codec, so
-// Regolith..Holocene schedules load; the engine's -38005 gate still rejects
-// pre-Isthmus payloads until S3 adds the historical fork IDs, so execution
-// stays Isthmus+ for now.
+// FB MODELS Regolith+ (the enum below, in protocol order). The ledger codec
+// accepts every contiguous EL fork range by name (S2 landed) and the Engine
+// admits the pre-Isthmus payload shapes via its version/FCU windows (S3 landed),
+// so a Regolith..Karst schedule is reachable end to end.
 //
-//   OP fork      | Ethereum base | EVM rev (FB)      | FB status
-//   -------------+---------------+-------------------+----------------------
-//   Bedrock      | London        | —                 | not modeled (unreachable; first fork is
-//   Regolith) Regolith     | London        | EVMC_LONDON       | modeled; deposit-tx fixes, Bedrock
-//   L1 fee Canyon       | Shanghai      | EVMC_SHANGHAI     | modeled; EIP-4895/1153/5656/6780,
-//   Bedrock L1 fee Ecotone      | Cancun        | EVMC_CANCUN       | modeled; blob L1 fee
-//   (EIP-4844/4788/7516) Fjord        | Cancun        | EVMC_CANCUN       | modeled; FastLZ L1 fee,
-//   p256 active Granite      | Cancun        | EVMC_CANCUN       | modeled; 8 precompile size
-//   limits Holocene     | Cancun        | EVMC_CANCUN       | modeled; EIP-1559 via 9B extraData
-//   Isthmus      | Prague/Pectra | EVMC_PRAGUE       | modeled; EIP-7702/7623/2935/2537 + OP
-//                 |               |                   | deposit changes
-//   Jovian        | Prague        | EVMC_PRAGUE       | modeled; +DA footprint, operator fee ×100
-//   Karst         | Osaka         | EVMC_OSAKA        | modeled; Osaka EVM + Karst precompile caps
+// clang-format off
+//   OP fork  | Ethereum base | EVM rev (FB)  | FB status
+//   ---------+---------------+---------------+--------------------------------------------
+//   Bedrock  | London        | —             | not modeled (unreachable; first fork is Regolith)
+//   Regolith | London        | EVMC_LONDON   | modeled; deposit-tx fixes, Bedrock L1 fee
+//   Canyon   | Shanghai      | EVMC_SHANGHAI | modeled; EIP-4895/1153/5656/6780, Bedrock L1 fee
+//   Ecotone  | Cancun        | EVMC_CANCUN   | modeled; blob L1 fee (EIP-4844/4788/7516)
+//   Fjord    | Cancun        | EVMC_CANCUN   | modeled; FastLZ L1 fee, p256 active
+//   Granite  | Cancun        | EVMC_CANCUN   | modeled; 8 precompile size limits
+//   Holocene | Cancun        | EVMC_CANCUN   | modeled; EIP-1559 via 9B extraData
+//   Isthmus  | Prague/Pectra | EVMC_PRAGUE   | modeled; EIP-7702/7623/2935/2537 + deposits
+//   Jovian   | Prague        | EVMC_PRAGUE   | modeled; +DA footprint, operator fee ×100
+//   Karst    | Osaka         | EVMC_OSAKA    | modeled; Osaka EVM + Karst precompile caps
+// clang-format on
 //
 // Key facts:
 //   * Isthmus = all Prague/Pectra features that apply to L2s (optimism docs

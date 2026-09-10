@@ -200,6 +200,30 @@ BOOST_AUTO_TEST_CASE(sizeGasUsedAndLogIndex)
     BOOST_CHECK_EQUAL(impl->size(), before + 3);
 }
 
+// F1: size() must enumerate every field that opStackMetaEmpty() treats as present,
+// including the Bedrock-era l1_fee_scalar added for S4. The getter/setter and both
+// emptiness gates were updated, but size() was not, so an OP pre-Ecotone receipt
+// under-reported by the hex length of the scalar (block-size RPC estimate).
+BOOST_AUTO_TEST_CASE(opStackMetaSizeCountsL1FeeScalar)
+{
+    auto suite = makeSuite();
+    TransactionReceiptFactoryImpl factory(suite);
+    std::vector<bcos::protocol::LogEntry> logs;
+    bcos::bytes output;
+    auto receipt = factory.createReceipt(bcos::u256(0), "", logs, 0, bcos::ref(output), 1);
+    auto impl = std::dynamic_pointer_cast<TransactionReceiptImpl>(receipt);
+    BOOST_REQUIRE(impl);
+
+    auto before = impl->size();
+    bcos::protocol::OpStackReceiptMeta meta;
+    meta.l1_fee_scalar = bcos::u256(1'000'000);  // raw slot-6 scalar; hex "0xf4240"
+    impl->setOpStackMeta(std::move(meta));
+
+    // u256ToHex(1'000'000) is the 7-byte string "0xf4240"; the exact length is the point
+    // (a zero contribution would let l1_fee_scalar be present-but-uncounted).
+    BOOST_CHECK_EQUAL(impl->size(), before + 7);
+}
+
 // --- OpStackReceiptMeta: tars round-trip + legacy-data behavior (Task 6). ---
 // Every round-trip below goes through the real tars wire format: setOpStackMeta -> encode
 // -> decode -> opStackMeta.

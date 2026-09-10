@@ -108,6 +108,15 @@ void bcos::rpc::combineReceiptResponse(Json::Value& result, protocol::Transactio
             result["l1GasUsed"] = toQuantity(*meta->l1_gas_used);
         if (meta->l1_fee)
             result["l1Fee"] = toQuantity(*meta->l1_fee);
+        // Bedrock-era (pre-Ecotone) FeeScalar. op-geth emits l1FeeScalar only there, as
+        // `FeeScalar = scalar/1e6` (core/types/rollup_cost.go intToScaledFloat; nil from
+        // Ecotone on, gen_receipt_json.go:40). FISCO's meta stores the RAW slot-6 scalar
+        // and the field is only present on the Bedrock formula path, so gating on presence
+        // reproduces upstream's fork gate. Scaled here at the wire boundary; the integer
+        // hex quantity is exact whenever the scalar is a multiple of 1e6 (as on all corpus
+        // and canonical Bedrock configs), matching op-geth's emitted value for those.
+        if (meta->l1_fee_scalar)
+            result["l1FeeScalar"] = toQuantity(*meta->l1_fee_scalar / bcos::u256{1'000'000});
         if (meta->l1_blob_base_fee)
             result["l1BlobBaseFee"] = toQuantity(*meta->l1_blob_base_fee);
         if (meta->l1_base_fee_scalar)

@@ -459,10 +459,22 @@ std::variant<OpTxProperties, std::error_code> opValidate(const evmone::state::St
         (cfg.l1_fee_model == L1FeeModel::Ecotone && !bcos::evm::opstack::ecotoneL1SlotsLive(fee));
     if (bedrockFormula)
     {
-        // uint64 arithmetic like op-geth's (params.L1FeeOverhead is uint64 there).
-        props.bedrock_l1_gas_used =
-            static_cast<uint64_t>(bcos::evm::opstack::bedrockCalldataGasUsed(signedTxEnvelope)) +
-            static_cast<uint64_t>(fee.overhead);
+        // Pre-Ecotone receipt L1GasUsed = rollupDataGas + overhead. op-geth keeps it a
+        // *big.Int: `gasWithOverhead := new(big.Int).SetUint64(gas); Add(gasWithOverhead,
+        // overhead)` where overhead = GetState(OverheadSlot).Big() and L1GasUsed is
+        // `*big.Int` (core/types/rollup_cost.go:301-315, receipt.go:91). op-reth keeps its
+        // RPC field a u128 with saturating_add/saturating_to (crates/rpc/src/eth/receipt.rs:
+        // 184-190). FISCO's non-consensus snapshot is uint64. `fee.overhead` is the
+        // whole-slot uint256 read from slot 5 / calldata arg 6, but the canonical
+        // L1Block.setL1BlockValues writes a uint64, so the sum fits on a valid chain.
+        // Saturate (never wrap mod 2^64) if adversarial state exceeds it; upstream never
+        // wraps either. NB: there is no params.L1FeeOverhead symbol at the pin.
+        const auto gasWithOverhead =
+            intx::uint256{bcos::evm::opstack::bedrockCalldataGasUsed(signedTxEnvelope)} +
+            fee.overhead;
+        props.bedrock_l1_gas_used = gasWithOverhead > std::numeric_limits<uint64_t>::max() ?
+                                        std::numeric_limits<uint64_t>::max() :
+                                        static_cast<uint64_t>(gasWithOverhead);
         props.bedrock_l1_fee_scalar = fee.bedrock_scalar;
     }
     else if (cfg.l1_fee_model == L1FeeModel::Ecotone)

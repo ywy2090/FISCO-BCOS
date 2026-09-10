@@ -379,6 +379,9 @@ size_t bcostars::protocol::TransactionReceiptImpl::size() const
         size += s.deposit_receipt_version.size();
         size += s.l1_gas_used.size();
         size += s.operator_fee.size();
+        // Bedrock-era FeeScalar: opStackMetaEmpty counts this field too, so size() must
+        // enumerate it or an OP pre-Ecotone receipt under-reports by its hex length.
+        size += s.l1_fee_scalar.size();
     }
     return size;
 }

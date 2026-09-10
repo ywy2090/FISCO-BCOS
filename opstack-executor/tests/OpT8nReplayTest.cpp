@@ -1104,11 +1104,12 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
                 gotL1BaseFeeScalar = hexU64(*meta->l1_base_fee_scalar);
             if (meta && meta->l1_blob_base_fee_scalar.has_value())
                 gotL1BlobBaseFeeScalar = hexU64(*meta->l1_blob_base_fee_scalar);
-            // Bedrock-era only (pre-Ecotone): FISCO stores the RAW slot-6 scalar;
-            // the vector pins op-geth's receipt FeeScalar = scalar/1e6 (big.Float,
-            // exact for every corpus scalar). Compare on the scaled value.
+            // Bedrock-era only (pre-Ecotone): FISCO stores the RAW whole-slot scalar. The
+            // expected side below reconstructs the same raw value from the vector's
+            // upstream-scaled FeeScalar, so this comparison is raw-to-raw and never applies
+            // a truncating division to the executor's output.
             if (meta && meta->l1_fee_scalar.has_value())
-                gotL1FeeScalar = hexU256Bcos(*meta->l1_fee_scalar / bcos::u256{1'000'000});
+                gotL1FeeScalar = hexU256Bcos(*meta->l1_fee_scalar);
             if (meta && meta->operator_fee_scalar.has_value())
                 gotOpFeeScalar = hexU64(*meta->operator_fee_scalar);
             if (meta && meta->operator_fee_constant.has_value())
@@ -1156,7 +1157,19 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
             p + "._op_l1_base_fee_scalar", optWant("_op_l1_base_fee_scalar"), gotL1BaseFeeScalar);
         ctx.checkOptional(p + "._op_l1_blob_base_fee_scalar",
             optWant("_op_l1_blob_base_fee_scalar"), gotL1BlobBaseFeeScalar);
-        ctx.checkOptional(p + "._op_l1_fee_scalar", optWant("_op_l1_fee_scalar"), gotL1FeeScalar);
+        // F5: op-geth's receipt FeeScalar is intToScaledFloat(scalar) = scalar/1e6
+        // (core/types/rollup_cost.go:402-406); the corpus pins that SCALED value, while
+        // FISCO stores the raw whole-slot scalar. Derive the upstream-implied raw scalar
+        // (FeeScalar * 1e6) HERE, on the expected side, and compare raw-to-raw — the old
+        // form divided the executor's own output, which is exact only for 1e6 multiples and
+        // hid the raw-vs-scaled representation. The generator emits the field only when
+        // FeeScalar is an exact integer (big.Exact), i.e. scalar is a multiple of 1e6, so
+        // the reconstruction is exact for every corpus scalar.
+        std::optional<std::string> wantL1FeeScalar;
+        if (er.isMember("_op_l1_fee_scalar"))
+            wantL1FeeScalar =
+                hexU256(parseU256(jAt(er, "_op_l1_fee_scalar")) * intx::uint256{1'000'000});
+        ctx.checkOptional(p + "._op_l1_fee_scalar", wantL1FeeScalar, gotL1FeeScalar);
         ctx.checkOptional(
             p + "._op_operator_fee_scalar", optWant("_op_operator_fee_scalar"), gotOpFeeScalar);
         ctx.checkOptional(p + "._op_operator_fee_constant", optWant("_op_operator_fee_constant"),
