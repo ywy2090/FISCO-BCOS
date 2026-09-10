@@ -180,6 +180,18 @@ public:
         return m_tracker.safeBlockNumber();
     }
 
+    /// Diagnostic/test surface: the tracker's current head number (the FCU-followed
+    /// tip; distinct from lastExecutedHeader and from ledger SYS_CURRENT_STATE).
+    std::optional<bcos::protocol::BlockNumber> trackedHeadNumber() const
+    {
+        if (auto head = m_tracker.trackedHead();
+            head.has_value())
+        {
+            return head->blockNumber;
+        }
+        return std::nullopt;
+    }
+
     std::optional<bcos::protocol::BlockNumber> getFinalizedBlockNumber() const
     {
         return m_tracker.finalizedBlockNumber();

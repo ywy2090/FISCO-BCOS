@@ -777,6 +777,10 @@ BOOST_AUTO_TEST_CASE(AncestorSiblingWhileTipStillAhead)
     auto height3 = bcos::task::syncWait(
         bcos::ledger::getBlockHash(canonicalView, 3, bcos::ledger::fromStorage));
     BOOST_CHECK(!height3.has_value());
+    // 旧哈希仍是旧块（按哈希读不随规范标签变）：B 与 C 都还在 ImportedStore。
+    BOOST_CHECK(f.service.hasImportedBlock(requestB.executionPayload.blockHash));
+    BOOST_CHECK(f.service.hasImportedBlock(requestC.executionPayload.blockHash));
+    BOOST_CHECK(f.service.hasImportedBlock(requestBPrime.executionPayload.blockHash));
 }
 
 // 已 import 的同高覆盖（该槽已有子孙）→ SYNCING（不冲掉 parent）。
@@ -888,6 +892,59 @@ BOOST_AUTO_TEST_CASE(FcuToNonCanonicalWithAttrsSetsCanonicalFirst)
     BOOST_REQUIRE(payload);
     BOOST_CHECK_EQUAL(
         payload->executionPayload.parentHash.hex(), requestBPrime.executionPayload.blockHash.hex());
+}
+
+// ---- S5 Task 9: §5 矩阵剩余行 ----
+
+// 形状错误 → INVALID 且 latestValidHash=null（对齐 pin 组块失败）。
+BOOST_AUTO_TEST_CASE(ShapeErrorCarriesNullLatestValidHash)
+{
+    ImportServiceFixture f;
+    auto request = f.validRequest(fixtureHeadHash(), 1);
+    request.executionRequests = std::nullopt;  // Isthmus wire contract violated
+    auto status = bcos::task::syncWait(f.service.newPayload(request, 4));
+    BOOST_CHECK_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
+    BOOST_CHECK(!status.latestValidHash.has_value());
+}
+
+// newPayload 后立刻读 "safe"|"finalized"：与 FCU 前相同（导入不碰标签）。
+BOOST_AUTO_TEST_CASE(NewPayloadLeavesSafeAndFinalizedUnchanged)
+{
+    ImportServiceFixture f;
+    auto safeBefore = f.service.getSafeBlockNumber();
+    auto finalizedBefore = f.service.getFinalizedBlockNumber();
+
+    auto request = f.validRequest(fixtureHeadHash(), 1);
+    auto status = bcos::task::syncWait(f.service.newPayload(request, 4));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    auto safeAfter = f.service.getSafeBlockNumber();
+    auto finalizedAfter = f.service.getFinalizedBlockNumber();
+    BOOST_CHECK_EQUAL(safeAfter.has_value(), safeBefore.has_value());
+    BOOST_CHECK_EQUAL(finalizedAfter.has_value(), finalizedBefore.has_value());
+    if (safeBefore.has_value())
+        BOOST_CHECK_EQUAL(*safeAfter, *safeBefore);
+    if (finalizedBefore.has_value())
+        BOOST_CHECK_EQUAL(*finalizedAfter, *finalizedBefore);
+}
+
+// 心跳：同 tip、无 attrs → VALID 且无 payloadId。
+BOOST_AUTO_TEST_CASE(HeartbeatSameTipNoAttrsIsValidWithoutPayloadId)
+{
+    ImportServiceFixture f;
+    bcos::engine::ForkchoiceState fcu{fixtureHeadHash(), fixtureHeadHash(), fixtureHeadHash()};
+    auto first = bcos::task::syncWait(f.service.updateForkchoice(fcu, nullptr, 3));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(first.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_CHECK(!first.payloadId.has_value());
+
+    // 第二次同 tip 心跳：仍 VALID、仍无 payloadId。
+    auto second = bcos::task::syncWait(f.service.updateForkchoice(fcu, nullptr, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(second.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_CHECK(!second.payloadId.has_value());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

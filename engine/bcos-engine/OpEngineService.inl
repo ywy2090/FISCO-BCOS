@@ -242,6 +242,33 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
     {
         canonicalTipNumber = co_await bcos::ledger::getCurrentBlockNumber(
             view, bcos::ledger::fromStorage);
+        // SetCanonical for a LEDGER-canonical head above the tip pointer (skipped
+        // middle heights are already canonical rows): advance SYS_CURRENT_STATE —
+        // a stale tip pointer under a canonical head means SetCanonical's
+        // number-move has not happened yet (design §4.2: 沿新链写满).
+        auto canonicalHeadHashEarly = co_await bcos::ledger::getBlockHash(
+            view, *headBlockNumber, bcos::ledger::fromStorage);
+        if (canonicalHeadHashEarly.has_value() &&
+            *canonicalHeadHashEarly == forkchoiceState.headBlockHash &&
+            *headBlockNumber > canonicalTipNumber)
+        {
+            // Persist through a view+merge (the FCU path never touches the pending
+            // deque, so mergeView lands the row in the backend directly).
+            auto writeView = m_globalStateStorage.fork();
+            writeView.newMutable();
+            bcos::storage::Entry numberEntry;
+            numberEntry.set(std::to_string(*headBlockNumber));
+            co_await storage2::writeOne(writeView,
+                executor_v1::StateKey{bcos::ledger::SYS_CURRENT_STATE,
+                    bcos::ledger::SYS_KEY_CURRENT_NUMBER},
+                std::move(numberEntry));
+            co_await m_globalStateStorage.mergeView(std::move(writeView));
+            canonicalTipNumber = *headBlockNumber;
+            if (m_delegate)
+            {
+                m_delegate->canonicalizedTo(*headBlockNumber);
+            }
+        }
     }
     // All-zero safe/finalized hashes are the Engine-API "not set" value: skip number
     // resolution and canonical checks for that field (op-geth SetSafe/SetFinalized are
@@ -1075,6 +1102,24 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     for (auto const& env : detail::rawEnvelopes(payload))
     {
         imported.txs.push_back(env);
+        imported.txHashes.push_back(m_blockFactory->cryptoSuite()->hashImpl()->hash(env));
+    }
+    // Canonical-row payloads: tars-encoded transactions (SYS_HASH_2_TX) and encoded
+    // receipts (SYS_HASH_2_RECEIPT) — importExecute attached the receipts to the
+    // block (commitPersist convention), so capture them here for canonicalize.
+    for (auto&& receiptView : block->receipts())
+    {
+        auto receipt = std::move(receiptView).toShared();
+        bcos::bytes encoded;
+        receipt->encode(encoded);
+        imported.receipts.push_back(std::move(encoded));
+    }
+    for (auto txView : block->transactions())
+    {
+        auto tx = std::move(txView).toShared();
+        bcos::bytes encoded;
+        tx->encode(encoded);
+        imported.encodedTxs.push_back(std::move(encoded));
     }
     // Same-height occupant check (§4.2 单分叉冲突 vs §4.3 ancestor sibling): an
     // imported-live occupant with descendants must not lose its ancestor; a
@@ -1251,6 +1296,24 @@ task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerT
             executor_v1::StateKey{bcos::ledger::SYS_CURRENT_STATE,
                 bcos::ledger::SYS_KEY_CURRENT_NUMBER},
             std::move(numberEntry));
+        for (std::size_t i = 0; i < headBlock.encodedTxs.size(); ++i)
+        {
+            bcos::storage::Entry txEntry;
+            txEntry.set(headBlock.encodedTxs[i]);
+            co_await storage2::writeOne(backend,
+                executor_v1::StateKey{bcos::ledger::SYS_HASH_2_TX,
+                    bcos::concepts::bytebuffer::toView(headBlock.txHashes[i])},
+                std::move(txEntry));
+            if (i < headBlock.receipts.size())
+            {
+                bcos::storage::Entry receiptEntry;
+                receiptEntry.set(headBlock.receipts[i]);
+                co_await storage2::writeOne(backend,
+                    executor_v1::StateKey{bcos::ledger::SYS_HASH_2_RECEIPT,
+                        bcos::concepts::bytebuffer::toView(headBlock.txHashes[i])},
+                    std::move(receiptEntry));
+            }
+        }
         for (auto k = headBlock.number + 1; k <= currentTip; ++k)
         {
             co_await storage2::removeOne(backend,
@@ -1307,6 +1370,26 @@ task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerT
             executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER,
                 std::to_string(block.number)},
             std::move(headerEntry));
+        // Canonical tx/receipt rows (prewriteBlockToBuffer's phase-2 equivalent,
+        // writeNonces=false): keyed by tx hash, index-aligned with the block's txs.
+        for (std::size_t i = 0; i < block.encodedTxs.size(); ++i)
+        {
+            bcos::storage::Entry txEntry;
+            txEntry.set(block.encodedTxs[i]);
+            co_await storage2::writeOne(*delta,
+                executor_v1::StateKey{bcos::ledger::SYS_HASH_2_TX,
+                    bcos::concepts::bytebuffer::toView(block.txHashes[i])},
+                std::move(txEntry));
+            if (i < block.receipts.size())
+            {
+                bcos::storage::Entry receiptEntry;
+                receiptEntry.set(block.receipts[i]);
+                co_await storage2::writeOne(*delta,
+                    executor_v1::StateKey{bcos::ledger::SYS_HASH_2_RECEIPT,
+                        bcos::concepts::bytebuffer::toView(block.txHashes[i])},
+                    std::move(receiptEntry));
+            }
+        }
         if (block.hash == headHash)
         {
             bcos::storage::Entry currentEntry;

@@ -34,9 +34,15 @@ struct ImportedBlock
     bcos::h256 hash;
     bcos::h256 parent;
     bcos::protocol::BlockNumber number{};
-    bcos::bytes headerBytes;       // encoded header, read back BY HASH (never by number)
+    bcos::bytes headerBytes;  // encoded header, read back BY HASH (never by number)
     std::vector<bcos::bytes> txs;  // ordered signed envelopes
-    std::vector<bcos::bytes> receipts;
+    // Canonical-row payloads (captured at import; canonicalize writes them):
+    // tars-encoded transactions / FISCO receipt encodings, keyed by
+    // txHashes[i] = keccak(txs[i]) — the exact rows prewriteBlockToBuffer wrote.
+    std::vector<bcos::h256> txHashes;
+    std::vector<bcos::bytes> encodedTxs;
+    std::vector<bcos::bytes> receipts;  // encoded FISCO receipts, index-aligned
+
     // Per-block storage delta relative to parent. Task 3 replaces this placeholder
     // with the real executor delta type; `put` success == the delta exists.
     std::shared_ptr<void> storageDelta;

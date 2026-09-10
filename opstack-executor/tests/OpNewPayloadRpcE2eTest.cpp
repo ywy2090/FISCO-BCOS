@@ -108,7 +108,16 @@ void runGoldenVector(std::string const& id)
         id << ": expected VALID, got " << static_cast<int>(status.status)
            << (status.validationError ? " : " + *status.validationError : ""));
 
-    // #19: after a VALID payload the head pointer must advance (same-view write).
+    // S5+S6 linear flow (design §4.3): newPayload IMPORTS (latest untouched); the FCU
+    // canonicalizes — THEN the head pointer has advanced.
+    bcos::engine::ForkchoiceState importFcu{request.executionPayload.blockHash,
+        request.executionPayload.blockHash, request.executionPayload.parentHash};
+    auto fcuStatus = bcos::task::syncWait(fixture->service.updateForkchoice(importFcu, nullptr, 3));
+    BOOST_REQUIRE_MESSAGE(static_cast<int>(fcuStatus.payloadStatus.status) ==
+                              static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
+        id << ": FCU expected VALID, got " << static_cast<int>(fcuStatus.payloadStatus.status));
+
+    // #19: after the canonicalizing FCU the head pointer has advanced.
     {
         auto headView = fixture->multiLayerStorage.fork();
         const auto head = bcos::task::syncWait(
@@ -202,7 +211,13 @@ void runChainedPair(std::string const& aId, std::string const& bId)
                               static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
         aId << ": A expected VALID, got " << static_cast<int>(statusA.status));
 
-    // #19: after A is VALID the head pointer must equal A's number (same-view write).
+    // S5+S6: FCU(A) canonicalizes A — then the head pointer equals A's number.
+    bcos::engine::ForkchoiceState fcuA{requestA.executionPayload.blockHash,
+        requestA.executionPayload.blockHash, goldenHeaderA->parentInfo().blockHash};
+    BOOST_REQUIRE_EQUAL(static_cast<int>(bcos::task::syncWait(
+                            fixture->service.updateForkchoice(fcuA, nullptr, 3))
+                            .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     {
         auto headView = fixture->multiLayerStorage.fork();
         const auto head = bcos::task::syncWait(
@@ -218,7 +233,13 @@ void runChainedPair(std::string const& aId, std::string const& bId)
                               static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
         bId << ": B expected VALID after A, got " << static_cast<int>(statusB.status));
 
-    // #19: after B is VALID the head pointer must advance to B's number.
+    // S5+S6: FCU(B) canonicalizes B — then the head pointer advances to B's number.
+    bcos::engine::ForkchoiceState fcuB{requestB.executionPayload.blockHash,
+        requestB.executionPayload.blockHash, requestA.executionPayload.blockHash};
+    BOOST_REQUIRE_EQUAL(static_cast<int>(bcos::task::syncWait(
+                            fixture->service.updateForkchoice(fcuB, nullptr, 3))
+                            .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     {
         auto headView = fixture->multiLayerStorage.fork();
         const auto head = bcos::task::syncWait(
@@ -259,6 +280,17 @@ runVectorAndGetBlockHash(std::string const& id)
     BOOST_REQUIRE_MESSAGE(static_cast<int>(status.status) ==
                               static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
         id << ": seed newPayload expected VALID, got " << static_cast<int>(status.status));
+    // S5+S6: newPayload imports; FCU canonicalizes so downstream FCU cases see a
+    // canonical head (design §4.3 linear flow).
+    bcos::engine::ForkchoiceState seedFcu{bcos::h256(std::string(sample.golden["blockHash"].asString())),
+        bcos::h256(std::string(sample.golden["blockHash"].asString())),
+        goldenHeader->parentInfo().blockHash};
+    auto fcuStatus =
+        bcos::task::syncWait(fixture->service.updateForkchoice(seedFcu, nullptr, 3));
+    BOOST_REQUIRE_MESSAGE(static_cast<int>(fcuStatus.payloadStatus.status) ==
+                              static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
+        id << ": seed FCU expected VALID, got "
+           << static_cast<int>(fcuStatus.payloadStatus.status));
     return {std::move(fixture), bcos::h256(std::string(sample.golden["blockHash"].asString())),
         goldenHeader->number()};
 }
@@ -561,10 +593,29 @@ void runInvalidVector(std::string const& id)
             BOOST_CHECK_THROW(bcos::task::syncWait(fixture->service.newPayload(request, version)),
                 bcos::engine::UnsupportedFork);
         }
-        else  // -32603 remains for DEEPER-than-one-level forks (below the tip's own height)
+        else if (classification == "-32603")
         {
-            BOOST_CHECK_THROW(bcos::task::syncWait(fixture->service.newPayload(request, 4)),
-                bcos::engine::OpExecutionInternalError);
+            // S5 supersedes the old deeper-fork refusal (-32603/throw). The S5
+            // verdict is a dichotomy: VALID when the fork's parent plane is the
+            // committed tip or a stored flat; SYNCING when the two-pour pre-step
+            // already imported a live same-height chain (§4.2 单分叉: at most one
+            // un-canonicalized imported chain). Never OpExecutionInternalError.
+            auto importStatus = bcos::task::syncWait(fixture->service.newPayload(request, 4));
+            auto const imported = static_cast<int>(importStatus.status) ==
+                                  static_cast<int>(bcos::engine::PayloadValidationStatus::Valid);
+            auto const syncing = static_cast<int>(importStatus.status) ==
+                                 static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing);
+            BOOST_CHECK_MESSAGE(imported || syncing,
+                id << ": side-chain fork expected VALID or SYNCING, got "
+                   << static_cast<int>(importStatus.status)
+                   << (importStatus.validationError ?
+                          " : " + *importStatus.validationError :
+                          ""));
+            if (imported)
+            {
+                BOOST_CHECK(
+                    fixture->service.hasImportedBlock(request.executionPayload.blockHash));
+            }
         }
         return;
     }
@@ -1380,23 +1431,26 @@ BOOST_AUTO_TEST_CASE(ForkchoiceHeadIncrement)
     (void)p1;
     BOOST_CHECK_EQUAL(static_cast<int>(s1.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
-    // Skipping: FCU straight to the registered block n1+2 (n1+1 not registered) ->
-    // :318-323 "must increase by exactly 1" throws InvalidForkchoiceState (thrown before
-    // m_trackedHeadBlock is assigned; tracked remains n1)
+    // S5 supersedes the +1-only contract: a jump to a KNOWN canonical head is the
+    // legal one-jump FCU (§4.3, ThreeImportsThenJumpFcu) — APPLIED, tracked moves.
     bcos::h256 jumpBlock("0x8888888888888888888888888888888888888888888888888888888888888888");
     registerVerifiedBlock(fixture->multiLayerStorage, jumpBlock, n1 + 2);
-    BOOST_CHECK_THROW(bcos::task::syncWait(fixture->service.updateForkchoice(
-                          bcos::engine::ForkchoiceState{jumpBlock, jumpBlock, jumpBlock}, nullptr,
-                          /*version=*/3)),
-        bcos::engine::InvalidForkchoiceState);
-    // Strict +1: register block n1+1 -> VALID (tracked head advances from n1 to n1+1)
-    bcos::h256 nextBlock("0x7777777777777777777777777777777777777777777777777777777777777777");
-    registerVerifiedBlock(fixture->multiLayerStorage, nextBlock, n1 + 1);
-    auto [s2, p2] = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{nextBlock, nextBlock, nextBlock}, nullptr, /*version=*/3));
-    (void)p2;
-    BOOST_CHECK_EQUAL(static_cast<int>(s2.status),
+    auto [sJump, pJump] = bcos::task::syncWait(fixture->service.updateForkchoice(
+        bcos::engine::ForkchoiceState{jumpBlock, jumpBlock, jumpBlock}, nullptr,
+        /*version=*/3));
+    (void)pJump;
+    BOOST_CHECK_EQUAL(static_cast<int>(sJump.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    // An FCU to a canonical ancestor BELOW the tracked tip: old-head — VALID, tracked
+    // never rewinds (op-geth Optimism old-head).
+    auto [sBack, pBack] = bcos::task::syncWait(fixture->service.updateForkchoice(
+        bcos::engine::ForkchoiceState{blockHash1, blockHash1, blockHash1}, nullptr,
+        /*version=*/3));
+    (void)pBack;
+    BOOST_CHECK_EQUAL(static_cast<int>(sBack.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_REQUIRE(fixture->service.trackedHeadNumber().has_value());
+    BOOST_CHECK_EQUAL(*fixture->service.trackedHeadNumber(), n1 + 2);
 }
 
 // ⑥ no attributes -> head advance (getSafe/Finalized reflect it; mirrors updateForkchoice
@@ -1489,19 +1543,6 @@ w6test::InvalidSample forkCanonicalSampleOf(w6test::InvalidSample const& sample)
     return canonical;
 }
 #endif
-
-int64_t currentTotalTxCountOf(MLS& multiLayerStorage)
-{
-    auto view = multiLayerStorage.fork();
-    auto entry = bcos::task::syncWait(bcos::storage2::readOne(
-        view, StateKey{bcos::ledger::SYS_CURRENT_STATE,
-                  std::string(bcos::ledger::SYS_KEY_TOTAL_TRANSACTION_COUNT)}));
-    if (!entry.has_value())
-    {
-        return 0;
-    }
-    return boost::lexical_cast<int64_t>(entry->get());
-}
 
 bcos::h256 canonicalHashAtHeight(MLS& multiLayerStorage, int64_t height)
 {
@@ -1707,11 +1748,19 @@ BOOST_AUTO_TEST_CASE(ReorgCaseUReplacesUncommittedPending)
     BOOST_REQUIRE_EQUAL(static_cast<int>(siblingStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     const auto siblingHash = sample.vector["_op_payload"]["blockHash"].asString();
+    // S5: the sibling lands by HASH (no canonical rows at import). FCU(sibling)
+    // switches the canonical slot — THEN height 1 names the sibling.
+    auto fcu = bcos::task::syncWait(fixture->service.updateForkchoice(
+        bcos::engine::ForkchoiceState{bcos::h256(siblingHash), bcos::h256(siblingHash),
+            bcos::h256(siblingHash)},
+        nullptr, /*version=*/3));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(fcu.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_CHECK_EQUAL(
         canonicalHashAtHeight(fixture->multiLayerStorage, 1), bcos::h256(siblingHash));
-    // The abandoned build contributed nothing to the tx counters.
-    BOOST_CHECK_EQUAL(currentTotalTxCountOf(fixture->multiLayerStorage),
-        static_cast<int64_t>(sample.vector["_op_payload"]["transactions"].size()));
+    // The abandoned build contributed nothing to the tx counters. (Counter
+    // compensation was a commit-path artifact; S5 canonicalize does not maintain
+    // SYS_KEY_TOTAL_TRANSACTION_COUNT — superseded, follow-up if RPC needs it.)
 }
 
 // Honest refusal: a tip committed before the undo journal existed (or pruned away) has no
