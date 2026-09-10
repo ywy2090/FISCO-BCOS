@@ -674,6 +674,34 @@ inline bcos::engine::PayloadAttributes makeOpPayloadAttributesAt(std::uint64_t t
     return attrs;
 }
 
+/// Pre-Holocene attrs. makeOpPayloadAttributes() carries Holocene+ fields (beacon
+/// root, 8-byte eip1559Params, minBaseFee); leaving them set makes a Regolith V1 or
+/// Canyon V2 FCU come back Invalid without throwing, so a NO_THROW assertion would
+/// pass for the wrong reason.
+inline bcos::engine::PayloadAttributes makeRegolithAttrs(std::uint64_t timestampMs)
+{
+    auto attrs = makeOpPayloadAttributesAt(timestampMs);
+    attrs.withdrawals.reset();
+    attrs.parentBeaconBlockRoot.reset();
+    attrs.eip1559Params.reset();
+    attrs.minBaseFee.reset();
+    return attrs;
+}
+
+inline bcos::engine::PayloadAttributes makeCanyonAttrs(std::uint64_t timestampMs)
+{
+    auto attrs = makeRegolithAttrs(timestampMs);
+    attrs.withdrawals.emplace();
+    return attrs;
+}
+
+inline bcos::engine::PayloadAttributes makeEcotoneAttrs(std::uint64_t timestampMs)
+{
+    auto attrs = makeCanyonAttrs(timestampMs);
+    attrs.parentBeaconBlockRoot = bcos::h256(std::string(64, '4'));
+    return attrs;
+}
+
 /// FCU V3 build keyed by attrs.timestamp (ms). Parent/head timestamp is seeded separately.
 /// Forced txs are deposits-only so a Jovian/Karst activation window (parent pre-fork,
 /// attrs on the new fork) stays VALID — user envelopes are FCU-INVALID there.

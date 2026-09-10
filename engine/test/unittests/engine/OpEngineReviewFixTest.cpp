@@ -191,10 +191,11 @@ BOOST_AUTO_TEST_CASE(attrs_holocene_pairing_matches_op_geth)
     BOOST_REQUIRE(engine_common::validatePayloadAttributes(zeroElasticity, 3).has_value());
     BOOST_CHECK(!engine_common::validatePayloadAttributes(bothZero, 3));
 
-    BOOST_REQUIRE(engine_common::op::validateOpPayloadAttributes(zeroDenom, false).has_value());
     BOOST_REQUIRE(
-        engine_common::op::validateOpPayloadAttributes(zeroElasticity, false).has_value());
-    BOOST_CHECK(!engine_common::op::validateOpPayloadAttributes(bothZero, false));
+        engine_common::op::validateOpPayloadAttributes(zeroDenom, OpForkId::Isthmus).has_value());
+    BOOST_REQUIRE(engine_common::op::validateOpPayloadAttributes(zeroElasticity, OpForkId::Isthmus)
+                      .has_value());
+    BOOST_CHECK(!engine_common::op::validateOpPayloadAttributes(bothZero, OpForkId::Isthmus));
 }
 
 BOOST_AUTO_TEST_CASE(op_does_not_advertise_unimplemented_fcu_v4)
@@ -279,10 +280,10 @@ BOOST_AUTO_TEST_CASE(validate_op_newpayload_request_static_rules)
 /// Same treatment for the FCU attributes-side rules (validateOpPayloadAttributes).
 BOOST_AUTO_TEST_CASE(validate_op_payload_attributes_static_rules)
 {
-    auto withViolation = [](auto&& mutate, bool jovianActive) {
+    auto withViolation = [](auto&& mutate, OpForkId forkId) {
         auto attributes = holoceneAttributes(bytes(8, 0));
         mutate(attributes);
-        return engine_common::op::validateOpPayloadAttributes(attributes, jovianActive);
+        return engine_common::op::validateOpPayloadAttributes(attributes, forkId);
     };
     auto expectReject = [](std::optional<std::string> const& error, std::string const& needle) {
         BOOST_REQUIRE_MESSAGE(error.has_value(), "expected a reject mentioning " << needle);
@@ -293,16 +294,16 @@ BOOST_AUTO_TEST_CASE(validate_op_payload_attributes_static_rules)
     expectReject(
         withViolation(
             [](PayloadAttributes& a) { a.withdrawals = std::vector<WithdrawalV1>{WithdrawalV1{}}; },
-            false),
+            OpForkId::Isthmus),
         "withdrawals must be empty on the OP path");
-    expectReject(withViolation([](PayloadAttributes& a) { a.minBaseFee = std::nullopt; },
-                     /*jovianActive=*/true),
+    expectReject(
+        withViolation([](PayloadAttributes& a) { a.minBaseFee = std::nullopt; }, OpForkId::Jovian),
         "minBaseFee is required after the Jovian fork");
     expectReject(withViolation(
                      [](PayloadAttributes& a) {
                          a.minBaseFee = 0;  // a pre-Jovian CL sending a floor is a reject
                      },
-                     /*jovianActive=*/false),
+                     OpForkId::Isthmus),
         "minBaseFee must be null before the Jovian fork");
 }
 
@@ -457,13 +458,13 @@ BOOST_AUTO_TEST_CASE(op_fcu_attrs_reject_gas_limit_above_signed_max)
         static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
     auto over = holoceneAttributes(bytes(8, 0));
     over.gasLimit = kMaxBlockGas + 1;
-    auto overError = engine_common::op::validateOpPayloadAttributes(over, /*jovianActive=*/false);
+    auto overError = engine_common::op::validateOpPayloadAttributes(over, OpForkId::Isthmus);
     BOOST_REQUIRE(overError.has_value());
     BOOST_CHECK_EQUAL(*overError, "gasLimit exceeds the maximum block gas limit (2^63-1)");
 
     auto atMax = holoceneAttributes(bytes(8, 0));
     atMax.gasLimit = kMaxBlockGas;
-    BOOST_CHECK(!engine_common::op::validateOpPayloadAttributes(atMax, /*jovianActive=*/false));
+    BOOST_CHECK(!engine_common::op::validateOpPayloadAttributes(atMax, OpForkId::Isthmus));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

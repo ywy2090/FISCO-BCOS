@@ -145,15 +145,10 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
     std::vector<bcos::bytes> decodedForcedTxs;
     if (payloadAttributes != nullptr)
     {
-        if (version < 3)
-        {
-            BOOST_THROW_EXCEPTION(
-                UnsupportedFork{} << bcos::errinfo_comment{
-                    "Isthmus+ payload building requires engine_forkchoiceUpdatedV3 "
-                    "(JSON-RPC -38005)"});
-        }
         // Profile keys on attrs.timestamp (internal ms → Unix seconds), never head.
-        // Isthmus/Jovian/Karst all advertise FCU V3, so Karst does not bump this.
+        // The method number and the extras (extraData layout, baseFee clock) are all
+        // derived from it, so the table decides which FCU version this fork builds
+        // with — Regolith V1 and Canyon V2 included.
         uint64_t const tsSec = unixSecondsFromInternalMillis(payloadAttributes->timestamp);
         auto const ctx = requireOpEngineForkAt(tsSec);
         if (version != static_cast<std::uint32_t>(ctx.api.forkchoiceUpdated))
@@ -174,7 +169,7 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
             };
         }
         if (auto validationError = engine_common::op::validateOpPayloadAttributes(
-                *payloadAttributes, ctx.hasDaFootprint);
+                *payloadAttributes, ctx.forkId);
             validationError.has_value())
         {
             co_return ForkchoiceUpdatedResult{

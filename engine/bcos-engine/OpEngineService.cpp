@@ -112,7 +112,7 @@ bcos::h2048 toEthLogsBloom(const Bloom& logsBloom)
 }
 
 std::optional<std::string> validateOpPayloadAttributes(
-    const PayloadAttributes& payloadAttributes, bool jovianActive)
+    const PayloadAttributes& payloadAttributes, OpForkId forkId)
 {
     if (!payloadAttributes.gasLimit.has_value())
     {
@@ -125,29 +125,46 @@ std::optional<std::string> validateOpPayloadAttributes(
     {
         return std::string(c_opMaxBlockGasLimitMessage);
     }
-    if (!payloadAttributes.eip1559Params.has_value())
+    // The fork's extraData layout decides which 1559 fields these attributes may
+    // carry (op-geth checkOptimismPayloadAttributes): pre-Holocene has neither,
+    // Holocene adds the 8-byte params, Jovian adds minBaseFee.
+    auto const layout = extraDataLayoutFor(forkId);
+    if (layout == OpExtraDataLayout::Empty)
     {
-        return std::string("eip1559Params is required on the OP path (Holocene+)");
+        if (payloadAttributes.eip1559Params.has_value())
+        {
+            return std::string("eip1559Params is not allowed before the Holocene fork");
+        }
     }
-    if (payloadAttributes.eip1559Params->size() != 8)
+    else
     {
-        return std::string("eip1559Params must be exactly 8 bytes");
-    }
-    const auto [denominator, elasticity] =
-        bcos::engine::decodeEip1559Params(*payloadAttributes.eip1559Params);
-    if (auto error = engine_common::validateHolocene1559Params(denominator, elasticity))
-    {
-        return error;
+        if (!payloadAttributes.eip1559Params.has_value())
+        {
+            return std::string("eip1559Params is required on the OP path (Holocene+)");
+        }
+        if (payloadAttributes.eip1559Params->size() != 8)
+        {
+            return std::string("eip1559Params must be exactly 8 bytes");
+        }
+        const auto [denominator, elasticity] =
+            bcos::engine::decodeEip1559Params(*payloadAttributes.eip1559Params);
+        if (auto error = engine_common::validateHolocene1559Params(denominator, elasticity))
+        {
+            return error;
+        }
     }
     if (payloadAttributes.withdrawals.has_value() && !payloadAttributes.withdrawals->empty())
     {
         return std::string("withdrawals must be empty on the OP path");
     }
-    if (jovianActive && !payloadAttributes.minBaseFee.has_value())
+    if (layout == OpExtraDataLayout::Jovian17)
     {
-        return std::string("minBaseFee is required after the Jovian fork");
+        if (!payloadAttributes.minBaseFee.has_value())
+        {
+            return std::string("minBaseFee is required after the Jovian fork");
+        }
     }
-    if (!jovianActive && payloadAttributes.minBaseFee.has_value())
+    else if (payloadAttributes.minBaseFee.has_value())
     {
         return std::string("minBaseFee must be null before the Jovian fork");
     }

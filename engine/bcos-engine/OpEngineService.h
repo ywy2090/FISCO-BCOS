@@ -81,8 +81,12 @@ namespace engine_common::op
 std::vector<std::string> supportedOpCapabilities();
 std::optional<std::uint64_t> narrowU256ToU64(const u256& value);
 bcos::h2048 toEthLogsBloom(const Bloom& logsBloom);
+/// OP-only attrs rules, keyed on the fork the attributes timestamp selects: the fork
+/// determines which 1559 fields the block may carry (see OpBaseFee's extraData
+/// layouts). The Eth-generic shape rules by method version live in
+/// engine_common::validatePayloadAttributes.
 std::optional<std::string> validateOpPayloadAttributes(
-    const PayloadAttributes& payloadAttributes, bool jovianActive);
+    const PayloadAttributes& payloadAttributes, OpForkId forkId);
 /// op-geth miner.BuildPayload uses attrs.Transactions as-is and never synthesizes
 /// an L1-attributes deposit. Synthesis is test-only (`allowSynthesizedL1Attributes`);
 /// production op_engine_rpc must receive the real deposit from op-node.
