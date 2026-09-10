@@ -21,6 +21,7 @@
 
 #include "EngineServiceCommon.h"
 #include "EngineTracker.h"
+#include "ImportedStore.h"
 
 #include <bcos-concepts/ByteBuffer.h>
 #include <bcos-framework/dispatcher/SchedulerInterface.h>
@@ -192,6 +193,14 @@ public:
         return m_lastExecutedHeader;
     }
 
+    /// S5: true when @p blockHash landed in the ImportedStore (imported by newPayload,
+    /// not yet canonical). Read-only diagnostic/test surface; never consults the
+    /// canonical tables.
+    bool hasImportedBlock(const h256& blockHash) const
+    {
+        return m_importedStore.hasBlock(blockHash);
+    }
+
 private:
     static PayloadStatus makeStatus(PayloadValidationStatus status,
         std::optional<h256> latestValidHash = std::nullopt,
@@ -296,6 +305,9 @@ private:
     /// delegate's continuity check rejects anything else.
     mutable std::mutex m_lastExecutedHeaderMutex;
     bcos::protocol::BlockHeader::Ptr m_lastExecutedHeader;
+    /// S5: payloads imported by newPayload (InsertBlockWithoutSetHead), keyed by the
+    /// CL-announced hash. latest / SYS_CURRENT_STATE / tracker never read this.
+    ImportedStore m_importedStore;
 };
 
 }  // namespace bcos::engine

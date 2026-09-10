@@ -183,6 +183,30 @@ struct RecordingScheduler : bcos::scheduler::SchedulerInterface
         }
         callback(nullptr, nullptr);
     }
+    /// S5 import arm: same stub semantics as executeBlock (the engine's commitment
+    /// gate — withdrawalsRoot / stateRoot / receiptsRoot compare — runs on whatever
+    /// header this returns). No commit happens on the import path by design.
+    void importExecute(bcos::protocol::Block::Ptr, std::vector<std::shared_ptr<void>> const&,
+        std::function<void(
+            bcos::Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void>)>
+            callback) override
+    {
+        ++executeCalls;
+        if (failFirst && executeCalls == 1)
+        {
+            auto error = BCOS_ERROR_PTR(-1, "op block: reject sealed tx");
+            *error << bcos::engine::OpCulpritTxHash(culprit);
+            callback(std::move(error), nullptr, nullptr);
+            return;
+        }
+        auto header = headerFactory->createBlockHeader();
+        header->setStateRoot(bcos::h256{});
+        header->setReceiptsRoot(bcos::h256{});
+        header->setGasUsed(0);
+        header->setWithdrawalsRoot(executedWithdrawalsRoot);
+        header->setBlobGasUsed(0);
+        callback(nullptr, std::move(header), nullptr);
+    }
     void status(std::function<void(bcos::Error::Ptr, bcos::protocol::Session::ConstPtr)>) override
     {}
     void call(bcos::protocol::Transaction::Ptr,

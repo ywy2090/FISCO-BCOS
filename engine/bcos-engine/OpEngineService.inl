@@ -27,6 +27,7 @@
 // rlp-protocol and bcos-evm-opstack include dirs and link both (in-tree instantiators do).
 #include "OpEngineService.h"
 #include <bcos-evm/opstack/RollupCost.h>
+#include <opstack-executor/OpCommitments.h>
 #include <bcos-rlp-protocol/EthBlockHeader.h>
 
 #include <range/v3/algorithm/any_of.hpp>
@@ -712,6 +713,30 @@ task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
     }
 }
 
+/// Header-level commitment snapshot for the engine-side import gate (the same field
+/// set OpScheduler's verify arm compares via mismatchedFieldOf). Namespace-scope
+/// inline: the .inl parses in TUs that never instantiate the consumer template.
+inline bcos::evm::engine::OpBlockCommitments commitmentsOfHeader(bcos::protocol::BlockHeader const& h)
+{
+    auto bloom = h.logsBloom();
+    bcos::h2048 logsBloom(reinterpret_cast<const bcos::byte*>(bloom.data()), bloom.size());
+    std::optional<uint64_t> blobGasUsed;
+    if (auto bg = h.blobGasUsed())
+    {
+        blobGasUsed = static_cast<uint64_t>(bcos::u256(*bg));
+    }
+    return bcos::evm::engine::OpBlockCommitments{
+        .receiptsRoot = h.receiptsRoot(),
+        .logsBloom = logsBloom,
+        .withdrawalsRoot = h.withdrawalsRoot().value_or(bcos::h256{}),
+        .stateRoot = h.stateRoot(),
+        .gasUsed = h.gasUsed(),
+        .txRoot = h.txsRoot(),
+        .blobGasUsed = blobGasUsed,
+        .requestsHash = h.requestsHash(),
+    };
+}
+
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
         SchedulerType>::runOpNewPayloadSteps(const NewPayloadRequest& request)
@@ -775,61 +800,72 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     }
 
     auto view = m_globalStateStorage.fork();
-    auto parentBlockNumber =
+    // OP parent lookup (design §4.1): canonical chain first, then the ImportedStore.
+    // Missing in BOTH is the only parent-shape SYNCING (§4.5, no ACCEPTED) — the old
+    // "known but not canonical → SYNCING" dead-end is gone: an imported parent
+    // extends the block tree.
+    const auto latestValidHash = std::make_optional(payload.parentHash);
+    std::optional<bcos::protocol::BlockNumber> canonicalParentNumber =
         co_await bcos::ledger::getBlockNumber(view, payload.parentHash, bcos::ledger::fromStorage);
-    if (!parentBlockNumber.has_value())
+    bcos::protocol::BlockNumber parentBlockNumber = -1;
+    bcos::protocol::BlockHeader::Ptr parentHeader;
+    if (canonicalParentNumber.has_value())
+    {
+        parentBlockNumber = *canonicalParentNumber;
+        const auto parentNumberStr = boost::lexical_cast<std::string>(*canonicalParentNumber);
+        auto parentHeaderEntry = co_await storage2::readOne(
+            view, executor_v1::StateKeyView{ledger::SYS_NUMBER_2_BLOCK_HEADER, parentNumberStr});
+        if (!parentHeaderEntry.has_value())
+        {
+            // Parent hash already resolved and is canonical. Skipping timestamp / baseFee
+            // here would accept a payload we cannot price — fail closed.
+            co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
+                std::string("parent block header is missing from storage"));
+        }
+        const auto storedHeader = parentHeaderEntry->get();
+        bcos::bytes parentHeaderBytes(storedHeader.begin(), storedHeader.end());
+        parentHeader = m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
+        if (parentHeader->number() != static_cast<int64_t>(*canonicalParentNumber))
+        {
+            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                      "stored parent block header height mismatch"});
+        }
+    }
+    else if (auto importedParent = m_importedStore.get(payload.parentHash))
+    {
+        // Parent header BY HASH from the store — never NUMBER_2_BLOCK_HEADER[number]
+        // (a same-height canonical sibling would masquerade as the parent).
+        parentBlockNumber = importedParent->number;
+        try
+        {
+            parentHeader = m_blockFactory->blockHeaderFactory()->createBlockHeader(
+                importedParent->headerBytes);
+        }
+        catch (const std::exception& e)
+        {
+            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                      std::string("imported parent block header is undecodable: ") +
+                                      e.what()});
+        }
+    }
+    else
     {
         co_return makeStatus(PayloadValidationStatus::Syncing, std::nullopt, std::nullopt);
     }
-    const auto latestValidHash = std::make_optional(payload.parentHash);
 
-    if (payload.blockNumber != *parentBlockNumber + 1)
+    if (payload.blockNumber != parentBlockNumber + 1)
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
             std::string("blockNumber must be exactly one greater than the parent's"));
     }
 
-    if (auto canonicalParent = co_await bcos::ledger::getBlockHash(
-            view, *parentBlockNumber, bcos::ledger::fromStorage);
-        !canonicalParent.has_value() || *canonicalParent != payload.parentHash)
-    {
-        co_return makeStatus(PayloadValidationStatus::Syncing, std::nullopt, std::nullopt);
-    }
-
-    const auto parentNumberStr = boost::lexical_cast<std::string>(*parentBlockNumber);
-    auto parentHeaderEntry = co_await storage2::readOne(
-        view, executor_v1::StateKeyView{ledger::SYS_NUMBER_2_BLOCK_HEADER, parentNumberStr});
-    if (!parentHeaderEntry.has_value())
-    {
-        // Parent hash already resolved and is canonical. Skipping timestamp / baseFee
-        // here would accept a payload we cannot price — fail closed.
-        co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
-            std::string("parent block header is missing from storage"));
-    }
-    const auto storedHeader = parentHeaderEntry->get();
-    bcos::protocol::BlockHeader::Ptr parentHeader;
-    try
-    {
-        bcos::bytes parentHeaderBytes(storedHeader.begin(), storedHeader.end());
-        parentHeader = m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
-    }
-    catch (const std::exception& e)
-    {
-        BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                  std::string("stored parent block header is undecodable: ") +
-                                  e.what()});
-    }
-    if (parentHeader->number() != static_cast<int64_t>(*parentBlockNumber))
-    {
-        BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
-                                  "stored parent block header height mismatch"});
-    }
     if (static_cast<uint64_t>(payload.timestamp) <=
         static_cast<uint64_t>(parentHeader->timestamp()))
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
             std::string("timestamp must be strictly greater than the parent's"));
     }
+
     {
         auto expectedBaseFee = calcOpBaseFee(*parentHeader,
             m_scheduler
@@ -844,9 +880,15 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
         }
     }
 
+    // Idempotent replay: a hash that already landed — canonical or imported — is
+    // VALID without re-execution (§4.5 同哈希已落下).
     if (auto knownBlockNumber = co_await bcos::ledger::getBlockNumber(
             view, payload.blockHash, bcos::ledger::fromStorage);
         knownBlockNumber.has_value())
+    {
+        co_return makeStatus(PayloadValidationStatus::Valid, payload.blockHash, std::nullopt);
+    }
+    if (m_importedStore.hasBlock(payload.blockHash))
     {
         co_return makeStatus(PayloadValidationStatus::Valid, payload.blockHash, std::nullopt);
     }
@@ -868,10 +910,8 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
         }
         if (!siblingOfTip)
         {
-            // Occupied height that is not a tip sibling: the forked view cannot
-            // apply this payload. Engine API answers SYNCING (CL retries), not
-            // -32603 OpExecutionInternalError. op-geth would InsertBlockWithoutSetHead
-            // and return VALID; this node has no side-chain store.
+            // Occupied height that is not a tip sibling: Task 7 replaces this gate
+            // with the canonical-ancestor sibling rule (design §4.3).
             co_return makeStatus(PayloadValidationStatus::Syncing, std::nullopt, std::nullopt);
         }
     }
@@ -903,12 +943,32 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
             std::string("undecodable payload transaction envelope"));
     }
 
+    // S5: import, not commit. Parent-chain deltas, genesis-side first (an empty
+    // chain = canonical parent); importExecute executes on the parent's post-state
+    // and writes NO canonical table (design §4.2 newPayload condition 1).
+    std::vector<std::shared_ptr<void>> parentDeltas;
+    if (!canonicalParentNumber.has_value())
+    {
+        std::vector<std::shared_ptr<void>> reversed;
+        auto cursor = m_importedStore.get(payload.parentHash);
+        while (cursor.has_value())
+        {
+            reversed.push_back(cursor->storageDelta);
+            cursor = m_importedStore.get(cursor->parent);
+        }
+        parentDeltas.assign(reversed.rbegin(), reversed.rend());
+    }
+
     bcos::Error::Ptr executeError;
     bcos::protocol::BlockHeader::Ptr executedHeader;
-    m_delegate->executeBlock(block, /*verify=*/true,
-        [&](bcos::Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, bool) {
+    std::shared_ptr<void> blockDelta;
+    m_delegate->importExecute(block, parentDeltas,
+        [&](bcos::Error::Ptr error, bcos::protocol::BlockHeader::Ptr header,
+            std::shared_ptr<void> delta)
+        {
             executeError = std::move(error);
             executedHeader = std::move(header);
+            blockDelta = std::move(delta);
         });
     if (executeError)
     {
@@ -924,15 +984,34 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
         co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
             std::string("withdrawalsRoot does not match the executed header"));
     }
-
-    bcos::Error::Ptr commitError;
-    m_delegate->commitBlock(
-        executedHeader, [&](bcos::Error::Ptr error, bcos::ledger::LedgerConfig::Ptr) {
-            commitError = std::move(error);
-        });
-    if (commitError)
+    // The scheduler's verify arm is not on the import path; the engine owns the
+    // commitment gate (design §4.2 newPayload VALID condition 2 — the full
+    // mismatchedFieldOf set, gasUsed/logsBloom included). A mismatch is a payload
+    // fault: INVALID + parent, and the block is NOT stored (§4.5).
+    if (auto mismatch = bcos::evm::engine::mismatchedFieldOf(
+            commitmentsOfHeader(*executedHeader), commitmentsOfHeader(*ethHeader)))
     {
-        co_return mapDelegateError(*commitError, latestValidHash);
+        co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
+            std::string("commitment mismatch on field ") + *mismatch);
+    }
+
+    // Land by hash. No canonical key is written here — FCU owns SetCanonical.
+    bcos::bytes importedHeaderBytes;
+    ethHeader->encode(importedHeaderBytes);
+    ImportedBlock imported{.hash = payload.blockHash,
+        .parent = payload.parentHash,
+        .number = payload.blockNumber,
+        .headerBytes = std::move(importedHeaderBytes),
+        .storageDelta = std::move(blockDelta)};
+    for (auto const& env : detail::rawEnvelopes(payload))
+    {
+        imported.txs.push_back(env);
+    }
+    if (!m_importedStore.put(std::move(imported)))
+    {
+        // Same-height slot already has imported descendants: overwriting their
+        // ancestor would orphan their state (§4.2 单分叉冲突) — SYNCING, not a wipe.
+        co_return makeStatus(PayloadValidationStatus::Syncing, std::nullopt, std::nullopt);
     }
 
     {
