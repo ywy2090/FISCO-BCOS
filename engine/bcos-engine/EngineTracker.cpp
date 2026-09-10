@@ -100,7 +100,8 @@ ForkchoiceApplyResult EngineTracker::applyForkchoice(const ResolvedForkchoice& r
     if (m_trackedHead.has_value() && resolved.allowNonLinearHead)
     {
         auto const& trackedHeadBlock = *m_trackedHead;
-        if (headBlockNumber < trackedHeadBlock.blockNumber)
+        if (headBlockNumber < trackedHeadBlock.blockNumber &&
+            headBlockNumber != resolved.canonicalTipNumber)
         {
             // OP old canonical head (design §4.2 fourth row): NEVER rewind the
             // tracked tip; only SetSafe/SetFinalized overwrite (zero hash clears

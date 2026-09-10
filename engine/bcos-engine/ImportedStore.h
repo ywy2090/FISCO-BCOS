@@ -40,6 +40,10 @@ struct ImportedBlock
     // Per-block storage delta relative to parent. Task 3 replaces this placeholder
     // with the real executor delta type; `put` success == the delta exists.
     std::shared_ptr<void> storageDelta;
+    // S6 switch support: the MATERIALIZED full post-state of this block (every live
+    // key/value on the import view). Restored wholesale when a switch-SetCanonical
+    // makes this block the canonical tip at a height at/below the old tip.
+    std::shared_ptr<void> postStateFlat;
 };
 
 /// Imported payloads only: canonical-chain lookups must go through the ledger
@@ -52,13 +56,17 @@ public:
     /// write). Fails when the same-height slot is occupied by a block that already
     /// has imported descendants: overwriting their ancestor would orphan the chain
     /// state (newPayload maps this to SYNCING, design §4.2 单分叉冲突).
-    bool put(ImportedBlock block)
+    /// Same-hash re-put is idempotent. A same-height occupant with imported
+    /// descendants rejects the overwrite — UNLESS the occupant is canonical
+    /// (@p occupantCanonical, decided by the caller via the ledger): a canonical
+    /// occupant's descendants stay reachable through the canonical chain history,
+    /// and the new block merely awaits its own FCU (ancestor-sibling, §4.3).
+    bool put(ImportedBlock block, bool occupantCanonical = false)
     {
         if (m_blocks.contains(block.hash))
         {
             return true;
         }
-        // Same-height occupant with an imported child rejects the overwrite.
         for (auto const& [hash, existing] : m_blocks)
         {
             if (existing.number != block.number)
@@ -67,14 +75,25 @@ public:
             }
             for (auto const& [childHash, child] : m_blocks)
             {
-                if (child.parent == hash)
+                if (child.parent == hash && !occupantCanonical)
                 {
                     return false;
                 }
             }
         }
+        m_byNumber.emplace(block.number, block.hash);
         m_blocks.emplace(block.hash, std::move(block));
         return true;
+    }
+
+    /// First importer at @p number (nullopt when the height was never imported).
+    [[nodiscard]] std::optional<h256> occupantAt(bcos::protocol::BlockNumber number) const
+    {
+        if (auto it = m_byNumber.find(number); it != m_byNumber.end())
+        {
+            return it->second;
+        }
+        return std::nullopt;
     }
 
     [[nodiscard]] bool hasBlock(const bcos::h256& hash) const { return m_blocks.contains(hash); }
@@ -103,5 +122,6 @@ public:
 
 private:
     std::unordered_map<bcos::h256, ImportedBlock> m_blocks;
+    std::unordered_map<bcos::protocol::BlockNumber, bcos::h256> m_byNumber;
 };
 }  // namespace bcos::engine

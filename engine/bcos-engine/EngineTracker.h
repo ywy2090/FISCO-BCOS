@@ -56,6 +56,11 @@ struct ResolvedForkchoice
     /// it only refreshes safe/finalized and returns RebuildOnParent/Swallowed by attrs
     /// (design §4.2 fourth row).
     bool allowNonLinearHead = false;
+    /// The CURRENT canonical tip number (SYS_CURRENT_STATE) at resolution time. OP
+    /// branch only: a head whose number EQUALS the canonical tip is the post-
+    /// SetCanonical new tip (rewind tracked); a lower number is the true old-head
+    /// (never rewind). Default -1: unset (the default Eth branch ignores it).
+    bcos::protocol::BlockNumber canonicalTipNumber = -1;
 };
 
 enum class ForkchoiceApplyResult

@@ -164,20 +164,20 @@ public:
     /// convention) so a later canonicalize can prewrite without a second channel.
     void importExecute(bcos::protocol::Block::Ptr block,
         std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
-        std::vector<std::shared_ptr<void>> const& parentDeltas,
-        std::function<void(
-            Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void> blockDelta)>
+        std::shared_ptr<void> const& parentFlat,
+        std::function<void(Error::Ptr, bcos::protocol::BlockHeader::Ptr,
+            std::shared_ptr<void> blockDelta, std::shared_ptr<void> blockFlat)>
             callback) override
     {
         task::syncWait([](decltype(this) self, bcos::protocol::Block::Ptr block,
                            std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
-                           std::vector<std::shared_ptr<void>> const& parentDeltas,
-                           std::function<void(
-                               Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void>)>
+                           std::shared_ptr<void> const& parentFlat,
+                           std::function<void(Error::Ptr, bcos::protocol::BlockHeader::Ptr,
+                               std::shared_ptr<void>, std::shared_ptr<void>)>
                                callback) -> task::Task<void> {
             std::apply(callback,
-                co_await self->coImportExecute(std::move(block), parentHeaders, parentDeltas));
-        }(this, std::move(block), parentHeaders, parentDeltas, std::move(callback)));
+                co_await self->coImportExecute(std::move(block), parentHeaders, parentFlat));
+        }(this, std::move(block), parentHeaders, parentFlat, std::move(callback)));
     }
 
     /// S6: the engine's SetCanonical merged the imported chain through this
@@ -938,10 +938,11 @@ private:
         }
     }
 
-    task::Task<std::tuple<Error::Ptr, protocol::BlockHeader::Ptr, std::shared_ptr<void>>>
+    task::Task<std::tuple<Error::Ptr, protocol::BlockHeader::Ptr, std::shared_ptr<void>,
+        std::shared_ptr<void>>>
     coImportExecute(protocol::Block::Ptr block,
         std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
-        std::vector<std::shared_ptr<void>> const& parentDeltas)
+        std::shared_ptr<void> const& parentFlat)
     {
         try
         {
@@ -959,7 +960,7 @@ private:
                 auto message = std::string{"Another block is executing!"};
                 OP_SCHEDULER_LOG(INFO) << message;
                 co_return {BCOS_ERROR_UNIQUE_PTR(scheduler::SchedulerError::InvalidStatus, message),
-                    nullptr, nullptr};
+                    nullptr, nullptr, nullptr};
             }
             std::unique_lock commitLock(m_commitMutex, std::try_to_lock);
             if (!commitLock.owns_lock())
@@ -967,22 +968,60 @@ private:
                 auto message = std::string{"Another block is committing!"};
                 OP_SCHEDULER_LOG(INFO) << message;
                 co_return {BCOS_ERROR_UNIQUE_PTR(scheduler::SchedulerError::InvalidStatus, message),
-                    nullptr, nullptr};
+                    nullptr, nullptr, nullptr};
             }
 
             co_await hydrateCommittedTip();
 
-            // Parent post-state view: committed flat + the parent-chain deltas stacked
-            // NEWEST first (the direct parent's delta at the front — the same ordering
-            // View uses for its pending deque, first hit wins), then a fresh mutable
-            // layer for this block's own writes (design §4.4.2).
+            // Parent post-state plane (design §4.4.2, revised by the Task 7 sibling
+            // work): when the parent plane IS the committed flat (parent == canonical
+            // tip) execute straight on forkCommitted. Otherwise the parent's
+            // materialized post-state flat REPLACES the plane: erase every committed
+            // row (logical tombstones in the fresh mutable layer), then re-materialize
+            // the parent flat — the block executes exactly on its parent's post-state,
+            // never on a tip plane that belongs to a different fork branch.
             auto view = m_multiLayerStorage->forkCommitted();
-            for (auto it = parentDeltas.rbegin(); it != parentDeltas.rend(); ++it)
-            {
-                view.m_immutableStorages.push_back(
-                    std::static_pointer_cast<typename MultiLayerStorage::MutableStorage>(*it));
-            }
             view.newMutable();
+            auto parentFlatStorage =
+                parentFlat ? std::static_pointer_cast<typename MultiLayerStorage::MutableStorage>(
+                                 parentFlat) :
+                             nullptr;
+            if (parentFlatStorage != nullptr)
+            {
+                std::vector<executor_v1::StateKey> doomed;
+                auto backendIterator = co_await view.range();
+                while (true)
+                {
+                    auto item = co_await backendIterator.next();
+                    if (!item.has_value())
+                    {
+                        break;
+                    }
+                    doomed.push_back(executor_v1::StateKey(std::get<0>(*item).m_tableAndKey));
+                }
+                for (auto const& key : doomed)
+                {
+                    auto const tableAndKey = std::string_view(key.m_tableAndKey);
+                    co_await storage2::removeOne(
+                        view, executor_v1::StateKeyView(tableAndKey.substr(0, key.m_split),
+                                  tableAndKey.substr(key.m_split + 1)));
+                }
+                auto flatIterator = co_await parentFlatStorage->range();
+                while (true)
+                {
+                    auto item = co_await flatIterator.next();
+                    if (!item.has_value())
+                    {
+                        break;
+                    }
+                    auto& [stateKeyRef, valueVariant] = *item;
+                    if (auto* entry = std::get_if<bcos::storage::Entry>(&valueVariant))
+                    {
+                        co_await storage2::writeOne(view,
+                            executor_v1::StateKey(stateKeyRef.m_tableAndKey), std::move(*entry));
+                    }
+                }
+            }
 
             // BLOCKHASH and parent-header reads walk the PAYLOAD parent chain
             // (design §4.4.3): seed each ancestor's canonical keys into this view so
@@ -1016,7 +1055,7 @@ private:
                     fmt::format("Not found transactions in txpool for import block: {}", number);
                 OP_SCHEDULER_LOG(ERROR) << message;
                 co_return {BCOS_ERROR_UNIQUE_PTR(scheduler::SchedulerError::InvalidBlocks, message),
-                    nullptr, nullptr};
+                    nullptr, nullptr, nullptr};
             }
 
             auto ledgerConfig = co_await loadLedgerConfig(view, number);
@@ -1041,7 +1080,31 @@ private:
             // The view's fresh mutable layer IS this block's delta. The view itself is
             // never pushed: it dies here, the delta survives through the shared_ptr.
             auto blockDelta = std::shared_ptr<void>(std::move(view.m_mutableStorage));
-            co_return {nullptr, std::move(executedHeader), std::move(blockDelta)};
+
+            // Materialize the block's FULL post-state (S6 switch support): a plain
+            // MutableStorage copy of every visible (key, value) on the view. Memory
+            // cost O(state) per imported block — acceptable for the verifier-shaped
+            // import window; the design's production alternative is §4.4.5 MPT replay.
+            auto blockFlat = std::make_shared<typename MultiLayerStorage::MutableStorage>();
+            auto viewIterator = co_await view.range();
+            while (true)
+            {
+                auto item = co_await viewIterator.next();
+                if (!item.has_value())
+                {
+                    break;
+                }
+                auto& [stateKeyRef, valueVariant] = *item;
+                // value variant: Entry | DELETED — deleted rows are skipped (a flat
+                // snapshot only carries live values).
+                if (auto* entry = std::get_if<bcos::storage::Entry>(&valueVariant))
+                {
+                    co_await storage2::writeOne(*blockFlat,
+                        executor_v1::StateKey(stateKeyRef.m_tableAndKey), std::move(*entry));
+                }
+            }
+            co_return {
+                nullptr, std::move(executedHeader), std::move(blockDelta), std::move(blockFlat)};
         }
         catch (std::exception& e)
         {
@@ -1050,7 +1113,7 @@ private:
             OP_SCHEDULER_LOG(ERROR) << message;
             auto error = BCOS_ERROR_PTR(classifyException(std::current_exception()), message);
             attachOpRejectInfo(*error, std::current_exception());
-            co_return {std::move(error), nullptr, nullptr};
+            co_return {std::move(error), nullptr, nullptr, nullptr};
         }
         catch (...)
         {
@@ -1060,7 +1123,7 @@ private:
             auto error =
                 BCOS_ERROR_UNIQUE_PTR(classifyException(std::current_exception()), message);
             attachOpRejectInfo(*error, std::current_exception());
-            co_return {std::move(error), nullptr, nullptr};
+            co_return {std::move(error), nullptr, nullptr, nullptr};
         }
     }
 

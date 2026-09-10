@@ -265,6 +265,7 @@ struct ImportServiceFixture
     /// block N-1's EXECUTED header (chain-accurate pricing across chained imports).
     std::map<int64_t, bcos::protocol::BlockHeader::Ptr> executedByNumber;
     std::map<int64_t, std::shared_ptr<void>> deltaByNumber;
+    std::map<int64_t, std::shared_ptr<void>> flatByNumber;
 
     bcos::protocol::BlockHeader::Ptr parentHeaderFor(int64_t number) const
     {
@@ -309,15 +310,13 @@ struct ImportServiceFixture
     /// execution; a hand-built payload cannot know them).
     void fillCommitmentsFromProbe(bcos::engine::NewPayloadRequest& request)
     {
-        // The probe MUST run on the same plane as the real import: stack the
-        // ancestor deltas (genesis-side first) exactly like the service walk does.
-        std::vector<std::shared_ptr<void>> parentDeltas;
-        for (int64_t n = 1; n < request.executionPayload.blockNumber; ++n)
+        // The probe MUST run on the same plane as the real import: the DIRECT
+        // parent's materialized flat (empty = parent is the canonical tip).
+        std::shared_ptr<void> parentFlat;
+        if (auto it = flatByNumber.find(request.executionPayload.blockNumber - 1);
+            it != flatByNumber.end())
         {
-            if (auto it = deltaByNumber.find(n); it != deltaByNumber.end())
-            {
-                parentDeltas.push_back(it->second);
-            }
+            parentFlat = it->second;
         }
         auto const txRoot = EngineOpScheduler::computeTxRoot(
             bcos::engine::detail::rawEnvelopes(request.executionPayload));
@@ -346,6 +345,7 @@ struct ImportServiceFixture
         BOOST_CHECK_EQUAL(
             probeBlock->transactionsSize(), request.executionPayload.transactions.size());
         std::shared_ptr<void> probeDelta;
+        std::shared_ptr<void> probeFlat;
         bcos::protocol::BlockHeader::Ptr executed;
         std::vector<bcos::protocol::BlockHeader::Ptr> parentHeaders;
         for (int64_t n = 1; n < request.executionPayload.blockNumber; ++n)
@@ -355,19 +355,21 @@ struct ImportServiceFixture
                 parentHeaders.push_back(it->second);
             }
         }
-        delegate->importExecute(probeBlock, parentHeaders, parentDeltas,
+        delegate->importExecute(probeBlock, parentHeaders, parentFlat,
             [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr done,
-                std::shared_ptr<void> delta) {
+                std::shared_ptr<void> delta, std::shared_ptr<void> flat) {
                 if (error)
                 {
                     BOOST_FAIL(std::string("probe import failed: ") + error->errorMessage());
                 }
                 executed = std::move(done);
                 probeDelta = std::move(delta);
+                probeFlat = std::move(flat);
             });
         BOOST_REQUIRE(executed != nullptr);
         BOOST_REQUIRE(probeDelta != nullptr);
         deltaByNumber[request.executionPayload.blockNumber] = std::move(probeDelta);
+        flatByNumber[request.executionPayload.blockNumber] = std::move(probeFlat);
         request.executionPayload.stateRoot = executed->stateRoot();
         request.executionPayload.receiptsRoot = executed->receiptsRoot();
         request.executionPayload.gasUsed = executed->gasUsed();
@@ -474,8 +476,8 @@ BOOST_AUTO_TEST_CASE(ImportExecuteStacksParentDeltasWithoutCanonicalWrites)
     std::shared_ptr<void> delta1;
     bcos::protocol::BlockHeader::Ptr header1;
     f.scheduler->importExecute(b1, {}, {},
-        [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header,
-            std::shared_ptr<void> delta) {
+        [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void> delta,
+            std::shared_ptr<void>) {
             BOOST_REQUIRE(!error);
             header1 = std::move(header);
             delta1 = std::move(delta);
@@ -493,8 +495,9 @@ BOOST_AUTO_TEST_CASE(ImportExecuteStacksParentDeltasWithoutCanonicalWrites)
     // B2: parent = B1, delta chain {delta1}. Must NOT be RefuseOtherHeight.
     auto b2 = f.depositBlock(2, b1Hash, 1'000'012, "import-b2");
     bcos::protocol::BlockHeader::Ptr header2;
-    f.scheduler->importExecute(b2, {}, {delta1},
-        [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void>) {
+    f.scheduler->importExecute(b2, {}, delta1,
+        [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void>,
+            std::shared_ptr<void>) {
             BOOST_REQUIRE(!error);
             header2 = std::move(header);
         });
@@ -507,8 +510,9 @@ BOOST_AUTO_TEST_CASE(ImportExecuteStacksParentDeltasWithoutCanonicalWrites)
     // B1's post-state instead of the committed flat.
     auto b2GenesisPlane = f.depositBlock(2, b1Hash, 1'000'012, "import-b2");
     bcos::protocol::BlockHeader::Ptr header2Genesis;
-    f.scheduler->importExecute(b2GenesisPlane, {}, {},
-        [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void>) {
+    f.scheduler->importExecute(b2GenesisPlane, {}, nullptr,
+        [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void>,
+            std::shared_ptr<void>) {
             BOOST_REQUIRE(!error);
             header2Genesis = std::move(header);
         });
@@ -584,6 +588,20 @@ BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
 {
     ImportServiceFixture f;
 
+    bcos::engine::EngineTransaction readerCall;
+    readerCall.raw = eip1559CallEnvelope(kBlockHashReader, 0, 1'000'000'000);
+    {
+        bcos::rpc::Web3Transaction decoded;
+        bcos::bytes copy = readerCall.raw;
+        bcos::bytesRef ref{copy.data(), copy.size()};
+        BOOST_REQUIRE(!bcos::codec::rlp::decode(ref, decoded));
+        Json::Value pre(Json::objectValue);
+        Json::Value senderAcct(Json::objectValue);
+        senderAcct["balance"] = "0x1" + std::string(50, '0');  // 2^200
+        senderAcct["nonce"] = "0x0";
+        pre[decoded.sender()] = senderAcct;
+        opstack_test::seedPreState(f.storage, pre);
+    }
     auto request1 = f.validRequest(fixtureHeadHash(), 1);
     auto status1 = bcos::task::syncWait(f.service.newPayload(request1, 4));
     BOOST_REQUIRE_EQUAL(static_cast<int>(status1.status),
@@ -607,20 +625,6 @@ BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
     // seedPresent 断言钉住。
     // The envelope's signer is a throwaway key — recover its address and seed funds +
     // nonce via the Storage2State channel BEFORE the probe/import.
-    bcos::engine::EngineTransaction readerCall;
-    readerCall.raw = eip1559CallEnvelope(kBlockHashReader, 0, 1'000'000'000);
-    {
-        bcos::rpc::Web3Transaction decoded;
-        bcos::bytes copy = readerCall.raw;
-        bcos::bytesRef ref{copy.data(), copy.size()};
-        BOOST_REQUIRE(!bcos::codec::rlp::decode(ref, decoded));
-        Json::Value pre(Json::objectValue);
-        Json::Value senderAcct(Json::objectValue);
-        senderAcct["balance"] = "0x1" + std::string(50, '0');  // 2^200
-        senderAcct["nonce"] = "0x0";
-        pre[decoded.sender()] = senderAcct;
-        opstack_test::seedPreState(f.storage, pre);
-    }
     auto request3 = f.validRequest(request2.executionPayload.blockHash, 3);
     request3.executionPayload.transactions.push_back(std::move(readerCall));
     f.fillCommitmentsFromProbe(request3);
@@ -666,4 +670,122 @@ BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
     BOOST_REQUIRE(tipHash.has_value());
     BOOST_CHECK_EQUAL(tipHash->hex(), request3.executionPayload.blockHash.hex());
 }
+// ---- S5 Task 7: 规范祖先 sibling（op-node L1 再重组，设计 §4.3）----
+
+// 链 A-B-C 已 FCU（tip=C）。newPayload(B', parent=A)：
+// VALID；latest 仍 C；高度 2 仍读 B；B' 已落 store。
+BOOST_AUTO_TEST_CASE(AncestorSiblingWhileTipStillAhead)
+{
+    ImportServiceFixture f;
+
+    auto requestA = f.validRequest(fixtureHeadHash(), 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestA, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto requestB = f.validRequest(requestA.executionPayload.blockHash, 2);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestB, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto requestC = f.validRequest(requestB.executionPayload.blockHash, 3);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestC, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // 一次跳号 FCU 到 C。
+    bcos::engine::ForkchoiceState fcuC{requestC.executionPayload.blockHash,
+        requestC.executionPayload.blockHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuC, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_CHECK_EQUAL(*f.service.getSafeBlockNumber(), 3);
+
+    // B'：parent=A，高度 2（B 的同高 sibling），时间戳不同 → 哈希不同。
+    auto requestBPrime = f.validRequest(requestA.executionPayload.blockHash, 2);
+    requestBPrime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
+            *requestBPrime.parentBeaconBlockRoot);
+        requestBPrime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto statusBPrime = bcos::task::syncWait(f.service.newPayload(requestBPrime, 4));
+    BOOST_REQUIRE_MESSAGE(static_cast<int>(statusBPrime.status) ==
+                              static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
+        "B' status " << static_cast<int>(statusBPrime.status)
+                     << " err=" << statusBPrime.validationError.value_or("<none>")
+                     << " probeRoot=" << requestBPrime.executionPayload.receiptsRoot.hex()
+                     << " cRoot=" << requestC.executionPayload.receiptsRoot.hex()
+                     << " executedRoot="
+                     << (f.service.lastExecutedHeader() ?
+                                f.service.lastExecutedHeader()->receiptsRoot().hex() :
+                                "<null>"));
+
+    // latest 仍是 C；高度 2 仍读 B；B' 在 store。
+    {
+        auto view = f.storage.forkCommitted();
+        BOOST_CHECK_EQUAL(bcos::task::syncWait(
+                              bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+            3);
+        auto height2 =
+            bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage));
+        BOOST_REQUIRE(height2.has_value());
+        BOOST_CHECK_EQUAL(height2->hex(), requestB.executionPayload.blockHash.hex());
+    }
+    BOOST_CHECK(f.service.hasImportedBlock(requestBPrime.executionPayload.blockHash));
+
+    // FCU(head=B')：SetCanonical 换头；latest=B'；高度 2 改写；高度 3 不再规范。
+    bcos::engine::ForkchoiceState fcuBPrime{requestBPrime.executionPayload.blockHash,
+        requestBPrime.executionPayload.blockHash, fixtureHeadHash()};
+    auto fcu = bcos::task::syncWait(f.service.updateForkchoice(fcuBPrime, nullptr, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(fcu.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    auto canonicalView = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(
+                          canonicalView, bcos::ledger::fromStorage)),
+        2);
+    auto height2New = bcos::task::syncWait(
+        bcos::ledger::getBlockHash(canonicalView, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height2New.has_value());
+    BOOST_CHECK_EQUAL(height2New->hex(), requestBPrime.executionPayload.blockHash.hex());
+    auto height3 = bcos::task::syncWait(
+        bcos::ledger::getBlockHash(canonicalView, 3, bcos::ledger::fromStorage));
+    BOOST_CHECK(!height3.has_value());
+}
+
+// 已 import 的同高覆盖（该槽已有子孙）→ SYNCING（不冲掉 parent）。
+BOOST_AUTO_TEST_CASE(ImportedOverwriteWithDescendantsIsSyncing)
+{
+    ImportServiceFixture f;
+
+    auto request1 = f.validRequest(fixtureHeadHash(), 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request1, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto request2 = f.validRequest(request1.executionPayload.blockHash, 2);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request2, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // B1'：parent=G，高度 1（B1 已有 imported 子孙 B2）。
+    auto request1Prime = f.validRequest(fixtureHeadHash(), 1);
+    request1Prime.executionPayload.timestamp += 3'000;
+    {
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(request1Prime.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            f.blockFactory->blockHeaderFactory(), request1Prime.executionPayload, txRoot,
+            *request1Prime.parentBeaconBlockRoot);
+        request1Prime.executionPayload.blockHash =
+            bcos::protocol::EthBlockHeader::computeHash(*header);
+    }
+    auto status = bcos::task::syncWait(f.service.newPayload(request1Prime, 4));
+    BOOST_CHECK_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

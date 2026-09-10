@@ -116,16 +116,24 @@ public:
     // import plane can seed NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER for the parent
     // chain — BLOCKHASH and parent-header reads must walk the payload chain, not
     // the canonical tables (design §4.4.3).
+    // The callback's @p blockFlat is the MATERIALIZED post-state of @p block (a full
+    // state flat, type-erased like the deltas): the S6 switch-SetCanonical restores it
+    // wholesale when an imported head replaces canonical heights. Default: unsupported.
+    // @p parentFlat is the PARENT block's materialized post-state (type-erased; null
+    // when the parent is the canonical tip, where the committed flat already IS the
+    // parent plane). The import plane erases the committed rows and re-materializes
+    // parentFlat, so the block executes exactly on its parent's post-state — required
+    // for canonical-ancestor siblings whose parent plane differs from the tip.
     virtual void importExecute(bcos::protocol::Block::Ptr block,
         std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
-        std::vector<std::shared_ptr<void>> const& parentDeltas,
-        std::function<void(
-            Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void> blockDelta)>
+        std::shared_ptr<void> const& parentFlat,
+        std::function<void(Error::Ptr, bcos::protocol::BlockHeader::Ptr,
+            std::shared_ptr<void> blockDelta, std::shared_ptr<void> blockFlat)>
             callback)
     {
         callback(BCOS_ERROR_PTR(scheduler::SchedulerError::UnknownError,
                      "importExecute is not supported by this scheduler"),
-            nullptr, nullptr);
+            nullptr, nullptr, nullptr);
     }
 };
 }  // namespace bcos::scheduler

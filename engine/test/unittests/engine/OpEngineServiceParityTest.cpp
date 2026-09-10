@@ -1104,8 +1104,12 @@ BOOST_AUTO_TEST_CASE(op_getpayload_v5_response_json_shape)
 
 BOOST_AUTO_TEST_CASE(op_newpayload_occupied_nontip_height_is_syncing)
 {
-    // Matrix: A2 — height N already has hash A, payload is hash B, tip is past N.
-    // Engine API answers SYNCING; must not throw OpExecutionInternalError (-32603).
+    // S5 revision of matrix A2: height N already has canonical hash A, payload is
+    // hash B, tip is past N. The parent's post-state plane is NOT the committed tip
+    // and this stub fixture holds no parent flat — the engine answers SYNCING
+    // (honest: never execute on a wrong plane; CL retries). The VALID ancestor-
+    // sibling path is pinned by AncestorSiblingWhileTipStillAhead with the real
+    // scheduler. Must not throw OpExecutionInternalError (-32603).
     OpServicePair pair;
     auto const parent =
         bcos::h256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");

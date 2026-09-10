@@ -145,6 +145,9 @@ struct RecordingScheduler : bcos::scheduler::SchedulerInterface
     bool failReset = false;
     int executeCalls = 0;
     int commitCalls = 0;
+    /// TxsRoot stamped onto importExecute-produced headers (import payloads with no
+    /// transactions carry the empty-list root; default zero matches legacy stubs).
+    bcos::h256 txsRootToReturn{};
     bcos::h256 executedWithdrawalsRoot = bcos::ledger::mpt::emptyRootHash();
     bcos::protocol::BlockHeaderFactory::Ptr headerFactory;
 
@@ -188,9 +191,9 @@ struct RecordingScheduler : bcos::scheduler::SchedulerInterface
     /// header this returns). No commit happens on the import path by design.
     void importExecute(bcos::protocol::Block::Ptr,
         std::vector<bcos::protocol::BlockHeader::Ptr> const&,
-        std::vector<std::shared_ptr<void>> const&,
-        std::function<void(
-            bcos::Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void>)>
+        std::shared_ptr<void> const& parentFlat,
+        std::function<void(bcos::Error::Ptr, bcos::protocol::BlockHeader::Ptr,
+            std::shared_ptr<void>, std::shared_ptr<void>)>
             callback) override
     {
         ++executeCalls;
@@ -198,16 +201,17 @@ struct RecordingScheduler : bcos::scheduler::SchedulerInterface
         {
             auto error = BCOS_ERROR_PTR(-1, "op block: reject sealed tx");
             *error << bcos::engine::OpCulpritTxHash(culprit);
-            callback(std::move(error), nullptr, nullptr);
+            callback(std::move(error), nullptr, nullptr, nullptr);
             return;
         }
         auto header = headerFactory->createBlockHeader();
         header->setStateRoot(bcos::h256{});
+        header->setTxsRoot(txsRootToReturn);
         header->setReceiptsRoot(bcos::h256{});
         header->setGasUsed(0);
         header->setWithdrawalsRoot(executedWithdrawalsRoot);
         header->setBlobGasUsed(0);
-        callback(nullptr, std::move(header), nullptr);
+        callback(nullptr, std::move(header), nullptr, nullptr);
     }
     void status(std::function<void(bcos::Error::Ptr, bcos::protocol::Session::ConstPtr)>) override
     {}
