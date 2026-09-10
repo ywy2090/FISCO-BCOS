@@ -136,9 +136,14 @@ def build_header_fields(genesis, ts0, state_root, present):
         "parent_hash": "0x" + "00" * 32, "sha3_uncles": "0x" + EMPTY_OMMERS_HASH,
         "miner": "0x" + "00" * 20, "transactions_root": "0x" + EMPTY_TRIE_ROOT,
         "receipts_root": "0x" + EMPTY_TRIE_ROOT, "logs_bloom": "0x" + "00" * 256,
-        "difficulty": "0x0", "number": "0x0", "gas_limit": "0x0", "gas_used": "0x0",
+        "difficulty": "0x0", "number": "0x0",
+        # op-geth Genesis.ToBlock substitutes params.GenesisGasLimit (4712388) when
+        # gasLimit is 0 and params.InitialBaseFee (1000000000) when baseFeePerGas is
+        # absent, for a London-at-block-0 chain: core/genesis.go:658-673, constants at
+        # params/protocol_params.go:40 and :146. Mirror them instead of emitting 0x0.
+        "gas_limit": "0x47e7c4", "gas_used": "0x0",
         "timestamp": "0x0", "extra_data": "0x", "mix_hash": "0x" + "00" * 32,
-        "nonce": "0x0000000000000000", "base_fee_per_gas": "0x0",
+        "nonce": "0x0000000000000000", "base_fee_per_gas": "0x3b9aca00",
         "withdrawals_root": "0x" + EMPTY_TRIE_ROOT, "blob_gas_used": "0x0",
         "excess_blob_gas": "0x0", "parent_beacon_block_root": "0x" + "00" * 32,
         "requests_hash": "0x" + EMPTY_REQUESTS_HASH,
@@ -219,6 +224,32 @@ def compute_state_root(alloc):
                        _to_int(account.get("balance", 0)),
                        code, storage))
     return _trieroot.state_root(tuples)
+
+
+# op-geth params/protocol_params.go:31 (OptimismL2ToL1MessagePasser).
+L2_TO_L1_MESSAGE_PASSER_ADDRESS = "0x4200000000000000000000000000000000000016"
+
+
+def message_passer_storage_root(alloc):
+    """Storage root of the L2ToL1MessagePasser predeploy, in the same secure storage
+    trie construction compute_state_root uses for every account.
+
+    op-geth's Genesis.ToBlock sets the genesis withdrawalsRoot to this value when
+    Isthmus is active at genesis (core/genesis.go:711-719, hashAlloc at :147-195),
+    matching specs/protocol/isthmus/exec-engine.md §Genesis Block. A chain in that
+    state without the predeploy cannot produce a spec-conformant root, so it is an
+    error rather than a silent empty/zero root.
+    """
+    target = _strip0x(L2_TO_L1_MESSAGE_PASSER_ADDRESS)
+    account = next((account for address, account in alloc.items()
+                    if _strip0x(address) == target), None)
+    if account is None:
+        raise RegistryError(
+            "Isthmus active at genesis but no L2ToL1MessagePasser in the alloc")
+    slots = {keccak256(_word32(slot)): _trieroot.rlp_encode(_word32(value).lstrip(b"\0"))
+             for slot, value in (account.get("storage") or {}).items()
+             if _word32(value) != bytes(32)}
+    return _trieroot.trie_root(slots) if slots else _trieroot.EMPTY_ROOT
 
 
 def to_ini_allocs(alloc):
@@ -417,8 +448,15 @@ def generate(zip_path, chain, *, extra_forks=None, l1_chain_id=None,
     ts0 = int(genesis["timestamp"], 16)
     alloc = genesis.get("alloc", {})
     state_root = compute_state_root(alloc)
-    present = header_field_set(ts0, _fork_times(toml, extra_forks))
+    fork_times = _fork_times(toml, extra_forks)
+    present = header_field_set(ts0, fork_times)
     fields = build_header_fields(genesis, ts0, state_root, present)
+    if "withdrawals_root" in present and ts0 >= fork_times.get("isthmus", float("inf")):
+        # Isthmus at genesis moved the withdrawals-root semantics: it is the
+        # L2ToL1MessagePasser account storage root, not the empty withdrawals trie
+        # (op-geth core/genesis.go:711-719; op-reth crates/chainspec/src/lib.rs
+        # make_op_genesis_header; specs/protocol/isthmus/exec-engine.md §Genesis Block).
+        fields["withdrawals_root"] = "0x" + message_passer_storage_root(alloc).hex()
     computed = keccak256(encode_header_fields(fields, present)).hex()
     expected = _strip0x(toml["genesis"]["l2"]["hash"])
     if computed != expected:

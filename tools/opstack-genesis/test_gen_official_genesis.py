@@ -3,6 +3,7 @@
 the real-zip acceptance test skips when the op-geth zip/zstd are unavailable."""
 import importlib.util
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -60,13 +61,43 @@ GENESIS = {
 }
 
 
-def _make_zip(tmp_path):
+# L2ToL1MessagePasser predeploy and two non-zero storage slots (the ones op-reth's
+# crates/chainspec/src/lib.rs test_storage_root_consistency hashes); op-geth's
+# params/protocol_params.go:31 pins the same address.
+_L2_TO_L1_MESSAGE_PASSER = "0x4200000000000000000000000000000000000016"
+_MP_STORAGE = {
+    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc":
+        "0x000000000000000000000000c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d30016",
+    "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103":
+        "0x0000000000000000000000004200000000000000000000000000000000000018",
+}
+_MP_STORAGE_ROOT = "8ed4baae3a927be3dea54996b4d5899f8c01e7594bf50b17dc1e741388ce3d12"
+# Golden keccak256(rlp(header)) for the synthetic Isthmus-at-genesis below, computed
+# offline with the independent trie/RLP reference (withdrawals_root = _MP_STORAGE_ROOT).
+_ISTHMUS_GOLDEN_HASH = "7382feec4a5be4d78c3dff2cd9768fdeb6f2acd4876f598e5d5eeb24d2c425bc"
+
+# A synthetic registry chain with Isthmus (and every prior EL fork) at genesis: the
+# case where the withdrawals root must be the MessagePasser storage root.
+TOML_ISTHMUS = (TOML
+                .replace("canyon_time = 1704992401", "canyon_time = 0")
+                .replace("delta_time = 1708560000", "delta_time = 0")
+                .replace("ecotone_time = 1710374401",
+                         "ecotone_time = 0\nfjord_time = 0\ngranite_time = 0\n"
+                         "holocene_time = 0\nisthmus_time = 0")
+                .replace("d043c3480e0aa1b2163f2790e622f8cf404bc188a4e4da0097f276a477f459a9",
+                         _ISTHMUS_GOLDEN_HASH))
+GENESIS_ISTHMUS = {**GENESIS,
+                   "alloc": {_L2_TO_L1_MESSAGE_PASSER:
+                             {"balance": "0x0", "nonce": "0x0", "storage": _MP_STORAGE}}}
+
+
+def _make_zip(tmp_path, toml=TOML, genesis=GENESIS):
     path = tmp_path / "superchain-configs.zip"
     with zipfile.ZipFile(path, "w") as zf:
         zf.writestr("COMMIT", "deadbeef")
         zf.writestr("dictionary", b"")  # unused by the identity decompressor, still read
-        zf.writestr("configs/mainnet/base.toml", TOML)
-        zf.writestr("genesis/mainnet/base.json.zst", json.dumps(GENESIS))
+        zf.writestr("configs/mainnet/base.toml", toml)
+        zf.writestr("genesis/mainnet/base.json.zst", json.dumps(genesis))
     return str(path)
 
 
@@ -103,6 +134,18 @@ def test_build_and_selfcheck_london_header():
     assert digest == "d043c3480e0aa1b2163f2790e622f8cf404bc188a4e4da0097f276a477f459a9"
 
 
+def test_missing_gas_limit_and_base_fee_defaults_match_op_geth():
+    # op-geth Genesis.ToBlock substitutes params.GenesisGasLimit=4712388 when the
+    # genesis gasLimit is 0 and params.InitialBaseFee=1000000000 when baseFeePerGas
+    # is absent (London-at-block-0 chains): core/genesis.go:658-673, with the
+    # constants at params/protocol_params.go:40 and :146. The generator must mirror
+    # that substitution, not fall back to 0x0.
+    genesis = {"timestamp": "0x0"}  # neither gasLimit nor baseFeePerGas
+    fields = gen.build_header_fields(genesis, 0, gen.EMPTY_TRIE_ROOT, gen.LONDON_FIELDS)
+    assert fields["gas_limit"] == "0x47e7c4"           # 4712388
+    assert fields["base_fee_per_gas"] == "0x3b9aca00"  # 1000000000
+
+
 def test_compute_state_root_matches_reference_on_adapted_input():
     alloc = {"0x" + "11" * 20: {"balance": "0x1", "nonce": "0x0"}}
     # The adapter must be a pure re-shape: its result equals feeding the reference
@@ -121,6 +164,35 @@ def test_compute_state_root_golden_with_code_and_storage():
         "00aa0d47b052f7d85b6d74f013475f9fcaa8fef638ba9072ef750bb9f17fbe4e")
 
 
+def test_message_passer_storage_root_matches_op_reth_vector():
+    # Independent oracle: op-reth crates/chainspec/src/lib.rs (test_storage_root_consistency)
+    # hashes these same two non-zero MessagePasser slots to _MP_STORAGE_ROOT.
+    alloc = {_L2_TO_L1_MESSAGE_PASSER:
+             {"balance": "0x0", "nonce": "0x0", "storage": _MP_STORAGE}}
+    assert gen.message_passer_storage_root(alloc).hex() == _MP_STORAGE_ROOT
+
+
+def test_isthmus_without_message_passer_is_an_error():
+    # A spec-conformant Isthmus-at-genesis chain always has the predeploy; failing
+    # loud beats emitting a header the registry hash can never match.
+    with pytest.raises(gen.RegistryError):
+        gen.message_passer_storage_root({})
+
+
+def test_isthmus_genesis_uses_message_passer_storage_root(tmp_path):
+    # Isthmus at genesis: withdrawals_root is the L2ToL1MessagePasser storage root
+    # (op-geth core/genesis.go:711-719; specs/protocol/isthmus/exec-engine.md
+    # §Genesis Block), not the empty withdrawals trie.
+    result = gen.generate(_make_zip(tmp_path, TOML_ISTHMUS, GENESIS_ISTHMUS),
+                          "mainnet/base", l1_chain_id=1,
+                          decompress=lambda raw, dictionary: raw)
+    assert result["manifest"]["header_hash"] == _ISTHMUS_GOLDEN_HASH
+    assert "withdrawals_root=0x" + _MP_STORAGE_ROOT in result["genesis_ini"]
+    assert "requests_hash=" in result["genesis_ini"]
+    # all EL forks are active at genesis, so the baseline is the highest one
+    assert result["manifest"]["schedule"] == "0:isthmus"
+
+
 def test_to_ini_allocs_preserves_code_and_storage():
     alloc = {"0x" + "42" * 20: {"balance": "0xa", "nonce": "0x1",
                                 "code": "0x6001", "storage": {"0x00": "0x02"}}}
@@ -130,6 +202,33 @@ def test_to_ini_allocs_preserves_code_and_storage():
     assert gen._build_allocs.emit_ini(out) == (
         "[alloc.0]\naddress=0x" + "42" * 20 + "\nbalance=10\nnonce=1\ncode=0x6001\n"
         "[alloc.0.storage]\n0x" + "00" * 32 + "=0x" + "00" * 31 + "02\n")
+
+
+# Cross-language pin (S1-F2). The generator's EL_FORKS and the C++ loader's
+# c_opForkNames are the same consensus input written twice, in two languages; the C++
+# side only static_asserts its own count against the OpFork enum, so nothing in CI
+# compares the two lists. This test is that comparison.
+_CXX_OP_FORK_CODEC = (Path(__file__).resolve().parents[2] /
+                      "bcos-framework/bcos-framework/ledger/OpForkScheduleCodec.h")
+
+
+def test_el_forks_pinned_to_cpp_loader_order_and_membership():
+    """EL_FORKS must equal bcos::ledger::detail::c_opForkNames in order and membership.
+
+    Both sides are pinned alone elsewhere; only this case proves the seam, so a
+    reorder or an added/removed name in either list must fail here. The C++ home is
+    bcos-framework/bcos-framework/ledger/OpForkScheduleCodec.h (c_opForkNames).
+    """
+    text = _CXX_OP_FORK_CODEC.read_text()
+    match = re.search(
+        r"c_opForkNames\s*=\s*std::to_array<std::string_view>\(\{(.*?)\}\)",
+        text, re.S)
+    assert match, f"c_opForkNames array not found in {_CXX_OP_FORK_CODEC}"
+    cpp_names = re.findall(r'"([^"]+)"', match.group(1))
+    assert cpp_names == gen.EL_FORKS, (
+        "EL_FORKS drifted from c_opForkNames\n"
+        f"  C++ ({_CXX_OP_FORK_CODEC}): {cpp_names}\n"
+        f"  Python (EL_FORKS):          {gen.EL_FORKS}")
 
 
 TOML_FORKS = {"hardforks": {"canyon_time": 100, "delta_time": 150,
@@ -217,7 +316,8 @@ def test_generate_hash_mismatch_raises(tmp_path):
 _OP_GETH_ZIP = Path("/Users/octopus/octo/code/op-geth/superchain/superchain-configs.zip")
 
 
-@pytest.mark.parametrize("chain", ["mainnet/base", "sepolia/op"])
+@pytest.mark.parametrize("chain", ["mainnet/base", "sepolia/op",
+                                   "rehearsal-0-bn/rehearsal-0-bn-0"])
 def test_real_registry_reconstructs_genesis_hash(chain):
     import shutil
     if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
