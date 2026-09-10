@@ -200,18 +200,22 @@ BOOST_AUTO_TEST_CASE(attrs_holocene_pairing_matches_op_geth)
 BOOST_AUTO_TEST_CASE(op_does_not_advertise_unimplemented_fcu_v4)
 {
     auto caps = engine_common::op::supportedOpCapabilities();
-    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_forkchoiceUpdatedV3") != caps.end());
-    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_forkchoiceUpdatedV4") == caps.end());
-    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV4") != caps.end());
-    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_getPayloadV5") != caps.end());
-    BOOST_CHECK(std::find(caps.begin(), caps.end(), "engine_newPayloadV4") != caps.end());
-    // The OP lane must not advertise methods its own gates deterministically reject:
-    // newPayload is Isthmus-only V4 (-38005 for V1-V3). getPayloadV1/V2 cannot
-    // render a PayloadV3 build. getPayloadV3 is never the live method
-    // (engineApiFor is Jovian V4 / Karst V5) — advertising it strands a CL on -38005.
-    for (auto const* dead :
-        {"engine_newPayloadV1", "engine_newPayloadV2", "engine_newPayloadV3", "engine_newPayloadV5",
-            "engine_getPayloadV1", "engine_getPayloadV2", "engine_getPayloadV3"})
+    // Every method an OP fork window can select must be advertised, or op-node
+    // cannot drive a pre-Isthmus chain at all (op-geth advertises the full list
+    // rather than trimming it per fork).
+    for (auto const* live : {"engine_forkchoiceUpdatedV1", "engine_forkchoiceUpdatedV2",
+             "engine_forkchoiceUpdatedV3", "engine_newPayloadV2", "engine_newPayloadV3",
+             "engine_newPayloadV4", "engine_getPayloadV2", "engine_getPayloadV3",
+             "engine_getPayloadV4", "engine_getPayloadV5"})
+    {
+        BOOST_CHECK_MESSAGE(std::find(caps.begin(), caps.end(), live) != caps.end(),
+            "OP caps must advertise " << live);
+    }
+    // Still absent: op-node starts at newPayloadV2 (Bedrock), getPayloadV1 cannot
+    // render a PayloadV3 build, newPayloadV5 does not exist upstream, and FCU V4 is
+    // unimplemented.
+    for (auto const* dead : {"engine_forkchoiceUpdatedV4", "engine_newPayloadV1",
+             "engine_newPayloadV5", "engine_getPayloadV1"})
     {
         BOOST_CHECK_MESSAGE(std::find(caps.begin(), caps.end(), dead) == caps.end(),
             "OP caps must not advertise " << dead);

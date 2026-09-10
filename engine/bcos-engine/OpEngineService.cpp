@@ -80,18 +80,19 @@ void applyOpHeaderConstants(bcos::protocol::BlockHeader& header)
 
 std::vector<std::string> supportedOpCapabilities()
 {
-    // The OP lane's real window, NOT the Eth list: OP newPayload is Isthmus-only
-    // (V4; the service answers -38005 for V1-V3) and getPayloadV1/V2 cannot render
-    // a PayloadV3 build (IncompatiblePayloadVersion). Advertising them would strand
-    // a pre-Isthmus CL on methods that deterministically fail, with no sync path
-    // to recover. FCU V1/V2 stay listed (heartbeat FCUs are accepted); FCU V4 is
-    // unimplemented (Endpoint -38005) and absent upstream.
-    // getPayload advertises V4+V5 only. The live method is the payload-timestamp
-    // profile (Jovian V4, Karst V5). Advertising V3 would let a CL pick it and
-    // then hit -38005 on every retrieve (engineApiFor never returns V3).
+    // The OP lane's implemented window, NOT the Eth list. With the payload-timestamp
+    // profile (engineApiFor / extraDataLayoutFor) the live method now varies by fork:
+    // newPayloadV2 from Canyon up, V3 Ecotone/Fjord/Granite/Holocene, V4 Isthmus+;
+    // getPayloadV2/V3 likewise, V4 Isthmus+, V5 Karst. Advertising exactly what the
+    // profile can select keeps a CL from picking a method this lane rejects (-38005)
+    // on every call. Still absent: newPayloadV1 (op-node starts at V2 — Bedrock is
+    // its first fork), newPayloadV5 (does not exist upstream), FCU V4 (unimplemented
+    // and absent upstream). op-geth advertises by reflection over every method it
+    // implements (ExchangeCapabilities), i.e. also never a fork-trimmed subset.
     static const std::vector<std::string> caps{"engine_exchangeCapabilities",
         "engine_forkchoiceUpdatedV1", "engine_forkchoiceUpdatedV2", "engine_forkchoiceUpdatedV3",
-        "engine_getPayloadV4", "engine_getPayloadV5", "engine_newPayloadV4"};
+        "engine_getPayloadV2", "engine_getPayloadV3", "engine_getPayloadV4", "engine_getPayloadV5",
+        "engine_newPayloadV2", "engine_newPayloadV3", "engine_newPayloadV4"};
     return caps;
 }
 
