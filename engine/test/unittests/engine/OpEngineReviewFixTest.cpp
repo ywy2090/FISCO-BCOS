@@ -213,8 +213,8 @@ BOOST_AUTO_TEST_CASE(op_does_not_advertise_unimplemented_fcu_v4)
             "OP caps must advertise " << live);
     }
     // Still absent: op-node starts at newPayloadV2 (Bedrock), getPayloadV1 cannot
-    // render a PayloadV3 build, newPayloadV5 does not exist upstream, and FCU V4 is
-    // unimplemented.
+    // render a PayloadV3 build, and this lane implements neither newPayloadV5 nor
+    // FCU V4 (both exist upstream at the Amsterdam revision, beyond Karst).
     for (auto const* dead : {"engine_forkchoiceUpdatedV4", "engine_newPayloadV1",
              "engine_newPayloadV5", "engine_getPayloadV1"})
     {

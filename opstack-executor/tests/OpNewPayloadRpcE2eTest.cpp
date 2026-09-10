@@ -1245,19 +1245,6 @@ void registerRegolithGenesis(OpE2eFixture& fixture, bcos::h256 const& hash)
     bcos::task::syncWait(fixture.multiLayerStorage.mergeView(std::move(view)));
 }
 
-/// The payload an op-node at Regolith submits to newPayloadV2: pre-Canyon means the
-/// withdrawals list, the Cancun blob pair and the Isthmus withdrawalsRoot are all absent.
-bcos::engine::NewPayloadRequest preCanyonRequestOf(bcos::engine::ExecutionPayload const& built)
-{
-    bcos::engine::NewPayloadRequest req;
-    req.executionPayload = built;
-    req.executionPayload.withdrawals.reset();
-    req.executionPayload.blobGasUsed.reset();
-    req.executionPayload.excessBlobGas.reset();
-    req.executionPayload.withdrawalsRoot.reset();
-    req.parentBeaconBlockRoot.reset();
-    return req;
-}
 }  // namespace
 
 BOOST_AUTO_TEST_CASE(RegolithPayloadBuildsAndImportsAgainstRealScheduler)
@@ -1286,15 +1273,23 @@ BOOST_AUTO_TEST_CASE(RegolithPayloadBuildsAndImportsAgainstRealScheduler)
         *built.payloadId, static_cast<std::uint32_t>(bcos::engine::ApiVersion::V2)));
     BOOST_REQUIRE(got);
     BOOST_CHECK(!got->parentBeaconBlockRoot.has_value());
+    // The V2 response is the Regolith block's own shape, not the builder's carrier: no
+    // pre-Canyon withdrawals list/root and no Cancun blob pair may leak through.
+    BOOST_CHECK(!got->executionPayload.withdrawals.has_value());
+    BOOST_CHECK(!got->executionPayload.withdrawalsRoot.has_value());
+    BOOST_CHECK(!got->executionPayload.blobGasUsed.has_value());
+    BOOST_CHECK(!got->executionPayload.excessBlobGas.has_value());
 
     // A second, freshly-seeded node imports the same payload: its artifact cache is empty, so
     // newPayload takes the import path (no built-header commit shortcut) and runs importExecute
-    // on the real OpScheduler over the genesis parent plane.
+    // on the real OpScheduler over the genesis parent plane. The response is fed back verbatim —
+    // a leaky response would be rejected here with "withdrawals must be absent before the
+    // Canyon fork", which is exactly what this round trip pins.
     auto importer = std::make_unique<OpE2eFixture>(regolithOnlySchedule());
     registerRegolithGenesis(*importer, genesis);
-    auto status =
-        bcos::task::syncWait(importer->service.newPayload(preCanyonRequestOf(got->executionPayload),
-            static_cast<std::uint32_t>(bcos::engine::ApiVersion::V2)));
+    bcos::engine::NewPayloadRequest roundTrip{.executionPayload = got->executionPayload};
+    auto status = bcos::task::syncWait(importer->service.newPayload(
+        roundTrip, static_cast<std::uint32_t>(bcos::engine::ApiVersion::V2)));
     BOOST_REQUIRE_MESSAGE(status.status == bcos::engine::PayloadValidationStatus::Valid,
         "Regolith newPayload V2 import must be VALID, got "
             << static_cast<int>(status.status) << " " << status.validationError.value_or(""));

@@ -248,9 +248,11 @@ std::vector<std::string> supportedOpCapabilities()
     // getPayloadV2/V3 likewise, V4 Isthmus+, V5 Karst. Advertising exactly what the
     // profile can select keeps a CL from picking a method this lane rejects (-38005)
     // on every call. Still absent: newPayloadV1 (op-node starts at V2 — Bedrock is
-    // its first fork), newPayloadV5 (does not exist upstream), FCU V4 (unimplemented
-    // and absent upstream). op-geth advertises by reflection over every method it
-    // implements (ExchangeCapabilities), i.e. also never a fork-trimmed subset.
+    // its first fork), newPayloadV5 and FCU V4 (both exist upstream — op-geth
+    // api.go NewPayloadV5 / ForkchoiceUpdatedV4, Amsterdam — but this lane does not
+    // implement them; Amsterdam is beyond Karst, so op-node never selects them here).
+    // op-geth advertises by reflection over every method it implements
+    // (ExchangeCapabilities), i.e. also never a fork-trimmed subset.
     static const std::vector<std::string> caps{"engine_exchangeCapabilities",
         "engine_forkchoiceUpdatedV1", "engine_forkchoiceUpdatedV2", "engine_forkchoiceUpdatedV3",
         "engine_getPayloadV2", "engine_getPayloadV3", "engine_getPayloadV4", "engine_getPayloadV5",
@@ -337,8 +339,11 @@ std::optional<std::string> validateOpNewPayloadRequest(
     const NewPayloadRequest& request, OpForkId forkId, std::uint32_t version)
 {
     const auto& payload = request.executionPayload;
-    // Staged in the order these checks have always run, so the first error a caller sees
-    // is unchanged; each stage owns one contract axis of the (version, fork) pair.
+    // Each stage owns one contract axis of the (version, fork) pair. The set of rejected
+    // payloads matches the old monolithic body, but the first-error ORDER does not:
+    // withdrawalsRoot and executionRequests moved into validateOpPayloadWindowFields, which
+    // now runs before validateOpPayloadHeaderFields, so a payload violating both a window
+    // field and a header field returns the window field's message.
     if (auto error = validateOpPayloadTransactions(payload))
     {
         return error;

@@ -142,7 +142,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::getPayload(
 
     engine_common::requireGetPayloadShape(
         built->version, built->executionPayload, built->parentBeaconBlockRoot, version);
-    co_return engine_common::assembleGetPayloadData(*built, version);
+    // Shape the response like the block the fork defines: the builder's carrier always
+    // holds every optional, and only the fork says which of them exist for this block.
+    co_return engine_common::assembleGetPayloadData(*built, version, ctx.forkId);
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>

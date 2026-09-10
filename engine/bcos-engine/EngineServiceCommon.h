@@ -20,6 +20,7 @@
 #pragma once
 
 #include <bcos-framework/engine/Constants.h>
+#include <bcos-framework/engine/OpForkId.h>
 #include <bcos-framework/engine/RawTransactionDispatch.h>
 #include <bcos-framework/engine/Types.h>
 #include <bcos-framework/protocol/BlockHeader.h>
@@ -176,10 +177,34 @@ inline bool isGetPayloadVersionSupported(std::uint32_t version)
 /// one definition so the V4+ executionRequests semantics cannot drift between the
 /// two serving paths.
 template <class EntryT>
-GetPayloadResult assembleGetPayloadData(const EntryT& entry, std::uint32_t version)
+GetPayloadResult assembleGetPayloadData(
+    const EntryT& entry, std::uint32_t version, std::optional<OpForkId> opForkId = std::nullopt)
 {
+    // The OP builder stamps every fork's optional fields on its carrier (present-empty
+    // withdrawals, present-zero blob pair/withdrawalsRoot), but the response must be shaped
+    // like the block the fork actually defines — op-geth's engine_getPayloadV2 returns the
+    // block's own pre-Cancun ExecutionPayload. Shaping here (rather than at the builder)
+    // keeps the wire shape a property of the (method version, fork) pair and leaves the
+    // executed/build carrier untouched. `opForkId` is unset on the Eth lane, whose entries
+    // already carry exactly the fields its versions define.
+    ExecutionPayload executionPayload = entry.executionPayload;
+    if (opForkId.has_value())
+    {
+        if (*opForkId < OpForkId::Canyon)
+        {
+            // Pre-Shanghai (Regolith/PayloadV1): EIP-4895 withdrawals do not exist yet.
+            executionPayload.withdrawals.reset();
+            executionPayload.withdrawalsRoot.reset();
+        }
+        if (*opForkId < OpForkId::Ecotone)
+        {
+            // Pre-Cancun: neither side of the EIP-4844 blob pair exists yet.
+            executionPayload.blobGasUsed.reset();
+            executionPayload.excessBlobGas.reset();
+        }
+    }
     return std::make_unique<GetPayloadData>(GetPayloadData{
-        .executionPayload = entry.executionPayload,
+        .executionPayload = std::move(executionPayload),
         .blockValue = entry.blockValue,
         .blobsBundle = entry.blobsBundle,
         .shouldOverrideBuilder = entry.shouldOverrideBuilder,

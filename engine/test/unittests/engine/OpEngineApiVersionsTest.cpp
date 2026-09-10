@@ -374,6 +374,12 @@ BOOST_AUTO_TEST_CASE(FcuV1RegolithReturnsPayloadIdThenGetPayloadV2)
     BOOST_REQUIRE(got);
     BOOST_CHECK(!got->executionRequests.has_value());
     BOOST_CHECK(!got->parentBeaconBlockRoot.has_value());
+    // The response executionPayload is shaped like the Regolith block itself, not like the
+    // builder's carrier: pre-Shanghai has no withdrawals list or root, pre-Cancun no blob pair.
+    BOOST_CHECK(!got->executionPayload.withdrawals.has_value());
+    BOOST_CHECK(!got->executionPayload.withdrawalsRoot.has_value());
+    BOOST_CHECK(!got->executionPayload.blobGasUsed.has_value());
+    BOOST_CHECK(!got->executionPayload.excessBlobGas.has_value());
 }
 
 BOOST_AUTO_TEST_CASE(FcuV2CanyonReturnsPayloadIdThenGetPayloadV3IsUnsupportedFork)
@@ -389,8 +395,16 @@ BOOST_AUTO_TEST_CASE(FcuV2CanyonReturnsPayloadIdThenGetPayloadV3IsUnsupportedFor
     BOOST_REQUIRE_EQUAL(static_cast<int>(built.payloadStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_REQUIRE(built.payloadId);
-    BOOST_CHECK_NO_THROW(static_cast<void>(bcos::task::syncWait(
-        h.pair.service.getPayload(*built.payloadId, static_cast<std::uint32_t>(ApiVersion::V2)))));
+    auto got = bcos::task::syncWait(
+        h.pair.service.getPayload(*built.payloadId, static_cast<std::uint32_t>(ApiVersion::V2)));
+    BOOST_REQUIRE(got);
+    // Canyon is Shanghai: withdrawals are present (empty) and the root is present, but the
+    // Cancun blob pair must still be absent.
+    BOOST_CHECK(got->executionPayload.withdrawals.has_value());
+    BOOST_CHECK(got->executionPayload.withdrawals->empty());
+    BOOST_CHECK(got->executionPayload.withdrawalsRoot.has_value());
+    BOOST_CHECK(!got->executionPayload.blobGasUsed.has_value());
+    BOOST_CHECK(!got->executionPayload.excessBlobGas.has_value());
     // Canyon's live getPayload is V2, so V3 is an unsupported fork, not an unknown id.
     BOOST_CHECK_EXCEPTION(bcos::task::syncWait(h.pair.service.getPayload(
                               *built.payloadId, static_cast<std::uint32_t>(ApiVersion::V3))),
