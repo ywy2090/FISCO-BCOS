@@ -11,11 +11,12 @@ namespace bcos::evm::opstack
 // ────────────────────────────────────────────────────────────────────────────
 // OP-Stack fork schedule (Bedrock onward) ↔ Ethereum base fork
 //
-// Reference: op-reth (authority for named Karst schedules) + op-geth / optimism docs.
-// FB MODELS Regolith+ (the enum below): production parse / codec is still
-// Isthmus+-only (decision A5) and the engine -38005 gate rejects pre-Isthmus
-// payloads; Regolith..Holocene are reachable through isolated execution tests
-// (OpForkSchedule::TestBypass schedules), not through the production codec.
+// Reference: op-geth params/config_op.go (EL fork order, no Delta) + op-node.
+// FB MODELS Regolith+ (the enum below, in protocol order). Production parse
+// accepts any contiguous EL fork range from the ledger codec, so
+// Regolith..Holocene schedules load; the engine's -38005 gate still rejects
+// pre-Isthmus payloads until S3 adds the historical fork IDs, so execution
+// stays Isthmus+ for now.
 //
 //   OP fork      | Ethereum base | EVM rev (FB)      | FB status
 //   -------------+---------------+-------------------+----------------------
@@ -37,8 +38,8 @@ namespace bcos::evm::opstack
 //     features"); Jovian adds OP-only DA footprint + operator-fee-fix on the
 //     same Prague base — hence both map to EVMC_PRAGUE.
 //   * Karst maps to EVMC_OSAKA with an independent precompile-override object.
-//     Production parse names Karst after a Jovian baseline or activation.
-//     Tests may still name Karst via OpForkSchedule::TestBypass.
+//     Production parse accepts any contiguous EL fork range, so Karst is
+//     nameable as a baseline or after any earlier activation.
 // ────────────────────────────────────────────────────────────────────────────
 enum class OpFork
 {
@@ -99,8 +100,9 @@ struct OpForkActivation
     uint64_t timestamp{};
 };
 
-/// Timestamp schedule: Unix-second activations select Isthmus / Jovian / Karst.
-/// Production parse goes through the ledger codec; Karst requires Jovian first.
+/// Timestamp schedule: Unix-second activations select any modeled EL fork
+/// (regolith…karst). Production parse goes through the ledger codec, which
+/// requires a timestamp-0 baseline and strictly contiguous fork order.
 class OpForkSchedule
 {
 public:

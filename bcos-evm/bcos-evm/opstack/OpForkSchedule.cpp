@@ -12,13 +12,12 @@ namespace
 {
 OpFork forkFromName(std::string_view forkName)
 {
-    if (forkName == "isthmus")
-        return OpFork::Isthmus;
-    if (forkName == "jovian")
-        return OpFork::Jovian;
-    if (forkName == "karst")
-        return OpFork::Karst;
-    ledger::throwInvalidOpForkSchedule("unknown fork");
+    const int index = ledger::detail::forkOrder(forkName);
+    if (index < 0)
+    {
+        ledger::throwInvalidOpForkSchedule("unknown fork");
+    }
+    return static_cast<OpFork>(index);
 }
 
 const OpForkConfig& configForFork(OpFork fork)
@@ -49,17 +48,12 @@ const OpForkConfig& configForFork(OpFork fork)
 
 std::string forkNameFromEnum(OpFork fork)
 {
-    switch (fork)
+    const auto index = static_cast<std::size_t>(fork);
+    if (index >= ledger::detail::c_opForkNames.size())
     {
-    case OpFork::Isthmus:
-        return "isthmus";
-    case OpFork::Jovian:
-        return "jovian";
-    case OpFork::Karst:
-        return "karst";
-    default:
-        ledger::throwInvalidOpForkSchedule("unknown or pre-Isthmus fork");
+        ledger::throwInvalidOpForkSchedule("unknown fork");
     }
+    return std::string(ledger::detail::c_opForkNames[index]);
 }
 
 void validateActivations(std::span<const OpForkActivation> activations)

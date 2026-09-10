@@ -5,6 +5,8 @@
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <boost/test/unit_test.hpp>
+#include <cstddef>
+#include <string>
 #include <utility>
 
 using namespace bcos::evm::opstack;
@@ -125,9 +127,26 @@ BOOST_AUTO_TEST_CASE(RegolithCanyonConfigsAndTimestampSelect)
     BOOST_CHECK(sched.jovianAndLaterActivations().empty());
 }
 
-BOOST_AUTO_TEST_CASE(ParseStillRejectsRegolithName)
+// The codec accepts any EL fork as a baseline, so production parse must map the
+// name instead of rejecting it.
+BOOST_AUTO_TEST_CASE(ParseAcceptsRegolithBaseline)
 {
-    BOOST_CHECK_THROW(OpForkSchedule::parse("0:regolith"), InvalidOpForkSchedule);
+    auto s = OpForkSchedule::parse("0:regolith");
+    BOOST_CHECK_EQUAL(s.forkAt(0), OpFork::Regolith);
+    BOOST_CHECK_EQUAL(&s.configAt(0), &regolithConfig());
+}
+
+// OpFork's enumerator order is the codec table's index order; inserting a fork
+// in the middle of either one without the other fails here.
+BOOST_AUTO_TEST_CASE(ForkNameEnumRoundTripsAllNine)
+{
+    using bcos::ledger::detail::c_opForkNames;
+    for (std::size_t i = 0; i < c_opForkNames.size(); ++i)
+    {
+        auto s = OpForkSchedule::parse("0:" + std::string(c_opForkNames[i]));
+        BOOST_CHECK_EQUAL(s.forkAt(0), static_cast<OpFork>(i));
+    }
+    BOOST_CHECK_EQUAL(static_cast<std::size_t>(OpFork::Karst), c_opForkNames.size() - 1);
 }
 
 BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
