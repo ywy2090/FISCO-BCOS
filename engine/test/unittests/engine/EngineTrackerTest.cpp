@@ -478,8 +478,7 @@ BOOST_AUTO_TEST_CASE(engine_tracker_default_still_rejects_jump)
     tracker.applyForkchoice(resolved(h256(10), 10, true, false));
     ResolvedForkchoice jump = resolved(h256(12), 12, true, false);
     BOOST_CHECK(!jump.allowNonLinearHead);
-    checkExceptionMessage<InvalidForkchoiceState>(
-        [&]() { tracker.applyForkchoice(jump); },
+    checkExceptionMessage<InvalidForkchoiceState>([&]() { tracker.applyForkchoice(jump); },
         "Forkchoice head block number must increase by exactly 1");
 }
 
