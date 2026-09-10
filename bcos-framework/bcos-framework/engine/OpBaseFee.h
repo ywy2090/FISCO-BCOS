@@ -135,9 +135,23 @@ inline std::optional<std::string> validateOpExtraDataForLayout(
 
 /// One EIP-1559 fee step, shared by both clocks below (op-geth calcBaseFeeInner):
 /// parentBaseFee +/- max(1, parentBaseFee * |gasMetered - gasTarget| / gasTarget / denominator).
-inline bcos::u256 opNextBaseFeeStep(
-    bcos::u256 parentBaseFee, bcos::u256 gasMetered, bcos::u256 gasTarget, uint64_t denominator)
+/// Inputs to one EIP-1559 fee step. Named fields rather than three positional u256
+/// amounts: they are the same type, and transposing metered and target would silently
+/// invert the direction of the fee change.
+struct OpFeeStepParams
 {
+    bcos::u256 parentBaseFee{};
+    bcos::u256 gasMetered{};
+    bcos::u256 gasTarget{};
+    uint64_t denominator{};
+};
+
+[[nodiscard]] inline bcos::u256 opNextBaseFeeStep(OpFeeStepParams const& params)
+{
+    bcos::u256 const& parentBaseFee = params.parentBaseFee;
+    bcos::u256 const& gasMetered = params.gasMetered;
+    bcos::u256 const& gasTarget = params.gasTarget;
+    uint64_t const denominator = params.denominator;
     if (gasMetered == gasTarget)
     {
         // Exact target: the fee holds steady (delta 0).
@@ -194,7 +208,8 @@ inline bcos::u256 opNextBaseFeeStep(
 /// delta multiply is overflow-guarded where op-geth relies on unbounded big.Int.
 /// The caller decides parentIsJovian from the fork schedule; the minBaseFee floor
 /// is only read from exactly-17-byte extraData carrying 0x01.
-inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool parentIsJovian)
+[[nodiscard]] inline bcos::u256 calcOpBaseFee(
+    bcos::protocol::BlockHeader const& parent, bool parentIsJovian)
 {
     auto extraView = parent.extraData();
     std::span<const bcos::byte> extra{extraView.data(), extraView.size()};
@@ -250,7 +265,10 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
                               << bcos::errinfo_comment{"OP parent header is missing baseFee"});
     }
     bcos::u256 const parentBaseFee = *parent.baseFee();
-    bcos::u256 result = opNextBaseFeeStep(parentBaseFee, gasMetered, gasTarget, denominator);
+    bcos::u256 result = opNextBaseFeeStep(OpFeeStepParams{.parentBaseFee = parentBaseFee,
+        .gasMetered = gasMetered,
+        .gasTarget = gasTarget,
+        .denominator = denominator});
 
     // Jovian minBaseFee floor — applies to all three arms.
     if (minBaseFee.has_value() && result < *minBaseFee)
@@ -283,7 +301,7 @@ struct OpBaseFeeClock
 /// A Holocene activation block is the constants case: it carries 9-byte extraData
 /// itself, but its parent does not, so the caller must pass parentIsHolocene=false
 /// (op-reth had this backwards before #13060).
-inline bcos::u256 calcOpNextBlockBaseFee(
+[[nodiscard]] inline bcos::u256 calcOpNextBlockBaseFee(
     bcos::protocol::BlockHeader const& parent, OpBaseFeeClock clock)
 {
     if (clock.parentIsHolocene)
@@ -311,7 +329,10 @@ inline bcos::u256 calcOpNextBlockBaseFee(
     }
     // Pre-Holocene has no DA footprint: the Jovian max(gasUsed, blobGasUsed) metering
     // is part of the Holocene path above.
-    return opNextBaseFeeStep(parentBaseFee, parent.gasUsed(), gasTarget, denominator);
+    return opNextBaseFeeStep(OpFeeStepParams{.parentBaseFee = parentBaseFee,
+        .gasMetered = parent.gasUsed(),
+        .gasTarget = gasTarget,
+        .denominator = denominator});
 }
 
 /// Built-in OP driver gas limit: the chain's configured value (from the ledger's

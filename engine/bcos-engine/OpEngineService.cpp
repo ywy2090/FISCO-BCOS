@@ -40,6 +40,167 @@ constexpr bool gasLimitExceedsOpCap(std::uint64_t gasLimit) noexcept
 
 // Consensus header constants live in engine_common (EngineServiceCommon.h) — shared with
 // the Eth builder so the keccak256(rlp(header))-critical literals have exactly one home.
+/// Transactions are the same contract in every window: the release carrier is
+/// transactions[i].raw (no dual rawTransactions mirror), and empty is valid
+/// (deposit-only / empty blocks).
+std::optional<std::string> validateOpPayloadTransactions(const ExecutionPayload& payload)
+{
+    for (std::size_t i = 0; i < payload.transactions.size(); ++i)
+    {
+        if (payload.transactions[i].raw.empty())
+        {
+            return "executionPayload.transactions[" + std::to_string(i) + "] is empty";
+        }
+        if (auto error = engine_common::validateRawTransactionKind(
+                dispatchRawTransaction(bcos::ref(payload.transactions[i].raw)), i))
+        {
+            return error;
+        }
+    }
+    return std::nullopt;
+}
+
+/// Shanghai's withdrawal list appears at Canyon, so "absent" and "present but empty"
+/// are different contracts: Bedrock/Regolith payloads omit the field entirely
+/// (op-geth NewPayloadV2 before Shanghai expects nil, after it empty).
+std::optional<std::string> validateOpPayloadWithdrawals(
+    const ExecutionPayload& payload, OpForkId forkId)
+{
+    if (forkId >= OpForkId::Canyon)
+    {
+        if (!payload.withdrawals.has_value() || !payload.withdrawals->empty())
+        {
+            return std::string("withdrawals must be present and empty on the OP path");
+        }
+        return std::nullopt;
+    }
+    if (payload.withdrawals.has_value())
+    {
+        return std::string("withdrawals must be absent before the Canyon fork");
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> validateOpBlobVersionedHashes(const NewPayloadRequest& request)
+{
+    if (!request.expectedBlobVersionedHashes.empty())
+    {
+        return std::string("expectedBlobVersionedHashes must be an empty array on the OP path");
+    }
+    return std::nullopt;
+}
+
+/// Cancun's fields arrive with Ecotone (V3) and Prague's with Isthmus (V4); below each
+/// window the corresponding field must be absent entirely, not merely zero.
+std::optional<std::string> validateOpPayloadWindowFields(
+    const NewPayloadRequest& request, const ExecutionPayload& payload, std::uint32_t version)
+{
+    if (version >= static_cast<std::uint32_t>(ApiVersion::V3))
+    {
+        if (!request.parentBeaconBlockRoot.has_value())
+        {
+            return std::string("parentBeaconBlockRoot must be a 32-byte hash for newPayloadV3+");
+        }
+        if (!payload.excessBlobGas.has_value() || *payload.excessBlobGas != 0)
+        {
+            return std::string("excessBlobGas must be present and zero on the OP path");
+        }
+        if (!payload.blobGasUsed.has_value())
+        {
+            return std::string("blobGasUsed must be present on the OP path");
+        }
+    }
+    else
+    {
+        if (request.parentBeaconBlockRoot.has_value())
+        {
+            return std::string("parentBeaconBlockRoot must be absent before the Ecotone fork");
+        }
+        if (payload.excessBlobGas.has_value() || payload.blobGasUsed.has_value())
+        {
+            return std::string("blob gas fields must be absent before the Ecotone fork");
+        }
+    }
+    if (version >= static_cast<std::uint32_t>(ApiVersion::V4))
+    {
+        if (!payload.withdrawalsRoot.has_value())
+        {
+            return std::string("withdrawalsRoot is required on the OP path (Isthmus+)");
+        }
+        // Same reasoning as the Eth sibling (EngineServiceImpl.h): the wire already
+        // enforces the fourth newPayloadV4 parameter (parseNewPayloadRequest always sets
+        // the list for V4), so accepting a missing list here would hand in-process
+        // callers a laxer Isthmus contract than the wire.
+        if (!request.executionRequests.has_value() || !request.executionRequests->empty())
+        {
+            return std::string("executionRequests must be a present-but-empty list on the OP path");
+        }
+    }
+    else
+    {
+        if (payload.withdrawalsRoot.has_value())
+        {
+            return std::string("withdrawalsRoot must be absent before the Isthmus fork");
+        }
+        if (request.executionRequests.has_value())
+        {
+            return std::string("executionRequests must be absent before the Isthmus fork");
+        }
+    }
+    return std::nullopt;
+}
+
+/// Header numbers with the ETH width caps, plus the extraData layout this fork requires.
+std::optional<std::string> validateOpPayloadHeaderFields(
+    const ExecutionPayload& payload, OpForkId forkId)
+{
+    if (payload.blockNumber < 0)
+    {
+        return std::string("blockNumber must not be negative");
+    }
+    if (!narrowU256ToU64(payload.gasLimit).has_value())
+    {
+        return std::string("gasLimit exceeds the uint64 range of the ETH header field");
+    }
+    if (gasLimitExceedsOpCap(*narrowU256ToU64(payload.gasLimit)))
+    {
+        return std::string(c_opMaxBlockGasLimitMessage);
+    }
+    if (auto error = validateOpExtraDataForLayout(payload.extraData, extraDataLayoutFor(forkId)))
+    {
+        return "executionPayload.extraData " + *error;
+    }
+    if (!narrowU256ToU64(payload.gasUsed).has_value())
+    {
+        return std::string("gasUsed exceeds the uint64 range of the ETH header field");
+    }
+    return std::nullopt;
+}
+
+/// blobGasUsed exists from V3 on: before Jovian it must be zero (the DA footprint only
+/// enters the fee from Jovian), and from Jovian it may not exceed the block gas limit.
+std::optional<std::string> validateOpBlobGasUsed(
+    const ExecutionPayload& payload, OpForkId forkId, std::uint32_t version)
+{
+    if (version < static_cast<std::uint32_t>(ApiVersion::V3))
+    {
+        return std::nullopt;
+    }
+    if (!narrowU256ToU64(*payload.blobGasUsed).has_value())
+    {
+        return std::string("blobGasUsed exceeds the uint64 range of the ETH header field");
+    }
+    if (forkId < OpForkId::Jovian && *payload.blobGasUsed != 0)
+    {
+        return std::string("blobGasUsed must be zero before Jovian (OP Isthmus)");
+    }
+    if (forkId >= OpForkId::Jovian && *payload.blobGasUsed > payload.gasLimit)
+    {
+        return std::string("DA footprint (blobGasUsed) exceeds the block gas limit");
+    }
+    return std::nullopt;
+}
+
 }  // namespace
 
 std::optional<bcostars::Transaction> opEnvelopeToTars(
@@ -176,134 +337,29 @@ std::optional<std::string> validateOpNewPayloadRequest(
     const NewPayloadRequest& request, OpForkId forkId, std::uint32_t version)
 {
     const auto& payload = request.executionPayload;
-
-    // release ExecutionPayload uses a single carrier: transactions[i].raw (no dual
-    // rawTransactions mirror). Empty list is valid (deposit-only / empty blocks).
-    for (std::size_t i = 0; i < payload.transactions.size(); ++i)
+    // Staged in the order these checks have always run, so the first error a caller sees
+    // is unchanged; each stage owns one contract axis of the (version, fork) pair.
+    if (auto error = validateOpPayloadTransactions(payload))
     {
-        if (payload.transactions[i].raw.empty())
-        {
-            return "executionPayload.transactions[" + std::to_string(i) + "] is empty";
-        }
-        if (auto error = engine_common::validateRawTransactionKind(
-                dispatchRawTransaction(bcos::ref(payload.transactions[i].raw)), i))
-        {
-            return error;
-        }
+        return error;
     }
-    // Shanghai's withdrawal list appears at Canyon, so "absent" and "present but
-    // empty" are different contracts: Bedrock/Regolith payloads omit the field
-    // entirely (op-geth NewPayloadV2 before Shanghai expects nil, after it empty).
-    if (forkId >= OpForkId::Canyon)
+    if (auto error = validateOpPayloadWithdrawals(payload, forkId))
     {
-        if (!payload.withdrawals.has_value() || !payload.withdrawals->empty())
-        {
-            return std::string("withdrawals must be present and empty on the OP path");
-        }
+        return error;
     }
-    else if (payload.withdrawals.has_value())
+    if (auto error = validateOpBlobVersionedHashes(request))
     {
-        return std::string("withdrawals must be absent before the Canyon fork");
+        return error;
     }
-    if (!request.expectedBlobVersionedHashes.empty())
+    if (auto error = validateOpPayloadWindowFields(request, payload, version))
     {
-        return std::string("expectedBlobVersionedHashes must be an empty array on the OP path");
+        return error;
     }
-    // Cancun's fields arrive with Ecotone (V3): the beacon root and the blob pair.
-    if (version >= static_cast<std::uint32_t>(ApiVersion::V3))
+    if (auto error = validateOpPayloadHeaderFields(payload, forkId))
     {
-        if (!request.parentBeaconBlockRoot.has_value())
-        {
-            return std::string("parentBeaconBlockRoot must be a 32-byte hash for newPayloadV3+");
-        }
-        if (!payload.excessBlobGas.has_value() || *payload.excessBlobGas != 0)
-        {
-            return std::string("excessBlobGas must be present and zero on the OP path");
-        }
-        if (!payload.blobGasUsed.has_value())
-        {
-            return std::string("blobGasUsed must be present on the OP path");
-        }
+        return error;
     }
-    else
-    {
-        if (request.parentBeaconBlockRoot.has_value())
-        {
-            return std::string("parentBeaconBlockRoot must be absent before the Ecotone fork");
-        }
-        if (payload.excessBlobGas.has_value() || payload.blobGasUsed.has_value())
-        {
-            return std::string("blob gas fields must be absent before the Ecotone fork");
-        }
-    }
-    // Prague's additions arrive with Isthmus (V4): the withdrawals root and the
-    // (present-but-empty) execution requests list.
-    if (version >= static_cast<std::uint32_t>(ApiVersion::V4))
-    {
-        if (!payload.withdrawalsRoot.has_value())
-        {
-            return std::string("withdrawalsRoot is required on the OP path (Isthmus+)");
-        }
-        // Same reasoning as the Eth sibling (EngineServiceImpl.h): the wire already
-        // enforces the fourth newPayloadV4 parameter (parseNewPayloadRequest always
-        // sets the list for V4), so accepting a missing list here would hand
-        // in-process callers a laxer Isthmus contract than the wire.
-        if (!request.executionRequests.has_value() || !request.executionRequests->empty())
-        {
-            return std::string("executionRequests must be a present-but-empty list on the OP path");
-        }
-    }
-    else
-    {
-        if (payload.withdrawalsRoot.has_value())
-        {
-            return std::string("withdrawalsRoot must be absent before the Isthmus fork");
-        }
-        if (request.executionRequests.has_value())
-        {
-            return std::string("executionRequests must be absent before the Isthmus fork");
-        }
-    }
-    if (payload.blockNumber < 0)
-    {
-        return std::string("blockNumber must not be negative");
-    }
-    if (!narrowU256ToU64(payload.gasLimit).has_value())
-    {
-        return std::string("gasLimit exceeds the uint64 range of the ETH header field");
-    }
-    if (gasLimitExceedsOpCap(*narrowU256ToU64(payload.gasLimit)))
-    {
-        return std::string(c_opMaxBlockGasLimitMessage);
-    }
-    if (auto error = validateOpExtraDataForLayout(payload.extraData, extraDataLayoutFor(forkId)))
-    {
-        return "executionPayload.extraData " + *error;
-    }
-    if (!narrowU256ToU64(payload.gasUsed).has_value())
-    {
-        return std::string("gasUsed exceeds the uint64 range of the ETH header field");
-    }
-    // blobGasUsed is guaranteed present by the V3+ branch above.
-    if (version >= static_cast<std::uint32_t>(ApiVersion::V3))
-    {
-        if (!narrowU256ToU64(*payload.blobGasUsed).has_value())
-        {
-            return std::string("blobGasUsed exceeds the uint64 range of the ETH header field");
-        }
-        // The DA footprint only enters the fee from Jovian (max(gasUsed, blobGasUsed)),
-        // so before that the field must be zero.
-        if (forkId < OpForkId::Jovian && *payload.blobGasUsed != 0)
-        {
-            return std::string("blobGasUsed must be zero before Jovian (OP Isthmus)");
-        }
-        // Jovian meters the DA footprint, so an oversized one is a reject from there on.
-        if (forkId >= OpForkId::Jovian && *payload.blobGasUsed > payload.gasLimit)
-        {
-            return std::string("DA footprint (blobGasUsed) exceeds the block gas limit");
-        }
-    }
-    return std::nullopt;
+    return validateOpBlobGasUsed(payload, forkId, version);
 }
 
 bcos::protocol::BlockHeader::Ptr rebuildOpEthHeader(

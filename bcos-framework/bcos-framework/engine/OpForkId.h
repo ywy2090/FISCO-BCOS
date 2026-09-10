@@ -78,9 +78,9 @@ struct EngineForkContext
 /// (rollup/types.go), plus this repo's Karst getPayload V5. Fjord and Granite add no
 /// Engine API surface, so they carry Ecotone's methods; they stay distinct ids for
 /// extraData and baseFee.
-[[nodiscard]] inline constexpr EngineApiProfile engineApiProfileFor(OpForkId id)
+[[nodiscard]] inline constexpr EngineApiProfile engineApiProfileFor(OpForkId forkId)
 {
-    switch (id)
+    switch (forkId)
     {
     case OpForkId::Regolith:
         return {.forkchoiceUpdated = ApiVersion::V1,
@@ -110,9 +110,9 @@ struct EngineForkContext
     return {};
 }
 
-[[nodiscard]] inline constexpr OpExtraDataLayout extraDataLayoutFor(OpForkId id)
+[[nodiscard]] inline constexpr OpExtraDataLayout extraDataLayoutFor(OpForkId forkId)
 {
-    switch (id)
+    switch (forkId)
     {
     case OpForkId::Regolith:
     case OpForkId::Canyon:
