@@ -294,6 +294,13 @@ private:
     bcos::scheduler::SchedulerInterface::Ptr m_delegate;
     std::shared_ptr<DACaps> m_daCaps;
     bool m_allowSynthesizedL1Attributes;
+    /// S5/S6 imported-tree lock (design §4.2): guards the ImportedStore decision
+    /// sequence (occupancy check -> put) and the whole canonicalizeImportedHead
+    /// body — NOT the importExecute execution (SchedulerSerialImpl may use the
+    /// IOServicePool; no POSIX mutex may be held across its threads). task::Task is
+    /// driven inline by task::syncWait on the calling thread, so holding this mutex
+    /// across the storage co_awaits inside these sections is deadlock-free.
+    mutable std::mutex m_importedTreeMutex;
     /// Guards m_lastExecutedHeader: newPayload requests can run concurrently on RPC
     /// threads (no serial executor), so the shared_ptr write/read must be synchronized.
     ///

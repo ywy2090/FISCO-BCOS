@@ -48,21 +48,21 @@ struct ImportedBlock
 
 /// Imported payloads only: canonical-chain lookups must go through the ledger
 /// tables first, this store is the OP-side fallback (design §4.1 read path).
-/// NOT thread-safe by itself — the engine lock guards put/canonicalize/applyForkchoice.
+/// Internally synchronized (concurrent newPayload RPC threads race
+/// put/get/occupantAt); decision atomicity ACROSS put/canonicalize is the
+/// caller's engine lock (design §4.2).
 class ImportedStore
 {
 public:
     /// Same-hash re-put is idempotent (newPayload replay stays VALID, no double
-    /// write). Fails when the same-height slot is occupied by a block that already
-    /// has imported descendants: overwriting their ancestor would orphan the chain
-    /// state (newPayload maps this to SYNCING, design §4.2 单分叉冲突).
-    /// Same-hash re-put is idempotent. A same-height occupant with imported
-    /// descendants rejects the overwrite — UNLESS the occupant is canonical
-    /// (@p occupantCanonical, decided by the caller via the ledger): a canonical
-    /// occupant's descendants stay reachable through the canonical chain history,
-    /// and the new block merely awaits its own FCU (ancestor-sibling, §4.3).
+    /// write). A same-height occupant with imported descendants rejects the
+    /// overwrite — UNLESS the occupant is canonical (@p occupantCanonical, decided
+    /// by the caller via the ledger): a canonical occupant's descendants stay
+    /// reachable through the canonical chain history, and the new block merely
+    /// awaits its own FCU (ancestor-sibling, §4.3).
     bool put(ImportedBlock block, bool occupantCanonical = false)
     {
+        std::lock_guard lock(m_mutex);
         if (m_blocks.contains(block.hash))
         {
             return true;
@@ -89,6 +89,7 @@ public:
     /// First importer at @p number (nullopt when the height was never imported).
     [[nodiscard]] std::optional<h256> occupantAt(bcos::protocol::BlockNumber number) const
     {
+        std::lock_guard lock(m_mutex);
         if (auto it = m_byNumber.find(number); it != m_byNumber.end())
         {
             return it->second;
@@ -96,12 +97,17 @@ public:
         return std::nullopt;
     }
 
-    [[nodiscard]] bool hasBlock(const bcos::h256& hash) const { return m_blocks.contains(hash); }
+    [[nodiscard]] bool hasBlock(const bcos::h256& hash) const
+    {
+        std::lock_guard lock(m_mutex);
+        return m_blocks.contains(hash);
+    }
     /// Every stored block was executed on its parent's post-state, so a stored
     /// block always has state (design: put 成功才 hasState).
     [[nodiscard]] bool hasState(const bcos::h256& hash) const { return hasBlock(hash); }
     [[nodiscard]] std::optional<std::vector<bcos::bytes>> body(const bcos::h256& hash) const
     {
+        std::lock_guard lock(m_mutex);
         auto const it = m_blocks.find(hash);
         if (it == m_blocks.end())
         {
@@ -111,6 +117,7 @@ public:
     }
     [[nodiscard]] std::optional<ImportedBlock> get(const bcos::h256& hash) const
     {
+        std::lock_guard lock(m_mutex);
         auto const it = m_blocks.find(hash);
         if (it == m_blocks.end())
         {
@@ -118,9 +125,32 @@ public:
         }
         return it->second;
     }
-    [[nodiscard]] std::size_t size() const { return m_blocks.size(); }
+    [[nodiscard]] std::size_t size() const
+    {
+        std::lock_guard lock(m_mutex);
+        return m_blocks.size();
+    }
+
+    /// Memory bounding (review P2): drop the materialized post-state flats of blocks
+    /// ABOVE the canonical tip — dead branches are never imported onto again (their
+    /// parent planes are unrecoverable) and their bodies remain hash-addressable for
+    /// re-import. Live-window flats (number <= tip) stay: chained imports and
+    /// canonical-below-tip ancestor siblings execute on them. Full prune remains a
+    /// follow-up (design: 本里程碑不 prune).
+    void pruneFlatsAbove(bcos::protocol::BlockNumber tipNumber)
+    {
+        std::lock_guard lock(m_mutex);
+        for (auto& [hash, block] : m_blocks)
+        {
+            if (block.number > tipNumber)
+            {
+                block.postStateFlat.reset();
+            }
+        }
+    }
 
 private:
+    mutable std::mutex m_mutex;
     std::unordered_map<bcos::h256, ImportedBlock> m_blocks;
     std::unordered_map<bcos::protocol::BlockNumber, bcos::h256> m_byNumber;
 };

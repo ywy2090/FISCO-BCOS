@@ -1080,6 +1080,9 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     // imported-live occupant with descendants must not lose its ancestor; a
     // CANONICAL occupant may be shadowed — its descendants stay on the canonical
     // chain until FCU switches labels.
+    // Design §4.2 engine lock: occupancy decision -> put is ONE atomic section
+    // (importExecute itself ran unlocked, per the design's syncWait prohibition).
+    std::lock_guard treeLock(m_importedTreeMutex);
     bool occupantCanonical = false;
     if (auto occupant = m_importedStore.occupantAt(payload.blockNumber);
         occupant.has_value() && *occupant != payload.blockHash)
@@ -1110,6 +1113,10 @@ task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerT
 {
     namespace detail = bcos::evm::engine::detail;
     using MutableStorageT = typename GlobalStateStorageType::MutableStorage;
+    // Design §4.2 engine lock: the whole switch/forward canonicalize — store walks,
+    // backend merges and canonical-row rewrites move as ONE decision. task::Task is
+    // syncWait-driven inline on this thread (no hops), so a scoped POSIX lock is safe.
+    std::lock_guard treeLock(m_importedTreeMutex);
 
     // Collect the chain head → ... → child-of-canonical (store walk); the parent is
     // canonical when HASH_2_NUMBER resolves it (import never writes that key).
@@ -1258,6 +1265,7 @@ task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerT
         {
             m_delegate->canonicalizedTo(headBlock.number);
         }
+        m_importedStore.pruneFlatsAbove(headBlock.number);
         co_return;
     }
 
@@ -1313,10 +1321,8 @@ task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerT
         co_await m_globalStateStorage.mergeToBackends(*delta);
     }
 
-    if (m_delegate)
-    {
-        m_delegate->canonicalizedTo(chain.back().number);
-    }
+    m_importedStore.pruneFlatsAbove(chain.back().number);
+    m_delegate->canonicalizedTo(chain.back().number);
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
