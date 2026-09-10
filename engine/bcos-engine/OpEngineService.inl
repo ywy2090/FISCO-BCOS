@@ -198,6 +198,44 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
     auto view = m_globalStateStorage.fork();
     auto headBlockNumber = co_await bcos::ledger::getBlockNumber(
         view, forkchoiceState.headBlockHash, bcos::ledger::fromStorage);
+    // S6: an imported (not-yet-canonical) head is a legal FCU target — the OP lookup
+    // falls through to the ImportedStore before answering SYNCING (design §4.2 row 2).
+    bool headIsImported = false;
+    if (!headBlockNumber.has_value())
+    {
+        if (auto importedHead = m_importedStore.get(forkchoiceState.headBlockHash);
+            importedHead.has_value())
+        {
+            headIsImported = true;
+            headBlockNumber = importedHead->number;
+        }
+        else
+        {
+            // Unknown head: SYNCING and nothing else (§4.5; CL resets, not success).
+            co_return ForkchoiceUpdatedResult{
+                .payloadStatus =
+                    makeStatus(PayloadValidationStatus::Syncing, std::nullopt, std::nullopt),
+                .payloadId = std::nullopt,
+            };
+        }
+    }
+    // SetCanonical BEFORE the safe/finalized resolution (geth order; design §4.2:
+    // "SetCanonical 先于 safe/finalized 检查") — the head is imported, so it cannot
+    // already be the canonical hash of its height (import never writes canonical keys).
+    if (headIsImported)
+    {
+        co_await canonicalizeImportedHead(forkchoiceState.headBlockHash);
+        // Fresh view over the new canonical flat: the safe/finalized checks below must
+        // resolve on the NEW chain, not the pre-SetCanonical one.
+        view = m_globalStateStorage.fork();
+        headBlockNumber = co_await bcos::ledger::getBlockNumber(
+            view, forkchoiceState.headBlockHash, bcos::ledger::fromStorage);
+        if (!headBlockNumber.has_value())
+        {
+            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                      "canonicalize did not make the head canonical"});
+        }
+    }
     // All-zero safe/finalized hashes are the Engine-API "not set" value: skip number
     // resolution and canonical checks for that field (op-geth SetSafe/SetFinalized are
     // only called for non-zero hashes). A missing HEAD is SYNCING; a non-zero
@@ -256,6 +294,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::updateForkc
         .finalizedCanonical = engine_common::forkchoiceHashIsCanonical(
             forkchoiceState.finalizedBlockHash, canonicalFinalizedHash),
     };
+    // OP lane: the tracker's non-linear policy bit (Task 2) — jumps, side-chain
+    // switches and old-head FCUs are legal; the default Eth contract is untouched.
+    resolved.allowNonLinearHead = true;
     const auto applyResult = m_tracker.applyForkchoice(resolved);
     if (applyResult == ForkchoiceApplyResult::Swallowed)
     {
@@ -1019,6 +1060,105 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
         m_lastExecutedHeader = executedHeader;
     }
     co_return makeStatus(PayloadValidationStatus::Valid, payload.blockHash, std::nullopt);
+}
+
+template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
+task::Task<void> OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::
+    canonicalizeImportedHead(const h256& headHash)
+{
+    namespace detail = bcos::evm::engine::detail;
+    using MutableStorageT = typename GlobalStateStorageType::MutableStorage;
+
+    // Collect the chain head → ... → child-of-canonical (store walk); the parent is
+    // canonical when HASH_2_NUMBER resolves it (import never writes that key).
+    std::vector<ImportedBlock> chain;  // genesis-side first after the reverse below
+    {
+        auto view = m_globalStateStorage.fork();
+        auto cursor = m_importedStore.get(headHash);
+        if (!cursor.has_value())
+        {
+            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                      "canonicalize: head is not in the ImportedStore"});
+        }
+        while (true)
+        {
+            chain.push_back(*cursor);
+            auto const parentNumber = co_await bcos::ledger::getBlockNumber(
+                view, cursor->parent, bcos::ledger::fromStorage);
+            if (parentNumber.has_value())
+            {
+                break;
+            }
+            auto parent = m_importedStore.get(cursor->parent);
+            if (!parent.has_value())
+            {
+                // A switch/reorg SetCanonical (head not a linear extension of the
+                // canonical tip) needs the §4.4.5 replay — not the forward merge.
+                BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                          "canonicalize: imported chain does not root in the "
+                                          "canonical chain (switch case is Task 7)"});
+            }
+            cursor = parent;
+        }
+    }
+    std::reverse(chain.begin(), chain.end());
+
+    using MutableStorageT = typename GlobalStateStorageType::MutableStorage;
+    for (auto& block : chain)
+    {
+        auto delta = std::static_pointer_cast<MutableStorageT>(block.storageDelta);
+        if (!delta)
+        {
+            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                      "canonicalize: imported block has no storage delta"});
+        }
+        auto header =
+            m_blockFactory->blockHeaderFactory()->createBlockHeader(block.headerBytes);
+        if (header->number() != block.number)
+        {
+            BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                      "canonicalize: stored header height mismatch"});
+        }
+
+        // This height's canonical keys ride the SAME merge as the block's delta
+        // (一块一配): HASH_2_NUMBER / NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER, plus
+        // SYS_CURRENT_STATE on the head's own merge.
+        bcos::storage::Entry numberEntry;
+        numberEntry.set(std::to_string(block.number));
+        co_await storage2::writeOne(*delta,
+            executor_v1::StateKey{bcos::ledger::SYS_HASH_2_NUMBER,
+                bcos::concepts::bytebuffer::toView(block.hash)},
+            std::move(numberEntry));
+        bcos::storage::Entry hashEntry;
+        hashEntry.set(block.hash.asBytes());
+        co_await storage2::writeOne(*delta,
+            executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_HASH,
+                std::to_string(block.number)},
+            std::move(hashEntry));
+        bcos::storage::Entry headerEntry;
+        headerEntry.set(block.headerBytes);
+        co_await storage2::writeOne(*delta,
+            executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER,
+                std::to_string(block.number)},
+            std::move(headerEntry));
+        if (block.hash == headHash)
+        {
+            bcos::storage::Entry currentEntry;
+            currentEntry.set(std::to_string(block.number));
+            co_await storage2::writeOne(*delta,
+                executor_v1::StateKey{bcos::ledger::SYS_CURRENT_STATE,
+                    bcos::ledger::SYS_KEY_CURRENT_NUMBER},
+                std::move(currentEntry));
+        }
+        // The imported chain never occupies the MLS pending deque — mergeToBackends
+        // (design §4.2: 不要对空 deque 调 mergeBackStorage).
+        co_await m_globalStateStorage.mergeToBackends(*delta);
+    }
+
+    if (m_delegate)
+    {
+        m_delegate->canonicalizedTo(chain.back().number);
+    }
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>

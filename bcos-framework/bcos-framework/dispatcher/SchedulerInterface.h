@@ -106,6 +106,11 @@ public:
     // this boundary (the real scheduler casts to its own MultiLayerStorage mutable
     // type; empty = parent is canonical). Receipts are attached to @p block; the
     // block's own storage delta returns type-erased for the caller's ImportedStore.
+    // S6 OP lane only (after the engine's SetCanonical merged an imported chain):
+    // watermarks (lastCommitted / lastExecuted) move to @p number so the scheduler's
+    // continuity view agrees with the new canonical tip. Default: no-op (Eth).
+    virtual void canonicalizedTo(bcos::protocol::BlockNumber number) { (void)number; }
+
     // Default: unsupported — the Eth/baseline schedulers have no import lane.
     virtual void importExecute(bcos::protocol::Block::Ptr block,
         std::vector<std::shared_ptr<void>> const& parentDeltas,

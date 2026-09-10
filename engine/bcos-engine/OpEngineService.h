@@ -253,6 +253,15 @@ private:
 
     task::Task<PayloadStatus> runOpNewPayloadSteps(const NewPayloadRequest& request);
 
+    /// S6 SetCanonical, forward case: merge the imported chain rooting at the
+    /// canonical tip up to @p headHash — per block, the block's own delta carries
+    /// its canonical keys (HASH_2_NUMBER / NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER)
+    /// and merges once (一块一配, design §4.2/§4.4.4); SYS_CURRENT_STATE lands with
+    /// the head's merge. Throws on any failure — the FCU caller must not answer
+    /// VALID (rollback to a consistent plane is the caller's restart story; the
+    /// §5 matrix gates the happy paths).
+    task::Task<void> canonicalizeImportedHead(const h256& headHash);
+
     bcos::protocol::Block::Ptr buildOpBlock(
         const ExecutionPayload& payload, bcos::protocol::BlockHeader::Ptr header);
 

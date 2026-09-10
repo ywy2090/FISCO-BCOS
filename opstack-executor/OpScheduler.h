@@ -177,6 +177,16 @@ public:
         }(this, std::move(block), parentDeltas, std::move(callback)));
     }
 
+    /// S6: the engine's SetCanonical merged the imported chain through this
+    /// scheduler's storage; move the continuity watermarks to the new tip.
+    void canonicalizedTo(bcos::protocol::BlockNumber number) override
+    {
+        m_lastCommittedBlockNumber.store(number);
+        m_lastExecutedBlockNumber.store(number);
+        OP_SCHEDULER_LOG(INFO) << "Canonicalized to " << number
+                               << " (imported chain merged by the engine)";
+    }
+
     void status(
         std::function<void(Error::Ptr, bcos::protocol::Session::ConstPtr)> callback) override
     {

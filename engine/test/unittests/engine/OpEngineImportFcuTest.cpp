@@ -429,4 +429,63 @@ BOOST_AUTO_TEST_CASE(ImportExecuteStacksParentDeltasWithoutCanonicalWrites)
     BOOST_CHECK(header2->stateRoot() != header2Genesis->stateRoot());
 }
 
+// ---- S5 Task 5: FCU 认 imported 哈希 + 原子 SetCanonical ----
+
+// newPayload(B1) 后 latest 仍 G；FCU(head=B1) 一次 VALID：SYS_CURRENT_STATE 推到 1、
+// NUMBER_2_HASH[1]==B1、tracker head==B1、world stateRoot == B1.stateRoot。
+BOOST_AUTO_TEST_CASE(FcuToImportedTipCanonicalizes)
+{
+    ImportServiceFixture f;
+
+    auto request = f.validRequest(fixtureHeadHash(), 1);
+    auto const blockHash = request.executionPayload.blockHash;
+    auto const importedStateRoot = request.executionPayload.stateRoot;
+    auto status = bcos::task::syncWait(f.service.newPayload(request, 4));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // latest 仍 G：committed tip 0，tracker safe 0。
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        0);
+    BOOST_CHECK_EQUAL(*f.service.getSafeBlockNumber(), 0);
+
+    bcos::engine::ForkchoiceState forkchoice{blockHash, blockHash, fixtureHeadHash()};
+    auto fcu = bcos::task::syncWait(f.service.updateForkchoice(forkchoice, nullptr, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(fcu.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // SYS_CURRENT_STATE == 1；NUMBER_2_HASH[1] == B1。
+    auto canonicalView = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(
+                          canonicalView, bcos::ledger::fromStorage)),
+        1);
+    auto canonicalHash = bcos::task::syncWait(
+        bcos::ledger::getBlockHash(canonicalView, 1, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(canonicalHash.has_value());
+    BOOST_CHECK_EQUAL(canonicalHash->hex(), blockHash.hex());
+
+    // tracker head == B1（safe 推到 1）。
+    BOOST_REQUIRE(f.service.getSafeBlockNumber().has_value());
+    BOOST_CHECK_EQUAL(*f.service.getSafeBlockNumber(), 1);
+
+    // world stateRoot == B1.stateRoot。
+    bcos::evm::evmstate::Storage2State<ViewType> state(canonicalView);
+    auto const root = bcos::evm::stateRootOf(state);
+    BOOST_CHECK_EQUAL(bcos::h256(root.bytes, 32).hex(), importedStateRoot.hex());
+}
+
+// FCU 未知头（规范表与 ImportedStore 都没有）→ SYNCING，无 payloadId。
+BOOST_AUTO_TEST_CASE(FcuUnknownHeadIsSyncing)
+{
+    ImportServiceFixture f;
+    bcos::engine::ForkchoiceState forkchoice{
+        bcos::h256(0xfeedbeef), bcos::h256(0xfeedbeef), fixtureHeadHash()};
+    auto fcu = bcos::task::syncWait(f.service.updateForkchoice(forkchoice, nullptr, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(fcu.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing));
+    BOOST_CHECK(!fcu.payloadId.has_value());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
