@@ -34,8 +34,8 @@ struct ImportedBlock
     bcos::h256 hash;
     bcos::h256 parent;
     bcos::protocol::BlockNumber number{};
-    bcos::bytes headerBytes;  // encoded header, read back BY HASH (never by number)
-    std::vector<bcos::bytes> txs;        // ordered signed envelopes
+    bcos::bytes headerBytes;       // encoded header, read back BY HASH (never by number)
+    std::vector<bcos::bytes> txs;  // ordered signed envelopes
     std::vector<bcos::bytes> receipts;
     // Per-block storage delta relative to parent. Task 3 replaces this placeholder
     // with the real executor delta type; `put` success == the delta exists.
