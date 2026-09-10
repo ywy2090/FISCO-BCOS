@@ -245,10 +245,13 @@ private:
                version <= static_cast<std::uint32_t>(ApiVersion::V3);
     }
 
-    /// OP newPayload is Isthmus-only (V4). Not the Eth V1..V4 window.
+    /// OP newPayload window: V2 from Bedrock, V3 at Ecotone, V4 at Isthmus. Which one
+    /// is live comes from the payload timestamp (engineApiFor); V1 stays out because
+    /// op-node's first fork is Bedrock, whose newPayload is V2.
     static bool isNewPayloadVersionSupported(std::uint32_t version)
     {
-        return version == static_cast<std::uint32_t>(ApiVersion::V4);
+        return version >= static_cast<std::uint32_t>(ApiVersion::V2) &&
+               version <= static_cast<std::uint32_t>(ApiVersion::V4);
     }
 
     /// `timestampSeconds` is Unix seconds (callers convert internal ms first).

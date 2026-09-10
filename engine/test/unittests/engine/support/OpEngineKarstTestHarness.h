@@ -433,8 +433,8 @@ constexpr bcos::protocol::BlockNumber c_headOrderingBlockNumber = 40;
 constexpr bcos::protocol::BlockNumber c_safeOrderingBlockNumber = 41;
 constexpr bcos::protocol::BlockNumber c_finalizedOrderingBlockNumber = 42;
 
-constexpr char const* c_opV4UnsupportedForkMessage =
-    "Isthmus+ payloads require engine_newPayloadV4 (JSON-RPC -38005)";
+constexpr char const* c_opNewPayloadVersionMismatchMessage =
+    "newPayload version does not match the OP Engine API profile at payload timestamp";
 constexpr char const* c_safeAboveHeadMessage =
     "Forkchoice safe block number must not exceed head block number";
 constexpr char const* c_finalizedAboveHeadMessage =

@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(op_v3_new_payload_throws_unsupported_fork)
     BOOST_CHECK_EXCEPTION(bcos::task::syncWait(pair.service.newPayload(request, 3)),
         bcos::engine::UnsupportedFork, [&](bcos::engine::UnsupportedFork const& e) {
             auto const* comment = boost::get_error_info<bcos::errinfo_comment>(e);
-            return comment != nullptr && *comment == c_opV4UnsupportedForkMessage;
+            return comment != nullptr && *comment == c_opNewPayloadVersionMismatchMessage;
         });
 }
 

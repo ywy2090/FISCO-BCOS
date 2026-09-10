@@ -763,13 +763,19 @@ task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
 {
     if (!isNewPayloadVersionSupported(version))
     {
-        BOOST_THROW_EXCEPTION(
-            UnsupportedFork{} << bcos::errinfo_comment{
-                "Isthmus+ payloads require engine_newPayloadV4 (JSON-RPC -38005)"});
+        BOOST_THROW_EXCEPTION(UnsupportedFork{} << bcos::errinfo_comment{
+                                  "unsupported newPayload method version"});
     }
-    // Isthmus+ newPayload stays V4 (Karst does not bump). Profile newPayload is
-    // V4 at every fork; a second timestamp-gated comparison is dead and would
-    // also change V3 + illegal-timestamp from UnsupportedFork into a fork error.
+    // The pair check stays OUTSIDE the try below: that catch (...) would fold
+    // UnsupportedFork into an internal error (-32603) instead of -38005.
+    uint64_t const tsSec = unixSecondsFromInternalMillis(request.executionPayload.timestamp);
+    auto const ctx = requireOpEngineForkAt(tsSec);
+    if (version != static_cast<std::uint32_t>(ctx.api.newPayload))
+    {
+        BOOST_THROW_EXCEPTION(UnsupportedFork{} << bcos::errinfo_comment{
+                                  "newPayload version does not match the OP Engine API profile "
+                                  "at payload timestamp"});
+    }
 
     try
     {
