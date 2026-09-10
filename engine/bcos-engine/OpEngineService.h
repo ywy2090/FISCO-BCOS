@@ -103,12 +103,21 @@ inline std::optional<std::string> requireL1AttributesDeposit(
     }
     return std::nullopt;
 }
+/// OP-only newPayload shape rules for the (method version, fork) pair the timestamp
+/// selects. The Ethereum-side fields follow the method's window (V2 = pre-Ecotone,
+/// V3 = Ecotone..Isthmus, V4 = Isthmus+); the OP extras follow the fork (withdrawals
+/// absent before Canyon, blobGasUsed zero before Jovian, extraData layout).
 std::optional<std::string> validateOpNewPayloadRequest(
-    const NewPayloadRequest& request, bool jovianActive);
+    const NewPayloadRequest& request, OpForkId forkId, std::uint32_t version);
 void applyOpHeaderConstants(bcos::protocol::BlockHeader& header);
+/// Rebuild the Eth-shaped OP header from a payload. The fork decides which header
+/// fields exist at all (pre-Canyon has no withdrawals hash, pre-Ecotone no blob pair
+/// or beacon root, pre-Isthmus no requests hash), so @p forkId is passed in rather
+/// than inferred from whichever fields the payload happens to carry.
 bcos::protocol::BlockHeader::Ptr rebuildOpEthHeader(
     const bcos::protocol::BlockHeaderFactory::Ptr& factory, const ExecutionPayload& payload,
-    const h256& transactionsRoot, const h256& parentBeaconBlockRoot);
+    const h256& transactionsRoot, std::optional<h256> const& parentBeaconBlockRoot,
+    OpForkId forkId);
 std::optional<bcostars::Transaction> opEnvelopeToTars(
     bcos::bytes const& env, bcos::crypto::HashType const& txHash);
 }  // namespace engine_common::op
@@ -269,7 +278,10 @@ private:
     task::Task<PayloadStatus> handleOpNewPayload(
         const NewPayloadRequest& request, std::uint32_t version);
 
-    task::Task<PayloadStatus> runOpNewPayloadSteps(const NewPayloadRequest& request);
+    /// @p ctx and @p version come from the caller's resolved fork context: the pair
+    /// gate already matched them, so the steps reuse it instead of re-resolving.
+    task::Task<PayloadStatus> runOpNewPayloadSteps(
+        const NewPayloadRequest& request, const EngineForkContext& ctx, std::uint32_t version);
 
     /// S6 SetCanonical, forward case: merge the imported chain rooting at the
     /// canonical tip up to @p headHash — per block, the block's own delta carries

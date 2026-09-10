@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(holocene_zero_params_encode_canyon_and_pass_newpayload_gate
     auto extraData = engine::detail::encodeOptimismExtraData(holoceneAttributes(bytes(8, 0)));
     BOOST_REQUIRE_EQUAL(toHexStringWithPrefix(extraData), "0x00000000fa00000006");
     BOOST_CHECK(!engine_common::op::validateOpNewPayloadRequest(
-        makeIsthmusNewPayload(extraData), /*jovianActive=*/false));
+        makeIsthmusNewPayload(extraData), OpForkId::Isthmus, 4));
 }
 
 BOOST_AUTO_TEST_CASE(holocene_header_extra_data_matches_validate_holocene_1559_params)
@@ -145,36 +145,36 @@ BOOST_AUTO_TEST_CASE(holocene_header_extra_data_matches_validate_holocene_1559_p
     // calcOpBaseFee enforces on the parent (finding AO). The lenient attribute-side
     // 0,0 acceptance does NOT extend to headers: a zero-elasticity or zero-denominator
     // head can never be extended by the next FCU build / child newPayload.
-    auto accept = [](bytes extra, bool jovian) {
+    auto accept = [](bytes extra, OpForkId forkId) {
         return !engine_common::op::validateOpNewPayloadRequest(
-            makeIsthmusNewPayload(std::move(extra)), jovian);
+            makeIsthmusNewPayload(std::move(extra)), forkId, 4);
     };
-    auto rejectContains = [](bytes extra, bool jovian, std::string_view needle) {
+    auto rejectContains = [](bytes extra, OpForkId forkId, std::string_view needle) {
         auto error = engine_common::op::validateOpNewPayloadRequest(
-            makeIsthmusNewPayload(std::move(extra)), jovian);
+            makeIsthmusNewPayload(std::move(extra)), forkId, 4);
         BOOST_REQUIRE(error.has_value());
         BOOST_CHECK(error->find(std::string(needle)) != std::string::npos);
     };
 
-    BOOST_CHECK(accept(fromHex("00000000fa00000006"), false));
-    rejectContains(fromHex("000000000000000000"), false, "non-zero EIP-1559");
-    rejectContains(fromHex("00000000fa00000000"), false, "non-zero EIP-1559");
-    rejectContains(fromHex("000000000000000006"), false, "non-zero EIP-1559");
+    BOOST_CHECK(accept(fromHex("00000000fa00000006"), OpForkId::Isthmus));
+    rejectContains(fromHex("000000000000000000"), OpForkId::Isthmus, "non-zero EIP-1559");
+    rejectContains(fromHex("00000000fa00000000"), OpForkId::Isthmus, "non-zero EIP-1559");
+    rejectContains(fromHex("000000000000000006"), OpForkId::Isthmus, "non-zero EIP-1559");
 }
 
 BOOST_AUTO_TEST_CASE(op_newpayload_rejects_extradata_length_and_version)
 {
-    auto rejectContains = [](bytes extra, bool jovian, std::string_view needle) {
+    auto rejectContains = [](bytes extra, OpForkId forkId, std::string_view needle) {
         auto error = engine_common::op::validateOpNewPayloadRequest(
-            makeIsthmusNewPayload(std::move(extra)), jovian);
+            makeIsthmusNewPayload(std::move(extra)), forkId, 4);
         BOOST_REQUIRE(error.has_value());
         BOOST_CHECK(error->find(std::string(needle)) != std::string::npos);
     };
 
-    rejectContains(fromHex("00000000fa000000"), false, "exactly 9 bytes");
-    rejectContains(fromHex("01000000fa00000006"), false, "0x00");
-    rejectContains(fromHex("00000000fa00000006"), true, "exactly 17 bytes");
-    rejectContains(fromHex("00000000fa000000060000000000000000"), true, "0x01");
+    rejectContains(fromHex("00000000fa000000"), OpForkId::Isthmus, "exactly 9 bytes");
+    rejectContains(fromHex("01000000fa00000006"), OpForkId::Isthmus, "0x00");
+    rejectContains(fromHex("00000000fa00000006"), OpForkId::Jovian, "exactly 17 bytes");
+    rejectContains(fromHex("00000000fa000000060000000000000000"), OpForkId::Jovian, "0x01");
 }
 
 BOOST_AUTO_TEST_CASE(attrs_holocene_pairing_matches_op_geth)
@@ -228,7 +228,7 @@ BOOST_AUTO_TEST_CASE(newpayload_rejects_blob_type_as_fisco_op_policy)
     auto request = makeIsthmusNewPayload(fromHex("00000000fa00000006"));
     request.executionPayload.transactions.push_back(
         EngineTransaction{.raw = bytes{0x03, 0xaa}, .decoded = nullptr});
-    auto error = engine_common::op::validateOpNewPayloadRequest(request, /*jovianActive=*/false);
+    auto error = engine_common::op::validateOpNewPayloadRequest(request, OpForkId::Isthmus, 4);
     BOOST_REQUIRE(error.has_value());
     BOOST_CHECK(error->find("blob transactions are not allowed") != std::string::npos);
 }
@@ -240,7 +240,7 @@ BOOST_AUTO_TEST_CASE(validate_op_newpayload_request_static_rules)
     auto withViolation = [](auto&& mutate) {
         auto request = makeIsthmusNewPayload(fromHex("00000000fa00000006"));
         mutate(request);
-        return engine_common::op::validateOpNewPayloadRequest(request, /*jovianActive=*/false);
+        return engine_common::op::validateOpNewPayloadRequest(request, OpForkId::Isthmus, 4);
     };
     auto expectReject = [](std::optional<std::string> const& error, std::string const& needle) {
         BOOST_REQUIRE_MESSAGE(error.has_value(), "expected a reject mentioning " << needle);
@@ -406,28 +406,28 @@ BOOST_AUTO_TEST_CASE(op_newpayload_rejects_missing_blob_fields_and_wide_gas_limi
     auto missingBlob = base;
     missingBlob.executionPayload.blobGasUsed = std::nullopt;
     auto missingBlobError =
-        engine_common::op::validateOpNewPayloadRequest(missingBlob, /*jovianActive=*/false);
+        engine_common::op::validateOpNewPayloadRequest(missingBlob, OpForkId::Isthmus, 4);
     BOOST_REQUIRE(missingBlobError.has_value());
     BOOST_CHECK_EQUAL(*missingBlobError, "blobGasUsed must be present on the OP path");
 
     auto missingExcess = base;
     missingExcess.executionPayload.excessBlobGas = std::nullopt;
     auto missingExcessError =
-        engine_common::op::validateOpNewPayloadRequest(missingExcess, /*jovianActive=*/false);
+        engine_common::op::validateOpNewPayloadRequest(missingExcess, OpForkId::Isthmus, 4);
     BOOST_REQUIRE(missingExcessError.has_value());
     BOOST_CHECK_EQUAL(*missingExcessError, "excessBlobGas must be present and zero on the OP path");
 
     auto overSigned = base;
     overSigned.executionPayload.gasLimit = u256(1) << 63;
     auto overSignedError =
-        engine_common::op::validateOpNewPayloadRequest(overSigned, /*jovianActive=*/false);
+        engine_common::op::validateOpNewPayloadRequest(overSigned, OpForkId::Isthmus, 4);
     BOOST_REQUIRE(overSignedError.has_value());
     BOOST_CHECK_EQUAL(*overSignedError, "gasLimit exceeds the maximum block gas limit (2^63-1)");
 
     auto overUint64 = base;
     overUint64.executionPayload.gasLimit = u256(1) << 64;
     auto overUint64Error =
-        engine_common::op::validateOpNewPayloadRequest(overUint64, /*jovianActive=*/false);
+        engine_common::op::validateOpNewPayloadRequest(overUint64, OpForkId::Isthmus, 4);
     BOOST_REQUIRE(overUint64Error.has_value());
     BOOST_CHECK_EQUAL(
         *overUint64Error, "gasLimit exceeds the uint64 range of the ETH header field");
@@ -438,17 +438,17 @@ BOOST_AUTO_TEST_CASE(op_newpayload_accepts_announced_withdrawals_root)
     // Presence is required; the announced root is not pinned to emptyRootHash.
     // Equality vs the executed MessagePasser storage root is checked after execute.
     auto request = makeIsthmusNewPayload(fromHex("00000000fa00000006"));
-    BOOST_CHECK(!engine_common::op::validateOpNewPayloadRequest(request, /*jovianActive=*/false));
+    BOOST_CHECK(!engine_common::op::validateOpNewPayloadRequest(request, OpForkId::Isthmus, 4));
 
     auto missing = request;
     missing.executionPayload.withdrawalsRoot = std::nullopt;
     auto missingError =
-        engine_common::op::validateOpNewPayloadRequest(missing, /*jovianActive=*/false);
+        engine_common::op::validateOpNewPayloadRequest(missing, OpForkId::Isthmus, 4);
     BOOST_REQUIRE(missingError.has_value());
     BOOST_CHECK(missingError->find("withdrawalsRoot") != std::string::npos);
 
     request.executionPayload.withdrawalsRoot = h256(1);
-    BOOST_CHECK(!engine_common::op::validateOpNewPayloadRequest(request, /*jovianActive=*/false));
+    BOOST_CHECK(!engine_common::op::validateOpNewPayloadRequest(request, OpForkId::Isthmus, 4));
 }
 
 BOOST_AUTO_TEST_CASE(op_fcu_attrs_reject_gas_limit_above_signed_max)

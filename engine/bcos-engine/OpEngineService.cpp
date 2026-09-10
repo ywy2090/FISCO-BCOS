@@ -19,6 +19,7 @@
 
 #include "OpEngineService.h"
 
+#include "EngineServiceCommon.h"
 #include <bcos-codec/rlp/RLPDecode.h>
 #include <bcos-framework/engine/RawTransactionDispatch.h>
 #include <bcos-rlp-protocol/Web3Transaction.h>
@@ -172,7 +173,7 @@ std::optional<std::string> validateOpPayloadAttributes(
 }
 
 std::optional<std::string> validateOpNewPayloadRequest(
-    const NewPayloadRequest& request, bool jovianActive)
+    const NewPayloadRequest& request, OpForkId forkId, std::uint32_t version)
 {
     const auto& payload = request.executionPayload;
 
@@ -190,33 +191,78 @@ std::optional<std::string> validateOpNewPayloadRequest(
             return error;
         }
     }
-    if (!payload.withdrawals.has_value() || !payload.withdrawals->empty())
+    // Shanghai's withdrawal list appears at Canyon, so "absent" and "present but
+    // empty" are different contracts: Bedrock/Regolith payloads omit the field
+    // entirely (op-geth NewPayloadV2 before Shanghai expects nil, after it empty).
+    if (forkId >= OpForkId::Canyon)
     {
-        return std::string("withdrawals must be present and empty on the OP path");
+        if (!payload.withdrawals.has_value() || !payload.withdrawals->empty())
+        {
+            return std::string("withdrawals must be present and empty on the OP path");
+        }
+    }
+    else if (payload.withdrawals.has_value())
+    {
+        return std::string("withdrawals must be absent before the Canyon fork");
     }
     if (!request.expectedBlobVersionedHashes.empty())
     {
         return std::string("expectedBlobVersionedHashes must be an empty array on the OP path");
     }
-    if (!request.parentBeaconBlockRoot.has_value())
+    // Cancun's fields arrive with Ecotone (V3): the beacon root and the blob pair.
+    if (version >= static_cast<std::uint32_t>(ApiVersion::V3))
     {
-        return std::string("parentBeaconBlockRoot must be a 32-byte hash for newPayloadV4");
+        if (!request.parentBeaconBlockRoot.has_value())
+        {
+            return std::string("parentBeaconBlockRoot must be a 32-byte hash for newPayloadV3+");
+        }
+        if (!payload.excessBlobGas.has_value() || *payload.excessBlobGas != 0)
+        {
+            return std::string("excessBlobGas must be present and zero on the OP path");
+        }
+        if (!payload.blobGasUsed.has_value())
+        {
+            return std::string("blobGasUsed must be present on the OP path");
+        }
     }
-    if (!payload.withdrawalsRoot.has_value())
+    else
     {
-        return std::string("withdrawalsRoot is required on the OP path (Isthmus+)");
+        if (request.parentBeaconBlockRoot.has_value())
+        {
+            return std::string("parentBeaconBlockRoot must be absent before the Ecotone fork");
+        }
+        if (payload.excessBlobGas.has_value() || payload.blobGasUsed.has_value())
+        {
+            return std::string("blob gas fields must be absent before the Ecotone fork");
+        }
     }
-    if (!payload.excessBlobGas.has_value() || *payload.excessBlobGas != 0)
+    // Prague's additions arrive with Isthmus (V4): the withdrawals root and the
+    // (present-but-empty) execution requests list.
+    if (version >= static_cast<std::uint32_t>(ApiVersion::V4))
     {
-        return std::string("excessBlobGas must be present and zero on the OP path");
+        if (!payload.withdrawalsRoot.has_value())
+        {
+            return std::string("withdrawalsRoot is required on the OP path (Isthmus+)");
+        }
+        // Same reasoning as the Eth sibling (EngineServiceImpl.h): the wire already
+        // enforces the fourth newPayloadV4 parameter (parseNewPayloadRequest always
+        // sets the list for V4), so accepting a missing list here would hand
+        // in-process callers a laxer Isthmus contract than the wire.
+        if (!request.executionRequests.has_value() || !request.executionRequests->empty())
+        {
+            return std::string("executionRequests must be a present-but-empty list on the OP path");
+        }
     }
-    if (!payload.blobGasUsed.has_value())
+    else
     {
-        return std::string("blobGasUsed must be present on the OP path");
-    }
-    if (!jovianActive && *payload.blobGasUsed != 0)
-    {
-        return std::string("blobGasUsed must be zero before Jovian (OP Isthmus)");
+        if (payload.withdrawalsRoot.has_value())
+        {
+            return std::string("withdrawalsRoot must be absent before the Isthmus fork");
+        }
+        if (request.executionRequests.has_value())
+        {
+            return std::string("executionRequests must be absent before the Isthmus fork");
+        }
     }
     if (payload.blockNumber < 0)
     {
@@ -230,63 +276,39 @@ std::optional<std::string> validateOpNewPayloadRequest(
     {
         return std::string(c_opMaxBlockGasLimitMessage);
     }
+    if (auto error = validateOpExtraDataForLayout(payload.extraData, extraDataLayoutFor(forkId)))
     {
-        const auto& extra = payload.extraData;
-        if (jovianActive)
-        {
-            if (extra.size() != 17)
-            {
-                return std::string("extraData must be exactly 17 bytes on the OP path (Jovian)");
-            }
-            if (extra[0] != 0x01)
-            {
-                return std::string("extraData version byte must be 0x01 on the OP path (Jovian)");
-            }
-        }
-        else
-        {
-            if (extra.size() != 9)
-            {
-                return std::string("extraData must be exactly 9 bytes on the OP path (Isthmus)");
-            }
-            if (extra[0] != 0x00)
-            {
-                return std::string("extraData version byte must be 0x00 on the OP path (Isthmus)");
-            }
-        }
-        // Shared Holocene/Jovian length/version/nonzero rule (finding BM). Fork-specific
-        // messages above keep the Isthmus-vs-Jovian length discriminator.
-        if (auto error = validateOpExtraDataShape(extra, /*allowEmpty=*/false))
-        {
-            return "executionPayload.extraData " + *error;
-        }
+        return "executionPayload.extraData " + *error;
     }
     if (!narrowU256ToU64(payload.gasUsed).has_value())
     {
         return std::string("gasUsed exceeds the uint64 range of the ETH header field");
     }
-    if (!narrowU256ToU64(*payload.blobGasUsed).has_value())
+    // blobGasUsed is guaranteed present by the V3+ branch above.
+    if (version >= static_cast<std::uint32_t>(ApiVersion::V3))
     {
-        return std::string("blobGasUsed exceeds the uint64 range of the ETH header field");
-    }
-    if (jovianActive && *payload.blobGasUsed > payload.gasLimit)
-    {
-        return std::string("DA footprint (blobGasUsed) exceeds the block gas limit");
-    }
-    // Same reasoning as the Eth sibling (EngineServiceImpl.h): the wire already enforces
-    // the fourth newPayloadV4 parameter (parseNewPayloadRequest always sets the list for
-    // V4), so accepting a missing list here would hand in-process callers a laxer
-    // Isthmus contract than the wire — executionRequests must be present and empty.
-    if (!request.executionRequests.has_value() || !request.executionRequests->empty())
-    {
-        return std::string("executionRequests must be a present-but-empty list on the OP path");
+        if (!narrowU256ToU64(*payload.blobGasUsed).has_value())
+        {
+            return std::string("blobGasUsed exceeds the uint64 range of the ETH header field");
+        }
+        // The DA footprint only enters the fee from Jovian (max(gasUsed, blobGasUsed)),
+        // so before that the field must be zero.
+        if (forkId < OpForkId::Jovian && *payload.blobGasUsed != 0)
+        {
+            return std::string("blobGasUsed must be zero before Jovian (OP Isthmus)");
+        }
+        // Jovian meters the DA footprint, so an oversized one is a reject from there on.
+        if (forkId >= OpForkId::Jovian && *payload.blobGasUsed > payload.gasLimit)
+        {
+            return std::string("DA footprint (blobGasUsed) exceeds the block gas limit");
+        }
     }
     return std::nullopt;
 }
 
 bcos::protocol::BlockHeader::Ptr rebuildOpEthHeader(
     const bcos::protocol::BlockHeaderFactory::Ptr& factory, const ExecutionPayload& payload,
-    const h256& transactionsRoot, const h256& parentBeaconBlockRoot)
+    const h256& transactionsRoot, std::optional<h256> const& parentBeaconBlockRoot, OpForkId forkId)
 {
     // Intentionally NO setEthBlockVersion (unlike detail::finalizeEthBlockHeader): the OP
     // header is a FISCO BlockHeader whose ethBlockVersion stays NON_ETH, which is exactly
@@ -318,11 +340,29 @@ bcos::protocol::BlockHeader::Ptr rebuildOpEthHeader(
     header->setExtraData(payload.extraData);
     header->setPrevRandao(payload.prevRandao);
     header->setBaseFee(payload.baseFeePerGas);
-    header->setWithdrawalsRoot(payload.withdrawalsRoot.value());
-    header->setBlobGasUsed(payload.blobGasUsed.value());
-    header->setExcessBlobGas(bcos::u256(0));
-    header->setParentBeaconBlockRoot(parentBeaconBlockRoot);
-    header->setRequestsHash(engine_common::c_emptyRequestsHash);
+    // Header fields appear with their Ethereum fork, exactly as detail::finalizeEthBlockHeader
+    // does on the Eth lane: a pre-Canyon block carries no withdrawals hash, a pre-Ecotone
+    // block no blob pair or beacon root, a pre-Isthmus block no requests hash. Setting only
+    // what the fork defines is what makes the RLP match op-geth, whose corresponding header
+    // fields are optional/nil there. OP blocks carry no withdrawals, so the hash is always
+    // the empty-trie root.
+    if (forkId >= OpForkId::Canyon)
+    {
+        header->setWithdrawalsRoot(bcos::engine::detail::withdrawalsRootFor(payload));
+    }
+    if (forkId >= OpForkId::Ecotone)
+    {
+        // Both are guaranteed by validateOpNewPayloadRequest (V3+) / the accepted attrs
+        // (V3 build), so .value() here matches detail::finalizeEthBlockHeader's own
+        // precondition style rather than silently building a hash for a bogus block.
+        header->setBlobGasUsed(payload.blobGasUsed.value());
+        header->setExcessBlobGas(bcos::u256(0));
+        header->setParentBeaconBlockRoot(parentBeaconBlockRoot.value());
+    }
+    if (forkId >= OpForkId::Isthmus)
+    {
+        header->setRequestsHash(engine_common::c_emptyRequestsHash);
+    }
     applyOpHeaderConstants(*header);
     return header;
 }

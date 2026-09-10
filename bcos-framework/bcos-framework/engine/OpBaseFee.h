@@ -112,11 +112,21 @@ inline std::optional<std::string> validateOpExtraDataForLayout(
         {
             return "must be exactly 9 bytes (Holocene/Isthmus)";
         }
+        // Name the expected version byte here: the shared shape rule below can only
+        // say "does not match length", while this caller knows which fork it expected.
+        if (extraData[0] != c_holoceneExtraDataVersion)
+        {
+            return "version byte must be 0x00 on the OP path (Holocene/Isthmus)";
+        }
         return validateOpExtraDataShape(extraData, /*allowEmpty=*/false);
     case OpExtraDataLayout::Jovian17:
         if (extraData.size() != c_jovianExtraDataBytes)
         {
             return "must be exactly 17 bytes (Jovian+)";
+        }
+        if (extraData[0] != c_jovianExtraDataVersion)
+        {
+            return "version byte must be 0x01 on the OP path (Jovian+)";
         }
         return validateOpExtraDataShape(extraData, /*allowEmpty=*/false);
     }

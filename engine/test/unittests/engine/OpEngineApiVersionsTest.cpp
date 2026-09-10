@@ -124,4 +124,70 @@ BOOST_AUTO_TEST_CASE(PreHoloceneAttrsAcceptMissingEip1559Params)
         !engine_common::op::validateOpPayloadAttributes(attrs, bcos::engine::OpForkId::Canyon));
 }
 
+// The payload shape follows the (method version, fork) pair: the Ethereum-side fields
+// (withdrawals list, beacon root, blob pair, withdrawalsRoot, execution requests)
+// arrive with the method's window, while the OP-specific extras key on the fork itself.
+BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2RegolithWithdrawalsMustBeAbsent)
+{
+    bcos::engine::NewPayloadRequest req;
+    req.executionPayload.timestamp = 0;
+    req.executionPayload.blockNumber = 1;
+    req.executionPayload.gasLimit = 30'000'000;
+    req.executionPayload.gasUsed = 0;
+    req.executionPayload.extraData.clear();
+    BOOST_CHECK(!engine_common::op::validateOpNewPayloadRequest(
+        req, bcos::engine::OpForkId::Regolith, static_cast<uint32_t>(ApiVersion::V2)));
+
+    req.executionPayload.withdrawals.emplace();
+    auto err = engine_common::op::validateOpNewPayloadRequest(
+        req, bcos::engine::OpForkId::Regolith, static_cast<uint32_t>(ApiVersion::V2));
+    BOOST_REQUIRE(err);
+}
+
+BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2CanyonWithdrawalsEmptyArray)
+{
+    bcos::engine::NewPayloadRequest req;
+    req.executionPayload.timestamp = 100'000;
+    req.executionPayload.blockNumber = 1;
+    req.executionPayload.gasLimit = 30'000'000;
+    req.executionPayload.gasUsed = 0;
+    req.executionPayload.withdrawals.emplace();
+    req.executionPayload.extraData.clear();
+    BOOST_CHECK(!engine_common::op::validateOpNewPayloadRequest(
+        req, bcos::engine::OpForkId::Canyon, static_cast<uint32_t>(ApiVersion::V2)));
+
+    req.executionPayload.withdrawals.reset();
+    auto err = engine_common::op::validateOpNewPayloadRequest(
+        req, bcos::engine::OpForkId::Canyon, static_cast<uint32_t>(ApiVersion::V2));
+    BOOST_REQUIRE(err);
+
+    req.executionPayload.withdrawals.emplace();
+    req.executionPayload.extraData = {0x00};
+    err = engine_common::op::validateOpNewPayloadRequest(
+        req, bcos::engine::OpForkId::Canyon, static_cast<uint32_t>(ApiVersion::V2));
+    BOOST_REQUIRE(err);
+    BOOST_CHECK(err->find("empty") != std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(ValidateNewPayloadV3RequiresBeaconNotWithdrawalsRoot)
+{
+    bcos::engine::NewPayloadRequest req;
+    req.executionPayload.timestamp = 200'000;
+    req.executionPayload.blockNumber = 1;
+    req.executionPayload.gasLimit = 30'000'000;
+    req.executionPayload.gasUsed = 0;
+    req.executionPayload.withdrawals.emplace();
+    req.executionPayload.blobGasUsed = 0;
+    req.executionPayload.excessBlobGas = 0;
+    req.parentBeaconBlockRoot = bcos::h256(1);
+    auto err = engine_common::op::validateOpNewPayloadRequest(
+        req, bcos::engine::OpForkId::Ecotone, static_cast<uint32_t>(ApiVersion::V3));
+    BOOST_CHECK(!err);
+
+    req.executionPayload.withdrawalsRoot = bcos::h256(2);
+    err = engine_common::op::validateOpNewPayloadRequest(
+        req, bcos::engine::OpForkId::Ecotone, static_cast<uint32_t>(ApiVersion::V3));
+    BOOST_REQUIRE(err);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

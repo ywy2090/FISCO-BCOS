@@ -679,9 +679,9 @@ BOOST_AUTO_TEST_CASE(op_newpayload_undecodable_envelope_is_short_invalid)
     request.executionPayload.baseFeePerGas = bcos::engine::calcOpBaseFee(*parentHeader, false);
     auto const txRoot = EngineOpScheduler::computeTxRoot(
         bcos::engine::detail::rawEnvelopes(request.executionPayload));
-    auto header =
-        bcos::engine::engine_common::op::rebuildOpEthHeader(pair.blockFactory->blockHeaderFactory(),
-            request.executionPayload, txRoot, *request.parentBeaconBlockRoot);
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        pair.blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+        *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
     request.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
 
     auto status = bcos::task::syncWait(pair.service.newPayload(request, 4));
@@ -1135,9 +1135,9 @@ BOOST_AUTO_TEST_CASE(op_newpayload_occupied_nontip_height_is_syncing)
     request.executionPayload.baseFeePerGas = bcos::engine::calcOpBaseFee(*parentHeader, false);
     auto const txRoot = EngineOpScheduler::computeTxRoot(
         bcos::engine::detail::rawEnvelopes(request.executionPayload));
-    auto header =
-        bcos::engine::engine_common::op::rebuildOpEthHeader(pair.blockFactory->blockHeaderFactory(),
-            request.executionPayload, txRoot, *request.parentBeaconBlockRoot);
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        pair.blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+        *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
     request.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
     BOOST_CHECK_NE(request.executionPayload.blockHash.hex(), occupied.hex());
 
@@ -1217,9 +1217,9 @@ BOOST_AUTO_TEST_CASE(op_newpayload_rejects_executed_withdrawals_root_mismatch)
     request.executionPayload.baseFeePerGas = bcos::engine::calcOpBaseFee(*parentHeader, false);
     auto const txRoot = EngineOpScheduler::computeTxRoot(
         bcos::engine::detail::rawEnvelopes(request.executionPayload));
-    auto header =
-        bcos::engine::engine_common::op::rebuildOpEthHeader(pair.blockFactory->blockHeaderFactory(),
-            request.executionPayload, txRoot, *request.parentBeaconBlockRoot);
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        pair.blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+        *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
     request.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
     BOOST_REQUIRE(request.executionPayload.withdrawalsRoot.has_value());
     BOOST_CHECK_EQUAL(
@@ -1243,9 +1243,9 @@ BOOST_AUTO_TEST_CASE(op_golden_vector_rebuild_matches_op_geth_block_hash)
     auto blockFactory = makeBlockFactory();
     auto const txRoot = EngineOpScheduler::computeTxRoot(
         bcos::engine::detail::rawEnvelopes(request.executionPayload));
-    auto header =
-        bcos::engine::engine_common::op::rebuildOpEthHeader(blockFactory->blockHeaderFactory(),
-            request.executionPayload, txRoot, *request.parentBeaconBlockRoot);
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+        *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
     auto const rebuilt = bcos::protocol::EthBlockHeader::computeHash(*header);
     auto const golden = bcos::h256(sample.golden["blockHash"].asString());
     BOOST_CHECK_EQUAL(rebuilt.hex(), golden.hex());

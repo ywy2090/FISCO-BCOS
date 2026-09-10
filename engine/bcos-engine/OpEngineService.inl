@@ -376,6 +376,12 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
     }
     auto payloadId = *payloadIdOpt;
 
+    // The header shape (and, below, the base-fee clock) key on the fork the attrs
+    // timestamp selects. Re-resolving here is safe: the caller already proved this
+    // timestamp resolves, and it is the same value.
+    auto const ctx = requireOpEngineForkAt(
+        unixSecondsFromInternalMillis(payloadAttributes.timestamp));
+
     u256 baseFee;
     uint64_t parentTsSec = 0;
     {
@@ -524,7 +530,7 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
         }
     }
 
-    auto const parentBeaconBlockRoot = payloadAttributes.parentBeaconBlockRoot.value();
+    auto const parentBeaconBlockRoot = payloadAttributes.parentBeaconBlockRoot;
 
     auto assemblePayload = [&](std::vector<bytes> candidateEnvelopes) {
         std::vector<EngineTransaction> candidateTransactions;
@@ -600,7 +606,8 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
         const auto transactionsRoot =
             SchedulerType::computeTxRoot(detail::rawEnvelopes(payload));
         auto provisionalHeader = engine_common::op::rebuildOpEthHeader(
-            m_blockFactory->blockHeaderFactory(), payload, transactionsRoot, parentBeaconBlockRoot);
+            m_blockFactory->blockHeaderFactory(), payload, transactionsRoot, parentBeaconBlockRoot,
+            ctx.forkId);
         bcos::protocol::Block::Ptr block;
         try
         {
@@ -674,9 +681,9 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
     {
         payload.blobGasUsed = *executedBlobGas;
     }
-    auto finalHeader =
-        engine_common::op::rebuildOpEthHeader(m_blockFactory->blockHeaderFactory(), payload,
-            SchedulerType::computeTxRoot(detail::rawEnvelopes(payload)), parentBeaconBlockRoot);
+    auto finalHeader = engine_common::op::rebuildOpEthHeader(m_blockFactory->blockHeaderFactory(),
+        payload, SchedulerType::computeTxRoot(detail::rawEnvelopes(payload)), parentBeaconBlockRoot,
+        ctx.forkId);
     payload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*finalHeader);
 
     bcos::protocol::Block::Ptr finalBlock;
@@ -774,7 +781,7 @@ task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
 
     try
     {
-        co_return co_await runOpNewPayloadSteps(request);
+        co_return co_await runOpNewPayloadSteps(request, ctx, version);
     }
     catch (const OpExecutionInternalError&)
     {
@@ -816,7 +823,9 @@ inline bcos::evm::engine::OpBlockCommitments commitmentsOfHeader(
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     task::Task<PayloadStatus> OpEngineService<MemPoolType, GlobalStateStorageType,
-        SchedulerType>::runOpNewPayloadSteps(const NewPayloadRequest& request)
+        SchedulerType>::runOpNewPayloadSteps(
+            const NewPayloadRequest& request, const EngineForkContext& ctx,
+            std::uint32_t version)
 {
     // No reset of m_lastExecutedHeader here: a duplicate newPayload
     // arriving while another one is mid-flight must not clear a header the
@@ -825,19 +834,17 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     // "last executed" semantics the accessor documents.
     auto const& payload = request.executionPayload;
 
-    if (auto validationError = engine_common::op::validateOpNewPayloadRequest(request,
-            m_scheduler
-                .configAt(unixSecondsFromInternalMillis(payload.timestamp))
-                .has_da_footprint);
+    if (auto validationError =
+            engine_common::op::validateOpNewPayloadRequest(request, ctx.forkId, version);
         validationError.has_value())
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, std::nullopt, validationError);
     }
 
     const auto transactionsRoot = SchedulerType::computeTxRoot(detail::rawEnvelopes(payload));
-    const auto ethHeader =
-        engine_common::op::rebuildOpEthHeader(m_blockFactory->blockHeaderFactory(), payload,
-            transactionsRoot, *request.parentBeaconBlockRoot);
+    const auto ethHeader = engine_common::op::rebuildOpEthHeader(
+        m_blockFactory->blockHeaderFactory(), payload, transactionsRoot,
+        request.parentBeaconBlockRoot, ctx.forkId);
     if (bcos::protocol::EthBlockHeader::computeHash(*ethHeader) != payload.blockHash)
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, std::nullopt,

@@ -549,8 +549,9 @@ inline bcos::engine::NewPayloadRequest makeValidIsthmusNewPayload(
     request.parentBeaconBlockRoot = bcos::h256{};
     auto const txRoot =
         EngineOpScheduler::computeTxRoot(bcos::engine::detail::rawEnvelopes(payload));
-    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
-        blockFactory.blockHeaderFactory(), payload, txRoot, *request.parentBeaconBlockRoot);
+    auto header =
+        bcos::engine::engine_common::op::rebuildOpEthHeader(blockFactory.blockHeaderFactory(),
+            payload, txRoot, *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
     payload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
     return request;
 }

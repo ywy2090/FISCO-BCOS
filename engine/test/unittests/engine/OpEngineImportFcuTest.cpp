@@ -344,9 +344,9 @@ struct ImportServiceFixture
         }
         auto const txRoot = EngineOpScheduler::computeTxRoot(
             bcos::engine::detail::rawEnvelopes(request.executionPayload));
-        auto header =
-            bcos::engine::engine_common::op::rebuildOpEthHeader(blockFactory->blockHeaderFactory(),
-                request.executionPayload, txRoot, *request.parentBeaconBlockRoot);
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+            *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
 
         // Probe: importExecute the identical block once, then copy the true
         // commitments into the payload (the replay then matches by construction).
@@ -404,9 +404,9 @@ struct ImportServiceFixture
 
         auto const filledTxRoot = EngineOpScheduler::computeTxRoot(
             bcos::engine::detail::rawEnvelopes(request.executionPayload));
-        auto filledHeader =
-            bcos::engine::engine_common::op::rebuildOpEthHeader(blockFactory->blockHeaderFactory(),
-                request.executionPayload, filledTxRoot, *request.parentBeaconBlockRoot);
+        auto filledHeader = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            blockFactory->blockHeaderFactory(), request.executionPayload, filledTxRoot,
+            *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
         request.executionPayload.blockHash =
             bcos::protocol::EthBlockHeader::computeHash(*filledHeader);
         // Record the FILLED (announced-content) header, not `executed`: the parent-chain
@@ -467,9 +467,9 @@ BOOST_AUTO_TEST_CASE(BadStateRootIsInvalidAndNotStored)
     request.executionPayload.stateRoot = bcos::h256(std::string(64, '9'));
     auto const txRoot = EngineOpScheduler::computeTxRoot(
         bcos::engine::detail::rawEnvelopes(request.executionPayload));
-    auto header =
-        bcos::engine::engine_common::op::rebuildOpEthHeader(f.blockFactory->blockHeaderFactory(),
-            request.executionPayload, txRoot, *request.parentBeaconBlockRoot);
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        f.blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+        *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
     request.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
 
     auto status = bcos::task::syncWait(f.service.newPayload(request, 4));
@@ -711,7 +711,7 @@ BOOST_AUTO_TEST_CASE(AncestorSiblingWhileTipStillAhead)
             bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
         auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
             f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
-            *requestBPrime.parentBeaconBlockRoot);
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
         requestBPrime.executionPayload.blockHash =
             bcos::protocol::EthBlockHeader::computeHash(*header);
     }
@@ -786,7 +786,7 @@ BOOST_AUTO_TEST_CASE(ImportedOverwriteWithDescendantsIsSyncing)
             bcos::engine::detail::rawEnvelopes(request1Prime.executionPayload));
         auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
             f.blockFactory->blockHeaderFactory(), request1Prime.executionPayload, txRoot,
-            *request1Prime.parentBeaconBlockRoot);
+            *request1Prime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
         request1Prime.executionPayload.blockHash =
             bcos::protocol::EthBlockHeader::computeHash(*header);
     }
@@ -836,7 +836,7 @@ BOOST_AUTO_TEST_CASE(FcuToNonCanonicalWithAttrsSetsCanonicalFirst)
             bcos::engine::detail::rawEnvelopes(requestBPrime.executionPayload));
         auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
             f.blockFactory->blockHeaderFactory(), requestBPrime.executionPayload, txRoot,
-            *requestBPrime.parentBeaconBlockRoot);
+            *requestBPrime.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
         requestBPrime.executionPayload.blockHash =
             bcos::protocol::EthBlockHeader::computeHash(*header);
     }

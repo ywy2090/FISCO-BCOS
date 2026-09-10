@@ -21,8 +21,9 @@
 // Dual parity vs EngineServiceImpl OP mode is unavailable on this branch (no Impl opMode).
 // Carrier: transactions[i].raw via parseNewPayloadRequest(V4).
 // Golden fields (stateRoot/receiptsRoot/gasUsed/txRoot/blockHash) are asserted against
-// OpEngineService::lastExecutedHeader() after newPayload — NOT rebuildOpEthHeader(request),
-// which copies those fields from the JSON and stays green if execution is skipped.
+// OpEngineService::lastExecutedHeader() after newPayload — NOT rebuildOpEthHeader(request,
+// bcos::engine::OpForkId::Isthmus), which copies those fields from the JSON and stays green if
+// execution is skipped.
 
 #include "support/GoldenSample.h"
 #include "support/SeedPreState.h"
@@ -295,7 +296,7 @@ bcos::protocol::BlockHeader::Ptr productionHeaderOf(
     }
     const auto transactionsRoot = EngineOpScheduler::computeTxRoot(envelopes);
     return bcos::engine::engine_common::op::rebuildOpEthHeader(blockFactory->blockHeaderFactory(),
-        payload, transactionsRoot, *request.parentBeaconBlockRoot);
+        payload, transactionsRoot, *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
 }
 
 void assertExecutionCommitments(std::string const& id,
