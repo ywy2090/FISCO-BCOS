@@ -252,7 +252,8 @@ private:
 
     /// FCU method-version window for the OP lane: V1-V3 exactly (Isthmus/Jovian —
     /// upstream has no FCU V4 on this fork; the caps list advertises exactly this
-    /// window and V4 answers -38005). newPayload is Isthmus-only (V4). Method windows
+    /// window and V4 answers -38005). newPayload is V2..V4: V2 from Bedrock, V3 at
+    /// Ecotone, V4 at Isthmus+ (see isNewPayloadVersionSupported). Method windows
     /// need not intersect; stored shape is payloadShapeVersion (V3/V4 → PayloadV3).
     static bool isForkchoiceVersionSupported(std::uint32_t version)
     {
