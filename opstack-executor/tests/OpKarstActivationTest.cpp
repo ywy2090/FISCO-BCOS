@@ -296,20 +296,65 @@ BOOST_AUTO_TEST_CASE(ResolveEngineForkAtRejectsBelowBaseline)
     BOOST_CHECK(*err == bcos::engine::OpForkResolutionError::UnsupportedTimestamp);
 }
 
-BOOST_AUTO_TEST_CASE(ResolveEngineForkAtUnsupportedPreIsthmusFork)
+BOOST_AUTO_TEST_CASE(ResolveEngineForkAtEcotoneSelectsV3)
 {
     auto schedule = std::make_shared<op::OpForkSchedule>(
         op::OpForkSchedule{{{op::OpFork::Ecotone, 0}}, op::OpForkSchedule::TestBypass{}});
     engine::OpSchedulerSeam<UnusedView> seam(schedule, op::L1BlockInfo{});
     auto resolved = seam.resolveEngineForkAt(0);
-    auto* err = std::get_if<bcos::engine::OpForkResolutionError>(&resolved);
-    BOOST_REQUIRE(err);
-    BOOST_CHECK(*err == bcos::engine::OpForkResolutionError::UnsupportedTimestamp);
-    BOOST_CHECK_EXCEPTION(static_cast<void>(seam.forkIdAt(0)), bcos::ledger::InvalidOpForkSchedule,
-        [](bcos::ledger::InvalidOpForkSchedule const& e) {
-            return std::string_view{e.what()}.find("unsupported schedule fork") !=
-                   std::string_view::npos;
-        });
+    auto* ctx = std::get_if<bcos::engine::EngineForkContext>(&resolved);
+    BOOST_REQUIRE(ctx);
+    BOOST_CHECK(ctx->forkId == bcos::engine::OpForkId::Ecotone);
+    BOOST_CHECK(ctx->api.newPayload == bcos::engine::ApiVersion::V3);
+    BOOST_CHECK(ctx->api.getPayload == bcos::engine::ApiVersion::V3);
+    BOOST_CHECK(ctx->api.forkchoiceUpdated == bcos::engine::ApiVersion::V3);
+    BOOST_CHECK(ctx->extraDataLayout == bcos::engine::OpExtraDataLayout::Empty);
+    BOOST_CHECK(seam.forkIdAt(0) == bcos::engine::OpForkId::Ecotone);
+}
+
+// One row per fork window: method number and extraData shape must both come from
+// the payload timestamp, so a wrong row would either reject op-node's chosen
+// method with -38005 or accept the wrong payload shape.
+BOOST_AUTO_TEST_CASE(EngineApiProfileTableMatchesOpNode)
+{
+    auto schedule = std::make_shared<op::OpForkSchedule>(op::OpForkSchedule{
+        {{op::OpFork::Regolith, 0}, {op::OpFork::Canyon, 100}, {op::OpFork::Ecotone, 200},
+            {op::OpFork::Holocene, 300}, {op::OpFork::Isthmus, 400}, {op::OpFork::Jovian, 500},
+            {op::OpFork::Karst, 600}},
+        op::OpForkSchedule::TestBypass{}});
+    engine::OpSchedulerSeam<UnusedView> seam(schedule, op::L1BlockInfo{});
+
+    struct Row
+    {
+        uint64_t ts;
+        bcos::engine::OpForkId fork;
+        bcos::engine::ApiVersion fcu;
+        bcos::engine::ApiVersion get;
+        bcos::engine::ApiVersion np;
+        bcos::engine::OpExtraDataLayout extra;
+    };
+    // clang-format off
+    const Row rows[] = {
+        {0,   bcos::engine::OpForkId::Regolith, bcos::engine::ApiVersion::V1, bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2, bcos::engine::OpExtraDataLayout::Empty},
+        {100, bcos::engine::OpForkId::Canyon,   bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2, bcos::engine::OpExtraDataLayout::Empty},
+        {200, bcos::engine::OpForkId::Ecotone,  bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::OpExtraDataLayout::Empty},
+        {300, bcos::engine::OpForkId::Holocene, bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::OpExtraDataLayout::Holocene9},
+        {400, bcos::engine::OpForkId::Isthmus,  bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V4, bcos::engine::ApiVersion::V4, bcos::engine::OpExtraDataLayout::Holocene9},
+        {500, bcos::engine::OpForkId::Jovian,   bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V4, bcos::engine::ApiVersion::V4, bcos::engine::OpExtraDataLayout::Jovian17},
+        {600, bcos::engine::OpForkId::Karst,    bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V5, bcos::engine::ApiVersion::V4, bcos::engine::OpExtraDataLayout::Jovian17},
+    };
+    // clang-format on
+    for (auto const& row : rows)
+    {
+        auto resolved = seam.resolveEngineForkAt(row.ts);
+        auto* ctx = std::get_if<bcos::engine::EngineForkContext>(&resolved);
+        BOOST_REQUIRE_MESSAGE(ctx, "ts=" << row.ts);
+        BOOST_CHECK(ctx->forkId == row.fork);
+        BOOST_CHECK(ctx->api.forkchoiceUpdated == row.fcu);
+        BOOST_CHECK(ctx->api.getPayload == row.get);
+        BOOST_CHECK(ctx->api.newPayload == row.np);
+        BOOST_CHECK(ctx->extraDataLayout == row.extra);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(JovianActivationWithoutParentHeaderFailsClosed)

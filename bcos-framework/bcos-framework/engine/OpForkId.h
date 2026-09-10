@@ -26,11 +26,30 @@
 namespace bcos::engine
 {
 /// Lightweight OP fork identity for Engine API profile selection (no EVMC types).
+/// Integer values are process-local: nothing persists this enum (no ledger key,
+/// RLP or canonical key), so inserting historical forks is safe.
 enum class OpForkId : uint8_t
 {
-    Isthmus = 0,
-    Jovian = 1,
-    Karst = 2,
+    Regolith = 0,
+    Canyon,
+    Ecotone,
+    Fjord,
+    Granite,
+    Holocene,
+    Isthmus,
+    Jovian,
+    Karst,
+};
+
+/// Shape of a block's extraData for an OP fork: empty before Holocene, the
+/// 9-byte Holocene 1559 params, or the 17-byte Jovian form with minBaseFee.
+/// Selected by the block's own timestamp, unlike the baseFee clock (see
+/// OpBaseFee.h), which reads the parent's extraData.
+enum class OpExtraDataLayout : uint8_t
+{
+    Empty,
+    Holocene9,
+    Jovian17,
 };
 
 /// Engine API method versions permitted for a fork at a given timestamp.
@@ -52,7 +71,64 @@ struct EngineForkContext
     OpForkId forkId{};
     EngineApiProfile api{};
     bool hasDaFootprint = false;
+    OpExtraDataLayout extraDataLayout = OpExtraDataLayout::Empty;
 };
+
+/// op-node Config.NewPayloadVersion / GetPayloadVersion / ForkchoiceUpdatedVersion
+/// (rollup/types.go), plus this repo's Karst getPayload V5. Fjord and Granite add no
+/// Engine API surface, so they carry Ecotone's methods; they stay distinct ids for
+/// extraData and baseFee.
+[[nodiscard]] inline EngineApiProfile engineApiProfileFor(OpForkId id)
+{
+    switch (id)
+    {
+    case OpForkId::Regolith:
+        return {.forkchoiceUpdated = ApiVersion::V1,
+            .getPayload = ApiVersion::V2,
+            .newPayload = ApiVersion::V2};
+    case OpForkId::Canyon:
+        return {.forkchoiceUpdated = ApiVersion::V2,
+            .getPayload = ApiVersion::V2,
+            .newPayload = ApiVersion::V2};
+    case OpForkId::Ecotone:
+    case OpForkId::Fjord:
+    case OpForkId::Granite:
+    case OpForkId::Holocene:
+        return {.forkchoiceUpdated = ApiVersion::V3,
+            .getPayload = ApiVersion::V3,
+            .newPayload = ApiVersion::V3};
+    case OpForkId::Isthmus:
+    case OpForkId::Jovian:
+        return {.forkchoiceUpdated = ApiVersion::V3,
+            .getPayload = ApiVersion::V4,
+            .newPayload = ApiVersion::V4};
+    case OpForkId::Karst:
+        return {.forkchoiceUpdated = ApiVersion::V3,
+            .getPayload = ApiVersion::V5,
+            .newPayload = ApiVersion::V4};
+    }
+    return {};
+}
+
+[[nodiscard]] inline OpExtraDataLayout extraDataLayoutFor(OpForkId id)
+{
+    switch (id)
+    {
+    case OpForkId::Regolith:
+    case OpForkId::Canyon:
+    case OpForkId::Ecotone:
+    case OpForkId::Fjord:
+    case OpForkId::Granite:
+        return OpExtraDataLayout::Empty;
+    case OpForkId::Holocene:
+    case OpForkId::Isthmus:
+        return OpExtraDataLayout::Holocene9;
+    case OpForkId::Jovian:
+    case OpForkId::Karst:
+        return OpExtraDataLayout::Jovian17;
+    }
+    return OpExtraDataLayout::Empty;
+}
 
 using EngineForkResolution = std::variant<EngineForkContext, OpForkResolutionError>;
 }  // namespace bcos::engine

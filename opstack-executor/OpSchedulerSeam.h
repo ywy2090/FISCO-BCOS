@@ -38,22 +38,28 @@ namespace detail
 {
     switch (fork)
     {
+    case bcos::evm::opstack::OpFork::Regolith:
+        return bcos::engine::OpForkId::Regolith;
+    case bcos::evm::opstack::OpFork::Canyon:
+        return bcos::engine::OpForkId::Canyon;
+    case bcos::evm::opstack::OpFork::Ecotone:
+        return bcos::engine::OpForkId::Ecotone;
+    case bcos::evm::opstack::OpFork::Fjord:
+        return bcos::engine::OpForkId::Fjord;
+    case bcos::evm::opstack::OpFork::Granite:
+        return bcos::engine::OpForkId::Granite;
+    case bcos::evm::opstack::OpFork::Holocene:
+        return bcos::engine::OpForkId::Holocene;
     case bcos::evm::opstack::OpFork::Isthmus:
         return bcos::engine::OpForkId::Isthmus;
     case bcos::evm::opstack::OpFork::Jovian:
         return bcos::engine::OpForkId::Jovian;
     case bcos::evm::opstack::OpFork::Karst:
         return bcos::engine::OpForkId::Karst;
-    case bcos::evm::opstack::OpFork::Regolith:
-    case bcos::evm::opstack::OpFork::Canyon:
-    case bcos::evm::opstack::OpFork::Ecotone:
-    case bcos::evm::opstack::OpFork::Fjord:
-    case bcos::evm::opstack::OpFork::Granite:
-    case bcos::evm::opstack::OpFork::Holocene:
-        // pre-Isthmus forks have no engine payload-version identity (A5/S3: the
-        // engine gate rejects pre-Isthmus payloads)
-        return std::nullopt;
     }
+    // Unreachable for a valid OpFork; guards an out-of-range cast instead of
+    // falling off the end of a non-void function.
+    return std::nullopt;
 }
 }  // namespace detail
 
@@ -115,20 +121,7 @@ public:
 
     [[nodiscard]] bcos::engine::EngineApiProfile engineApiFor(uint64_t timestampSeconds) const
     {
-        // Engine triple: FCU stays V3, newPayload stays V4, only getPayload bumps V4→V5 at Karst.
-        if (forkIdAt(timestampSeconds) == bcos::engine::OpForkId::Karst)
-        {
-            return bcos::engine::EngineApiProfile{
-                .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
-                .getPayload = bcos::engine::ApiVersion::V5,
-                .newPayload = bcos::engine::ApiVersion::V4,
-            };
-        }
-        return bcos::engine::EngineApiProfile{
-            .forkchoiceUpdated = bcos::engine::ApiVersion::V3,
-            .getPayload = bcos::engine::ApiVersion::V4,
-            .newPayload = bcos::engine::ApiVersion::V4,
-        };
+        return bcos::engine::engineApiProfileFor(forkIdAt(timestampSeconds));
     }
 
     [[nodiscard]] const bcos::evm::opstack::OpForkConfig& configAt(uint64_t timestampSeconds) const
@@ -166,6 +159,7 @@ public:
             .forkId = *forkId,
             .api = engineApiFor(timestampSeconds),
             .hasDaFootprint = cfg.has_da_footprint,
+            .extraDataLayout = bcos::engine::extraDataLayoutFor(*forkId),
         };
     }
 
