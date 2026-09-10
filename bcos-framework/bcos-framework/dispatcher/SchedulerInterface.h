@@ -112,7 +112,12 @@ public:
     virtual void canonicalizedTo(bcos::protocol::BlockNumber number) { (void)number; }
 
     // Default: unsupported — the Eth/baseline schedulers have no import lane.
+    // @p parentHeaders are the decoded ancestors (genesis-side FIRST), so the
+    // import plane can seed NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER for the parent
+    // chain — BLOCKHASH and parent-header reads must walk the payload chain, not
+    // the canonical tables (design §4.4.3).
     virtual void importExecute(bcos::protocol::Block::Ptr block,
+        std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
         std::vector<std::shared_ptr<void>> const& parentDeltas,
         std::function<void(
             Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void> blockDelta)>

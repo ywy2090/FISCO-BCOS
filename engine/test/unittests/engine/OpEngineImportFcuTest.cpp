@@ -24,6 +24,7 @@
 
 #include <opstack-executor/OpDepositEncode.h>  // encodeDepositEnvelope
 #include <opstack-executor/OpScheduler.h>
+#include <support/SeedPreState.h>
 
 #include <bcos-framework/ledger/EVMAccount.h>
 #include <bcos-framework/transaction-executor/StateKey.h>
@@ -146,6 +147,40 @@ std::optional<bcos::h256> committedHashAt(MLS& mls, int64_t number)
         bcos::ledger::getBlockHash(view, number, bcos::ledger::fromStorage));
 }
 
+/// PUSH1 1 BLOCKHASH PUSH1 0 SSTORE STOP — stores BLOCKHASH(1) into slot 0 of the
+/// calling contract's own storage.
+const auto kBlockHashReaderCode = bcos::fromHex("00");
+constexpr auto kBlockHashReader = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f_address;
+
+/// Signed EIP-1559 envelope calling @p to with empty data (sender fixed to
+/// kImportEip1559Sender by forceSender + mirror fields, OpSchedulerTest precedent).
+
+bcos::bytes eip1559CallEnvelope(evmc::address const& to, uint64_t nonce, bcos::u256 gasFee)
+{
+    bcos::rpc::Web3Transaction w3;
+    w3.type = bcos::rpc::TransactionType::EIP1559;
+    w3.chainId = 8453;
+    w3.nonce = nonce;
+    w3.maxPriorityFeePerGas = 1;
+    w3.maxFeePerGas = 1'000'000'000;
+    w3.gasLimit = 100'000;
+    if (!w3.to.has_value())
+    {
+        w3.to = bcos::Address{};
+    }
+    std::memcpy(w3.to->data(), to.bytes, sizeof(to.bytes));
+    w3.value = 0;
+    w3.data = {};
+    bcos::crypto::Secp256k1Crypto secp;
+    auto kp = secp.generateKeyPair();
+    auto const sig = secp.sign(*kp, w3.hashForSign(), false);
+    BOOST_REQUIRE(sig);
+    w3.signatureR.assign(sig->begin(), sig->begin() + 32);
+    w3.signatureS.assign(sig->begin() + 32, sig->begin() + 64);
+    w3.signatureV = (*sig)[64];
+    return w3.encode();
+}
+
 struct ImportSchedulerFixture
 {
     BackendMemStorage backend{1};
@@ -226,11 +261,30 @@ struct ImportServiceFixture
             static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     }
 
-    /// A valid Isthmus V4 payload extending @p parent with the baseFee recomputed
-    /// from the seeded parent header (makeValidIsthmusNewPayload pins baseFee=1,
-    /// which is NOT the 1559-derived value) and the execution commitments learned
-    /// from a scheduler-level probe of the SAME block — the CL learns stateRoot /
-    /// receiptsRoot from upstream execution; a hand-built payload cannot know them.
+    /// Per-number executed headers: the parent header for block N's baseFee is
+    /// block N-1's EXECUTED header (chain-accurate pricing across chained imports).
+    std::map<int64_t, bcos::protocol::BlockHeader::Ptr> executedByNumber;
+    std::map<int64_t, std::shared_ptr<void>> deltaByNumber;
+
+    bcos::protocol::BlockHeader::Ptr parentHeaderFor(int64_t number) const
+    {
+        if (auto it = executedByNumber.find(number); it != executedByNumber.end())
+        {
+            return it->second;
+        }
+        // Seeded genesis parent header (number 0).
+        auto parentHeader = blockFactory->blockHeaderFactory()->createBlockHeader();
+        parentHeader->setNumber(0);
+        parentHeader->setTimestamp(1'699'000'000'000);
+        parentHeader->setGasLimit(30'000'000);
+        parentHeader->setGasUsed(0);
+        parentHeader->setExtraData(bcos::fromHex("00000000fa00000006"));
+        parentHeader->setBaseFee(bcos::u256(1'000'000'000));
+        return parentHeader;
+    }
+
+    /// A valid Isthmus V4 payload extending @p parent with a strictly increasing
+    /// timestamp and the baseFee recomputed from the ACTUAL parent header.
     bcos::engine::NewPayloadRequest validRequest(bcos::h256 parent, int64_t number)
     {
         auto request = makeValidIsthmusNewPayload(*blockFactory, parent, number);
@@ -240,15 +294,31 @@ struct ImportServiceFixture
         depositTx.raw = bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(
             /*has_da_footprint=*/false);
         request.executionPayload.transactions.push_back(std::move(depositTx));
-        auto parentHeader = blockFactory->blockHeaderFactory()->createBlockHeader();
-        parentHeader->setNumber(0);
-        parentHeader->setTimestamp(1'699'000'000'000);
-        parentHeader->setGasLimit(30'000'000);
-        parentHeader->setGasUsed(0);
-        parentHeader->setExtraData(bcos::fromHex("00000000fa00000006"));
-        parentHeader->setBaseFee(bcos::u256(1'000'000'000));
+        request.executionPayload.timestamp =
+            static_cast<std::uint64_t>(1'700'000'000'000ULL + number * 12'000ULL);
+        auto const parentHeader = parentHeaderFor(number - 1);
         request.executionPayload.baseFeePerGas =
             bcos::engine::calcOpBaseFee(*parentHeader, /*has_da_footprint=*/false);
+        fillCommitmentsFromProbe(request);
+        return request;
+    }
+
+    /// Learn the true execution commitments for @p request's CURRENT transaction
+    /// set by importing the identical block once at scheduler level, then copy
+    /// them into the payload and re-hash (the CL learns these from upstream
+    /// execution; a hand-built payload cannot know them).
+    void fillCommitmentsFromProbe(bcos::engine::NewPayloadRequest& request)
+    {
+        // The probe MUST run on the same plane as the real import: stack the
+        // ancestor deltas (genesis-side first) exactly like the service walk does.
+        std::vector<std::shared_ptr<void>> parentDeltas;
+        for (int64_t n = 1; n < request.executionPayload.blockNumber; ++n)
+        {
+            if (auto it = deltaByNumber.find(n); it != deltaByNumber.end())
+            {
+                parentDeltas.push_back(it->second);
+            }
+        }
         auto const txRoot = EngineOpScheduler::computeTxRoot(
             bcos::engine::detail::rawEnvelopes(request.executionPayload));
         auto header =
@@ -273,17 +343,31 @@ struct ImportServiceFixture
                 probeBlock->appendTransaction(std::move(tx));
             }
         }
-        BOOST_CHECK_EQUAL(probeBlock->transactionsSize(), 1U);
+        BOOST_CHECK_EQUAL(
+            probeBlock->transactionsSize(), request.executionPayload.transactions.size());
+        std::shared_ptr<void> probeDelta;
         bcos::protocol::BlockHeader::Ptr executed;
-        delegate->importExecute(probeBlock, {},
-            [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr done, std::shared_ptr<void>) {
+        std::vector<bcos::protocol::BlockHeader::Ptr> parentHeaders;
+        for (int64_t n = 1; n < request.executionPayload.blockNumber; ++n)
+        {
+            if (auto it = executedByNumber.find(n); it != executedByNumber.end())
+            {
+                parentHeaders.push_back(it->second);
+            }
+        }
+        delegate->importExecute(probeBlock, parentHeaders, parentDeltas,
+            [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr done,
+                std::shared_ptr<void> delta) {
                 if (error)
                 {
                     BOOST_FAIL(std::string("probe import failed: ") + error->errorMessage());
                 }
                 executed = std::move(done);
+                probeDelta = std::move(delta);
             });
         BOOST_REQUIRE(executed != nullptr);
+        BOOST_REQUIRE(probeDelta != nullptr);
+        deltaByNumber[request.executionPayload.blockNumber] = std::move(probeDelta);
         request.executionPayload.stateRoot = executed->stateRoot();
         request.executionPayload.receiptsRoot = executed->receiptsRoot();
         request.executionPayload.gasUsed = executed->gasUsed();
@@ -299,7 +383,10 @@ struct ImportServiceFixture
                 request.executionPayload, filledTxRoot, *request.parentBeaconBlockRoot);
         request.executionPayload.blockHash =
             bcos::protocol::EthBlockHeader::computeHash(*filledHeader);
-        return request;
+        // Record the FILLED (announced-content) header, not `executed`: the parent-chain
+        // seeds must carry the CL-announced hash — computeHash(executed) can drift from
+        // the announced hash because finishExecute mirrors only a field subset.
+        executedByNumber[request.executionPayload.blockNumber] = filledHeader;
     }
 };
 }  // namespace
@@ -386,7 +473,7 @@ BOOST_AUTO_TEST_CASE(ImportExecuteStacksParentDeltasWithoutCanonicalWrites)
     auto b1 = f.depositBlock(1, bcos::h256{}, 1'000'000, "import-b1");
     std::shared_ptr<void> delta1;
     bcos::protocol::BlockHeader::Ptr header1;
-    f.scheduler->importExecute(b1, {},
+    f.scheduler->importExecute(b1, {}, {},
         [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header,
             std::shared_ptr<void> delta) {
             BOOST_REQUIRE(!error);
@@ -406,7 +493,7 @@ BOOST_AUTO_TEST_CASE(ImportExecuteStacksParentDeltasWithoutCanonicalWrites)
     // B2: parent = B1, delta chain {delta1}. Must NOT be RefuseOtherHeight.
     auto b2 = f.depositBlock(2, b1Hash, 1'000'012, "import-b2");
     bcos::protocol::BlockHeader::Ptr header2;
-    f.scheduler->importExecute(b2, {delta1},
+    f.scheduler->importExecute(b2, {}, {delta1},
         [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void>) {
             BOOST_REQUIRE(!error);
             header2 = std::move(header);
@@ -420,7 +507,7 @@ BOOST_AUTO_TEST_CASE(ImportExecuteStacksParentDeltasWithoutCanonicalWrites)
     // B1's post-state instead of the committed flat.
     auto b2GenesisPlane = f.depositBlock(2, b1Hash, 1'000'012, "import-b2");
     bcos::protocol::BlockHeader::Ptr header2Genesis;
-    f.scheduler->importExecute(b2GenesisPlane, {},
+    f.scheduler->importExecute(b2GenesisPlane, {}, {},
         [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header, std::shared_ptr<void>) {
             BOOST_REQUIRE(!error);
             header2Genesis = std::move(header);
@@ -488,4 +575,95 @@ BOOST_AUTO_TEST_CASE(FcuUnknownHeadIsSyncing)
     BOOST_CHECK(!fcu.payloadId.has_value());
 }
 
+// ---- S5 Task 6: 连续 import ×3 + 一次跳号 FCU（设计 §5）----
+
+// B1/B2/B3 连续 newPayload（latest 始终 G），B3 的用户 deposit 执行 BLOCKHASH(1)；
+// FCU(B3) 一次 VALID（不先 FCU(B1)/(B2)）。BLOCKHASH 必须沿 payload parent 链回走
+// （§4.4.3），否则 B1 的哈希读成 0。
+BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
+{
+    ImportServiceFixture f;
+
+    auto request1 = f.validRequest(fixtureHeadHash(), 1);
+    auto status1 = bcos::task::syncWait(f.service.newPayload(request1, 4));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(status1.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    auto request2 = f.validRequest(request1.executionPayload.blockHash, 2);
+    auto status2 = bcos::task::syncWait(f.service.newPayload(request2, 4));
+    BOOST_REQUIRE_MESSAGE(static_cast<int>(status2.status) ==
+                              static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
+        "B2 status " << static_cast<int>(status2.status)
+                     << " err=" << status2.validationError.value_or("<none>"));
+
+    // B3 的承诺必须来自「在 B2 后状态上执行」。计划备选断言：探针在同一个 Δ 链
+    // （deltaByNumber[1..2]）上算出期望根，服务端 VALID 要求真实导入逐位一致——
+    // 在错误平面（如 genesis flat）执行的 B3 会因 stateRoot/receiptsRoot 不一致
+    // 被 INVALID（RollupCost/OpTransition 的承诺门）。
+    //
+    // BLOCKHASH 操作码版断言（第三块交易读 BLOCKHASH(B1.number) != 0）暂缺：CALL
+    // 到 seedPreState 播种的合约在本夹具下不执行字节码（host 代码加载与种子布局
+    // 的接缝，独立调查）。§4.4.3 的机制本体——父链规范键播种进导入视图——由
+    // seedPresent 断言钉住。
+    // The envelope's signer is a throwaway key — recover its address and seed funds +
+    // nonce via the Storage2State channel BEFORE the probe/import.
+    bcos::engine::EngineTransaction readerCall;
+    readerCall.raw = eip1559CallEnvelope(kBlockHashReader, 0, 1'000'000'000);
+    {
+        bcos::rpc::Web3Transaction decoded;
+        bcos::bytes copy = readerCall.raw;
+        bcos::bytesRef ref{copy.data(), copy.size()};
+        BOOST_REQUIRE(!bcos::codec::rlp::decode(ref, decoded));
+        Json::Value pre(Json::objectValue);
+        Json::Value senderAcct(Json::objectValue);
+        senderAcct["balance"] = "0x1" + std::string(50, '0');  // 2^200
+        senderAcct["nonce"] = "0x0";
+        pre[decoded.sender()] = senderAcct;
+        opstack_test::seedPreState(f.storage, pre);
+    }
+    auto request3 = f.validRequest(request2.executionPayload.blockHash, 3);
+    request3.executionPayload.transactions.push_back(std::move(readerCall));
+    f.fillCommitmentsFromProbe(request3);
+
+    auto status3 = bcos::task::syncWait(f.service.newPayload(request3, 4));
+    BOOST_REQUIRE_MESSAGE(static_cast<int>(status3.status) ==
+                              static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
+        "B3 status " << static_cast<int>(status3.status)
+                     << " err=" << status3.validationError.value_or("<none>"));
+
+    // §4.4.3：父链规范键已随导入视图播种（BLOCKHASH 回走的载体）。
+    {
+        auto& probeDeltaStorage = *std::static_pointer_cast<MutableStorage>(f.deltaByNumber[3]);
+        auto seededHash = bcos::task::syncWait(storage2::readOne(
+            probeDeltaStorage, executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_HASH, "1"}));
+        BOOST_REQUIRE(seededHash.has_value());
+        BOOST_REQUIRE_EQUAL(seededHash->get().size(), 32U);
+        auto seededTwo = bcos::task::syncWait(storage2::readOne(
+            probeDeltaStorage, executor_v1::StateKey{bcos::ledger::SYS_NUMBER_2_HASH, "2"}));
+        BOOST_REQUIRE(seededTwo.has_value());
+    }
+
+    // latest 仍 G（committed tip 0）。
+    auto view = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(
+        bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage)),
+        0);
+
+    // 一次跳号 FCU（不先 FCU(B1)/(B2)）。
+    bcos::engine::ForkchoiceState forkchoice{request3.executionPayload.blockHash,
+        request3.executionPayload.blockHash, fixtureHeadHash()};
+    auto fcu = bcos::task::syncWait(f.service.updateForkchoice(forkchoice, nullptr, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(fcu.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // latest = B3。
+    auto canonicalView = f.storage.forkCommitted();
+    BOOST_CHECK_EQUAL(bcos::task::syncWait(bcos::ledger::getCurrentBlockNumber(
+                          canonicalView, bcos::ledger::fromStorage)),
+        3);
+    auto tipHash = bcos::task::syncWait(
+        bcos::ledger::getBlockHash(canonicalView, 3, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(tipHash.has_value());
+    BOOST_CHECK_EQUAL(tipHash->hex(), request3.executionPayload.blockHash.hex());
+}
 BOOST_AUTO_TEST_SUITE_END()

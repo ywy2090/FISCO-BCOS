@@ -988,22 +988,31 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     // chain = canonical parent); importExecute executes on the parent's post-state
     // and writes NO canonical table (design §4.2 newPayload condition 1).
     std::vector<std::shared_ptr<void>> parentDeltas;
+    std::vector<bcos::protocol::BlockHeader::Ptr> parentHeaders;
     if (!canonicalParentNumber.has_value())
     {
-        std::vector<std::shared_ptr<void>> reversed;
+        std::vector<ImportedBlock> reversed;
         auto cursor = m_importedStore.get(payload.parentHash);
         while (cursor.has_value())
         {
-            reversed.push_back(cursor->storageDelta);
+            reversed.push_back(*cursor);
             cursor = m_importedStore.get(cursor->parent);
         }
-        parentDeltas.assign(reversed.rbegin(), reversed.rend());
+        for (auto it = reversed.rbegin(); it != reversed.rend(); ++it)
+        {
+            parentDeltas.push_back(it->storageDelta);
+            // Decoded ancestor headers: the scheduler seeds their canonical keys into
+            // the import view so BLOCKHASH / parent-header reads walk the payload
+            // chain (design §4.4.3).
+            parentHeaders.push_back(
+                m_blockFactory->blockHeaderFactory()->createBlockHeader(it->headerBytes));
+        }
     }
 
     bcos::Error::Ptr executeError;
     bcos::protocol::BlockHeader::Ptr executedHeader;
     std::shared_ptr<void> blockDelta;
-    m_delegate->importExecute(block, parentDeltas,
+    m_delegate->importExecute(block, parentHeaders, parentDeltas,
         [&](bcos::Error::Ptr error, bcos::protocol::BlockHeader::Ptr header,
             std::shared_ptr<void> delta)
         {

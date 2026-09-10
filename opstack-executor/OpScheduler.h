@@ -163,18 +163,21 @@ public:
     /// lastCommitted movement. Receipts are attached to @p block (commitPersist's
     /// convention) so a later canonicalize can prewrite without a second channel.
     void importExecute(bcos::protocol::Block::Ptr block,
+        std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
         std::vector<std::shared_ptr<void>> const& parentDeltas,
         std::function<void(
             Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void> blockDelta)>
             callback) override
     {
         task::syncWait([](decltype(this) self, bcos::protocol::Block::Ptr block,
+                           std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
                            std::vector<std::shared_ptr<void>> const& parentDeltas,
                            std::function<void(
                                Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void>)>
                                callback) -> task::Task<void> {
-            std::apply(callback, co_await self->coImportExecute(std::move(block), parentDeltas));
-        }(this, std::move(block), parentDeltas, std::move(callback)));
+            std::apply(callback,
+                co_await self->coImportExecute(std::move(block), parentHeaders, parentDeltas));
+        }(this, std::move(block), parentHeaders, parentDeltas, std::move(callback)));
     }
 
     /// S6: the engine's SetCanonical merged the imported chain through this
@@ -936,8 +939,9 @@ private:
     }
 
     task::Task<std::tuple<Error::Ptr, protocol::BlockHeader::Ptr, std::shared_ptr<void>>>
-    coImportExecute(
-        protocol::Block::Ptr block, std::vector<std::shared_ptr<void>> const& parentDeltas)
+    coImportExecute(protocol::Block::Ptr block,
+        std::vector<bcos::protocol::BlockHeader::Ptr> const& parentHeaders,
+        std::vector<std::shared_ptr<void>> const& parentDeltas)
     {
         try
         {
@@ -979,6 +983,30 @@ private:
                     std::static_pointer_cast<typename MultiLayerStorage::MutableStorage>(*it));
             }
             view.newMutable();
+
+            // BLOCKHASH and parent-header reads walk the PAYLOAD parent chain
+            // (design §4.4.3): seed each ancestor's canonical keys into this view so
+            // RecentBlockHashes / getBlockData resolve them. The seeds land in this
+            // block's own delta — at canonicalize the same keys are rewritten with
+            // identical values (idempotent), and an abandoned chain merges nothing.
+            for (auto const& parentHeader : parentHeaders)
+            {
+                auto const parentHash = bcos::protocol::EthBlockHeader::computeHash(*parentHeader);
+                bcos::storage::Entry hashEntry;
+                hashEntry.set(parentHash.asBytes());
+                co_await storage2::writeOne(view,
+                    executor_v1::StateKey{
+                        ledger::SYS_NUMBER_2_HASH, std::to_string(parentHeader->number())},
+                    std::move(hashEntry));
+                bcos::bytes encodedParent;
+                parentHeader->encode(encodedParent);
+                bcos::storage::Entry headerEntry;
+                headerEntry.set(std::move(encodedParent));
+                co_await storage2::writeOne(view,
+                    executor_v1::StateKey{
+                        ledger::SYS_NUMBER_2_BLOCK_HEADER, std::to_string(parentHeader->number())},
+                    std::move(headerEntry));
+            }
 
             auto transactions = co_await getTransactions(*block, view);
             if (std::any_of(transactions.begin(), transactions.end(),

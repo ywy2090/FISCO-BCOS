@@ -186,7 +186,9 @@ struct RecordingScheduler : bcos::scheduler::SchedulerInterface
     /// S5 import arm: same stub semantics as executeBlock (the engine's commitment
     /// gate — withdrawalsRoot / stateRoot / receiptsRoot compare — runs on whatever
     /// header this returns). No commit happens on the import path by design.
-    void importExecute(bcos::protocol::Block::Ptr, std::vector<std::shared_ptr<void>> const&,
+    void importExecute(bcos::protocol::Block::Ptr,
+        std::vector<bcos::protocol::BlockHeader::Ptr> const&,
+        std::vector<std::shared_ptr<void>> const&,
         std::function<void(
             bcos::Error::Ptr, bcos::protocol::BlockHeader::Ptr, std::shared_ptr<void>)>
             callback) override
