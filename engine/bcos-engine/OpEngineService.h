@@ -184,8 +184,7 @@ public:
     /// tip; distinct from lastExecutedHeader and from ledger SYS_CURRENT_STATE).
     std::optional<bcos::protocol::BlockNumber> trackedHeadNumber() const
     {
-        if (auto head = m_tracker.trackedHead();
-            head.has_value())
+        if (auto head = m_tracker.trackedHead(); head.has_value())
         {
             return head->blockNumber;
         }

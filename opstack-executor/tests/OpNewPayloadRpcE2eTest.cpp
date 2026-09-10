@@ -214,9 +214,9 @@ void runChainedPair(std::string const& aId, std::string const& bId)
     // S5+S6: FCU(A) canonicalizes A — then the head pointer equals A's number.
     bcos::engine::ForkchoiceState fcuA{requestA.executionPayload.blockHash,
         requestA.executionPayload.blockHash, goldenHeaderA->parentInfo().blockHash};
-    BOOST_REQUIRE_EQUAL(static_cast<int>(bcos::task::syncWait(
-                            fixture->service.updateForkchoice(fcuA, nullptr, 3))
-                            .payloadStatus.status),
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(fixture->service.updateForkchoice(fcuA, nullptr, 3))
+                             .payloadStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     {
         auto headView = fixture->multiLayerStorage.fork();
@@ -236,9 +236,9 @@ void runChainedPair(std::string const& aId, std::string const& bId)
     // S5+S6: FCU(B) canonicalizes B — then the head pointer advances to B's number.
     bcos::engine::ForkchoiceState fcuB{requestB.executionPayload.blockHash,
         requestB.executionPayload.blockHash, requestA.executionPayload.blockHash};
-    BOOST_REQUIRE_EQUAL(static_cast<int>(bcos::task::syncWait(
-                            fixture->service.updateForkchoice(fcuB, nullptr, 3))
-                            .payloadStatus.status),
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(fixture->service.updateForkchoice(fcuB, nullptr, 3))
+                             .payloadStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     {
         auto headView = fixture->multiLayerStorage.fork();
@@ -282,11 +282,11 @@ runVectorAndGetBlockHash(std::string const& id)
         id << ": seed newPayload expected VALID, got " << static_cast<int>(status.status));
     // S5+S6: newPayload imports; FCU canonicalizes so downstream FCU cases see a
     // canonical head (design §4.3 linear flow).
-    bcos::engine::ForkchoiceState seedFcu{bcos::h256(std::string(sample.golden["blockHash"].asString())),
+    bcos::engine::ForkchoiceState seedFcu{
+        bcos::h256(std::string(sample.golden["blockHash"].asString())),
         bcos::h256(std::string(sample.golden["blockHash"].asString())),
         goldenHeader->parentInfo().blockHash};
-    auto fcuStatus =
-        bcos::task::syncWait(fixture->service.updateForkchoice(seedFcu, nullptr, 3));
+    auto fcuStatus = bcos::task::syncWait(fixture->service.updateForkchoice(seedFcu, nullptr, 3));
     BOOST_REQUIRE_MESSAGE(static_cast<int>(fcuStatus.payloadStatus.status) ==
                               static_cast<int>(bcos::engine::PayloadValidationStatus::Valid),
         id << ": seed FCU expected VALID, got "
@@ -608,13 +608,10 @@ void runInvalidVector(std::string const& id)
             BOOST_CHECK_MESSAGE(imported || syncing,
                 id << ": side-chain fork expected VALID or SYNCING, got "
                    << static_cast<int>(importStatus.status)
-                   << (importStatus.validationError ?
-                          " : " + *importStatus.validationError :
-                          ""));
+                   << (importStatus.validationError ? " : " + *importStatus.validationError : ""));
             if (imported)
             {
-                BOOST_CHECK(
-                    fixture->service.hasImportedBlock(request.executionPayload.blockHash));
+                BOOST_CHECK(fixture->service.hasImportedBlock(request.executionPayload.blockHash));
             }
         }
         return;
@@ -1750,10 +1747,10 @@ BOOST_AUTO_TEST_CASE(ReorgCaseUReplacesUncommittedPending)
     const auto siblingHash = sample.vector["_op_payload"]["blockHash"].asString();
     // S5: the sibling lands by HASH (no canonical rows at import). FCU(sibling)
     // switches the canonical slot — THEN height 1 names the sibling.
-    auto fcu = bcos::task::syncWait(fixture->service.updateForkchoice(
-        bcos::engine::ForkchoiceState{bcos::h256(siblingHash), bcos::h256(siblingHash),
-            bcos::h256(siblingHash)},
-        nullptr, /*version=*/3));
+    auto fcu = bcos::task::syncWait(
+        fixture->service.updateForkchoice(bcos::engine::ForkchoiceState{bcos::h256(siblingHash),
+                                              bcos::h256(siblingHash), bcos::h256(siblingHash)},
+            nullptr, /*version=*/3));
     BOOST_REQUIRE_EQUAL(static_cast<int>(fcu.payloadStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_CHECK_EQUAL(

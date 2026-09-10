@@ -34,7 +34,7 @@ struct ImportedBlock
     bcos::h256 hash;
     bcos::h256 parent;
     bcos::protocol::BlockNumber number{};
-    bcos::bytes headerBytes;  // encoded header, read back BY HASH (never by number)
+    bcos::bytes headerBytes;       // encoded header, read back BY HASH (never by number)
     std::vector<bcos::bytes> txs;  // ordered signed envelopes
     // Canonical-row payloads (captured at import; canonicalize writes them):
     // tars-encoded transactions / FISCO receipt encodings, keyed by
