@@ -33,8 +33,12 @@
 namespace bcos::engine
 {
 
-/// Canyon EIP-1559 parameters (op-geth params/config.go).
+/// OP EIP-1559 parameters (op-geth params/config.go:402, the Optimism mainnet
+/// config: EIP1559Elasticity 6, EIP1559Denominator 50, EIP1559DenominatorCanyon 250).
+inline constexpr std::uint32_t c_eip1559DenominatorBedrock = 50;
 inline constexpr std::uint32_t c_eip1559DenominatorCanyon = 250;
+/// OP has exactly one elasticity (op-geth EIP1559Elasticity, no per-fork split), so
+/// despite the name this is the OP value for every fork, not a Canyon-only one.
 inline constexpr std::uint32_t c_eip1559ElasticityCanyon = 6;
 
 /// Holocene extraData is 9 bytes (0x00 || denom || elasticity);
@@ -119,9 +123,55 @@ inline std::optional<std::string> validateOpExtraDataForLayout(
     return "unknown extraData layout";
 }
 
-/// Next-block baseFee (op-geth CalcBaseFee). Holocene-active and later only:
-/// a pre-Holocene parent has empty extraData and must use the prior 1559 constants
-/// in the caller, not this helper. extraData layout (version byte first):
+/// One EIP-1559 fee step, shared by both clocks below (op-geth calcBaseFeeInner):
+/// parentBaseFee +/- max(1, parentBaseFee * |gasMetered - gasTarget| / gasTarget / denominator).
+inline bcos::u256 opNextBaseFeeStep(
+    bcos::u256 parentBaseFee, bcos::u256 gasMetered, bcos::u256 gasTarget, uint64_t denominator)
+{
+    if (gasMetered == gasTarget)
+    {
+        // Exact target: the fee holds steady (delta 0).
+        return parentBaseFee;
+    }
+    // op-geth computes with unbounded big.Int; guard the fixed-width u256 multiply
+    // so an extreme (corrupt or adversarial) parent header fails closed instead of
+    // wrapping mod 2^256.
+    bcos::u256 const u256Max = ~bcos::u256(0);
+    if (gasMetered > gasTarget)
+    {
+        // baseFee increases: max(1, parentBaseFee * delta / gasTarget / denominator)
+        bcos::u256 const delta = gasMetered - gasTarget;
+        if (parentBaseFee > u256Max / delta) [[unlikely]]
+        {
+            throw std::invalid_argument("OP base-fee delta computation overflows u256");
+        }
+        bcos::u256 deltaFee = parentBaseFee * delta;
+        deltaFee /= gasTarget;
+        deltaFee /= denominator;
+        bcos::u256 const result = parentBaseFee + (deltaFee > 0 ? deltaFee : bcos::u256(1));
+        // The multiply guard cannot see the final add; deltaFee near the maximum
+        // would wrap exactly here, where big.Int would keep going.
+        if (result < parentBaseFee) [[unlikely]]
+        {
+            throw std::invalid_argument("OP base-fee increase overflows u256");
+        }
+        return result;
+    }
+    // baseFee decreases: parentBaseFee - parentBaseFee * delta / gasTarget / denominator
+    bcos::u256 const delta = gasTarget - gasMetered;
+    if (parentBaseFee > u256Max / delta) [[unlikely]]
+    {
+        throw std::invalid_argument("OP base-fee delta computation overflows u256");
+    }
+    bcos::u256 deltaFee = parentBaseFee * delta;
+    deltaFee /= gasTarget;
+    deltaFee /= denominator;
+    return deltaFee < parentBaseFee ? parentBaseFee - deltaFee : bcos::u256(0);
+}
+
+/// Next-block baseFee from a Holocene-active parent's own extraData. Reachable only
+/// through calcOpNextBlockBaseFee below, which owns the pre-Holocene constants path.
+/// extraData layout (version byte first):
 ///   9 bytes  = Holocene: 0x00 || denominator(u32 BE) || elasticity(u32 BE)
 ///   17 bytes = Jovian:   0x01 || denominator || elasticity || minBaseFee(u64 BE)
 /// Fail-closed everywhere (no 8/2 default): empty, short, wrong-version, or zero
@@ -183,49 +233,7 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
         throw std::invalid_argument("OP parent header is missing baseFee");
     }
     bcos::u256 const parentBaseFee = *parent.baseFee();
-    // op-geth computes with unbounded big.Int; guard the fixed-width u256 multiply
-    // so an extreme (corrupt or adversarial) parent header fails closed instead of
-    // wrapping mod 2^256.
-    bcos::u256 const u256Max = ~bcos::u256(0);
-    bcos::u256 result;
-    if (gasMetered == gasTarget)
-    {
-        // Exact target: the fee holds steady (delta 0) — still subject to the Jovian
-        // minBaseFee floor below, like every other arm.
-        result = parentBaseFee;
-    }
-    else if (gasMetered > gasTarget)
-    {
-        // baseFee increases: max(1, parentBaseFee * delta / gasTarget / denominator)
-        bcos::u256 const delta = gasMetered - gasTarget;
-        if (parentBaseFee > u256Max / delta) [[unlikely]]
-        {
-            throw std::invalid_argument("OP base-fee delta computation overflows u256");
-        }
-        bcos::u256 deltaFee = parentBaseFee * delta;
-        deltaFee /= gasTarget;
-        deltaFee /= denominator;
-        result = parentBaseFee + (deltaFee > 0 ? deltaFee : bcos::u256(1));
-        // The multiply guard cannot see the final add; deltaFee near the maximum
-        // would wrap exactly here, where big.Int would keep going.
-        if (result < parentBaseFee) [[unlikely]]
-        {
-            throw std::invalid_argument("OP base-fee increase overflows u256");
-        }
-    }
-    else
-    {
-        // baseFee decreases: parentBaseFee - parentBaseFee * delta / gasTarget / denominator
-        bcos::u256 const delta = gasTarget - gasMetered;
-        if (parentBaseFee > u256Max / delta) [[unlikely]]
-        {
-            throw std::invalid_argument("OP base-fee delta computation overflows u256");
-        }
-        bcos::u256 deltaFee = parentBaseFee * delta;
-        deltaFee /= gasTarget;
-        deltaFee /= denominator;
-        result = deltaFee < parentBaseFee ? parentBaseFee - deltaFee : bcos::u256(0);
-    }
+    bcos::u256 result = opNextBaseFeeStep(parentBaseFee, gasMetered, gasTarget, denominator);
 
     // Jovian minBaseFee floor — applies to all three arms.
     if (minBaseFee.has_value() && result < *minBaseFee)
@@ -233,6 +241,53 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
         result = *minBaseFee;
     }
     return result;
+}
+
+/// Which clock the next block's baseFee uses. Both flags describe the PARENT: the
+/// 1559 parameter source is the parent's fork (op-geth IsOptimismHolocene(parent.Time)),
+/// while the denominator's Canyon choice follows the block being built.
+struct OpBaseFeeClock
+{
+    bool parentIsHolocene = false;
+    bool parentIsJovian = false;
+    bool newBlockIsCanyon = false;
+};
+
+/// Next-block baseFee for newPayload validation and payload building — the single
+/// entry point, so the two callers cannot drift apart (op-geth CalcBaseFee:
+/// `denominator := BaseFeeChangeDenominator(time)` on the NEW block's time, then
+/// `if IsOptimismHolocene(parent.Time)` override from the PARENT's extraData).
+///
+/// A Holocene activation block is the constants case: it carries 9-byte extraData
+/// itself, but its parent does not, so the caller must pass parentIsHolocene=false
+/// (op-reth had this backwards before #13060).
+inline bcos::u256 calcOpNextBlockBaseFee(
+    bcos::protocol::BlockHeader const& parent, OpBaseFeeClock clock)
+{
+    if (clock.parentIsHolocene)
+    {
+        return calcOpBaseFee(parent, clock.parentIsJovian);
+    }
+    // Pre-Holocene parent: empty extraData, so the chain constants apply and the
+    // parent's extraData (if any) is deliberately ignored. Denominator by the new
+    // block, elasticity constant.
+    uint64_t const denominator =
+        clock.newBlockIsCanyon ? c_eip1559DenominatorCanyon : c_eip1559DenominatorBedrock;
+    uint64_t const elasticity = c_eip1559ElasticityCanyon;
+    // op-geth dereferences parent.BaseFee and panics on nil; fail closed instead.
+    if (!parent.baseFee().has_value())
+    {
+        throw std::invalid_argument("OP parent header is missing baseFee");
+    }
+    bcos::u256 const parentBaseFee = *parent.baseFee();
+    bcos::u256 const gasTarget = parent.gasLimit() / elasticity;
+    if (gasTarget == 0) [[unlikely]]
+    {
+        throw std::invalid_argument("invalid OP base-fee parameters: zero gas target");
+    }
+    // Pre-Holocene has no DA footprint: the Jovian max(gasUsed, blobGasUsed) metering
+    // is part of the Holocene path above.
+    return opNextBaseFeeStep(parentBaseFee, parent.gasUsed(), gasTarget, denominator);
 }
 
 /// Built-in OP driver gas limit: the chain's configured value (from the ledger's

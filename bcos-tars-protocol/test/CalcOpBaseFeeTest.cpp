@@ -351,5 +351,42 @@ BOOST_AUTO_TEST_CASE(ValidateExtraDataByLayout)
     BOOST_CHECK(bcos::engine::validateOpExtraDataForLayout(holocene, L::Jovian17).has_value());
 }
 
+// Two clocks (op-geth CalcBaseFee): the pre-Holocene path uses the chain constants
+// (elasticity 6, denominator 50 / 250 chosen by the NEW block's time), while a
+// Holocene parent switches to its own extraData. Parent: gasLimit 30M, gasUsed 20M,
+// baseFee 1e9 -> gasTarget 5M, delta 15M -> 3e9/denom.
+BOOST_AUTO_TEST_CASE(NextBlockBaseFeeTwoClocks)
+{
+    // Pre-Holocene parent: empty extraData, so the constants apply.
+    auto const pre =
+        makeParent(bcos::u256(30'000'000), bcos::u256(20'000'000), bcos::u256(1'000'000'000), {});
+    BOOST_CHECK_EQUAL(
+        bcos::engine::calcOpNextBlockBaseFee(
+            pre, {.parentIsHolocene = false, .parentIsJovian = false, .newBlockIsCanyon = false}),
+        bcos::u256(1'060'000'000));  // denom 50
+    BOOST_CHECK_EQUAL(
+        bcos::engine::calcOpNextBlockBaseFee(
+            pre, {.parentIsHolocene = false, .parentIsJovian = false, .newBlockIsCanyon = true}),
+        bcos::u256(1'012'000'000));  // denom 250
+
+    // Holocene activation block: it will carry 9-byte extraData itself, but its
+    // PARENT is pre-Holocene, so the clock below is deliberately identical to the
+    // call above — the parent, not the new block, selects the time source. The
+    // caller is what must pass parentIsHolocene=false here (reth#13060).
+    BOOST_CHECK_EQUAL(
+        bcos::engine::calcOpNextBlockBaseFee(
+            pre, {.parentIsHolocene = false, .parentIsJovian = false, .newBlockIsCanyon = true}),
+        bcos::u256(1'012'000'000));
+
+    // Holocene parent: decode the parent's 9-byte extraData (250/6) instead.
+    auto const holoceneParent =
+        makeParent(bcos::u256(30'000'000), bcos::u256(20'000'000), bcos::u256(1'000'000'000),
+            bcos::bytes{0x00, 0x00, 0x00, 0x00, 0xfa, 0x00, 0x00, 0x00, 0x06});
+    BOOST_CHECK_EQUAL(
+        bcos::engine::calcOpNextBlockBaseFee(holoceneParent,
+            {.parentIsHolocene = true, .parentIsJovian = false, .newBlockIsCanyon = true}),
+        bcos::u256(1'012'000'000));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace bcos::test
