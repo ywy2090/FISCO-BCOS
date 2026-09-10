@@ -97,7 +97,31 @@ ForkchoiceApplyResult EngineTracker::applyForkchoice(const ResolvedForkchoice& r
     }
 
     std::unique_lock lock(m_mutex);
-    if (m_trackedHead.has_value())
+    if (m_trackedHead.has_value() && resolved.allowNonLinearHead)
+    {
+        auto const& trackedHeadBlock = *m_trackedHead;
+        if (headBlockNumber < trackedHeadBlock.blockNumber)
+        {
+            // OP old canonical head (design §4.2 fourth row): NEVER rewind the
+            // tracked tip; only SetSafe/SetFinalized overwrite (zero hash clears
+            // nothing), then attrs decide build-vs-heartbeat.
+            if (requiresCanonical(resolved.state.safeBlockHash, safeBlockNumber))
+            {
+                m_safe = safeBlockNumber;
+            }
+            if (requiresCanonical(resolved.state.finalizedBlockHash, finalizedBlockNumber))
+            {
+                m_finalized = finalizedBlockNumber;
+            }
+            return resolved.payloadAttributesPresent ? ForkchoiceApplyResult::RebuildOnParent :
+                                                       ForkchoiceApplyResult::Swallowed;
+        }
+        // head >= tracked: OP accepts any forward jump and a same-height side-chain
+        // switch without the +1/headCanonical gates — the caller has already run
+        // SetCanonical where the head needed canonicalizing, and an imported
+        // (not-yet-canonical) head is a legal OP FCU target.
+    }
+    else if (m_trackedHead.has_value())
     {
         auto const& trackedHeadBlock = *m_trackedHead;
         if (headBlockNumber < trackedHeadBlock.blockNumber)
@@ -135,10 +159,11 @@ ForkchoiceApplyResult EngineTracker::applyForkchoice(const ResolvedForkchoice& r
                                       "Forkchoice head block number must increase by exactly 1"});
         }
     }
-    else if (!resolved.headCanonical)
+    else if (!resolved.headCanonical && !resolved.allowNonLinearHead)
     {
         // First apply: same fail-closed rule — an unconfirmed head must not seed the
-        // tracker, or every later +1/conflict check runs against a bogus tip.
+        // tracker, or every later +1/conflict check runs against a bogus tip. The OP
+        // strategy bit accepts an unconfirmed (imported) seed by design.
         BOOST_THROW_EXCEPTION(InvalidForkchoiceState{}
                               << bcos::errinfo_comment{"Forkchoice head block is not canonical"});
     }
