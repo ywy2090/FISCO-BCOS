@@ -270,6 +270,13 @@ private:
     /// `timestampSeconds` is Unix seconds (callers convert internal ms first).
     EngineForkContext requireOpEngineForkAt(uint64_t timestampSeconds) const;
 
+    /// The next block's baseFee clock, derived in exactly one place: both the FCU build
+    /// and the newPayload comparison must price a block identically, so they must not
+    /// each assemble the flags (the parent's fork decides the 1559 source, the new
+    /// block's fork the Canyon denominator — op-geth CalcBaseFee).
+    [[nodiscard]] OpBaseFeeClock baseFeeClockFor(
+        bcos::protocol::BlockHeader const& parentHeader, OpForkId newForkId) const;
+
     task::Task<ForkchoiceUpdatedResult> buildOpPayload(const ForkchoiceState& forkchoiceState,
         const PayloadAttributes& payloadAttributes, std::uint32_t version,
         bcos::protocol::BlockNumber nextBlockNumber,

@@ -21,9 +21,8 @@ using namespace bcostars::protocol;
 
 namespace bcos::test
 {
-// Guards throw domain-typed exceptions (InvalidEngineEncoding) or bare
-// std::invalid_argument (calcOpBaseFee's parameter guards, pre-existing); match
-// what() to tell them apart either way.
+// The fee helpers' guards all throw the domain-typed InvalidEngineEncoding, so match
+// what() rather than the type: the message is what distinguishes one guard from another.
 static void expectThrowMessage(const std::function<void()>& call, std::string_view expectedText)
 {
     bool threw = false;

@@ -78,7 +78,7 @@ struct EngineForkContext
 /// (rollup/types.go), plus this repo's Karst getPayload V5. Fjord and Granite add no
 /// Engine API surface, so they carry Ecotone's methods; they stay distinct ids for
 /// extraData and baseFee.
-[[nodiscard]] inline EngineApiProfile engineApiProfileFor(OpForkId id)
+[[nodiscard]] inline constexpr EngineApiProfile engineApiProfileFor(OpForkId id)
 {
     switch (id)
     {
@@ -110,7 +110,7 @@ struct EngineForkContext
     return {};
 }
 
-[[nodiscard]] inline OpExtraDataLayout extraDataLayoutFor(OpForkId id)
+[[nodiscard]] inline constexpr OpExtraDataLayout extraDataLayoutFor(OpForkId id)
 {
     switch (id)
     {
@@ -129,6 +129,16 @@ struct EngineForkContext
     }
     return OpExtraDataLayout::Empty;
 }
+
+// The base-fee clock reads this table instead of the fork order (see OpBaseFeeClock):
+// "layout != Empty" means Holocene or later, "layout == Jovian17" means Jovian or
+// later. These pin each boundary so a layout change cannot silently re-price blocks.
+static_assert(extraDataLayoutFor(OpForkId::Regolith) == OpExtraDataLayout::Empty &&
+              extraDataLayoutFor(OpForkId::Granite) == OpExtraDataLayout::Empty &&
+              extraDataLayoutFor(OpForkId::Holocene) == OpExtraDataLayout::Holocene9 &&
+              extraDataLayoutFor(OpForkId::Isthmus) == OpExtraDataLayout::Holocene9 &&
+              extraDataLayoutFor(OpForkId::Jovian) == OpExtraDataLayout::Jovian17 &&
+              extraDataLayoutFor(OpForkId::Karst) == OpExtraDataLayout::Jovian17);
 
 using EngineForkResolution = std::variant<EngineForkContext, OpForkResolutionError>;
 }  // namespace bcos::engine

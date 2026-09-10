@@ -46,8 +46,8 @@ FEE_RECIPIENT = "0x0000000000000000000000000000000000000001"
 PREV_RANDAO = "0x" + "00" * 31 + "01"
 
 # Must match engine_common::supportedCapabilities() (Eth lane). Do not swap in
-# supportedOpCapabilities() — that OP list drops getPayload V1–V3 / newPayload
-# V1–V3 and would fail exact-match against this Cancun harness.
+# supportedOpCapabilities() — the OP list carries newPayload V2-V4 and getPayload
+# V2-V5 but no V1 methods, and would fail exact-match against this Cancun harness.
 EXPECTED_CAPABILITIES = {
     "engine_exchangeCapabilities",
     "engine_forkchoiceUpdatedV1",

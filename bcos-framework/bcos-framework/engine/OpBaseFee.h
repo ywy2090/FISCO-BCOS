@@ -27,7 +27,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <stdexcept>
 #include <utility>
 
 namespace bcos::engine
@@ -154,7 +153,8 @@ inline bcos::u256 opNextBaseFeeStep(
         bcos::u256 const delta = gasMetered - gasTarget;
         if (parentBaseFee > u256Max / delta) [[unlikely]]
         {
-            throw std::invalid_argument("OP base-fee delta computation overflows u256");
+            BOOST_THROW_EXCEPTION(InvalidEngineEncoding{} << bcos::errinfo_comment{
+                                      "OP base-fee delta computation overflows u256"});
         }
         bcos::u256 deltaFee = parentBaseFee * delta;
         deltaFee /= gasTarget;
@@ -164,7 +164,8 @@ inline bcos::u256 opNextBaseFeeStep(
         // would wrap exactly here, where big.Int would keep going.
         if (result < parentBaseFee) [[unlikely]]
         {
-            throw std::invalid_argument("OP base-fee increase overflows u256");
+            BOOST_THROW_EXCEPTION(InvalidEngineEncoding{}
+                                  << bcos::errinfo_comment{"OP base-fee increase overflows u256"});
         }
         return result;
     }
@@ -172,7 +173,8 @@ inline bcos::u256 opNextBaseFeeStep(
     bcos::u256 const delta = gasTarget - gasMetered;
     if (parentBaseFee > u256Max / delta) [[unlikely]]
     {
-        throw std::invalid_argument("OP base-fee delta computation overflows u256");
+        BOOST_THROW_EXCEPTION(InvalidEngineEncoding{} << bcos::errinfo_comment{
+                                  "OP base-fee delta computation overflows u256"});
     }
     bcos::u256 deltaFee = parentBaseFee * delta;
     deltaFee /= gasTarget;
@@ -198,7 +200,8 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
     std::span<const bcos::byte> extra{extraView.data(), extraView.size()};
     if (auto shapeError = validateOpExtraDataShape(extra, /*allowEmpty=*/false))
     {
-        throw std::invalid_argument("OP parent extraData " + *shapeError);
+        BOOST_THROW_EXCEPTION(
+            InvalidEngineEncoding{} << bcos::errinfo_comment{"OP parent extraData " + *shapeError});
     }
     auto [denominator32, elasticity32] =
         decodeEip1559Params(extra.subspan(1, c_eip1559ParamsBytes));
@@ -217,7 +220,8 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
     bcos::u256 const gasTarget = parent.gasLimit() / elasticity;
     if (gasTarget == 0) [[unlikely]]
     {
-        throw std::invalid_argument("invalid OP base-fee parameters: zero gas target");
+        BOOST_THROW_EXCEPTION(InvalidEngineEncoding{} << bcos::errinfo_comment{
+                                  "invalid OP base-fee parameters: zero gas target"});
     }
 
     // Jovian meters max(gasUsed, blobGasUsed DA footprint). op-geth dereferences
@@ -228,7 +232,8 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
     {
         if (!parent.blobGasUsed().has_value())
         {
-            throw std::invalid_argument("Jovian OP parent header is missing blobGasUsed");
+            BOOST_THROW_EXCEPTION(InvalidEngineEncoding{} << bcos::errinfo_comment{
+                                      "Jovian OP parent header is missing blobGasUsed"});
         }
         if (*parent.blobGasUsed() > gasMetered)
         {
@@ -241,7 +246,8 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
     // next block at 0.
     if (!parent.baseFee().has_value())
     {
-        throw std::invalid_argument("OP parent header is missing baseFee");
+        BOOST_THROW_EXCEPTION(InvalidEngineEncoding{}
+                              << bcos::errinfo_comment{"OP parent header is missing baseFee"});
     }
     bcos::u256 const parentBaseFee = *parent.baseFee();
     bcos::u256 result = opNextBaseFeeStep(parentBaseFee, gasMetered, gasTarget, denominator);
@@ -257,6 +263,11 @@ inline bcos::u256 calcOpBaseFee(bcos::protocol::BlockHeader const& parent, bool 
 /// Which clock the next block's baseFee uses. Both flags describe the PARENT: the
 /// 1559 parameter source is the parent's fork (op-geth IsOptimismHolocene(parent.Time)),
 /// while the denominator's Canyon choice follows the block being built.
+///
+/// `parentIsHolocene`/`parentIsJovian` are derived from the parent's extraData layout
+/// (OpForkId.h's extraDataLayoutFor): non-Empty means Holocene or later, Jovian17 means
+/// Jovian or later. The static_assert beside that table keeps the layout boundaries
+/// where the forks are, so the two notions cannot drift apart silently.
 struct OpBaseFeeClock
 {
     bool parentIsHolocene = false;
@@ -288,13 +299,15 @@ inline bcos::u256 calcOpNextBlockBaseFee(
     // op-geth dereferences parent.BaseFee and panics on nil; fail closed instead.
     if (!parent.baseFee().has_value())
     {
-        throw std::invalid_argument("OP parent header is missing baseFee");
+        BOOST_THROW_EXCEPTION(InvalidEngineEncoding{}
+                              << bcos::errinfo_comment{"OP parent header is missing baseFee"});
     }
     bcos::u256 const parentBaseFee = *parent.baseFee();
     bcos::u256 const gasTarget = parent.gasLimit() / elasticity;
     if (gasTarget == 0) [[unlikely]]
     {
-        throw std::invalid_argument("invalid OP base-fee parameters: zero gas target");
+        BOOST_THROW_EXCEPTION(InvalidEngineEncoding{} << bcos::errinfo_comment{
+                                  "invalid OP base-fee parameters: zero gas target"});
     }
     // Pre-Holocene has no DA footprint: the Jovian max(gasUsed, blobGasUsed) metering
     // is part of the Holocene path above.

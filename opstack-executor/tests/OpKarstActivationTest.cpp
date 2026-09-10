@@ -333,17 +333,29 @@ BOOST_AUTO_TEST_CASE(EngineApiProfileTableMatchesOpNode)
         bcos::engine::ApiVersion np;
         bcos::engine::OpExtraDataLayout extra;
     };
-    // clang-format off
     const Row rows[] = {
-        {0,   bcos::engine::OpForkId::Regolith, bcos::engine::ApiVersion::V1, bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2, bcos::engine::OpExtraDataLayout::Empty},
-        {100, bcos::engine::OpForkId::Canyon,   bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2, bcos::engine::OpExtraDataLayout::Empty},
-        {200, bcos::engine::OpForkId::Ecotone,  bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::OpExtraDataLayout::Empty},
-        {300, bcos::engine::OpForkId::Holocene, bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3, bcos::engine::OpExtraDataLayout::Holocene9},
-        {400, bcos::engine::OpForkId::Isthmus,  bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V4, bcos::engine::ApiVersion::V4, bcos::engine::OpExtraDataLayout::Holocene9},
-        {500, bcos::engine::OpForkId::Jovian,   bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V4, bcos::engine::ApiVersion::V4, bcos::engine::OpExtraDataLayout::Jovian17},
-        {600, bcos::engine::OpForkId::Karst,    bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V5, bcos::engine::ApiVersion::V4, bcos::engine::OpExtraDataLayout::Jovian17},
+        {0, bcos::engine::OpForkId::Regolith, bcos::engine::ApiVersion::V1,
+            bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2,
+            bcos::engine::OpExtraDataLayout::Empty},
+        {100, bcos::engine::OpForkId::Canyon, bcos::engine::ApiVersion::V2,
+            bcos::engine::ApiVersion::V2, bcos::engine::ApiVersion::V2,
+            bcos::engine::OpExtraDataLayout::Empty},
+        {200, bcos::engine::OpForkId::Ecotone, bcos::engine::ApiVersion::V3,
+            bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3,
+            bcos::engine::OpExtraDataLayout::Empty},
+        {300, bcos::engine::OpForkId::Holocene, bcos::engine::ApiVersion::V3,
+            bcos::engine::ApiVersion::V3, bcos::engine::ApiVersion::V3,
+            bcos::engine::OpExtraDataLayout::Holocene9},
+        {400, bcos::engine::OpForkId::Isthmus, bcos::engine::ApiVersion::V3,
+            bcos::engine::ApiVersion::V4, bcos::engine::ApiVersion::V4,
+            bcos::engine::OpExtraDataLayout::Holocene9},
+        {500, bcos::engine::OpForkId::Jovian, bcos::engine::ApiVersion::V3,
+            bcos::engine::ApiVersion::V4, bcos::engine::ApiVersion::V4,
+            bcos::engine::OpExtraDataLayout::Jovian17},
+        {600, bcos::engine::OpForkId::Karst, bcos::engine::ApiVersion::V3,
+            bcos::engine::ApiVersion::V5, bcos::engine::ApiVersion::V4,
+            bcos::engine::OpExtraDataLayout::Jovian17},
     };
-    // clang-format on
     for (auto const& row : rows)
     {
         auto resolved = seam.resolveEngineForkAt(row.ts);

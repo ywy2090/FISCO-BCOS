@@ -101,6 +101,20 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::requireOpEn
 }
 
 template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
+OpBaseFeeClock OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::baseFeeClockFor(
+    bcos::protocol::BlockHeader const& parentHeader, OpForkId newForkId) const
+{
+    auto const parentTsSec =
+        unixSecondsFromInternalMillis(static_cast<uint64_t>(parentHeader.timestamp()));
+    auto const parentFork = m_scheduler.forkIdAt(parentTsSec);
+    return OpBaseFeeClock{
+        .parentIsHolocene = extraDataLayoutFor(parentFork) != OpExtraDataLayout::Empty,
+        .parentIsJovian = extraDataLayoutFor(parentFork) == OpExtraDataLayout::Jovian17,
+        .newBlockIsCanyon = newForkId != OpForkId::Regolith,
+    };
+}
+
+template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
 task::Task<GetPayloadResult>
 OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::getPayload(
     const PayloadID& payloadId, std::uint32_t version)
@@ -406,15 +420,7 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::buildOpPayl
             m_blockFactory->blockHeaderFactory()->createBlockHeader(parentHeaderBytes);
         parentTsSec = unixSecondsFromInternalMillis(
             static_cast<uint64_t>(parentHeader->timestamp()));
-        // Same two clocks as the newPayload comparison: the parent's fork supplies the
-        // 1559 parameters, the new block's fork the Canyon denominator.
-        auto const parentFork = m_scheduler.forkIdAt(parentTsSec);
-        baseFee = calcOpNextBlockBaseFee(*parentHeader,
-            OpBaseFeeClock{
-                .parentIsHolocene = extraDataLayoutFor(parentFork) != OpExtraDataLayout::Empty,
-                .parentIsJovian = extraDataLayoutFor(parentFork) == OpExtraDataLayout::Jovian17,
-                .newBlockIsCanyon = ctx.forkId != OpForkId::Regolith,
-            });
+        baseFee = calcOpNextBlockBaseFee(*parentHeader, baseFeeClockFor(*parentHeader, ctx.forkId));
     }
 
     requireDelegate();
@@ -961,19 +967,11 @@ template <class MemPoolType, class GlobalStateStorageType, class SchedulerType>
     }
 
     {
-        // Two clocks (op-geth CalcBaseFee): the 1559 parameter source is the PARENT's
-        // fork, while the Canyon denominator follows the block being built (hence
-        // ctx.forkId below, not the parent's). A Holocene activation block therefore
-        // still prices with the chain constants, because its parent is pre-Holocene.
-        uint64_t const parentTsSec = unixSecondsFromInternalMillis(
-            static_cast<uint64_t>(parentHeader->timestamp()));
-        auto const parentFork = m_scheduler.forkIdAt(parentTsSec);
-        auto const expectedBaseFee = calcOpNextBlockBaseFee(*parentHeader,
-            OpBaseFeeClock{
-                .parentIsHolocene = extraDataLayoutFor(parentFork) != OpExtraDataLayout::Empty,
-                .parentIsJovian = extraDataLayoutFor(parentFork) == OpExtraDataLayout::Jovian17,
-                .newBlockIsCanyon = ctx.forkId != OpForkId::Regolith,
-            });
+        // The clock is shared with the FCU build (baseFeeClockFor). A Holocene
+        // activation block still prices with the chain constants, because its parent
+        // is pre-Holocene and the parent's fork is what selects the 1559 source.
+        auto const expectedBaseFee =
+            calcOpNextBlockBaseFee(*parentHeader, baseFeeClockFor(*parentHeader, ctx.forkId));
         if (payload.baseFeePerGas != expectedBaseFee)
         {
             co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
