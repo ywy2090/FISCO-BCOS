@@ -188,10 +188,18 @@ void seedCanonicalL1FeeSlots(ViewT& view)
 }
 
 /// Write @p value big-endian into @p data at [offset, offset+width).
+/// Widths above 8 bytes (the 32-byte uint256 fields) zero-extend: shifting a 64-bit
+/// value by >= 64 is UB, which UBSan flags and the compiler may exploit (the earlier
+/// form relied on the platform's shift-count masking).
 void putBe(bcos::bytes& data, size_t offset, uint64_t value, size_t width)
 {
     for (size_t i = 0; i < width; ++i)
-        data[offset + width - 1 - i] = static_cast<bcos::byte>((value >> (i * 8)) & 0xFF);
+    {
+        const auto byte = i < sizeof(value) ?
+                              static_cast<bcos::byte>((value >> (i * 8)) & 0xFF) :
+                              bcos::byte{0};
+        data[offset + width - 1 - i] = byte;
+    }
 }
 
 /// Jovian setL1BlockValues calldata (178B, selector 0x3db6be2b) with NON-ZERO fields, aligned to

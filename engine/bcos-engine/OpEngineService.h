@@ -273,6 +273,9 @@ private:
     /// §5 matrix gates the happy paths).
     task::Task<void> canonicalizeImportedHead(const h256& headHash);
 
+    /// Release the materialized flats of blocks at/below the finalized marker (review F4).
+    void pruneFlatsAtOrBelowFinalized();
+
     bcos::protocol::Block::Ptr buildOpBlock(
         const ExecutionPayload& payload, bcos::protocol::BlockHeader::Ptr header);
 

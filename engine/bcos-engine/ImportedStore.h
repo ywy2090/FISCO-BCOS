@@ -111,16 +111,6 @@ public:
     /// Every stored block was executed on its parent's post-state, so a stored
     /// block always has state (design: put 成功才 hasState).
     [[nodiscard]] bool hasState(const bcos::h256& hash) const { return hasBlock(hash); }
-    [[nodiscard]] std::optional<std::vector<bcos::bytes>> body(const bcos::h256& hash) const
-    {
-        std::lock_guard lock(m_mutex);
-        auto const it = m_blocks.find(hash);
-        if (it == m_blocks.end())
-        {
-            return std::nullopt;
-        }
-        return it->second.txs;
-    }
     [[nodiscard]] std::optional<ImportedBlock> get(const bcos::h256& hash) const
     {
         std::lock_guard lock(m_mutex);
@@ -149,6 +139,21 @@ public:
         for (auto& [hash, block] : m_blocks)
         {
             if (block.number > tipNumber)
+            {
+                block.postStateFlat.reset();
+            }
+        }
+    }
+
+    /// Memory bound (review F4): release the flats of blocks at/below the finalized
+    /// marker — they are irreversible and can never serve as a new import's parent
+    /// plane again.
+    void pruneFlatsAtOrBelow(bcos::protocol::BlockNumber finalizedNumber)
+    {
+        std::lock_guard lock(m_mutex);
+        for (auto& [hash, block] : m_blocks)
+        {
+            if (block.number <= finalizedNumber)
             {
                 block.postStateFlat.reset();
             }

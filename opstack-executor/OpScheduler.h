@@ -180,6 +180,27 @@ public:
         }(this, std::move(block), parentHeaders, parentFlat, std::move(callback)));
     }
 
+    /// S6 post-condition: rebuild the committed world root and compare it with the
+    /// head's announced stateRoot. Mismatch means the canonicalize batch left the
+    /// backend inconsistent with the tip pointer (the exact failure mode a stale
+    /// plane produces) — throw, so the FCU can never answer VALID on it.
+    void verifyCanonicalStateRoot(const bcos::h256& expectedStateRoot) override
+    {
+        auto view = m_multiLayerStorage->forkCommitted();
+        bcos::evm::evmstate::Storage2State<ViewType> state(view);
+        auto const root = bcos::evm::stateRootOf(state);
+        if (state.poisoned())
+        {
+            throw bcos::evm::engine::OpStorageError(
+                "canonical state-root check: state traversal poisoned: " + state.firstError());
+        }
+        if (bcos::h256{root.bytes, sizeof(root.bytes)} != expectedStateRoot)
+        {
+            throw bcos::evm::OpConsensusError(
+                "canonical state-root check: SYS_CURRENT_STATE state does not match the head");
+        }
+    }
+
     /// S6: the engine's SetCanonical merged the imported chain through this
     /// scheduler's storage; move the continuity watermarks to the new tip.
     void canonicalizedTo(bcos::protocol::BlockNumber number) override
@@ -988,16 +1009,21 @@ private:
                              nullptr;
             if (parentFlatStorage != nullptr)
             {
+                // Collection iterator scoped before the mutation loop: MemoryStorage's
+                // range() keeps the storage lock for the iterator's lifetime, so
+                // removing from the same storage while it is alive self-deadlocks.
                 std::vector<executor_v1::StateKey> doomed;
-                auto backendIterator = co_await view.range();
-                while (true)
                 {
-                    auto item = co_await backendIterator.next();
-                    if (!item.has_value())
+                    auto viewIterator = co_await view.range();
+                    while (true)
                     {
-                        break;
+                        auto item = co_await viewIterator.next();
+                        if (!item.has_value())
+                        {
+                            break;
+                        }
+                        doomed.push_back(executor_v1::StateKey(std::get<0>(*item).m_tableAndKey));
                     }
-                    doomed.push_back(executor_v1::StateKey(std::get<0>(*item).m_tableAndKey));
                 }
                 for (auto const& key : doomed)
                 {
@@ -1077,32 +1103,40 @@ private:
                 block->appendReceipt(r);
             }
 
+            // Materialize the block's FULL post-state (S6 switch support): a plain
+            // MutableStorage copy of every visible (key, value) on the view. This MUST
+            // run while the view still owns its mutable layer — that layer holds the
+            // parent-plane restore, the ancestor seeds and this block's own execution
+            // writes, so materializing after the move below would snapshot the stale
+            // committed plane instead of the block's post-state (and every chained
+            // import would then execute against the wrong world). Memory cost O(state)
+            // per imported block; the design's production alternative is §4.4.5 MPT
+            // replay.
+            auto blockFlat = std::make_shared<typename MultiLayerStorage::MutableStorage>();
+            {
+                auto viewIterator = co_await view.range();
+                while (true)
+                {
+                    auto item = co_await viewIterator.next();
+                    if (!item.has_value())
+                    {
+                        break;
+                    }
+                    auto& [stateKeyRef, valueVariant] = *item;
+                    // value variant: Entry | DELETED — deleted rows are skipped (a flat
+                    // snapshot only carries live values).
+                    if (auto* entry = std::get_if<bcos::storage::Entry>(&valueVariant))
+                    {
+                        co_await storage2::writeOne(*blockFlat,
+                            executor_v1::StateKey(stateKeyRef.m_tableAndKey), std::move(*entry));
+                    }
+                }
+            }
+
             // The view's fresh mutable layer IS this block's delta. The view itself is
             // never pushed: it dies here, the delta survives through the shared_ptr.
             auto blockDelta = std::shared_ptr<void>(std::move(view.m_mutableStorage));
 
-            // Materialize the block's FULL post-state (S6 switch support): a plain
-            // MutableStorage copy of every visible (key, value) on the view. Memory
-            // cost O(state) per imported block — acceptable for the verifier-shaped
-            // import window; the design's production alternative is §4.4.5 MPT replay.
-            auto blockFlat = std::make_shared<typename MultiLayerStorage::MutableStorage>();
-            auto viewIterator = co_await view.range();
-            while (true)
-            {
-                auto item = co_await viewIterator.next();
-                if (!item.has_value())
-                {
-                    break;
-                }
-                auto& [stateKeyRef, valueVariant] = *item;
-                // value variant: Entry | DELETED — deleted rows are skipped (a flat
-                // snapshot only carries live values).
-                if (auto* entry = std::get_if<bcos::storage::Entry>(&valueVariant))
-                {
-                    co_await storage2::writeOne(*blockFlat,
-                        executor_v1::StateKey(stateKeyRef.m_tableAndKey), std::move(*entry));
-                }
-            }
             co_return {
                 nullptr, std::move(executedHeader), std::move(blockDelta), std::move(blockFlat)};
         }

@@ -111,6 +111,17 @@ public:
     // continuity view agrees with the new canonical tip. Default: no-op (Eth).
     virtual void canonicalizedTo(bcos::protocol::BlockNumber number) { (void)number; }
 
+    // S6 post-condition (design §4.2: 成功断言 stateRoot(SYS_CURRENT_STATE) ==
+    // head.header.stateRoot). Called after a SetCanonical batch; an implementation
+    // MUST throw on mismatch — a half-written canonical chain must never be answered
+    // VALID. Lives here because the state-root rebuild needs the executor's trie
+    // adapter, which this interface's implementations already link. Default: no-op
+    // (Eth/baseline schedulers have no import lane).
+    virtual void verifyCanonicalStateRoot(const bcos::h256& expectedStateRoot)
+    {
+        (void)expectedStateRoot;
+    }
+
     // Default: unsupported — the Eth/baseline schedulers have no import lane.
     // @p parentHeaders are the decoded ancestors (genesis-side FIRST), so the
     // import plane can seed NUMBER_2_HASH / NUMBER_2_BLOCK_HEADER for the parent

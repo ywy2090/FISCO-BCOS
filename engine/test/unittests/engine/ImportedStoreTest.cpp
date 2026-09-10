@@ -35,7 +35,8 @@ BOOST_AUTO_TEST_CASE(PutThenHasBlockAndBody)
     BOOST_REQUIRE(store.put(b));
     BOOST_CHECK(store.hasBlock(hash));
     BOOST_CHECK(store.hasState(hash));
-    BOOST_CHECK(store.body(hash).has_value());
+    BOOST_REQUIRE(store.get(hash).has_value());
+    BOOST_CHECK_EQUAL(store.get(hash)->number, 1);
 }
 
 BOOST_AUTO_TEST_CASE(OverwriteWithDescendantsIsRejected)

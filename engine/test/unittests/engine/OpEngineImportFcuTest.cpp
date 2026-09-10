@@ -147,39 +147,10 @@ std::optional<bcos::h256> committedHashAt(MLS& mls, int64_t number)
         bcos::ledger::getBlockHash(view, number, bcos::ledger::fromStorage));
 }
 
-/// PUSH1 1 BLOCKHASH PUSH1 0 SSTORE STOP — stores BLOCKHASH(1) into slot 0 of the
-/// calling contract's own storage.
-const auto kBlockHashReaderCode = bcos::fromHex("00");
-constexpr auto kBlockHashReader = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f_address;
 
 /// Signed EIP-1559 envelope calling @p to with empty data (sender fixed to
 /// kImportEip1559Sender by forceSender + mirror fields, OpSchedulerTest precedent).
 
-bcos::bytes eip1559CallEnvelope(evmc::address const& to, uint64_t nonce, bcos::u256 gasFee)
-{
-    bcos::rpc::Web3Transaction w3;
-    w3.type = bcos::rpc::TransactionType::EIP1559;
-    w3.chainId = 8453;
-    w3.nonce = nonce;
-    w3.maxPriorityFeePerGas = 1;
-    w3.maxFeePerGas = 1'000'000'000;
-    w3.gasLimit = 100'000;
-    if (!w3.to.has_value())
-    {
-        w3.to = bcos::Address{};
-    }
-    std::memcpy(w3.to->data(), to.bytes, sizeof(to.bytes));
-    w3.value = 0;
-    w3.data = {};
-    bcos::crypto::Secp256k1Crypto secp;
-    auto kp = secp.generateKeyPair();
-    auto const sig = secp.sign(*kp, w3.hashForSign(), false);
-    BOOST_REQUIRE(sig);
-    w3.signatureR.assign(sig->begin(), sig->begin() + 32);
-    w3.signatureS.assign(sig->begin() + 32, sig->begin() + 64);
-    w3.signatureV = (*sig)[64];
-    return w3.encode();
-}
 
 struct ImportSchedulerFixture
 {
@@ -324,6 +295,37 @@ struct ImportServiceFixture
             bcos::engine::calcOpBaseFee(*parentHeader, /*has_da_footprint=*/false);
         fillCommitmentsFromProbe(request);
         return request;
+    }
+
+    struct ProbeArtifacts
+    {
+        bcos::protocol::BlockHeader::Ptr header;
+        std::shared_ptr<void> delta;
+        std::shared_ptr<void> flat;
+    };
+
+    /// Import a bare block (attributes deposit only) on @p plane and return the
+    /// executed header — the independent oracle the F1 regression compares against.
+    ProbeArtifacts probeImport(bcos::h256 const& parentHash, bcos::protocol::BlockNumber number,
+        uint64_t tsSec, std::shared_ptr<void> const& plane)
+    {
+        auto env = bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(false);
+        auto block = blockFactory->createBlock();
+        block->setBlockHeader(makeImportHeader(number, parentHash, tsSec));
+        block->appendTransaction(buildImportDepositTx(env, makeCryptoSuite()->hashImpl()));
+        ProbeArtifacts out;
+        delegate->importExecute(block, {}, plane,
+            [&](Error::Ptr error, bcos::protocol::BlockHeader::Ptr header,
+                std::shared_ptr<void> delta, std::shared_ptr<void> flat) {
+                if (error)
+                {
+                    BOOST_FAIL(std::string("probeImport failed: ") + error->errorMessage());
+                }
+                out.header = std::move(header);
+                out.delta = std::move(delta);
+                out.flat = std::move(flat);
+            });
+        return out;
     }
 
     /// Learn the true execution commitments for @p request's CURRENT transaction
@@ -610,20 +612,6 @@ BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
 {
     ImportServiceFixture f;
 
-    bcos::engine::EngineTransaction readerCall;
-    readerCall.raw = eip1559CallEnvelope(kBlockHashReader, 0, 1'000'000'000);
-    {
-        bcos::rpc::Web3Transaction decoded;
-        bcos::bytes copy = readerCall.raw;
-        bcos::bytesRef ref{copy.data(), copy.size()};
-        BOOST_REQUIRE(!bcos::codec::rlp::decode(ref, decoded));
-        Json::Value pre(Json::objectValue);
-        Json::Value senderAcct(Json::objectValue);
-        senderAcct["balance"] = "0x1" + std::string(50, '0');  // 2^200
-        senderAcct["nonce"] = "0x0";
-        pre[decoded.sender()] = senderAcct;
-        opstack_test::seedPreState(f.storage, pre);
-    }
     auto request1 = f.validRequest(fixtureHeadHash(), 1);
     auto status1 = bcos::task::syncWait(f.service.newPayload(request1, 4));
     BOOST_REQUIRE_EQUAL(static_cast<int>(status1.status),
@@ -636,19 +624,12 @@ BOOST_AUTO_TEST_CASE(ThreeImportsThenJumpFcu)
         "B2 status " << static_cast<int>(status2.status)
                      << " err=" << status2.validationError.value_or("<none>"));
 
-    // B3 的承诺必须来自「在 B2 后状态上执行」。计划备选断言：探针在同一个 Δ 链
-    // （deltaByNumber[1..2]）上算出期望根，服务端 VALID 要求真实导入逐位一致——
-    // 在错误平面（如 genesis flat）执行的 B3 会因 stateRoot/receiptsRoot 不一致
-    // 被 INVALID（RollupCost/OpTransition 的承诺门）。
-    //
-    // BLOCKHASH 操作码版断言（第三块交易读 BLOCKHASH(B1.number) != 0）暂缺：CALL
-    // 到 seedPreState 播种的合约在本夹具下不执行字节码（host 代码加载与种子布局
-    // 的接缝，独立调查）。§4.4.3 的机制本体——父链规范键播种进导入视图——由
-    // seedPresent 断言钉住。
-    // The envelope's signer is a throwaway key — recover its address and seed funds +
-    // nonce via the Storage2State channel BEFORE the probe/import.
+    // B3 的承诺必须来自「在 B2 后状态上执行」——探针在同一个平面链上算出期望根，
+    // 服务端 VALID 要求真实导入逐位一致：在错误平面上执行会因承诺不符被 INVALID。
+    // 平面本身由 ChainedImportMatchesCanonicalParentState 用独立口径（canonicalize
+    // 之后的后端状态）钉住；BLOCKHASH 操作码版断言仍缺（CALL 到 seedPreState 播种
+    // 的合约在本夹具下不执行字节码，属 harness 接缝，见报告）。
     auto request3 = f.validRequest(request2.executionPayload.blockHash, 3);
-    request3.executionPayload.transactions.push_back(std::move(readerCall));
     f.fillCommitmentsFromProbe(request3);
 
     auto status3 = bcos::task::syncWait(f.service.newPayload(request3, 4));
@@ -945,6 +926,80 @@ BOOST_AUTO_TEST_CASE(HeartbeatSameTipNoAttrsIsValidWithoutPayloadId)
     BOOST_CHECK_EQUAL(static_cast<int>(second.payloadStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_CHECK(!second.payloadId.has_value());
+}
+
+// ---- review fixes (R1) ----
+
+// F1 regression, service level with an INDEPENDENT oracle: the root the engine
+// accepts for a chained import must equal the root produced by executing the same
+// block on the canonicalized parent state (materialized by canonicalize itself, not
+// by the import's own plane machinery). Before the fix the import executed on a
+// stale committed plane, so the two roots differed.
+BOOST_AUTO_TEST_CASE(ChainedImportMatchesCanonicalParentState)
+{
+    ImportServiceFixture f;
+
+    auto request1 = f.validRequest(fixtureHeadHash(), 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request1, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto request2 = f.validRequest(request1.executionPayload.blockHash, 2);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request2, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto const acceptedRoot = request2.executionPayload.stateRoot;
+
+    // Canonicalize B1: the committed plane becomes B1's post-state.
+    bcos::engine::ForkchoiceState fcuB1{request1.executionPayload.blockHash,
+        request1.executionPayload.blockHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuB1, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // Independent oracle: execute B2's transactions on that plane (the committed
+    // plane IS B1's post-state now) and compare the world roots.
+    auto onParentPlane = f.probeImport(request2.executionPayload.blockHash, 2,
+        request2.executionPayload.timestamp / 1000, /*plane=*/nullptr);
+    BOOST_REQUIRE(onParentPlane.header != nullptr);
+    BOOST_CHECK_EQUAL(onParentPlane.header->stateRoot().hex(), acceptedRoot.hex());
+}
+
+// F2 regression: an imported parent whose materialized plane is gone must be answered
+// SYNCING (design §4.5 "hasState failed") — never executed on the committed plane.
+BOOST_AUTO_TEST_CASE(PrunedParentPlaneIsSyncingNotEmptyReExecute)
+{
+    ImportServiceFixture f;
+
+    auto request1 = f.validRequest(fixtureHeadHash(), 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request1, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto request2 = f.validRequest(request1.executionPayload.blockHash, 2);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request2, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto request3 = f.validRequest(request2.executionPayload.blockHash, 3);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(request3, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // Forward-canonicalize only 1..2: canonicalizeImportedHead releases the flats of
+    // every height above the new tip, so B3's plane is gone while B3 stays imported.
+    bcos::engine::ForkchoiceState fcuB2{request2.executionPayload.blockHash,
+        request2.executionPayload.blockHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuB2, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_REQUIRE(f.service.hasImportedBlock(request3.executionPayload.blockHash));
+
+    auto request4 = f.validRequest(request3.executionPayload.blockHash, 4);
+    auto status4 = bcos::task::syncWait(f.service.newPayload(request4, 4));
+    BOOST_CHECK_EQUAL(static_cast<int>(status4.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing));
+    BOOST_CHECK(!status4.latestValidHash.has_value());
+    BOOST_CHECK(!f.service.hasImportedBlock(request4.executionPayload.blockHash));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
