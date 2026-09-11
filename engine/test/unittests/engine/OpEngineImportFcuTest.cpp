@@ -1755,4 +1755,46 @@ BOOST_AUTO_TEST_CASE(SwitchSetCanonicalWritesIntermediateHeightHashKeyedBodies)
         bBody.has_value(), "previously canonical B's body should be present: " << bTxHash.hex());
 }
 
+// U4-F1 regression (MEDIUM, confirmed; closes U6-F4): the engine import gate's
+// commitmentsOfHeader and OpScheduler's headerCommitments are two projections of the
+// same OpBlockCommitments surface, so the u256 -> uint64 narrowing of blobGasUsed must
+// be the SAME bounds-checked rule (bcos::evm::engine::detail::narrowU256ToU64): an
+// out-of-range value is a fail-closed OpConsensusError on both, never a silent
+// modulo-2^64 truncation. Pre-fix commitmentsOfHeader used a raw static_cast and folded
+// 2^64 + 5 onto 5, so two headers differing only above 2^64 compared equal.
+//
+// Reachability: the value is NOT reachable from the wire — validateOpBlobGasUsed rejects
+// blobGasUsed > uint64 max before the projection runs (OpEngineService.cpp). This is a
+// drift-protection pin: it keeps the two projections from silently diverging again, and
+// is the dedicated unit test for the merged U6-F4 site.
+BOOST_AUTO_TEST_CASE(CommitmentsOfHeaderBlobGasUsedNarrowingMatchesSchedulerGuard)
+{
+    namespace evmDetail = bcos::evm::engine::detail;
+    ImportServiceFixture f;
+    auto const hf = f.blockFactory->blockHeaderFactory();
+    auto const overU64 = bcos::u256(1) << 64;  // uint64 max + 1
+
+    auto const header = hf->createBlockHeader();
+
+    // Out of range: fail closed exactly like the scheduler projection's narrowU256ToU64.
+    header->setBlobGasUsed(overU64);
+    BOOST_CHECK_THROW(bcos::engine::commitmentsOfHeader(*header), bcos::evm::OpConsensusError);
+    BOOST_CHECK_THROW(evmDetail::narrowU256ToU64(overU64, "headerCommitments blobGasUsed"),
+        bcos::evm::OpConsensusError);
+
+    // In range: both projections agree on the value.
+    header->setBlobGasUsed(bcos::u256(42));
+    auto const engineCommitments = bcos::engine::commitmentsOfHeader(*header);
+    BOOST_REQUIRE(engineCommitments.blobGasUsed.has_value());
+    BOOST_CHECK_EQUAL(*engineCommitments.blobGasUsed,
+        evmDetail::narrowU256ToU64(bcos::u256(42), "headerCommitments blobGasUsed"));
+    BOOST_CHECK_EQUAL(*engineCommitments.blobGasUsed, 42U);
+
+    // uint64 max is the inclusive ceiling on both sides.
+    header->setBlobGasUsed(bcos::u256(std::numeric_limits<uint64_t>::max()));
+    auto const maxCommitments = bcos::engine::commitmentsOfHeader(*header);
+    BOOST_REQUIRE(maxCommitments.blobGasUsed.has_value());
+    BOOST_CHECK_EQUAL(*maxCommitments.blobGasUsed, std::numeric_limits<uint64_t>::max());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

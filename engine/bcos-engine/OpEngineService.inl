@@ -865,7 +865,13 @@ inline bcos::evm::engine::OpBlockCommitments commitmentsOfHeader(
     std::optional<uint64_t> blobGasUsed;
     if (auto bg = h.blobGasUsed())
     {
-        blobGasUsed = static_cast<uint64_t>(bcos::u256(*bg));
+        // Same bounds-checked narrowing as OpScheduler's headerCommitments (the sibling
+        // projection of this surface): an out-of-range value fails closed with
+        // OpConsensusError instead of silently truncating modulo 2^64. The value is not
+        // wire-reachable (validateOpBlobGasUsed rejects it first); this keeps the two
+        // projections from diverging (U4-F1, merging U6-F4).
+        blobGasUsed =
+            bcos::evm::engine::detail::narrowU256ToU64(*bg, "commitmentsOfHeader blobGasUsed");
     }
     return bcos::evm::engine::OpBlockCommitments{
         .receiptsRoot = h.receiptsRoot(),
