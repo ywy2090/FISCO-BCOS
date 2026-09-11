@@ -136,17 +136,48 @@ template <class RawTxRange>
     return false;
 }
 
-/// Shared Jovian L1-attributes shape (selector/length). Deposits-only on a
-/// Jovian+ activation window is Q5 (`isNoUserTxActivationBlock`), not last-tx.
-/// No-op pre-Jovian.
-inline void validateJovianL1AttributesShape(std::span<uint8_t const> data, OpForkConfig const& cfg)
+/// op-geth's form of the Jovian activation deposits-only rule: it inspects the LAST
+/// transaction only ("sufficient to check last transaction because deposits precede
+/// non-deposit txs"). Scanning every transaction instead would reject a block op-geth accepts.
+[[nodiscard]] inline bool lastTxIsDeposit(std::span<const OpBlockTx> txs) noexcept
+{
+    if (txs.empty())
+        return false;
+    auto const& last = txs.back();
+    if (!std::holds_alternative<DepositTx>(last.tx))
+        return false;
+    return last.signedEnvelope.empty() || envelopeIsDeposit(last.signedEnvelope);
+}
+
+/// Same last-transaction form, for callers that only have the raw envelopes.
+template <class RawTxRange>
+[[nodiscard]] inline bool lastEnvelopeIsDeposit(RawTxRange const& rawTxBytes)
+{
+    if (rawTxBytes.empty())
+        return false;
+    return envelopeIsDeposit(rawTxBytes.back());
+}
+
+/// Jovian L1-attributes shape (selector/length) plus op-geth's length-keyed deposits-only
+/// rule. No-op pre-Jovian.
+///
+/// op-geth CalcDAFootprint: the Isthmus-length (176B) attributes form means the DA-footprint
+/// gas scalar is not set yet, which is only legal for a deposits-only block. That rule keys on
+/// the attributes LENGTH and the LAST transaction — never on a timestamp window. A separate
+/// timestamp-window deposits-only rule exists as Q5 (`isNoUserTxActivationBlock`); neither
+/// subsumes the other.
+///
+/// @param lastTxIsDeposit whether the block's last transaction is a deposit
+inline void validateJovianL1AttributesShape(
+    std::span<uint8_t const> data, OpForkConfig const& cfg, bool lastTxIsDeposit)
 {
     if (!cfg.has_da_footprint)
         return;
     if (data.size() == IsthmusL1AttributesLen)
     {
-        // Isthmus-length attributes on a Jovian+ block: DA-footprint scalar is 0.
-        // Do not treat last-tx as an activation deposits-only gate.
+        if (!lastTxIsDeposit)
+            throw OpConsensusError(
+                "op block: unexpected non-deposit transactions in Jovian activation block");
         return;
     }
     if (data.size() < JovianL1AttributesLen)
@@ -385,7 +416,7 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
         BCOS_LOG(WARNING) << LOG_BADGE("OP_BLOCK_EXEC")
                           << "op block: first tx is a deposit but not the L1 attributes tx — "
                              "accepted";
-    // Q5: Jovian+ activation blocks are deposits-only (timestamp schedule, not 176-byte attrs).
+    // Q5: Jovian+ activation blocks are deposits-only (timestamp schedule).
     auto const blockTsSec =
         bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp()));
     if (op::isNoUserTxActivationBlock(*schedule, parentTsSec, blockTsSec) &&
@@ -397,10 +428,10 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
     if (cfg.has_da_footprint)
     {
         auto const& data = deposits[0].data;
-        // DA-footprint shape only (176B → scalar 0; ≥178B → selector + length).
-        // Activation deposits-only is the Q5 scan above.
-        op::validateJovianL1AttributesShape(
-            std::span<uint8_t const>{data.data(), data.size()}, cfg);
+        // Shape (176B → scalar 0; ≥178B → selector + length) AND the length-keyed
+        // deposits-only rule on the 176B form (op-geth CalcDAFootprint).
+        op::validateJovianL1AttributesShape(std::span<uint8_t const>{data.data(), data.size()}, cfg,
+            op::lastEnvelopeIsDeposit(rawTxBytes));
         if (auto scalar =
                 op::jovianDaFootprintGasScalar(std::span<uint8_t const>{data.data(), data.size()}))
             daFootprintGasScalar = *scalar;

@@ -36,7 +36,8 @@ void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig
     if (firstDep == nullptr)
         return;
     validateJovianL1AttributesShape(
-        std::span<uint8_t const>{firstDep->data.data(), firstDep->data.size()}, cfg);
+        std::span<uint8_t const>{firstDep->data.data(), firstDep->data.size()}, cfg,
+        lastTxIsDeposit(txs));
 }
 
 evmone::state::StateDiff finalizeOpBlock(

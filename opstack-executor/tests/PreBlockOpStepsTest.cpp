@@ -271,13 +271,19 @@ BOOST_AUTO_TEST_CASE(RejectsMissingDeposits)
         });
 }
 
-BOOST_AUTO_TEST_CASE(JovianIsthmusLenAttrsAllowUserTxOffActivationWindow)
+BOOST_AUTO_TEST_CASE(JovianRejectsUserTxOnIsthmusLenAttrs)
 {
     Fixture f;
-    // Fixture schedule is Isthmus-only (no Q5 window). 176B attrs are DA-shape only.
+    // Fixture schedule is Isthmus-only (no Q5 window), so the timestamp rule cannot fire:
+    // the 176B attributes length alone makes this a deposits-only block in op-geth
+    // (CalcDAFootprint), and the trailing typed envelope is the last transaction.
     auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
-    BOOST_CHECK_NO_THROW(
-        f.run(op::jovianConfig(), {kDepositEnvelope, kTypedEnvelope}, {dep, op::DepositTx{}}));
+    BOOST_CHECK_EXCEPTION(
+        f.run(op::jovianConfig(), {kDepositEnvelope, kTypedEnvelope}, {dep, op::DepositTx{}}),
+        OpConsensusError, [](OpConsensusError const& e) {
+            return std::string(e.what()).find("unexpected non-deposit transactions") !=
+                   std::string::npos;
+        });
 }
 
 BOOST_AUTO_TEST_CASE(JovianRejectsDataShorterThan178)

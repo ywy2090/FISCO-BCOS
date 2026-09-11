@@ -126,10 +126,21 @@ BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeAcceptReject)
             "178B 错 selector 应报 does not have Jovian selector,got: " << shapeError(txs));
     }
     {
-        // 176B + 普通 tx：shape 门不再看 last-tx（Q5 才拒激活窗 user tx）
+        // 176B + 普通 tx：op-geth 的 Isthmus 长度（176B）deposits-only 规则要求末笔为
+        // deposit（CalcDAFootprint），由长度键触发、与时间戳窗无关，任何 Jovian+ 块都适用。
         std::vector<OpBlockTx> txs;
         txs.push_back(attributesDeposit(IsthmusL1AttributesLen));
         txs.push_back(normalTx());
+        BOOST_CHECK_MESSAGE(
+            shapeError(txs).find("unexpected non-deposit transactions") != std::string::npos,
+            "176B + user tx 应报 unexpected non-deposit transactions，got: " << shapeError(txs));
+    }
+    {
+        // 176B + 末笔为 deposit（用户 tx 在前、deposit 在后的极端序）：op-geth 只看末笔，
+        // 故仍接受——全量扫描会在这里多拒，反而与上游分歧。
+        std::vector<OpBlockTx> txs;
+        txs.push_back(attributesDeposit(IsthmusL1AttributesLen));
+        txs.push_back(OpBlockTx{.tx = DepositTx{}, .signedEnvelope = {}});
         BOOST_CHECK_NO_THROW(validateJovianBlockShape(txs, jovian));
     }
 }
