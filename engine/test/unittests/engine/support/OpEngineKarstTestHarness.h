@@ -174,12 +174,29 @@ struct FabricatedRootsStub : bcos::scheduler::SchedulerInterface
     // a concurrent reset produces in OpScheduler; OpConsensusRejected = the one code the
     // service is allowed to answer INVALID for).
     int commitErrorCode = -1;
+    /// Fail this many commitBlock calls, then succeed (the fall-through pin: a retry
+    /// would succeed, so a case for "must not retry" can tell the two apart). failCommit
+    /// fails every call.
+    int failCommitRemaining = 0;
+    /// Stamp withdrawalsRoot onto execute/import-produced headers. True models this
+    /// node's scheduler, which always stamps it from Canyon on; false models the
+    /// node-internal fault the newPayload guard must answer -32603 for.
+    bool stampWithdrawalsRoot = true;
+    /// Attach OpPendingDropped to a commit failure, modelling OpScheduler's dropped-pending
+    /// exit. Independent of commitErrorCode: the tag, not the code, is what the engine's
+    /// fall-through must key on, so a case can pair the tag with UnknownError.
+    bool tagPendingDropped = false;
     bool failReset = false;
     int executeCalls = 0;
     int commitCalls = 0;
     /// TxsRoot stamped onto importExecute-produced headers (import payloads with no
     /// transactions carry the empty-list root; default zero matches legacy stubs).
     bcos::h256 txsRootToReturn{};
+    /// RequestsHash stamped onto execute/import-produced headers when set. nullopt (the
+    /// default) leaves it absent, matching the pre-Isthmus shape; a test that drives the
+    /// import commitment gate at Isthmus sets it to engine_common::c_emptyRequestsHash so
+    /// the fabricated header matches the rebuilt one.
+    std::optional<bcos::h256> requestsHashToReturn{};
     bcos::h256 executedWithdrawalsRoot = bcos::ledger::mpt::emptyRootHash();
     bcos::protocol::BlockHeaderFactory::Ptr headerFactory;
 
@@ -203,17 +220,33 @@ struct FabricatedRootsStub : bcos::scheduler::SchedulerInterface
         header->setStateRoot(bcos::h256{});
         header->setReceiptsRoot(bcos::h256{});
         header->setGasUsed(0);
-        header->setWithdrawalsRoot(executedWithdrawalsRoot);
+        if (stampWithdrawalsRoot)
+        {
+            header->setWithdrawalsRoot(executedWithdrawalsRoot);
+        }
         header->setBlobGasUsed(0);
+        if (requestsHashToReturn)
+        {
+            header->setRequestsHash(*requestsHashToReturn);
+        }
         callback(nullptr, std::move(header), false);
     }
     void commitBlock(bcos::protocol::BlockHeader::Ptr,
         std::function<void(bcos::Error::Ptr, bcos::ledger::LedgerConfig::Ptr)> callback) override
     {
         ++commitCalls;
-        if (failCommit)
+        if (failCommit || failCommitRemaining > 0)
         {
-            callback(BCOS_ERROR_PTR(commitErrorCode, "stub commit failure"), nullptr);
+            if (failCommitRemaining > 0)
+            {
+                --failCommitRemaining;
+            }
+            auto error = BCOS_ERROR_PTR(commitErrorCode, "stub commit failure");
+            if (tagPendingDropped)
+            {
+                *error << bcos::engine::OpPendingDropped{true};
+            }
+            callback(std::move(error), nullptr);
             return;
         }
         callback(nullptr, nullptr);
@@ -242,8 +275,15 @@ struct FabricatedRootsStub : bcos::scheduler::SchedulerInterface
         header->setTxsRoot(txsRootToReturn);
         header->setReceiptsRoot(bcos::h256{});
         header->setGasUsed(0);
-        header->setWithdrawalsRoot(executedWithdrawalsRoot);
+        if (stampWithdrawalsRoot)
+        {
+            header->setWithdrawalsRoot(executedWithdrawalsRoot);
+        }
         header->setBlobGasUsed(0);
+        if (requestsHashToReturn)
+        {
+            header->setRequestsHash(*requestsHashToReturn);
+        }
         callback(nullptr, std::move(header), nullptr, nullptr);
     }
     void status(std::function<void(bcos::Error::Ptr, bcos::protocol::Session::ConstPtr)>) override

@@ -1294,4 +1294,233 @@ BOOST_AUTO_TEST_CASE(op_golden_vector_rebuild_matches_op_geth_block_hash)
     BOOST_CHECK_EQUAL(rebuilt.hex(), golden.hex());
 }
 
+// ── Ported upstream parity cases (fisco/release-3.18.0 OpEngineServiceParityTest.cpp) ──
+// Each is adapted to this tree's harness: the delegate is FabricatedRootsStub (not the
+// upstream RecordingScheduler) and newPayload's fall-through lands on the S5 import plane
+// (importExecute), not a second executeBlock+commitBlock — so the fall-through pins assert
+// the execute counter, not upstream's commitCalls==2.
+
+BOOST_AUTO_TEST_CASE(op_fcu_zero_head_is_invalid)
+{
+    // op-geth answers STATUS_INVALID for a zero head, not SYNCING. (Ported verbatim.)
+    OpServicePair pair;
+    bcos::engine::ForkchoiceState forkchoice{{}, {}, {}};
+    auto result = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, nullptr, 3));
+    BOOST_CHECK_EQUAL(static_cast<int>(result.payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Invalid));
+    BOOST_REQUIRE(result.payloadStatus.validationError.has_value());
+    BOOST_CHECK(result.payloadStatus.validationError->find("zero hash") != std::string::npos);
+    BOOST_CHECK(!result.payloadId.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(op_newpayload_built_header_commit_failure_falls_through_to_execute)
+{
+    // A replaced pending must not strand the payload on -32603. Adapted: commitCalls is
+    // pinned at 1 (the failed built-header commit) and the retry is observed through the
+    // execute counter (S5 import), where upstream saw a second commitBlock.
+    auto delegate = std::make_shared<FabricatedRootsStub>();
+    delegate->failFirst = false;
+    delegate->failCommitRemaining = 1;
+    // "Replaced pending" carries the OpPendingDropped tag; that is what the fall-through
+    // is scoped to.
+    delegate->tagPendingDropped = true;
+    OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
+    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+
+    auto decoded = makeDecodableWeb3Tx(1);
+    auto attrs = makeOpPayloadAttributes();
+    attrs.minBaseFee = std::nullopt;
+    attrs.transactions = std::vector<std::string>{decoded.rawHex};
+    auto const hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
+    registerVerifiedBlock(pair.storage, hash, 0);
+    registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
+    auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
+    BOOST_REQUIRE(built.payloadId.has_value());
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
+    BOOST_REQUIRE(payload);
+
+    // The S5 import commitment gate compares the fabricated header's txRoot/requestsHash
+    // against the payload-rebuilt header, so stamp the values this payload defines (the
+    // fabrication is otherwise only used for the commit-routing pin).
+    delegate->txsRootToReturn = EngineOpScheduler::computeTxRoot(
+        bcos::engine::detail::rawEnvelopes(payload->executionPayload));
+    delegate->requestsHashToReturn = bcos::engine::engine_common::c_emptyRequestsHash;
+
+    int const executesAfterBuild = delegate->executeCalls;
+
+    bcos::engine::NewPayloadRequest request;
+    request.executionRequests = std::vector<bcos::bytes>{};
+    request.executionPayload = payload->executionPayload;
+    request.parentBeaconBlockRoot = payload->parentBeaconBlockRoot;
+    request.expectedBlobVersionedHashes = {};
+    auto status = bcos::task::syncWait(pair.service.newPayload(request, 4));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_CHECK_EQUAL(delegate->commitCalls, 1);                 // the failed built-header commit
+    BOOST_CHECK_GT(delegate->executeCalls, executesAfterBuild);  // it did re-execute
+}
+
+BOOST_AUTO_TEST_CASE(op_newpayload_missing_executed_withdrawals_root_is_internal_error)
+{
+    // Missing withdrawalsRoot on the executed header is a node-internal fault
+    // (-32603), not a consensus INVALID. Fork level: OpServicePair's default schedule is
+    // OpForkSchedule::legacy(false) == "0:isthmus", so the payload resolves to Isthmus —
+    // >= Canyon, the fork whose header field set includes withdrawalsRoot (the same gate
+    // rebuildOpEthHeader uses) and where this guard's presence check fires. FCU stamps a
+    // valid payload; the newPayload import omits the field. Fail the built-header commit
+    // once with the dropped-pending tag so control reaches the import-path check.
+    auto delegate = std::make_shared<FabricatedRootsStub>();
+    delegate->failFirst = false;
+    OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
+    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+
+    auto decoded = makeDecodableWeb3Tx(1);
+    auto attrs = makeOpPayloadAttributes();
+    attrs.minBaseFee = std::nullopt;
+    attrs.transactions = std::vector<std::string>{decoded.rawHex};
+    auto const hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
+    registerVerifiedBlock(pair.storage, hash, 0);
+    registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
+    auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
+    BOOST_REQUIRE(built.payloadId.has_value());
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
+    BOOST_REQUIRE(payload);
+
+    bcos::engine::NewPayloadRequest request;
+    request.executionRequests = std::vector<bcos::bytes>{};
+    request.executionPayload = payload->executionPayload;
+    request.parentBeaconBlockRoot = payload->parentBeaconBlockRoot;
+    request.expectedBlobVersionedHashes = {};
+    delegate->stampWithdrawalsRoot = false;
+    delegate->failCommitRemaining = 1;
+    // Dropped-pending code: only that fault falls through to the import path where the
+    // missing withdrawalsRoot is detected.
+    delegate->tagPendingDropped = true;
+    BOOST_CHECK_THROW(bcos::task::syncWait(pair.service.newPayload(request, 4)),
+        bcos::engine::OpExecutionInternalError);
+}
+
+BOOST_AUTO_TEST_CASE(op_commit_error_routing_dropped_pending_reexecutes)
+{
+    // The intended fall-through: a commit whose built pending was dropped by a concurrent
+    // reset (OpPendingDropped tag) is retried once and answers VALID when the retry
+    // commits, instead of -32603 on every retry of a still-valid payload. Adapted: the
+    // retry is the S5 import (no second commitBlock), so it is pinned via executeCalls.
+    auto delegate = std::make_shared<FabricatedRootsStub>();
+    delegate->failFirst = false;
+    delegate->failCommitRemaining = 1;
+    delegate->tagPendingDropped = true;
+    OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
+    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+
+    auto decoded = makeDecodableWeb3Tx(1);
+    auto attrs = makeOpPayloadAttributes();
+    attrs.minBaseFee = std::nullopt;
+    attrs.transactions = std::vector<std::string>{decoded.rawHex};
+    auto const hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
+    registerVerifiedBlock(pair.storage, hash, 0);
+    registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
+    auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
+    BOOST_REQUIRE(built.payloadId.has_value());
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
+    BOOST_REQUIRE(payload);
+    // Same commitment-consistency stamp as the built-header fall-through case above: the
+    // fabricated import header must match the payload-rebuilt one to land Valid.
+    delegate->txsRootToReturn = EngineOpScheduler::computeTxRoot(
+        bcos::engine::detail::rawEnvelopes(payload->executionPayload));
+    delegate->requestsHashToReturn = bcos::engine::engine_common::c_emptyRequestsHash;
+    int const executesAfterBuild = delegate->executeCalls;
+
+    bcos::engine::NewPayloadRequest request;
+    request.executionRequests = std::vector<bcos::bytes>{};
+    request.executionPayload = payload->executionPayload;
+    request.parentBeaconBlockRoot = payload->parentBeaconBlockRoot;
+    request.expectedBlobVersionedHashes = {};
+
+    auto status = bcos::task::syncWait(pair.service.newPayload(request, 4));
+    BOOST_REQUIRE_EQUAL(static_cast<int>(status.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    BOOST_CHECK_EQUAL(delegate->commitCalls, 1);                 // failed once on the built header
+    BOOST_CHECK_GT(delegate->executeCalls, executesAfterBuild);  // the retry re-executed
+}
+
+BOOST_AUTO_TEST_CASE(op_commit_error_routing_non_dropped_pending_does_not_fall_through)
+{
+    // Only the dropped-pending commit fault may fall through to execute+commit. A first
+    // commit failing with any other code must keep its routing and must NOT be retried by
+    // a silent re-execute: the second commit would succeed here, so without the gate this
+    // answers VALID and hides the real failure. (Ported; assertion unchanged.)
+    auto delegate = std::make_shared<FabricatedRootsStub>();
+    delegate->failFirst = false;
+    delegate->failCommitRemaining = 1;  // first commit fails, a retry would succeed
+    delegate->commitErrorCode = static_cast<int>(bcos::scheduler::SchedulerError::CommitError);
+    OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
+    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+
+    auto decoded = makeDecodableWeb3Tx(1);
+    auto attrs = makeOpPayloadAttributes();
+    attrs.minBaseFee = std::nullopt;
+    attrs.transactions = std::vector<std::string>{decoded.rawHex};
+    auto const hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
+    registerVerifiedBlock(pair.storage, hash, 0);
+    registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
+    auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
+    BOOST_REQUIRE(built.payloadId.has_value());
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
+    BOOST_REQUIRE(payload);
+    bcos::engine::NewPayloadRequest request;
+    request.executionRequests = std::vector<bcos::bytes>{};
+    request.executionPayload = payload->executionPayload;
+    request.parentBeaconBlockRoot = payload->parentBeaconBlockRoot;
+    request.expectedBlobVersionedHashes = {};
+
+    BOOST_CHECK_THROW(bcos::task::syncWait(pair.service.newPayload(request, 4)),
+        bcos::engine::OpExecutionInternalError);
+    // The gate must stop at the first failure: no second execute/commit attempt.
+    BOOST_CHECK_EQUAL(delegate->commitCalls, 1);
+}
+
+BOOST_AUTO_TEST_CASE(op_commit_error_routing_unknown_error_does_not_fall_through)
+{
+    // The catch-all code: OpScheduler::classifyException reports every unclassified commit
+    // fault as SchedulerError::UnknownError, and a code-keyed gate would treat that as a
+    // dropped pending. Only the tag may fall through, so an untagged UnknownError must
+    // route immediately. Ported; the retry would succeed, which is what makes Valid a
+    // false pass.
+    auto delegate = std::make_shared<FabricatedRootsStub>();
+    delegate->failFirst = false;
+    delegate->failCommitRemaining = 1;  // first commit fails, a retry would succeed
+    delegate->commitErrorCode = static_cast<int>(bcos::scheduler::SchedulerError::UnknownError);
+    BOOST_REQUIRE(!delegate->tagPendingDropped);  // a real fault, not a dropped pending
+    OpServicePair pair(/*allowSynthesizedL1Attributes=*/false, delegate);
+    delegate->headerFactory = pair.blockFactory->blockHeaderFactory();
+
+    auto decoded = makeDecodableWeb3Tx(1);
+    auto attrs = makeOpPayloadAttributes();
+    attrs.minBaseFee = std::nullopt;
+    attrs.transactions = std::vector<std::string>{decoded.rawHex};
+    auto const hash = fixtureHeadHash();
+    bcos::engine::ForkchoiceState forkchoice{hash, hash, hash};
+    registerVerifiedBlock(pair.storage, hash, 0);
+    registerParentHeader(pair.storage, *pair.blockFactory, 0, 1'699'000'000'000);
+    auto built = bcos::task::syncWait(pair.service.updateForkchoice(forkchoice, &attrs, 3));
+    BOOST_REQUIRE(built.payloadId.has_value());
+    auto payload = bcos::task::syncWait(pair.service.getPayload(*built.payloadId, 4));
+    BOOST_REQUIRE(payload);
+    bcos::engine::NewPayloadRequest request;
+    request.executionRequests = std::vector<bcos::bytes>{};
+    request.executionPayload = payload->executionPayload;
+    request.parentBeaconBlockRoot = payload->parentBeaconBlockRoot;
+    request.expectedBlobVersionedHashes = {};
+
+    BOOST_CHECK_THROW(bcos::task::syncWait(pair.service.newPayload(request, 4)),
+        bcos::engine::OpExecutionInternalError);
+    // Not VALID: the retry must never have run.
+    BOOST_CHECK_EQUAL(delegate->commitCalls, 1);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
