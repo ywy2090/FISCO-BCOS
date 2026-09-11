@@ -1175,9 +1175,18 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::runOpNewPay
         co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
             std::string("execution returned no header"));
     }
-    // Same presence-insensitive projection as commitmentsOfHeader below: below Canyon the
-    // executed header always carries the seal's present-zero sentinel while a pre-Canyon
-    // payload legitimately omits the field, and the pre-Canyon RLP defines neither value.
+    // From Canyon the header field set includes withdrawalsRoot (the same gate
+    // rebuildOpEthHeader uses, OpEngineService.cpp), and its presence is stamped by this
+    // node's scheduler, not the CL payload. A missing field there is a node-internal fault
+    // (-32603), never a consensus INVALID the CL would discard.
+    if (ctx.forkId >= OpForkId::Canyon && !executedHeader->withdrawalsRoot().has_value())
+    {
+        BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
+                                  "executed header is missing withdrawalsRoot"});
+    }
+    // Below Canyon the executed header carries the seal's present-zero sentinel while a
+    // pre-Canyon payload legitimately omits the field, and the pre-Canyon RLP defines
+    // neither value; same presence-insensitive projection as commitmentsOfHeader below.
     if (executedHeader->withdrawalsRoot().value_or(bcos::h256{}) !=
         payload.withdrawalsRoot.value_or(bcos::h256{}))
     {
