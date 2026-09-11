@@ -266,6 +266,30 @@ def test_schedule_overlay_conflict_raises():
         gen.build_schedule(TOML_FORKS, ts0=50, extra_forks={"canyon": 123})
 
 
+TOML_ALT_DA = TOML + """
+[alt_da]
+da_challenge_contract_address = "0x97A2dA87d3439b172e6DD027220e01c9Cb565B80"
+da_challenge_window = 3600
+da_resolve_window = 3600
+da_commitment_type = "KeccakCommitment"
+"""
+
+
+def test_build_rollup_emits_alt_da_when_toml_carries_it():
+    # op-node superchain.go maps chConfig.AltDA into Config.AltDAConfig, whose JSON
+    # tag is `alt_da` (rollup/types.go). Dropping it silently degrades an alt-DA
+    # chain to calldata DA, so the key must be emitted in the reader's shape.
+    rollup = gen.build_rollup(gen.tomllib.loads(TOML_ALT_DA), l1_chain_id=1)
+    assert rollup["alt_da"] == {
+        "da_challenge_contract_address": "0x97a2da87d3439b172e6dd027220e01c9cb565b80",
+        "da_commitment_type": "KeccakCommitment",
+        "da_challenge_window": 3600,
+        "da_resolve_window": 3600,
+    }
+    # No [alt_da] in the toml => key omitted (json:"alt_da,omitempty").
+    assert "alt_da" not in gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1)
+
+
 def test_build_rollup_carries_registry_fields():
     rollup = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1)
     assert rollup["genesis"]["l2"]["number"] == 0
@@ -330,6 +354,9 @@ _OP_GETH_ZIP = Path("/Users/octopus/octo/code/op-geth/superchain/superchain-conf
 # number != 0 are excluded).
 _EXPECTED_REGISTRY_EXCLUSIONS = {"mainnet/op"}
 
+# Registry chains carrying [alt_da]: op-node maps these into Config.AltDAConfig.
+_ALT_DA_CHAINS = ["mainnet/redstone", "sepolia/celo-sep"]
+
 
 def _registry_chains(zip_path):
     with zipfile.ZipFile(zip_path) as zf:
@@ -365,6 +392,17 @@ def test_real_registry_full_sweep_matches_documented_exclusions():
         f"documented exclusions that unexpectedly passed: "
         f"{sorted(_EXPECTED_REGISTRY_EXCLUSIONS - set(failed))}")
     assert set(passed) == set(chains) - _EXPECTED_REGISTRY_EXCLUSIONS
+
+
+@pytest.mark.parametrize("chain", _ALT_DA_CHAINS)
+def test_real_registry_alt_da_chains_emit_alt_da(chain):
+    import shutil
+    if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
+        pytest.skip("op-geth superchain zip / zstd CLI not available")
+    result = gen.generate(str(_OP_GETH_ZIP), chain)
+    alt_da = result["rollup"]["alt_da"]
+    assert alt_da["da_commitment_type"]
+    assert alt_da["da_challenge_window"] > 0
 
 
 def test_build_rollup_threads_extra_fork_overlay():

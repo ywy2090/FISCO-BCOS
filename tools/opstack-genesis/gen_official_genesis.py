@@ -368,8 +368,8 @@ def build_rollup(toml, l1_chain_id, extra_forks=None):
     """op-node rollup.json for this chain, mapped as rollup/superchain.go does:
     chain parameters from the toml, regolith fixed at 0, unscheduled forks omitted
     (never null — an unknown key fails the pinned op-node's DisallowUnknownFields
-    decode), and ChannelTimeoutBedrock's 300 (not yet in the registry, so op-node
-    hardcodes it).
+    decode), an [alt_da] section mapped into Config.AltDAConfig, and
+    ChannelTimeoutBedrock's 300 (not yet in the registry, so op-node hardcodes it).
 
     `l1_chain_id` is not in the chain toml — op-node reads it from the superchain
     config — so the caller supplies it. `extra_forks` is the same overlay the EL
@@ -421,6 +421,20 @@ def build_rollup(toml, l1_chain_id, extra_forks=None):
             value = hardforks.get(f"{fork}_time")
             if value is not None:
                 rollup[f"{fork}_time"] = int(value)
+    alt_da = toml.get("alt_da")
+    if alt_da is not None:
+        # superchain.go maps chConfig.AltDA (toml [alt_da]) into Config.AltDAConfig,
+        # whose JSON tag is `alt_da` (op-node rollup/types.go); the nested keys are
+        # that struct's JSON tags. Build explicitly rather than pass the toml dict
+        # through: a registry-side key rename must not silently produce a key the
+        # consumer ignores (which would degrade the chain to calldata DA).
+        rollup["alt_da"] = {
+            "da_challenge_contract_address":
+                _lower_hex(alt_da["da_challenge_contract_address"]),
+            "da_commitment_type": alt_da["da_commitment_type"],
+            "da_challenge_window": int(alt_da["da_challenge_window"]),
+            "da_resolve_window": int(alt_da["da_resolve_window"]),
+        }
     return rollup
 
 
