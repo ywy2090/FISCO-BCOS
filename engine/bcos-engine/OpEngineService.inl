@@ -1059,8 +1059,17 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::runOpNewPay
     // exactly when the parent is the canonical tip (canonicalTip == -1 means no
     // committed chain yet, where the committed plane is the genesis plane). Otherwise
     // the parent's materialized post-state is required, and its absence is SYNCING —
-    // design §4.5's "hasState failed" row — never a wrong-plane execution on the
-    // committed flat.
+    // docs/2026-09-09-s3-engine-api-versions-design.md §4.5's "hasState failed" row —
+    // never a wrong-plane execution on the committed flat.
+    //
+    // Deliberate divergence from op-geth: op-geth answers ACCEPTED when the parent block
+    // is known but its state is not (eth/catalyst/api.go); this lane answers SYNCING,
+    // because it holds no way to re-materialize a pruned parent plane and must not claim
+    // it has accepted state it cannot validate. Answering ACCEPTED would require defining
+    // latestValidHash semantics for that shape. Pinned by
+    // OpEngineImportFcuTest/PrunedParentPlaneIsSyncingNotEmptyReExecute.
+    // OPEN RISK: with no L2 derivation/sync path to rebuild the plane, a CL that waits for
+    // the missing state will wait forever; see the campaign ledger's U6-F5 entry.
     auto const canonicalTip =
         co_await bcos::ledger::getCurrentBlockNumber(view, bcos::ledger::fromStorage);
     std::vector<bcos::protocol::BlockHeader::Ptr> parentHeaders;
