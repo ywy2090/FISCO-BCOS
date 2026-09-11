@@ -331,9 +331,12 @@ def build_schedule(toml, ts0, extra_forks=None):
 # EL semantics) but are part of the CL config, so they come from the pin like any
 # other; `karst` comes from the pin when present and from the --extra-fork overlay
 # otherwise, so the CL config and the EL schedule agree on its activation time.
-# NOTE: this targets a karst-aware op-node. The checkouts pin superchain.go/rollup
-# types.go with no KarstTime and parse rollup.json with DisallowUnknownFields, so a
-# karst_time key is rejected by that revision (S7 must pick the op-node version).
+# NOTE: a fork key is emitted only when that fork is scheduled — unscheduled forks
+# are omitted, never null. The checkouts pin superchain.go/rollup types.go with no
+# KarstTime and parse rollup.json with DisallowUnknownFields, so even a null
+# karst_time key would make every artifact undecodable by that revision; a PRESENT
+# karst_time (from --extra-fork) requires a karst-aware op-node (S7 must pick the
+# op-node version to match the schedule it is fed).
 # Activation order (also the order the monotonicity check walks): op-geth's EL fork
 # sequence, with the CL-only forks in their op-node positions.
 _ROLLUP_FORK_KEYS = ["regolith", "canyon", "delta", "ecotone", "fjord", "granite",
@@ -352,8 +355,10 @@ def _lower_hex(value):
 
 def build_rollup(toml, l1_chain_id, extra_forks=None):
     """op-node rollup.json for this chain, mapped as rollup/superchain.go does:
-    chain parameters from the toml, regolith fixed at 0, unscheduled forks null, and
-    ChannelTimeoutBedrock's 300 (not yet in the registry, so op-node hardcodes it).
+    chain parameters from the toml, regolith fixed at 0, unscheduled forks omitted
+    (never null — an unknown key fails the pinned op-node's DisallowUnknownFields
+    decode), and ChannelTimeoutBedrock's 300 (not yet in the registry, so op-node
+    hardcodes it).
 
     `l1_chain_id` is not in the chain toml — op-node reads it from the superchain
     config — so the caller supplies it. `extra_forks` is the same overlay the EL
@@ -399,10 +404,12 @@ def build_rollup(toml, l1_chain_id, extra_forks=None):
         elif fork in EL_FORKS:
             # EL forks (incl. an overlaid karst) come from the validated map.
             value = el_times.get(fork)
-            rollup[f"{fork}_time"] = None if value is None else int(value)
+            if value is not None:
+                rollup[f"{fork}_time"] = int(value)
         else:
             value = hardforks.get(f"{fork}_time")
-            rollup[f"{fork}_time"] = None if value is None else int(value)
+            if value is not None:
+                rollup[f"{fork}_time"] = int(value)
     return rollup
 
 

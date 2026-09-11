@@ -278,10 +278,13 @@ def test_build_rollup_carries_registry_fields():
     assert rollup["chain_op_config"]["eip1559DenominatorCanyon"] == 250
     assert rollup["regolith_time"] == 0
     assert rollup["canyon_time"] == 1704992401
-    # karst has no pin entry (the registry stops at jovian), so it is null until an
-    # overlay supplies it — see test_build_rollup_threads_extra_fork_overlay.
-    assert rollup["karst_time"] is None
-    assert rollup["interop_time"] is None
+    # Unscheduled forks are OMITTED, not null: the pinned op-node parses rollup.json
+    # with DisallowUnknownFields and has no KarstTime field, so a karst_time key — even
+    # null — would make every artifact undecodable. A fork key is emitted only when
+    # scheduled (see test_build_rollup_threads_extra_fork_overlay); interop/pectra
+    # nulls are tolerated upstream but dropped under the same single rule.
+    assert "karst_time" not in rollup
+    assert "interop_time" not in rollup
 
 
 def test_generate_end_to_end_synthetic(tmp_path):
@@ -333,9 +336,10 @@ def test_build_rollup_threads_extra_fork_overlay():
                               extra_forks={"karst": 1781712001})
     assert rollup["karst_time"] == 1781712001
     # Everything else still comes from the pin: the overlay adds karst without
-    # inventing the forks this synthetic toml does not schedule.
+    # inventing the forks this synthetic toml does not schedule (and unscheduled
+    # forks stay omitted — their absence is what keeps the artifact decodable).
     assert rollup["canyon_time"] == 1704992401
-    assert rollup["jovian_time"] is None
+    assert "jovian_time" not in rollup
     # an overlay naming an EL fork the pin already schedules must not be applied silently
     with pytest.raises(gen.RegistryError):
         gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1,
