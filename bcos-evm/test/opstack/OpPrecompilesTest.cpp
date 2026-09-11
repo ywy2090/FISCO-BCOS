@@ -76,7 +76,8 @@ BOOST_AUTO_TEST_CASE(JovianLimitsStricterThanIsthmus)
     BOOST_CHECK_EQUAL(
         jovianPrecompileOverrides().find(evmc::address{0x0f})->max_input_size, 156672u);
     BOOST_CHECK_EQUAL(jovianConfig().precompiles, &jovianPrecompileOverrides());
-    BOOST_CHECK_EQUAL(karstConfig().precompiles, &jovianPrecompileOverrides());
+    BOOST_CHECK_EQUAL(karstConfig().precompiles, &karstPrecompileOverrides());
+    BOOST_CHECK(karstConfig().precompiles != jovianConfig().precompiles);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

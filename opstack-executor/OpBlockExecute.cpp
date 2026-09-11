@@ -37,8 +37,8 @@ void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig
     if (firstDep == nullptr)
         return;
     validateJovianL1AttributesShape(
-        std::span<uint8_t const>{firstDep->data.data(), firstDep->data.size()},
-        std::holds_alternative<DepositTx>(txs.back().tx), cfg);
+        std::span<uint8_t const>{firstDep->data.data(), firstDep->data.size()}, cfg,
+        lastTxIsDeposit(txs));
 }
 
 evmone::state::StateDiff finalizeOpBlock(
@@ -55,8 +55,13 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     std::span<const OpBlockTx> txs, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId,
     const bcos::protocol::TransactionReceiptFactory::Ptr& receiptFactory,
-    const std::function<void(const evmone::state::StateDiff&)>& applyDiff)
+    const std::function<void(const evmone::state::StateDiff&)>& applyDiff,
+    OpForkSchedule const* schedule, uint64_t parentTsSec)
 {
+    if (schedule == nullptr)
+    {
+        throw std::invalid_argument("processOpBlock: OpForkSchedule is required");
+    }
     // Storage write-back failures must leave as OpStorageError (-32603), never a bare
     // runtime_error — the same classification the per-tx path applies in m_finish /
     // executeDeposit / finalizeBlock (Storage2State::applyDiff poisons AND rethrows raw).
@@ -102,6 +107,14 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
                           << "op block: first tx is a deposit but not the L1 attributes tx — "
                              "accepted";
     validateJovianBlockShape(txs, cfg);
+    // Q5: Jovian+ activation blocks are deposits-only. BlockInfo.timestamp is Unix
+    // seconds (toBlockInfo already converted header millis). Same window as
+    // preBlockOpSteps; the non-deposit probe shares the 0x7e envelope rule.
+    if (isNoUserTxActivationBlock(*schedule, parentTsSec, block.timestamp) && hasNonDepositTx(txs))
+    {
+        throw OpConsensusError(
+            "op block: unexpected non-deposit transactions in fork activation block");
+    }
 
     OpBlockResult result;
     result.receipts.reserve(txs.size());
@@ -282,6 +295,76 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
 }
 
 // ---- block-header seal ----
+namespace
+{
+/// Parse cumulativeGasUsed: 0x-hex via safeFromQuantity, otherwise decimal.
+/// Bare digits must not go to safeFromQuantity (it treats them as hex).
+[[nodiscard]] uint64_t parseCumulativeGasUsed(std::string_view s)
+{
+    if (s.size() > 1 && (s[0] == '0') && (s[1] == 'x' || s[1] == 'X'))
+    {
+        if (auto v = bcos::safeFromQuantity(s))
+            return *v;
+    }
+    else
+    {
+        uint64_t value = 0;
+        const auto* begin = s.data();
+        const auto* end = begin + s.size();
+        const auto [ptr, ec] = std::from_chars(begin, end, value, 10);
+        if (ec == std::errc{} && ptr == end)
+            return value;
+    }
+    throw OpConsensusError(
+        "op block: invalid cumulativeGasUsed in receipt (not hex or decimal): " + std::string(s));
+}
+
+/// Patch a placeholder list-header byte at headerPos with the canonical header for payloadLen
+/// (short form for < 56 bytes, long form otherwise — the long form inserts the length bytes,
+/// shifting the already-written payload once per list, not once per field).
+inline void patchRlpListHeader(bcos::bytes& buf, size_t headerPos, size_t payloadLen)
+{
+    if (payloadLen < 56)
+    {
+        buf[headerPos] = static_cast<bcos::byte>(0xc0 + payloadLen);
+        return;
+    }
+    bcos::bytes lenBytes;
+    auto v = payloadLen;
+    while (v > 0)
+    {
+        lenBytes.insert(lenBytes.begin(), static_cast<bcos::byte>(v & 0xff));
+        v >>= 8;
+    }
+    buf[headerPos] = static_cast<bcos::byte>(0xf7 + lenBytes.size());
+    buf.insert(
+        buf.begin() + static_cast<ptrdiff_t>(headerPos) + 1, lenBytes.begin(), lenBytes.end());
+}
+
+/// RLP list of logs: [address, [topics...], data] each, whole collection wrapped in a list
+/// (byte-identical to evmone's rlp::encode_container over vector<Log>). Writes each log's
+/// bytes once, with header backfill — no per-log intermediate buffers.
+inline void encodeLogsList(bcos::bytes& to, gsl::span<const bcos::protocol::LogEntry> logs)
+{
+    auto const listStart = to.size();
+    to.push_back(0xc0);  // placeholder (patched below)
+    auto const payloadStart = to.size();
+    for (const auto& log : logs)
+    {
+        auto const logStart = to.size();
+        to.push_back(0xc0);  // placeholder for this log's list header
+        bcos::codec::rlp::encode(to, log.address());
+        auto const topicsStart = to.size();
+        to.push_back(0xc0);  // placeholder for the topics list header
+        for (const auto& topic : log.topics())
+            bcos::codec::rlp::encode(to, topic);
+        patchRlpListHeader(to, topicsStart, to.size() - topicsStart - 1);
+        bcos::codec::rlp::encode(to, log.data());
+        patchRlpListHeader(to, logStart, to.size() - logStart - 1);
+    }
+    patchRlpListHeader(to, listStart, to.size() - payloadStart);
+}
+}  // namespace
 
 evmone::hash256 opStorageRoot(const std::map<evmc::bytes32, evmc::bytes32>& storage)
 {
@@ -307,19 +390,59 @@ evmone::hash256 opStorageRoot(const std::map<evmc::bytes32, evmc::bytes32>& stor
     return root;
 }
 
-bcos::bytes encodeReceiptForRoot(const bcos::protocol::TransactionReceipt& r, uint8_t txType)
+bcos::bytes encodeReceiptForRoot(
+    const bcos::protocol::TransactionReceipt& r, uint8_t txType, const OpForkConfig& cfg)
 {
-    // The encoder lives in ledger/mpt so the engine's header paths (EngineServiceImpl /
-    // EthEngineService) and this block seal share one implementation; translate its
-    // malformed-receipt error into the consensus-rejection type this path's callers map.
-    try
+    // RLP bool semantics: true → 0x01, false → 0x80 (raw push; the UnsignedByte encode path
+    // mis-handles bool). Payload = rlp([status, cumGas, bloom, logs]) + (deposit) [nonce, version].
+    const bool success = (r.status() == 0);
+    const uint64_t cumGas = parseCumulativeGasUsed(r.cumulativeGasUsed());
+    const auto bloom = r.logsBloom();
+    if (bloom.size() != 256)
     {
-        return bcos::ledger::mpt::encodeReceiptLeaf(r, txType);
+        throw OpConsensusError(
+            "op block: receipt logsBloom must be 256 bytes, got " + std::to_string(bloom.size()));
     }
-    catch (bcos::ledger::mpt::EthReceiptEncodeError const& e)
+    const auto logs = r.logEntries();
+
+    bcos::bytes payload;
+    payload.push_back(success ? 0x01 : 0x80);
+    bcos::codec::rlp::encode(payload, cumGas);
+    bcos::codec::rlp::encode(payload, bloom);
+    encodeLogsList(payload, logs);
+
+    if (txType == static_cast<uint8_t>(kDepositTxType))
     {
-        throw OpConsensusError("op block: " + std::string(e.what()));
+        const auto& meta = r.opStackMeta();
+        // op-geth Receipts.EncodeIndex at the pin gates the leaf shape on the VERSION
+        // word: Canyon+ (version present) -> rlp([status, cum, bloom, logs, nonce,
+        // version]); Regolith (version absent) -> rlp([status, cum, bloom, logs]) —
+        // the pre-Canyon receipt hash inadvertently omitted the deposit nonce too
+        // (receipt.go depositReceiptRLP rlp:"optional" comments), so the meta's
+        // API-level deposit_nonce is NOT part of the consensus leaf pre-Canyon.
+        // runDeposit fills the version iff fork >= Canyon; meta presence and fork
+        // must agree in both directions or the leaf would silently change shape.
+        const bool wantsVersion = cfg.fork >= OpFork::Canyon;
+        if (!meta || meta->deposit_receipt_version.has_value() != wantsVersion)
+            throw OpConsensusError(
+                "op block: deposit receipt nonce/version missing or fork-inconsistent");
+        if (wantsVersion)
+        {
+            if (!meta->deposit_nonce)
+                throw OpConsensusError("op block: deposit receipt missing deposit nonce");
+            bcos::codec::rlp::encode(payload, *meta->deposit_nonce);
+            bcos::codec::rlp::encode(payload, *meta->deposit_receipt_version);
+        }
     }
+
+    bcos::bytes out;
+    out.reserve(payload.size() + 4);
+    // Typed raw-byte prefix (legacy has none; deposit's 0x7e is the EIP-2718 type byte).
+    if (txType != static_cast<uint8_t>(evmone::state::Transaction::Type::legacy))
+        out.push_back(txType);
+    bcos::codec::rlp::encodeHeader(out, {.isList = true, .payloadLength = payload.size()});
+    out.insert(out.end(), payload.begin(), payload.end());
+    return out;
 }
 
 OpBlockSeal sealOpBlock(const OpBlockResult& result, const OpForkConfig& cfg,
@@ -335,23 +458,19 @@ OpBlockSeal sealOpBlock(const OpBlockResult& result, const OpForkConfig& cfg,
         throw std::logic_error("op block: receipts/txTypes length mismatch (caller bug)");
     OpBlockSeal seal{};
 
-    // receipts-root: index-keyed trie over the RLP receipt leaves (op-geth Receipts.EncodeIndex).
-    // Shared with the engine header paths through ledger/mpt::calculateReceiptsRoot so the two
-    // producers cannot drift on the root construction; encodeReceiptForRoot owns the leaf bytes.
-    std::vector<bcos::bytes> receiptLeaves;
-    receiptLeaves.reserve(result.receipts.size());
+    // receipts-root: var-key trie (key = rlp(index), leaf = EncodeIndex encoding).
+    std::vector<std::pair<bcos::bytes, bcos::bytes>> receiptsEntries;
+    receiptsEntries.reserve(result.receipts.size());
     for (size_t i = 0; i < result.receipts.size(); ++i)
     {
-        receiptLeaves.push_back(encodeReceiptForRoot(*result.receipts[i], result.txTypes[i]));
+        bcos::bytes key;
+        bcos::codec::rlp::encode(key, static_cast<uint64_t>(i));
+        auto leaf = encodeReceiptForRoot(*result.receipts[i], result.txTypes[i], cfg);
+        receiptsEntries.emplace_back(std::move(key), std::move(leaf));
     }
-    std::vector<bcos::bytesConstRef> receiptLeafRefs;
-    receiptLeafRefs.reserve(receiptLeaves.size());
-    for (auto const& leaf : receiptLeaves)
-    {
-        receiptLeafRefs.emplace_back(leaf.data(), leaf.size());
-    }
-    auto const receiptsRoot = bcos::ledger::mpt::calculateReceiptsRoot(receiptLeafRefs);
-    std::memcpy(seal.receiptsRoot.bytes, receiptsRoot.data(), sizeof(seal.receiptsRoot.bytes));
+    auto receiptsResult = bcos::ledger::mpt::computeTrieRootVarKey(receiptsEntries);
+    std::memcpy(
+        seal.receiptsRoot.bytes, receiptsResult.root.data(), sizeof(seal.receiptsRoot.bytes));
 
     // Block-level logsBloom = bitwise-OR of each receipt's 256-byte bloom.
     for (const auto& r : result.receipts)
@@ -367,13 +486,15 @@ OpBlockSeal sealOpBlock(const OpBlockResult& result, const OpForkConfig& cfg,
     }
 
     // Isthmus+: withdrawalsRoot = MessagePasser storage root, requestsHash = sha256("").
-    // Pre-Isthmus: withdrawals list is always empty → empty-trie root; no requests field.
+    // Canyon..Holocene: withdrawals list is always empty → empty-trie root (EIP-4895).
+    // Regolith (London): EIP-4895 is not active — the header carries NO withdrawalsRoot,
+    // so the seal keeps the zero hash (= field absent; the replay gates on it).
     if (cfg.fork >= OpFork::Isthmus)
     {
         seal.withdrawalsRoot = opStorageRoot(messagePasserStorage);
         seal.requestsHash = OP_EMPTY_REQUESTS_HASH;
     }
-    else
+    else if (cfg.fork >= OpFork::Canyon)
     {
         auto const emptyRoot = bcos::ledger::mpt::emptyRootHash();
         std::memcpy(

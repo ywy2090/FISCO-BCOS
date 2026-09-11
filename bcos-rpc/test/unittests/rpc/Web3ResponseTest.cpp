@@ -223,12 +223,11 @@ BOOST_AUTO_TEST_CASE(combineBlockResponseEthHeaderReadsFieldsFromHeader)
     header->setNumber(7);
     header->setTimestamp(1700000000 * 1000LL);  // BlockHeader milliseconds == 1700000000 s
     header->setEthBlockVersion(bcos::protocol::EthBlockVersion::CANCUN);
-    header->setParentInfo(
-        bcos::protocol::ParentInfo{.blockNumber = 6,
-            .blockHash = bcos::crypto::HashType(
-                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")});
-    header->setUncleHash(
-        bcos::crypto::HashType("0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"));
+    header->setParentInfo(bcos::protocol::ParentInfo{.blockNumber = 6,
+        .blockHash = bcos::crypto::HashType(
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")});
+    header->setUncleHash(bcos::crypto::HashType(
+        "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"));
     header->setCoinbase(bcos::Address("1234567890abcdef1234567890abcdef12345678"));
     header->setDifficulty(bcos::u256(0));
     header->setNonce(bcos::h64(0));
@@ -311,10 +310,9 @@ static std::shared_ptr<bcos::protocol::Block> makeEthHeaderBlock(
     header->setNumber(7);
     header->setTimestamp(1700000000 * 1000LL);  // BlockHeader milliseconds == 1700000000 s
     header->setEthBlockVersion(version);
-    header->setParentInfo(
-        bcos::protocol::ParentInfo{.blockNumber = 6,
-            .blockHash = bcos::crypto::HashType(
-                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")});
+    header->setParentInfo(bcos::protocol::ParentInfo{.blockNumber = 6,
+        .blockHash = bcos::crypto::HashType(
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")});
     header->setUncleHash(bcos::crypto::HashType(
         "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"));
     header->setCoinbase(bcos::Address("1234567890abcdef1234567890abcdef12345678"));
@@ -396,20 +394,20 @@ BOOST_AUTO_TEST_CASE(combineBlockResponseEthForkShapesGateKeys)
         std::optional<bcos::h256> requestsHash;
         if (c.expectWithdrawals)
         {
-            withdrawalsRoot = bcos::h256(
-                "2222222222222222222222222222222222222222222222222222222222222222");
+            withdrawalsRoot =
+                bcos::h256("2222222222222222222222222222222222222222222222222222222222222222");
         }
         if (c.expectBlobTrio)
         {
             blobGasUsed = bcos::u256(0);
             excessBlobGas = bcos::u256(0);
-            parentBeaconBlockRoot = bcos::h256(
-                "3333333333333333333333333333333333333333333333333333333333333333");
+            parentBeaconBlockRoot =
+                bcos::h256("3333333333333333333333333333333333333333333333333333333333333333");
         }
         if (c.expectRequestsHash)
         {
-            requestsHash = bcos::h256(
-                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+            requestsHash =
+                bcos::h256("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         }
         auto block = makeEthHeaderBlock(m_blockFactory, hashImpl, c.version, baseFee,
             withdrawalsRoot, blobGasUsed, excessBlobGas, parentBeaconBlockRoot, requestsHash);
@@ -492,7 +490,7 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseEmitsOpExtensionFieldsFromMeta)
     auto receipt = makeReceipt(m_blockFactory);
     BOOST_REQUIRE(receipt);
     protocol::OpStackReceiptMeta meta;
-    // ALL 13 mappings positively asserted — a wrong JSON key or value on any field would
+    // ALL 14 mappings positively asserted — a wrong JSON key or value on any field would
     // otherwise pass (empty-meta test only proves absence-when-empty). Distinct values so
     // cross-field mixups are caught too.
     meta.l1_gas_price = bcos::u256(5);
@@ -508,6 +506,7 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseEmitsOpExtensionFieldsFromMeta)
     meta.deposit_nonce = 18;
     meta.deposit_receipt_version = 19;
     meta.operator_fee = bcos::u256(20);
+    meta.l1_fee_scalar = bcos::u256(1'000'000);  // raw slot-6; upstream FeeScalar = /1e6
     receipt->setOpStackMeta(std::move(meta));
 
     bcos::crypto::HashType blockHash;
@@ -529,6 +528,8 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseEmitsOpExtensionFieldsFromMeta)
     BOOST_CHECK_EQUAL(result["depositNonce"].asString(), "0x12");
     BOOST_CHECK_EQUAL(result["depositReceiptVersion"].asString(), "0x13");
     BOOST_CHECK_EQUAL(result["operatorFee"].asString(), "0x14");  // FISCO 扩展
+    // l1FeeScalar: raw 1e6 -> upstream scaled FeeScalar 1 (op-geth intToScaledFloat).
+    BOOST_CHECK_EQUAL(result["l1FeeScalar"].asString(), "0x1");
     // from = checksum of the raw sender bytes. Pinned against the independently-known
     // EIP-55 vector 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed (deliberately NOT derived via the
     // same toChecksumAddress under test, so a checksum-casing regression is actually caught).
@@ -654,6 +655,52 @@ BOOST_AUTO_TEST_CASE(combineReceiptResponseOmitsOpFieldsWhenMetaEmpty)
     BOOST_CHECK(!result.isMember("depositNonce"));
     BOOST_CHECK(!result.isMember("depositReceiptVersion"));
     BOOST_CHECK(!result.isMember("operatorFee"));
+    BOOST_CHECK(!result.isMember("l1FeeScalar"));
+}
+
+// F4 presence rule: upstream emits l1FeeScalar on pre-Ecotone receipts and the new scalar
+// fields instead from Ecotone on (op-geth gen_receipt_json.go:40 / receipt.go:91-93; op-reth
+// crates/rpc/src/eth/receipt.rs:184-193). The FISCO emitter must not invent the field when
+// the meta lacks it, nor drop it when the Bedrock shape is the one populated.
+BOOST_AUTO_TEST_CASE(combineReceiptResponseL1FeeScalarFollowsMetaPresence)
+{
+    auto tx = makeWeb3Tx(m_blockFactory, chainId, groupId);
+    BOOST_REQUIRE(tx);
+    bcos::crypto::HashType blockHash;
+
+    {  // Bedrock shape: l1_fee_scalar present, Ecotone scalars absent
+        auto receipt = makeReceipt(m_blockFactory);
+        protocol::OpStackReceiptMeta meta;
+        meta.l1_gas_price = bcos::u256(1);
+        meta.l1_gas_used = 2;
+        meta.l1_fee = bcos::u256(3);
+        meta.l1_fee_scalar = bcos::u256(2'000'000);  // raw 2e6 -> scaled FeeScalar 2
+        receipt->setOpStackMeta(std::move(meta));
+
+        Json::Value result = Json::objectValue;
+        combineReceiptResponse(result, *receipt, *tx, blockHash);
+        BOOST_CHECK(result.isMember("l1FeeScalar"));
+        BOOST_CHECK_EQUAL(result["l1FeeScalar"].asString(), "0x2");
+        BOOST_CHECK(!result.isMember("l1BaseFeeScalar"));
+        BOOST_CHECK(!result.isMember("l1BlobBaseFeeScalar"));
+    }
+
+    {  // Ecotone shape: Ecotone scalars present, l1_fee_scalar absent
+        auto receipt = makeReceipt(m_blockFactory);
+        protocol::OpStackReceiptMeta meta;
+        meta.l1_gas_price = bcos::u256(1);
+        meta.l1_gas_used = 2;
+        meta.l1_fee = bcos::u256(3);
+        meta.l1_base_fee_scalar = 4;
+        meta.l1_blob_base_fee_scalar = 5;
+        receipt->setOpStackMeta(std::move(meta));
+
+        Json::Value result = Json::objectValue;
+        combineReceiptResponse(result, *receipt, *tx, blockHash);
+        BOOST_CHECK(!result.isMember("l1FeeScalar"));
+        BOOST_CHECK_EQUAL(result["l1BaseFeeScalar"].asString(), "0x4");
+        BOOST_CHECK_EQUAL(result["l1BlobBaseFeeScalar"].asString(), "0x5");
+    }
 }
 
 // Read-side deposit (0x7e) transaction shape. takeToTarsTransaction() does NOT fill

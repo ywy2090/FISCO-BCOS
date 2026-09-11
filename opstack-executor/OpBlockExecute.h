@@ -8,6 +8,7 @@
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-evm/opstack/OpTransition.h>
 #include <bcos-framework/engine/Constants.h>
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/engine/Types.h>
 #include <bcos-framework/ledger/LedgerConfig.h>
 #include <bcos-framework/protocol/BlockFactory.h>
@@ -81,26 +82,101 @@ OpBlockResult processOpBlock(const evmone::state::StateView& view,
     const evmone::state::BlockInfo& block, const evmone::state::BlockHashes& hashes,
     std::span<const OpBlockTx> txs, const OpForkConfig& cfg, evmc::VM& vm, uint64_t chainId,
     const bcos::protocol::TransactionReceiptFactory::Ptr& receiptFactory,
-    const std::function<void(const evmone::state::StateDiff&)>& applyDiff);
+    const std::function<void(const evmone::state::StateDiff&)>& applyDiff,
+    OpForkSchedule const* schedule, uint64_t parentTsSec);
 
 
 // ---- Jovian L1-attributes block shape ----
 // Lengths/selectors live in OpTransition.h (already included). Duplicating them here
 // redefines IsthmusL1AttributesLen / JovianL1AttributesLen / JovianL1AttributesSelector.
 
-/// Shared Jovian L1-attributes shape (selector/length + activation deposits-only).
-/// `lastTxIsDeposit` is the path-specific last-tx probe: processOpBlock uses the DepositTx
-/// variant; preBlockOpSteps uses the raw envelope type byte. No-op pre-Jovian.
+/// Q5: any Jovian-or-later activation that is live at `blockTsSec` but not at `parentTsSec`.
+/// Timestamps are Unix seconds (convert header millis with `unixSecondsFromInternalMillis`).
+inline bool isNoUserTxActivationBlock(
+    OpForkSchedule const& schedule, uint64_t parentTsSec, uint64_t blockTsSec)
+{
+    for (auto const& act : schedule.jovianAndLaterActivations())
+    {
+        if (blockTsSec >= act.timestamp && parentTsSec < act.timestamp)
+            return true;
+    }
+    return false;
+}
+
+/// Q5 envelope probe: empty or non-0x7e is a non-deposit. Used to scan every envelope
+/// on activation blocks. The 176B DA-footprint path is length/shape only.
+template <class Envelope>
+[[nodiscard]] inline bool envelopeIsDeposit(Envelope const& env) noexcept
+{
+    return !env.empty() && env[0] == static_cast<uint8_t>(kDepositTxType);
+}
+
+template <class RawTxRange>
+[[nodiscard]] inline bool hasNonDepositEnvelope(RawTxRange const& rawTxBytes)
+{
+    for (auto const& env : rawTxBytes)
+    {
+        if (!envelopeIsDeposit(env))
+            return true;
+    }
+    return false;
+}
+
+/// Q5 probe for `processOpBlock`. Same 0x7e rule as `hasNonDepositEnvelope` when
+/// an envelope is present. Empty envelope keeps the `DepositTx` convention
+/// (`OpBlockTx::signedEnvelope` is empty for deposits). Either side saying
+/// non-deposit fails closed (variant user, or typed/empty-mismatch envelope).
+[[nodiscard]] inline bool hasNonDepositTx(std::span<const OpBlockTx> txs) noexcept
+{
+    for (auto const& btx : txs)
+    {
+        if (!std::holds_alternative<DepositTx>(btx.tx))
+            return true;
+        if (!btx.signedEnvelope.empty() && !envelopeIsDeposit(btx.signedEnvelope))
+            return true;
+    }
+    return false;
+}
+
+/// op-geth's form of the Jovian activation deposits-only rule: it inspects the LAST
+/// transaction only ("sufficient to check last transaction because deposits precede
+/// non-deposit txs"). Scanning every transaction instead would reject a block op-geth accepts.
+[[nodiscard]] inline bool lastTxIsDeposit(std::span<const OpBlockTx> txs) noexcept
+{
+    if (txs.empty())
+        return false;
+    auto const& last = txs.back();
+    if (!std::holds_alternative<DepositTx>(last.tx))
+        return false;
+    return last.signedEnvelope.empty() || envelopeIsDeposit(last.signedEnvelope);
+}
+
+/// Same last-transaction form, for callers that only have the raw envelopes.
+template <class RawTxRange>
+[[nodiscard]] inline bool lastEnvelopeIsDeposit(RawTxRange const& rawTxBytes)
+{
+    if (rawTxBytes.empty())
+        return false;
+    return envelopeIsDeposit(rawTxBytes.back());
+}
+
+/// Jovian L1-attributes shape (selector/length) plus op-geth's length-keyed deposits-only
+/// rule. No-op pre-Jovian.
+///
+/// op-geth CalcDAFootprint: the Isthmus-length (176B) attributes form means the DA-footprint
+/// gas scalar is not set yet, which is only legal for a deposits-only block. That rule keys on
+/// the attributes LENGTH and the LAST transaction — never on a timestamp window. A separate
+/// timestamp-window deposits-only rule exists as Q5 (`isNoUserTxActivationBlock`); neither
+/// subsumes the other.
+///
+/// @param lastTxIsDeposit whether the block's last transaction is a deposit
 inline void validateJovianL1AttributesShape(
-    std::span<uint8_t const> data, bool lastTxIsDeposit, OpForkConfig const& cfg)
+    std::span<uint8_t const> data, OpForkConfig const& cfg, bool lastTxIsDeposit)
 {
     if (!cfg.has_da_footprint)
         return;
     if (data.size() == IsthmusL1AttributesLen)
     {
-        // Jovian activation block: Isthmus-length attributes, must be deposits-only (op-geth
-        // rollup_cost.go:568-576). Checking the last tx suffices (deposits always precede
-        // non-deposits).
         if (!lastTxIsDeposit)
             throw OpConsensusError(
                 "op block: unexpected non-deposit transactions in Jovian activation block");
@@ -130,9 +206,9 @@ inline void validateJovianL1AttributesShape(
     return std::nullopt;
 }
 
-/// Validate the Jovian L1-attributes block shape (selector/length + activation deposits-only).
-/// No-op pre-Jovian. Throws OpConsensusError. Public wrapper around
-/// validateJovianL1AttributesShape for the processOpBlock data shape (`span<OpBlockTx>`).
+/// Validate the Jovian L1-attributes block shape (selector/length). No-op pre-Jovian.
+/// Throws OpConsensusError. Public wrapper around validateJovianL1AttributesShape
+/// for the processOpBlock data shape (`span<OpBlockTx>`).
 void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig& cfg);
 
 // ---- shared per-receipt helpers (one implementation shared with the per-tx loop) ----
@@ -184,10 +260,13 @@ inline const evmc::bytes32 OP_EMPTY_REQUESTS_HASH = [] {
     const std::map<evmc::bytes32, evmc::bytes32>& messagePasserStorage);
 
 /// Receipts-root leaf, byte-for-byte op-geth `Receipts.EncodeIndex` semantics:
-/// deposit 0x7E || rlp([status, cumGas, bloom, logs, nonce, version]);
-/// normal typed prefix + rlp([status, cumGas, bloom, logs]).
+/// deposit 0x7E || rlp([status, cumGas, bloom, logs(, nonce, version)]); the version
+/// word gates the leaf shape — Canyon+ appends nonce+version, while the pre-Canyon
+/// (Regolith) receipt hash inadvertently omitted the nonce too. Meta presence must
+/// agree with the fork in both directions: cfg decides, a mismatch is a consensus
+/// error, never a silently different leaf.
 [[nodiscard]] bcos::bytes encodeReceiptForRoot(
-    const bcos::protocol::TransactionReceipt& r, uint8_t txType);
+    const bcos::protocol::TransactionReceipt& r, uint8_t txType, const OpForkConfig& cfg);
 }  // namespace bcos::evm::opstack
 
 // ---- block registration + execution ----
@@ -303,11 +382,20 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
     std::vector<bcos::evm::opstack::DepositTx> const& deposits,
     bcos::executor_v1::opstack::OpstackExecutor& executor,
     std::optional<detail::RecentBlockHashes<Storage>>& hashes, std::optional<std::string>& hashErr,
-    std::optional<uint16_t>& daFootprintGasScalar)
+    std::optional<uint16_t>& daFootprintGasScalar,
+    bcos::evm::opstack::OpForkSchedule const* schedule, uint64_t parentTsSec)
 {
     namespace op = bcos::evm::opstack;
 
-    auto blk = detail::toBlockInfo(header);
+    if (schedule == nullptr)
+    {
+        throw std::invalid_argument("preBlockOpSteps: OpForkSchedule is required");
+    }
+
+    // The Cancun/Ecotone beacon root and blob pair exist only from Ecotone on; a pre-Ecotone
+    // header must not be required to carry them.
+    auto blk = detail::toBlockInfo(header, std::nullopt, /*lenientOptionals=*/false,
+        /*requireEcotoneHeaderFields=*/cfg.fork >= op::OpFork::Ecotone);
     hashes.emplace(
         view, blk.number, detail::toEvmcBytes32(header.parentInfo().blockHash), &hashErr);
     bcos::evm::evmstate::Storage2State<Storage> stateView(view, executor.sharedError());
@@ -336,29 +424,34 @@ void preBlockOpSteps(Storage& view, bcos::protocol::BlockHeader const& header,
         throw OpStorageError("pre-block system-call poisoned: " + stateView.firstError());
 
     // (2) deposit-first content check + Jovian shape (type-byte classification, no raw-tx parse).
-    constexpr uint8_t kDepositTypeByte = 0x7e;
     if (rawTxBytes.empty())
         throw OpConsensusError("op block: missing L1 attributes deposit (empty block)");
-    // Empty-envelope guard: the first envelope must be non-empty before its type byte is read
-    // (and before raw.back()[0] below). A block with NO deposit at all stays a hard reject: the
-    // L1-attributes deposit seeds the block's fee/DA context and deposits[0] is read below.
-    if (rawTxBytes[0].empty() || rawTxBytes[0][0] != kDepositTypeByte || deposits.empty())
+    // Empty-envelope guard: the first envelope must be a deposit before deposits[0] is read.
+    // A block with NO deposit at all stays a hard reject: the L1-attributes deposit seeds
+    // the block's fee/DA context.
+    if (!op::envelopeIsDeposit(rawTxBytes[0]) || deposits.empty())
         throw OpConsensusError("op block: no deposit transaction to seed the block");
     // First deposit is not L1 attributes: warn only. op-geth/op-reth accept this at validation.
     if (!op::isL1AttributesTx(deposits[0]))
         BCOS_LOG(WARNING) << LOG_BADGE("OP_BLOCK_EXEC")
                           << "op block: first tx is a deposit but not the L1 attributes tx — "
                              "accepted";
+    // Q5: Jovian+ activation blocks are deposits-only (timestamp schedule).
+    auto const blockTsSec =
+        bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(header.timestamp()));
+    if (op::isNoUserTxActivationBlock(*schedule, parentTsSec, blockTsSec) &&
+        op::hasNonDepositEnvelope(rawTxBytes))
+    {
+        throw OpConsensusError(
+            "op block: unexpected non-deposit transactions in fork activation block");
+    }
     if (cfg.has_da_footprint)
     {
         auto const& data = deposits[0].data;
-        // Last-tx-only deposits-only check matches op-geth CalcDAFootprint
-        // (core/types/rollup_cost.go:563-577): iterating every envelope would be stricter than
-        // the reference client. Empty trailing envelope is treated as non-deposit.
-        bool const lastTxIsDeposit =
-            !rawTxBytes.back().empty() && rawTxBytes.back()[0] == kDepositTypeByte;
-        op::validateJovianL1AttributesShape(
-            std::span<uint8_t const>{data.data(), data.size()}, lastTxIsDeposit, cfg);
+        // Shape (176B → scalar 0; ≥178B → selector + length) AND the length-keyed
+        // deposits-only rule on the 176B form (op-geth CalcDAFootprint).
+        op::validateJovianL1AttributesShape(std::span<uint8_t const>{data.data(), data.size()}, cfg,
+            op::lastEnvelopeIsDeposit(rawTxBytes));
         if (auto scalar =
                 op::jovianDaFootprintGasScalar(std::span<uint8_t const>{data.data(), data.size()}))
             daFootprintGasScalar = *scalar;

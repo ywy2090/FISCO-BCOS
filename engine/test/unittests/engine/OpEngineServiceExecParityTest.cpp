@@ -21,14 +21,16 @@
 // Dual parity vs EngineServiceImpl OP mode is unavailable on this branch (no Impl opMode).
 // Carrier: transactions[i].raw via parseNewPayloadRequest(V4).
 // Golden fields (stateRoot/receiptsRoot/gasUsed/txRoot/blockHash) are asserted against
-// OpEngineService::lastExecutedHeader() after newPayload — NOT rebuildOpEthHeader(request),
-// which copies those fields from the JSON and stays green if execution is skipped.
+// OpEngineService::lastExecutedHeader() after newPayload — NOT rebuildOpEthHeader(request,
+// bcos::engine::OpForkId::Isthmus), which copies those fields from the JSON and stays green if
+// execution is skipped.
 
 #include "support/GoldenSample.h"
 #include "support/SeedPreState.h"
 
 #include <bcos-concepts/ByteBuffer.h>
 #include <bcos-crypto/hash/Keccak256.h>
+#include <bcos-evm/test/opstack/support/OpForkFlagsCompat.h>
 #include <bcos-framework/ledger/LedgerTypeDef.h>
 #include <bcos-framework/protocol/TransactionFactory.h>
 #include <bcos-framework/storage/Entry.h>
@@ -262,13 +264,18 @@ struct OpE2eFixture
     explicit OpE2eFixture(bcos::evm::opstack::OpForkFlags forkFlags)
       : hashImpl(makeCryptoSuite()->hashImpl()),
         receiptFactory(makeReceiptFactory()),
-        scheduler(forkFlags, {}),
+        scheduler(std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                      bcos::evm::opstack::OpForkSchedule::legacy(forkFlags.jovianActive)),
+            {}),
         legacyLedgerStorage(
             std::make_shared<bcos::storage::LegacyStorageWrapper<BackendMemStorage>>(
                 backendStorage)),
         ledger(std::make_shared<bcos::ledger::Ledger>(blockFactory, legacyLedgerStorage, 1000)),
         opDelegate(std::make_shared<bcos::executor_v1::opstack::OpScheduler<MLS>>(receiptFactory,
-            hashImpl, kChainId, forkFlags, blockFactory, multiLayerStorage, ledger, ioServicePool)),
+            hashImpl, kChainId,
+            std::make_shared<bcos::evm::opstack::OpForkSchedule>(
+                bcos::evm::opstack::OpForkSchedule::legacy(forkFlags.jovianActive)),
+            blockFactory, multiLayerStorage, ledger, ioServicePool)),
         service(memPool, multiLayerStorage, scheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, opDelegate)
     {
@@ -289,7 +296,7 @@ bcos::protocol::BlockHeader::Ptr productionHeaderOf(
     }
     const auto transactionsRoot = EngineOpScheduler::computeTxRoot(envelopes);
     return bcos::engine::engine_common::op::rebuildOpEthHeader(blockFactory->blockHeaderFactory(),
-        payload, transactionsRoot, *request.parentBeaconBlockRoot);
+        payload, transactionsRoot, *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
 }
 
 void assertExecutionCommitments(std::string const& id,

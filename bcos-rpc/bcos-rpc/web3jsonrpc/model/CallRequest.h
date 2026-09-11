@@ -63,4 +63,10 @@ struct CallRequest
         bcos::scheduler::SchedulerInterface::Ptr const&) noexcept;
 };
 [[maybe_unused]] std::tuple<bool, CallRequest> decodeCallRequest(Json::Value const& _root);
+
+/// eth_estimateGas (geth #32348): cap an explicit gas field to EIP-7825
+/// `MAX_TX_GAS_LIMIT` (2^24). Omitted or zero gas is filled with that cap so
+/// the shared `call=true` executor path (which skips the Osaka admission check
+/// for eth_call, geth #32641) still cannot simulate above the per-tx limit.
+void clampEstimateGasField(Json::Value& txObject);
 }  // namespace bcos::rpc

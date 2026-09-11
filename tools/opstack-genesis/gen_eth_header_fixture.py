@@ -95,36 +95,60 @@ def rlp_encode_list(items):
     return bytes([0xF7 + len(length_bytes)]) + length_bytes + payload
 
 
-def encode_header(fields):
-    def as_bytes(key):
-        return rlp_encode_bytes(bytes.fromhex(_strip0x(fields[key])))
+# go-ethereum types.Header order. Callers may encode a prefix of this list: the OP
+# stack's own gating adds withdrawals at Canyon, the blob pair + beacon root at
+# Ecotone, and requests_hash at Isthmus, so a pre-Canyon genesis header is the first
+# 16 fields and nothing else.
+HEADER_FIELD_ORDER = [
+    "parent_hash",
+    "sha3_uncles",
+    "miner",
+    "state_root",
+    "transactions_root",
+    "receipts_root",
+    "logs_bloom",
+    "difficulty",
+    "number",
+    "gas_limit",
+    "gas_used",
+    "timestamp",
+    "extra_data",
+    "mix_hash",
+    "nonce",
+    "base_fee_per_gas",
+    "withdrawals_root",
+    "blob_gas_used",
+    "excess_blob_gas",
+    "parent_beacon_block_root",
+    "requests_hash",
+]
+# The fields RLP encodes as unsigned integers; everything else is a byte string.
+SCALAR_FIELDS = {
+    "difficulty",
+    "number",
+    "gas_limit",
+    "gas_used",
+    "timestamp",
+    "base_fee_per_gas",
+    "blob_gas_used",
+    "excess_blob_gas",
+}
 
-    def as_scalar(key):
-        return rlp_encode_scalar(int(fields[key], 16))
 
-    items = [
-        as_bytes("parent_hash"),
-        as_bytes("sha3_uncles"),
-        as_bytes("miner"),
-        as_bytes("state_root"),
-        as_bytes("transactions_root"),
-        as_bytes("receipts_root"),
-        as_bytes("logs_bloom"),
-        as_scalar("difficulty"),
-        as_scalar("number"),
-        as_scalar("gas_limit"),
-        as_scalar("gas_used"),
-        as_scalar("timestamp"),
-        as_bytes("extra_data"),
-        as_bytes("mix_hash"),
-        as_bytes("nonce"),
-        as_scalar("base_fee_per_gas"),
-        as_bytes("withdrawals_root"),
-        as_scalar("blob_gas_used"),
-        as_scalar("excess_blob_gas"),
-        as_bytes("parent_beacon_block_root"),
-        as_bytes("requests_hash"),
-    ]
+def encode_header(fields, present=None):
+    """RLP-encode a header.
+
+    `present` names the fields to encode, in order; None keeps the full 21-field
+    Prague-era form. The default is what the C++ fixtures pin, so a subset is only
+    ever requested explicitly.
+    """
+    keys = HEADER_FIELD_ORDER if present is None else present
+    items = []
+    for key in keys:
+        if key in SCALAR_FIELDS:
+            items.append(rlp_encode_scalar(int(fields[key], 16)))
+        else:
+            items.append(rlp_encode_bytes(bytes.fromhex(_strip0x(fields[key]))))
     return rlp_encode_list(items)
 
 

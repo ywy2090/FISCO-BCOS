@@ -44,7 +44,9 @@ struct NullLock
 
 template <class Object>
 concept HasMemberSize = requires(Object object) {
-    { object.size() } -> std::integral;
+    {
+        object.size()
+    } -> std::integral;
 };
 
 struct Empty
@@ -589,9 +591,16 @@ public:
                 for (auto& [data, _] : chunk)
                 {
                     auto&& [key, value] = *data;
+                    // Copy, never move: mergeIntoBackends merges the SAME source storage
+                    // into the backend and the cache in parallel (tbb::parallel_invoke),
+                    // so two mergeConcurrent passes read this source concurrently. Moving
+                    // out of the shared source would let the second pass write a
+                    // moved-from (gutted) Entry — a nondeterministic corruption of one
+                    // layer (observed as intermittent state-root mismatches on the
+                    // switch-SetCanonical path). The source is read-only in every pass.
                     std::visit(
                         [&](auto& innerValue) {
-                            toStorage.writeOne(bucket, key, std::move(innerValue), false);
+                            toStorage.writeOne(bucket, key, innerValue, false);
                         },
                         value);
                 }

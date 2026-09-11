@@ -1,9 +1,17 @@
 #include "TestPrinters.h"
+#include "support/KarstScheduleFixtures.h"
+#include "support/OpForkFlagsCompat.h"
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <boost/test/unit_test.hpp>
+#include <cstddef>
+#include <string>
+#include <string_view>
+#include <utility>
 
 using namespace bcos::evm::opstack;
+using bcos::ledger::InvalidOpForkSchedule;
 
 BOOST_AUTO_TEST_SUITE(OpForkScheduleSuite)
 
@@ -29,11 +37,10 @@ BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs)
 
     const auto& k = karstConfig();
     BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
-    BOOST_CHECK_EQUAL(k.rev, j.rev);
+    BOOST_CHECK_EQUAL(k.rev, EVMC_OSAKA);
     BOOST_CHECK_EQUAL(k.has_operator_fee, j.has_operator_fee);
     BOOST_CHECK_EQUAL(k.has_jovian_operator_formula, j.has_jovian_operator_formula);
     BOOST_CHECK_EQUAL(k.has_da_footprint, j.has_da_footprint);
-    BOOST_CHECK_EQUAL(k.precompiles, j.precompiles);
 }
 
 BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags)
@@ -62,9 +69,10 @@ BOOST_AUTO_TEST_CASE(ConfigAtSelectsForkByFeatureFlag)
     BOOST_CHECK(jov.has_da_footprint);
 }
 
-// 覆盖剩余字段 has_ecotone_l1_formula（Ecotone 用 calldataGas、Fjord+ 用 FastLZ）
-// 与 configAt 永不返回 karstConfig()（Karst 是 op-reth-only 占位，无真实语义）。
-BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndKarstUnreachable)
+// 覆盖剩余字段 has_ecotone_l1_formula（Ecotone 用 calldataGas、Fjord+ 用 FastLZ）。
+// 测试专用 configAt(OpForkFlags) 只有 Isthmus/Jovian 两分支，选不出 Karst。
+// 生产路径是 timestamp OpForkSchedule::configAt，Karst 时间戳返回 karstConfig()/Osaka。
+BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndFlagsWrapperDoesNotSelectKarst)
 {
     BOOST_CHECK(ecotoneConfig().has_ecotone_l1_formula);
     BOOST_CHECK(!(fjordConfig().has_ecotone_l1_formula));
@@ -73,9 +81,104 @@ BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndKarstUnreachable)
     BOOST_CHECK(!(isthmusConfig().has_ecotone_l1_formula));
     BOOST_CHECK(!(jovianConfig().has_ecotone_l1_formula));
 
-    // configAt 只有 Isthmus/Jovian 两分支（引用稳定性：返回指向同一 static config）。
     BOOST_CHECK_EQUAL(&configAt(OpForkFlags{.jovianActive = false}), &isthmusConfig());
     BOOST_CHECK_EQUAL(&configAt(OpForkFlags{.jovianActive = true}), &jovianConfig());
+}
+
+BOOST_AUTO_TEST_CASE(L1FeeModelPinnedOnExistingConfigs)
+{
+    BOOST_CHECK(ecotoneConfig().l1_fee_model == L1FeeModel::Ecotone);
+    BOOST_CHECK(fjordConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(graniteConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(holoceneConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(isthmusConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(jovianConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(karstConfig().l1_fee_model == L1FeeModel::Fjord);
+    BOOST_CHECK(ecotoneConfig().has_ecotone_l1_formula);
+    BOOST_CHECK(!fjordConfig().has_ecotone_l1_formula);
+}
+
+BOOST_AUTO_TEST_CASE(RegolithCanyonConfigsAndTimestampSelect)
+{
+    BOOST_CHECK_EQUAL(regolithConfig().rev, EVMC_LONDON);
+    BOOST_CHECK(regolithConfig().l1_fee_model == L1FeeModel::Bedrock);
+    BOOST_CHECK(!regolithConfig().has_operator_fee);
+    BOOST_CHECK(!regolithConfig().has_da_footprint);
+    BOOST_CHECK_EQUAL(canyonConfig().rev, EVMC_SHANGHAI);
+    BOOST_CHECK(canyonConfig().l1_fee_model == L1FeeModel::Bedrock);
+
+    OpForkSchedule sched(
+        {
+            {OpFork::Regolith, 0},
+            {OpFork::Canyon, 100},
+            {OpFork::Ecotone, 200},
+            {OpFork::Fjord, 300},
+            {OpFork::Holocene, 400},
+            {OpFork::Isthmus, 500},
+        },
+        OpForkSchedule::TestBypass{});
+
+    BOOST_CHECK_EQUAL(sched.forkAt(0), OpFork::Regolith);
+    BOOST_CHECK_EQUAL(sched.forkAt(99), OpFork::Regolith);
+    BOOST_CHECK_EQUAL(sched.forkAt(100), OpFork::Canyon);
+    BOOST_CHECK_EQUAL(sched.forkAt(200), OpFork::Ecotone);
+    BOOST_CHECK_EQUAL(&sched.configAt(0), &regolithConfig());
+    BOOST_CHECK_EQUAL(&sched.configAt(150), &canyonConfig());
+    BOOST_CHECK_EQUAL(&sched.configAt(200), &ecotoneConfig());
+    BOOST_CHECK(sched.jovianAndLaterActivations().empty());
+}
+
+// The codec accepts any EL fork as a baseline, so production parse must map the
+// name instead of rejecting it.
+BOOST_AUTO_TEST_CASE(ParseAcceptsRegolithBaseline)
+{
+    auto s = OpForkSchedule::parse("0:regolith");
+    BOOST_CHECK_EQUAL(s.forkAt(0), OpFork::Regolith);
+    BOOST_CHECK_EQUAL(&s.configAt(0), &regolithConfig());
+}
+
+// OpFork's enumerator order is the codec table's index order. The oracle below is
+// an explicit {literal name, literal ordinal, named enumerator} list written down
+// independently of both the table and the enum. Reordering either side (even a
+// same-size swap of two middle entries) breaks a different row:
+//   * table swap  -> c_opForkNames[ordinal] != name and parse() picks the wrong fork
+//   * enum  swap  -> static_cast<int>(enumerator) != ordinal and parse() picks it too
+// A plain parse(name[i]).forkAt(0) == static_cast<OpFork>(i) loop cannot fail, since
+// parse() returns static_cast<OpFork>(forkOrder(name)) by construction.
+BOOST_AUTO_TEST_CASE(ForkNameEnumRoundTripsAllNine)
+{
+    using bcos::ledger::detail::c_opForkNames;
+    // Protocol order, spelled out: these literals are the oracle, not the table.
+    struct ForkNameOrdinal
+    {
+        std::string_view name;
+        int ordinal;
+        OpFork fork;
+    };
+    constexpr ForkNameOrdinal c_expected[] = {
+        {"regolith", 0, OpFork::Regolith},
+        {"canyon", 1, OpFork::Canyon},
+        {"ecotone", 2, OpFork::Ecotone},
+        {"fjord", 3, OpFork::Fjord},
+        {"granite", 4, OpFork::Granite},
+        {"holocene", 5, OpFork::Holocene},
+        {"isthmus", 6, OpFork::Isthmus},
+        {"jovian", 7, OpFork::Jovian},
+        {"karst", 8, OpFork::Karst},
+    };
+    // The codec table infers its own size, so the protocol cardinality is pinned
+    // here: exactly the nine op-geth EL forks, with no delta entry.
+    BOOST_REQUIRE_EQUAL(c_opForkNames.size(), 9u);
+    for (const auto& expected : c_expected)
+    {
+        // Enum side: the named enumerator must actually hold this literal ordinal.
+        BOOST_CHECK_EQUAL(static_cast<int>(expected.fork), expected.ordinal);
+        // Table side: the codec table at this literal ordinal must carry this name.
+        BOOST_CHECK_EQUAL(c_opForkNames[static_cast<std::size_t>(expected.ordinal)], expected.name);
+        // Runtime path: parsing the name must select this exact enumerator.
+        auto s = OpForkSchedule::parse("0:" + std::string(expected.name));
+        BOOST_CHECK_EQUAL(s.forkAt(0), expected.fork);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
@@ -133,6 +236,97 @@ BOOST_AUTO_TEST_CASE(FjordOnwardCarryP256VerifyAndGraniteCapsBn256)
         BOOST_CHECK_EQUAL(bn256->gas_cost_override, -1);
         BOOST_CHECK(!(cfg->precompiles->contains(evmc::address{0x0c})));  // BLS 是 PRAGUE 的
     }
+}
+
+BOOST_AUTO_TEST_CASE(ConfigAtTimestampSelectsIsthmusThenJovian)
+{
+    auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
+    BOOST_CHECK_EQUAL(schedule.forkAt(0), OpFork::Isthmus);
+    BOOST_CHECK_EQUAL(schedule.forkAt(1764691200), OpFork::Isthmus);
+    BOOST_CHECK_EQUAL(schedule.forkAt(1764691201), OpFork::Jovian);
+    BOOST_CHECK_EQUAL(schedule.configAt(1764691200).rev, EVMC_PRAGUE);
+    BOOST_CHECK(!schedule.configAt(1764691200).has_da_footprint);
+    BOOST_CHECK(schedule.configAt(1764691201).has_da_footprint);
+    BOOST_CHECK_THROW(OpForkSchedule::parse("0:isthmus,1:karst"), InvalidOpForkSchedule);
+}
+
+BOOST_AUTO_TEST_CASE(LegacyFlagsStillSelectIsthmusOrJovian)
+{
+    BOOST_CHECK_EQUAL(OpForkSchedule::legacy(false).forkAt(0), OpFork::Isthmus);
+    BOOST_CHECK_EQUAL(OpForkSchedule::legacy(true).forkAt(0), OpFork::Jovian);
+}
+
+BOOST_AUTO_TEST_CASE(EmptyScheduleRejected)
+{
+    BOOST_CHECK_THROW(OpForkSchedule::parse(""), InvalidOpForkSchedule);
+    BOOST_CHECK_THROW(OpForkSchedule{{}}, InvalidOpForkSchedule);
+
+    auto schedule = OpForkSchedule::legacy(false);
+    auto kept = std::move(schedule);
+    BOOST_CHECK_EQUAL(kept.forkAt(0), OpFork::Isthmus);
+    BOOST_CHECK_THROW(static_cast<void>(schedule.forkAt(0)), InvalidOpForkSchedule);
+    BOOST_CHECK_THROW(static_cast<void>(schedule.configAt(0)), InvalidOpForkSchedule);
+}
+
+BOOST_AUTO_TEST_CASE(ConfigAtTimestampMatchesForkAndStaticConfigs)
+{
+    auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
+    BOOST_CHECK_EQUAL(schedule.configAt(1764691200).fork, schedule.forkAt(1764691200));
+    BOOST_CHECK_EQUAL(schedule.configAt(1764691201).fork, schedule.forkAt(1764691201));
+    BOOST_CHECK_EQUAL(&schedule.configAt(1764691200), &isthmusConfig());
+    BOOST_CHECK_EQUAL(&schedule.configAt(1764691201), &jovianConfig());
+}
+
+BOOST_AUTO_TEST_CASE(KarstConfigIsOsakaNotJovianAlias)
+{
+    const auto& k = karstConfig();
+    BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
+    BOOST_CHECK_EQUAL(k.rev, EVMC_OSAKA);
+    BOOST_CHECK(k.deposit_exempt_from_max_tx_gas);
+    BOOST_CHECK(k.precompiles != jovianConfig().precompiles);
+}
+
+BOOST_AUTO_TEST_CASE(KarstImpliesOsakaConfig)
+{
+    auto s = OpForkSchedule::parse("0:jovian,1783526401:karst");
+    BOOST_CHECK_EQUAL(s.configAt(1783526401).rev, EVMC_OSAKA);
+    BOOST_CHECK(s.configAt(1783526401).deposit_exempt_from_max_tx_gas);
+}
+
+BOOST_AUTO_TEST_CASE(JovianAndLaterActivationsAreNamedForks)
+{
+    auto isthmusOnly = OpForkSchedule::parse("0:isthmus");
+    BOOST_CHECK(isthmusOnly.jovianAndLaterActivations().empty());
+
+    auto withJovian = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
+    auto const jovianSlice = withJovian.jovianAndLaterActivations();
+    BOOST_REQUIRE_EQUAL(jovianSlice.size(), 1);
+    BOOST_CHECK(jovianSlice[0].fork == OpFork::Jovian);
+
+    auto withKarst = OpForkSchedule::parse("0:jovian,1783526401:karst");
+    auto const karstSlice = withKarst.jovianAndLaterActivations();
+    BOOST_REQUIRE_EQUAL(karstSlice.size(), 2);
+    BOOST_CHECK(karstSlice[0].fork == OpFork::Jovian);
+    BOOST_CHECK(karstSlice[1].fork == OpFork::Karst);
+
+    auto preIsthmus =
+        OpForkSchedule{{{OpFork::Ecotone, 0}, {OpFork::Jovian, 10}}, OpForkSchedule::TestBypass{}};
+    auto const named = preIsthmus.jovianAndLaterActivations();
+    BOOST_REQUIRE_EQUAL(named.size(), 1);
+    BOOST_CHECK(named[0].fork == OpFork::Jovian);
+}
+
+BOOST_AUTO_TEST_CASE(TestBypassScheduleCanNameKarst)
+{
+    auto s =
+        OpForkSchedule{{{OpFork::Jovian, 0}, {OpFork::Karst, 100}}, OpForkSchedule::TestBypass{}};
+    BOOST_CHECK_EQUAL(s.forkAt(99), OpFork::Jovian);
+    BOOST_CHECK_EQUAL(s.forkAt(100), OpFork::Karst);
+    BOOST_CHECK_EQUAL(s.configAt(100).rev, EVMC_OSAKA);
+
+    const auto only = karstOnly();
+    BOOST_CHECK_EQUAL(only.forkAt(2), OpFork::Karst);
+    BOOST_CHECK_EQUAL(only.configAt(2).rev, EVMC_OSAKA);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

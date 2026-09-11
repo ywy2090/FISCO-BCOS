@@ -90,5 +90,8 @@ test/*
 # Claude Code
 CLAUDE.local.md
 .worktrees/
+
+# Review intermediate artifacts — never commit into a product branch.
+.agents/reviews/
 .claude/worktrees
 .claude/agents

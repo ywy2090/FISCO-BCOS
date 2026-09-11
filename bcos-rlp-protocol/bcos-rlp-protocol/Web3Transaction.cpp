@@ -269,6 +269,9 @@ bcos::Error::UniquePtr decode(bcos::bytesRef& in, AuthorizationListEntry& out) n
     {
         return e;
     }
+    // Per-entry y_parity is a canonical RLP uint (not the typed-tx 0x80/0x01 whole-item
+    // form). Values outside {0,1} decode successfully; Eip7702Recover skips them at execution
+    // (same as op-geth ValidateSignatureValues before Recover).
     uint64_t yParity = 0;
     if (auto e = bcos::rlp::protocol::decodeAuthorizationYParity(in, yParity); e != nullptr)
     {

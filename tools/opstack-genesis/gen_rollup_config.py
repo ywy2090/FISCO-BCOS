@@ -3,12 +3,22 @@
 """Generate an op-node rollup.json for the FISCO-BCOS post-Karst L2 (K0).
 
 The chain has no fork history: every fork time through Karst is 0 (activated at
-genesis). The emitted config carries every field op-node v1.19.3's
+genesis). The emitted config carries every field a karst-aware op-node's
 rollup.Config.Check() validates plus a non-empty chain_op_config, so a freshly
 generated file passes startup validation without relying on the embedded
 superchain registry (this chain is not registered there).
 
-Field names follow op-node v1.19.3 op-node/rollup/types.go JSON tags
+DISCLOSED LIMITATION (U7-F3): the K0 artifact always carries `karst_time`
+(FORK_TIME_KEYS). The op-node revision pinned by this branch
+(optimism@76e4fad5) has no KarstTime field and decodes rollup.json with
+DisallowUnknownFields, so it rejects these artifacts at decode
+(`json: unknown field "karst_time"`). That is intentional — the post-Karst K0
+chain needs a karst-aware op-node — but it is NOT compatible with the pinned
+op-node. If a later stage (S7) picks the pinned op-node as the consumer, this key
+must be gated behind a karst overlay and test_all_fork_times_zero_through_karst
+adjusted accordingly.
+
+Field names follow op-node (optimism@76e4fad5) op-node/rollup/types.go JSON tags
 (snake_case top level) and op-service/eth SystemConfig JSON tags (camelCase
 inside genesis.system_config).
 
@@ -32,6 +42,8 @@ ZERO_HASH = "0x" + "00" * 32
 DEFAULT_SCALAR = "0x01" + "00" * 31
 
 # All OP fork activation times, oldest first. Post-Karst genesis => all zero.
+# karst_time is the FISCO post-Karst fork; it is not an upstream op-node fork. See
+# the module docstring for the pinned-op-node decode caveat (DisallowUnknownFields).
 FORK_TIME_KEYS = [
     "regolith_time",
     "canyon_time",
@@ -105,8 +117,11 @@ def build_rollup_config(args):
 
 
 def check(config):
-    """Mirror op-node v1.19.3 rollup.Config.Check() so a bad config fails here,
-    not at op-node startup. Raises RollupConfigError on the first violation."""
+    """Mirror the checks op-node's rollup.Config.Check() performs — so a bad config
+    fails here, not at op-node startup — for the fork set a karst-aware op-node is
+    given. The pinned op-node cannot decode a karst_time key at all (see the module
+    docstring), so this is not a compatibility claim about that revision. Raises
+    RollupConfigError on the first violation."""
     if config["block_time"] <= 0:
         raise RollupConfigError("block_time must be > 0")
     if config["seq_window_size"] < 2:

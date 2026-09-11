@@ -1012,7 +1012,12 @@ task::Task<void> EthEndpoint::estimateGas(const Json::Value& request, Json::Valu
 
     u256 gasUsed;
     Json::Value callResponse;
-    co_await call(request, callResponse, std::addressof(gasUsed), true);
+    Json::Value estimateRequest = request;
+    if (estimateRequest.isArray() && !estimateRequest.empty() && estimateRequest[0U].isObject())
+    {
+        clampEstimateGasField(estimateRequest[0U]);
+    }
+    co_await call(estimateRequest, callResponse, std::addressof(gasUsed), true);
 
     if (!callResponse.isMember("error"))
     {

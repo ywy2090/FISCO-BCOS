@@ -17,6 +17,8 @@ namespace bcos::evm::opstack
 struct OpFeeParams
 {
     intx::uint256 l1_base_fee;             // slot 1 (whole slot)
+    intx::uint256 overhead;                // slot 5 (Bedrock)
+    intx::uint256 bedrock_scalar;          // slot 6 (Bedrock)
     uint32_t base_fee_scalar;              // slot 3 bytes[16,20)
     uint32_t blob_base_fee_scalar;         // slot 3 bytes[20,24)
     intx::uint256 blob_base_fee;           // slot 7 (whole slot)
@@ -24,6 +26,16 @@ struct OpFeeParams
     uint64_t operator_fee_constant;        // slot 8 bytes[24,32)
     uint16_t da_footprint_gas_scalar = 0;  // slot 8 bytes[18,20)
 };
+
+/// True when the Ecotone-formula input slots are live (op-geth switches formulas on the
+/// same probe): a non-zero slot3 scalar segment or a non-zero slot7 blob base fee.
+/// When false on an Ecotone-timestamped block, the Pre-Ecotone (Bedrock) formula on
+/// slots 1/5/6 still governs (specs.optimism.io/protocol/ecotone/l1-attributes.html:
+/// the activation block keeps setL1BlockValues; steady state arrives with the next block).
+[[nodiscard]] inline bool ecotoneL1SlotsLive(const OpFeeParams& p) noexcept
+{
+    return p.base_fee_scalar != 0 || p.blob_base_fee_scalar != 0 || p.blob_base_fee != 0;
+}
 
 /// Unpack from the four storage slots (Isthmus callers may ignore da_footprint_gas_scalar).
 OpFeeParams unpackOpFeeParams(const evmc::bytes32& slot1, const evmc::bytes32& slot3,

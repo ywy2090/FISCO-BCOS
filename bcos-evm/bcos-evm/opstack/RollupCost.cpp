@@ -178,13 +178,65 @@ intx::uint256 computeL1CostFromFlz(
     return static_cast<intx::uint256>(fee);
 }
 
+/// fee = (value * a * b) / divisor, saturating to uint256 max.
+///
+/// 512-bit intermediates, with a guard before each multiply. The unguarded form wrapped mod
+/// 2^512 and charged a too-small fee: with (overhead, l1BaseFee, scalar) = (0, 2^255, 2^255)
+/// and calldataGas 480 the true fee is ~2^498, yet 480 * 2^255 * 2^255 == 120 * 2^512 == 0
+/// (mod 2^512), so the Bedrock arm charged zero. A zero factor keeps the mathematical result
+/// of zero, matching op-geth's big.Int evaluation rather than saturating.
+[[nodiscard]] intx::uint256 saturatingL1Fee(
+    intx::uint512 value, intx::uint256 a, intx::uint256 b, intx::uint256 divisor) noexcept
+{
+    constexpr intx::uint256 c_maxU256 = ~intx::uint256{0};
+    const intx::uint512 max512 = ~intx::uint512{0};
+    if (a == 0 || b == 0 || value == 0)
+    {
+        return intx::uint256{0};
+    }
+    if (intx::uint512{a} > max512 / value)
+    {
+        return c_maxU256;  // value*a >= 2^512, so the fee is far above uint256 max
+    }
+    const intx::uint512 first = value * intx::uint512{a};
+    if (intx::uint512{b} > max512 / first)
+    {
+        return c_maxU256;
+    }
+    const intx::uint512 fee = first * intx::uint512{b} / intx::uint512{divisor};
+    if (fee > intx::uint512{c_maxU256})
+    {
+        return c_maxU256;
+    }
+    return static_cast<intx::uint256>(fee);
+}
+
 intx::uint256 computeL1Cost(
     const OpFeeParams& params, evmc::bytes_view signedTxEnvelope, const OpForkConfig& cfg) noexcept
 {
     if (signedTxEnvelope.empty())
         return intx::uint256{0};
 
-    if (cfg.has_ecotone_l1_formula)
+    // Ecotone-timestamped blocks keep the Pre-Ecotone formula until the new-formula slots go
+    // live: the Ecotone activation block still runs setL1BlockValues (specs.optimism.io/
+    // protocol/ecotone/l1-attributes.html), so slot3 scalars and slot7 are still zero and the
+    // formula selection falls back on the same zero-probe op-geth uses.
+    const bool bedrock = cfg.l1_fee_model == L1FeeModel::Bedrock ||
+                         (cfg.l1_fee_model == L1FeeModel::Ecotone && !ecotoneL1SlotsLive(params));
+    if (bedrock)
+    {
+        // op-geth newL1CostFuncBedrockHelper / l1CostHelper (exec-engine Pre-Ecotone):
+        //   (rollupDataGas + overhead) * l1BaseFee * scalar / 1e6, evaluated in that order.
+        // The sum is widened before the multiply: `overhead` is a whole-slot read, so
+        // (calldataGas + overhead) can itself cross 2^256.
+        const intx::uint512 gasPlusOverhead =
+            intx::uint512{bedrockCalldataGasUsed(signedTxEnvelope)} +
+            intx::uint512{params.overhead};
+        return saturatingL1Fee(
+            gasPlusOverhead, params.l1_base_fee, params.bedrock_scalar, intx::uint256{1'000'000});
+    }
+
+    if (cfg.l1_fee_model == L1FeeModel::Ecotone || cfg.has_ecotone_l1_formula)
     {
         // op-geth newL1CostFuncEcotone:
         //   calldataGas*(l1BaseFee*16*baseScalar + blobBaseFee*blobScalar)/16e6

@@ -6,6 +6,7 @@
 #include "bcos-rpc/web3jsonrpc/model/CallRequest.h"
 #include "bcos-crypto/hash/Keccak256.h"
 #include "bcos-crypto/signature/secp256k1/Secp256k1Crypto.h"
+#include "bcos-framework/protocol/TxGasModel.h"
 #include "bcos-tars-protocol/protocol/TransactionFactoryImpl.h"
 #include "bcos-utilities/DataConvertUtility.h"
 #include <bcos-framework/testutils/faker/FakeScheduler.h>
@@ -233,6 +234,23 @@ BOOST_AUTO_TEST_CASE(deployEstimateGasLeavesCorruptNonceUnset)
         auto tx = req.takeToTransaction(txFactory, nonceScheduler);
         BOOST_CHECK(tx->nonce().empty());
     }
+}
+
+BOOST_AUTO_TEST_CASE(clampEstimateGasCapsOverEip7825)
+{
+    Json::Value tx(Json::objectValue);
+    tx["gas"] = toQuantity(static_cast<uint64_t>(protocol::MAX_TX_GAS_LIMIT) + 1);
+    clampEstimateGasField(tx);
+    BOOST_CHECK_EQUAL(
+        fromQuantity(tx["gas"].asString()), static_cast<uint64_t>(protocol::MAX_TX_GAS_LIMIT));
+}
+
+BOOST_AUTO_TEST_CASE(clampEstimateGasFillsOmittedGas)
+{
+    Json::Value tx(Json::objectValue);
+    clampEstimateGasField(tx);
+    BOOST_CHECK_EQUAL(
+        fromQuantity(tx["gas"].asString()), static_cast<uint64_t>(protocol::MAX_TX_GAS_LIMIT));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

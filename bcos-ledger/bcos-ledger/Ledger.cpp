@@ -24,6 +24,7 @@
 #include "Ledger.h"
 #include "GenesisStateRoot.h"
 #include "LedgerMethods.h"
+#include "bcos-framework/ledger/ChainMetadata.h"
 #include "bcos-framework/ledger/EVMAccount.h"
 #include "bcos-framework/ledger/Features.h"
 #include "bcos-framework/ledger/FeaturesStorage.h"
@@ -71,13 +72,13 @@
 #include <exception>
 #include <future>
 #include <iterator>
+#include <list>
 #include <memory>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/view/chunk.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/take.hpp>
 #include <utility>
-#include <list>
 
 using namespace bcos;
 using namespace bcos::ledger;
@@ -536,8 +537,7 @@ bcos::Error::Ptr Ledger::storeTransactionsAndReceipts(
     for (auto const& item : pending)
     {
         keys.push_back(std::string_view((const char*)item.hash.data(), item.hash.size()));
-        values.push_back(
-            std::string_view((const char*)item.encoded.data(), item.encoded.size()));
+        values.push_back(std::string_view((const char*)item.encoded.data(), item.encoded.size()));
     }
     if (!keys.empty())
     {
@@ -595,8 +595,7 @@ void Ledger::asyncGetBlockDataByNumber(bcos::protocol::BlockNumber _blockNumber,
         return;
     }
 
-    task::wait([](decltype(*this)& self, bcos::protocol::BlockNumber blockNumber,
-                   int32_t blockFlag,
+    task::wait([](decltype(*this)& self, bcos::protocol::BlockNumber blockNumber, int32_t blockFlag,
                    std::function<void(Error::Ptr, bcos::protocol::Block::Ptr)> callback)
                    -> task::Task<void> {
         bcos::protocol::Block::Ptr block;
@@ -700,39 +699,39 @@ void Ledger::asyncGetBlockHashByNumber(bcos::protocol::BlockNumber _blockNumber,
         return;
     }
 
-    task::wait([](decltype(*this)& self, bcos::protocol::BlockNumber blockNumber,
-                   std::function<void(Error::Ptr, bcos::crypto::HashType)> callback)
-                   -> task::Task<void> {
-        std::optional<bcos::crypto::HashType> blockHash;
-        try
-        {
-            // Delegate the SYS_NUMBER_2_HASH read to the shared storage2 free function;
-            // a missing row (block not yet committed) keeps the historical GetStorageError
-            // contract of this async API.
-            blockHash =
-                co_await ledger::getBlockHash(*self.m_stateStorage, blockNumber, fromStorage);
-            if (!blockHash)
+    task::wait(
+        [](decltype(*this)& self, bcos::protocol::BlockNumber blockNumber,
+            std::function<void(Error::Ptr, bcos::crypto::HashType)> callback) -> task::Task<void> {
+            std::optional<bcos::crypto::HashType> blockHash;
+            try
             {
-                LEDGER_LOG(DEBUG) << "GetBlockHashByNumber failed, entry doesn't exist";
-                callback(BCOS_ERROR_PTR(
-                             LedgerError::GetStorageError, "GetBlockHashByNumber failed"),
+                // Delegate the SYS_NUMBER_2_HASH read to the shared storage2 free function;
+                // a missing row (block not yet committed) keeps the historical GetStorageError
+                // contract of this async API.
+                blockHash =
+                    co_await ledger::getBlockHash(*self.m_stateStorage, blockNumber, fromStorage);
+                if (!blockHash)
+                {
+                    LEDGER_LOG(DEBUG) << "GetBlockHashByNumber failed, entry doesn't exist";
+                    callback(
+                        BCOS_ERROR_PTR(LedgerError::GetStorageError, "GetBlockHashByNumber failed"),
+                        bcos::crypto::HashType());
+                    co_return;
+                }
+            }
+            catch (std::exception& e)
+            {
+                LEDGER_LOG(DEBUG) << "GetBlockHashByNumber failed"
+                                  << boost::diagnostic_information(e);
+                callback(BCOS_ERROR_WITH_PREV_PTR(
+                             LedgerError::GetStorageError, "GetBlockHashByNumber failed", e),
                     bcos::crypto::HashType());
                 co_return;
             }
-        }
-        catch (std::exception& e)
-        {
-            LEDGER_LOG(DEBUG) << "GetBlockHashByNumber failed"
-                              << boost::diagnostic_information(e);
-            callback(BCOS_ERROR_WITH_PREV_PTR(
-                         LedgerError::GetStorageError, "GetBlockHashByNumber failed", e),
-                bcos::crypto::HashType());
-            co_return;
-        }
-        // Outside the try: a throwing consumer callback must not be re-invoked from the
-        // catch above.
-        callback(nullptr, *blockHash);
-    }(*this, _blockNumber, std::move(_onGetBlock)));
+            // Outside the try: a throwing consumer callback must not be re-invoked from the
+            // catch above.
+            callback(nullptr, *blockHash);
+        }(*this, _blockNumber, std::move(_onGetBlock)));
 }
 
 void Ledger::asyncGetBlockNumberByHash(const crypto::HashType& _blockHash,
@@ -753,8 +752,8 @@ void Ledger::asyncGetBlockNumberByHash(const crypto::HashType& _blockHash,
             if (!blockNumber)
             {
                 LEDGER_LOG(DEBUG) << "GetBlockNumberByHash failed, entry doesn't exist";
-                callback(BCOS_ERROR_PTR(
-                             LedgerError::GetStorageError, "GetBlockNumberByHash failed"),
+                callback(
+                    BCOS_ERROR_PTR(LedgerError::GetStorageError, "GetBlockNumberByHash failed"),
                     -1);
                 co_return;
             }
@@ -769,8 +768,7 @@ void Ledger::asyncGetBlockNumberByHash(const crypto::HashType& _blockHash,
         }
         catch (std::exception& e)
         {
-            LEDGER_LOG(DEBUG) << "GetBlockNumberByHash failed "
-                              << boost::diagnostic_information(e);
+            LEDGER_LOG(DEBUG) << "GetBlockNumberByHash failed " << boost::diagnostic_information(e);
             callback(BCOS_ERROR_WITH_PREV_PTR(
                          LedgerError::GetStorageError, "GetBlockNumberByHash failed", e),
                 -1);
@@ -1036,17 +1034,15 @@ void Ledger::asyncGetSystemConfigByKey(const std::string_view& _key,
                 LEDGER_LOG(INFO) << "GetSystemConfigByKey, config not available"
                                  << LOG_KV("currentBlockNumber", effectNumber)
                                  << LOG_KV("available number", number);
-                callback(BCOS_ERROR_PTR(LedgerError::ErrorArgument, "Config not available"), "",
-                    -1);
+                callback(
+                    BCOS_ERROR_PTR(LedgerError::ErrorArgument, "Config not available"), "", -1);
                 co_return;
             }
         }
         catch (std::exception& e)
         {
-            LEDGER_LOG(ERROR) << "GetSystemConfigByKey error, "
-                              << boost::diagnostic_information(e);
-            callback(
-                BCOS_ERROR_WITH_PREV_PTR(LedgerError::GetStorageError, "error", e), "", -1);
+            LEDGER_LOG(ERROR) << "GetSystemConfigByKey error, " << boost::diagnostic_information(e);
+            callback(BCOS_ERROR_WITH_PREV_PTR(LedgerError::GetStorageError, "error", e), "", -1);
             co_return;
         }
 
@@ -1641,8 +1637,7 @@ static void verifyL2FeatureFlagsSlot(
         // slot = keccak256(utf8("feature_flags") || be32(101))
         bcos::bytes slotInput;
         slotInput.reserve(c_l2FeatureFlagsKey.size() + 32);
-        slotInput.insert(
-            slotInput.end(), c_l2FeatureFlagsKey.begin(), c_l2FeatureFlagsKey.end());
+        slotInput.insert(slotInput.end(), c_l2FeatureFlagsKey.begin(), c_l2FeatureFlagsKey.end());
         bcos::bytes baseSlotBytes(32, 0);
         baseSlotBytes[31] = c_l2SystemConfigBaseSlot;
         slotInput.insert(slotInput.end(), baseSlotBytes.begin(), baseSlotBytes.end());
@@ -2158,6 +2153,7 @@ bool Ledger::buildGenesisBlock(
         SYS_NUMBER_2_TXS, SYS_VALUE,
         SYS_HASH_2_RECEIPT, SYS_VALUE,
         SYS_BLOCK_NUMBER_2_NONCES, SYS_VALUE,
+        SYS_CHAIN_METADATA, SYS_VALUE,
     });
     constexpr static auto moreTables = std::to_array<std::string_view>(
             {SYS_CODE_BINARY, SYS_VALUE, SYS_CONTRACT_ABI, SYS_VALUE});
@@ -2380,6 +2376,13 @@ bool Ledger::buildGenesisBlock(
                 SystemConfigEntry{std::to_string(*genesis.m_excessBlobGas), 0}));
             co_await storage2::writeOne(*m_stateStorage,
                 executor_v1::StateKey(SYS_CONFIG, SYSTEM_KEY_EXCESS_BLOB_GAS), excessBlobGasEntry);
+        }
+
+        if (genesis.m_opstackForkSchedule.has_value())
+        {
+            const auto metadata =
+                buildOpForkScheduleMetadata(*genesis.m_opstackForkSchedule, header->hash());
+            co_await writeOpForkScheduleMetadata(*m_stateStorage, metadata);
         }
 
         // write consensus node list

@@ -30,6 +30,7 @@
 #include "bcos-utilities/Common.h"
 #include "fisco-bcos-tars-service/Common/TarsUtils.h"
 #include <bcos-framework/ledger/GenesisConfig.h>
+#include <bcos-framework/ledger/OpForkScheduleCodec.h>
 #include <bcos-framework/protocol/GlobalConfig.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <bcos-utilities/FixedBytes.h>
@@ -209,6 +210,7 @@ void NodeConfig::loadGenesisConfig(boost::property_tree::ptree const& _genesisCo
     // EVMC-revision / auth_admin_account guards exempt chains that declare EL mode
     // ([ethereum] mode=el, with its mandatory [fork_timestamps] section).
     loadForkTimestamps(_genesisConfig);
+    loadOpForkSchedule(_genesisConfig);
     loadExecutorConfig(_genesisConfig);
 
     // === A6.5: L2 genesis allocs; L2 mode is gated by feature_l2_ethereum_compat ===
@@ -1258,6 +1260,37 @@ void NodeConfig::loadForkTimestamps(boost::property_tree::ptree const& _genesisC
                          << LOG_KV("osaka", schedule.m_osakaTime)
                          << LOG_KV("bpo1", schedule.m_bpo1Time)
                          << LOG_KV("bpo2", schedule.m_bpo2Time);
+}
+
+void NodeConfig::loadOpForkSchedule(boost::property_tree::ptree const& _genesisConfig)
+{
+    // Reload must not keep a previous schedule: an absent section means "legacy via
+    // feature_op_jovian", and a stale optional would pin the wrong canonical.
+    m_genesisConfig.m_opstackForkSchedule.reset();
+    auto section = _genesisConfig.get_child_optional("op_fork_schedule");
+    if (!section)
+    {
+        return;
+    }
+    auto canonical = section->get_optional<std::string>("canonical");
+    if (!canonical)
+    {
+        BOOST_THROW_EXCEPTION(
+            InvalidConfig() << errinfo_comment("[op_fork_schedule].canonical is required"));
+    }
+    try
+    {
+        m_genesisConfig.m_opstackForkSchedule =
+            ledger::canonicalOpForkSchedule(ledger::parseOpForkSchedule(*canonical));
+    }
+    catch (ledger::InvalidOpForkSchedule const& e)
+    {
+        BOOST_THROW_EXCEPTION(
+            InvalidConfig() << errinfo_comment(
+                std::string("[op_fork_schedule].canonical invalid: ") + e.what()));
+    }
+    NodeConfig_LOG(INFO) << LOG_DESC("loadOpForkSchedule")
+                         << LOG_KV("canonical", *m_genesisConfig.m_opstackForkSchedule);
 }
 
 void NodeConfig::loadGatewayConfig(boost::property_tree::ptree const& _pt)

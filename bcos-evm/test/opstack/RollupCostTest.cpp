@@ -146,6 +146,40 @@ BOOST_AUTO_TEST_CASE(L1CostDoesNotWrapOnWholeSlotFeeValues)
         .operator_fee_constant = 0};
     BOOST_CHECK_EQUAL(computeL1Cost(blobFee, env, fjordConfig()), ~intx::uint256{0});
     BOOST_CHECK_EQUAL(computeL1Cost(blobFee, env, ecotoneConfig()), ~intx::uint256{0});
+
+    // Bedrock reads `overhead` (slot 5) AND `bedrock_scalar` (slot 6), so its product carries
+    // two whole-slot factors where the arms above carry one. The saturation check used to sit
+    // after the third multiply, which wraps mod 2^512: 480 * 2^255 * 2^255 == 120 * 2^512 == 0,
+    // so this arm charged zero instead of saturating.
+    const OpFeeParams bedrockFee{.l1_base_fee = intx::uint256{1} << 200,
+        .overhead = intx::uint256{0},
+        .bedrock_scalar = intx::uint256{1'000'000},
+        .operator_fee_scalar = 0,
+        .operator_fee_constant = 0};
+    // Exact, independently computed: 480 * 2^200 * 1e6 / 1e6.
+    BOOST_CHECK_EQUAL(computeL1Cost(bedrockFee, env, regolithConfig()), intx::uint256{480} << 200);
+
+    OpFeeParams bedrockSaturating = bedrockFee;
+    bedrockSaturating.l1_base_fee = intx::uint256{1} << 255;
+    bedrockSaturating.bedrock_scalar = intx::uint256{1} << 255;
+    BOOST_CHECK_EQUAL(computeL1Cost(bedrockSaturating, env, regolithConfig()), ~intx::uint256{0});
+    BOOST_CHECK_EQUAL(computeL1Cost(bedrockSaturating, env, canyonConfig()), ~intx::uint256{0});
+
+    // A zero factor keeps the mathematical zero: op-geth's big.Int evaluates 0 here, so the
+    // guard must not turn an astronomical read into a saturated fee.
+    OpFeeParams bedrockZeroScalar = bedrockSaturating;
+    bedrockZeroScalar.bedrock_scalar = 0;
+    BOOST_CHECK_EQUAL(computeL1Cost(bedrockZeroScalar, env, regolithConfig()), intx::uint256{0});
+    OpFeeParams bedrockZeroBase = bedrockSaturating;
+    bedrockZeroBase.l1_base_fee = 0;
+    BOOST_CHECK_EQUAL(computeL1Cost(bedrockZeroBase, env, regolithConfig()), intx::uint256{0});
+
+    // The sum `calldataGas + overhead` is a whole-slot read too and is widened before the
+    // multiply, so an `overhead` near the top of the word saturates instead of wrapping.
+    OpFeeParams bedrockOverhead = bedrockFee;
+    bedrockOverhead.overhead = ~intx::uint256{0};
+    bedrockOverhead.l1_base_fee = intx::uint256{2};
+    BOOST_CHECK_EQUAL(computeL1Cost(bedrockOverhead, env, regolithConfig()), ~intx::uint256{0});
 }
 
 BOOST_AUTO_TEST_CASE(OperatorCostIsthmus)
@@ -199,6 +233,49 @@ BOOST_AUTO_TEST_CASE(FromFlzVariantsMatchEnvelopeVariants)
     BOOST_CHECK_EQUAL(
         computeL1CostFromFlz(fee, flz, fjordConfig()), computeL1Cost(fee, env, fjordConfig()));
     BOOST_CHECK_EQUAL(computeL1CostFromFlz(fee, 0, fjordConfig()), intx::uint256{0});
+}
+
+BOOST_AUTO_TEST_CASE(BedrockL1CostAddsOverheadToGas)
+{
+    OpFeeParams p{};
+    p.l1_base_fee = intx::uint256{1'000'000'000};
+    p.bedrock_scalar = intx::uint256{1'000'000};
+    p.overhead = intx::uint256{2100};
+    const auto gas = bedrockCalldataGasUsed(kEmptyTx);
+    const auto want = (intx::uint256{gas} + p.overhead) * p.l1_base_fee * p.bedrock_scalar /
+                      intx::uint256{1'000'000};
+    BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, regolithConfig()), want);
+    BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, canyonConfig()), want);
+}
+
+BOOST_AUTO_TEST_CASE(EcotoneConfigFallsBackToBedrockWhenNewSlotsZero)
+{
+    OpFeeParams p{};
+    p.l1_base_fee = intx::uint256{1'000'000'000};
+    p.bedrock_scalar = intx::uint256{1'000'000};
+    p.overhead = intx::uint256{2100};
+    // slot3/7 remain 0
+    const auto gas = bedrockCalldataGasUsed(kEmptyTx);
+    const auto want = (intx::uint256{gas} + p.overhead) * p.l1_base_fee * p.bedrock_scalar /
+                      intx::uint256{1'000'000};
+    BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, ecotoneConfig()), want);
+}
+
+BOOST_AUTO_TEST_CASE(EcotoneConfigUsesEcotoneWhenSlotsLive)
+{
+    const auto live = feeParams(1'000'000'000, 10'000'000, 2, 3);
+    const auto ecotone = computeL1Cost(live, kEmptyTx, ecotoneConfig());
+    const auto fjord = computeL1Cost(live, kEmptyTx, fjordConfig());
+    BOOST_CHECK(ecotone != fjord);
+    BOOST_CHECK(ecotone != intx::uint256{0});
+}
+
+BOOST_AUTO_TEST_CASE(BedrockEmptyEnvelopeIsZero)
+{
+    OpFeeParams p{};
+    p.overhead = intx::uint256{2100};
+    p.bedrock_scalar = intx::uint256{1};
+    BOOST_CHECK_EQUAL(computeL1Cost(p, {}, regolithConfig()), intx::uint256{0});
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -46,8 +46,11 @@ uint64_t bedrockCalldataGasUsed(evmc::bytes_view signedTxEnvelope) noexcept;
 intx::uint256 computeL1CostFromFlz(
     const OpFeeParams& params, uint32_t flzLen, const OpForkConfig& cfg) noexcept;
 
-/// L1 data fee. Ecotone (has_ecotone_l1_formula) uses the calldataGas formula; Fjord+ uses FastLZ.
-/// Returns 0 for an empty envelope; the caller guarantees deposits are always zero.
+/// L1 data fee, selected by cfg.l1_fee_model: Bedrock = (calldataGas + overhead) * l1BaseFee *
+/// scalar / 1e6; Ecotone = calldataGas formula, but only when the Ecotone input slots are live
+/// (ecotoneL1SlotsLive) — zero slots keep the Bedrock formula (the Ecotone activation block still
+/// runs setL1BlockValues); Fjord = FastLZ. Returns 0 for an empty envelope; the caller guarantees
+/// deposits are always zero.
 intx::uint256 computeL1Cost(
     const OpFeeParams& params, evmc::bytes_view signedTxEnvelope, const OpForkConfig& cfg) noexcept;
 

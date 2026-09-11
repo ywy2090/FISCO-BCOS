@@ -146,7 +146,11 @@ task::Task<ForkchoiceUpdatedResult> EthEngineService<MemPoolType, GlobalStateSto
         .finalizedCanonical = engine_common::forkchoiceHashIsCanonical(
             forkchoiceState.finalizedBlockHash, canonicalFinalizedHash),
     };
-    if (m_tracker.applyForkchoice(resolved) == ForkchoiceApplyResult::Swallowed)
+    const auto applyResult = m_tracker.applyForkchoice(resolved);
+    // Eth path matches legacy EngineServiceImpl: older head is swallowed even with attributes.
+    // Rebuild-on-parent is OP-only (OpEngineService handles RebuildOnParent separately).
+    if (applyResult == ForkchoiceApplyResult::Swallowed ||
+        applyResult == ForkchoiceApplyResult::RebuildOnParent)
     {
         co_return ForkchoiceUpdatedResult{
             .payloadStatus = engine_common::makeStatus(

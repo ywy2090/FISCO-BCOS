@@ -382,6 +382,9 @@ protected:
     void loadExecutorConfig(boost::property_tree::ptree const& _pt);
     // EL-mode timestamp fork schedule ([fork_timestamps] in config.genesis)
     void loadForkTimestamps(boost::property_tree::ptree const& _genesisConfig);
+    // OP-Stack canonical fork schedule ([op_fork_schedule] in config.genesis).
+    // Missing section leaves m_opstackForkSchedule unset (legacy via feature_op_jovian).
+    void loadOpForkSchedule(boost::property_tree::ptree const& _genesisConfig);
 
     // load config.ini
     void loadExecutorNormalConfig(boost::property_tree::ptree const& _pt);

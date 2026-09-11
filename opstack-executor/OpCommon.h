@@ -4,6 +4,7 @@
 
 // OP block types and header conversions. Commitment comparison lives in OpCommitments.h.
 
+#include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/protocol/BlockHeader.h>
 #include <bcos-framework/protocol/TransactionReceipt.h>
 #include <bcos-utilities/Common.h>
@@ -202,23 +203,27 @@ template <class T>
 /// Build the OP block context from a FISCO header. `gasLimitOverride` injects the head block's
 /// gasLimit as blockGasLeft (a minimal test header may leave gasLimit==0); `lenientOptionals`
 /// tolerates unset optional header fields as 0 (eth_call path), while block execution uses
-/// `.value()` and throws on an unset field.
+/// `.value()` and throws on an unset field. `requireEcotoneHeaderFields` separates a malformed
+/// Ecotone+ header (the beacon root and blob pair exist from Cancun/Ecotone on and must be
+/// present) from the pre-Ecotone RLP shape, where those fields do not exist at all.
 inline evmone::state::BlockInfo toBlockInfo(const bcos::protocol::BlockHeader& env,
-    std::optional<uint64_t> gasLimitOverride = std::nullopt, bool lenientOptionals = false)
+    std::optional<uint64_t> gasLimitOverride = std::nullopt, bool lenientOptionals = false,
+    bool requireEcotoneHeaderFields = true)
 {
+    bool const lenient = lenientOptionals || !requireEcotoneHeaderFields;
     evmone::state::BlockInfo blk;
     blk.number = static_cast<int64_t>(env.number());
     // TIMESTAMP UNIT CONVENTION (do not "fix" — see below):
-    // FISCO tars store MILLISECONDS; evmone wants SECONDS, so this /1000 is REQUIRED and correct.
+    // FISCO tars store MILLISECONDS; evmone wants SECONDS, so this conversion is REQUIRED.
     // The RPC boundary converts seconds→milliseconds on the way in (EngineHelper.cpp
     // engineSecondsToInternalMillis / EngineTimestampBoundaryTest), so a header built by the
     // engine already carries ms; feeding it to the EVM un-divided would make every timestamp
-    // 1000× too large and diverge from op-geth (which stores seconds). Fork SELECTION is
-    // feature-driven (feature_op_jovian) since the feature-flag refactor — the timestamp is no
-    // longer a fork selector — but the EVM still receives seconds (op-geth semantics), so the
-    // division stays. If a future header source writes seconds directly, convert at THAT boundary
-    // — never remove this division.
-    blk.timestamp = static_cast<uint64_t>(env.timestamp()) / 1000;
+    // 1000× too large and diverge from op-geth (which stores seconds). Fork selection is
+    // the timestamp OpForkSchedule (configAt(unix seconds)); this helper only converts
+    // the header unit for evmone. If a future header source writes seconds directly,
+    // convert at THAT boundary — never remove this conversion.
+    blk.timestamp =
+        bcos::engine::unixSecondsFromInternalMillis(static_cast<uint64_t>(env.timestamp()));
     blk.gas_limit = gasLimitOverride.has_value() ?
                         narrowU256ToI64(bcos::u256(*gasLimitOverride), "BlockInfo::gasLimit") :
                         narrowU256ToI64(env.gasLimit(), "BlockInfo::gasLimit");
@@ -229,14 +234,14 @@ inline evmone::state::BlockInfo toBlockInfo(const bcos::protocol::BlockHeader& e
     blk.coinbase = toEvmcAddress(env.coinbase());
     blk.prev_randao = toEvmcBytes32(env.prevRandao());
     blk.parent_beacon_block_root = toEvmcBytes32(
-        lenientOptionals ?
+        lenient ?
             env.parentBeaconBlockRoot().value_or(bcos::h256{}) :
             requireHeaderField(env.parentBeaconBlockRoot(), "BlockInfo::parentBeaconBlockRoot"));
     blk.extra_data = evmc::bytes(env.extraData().begin(), env.extraData().end());
-    blk.blob_gas_used = narrowU256ToU64(
-        lenientOptionals ? env.blobGasUsed().value_or(bcos::u256{0}) :
-                           requireHeaderField(env.blobGasUsed(), "BlockInfo::blobGasUsed"),
-        "BlockInfo::blobGasUsed");
+    blk.blob_gas_used =
+        narrowU256ToU64(lenient ? env.blobGasUsed().value_or(bcos::u256{0}) :
+                                  requireHeaderField(env.blobGasUsed(), "BlockInfo::blobGasUsed"),
+            "BlockInfo::blobGasUsed");
     return blk;
 }
 }  // namespace detail
