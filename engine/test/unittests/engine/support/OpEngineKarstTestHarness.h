@@ -73,6 +73,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <random>
 #include <span>
 #include <string_view>
 #include <thread>
@@ -1330,6 +1331,71 @@ struct ImportServiceFixtureT
         // seeds must carry the CL-announced hash — computeHash(executed) can drift from
         // the announced hash because finishExecute mirrors only a field subset.
         executedByNumber[request.executionPayload.blockNumber] = filledHeader;
+    }
+
+    /// B' sibling of the canonical B at height 2 (parent A): same height, later
+    /// timestamp, so its hash differs and a switch to it is a same-height reorg.
+    /// Used by the M4 sequence matrix (S3/S4/S13/S14) — the construction is the one
+    /// SwitchDropsReplacedSameHeightSiblingLedgerRows used inline.
+    bcos::engine::NewPayloadRequest makeSiblingAtHeight2()
+    {
+        auto request = validRequest(seededChainHash[1], 2);
+        request.executionPayload.timestamp += 3'000;
+        auto const txRoot = EngineOpScheduler::computeTxRoot(
+            bcos::engine::detail::rawEnvelopes(request.executionPayload));
+        auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+            blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+            *request.parentBeaconBlockRoot, bcos::engine::OpForkId::Isthmus);
+        request.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
+        return request;
+    }
+
+    /// One randomized step for the M4 random sequence (S15), returning the head the
+    /// invariants must then hold at. Operations stay inside the paths whose semantics
+    /// are pinned by S1-S14: extend the chain (then FCU to the new block), heartbeat at
+    /// the tip, or a no-attrs FCU back to an older canonical height (which must NOT move
+    /// the tip — S5). Pushing safe/finalized to the tip is deliberately NOT generated:
+    /// the prune behaviour that follows is the F4 item deferred to Tier-2, and a
+    /// BOOST_REQUIRE inside the fixture would abort the suite rather than fail a case.
+    int64_t driveRandomStep(std::mt19937_64& rng, int64_t head)
+    {
+        std::uniform_int_distribution<int> pick(0, 2);
+        switch (pick(rng))
+        {
+        case 0:  // extend: import a child of the tip, then FCU to it
+        {
+            auto request = validRequest(seededChainHash[head], head + 1);
+            auto const status = bcos::task::syncWait(service.newPayload(request, 4));
+            if (status.status != bcos::engine::PayloadValidationStatus::Valid)
+            {
+                break;  // head unchanged; the invariants must still hold
+            }
+            seededChainHash[head + 1] = request.executionPayload.blockHash;
+            bcos::engine::ForkchoiceState fc{request.executionPayload.blockHash,
+                request.executionPayload.blockHash, fixtureHeadHash()};
+            auto const fcu = bcos::task::syncWait(service.updateForkchoice(fc, nullptr, 3));
+            if (fcu.payloadStatus.status == bcos::engine::PayloadValidationStatus::Valid)
+            {
+                ++head;
+            }
+            break;
+        }
+        case 1:  // heartbeat at the tip (also refreshes safe to the tip)
+        {
+            auto const tipHash = seededChainHash[head];
+            bcos::engine::ForkchoiceState fc{tipHash, tipHash, fixtureHeadHash()};
+            (void)bcos::task::syncWait(service.updateForkchoice(fc, nullptr, 3));
+            break;
+        }
+        default:  // no-attrs FCU to an older canonical height: must not rewind the tip
+        {
+            auto const oldHash = seededChainHash.at(1);
+            bcos::engine::ForkchoiceState fc{oldHash, oldHash, fixtureHeadHash()};
+            (void)bcos::task::syncWait(service.updateForkchoice(fc, nullptr, 3));
+            break;
+        }
+        }
+        return head;
     }
 };
 
