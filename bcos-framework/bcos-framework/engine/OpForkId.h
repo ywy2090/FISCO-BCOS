@@ -134,6 +134,9 @@ struct EngineForkContext
 // "layout != Empty" means Holocene or later, "layout == Jovian17" means Jovian or
 // later. These pin each boundary so a layout change cannot silently re-price blocks.
 static_assert(extraDataLayoutFor(OpForkId::Regolith) == OpExtraDataLayout::Empty &&
+              extraDataLayoutFor(OpForkId::Canyon) == OpExtraDataLayout::Empty &&
+              extraDataLayoutFor(OpForkId::Ecotone) == OpExtraDataLayout::Empty &&
+              extraDataLayoutFor(OpForkId::Fjord) == OpExtraDataLayout::Empty &&
               extraDataLayoutFor(OpForkId::Granite) == OpExtraDataLayout::Empty &&
               extraDataLayoutFor(OpForkId::Holocene) == OpExtraDataLayout::Holocene9 &&
               extraDataLayoutFor(OpForkId::Isthmus) == OpExtraDataLayout::Holocene9 &&
