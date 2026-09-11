@@ -318,15 +318,53 @@ def test_generate_hash_mismatch_raises(tmp_path):
 
 _OP_GETH_ZIP = Path("/Users/octopus/octo/code/op-geth/superchain/superchain-configs.zip")
 
+# Chains the generator deliberately does not reproduce, with the reason. Not a
+# silent skip: the sweep asserts the excluded set is exactly this set, so an
+# unexpected pass or a new failure both surface.
+#
+# mainnet/op: op-geth special-cases chain 10 (params/superchain.go:78-84 sets
+# LondonBlock = 105235063) and overwrites the expected genesis hash with a
+# hardcoded value when chConfig.Genesis.L2.Number != genesisBlock.NumberU64()
+# (core/superchain.go:66-73). FISCO reproduces neither the toml l2.hash nor that
+# override, so the chain is out of scope per design §2/§9/§11 (chains with
+# number != 0 are excluded).
+_EXPECTED_REGISTRY_EXCLUSIONS = {"mainnet/op"}
 
-@pytest.mark.parametrize("chain", ["mainnet/base", "sepolia/op",
-                                   "rehearsal-0-bn/rehearsal-0-bn-0"])
-def test_real_registry_reconstructs_genesis_hash(chain):
+
+def _registry_chains(zip_path):
+    with zipfile.ZipFile(zip_path) as zf:
+        return sorted(name[len("genesis/"):-len(".json.zst")]
+                      for name in zf.namelist()
+                      if name.startswith("genesis/") and name.endswith(".json.zst"))
+
+
+def test_real_registry_full_sweep_matches_documented_exclusions():
+    """End-to-end acceptance over the whole zip.
+
+    Every genesis entry except the documented exclusions must reconstruct its
+    registry genesis hash and, since U7-F1, pass rollup validation. Offline,
+    deterministic, ~10s. Final assertion: passed == all - excluded.
+    """
     import shutil
     if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
         pytest.skip("op-geth superchain zip / zstd CLI not available")
-    result = gen.generate(str(_OP_GETH_ZIP), chain)
-    assert result["manifest"]["header_hash"] == result["manifest"]["expected_l2_hash"]
+    chains = _registry_chains(str(_OP_GETH_ZIP))
+    assert chains  # the sweep assumes the registry layout is populated
+    passed, failed = [], {}
+    for chain in chains:
+        try:
+            result = gen.generate(str(_OP_GETH_ZIP), chain)
+            assert result["manifest"]["header_hash"] == result["manifest"]["expected_l2_hash"]
+        except Exception as exc:  # noqa: BLE001 - report every chain, not just the first
+            failed[chain] = exc
+        else:
+            passed.append(chain)
+    assert set(failed) == _EXPECTED_REGISTRY_EXCLUSIONS, (
+        f"registry sweep has undocumented failures: "
+        f"{sorted(set(failed) - _EXPECTED_REGISTRY_EXCLUSIONS)}; "
+        f"documented exclusions that unexpectedly passed: "
+        f"{sorted(_EXPECTED_REGISTRY_EXCLUSIONS - set(failed))}")
+    assert set(passed) == set(chains) - _EXPECTED_REGISTRY_EXCLUSIONS
 
 
 def test_build_rollup_threads_extra_fork_overlay():
@@ -396,3 +434,32 @@ def test_check_registry_rollup_validates_fields_and_fork_order():
     with_overlay = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1,
                                     extra_forks={"karst": 1781712001})
     gen.check_registry_rollup(with_overlay)
+
+
+def test_check_registry_rollup_ignores_external_fork_order():
+    """Only the canonical regolith->...->isthmus chain is ordered by op-node.
+
+    op-node Config.Check() (rollup/types.go) calls checkFork on the seven adjacent
+    canonical pairs only; superchain.go applyHardforks assigns
+    pectra_blob_schedule/interop/jovian/karst but never compares them. A registry
+    chain may therefore put pectra before holocene (sepolia/race) or interop before
+    jovian without op-node rejecting it, and the generator must accept that too.
+    """
+    rollup = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1)
+    # sepolia/race shape: pectra_blob_schedule (CL-only) before holocene.
+    rollup["holocene_time"] = 1749772800
+    rollup["pectra_blob_schedule_time"] = 1742486400
+    gen.check_registry_rollup(rollup)  # must not raise
+    # interop/jovian are not ordered by op-node either.
+    rollup["jovian_time"] = 1000
+    rollup["interop_time"] = 500
+    gen.check_registry_rollup(rollup)  # must not raise
+
+
+def test_check_registry_rollup_still_rejects_canonical_regression():
+    # Guard against "fix U7-F1 by checking nothing": a real regression on the
+    # canonical chain must still be rejected.
+    rollup = gen.build_rollup(gen.tomllib.loads(TOML), l1_chain_id=1)
+    rollup["delta_time"] = 1  # delta before canyon
+    with pytest.raises(gen.RegistryError, match="fork time regresses"):
+        gen.check_registry_rollup(rollup)

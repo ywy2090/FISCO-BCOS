@@ -337,11 +337,22 @@ def build_schedule(toml, ts0, extra_forks=None):
 # karst_time key would make every artifact undecodable by that revision; a PRESENT
 # karst_time (from --extra-fork) requires a karst-aware op-node (S7 must pick the
 # op-node version to match the schedule it is fed).
-# Activation order (also the order the monotonicity check walks): op-geth's EL fork
-# sequence, with the CL-only forks in their op-node positions.
+# Activation order for emitting the CL fork keys (JSON key order is irrelevant to
+# the consumer): op-geth's EL fork sequence, with the CL-only forks in their op-node
+# positions. NOTE this is NOT the order the monotonicity check walks — see
+# _ROLLUP_ORDERED_FORKS.
 _ROLLUP_FORK_KEYS = ["regolith", "canyon", "delta", "ecotone", "fjord", "granite",
                      "holocene", "pectra_blob_schedule", "isthmus", "jovian", "karst",
                      "interop"]
+# The forks op-node's rollup.Config.Check() actually orders: it calls checkFork on
+# exactly these seven adjacent canonical pairs, regolith->canyon->delta->ecotone->
+# fjord->granite->holocene->isthmus (op-node/rollup/types.go Check; pin
+# optimism@76e4fad5). PectraBlobScheduleTime, InteropTime and JovianTime are set by
+# superchain.go applyHardforks but never compared, so walking them here would reject
+# configs op-node accepts (sepolia/race schedules pectra_blob_schedule_time before
+# holocene_time). Keep external forks out of this list.
+_ROLLUP_ORDERED_FORKS = ["regolith", "canyon", "delta", "ecotone", "fjord",
+                         "granite", "holocene", "isthmus"]
 # Non-fork fields the config must carry (everything else is a fork time).
 _ROLLUP_REQUIRED_FIELDS = ["block_time", "max_sequencer_drift", "seq_window_size",
                            "channel_timeout", "l1_chain_id", "l2_chain_id",
@@ -417,8 +428,12 @@ def check_registry_rollup(rollup):
     """Validate a built rollup config: required non-fork fields present, and the fork
     times monotonic in activation order (an unscheduled fork is absent, not zero).
 
-    The EL schedule gets the same treatment in build_schedule; without this the CL
-    config could carry an impossible ordering and only fail inside op-node at S7.
+    Only the canonical forks op-node's rollup.Config.Check() orders are compared
+    (_ROLLUP_ORDERED_FORKS, the seven regolith->...->isthmus pairs); the external
+    forks pectra_blob_schedule/interop/jovian are excluded because op-node never
+    orders them. The EL schedule gets the same treatment in build_schedule; without
+    this the CL config could carry an impossible ordering and only fail inside
+    op-node at S7.
     """
     for key in _ROLLUP_REQUIRED_FIELDS:
         if rollup.get(key) is None:
@@ -428,7 +443,7 @@ def check_registry_rollup(rollup):
             raise RegistryError(f"rollup genesis is missing {section}")
     previous = None
     previous_fork = None
-    for fork in _ROLLUP_FORK_KEYS:
+    for fork in _ROLLUP_ORDERED_FORKS:
         value = rollup.get(f"{fork}_time")
         if value is None:
             continue
