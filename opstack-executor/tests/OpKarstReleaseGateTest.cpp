@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // OpKarstReleaseGateSuite — Karst cannot ship as a Jovian alias: Osaka + EIP-7825
-// exemption, and production parse names Karst only after Jovian.
+// exemption. The production parse accepts any known fork as the timestamp-0
+// baseline (so `0:karst` is valid on its own); later activations must stay in
+// contiguous protocol order, which the gap case below exercises.
 
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
@@ -28,7 +30,9 @@ BOOST_AUTO_TEST_CASE(ParseAllowsKarstAfterJovian)
     BOOST_CHECK_EQUAL(schedule.configAt(1).rev, EVMC_OSAKA);
 }
 
-BOOST_AUTO_TEST_CASE(ParseRejectsKarstWithoutJovian)
+// Rejected by the general contiguity rule (isthmus -> karst skips Fjord/Granite/
+// Holocene/Jovian), not by a Karst/Jovian special case.
+BOOST_AUTO_TEST_CASE(ParseRejectsSkippedForkBeforeKarst)
 {
     BOOST_CHECK_THROW(OpForkSchedule::parse("0:isthmus,1:karst"), InvalidOpForkSchedule);
 }

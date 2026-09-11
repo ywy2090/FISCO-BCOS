@@ -244,8 +244,8 @@ std::vector<std::string> supportedOpCapabilities()
 {
     // The OP lane's implemented window, NOT the Eth list. With the payload-timestamp
     // profile (engineApiFor / extraDataLayoutFor) the live method now varies by fork:
-    // newPayloadV2 from Canyon up, V3 Ecotone/Fjord/Granite/Holocene, V4 Isthmus+;
-    // getPayloadV2/V3 likewise, V4 Isthmus+, V5 Karst. Advertising exactly what the
+    // newPayloadV2 and getPayloadV2 run from Regolith (the baseline) up, V3
+    // Ecotone/Fjord/Granite/Holocene, V4 Isthmus+, getPayloadV5 Karst. Advertising
     // profile can select keeps a CL from picking a method this lane rejects (-38005)
     // on every call. Still absent: newPayloadV1 (op-node starts at V2 — Bedrock is
     // its first fork), newPayloadV5 and FCU V4 (both exist upstream — op-geth
