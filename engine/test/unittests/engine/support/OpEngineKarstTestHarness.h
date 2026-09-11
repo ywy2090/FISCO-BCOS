@@ -1197,7 +1197,15 @@ struct ImportServiceFixtureT
 
     /// A valid Isthmus V4 payload extending @p parent with a strictly increasing
     /// timestamp and the baseFee recomputed from the ACTUAL parent header.
-    bcos::engine::NewPayloadRequest validRequest(bcos::h256 parent, int64_t number)
+    ///
+    /// @p depositTag, when >= 0, perturbs the L1-attributes deposit's final calldata byte
+    /// so that each height gets a DISTINCT transaction hash. Production deposits already
+    /// differ per L2 block (the L1-info sequence number), so this only restores the
+    /// production shape: without it the byte-identical zero envelope is shared by every
+    /// height and the first canonicalization writes the single shared
+    /// SYS_HASH_2_TX/SYS_HASH_2_RECEIPT row, masking a body row missing at a later height.
+    bcos::engine::NewPayloadRequest validRequest(
+        bcos::h256 parent, int64_t number, int depositTag = -1)
     {
         auto request = makeValidIsthmusNewPayload(*blockFactory, parent, number);
         // OP blocks always carry the L1 attributes deposit (a zero-tx block is a
@@ -1205,6 +1213,10 @@ struct ImportServiceFixtureT
         bcos::engine::EngineTransaction depositTx;
         depositTx.raw = bcos::evm::engine::testutil::synthesizeL1AttributesEnvelope(
             /*has_da_footprint=*/false);
+        if (depositTag >= 0)
+        {
+            depositTx.raw.back() = static_cast<bcos::byte>(0x40 + (depositTag & 0x3f));
+        }
         request.executionPayload.transactions.push_back(std::move(depositTx));
         request.executionPayload.timestamp =
             static_cast<std::uint64_t>(1'700'000'000'000ULL + number * 12'000ULL);

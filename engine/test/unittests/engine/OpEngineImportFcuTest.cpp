@@ -34,7 +34,10 @@
 #include <bcos-utilities/DataConvertUtility.h>
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <limits>
+#include <ranges>
 
 using namespace bcos;
 using namespace bcos::engine;
@@ -1641,6 +1644,115 @@ BOOST_AUTO_TEST_CASE(CanonicalizeHoldsNoLockAcrossAwait)
         static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
     BOOST_CHECK_EQUAL(static_cast<int>(importStatus.status),
         static_cast<int>(bcos::engine::PayloadValidationStatus::Syncing));
+}
+
+// U6-F1 regression (MEDIUM, confirmed): a switch-SetCanonical that walks a chain with
+// an intermediate height that was NEVER canonical must stage that height's hash-keyed
+// bodies, not only its by-number index. Before the fix the (2.5) loop staged just
+// SYS_NUMBER_2_TXS[height], so SYS_NUMBER_2_TXS[h] listed tx hashes whose
+// SYS_HASH_2_TX / SYS_HASH_2_RECEIPT rows were absent, and ledger::getBlockData's batch
+// tx resolution failed for the freshly canonical block. The fixture's zero
+// L1-attributes envelope is byte-identical across heights (the first canonicalization
+// writes the single shared hash), so a per-height deposit tag is required to unmask it;
+// production deposits already differ per block via the L1-info sequence number.
+BOOST_AUTO_TEST_CASE(SwitchSetCanonicalWritesIntermediateHeightHashKeyedBodies)
+{
+    ImportServiceFixture f;
+
+    // Canonical chain A@1 -> B@2 (one-jump FCU), so the tip is 2.
+    auto requestA = f.validRequest(fixtureHeadHash(), 1, 1);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestA, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto requestB = f.validRequest(requestA.executionPayload.blockHash, 2, 2);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestB, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    bcos::engine::ForkchoiceState fcuB{requestB.executionPayload.blockHash,
+        requestB.executionPayload.blockHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuB, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // Sibling C@2 on A was imported but never canonicalized; D@3 extends C.
+    auto requestC = f.validRequest(requestA.executionPayload.blockHash, 2, 3);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestC, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+    auto requestD = f.validRequest(requestC.executionPayload.blockHash, 3, 4);
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.newPayload(requestD, 4)).status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    // FCU to D: the chain [C@2, D@3] roots at A@1 while the tip is still 2, so this takes
+    // the switch branch and re-canonicalizes [C, D]; C is the intermediate height.
+    bcos::engine::ForkchoiceState fcuD{requestD.executionPayload.blockHash,
+        requestD.executionPayload.blockHash, fixtureHeadHash()};
+    BOOST_REQUIRE_EQUAL(
+        static_cast<int>(bcos::task::syncWait(f.service.updateForkchoice(fcuD, nullptr, 3))
+                             .payloadStatus.status),
+        static_cast<int>(bcos::engine::PayloadValidationStatus::Valid));
+
+    auto const crypto = makeCryptoSuite()->hashImpl();
+    auto const cTxHash = crypto->hash(requestC.executionPayload.transactions[0].raw);
+    auto const dTxHash = crypto->hash(requestD.executionPayload.transactions[0].raw);
+    auto const bTxHash = crypto->hash(requestB.executionPayload.transactions[0].raw);
+    auto view = f.storage.forkCommitted();
+
+    // C now occupies canonical height 2 ...
+    auto height2 =
+        bcos::task::syncWait(bcos::ledger::getBlockHash(view, 2, bcos::ledger::fromStorage));
+    BOOST_REQUIRE(height2.has_value());
+    BOOST_CHECK_EQUAL(height2->hex(), requestC.executionPayload.blockHash.hex());
+
+    // ... the by-number index [2] was re-staged with C's tx hash by step (2.5) ...
+    auto numberToTxs = bcos::task::syncWait(
+        bcos::storage2::readOne(view, StateKey{bcos::ledger::SYS_NUMBER_2_TXS, std::to_string(2)}));
+    BOOST_REQUIRE(numberToTxs.has_value());
+    auto const numberToTxsBytes = numberToTxs->get();
+    auto metaBlock = f.blockFactory->createBlock(bcos::bytesConstRef(
+        reinterpret_cast<const bcos::byte*>(numberToTxsBytes.data()), numberToTxsBytes.size()));
+    auto hashes = metaBlock->transactionHashes() | ::ranges::to<std::vector>();
+    BOOST_REQUIRE_EQUAL(hashes.size(), 1U);
+    BOOST_CHECK_EQUAL(hashes[0].hex(), cTxHash.hex());
+
+    // ... so C's hash-keyed bodies MUST exist. This is the U6-F1 symptom: before the fix
+    // step (2.5) staged no SYS_HASH_2_TX / SYS_HASH_2_RECEIPT for intermediate heights.
+    auto cBody = bcos::task::syncWait(bcos::storage2::readOne(
+        view, StateKey{bcos::ledger::SYS_HASH_2_TX, bcos::concepts::bytebuffer::toView(cTxHash)}));
+    BOOST_CHECK_MESSAGE(
+        cBody.has_value(), "SYS_HASH_2_TX missing for intermediate height tx " << cTxHash.hex());
+    auto cReceipt = bcos::task::syncWait(bcos::storage2::readOne(view,
+        StateKey{bcos::ledger::SYS_HASH_2_RECEIPT, bcos::concepts::bytebuffer::toView(cTxHash)}));
+    BOOST_CHECK_MESSAGE(cReceipt.has_value(),
+        "SYS_HASH_2_RECEIPT missing for intermediate height tx " << cTxHash.hex());
+
+    // Impact: a canonical block must resolve every hash listed by SYS_NUMBER_2_TXS[2]
+    // through the bodies; ledger::getBlockData's batch get otherwise fails the block.
+    std::size_t resolved = 0;
+    for (auto const& hash : hashes)
+    {
+        auto body = bcos::task::syncWait(bcos::storage2::readOne(
+            view, StateKey{bcos::ledger::SYS_HASH_2_TX, bcos::concepts::bytebuffer::toView(hash)}));
+        if (body.has_value())
+        {
+            ++resolved;
+        }
+    }
+    BOOST_CHECK_MESSAGE(
+        resolved == hashes.size(), "Ledger batch-get-transactions would fail: resolved "
+                                       << resolved << " of " << hashes.size() << " hashes");
+
+    // Controls: head D's bodies come from step (3), and previously-canonical sibling B's
+    // bodies exist from its own canonicalization. Only never-canonical C is affected.
+    auto dBody = bcos::task::syncWait(bcos::storage2::readOne(
+        view, StateKey{bcos::ledger::SYS_HASH_2_TX, bcos::concepts::bytebuffer::toView(dTxHash)}));
+    BOOST_CHECK_MESSAGE(dBody.has_value(), "head body missing for tx " << dTxHash.hex());
+    auto bBody = bcos::task::syncWait(bcos::storage2::readOne(
+        view, StateKey{bcos::ledger::SYS_HASH_2_TX, bcos::concepts::bytebuffer::toView(bTxHash)}));
+    BOOST_CHECK_MESSAGE(
+        bBody.has_value(), "previously canonical B's body should be present: " << bTxHash.hex());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

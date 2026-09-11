@@ -1630,9 +1630,7 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicaliz
                     executor_v1::StateKey{
                         bcos::ledger::SYS_NUMBER_2_BLOCK_HEADER, std::to_string(block.number)},
                     std::move(headerEntry));
-                // SYS_NUMBER_2_TXS[number]: the by-number tx list (review N1). The
-                // hash-keyed bodies (SYS_HASH_2_TX / SYS_HASH_2_RECEIPT) are never
-                // removed by a switch, so they do not need re-staging here.
+                // SYS_NUMBER_2_TXS[number]: the by-number tx list (review N1).
                 bcos::storage::Entry numberToTxsEntry;
                 numberToTxsEntry.set(
                     encodeNumberToTxsRow(*m_blockFactory, block.txHashes, block.txRecipients));
@@ -1640,6 +1638,32 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::canonicaliz
                     executor_v1::StateKey{
                         bcos::ledger::SYS_NUMBER_2_TXS, std::to_string(block.number)},
                     std::move(numberToTxsEntry));
+                // Hash-keyed bodies (SYS_HASH_2_TX / SYS_HASH_2_RECEIPT): a switch never
+                // REMOVES them, but that only helps heights that were canonical before.
+                // An intermediate height that was never canonical (the NEW-2 back-reorg
+                // walks a chain that was imported but never pinned) has no body rows yet,
+                // so the by-number row staged above would list tx hashes with no
+                // resolvable body and ledger::getBlockData's batch get would fail the
+                // canonical block. Stage them per height, mirroring the forward branch
+                // (:1851-1868) and the head step (3) below.
+                for (std::size_t j = 0; j < block.encodedTxs.size(); ++j)
+                {
+                    bcos::storage::Entry txEntry;
+                    txEntry.set(block.encodedTxs[j]);
+                    co_await storage2::writeOne(stagedDelta,
+                        executor_v1::StateKey{bcos::ledger::SYS_HASH_2_TX,
+                            bcos::concepts::bytebuffer::toView(block.txHashes[j])},
+                        std::move(txEntry));
+                    if (j < block.receipts.size())
+                    {
+                        bcos::storage::Entry receiptEntry;
+                        receiptEntry.set(block.receipts[j]);
+                        co_await storage2::writeOne(stagedDelta,
+                            executor_v1::StateKey{bcos::ledger::SYS_HASH_2_RECEIPT,
+                                bcos::concepts::bytebuffer::toView(block.txHashes[j])},
+                            std::move(receiptEntry));
+                    }
+                }
             }
 
             // (3) Canonical rows for the new head + explicit height trim above it. The
