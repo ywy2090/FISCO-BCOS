@@ -31,7 +31,7 @@ DERIVE_BCOS_EXCEPTION(EmptyReceiptHash);
 
 namespace
 {
-// Local hex helpers for the opStackMeta tars fields. All 13 fields are hex strings so that
+// Local hex helpers for the opStackMeta tars fields. All 14 fields are hex strings so that
 // explicit zeros ("0x0") survive tars serialization (tars optional scalars have no presence
 // semantics). boost::lexical_cast has no base-argument overload, so the u64 path formats via a
 // fixed-width multiprecision number::str(digits, base). (boost::multiprecision::uint64_t does
@@ -222,7 +222,7 @@ bcostars::protocol::TransactionReceiptImpl::opStackMeta() const
         return std::nullopt;
     }
     bcos::protocol::OpStackReceiptMeta out;
-    // all 13 fields are hex strings; a tars optional string uses != "" to mean "present"
+    // all 14 fields are hex strings; a tars optional string uses != "" to mean "present"
     // (0 values are stored "0x0", non-empty, so explicit zeros keep their presence)
     if (!s.l1_gas_price.empty())
         out.l1_gas_price = hexToU256(s.l1_gas_price);
@@ -260,7 +260,7 @@ bcostars::protocol::TransactionReceiptImpl::opStackMeta() const
         out.operator_fee_constant == std::nullopt && out.da_footprint_gas_scalar == std::nullopt &&
         out.da_footprint == std::nullopt && out.deposit_nonce == std::nullopt &&
         out.deposit_receipt_version == std::nullopt && out.l1_gas_used == std::nullopt &&
-        out.operator_fee == std::nullopt)
+        out.operator_fee == std::nullopt && out.l1_fee_scalar == std::nullopt)
     {
         return std::nullopt;
     }
