@@ -1,0 +1,32 @@
+[
+  {
+    "variant": "N1",
+    "finding": "N1",
+    "target": "test-bcos-engine",
+    "binary": "engine/test/test-bcos-engine",
+    "filter": "OpEngineSequenceMatrixSuite/S1_ForwardCanonicalizeBlockByBlock",
+    "also_green": ["OpEngineSequenceMatrixSuite/S3_SameHeightSwitchDropsSibling"],
+    "expect": "only_mapped_red",
+    "why": "I2 (by-number tx list) must fail on the forward branch; the switch branch writes its own SYS_NUMBER_2_TXS row, so a switch-final sequence is the negative control."
+  },
+  {
+    "variant": "N2",
+    "finding": "N2",
+    "target": "test-bcos-engine",
+    "binary": "engine/test/test-bcos-engine",
+    "filter": "OpEngineSequenceMatrixSuite/S3_SameHeightSwitchDropsSibling",
+    "also_green": ["OpEngineSequenceMatrixSuite/S1_ForwardCanonicalizeBlockByBlock"],
+    "expect": "only_mapped_red",
+    "why": "I1 must fail because the whole-plane scrub deletes the still-canonical ancestor A's hash->number row; a forward-only sequence never runs that scrub."
+  },
+  {
+    "variant": "NEW-3",
+    "finding": "NEW-3",
+    "target": "test-bcos-engine",
+    "binary": "engine/test/test-bcos-engine",
+    "filter": "OpEngineSequenceMatrixSuite/S13_WarmCacheSameHeightSwitch",
+    "also_green": ["OpEngineSequenceMatrixSuite/S3_SameHeightSwitchDropsSibling"],
+    "expect": "only_mapped_red",
+    "why": "The same-height switch must go red on the cache-bound composition (S13); the cache-less composition (S3) reads the backend directly, so it must stay green."
+  }
+]
