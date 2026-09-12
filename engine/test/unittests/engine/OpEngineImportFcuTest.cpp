@@ -32,6 +32,7 @@
 #include <bcos-ledger/LedgerMethods.h>
 #include <bcos-ledger/mpt/Constants.h>
 #include <bcos-utilities/DataConvertUtility.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>

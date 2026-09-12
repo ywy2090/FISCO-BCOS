@@ -12,6 +12,7 @@
 #include <bcos-utilities/DataConvertUtility.h>
 #include <evmone/evmone.h>
 #include <openssl/sha.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <bcos-evm/eth/state/state.hpp>
@@ -303,7 +304,9 @@ std::vector<uint8_t> makeBn256PairingInput(size_t pairs)
 
 BOOST_AUTO_TEST_SUITE(OpOsakaSemanticsSuite)
 
-BOOST_AUTO_TEST_CASE(ClzVectorsThroughKarstOpPath)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ClzVectorsThroughKarstOpPath, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
@@ -334,7 +337,9 @@ BOOST_AUTO_TEST_CASE(ClzVectorsThroughKarstOpPath)
     BOOST_CHECK_EQUAL(readOsakaStorageSlot(ts2, kOsakaContract, 0), intx::uint256{0});
 }
 
-BOOST_AUTO_TEST_CASE(ClzUndefinedBeforeOsakaOnJovianPath)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ClzUndefinedBeforeOsakaOnJovianPath, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
@@ -342,7 +347,9 @@ BOOST_AUTO_TEST_CASE(ClzUndefinedBeforeOsakaOnJovianPath)
     BOOST_CHECK_NE(r.receipt->status(), 0);
 }
 
-BOOST_AUTO_TEST_CASE(ClzCostsFiveGasUnderOsaka)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ClzCostsFiveGasUnderOsaka, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState push0Ts;
@@ -360,7 +367,9 @@ BOOST_AUTO_TEST_CASE(ClzCostsFiveGasUnderOsaka)
     BOOST_CHECK_EQUAL(clzGas - push0Gas, 5);
 }
 
-BOOST_AUTO_TEST_CASE(Eip7823ModExpLengthBoundsThroughKarstOpPath)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7823ModExpLengthBoundsThroughKarstOpPath, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
@@ -408,25 +417,33 @@ static void checkModExpSizeBound(size_t baseLen, size_t expLen, size_t modLen, b
     }
 }
 
-BOOST_AUTO_TEST_CASE(Eip7823ModExpBaseLenBoundThroughKarstOpPath)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7823ModExpBaseLenBoundThroughKarstOpPath, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     checkModExpSizeBound(c_eip7823InputSizeLimit, 1, 1, true);
     checkModExpSizeBound(c_eip7823InputSizeLimit + 1, 1, 1, false);
 }
 
-BOOST_AUTO_TEST_CASE(Eip7823ModExpExpLenBoundThroughKarstOpPath)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7823ModExpExpLenBoundThroughKarstOpPath, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     checkModExpSizeBound(1, c_eip7823InputSizeLimit, 1, true);
     checkModExpSizeBound(1, c_eip7823InputSizeLimit + 1, 1, false);
 }
 
-BOOST_AUTO_TEST_CASE(Eip7823ModExpModLenBoundThroughKarstOpPath)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7823ModExpModLenBoundThroughKarstOpPath, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     checkModExpSizeBound(1, 1, c_eip7823InputSizeLimit, true);
     checkModExpSizeBound(1, 1, c_eip7823InputSizeLimit + 1, false);
 }
 
-BOOST_AUTO_TEST_CASE(Eip7883EmptyModExpFloorGasThroughKarstOpPath)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7883EmptyModExpFloorGasThroughKarstOpPath, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState oogTs;
@@ -440,7 +457,9 @@ BOOST_AUTO_TEST_CASE(Eip7883EmptyModExpFloorGasThroughKarstOpPath)
     BOOST_CHECK_EQUAL(ok.receipt->status(), 0);
 }
 
-BOOST_AUTO_TEST_CASE(OsakaFixtureManifestSha256Matches)
+// clang-format off
+BOOST_AUTO_TEST_CASE(OsakaFixtureManifestSha256Matches, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     struct Item
     {
@@ -466,7 +485,9 @@ BOOST_AUTO_TEST_CASE(OsakaFixtureManifestSha256Matches)
     }
 }
 
-BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani1GasFromFixture)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani1GasFromFixture, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     const auto input = loadOsakaFixture("modexp_nagydani_1_square.input.bin");
@@ -484,7 +505,9 @@ BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani1GasFromFixture)
         out.output.begin(), out.output.end(), expected.begin(), expected.end());
 }
 
-BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani2PowGasFromFixture)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani2PowGasFromFixture, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     const auto input = loadOsakaFixture("modexp_nagydani_2_pow0x10001.input.bin");
@@ -502,7 +525,9 @@ BOOST_AUTO_TEST_CASE(Eip7883ModExpNagydani2PowGasFromFixture)
         out.output.begin(), out.output.end(), expected.begin(), expected.end());
 }
 
-BOOST_AUTO_TEST_CASE(Eip7951P256VerifyFromFixture)
+// clang-format off
+BOOST_AUTO_TEST_CASE(Eip7951P256VerifyFromFixture, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     const auto input = loadOsakaFixture("p256verify_valid_input.bin");
@@ -534,7 +559,9 @@ BOOST_AUTO_TEST_CASE(Eip7951P256VerifyFromFixture)
     BOOST_CHECK_EQUAL(karstFail.status_code, EVMC_OUT_OF_GAS);
 }
 
-BOOST_AUTO_TEST_CASE(KarstOrdinaryTxRejectsGasOverEip7825Cap)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstOrdinaryTxRejectsGasOverEip7825Cap, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     test::TestState ts;
     ts[kOsakaSender] = {
@@ -555,7 +582,9 @@ BOOST_AUTO_TEST_CASE(KarstOrdinaryTxRejectsGasOverEip7825Cap)
                 evmone::state::make_error_code(evmone::state::MAX_GAS_LIMIT_EXCEEDED));
 }
 
-BOOST_AUTO_TEST_CASE(KarstEthCallSkipsEip7825MaxGasLimit)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstEthCallSkipsEip7825MaxGasLimit, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // geth #32641: eth_call skips the Osaka 2^24 cap. Block admission (default
     // policy) still rejects — see KarstOrdinaryTxRejectsGasOverEip7825Cap.
@@ -576,7 +605,9 @@ BOOST_AUTO_TEST_CASE(KarstEthCallSkipsEip7825MaxGasLimit)
     BOOST_REQUIRE(std::holds_alternative<OpTxProperties>(r));
 }
 
-BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit)
+// clang-format off
+BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
@@ -602,7 +633,9 @@ BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit)
     BOOST_CHECK_EQUAL(ts.at(kOsakaSender).nonce, 1u);
 }
 
-BOOST_AUTO_TEST_CASE(KarstBn256PairingCapsAt300Pairs)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstBn256PairingCapsAt300Pairs, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // All-zero G1/G2 is the BN254 point at infinity; e(∞, ∞) = 1 (same fixture as
     // OpHostTest::JovianBn256PairingInputAtLimitExecutes). Gas = 45000 + n*34000.

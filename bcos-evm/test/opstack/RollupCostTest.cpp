@@ -2,6 +2,7 @@
 #include <bcos-evm/opstack/OpFeeParams.h>
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/RollupCost.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <evmc/hex.hpp>
 #include <vector>
@@ -49,7 +50,9 @@ evmc::bytes_view view(const std::vector<uint8_t>& v)
 
 BOOST_AUTO_TEST_SUITE(RollupCostSuite)
 
-BOOST_AUTO_TEST_CASE(FlzCompressLenMatchesOpGethVectors)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FlzCompressLenMatchesOpGethVectors, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(flzCompressLen({}), 0u);
     std::vector<uint8_t> ones(1000, 0x01);
@@ -60,27 +63,35 @@ BOOST_AUTO_TEST_CASE(FlzCompressLenMatchesOpGethVectors)
     BOOST_CHECK_EQUAL(flzCompressLen(kContractCallTx), 202u);
 }
 
-BOOST_AUTO_TEST_CASE(EstimatedDaSizeFloorsToMinimum)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EstimatedDaSizeFloorsToMinimum, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(estimatedDaSizeScaled(0), 100000000_u256);
     BOOST_CHECK_EQUAL(estimatedDaSizeScaled(64), 100000000_u256);
     BOOST_CHECK_EQUAL(estimatedDaSizeScaled(200), 124714400_u256);
 }
 
-BOOST_AUTO_TEST_CASE(EmptyEnvelopeIsZeroL1Cost)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EmptyEnvelopeIsZeroL1Cost, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(
         computeL1Cost(feeParams(1000000000, 10000000, 2, 3), {}, fjordConfig()), intx::uint256{0});
 }
 
-BOOST_AUTO_TEST_CASE(FjordL1CostEmptyTxMatches3203000)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FjordL1CostEmptyTxMatches3203000, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const evmc::bytes_view env = kEmptyTx;
     BOOST_CHECK_EQUAL(
         computeL1Cost(feeParams(1000000000, 10000000, 2, 3), env, fjordConfig()), 3203000_u256);
 }
 
-BOOST_AUTO_TEST_CASE(BedrockCalldataGasUsedNoPlus68)
+// clang-format off
+BOOST_AUTO_TEST_CASE(BedrockCalldataGasUsedNoPlus68, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // 3 个零字节 + 2 个非零字节 = 3*4 + 2*16 = 44；确认没有 pre-Regolith 的 +68。
     const std::vector<uint8_t> env{0x00, 0x00, 0x00, 0x11, 0x22};
@@ -88,7 +99,9 @@ BOOST_AUTO_TEST_CASE(BedrockCalldataGasUsedNoPlus68)
     BOOST_CHECK_NE(bedrockCalldataGasUsed({env.data(), env.size()}), 44u + 68u);
 }
 
-BOOST_AUTO_TEST_CASE(EcotoneL1DiffersFromFjordSameEnvelope)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EcotoneL1DiffersFromFjordSameEnvelope, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpFeeParams fee{.l1_base_fee = 1000000000_u256,
         .base_fee_scalar = 2,
@@ -118,7 +131,9 @@ BOOST_AUTO_TEST_CASE(EcotoneL1DiffersFromFjordSameEnvelope)
 // class as the opValidate balance cap. Expected values are independently computed with
 // arbitrary-precision arithmetic; a true fee >= 2^256 saturates to uint256 max (it exceeds any
 // representable balance, so validation rejects either way).
-BOOST_AUTO_TEST_CASE(L1CostDoesNotWrapOnWholeSlotFeeValues)
+// clang-format off
+BOOST_AUTO_TEST_CASE(L1CostDoesNotWrapOnWholeSlotFeeValues, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const evmc::bytes_view env = kEmptyTx;  // flz 31 -> daScaled floors to 1e8; calldataGas 480
 
@@ -182,14 +197,18 @@ BOOST_AUTO_TEST_CASE(L1CostDoesNotWrapOnWholeSlotFeeValues)
     BOOST_CHECK_EQUAL(computeL1Cost(bedrockOverhead, env, regolithConfig()), ~intx::uint256{0});
 }
 
-BOOST_AUTO_TEST_CASE(OperatorCostIsthmus)
+// clang-format off
+BOOST_AUTO_TEST_CASE(OperatorCostIsthmus, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto p = feeParams(0, 0, 0, 0, /*opScalar=*/2000000, /*opConst=*/500);
     BOOST_CHECK_EQUAL(computeOperatorCost(p, 1000, isthmusConfig()),
         intx::uint256{1000ull * 2000000 / 1000000 + 500});
 }
 
-BOOST_AUTO_TEST_CASE(OperatorCostJovianUsesTimes100)
+// clang-format off
+BOOST_AUTO_TEST_CASE(OperatorCostJovianUsesTimes100, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto p = feeParams(0, 0, 0, 0, /*opScalar=*/2000000, /*opConst=*/500);
     // Isthmus: 1000*2000000/1e6 + 500 = 2500
@@ -201,7 +220,9 @@ BOOST_AUTO_TEST_CASE(OperatorCostJovianUsesTimes100)
         computeOperatorCost(p, 1000, karstConfig()), computeOperatorCost(p, 1000, jovianConfig()));
 }
 
-BOOST_AUTO_TEST_CASE(EstimatedDaSizeDividesScaledBy1e6)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EstimatedDaSizeDividesScaledBy1e6, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(estimatedDaSize({}), 0u);
     // fastlz 0 → scaled floor 100e6 → size 100
@@ -214,7 +235,9 @@ BOOST_AUTO_TEST_CASE(EstimatedDaSizeDividesScaledBy1e6)
 }
 
 // D-14b：FastLZ 只压一次——分解 API 与原 API 等价
-BOOST_AUTO_TEST_CASE(FromFlzVariantsMatchEnvelopeVariants)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FromFlzVariantsMatchEnvelopeVariants, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     std::vector<uint8_t> envBytes(120);
     for (size_t i = 0; i < envBytes.size(); ++i)
@@ -235,7 +258,9 @@ BOOST_AUTO_TEST_CASE(FromFlzVariantsMatchEnvelopeVariants)
     BOOST_CHECK_EQUAL(computeL1CostFromFlz(fee, 0, fjordConfig()), intx::uint256{0});
 }
 
-BOOST_AUTO_TEST_CASE(BedrockL1CostAddsOverheadToGas)
+// clang-format off
+BOOST_AUTO_TEST_CASE(BedrockL1CostAddsOverheadToGas, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpFeeParams p{};
     p.l1_base_fee = intx::uint256{1'000'000'000};
@@ -248,7 +273,9 @@ BOOST_AUTO_TEST_CASE(BedrockL1CostAddsOverheadToGas)
     BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, canyonConfig()), want);
 }
 
-BOOST_AUTO_TEST_CASE(EcotoneConfigFallsBackToBedrockWhenNewSlotsZero)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EcotoneConfigFallsBackToBedrockWhenNewSlotsZero, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpFeeParams p{};
     p.l1_base_fee = intx::uint256{1'000'000'000};
@@ -261,7 +288,9 @@ BOOST_AUTO_TEST_CASE(EcotoneConfigFallsBackToBedrockWhenNewSlotsZero)
     BOOST_CHECK_EQUAL(computeL1Cost(p, kEmptyTx, ecotoneConfig()), want);
 }
 
-BOOST_AUTO_TEST_CASE(EcotoneConfigUsesEcotoneWhenSlotsLive)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EcotoneConfigUsesEcotoneWhenSlotsLive, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto live = feeParams(1'000'000'000, 10'000'000, 2, 3);
     const auto ecotone = computeL1Cost(live, kEmptyTx, ecotoneConfig());
@@ -270,7 +299,9 @@ BOOST_AUTO_TEST_CASE(EcotoneConfigUsesEcotoneWhenSlotsLive)
     BOOST_CHECK(ecotone != intx::uint256{0});
 }
 
-BOOST_AUTO_TEST_CASE(BedrockEmptyEnvelopeIsZero)
+// clang-format off
+BOOST_AUTO_TEST_CASE(BedrockEmptyEnvelopeIsZero, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpFeeParams p{};
     p.overhead = intx::uint256{2100};

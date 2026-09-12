@@ -15,6 +15,7 @@
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-framework/engine/OpForkId.h>
 #include <opstack-executor/OpSchedulerSeam.h>  // detail::tryEngineForkId
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <evmc/evmc.hpp>
 
@@ -193,7 +194,9 @@ BOOST_AUTO_TEST_SUITE(OpForkBoundarySweepSuite)
 /// 9 forks x 3 cells: the fork BEFORE the activation, the activation block itself, and the
 /// block after. Each cell asserts the fork identity, and the activation cell plus the
 /// following cell additionally assert the full config field set.
-BOOST_AUTO_TEST_CASE(EachForkSwitchesExactlyAtItsActivation)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EachForkSwitchesExactlyAtItsActivation, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto const schedule = OpForkSchedule::parse(c_ladder);
     std::size_t cells = 0;
@@ -241,7 +244,9 @@ BOOST_AUTO_TEST_CASE(EachForkSwitchesExactlyAtItsActivation)
 /// the previous fork, one second later is still this one. A copy of the ladder with the
 /// boundary shifted would fail here, which is what makes the sweep a boundary test rather
 /// than a table read-back.
-BOOST_AUTO_TEST_CASE(ActivationTimestampsAreExact)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ActivationTimestampsAreExact, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto const schedule = OpForkSchedule::parse(c_ladder);
     for (std::size_t i = 0; i < std::size(c_boundaries); ++i)

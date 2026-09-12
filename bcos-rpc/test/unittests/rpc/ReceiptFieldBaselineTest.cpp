@@ -11,6 +11,7 @@
 #include <bcos-rpc/web3jsonrpc/model/ReceiptResponse.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <json/json.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 
 using namespace bcos;
@@ -62,7 +63,9 @@ std::string emittedScalar(bcos::protocol::BlockFactory::Ptr const& blockFactory,
 BOOST_FIXTURE_TEST_SUITE(ReceiptFieldBaselineTest, RPCFixture)
 
 /// Exact multiple of 1e6: op-geth's intToScaledFloat and this lane's integer division agree.
-BOOST_AUTO_TEST_CASE(L1FeeScalarExactMultipleIsUnscaled)
+// clang-format off
+BOOST_AUTO_TEST_CASE(L1FeeScalarExactMultipleIsUnscaled, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(
         emittedScalar(m_blockFactory, chainId, groupId, bcos::u256(2'000'000)), "0x2");
@@ -72,7 +75,9 @@ BOOST_AUTO_TEST_CASE(L1FeeScalarExactMultipleIsUnscaled)
 /// emit 2.000001. REGISTERED DEVIATION rpc_l1_fee_scalar_truncation
 /// (opstack-executor/tests/da-matrix/DIVERGENCES.md): pinned so a change in the scaling rule
 /// is caught, and so the deviation cannot silently disappear from the diff surface.
-BOOST_AUTO_TEST_CASE(L1FeeScalarNonMultipleTruncatesIsRegisteredDeviation)
+// clang-format off
+BOOST_AUTO_TEST_CASE(L1FeeScalarNonMultipleTruncatesIsRegisteredDeviation, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(
         emittedScalar(m_blockFactory, chainId, groupId, bcos::u256(2'000'001)), "0x2");
@@ -81,7 +86,9 @@ BOOST_AUTO_TEST_CASE(L1FeeScalarNonMultipleTruncatesIsRegisteredDeviation)
 /// Below one unit: 999'999 / 1e6 == 0, i.e. the field is emitted as an explicit zero rather
 /// than dropped. The empty-meta contract (no field) is a different case, already covered in
 /// Web3ResponseTest.cpp:661-704.
-BOOST_AUTO_TEST_CASE(L1FeeScalarBelowOneUnitEmitsExplicitZero)
+// clang-format off
+BOOST_AUTO_TEST_CASE(L1FeeScalarBelowOneUnitEmitsExplicitZero, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(emittedScalar(m_blockFactory, chainId, groupId, bcos::u256(999'999)), "0x0");
 }

@@ -28,6 +28,7 @@
 
 #include <bcos-framework/engine/Errors.h>
 #include <bcos-task/Wait.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 
 using namespace op_engine_parity_test;
@@ -80,7 +81,9 @@ struct HistoricalPair
 };
 }  // namespace
 
-BOOST_AUTO_TEST_CASE(NewPayloadWrongVersionIsUnsupportedFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(NewPayloadWrongVersionIsUnsupportedFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair(false, nullptr, nullptr, historical());
     // V4 + Canyon time
@@ -89,7 +92,9 @@ BOOST_AUTO_TEST_CASE(NewPayloadWrongVersionIsUnsupportedFork)
     expectUnsupportedFork(pair.service, stubAt(200), static_cast<uint32_t>(ApiVersion::V2));
 }
 
-BOOST_AUTO_TEST_CASE(NewPayloadMatchingVersionIsNotUnsupportedFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(NewPayloadMatchingVersionIsNotUnsupportedFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair(false, nullptr, nullptr, historical());
     // With the pair matched, today's shape validation still rejects or records the
@@ -101,7 +106,9 @@ BOOST_AUTO_TEST_CASE(NewPayloadMatchingVersionIsNotUnsupportedFork)
 
 // With attrs the method number is part of the pair too: Regolith builds with FCU V1
 // and Canyon with V2, so neither may be turned away as an unsupported fork.
-BOOST_AUTO_TEST_CASE(FcuRegolithV1IsNotUnsupportedFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FcuRegolithV1IsNotUnsupportedFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair(/*allowSynthesized=*/true, nullptr, nullptr, historical());
     auto attrs = makeRegolithAttrs(0);
@@ -112,7 +119,9 @@ BOOST_AUTO_TEST_CASE(FcuRegolithV1IsNotUnsupportedFork)
         pair.service.updateForkchoice(fc, &attrs, static_cast<uint32_t>(ApiVersion::V1)))));
 }
 
-BOOST_AUTO_TEST_CASE(FcuCanyonV2IsNotUnsupportedFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FcuCanyonV2IsNotUnsupportedFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair(/*allowSynthesized=*/true, nullptr, nullptr, historical());
     auto attrs = makeCanyonAttrs(100'000);
@@ -125,7 +134,9 @@ BOOST_AUTO_TEST_CASE(FcuCanyonV2IsNotUnsupportedFork)
         pair.service.updateForkchoice(fc, &attrs, static_cast<uint32_t>(ApiVersion::V2)))));
 }
 
-BOOST_AUTO_TEST_CASE(FcuV2AtIsthmusIsUnsupportedFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FcuV2AtIsthmusIsUnsupportedFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair(true, nullptr, nullptr, historical());
     auto attrs = makeCanyonAttrs(400'000);
@@ -138,7 +149,9 @@ BOOST_AUTO_TEST_CASE(FcuV2AtIsthmusIsUnsupportedFork)
 
 // The OP-specific attrs rules key on the fork's extraData layout, not on a Jovian
 // boolean: pre-Holocene carries no 1559 params at all.
-BOOST_AUTO_TEST_CASE(PreHoloceneAttrsRejectEip1559Params)
+// clang-format off
+BOOST_AUTO_TEST_CASE(PreHoloceneAttrsRejectEip1559Params, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto attrs = makeOpPayloadAttributes();
     attrs.minBaseFee.reset();
@@ -148,7 +161,9 @@ BOOST_AUTO_TEST_CASE(PreHoloceneAttrsRejectEip1559Params)
     BOOST_CHECK(err->find("eip1559Params") != std::string::npos);
 }
 
-BOOST_AUTO_TEST_CASE(PreHoloceneAttrsAcceptMissingEip1559Params)
+// clang-format off
+BOOST_AUTO_TEST_CASE(PreHoloceneAttrsAcceptMissingEip1559Params, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto attrs = makeOpPayloadAttributes();
     attrs.eip1559Params.reset();
@@ -160,7 +175,9 @@ BOOST_AUTO_TEST_CASE(PreHoloceneAttrsAcceptMissingEip1559Params)
 // The payload shape follows the (method version, fork) pair: the Ethereum-side fields
 // (withdrawals list, beacon root, blob pair, withdrawalsRoot, execution requests)
 // arrive with the method's window, while the OP-specific extras key on the fork itself.
-BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2RegolithWithdrawalsMustBeAbsent)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2RegolithWithdrawalsMustBeAbsent, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     bcos::engine::NewPayloadRequest req;
     req.executionPayload.timestamp = 0;
@@ -177,7 +194,9 @@ BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2RegolithWithdrawalsMustBeAbsent)
     BOOST_REQUIRE(err);
 }
 
-BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2CanyonWithdrawalsEmptyArray)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2CanyonWithdrawalsEmptyArray, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     bcos::engine::NewPayloadRequest req;
     req.executionPayload.timestamp = 100'000;
@@ -202,7 +221,9 @@ BOOST_AUTO_TEST_CASE(ValidateNewPayloadV2CanyonWithdrawalsEmptyArray)
     BOOST_CHECK(err->find("empty") != std::string::npos);
 }
 
-BOOST_AUTO_TEST_CASE(ValidateNewPayloadV3RequiresBeaconNotWithdrawalsRoot)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ValidateNewPayloadV3RequiresBeaconNotWithdrawalsRoot, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     bcos::engine::NewPayloadRequest req;
     req.executionPayload.timestamp = 200'000;
@@ -251,7 +272,9 @@ void registerPreHoloceneParent(
 
 // The pre-Holocene price comes from the chain constants (elasticity 6, denominator
 // 250 at Canyon), not from the parent's (empty) extraData.
-BOOST_AUTO_TEST_CASE(NewPayloadPreHoloceneBaseFeeMismatchIsInvalid)
+// clang-format off
+BOOST_AUTO_TEST_CASE(NewPayloadPreHoloceneBaseFeeMismatchIsInvalid, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair(false, nullptr, nullptr, historical());
     auto hash = fixtureHeadHash();
@@ -282,7 +305,9 @@ BOOST_AUTO_TEST_CASE(NewPayloadPreHoloceneBaseFeeMismatchIsInvalid)
 // The Holocene activation block carries its own 9-byte extraData, but its PARENT is
 // pre-Holocene, so the constants still price it. Pricing it from its own fork would
 // decode an empty parent extraData (op-reth's #13060 regression).
-BOOST_AUTO_TEST_CASE(HoloceneActivationUsesConstantBaseFee)
+// clang-format off
+BOOST_AUTO_TEST_CASE(HoloceneActivationUsesConstantBaseFee, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair(false, nullptr, nullptr, historical());
     auto hash = fixtureHeadHash();
@@ -356,7 +381,9 @@ BOOST_AUTO_TEST_CASE(HoloceneActivationUsesConstantBaseFee)
 // Handshake matrix from Bedrock onward: op-node picks the method from the payload
 // timestamp, so every window must build with its own FCU version and answer getPayload
 // with the matching one.
-BOOST_AUTO_TEST_CASE(FcuV1RegolithReturnsPayloadIdThenGetPayloadV2)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FcuV1RegolithReturnsPayloadIdThenGetPayloadV2, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     HistoricalPair h;
     auto attrs = makeRegolithAttrs(1'000);
@@ -382,7 +409,9 @@ BOOST_AUTO_TEST_CASE(FcuV1RegolithReturnsPayloadIdThenGetPayloadV2)
     BOOST_CHECK(!got->executionPayload.excessBlobGas.has_value());
 }
 
-BOOST_AUTO_TEST_CASE(FcuV2CanyonReturnsPayloadIdThenGetPayloadV3IsUnsupportedFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FcuV2CanyonReturnsPayloadIdThenGetPayloadV3IsUnsupportedFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     HistoricalPair h;
     auto attrs = makeCanyonAttrs(100'000);
@@ -411,7 +440,9 @@ BOOST_AUTO_TEST_CASE(FcuV2CanyonReturnsPayloadIdThenGetPayloadV3IsUnsupportedFor
         UnsupportedFork, [](UnsupportedFork const&) { return true; });
 }
 
-BOOST_AUTO_TEST_CASE(FcuV3EcotoneReturnsPayloadId)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FcuV3EcotoneReturnsPayloadId, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     HistoricalPair h;
     auto attrs = makeEcotoneAttrs(200'000);
@@ -426,7 +457,9 @@ BOOST_AUTO_TEST_CASE(FcuV3EcotoneReturnsPayloadId)
 
 // The schedule production runs today resolves every timestamp to Isthmus+, so it must
 // behave exactly as before this change: V4 only.
-BOOST_AUTO_TEST_CASE(IsthmusOnlyScheduleStillV4)
+// clang-format off
+BOOST_AUTO_TEST_CASE(IsthmusOnlyScheduleStillV4, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     OpServicePair pair;
     expectUnsupportedFork(pair.service, stubAt(1), static_cast<std::uint32_t>(ApiVersion::V3));

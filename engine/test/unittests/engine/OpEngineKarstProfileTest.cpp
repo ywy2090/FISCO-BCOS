@@ -22,6 +22,7 @@
 #include "support/OpEngineKarstTestHarness.h"
 
 #include <boost/exception/get_error_info.hpp>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <string_view>
@@ -42,7 +43,9 @@ bool isGetPayloadProfileMismatch(bcos::engine::UnsupportedFork const& e)
 
 BOOST_AUTO_TEST_SUITE(OpEngineKarstProfileSuite)
 
-BOOST_AUTO_TEST_CASE(KarstPayloadTimestampRejectsGetPayloadV4)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstPayloadTimestampRejectsGetPayloadV4, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(
         bcos::engine::unixSecondsFromInternalMillis(c_karstPayloadTimestampMs), 1000U);
@@ -53,7 +56,9 @@ BOOST_AUTO_TEST_CASE(KarstPayloadTimestampRejectsGetPayloadV4)
         bcos::engine::UnsupportedFork, isGetPayloadProfileMismatch);
 }
 
-BOOST_AUTO_TEST_CASE(KarstPayloadTimestampAcceptsGetPayloadV5)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstPayloadTimestampAcceptsGetPayloadV5, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     KarstProfilePair fixture;
     auto const payloadId =
@@ -64,7 +69,9 @@ BOOST_AUTO_TEST_CASE(KarstPayloadTimestampAcceptsGetPayloadV5)
     BOOST_CHECK(result->executionRequests->empty());
 }
 
-BOOST_AUTO_TEST_CASE(JovianPayloadTimestampRejectsGetPayloadV5)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianPayloadTimestampRejectsGetPayloadV5, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     KarstProfilePair fixture;
     auto const payloadId =
@@ -73,7 +80,9 @@ BOOST_AUTO_TEST_CASE(JovianPayloadTimestampRejectsGetPayloadV5)
         bcos::engine::UnsupportedFork, isGetPayloadProfileMismatch);
 }
 
-BOOST_AUTO_TEST_CASE(JovianPayloadTimestampAcceptsGetPayloadV4)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianPayloadTimestampAcceptsGetPayloadV4, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // #5550 regression: Jovian payload timestamp still serves getPayload V4.
     KarstProfilePair fixture;
@@ -83,7 +92,9 @@ BOOST_AUTO_TEST_CASE(JovianPayloadTimestampAcceptsGetPayloadV4)
     BOOST_REQUIRE(result);
 }
 
-BOOST_AUTO_TEST_CASE(ActivationBlockFcuUsesAttrTimestampNotHead)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ActivationBlockFcuUsesAttrTimestampNotHead, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // Head is still Jovian (999_000 ms); attrs.timestamp is Karst (1000_000 ms).
     // Profile must follow the payload timestamp, never the head.
@@ -96,7 +107,9 @@ BOOST_AUTO_TEST_CASE(ActivationBlockFcuUsesAttrTimestampNotHead)
     BOOST_REQUIRE(v5);
 }
 
-BOOST_AUTO_TEST_CASE(CapabilitiesAlwaysAdvertiseV4AndV5)
+// clang-format off
+BOOST_AUTO_TEST_CASE(CapabilitiesAlwaysAdvertiseV4AndV5, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     KarstProfilePair fixture;
     auto caps = bcos::task::syncWait(fixture.pair.service.exchangeCapabilities({}));
@@ -114,7 +127,9 @@ static void seedKarstActivationHead(OpServicePair& pair)
 
 // F17: attrs that already contain a user tx on a Jovian/Karst activation timestamp
 // must FCU-INVALID before execute. Never OpExecutionInternalError (-32603).
-BOOST_AUTO_TEST_CASE(ActivationFcuInvalidatesNonDepositAttrs)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ActivationFcuInvalidatesNonDepositAttrs, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;
@@ -143,7 +158,9 @@ BOOST_AUTO_TEST_CASE(ActivationFcuInvalidatesNonDepositAttrs)
 
 // F17: activation + noTxPool=false must not seal mempool user txs onto a
 // deposits-only attrs list (empty attrs → synthesized L1 deposit).
-BOOST_AUTO_TEST_CASE(ActivationFcuSkipsMempoolUserTxs)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ActivationFcuSkipsMempoolUserTxs, * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto delegate = std::make_shared<FabricatedRootsStub>();
     delegate->failFirst = false;

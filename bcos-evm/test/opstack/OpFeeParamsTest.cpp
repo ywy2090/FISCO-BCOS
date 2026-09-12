@@ -1,6 +1,7 @@
 #include "TestPrinters.h"
 #include <bcos-evm/opstack/OpFeeParams.h>
 #include <bcos-evm/opstack/OpPredeploys.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <test/utils/test_state.hpp>
 
@@ -27,7 +28,9 @@ evmc::bytes32 fullWord(uint64_t low)  // 整槽放一个小数值（低 8 字节
 
 BOOST_AUTO_TEST_SUITE(OpFeeParamsSuite)
 
-BOOST_AUTO_TEST_CASE(UnpacksScalarsFromPackedSlots)
+// clang-format off
+BOOST_AUTO_TEST_CASE(UnpacksScalarsFromPackedSlots, * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto slot1 = fullWord(1000);  // l1_base_fee = 1000
     const auto slot3 = [] {             // baseFeeScalar=7, blobBaseFeeScalar=9
@@ -55,7 +58,9 @@ BOOST_AUTO_TEST_CASE(UnpacksScalarsFromPackedSlots)
     BOOST_CHECK_EQUAL(p.operator_fee_constant, 13u);
 }
 
-BOOST_AUTO_TEST_CASE(LoadFromStateEqualsManualUnpack)
+// clang-format off
+BOOST_AUTO_TEST_CASE(LoadFromStateEqualsManualUnpack, * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     using namespace evmone;
     test::TestState ts;
@@ -82,7 +87,9 @@ BOOST_AUTO_TEST_CASE(LoadFromStateEqualsManualUnpack)
     BOOST_CHECK_EQUAL(loaded.l1_base_fee, 1000000000_u256);
 }
 
-BOOST_AUTO_TEST_CASE(UnpacksDaFootprintGasScalarFromSlot8)
+// clang-format off
+BOOST_AUTO_TEST_CASE(UnpacksDaFootprintGasScalarFromSlot8, * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto slot1 = fullWord(1000);
     const auto slot3 = [] {
@@ -109,7 +116,9 @@ BOOST_AUTO_TEST_CASE(UnpacksDaFootprintGasScalarFromSlot8)
     BOOST_CHECK_EQUAL(p.operator_fee_constant, 13u);
 }
 
-BOOST_AUTO_TEST_CASE(LoadReadsBedrockOverheadAndScalarSlots)
+// clang-format off
+BOOST_AUTO_TEST_CASE(LoadReadsBedrockOverheadAndScalarSlots, * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     using namespace evmone;
     test::TestState ts;
@@ -126,7 +135,9 @@ BOOST_AUTO_TEST_CASE(LoadReadsBedrockOverheadAndScalarSlots)
     BOOST_CHECK_EQUAL(fee.bedrock_scalar, intx::uint256{1'000'000});
 }
 
-BOOST_AUTO_TEST_CASE(MissingSlotsStayZero)
+// clang-format off
+BOOST_AUTO_TEST_CASE(MissingSlotsStayZero, * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     using namespace evmone;
     test::TestState ts;
@@ -136,7 +147,9 @@ BOOST_AUTO_TEST_CASE(MissingSlotsStayZero)
     BOOST_CHECK_EQUAL(fee.l1_base_fee, intx::uint256{0});
 }
 
-BOOST_AUTO_TEST_CASE(EcotoneL1SlotsLiveDetectsPackedScalars)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EcotoneL1SlotsLiveDetectsPackedScalars, * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     using namespace evmone;
     test::TestState ts;

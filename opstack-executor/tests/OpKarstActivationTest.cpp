@@ -29,6 +29,7 @@
 #include <opstack-executor/OpScheduler.h>
 #include <opstack-executor/OpSchedulerSeam.h>
 #include <opstack-executor/OpstackExecutor.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <cstring>
 #include <memory>
@@ -200,7 +201,9 @@ bcos::Error::Ptr executeActivationWithoutParent(std::shared_ptr<op::OpForkSchedu
 
 BOOST_AUTO_TEST_SUITE(OpKarstActivationSuite)
 
-BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTx)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTx, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // 178B Jovian attrs: the 176-byte L1-attributes heuristic must not be what rejects.
     // Header is internal milliseconds; schedule activations are Unix seconds (A13).
@@ -215,7 +218,9 @@ BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTx)
         OpConsensusError, isActivationUserTxError);
 }
 
-BOOST_AUTO_TEST_CASE(JovianActivationBlockAllowsDepositsOnly)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianActivationBlockAllowsDepositsOnly, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = opstack_test::isthmusThenJovian(kJovianTsSec);
     auto dep = depositWithJovianAttrs();
@@ -225,7 +230,9 @@ BOOST_AUTO_TEST_CASE(JovianActivationBlockAllowsDepositsOnly)
         {kDepositEnvelope, kDepositEnvelope}, {dep, dep}));
 }
 
-BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTxBeforeTrailingDeposit)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTxBeforeTrailingDeposit, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // Q5 must scan every envelope: a trailing deposit must not hide a user tx.
     auto schedule = opstack_test::isthmusThenJovian(kJovianTsSec);
@@ -236,7 +243,9 @@ BOOST_AUTO_TEST_CASE(JovianActivationBlockRejectsUserTxBeforeTrailingDeposit)
         OpConsensusError, isActivationUserTxError);
 }
 
-BOOST_AUTO_TEST_CASE(JovianActivationIsthmusLenAttrsRejectsMiddleUserTx)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianActivationIsthmusLenAttrsRejectsMiddleUserTx, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // 176-byte Isthmus attrs on a Jovian activation block: DA-shape last-tx
     // would accept [deposit, user, deposit]; Q5 must not.
@@ -249,7 +258,9 @@ BOOST_AUTO_TEST_CASE(JovianActivationIsthmusLenAttrsRejectsMiddleUserTx)
         OpConsensusError, isActivationUserTxError);
 }
 
-BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTx)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTx, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = opstack_test::karstOnlySchedule(/*karstTs=*/kJovianTsSec);
     auto dep = depositWithJovianAttrs();
@@ -258,7 +269,9 @@ BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTx)
         OpConsensusError, isActivationUserTxError);
 }
 
-BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTxBeforeTrailingDeposit)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTxBeforeTrailingDeposit, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = opstack_test::karstOnlySchedule(/*karstTs=*/kJovianTsSec);
     auto dep = depositWithJovianAttrs();
@@ -268,7 +281,9 @@ BOOST_AUTO_TEST_CASE(KarstActivationBlockRejectsUserTxBeforeTrailingDeposit)
         OpConsensusError, isActivationUserTxError);
 }
 
-BOOST_AUTO_TEST_CASE(ResolveEngineForkAtKarstSelectsGetPayloadV5)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ResolveEngineForkAtKarstSelectsGetPayloadV5, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = opstack_test::karstOnlySchedule(/*karstTs=*/100);
     engine::OpSchedulerSeam<UnusedView> seam(schedule, op::L1BlockInfo{});
@@ -284,7 +299,9 @@ BOOST_AUTO_TEST_CASE(ResolveEngineForkAtKarstSelectsGetPayloadV5)
                 bcos::engine::ApiVersion::V4);
 }
 
-BOOST_AUTO_TEST_CASE(ResolveEngineForkAtRejectsBelowBaseline)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ResolveEngineForkAtRejectsBelowBaseline, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // TestBypass: nonzero baseline so baseline-1 is representable as uint64.
     auto schedule = std::make_shared<op::OpForkSchedule>(
@@ -296,7 +313,9 @@ BOOST_AUTO_TEST_CASE(ResolveEngineForkAtRejectsBelowBaseline)
     BOOST_CHECK(*err == bcos::engine::OpForkResolutionError::UnsupportedTimestamp);
 }
 
-BOOST_AUTO_TEST_CASE(ResolveEngineForkAtEcotoneSelectsV3)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ResolveEngineForkAtEcotoneSelectsV3, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = std::make_shared<op::OpForkSchedule>(
         op::OpForkSchedule{{{op::OpFork::Ecotone, 0}}, op::OpForkSchedule::TestBypass{}});
@@ -315,7 +334,9 @@ BOOST_AUTO_TEST_CASE(ResolveEngineForkAtEcotoneSelectsV3)
 // One row per fork window: method number and extraData shape must both come from
 // the payload timestamp, so a wrong row would either reject op-node's chosen
 // method with -38005 or accept the wrong payload shape.
-BOOST_AUTO_TEST_CASE(EngineApiProfileTableMatchesOpNode)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EngineApiProfileTableMatchesOpNode, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = std::make_shared<op::OpForkSchedule>(op::OpForkSchedule{
         {{op::OpFork::Regolith, 0}, {op::OpFork::Canyon, 100}, {op::OpFork::Ecotone, 200},
@@ -369,7 +390,9 @@ BOOST_AUTO_TEST_CASE(EngineApiProfileTableMatchesOpNode)
     }
 }
 
-BOOST_AUTO_TEST_CASE(JovianActivationWithoutParentHeaderFailsClosed)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianActivationWithoutParentHeaderFailsClosed, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto err = executeActivationWithoutParent(opstack_test::isthmusThenJovian(kJovianTsSec));
     BOOST_REQUIRE(err);

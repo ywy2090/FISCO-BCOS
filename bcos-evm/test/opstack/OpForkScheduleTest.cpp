@@ -4,6 +4,7 @@
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <cstddef>
 #include <string>
@@ -15,7 +16,9 @@ using bcos::ledger::InvalidOpForkSchedule;
 
 BOOST_AUTO_TEST_SUITE(OpForkScheduleSuite)
 
-BOOST_AUTO_TEST_CASE(IsthmusMapsToPrague)
+// clang-format off
+BOOST_AUTO_TEST_CASE(IsthmusMapsToPrague, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto& cfg = isthmusConfig();
     BOOST_CHECK_EQUAL(cfg.fork, OpFork::Isthmus);
@@ -24,7 +27,9 @@ BOOST_AUTO_TEST_CASE(IsthmusMapsToPrague)
     BOOST_CHECK(cfg.has_operator_fee);
 }
 
-BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto& j = jovianConfig();
     BOOST_CHECK_EQUAL(j.fork, OpFork::Jovian);
@@ -43,7 +48,9 @@ BOOST_AUTO_TEST_CASE(JovianAndKarstConfigs)
     BOOST_CHECK_EQUAL(k.has_da_footprint, j.has_da_footprint);
 }
 
-BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags)
+// clang-format off
+BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto& i = isthmusConfig();
     BOOST_CHECK(!(i.has_jovian_operator_formula));
@@ -52,7 +59,9 @@ BOOST_AUTO_TEST_CASE(IsthmusDisablesJovianFlags)
 
 // Feature-flag fork selection (feature_op_jovian replaces the former timestamp thresholds):
 // OFF → Isthmus baseline, ON → Jovian semantics.
-BOOST_AUTO_TEST_CASE(ConfigAtSelectsForkByFeatureFlag)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ConfigAtSelectsForkByFeatureFlag, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // Value copies, not references: configAt returns a reference to a static config, but the
     // OpForkFlags{...} argument is a prvalue temporary — GCC-14 -Wdangling-reference flags the
@@ -72,7 +81,9 @@ BOOST_AUTO_TEST_CASE(ConfigAtSelectsForkByFeatureFlag)
 // 覆盖剩余字段 has_ecotone_l1_formula（Ecotone 用 calldataGas、Fjord+ 用 FastLZ）。
 // 测试专用 configAt(OpForkFlags) 只有 Isthmus/Jovian 两分支，选不出 Karst。
 // 生产路径是 timestamp OpForkSchedule::configAt，Karst 时间戳返回 karstConfig()/Osaka。
-BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndFlagsWrapperDoesNotSelectKarst)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndFlagsWrapperDoesNotSelectKarst, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK(ecotoneConfig().has_ecotone_l1_formula);
     BOOST_CHECK(!(fjordConfig().has_ecotone_l1_formula));
@@ -85,7 +96,9 @@ BOOST_AUTO_TEST_CASE(EcotoneFormulaFlagAndFlagsWrapperDoesNotSelectKarst)
     BOOST_CHECK_EQUAL(&configAt(OpForkFlags{.jovianActive = true}), &jovianConfig());
 }
 
-BOOST_AUTO_TEST_CASE(L1FeeModelPinnedOnExistingConfigs)
+// clang-format off
+BOOST_AUTO_TEST_CASE(L1FeeModelPinnedOnExistingConfigs, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK(ecotoneConfig().l1_fee_model == L1FeeModel::Ecotone);
     BOOST_CHECK(fjordConfig().l1_fee_model == L1FeeModel::Fjord);
@@ -98,7 +111,9 @@ BOOST_AUTO_TEST_CASE(L1FeeModelPinnedOnExistingConfigs)
     BOOST_CHECK(!fjordConfig().has_ecotone_l1_formula);
 }
 
-BOOST_AUTO_TEST_CASE(RegolithCanyonConfigsAndTimestampSelect)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RegolithCanyonConfigsAndTimestampSelect, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(regolithConfig().rev, EVMC_LONDON);
     BOOST_CHECK(regolithConfig().l1_fee_model == L1FeeModel::Bedrock);
@@ -130,7 +145,9 @@ BOOST_AUTO_TEST_CASE(RegolithCanyonConfigsAndTimestampSelect)
 
 // The codec accepts any EL fork as a baseline, so production parse must map the
 // name instead of rejecting it.
-BOOST_AUTO_TEST_CASE(ParseAcceptsRegolithBaseline)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ParseAcceptsRegolithBaseline, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto s = OpForkSchedule::parse("0:regolith");
     BOOST_CHECK_EQUAL(s.forkAt(0), OpFork::Regolith);
@@ -145,7 +162,9 @@ BOOST_AUTO_TEST_CASE(ParseAcceptsRegolithBaseline)
 //   * enum  swap  -> static_cast<int>(enumerator) != ordinal and parse() picks it too
 // A plain parse(name[i]).forkAt(0) == static_cast<OpFork>(i) loop cannot fail, since
 // parse() returns static_cast<OpFork>(forkOrder(name)) by construction.
-BOOST_AUTO_TEST_CASE(ForkNameEnumRoundTripsAllNine)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ForkNameEnumRoundTripsAllNine, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     using bcos::ledger::detail::c_opForkNames;
     // Protocol order, spelled out: these literals are the oracle, not the table.
@@ -181,7 +200,9 @@ BOOST_AUTO_TEST_CASE(ForkNameEnumRoundTripsAllNine)
     }
 }
 
-BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
+// clang-format off
+BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     for (const auto* cfg : {&ecotoneConfig(), &fjordConfig(), &graniteConfig(), &holoceneConfig()})
     {
@@ -207,7 +228,9 @@ BOOST_AUTO_TEST_CASE(PreIsthmusConfigsPinned)
     BOOST_CHECK(!(holoceneConfig().has_ecotone_l1_formula));
 }
 
-BOOST_AUTO_TEST_CASE(IsthmusPlusDisableEcotoneL1Formula)
+// clang-format off
+BOOST_AUTO_TEST_CASE(IsthmusPlusDisableEcotoneL1Formula, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK(!(isthmusConfig().has_ecotone_l1_formula));
     BOOST_CHECK(!(jovianConfig().has_ecotone_l1_formula));
@@ -216,7 +239,9 @@ BOOST_AUTO_TEST_CASE(IsthmusPlusDisableEcotoneL1Formula)
 
 // D-15：op-geth 自 Fjord 起 0x100 P256VERIFY 活跃（contracts.go:193，gas 3450 params:183）；
 // D-11：bn256Pairing 112687 上限自 Granite 起（params:172，Holocene 沿用）
-BOOST_AUTO_TEST_CASE(FjordOnwardCarryP256VerifyAndGraniteCapsBn256)
+// clang-format off
+BOOST_AUTO_TEST_CASE(FjordOnwardCarryP256VerifyAndGraniteCapsBn256, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(ecotoneConfig().precompiles, nullptr);  // Ecotone 早于两者
 
@@ -238,7 +263,9 @@ BOOST_AUTO_TEST_CASE(FjordOnwardCarryP256VerifyAndGraniteCapsBn256)
     }
 }
 
-BOOST_AUTO_TEST_CASE(ConfigAtTimestampSelectsIsthmusThenJovian)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ConfigAtTimestampSelectsIsthmusThenJovian, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
     BOOST_CHECK_EQUAL(schedule.forkAt(0), OpFork::Isthmus);
@@ -250,13 +277,17 @@ BOOST_AUTO_TEST_CASE(ConfigAtTimestampSelectsIsthmusThenJovian)
     BOOST_CHECK_THROW(OpForkSchedule::parse("0:isthmus,1:karst"), InvalidOpForkSchedule);
 }
 
-BOOST_AUTO_TEST_CASE(LegacyFlagsStillSelectIsthmusOrJovian)
+// clang-format off
+BOOST_AUTO_TEST_CASE(LegacyFlagsStillSelectIsthmusOrJovian, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EQUAL(OpForkSchedule::legacy(false).forkAt(0), OpFork::Isthmus);
     BOOST_CHECK_EQUAL(OpForkSchedule::legacy(true).forkAt(0), OpFork::Jovian);
 }
 
-BOOST_AUTO_TEST_CASE(EmptyScheduleRejected)
+// clang-format off
+BOOST_AUTO_TEST_CASE(EmptyScheduleRejected, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_THROW(OpForkSchedule::parse(""), InvalidOpForkSchedule);
     BOOST_CHECK_THROW(OpForkSchedule{{}}, InvalidOpForkSchedule);
@@ -268,7 +299,9 @@ BOOST_AUTO_TEST_CASE(EmptyScheduleRejected)
     BOOST_CHECK_THROW(static_cast<void>(schedule.configAt(0)), InvalidOpForkSchedule);
 }
 
-BOOST_AUTO_TEST_CASE(ConfigAtTimestampMatchesForkAndStaticConfigs)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ConfigAtTimestampMatchesForkAndStaticConfigs, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto schedule = OpForkSchedule::parse("0:isthmus,1764691201:jovian");
     BOOST_CHECK_EQUAL(schedule.configAt(1764691200).fork, schedule.forkAt(1764691200));
@@ -277,7 +310,9 @@ BOOST_AUTO_TEST_CASE(ConfigAtTimestampMatchesForkAndStaticConfigs)
     BOOST_CHECK_EQUAL(&schedule.configAt(1764691201), &jovianConfig());
 }
 
-BOOST_AUTO_TEST_CASE(KarstConfigIsOsakaNotJovianAlias)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstConfigIsOsakaNotJovianAlias, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto& k = karstConfig();
     BOOST_CHECK_EQUAL(k.fork, OpFork::Karst);
@@ -286,14 +321,18 @@ BOOST_AUTO_TEST_CASE(KarstConfigIsOsakaNotJovianAlias)
     BOOST_CHECK(k.precompiles != jovianConfig().precompiles);
 }
 
-BOOST_AUTO_TEST_CASE(KarstImpliesOsakaConfig)
+// clang-format off
+BOOST_AUTO_TEST_CASE(KarstImpliesOsakaConfig, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto s = OpForkSchedule::parse("0:jovian,1783526401:karst");
     BOOST_CHECK_EQUAL(s.configAt(1783526401).rev, EVMC_OSAKA);
     BOOST_CHECK(s.configAt(1783526401).deposit_exempt_from_max_tx_gas);
 }
 
-BOOST_AUTO_TEST_CASE(JovianAndLaterActivationsAreNamedForks)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianAndLaterActivationsAreNamedForks, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto isthmusOnly = OpForkSchedule::parse("0:isthmus");
     BOOST_CHECK(isthmusOnly.jovianAndLaterActivations().empty());
@@ -316,7 +355,9 @@ BOOST_AUTO_TEST_CASE(JovianAndLaterActivationsAreNamedForks)
     BOOST_CHECK(named[0].fork == OpFork::Jovian);
 }
 
-BOOST_AUTO_TEST_CASE(TestBypassScheduleCanNameKarst)
+// clang-format off
+BOOST_AUTO_TEST_CASE(TestBypassScheduleCanNameKarst, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto s =
         OpForkSchedule{{{OpFork::Jovian, 0}, {OpFork::Karst, 100}}, OpForkSchedule::TestBypass{}};

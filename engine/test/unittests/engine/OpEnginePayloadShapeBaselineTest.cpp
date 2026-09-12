@@ -17,6 +17,7 @@
 #include <bcos-rpc/web3jsonrpc/utils/EngineHelper.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <json/json.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
@@ -219,7 +220,9 @@ BOOST_AUTO_TEST_SUITE(OpEnginePayloadShapeBaselineSuite)
 
 /// Cell A: the dumped shape is pinned per cell (18-key payload, 5/6-key envelope, and the
 /// four dump-only renderings). This is what catches a corpus regen changing the dump.
-BOOST_AUTO_TEST_CASE(DumpedEnvelopeShapeIsPinnedPerCell)
+// clang-format off
+BOOST_AUTO_TEST_CASE(DumpedEnvelopeShapeIsPinnedPerCell, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     if (!corpusPresentOrFail())
     {
@@ -270,7 +273,9 @@ BOOST_AUTO_TEST_CASE(DumpedEnvelopeShapeIsPinnedPerCell)
 /// Cell B: the CL's per-fork presence rules, asserted on the normalized payload. This is
 /// the rule set this lane's validator enforces (OpEngineService.cpp:96-146); the dump's
 /// deviations from it are registered in cell A.
-BOOST_AUTO_TEST_CASE(ClPresenceRulesPerFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ClPresenceRulesPerFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     if (!corpusPresentOrFail())
     {
@@ -293,7 +298,9 @@ BOOST_AUTO_TEST_CASE(ClPresenceRulesPerFork)
 /// serializer round-trips losslessly. This is the "shape is self-consistent" evidence that
 /// the naive "reinject the golden verbatim -> VALID" claim was reaching for; VALID itself
 /// would require op-geth's stateRoot to equal this lane's, which is M8.
-BOOST_AUTO_TEST_CASE(ClShapedParamsRoundTripThroughThisLanesWireParser)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ClShapedParamsRoundTripThroughThisLanesWireParser, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     if (!corpusPresentOrFail())
     {
@@ -331,7 +338,9 @@ BOOST_AUTO_TEST_CASE(ClShapedParamsRoundTripThroughThisLanesWireParser)
 /// jovian_v4.json for this input (Osaka does not change a plain-transfer payload; V5's
 /// BlobsBundleV2 difference needs blobs, which OP chains do not use). Pinned as data so a
 /// future corpus change that breaks it is noticed, not explained away.
-BOOST_AUTO_TEST_CASE(V5CellIsByteIdenticalToV4AndThatIsRegistered)
+// clang-format off
+BOOST_AUTO_TEST_CASE(V5CellIsByteIdenticalToV4AndThatIsRegistered, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     if (!corpusPresentOrFail())
     {

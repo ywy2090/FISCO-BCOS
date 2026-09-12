@@ -9,6 +9,7 @@
 #include <bcos-evm/opstack/RollupCost.h>
 #include <bcos-utilities/Bloom.h>
 #include <evmone/evmone.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <cstring>
@@ -39,7 +40,9 @@ namespace
 
 BOOST_AUTO_TEST_SUITE(OpTransitionSuite)
 
-BOOST_AUTO_TEST_CASE(RoutesFeesToFourVaults)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RoutesFeesToFourVaults, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -99,7 +102,9 @@ BOOST_AUTO_TEST_CASE(RoutesFeesToFourVaults)
     BOOST_CHECK_EQUAL(ts.at(OP_OPERATOR_FEE_VAULT).balance, gasUsed);
 }
 
-BOOST_AUTO_TEST_CASE(ReceiptCarriesL1AndOperatorMeta)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ReceiptCarriesL1AndOperatorMeta, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -176,7 +181,9 @@ BOOST_AUTO_TEST_CASE(ReceiptCarriesL1AndOperatorMeta)
 // equals getLogsBloom(logEntries()) byte for byte. If makeFiscoReceipt's bloom ever drifts from
 // the standard construction, this goes red instead of silently moving receiptsRoot and the
 // header logsBloom.
-BOOST_AUTO_TEST_CASE(ReceiptBloomMatchesRecomputedBloom)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ReceiptBloomMatchesRecomputedBloom, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -235,7 +242,9 @@ BOOST_AUTO_TEST_CASE(ReceiptBloomMatchesRecomputedBloom)
     BOOST_CHECK(std::equal(committed.begin(), committed.end(), recomputed.begin()));
 }
 
-BOOST_AUTO_TEST_CASE(JovianReceiptMetaAndOperatorFormula)
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianReceiptMetaAndOperatorFormula, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -313,7 +322,9 @@ BOOST_AUTO_TEST_CASE(JovianReceiptMetaAndOperatorFormula)
 // 重构护栏：共享执行核不得丢 EIP-2930 access_list 预热。
 // gas = 21000 + accessList(2400+1900) + PUSH1(3)+SLOAD(warm 100)+POP(2) = 25405；
 // 预热被丢时 SLOAD 冷 2100 → 27405。
-BOOST_AUTO_TEST_CASE(AccessListKeepsStorageWarm)
+// clang-format off
+BOOST_AUTO_TEST_CASE(AccessListKeepsStorageWarm, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -363,7 +374,9 @@ BOOST_AUTO_TEST_CASE(AccessListKeepsStorageWarm)
 // OpHost::access_account 对表内地址提前返回且不插入账户，而 State::get_storage 内部
 // get() 断言账户非空——修复前此处 debug 断言中止 / release 空指针解引用。
 // 同时确认 sanitize 仍生效：0x100 不得作为幽灵账户进入 deleted_accounts。
-BOOST_AUTO_TEST_CASE(AccessListWithOverridePrecompileStorageKey)
+// clang-format off
+BOOST_AUTO_TEST_CASE(AccessListWithOverridePrecompileStorageKey, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -418,7 +431,9 @@ BOOST_AUTO_TEST_CASE(AccessListWithOverridePrecompileStorageKey)
 // 回归：cfg 与 props 的 operator-fee 标志在分叉边界上不一致时，扣费与退款/入账
 // 必须同源（均取 props 快照），否则凭空增发或销毁 operator_cost_at_gas_limit。
 // 以 isthmus（has_operator_fee=true）做 validate，再用关掉该标志的 cfg 副本做 transition。
-BOOST_AUTO_TEST_CASE(OperatorFeeConservesWhenCfgDisagreesWithProps)
+// clang-format off
+BOOST_AUTO_TEST_CASE(OperatorFeeConservesWhenCfgDisagreesWithProps, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -485,7 +500,9 @@ BOOST_AUTO_TEST_CASE(OperatorFeeConservesWhenCfgDisagreesWithProps)
 // 这条必须在 opTransition 这一层驱动，而不是直接调 deriveOpReceiptMeta：缺陷位于**调用点**
 // （传 cfg 还是传 props），直接给 deriveOpReceiptMeta 喂字面布尔值的用例只能证明该函数尊重
 // 自己的参数，无法证明 opTransition 传对了参数——把调用点改回 cfg 时那种用例照样全绿。
-BOOST_AUTO_TEST_CASE(ReceiptMetaFollowsSnapshotNotTransitionCfg)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ReceiptMetaFollowsSnapshotNotTransitionCfg, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -562,7 +579,9 @@ BOOST_AUTO_TEST_CASE(ReceiptMetaFollowsSnapshotNotTransitionCfg)
 // 而那正是一笔每交易增发 l1_cost wei 的 mint。
 //
 // 这条同时钉住两侧：发送方净扣款额，以及总供应量不变。
-BOOST_AUTO_TEST_CASE(L1CostIsDebitedFromSenderAndConserves)
+// clang-format off
+BOOST_AUTO_TEST_CASE(L1CostIsDebitedFromSenderAndConserves, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;
@@ -634,7 +653,9 @@ BOOST_AUTO_TEST_CASE(L1CostIsDebitedFromSenderAndConserves)
 // msg.sender.balance during a simulation observes the fabricated 2^256-1, so the behaviour is a
 // decision on record rather than something found from a bug report. The contract returns
 // BALANCE(CALLER); the receipt output carries the fabricated value.
-BOOST_AUTO_TEST_CASE(CallSimulationMaskVisibleToBalanceOpcode)
+// clang-format off
+BOOST_AUTO_TEST_CASE(CallSimulationMaskVisibleToBalanceOpcode, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     constexpr auto sender = 0x00000000000000000000000000000000000000aa_address;
     constexpr auto dest = 0x00000000000000000000000000000000000000bb_address;

@@ -16,6 +16,7 @@
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-evm/opstack/OpTransition.h>
 #include <opstack-executor/OpBlockExecute.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
@@ -54,7 +55,9 @@ OpBlockTx normalTx()
 
 BOOST_AUTO_TEST_SUITE(OpJovianShapeSuite)
 
-BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeAcceptReject)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeAcceptReject, * boost::unit_test::label("fork-jovian"))
+// clang-format on
 {
     const auto& jovian = jovianConfig();
 
@@ -147,7 +150,9 @@ BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeAcceptReject)
 
 // 第二个 shape 用例：pre-Jovian 配置（has_da_footprint==false）恒 no-op，
 // 任意畸形 shape 不抛（validateJovianBlockShape 开头直接 return）。
-BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeNoOpPreJovian)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ValidateJovianBlockShapeNoOpPreJovian, * boost::unit_test::label("fork-jovian"))
+// clang-format on
 {
     for (const OpForkConfig* cfg :
         {&ecotoneConfig(), &fjordConfig(), &graniteConfig(), &holoceneConfig()})

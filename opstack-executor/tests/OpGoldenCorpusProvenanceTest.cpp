@@ -25,6 +25,7 @@
 #include <bcos-utilities/DataConvertUtility.h>
 #include <bcos-utilities/FixedBytes.h>
 #include <json/json.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
 #include <filesystem>
@@ -181,7 +182,9 @@ BOOST_AUTO_TEST_SUITE(OpGoldenCorpusProvenance)
 
 // (a) every golden file matches its recorded checksum, and the listing is
 //     complete; (b) every vector declares the pinned op-geth checkout.
-BOOST_AUTO_TEST_CASE(GoldenCorpusProvenanceIsPinned)
+// clang-format off
+BOOST_AUTO_TEST_CASE(GoldenCorpusProvenanceIsPinned, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     // ---- (a) checksums over the golden corpus ----
     auto const checksums = loadGoldenChecksums();
@@ -260,7 +263,9 @@ BOOST_AUTO_TEST_CASE(GoldenCorpusProvenanceIsPinned)
 //     Locally a bare checkout may lack the generated .json files, so absence of the
 //     DIRECTORY skips; in CI (FISCO_REQUIRE_T8N_CORPUS) it must fail instead —
 //     otherwise the whole M2 baseline silently becomes "no cells checked".
-BOOST_AUTO_TEST_CASE(GetPayloadEnvelopeCorpusIsPinned)
+// clang-format off
+BOOST_AUTO_TEST_CASE(GetPayloadEnvelopeCorpusIsPinned, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto const dir = fs::path(OP_T8N_GOLDEN_ENGINE_DIR) / "getpayload";
     auto const onDisk = getPayloadFilesOnDisk();

@@ -1,4 +1,5 @@
 #include <bcos-framework/ledger/OpForkScheduleCodec.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <string>
 #include <string_view>
@@ -8,7 +9,9 @@ using bcos::ledger::parseOpForkSchedule;
 
 BOOST_AUTO_TEST_SUITE(OpForkScheduleCodecSuite)
 
-BOOST_AUTO_TEST_CASE(AcceptsIsthmusJovianOnly)
+// clang-format off
+BOOST_AUTO_TEST_CASE(AcceptsIsthmusJovianOnly, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto acts = parseOpForkSchedule("0:isthmus,1764691201:jovian");
     BOOST_REQUIRE_EQUAL(acts.size(), 2u);
@@ -18,14 +21,18 @@ BOOST_AUTO_TEST_CASE(AcceptsIsthmusJovianOnly)
     BOOST_CHECK_EQUAL(acts[1].timestamp, 1764691201u);
 }
 
-BOOST_AUTO_TEST_CASE(AcceptsKarstAfterJovian)
+// clang-format off
+BOOST_AUTO_TEST_CASE(AcceptsKarstAfterJovian, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto acts = parseOpForkSchedule("0:isthmus,1764691201:jovian,1783526401:karst");
     BOOST_REQUIRE_EQUAL(acts.size(), 3u);
     BOOST_CHECK_EQUAL(acts[2].forkName, "karst");
 }
 
-BOOST_AUTO_TEST_CASE(AcceptsAllNineElForkBaselines)
+// clang-format off
+BOOST_AUTO_TEST_CASE(AcceptsAllNineElForkBaselines, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     for (auto const* name : {"regolith", "canyon", "ecotone", "fjord", "granite", "holocene",
              "isthmus", "jovian", "karst"})
@@ -36,7 +43,9 @@ BOOST_AUTO_TEST_CASE(AcceptsAllNineElForkBaselines)
     }
 }
 
-BOOST_AUTO_TEST_CASE(AcceptsFullOfficialChain)
+// clang-format off
+BOOST_AUTO_TEST_CASE(AcceptsFullOfficialChain, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto acts = parseOpForkSchedule(
         "0:regolith,1000:canyon,2000:ecotone,3000:fjord,4000:granite,"
@@ -46,7 +55,9 @@ BOOST_AUTO_TEST_CASE(AcceptsFullOfficialChain)
     BOOST_CHECK_EQUAL(acts[8].timestamp, 8000u);
 }
 
-BOOST_AUTO_TEST_CASE(NormalizesCaseAndWhitespace)
+// clang-format off
+BOOST_AUTO_TEST_CASE(NormalizesCaseAndWhitespace, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto acts = parseOpForkSchedule("0: Regolith ,1000:Canyon");
     BOOST_REQUIRE_EQUAL(acts.size(), 2u);
@@ -57,7 +68,9 @@ BOOST_AUTO_TEST_CASE(NormalizesCaseAndWhitespace)
 // Baseline is any known EL fork, so both of these are now legal; the gap case is
 // still rejected, just by the general contiguity rule rather than a Karst/Jovian
 // special case.
-BOOST_AUTO_TEST_CASE(RejectsSkippedFork)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RejectsSkippedFork, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto isGap = [](InvalidOpForkSchedule const& e) {
         return std::string_view{e.what()}.find("forks out of protocol order") !=
@@ -69,7 +82,9 @@ BOOST_AUTO_TEST_CASE(RejectsSkippedFork)
         parseOpForkSchedule("0:regolith,100:ecotone"), InvalidOpForkSchedule, isGap);
 }
 
-BOOST_AUTO_TEST_CASE(RejectsTimestampOverflow)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RejectsTimestampOverflow, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto isOverflow = [](InvalidOpForkSchedule const& e) {
         return std::string_view{e.what()}.find("timestamp overflow") != std::string_view::npos;
@@ -80,7 +95,9 @@ BOOST_AUTO_TEST_CASE(RejectsTimestampOverflow)
         parseOpForkSchedule("25000000000000000000:isthmus"), InvalidOpForkSchedule, isOverflow);
 }
 
-BOOST_AUTO_TEST_CASE(RejectsTooManyActivations)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RejectsTooManyActivations, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto isTooMany = [](InvalidOpForkSchedule const& e) {
         return std::string_view{e.what()}.find("too many activations") != std::string_view::npos;
@@ -94,7 +111,9 @@ BOOST_AUTO_TEST_CASE(RejectsTooManyActivations)
     BOOST_CHECK_EXCEPTION(parseOpForkSchedule(canonical), InvalidOpForkSchedule, isTooMany);
 }
 
-BOOST_AUTO_TEST_CASE(RejectsEmptyMissingBaselineAndOrder)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RejectsEmptyMissingBaselineAndOrder, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     BOOST_CHECK_EXCEPTION(
         parseOpForkSchedule("1:isthmus"), InvalidOpForkSchedule, [](auto const& e) {
@@ -120,7 +139,9 @@ BOOST_AUTO_TEST_CASE(RejectsEmptyMissingBaselineAndOrder)
         });
 }
 
-BOOST_AUTO_TEST_CASE(RejectsDuplicateTimestamp)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RejectsDuplicateTimestamp, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto isDup = [](InvalidOpForkSchedule const& e) {
         return std::string_view{e.what()}.find("duplicate timestamp") != std::string_view::npos;
@@ -130,7 +151,9 @@ BOOST_AUTO_TEST_CASE(RejectsDuplicateTimestamp)
         parseOpForkSchedule("0:isthmus,100:jovian,100:karst"), InvalidOpForkSchedule, isDup);
 }
 
-BOOST_AUTO_TEST_CASE(RejectsTrailingComma)
+// clang-format off
+BOOST_AUTO_TEST_CASE(RejectsTrailingComma, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     const auto isTrailing = [](InvalidOpForkSchedule const& e) {
         return std::string_view{e.what()}.find("trailing comma") != std::string_view::npos;

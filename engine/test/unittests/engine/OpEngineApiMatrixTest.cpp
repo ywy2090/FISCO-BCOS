@@ -35,6 +35,7 @@
 
 #include <fmt/format.h>
 #include <json/json.h>
+#include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 
 namespace
@@ -101,7 +102,9 @@ BOOST_AUTO_TEST_SUITE(OpEngineApiMatrixSuite)
 /// Positive cells: for every fork the pinned op-node selects, this lane's profile must
 /// select the same method -- unless the cell is an explicitly recorded deviation
 /// (currently only karst/getPayload, where the pinned op-node has no KarstTime at all).
-BOOST_AUTO_TEST_CASE(ForkMethodWindowsMatchPinnedOpNode)
+// clang-format off
+BOOST_AUTO_TEST_CASE(ForkMethodWindowsMatchPinnedOpNode, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto windows = loadJson("engine_api_windows.json");
     auto deviations = loadJson("known_deviations.json");
@@ -217,7 +220,9 @@ BOOST_AUTO_TEST_CASE(ForkMethodWindowsMatchPinnedOpNode)
 /// duplicated here: OpEngineApiVersionsTest::NewPayloadWrongVersionIsUnsupportedFork
 /// (V4 at Canyon time, V2 at Ecotone time), OpEngineServiceParityTest (getPayload V5 at
 /// a Jovian timestamp) and EngineServiceTest.cpp:1889 (out-of-window versions).
-BOOST_AUTO_TEST_CASE(WindowForeignVersionIsRejectedAndV1IsAbsent)
+// clang-format off
+BOOST_AUTO_TEST_CASE(WindowForeignVersionIsRejectedAndV1IsAbsent, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
 {
     auto caps = loadJson("caps.json");
     if (!caps)
