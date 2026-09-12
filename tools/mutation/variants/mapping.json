@@ -97,5 +97,23 @@
       "OpL1EdgeGateSuite/JovianDaFootprintMustEqualLocalRecomputation"
     ],
     "expect": "only_mapped_red",
-    "why": "The Jovian DA-footprint range gate must accept footprint == gasLimit (op-geth block_validator.go:131 uses '>'); flipping it to '>=' makes the mapped three-sided boundary case red on the == side. The B-5b rejection case only probes the strict 'footprint = gasLimit+1' side, which '>' and '>=' judge identically, so it is the negative control — as is the F-A2 equality-gap case, whose remote (golden Σ − 1 = 593599) sits far below gasLimit and never touches this comparison." }
+    "why": "The Jovian DA-footprint range gate must accept footprint == gasLimit (op-geth block_validator.go:131 uses '>'); flipping it to '>=' makes the mapped three-sided boundary case red on the == side. The B-5b rejection case only probes the strict 'footprint = gasLimit+1' side, which '>' and '>=' judge identically, so it is the negative control — as is the F-A2 equality-gap case, whose remote (golden Σ − 1 = 593599) sits far below gasLimit and never touches this comparison." },
+  { "variant": "V-META-feeArm", "mutated": "bcos-evm/bcos-evm/opstack/OpTransition.cpp",
+    "target": "opstack-executor-block-tests", "binary": "opstack-executor/tests/opstack-executor-block-tests",
+    "filter": "OpT8nReplay/Vectors",
+    "also_green": ["GoldenSampleSuite/ManifestCorpusConsistency"],
+    "expect": "only_mapped_red",
+    "why": "fee 臂写错一个字段 ⇒ 逐 fork meta 字段集双向断言必红；语料一致性用例与 meta 形状无关，须保持 GREEN。" },
+  { "variant": "V-NEG-order", "mutated": "engine/bcos-engine/OpEngineService.cpp",
+    "target": "test-bcos-engine", "binary": "engine/test/test-bcos-engine",
+    "filter": "OpForkNegativeCoverageSuite/OPFirstErrorOrderPrefersTransactionsOverHeaderFields",
+    "also_green": ["OpForkNegativeCoverageSuite/OPStaleHeadForkchoiceDoesNotRewindTheTip"],
+    "expect": "only_mapped_red",
+    "why": "首错顺序被对调 ⇒ transactions-first 的消息断言必红；同套件的 stale-head 用例与本机制无关，须保持 GREEN。" },
+  { "variant": "V-SCHED-genesisBind", "mutated": "bcos-framework/bcos-framework/ledger/ChainMetadata.h",
+    "target": "test-bcos-ledger", "binary": "bcos-ledger/test/test-bcos-ledger",
+    "filter": "OpForkScheduleMetadataTest/genesisBindingMismatchFailClosed",
+    "also_green": ["OpForkScheduleMetadataTest/hashMismatchFailClosed"],
+    "expect": "only_mapped_red",
+    "why": "genesis 绑定校验被旁路 ⇒ 绑定负向必红；hash 校验是相邻但独立的机制，须保持 GREEN。" }
 ]
