@@ -313,10 +313,10 @@ std::vector<uint8_t> makeBn256PairingInput(size_t pairs)
 }
 
 // A real BN254 G2 point, lifted from the second half of op-geth's bn256Pairing.json
-// "two_point_match_3" vector (Expected=true). That vector's product is 1 and the precompile
-// accepted every point in it, so this encoding is known-good; using a genuine point instead of
-// a second (0, 0) means each generated pair's identity does not depend on how the engine treats
-// an all-zero G2 encoding.
+// "two_point_match_3" vector (Expected=true; op-geth pin e8800cffe). That vector's product is 1 and
+// the precompile accepted every point in it, so this encoding is known-good; using a genuine point
+// instead of a second (0, 0) means each generated pair's identity does not depend on how the engine
+// treats an all-zero G2 encoding.
 constexpr std::string_view kBn256ValidG2PointHex =
     "203e205db4f19b37b60121b83a7333706db86431c6d835849957ed8c3928ad79"
     "27dc7234fd11d3e8c36c59277c3e6f149d5cd3cfa9a62aee49f8130962b4b3b"
@@ -705,6 +705,8 @@ BOOST_AUTO_TEST_CASE(KarstBn256PairingCapsAt300Pairs, * boost::unit_test::label(
 
 // The cap compares with '>': exactly MAX_TX_GAS_LIMIT is legal. The existing case pins
 // limit+1 only, so the legal side of the boundary is the untested half.
+// Constant three-way agreement (Task 0 ledger S5): this repo's MAX_TX_GAS_LIMIT (2**24)
+// == op-geth params.MaxTxGas == op-revm eip7825::TX_GAS_LIMIT_CAP (all at pinned SHAs).
 // clang-format off
 BOOST_AUTO_TEST_CASE(OrdinaryTxAtExactlyEip7825CapIsAccepted, * boost::unit_test::label("fork-karst"))
 // clang-format on
