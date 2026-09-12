@@ -42,6 +42,10 @@ set_source_files_properties("unittests/rpc/RpcReadHandlersTest.cpp" PROPERTIES S
 set_source_files_properties(
     "unittests/rpc/EthGetProofIntegrationTest.cpp" "unittests/rpc/FullChainFixtureInst.cpp"
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+# RPCFixture.h pulls in the same heavy headers; keep the M3 receipt baseline standalone
+# so its using-directives cannot leak into unity-merged TUs.
+set_source_files_properties(
+    "unittests/rpc/ReceiptFieldBaselineTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_target_properties(${TEST_BINARY_NAME} PROPERTIES UNITY_BUILD "ON")
 #add_test(NAME ${TEST_BINARY_NAME} WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} COMMAND ${TEST_BINARY_NAME})
 config_test_cases("" "${SOURCES}" ${TEST_BINARY_NAME} "" "")
