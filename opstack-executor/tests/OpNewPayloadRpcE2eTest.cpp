@@ -678,19 +678,10 @@ void runInvalidVector(std::string const& id)
                 status.validationError->find("blockHash does not match") != std::string::npos;
             // Jovian DA footprint: op-geth checks blobGasUsed != CalcDAFootprint(txs) BEFORE
             // daFootprint > GasLimit (block_validator.go:127/:131). A vector that sets
-            // blobGasUsed > gasLimit but whose header field is not the local Σ (its attributes
-            // scalar is 0) is therefore rejected by the equality gate first. The corpus vector
-            // invalid_jovian_transfer_basic_static_11 pins the legacy range wording; accept the
-            // equality message — the payload is still INVALID with a DA-footprint error.
-            // DELETE THIS ALT when the corpus vector invalid_jovian_transfer_basic_static_11's
-            // expectation is refreshed to op-geth's equality message.
-            const bool daFootprintOrderAlt =
-                expected.find("DA footprint (blobGasUsed) exceeds the block gas limit") !=
-                    std::string::npos &&
-                status.validationError &&
-                status.validationError->find("invalid DA footprint in blobGasUsed field") !=
-                    std::string::npos;
-            BOOST_CHECK_MESSAGE(matched || blobAlt || txMissingAlt || daFootprintOrderAlt,
+            // The corpus expectation for this shape is refreshed (the generator now pins the
+            // equality-gate wording, matching op-geth's ordering at block_validator.go:127), so
+            // the plain substring match above is the only acceptor again.
+            BOOST_CHECK_MESSAGE(matched || blobAlt || txMissingAlt,
                 id << ": validationError missing '" << expected
                    << "', got: " << (status.validationError ? *status.validationError : "<none>"));
         }
@@ -1198,7 +1189,7 @@ BOOST_AUTO_TEST_CASE(CoverageMatrixFromManifest)
         "blobGasUsed must be zero before Jovian (OP Isthmus)",
         "blockNumber must not be negative",
         "gasLimit exceeds the maximum block gas limit (2^63-1)",
-        "DA footprint (blobGasUsed) exceeds the block gas limit",
+        "invalid DA footprint in blobGasUsed field",
         "intrinsic gas too low",
         "nonce too low",
         "nonce too high",
