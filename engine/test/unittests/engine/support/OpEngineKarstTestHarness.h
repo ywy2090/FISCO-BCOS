@@ -654,6 +654,50 @@ inline bcos::engine::NewPayloadRequest makeValidIsthmusNewPayload(
     return request;
 }
 
+/// Per-fork newPayload request: same skeleton as makeValidIsthmusNewPayload, but the
+/// fork-dependent members follow the fork's shape instead of Isthmus's. extraDataLen is
+/// 0 pre-Holocene, 9 (00000000fa00000006) for Holocene/Isthmus, 17 for Jovian+ — the
+/// layout is pinned by extraDataLayoutFor (OpForkId.h:113-144).
+inline bcos::engine::NewPayloadRequest makeNewPayloadAt(bcos::protocol::BlockFactory& blockFactory,
+    bcos::h256 const& parentHash, bcos::protocol::BlockNumber blockNumber,
+    bcos::engine::OpForkId forkId, bool hasWithdrawals, bool hasBlobFields,
+    std::size_t extraDataLen, std::uint64_t timestampMs)
+{
+    bcos::engine::NewPayloadRequest request;
+    request.executionRequests = std::vector<bcos::bytes>{};  // present-but-empty wire contract
+    auto& payload = request.executionPayload;
+    payload.parentHash = parentHash;
+    payload.blockNumber = blockNumber;
+    payload.timestamp = timestampMs;
+    payload.gasLimit = 30'000'000;
+    payload.gasUsed = 0;
+    payload.baseFeePerGas = 1;
+    payload.transactions = {};
+    if (hasWithdrawals)
+    {
+        payload.withdrawals = std::vector<bcos::engine::WithdrawalV1>{};
+        payload.withdrawalsRoot = bcos::ledger::mpt::emptyRootHash();
+    }
+    if (hasBlobFields)
+    {
+        payload.excessBlobGas = bcos::u256(0);
+        payload.blobGasUsed = bcos::u256(0);
+    }
+    payload.extraData = bcos::bytes(extraDataLen, 0);
+    if (extraDataLen >= 9)
+    {
+        payload.extraData =
+            bcos::fromHex("00000000fa00000006" + std::string((extraDataLen - 9) * 2, '0'));
+    }
+    request.parentBeaconBlockRoot = bcos::h256{};
+    auto const txRoot =
+        EngineOpScheduler::computeTxRoot(bcos::engine::detail::rawEnvelopes(payload));
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        blockFactory.blockHeaderFactory(), payload, txRoot, *request.parentBeaconBlockRoot, forkId);
+    payload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
+    return request;
+}
+
 /// Field-wise pin of the strict-compared ExecutionPayload set (the 16 fields
 /// compareWithBuiltPayload enforces plus the tx list) between two struct copies —
 /// used by the wire round trip and the version-window tests so a dropped field
@@ -753,6 +797,20 @@ inline std::shared_ptr<bcos::evm::opstack::OpForkSchedule> makeKarstProfileSched
 {
     using bcos::evm::opstack::OpForkSchedule;
     return std::make_shared<OpForkSchedule>(OpForkSchedule::parse("0:jovian,1000:karst"));
+}
+
+/// The 9-rung ladder schedule: every modeled EL fork on a 1000s grid. The canonical
+/// text follows OpForkScheduleCodec's rules (timestamp-0 baseline + strictly
+/// contiguous fork order), so it parses through the same production path the ledger
+/// uses. Ladder rungs index activations below.
+inline constexpr std::string_view c_forkLadderCanonical =
+    "0:regolith,1000:canyon,2000:ecotone,3000:fjord,4000:granite,5000:holocene,"
+    "6000:isthmus,7000:jovian,8000:karst";
+
+inline std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> makeForkLadderSchedule()
+{
+    return std::make_shared<const bcos::evm::opstack::OpForkSchedule>(
+        bcos::evm::opstack::OpForkSchedule::parse(c_forkLadderCanonical));
 }
 
 /// PayloadAttributes.timestamp is internal milliseconds (unix seconds × 1000).
@@ -1189,6 +1247,24 @@ struct ImportServiceFixtureT
     explicit ImportServiceFixtureT(bcos::protocol::BlockNumber stripImportDeltaAt)
       : delegate(makeImportDelegate<StorageType>(
             stripImportDeltaAt, blockFactory, storage, ioServicePool)),
+        service(memPool, storage, seamScheduler, blockFactory,
+            bcos::engine::c_defaultBlockTxCountLimit, delegate, nullptr, false)
+    {
+        seedGenesisAndForkchoice();
+    }
+
+    /// Custom-schedule ctor: the seam can only be swapped in the member-init list
+    /// (OpSchedulerSeam deletes copy/move; OpEngineService holds SchedulerType&), so
+    /// this is the one place a non-legacy schedule can enter the fixture.
+    struct WithSchedule
+    {
+    };
+
+    explicit ImportServiceFixtureT(
+        WithSchedule, std::shared_ptr<const bcos::evm::opstack::OpForkSchedule> schedule)
+      : delegate(makeImportDelegate<StorageType>(
+            /*stripImportDeltaAt=*/-1, blockFactory, storage, ioServicePool)),
+        seamScheduler(std::move(schedule), {}),
         service(memPool, storage, seamScheduler, blockFactory,
             bcos::engine::c_defaultBlockTxCountLimit, delegate, nullptr, false)
     {
