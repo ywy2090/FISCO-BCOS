@@ -82,5 +82,11 @@
     ],
     "expect": "only_mapped_red",
     "why": "The value-level round-trip comparator (review fix F2) must catch a serializer that keeps the withdrawalsRoot KEY but writes a wrong hex; sibling V-M2 covers the presence flip. The dump-shape lane never touches the serializer and is the negative control."
-  }
+  },
+  { "variant": "V-GRANITE-bn254cap", "mutated": "bcos-evm/bcos-evm/opstack/OpPrecompiles.cpp",
+    "target": "bcos-evm-opstack-tests", "binary": "bcos-evm/test/bcos-evm-opstack-tests",
+    "filter": "OpOsakaSemanticsSuite/GraniteBn256PairingAt587PairsIsRejected",
+    "also_green": ["OpPrecompilesSuite/Bn256PairingInputLimitNoGasOverride"],
+    "expect": "only_mapped_red",
+    "why": "The Granite size cap must reject a 587-pair (112704B) input; widening it to 112704 makes the mapped case red. The table-value case is the negative control (it asserts the value, not the execution path)." }
 ]

@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <fstream>
 #include <span>
+#include <string_view>
 #include <test/utils/test_state.hpp>
 #include <vector>
 
@@ -52,6 +53,11 @@ const OpForkConfig& osakaCfg()
 const OpForkConfig& jovianCfg()
 {
     return jovianConfig();
+}
+
+const OpForkConfig& graniteCfg()
+{
+    return graniteConfig();
 }
 
 std::filesystem::path osakaFixtureDir()
@@ -304,6 +310,35 @@ intx::uint256 readOsakaStorageSlot(
 std::vector<uint8_t> makeBn256PairingInput(size_t pairs)
 {
     return std::vector<uint8_t>(pairs * kBn256PairSize, 0x00);
+}
+
+// A real BN254 G2 point, lifted from the second half of op-geth's bn256Pairing.json
+// "two_point_match_3" vector (Expected=true). That vector's product is 1 and the precompile
+// accepted every point in it, so this encoding is known-good; using a genuine point instead of
+// a second (0, 0) means each generated pair's identity does not depend on how the engine treats
+// an all-zero G2 encoding.
+constexpr std::string_view kBn256ValidG2PointHex =
+    "203e205db4f19b37b60121b83a7333706db86431c6d835849957ed8c3928ad79"
+    "27dc7234fd11d3e8c36c59277c3e6f149d5cd3cfa9a62aee49f8130962b4b3b"
+    "9195e8aa5b7827463722b8c153931579d3505566b4edf48d498e185f0509de15"
+    "204bb53b8977e5f92a0bc372742c4830944a59b4fe6b1c0466e2a6dad122b5d2e";
+
+// `pairs` BN254 pairing pairs, each (G1 = (0, 0), the point at infinity; G2 = a valid point).
+// e(infinity, Q) = 1 for any Q, so the product over every pair is 1 and a valid input must
+// succeed. Size = pairs * 192B; this is the payload the Granite/Isthmus 112687-byte cap is
+// asserted against.
+std::vector<uint8_t> repeatInfinityG1Pairs(size_t pairs)
+{
+    const auto g2 = bcos::fromHex(kBn256ValidG2PointHex);
+    BOOST_REQUIRE_EQUAL(g2.size(), kBn256PairSize - 64);
+    std::vector<uint8_t> input;
+    input.reserve(pairs * kBn256PairSize);
+    for (size_t i = 0; i < pairs; ++i)
+    {
+        input.insert(input.end(), 64, 0x00);
+        input.insert(input.end(), g2.begin(), g2.end());
+    }
+    return input;
 }
 }  // namespace
 
@@ -719,6 +754,38 @@ BOOST_AUTO_TEST_CASE(OverCapTxIsNotRejectedByEip7825BeforeOsaka, * boost::unit_t
         std::get<std::error_code>(r) ==
             evmone::state::make_error_code(evmone::state::MAX_GAS_LIMIT_EXCEEDED);
     BOOST_CHECK(!rejectedByEip7825);
+}
+
+// 586 pairs = 112512B <= 112687 (Granite/Isthmus cap): the precompile must run and succeed.
+// Each pair is (G1 = point at infinity, G2 = valid point) so every pair's pairing is 1.
+// Labels: granite/holocene/isthmus only — Jovian's cap is 81984 and Karst's is 57600, where
+// a 586-pair input is correctly rejected (Task 0 F-E2-1).
+// clang-format off
+BOOST_AUTO_TEST_CASE(GraniteBn256PairingAt586PairsSucceeds, * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus"))
+// clang-format on
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    auto input = repeatInfinityG1Pairs(586);
+    BOOST_REQUIRE_EQUAL(input.size(), 586 * kBn256PairSize);
+    // 45_000 + 34_000 * 586 ≈ 19.97M gas, so the default 10M helper cap is too small.
+    auto run = runOsakaPrecompileOpTx(ts, vm, kOsakaBn256Pairing, input, graniteCfg(), 30'000'000);
+    BOOST_CHECK_EQUAL(run.receipt->status(), 0);
+}
+
+// 587 pairs = 112704B > 112687: rejected by the Granite size cap (specs granite/exec-engine.md).
+// Assertion is rejection only; whether the size-check halt is distinguishable from a
+// pairing-math failure is recorded as residual in the Task 0 ledger (F-S4-1).
+// clang-format off
+BOOST_AUTO_TEST_CASE(GraniteBn256PairingAt587PairsIsRejected, * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus"))
+// clang-format on
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    auto input = repeatInfinityG1Pairs(587);
+    BOOST_REQUIRE_EQUAL(input.size(), 587 * kBn256PairSize);
+    auto run = runOsakaPrecompileOpTx(ts, vm, kOsakaBn256Pairing, input, graniteCfg(), 30'000'000);
+    BOOST_CHECK_NE(run.receipt->status(), 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
