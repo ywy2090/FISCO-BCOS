@@ -16,6 +16,7 @@
 #include "support/OpEngineE2eFixture.h"
 #include <bcos-concepts/ByteBuffer.h>
 #include <bcos-crypto/hash/Keccak256.h>
+#include <bcos-evm/opstack/RollupCost.h>
 #include <bcos-framework/ledger/LedgerTypeDef.h>
 #include <bcos-framework/storage/Entry.h>
 #include <bcos-framework/storage2/MemoryStorage.h>
@@ -23,6 +24,7 @@
 #include <bcos-framework/transaction-executor/StateKey.h>
 #include <opstack-executor/OpCommon.h>
 #include <opstack-executor/OpSchedulerSeam.h>
+#include <opstack-executor/OpstackExecutor.h>
 // EngineHelper.h's parseNewPayloadRequest declaration references
 // bcos::protocol::TransactionFactory&, but EngineHelper.h does not declare that type
 // itself (production relies on bcos-rpc unity-build include order). A single-TU direct
@@ -111,12 +113,51 @@ std::string statusForDaFootprint(uint64_t footprint)
     return statusForDaFootprintRemote(footprint);
 }
 
-/// Equality-gap shape (F-A2) for JovianDaFootprintMustEqualLocalRecomputation: `local`
-/// is the Σ the txs really sum to, `remote` what the header field claims. The corpus
-/// fixes the txs, so the local/remote split is guarded here — the golden header's
-/// blobGasUsed IS the local Σ for exactly these txs.
+/// Local Σ of the Jovian DA footprint for the jovian_da_mix fixture, recomputed in-test from the
+/// production per-tx formula (OpTransition.cpp:281 with the accumulator at
+/// OpBlockExecute.cpp:508-525):
+///   Σ over non-deposit txs of estimatedDaSizeFromFlz(flzCompressLen(env)) × scalar,
+/// where `scalar` is the big-endian uint16 at calldata[176:178] of the L1-attributes deposit
+/// (OpBlockExecute.h::jovianDaFootprintGasScalar). Deposits carry no footprint and are skipped.
+/// This deliberately does NOT read blobGasUsed back out of the golden header: it is the one
+/// independent oracle the F-A2 equality guard needs. The corpus golden
+/// (opstack-executor/tests/t8n/golden/engine/jovian_da_mix.golden.json, sealed by op-geth's t8n)
+/// carries the same value in its header, and the caller asserts the two agree — that assertion
+/// is the coupling, not an assumption.
+uint64_t localDaFootprintOfGoldenVector()
+{
+    namespace op = bcos::evm::opstack;
+    auto sample = w6test::loadVectorSample("jovian_da_mix");
+    uint64_t scalar = 0;
+    uint64_t sum = 0;
+    bool haveScalar = false;
+    for (auto const& raw : sample.golden["rawTransactions"])
+    {
+        auto env = bcos::fromHex(raw.asString());
+        bcos::bytesConstRef ref{env.data(), env.size()};
+        if (op::envelopeIsDeposit(ref))
+        {
+            auto dep = bcos::executor_v1::opstack::decodeDepositEnvelope(ref);
+            auto const s = op::jovianDaFootprintGasScalar({dep.data.data(), dep.data.size()});
+            BOOST_REQUIRE(s.has_value());
+            scalar = *s;
+            haveScalar = true;
+            continue;
+        }
+        sum += op::estimatedDaSizeFromFlz(op::flzCompressLen({env.data(), env.size()})) * scalar;
+    }
+    BOOST_REQUIRE(haveScalar);  // the L1-attributes deposit is what seeds the scalar
+    return sum;
+}
+
+/// Equality-gap shape (F-A2) for JovianDaFootprintMustEqualLocalRecomputation: `local` is the Σ
+/// the txs really sum to, `remote` what the header field claims. `local` must come from
+/// localDaFootprintOfGoldenVector(), never read back from the header; the guard below recomputes
+/// it from the tx set, and separately requires the golden header's blobGasUsed to match it. Both
+/// halves are non-tautological: dropping either leaves one side assumed.
 std::string statusForDaFootprintWithRemote(uint64_t local, uint64_t remote)
 {
+    BOOST_REQUIRE_EQUAL(localDaFootprintOfGoldenVector(), local);
     auto sample = w6test::loadVectorSample("jovian_da_mix");
     BOOST_REQUIRE_EQUAL(
         static_cast<uint64_t>(*w6test::decodeGoldenHeader(sample)->blobGasUsed()), local);
@@ -159,7 +200,8 @@ BOOST_AUTO_TEST_CASE(DAFootprintExceedsGasLimitRejected)
 // minimal helper below — NOT a copy of the W6 fixture. The two knobs B-5b kept fused are
 // split: the payload's TRANSACTIONS stay the golden set (so the local Σ per
 // OpBlockExecute.cpp:508-525 is fixed — op-geth's t8n sealed it into the golden header's
-// blobGasUsed, the value this engine's own Σ reproduces), while the header FIELD
+// blobGasUsed, and localDaFootprintOfGoldenVector recomputes that Σ from the tx set rather
+// than reading it back, with the F-A2 guard cross-checking the two), while the header FIELD
 // blobGasUsed (`remote`) is passed separately. The blockHash is recomputed over the
 // overridden field with the engine's own recipe (computeTxRoot + rebuildOpEthHeader +
 // EthBlockHeader::computeHash, OpEngineService.inl:920-924) at the same fork the engine
@@ -200,12 +242,13 @@ BOOST_AUTO_TEST_CASE(JovianDaFootprintMustEqualLocalRecomputation,
     * boost::unit_test::label("fork-jovian") * boost::unit_test::expected_failures(1))
 // clang-format on
 {
-    // One payload whose local footprint is F (the Σ the jovian_da_mix txs really sum to,
-    // computed by the Σ at OpBlockExecute.cpp:508-525 and sealed by op-geth's t8n into
-    // the golden header); the remote header field says F-1. The engine must answer
-    // INVALID (op-geth block_validator.go:127).
-    auto sample = w6test::loadVectorSample("jovian_da_mix");
-    auto const local = static_cast<uint64_t>(*w6test::decodeGoldenHeader(sample)->blobGasUsed());
+    // One payload whose local footprint is F, recomputed in-test from the tx set by
+    // estimateDaSizeFromFlz(flzCompressLen) × scalar (localDaFootprintOfGoldenVector, the same
+    // formula as the Σ at OpBlockExecute.cpp:508-525); statusForDaFootprintWithRemote also
+    // requires op-geth's t8n-sealed golden header blobGasUsed to equal F, so F is not read back
+    // out of the header. The remote header field says F-1, and the engine must answer INVALID
+    // (op-geth block_validator.go:127).
+    auto const local = localDaFootprintOfGoldenVector();
     auto const status = statusForDaFootprintWithRemote(/*local=*/local, /*remote=*/local - 1);
     BOOST_CHECK_EQUAL(status, "INVALID");  // expected to FAIL at the current head (F-A2)
 }
