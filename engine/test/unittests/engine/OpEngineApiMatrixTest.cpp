@@ -138,7 +138,35 @@ BOOST_AUTO_TEST_CASE(ForkMethodWindowsMatchPinnedOpNode)
                     method, expected, implemented));
         }
     }
-    BOOST_CHECK_GT(checked, 0U);
+    // Derive the cell count from the artifact rather than hardcoding it: the matrix is a
+    // tracked contract in op-stack-e2e-tests, and bumping that pin changes the row set
+    // (e.g. a Karst-aware op-node adds a karst row). A literal would go stale silently.
+    // Two invariants: (a) every cell is either equal or a recorded deviation, so
+    // checked == total - deviated; (b) the deviated count equals the recorded entries,
+    // so a stale entry in known_deviations.json fails here instead of lingering.
+    std::size_t totalCells = 0;
+    std::size_t deviatedCells = 0;
+    for (auto const& row : (*windows)["windows"])
+    {
+        auto const fork = row["fork"].asString();
+        auto const id = bcos::evm::engine::detail::tryEngineForkId(
+            bcos::evm::opstack::OpForkSchedule::parse("0:" + fork).forkAt(0));
+        BOOST_REQUIRE_MESSAGE(
+            id.has_value(), "artifact carries a fork the engine does not model: " + fork);
+        for (auto const method : {"newPayload", "forkchoiceUpdated", "getPayload"})
+        {
+            ++totalCells;
+            if (row[method].asString() != methodName(*id, method))
+            {
+                ++deviatedCells;
+            }
+        }
+    }
+    BOOST_CHECK_GT(totalCells, 0U);
+    BOOST_TEST_MESSAGE("matrix cells: total=" << totalCells << " deviated=" << deviatedCells
+                                              << " checked=" << checked);
+    BOOST_CHECK_EQUAL(checked, totalCells - deviatedCells);
+    BOOST_CHECK_EQUAL(deviatedCells, (*deviations)["deviations"].size());
     // The advertised caps must cover the union of the windows (same naming rule as
     // op-geth, whose list is the caps.json artifact); anything advertised outside the
     // three families must at least exist in op-geth's list.
