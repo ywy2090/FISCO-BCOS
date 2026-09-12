@@ -120,3 +120,32 @@ ends by design:
   value, so the two are not bit-comparable in that case. No grid case or known
   chain config hits it (all use `1e6` multiples), so the da-matrix comparison is
   unaffected.
+
+### `eip7825_deposit_exemption` — op-geth applies the Osaka tx-gas cap to deposits; spec says it is not enabled for them
+
+- **Grid case:** none yet (no da-matrix row exercises a deposit above 2^24); registered
+  here because a future differential run (Plan D) against op-geth will surface it.
+- **Status:** **op-geth deviates from the spec; FISCO follows the spec.** The spec text is
+  explicit — `specs/protocol/karst/overview.md:20`: *"EIP-7825 Transaction Gas Limit Cap
+  (not enabled for deposits, which are already subject to a 20MGas limit)"*. The 20M
+  figure is L1/ingress-side resource metering (`guaranteed-gas-market.md:48`
+  `MAX_RESOURCE_LIMIT = 20,000,000`), not an EL validation rule.
+- **What happens:** FISCO's Karst tier sets `deposit_exempt_from_max_tx_gas = true`
+  (`bcos-evm/opstack/OpForkSchedule.cpp:230`), wired at `bcos-evm/opstack/OpTransition.cpp:575`
+  as `enforce_max_tx_gas = !cfg.deposit_exempt_from_max_tx_gas`, so a spec-legal
+  over-cap deposit executes normally (pinned by
+  `OpOsakaSemanticsTest.cpp` `DepositExemptFromEip7825MaxGasLimit`, status 0 / gasUsed 21000).
+  op-geth `core/state_transition.go:381` applies the cap inside `!msg.SkipTransactionChecks`
+  **including deposits**, and its deposit-tolerance path (`:470-495`) then includes the
+  deposit as a **failed receipt** with `gasUsed = GasLimit` and `nonce+1`.
+- **Why it matters / reachability:** the deposit gas ceiling is 20,000,000 while the 7825
+  cap is 2^24 = 16,777,216, so the interval **(2^24, 20M] is spec-legal but op-geth
+  rejects it** — a constructible input (L1-side senders choose deposit gas limits) on
+  which FISCO and op-geth would produce different receipts, gasUsed, nonce and state, and
+  therefore a different block hash. No known chain config or corpus vector currently emits
+  such a deposit, so no existing comparison is affected.
+- **Disposition:** FISCO keeps the exemption (spec-aligned). Do **not** change FISCO to
+  match op-geth without an upstream spec change.
+- **Review trigger:** revisit if op-geth changes `state_transition.go:381` to skip deposits,
+  or if the Karst spec text at `karst/overview.md:20` changes; also re-check whether the
+  EL should mirror the L1 20M metering (currently judged L1/ingress-side, not EL).
