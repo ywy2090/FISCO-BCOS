@@ -7,6 +7,7 @@
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-evm/opstack/OpTransition.h>
+#include <bcos-evm/opstack/RollupCost.h>
 #include <bcos-framework/engine/Constants.h>
 #include <bcos-framework/engine/OpTime.h>
 #include <bcos-framework/engine/Types.h>
@@ -206,20 +207,85 @@ inline void validateJovianL1AttributesShape(
     return std::nullopt;
 }
 
+/// Why daFootprintOfEnvelopes returned nullopt. Both classes are "fail closed" for consensus;
+/// the distinction exists so the engine can report the actual cause.
+enum class DaFootprintError : uint8_t
+{
+    None = 0,
+    /// No leading L1-attributes deposit, or its calldata is malformed (bad length/selector).
+    Malformed,
+    /// The Σ would exceed uint64; op-geth's Go uint64 accumulator would wrap instead.
+    Overflow,
+};
+
 /// Block-level DA footprint Σ (op-geth CalcDAFootprint, core/types/rollup_cost.go): the
 /// scalar is read from the L1-attributes deposit (the first envelope), a 176-byte Isthmus-length
 /// attributes payload is the Jovian activation form and contributes 0, and every non-deposit
 /// envelope adds estimatedDaSizeFromFlz(flzCompressLen(env)) × scalar. Primitives are reused
 /// (envelopeIsDeposit / decodeDepositEnvelope / jovianDaFootprintGasScalar / flzCompressLen /
-/// estimatedDaSizeFromFlz) — no constant or offset is re-derived here.
+/// estimatedDaSizeFromFlz) — no constant or offset is re-derived here. Header-inline so callers
+/// (the engine's Jovian blobGasUsed equality gate) add no link dependency to their archive; the
+/// inlined primitive chain in RollupCost.h is likewise inline for the same reason.
 ///
-/// @return the Σ, or nullopt when it cannot be derived: no leading deposit, malformed deposit /
-/// attributes (bad length or Jovian selector), or a uint64 overflow that op-geth's Go accumulator
-/// would instead wrap. The caller fails closed. The executor seal path keeps its per-receipt
-/// opStackMeta().da_footprint accumulation (the value opTransition wrote, with its
-/// missing-field guard); this is the engine-side recomputation from the wire envelopes.
-[[nodiscard]] std::optional<uint64_t> daFootprintOfEnvelopes(
-    std::span<const bcos::bytesConstRef> envelopes);
+/// @return the Σ, or nullopt when it cannot be derived (the caller fails closed). The two
+/// failure classes differ only in diagnostics — see DaFootprintError and @p error.
+/// @param error optional; when nullopt is returned it is set to the failure class, so a caller
+///        that wants to distinguish malformed input from a uint64 overflow can. Callers that do
+///        not care may omit it (default nullptr) and treat every nullopt alike.
+[[nodiscard]] inline std::optional<uint64_t> daFootprintOfEnvelopes(
+    std::span<const bcos::bytesConstRef> envelopes, DaFootprintError* error = nullptr)
+{
+    auto fail = [error](DaFootprintError kind) -> std::optional<uint64_t> {
+        if (error != nullptr)
+        {
+            *error = kind;
+        }
+        return std::nullopt;
+    };
+    // op-geth CalcDAFootprint requires the first transaction to be the L1-attributes deposit:
+    // "missing deposit transaction" otherwise, and ExtractDAFootprintGasScalar rejects a bad
+    // length/selector. All of those become Malformed.
+    if (envelopes.empty() || !envelopeIsDeposit(envelopes.front()))
+        return fail(DaFootprintError::Malformed);
+
+    DepositTx dep;
+    try
+    {
+        dep = bcos::executor_v1::opstack::decodeDepositEnvelope(envelopes.front());
+    }
+    catch (...)
+    {
+        return fail(DaFootprintError::Malformed);
+    }
+    auto const attr = std::span<uint8_t const>{dep.data.data(), dep.data.size()};
+    // Isthmus-length attributes: the DA-footprint gas scalar is not set yet. On a Jovian block
+    // that is only legal for a (deposits-only) activation block — op-geth returns 0 here; the
+    // last-tx-is-deposit rule is enforced by validateJovianL1AttributesShape on the executor path.
+    if (attr.size() == IsthmusL1AttributesLen)
+        return uint64_t{0};
+    if (attr.size() < JovianL1AttributesLen || !std::equal(JovianL1AttributesSelector.begin(),
+                                                   JovianL1AttributesSelector.end(), attr.begin()))
+        return fail(DaFootprintError::Malformed);
+    auto const scalar = jovianDaFootprintGasScalar(attr);
+    if (!scalar.has_value())
+        return fail(DaFootprintError::Malformed);
+
+    uint64_t sum = 0;
+    for (auto const& env : envelopes)
+    {
+        if (envelopeIsDeposit(env))
+            continue;
+        auto const term =
+            estimatedDaSizeFromFlz(flzCompressLen(evmc::bytes_view{env.data(), env.size()})) *
+            static_cast<uint64_t>(*scalar);
+        // op-geth accumulates into a Go uint64 (wraps). Wrapping would let a crafted block
+        // clear the equality gate; fail closed instead (no legitimate block overflows).
+        if (sum > std::numeric_limits<uint64_t>::max() - term)
+            return fail(DaFootprintError::Overflow);
+        sum += term;
+    }
+    return sum;
+}
 
 /// Validate the Jovian L1-attributes block shape (selector/length). No-op pre-Jovian.
 /// Throws OpConsensusError. Public wrapper around validateJovianL1AttributesShape

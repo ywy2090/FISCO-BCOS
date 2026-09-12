@@ -204,12 +204,20 @@ std::optional<std::string> validateOpBlobGasUsed(
         {
             envelopes.emplace_back(tx.raw.data(), tx.raw.size());
         }
-        auto const local = bcos::evm::opstack::daFootprintOfEnvelopes(envelopes);
+        auto fpError = bcos::evm::opstack::DaFootprintError::None;
+        auto const local = bcos::evm::opstack::daFootprintOfEnvelopes(envelopes, &fpError);
         if (!local.has_value())
         {
             // Fail closed, mirroring op-geth's CalcDAFootprint error on an envelope set it
-            // cannot price (no leading L1-attributes deposit, malformed attributes): never
-            // accept an unverifiable slot. Keeps the "DA footprint" substring tests key on.
+            // cannot price (no leading L1-attributes deposit, malformed attributes) or a Σ that
+            // would overflow uint64. Never accept an unverifiable slot. Both messages keep the
+            // "DA footprint" substring tests key on.
+            if (fpError == bcos::evm::opstack::DaFootprintError::Overflow)
+            {
+                return std::string(
+                    "invalid DA footprint in blobGasUsed field (local DA footprint overflows "
+                    "uint64)");
+            }
             return std::string(
                 "invalid DA footprint in blobGasUsed field (local DA footprint unavailable)");
         }

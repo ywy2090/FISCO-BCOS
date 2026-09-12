@@ -28,14 +28,14 @@ target_include_directories(engine PRIVATE
 # PUBLIC rlp-protocol: EthEngineService.h includes EthEngineService.inl, and the
 # installed OpEngineService.inl uses <bcos-rlp-protocol/EthBlockHeader.h>. PRIVATE
 # would drop include dirs for consumers that instantiate the templates.
-# PRIVATE opstack-executor: OpEngineService.cpp's Jovian blobGasUsed equality gate calls the
-# shared bcos::evm::opstack::daFootprintOfEnvelopes accumulator (OpBlockExecute.cpp) and needs
-# <opstack-executor/OpBlockExecute.h> on the include path. Wrapped in $<BUILD_INTERFACE:> so it
-# stays out of the installed engine interface: opstack-executor is not an installed/exported
-# target (and is not required by engine's installed headers), and an exported static library
-# cannot name a non-exported link dependency. In-tree consumers (test-bcos-engine, the node)
-# still get it transitively. No cycle: opstack-executor's closure (bcos-evm-opstack,
-# ethereum-executor, ledger, rlp-protocol, transaction-scheduler, ...) never links engine.
+# PRIVATE opstack-executor: OpEngineService.cpp's Jovian blobGasUsed equality gate uses the
+# header-inline bcos::evm::opstack::daFootprintOfEnvelopes (OpBlockExecute.h), so this is an
+# INCLUDE-PATH dependency only — the archive no longer holds a reference to any
+# opstack-executor symbol (the inlined fastlz/estimated chain in RollupCost.h is header-inline
+# too, so bcos-evm-opstack is not pulled in either). Wrapped in $<BUILD_INTERFACE:> so it stays
+# out of the installed engine interface, which needs no new dependency; an exported static
+# library may not name a non-exported link target. In-tree consumers get the include path.
+# No cycle: opstack-executor's closure never links engine.
 target_link_libraries(engine PUBLIC bcos-framework bcos-task bcos-utilities ledger codec
     rlp-protocol)
 target_link_libraries(engine PRIVATE $<BUILD_INTERFACE:opstack-executor>)

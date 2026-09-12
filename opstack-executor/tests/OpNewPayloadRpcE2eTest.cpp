@@ -682,6 +682,8 @@ void runInvalidVector(std::string const& id)
             // scalar is 0) is therefore rejected by the equality gate first. The corpus vector
             // invalid_jovian_transfer_basic_static_11 pins the legacy range wording; accept the
             // equality message — the payload is still INVALID with a DA-footprint error.
+            // DELETE THIS ALT when the corpus vector invalid_jovian_transfer_basic_static_11's
+            // expectation is refreshed to op-geth's equality message.
             const bool daFootprintOrderAlt =
                 expected.find("DA footprint (blobGasUsed) exceeds the block gas limit") !=
                     std::string::npos &&

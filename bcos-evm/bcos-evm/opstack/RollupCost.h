@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <evmc/bytes.hpp>
 #include <intx/intx.hpp>
@@ -9,12 +10,129 @@ namespace bcos::evm::opstack
 struct OpFeeParams;
 struct OpForkConfig;
 
+namespace detail
+{
+constexpr int64_t kL1CostIntercept = -42585600;
+constexpr int64_t kL1CostFastlzCoef = 836500;
+constexpr int64_t kMinTxSizeScaled = 100000000;
+// The 1e6 scaling factor for estimatedDaSizeScaled (semantically unrelated to the operator
+// scalar's 1e6; do not merge them).
+constexpr int64_t kDaSizeScaleDivisor = 1'000'000;
+
+// Port of op-geth FlzCompressLen: length of output if serializedTx were FastLZ-compressed.
+// Inline so header-only callers (the engine's Jovian DA-footprint equality gate reaches it via
+// bcos::evm::opstack::daFootprintOfEnvelopes) do not add a bcos-evm-opstack link dependency to
+// the exported engine archive.
+inline uint32_t flzCompressLenImpl(evmc::bytes_view ib) noexcept
+{
+    uint32_t n = 0;
+    std::array<uint32_t, 8192> ht{};
+
+    auto const* const bytes = ib.data();
+    auto const len = static_cast<uint32_t>(ib.size());
+
+    auto u24 = [&](uint32_t i) -> uint32_t {
+        return static_cast<uint32_t>(bytes[i]) | (static_cast<uint32_t>(bytes[i + 1]) << 8) |
+               (static_cast<uint32_t>(bytes[i + 2]) << 16);
+    };
+    auto cmp = [&](uint32_t p, uint32_t q, uint32_t e) -> uint32_t {
+        uint32_t l = 0;
+        for (e -= q; l < e; ++l)
+        {
+            if (bytes[p + l] != bytes[q + l])
+            {
+                e = 0;
+            }
+        }
+        return l;
+    };
+    auto literals = [&](uint32_t r) {
+        n += 0x21 * (r / 0x20);
+        r %= 0x20;
+        if (r != 0)
+        {
+            n += r + 1;
+        }
+    };
+    auto match = [&](uint32_t l) {
+        --l;
+        n += 3 * (l / 262);
+        if (l % 262 >= 6)
+        {
+            n += 3;
+        }
+        else
+        {
+            n += 2;
+        }
+    };
+    auto hash = [](uint32_t v) -> uint32_t { return ((2654435769U * v) >> 19) & 0x1fff; };
+    auto setNextHash = [&](uint32_t ip) -> uint32_t {
+        ht[hash(u24(ip))] = ip;
+        return ip + 1;
+    };
+
+    uint32_t a = 0;
+    uint32_t ipLimit = len - 13;
+    if (len < 13)
+    {
+        ipLimit = 0;
+    }
+
+    for (uint32_t ip = a + 2; ip < ipLimit;)
+    {
+        uint32_t r = 0;  // read after the loop by cmp(); must outlive it
+        for (;;)
+        {
+            auto const s = u24(ip);
+            auto const h = hash(s);
+            r = ht[h];
+            ht[h] = ip;
+            const uint32_t d = ip - r;
+            if (ip >= ipLimit)
+            {
+                break;
+            }
+            ++ip;
+            if (d <= 0x1fff && s == u24(r))
+            {
+                break;
+            }
+        }
+        if (ip >= ipLimit)
+        {
+            break;
+        }
+        --ip;
+        if (ip > a)
+        {
+            literals(ip - a);
+        }
+        auto const l = cmp(r + 3, ip + 3, ipLimit + 9);
+        match(l);
+        ip = setNextHash(setNextHash(ip + l));
+        a = ip;
+    }
+    literals(len - a);
+    return n;
+}
+}  // namespace detail
+
 /// FastLZ-compressed length (the Fjord DA regression input). Port of op-geth FlzCompressLen;
 /// byte-for-byte aligned with production.
-uint32_t flzCompressLen(evmc::bytes_view data) noexcept;
+inline uint32_t flzCompressLen(evmc::bytes_view data) noexcept
+{
+    return detail::flzCompressLenImpl(data);
+}
 
 /// estimatedSize (x1e6) = max(100e6, -42585600 + 836500*fastlzSize).
-intx::uint256 estimatedDaSizeScaled(uint32_t fastlzSize) noexcept;
+inline intx::uint256 estimatedDaSizeScaled(uint32_t fastlzSize) noexcept
+{
+    const int64_t scaled =
+        detail::kL1CostIntercept + detail::kL1CostFastlzCoef * static_cast<int64_t>(fastlzSize);
+    const int64_t clamped = scaled < detail::kMinTxSizeScaled ? detail::kMinTxSizeScaled : scaled;
+    return intx::uint256{static_cast<uint64_t>(clamped)};
+}
 
 /// estimatedSize = estimatedDaSizeScaled(flz) / 1e6; takes an already-computed flz so the
 /// caller need not re-compress.
@@ -31,7 +149,13 @@ intx::uint256 estimatedDaSizeScaled(uint32_t fastlzSize) noexcept;
 /// clamped minimum. If that is ever a real caller, validate flz at the call site — do not
 /// "fix" this to match the clamp, which would start charging for transactions that carry no
 /// data. EstimatedDaSizeDividesScaledBy1e6 pins both halves.
-uint64_t estimatedDaSizeFromFlz(uint32_t flzLen) noexcept;
+inline uint64_t estimatedDaSizeFromFlz(uint32_t flzLen) noexcept
+{
+    if (flzLen == 0)
+        return 0;
+    return static_cast<uint64_t>(
+        estimatedDaSizeScaled(flzLen) / intx::uint256{detail::kDaSizeScaleDivisor});
+}
 
 /// estimatedSize = estimatedDaSizeScaled(flz) / 1e6; returns 0 for an empty envelope (same
 /// deliberate divergence as estimatedDaSizeFromFlz above).
