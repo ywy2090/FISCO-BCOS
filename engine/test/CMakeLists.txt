@@ -22,6 +22,12 @@ target_include_directories(${TEST_BINARY_NAME} PRIVATE
 target_compile_definitions(${TEST_BINARY_NAME} PRIVATE
     OP_MATRIX_DIR="${CMAKE_SOURCE_DIR}/opstack-executor/tests/t8n/matrix")
 
+# M2: the engine_getPayload envelope corpus (P2 Task 1), reached through the same
+# opstack-executor/tests/t8n symlink. The shape test skips when absent locally and
+# fails in CI via the existing FISCO_REQUIRE_T8N_CORPUS macro (below).
+target_compile_definitions(${TEST_BINARY_NAME} PRIVATE
+    OP_GETPAYLOAD_DIR="${CMAKE_SOURCE_DIR}/opstack-executor/tests/t8n/golden/engine/getpayload")
+
 find_package(Boost REQUIRED unit_test_framework)
 find_package(jsoncpp CONFIG REQUIRED)
 
@@ -62,6 +68,8 @@ set_source_files_properties(
     "unittests/engine/OpEngineReviewFixTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties(
     "unittests/engine/OpEngineKarstProfileTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+set_source_files_properties(
+    "unittests/engine/OpEnginePayloadShapeBaselineTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties(
     "unittests/engine/EthEngineServiceParityTest.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 set_source_files_properties(
