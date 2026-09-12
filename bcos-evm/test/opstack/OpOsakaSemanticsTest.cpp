@@ -13,7 +13,9 @@
 #include <evmone/evmone.h>
 #include <openssl/sha.h>
 #include <boost/test/unit_test.hpp>
+#include <algorithm>
 #include <bcos-evm/eth/state/state.hpp>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <span>
@@ -259,6 +261,28 @@ std::vector<uint8_t> makeOsakaEip7823ModExpInput(size_t baseLen, uint8_t baseByt
     return input;
 }
 
+// EIP-7823 bounds each of the three length fields independently. The existing helper only
+// varies base_len; this one varies any of them while keeping the exponent 0 (so the result
+// is 1 mod modulus regardless of the base) and the modulus 2.
+std::vector<uint8_t> makeOsakaModExpSizeInput(size_t baseLen, size_t expLen, size_t modLen)
+{
+    std::vector<uint8_t> input(96 + baseLen + expLen + modLen, 0x00);
+    const auto writeLen = [&](size_t offset, uint64_t len) {
+        for (size_t i = 0; i < 8; ++i)
+            input[offset + 24 + i] = static_cast<uint8_t>((len >> (56 - i * 8)) & 0xff);
+    };
+    writeLen(0, baseLen);
+    writeLen(32, expLen);
+    writeLen(64, modLen);
+    std::fill_n(input.begin() + 96, static_cast<std::ptrdiff_t>(baseLen), 0x01);
+    if (modLen > 0)
+    {
+        // 0x00…02: modulus 2, so base^0 mod 2 == 1 and the output is a single 0x01 byte.
+        input[96 + baseLen + expLen + modLen - 1] = 0x02;
+    }
+    return input;
+}
+
 intx::uint256 readOsakaStorageSlot(
     const test::TestState& ts, const evmc::address& addr, uint64_t slot)
 {
@@ -348,6 +372,54 @@ BOOST_AUTO_TEST_CASE(Eip7823ModExpLengthBoundsThroughKarstOpPath)
         runOsakaModExpOpTx(tsFail, vm, makeOsakaEip7823ModExpInput(1025, 0x01), osakaCfg());
     BOOST_CHECK_NE(fail.receipt->status(), 0);
     BOOST_CHECK_EQUAL(static_cast<int64_t>(fail.receipt->gasUsed()), 10'000'000);
+}
+
+/// Each length field is bounded independently at 1024 (EIP-7823; op-revm enforces all three
+/// in modexp.rs). 1024 is the last legal value, 1025 the first illegal one; the illegal case
+/// must burn the whole gas limit exactly like the base_len case already pinned.
+static void checkModExpSizeBound(size_t baseLen, size_t expLen, size_t modLen, bool legal)
+{
+    auto vm = evmc::VM{evmc_create_evmone()};
+    test::TestState ts;
+    const auto run =
+        runOsakaModExpOpTx(ts, vm, makeOsakaModExpSizeInput(baseLen, expLen, modLen), osakaCfg());
+    if (legal)
+    {
+        BOOST_REQUIRE_EQUAL(run.receipt->status(), 0);
+        const auto output = run.receipt->output();
+        // EIP-2565: the modexp output is exactly modulus-length bytes, big-endian
+        // zero-padded. base^0 mod 2 == 1, so the payload is (modLen-1) zero bytes
+        // followed by 0x01 — a single 0x01 byte only when modLen == 1.
+        BOOST_REQUIRE_EQUAL(output.size(), modLen);
+        for (size_t i = 0; i + 1 < output.size(); ++i)
+        {
+            BOOST_CHECK_EQUAL(output[i], 0x00);
+        }
+        BOOST_CHECK_EQUAL(output[output.size() - 1], 0x01);
+    }
+    else
+    {
+        BOOST_CHECK_NE(run.receipt->status(), 0);
+        BOOST_CHECK_EQUAL(static_cast<int64_t>(run.receipt->gasUsed()), 10'000'000);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(Eip7823ModExpBaseLenBoundThroughKarstOpPath)
+{
+    checkModExpSizeBound(1024, 1, 1, true);
+    checkModExpSizeBound(1025, 1, 1, false);
+}
+
+BOOST_AUTO_TEST_CASE(Eip7823ModExpExpLenBoundThroughKarstOpPath)
+{
+    checkModExpSizeBound(1, 1024, 1, true);
+    checkModExpSizeBound(1, 1025, 1, false);
+}
+
+BOOST_AUTO_TEST_CASE(Eip7823ModExpModLenBoundThroughKarstOpPath)
+{
+    checkModExpSizeBound(1, 1, 1024, true);
+    checkModExpSizeBound(1, 1, 1025, false);
 }
 
 BOOST_AUTO_TEST_CASE(Eip7883EmptyModExpFloorGasThroughKarstOpPath)
