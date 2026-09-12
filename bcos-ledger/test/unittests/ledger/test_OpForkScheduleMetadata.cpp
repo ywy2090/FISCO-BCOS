@@ -28,7 +28,9 @@
 #include "bcos-task/Wait.h"
 #include <bcos-framework/testutils/faker/FakeBlock.h>
 #include <boost/test/unit_test.hpp>
+#include <array>
 #include <memory>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -409,6 +411,81 @@ BOOST_AUTO_TEST_CASE(officialHistoryScheduleRoundTrips)
     BOOST_CHECK_EQUAL(resolved, c_officialHistorySchedule);
     BOOST_CHECK_EQUAL(keccakOpForkScheduleHash(resolved).hex(),
         keccakOpForkScheduleHash(c_officialHistorySchedule).hex());
+}
+
+// A full nine-fork schedule must survive a ledger reopen. StateStorage writes only
+// land in the front layer (asyncSetRow never propagates to prev; prev is a read
+// fallback), so flush the front into the backing store first (the in-memory
+// stand-in for persisting to the DB). The front storage and its ledger are scoped
+// so they go out of scope before the reopened read — a fresh L2GenesisTestStorage
+// over the same backing is a process restart for the read path.
+BOOST_AUTO_TEST_CASE(nineForkScheduleSurvivesAReopen)
+{
+    task::syncWait([this]() -> task::Task<void> {
+        auto backing = std::make_shared<storage::StateStorage>(nullptr, false);
+        backing->setEnableTraverse(true);
+
+        crypto::HashType ledgerGenesisHash;
+        std::optional<OpForkScheduleMetadata> before;
+        {
+            auto storage = std::make_shared<L2GenesisTestStorage>(backing);
+            storage->setEnableTraverse(true);
+            auto ledger = std::make_shared<Ledger>(m_blockFactory, storage, 1);
+            BOOST_REQUIRE(co_await ledger::buildGenesisBlock(
+                *ledger, scheduleGenesis(c_officialHistorySchedule), emptyLedgerConfig()));
+            auto block = co_await ledger::getBlockData(*ledger, 0, HEADER);
+            BOOST_REQUIRE(block);
+            ledgerGenesisHash = block->blockHeader()->hash();
+
+            backing->merge(false, *storage);
+
+            before = co_await readOpForkScheduleMetadata(*storage, ledgerGenesisHash);
+            BOOST_REQUIRE(before.has_value());
+            BOOST_CHECK_EQUAL(before->schedule, c_officialHistorySchedule);
+            BOOST_CHECK_EQUAL(before->genesisHash, ledgerGenesisHash);
+
+            // Hardcoded keccak256(c_officialHistorySchedule) — not derived from the
+            // function under test (F12), like c_isthmusJovianScheduleHash above.
+            constexpr char const* c_officialHistoryScheduleHash =
+                "ccd46a84811fb4c2c668ca1887a5157eae4d51684fb62852c7b6da254f270486";
+            BOOST_CHECK_EQUAL(before->scheduleHash.hex(), c_officialHistoryScheduleHash);
+            BOOST_CHECK_EQUAL(keccakOpForkScheduleHash(c_officialHistorySchedule).hex(),
+                c_officialHistoryScheduleHash);
+        }
+
+        // Reopened read path: a new object over the same backing. The front that
+        // wrote the rows is out of scope, so the reopened store's only prev is the
+        // backing.
+        auto reopened = std::make_shared<L2GenesisTestStorage>(backing);
+        reopened->setEnableTraverse(true);
+        const auto after = co_await readOpForkScheduleMetadata(*reopened, ledgerGenesisHash);
+        BOOST_REQUIRE_MESSAGE(
+            after.has_value(), "reopened store missing schedule metadata — flush/merge failed?");
+        BOOST_CHECK_EQUAL(after->schedule, before->schedule);
+        BOOST_CHECK_EQUAL(after->scheduleHash, before->scheduleHash);
+        BOOST_CHECK_EQUAL(after->genesisHash, before->genesisHash);
+        // And the reopened triple still resolves through the boot-time entry point.
+        BOOST_CHECK_EQUAL(
+            resolveOpForkScheduleCanonical(after, std::nullopt, false, ledgerGenesisHash),
+            std::string(c_officialHistorySchedule));
+
+        // After the reopen the persisted text still parses to the full ladder: 9
+        // activations at the 9 boundary timestamps, 9 distinct forks. bcos-evm is
+        // not linked into this target, so the framework codec stands in for
+        // OpForkSchedule::forkAt (its parse enforces the same protocol order).
+        const auto ladder = parseOpForkSchedule(after->schedule);
+        BOOST_REQUIRE_EQUAL(ladder.size(), std::size_t{9});
+        constexpr std::array<std::uint64_t, 9> c_ladderBoundaries{
+            0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000};
+        std::set<std::string> forks;
+        for (std::size_t i = 0; i < ladder.size(); ++i)
+        {
+            BOOST_CHECK_EQUAL(ladder[i].timestamp, c_ladderBoundaries[i]);
+            forks.insert(ladder[i].forkName);
+        }
+        BOOST_CHECK_EQUAL(forks.size(), std::size_t{9});
+        co_return;
+    }());
 }
 
 BOOST_AUTO_TEST_CASE(genesisWriteAcceptsKarstAfterJovian)
