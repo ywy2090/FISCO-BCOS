@@ -28,17 +28,20 @@ public:
         bcos::protocol::BlockFactory::Ptr blockFactory, std::shared_ptr<SchedulerType> scheduler,
         std::shared_ptr<ExecutorType> transactionExecutor, bcos::txpool::MemPoolImpl& memPool,
         bcos::ledger::LedgerInterface::Ptr ledger = nullptr,
-        int64_t blockTxCountLimit = bcos::engine::c_defaultBlockTxCountLimit,
-        bcos::ledger::LedgerConfigState::Ptr ledgerConfigState = nullptr)
+        int64_t blockTxCountLimit = bcos::engine::c_defaultBlockTxCountLimit)
     {
         auto initializer = Ptr(new EngineServiceInitializer());
+        // The split Eth service takes no LedgerConfigState: the process-wide snapshot is published
+        // once at boot (Initializer) and then by MultiVersionScheduler::commitBlock on every
+        // commit (#5535), which is what transaction admission reads. The legacy EngineServiceImpl
+        // used to publish it from its own build path; that parameter is intentionally not carried
+        // over here -- do not re-add it to the Eth service.
         using ConcreteEngineService = bcos::engine::EthEngineService<bcos::txpool::MemPoolImpl,
             GlobalStateStorage, ExecutorType, SchedulerType>;
         auto holder =
             std::make_shared<ConcreteModel<SchedulerType, ExecutorType, ConcreteEngineService>>(
                 std::move(storageInitializer), std::move(blockFactory), std::move(scheduler),
-                std::move(transactionExecutor), memPool, std::move(ledger), blockTxCountLimit,
-                std::move(ledgerConfigState));
+                std::move(transactionExecutor), memPool, std::move(ledger), blockTxCountLimit);
         initializer->m_holder = holder;
         initializer->m_engineService =
             std::shared_ptr<bcos::engine::AnyEngineService>(holder, &holder->m_any);
@@ -87,16 +90,14 @@ private:
             bcos::protocol::BlockFactory::Ptr blockFactory,
             std::shared_ptr<SchedulerType> scheduler,
             std::shared_ptr<ExecutorType> transactionExecutor, bcos::txpool::MemPoolImpl& memPool,
-            bcos::ledger::LedgerInterface::Ptr ledger, int64_t blockTxCountLimit,
-            bcos::ledger::LedgerConfigState::Ptr ledgerConfigState)
+            bcos::ledger::LedgerInterface::Ptr ledger, int64_t blockTxCountLimit)
           : m_storageInitializer(std::move(storageInitializer)),
             m_memPool(memPool),
             m_transactionExecutor(std::move(transactionExecutor)),
             m_scheduler(std::move(scheduler)),
             m_any(std::in_place_type<ConcreteEngineService>, m_memPool,
                 m_storageInitializer->storage(), *m_transactionExecutor, *m_scheduler,
-                std::move(blockFactory), std::move(ledger), blockTxCountLimit,
-                std::move(ledgerConfigState))
+                std::move(blockFactory), std::move(ledger), blockTxCountLimit)
         {}
 
         std::shared_ptr<GlobalStateStorageInitializer> m_storageInitializer;
