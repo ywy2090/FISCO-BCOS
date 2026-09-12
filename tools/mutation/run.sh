@@ -22,6 +22,8 @@ set -uo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 map="$root/tools/mutation/variants/mapping.json"
+# Default file the legacy (N1/N2/NEW-3) variants mutate. Newer variants declare their own
+# "mutated" file in the mapping (restore() below uses that field per variant).
 mutated="engine/bcos-engine/OpEngineService.inl"
 
 read_ids() { python3 -c "import json;print('\n'.join(v['variant'] for v in json.load(open('$map'))))"; }
@@ -48,20 +50,22 @@ is_red() {  # $1 = output, $2 = exit code
 # writing the worktree. `git checkout -- <path>` would restore the worktree FROM that
 # mutated index and silently leave the variant in place (accumulating across runs);
 # resetting to HEAD covers both the index and the worktree.
-restore() { git -C "$root" checkout HEAD -- "$mutated" 2>/dev/null || true; }
+restore() { git -C "$root" checkout HEAD -- "$1" 2>/dev/null || true; }
 
 rc_all=0
 for id in "${ids[@]}"; do
   patch="$root/tools/mutation/variants/$id.patch"
   [ -f "$patch" ] || { echo "[$id] NO VARIANT PATCH ($patch)"; rc_all=1; continue; }
   target=$(field "$id" target); bin=$(field "$id" binary); filter=$(field "$id" filter)
+  # Each variant names the file it mutates; fall back to the legacy default.
+  vmutated=$(field "$id" mutated); [ -n "$vmutated" ] || vmutated="$mutated"
   git -C "$root" apply --3way "$patch" || { echo "[$id] APPLY FAILED"; rc_all=1; continue; }
   # Restore on ANY exit (interrupt included) so the tree never stays patched.
-  trap 'restore' EXIT INT TERM
+  trap 'restore "$vmutated"' EXIT INT TERM
 
   if ! ninja -C "$root/build" "$target" >/dev/null 2>&1; then
     echo "[$id] BUILD FAILED under the variant (variant is unusable)"; rc_all=1
-    restore; trap - EXIT INT TERM; continue
+    restore "$vmutated"; trap - EXIT INT TERM; continue
   fi
 
   out="$("$root/build/$bin" "--run_test=$filter" 2>&1)"; code=$?
@@ -79,10 +83,10 @@ for id in "${ids[@]}"; do
     fi
   done < <(must_stay_green "$id")
 
-  restore; trap - EXIT INT TERM
+  restore "$vmutated"; trap - EXIT INT TERM
 done
 
-if [ -n "$(git -C "$root" status --porcelain -- "$mutated")" ]; then
+if [ -n "$(git -C "$root" status --porcelain -- "$mutated")" ]; then  # legacy default; per-variant files were restored above
   echo "variant file still modified after run" >&2; rc_all=1
 fi
 exit $rc_all

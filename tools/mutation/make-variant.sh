@@ -13,14 +13,14 @@
 #   3. add the variant to variants/mapping.json (target/filter/also_green)
 #   4. bash tools/mutation/run.sh <ID>   -> must be RED and attributed
 #
-# Usage: make-variant.sh <ID>
+# Usage: make-variant.sh <ID> [mutated-file]
 # =============================================================================
 set -euo pipefail
 
-[ "$#" -eq 1 ] || { echo "usage: make-variant.sh <ID>" >&2; exit 2; }
+[ "$#" -ge 1 ] || { echo "usage: make-variant.sh <ID> [mutated-file]" >&2; exit 2; }
 id="$1"
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-mutated="engine/bcos-engine/OpEngineService.inl"
+mutated="${2:-engine/bcos-engine/OpEngineService.inl}"
 out="$root/tools/mutation/variants/$id.patch"
 
 if [ -z "$(git -C "$root" status --porcelain -- "$mutated")" ]; then

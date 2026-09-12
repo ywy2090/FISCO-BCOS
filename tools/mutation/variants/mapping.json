@@ -28,5 +28,41 @@
     "also_green": ["OpEngineSequenceMatrixSuite/S3_SameHeightSwitchDropsSibling"],
     "expect": "only_mapped_red",
     "why": "The same-height switch must go red on the cache-bound composition (S13); the cache-less composition (S3) reads the backend directly, so it must stay green."
+  },
+  {
+    "variant": "V-M7-extraData",
+    "mutated": "bcos-framework/bcos-framework/engine/OpForkId.h",
+    "target": "test-bcos-engine",
+    "binary": "engine/test/test-bcos-engine",
+    "filter": "OpForkBoundarySweepSuite/EachForkSwitchesExactlyAtItsActivation",
+    "also_green": [
+      "OpEnginePayloadShapeBaselineSuite/DumpedEnvelopeShapeIsPinnedPerCell"
+    ],
+    "expect": "only_mapped_red",
+    "why": "M7 boundary sweep must catch a downgraded Jovian/Karst extraData layout. The mutation reverses the WHOLE judgement: the table AND its static_assert guard move to Holocene9 together (a table-only mutation is caught at compile time, before any runtime test can judge); the external-oracle M7 sweep is the layer that goes red. The M2 dump-shape lane never reads this table and is the negative control."
+  },
+  {
+    "variant": "V-KARST-blscap",
+    "mutated": "bcos-evm/bcos-evm/opstack/OpPrecompiles.cpp",
+    "target": "bcos-evm-opstack-tests",
+    "binary": "bcos-evm/test/bcos-evm-opstack-tests",
+    "filter": "OpPrecompilesSuite/KarstTableMatchesOpRevmOracle",
+    "also_green": [
+      "OpPrecompilesSuite/BlsMsmPairingInputLimits"
+    ],
+    "expect": "only_mapped_red",
+    "why": "The Karst oracle comparison must fail when the bn254 pairing cap drifts from op-revm's 57600; the Isthmus-constants case must stay green (the mutation touches only the Karst table)."
+  },
+  {
+    "variant": "V-M2-withdrawalsRoot",
+    "mutated": "bcos-rpc/bcos-rpc/web3jsonrpc/utils/EngineHelper.cpp",
+    "target": "test-bcos-engine",
+    "binary": "engine/test/test-bcos-engine",
+    "filter": "OpEnginePayloadShapeBaselineSuite/ClShapedParamsRoundTripThroughThisLanesWireParser",
+    "also_green": [
+      "OpForkBoundarySweepSuite/ActivationTimestampsAreExact"
+    ],
+    "expect": "only_mapped_red",
+    "why": "The wire round-trip must lose withdrawalsRoot if the serializer stops writing it; the config sweep never touches the serializer, so it is the negative control."
   }
 ]

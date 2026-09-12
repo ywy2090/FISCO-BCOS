@@ -1,0 +1,24 @@
+diff --git a/bcos-framework/bcos-framework/engine/OpForkId.h b/bcos-framework/bcos-framework/engine/OpForkId.h
+index 19f736c6b..b3e83e60a 100644
+--- a/bcos-framework/bcos-framework/engine/OpForkId.h
++++ b/bcos-framework/bcos-framework/engine/OpForkId.h
+@@ -125,7 +125,7 @@ struct EngineForkContext
+         return OpExtraDataLayout::Holocene9;
+     case OpForkId::Jovian:
+     case OpForkId::Karst:
+-        return OpExtraDataLayout::Jovian17;
++        return OpExtraDataLayout::Holocene9;
+     }
+     return OpExtraDataLayout::Empty;
+ }
+@@ -140,8 +140,8 @@ static_assert(extraDataLayoutFor(OpForkId::Regolith) == OpExtraDataLayout::Empty
+               extraDataLayoutFor(OpForkId::Granite) == OpExtraDataLayout::Empty &&
+               extraDataLayoutFor(OpForkId::Holocene) == OpExtraDataLayout::Holocene9 &&
+               extraDataLayoutFor(OpForkId::Isthmus) == OpExtraDataLayout::Holocene9 &&
+-              extraDataLayoutFor(OpForkId::Jovian) == OpExtraDataLayout::Jovian17 &&
+-              extraDataLayoutFor(OpForkId::Karst) == OpExtraDataLayout::Jovian17);
++              extraDataLayoutFor(OpForkId::Jovian) == OpExtraDataLayout::Holocene9 &&
++              extraDataLayoutFor(OpForkId::Karst) == OpExtraDataLayout::Holocene9);
+ 
+ using EngineForkResolution = std::variant<EngineForkContext, OpForkResolutionError>;
+ }  // namespace bcos::engine
