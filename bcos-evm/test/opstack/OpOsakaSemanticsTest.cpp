@@ -49,6 +49,11 @@ const OpForkConfig& osakaCfg()
     return karstOnly().configAt(2);
 }
 
+const OpForkConfig& jovianCfg()
+{
+    return jovianConfig();
+}
+
 std::filesystem::path osakaFixtureDir()
 {
     return std::filesystem::path(__FILE__).parent_path() / "fixtures/osaka";
@@ -661,6 +666,59 @@ BOOST_AUTO_TEST_CASE(KarstBn256PairingCapsAt300Pairs, * boost::unit_test::label(
     BOOST_CHECK_EQUAL(empty.status_code, EVMC_SUCCESS);
     BOOST_REQUIRE_EQUAL(empty.output.size(), 32U);
     BOOST_CHECK_EQUAL(empty.output[31], 0x01);
+}
+
+// The cap compares with '>': exactly MAX_TX_GAS_LIMIT is legal. The existing case pins
+// limit+1 only, so the legal side of the boundary is the untested half.
+// clang-format off
+BOOST_AUTO_TEST_CASE(OrdinaryTxAtExactlyEip7825CapIsAccepted, * boost::unit_test::label("fork-karst"))
+// clang-format on
+{
+    test::TestState ts;
+    ts[kOsakaSender] = {.nonce = 0, .balance = intx::uint256{1} << 60, .storage = {}, .code = {}};
+    state::Transaction tx;
+    tx.type = state::Transaction::Type::eip1559;
+    tx.sender = kOsakaSender;
+    tx.to = 0x0000000000000000000000000000000000001234_address;
+    tx.gas_limit = evmone::state::MAX_TX_GAS_LIMIT;
+    tx.max_gas_price = 1000;
+    tx.max_priority_gas_price = 10;
+    tx.nonce = 0;
+    const std::vector<uint8_t> env{0x02, 0x11};
+    const auto r = opValidate(
+        ts, makeOsakaBlock(), tx, {env.data(), env.size()}, osakaCfg(), OpFeeParams{}, 30000000);
+    BOOST_REQUIRE(std::holds_alternative<OpTxProperties>(r));
+}
+
+// The EIP-7825 cap is Osaka-gated (state.cpp:385 'rev >= EVMC_OSAKA'): before Osaka the
+// same over-cap tx must not be rejected BY THAT RULE. The assertion pins the rule's
+// non-applicability, not "the whole validation passes" -- other rejection reasons must
+// not make this cell red (and must not be misread as an implementation defect).
+// clang-format off
+BOOST_AUTO_TEST_CASE(OverCapTxIsNotRejectedByEip7825BeforeOsaka, * boost::unit_test::label("fork-jovian"))
+// clang-format on
+{
+    test::TestState ts;
+    ts[kOsakaSender] = {.nonce = 0, .balance = intx::uint256{1} << 60, .storage = {}, .code = {}};
+    state::Transaction tx;
+    tx.type = state::Transaction::Type::eip1559;
+    tx.sender = kOsakaSender;
+    tx.to = 0x0000000000000000000000000000000000001234_address;
+    tx.gas_limit = evmone::state::MAX_TX_GAS_LIMIT + 1;
+    tx.max_gas_price = 1000;
+    tx.max_priority_gas_price = 10;
+    tx.nonce = 0;
+    const std::vector<uint8_t> env{0x02, 0x11};
+    const auto r = opValidate(
+        ts, makeOsakaBlock(), tx, {env.data(), env.size()}, jovianCfg(), OpFeeParams{}, 30000000);
+    // Executes on both paths: an honest pre-Osaka result either holds OpTxProperties or
+    // fails for some reason OTHER than the Osaka-gated cap. One assertion, always run —
+    // a zero-assertion pass cannot be told apart from a skipped case in the logs.
+    const bool rejectedByEip7825 =
+        std::holds_alternative<std::error_code>(r) &&
+        std::get<std::error_code>(r) ==
+            evmone::state::make_error_code(evmone::state::MAX_GAS_LIMIT_EXCEEDED);
+    BOOST_CHECK(!rejectedByEip7825);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
