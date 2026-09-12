@@ -889,6 +889,220 @@ void markTouched(const test::TestState& before, const test::TestState& after,
         consider(addr);
 }
 
+// ── Per-fork receipt meta field-set gate (WI-17 / Task B3) ─────────────────
+// The RPC layer copies receipt meta by optional-presence only, fork-blind
+// (bcos-rpc/web3jsonrpc/model/ReceiptResponse.cpp:100-140), so the per-fork
+// field SHAPE can only be pinned here, on the layer that produces the meta.
+//
+// Step 1b reconciliation (actualMetaFields below vs the external oracle
+// t8n/vectors/OP_RECEIPT_FIELDMAP.md, op-geth pin e8800cff), per fork:
+//   - Deposit receipts are the "early-return" shape (FIELDMAP §4.1, op-geth
+//     receipt_opstack.go:36-38): only deposit_nonce (+ deposit_receipt_version
+//     from Canyon on); the FISCO side is isomorphic via runDeposit
+//     (OpTransition.cpp:637-641), which derives nothing from opTransition —
+//     no case to file. Regolith deposit receipts carry NO version (deposits
+//     spec: consensus RLP omits it); registered divergence:
+//     vectors/DIVERGENCES.md:255.
+//   - Regolith/Canyon (Bedrock model): {l1_gas_price, l1_gas_used, l1_fee,
+//     l1_fee_scalar} — matches regolith/canyon_transfer_basic receipt[1]
+//     goldens; the blob/ecotone scalars stay absent pre-Ecotone (FIELDMAP §2).
+//   - Ecotone..Holocene: {l1_gas_price, l1_gas_used, l1_fee, l1_blob_base_fee,
+//     l1_base_fee_scalar, l1_blob_base_fee_scalar} — matches
+//     ecotone_transfer_basic receipt[1]. Ecotone is pinned PRESENCE-ONLY: the
+//     l1_gas_used value fork (FISCO 补算 =1600 vs op-geth
+//     bedrockCalldataGasUsed) is gate-invisible — see FIELDMAP §6 归线 A.
+//   - Isthmus: Ecotone set + operator_fee (see provenance note) +
+//     {operator_fee_scalar, operator_fee_constant} iff the L1-attributes
+//     calldata operator scalar/constant is non-zero (op-geth
+//     receipt_opstack.go:44, FIELDMAP §5.4; transfer_basic 0/0 → absent,
+//     fee_env_observer 5000/7777 → present = FIELDMAP §4.2 anchor).
+//   - Jovian: Isthmus set + {da_footprint_gas_scalar, da_footprint} — FIELDMAP
+//     §1 #5/#13 gate the DA pair on 非 deposit ∧ Jovian, NOT on the scalar
+//     value: the jovian_transfer_basic golden carries _op_da_footprint=0x0 +
+//     _op_da_footprint_gas_scalar=0x0 while its calldata DA scalar is 0, and
+//     deriveOpReceiptMeta fills both unconditionally under has_da_footprint
+//     (OpTransition.cpp:277-281). (The §4.3 da_mix anchor, DA scalar=400, fixes
+//     the non-zero arm; §5.4's non-zero rule belongs to the operator pair.)
+// Field-name provenance: `_op_operator_fee` (aggregate) is FISCO-derived with
+// NO op-geth backing (FIELDMAP §5.2) — do not claim op-geth endorsement for it;
+// its meta presence is "always filled on Isthmus+ incl. 0" (deriveOpReceiptMeta),
+// a representation delta registered in vectors/DIVERGENCES.md B-3
+// ("operator_fee=FISCO 扩展"). `da_footprint` is op-geth-derivable: its carrier
+// is Receipt.BlobGasUsed (FIELDMAP §5.3).
+//
+// Vector gaps (registered corpus gaps, Plan C — not assertion exemptions):
+// Karst has no *_deposit_only / *_transfer_basic vector at all; Granite has no
+// *_transfer_basic (corpus S4 note "Granite fee 向量": its L1 fee formula
+// equals Fjord's). So the (Karst, *) and (Granite, transfer_basic) cells stay
+// unexercised.
+//
+// The two value-dependent flags are DERIVED per replayed vector from the
+// L1-attributes deposit calldata (op-node marshalBinaryIsthmus/Jovian layout,
+// see OpDepositEncode.h:110-117): operatorFeeScalar [164:168],
+// operatorFeeConstant [168:176], Jovian DA scalar [176:178] — never from the
+// receipt meta itself (that would be a tautology) and never hardcoded per
+// family.
+struct MetaExpectation
+{
+    const OpForkConfig& cfg;
+    bool isDeposit;
+    // op-geth receipt_opstack.go:44 — operator_fee_scalar/constant are written
+    // only when scalar != 0 || constant != 0 (FIELDMAP §5.4). Derived from the
+    // vector's L1-attributes calldata, never hardcoded.
+    bool operatorFeeEmitted;
+    // Jovian DA scalar from the calldata ([176:178]), recorded for diagnostics:
+    // the DA meta pair is NOT value-gated (see reconciliation above).
+    bool daScalarNonZero;
+};
+
+std::set<std::string> expectedMetaFields(const MetaExpectation& in)
+{
+    std::set<std::string> fields;
+    if (in.isDeposit)
+    {
+        // Deposit: deposit_nonce (Regolith+); deposit_receipt_version from
+        // Canyon on. Regolith's missing version is the registered divergence
+        // vectors/DIVERGENCES.md:255 (consensus RLP omits it), not a new finding.
+        fields.insert("deposit_nonce");
+        // Producer mirror (runDeposit, OpTransition.cpp): fork >= Canyon covers the
+        // protocol-ordered later forks, surviving a fork inserted below Regolith.
+        if (in.cfg.fork >= bcos::evm::opstack::OpFork::Canyon)
+            fields.insert("deposit_receipt_version");
+        return fields;
+    }
+    // Non-deposit: the passthrough trio is unconditional (FIELDMAP §5.1:
+    // L1GasUsed 恒发射 on every non-deposit receipt; FISCO Task 4 补算, FIXED 非豁免).
+    fields.insert({"l1_gas_price", "l1_gas_used", "l1_fee"});
+    if (in.cfg.l1_fee_model == L1FeeModel::Bedrock)
+        fields.insert("l1_fee_scalar");  // raw Bedrock slot-6 scalar (DIVERGENCES.md S4 row)
+    else
+        // Steady-state assumption: an Ecotone block with dead L1 slots also takes the
+        // Bedrock receipt shape on the executor side (zero-slot fallback,
+        // OpTransition.cpp:456-459) and would want l1_fee_scalar here; no gated vector
+        // hits that today.
+        fields.insert({"l1_blob_base_fee", "l1_base_fee_scalar", "l1_blob_base_fee_scalar"});
+    if (in.cfg.has_operator_fee)
+    {
+        // FISCO-only aggregate (no op-geth field, FIELDMAP §5.2): filled on
+        // Isthmus+ regardless of the scalar value (incl. 0) — representation
+        // delta registered in vectors/DIVERGENCES.md B-3. NOT gated by
+        // operatorFeeEmitted (that gate is op-geth's receipt-face rule).
+        fields.insert("operator_fee");
+        if (in.operatorFeeEmitted)
+            fields.insert({"operator_fee_scalar", "operator_fee_constant"});
+    }
+    if (in.cfg.has_da_footprint)
+    {
+        // Jovian-only, not value-gated (FIELDMAP §1 #5/#13; the
+        // jovian_transfer_basic golden carries 0x0 with a zero calldata scalar).
+        fields.insert({"da_footprint_gas_scalar", "da_footprint"});
+    }
+    return fields;
+}
+
+/// Step 1b reconciliation aid: print a field set as one human-readable line.
+std::string joinFields(const std::set<std::string>& fields)
+{
+    std::string out;
+    for (const auto& f : fields)
+    {
+        if (!out.empty())
+            out += ",";
+        out += f;
+    }
+    return out;
+}
+
+std::set<std::string> actualMetaFields(const bcos::protocol::TransactionReceipt& receipt)
+{
+    std::set<std::string> fields;
+    const auto meta = receipt.opStackMeta();  // std::optional<OpStackReceiptMeta>, 14 fields
+    if (!meta)
+        return fields;
+    if (meta->l1_gas_price)
+        fields.insert("l1_gas_price");
+    if (meta->l1_gas_used)
+        fields.insert("l1_gas_used");
+    if (meta->l1_fee)
+        fields.insert("l1_fee");
+    if (meta->l1_fee_scalar)
+        fields.insert("l1_fee_scalar");
+    if (meta->l1_blob_base_fee)
+        fields.insert("l1_blob_base_fee");
+    if (meta->l1_base_fee_scalar)
+        fields.insert("l1_base_fee_scalar");
+    if (meta->l1_blob_base_fee_scalar)
+        fields.insert("l1_blob_base_fee_scalar");
+    if (meta->operator_fee_scalar)
+        fields.insert("operator_fee_scalar");
+    if (meta->operator_fee_constant)
+        fields.insert("operator_fee_constant");
+    if (meta->operator_fee)
+        fields.insert("operator_fee");
+    if (meta->da_footprint_gas_scalar)
+        fields.insert("da_footprint_gas_scalar");
+    if (meta->da_footprint)
+        fields.insert("da_footprint");
+    if (meta->deposit_nonce)
+        fields.insert("deposit_nonce");
+    if (meta->deposit_receipt_version)
+        fields.insert("deposit_receipt_version");
+    return fields;
+}
+
+struct MetaFeeFlags
+{
+    bool operatorFeeEmitted = false;
+    bool daScalarNonZero = false;
+};
+
+/// Derive the value-dependent emission flags from the vector's L1-attributes
+/// deposit calldata (the first deposit whose data carries the
+/// Isthmus/Jovian selector; op-node marshalBinary layout, OpDepositEncode.h).
+/// Pre-Isthmus calldata has no operator/DA fields → both false (harmless: the
+/// cfg gates close anyway — has_operator_fee is Isthmus+, has_da_footprint
+/// Jovian-only).
+MetaFeeFlags l1AttributesFeeFlags(const BlockContext& bc)
+{
+    for (const auto& dep : bc.deposits)
+    {
+        const auto& data = dep.data;
+        if (data.size() < 4)
+            continue;
+        const bool isthmusShape = std::equal(
+            IsthmusL1AttributesSelector.begin(), IsthmusL1AttributesSelector.end(), data.begin());
+        const bool jovianShape = std::equal(
+            JovianL1AttributesSelector.begin(), JovianL1AttributesSelector.end(), data.begin());
+        if (!isthmusShape && !jovianShape)
+            continue;
+        MetaFeeFlags flags;
+        if (data.size() >= IsthmusL1AttributesLen)
+        {
+            uint32_t opScalar = 0;
+            for (std::size_t k = c_l1AttributesOperatorFeeScalarOffset;
+                 k < c_l1AttributesOperatorFeeScalarOffset + 4; ++k)
+                opScalar = (opScalar << 8) | data[k];
+            uint64_t opConstant = 0;
+            for (std::size_t k = c_l1AttributesOperatorFeeConstantOffset;
+                 k < c_l1AttributesOperatorFeeConstantOffset + 8; ++k)
+                opConstant = (opConstant << 8) | data[k];
+            // op-geth receipt_opstack.go:44 (FIELDMAP §5.4): emit iff either non-zero.
+            flags.operatorFeeEmitted = opScalar != 0 || opConstant != 0;
+        }
+        if (jovianShape && data.size() >= JovianL1AttributesLen)
+        {
+            const auto daScalar = static_cast<uint32_t>(
+                (data[JovianL1AttributesLen - 2] << 8) | data[JovianL1AttributesLen - 1]);
+            flags.daScalarNonZero = daScalar != 0;
+        }
+        return flags;
+    }
+    return {};
+}
+
+/// Proof the per-fork assertion actually ran (not a 0-cell green).
+std::size_t g_metaForkCellsChecked = 0;
+
 /// Executes one block on the production path. A nullptr pre inherits the caller's
 /// storage / ts (chain block i>0). touchedAddrs/touchedSlots are per-block.
 void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
@@ -1046,6 +1260,15 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
                        << result.receipts.size() << " (no zip-min)");
         return;
     }
+    // ── B3 per-fork meta field-set gate: only the two families whose shapes are
+    // pinned by the FIELDMAP anchors (deposit_only × Regolith..Jovian = 8 legs,
+    // 1 receipt each; transfer_basic × 7 forks — no Granite — 2 receipts each:
+    // the L1-attributes deposit AND the non-deposit transfer, asserted through
+    // the same helpers via isDeposit). invalid_*_transfer_basic_* reject vectors
+    // never reach this loop (assertRejectThrow path).
+    const bool metaGate = id.find("_deposit_only") != std::string::npos ||
+                          id.find("_transfer_basic") != std::string::npos;
+    const auto feeFlags = metaGate ? l1AttributesFeeFlags(bc) : MetaFeeFlags{};
     for (size_t i = 0; i < expReceipts.size(); ++i)
     {
         const auto& er = expReceipts[static_cast<Json::ArrayIndex>(i)];
@@ -1057,6 +1280,23 @@ void replaySingleBlockInto(const std::string& id, const JsonValue& blk,
         // OpDepositReceipt/OpTxReceipt variant discrimination).
         const auto& receipt = result.receipts[i];
         const bool isDeposit = (result.txTypes[i] == static_cast<uint8_t>(kDepositTxType));
+        if (metaGate)
+        {
+            // B3: bidirectional field-set compare — want is derived from
+            // OpForkConfig × the vector's calldata flags (NOT from the meta,
+            // which would be a tautology); got is read off the receipt.
+            const auto got = actualMetaFields(*receipt);
+            const auto want = expectedMetaFields(
+                {*bc.cfg, isDeposit, feeFlags.operatorFeeEmitted, feeFlags.daScalarNonZero});
+            BOOST_TEST_INFO_SCOPE(id << " receipt[" << i << "] isDeposit=" << isDeposit
+                                     << " fork=" << static_cast<int>(bc.cfg->fork)
+                                     << " operatorFeeEmitted=" << feeFlags.operatorFeeEmitted
+                                     << " daScalarNonZero=" << feeFlags.daScalarNonZero << " want=["
+                                     << joinFields(want) << "] got=[" << joinFields(got) << "]");
+            BOOST_CHECK_MESSAGE(
+                got == want, id << ": receipt meta field set mismatch (both directions checked)");
+            ++g_metaForkCellsChecked;
+        }
         const auto& meta = receipt->opStackMeta();
         std::optional<std::string> gotDepNonce, gotDepVersion, gotL1Fee, gotOperatorFee,
             gotDaFootprint, gotL1GasPrice, gotL1BlobBaseFee, gotL1GasUsed, gotL1BaseFeeScalar,
@@ -1419,6 +1659,9 @@ BOOST_AUTO_TEST_CASE(StructurallyUnrecoverablePredicateBoundaries)
 
 BOOST_AUTO_TEST_CASE(Vectors)
 {
+    // Order-independence: the B3 proof-of-run counter is per-run of this case,
+    // not whatever a previously executed test case left behind.
+    g_metaForkCellsChecked = 0;
     const fs::path vectorsDir = OP_T8N_VECTORS_DIR;
     BOOST_REQUIRE_MESSAGE(fs::is_directory(vectorsDir), vectorsDir);
 
@@ -1517,6 +1760,11 @@ BOOST_AUTO_TEST_CASE(Vectors)
                              << (excType ? excType->name() : "<unknown>") << ")");
         }
     }
+
+    // 22 = 8 *_deposit_only (1 receipt each) + 7 *_transfer_basic (2 receipts each); bump
+    // deliberately when the corpus grows (Karst/Granite gaps → Plan C).
+    BOOST_CHECK_MESSAGE(g_metaForkCellsChecked == 22,
+        "expected 22 per-fork meta cells, got " << g_metaForkCellsChecked);
 
     // E) End-of-run ledger: stale exemptions turn red + KNOWN-DIVERGE total into RecordProperty.
     ledger.finish();
