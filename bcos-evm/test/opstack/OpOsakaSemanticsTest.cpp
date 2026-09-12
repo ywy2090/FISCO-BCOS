@@ -37,6 +37,9 @@ constexpr auto kOsakaModExp = 0x0000000000000000000000000000000000000005_address
 constexpr auto kOsakaP256 = 0x0000000000000000000000000000000000000100_address;
 constexpr auto kOsakaBn256Pairing = 0x0000000000000000000000000000000000000008_address;
 constexpr size_t kBn256PairSize = 192;
+// EIP-7823 bounds each modexp length field at INPUT_SIZE_LIMIT; 1025 is the first illegal
+// value. One definition: the bound tests below must move together if the spec changes.
+constexpr size_t c_eip7823InputSizeLimit = 1024;
 constexpr int64_t kOsakaEmptyModExpOogGas = 21300;
 constexpr int64_t kOsakaEmptyModExpOkGas = 21600;
 
@@ -244,16 +247,20 @@ OsakaHostCallResult osakaHostCall(evmc_revision rev, const PrecompileOverrides* 
     return out;
 }
 
+/// The modexp ABI carries three 256-bit length headers; each stores its 64-bit value in
+/// the header's last 8 bytes, big-endian.
+void writeModExpLengthField(std::vector<uint8_t>& input, size_t offset, uint64_t len)
+{
+    for (size_t i = 0; i < 8; ++i)
+        input[offset + 24 + i] = static_cast<uint8_t>((len >> (56 - i * 8)) & 0xff);
+}
+
 std::vector<uint8_t> makeOsakaEip7823ModExpInput(size_t baseLen, uint8_t baseByte)
 {
     std::vector<uint8_t> input(96 + baseLen + 2, 0x00);
-    const auto writeLen = [&](size_t offset, uint64_t len) {
-        for (size_t i = 0; i < 8; ++i)
-            input[offset + 24 + i] = static_cast<uint8_t>((len >> (56 - i * 8)) & 0xff);
-    };
-    writeLen(0, baseLen);
-    writeLen(32, 1);
-    writeLen(64, 1);
+    writeModExpLengthField(input, 0, baseLen);
+    writeModExpLengthField(input, 32, 1);
+    writeModExpLengthField(input, 64, 1);
     for (size_t i = 0; i < baseLen; ++i)
         input[96 + i] = baseByte;
     input[96 + baseLen] = 0x00;
@@ -267,13 +274,9 @@ std::vector<uint8_t> makeOsakaEip7823ModExpInput(size_t baseLen, uint8_t baseByt
 std::vector<uint8_t> makeOsakaModExpSizeInput(size_t baseLen, size_t expLen, size_t modLen)
 {
     std::vector<uint8_t> input(96 + baseLen + expLen + modLen, 0x00);
-    const auto writeLen = [&](size_t offset, uint64_t len) {
-        for (size_t i = 0; i < 8; ++i)
-            input[offset + 24 + i] = static_cast<uint8_t>((len >> (56 - i * 8)) & 0xff);
-    };
-    writeLen(0, baseLen);
-    writeLen(32, expLen);
-    writeLen(64, modLen);
+    writeModExpLengthField(input, 0, baseLen);
+    writeModExpLengthField(input, 32, expLen);
+    writeModExpLengthField(input, 64, modLen);
     std::fill_n(input.begin() + 96, static_cast<std::ptrdiff_t>(baseLen), 0x01);
     if (modLen > 0)
     {
@@ -361,15 +364,16 @@ BOOST_AUTO_TEST_CASE(Eip7823ModExpLengthBoundsThroughKarstOpPath)
 {
     auto vm = evmc::VM{evmc_create_evmone()};
     test::TestState ts;
-    const auto ok = runOsakaModExpOpTx(ts, vm, makeOsakaEip7823ModExpInput(1024, 0x01), osakaCfg());
+    const auto ok = runOsakaModExpOpTx(
+        ts, vm, makeOsakaEip7823ModExpInput(c_eip7823InputSizeLimit, 0x01), osakaCfg());
     BOOST_REQUIRE_EQUAL(ok.receipt->status(), 0);
     const auto output = ok.receipt->output();
     BOOST_REQUIRE_EQUAL(output.size(), 1U);
     BOOST_CHECK_EQUAL(output[0], 0x01);
 
     test::TestState tsFail;
-    const auto fail =
-        runOsakaModExpOpTx(tsFail, vm, makeOsakaEip7823ModExpInput(1025, 0x01), osakaCfg());
+    const auto fail = runOsakaModExpOpTx(
+        tsFail, vm, makeOsakaEip7823ModExpInput(c_eip7823InputSizeLimit + 1, 0x01), osakaCfg());
     BOOST_CHECK_NE(fail.receipt->status(), 0);
     BOOST_CHECK_EQUAL(static_cast<int64_t>(fail.receipt->gasUsed()), 10'000'000);
 }
@@ -406,20 +410,20 @@ static void checkModExpSizeBound(size_t baseLen, size_t expLen, size_t modLen, b
 
 BOOST_AUTO_TEST_CASE(Eip7823ModExpBaseLenBoundThroughKarstOpPath)
 {
-    checkModExpSizeBound(1024, 1, 1, true);
-    checkModExpSizeBound(1025, 1, 1, false);
+    checkModExpSizeBound(c_eip7823InputSizeLimit, 1, 1, true);
+    checkModExpSizeBound(c_eip7823InputSizeLimit + 1, 1, 1, false);
 }
 
 BOOST_AUTO_TEST_CASE(Eip7823ModExpExpLenBoundThroughKarstOpPath)
 {
-    checkModExpSizeBound(1, 1024, 1, true);
-    checkModExpSizeBound(1, 1025, 1, false);
+    checkModExpSizeBound(1, c_eip7823InputSizeLimit, 1, true);
+    checkModExpSizeBound(1, c_eip7823InputSizeLimit + 1, 1, false);
 }
 
 BOOST_AUTO_TEST_CASE(Eip7823ModExpModLenBoundThroughKarstOpPath)
 {
-    checkModExpSizeBound(1, 1, 1024, true);
-    checkModExpSizeBound(1, 1, 1025, false);
+    checkModExpSizeBound(1, 1, c_eip7823InputSizeLimit, true);
+    checkModExpSizeBound(1, 1, c_eip7823InputSizeLimit + 1, false);
 }
 
 BOOST_AUTO_TEST_CASE(Eip7883EmptyModExpFloorGasThroughKarstOpPath)

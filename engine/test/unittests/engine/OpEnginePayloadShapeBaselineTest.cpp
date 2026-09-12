@@ -34,6 +34,25 @@ namespace
 {
 constexpr std::string_view c_getPayloadDir = OP_GETPAYLOAD_DIR;
 
+/// The envelope corpus is generated (absent from a bare checkout, which only carries the
+/// symlink's target when the corpus cache is provisioned). Absence skips locally and fails
+/// in CI via the FISCO_REQUIRE_T8N_CORPUS macro, mirroring GetPayloadEnvelopeCorpusIsPinned.
+/// Returns false when the caller must skip.
+bool corpusPresentOrFail()
+{
+    if (fs::exists(fs::path(c_getPayloadDir)))
+    {
+        return true;
+    }
+#ifdef FISCO_REQUIRE_T8N_CORPUS
+    BOOST_FAIL("CI requires the getpayload corpus at " << c_getPayloadDir
+                                                       << " — regenerating it is Plan C");
+#else
+    BOOST_TEST_MESSAGE("getpayload corpus absent; run the corpus regen ritual -- skipping");
+#endif
+    return false;
+}
+
 Json::Value loadJsonFile(std::string const& name)
 {
     std::ifstream in(std::string(c_getPayloadDir) + "/" + name);
@@ -53,27 +72,22 @@ std::vector<std::string> sortedKeys(Json::Value const& object)
     return keys;
 }
 
-std::vector<std::string> sorted(std::initializer_list<char const*> keys)
+std::vector<std::string> sortedRange(char const* const* first, char const* const* last)
 {
-    std::vector<std::string> out;
-    for (auto key : keys)
-    {
-        out.emplace_back(key);
-    }
+    std::vector<std::string> out(first, last);
     std::sort(out.begin(), out.end());
     return out;
+}
+
+std::vector<std::string> sorted(std::initializer_list<char const*> keys)
+{
+    return sortedRange(keys.begin(), keys.end());
 }
 
 template <std::size_t N>
 std::vector<std::string> sorted(char const* const (&keys)[N])
 {
-    std::vector<std::string> out;
-    for (auto key : keys)
-    {
-        out.emplace_back(key);
-    }
-    std::sort(out.begin(), out.end());
-    return out;
+    return sortedRange(keys, keys + N);
 }
 
 /// Measured 9/9: every dumped executionPayload carries exactly these 18 keys, in this
@@ -191,10 +205,13 @@ void requireSamePayload(
     BOOST_CHECK(a.extraData == b.extraData);
     BOOST_CHECK(a.logsBloom == b.logsBloom);
     BOOST_CHECK_EQUAL(a.transactions.size(), b.transactions.size());
-    BOOST_CHECK_EQUAL(a.withdrawals.has_value(), b.withdrawals.has_value());
-    BOOST_CHECK_EQUAL(a.withdrawalsRoot.has_value(), b.withdrawalsRoot.has_value());
-    BOOST_CHECK_EQUAL(a.blobGasUsed.has_value(), b.blobGasUsed.has_value());
-    BOOST_CHECK_EQUAL(a.excessBlobGas.has_value(), b.excessBlobGas.has_value());
+    // Value-level (not just presence): the serializer writes index/validatorIndex/address/
+    // amount per withdrawal and toQuantity()/hexPrefixed() for the optionals; a value drift
+    // must fail here the same way a dropped key does.
+    BOOST_CHECK(a.withdrawals == b.withdrawals);
+    BOOST_CHECK(a.withdrawalsRoot == b.withdrawalsRoot);
+    BOOST_CHECK(a.blobGasUsed == b.blobGasUsed);
+    BOOST_CHECK(a.excessBlobGas == b.excessBlobGas);
 }
 }  // namespace
 
@@ -204,6 +221,10 @@ BOOST_AUTO_TEST_SUITE(OpEnginePayloadShapeBaselineSuite)
 /// four dump-only renderings). This is what catches a corpus regen changing the dump.
 BOOST_AUTO_TEST_CASE(DumpedEnvelopeShapeIsPinnedPerCell)
 {
+    if (!corpusPresentOrFail())
+    {
+        return;
+    }
     std::size_t cells = 0;
     for (auto const& cell : c_cells)
     {
@@ -251,6 +272,10 @@ BOOST_AUTO_TEST_CASE(DumpedEnvelopeShapeIsPinnedPerCell)
 /// deviations from it are registered in cell A.
 BOOST_AUTO_TEST_CASE(ClPresenceRulesPerFork)
 {
+    if (!corpusPresentOrFail())
+    {
+        return;
+    }
     for (auto const& cell : c_cells)
     {
         BOOST_TEST_INFO_SCOPE(cell.file);
@@ -270,6 +295,10 @@ BOOST_AUTO_TEST_CASE(ClPresenceRulesPerFork)
 /// would require op-geth's stateRoot to equal this lane's, which is M8.
 BOOST_AUTO_TEST_CASE(ClShapedParamsRoundTripThroughThisLanesWireParser)
 {
+    if (!corpusPresentOrFail())
+    {
+        return;
+    }
     std::size_t cells = 0;
     for (auto const& cell : c_cells)
     {
@@ -304,6 +333,10 @@ BOOST_AUTO_TEST_CASE(ClShapedParamsRoundTripThroughThisLanesWireParser)
 /// future corpus change that breaks it is noticed, not explained away.
 BOOST_AUTO_TEST_CASE(V5CellIsByteIdenticalToV4AndThatIsRegistered)
 {
+    if (!corpusPresentOrFail())
+    {
+        return;
+    }
     auto jovian = loadJsonFile("jovian_v4.json");
     auto karst = loadJsonFile("karst_v5.json");
     // Same envelopes, different getPayload version asked of the same pinned op-geth.

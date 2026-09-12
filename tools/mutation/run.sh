@@ -86,7 +86,12 @@ for id in "${ids[@]}"; do
   restore "$vmutated"; trap - EXIT INT TERM
 done
 
-if [ -n "$(git -C "$root" status --porcelain -- "$mutated")" ]; then  # legacy default; per-variant files were restored above
-  echo "variant file still modified after run" >&2; rc_all=1
-fi
+# Cleanliness gate covers EVERY mutated file in the mapping (legacy default included), so a
+# silently failed per-variant restore cannot leave a mutation behind.
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  if [ -n "$(git -C "$root" status --porcelain -- "$f")" ]; then
+    echo "variant file still modified after run: $f" >&2; rc_all=1
+  fi
+done < <(python3 -c "import json;print('\n'.join(sorted({v.get('mutated','') or '$mutated' for v in json.load(open('$map'))})))")
 exit $rc_all
