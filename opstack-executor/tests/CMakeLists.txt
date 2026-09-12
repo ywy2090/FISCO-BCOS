@@ -185,6 +185,12 @@ target_compile_definitions(opstack-executor-block-tests PRIVATE
     OP_T8N_VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/t8n/vectors"
     OP_T8N_GOLDEN_ENGINE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/t8n/golden/engine"
     OP_DA_MATRIX_PATH="${CMAKE_CURRENT_SOURCE_DIR}/da-matrix/da_matrix.json")
+# Mirrors engine/test/CMakeLists.txt:47-48. Without this the provenance test's
+# "corpus absent" branch skips in CI as well, and the M2 envelope baseline
+# degenerates into "no cells checked" while staying green.
+if(REQUIRE_T8N_CORPUS OR DEFINED ENV{GITHUB_ACTIONS} OR DEFINED ENV{CI})
+    target_compile_definitions(opstack-executor-block-tests PRIVATE FISCO_REQUIRE_T8N_CORPUS=1)
+endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     target_compile_options(opstack-executor-block-tests PRIVATE
         -Wno-error=missing-field-initializers -Wno-error=dangling-reference)
