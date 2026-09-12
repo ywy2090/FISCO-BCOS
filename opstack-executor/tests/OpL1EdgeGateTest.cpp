@@ -71,6 +71,58 @@ namespace
 {
 using namespace opstack_e2e;
 
+// Minimal Step-2 static-validation helper extracted from DAFootprintExceedsGasLimitRejected
+// (B-5b, below): build a V4 newPayload request from the jovian_da_mix golden vector with
+// the header's blobGasUsed (the Jovian DA-footprint slot) overridden to `remote`, run
+// newPayload, and map the PayloadValidationStatus to its string. See the WI-26 cells for
+// why the blockHash is recomputed and why "not Invalid" == "the static gate accepted".
+std::string statusForDaFootprintRemote(uint64_t remote)
+{
+    auto sample = w6test::loadVectorSample("jovian_da_mix");
+    auto params = w6test::makeParamsJson(sample);
+    // Warning: quantityOf, not u256::str(16) — decimal digits are not hex
+    // (GoldenSample.h:124-130).
+    params[0u]["blobGasUsed"] = w6test::quantityOf(bcos::u256(remote));
+    auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(true));
+    auto request = bcos::rpc::parseNewPayloadRequest(params, bcos::engine::ApiVersion::V4);
+    // parseNewPayloadRequest converts seconds to internal millis (EngineHelper.cpp:334);
+    // the fork table is keyed on Unix seconds (OpSchedulerSeam.h forkIdAt) — the same
+    // resolution runOpNewPayloadSteps does (OpEngineService.inl:845), so the recomputed
+    // hash matches the engine's own reconstruction byte for byte.
+    auto const tsSec = bcos::engine::unixSecondsFromInternalMillis(
+        static_cast<uint64_t>(request.executionPayload.timestamp));
+    auto const txRoot =
+        EngineOpScheduler::computeTxRoot(rawEnvelopesFromPayload(request.executionPayload));
+    auto header = bcos::engine::engine_common::op::rebuildOpEthHeader(
+        fixture->blockFactory->blockHeaderFactory(), request.executionPayload, txRoot,
+        request.parentBeaconBlockRoot, fixture->scheduler.forkIdAt(tsSec));
+    request.executionPayload.blockHash = bcos::protocol::EthBlockHeader::computeHash(*header);
+
+    auto status = bcos::task::syncWait(fixture->service.newPayload(request, 4));
+    // PayloadValidationStatus is an enum class without operator<<; anything not Invalid
+    // passed the Step-2 static gate.
+    return status.status == bcos::engine::PayloadValidationStatus::Invalid ? "INVALID" : "VALID";
+}
+
+/// B-5b's single-knob shape for the boundary cell: only the header field matters to the
+/// Step-2 range gate, the (irrelevant) txs stay the golden set.
+std::string statusForDaFootprint(uint64_t footprint)
+{
+    return statusForDaFootprintRemote(footprint);
+}
+
+/// Equality-gap shape (F-A2) for JovianDaFootprintMustEqualLocalRecomputation: `local`
+/// is the Σ the txs really sum to, `remote` what the header field claims. The corpus
+/// fixes the txs, so the local/remote split is guarded here — the golden header's
+/// blobGasUsed IS the local Σ for exactly these txs.
+std::string statusForDaFootprintWithRemote(uint64_t local, uint64_t remote)
+{
+    auto sample = w6test::loadVectorSample("jovian_da_mix");
+    BOOST_REQUIRE_EQUAL(
+        static_cast<uint64_t>(*w6test::decodeGoldenHeader(sample)->blobGasUsed()), local);
+    return statusForDaFootprintRemote(remote);
+}
+
 }  // namespace
 
 BOOST_AUTO_TEST_SUITE(OpL1EdgeGateSuite)
@@ -100,6 +152,62 @@ BOOST_AUTO_TEST_CASE(DAFootprintExceedsGasLimitRejected)
     // Warning: the real string includes (blobGasUsed); check "DA footprint" (not "DA footprint
     // exceeds").
     BOOST_CHECK(status.validationError->find("DA footprint") != std::string::npos);
+}
+
+// WI-26 boundary + equality cells. Both reuse the B-5b construction above (jovian_da_mix
+// golden vector + OpE2eFixture at jovian timestamps + V4 newPayload), extracted into one
+// minimal helper below — NOT a copy of the W6 fixture. The two knobs B-5b kept fused are
+// split: the payload's TRANSACTIONS stay the golden set (so the local Σ per
+// OpBlockExecute.cpp:508-525 is fixed — op-geth's t8n sealed it into the golden header's
+// blobGasUsed, the value this engine's own Σ reproduces), while the header FIELD
+// blobGasUsed (`remote`) is passed separately. The blockHash is recomputed over the
+// overridden field with the engine's own recipe (computeTxRoot + rebuildOpEthHeader +
+// EthBlockHeader::computeHash, OpEngineService.inl:920-924) at the same fork the engine
+// resolves for the payload timestamp, so the hash gate never masks the gate under test.
+// For in-range footprints the payload passes Step 2 and falls through to the parent
+// lookup, which answers SYNCING (golden parent unknown) — anything not Invalid means the
+// Step-2 static gate accepted the field.
+//
+// op-geth uses '>' (block_validator.go:131), so == gasLimit is VALID; spec's "below, like
+// gasUsed" (jovian/exec-engine.md:125) is <= semantics. Pin all three sides so neither a
+// '>=' nor a '<' regression can hide.
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianDaFootprintGasLimitBoundary, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
+{
+    // gasLimit is read from the same golden header B-5b overrides against. gasLimit()
+    // returns u256; the golden value (10,000,000) fits uint64 with room to spare.
+    auto sample = w6test::loadVectorSample("jovian_da_mix");
+    const auto gasLimit = static_cast<uint64_t>(w6test::decodeGoldenHeader(sample)->gasLimit());
+    BOOST_CHECK(statusForDaFootprint(/*footprint=*/gasLimit - 1) == "VALID");
+    BOOST_CHECK(statusForDaFootprint(/*footprint=*/gasLimit) == "VALID");  // == is legal
+    BOOST_CHECK(statusForDaFootprint(/*footprint=*/gasLimit + 1) == "INVALID");
+}
+
+// op-geth rejects a header whose blobGasUsed disagrees with the locally recomputed
+// footprint (block_validator.go:127 "invalid DA footprint in blobGasUsed field
+// (remote: %d local: %d)"). This engine validates only the range
+// (OpEngineService.cpp:180-199), so a remote != local payload is ACCEPTED here (SYNCING
+// on the unknown parent) — the assertion pins the oracle behaviour and therefore fails
+// until F-A2 is fixed.
+// RED IS THE DELIVERABLE: record it as the finding's evidence, do NOT re-point the test.
+// expected_failures(1) keeps the DEFECT PROOF without turning the target red (Boost 1.88
+// decorator.hpp:142/:294). MUST be removed in the same commit that lands the §4 equality
+// fix — a fixed implementation plus this decorator would be red the other way ("no errors
+// but expected to fail").
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianDaFootprintMustEqualLocalRecomputation,
+    * boost::unit_test::label("fork-jovian") * boost::unit_test::expected_failures(1))
+// clang-format on
+{
+    // One payload whose local footprint is F (the Σ the jovian_da_mix txs really sum to,
+    // computed by the Σ at OpBlockExecute.cpp:508-525 and sealed by op-geth's t8n into
+    // the golden header); the remote header field says F-1. The engine must answer
+    // INVALID (op-geth block_validator.go:127).
+    auto sample = w6test::loadVectorSample("jovian_da_mix");
+    auto const local = static_cast<uint64_t>(*w6test::decodeGoldenHeader(sample)->blobGasUsed());
+    auto const status = statusForDaFootprintWithRemote(/*local=*/local, /*remote=*/local - 1);
+    BOOST_CHECK_EQUAL(status, "INVALID");  // expected to FAIL at the current head (F-A2)
 }
 
 // D-4: opValidate injects fee F -> props.fee frozen snapshot -> mutate L1Block slot1 to a

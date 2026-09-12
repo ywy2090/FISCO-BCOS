@@ -744,6 +744,23 @@ BOOST_AUTO_TEST_CASE(JovianActivationDepositOnlySeals)
         {makeDepositEnvelope(makeIsthmusCalldata())}, static_cast<int64_t>(2000) * 1000 + 1000));
 }
 
+// WI-26: a deposits-only Jovian block has zero non-deposit transactions, so the Σ footprint
+// is 0 (OpBlockExecute.cpp:508-525 skips DEPOSIT_TX_TYPE) and the sealed header's blobGasUsed
+// must be 0 — asserted on the SEALED value, not just no-throw like
+// JovianActivationDepositOnlySeals above (same JovianShapeFixture, same block shape).
+// clang-format off
+BOOST_AUTO_TEST_CASE(JovianDepositOnlyBlockSealsZeroDaFootprint, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
+{
+    JovianShapeFixture fx;
+    auto result = fx.run({makeDepositEnvelope(makeIsthmusCalldata())},
+        static_cast<int64_t>(2000) * 1000 + 1000);
+    // Jovian carries the DA footprint: the seal slot must have a value (OpCommon.h:59-73 —
+    // "when has_da_footprint is false there is always no value").
+    BOOST_REQUIRE(result.seal.blobGasUsed.has_value());
+    BOOST_CHECK_EQUAL(*result.seal.blobGasUsed, 0U);
+}
+
 // 176B Isthmus-length attrs make a Jovian+ block deposits-only in op-geth (CalcDAFootprint
 // keys on the attributes length and the last transaction), independently of the Q5 timestamp
 // window. A trailing user tx must be rejected even well outside that window.

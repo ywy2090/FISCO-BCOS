@@ -88,5 +88,14 @@
     "filter": "OpOsakaSemanticsSuite/GraniteBn256PairingAt587PairsIsRejected",
     "also_green": ["OpPrecompilesSuite/Bn256PairingInputLimitNoGasOverride"],
     "expect": "only_mapped_red",
-    "why": "The Granite size cap must reject a 587-pair (112704B) input; widening it to 112704 makes the mapped case red. The table-value case is the negative control (it asserts the value, not the execution path)." }
+    "why": "The Granite size cap must reject a 587-pair (112704B) input; widening it to 112704 makes the mapped case red. The table-value case is the negative control (it asserts the value, not the execution path)." },
+  { "variant": "V-DAFOOTPRINT-boundary", "mutated": "engine/bcos-engine/OpEngineService.cpp",
+    "target": "opstack-executor-block-tests", "binary": "opstack-executor/tests/opstack-executor-block-tests",
+    "filter": "OpL1EdgeGateSuite/JovianDaFootprintGasLimitBoundary",
+    "also_green": [
+      "OpL1EdgeGateSuite/DAFootprintExceedsGasLimitRejected",
+      "OpL1EdgeGateSuite/JovianDaFootprintMustEqualLocalRecomputation"
+    ],
+    "expect": "only_mapped_red",
+    "why": "The Jovian DA-footprint range gate must accept footprint == gasLimit (op-geth block_validator.go:131 uses '>'); flipping it to '>=' makes the mapped three-sided boundary case red on the == side. The B-5b rejection case only probes the strict 'footprint = gasLimit+1' side, which '>' and '>=' judge identically, so it is the negative control — as is the F-A2 equality-gap case, whose remote (golden Σ − 1 = 593599) sits far below gasLimit and never touches this comparison." }
 ]
