@@ -24,6 +24,7 @@
 #include <bcos-framework/engine/RawTransactionDispatch.h>
 #include <bcos-rlp-protocol/Web3Transaction.h>
 #include <bcos-utilities/DataConvertUtility.h>
+#include <opstack-executor/OpBlockExecute.h>
 #include <limits>
 
 namespace bcos::engine::engine_common::op
@@ -186,9 +187,37 @@ std::optional<std::string> validateOpBlobGasUsed(
     {
         return std::nullopt;
     }
-    if (!narrowU256ToU64(*payload.blobGasUsed).has_value())
+    auto const blobGasUsed = narrowU256ToU64(*payload.blobGasUsed);
+    if (!blobGasUsed.has_value())
     {
         return std::string("blobGasUsed exceeds the uint64 range of the ETH header field");
+    }
+    if (forkId >= OpForkId::Jovian)
+    {
+        // op-geth core/block_validator.go:127 requires the header's blobGasUsed to equal the
+        // locally recomputed DA footprint Σ before the gas-limit range check. This lane only
+        // range-checked the field, so a payload disagreeing with the local Σ was accepted,
+        // stamped into the header and fed into Jovian's baseFee = max(gasUsed, blobGasUsed).
+        std::vector<bcos::bytesConstRef> envelopes;
+        envelopes.reserve(payload.transactions.size());
+        for (auto const& tx : payload.transactions)
+        {
+            envelopes.emplace_back(tx.raw.data(), tx.raw.size());
+        }
+        auto const local = bcos::evm::opstack::daFootprintOfEnvelopes(envelopes);
+        if (!local.has_value())
+        {
+            // Fail closed, mirroring op-geth's CalcDAFootprint error on an envelope set it
+            // cannot price (no leading L1-attributes deposit, malformed attributes): never
+            // accept an unverifiable slot. Keeps the "DA footprint" substring tests key on.
+            return std::string(
+                "invalid DA footprint in blobGasUsed field (local DA footprint unavailable)");
+        }
+        if (*blobGasUsed != *local)
+        {
+            return "invalid DA footprint in blobGasUsed field (remote: " +
+                   std::to_string(*blobGasUsed) + " local: " + std::to_string(*local) + ")";
+        }
     }
     if (forkId < OpForkId::Jovian && *payload.blobGasUsed != 0)
     {

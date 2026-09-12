@@ -4,6 +4,7 @@
 #include <bcos-evm/opstack/OpFeeParams.h>
 #include <bcos-evm/opstack/OpPredeploys.h>
 #include <bcos-evm/opstack/OpTransition.h>
+#include <bcos-evm/opstack/RollupCost.h>
 #include <bcos-framework/protocol/LogEntry.h>
 #include <bcos-ledger/mpt/EthTrieRoots.h>
 #include <bcos-ledger/mpt/HashBuilder.h>
@@ -39,6 +40,53 @@ void validateJovianBlockShape(std::span<const OpBlockTx> txs, const OpForkConfig
     validateJovianL1AttributesShape(
         std::span<uint8_t const>{firstDep->data.data(), firstDep->data.size()}, cfg,
         lastTxIsDeposit(txs));
+}
+
+std::optional<uint64_t> daFootprintOfEnvelopes(std::span<const bcos::bytesConstRef> envelopes)
+{
+    // op-geth CalcDAFootprint requires the first transaction to be the L1-attributes deposit:
+    // "missing deposit transaction" otherwise, and ExtractDAFootprintGasScalar rejects a bad
+    // length/selector. All of those become nullopt here (fail closed).
+    if (envelopes.empty() || !envelopeIsDeposit(envelopes.front()))
+        return std::nullopt;
+
+    DepositTx dep;
+    try
+    {
+        dep = bcos::executor_v1::opstack::decodeDepositEnvelope(envelopes.front());
+    }
+    catch (...)
+    {
+        return std::nullopt;
+    }
+    auto const attr = std::span<uint8_t const>{dep.data.data(), dep.data.size()};
+    // Isthmus-length attributes: the DA-footprint gas scalar is not set yet. On a Jovian block
+    // that is only legal for a (deposits-only) activation block — op-geth returns 0 here; the
+    // last-tx-is-deposit rule is enforced by validateJovianL1AttributesShape on the executor path.
+    if (attr.size() == IsthmusL1AttributesLen)
+        return uint64_t{0};
+    if (attr.size() < JovianL1AttributesLen || !std::equal(JovianL1AttributesSelector.begin(),
+                                                   JovianL1AttributesSelector.end(), attr.begin()))
+        return std::nullopt;
+    auto const scalar = jovianDaFootprintGasScalar(attr);
+    if (!scalar.has_value())
+        return std::nullopt;
+
+    uint64_t sum = 0;
+    for (auto const& env : envelopes)
+    {
+        if (envelopeIsDeposit(env))
+            continue;
+        auto const term =
+            estimatedDaSizeFromFlz(flzCompressLen(evmc::bytes_view{env.data(), env.size()})) *
+            static_cast<uint64_t>(*scalar);
+        // op-geth accumulates into a Go uint64 (wraps). Wrapping would let a crafted block
+        // clear the equality gate; fail closed instead (no legitimate block overflows).
+        if (sum > std::numeric_limits<uint64_t>::max() - term)
+            return std::nullopt;
+        sum += term;
+    }
+    return sum;
 }
 
 evmone::state::StateDiff finalizeOpBlock(

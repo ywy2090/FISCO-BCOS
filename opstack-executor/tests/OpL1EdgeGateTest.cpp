@@ -22,6 +22,7 @@
 #include <bcos-framework/storage2/MemoryStorage.h>
 #include <bcos-framework/storage2/MultiLayerStorage.h>
 #include <bcos-framework/transaction-executor/StateKey.h>
+#include <opstack-executor/OpBlockExecute.h>
 #include <opstack-executor/OpCommon.h>
 #include <opstack-executor/OpSchedulerSeam.h>
 #include <opstack-executor/OpstackExecutor.h>
@@ -55,6 +56,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -75,16 +77,27 @@ using namespace opstack_e2e;
 
 // Minimal Step-2 static-validation helper extracted from DAFootprintExceedsGasLimitRejected
 // (B-5b, below): build a V4 newPayload request from the jovian_da_mix golden vector with
-// the header's blobGasUsed (the Jovian DA-footprint slot) overridden to `remote`, run
-// newPayload, and map the PayloadValidationStatus to its string. See the WI-26 cells for
-// why the blockHash is recomputed and why "not Invalid" == "the static gate accepted".
-std::string statusForDaFootprintRemote(uint64_t remote)
+// the header's blobGasUsed (the Jovian DA-footprint slot) overridden to `remote` and, when
+// supplied, the payload's gasLimit overridden too; run newPayload, and map the
+// PayloadValidationStatus to its string. See the WI-26 cells for why the blockHash is
+// recomputed and why "not Invalid" == "the static gate accepted".
+//
+// GasLimit is a separate override because the F-A2 equality gate ties the header field to the
+// LOCAL Σ: the boundary cell must keep remote == local and move gasLimit, not remote.
+// Overriding gasLimit changes the header preimage, so the blockHash recomputation below
+// (rebuildOpEthHeader over the mutated request.executionPayload) is mandatory — otherwise the
+// engine's hash gate would reject before the DA checks run.
+std::string statusForDaFootprintRemoteAndGasLimit(uint64_t remote, std::optional<uint64_t> gasLimit)
 {
     auto sample = w6test::loadVectorSample("jovian_da_mix");
     auto params = w6test::makeParamsJson(sample);
     // Warning: quantityOf, not u256::str(16) — decimal digits are not hex
     // (GoldenSample.h:124-130).
     params[0u]["blobGasUsed"] = w6test::quantityOf(bcos::u256(remote));
+    if (gasLimit.has_value())
+    {
+        params[0u]["gasLimit"] = w6test::quantityOf(bcos::u256(*gasLimit));
+    }
     auto fixture = std::make_unique<OpE2eFixture>(forkFlagsFor(true));
     auto request = bcos::rpc::parseNewPayloadRequest(params, bcos::engine::ApiVersion::V4);
     // parseNewPayloadRequest converts seconds to internal millis (EngineHelper.cpp:334);
@@ -106,55 +119,42 @@ std::string statusForDaFootprintRemote(uint64_t remote)
     return status.status == bcos::engine::PayloadValidationStatus::Invalid ? "INVALID" : "VALID";
 }
 
-/// B-5b's single-knob shape for the boundary cell: only the header field matters to the
-/// Step-2 range gate, the (irrelevant) txs stay the golden set.
-std::string statusForDaFootprint(uint64_t footprint)
+std::string statusForDaFootprintRemote(uint64_t remote)
 {
-    return statusForDaFootprintRemote(footprint);
+    return statusForDaFootprintRemoteAndGasLimit(remote, std::nullopt);
 }
 
-/// Local Σ of the Jovian DA footprint for the jovian_da_mix fixture, recomputed in-test from the
-/// production per-tx formula (OpTransition.cpp:281 with the accumulator at
-/// OpBlockExecute.cpp:508-525):
-///   Σ over non-deposit txs of estimatedDaSizeFromFlz(flzCompressLen(env)) × scalar,
-/// where `scalar` is the big-endian uint16 at calldata[176:178] of the L1-attributes deposit
-/// (OpBlockExecute.h::jovianDaFootprintGasScalar). Deposits carry no footprint and are skipped.
-/// This deliberately does NOT read blobGasUsed back out of the golden header: it is the one
-/// independent oracle the F-A2 equality guard needs. The corpus golden
-/// (opstack-executor/tests/t8n/golden/engine/jovian_da_mix.golden.json, sealed by op-geth's t8n)
-/// carries the same value in its header, and the caller asserts the two agree — that assertion
-/// is the coupling, not an assumption.
+/// Local Σ of the Jovian DA footprint for the jovian_da_mix fixture, via the production
+/// accumulator bcos::evm::opstack::daFootprintOfEnvelopes (OpBlockExecute.cpp) — the same
+/// function the engine's F-A2 equality gate calls. It is NOT read back out of the golden
+/// header; the caller's `Σ == golden header blobGasUsed` assertion keeps this non-tautological
+/// (opstack-executor/tests/t8n/golden/engine/jovian_da_mix.golden.json is sealed by op-geth's
+/// t8n), so it checks the accumulator against an external oracle rather than against itself.
 uint64_t localDaFootprintOfGoldenVector()
 {
     namespace op = bcos::evm::opstack;
     auto sample = w6test::loadVectorSample("jovian_da_mix");
-    uint64_t scalar = 0;
-    uint64_t sum = 0;
-    bool haveScalar = false;
+    std::vector<bcos::bytes> owned;
     for (auto const& raw : sample.golden["rawTransactions"])
     {
-        auto env = bcos::fromHex(raw.asString());
-        bcos::bytesConstRef ref{env.data(), env.size()};
-        if (op::envelopeIsDeposit(ref))
-        {
-            auto dep = bcos::executor_v1::opstack::decodeDepositEnvelope(ref);
-            auto const s = op::jovianDaFootprintGasScalar({dep.data.data(), dep.data.size()});
-            BOOST_REQUIRE(s.has_value());
-            scalar = *s;
-            haveScalar = true;
-            continue;
-        }
-        sum += op::estimatedDaSizeFromFlz(op::flzCompressLen({env.data(), env.size()})) * scalar;
+        owned.emplace_back(bcos::fromHex(raw.asString()));
     }
-    BOOST_REQUIRE(haveScalar);  // the L1-attributes deposit is what seeds the scalar
-    return sum;
+    std::vector<bcos::bytesConstRef> envelopes;
+    envelopes.reserve(owned.size());
+    for (auto const& env : owned)
+    {
+        envelopes.emplace_back(env.data(), env.size());
+    }
+    auto const sum = op::daFootprintOfEnvelopes(envelopes);
+    BOOST_REQUIRE(sum.has_value());
+    return *sum;
 }
 
 /// Equality-gap shape (F-A2) for JovianDaFootprintMustEqualLocalRecomputation: `local` is the Σ
-/// the txs really sum to, `remote` what the header field claims. `local` must come from
-/// localDaFootprintOfGoldenVector(), never read back from the header; the guard below recomputes
-/// it from the tx set, and separately requires the golden header's blobGasUsed to match it. Both
-/// halves are non-tautological: dropping either leaves one side assumed.
+/// the txs really sum to, `remote` what the header field claims. `local` comes from
+/// localDaFootprintOfGoldenVector(), which the guard recomputes from the tx set, and the guard
+/// separately requires the golden header's blobGasUsed to match it. Both halves are
+/// non-tautological: dropping either leaves one side assumed.
 std::string statusForDaFootprintWithRemote(uint64_t local, uint64_t remote)
 {
     BOOST_REQUIRE_EQUAL(localDaFootprintOfGoldenVector(), local);
@@ -162,6 +162,19 @@ std::string statusForDaFootprintWithRemote(uint64_t local, uint64_t remote)
     BOOST_REQUIRE_EQUAL(
         static_cast<uint64_t>(*w6test::decodeGoldenHeader(sample)->blobGasUsed()), local);
     return statusForDaFootprintRemote(remote);
+}
+
+/// Boundary shape: remote == local Σ (so the F-A2 equality gate passes) and the block gasLimit
+/// is the varying knob, with the blockHash recomputed over the mutated header. `gasLimit >= Σ`
+/// must be VALID (op-geth checks `daFootprint > gasLimit`, block_validator.go:131), `gasLimit < Σ`
+/// INVALID.
+std::string statusForDaFootprintWithGasLimit(uint64_t local, uint64_t gasLimit)
+{
+    BOOST_REQUIRE_EQUAL(localDaFootprintOfGoldenVector(), local);
+    auto sample = w6test::loadVectorSample("jovian_da_mix");
+    BOOST_REQUIRE_EQUAL(
+        static_cast<uint64_t>(*w6test::decodeGoldenHeader(sample)->blobGasUsed()), local);
+    return statusForDaFootprintRemoteAndGasLimit(local, gasLimit);
 }
 
 }  // namespace
@@ -197,60 +210,57 @@ BOOST_AUTO_TEST_CASE(DAFootprintExceedsGasLimitRejected)
 
 // WI-26 boundary + equality cells. Both reuse the B-5b construction above (jovian_da_mix
 // golden vector + OpE2eFixture at jovian timestamps + V4 newPayload), extracted into one
-// minimal helper below — NOT a copy of the W6 fixture. The two knobs B-5b kept fused are
-// split: the payload's TRANSACTIONS stay the golden set (so the local Σ per
-// OpBlockExecute.cpp:508-525 is fixed — op-geth's t8n sealed it into the golden header's
-// blobGasUsed, and localDaFootprintOfGoldenVector recomputes that Σ from the tx set rather
-// than reading it back, with the F-A2 guard cross-checking the two), while the header FIELD
-// blobGasUsed (`remote`) is passed separately. The blockHash is recomputed over the
-// overridden field with the engine's own recipe (computeTxRoot + rebuildOpEthHeader +
-// EthBlockHeader::computeHash, OpEngineService.inl:920-924) at the same fork the engine
-// resolves for the payload timestamp, so the hash gate never masks the gate under test.
-// For in-range footprints the payload passes Step 2 and falls through to the parent
-// lookup, which answers SYNCING (golden parent unknown) — anything not Invalid means the
+// minimal helper below — NOT a copy of the W6 fixture. The payload's TRANSACTIONS stay the
+// golden set (so the local Σ is fixed — op-geth's t8n sealed it into the golden header's
+// blobGasUsed, and localDaFootprintOfGoldenVector recomputes that Σ via the production
+// accumulator rather than reading it back, with the F-A2 guard cross-checking the golden
+// header). The blockHash is recomputed over any overridden header field with the engine's own
+// recipe (computeTxRoot + rebuildOpEthHeader + EthBlockHeader::computeHash,
+// OpEngineService.inl:920-924) at the same fork the engine resolves for the payload timestamp,
+// so the hash gate never masks the gate under test. For an accepted payload Step 2 passes and
+// the parent lookup answers SYNCING (golden parent unknown) — anything not Invalid means the
 // Step-2 static gate accepted the field.
 //
-// op-geth uses '>' (block_validator.go:131), so == gasLimit is VALID; spec's "below, like
-// gasUsed" (jovian/exec-engine.md:125) is <= semantics. Pin all three sides so neither a
-// '>=' nor a '<' regression can hide.
+// The equality gate ties the header's blobGasUsed to the local Σ, so the boundary cell keeps
+// remote == local and varies the block gasLimit instead. op-geth uses '>' on the local
+// footprint (block_validator.go:131), so == gasLimit is VALID; spec's "below, like gasUsed"
+// (jovian/exec-engine.md:125) is <= semantics. Pin all three sides so neither a '>=' nor a
+// '<' regression can hide.
 // clang-format off
 BOOST_AUTO_TEST_CASE(JovianDaFootprintGasLimitBoundary, * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
 // clang-format on
 {
-    // gasLimit is read from the same golden header B-5b overrides against. gasLimit()
-    // returns u256; the golden value (10,000,000) fits uint64 with room to spare.
-    auto sample = w6test::loadVectorSample("jovian_da_mix");
-    const auto gasLimit = static_cast<uint64_t>(w6test::decodeGoldenHeader(sample)->gasLimit());
-    BOOST_CHECK(statusForDaFootprint(/*footprint=*/gasLimit - 1) == "VALID");
-    BOOST_CHECK(statusForDaFootprint(/*footprint=*/gasLimit) == "VALID");  // == is legal
-    BOOST_CHECK(statusForDaFootprint(/*footprint=*/gasLimit + 1) == "INVALID");
+    // The F-A2 equality gate fixes the header blobGasUsed at the local Σ (593,600 for
+    // jovian_da_mix), so the varying knob is the block gasLimit: < Σ INVALID, == Σ VALID
+    // (op-geth's '>' makes equality legal), > Σ VALID.
+    auto const local = localDaFootprintOfGoldenVector();
+    BOOST_CHECK(
+        statusForDaFootprintWithGasLimit(/*local=*/local, /*gasLimit=*/local + 1) == "VALID");
+    BOOST_CHECK(statusForDaFootprintWithGasLimit(/*local=*/local, /*gasLimit=*/local) ==
+                "VALID");  // == is legal
+    BOOST_CHECK(
+        statusForDaFootprintWithGasLimit(/*local=*/local, /*gasLimit=*/local - 1) == "INVALID");
 }
 
 // op-geth rejects a header whose blobGasUsed disagrees with the locally recomputed
 // footprint (block_validator.go:127 "invalid DA footprint in blobGasUsed field
-// (remote: %d local: %d)"). This engine validates only the range
-// (OpEngineService.cpp:180-199), so a remote != local payload is ACCEPTED here (SYNCING
-// on the unknown parent) — the assertion pins the oracle behaviour and therefore fails
-// until F-A2 is fixed.
-// RED IS THE DELIVERABLE: record it as the finding's evidence, do NOT re-point the test.
-// expected_failures(1) keeps the DEFECT PROOF without turning the target red (Boost 1.88
-// decorator.hpp:142/:294). MUST be removed in the same commit that lands the §4 equality
-// fix — a fixed implementation plus this decorator would be red the other way ("no errors
-// but expected to fail").
+// (remote: %d local: %d)"). The F-A2 equality gate now enforces that here too, so this cell is
+// a plain green assertion; the expected_failures(1) decorator was removed in the same commit
+// that landed the fix (a fixed implementation plus the decorator would be red the other way,
+// "no errors but expected to fail").
 // clang-format off
 BOOST_AUTO_TEST_CASE(JovianDaFootprintMustEqualLocalRecomputation,
-    * boost::unit_test::label("fork-jovian") * boost::unit_test::expected_failures(1))
+    * boost::unit_test::label("fork-jovian"))
 // clang-format on
 {
-    // One payload whose local footprint is F, recomputed in-test from the tx set by
-    // estimateDaSizeFromFlz(flzCompressLen) × scalar (localDaFootprintOfGoldenVector, the same
-    // formula as the Σ at OpBlockExecute.cpp:508-525); statusForDaFootprintWithRemote also
-    // requires op-geth's t8n-sealed golden header blobGasUsed to equal F, so F is not read back
-    // out of the header. The remote header field says F-1, and the engine must answer INVALID
+    // One payload whose local footprint is F, recomputed in-test via the production accumulator
+    // (localDaFootprintOfGoldenVector); statusForDaFootprintWithRemote also requires op-geth's
+    // t8n-sealed golden header blobGasUsed to equal F, so F is not read back out of the header.
+    // The remote header field says F-1, and the engine must answer INVALID
     // (op-geth block_validator.go:127).
     auto const local = localDaFootprintOfGoldenVector();
     auto const status = statusForDaFootprintWithRemote(/*local=*/local, /*remote=*/local - 1);
-    BOOST_CHECK_EQUAL(status, "INVALID");  // expected to FAIL at the current head (F-A2)
+    BOOST_CHECK_EQUAL(status, "INVALID");
 }
 
 // D-4: opValidate injects fee F -> props.fee frozen snapshot -> mutate L1Block slot1 to a

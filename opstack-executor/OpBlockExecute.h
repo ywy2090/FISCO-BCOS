@@ -206,6 +206,21 @@ inline void validateJovianL1AttributesShape(
     return std::nullopt;
 }
 
+/// Block-level DA footprint Σ (op-geth CalcDAFootprint, core/types/rollup_cost.go): the
+/// scalar is read from the L1-attributes deposit (the first envelope), a 176-byte Isthmus-length
+/// attributes payload is the Jovian activation form and contributes 0, and every non-deposit
+/// envelope adds estimatedDaSizeFromFlz(flzCompressLen(env)) × scalar. Primitives are reused
+/// (envelopeIsDeposit / decodeDepositEnvelope / jovianDaFootprintGasScalar / flzCompressLen /
+/// estimatedDaSizeFromFlz) — no constant or offset is re-derived here.
+///
+/// @return the Σ, or nullopt when it cannot be derived: no leading deposit, malformed deposit /
+/// attributes (bad length or Jovian selector), or a uint64 overflow that op-geth's Go accumulator
+/// would instead wrap. The caller fails closed. The executor seal path keeps its per-receipt
+/// opStackMeta().da_footprint accumulation (the value opTransition wrote, with its
+/// missing-field guard); this is the engine-side recomputation from the wire envelopes.
+[[nodiscard]] std::optional<uint64_t> daFootprintOfEnvelopes(
+    std::span<const bcos::bytesConstRef> envelopes);
+
 /// Validate the Jovian L1-attributes block shape (selector/length). No-op pre-Jovian.
 /// Throws OpConsensusError. Public wrapper around validateJovianL1AttributesShape
 /// for the processOpBlock data shape (`span<OpBlockTx>`).
