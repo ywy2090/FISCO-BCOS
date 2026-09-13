@@ -121,5 +121,6 @@
     "filter": "OpCanyonWindowImportSuite/CanyonAbsentWithdrawalsRootImports",
     "also_green": ["OpEngineServiceParityTest/op_newpayload_missing_executed_withdrawals_root_is_internal_error"],
     "expect": "only_mapped_red",
-    "why": "The F-B2-1 regression cell: reverting the announced-header projection back to the raw payload optional must flip the Canyon absent-root import back to INVALID, while the sibling -32603 guard (different mechanism) stays GREEN." }
+    "why": "The F-B2-1 regression cell: reverting the announced-header projection back to the raw payload optional must flip the Canyon absent-root import back to INVALID, while the sibling -32603 guard (different mechanism) stays GREEN." },
+  {"variant": "V-LADDER-layoutGuard", "target": "test-bcos-engine", "binary": "engine/test/test-bcos-engine", "filter": "OpEngineForkLadderSuite/NineForkLadderIsContinuous", "also_green": ["OpEngineServiceParityTest/op_newpayload_missing_executed_withdrawals_root_is_internal_error"], "expect": "only_mapped_red", "mutated": "engine/bcos-engine/OpEngineService.cpp", "why": "WI-16: defeating the extraData layout guard must make the ladder's per-rung foreign-layout negative controls accept a wrong layout, reddening the ladder; the -32603 executed-root guard is an unrelated mechanism and stays GREEN."}
 ]
