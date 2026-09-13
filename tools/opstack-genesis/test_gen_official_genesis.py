@@ -3,6 +3,7 @@
 the real-zip acceptance test skips when the op-geth zip/zstd are unavailable."""
 import importlib.util
 import json
+import os
 import re
 import zipfile
 from pathlib import Path
@@ -340,7 +341,12 @@ def test_generate_hash_mismatch_raises(tmp_path):
                      decompress=lambda raw, dictionary: raw)
 
 
-_OP_GETH_ZIP = Path("/Users/octopus/octo/code/op-geth/superchain/superchain-configs.zip")
+# Registry zip: a machine default kept for the local ritual, overridable for CI
+# (the nightly points OP_GETH_ZIP at the op-geth pin tree). When
+# OP_REQUIRE_REGISTRY_ZIP=1 a missing zip is a FAILURE, not a skip — a silent
+# skip here is how M5 degraded to "green but vacuous" (WI-11).
+_DEFAULT_OP_GETH_ZIP = Path("/Users/octopus/octo/code/op-geth/superchain/superchain-configs.zip")
+_OP_GETH_ZIP = Path(os.environ.get("OP_GETH_ZIP", _DEFAULT_OP_GETH_ZIP))
 
 # Chains the generator deliberately does not reproduce, with the reason. Not a
 # silent skip: the sweep asserts the excluded set is exactly this set, so an
@@ -374,9 +380,12 @@ def test_real_registry_full_sweep_matches_documented_exclusions():
     """
     import shutil
     if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
+        if os.environ.get("OP_REQUIRE_REGISTRY_ZIP") == "1":
+            pytest.fail(f"OP_REQUIRE_REGISTRY_ZIP=1 but registry zip/zstd unavailable "
+                        f"(zip={_OP_GETH_ZIP})")
         pytest.skip("op-geth superchain zip / zstd CLI not available")
     chains = _registry_chains(str(_OP_GETH_ZIP))
-    assert chains  # the sweep assumes the registry layout is populated
+    assert chains  # empty sweep is a failure, not a pass
     passed, failed = [], {}
     for chain in chains:
         try:
@@ -398,6 +407,9 @@ def test_real_registry_full_sweep_matches_documented_exclusions():
 def test_real_registry_alt_da_chains_emit_alt_da(chain):
     import shutil
     if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
+        if os.environ.get("OP_REQUIRE_REGISTRY_ZIP") == "1":
+            pytest.fail(f"OP_REQUIRE_REGISTRY_ZIP=1 but registry zip/zstd unavailable "
+                        f"(zip={_OP_GETH_ZIP})")
         pytest.skip("op-geth superchain zip / zstd CLI not available")
     result = gen.generate(str(_OP_GETH_ZIP), chain)
     alt_da = result["rollup"]["alt_da"]
@@ -437,6 +449,8 @@ def test_undecodable_registry_frame_is_a_registry_error(tmp_path):
     # The real default_decompress runs here (no injection): design §7 wants a named
     # error, not a RuntimeError escaping to the operator as a traceback.
     import shutil
+    # Exempt from OP_REQUIRE_REGISTRY_ZIP: this case builds its own synthetic zip
+    # and only needs the zstd CLI (the registry zip is never read here).
     if shutil.which("zstd") is None:
         pytest.skip("zstd CLI not available")
     with pytest.raises(gen.RegistryError):
@@ -445,6 +459,8 @@ def test_undecodable_registry_frame_is_a_registry_error(tmp_path):
 
 def test_cli_reports_undecodable_frame_without_traceback(tmp_path, capsys):
     import shutil
+    # Exempt from OP_REQUIRE_REGISTRY_ZIP: this case builds its own synthetic zip
+    # and only needs the zstd CLI (the registry zip is never read here).
     if shutil.which("zstd") is None:
         pytest.skip("zstd CLI not available")
     rc = gen.main(["--zip", _make_undecodable_zip(tmp_path), "--chain", "mainnet/base",
