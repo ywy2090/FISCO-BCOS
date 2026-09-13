@@ -523,3 +523,34 @@ def test_check_registry_rollup_still_rejects_canonical_regression():
     rollup["delta_time"] = 1  # delta before canyon
     with pytest.raises(gen.RegistryError, match="fork time regresses"):
         gen.check_registry_rollup(rollup)
+
+
+def _assert_registry_zip_is_pre_karst(zip_path):
+    """M5's registry basis is the pre-Karst pin (zip COMMIT 9cf0456a).
+
+    If this guard goes red the corpus has moved past Karst: the M5 basis, the
+    minimal read set and the documented 60/59/1 split must be re-decided in the
+    SAME commit that swaps the zip — never silently.
+    """
+    scanned = 0
+    with zipfile.ZipFile(zip_path) as zf:
+        for name in zf.namelist():
+            if name.startswith("configs/") and name.endswith(".toml"):
+                assert b"karst_time" not in zf.read(name), (
+                    f"{name} carries karst_time — the registry is post-Karst; "
+                    "re-baseline M5 (basis + minimal read set) in the same commit")
+                scanned += 1
+    assert scanned > 0, "scanned no configs/*.toml — the guard is green but empty"
+
+
+def test_registry_zip_is_pre_karst_basis():
+    _assert_registry_zip_is_pre_karst(_OP_GETH_ZIP)
+
+
+def test_pre_karst_guard_goes_red_on_a_synthetic_karst_entry(tmp_path):
+    # Permanent mutation evidence: the guard above must be able to fail.
+    zip_path = tmp_path / "post-karst.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("configs/mainnet/base.toml", "karst_time = 1\n")
+    with pytest.raises(AssertionError, match="re-baseline M5"):
+        _assert_registry_zip_is_pre_karst(zip_path)
