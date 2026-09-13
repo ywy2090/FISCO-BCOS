@@ -31,6 +31,16 @@ jobs:
         with:
           path: ${{ github.workspace }}/build/vcpkg_installed
           key: vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'ports/**') }}-${{ steps.vcpkg-revision.outputs.revision }}-${{ runner.os }}-${{ runner.arch }}-cache-key-v4
+      - name: Checkout op-stack-e2e-tests assets (the composite action reads its regen.sh
+        # through the caller's workspace -- F-CI-2 untracked the in-tree symlink, so the
+        # corpus must be checked out and linked here, exactly as workflow.yml does)
+        uses: actions/checkout@v4
+        with:
+          repository: FISCO-BCOS/op-stack-e2e-tests
+          ref: c6365ad67c12186c855d64121d12c432fac7a9f0
+          path: e2e-tests
+      - name: Symlink the t8n corpus into in-tree paths
+        run: ln -s "$GITHUB_WORKSPACE/e2e-tests/opstack-executor/tests/t8n" "$GITHUB_WORKSPACE/opstack-executor/tests/t8n"
       - name: Regenerate opstack t8n vectors (corpus + goldens + getpayload envelopes)
         uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@c6365ad67c12186c855d64121d12c432fac7a9f0
       - name: Install toolchain (matches the coverage job's recipe)
