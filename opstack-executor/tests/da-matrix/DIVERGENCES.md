@@ -235,3 +235,46 @@ ends by design:
   `state_transition`/block validation (making the block itself un-importable) — that would
   turn this into a consensus divergence and require a matching FISCO check; or FISCO switching
   its receipt derivation from calldata-driven to slot-driven.
+
+
+### `da_footprint_overflow` — FISCO fails closed on a DA-footprint overflow; op-geth's uint64 accumulator wraps
+
+- **Grid case(s):** none — no grid row can push Σ past uint64 (envelope sizes × a uint16 scalar
+  cannot get there); a future row that can MUST carry
+  `"known_divergence": "da_footprint_overflow"`.
+- **Status:** registered, NOT triggered; deliberately stricter than op-geth (see Disposition).
+- **What happens:** op-geth accumulates `daFootprint += EstimatedDASize × scalar` into a Go
+  `uint64` with no guard (`core/types/rollup_cost.go:583-589`), so an overflowing Σ wraps
+  silently. FISCO checks `sum > max - term` and fails closed
+  (`opstack-executor/OpBlockExecute.h:281-285`; failure class `DaFootprintError::Overflow` at
+  `:212-219`). Wrapping would let a crafted block clear the Jovian equality gate, so
+  fail-closed is deliberate.
+- **Disposition:** keep FISCO fail-closed; do not mirror the wraparound.
+- **Review trigger:** op-geth adding an overflow guard, or a chain/envelope combination that
+  can legitimately exceed uint64 (none known).
+
+### `da_footprint_176b_activation_shape` — the "176B attributes ⇒ deposits-only" rule is enforced at different layers
+
+- **Grid case(s):** none; a future row feeding a 176-byte attributes payload with a non-deposit
+  transaction on a Jovian+ block MUST carry
+  `"known_divergence": "da_footprint_176b_activation_shape"`.
+- **Status:** registered, NOT triggered. **A judgment-point difference, not a strictness
+  difference** — the same payload is rejected on both ends, at different layers. (An earlier
+  note in this session called FISCO "stricter" here; that was wrong.)
+- **What happens:** for `len(attributes) == 176` FISCO's `daFootprintOfEnvelopes` returns 0
+  **without** inspecting the last transaction (`OpBlockExecute.h:261-265`); the
+  last-tx-is-deposit rule lives in `validateJovianL1AttributesShape` (`:174-185`) on the
+  block-execution path. op-geth performs the check inside the same computation and returns
+  `unexpected non-deposit transactions in Jovian activation block`
+  (`core/types/rollup_cost.go:571-577`).
+- **Disposition:** keep both as is; only the layer (and the error surface) differs.
+- **Review trigger:** any conformance comparison of rejection *surfaces* for this payload class.
+
+## header-inline ABI note (NOT a divergence)
+
+`flzCompressLen` / `estimatedDaSizeScaled` / `estimatedDaSizeFromFlz` were moved from
+out-of-line definitions to `inline` in `bcos-evm/bcos-evm/opstack/RollupCost.h` (commit
+`975c2ec58`, closing an unresolved-symbol gap in the exported static `engine` archive).
+Consequence: a consumer of prebuilt artifacts sees an ABI/export change (the symbols are no
+longer emitted from the archive); a full source rebuild sees no behavioural change. Code-side
+motivation: `opstack-executor/OpBlockExecute.h:226-228`.
