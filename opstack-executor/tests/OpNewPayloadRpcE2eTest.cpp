@@ -1292,7 +1292,10 @@ BOOST_AUTO_TEST_CASE(RegolithPayloadBuildsAndImportsAgainstRealScheduler)
     // Canyon fork", which is exactly what this round trip pins.
     auto importer = std::make_unique<OpE2eFixture>(regolithOnlySchedule());
     registerRegolithGenesis(*importer, genesis);
-    bcos::engine::NewPayloadRequest roundTrip{.executionPayload = got->executionPayload};
+    bcos::engine::NewPayloadRequest roundTrip{.executionPayload = got->executionPayload,
+        .expectedBlobVersionedHashes = {},
+        .parentBeaconBlockRoot = {},
+        .executionRequests = {}};
     auto status = bcos::task::syncWait(importer->service.newPayload(
         roundTrip, static_cast<std::uint32_t>(bcos::engine::ApiVersion::V2)));
     BOOST_REQUIRE_MESSAGE(status.status == bcos::engine::PayloadValidationStatus::Valid,

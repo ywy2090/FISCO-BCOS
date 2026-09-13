@@ -128,7 +128,8 @@ StateDiff State::build_diff(evmc_revision rev) const
         //   One option is to just keep the original values. This may be handy for RPC.
         // TODO(clang): In AppleClang 15 emplace_back without StateDiff::Entry doesn't compile.
         //   NOLINTNEXTLINE(modernize-use-emplace)
-        auto& a = diff.modified_accounts.emplace_back(StateDiff::Entry{addr, m.nonce, m.balance});
+        auto& a =
+            diff.modified_accounts.emplace_back(StateDiff::Entry{addr, m.nonce, m.balance, {}, {}});
 
         // Output only the new code.
         // TODO: Output also the code hash. It will be needed for DB update and MPT hash.
@@ -161,7 +162,10 @@ Account* State::find(const address& addr) noexcept
         return &insert(addr, {.nonce = cacc->nonce,
                                  .balance = cacc->balance,
                                  .code_hash = cacc->code_hash,
-                                 .has_initial_storage = cacc->has_storage});
+                                 .has_initial_storage = cacc->has_storage,
+                                 .storage = {},
+                                 .transient_storage = {},
+                                 .code = {}});
     return nullptr;
 }
 
@@ -193,7 +197,11 @@ bytes_view State::get_code(const address& addr)
 
 Account& State::touch(const address& addr)
 {
-    auto& acc = get_or_insert(addr, {.erase_if_empty = true});
+    auto& acc = get_or_insert(addr, {.balance = {},
+                                        .storage = {},
+                                        .transient_storage = {},
+                                        .code = {},
+                                        .erase_if_empty = true});
     if (!acc.erase_if_empty && acc.is_empty())
     {
         acc.erase_if_empty = true;
@@ -394,7 +402,7 @@ std::variant<TransactionProperties, std::error_code> validate_transaction(
     // We need some information about the sender so lookup the account in the state.
     // TODO: During transaction execution this account will be also needed, so we may pass it along.
     const auto sender_acc = state_view.get_account(tx.sender).value_or(
-        StateView::Account{.code_hash = Account::EMPTY_CODE_HASH});
+        StateView::Account{.balance = {}, .code_hash = Account::EMPTY_CODE_HASH});
 
     if (sender_acc.code_hash != Account::EMPTY_CODE_HASH &&
         !is_code_delegated(state_view.get_account_code(tx.sender)))
@@ -548,7 +556,7 @@ TransactionReceipt transition(const StateView& state_view, const BlockInfo& bloc
 
     // Cumulative gas used is unknown in this scope.
     TransactionReceipt receipt{
-        tx.type, result.status_code, gas_used, {}, host.take_logs(), {}, state.build_diff(rev)};
+        tx.type, result.status_code, gas_used, {}, host.take_logs(), {}, state.build_diff(rev), {}};
 
     // Cannot put it into constructor call because logs are std::moved from host instance.
     receipt.logs_bloom_filter = compute_bloom_filter(receipt.logs);

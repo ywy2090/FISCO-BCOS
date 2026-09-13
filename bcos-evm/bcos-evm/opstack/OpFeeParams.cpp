@@ -25,6 +25,8 @@ OpFeeParams unpackOpFeeParams(const evmc::bytes32& slot1, const evmc::bytes32& s
 {
     return OpFeeParams{
         .l1_base_fee = intx::be::load<intx::uint256>(slot1),
+        .overhead = {},
+        .bedrock_scalar = {},
         .base_fee_scalar = static_cast<uint32_t>(readBE(slot3, 16, 4)),
         .blob_base_fee_scalar = static_cast<uint32_t>(readBE(slot3, 20, 4)),
         .blob_base_fee = intx::be::load<intx::uint256>(slot7),

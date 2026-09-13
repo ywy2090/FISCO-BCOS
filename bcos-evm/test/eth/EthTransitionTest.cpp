@@ -422,11 +422,18 @@ BOOST_AUTO_TEST_CASE(UnknownTimestampRevertsWithEmptyOutput, * boost::unit_test:
     constexpr auto kCaller = 0x0000000000000000000000000000000000001234_address;
     const evmc_message msg{
         .kind = EVMC_CALL,
+        .flags = 0,
+        .depth = 0,
         .gas = 30'000'000,
         .recipient = state::BEACON_ROOTS_ADDRESS,
         .sender = kCaller,  // 非 SYSTEM_ADDRESS → 走查询路径而非写路径
         .input_data = ts.bytes,
         .input_size = sizeof(ts.bytes),
+        .value = {},
+        .create2_salt = {},
+        .code_address = {},
+        .code = nullptr,
+        .code_size = 0,
     };
 
     const auto res =
