@@ -1214,8 +1214,14 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::runOpNewPay
         .parent = payload.parentHash,
         .number = payload.blockNumber,
         .headerBytes = std::move(importedHeaderBytes),
+        .txs = {},
+        .txHashes = {},
+        .encodedTxs = {},
+        .receipts = {},
+        .txRecipients = {},
         .storageDelta = std::move(blockDelta),
-        .postStateFlat = std::move(blockFlat)};
+        .postStateFlat = std::move(blockFlat),
+        .detached = false};
     for (auto const& env : detail::rawEnvelopes(payload))
     {
         imported.txs.push_back(env);
