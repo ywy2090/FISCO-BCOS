@@ -1,6 +1,7 @@
 # Copyright (c) FISCO-BCOS, Apache-2.0
 """Unit tests for gen_official_genesis.py. Pure logic uses synthetic fixtures;
-the real-zip acceptance test skips when the op-geth zip/zstd are unavailable."""
+the real-zip acceptance test skips when the op-geth zip/zstd are unavailable,
+unless OP_REQUIRE_REGISTRY_ZIP=1, in which case it fails instead."""
 import importlib.util
 import json
 import os
@@ -342,11 +343,11 @@ def test_generate_hash_mismatch_raises(tmp_path):
 
 
 # Registry zip: a machine default kept for the local ritual, overridable for CI
-# (the nightly points OP_GETH_ZIP at the op-geth pin tree). When
+# (Task 5's nightly will point OP_GETH_ZIP at the op-geth pin tree). When
 # OP_REQUIRE_REGISTRY_ZIP=1 a missing zip is a FAILURE, not a skip — a silent
 # skip here is how M5 degraded to "green but vacuous" (WI-11).
 _DEFAULT_OP_GETH_ZIP = Path("/Users/octopus/octo/code/op-geth/superchain/superchain-configs.zip")
-_OP_GETH_ZIP = Path(os.environ.get("OP_GETH_ZIP", _DEFAULT_OP_GETH_ZIP))
+_OP_GETH_ZIP = Path(os.environ.get("OP_GETH_ZIP") or _DEFAULT_OP_GETH_ZIP)
 
 # Chains the generator deliberately does not reproduce, with the reason. Not a
 # silent skip: the sweep asserts the excluded set is exactly this set, so an
@@ -380,7 +381,7 @@ def test_real_registry_full_sweep_matches_documented_exclusions():
     """
     import shutil
     if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
-        if os.environ.get("OP_REQUIRE_REGISTRY_ZIP") == "1":
+        if os.environ.get("OP_REQUIRE_REGISTRY_ZIP", "").strip().lower() in ("1", "true", "yes"):
             pytest.fail(f"OP_REQUIRE_REGISTRY_ZIP=1 but registry zip/zstd unavailable "
                         f"(zip={_OP_GETH_ZIP})")
         pytest.skip("op-geth superchain zip / zstd CLI not available")
@@ -407,7 +408,7 @@ def test_real_registry_full_sweep_matches_documented_exclusions():
 def test_real_registry_alt_da_chains_emit_alt_da(chain):
     import shutil
     if not _OP_GETH_ZIP.exists() or shutil.which("zstd") is None:
-        if os.environ.get("OP_REQUIRE_REGISTRY_ZIP") == "1":
+        if os.environ.get("OP_REQUIRE_REGISTRY_ZIP", "").strip().lower() in ("1", "true", "yes"):
             pytest.fail(f"OP_REQUIRE_REGISTRY_ZIP=1 but registry zip/zstd unavailable "
                         f"(zip={_OP_GETH_ZIP})")
         pytest.skip("op-geth superchain zip / zstd CLI not available")
