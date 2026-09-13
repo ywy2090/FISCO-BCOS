@@ -160,6 +160,39 @@ jobs:
         run: |
           cd build
           CTEST_OUTPUT_ON_FAILURE=TRUE ctest -j3
+      - name: Fork-label coverage guard
+        # WI-32 gate 3/4.
+        # Read-only, so it MUST run before the mutation harness below (which leaves
+        # variant-mutated BINARIES behind even after restoring the source — see the
+        # ordering contract on that step). Boost.Test renders decorator labels in
+        # `--list_content=DOT` as `labels: @fork-<name> ...`; all nine fork labels
+        # must still be present on each fork-labelled binary, so a refactor that
+        # drops a fork's cases (or its decorator) fails fast instead of silently
+        # shrinking the matrix. Counting rule: presence/positive counts, never the
+        # "errors detected" substring (Boost's success banner contains it).
+        # Linux-only: the corpus is regenerated only on the non-Windows legs and one
+        # leg is enough for a label inventory.
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          bash tools/.ci/check-fork-labels.sh \
+            build/bcos-evm/test/bcos-evm-opstack-tests \
+            build/engine/test/test-bcos-engine \
+            build/opstack-executor/tests/opstack-executor-block-tests
+      - name: Mutation harness (reverse-fix variants must go RED)
+        # WI-32 gate 1/4.
+        # ORDERING CONTRACT — do not move this before the build/ctest phase without
+        # first fixing run.sh: tools/mutation/run.sh restores each variant's mutated
+        # SOURCE (`git checkout HEAD -- <file>`) but does NOT rebuild the target back
+        # to the unmutated state, so it leaves a variant-mutated BINARY behind (the
+        # last variant processed). Any test step running after this would execute
+        # that mutated binary and report false failures. It therefore runs AFTER
+        # `Test` above, which is also the phase whose validity it audits: a variant
+        # that stays GREEN under its mapped filter is a matrix blind spot, and a
+        # negative-control filter that goes RED means the mutation is not attributed.
+        # The harness restores the source on every exit path and ends with a
+        # `git status --porcelain` cleanliness gate over every mapped file.
+        if: matrix.os == 'ubuntu-24.04' && github.event_name != 'release'
+        run: bash tools/mutation/run.sh
       - name: Download EEST fixtures
         if: matrix.os != 'windows-2025'
         run: |
@@ -548,3 +581,81 @@ jobs:
             'NodeConfigAllocsTest|GenesisStateRootTest|LedgerGenesisL2Test|LedgerGenesisAllocsHashTest|FeatureL2FlagTest|L2ConfigLoaderTest|PrecompiledMapDisabledInL2Test|PrecompiledMapProductionInvariantTest|KzgPrecompileRegisteredTest|EthEndpointSystemConfigTest'
       - name: L2 integration runner (SKIPs without the A8 devnet)
         run: bash tools/.ci/l2-integration/run-all.sh
+
+  # ==========================================================================
+  # WI-32 gates 2/4 (oracle pin consistency) + 4/4 (F-A4 corpus ref) + the
+  # registry-citation convention check (deliverable 5).
+  #
+  # Deliberately NOT a build leg: it needs only git metadata, the corpus checkout
+  # and (optionally) a specs checkout, so it finishes in seconds and fails with a
+  # precise message instead of surfacing as a cryptic test failure inside the
+  # heavy build matrix.
+  #
+  # F-A4 — TWO INDEPENDENT PIN AXES, never conflate them:
+  #   * op-geth pin (authoritative) e8800cffe53d459cde8a07c8e8f1de9d86e79e07:
+  #     the execution-client revision the oracle / golden samples are generated
+  #     from. Asserted consistent across regen.sh, op_geth_oracle.json,
+  #     tools/op-geth-oracle/extract.sh, GoldenSample.h and the provenance test.
+  #   * corpus-repo ref 759a9af097761cc5afc153689e200ab87088ae09: the
+  #     FISCO-BCOS/op-stack-e2e-tests commit whose generator CI runs. A DIFFERENT
+  #     axis, NOT an op-geth pin (this conflation was F-A4).
+  #
+  # BLOCKING NOTE (known CI risk; corpus-side fix required first): 759a9af0
+  # predates the corpus commits that add the getPayload goldens (afe06e2) and the
+  # matrix/ artifacts (f1fc9a3). The regen action runs the PINNED ref's generator,
+  # so under GITHUB_ACTIONS (CMake auto-defines FISCO_REQUIRE_T8N_CORPUS) the
+  # getPayload provenance case hard-fails while the matrix test silently degrades
+  # to "artifacts absent; skipping". The corpus must be pushed/merged first, then
+  # bump the ref in the THREE logical places: (1) the actions/checkout refs for
+  # FISCO-BCOS/op-stack-e2e-tests (build + coverage jobs), (2) the build job's
+  # opstack-t8n-regen@<ref> action ref, (3) the coverage job's action ref. Also
+  # bump tools/.ci/provision_t8n_corpus.sh's default for local parity. The check
+  # below FAILS FAST today, naming the missing artifacts — by design, NOT a
+  # defect in the gate. Never silence it by weakening the provenance test.
+  # ==========================================================================
+  ci_pins:
+    name: CI pin gates
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - name: Checkout op-stack-e2e-tests (clone; ref applied next step)
+        # Cloned via actions/checkout so the token/auth setup matches the build job
+        # (works whether the corpus repo is public or org-private). The commit ref
+        # itself is NOT hardcoded here: it is parsed from workflow.yml in the next
+        # step, so this job adds no fourth place to bump.
+        uses: actions/checkout@v4
+        with:
+          repository: FISCO-BCOS/op-stack-e2e-tests
+          path: e2e-tests
+      - name: Pin the corpus at the ref workflow.yml names
+        run: |
+          set -euo pipefail
+          REF="$(grep -oE 'opstack-t8n-regen@[0-9a-f]{40}' .github/workflows/workflow.yml \
+            | sed 's/.*@//' | sort -u | head -1)"
+          if [ -z "$REF" ]; then
+            echo "::error::no opstack-t8n-regen@<40-hex> ref found in workflow.yml"
+            exit 1
+          fi
+          git -C e2e-tests fetch -q --depth 1 origin "$REF"
+          git -C e2e-tests checkout -q --detach FETCH_HEAD
+          echo "corpus checkout: $(git -C e2e-tests rev-parse HEAD)"
+      - name: Checkout ethereum-optimism/specs for citation resolution
+        # Deliverable 5. Enforcing when the tree is present, but a third-party
+        # outage must not block this repo: continue-on-error degrades to a
+        # ::notice:: inside the script. The script hard-fails a citation that does
+        # not resolve at the pinned specs revision.
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: ethereum-optimism/specs
+          ref: 564a0ceae302eaf465edc7ff8ab55850624a11a0
+          path: ci-specs
+      - name: Pin consistency, corpus artifacts, citation reproducibility
+        env:
+          CORPUS_DIR: ${{ github.workspace }}/e2e-tests
+          SPECS_DIR: ${{ github.workspace }}/ci-specs
+        run: bash tools/.ci/check-ci-pins.sh
