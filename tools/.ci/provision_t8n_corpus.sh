@@ -3,7 +3,7 @@
 # opstack-executor/tests/t8n/{vectors,golden/engine}.
 set -euo pipefail
 
-PIN="${T8N_CORPUS_PIN:-759a9af097761cc5afc153689e200ab87088ae09}"
+PIN="${T8N_CORPUS_PIN:-a908a6d08af64fa6d3ef1744c3da079b92006bce}"
 ROOT="$(git rev-parse --show-toplevel)"
 DEST="${ROOT}/opstack-executor/tests/t8n"
 PIN_FILE="${DEST}/.t8n-pin"

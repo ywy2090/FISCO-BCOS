@@ -16,7 +16,7 @@
 #     away from the JSON contract silently.
 #
 #   * corpus-repo ref: the FISCO-BCOS/op-stack-e2e-tests commit whose generator
-#     CI runs. Currently 759a9af097761cc5afc153689e200ab87088ae09. This is a
+#     CI runs. Currently a908a6d08af64fa6d3ef1744c3da079b92006bce. This is a
 #     DIFFERENT axis, NOT an op-geth pin. It must agree across the workflow.yml
 #     checkout/action refs, tools/.ci/provision_t8n_corpus.sh's default and the
 #     corpus's own opstack-executor/tests/t8n/.t8n-pin.

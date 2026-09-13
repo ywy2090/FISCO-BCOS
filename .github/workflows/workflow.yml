@@ -141,7 +141,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: FISCO-BCOS/op-stack-e2e-tests
-          ref: 759a9af097761cc5afc153689e200ab87088ae09
+          ref: a908a6d08af64fa6d3ef1744c3da079b92006bce
           path: e2e-tests
       - name: Symlink e2e assets into in-tree paths
         if: matrix.os != 'windows-2025'
@@ -154,7 +154,7 @@ jobs:
         # from the source tree at runtime; the JSON is git-ignored and regenerated here
         # from pinned op-geth before `ctest`. Windows builds with -DTESTS=OFF, so no tests.
         if: matrix.os != 'windows-2025'
-        uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@759a9af097761cc5afc153689e200ab87088ae09
+        uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@a908a6d08af64fa6d3ef1744c3da079b92006bce
       - name: Test
         if: matrix.os != 'windows-2025'
         run: |
@@ -423,7 +423,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: FISCO-BCOS/op-stack-e2e-tests
-          ref: 759a9af097761cc5afc153689e200ab87088ae09
+          ref: a908a6d08af64fa6d3ef1744c3da079b92006bce
           path: e2e-tests
       - name: Symlink e2e assets into in-tree paths
         run: |
@@ -431,7 +431,7 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/e2e-tests/tools/opstack-genesis" "$GITHUB_WORKSPACE/tools/opstack-genesis"
           ln -s "$GITHUB_WORKSPACE/e2e-tests/opstack-executor/tests/t8n" "$GITHUB_WORKSPACE/opstack-executor/tests/t8n"
       - name: Regenerate opstack t8n vectors
-        uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@759a9af097761cc5afc153689e200ab87088ae09
+        uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@a908a6d08af64fa6d3ef1744c3da079b92006bce
       - name: Run tests
         run: |
           cd build
@@ -596,22 +596,17 @@ jobs:
   #     the execution-client revision the oracle / golden samples are generated
   #     from. Asserted consistent across regen.sh, op_geth_oracle.json,
   #     tools/op-geth-oracle/extract.sh, GoldenSample.h and the provenance test.
-  #   * corpus-repo ref 759a9af097761cc5afc153689e200ab87088ae09: the
+  #   * corpus-repo ref a908a6d08af64fa6d3ef1744c3da079b92006bce: the
   #     FISCO-BCOS/op-stack-e2e-tests commit whose generator CI runs. A DIFFERENT
   #     axis, NOT an op-geth pin (this conflation was F-A4).
   #
-  # BLOCKING NOTE (known CI risk; corpus-side fix required first): 759a9af0
-  # predates the corpus commits that add the getPayload goldens (afe06e2) and the
-  # matrix/ artifacts (f1fc9a3). The regen action runs the PINNED ref's generator,
-  # so under GITHUB_ACTIONS (CMake auto-defines FISCO_REQUIRE_T8N_CORPUS) the
-  # getPayload provenance case hard-fails while the matrix test silently degrades
-  # to "artifacts absent; skipping". The corpus must be pushed/merged first, then
-  # bump the ref in the THREE logical places: (1) the actions/checkout refs for
-  # FISCO-BCOS/op-stack-e2e-tests (build + coverage jobs), (2) the build job's
-  # opstack-t8n-regen@<ref> action ref, (3) the coverage job's action ref. Also
-  # bump tools/.ci/provision_t8n_corpus.sh's default for local parity. The check
-  # below FAILS FAST today, naming the missing artifacts — by design, NOT a
-  # defect in the gate. Never silence it by weakening the provenance test.
+  # RESOLVED (was the BLOCKING NOTE): the corpus ref now postdates the getPayload
+  # goldens (afe06e2), the matrix/ artifacts (f1fc9a3) and the generator-side
+  # bookkeeping + envelope wiring (625f0f6, a908a6d) — the pinned ref's regen
+  # produces everything the provenance/matrix tests require, so the ci_pins gate
+  # below passes and the getPayload provenance case is satisfiable in CI. The gate
+  # stays as the canary: a future ref bump that regresses below those corpus
+  # commits fails fast again, by design. Never silence it by weakening the tests.
   # ==========================================================================
   ci_pins:
     name: CI pin gates
