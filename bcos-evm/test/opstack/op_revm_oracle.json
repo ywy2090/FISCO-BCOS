@@ -6,9 +6,14 @@
     "subdir": "rust/op-revm",
     "revision": "5f90f749caea14398554afb75062f7111b1fc554",
     "precompiles_rs": "rust/op-revm/src/precompiles.rs",
-    "spec_rs": "rust/op-revm/src/spec.rs"
+    "spec_rs": "rust/op-revm/src/spec.rs",
+    "constants_rs": "rust/op-revm/src/constants.rs"
   },
   "karst_eth_spec": "OSAKA",
+  "holocene_eth_spec": "CANCUN",
+  "jovian_eth_spec": "PRAGUE",
+  "operator_fee_scalar_decimal": 1000000,
+  "operator_fee_jovian_multiplier": 100,
   "bn254_pairing_max_input_size": 57600,
   "bls_g1_msm_max_input_size": 288960,
   "bls_g2_msm_max_input_size": 278784,
