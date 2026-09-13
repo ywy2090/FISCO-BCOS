@@ -1184,11 +1184,14 @@ OpEngineService<MemPoolType, GlobalStateStorageType, SchedulerType>::runOpNewPay
         BOOST_THROW_EXCEPTION(OpExecutionInternalError{} << bcos::errinfo_comment{
                                   "executed header is missing withdrawalsRoot"});
     }
-    // Below Canyon the executed header carries the seal's present-zero sentinel while a
-    // pre-Canyon payload legitimately omits the field, and the pre-Canyon RLP defines
-    // neither value; same presence-insensitive projection as commitmentsOfHeader below.
+    // The announced header projects the payload per fork (pre-Canyon: absent → the seal's
+    // present-zero sentinel; Canyon..Holocene: empty-trie root; Isthmus+: the payload's own
+    // root) — the same presence-insensitive comparison the scheduler's verify arm makes
+    // (OpScheduler.h:712-717). Comparing the raw wire optional collapsed "absent" to zero,
+    // which can never equal the Canyon empty-trie seal and rejected every real CL payload
+    // in the Canyon..Holocene window (F-B2-1).
     if (executedHeader->withdrawalsRoot().value_or(bcos::h256{}) !=
-        payload.withdrawalsRoot.value_or(bcos::h256{}))
+        ethHeader->withdrawalsRoot().value_or(bcos::h256{}))
     {
         co_return makeStatus(PayloadValidationStatus::Invalid, latestValidHash,
             std::string("withdrawalsRoot does not match the executed header"));

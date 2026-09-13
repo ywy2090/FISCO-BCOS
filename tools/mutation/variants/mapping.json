@@ -115,5 +115,11 @@
     "filter": "OpForkScheduleMetadataTest/genesisBindingMismatchFailClosed",
     "also_green": ["OpForkScheduleMetadataTest/hashMismatchFailClosed"],
     "expect": "only_mapped_red",
-    "why": "genesis 绑定校验被旁路 ⇒ 绑定负向必红；hash 校验是相邻但独立的机制，须保持 GREEN。" }
+    "why": "genesis 绑定校验被旁路 ⇒ 绑定负向必红；hash 校验是相邻但独立的机制，须保持 GREEN。" },
+  { "variant": "V-CANYON-rootProjection", "mutated": "engine/bcos-engine/OpEngineService.inl",
+    "target": "test-bcos-engine", "binary": "engine/test/test-bcos-engine",
+    "filter": "OpCanyonWindowImportSuite/CanyonAbsentWithdrawalsRootImports",
+    "also_green": ["OpEngineServiceParityTest/op_newpayload_missing_executed_withdrawals_root_is_internal_error"],
+    "expect": "only_mapped_red",
+    "why": "The F-B2-1 regression cell: reverting the announced-header projection back to the raw payload optional must flip the Canyon absent-root import back to INVALID, while the sibling -32603 guard (different mechanism) stays GREEN." }
 ]
