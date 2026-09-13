@@ -121,31 +121,44 @@ ends by design:
   chain config hits it (all use `1e6` multiples), so the da-matrix comparison is
   unaffected.
 
-### `eip7825_deposit_exemption` — op-geth applies the Osaka tx-gas cap to deposits; spec says it is not enabled for them
+### `eip7825_deposit_exemption` — op-geth applies the Osaka tx-gas cap to deposits; FISCO's Karst tier exempts them (alignment direction UNRESOLVED)
 
 - **Grid case:** none yet (no da-matrix row exercises a deposit above 2^24); registered
   here because a future differential run (Plan D) against op-geth will surface it.
-- **Status:** **op-geth deviates from the spec; FISCO follows the spec.** The spec text is
-  explicit — `specs/protocol/karst/overview.md:20`: *"EIP-7825 Transaction Gas Limit Cap
-  (not enabled for deposits, which are already subject to a 20MGas limit)"*. The 20M
-  figure is L1/ingress-side resource metering (`guaranteed-gas-market.md:48`
-  `MAX_RESOURCE_LIMIT = 20,000,000`), not an EL validation rule.
+- **Status: direction unresolved — a previous revision of this entry claimed "op-geth
+  deviates from the spec", citing `specs/protocol/karst/overview.md:20`. That citation does
+  not exist.** At specs pin `564a0ce` the file is a 464-byte / 16-line stub (TOC plus two
+  empty section headings), so there is no line 20; a tree-wide search
+  (`grep -rn '7825\|20MGas\|not enabled for deposits' specs/`) hits only `flashblocks.md:615`
+  (unrelated), and `git log --all -S'not enabled for deposits'` / `-S'20MGas'` are empty.
+  The one real 20M figure is L1/ingress-side resource metering —
+  `guaranteed-gas-market.md:48` `MAX_RESOURCE_LIMIT = 20,000,000` — which is not an EL
+  transaction-validation rule. **Neither side's alignment is therefore established.**
 - **What happens:** FISCO's Karst tier sets `deposit_exempt_from_max_tx_gas = true`
   (`bcos-evm/opstack/OpForkSchedule.cpp:230`), wired at `bcos-evm/opstack/OpTransition.cpp:575`
-  as `enforce_max_tx_gas = !cfg.deposit_exempt_from_max_tx_gas`, so a spec-legal
-  over-cap deposit executes normally (pinned by
-  `OpOsakaSemanticsTest.cpp` `DepositExemptFromEip7825MaxGasLimit`, status 0 / gasUsed 21000).
-  op-geth `core/state_transition.go:381` applies the cap inside `!msg.SkipTransactionChecks`
-  **including deposits**, and its deposit-tolerance path (`:470-495`) then includes the
-  deposit as a **failed receipt** with `gasUsed = GasLimit` and `nonce+1`.
-- **Why it matters / reachability:** the deposit gas ceiling is 20,000,000 while the 7825
-  cap is 2^24 = 16,777,216, so the interval **(2^24, 20M] is spec-legal but op-geth
-  rejects it** — a constructible input (L1-side senders choose deposit gas limits) on
-  which FISCO and op-geth would produce different receipts, gasUsed, nonce and state, and
-  therefore a different block hash. No known chain config or corpus vector currently emits
-  such a deposit, so no existing comparison is affected.
-- **Disposition:** FISCO keeps the exemption (spec-aligned). Do **not** change FISCO to
-  match op-geth without an upstream spec change.
-- **Review trigger:** revisit if op-geth changes `state_transition.go:381` to skip deposits,
-  or if the Karst spec text at `karst/overview.md:20` changes; also re-check whether the
-  EL should mirror the L1 20M metering (currently judged L1/ingress-side, not EL).
+  as `enforce_max_tx_gas = !cfg.deposit_exempt_from_max_tx_gas`, so an over-cap deposit
+  executes normally (pinned by `OpOsakaSemanticsTest.cpp` `DepositExemptFromEip7825MaxGasLimit`,
+  status 0 / gasUsed 21000). op-geth `core/state_transition.go:379-383` returns
+  `ErrGasLimitTooHigh` when `isOsaka && msg.GasLimit > params.MaxTxGas` inside
+  `if (!msg.SkipTransactionChecks)`; deposits do **not** set that flag — the only setter in
+  the tree is `internal/ethapi/transaction_args.go:495` (eth_call) — so the cap applies to
+  deposits. Note the check sits in `preCheck`, i.e. **before** execution: the
+  deposit-tolerant path (`:489-496`, which keeps a failed deposit with `nonce+1`) covers
+  errors from the execution phase only and does **not** cover this one, so op-geth's exact
+  surface for an over-cap deposit (unprocessable block vs. recorded failure) still needs a
+  differential confirmation (Plan D) rather than an assumption.
+- **Why it matters / reachability:** FISCO's deposit gas ceiling is 20,000,000 while the
+  7825 cap is 2^24 = 16,777,216, so deposits in **(2^24, 20M] are accepted by FISCO and
+  rejected by op-geth** — a constructible input (L1-side senders choose deposit gas limits)
+  on which the two nodes diverge at that block. No known chain config or corpus vector
+  currently emits such a deposit.
+- **Disposition (corrected):** FISCO keeps the exemption for now, but it is a
+  **FISCO-internal choice** (mirroring the L1 20M guaranteed-gas ceiling), not a
+  spec requirement — and op-geth is not thereby "deviating" either. The alignment question
+  is **open**: WI-35's earlier verdict is **reopened** (it rested on the fabricated citation)
+  and the same correction must reach the workstream that closed its finding against it.
+  Resolve with authoritative evidence — a spec statement, an op-geth/op-node PR, or op-node
+  code exempting deposits — or align FISCO with op-geth.
+- **Review trigger:** any authoritative statement about EIP-7825 and deposits; op-geth
+  changing `state_transition.go:379-383` to skip deposits; a Plan D differential run over a
+  (2^24, 20M] deposit; or any chain config that lets L1 senders set deposit gas above 2^24.

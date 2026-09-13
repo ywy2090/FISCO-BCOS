@@ -656,14 +656,17 @@ BOOST_AUTO_TEST_CASE(KarstEthCallSkipsEip7825MaxGasLimit, * boost::unit_test::la
     BOOST_REQUIRE(std::holds_alternative<OpTxProperties>(r));
 }
 
-// Spec basis for the exemption: specs/protocol/karst/overview.md:20 -- "EIP-7825
-// Transaction Gas Limit Cap (not enabled for deposits, which are already subject to a
-// 20MGas limit)". The 20M deposit limit is L1/ingress-side resource metering
-// (guaranteed-gas-market.md:48 MAX_RESOURCE_LIMIT), not an EL check, so this lane must
-// NOT apply the 2^24 cap to deposits. Note (2^24 = 16,777,216) < 20,000,000, so the
-// interval (2^24, 20M] is spec-legal for a deposit; see DIVERGENCES.md
-// `eip7825_deposit_exemption` for the op-geth side (it applies the cap to deposits and
-// records an included failed receipt instead).
+// The exemption pinned here is a FISCO-internal choice, NOT a spec requirement. An earlier
+// revision of this comment (and of DIVERGENCES.md `eip7825_deposit_exemption`) cited
+// "specs/protocol/karst/overview.md:20 — EIP-7825 ... (not enabled for deposits, ...)".
+// That citation does not exist: at specs pin 564a0ce the file is a 464-byte stub with 16
+// lines and no such text anywhere in the specs tree. The only spec'd 20M figure is the L1
+// guaranteed-gas ceiling (guaranteed-gas-market.md:48 MAX_RESOURCE_LIMIT = 20,000,000),
+// which is not an EL validation rule. So the alignment question is OPEN: FISCO exempts
+// deposits (2^24 = 16,777,216 < 20,000,000 leaves (2^24, 20M] accepted here), while op-geth
+// applies the cap to deposits in preCheck (core/state_transition.go:379-383, only eth_call
+// sets SkipTransactionChecks). See DIVERGENCES.md `eip7825_deposit_exemption` for the
+// reopened WI-35 and the evidence.
 // clang-format off
 BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit, * boost::unit_test::label("fork-karst"))
 // clang-format on
