@@ -14,21 +14,28 @@ expected to agree exactly on every source.
 
 ## Registry
 
-### `karst_alias` — FISCO `karstConfig` aliases `jovianConfig` (switch_karst)
+### `karst_alias` — FISCO's `karstConfig` is an explicit OSAKA-based Karst config; op-geth still keys Karst off Jovian (switch_karst)
 
 - **Grid case:** `switch_karst` (already carries `"known_divergence":
   "karst_alias"`).
 - **Status:** confirmed consistent across all four ends — but consistent *by
   design*, not because Karst semantics have been verified anywhere.
-- **What happens:** FISCO's `karstConfig()` is a placeholder alias of
-  `jovianConfig()` (bcos-evm `OpForkSchedule.h`); op-geth selects the Jovian
-  operator-fee-fix via `IsJovian` and never consults `KarstTime`; op-revm's
-  `KARST` is `>= JOVIAN` so it takes the same `×100` operator path;
-  GasPriceOracle has no Karst branch and reports the Jovian formula. All four
-  therefore emit the jovian numbers for this row.
-- **Why registered:** the agreement is a placeholder coincidence, not evidence
-  that real Karst behaviour (Isthmus→Karst DA changes) is implemented. Real
-  Karst adaptation is tracked separately (see the da-matrix plan's "单独立案").
+- **What happens:** FISCO's `karstConfig()` **no longer aliases `jovianConfig()`** —
+  it is a materialized config of its own (`OpForkSchedule.cpp:220-236`):
+  `.rev = EVMC_OSAKA`, its own `.precompiles = &karstPrecompileOverrides()`,
+  `.has_operator_fee` + `.has_jovian_operator_formula` (the ×100 path),
+  `.has_da_footprint`, `.deposit_exempt_from_max_tx_gas`, `.l1_fee_model = Fjord`,
+  `.disable_prague_requests`. op-geth still selects the Jovian operator-fee-fix via
+  `IsJovian` and never consults `KarstTime`; op-revm's `KARST` is `>= JOVIAN` so it
+  takes the same `×100` operator path; GasPriceOracle has no Karst branch and
+  reports the Jovian formula. All four therefore emit the jovian numbers for this
+  row — now because FISCO's explicit config *matches* the jovian-keyed upstreams,
+  not because of an alias.
+- **Why registered:** the agreement is by construction, not evidence that real
+  Karst behaviour (Isthmus→Karst DA changes) is implemented. Real Karst
+  adaptation is tracked separately (see the da-matrix plan's "单独立案").
+  (2026-09-13 correction: the previous text described `karstConfig()` as a
+  placeholder alias, which the code outgrew — see the config above.)
 - **Op-geth note:** `run_opgeth` keeps `JovianTime=0` for the karst tag because
   op-geth's cost functions key off `IsJovian`/`IsOptimismIsthmus` only.
 
