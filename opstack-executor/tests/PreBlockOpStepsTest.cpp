@@ -29,6 +29,7 @@
 #include <boost/test/unit_test.hpp>
 #include <evmc/evmc.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -765,6 +766,99 @@ BOOST_AUTO_TEST_CASE(ProcessOpBlockQ5RejectsDepositVariantWithTypedEnvelope)
             return std::string_view{e.what()}.find("unexpected non-deposit") !=
                    std::string_view::npos;
         });
+}
+
+// ---- create2Deployer at the Canyon activation timestamp (op-geth EnsureCreate2Deployer) ----
+//
+// op-geth (consensus/misc/create2deployer.go:34-40) writes the create2Deployer code ONLY when
+// the block timestamp equals CanyonTime (`*c.CanyonTime != timestamp` returns), and does so
+// unconditionally. The three cells below pin that gate: the activation block deploys, a
+// pre-activation block does not, and a post-activation block observes the code as carried
+// state while not re-firing the gate itself. The code is observed through a fresh Storage2State
+// bridge over the same MemoryStorage the hook wrote into.
+
+namespace
+{
+const op::OpForkSchedule kCanyonAt1000 = op::OpForkSchedule::parse("0:regolith,1000:canyon");
+
+evmc::bytes create2DeployerCodeIn(MutableStorage& storage)
+{
+    bcos::evm::evmstate::Storage2State<MutableStorage> view(storage);
+    return view.get_account_code(engine::create2DeployerAddress());
+}
+}  // namespace
+
+// (a) Exactly at the Canyon activation timestamp the code is written, with the op-geth codeHash.
+BOOST_AUTO_TEST_CASE(CanyonActivationBlockDeploysCreate2Deployer)
+{
+    Fixture f;
+    f.schedule = kCanyonAt1000;
+    f.header.m_timestampMs = 1'000'000;  // blockTsSec == 1'000'000/1000 == 1000 (activation)
+    auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
+    f.run(op::canyonConfig(), {kDepositEnvelope}, {dep});
+
+    bcos::evm::evmstate::Storage2State<MutableStorage> view(f.storage);
+    auto code = view.get_account_code(engine::create2DeployerAddress());
+    BOOST_REQUIRE(!view.poisoned());
+    BOOST_CHECK_EQUAL(code.size(), engine::kCreate2DeployerCode.size());
+    BOOST_CHECK(std::equal(code.begin(), code.end(), engine::kCreate2DeployerCode.begin(),
+        engine::kCreate2DeployerCode.end()));
+    auto acct = view.get_account(engine::create2DeployerAddress());
+    BOOST_REQUIRE(acct.has_value());
+    BOOST_CHECK(acct->code_hash == engine::create2DeployerCodeHash());
+}
+
+// (b) One second below the activation: no code. This is the cell that proves the gate is the
+// activation timestamp, not `fork >= Canyon` (the config at 999s is still Regolith).
+BOOST_AUTO_TEST_CASE(PreCanyonActivationBlockDoesNotDeployCreate2Deployer)
+{
+    Fixture f;
+    f.schedule = kCanyonAt1000;
+    f.header.m_timestampMs = 999'000;  // blockTsSec == 999 (Canyon activates at 1000)
+    auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
+    f.run(op::regolithConfig(), {kDepositEnvelope}, {dep});
+
+    bcos::evm::evmstate::Storage2State<MutableStorage> view(f.storage);
+    BOOST_REQUIRE(!view.poisoned());
+    BOOST_CHECK(view.get_account_code(engine::create2DeployerAddress()).empty());
+    BOOST_CHECK(!view.get_account(engine::create2DeployerAddress()).has_value());
+}
+
+// (c) Post-activation: the code persists as state across a later block (the gate does not run
+// again, but the earlier write survives).
+BOOST_AUTO_TEST_CASE(PostCanyonActivationBlockKeepsCreate2Deployer)
+{
+    Fixture f;
+    f.schedule = kCanyonAt1000;
+    auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
+
+    f.header.m_timestampMs = 1'000'000;  // activation writes the code
+    f.run(op::canyonConfig(), {kDepositEnvelope}, {dep});
+    BOOST_REQUIRE_EQUAL(
+        create2DeployerCodeIn(f.storage).size(), engine::kCreate2DeployerCode.size());
+
+    f.header.m_timestampMs = 1'001'000;  // 1001s: still Canyon, past the activation timestamp
+    f.run(op::canyonConfig(), {kDepositEnvelope}, {dep});
+    auto code = create2DeployerCodeIn(f.storage);
+    BOOST_CHECK_EQUAL(code.size(), engine::kCreate2DeployerCode.size());
+    BOOST_CHECK(std::equal(code.begin(), code.end(), engine::kCreate2DeployerCode.begin(),
+        engine::kCreate2DeployerCode.end()));
+}
+
+// (c') A post-activation block against FRESH state must NOT deploy: upstream only fires at the
+// activation timestamp itself, so `fork >= Canyon` (or `timestamp >= CanyonTime`) would be
+// wrong. This is the post-direction counterpart to (b).
+BOOST_AUTO_TEST_CASE(PostCanyonTimestampOnFreshStateDoesNotDeployCreate2Deployer)
+{
+    Fixture f;
+    f.schedule = kCanyonAt1000;
+    f.header.m_timestampMs = 1'001'000;  // post-activation, gate must be false
+    auto dep = depositWithData(l1AttributesData(op::IsthmusL1AttributesLen));
+    f.run(op::canyonConfig(), {kDepositEnvelope}, {dep});
+
+    bcos::evm::evmstate::Storage2State<MutableStorage> view(f.storage);
+    BOOST_REQUIRE(!view.poisoned());
+    BOOST_CHECK(view.get_account_code(engine::create2DeployerAddress()).empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
