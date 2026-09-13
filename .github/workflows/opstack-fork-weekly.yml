@@ -1,0 +1,75 @@
+name: opstack-fork-weekly
+on:
+  schedule:
+    - cron: "0 4 * * 0"   # 04:00 UTC, Sundays
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  fork-matrix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          clean: false
+      - name: Initialize vcpkg submodule
+        run: git submodule update --init --recursive -- vcpkg
+      - name: Compute vcpkg revision
+        id: vcpkg-revision
+        shell: bash
+        run: echo "revision=$(git -C vcpkg rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 3.28.3
+          ninjaVersion: 1.12.1
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/build/vcpkg_installed
+          key: vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'ports/**') }}-${{ steps.vcpkg-revision.outputs.revision }}-${{ runner.os }}-${{ runner.arch }}-cache-key-v4
+      - name: Regenerate opstack t8n vectors (corpus + goldens + getpayload envelopes)
+        uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@c6365ad67c12186c855d64121d12c432fac7a9f0
+      - name: Configure + build the test binaries (suites + every mutation-harness target)
+        run: |
+          mkdir -p build && cd build
+          CC=gcc-14 CXX=g++-14 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DLINKER=mold \
+            -DTESTS=ON -DCOVERAGE=OFF -DWITH_LIGHTNODE=ON -DWITH_CPPSDK=ON -DWITH_TIKV=OFF \
+            -DWITH_TARS_SERVICES=OFF -DTOOL=OFF -DVCPKG_TARGET_TRIPLET=x64-linux-release ..
+          cmake --build . --target test-bcos-engine opstack-executor-block-tests \
+            opstack-executor-tests bcos-evm-opstack-tests test-bcos-ledger -j 4
+      - name: C++ fork suites (one invocation per suite; Boost rejects comma lists)
+        run: |
+          set -euo pipefail
+          check_suite() {  # <binary> <suite>
+            out=$("$1" --run_test="$2" --log_level=test_suite 2>&1)
+            printf '%s\n' "$out"
+            echo "$out" | grep -qE 'Running [1-9][0-9]* test cases?' \
+              || { echo "SUITE DID NOT RUN: $2 on $1"; exit 1; }
+            echo "$out" | grep -q '\*\*\* No errors detected'
+          }
+          check_suite ./build/engine/test/test-bcos-engine OpEnginePayloadShapeBaselineSuite
+          check_suite ./build/engine/test/test-bcos-engine OpForkBoundarySweepSuite
+          check_suite ./build/engine/test/test-bcos-engine OpHeaderFieldSetBaselineSuite
+          check_suite ./build/opstack-executor/tests/opstack-executor-block-tests OpGoldenCorpusProvenance
+          check_suite ./build/bcos-evm/test/bcos-evm-opstack-tests OpPrecompilesSuite
+          check_suite ./build/bcos-evm/test/bcos-evm-opstack-tests OpOsakaSemanticsSuite
+      - name: Set up Python 3.11 (mapping.json reader for the mutation harness)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Mutation harness (full variant set; restores source, leaves mutant BINARIES — runner is ephemeral)
+        run: bash tools/mutation/run.sh
+      - name: conformance status placeholder (Plan D not started)
+        # Block scalar: the value's inner "execution: ..." colon-space is not valid
+        # inside a YAML plain scalar (the plan snippet's one syntax bug).
+        run: |
+          echo "conformance differential execution: pending Plan D; tracked in docs/plans"
+      - name: route failure to an issue, do not block PRs
+        if: failure()
+        run: |
+          gh issue create --label test-matrix \
+            --title "weekly fork matrix failed: ${{ github.run_id }}" \
+            --body "See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
