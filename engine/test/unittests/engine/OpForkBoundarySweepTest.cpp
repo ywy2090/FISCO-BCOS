@@ -194,6 +194,12 @@ BOOST_AUTO_TEST_SUITE(OpForkBoundarySweepSuite)
 /// 9 forks x 3 cells: the fork BEFORE the activation, the activation block itself, and the
 /// block after. Each cell asserts the fork identity, and the activation cell plus the
 /// following cell additionally assert the full config field set.
+///
+/// Spec basis for the activation rule pinned here (the Regolith row, WI → R06):
+/// `specs/protocol/regolith/overview.md:36-37` — "The Regolith upgrade uses a _L2
+/// block-timestamp_ activation-rule, and is specified in both the rollup-node
+/// (`regolith_time`) and execution engine (`config.regolithTime`)". The same timestamp-keyed
+/// form is used for every later fork, which is what `c_ladder` below encodes.
 // clang-format off
 BOOST_AUTO_TEST_CASE(EachForkSwitchesExactlyAtItsActivation, * boost::unit_test::label("fork-regolith") * boost::unit_test::label("fork-canyon") * boost::unit_test::label("fork-ecotone") * boost::unit_test::label("fork-fjord") * boost::unit_test::label("fork-granite") * boost::unit_test::label("fork-holocene") * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
 // clang-format on
