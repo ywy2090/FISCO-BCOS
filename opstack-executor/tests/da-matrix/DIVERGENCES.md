@@ -162,3 +162,51 @@ ends by design:
 - **Review trigger:** any authoritative statement about EIP-7825 and deposits; op-geth
   changing `state_transition.go:379-383` to skip deposits; a Plan D differential run over a
   (2^24, 20M] deposit; or any chain config that lets L1 senders set deposit gas above 2^24.
+
+### `receipt_derivation_tolerance` — a malformed (≠164B) Ecotone L1-attributes calldata still yields receipt fields on FISCO, while op-geth cannot derive them
+
+- **Grid case(s):** none — and none is possible today: the corpus vectors are isthmus/jovian
+  (Fjord+), so the Ecotone length rule is not exercised by any live gate. Reachable only from
+  a non-conforming or hostile CL, because a conforming CL always emits exactly 164 bytes
+  (`specs/protocol/ecotone/l1-attributes.md:41` — "Total calldata length MUST be exactly 164
+  bytes"; selector `0x440a5e20` at `:30`).
+- **Status:** registered, NOT triggered. This is an **observation-plane** difference, not a
+  consensus/state divergence — and it must **not** be "fixed" by rejecting such blocks (see
+  Disposition).
+- **What happens (state):** both ends inherit the enforcement from the L1Block predeploy
+  itself. op-geth's per-receipt L1 fees during processing come from **state slots**
+  (`NewL1CostFunc` reads `L1FeeScalarsSlot`/`L1BlobBaseFeeSlot`/`L1BaseFeeSlot`, with the
+  comment "deposit transactions from the block [must be] processed first by state
+  transition. This behavior is consensus critical!"), i.e. the attributes enter state only by
+  **executing** the predeploy. FISCO's C++ never writes those slots either — it only reads
+  them (`bcos-evm/opstack/OpPredeploys.h:11`, `OpFeeParams.cpp:45-49`,
+  `OpTransition.h:143`) — and the corpus pre-state carries the predeploy code
+  (`tools/opstack-genesis/op-fork-base-allocs.json` address
+  `0x42…15`, code at the entry near `:1045`). So a 165-byte calldata reverts the ABI decode
+  on both ends and the attributes are not applied on either. **No state divergence.**
+- **What happens (receipts):** op-geth's read path re-derives receipt L1 fields from the
+  block's first transaction (`core/types/receipt_opstack.go:18` → `extractL1GasParams`), whose
+  Ecotone branch hard-requires `len(data) == 164` (`core/types/rollup_cost.go:476-479`,
+  "expected 164 L1 info bytes, got %d"). That error is **tolerated** by both real callers:
+  `core/blockchain.go:2500` logs and continues (reorg/removal path), and
+  `core/rawdb/accessors_chain.go:568` logs and returns **nil** (receipt lookup path), so a node
+  importing such a block serves no receipts for it. FISCO's receipt-meta derivation is
+  calldata-driven and reads the fields it needs by offset, so it still returns values. Two
+  further narrowings on the upstream side: the derivation early-returns for deposit-only
+  blocks (`receipt_opstack.go:13`) and only runs when the block has ≥2 transactions
+  (`core/types/receipt.go:622`).
+- **Why registered:** so that a future Plan D differential over an Ecotone block with a
+  malformed attributes calldata is read correctly — the endpoints disagree on **receipt
+  serving**, not on state, block validity, or `receiptsRoot` validation. It also records why
+  FISCO has no 164-length check: our design inherits the rule from the predeploy's ABI instead
+  of re-implementing it, which is the same enforcement op-geth relies on for state.
+- **Disposition:** keep FISCO as is. Do **not** add a hard 164-byte rejection to the
+  newPayload/validation path: op-geth *imports* such blocks (only its receipt lookup fails),
+  so rejecting them would create a divergence in the opposite direction. If a stricter posture
+  is ever wanted, it belongs in the receipt-derivation layer (mirror upstream's error/nil) and
+  must be registered as its own deliberate divergence.
+- **Review trigger:** a corpus Ecotone vector is added (Plan C) and the gate becomes visible;
+  a CL that emits a non-164 Ecotone calldata; op-geth moving the length check into
+  `state_transition`/block validation (making the block itself un-importable) — that would
+  turn this into a consensus divergence and require a matching FISCO check; or FISCO switching
+  its receipt derivation from calldata-driven to slot-driven.
