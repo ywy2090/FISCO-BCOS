@@ -1,3 +1,10 @@
+/**
+ *  Copyright (C) 2026 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ * @file OpHeaderFieldSetBaselineTest.cpp
+ * @brief Per-fork header RLP field-set baseline against the golden corpus.
+ */
 // OpHeaderFieldSetBaselineTest.cpp — per-fork header RLP field-set baseline (Plan C / WI-13).
 //
 // Two independent halves over the whole golden corpus:
@@ -55,12 +62,16 @@ namespace
 {
 
 // Canonical fork order of the corpus (regolith..jovian; karst has no golden).
-constexpr char const* c_forkOrder[8] = {
+// Add-a-fork checklist: extend c_forkOrder, add the tier to the boundary-facts
+// block if its tail set differs, add a forkOfGolden override if the name prefix
+// lies, extend chainedForkOf if a chained-era pair maps to it.
+constexpr char const* c_forkOrder[] = {
     "regolith", "canyon", "ecotone", "fjord", "granite", "holocene", "isthmus", "jovian"};
+constexpr std::size_t c_forkCount = std::size(c_forkOrder);
 
 int forkRank(std::string const& fork)
 {
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < static_cast<int>(c_forkCount); ++i)
     {
         if (fork == c_forkOrder[i])
         {
@@ -88,6 +99,8 @@ std::string forkOfGolden(std::string const& filename)
 
 // chained/ names carry no fork prefix: the chain cases are isthmus-era, the jovian*
 // ones jovian-era (both tiers share the same tail set, so this only affects reporting).
+// A future chained pair from a NEWER era will surface as an isthmus/jovian uniformity
+// failure naming the wrong tier -- extend the mapping when that happens.
 std::string chainedForkOf(std::string const& name)
 {
     return name.rfind("jovian", 0) == 0 ? std::string{"jovian"} : std::string{"isthmus"};
@@ -171,12 +184,21 @@ BOOST_AUTO_TEST_CASE(GoldenHeaderFieldSetAndReencodeMatchForkBaseline, * boost::
             {
                 ++i;
             }
+            // 16 re-encoded bytes around the first difference, for eyeballing the divergence.
+            auto const start = i >= 8 ? i - 8 : 0;
+            auto const stop = std::min(reencoded.size(), start + 16);
+            auto const window =
+                bcos::toHex(bcos::bytes(reencoded.begin() + start, reencoded.begin() + stop), "0x");
             BOOST_CHECK_MESSAGE(false,
-                name << ": re-encode differs from the golden header -- first difference at byte "
+                name << " (fork " << fork
+                     << "): re-encode differs from the golden header -- "
+                        "first difference at byte "
                      << i << " (golden " << bytes.size() << "B, re-encoded " << reencoded.size()
-                     << "B); decoded tail presence [" << tailPresence(eth.data())
+                     << "B); re-encoded[" << start << ".." << stop << ") = " << window
+                     << "; decoded tail presence [" << tailPresence(eth.data())
                      << "]. A field-set/order change at this fork, or a divergence in the "
-                        "optional-tail semantics, must be registered in DIVERGENCES.md.");
+                        "optional-tail semantics, must be registered in "
+                        "opstack-executor/tests/da-matrix/DIVERGENCES.md.");
         }
 
         // (b) presence invariants: uniform within a tier.
@@ -195,6 +217,9 @@ BOOST_AUTO_TEST_CASE(GoldenHeaderFieldSetAndReencodeMatchForkBaseline, * boost::
         ++filesChecked;
     };
 
+    // Sorted: the "first seen" reference tuple in the uniformity check must be stable
+    // run-to-run (fs::directory_iterator order is unspecified).
+    std::vector<fs::path> goldens;
     for (auto const& entry : fs::directory_iterator(dir))
     {
         if (!entry.is_regular_file() || entry.path().extension() != ".json" ||
@@ -202,16 +227,28 @@ BOOST_AUTO_TEST_CASE(GoldenHeaderFieldSetAndReencodeMatchForkBaseline, * boost::
         {
             continue;
         }
-        std::ifstream in(entry.path());
+        goldens.push_back(entry.path());
+    }
+    std::sort(goldens.begin(), goldens.end());
+    for (auto const& path : goldens)
+    {
+        std::ifstream in(path);
         Json::Value doc;
-        BOOST_REQUIRE_MESSAGE(Json::Reader{}.parse(in, doc, false),
-            "malformed golden json: " << entry.path().string());
-        checkOne(entry.path().filename().string(), doc["encodedHeaderHex"].asString(),
-            forkOfGolden(entry.path().filename().string()));
+        std::string errors;
+        Json::CharReaderBuilder builder;
+        BOOST_REQUIRE_MESSAGE(Json::parseFromStream(builder, in, &doc, &errors),
+            "malformed golden json: " << path.string() << ": " << errors);
+        BOOST_REQUIRE_MESSAGE(
+            doc.isMember("encodedHeaderHex") && doc["encodedHeaderHex"].isString(),
+            path.string() << ": missing or non-string \"encodedHeaderHex\"");
+        checkOne(path.filename().string(), doc["encodedHeaderHex"].asString(),
+            forkOfGolden(path.filename().string()));
     }
     auto const chained = dir / "chained";
     if (fs::exists(chained))
     {
+        // Sorted, for the same run-to-run determinism as the top-level sweep.
+        std::vector<fs::path> chainedGoldens;
         for (auto const& entry : fs::directory_iterator(chained))
         {
             auto name = entry.path().filename().string();
@@ -220,10 +257,21 @@ BOOST_AUTO_TEST_CASE(GoldenHeaderFieldSetAndReencodeMatchForkBaseline, * boost::
             {
                 continue;
             }
-            std::ifstream in(entry.path());
+            chainedGoldens.push_back(entry.path());
+        }
+        std::sort(chainedGoldens.begin(), chainedGoldens.end());
+        for (auto const& path : chainedGoldens)
+        {
+            auto name = path.filename().string();
+            std::ifstream in(path);
             Json::Value doc;
-            BOOST_REQUIRE_MESSAGE(Json::Reader{}.parse(in, doc, false),
-                "malformed chained golden: " << entry.path().string());
+            std::string errors;
+            Json::CharReaderBuilder builder;
+            BOOST_REQUIRE_MESSAGE(Json::parseFromStream(builder, in, &doc, &errors),
+                "malformed chained golden: " << path.string() << ": " << errors);
+            BOOST_REQUIRE_MESSAGE(
+                doc.isMember("encodedHeaderHex") && doc["encodedHeaderHex"].isString(),
+                path.string() << ": missing or non-string \"encodedHeaderHex\"");
             checkOne(name, doc["encodedHeaderHex"].asString(), chainedForkOf(name));
         }
     }
@@ -246,13 +294,19 @@ BOOST_AUTO_TEST_CASE(GoldenHeaderFieldSetAndReencodeMatchForkBaseline, * boost::
                 fork << ": Ecotone+ must carry parentBeaconBlockRoot");
             BOOST_CHECK_MESSAGE(tuple.find("blobGasUsed") != std::string::npos,
                 fork << ": Ecotone+ must carry the blob pair");
-            BOOST_CHECK_MESSAGE((tuple.find("blobGasUsed") != std::string::npos) ==
-                                    (tuple.find("excessBlobGas") != std::string::npos),
-                fork << ": blobGasUsed/excessBlobGas must appear together");
         }
         else
+        {
             BOOST_CHECK_MESSAGE(tuple.find("parentBeaconBlockRoot") == std::string::npos,
                 fork << ": pre-Ecotone must NOT carry parentBeaconBlockRoot");
+            BOOST_CHECK_MESSAGE(tuple.find("blobGasUsed") == std::string::npos &&
+                                    tuple.find("excessBlobGas") == std::string::npos,
+                fork << ": pre-Ecotone must NOT carry the blob pair");
+        }
+        // Any fork: the pair is a unit — a half-present pair is a decoding bug.
+        BOOST_CHECK_MESSAGE((tuple.find("blobGasUsed") != std::string::npos) ==
+                                (tuple.find("excessBlobGas") != std::string::npos),
+            fork << ": blobGasUsed/excessBlobGas must appear together");
         if (rank >= 6)
             BOOST_CHECK_MESSAGE(tuple.find("requestsHash") != std::string::npos,
                 fork << ": Isthmus+ must carry requestsHash");
@@ -260,7 +314,7 @@ BOOST_AUTO_TEST_CASE(GoldenHeaderFieldSetAndReencodeMatchForkBaseline, * boost::
             BOOST_CHECK_MESSAGE(tuple.find("requestsHash") == std::string::npos,
                 fork << ": pre-Isthmus must NOT carry requestsHash");
     }
-    for (int i = 1; i < 8; ++i)
+    for (std::size_t i = 1; i < c_forkCount; ++i)
     {
         auto const lo = presenceByFork.find(c_forkOrder[i - 1]);
         auto const hi = presenceByFork.find(c_forkOrder[i]);
@@ -283,8 +337,8 @@ BOOST_AUTO_TEST_CASE(GoldenHeaderFieldSetAndReencodeMatchForkBaseline, * boost::
     // The sweep must actually compare the corpus, and at least eight distinct forks
     // (regolith..jovian) must be present — otherwise this degraded to an empty pass.
     BOOST_CHECK_GE(filesChecked, 100U);
-    BOOST_CHECK_MESSAGE(presenceByFork.size() >= 8,
-        "compared " << presenceByFork.size() << " fork tiers, need >= 8");
+    BOOST_CHECK_MESSAGE(presenceByFork.size() >= c_forkCount,
+        "compared " << presenceByFork.size() << " fork tiers, need >= " << c_forkCount);
     for (auto const* fork : c_forkOrder)
     {
         if (auto it = presenceByFork.find(fork); it != presenceByFork.end())
