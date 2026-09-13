@@ -118,6 +118,10 @@ def header_field_set(ts0, fork_times):
         fields += ["blob_gas_used", "excess_blob_gas", "parent_beacon_block_root"]
     if ts0 >= fork_times.get("isthmus", inf):
         fields.append("requests_hash")
+    if ts0 >= fork_times.get("jovian", inf):
+        pass  # Jovian does not change the header field set (DA footprint reuses blob_gas_used)
+    if ts0 >= fork_times.get("karst", inf):
+        pass  # Karst does not change the header field set (Osaka EL ruleset; no new header field)
     return fields
 
 

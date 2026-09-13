@@ -119,6 +119,11 @@ def test_header_field_set_by_genesis_time():
     assert "blob_gas_used" in gen.header_field_set(200, forks)
     assert "requests_hash" in gen.header_field_set(400, forks)
     assert "requests_hash" not in gen.header_field_set(399, forks)
+    forks7 = {"canyon": 100, "ecotone": 200, "isthmus": 400, "jovian": 500, "karst": 600}
+    assert gen.header_field_set(500, forks7) == gen.header_field_set(400, forks7)
+    assert gen.header_field_set(600, forks7) == gen.header_field_set(400, forks7)
+    for ts in (0, 100, 200, 400, 500, 600):
+        assert "slot_number" not in gen.header_field_set(ts, forks7)
 
 
 def test_build_and_selfcheck_london_header():
