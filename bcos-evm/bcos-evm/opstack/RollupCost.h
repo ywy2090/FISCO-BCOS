@@ -19,6 +19,14 @@ constexpr int64_t kMinTxSizeScaled = 100000000;
 // scalar's 1e6; do not merge them).
 constexpr int64_t kDaSizeScaleDivisor = 1'000'000;
 
+// Operator-fee formula primitives (see computeOperatorCost below). Exposed here rather than
+// file-local so the op-revm oracle parity test asserts against the SAME constants the
+// production formula consumes, not against a copy of their literals.
+//   * Isthmus+: gas * scalar / kOperatorFeeScalarDivisor + constant
+inline constexpr int64_t kOperatorFeeScalarDivisor = 1000000;
+//   * Jovian:  gas * scalar * kJovianOperatorFeeMultiplier + constant
+inline constexpr int64_t kJovianOperatorFeeMultiplier = 100;
+
 // Port of op-geth FlzCompressLen: length of output if serializedTx were FastLZ-compressed.
 // Inline so header-only callers (the engine's Jovian DA-footprint equality gate reaches it via
 // bcos::evm::opstack::daFootprintOfEnvelopes) do not add a bcos-evm-opstack link dependency to

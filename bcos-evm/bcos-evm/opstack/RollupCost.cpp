@@ -11,9 +11,6 @@ namespace
 constexpr int64_t kFjordDivisor = 1000000000000;
 constexpr int64_t kNonzeroByteCost = 16;
 constexpr int64_t kZeroByteCost = 4;
-constexpr int64_t kOperatorFeeScalarDivisor = 1000000;
-// Jovian operator fee: gas x scalar x 100 + constant (op-geth Jovian spec coefficient).
-constexpr int64_t kJovianOperatorFeeMultiplier = 100;
 }  // namespace
 
 uint64_t estimatedDaSize(evmc::bytes_view signedTxEnvelope) noexcept
@@ -141,11 +138,11 @@ intx::uint256 computeOperatorCost(
     if (jovianFormula)
     {
         return intx::uint256{gas} * intx::uint256{params.operator_fee_scalar} *
-                   intx::uint256{kJovianOperatorFeeMultiplier} +
+                   intx::uint256{detail::kJovianOperatorFeeMultiplier} +
                intx::uint256{params.operator_fee_constant};
     }
     return intx::uint256{gas} * intx::uint256{params.operator_fee_scalar} /
-               intx::uint256{kOperatorFeeScalarDivisor} +
+               intx::uint256{detail::kOperatorFeeScalarDivisor} +
            intx::uint256{params.operator_fee_constant};
 }
 

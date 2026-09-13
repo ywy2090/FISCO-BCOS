@@ -1,14 +1,41 @@
 #include "TestPrinters.h"
 #include <bcos-evm/opstack/OpForkSchedule.h>
 #include <bcos-evm/opstack/OpPrecompiles.h>
+#include <bcos-evm/opstack/RollupCost.h>
 #include <bcos-utilities/DataConvertUtility.h>
 #include <json/json.h>
 #include <boost/test/tree/decorator.hpp>
 #include <boost/test/unit_test.hpp>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <optional>
+#include <string>
 
 using namespace bcos::evm::opstack;
+
+namespace
+{
+/// The oracle stores op-revm's Rust `SpecId::<VARIANT>` names (uppercased) for the ETH base
+/// fork each OP fork runs on. Map that name to the evmc revision our OpForkConfig::rev must
+/// equal. Chosen over evmc::to_string because the latter spells "Cancun"/"Prague" (mixed
+/// case) while the oracle key is the uppercase Rust variant — an explicit table keeps the
+/// name/value mapping visible here rather than relying on two spellings happening to agree.
+std::optional<evmc_revision> evmRevFromOracleSpecName(const std::string& name)
+{
+    static const std::map<std::string, evmc_revision> kByName{
+        {"CANCUN", EVMC_CANCUN},
+        {"PRAGUE", EVMC_PRAGUE},
+        {"OSAKA", EVMC_OSAKA},
+    };
+    const auto it = kByName.find(name);
+    if (it == kByName.end())
+    {
+        return std::nullopt;
+    }
+    return it->second;
+}
+}  // namespace
 
 BOOST_AUTO_TEST_SUITE(OpPrecompilesSuite)
 
@@ -164,5 +191,58 @@ BOOST_AUTO_TEST_CASE(KarstTableMatchesOpRevmOracle, * boost::unit_test::label("f
     // The bn254 pair must be the ONE address whose Karst value differs from Jovian's; if that
     // ever stops being true, the Karst row stopped being a real fork delta.
     BOOST_CHECK_LT(bn254->max_input_size, jovianBn254->max_input_size);
+}
+
+// Holocene/Jovian per-value anchors (WI-E5/E6), judged by the same EXTERNAL op-revm oracle:
+// the ETH base fork each runs with, plus the two operator-fee numbers the formula is built from
+// (exposed from RollupCost.h so the assertion pins production's constants, not a literal copy).
+// clang-format off
+BOOST_AUTO_TEST_CASE(HoloceneJovianAnchorsMatchOpRevmOracle, * boost::unit_test::label("fork-isthmus") * boost::unit_test::label("fork-jovian") * boost::unit_test::label("fork-karst"))
+// clang-format on
+{
+    auto const oraclePath = std::filesystem::path(__FILE__).parent_path() / "op_revm_oracle.json";
+    BOOST_REQUIRE_MESSAGE(std::filesystem::exists(oraclePath),
+        "missing oracle contract at " << oraclePath.string()
+                                      << " — regenerate with tools/op-revm-oracle/extract.sh");
+    Json::Value oracle;
+    {
+        std::ifstream in(oraclePath);
+        BOOST_REQUIRE_MESSAGE(
+            Json::Reader{}.parse(in, oracle, false), "cannot parse " << oraclePath.string());
+    }
+    BOOST_TEST_MESSAGE("op-revm oracle revision: " << oracle["source"]["revision"].asString());
+
+    // op-revm's spec.rs maps Holocene to the Cancun ETH spec and Jovian to Prague.
+    const auto holoceneEthSpec = evmRevFromOracleSpecName(oracle["holocene_eth_spec"].asString());
+    BOOST_REQUIRE_MESSAGE(holoceneEthSpec.has_value(),
+        "unrecognized oracle key holocene_eth_spec=\"" << oracle["holocene_eth_spec"].asString()
+                                                       << "\" — extend evmRevFromOracleSpecName");
+    BOOST_CHECK_MESSAGE(holoceneConfig().rev == *holoceneEthSpec,
+        "holoceneConfig().rev (evmc " << static_cast<int>(holoceneConfig().rev)
+                                      << ") must equal oracle holocene_eth_spec=\""
+                                      << oracle["holocene_eth_spec"].asString() << "\" (evmc "
+                                      << static_cast<int>(*holoceneEthSpec) << ")");
+
+    const auto jovianEthSpec = evmRevFromOracleSpecName(oracle["jovian_eth_spec"].asString());
+    BOOST_REQUIRE_MESSAGE(jovianEthSpec.has_value(), "unrecognized oracle key jovian_eth_spec=\""
+                                                         << oracle["jovian_eth_spec"].asString()
+                                                         << "\" — extend evmRevFromOracleSpecName");
+    BOOST_CHECK_MESSAGE(jovianConfig().rev == *jovianEthSpec,
+        "jovianConfig().rev (evmc " << static_cast<int>(jovianConfig().rev)
+                                    << ") must equal oracle jovian_eth_spec=\""
+                                    << oracle["jovian_eth_spec"].asString() << "\" (evmc "
+                                    << static_cast<int>(*jovianEthSpec) << ")");
+
+    // Operator fee: Isthmus+ divides by the scalar's 1e6 decimal; Jovian multiplies it by 100.
+    const auto divisor = oracle["operator_fee_scalar_decimal"].asInt64();
+    BOOST_CHECK_MESSAGE(detail::kOperatorFeeScalarDivisor == divisor,
+        "our operator-fee divisor (RollupCost.h detail::kOperatorFeeScalarDivisor="
+            << detail::kOperatorFeeScalarDivisor << ") must equal oracle "
+            << "operator_fee_scalar_decimal=" << divisor);
+    const auto multiplier = oracle["operator_fee_jovian_multiplier"].asInt64();
+    BOOST_CHECK_MESSAGE(detail::kJovianOperatorFeeMultiplier == multiplier,
+        "our Jovian operator-fee multiplier (RollupCost.h detail::kJovianOperatorFeeMultiplier="
+            << detail::kJovianOperatorFeeMultiplier << ") must equal oracle "
+            << "operator_fee_jovian_multiplier=" << multiplier);
 }
 BOOST_AUTO_TEST_SUITE_END()
