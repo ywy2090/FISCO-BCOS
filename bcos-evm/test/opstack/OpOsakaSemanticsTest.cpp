@@ -656,17 +656,16 @@ BOOST_AUTO_TEST_CASE(KarstEthCallSkipsEip7825MaxGasLimit, * boost::unit_test::la
     BOOST_REQUIRE(std::holds_alternative<OpTxProperties>(r));
 }
 
-// The exemption pinned here is a FISCO-internal choice, NOT a spec requirement. An earlier
-// revision of this comment (and of DIVERGENCES.md `eip7825_deposit_exemption`) cited
-// "specs/protocol/karst/overview.md:20 — EIP-7825 ... (not enabled for deposits, ...)".
-// That citation does not exist: at specs pin 564a0ce the file is a 464-byte stub with 16
-// lines and no such text anywhere in the specs tree. The only spec'd 20M figure is the L1
-// guaranteed-gas ceiling (guaranteed-gas-market.md:48 MAX_RESOURCE_LIMIT = 20,000,000),
-// which is not an EL validation rule. So the alignment question is OPEN: FISCO exempts
-// deposits (2^24 = 16,777,216 < 20,000,000 leaves (2^24, 20M] accepted here), while op-geth
-// applies the cap to deposits in preCheck (core/state_transition.go:379-383, only eth_call
-// sets SkipTransactionChecks). See DIVERGENCES.md `eip7825_deposit_exemption` for the
-// reopened WI-35 and the evidence.
+// The exemption pinned here matches the second OP implementation, op-revm: its validate_env
+// override returns Ok() for DEPOSIT_TRANSACTION_TYPE before reaching the baseline check that
+// enforces revm's TxGasLimitCap (op-revm/src/handler.rs:81-100 vs
+// revm-handler-*/src/validation.rs:150-159) — so deposits are exempt there too, while op-geth
+// applies the cap to deposits (core/state_transition.go:379-383, excluded from its
+// failed-deposit tolerance at :489-491). The specs are silent, so the honest label is
+// "matches op-revm; op-geth differs" — NOT "spec-aligned". An earlier revision of this comment
+// (and of DIVERGENCES.md) cited "specs/protocol/karst/overview.md:20"; that line does not
+// exist (the file is a 464-byte / 16-line stub at pin 564a0ce) and the citation was removed.
+// See da-matrix/DIVERGENCES.md `eip7825_deposit_exemption` (WI-35, closed 2026-09-13).
 // clang-format off
 BOOST_AUTO_TEST_CASE(DepositExemptFromEip7825MaxGasLimit, * boost::unit_test::label("fork-karst"))
 // clang-format on

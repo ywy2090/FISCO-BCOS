@@ -128,6 +128,13 @@ else
     set +e
     printf '%s\n' "$karst_body" | grep -qE 'EVMC_OSAKA'
     osaka_status=$?
+    # Basis for requiring the exemption (do NOT cite specs/protocol/karst/overview.md:20 —
+    # that line does not exist): op-revm's validate_env returns Ok() for deposits before
+    # reaching the baseline check that enforces revm's TxGasLimitCap
+    # (op-revm/src/handler.rs:81-100; revm-handler-*/src/validation.rs:150-159) — the OP Rust
+    # stack exempts deposits as FISCO does, while op-geth applies the cap to deposits
+    # (core/state_transition.go:379-383). Specs are silent. See da-matrix/DIVERGENCES.md
+    # `eip7825_deposit_exemption` (WI-35, closed 2026-09-13).
     printf '%s\n' "$karst_body" | grep -qE 'deposit_exempt_from_max_tx_gas = true'
     exempt_status=$?
     set -e

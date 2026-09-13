@@ -128,7 +128,7 @@ ends by design:
   chain config hits it (all use `1e6` multiples), so the da-matrix comparison is
   unaffected.
 
-### `eip7825_deposit_exemption` — op-geth applies the Osaka tx-gas cap to deposits; FISCO's Karst tier exempts them (alignment direction UNRESOLVED)
+### `eip7825_deposit_exemption` — deposits are exempt from the Osaka tx-gas cap on FISCO and on op-revm; op-geth applies the cap (spec is silent)
 
 - **Grid case:** none yet (no da-matrix row exercises a deposit above 2^24); registered
   here because a future differential run (Plan D) against op-geth will surface it.
@@ -141,6 +141,19 @@ ends by design:
   The one real 20M figure is L1/ingress-side resource metering —
   `guaranteed-gas-market.md:48` `MAX_RESOURCE_LIMIT = 20,000,000` — which is not an EL
   transaction-validation rule. **Neither side's alignment is therefore established.**
+- **RESOLVED (2026-09-13) by the second implementation:** the OP Rust stack agrees with
+  FISCO. `alloy-op-evm/src/env.rs:132-133` (used by op-reth) does enable the cap at Osaka+
+  (`cfg_env.tx_gas_limit_cap = Some(revm::primitives::eip7825::TX_GAS_LIMIT_CAP)`), and revm
+  enforces it in its **baseline** `validate_env`
+  (`revm-handler-20.0.3/src/validation.rs:150-159`: `if tx.gas_limit() > cap →
+  TxGasLimitGreaterThanCap`). But op-revm **overrides** `validate_env`
+  (`op-revm/src/handler.rs:81-100`) and for `DEPOSIT_TRANSACTION_TYPE` returns `Ok(())`
+  directly — `self.mainnet.validate_env(evm)` (the baseline, with the cap) is reached **only
+  for non-deposit** transactions. So op-revm exempts deposits exactly as FISCO does
+  (`OpForkSchedule.cpp:230` + `OpTransition.cpp:575`), while op-geth applies the cap to
+  deposits (`core/state_transition.go:379-383`, not exempted from its failed-deposit
+  tolerance at `:489-491`). The specs remain silent on the question, so the honest label is
+  **"FISCO matches op-revm; op-geth differs"** — not "spec-aligned".
 - **What happens:** FISCO's Karst tier sets `deposit_exempt_from_max_tx_gas = true`
   (`bcos-evm/opstack/OpForkSchedule.cpp:230`), wired at `bcos-evm/opstack/OpTransition.cpp:575`
   as `enforce_max_tx_gas = !cfg.deposit_exempt_from_max_tx_gas`, so an over-cap deposit
@@ -159,11 +172,16 @@ ends by design:
   rejected by op-geth** — a constructible input (L1-side senders choose deposit gas limits)
   on which the two nodes diverge at that block. No known chain config or corpus vector
   currently emits such a deposit.
-- **Disposition (corrected):** FISCO keeps the exemption for now, but it is a
-  **FISCO-internal choice** (mirroring the L1 20M guaranteed-gas ceiling), not a
-  spec requirement — and op-geth is not thereby "deviating" either. The alignment question
-  is **open**: WI-35's earlier verdict is **reopened** (it rested on the fabricated citation)
-  and the same correction must reach the workstream that closed its finding against it.
+- **Disposition (resolved 2026-09-13):** FISCO **keeps** the exemption — it now matches a
+  second, independent implementation (op-revm, `handler.rs:81-100`), and the only end that
+  caps deposits is op-geth. Do **not** align FISCO to op-geth on this point without evidence
+  that op-geth's behaviour is the intended one. Two things had to be corrected on the way:
+  (a) the earlier "spec says it is not enabled for deposits" claim rested on a citation that
+  does not exist (killed above); (b) that fabricated claim had propagated into
+  `tools/check-op-karst-release-gate.sh`, which asserts `deposit_exempt_from_max_tx_gas =
+  true` — the assertion is kept, now with a comment citing the real basis, so the gate no
+  longer rests on the non-existent line. WI-35 is therefore **closed as "matches op-revm;
+  op-geth differs; spec silent"** (no production change).
   Resolve with authoritative evidence — a spec statement, an op-geth/op-node PR, or op-node
   code exempting deposits — or align FISCO with op-geth.
 - **Review trigger:** any authoritative statement about EIP-7825 and deposits; op-geth
