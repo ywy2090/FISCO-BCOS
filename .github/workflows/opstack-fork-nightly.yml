@@ -9,6 +9,9 @@ concurrency:
 jobs:
   fork-matrix:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -30,23 +33,34 @@ jobs:
           key: vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'ports/**') }}-${{ steps.vcpkg-revision.outputs.revision }}-${{ runner.os }}-${{ runner.arch }}-cache-key-v4
       - name: Regenerate opstack t8n vectors (corpus + goldens + getpayload envelopes)
         uses: FISCO-BCOS/op-stack-e2e-tests/.github/actions/opstack-t8n-regen@c6365ad67c12186c855d64121d12c432fac7a9f0
-      - name: Configure + build the test binaries (suites + every mutation-harness target)
+      - name: Install toolchain (matches the coverage job's recipe)
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends \
+              lcov wget python3-dev python3-pip git curl zip unzip tar \
+              clang make build-essential libssl-dev zlib1g-dev ca-certificates mold autoconf \
+              flex bison patch pkg-config uuid-runtime automake gcc-14 g++-14
+      - name: Configure + build the three suite binaries
         run: |
           mkdir -p build && cd build
           CC=gcc-14 CXX=g++-14 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DLINKER=mold \
             -DTESTS=ON -DCOVERAGE=OFF -DWITH_LIGHTNODE=ON -DWITH_CPPSDK=ON -DWITH_TIKV=OFF \
-            -DWITH_TARS_SERVICES=OFF -DTOOL=OFF -DVCPKG_TARGET_TRIPLET=x64-linux-release ..
+            -DWITH_TARS_SERVICES=OFF -DTOOLS=OFF -DVCPKG_TARGET_TRIPLET=x64-linux-release ..
           cmake --build . --target test-bcos-engine opstack-executor-block-tests \
-            opstack-executor-tests bcos-evm-opstack-tests test-bcos-ledger -j 4
+            bcos-evm-opstack-tests -j 4
       - name: C++ fork suites (one invocation per suite; Boost rejects comma lists)
         run: |
           set -euo pipefail
           check_suite() {  # <binary> <suite>
-            out=$("$1" --run_test="$2" --log_level=test_suite 2>&1)
-            printf '%s\n' "$out"
-            echo "$out" | grep -qE 'Running [1-9][0-9]* test cases?' \
-              || { echo "SUITE DID NOT RUN: $2 on $1"; exit 1; }
-            echo "$out" | grep -q '\*\*\* No errors detected'
+            local out_file
+            out_file=$(mktemp)
+            "$1" --run_test="$2" --log_level=test_suite >"$out_file" 2>&1 || true
+            cat "$out_file"
+            grep -qE 'Running [1-9][0-9]* test cases?' "$out_file" \
+              || { echo "SUITE DID NOT RUN: $2 on $1"; rm -f "$out_file"; exit 1; }
+            grep -q '\*\*\* No errors detected' "$out_file" \
+              || { echo "SUITE FAILED: $2 on $1"; rm -f "$out_file"; exit 1; }
+            rm -f "$out_file"
           }
           check_suite ./build/engine/test/test-bcos-engine OpEnginePayloadShapeBaselineSuite
           check_suite ./build/engine/test/test-bcos-engine OpForkBoundarySweepSuite
@@ -58,6 +72,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install pytest
+        run: python -m pip install pytest
       - name: Ensure zstd is present
         # The sweep needs the zstd CLI; a missing one must fail HERE (loudly) rather than
         # skip inside pytest. Runners normally ship it — pin it explicitly (review F3).
@@ -70,6 +86,7 @@ jobs:
       - name: route failure to an issue, do not block PRs
         if: failure()
         run: |
+          gh label create test-matrix --color D93F0B --force || true
           gh issue create --label test-matrix \
             --title "nightly fork matrix failed: ${{ github.run_id }}" \
             --body "See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
