@@ -543,7 +543,13 @@ def _assert_registry_zip_is_pre_karst(zip_path):
     assert scanned > 0, "scanned no configs/*.toml — the guard is green but empty"
 
 
-def test_registry_zip_is_pre_karst_basis():
+def test_real_registry_zip_is_pre_karst_basis():
+    if not _OP_GETH_ZIP.exists():
+        if os.environ.get("OP_REQUIRE_REGISTRY_ZIP", "").strip().lower() in ("1", "true", "yes"):
+            pytest.fail(
+                f"OP_REQUIRE_REGISTRY_ZIP=1 but registry zip unavailable (zip={_OP_GETH_ZIP})"
+            )
+        pytest.skip("op-geth superchain zip not available")
     _assert_registry_zip_is_pre_karst(_OP_GETH_ZIP)
 
 
