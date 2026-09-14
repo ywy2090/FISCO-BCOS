@@ -45,6 +45,7 @@
 #include <bcos-rpc/web3jsonrpc/model/ReceiptResponse.h>
 #include <bcos-rpc/web3jsonrpc/model/TransactionResponse.h>
 #include <bcos-rpc/web3jsonrpc/utils/AdmissionError.h>
+#include <bcos-rpc/web3jsonrpc/utils/EthConfig.h>
 #include <bcos-rpc/web3jsonrpc/utils/util.h>
 #include <bcos-tars-protocol/protocol/TransactionImpl.h>
 #include <bcos-tx-validator/TxValidator.h>
@@ -113,6 +114,42 @@ task::Task<void> EthEndpoint::chainId(const Json::Value&, Json::Value& response)
     {
         result = "0x0";  // 0 for default
     }
+    buildJsonContent(result, response);
+}
+task::Task<void> EthEndpoint::ethConfig(const Json::Value&, Json::Value& response)
+{
+    // EIP-7910 `eth_config`: the node's fork configuration. No params.
+    auto const ledger = m_nodeService->ledger();
+    if (!ledger)
+    {
+        BOOST_THROW_EXCEPTION(
+            JsonRpcException(JsonRpcError::InternalError, "Ledger not available!"));
+    }
+    auto const ledgerConfig = co_await ledger::getLedgerConfig(*ledger);
+    // The full u256 chain id, not a uint64 truncation: eth_chainId reports the whole value,
+    // and truncating here would make eth_config wrap for ids above 2^64 while eth_chainId
+    // reports the true value.
+    bcos::u256 chainId = 0;
+    if (ledgerConfig->chainId().has_value())
+    {
+        chainId = fromEvmC(ledgerConfig->chainId().value());
+    }
+    auto const revision = ledgerConfig->evmcRevision().value_or(EVMC_CANCUN);
+    // L2 mode is the chain's canonical flag (the same source eth_feeHistory / getProof use),
+    // not the DA-cap object which merely coincides with OP mode today.
+    auto const opL2 = co_await ledger::getFeature(
+        *ledger, ledger::Features::Flag::feature_l2_ethereum_compat, ledgerConfig->blockNumber());
+    // EIP-2124 fork id from the genesis (block 0) hash. FISCO has no block- or
+    // timestamp-activated fork list at the RPC layer, and geth's gatherForks strips
+    // block-0 forks ("that's the genesis ruleset") before any checksumUpdate — the CRC
+    // is seeded from the genesis hash ALONE, so the fork list here must stay empty
+    // (crc32(mainnet genesis) = 0xfc64ec04, the value geth reports).
+    std::string forkIdHex = "0x00000000";
+    if (auto genesis = co_await ledger::getBlockData(*ledger, 0, bcos::ledger::HEADER))
+    {
+        forkIdHex = ethForkIdHex(genesis->blockHeader()->hash().hexPrefixed(), {});
+    }
+    auto result = buildEthConfig(revision, chainId, forkIdHex, opL2);
     buildJsonContent(result, response);
 }
 task::Task<void> EthEndpoint::mining(const Json::Value&, Json::Value& response)
