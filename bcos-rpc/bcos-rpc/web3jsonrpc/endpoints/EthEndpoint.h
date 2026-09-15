@@ -75,6 +75,7 @@ public:
     task::Task<void> getFilterChanges(const Json::Value&, Json::Value&);
     task::Task<void> getFilterLogs(const Json::Value&, Json::Value&);
     task::Task<void> getLogs(const Json::Value&, Json::Value&);
+    task::Task<void> feeHistory(const Json::Value&, Json::Value&);
     task::Task<std::tuple<protocol::BlockNumber, bool>> getBlockNumberByTag(
         std::string_view blockTag);
     task::Task<std::tuple<protocol::BlockNumber, protocol::BlockNumber>> getBlockNumberAndHeadByTag(

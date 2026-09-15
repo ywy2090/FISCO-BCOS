@@ -131,6 +131,7 @@ void EndpointsMapping::addMinerHandlers()
     // gate. The null-daCaps MethodNotFound below is the Ethereum-only-node fallback,
     // not the protection.
     m_handlers[methodString(EthMethod::miner_setMaxDASize)] = &Endpoints::setMaxDASize;
+    m_handlers[methodString(EthMethod::eth_feeHistory)] = &Endpoints::feeHistory;
     // clang-format on
 }
 
