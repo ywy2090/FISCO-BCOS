@@ -147,6 +147,26 @@ jobs:
         run: |
           cd build
           CTEST_OUTPUT_ON_FAILURE=TRUE ctest -j3
+      - name: Mutation harness (reverse-fix variants must go RED)
+        # A reverse-fix mutation gate for the test matrix itself: each variant patch
+        # re-introduces a historical regression into production code; the harness
+        # rebuilds only the mapped test target under the mutation and requires the
+        # mapped filter to go RED — a variant that stays GREEN is a coverage blind
+        # spot, and a negative-control filter going RED means mis-attribution.
+        # ORDERING CONTRACT — runs after `Test` and before the later integration
+        # steps: run.sh restores each variant's mutated source AND rebuilds the
+        # mapped target back, but do not move this earlier without auditing it.
+        if: matrix.os == 'ubuntu-26.04' && github.event_name != 'release'
+        run: |
+          # The variant patches are applied with `git apply --3way`, which lazily
+          # fetches the pre-image BLOBS the patches were authored against; a
+          # fetch-depth=1 checkout cannot serve them, so unshallow once. Recursion
+          # is off: some historical ref records a vcpkg gitlink that upstream no
+          # longer serves ("not our ref"), and only superproject blobs are needed.
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git -c fetch.recurseSubmodules=no fetch --unshallow
+          fi
+          bash tools/mutation/run.sh
       - name: Download EEST fixtures
         if: matrix.os != 'windows-2025'
         run: |
