@@ -282,6 +282,58 @@ def test_schedule_overlay_conflict_raises():
         gen.build_schedule(TOML_FORKS, ts0=50, extra_forks={"canyon": 123})
 
 
+def test_fork_timestamps_section_spells_the_canonical_ladder():
+    # One <fork>_time=<ts> line per canonical rung, protocol order: the section
+    # loads into the same full-ladder struct the canonical spells, rung for rung.
+    canonical = gen.build_schedule(TOML_FORKS, ts0=50)
+    assert gen.build_fork_timestamps_section(canonical) == (
+        "[op_fork_timestamps]\n"
+        "regolith_time=0\n"
+        "canyon_time=100\n"
+        "ecotone_time=200\n"
+        "fjord_time=300\n"
+        "granite_time=400\n"
+        "holocene_time=500\n"
+        "isthmus_time=600\n"
+        "jovian_time=700\n")
+
+
+def test_fork_timestamps_section_requires_isthmus_for_pre_isthmus_ladder():
+    # The loader's ladder-mode switch: without isthmus_time, Isthmus is the
+    # zero-start baseline and every pre-Isthmus key is a silently-dead entry that
+    # loadOpForkTimestamps rejects. The generator must refuse the same shape.
+    with pytest.raises(gen.RegistryError, match="isthmus_time"):
+        gen.build_fork_timestamps_section("0:regolith,100:canyon,200:ecotone")
+
+
+def test_fork_timestamps_section_rejects_foreign_text():
+    with pytest.raises(gen.RegistryError):
+        gen.build_fork_timestamps_section("0:delta,100:canyon")
+    with pytest.raises(gen.RegistryError):
+        gen.build_fork_timestamps_section("canyon")
+
+
+def test_generate_opstack_el_swaps_the_schedule_channel(tmp_path):
+    # The flag REPLACES the canonical section: opstack-el mode requires the
+    # [op_fork_timestamps] struct (header validator + fork-id ladder), and a dual
+    # declaration of a full ladder is refused by the loader's cross-check.
+    result = gen.generate(
+        _make_zip(tmp_path, toml=TOML_ISTHMUS, genesis=GENESIS_ISTHMUS),
+        "mainnet/base", decompress=lambda raw, dictionary: raw, opstack_el=True)
+    ini = result["genesis_ini"]
+    assert "[op_fork_timestamps]" in ini
+    assert "isthmus_time=0\n" in ini
+    assert "[op_fork_schedule]" not in ini
+
+
+def test_generate_opstack_el_without_isthmus_is_an_error(tmp_path):
+    # The synthetic base chain stops at Ecotone: without isthmus_time the ladder
+    # has no [op_fork_timestamps] spelling, so the flag must fail loud.
+    with pytest.raises(gen.RegistryError, match="isthmus_time"):
+        gen.generate(_make_zip(tmp_path), "mainnet/base",
+                     decompress=lambda raw, dictionary: raw, opstack_el=True)
+
+
 TOML_ALT_DA = TOML + """
 [alt_da]
 da_challenge_contract_address = "0x97A2dA87d3439b172e6DD027220e01c9Cb565B80"

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 # Copyright (c) FISCO-BCOS, Apache-2.0
 """Offline generator: superchain-configs.zip -> FISCO config.genesis fragment
-([eth_genesis_header] + [alloc.N] + [op_fork_schedule]) and op-node rollup.json.
+([eth_genesis_header] + [alloc.N] + a fork-schedule channel) and op-node rollup.json.
 
-The zip is op-geth's embedded registry (superchain/superchain-configs.zip): a COMMIT
-pin, a shared zstd `dictionary`, `configs/<network>/<name>.toml` and a dictionary-
-compressed `genesis/<network>/<name>.json.zst`. Everything here is offline: no
-network, no op-geth binary, and the only external process is the zstd CLI.
+The schedule channel is the [op_fork_schedule] canonical by default (engine-driven
+chains: op-node + Engine API) or the [op_fork_timestamps] full ladder with
+--opstack-el (the devp2p self-sync mode, whose loader refuses to boot without that
+section). The zip is op-geth's embedded registry (superchain/superchain-configs.zip):
+a COMMIT pin, a shared zstd `dictionary`, `configs/<network>/<name>.toml` and a
+dictionary-compressed `genesis/<network>/<name>.json.zst`. Everything here is offline:
+no network, no op-geth binary, and the only external process is the zstd CLI.
 """
 import argparse
 import json
@@ -343,6 +346,37 @@ def build_schedule(toml, ts0, extra_forks=None):
     return ",".join(parts)
 
 
+def build_fork_timestamps_section(canonical):
+    """`[op_fork_timestamps]` section spelling the SAME schedule as the canonical text.
+
+    One `<fork>_time=<ts>` line per canonical activation, in protocol order — the
+    channel opstack-el mode reads (NodeConfig refuses mode=opstack-el without the
+    section: the struct it builds drives the devp2p header validator and the
+    EIP-2124 fork-id ladder). `delta` cannot appear (the canonical never carries
+    it; it is not an EL fork), so every rung here is a loadable key. Two shapes
+    have no spelling and are errors rather than a config the node would refuse:
+    a rung the loader does not name, and a pre-Isthmus ladder without isthmus —
+    loadOpForkTimestamps treats an unset isthmus_time as the Isthmus zero-start
+    baseline, so pre-Isthmus keys below it are silently dead and rejected.
+    """
+    rungs = []
+    for entry in canonical.split(","):
+        timestamp, sep, fork = entry.partition(":")
+        if not sep or not timestamp.isdigit() or fork not in EL_FORKS:
+            raise RegistryError(
+                "cannot spell the schedule in [op_fork_timestamps]: " + repr(entry))
+        rungs.append((fork, int(timestamp)))
+    names = [fork for fork, _ in rungs]
+    if ("isthmus" not in names and
+            any(EL_FORKS.index(fork) < EL_FORKS.index("isthmus") for fork in names)):
+        raise RegistryError(
+            "cannot spell the schedule in [op_fork_timestamps]: a pre-Isthmus ladder "
+            "requires isthmus_time (the loader's ladder-mode switch)")
+    lines = ["[op_fork_timestamps]"]
+    lines.extend(f"{fork}_time={timestamp}" for fork, timestamp in rungs)
+    return "\n".join(lines) + "\n"
+
+
 # The CL fork keys we emit. `delta` and `pectra_blob_schedule` are CL-only forks (no
 # EL semantics) but are part of the CL config, so they come from the pin like any
 # other; `karst` comes from the pin when present and from the --extra-fork overlay
@@ -484,13 +518,18 @@ def check_registry_rollup(rollup):
 
 
 def generate(zip_path, chain, *, extra_forks=None, l1_chain_id=None,
-             expect_chain_id=None, decompress=None):
+             expect_chain_id=None, decompress=None, opstack_el=False):
     """Build the FISCO genesis fragment, the op-node rollup config and a manifest.
 
     Every artifact is derived from the registry plus the optional overlay, and the
     header hash is asserted against the registry's own `genesis.l2.hash` before
     anything is returned: a mismatch means the field set or a value is wrong, so it
     fails loud rather than shipping an artifact the node would reject later.
+    `opstack_el` swaps the schedule channel from the [op_fork_schedule] canonical
+    to the [op_fork_timestamps] full ladder — the section mode=opstack-el requires,
+    and the only one it can carry: a dual declaration of a full ladder is refused
+    by the loader's cross-check (compared under the two-key jovian/karst fold), so
+    the flag REPLACES the canonical section instead of emitting beside it.
     """
     data = load_registry_chain(zip_path, chain, decompress=decompress)
     toml, genesis = data["toml"], data["genesis"]
@@ -522,7 +561,10 @@ def generate(zip_path, chain, *, extra_forks=None, l1_chain_id=None,
     header_lines.append(f"hash=0x{computed}")  # the 22nd required field
     ini = "\n".join(header_lines) + "\n"
     ini += _build_allocs.emit_ini(to_ini_allocs(alloc))
-    ini += "[op_fork_schedule]\ncanonical=" + schedule + "\n"
+    if opstack_el:
+        ini += build_fork_timestamps_section(schedule)
+    else:
+        ini += "[op_fork_schedule]\ncanonical=" + schedule + "\n"
     ini += build_eip1559_section(toml)
     if l1_chain_id is None:
         # The L1 chain id is not in the chain toml (op-node reads it from the
@@ -552,11 +594,16 @@ def main(argv=None):
     parser.add_argument("--l1-chain-id", type=int, default=None)
     parser.add_argument("--chain-id", type=int, default=None,
                         help="cross-check the toml chain_id")
+    parser.add_argument("--opstack-el", action="store_true",
+                        help="emit the [op_fork_timestamps] full-ladder section the "
+                             "opstack-el devp2p self-sync mode requires, instead of "
+                             "the [op_fork_schedule] canonical (engine-driven mode)")
     args = parser.parse_args(argv)
     extra = {name: timestamp for name, timestamp in args.extra_fork}
     try:
         result = generate(args.zip, args.chain, extra_forks=extra,
-                          l1_chain_id=args.l1_chain_id, expect_chain_id=args.chain_id)
+                          l1_chain_id=args.l1_chain_id, expect_chain_id=args.chain_id,
+                          opstack_el=args.opstack_el)
     except (RegistryError, KeyError, OSError) as error:
         # KeyError/OSError cover a toml whose shape changed and a missing zstd binary:
         # both are environment/registry faults the operator should read as a message.
