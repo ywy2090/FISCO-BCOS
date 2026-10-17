@@ -436,6 +436,16 @@ void DmcExecutor::handleCreateMessage(
         {
             auto newSeq = currentSeq;
             // Note: no need to compatible with EIP-86, because dmc not compatible to eth
+            //
+            // KNOWN DIVERGENCE (review F2): this lane always derives the formula address
+            // (block, context, seq), while SerialBlockExecutive and the v1 executive's
+            // internal-create arm switch on feature_evm_address to
+            // keccak(rlp(sender, nonce)). On a feature_evm_address chain the assigned
+            // address therefore depends on which scheduler lane the node runs. The split
+            // predates the evmone-0.24 upgrade; reconciling it changes top-level create
+            // addresses on existing chains, so it is gated on a version decision
+            // (see the PR discussion) rather than changed here. Keep both sites in
+            // lockstep if that decision lands.
             message->setTo(
                 newEVMAddress(m_block->blockHeader()->number(), contextID, newSeq));
         }

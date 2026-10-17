@@ -197,6 +197,11 @@ void SerialBlockExecutive::serialExecute(
         {
             auto newSeq = tx->seq();
             std::string address;
+            // KNOWN DIVERGENCE (review F2): this lane honours feature_evm_address here,
+            // while DmcExecutor's empty-to arm always derives the formula address — the
+            // assigned address depends on which scheduler lane the node runs. Deliberate
+            // stopgap until the version-gated reconciliation lands (see the comment at
+            // DmcExecutor's empty-to arm and the PR discussion).
             if (m_scheduler->ledgerConfig().features().get(
                     ledger::Features::Flag::feature_evm_address))
             {
