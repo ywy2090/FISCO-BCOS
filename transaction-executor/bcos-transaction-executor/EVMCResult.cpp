@@ -112,6 +112,17 @@ bcos::protocol::TransactionStatus bcos::executor_v1::evmcStatusToTransactionStat
     case EVMC_INVALID_INSTRUCTION:
     case EVMC_UNDEFINED_INSTRUCTION:
         return protocol::TransactionStatus::BadInstruction;
+    // Ordinary EVM outcomes (review F3): all three are mapped by the twin
+    // evmcStatusToErrorMessage table below — leaving them on the default: throw
+    // turned every bad-jump / static-violation tx into an exception relabelled
+    // EVMC_INTERNAL_ERROR by execute()'s catch arm (with the error-handling flag
+    // OFF, gas_left = ref->gas: a failed contract refunded ALL its gas).
+    case EVMC_BAD_JUMP_DESTINATION:
+        return protocol::TransactionStatus::BadJumpDestination;
+    case EVMC_INVALID_MEMORY_ACCESS:
+        return protocol::TransactionStatus::StackUnderflow;
+    case EVMC_STATIC_MODE_VIOLATION:
+        return protocol::TransactionStatus::Unknown;
     default:
         BOOST_THROW_EXCEPTION(UnknownEVMCStatus{});
     }
