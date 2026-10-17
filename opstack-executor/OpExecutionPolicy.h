@@ -8,8 +8,10 @@
 ///
 /// Ported from bcos-evm/opstack (OpTransition.cpp's opValidate/opTransition
 /// and OpHost.cpp's three overrides) onto the EthExecutionPolicy hook surface;
-/// every formula and constant is byte-for-byte the bcos-evm original (the
-/// dual-run harness in tests/ pins the equivalence against the old path).
+/// every formula and constant is byte-for-byte the bcos-evm original (equivalence
+/// was dual-run-verified once; today's standing pins are the determinism twin in
+/// OpEthForkMatrixTest — the new layer twice from independent forks — plus the
+/// t8n goldens, which are the independent oracle).
 ///
 /// Unlike the stateless EthL1Policy, OpPolicy carries runtime state, so its
 /// hooks are non-static member functions (the hook call sites — `policy.hook(...)`

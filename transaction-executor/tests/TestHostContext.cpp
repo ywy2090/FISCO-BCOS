@@ -1312,10 +1312,18 @@ BOOST_AUTO_TEST_CASE(createAddressForOpcodeFollowsTheLaneFormulas)
     {
         const char* name;
         bcos::crypto::Hash::Ptr hasher;
+        // Frozen literals (review F17): the expectation must not be computed by the
+        // same helper the hook delegates to — that oracle is self-referential and a
+        // wrong shared formula would pass. Frozen from the first run at 0b9a4d835
+        // (block 0, contextID 0, seq 41 + 1); the sm3 cell is the one that
+        // discriminates against an upstream-keccak revert.
+        std::string_view expected;
     };
     const std::array<HasherCase, 2> cases{
-        HasherCase{"keccak", std::make_shared<bcos::crypto::Keccak256>()},
-        HasherCase{"sm3", std::make_shared<bcos::crypto::SM3>()},
+        HasherCase{"keccak", std::make_shared<bcos::crypto::Keccak256>(),
+            "51ecad688184962f355d19ee5ba27905f06ecd3b"},
+        HasherCase{"sm3", std::make_shared<bcos::crypto::SM3>(),
+            "954a006a3445efe79e69d0f2e5d4c5d6f7dbb23a"},
     };
 
     for (auto const& hasherCase : cases)
@@ -1330,7 +1338,7 @@ BOOST_AUTO_TEST_CASE(createAddressForOpcodeFollowsTheLaneFormulas)
         const auto legacyAddr =
             nonWeb3.createAddressForOpcode(sender, nonce.convert_to<uint64_t>());
         BOOST_CHECK_EQUAL(bcos::toHex(bytesConstRef{legacyAddr.bytes, sizeof(legacyAddr.bytes)}),
-            bcos::newEVMAddress(*hasherCase.hasher, blockHeader.number(), 0, 42));
+            hasherCase.expected);
 
         // Web3: the nonce-derived EIP branch, matching upstream's own derivation.
         int64_t web3Seq = 41;
@@ -1338,10 +1346,12 @@ BOOST_AUTO_TEST_CASE(createAddressForOpcodeFollowsTheLaneFormulas)
             rollbackableStorage, rollbackableTransientStorage, blockHeader, dummy, sender, "", 0,
             web3Seq, *precompiledManager, ledgerConfig, *hasherCase.hasher, true, nonce,
             bcos::task::syncWait);
+        // Frozen literal (review F17): keccak(rlp(sender, nonce)) is hasher-independent
+        // by definition (EIP-161), so one cell covers both hasher cases — computed
+        // once out-of-tree, never by the helper under test.
         const auto eipAddr = web3.createAddressForOpcode(sender, nonce.convert_to<uint64_t>());
         BOOST_CHECK_EQUAL(bcos::toHex(bytesConstRef{eipAddr.bytes, sizeof(eipAddr.bytes)}),
-            bcos::newLegacyEVMAddressString(
-                bytesConstRef{sender.bytes, sizeof(sender.bytes)}, nonce));
+            "2d087d4eb4563e34016c39a3b793edc710b44457");
     }
 }
 
@@ -1452,6 +1462,20 @@ BOOST_AUTO_TEST_CASE(depth0CreateBumpsUnderOffGateOnly)
         ledgerConfig.setFeatures(ledger::Features{});  // flag OFF — the historical gate
         runDepth0Create(creatorOff);
         BOOST_CHECK_EQUAL(nonceRowOf(creatorOff), "6");
+    }
+
+    // Absent row under the OFF gate (review F16): the historical gate bumps via
+    // increaseNonce(), which throws NonceNotInitialized for a never-initialized
+    // account — an absent row STAYS absent. This is the discriminating cell for the
+    // OFF-path compatibility claim ("existing chains see no new nonce rows"): the
+    // flag-ON gate writes 0+1 on the same shape (creatorNonceFlagBumpsPerNestedCreate),
+    // so a regression that starts materializing rows under OFF turns this red.
+    evmc_address creatorOffAbsent{};
+    creatorOffAbsent.bytes[19] = 0xC4;
+    {
+        ledgerConfig.setFeatures(ledger::Features{});  // flag OFF
+        runDepth0Create(creatorOffAbsent);
+        BOOST_CHECK_EQUAL(nonceRowOf(creatorOffAbsent), "<absent>");
     }
 }
 
@@ -1571,10 +1595,18 @@ BOOST_AUTO_TEST_CASE(create2OpcodeDeploysAtTheHookAddress)
     {
         const char* name;
         bcos::crypto::Hash::Ptr hasher;
+        // Frozen literals (review F17): the expectation must not be computed by the
+        // same helper the hook delegates to — that oracle is self-referential and a
+        // wrong shared formula would pass. Frozen from the first run at 0b9a4d835
+        // (block 0, contextID 0, seq 41 + 1); the sm3 cell is the one that
+        // discriminates against an upstream-keccak revert.
+        std::string_view expected;
     };
     const std::array<HasherCase, 2> cases{
-        HasherCase{"keccak", std::make_shared<bcos::crypto::Keccak256>()},
-        HasherCase{"sm3", std::make_shared<bcos::crypto::SM3>()},
+        HasherCase{"keccak", std::make_shared<bcos::crypto::Keccak256>(),
+            "51ecad688184962f355d19ee5ba27905f06ecd3b"},
+        HasherCase{"sm3", std::make_shared<bcos::crypto::SM3>(),
+            "954a006a3445efe79e69d0f2e5d4c5d6f7dbb23a"},
     };
 
     int64_t hasherIndex = 0;
@@ -1648,5 +1680,6 @@ BOOST_AUTO_TEST_CASE(create2OpcodeDeploysAtTheHookAddress)
         ++hasherIndex;
     }
 }
+
 
 BOOST_AUTO_TEST_SUITE_END()

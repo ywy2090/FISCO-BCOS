@@ -904,7 +904,8 @@ evmc_address HostContext::create2AddressForOpcode(
 {
     // Pre-bugfix chains reject the CREATE2 request outright, and the value the opcode
     // pushed historically was 0x0: evmone 0.21 echoed the host's result.create_address,
-    // which the rejection path left empty. ABI 19 removed that echo and evmone now
+    // which the rejection path left empty. ABI 18 removed that echo (with
+    // create2_salt; ABI 19 only added state_gas — evmc CHANGELOG 0.23/0.24) and evmone now
     // pushes its own derivation, so the hook must answer the zero address here or the
     // rejected create pushes a derived address where history recorded zero.
     if (!m_executive->blockContext().features().get(
