@@ -225,6 +225,10 @@ BOOST_AUTO_TEST_CASE(feature)
         // bugfix_nested_create_creator_nonce = 62: v2 nested-CREATE
         // creator-nonce bump, opt-in so existing chains keep the historical gate.
         "bugfix_nested_create_creator_nonce",
+        // bugfix_dmc_create_address_rule = 63: the DMC lane honours feature_evm_address
+        // for empty-to create addresses (same rule as SerialBlockExecutive) when on;
+        // off keeps the historical formula so replay is unchanged.
+        "bugfix_dmc_create_address_rule",
     };
     // clang-format on
     BOOST_CHECK_EQUAL(keys.size(), compareKeys.size());
@@ -683,5 +687,21 @@ BOOST_AUTO_TEST_CASE(testDependenciesFeatures)
     // BOOST_CHECK(features.get(ledger::Features::Flag::feature_evm_cancun));
 }
 
+
+
+// The newest version set activates the DMC create-address rule flag (review F2):
+// chains created at MAX_VERSION derive top-level create addresses with the serial
+// lane's rule (feature_evm_address honoured); older persisted feature rows keep the
+// historical formula, so replay is byte-identical.
+BOOST_AUTO_TEST_CASE(newestVersionSetActivatesDmcCreateAddressRule)
+{
+    Features features;
+    features.setGenesisFeatures(bcos::protocol::BlockVersion::MAX_VERSION);
+    BOOST_CHECK_EQUAL(features.get(Features::Flag::bugfix_dmc_create_address_rule), true);
+
+    Features older;
+    older.setGenesisFeatures(bcos::protocol::BlockVersion::V3_17_0_VERSION);
+    BOOST_CHECK_EQUAL(older.get(Features::Flag::bugfix_dmc_create_address_rule), false);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

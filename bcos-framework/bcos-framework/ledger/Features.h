@@ -164,13 +164,23 @@ public:
                                                     // throwing increaseNonce() semantics stay in
                                                     // force, so existing chains see no new nonce
                                                     // rows.
+        bugfix_dmc_create_address_rule = 63,        // Scheduler: the DMC lane derives a top-level
+                                                    // create's (empty-to) address with the SAME
+                                                    // rule as SerialBlockExecutive — honour
+                                                    // feature_evm_address (keccak(rlp(sender,
+                                                    // nonce))) instead of always using the
+                                                    // (block, context, seq) formula. Off: the DMC
+                                                    // lane keeps the formula address, so existing
+                                                    // chains replay byte-identically; only a chain
+                                                    // that also enables feature_evm_address observes
+                                                    // a difference.
     };
 
     // feature_flags bit = enum value. Pin the newest flag so a value beyond
     // magic_enum's default reflection range [-128,127] is caught at compile time.
     // Values must stay CONTIGUOUS from zero: m_flags indexes by value order,
     // toFlagsNumber packs bit = enum value — a gap desyncs the two encodings.
-    static_assert(magic_enum::enum_contains(Flag::bugfix_nested_create_creator_nonce),
+    static_assert(magic_enum::enum_contains(Flag::bugfix_dmc_create_address_rule),
         "newest Flag fell outside magic_enum's reflection range — check enum values");
     static_assert(magic_enum::enum_integer(
                       magic_enum::enum_value<Flag>(magic_enum::enum_count<Flag>() - 1)) <= 127,

@@ -10,13 +10,15 @@ using namespace bcos::scheduler;
 DmcExecutor::DmcExecutor(std::string name, std::string contractAddress,
     bcos::protocol::Block::Ptr block,
     bcos::executor::ParallelTransactionExecutorInterface::Ptr executor, GraphKeyLocks::Ptr keyLocks,
-    bcos::crypto::Hash::Ptr hashImpl, DmcStepRecorder::Ptr dmcRecorder, bool isCall)
+    bcos::crypto::Hash::Ptr hashImpl, DmcStepRecorder::Ptr dmcRecorder, bool isCall,
+    ledger::Features features)
   : m_name(std::move(name)),
     m_contractAddress(std::move(contractAddress)),
     m_block(std::move(block)),
     m_executor(std::move(executor)),
     m_keyLocks(std::move(keyLocks)),
     m_hashImpl(std::move(hashImpl)),
+    m_features(std::move(features)),
     m_dmcRecorder(std::move(dmcRecorder)),
     m_isCall(isCall)
 {}
@@ -437,17 +439,26 @@ void DmcExecutor::handleCreateMessage(
             auto newSeq = currentSeq;
             // Note: no need to compatible with EIP-86, because dmc not compatible to eth
             //
-            // KNOWN DIVERGENCE (review F2): this lane always derives the formula address
-            // (block, context, seq), while SerialBlockExecutive and the v1 executive's
-            // internal-create arm switch on feature_evm_address to
-            // keccak(rlp(sender, nonce)). On a feature_evm_address chain the assigned
-            // address therefore depends on which scheduler lane the node runs. The split
-            // predates the evmone-0.24 upgrade; reconciling it changes top-level create
-            // addresses on existing chains, so it is gated on a version decision
-            // (see the PR discussion) rather than changed here. Keep both sites in
-            // lockstep if that decision lands.
-            message->setTo(
-                newEVMAddress(m_block->blockHeader()->number(), contextID, newSeq));
+            // Lane divergence (review F2), now version-gated: with
+            // bugfix_dmc_create_address_rule on (newest feature set) this lane derives the
+            // SAME address as SerialBlockExecutive — feature_evm_address chains get
+            // keccak(rlp(sender, nonce)); otherwise the historical formula address keeps
+            // replay byte-identical. The flag only bites on chains that also enable
+            // feature_evm_address, so flag-off chains are unchanged either way. Keep this
+            // arm in lockstep with SerialBlockExecutive's empty-to arm.
+            if (m_features.get(ledger::Features::Flag::bugfix_dmc_create_address_rule) &&
+                m_features.get(ledger::Features::Flag::feature_evm_address))
+            {
+                auto const sender = message->origin();
+                Address senderAddress(sender, Address::FromHex);
+                message->setTo(
+                    bcos::newLegacyEVMAddressString(senderAddress.ref(), message->nonce()));
+            }
+            else
+            {
+                message->setTo(
+                    newEVMAddress(m_block->blockHeader()->number(), contextID, newSeq));
+            }
         }
         break;
     }

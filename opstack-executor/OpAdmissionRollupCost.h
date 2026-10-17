@@ -35,6 +35,7 @@
 #include <string>
 
 namespace bcos::executor_v1::opstack
+{
 
 /// The admission path could not resolve a committed header for the txpool's head
 /// (state view built from a block that is not committed). Named so callers classify
@@ -43,7 +44,6 @@ struct OpAdmissionHeaderUnavailable : std::runtime_error
 {
     using std::runtime_error::runtime_error;
 };
-{
 
 /// The L1Block fee parameters as of @p head, read through the head header's state root
 /// (HistoricalStateBackend, the view coCallAtBlock serves historical eth_call from), not from
