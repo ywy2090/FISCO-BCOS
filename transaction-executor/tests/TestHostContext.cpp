@@ -1,3 +1,5 @@
+#include "../bcos-transaction-executor/precompiled/ExecutiveWrapper.h"
+#include "../bcos-transaction-executor/precompiled/PrecompiledImpl.h"
 #include "../bcos-transaction-executor/precompiled/PrecompiledManager.h"
 #include "../bcos-transaction-executor/vm/HostContext.h"
 #include "TestBytecode.h"
@@ -1681,5 +1683,121 @@ BOOST_AUTO_TEST_CASE(create2OpcodeDeploysAtTheHookAddress)
     }
 }
 
+
+
+// Two internalCreates through ONE ExecutiveWrapper must derive DISTINCT addresses
+// (review F6): the derive base is seq()+1 and nothing on the wrapper path advanced
+// the counter, so the second create used to land on the first one's address. The
+// wrapper now publishes the consumed base; buildBfsPath fails gracefully without a
+// BFS tree (REVERT result), which is all the pin needs — the derived codeAddress
+// rides back on the returned CallParameters.
+BOOST_AUTO_TEST_CASE(twoInternalCreatesThroughOneWrapperDeriveDistinctAddresses)
+{
+    auto caller = []([[maybe_unused]] evmc_message const&) -> EVMCResult {
+        evmc_result r{};
+        r.status_code = EVMC_FAILURE;
+        return EVMCResult{r};
+    };
+    auto wrapper = bcos::executor_v1::buildLegacyExecutive(storage, blockHeader,
+        /*contractAddress=*/"1000000000000000000000000000000000000002", caller,
+        *precompiledManager, /*contextID=*/7, /*seq=*/41, /*authCheck=*/false);
+
+    auto makeCreateInput = [] {
+        auto input = std::make_unique<bcos::executor::CallParameters>(
+            bcos::executor::CallParameters::MESSAGE);
+        input->internalCreate = true;
+        input->senderAddress = "ff6f30856ad3bae00b1169808488502786a13e3c";
+        // The wrapper decodes (tableName, codeString) from data for the BFS link —
+        // any decodable pair reaches the derive before the (failing) BFS step.
+        input->data = bcos::codec::abi::ContractABICodec(
+            *bcos::executor::GlobalHashImpl::g_hashImpl)
+                          .abiIn("__dummy_", std::string("t"), std::string("c"));
+        input->gas = 1'000'000;
+        return input;
+    };
+
+    // create() below may throw deep in the child executive (this bare-memory fixture
+    // has no BFS tree; an unmapped status also surfaces as UnknownEVMCStatus) — the
+    // pin tolerates that: the invariant is that the PUBLISH survives the failure, so
+    // a retried create derives from the next value instead of colliding.
+    auto const seqBefore = wrapper->seq();
+    try
+    {
+        static_cast<void>(wrapper->externalCall(makeCreateInput()));
+    }
+    catch (...)
+    {}
+    auto const seqAfterFirst = wrapper->seq();
+    try
+    {
+        static_cast<void>(wrapper->externalCall(makeCreateInput()));
+    }
+    catch (...)
+    {}
+    auto const seqAfterSecond = wrapper->seq();
+
+    // The publish: each internalCreate consumes one value of the counter — on the
+    // success AND the failure path (pre-fix, both creates derived f(seq+1) twice).
+    BOOST_CHECK_EQUAL(seqAfterFirst, seqBefore + 1);
+    BOOST_CHECK_EQUAL(seqAfterSecond, seqBefore + 2);
+    // Consequence: the two derive bases differ, so the two link addresses differ
+    // (newEVMAddress is injective in seq for fixed block/context).
+    BOOST_CHECK_NE(
+        bcos::newEVMAddress(*hashImpl, blockHeader.number(), 7, seqAfterFirst),
+        bcos::newEVMAddress(*hashImpl, blockHeader.number(), 7, seqAfterSecond));
+}
+
+// A node fault (bcos::Error) escaping a bcos precompiled must NOT become a
+// PrecompiledError REVERT receipt (review F7): it rethrows so executeCall()'s
+// FIB-88/92 arm decides the frame — the same fault class through an EVMC callback
+// fails the whole frame. A contract-domain throw (bcos::Exception derivative) keeps
+// the REVERT receipt.
+BOOST_AUTO_TEST_CASE(bcosPrecompiledNodeFaultRethrowsWhileLogicErrorReverts)
+{
+    struct StubPrecompiled : bcos::precompiled::Precompiled
+    {
+        bool throwNodeFault = true;
+        explicit StubPrecompiled(bcos::crypto::Hash::Ptr hashImpl, bool nodeFault) :
+            bcos::precompiled::Precompiled(std::move(hashImpl)), throwNodeFault(nodeFault)
+        {}
+        std::shared_ptr<bcos::precompiled::PrecompiledExecResult> call(
+            std::shared_ptr<bcos::executor::TransactionExecutive>,
+            std::shared_ptr<bcos::precompiled::PrecompiledExecResult>) override
+        {
+            if (throwNodeFault)
+            {
+                throw bcos::Error::buildError(
+                    "F7 pin", -1, "injected storage fault (F7 pin)");
+            }
+            BOOST_THROW_EXCEPTION(bcos::InvalidParameter{});
+        }
+    };
+    auto caller = []([[maybe_unused]] evmc_message const&) -> EVMCResult {
+        evmc_result r{};
+        r.status_code = EVMC_FAILURE;
+        return EVMCResult{r};
+    };
+
+    auto const features = ledgerConfig.features();
+    evmc_message const message = [] {
+        evmc_message m{};
+        m.kind = EVMC_CALL;
+        m.gas = 1'000'000;
+        return m;
+    }();
+
+    auto nodeFault = std::make_shared<StubPrecompiled>(hashImpl, /*nodeFault=*/true);
+    BOOST_CHECK_EXCEPTION(
+        bcos::executor_v1::callBcosPrecompiled(nodeFault, storage, blockHeader, message, {},
+            caller, *precompiledManager, /*contextID=*/1, /*seq=*/1, false, features),
+        bcos::Error,
+        [](auto const& e) { return std::string(e.errorMessage()).find("F7 pin") != std::string::npos; });
+
+    auto logicError = std::make_shared<StubPrecompiled>(hashImpl, /*nodeFault=*/false);
+    auto reverted = bcos::executor_v1::callBcosPrecompiled(logicError, storage, blockHeader,
+        message, {}, caller, *precompiledManager, 1, 1, false, features);
+    BOOST_CHECK_EQUAL(reverted.status_code, EVMC_REVERT);
+    BOOST_CHECK_EQUAL(reverted.status, bcos::protocol::TransactionStatus::PrecompiledError);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

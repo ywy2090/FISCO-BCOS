@@ -71,6 +71,13 @@ public:
                 input->codeAddress = bcos::newEVMAddress(
                     m_hashImpl, m_blockContext->number(), m_contextID, seq() + 1);
                 input->receiveAddress = input->codeAddress;
+                // Publish the consumed base (review F6): a second internalCreate through
+                // this wrapper must derive from the NEXT value. Nothing else advances
+                // this counter on the wrapper path — the EVM lane's ++m_seq lives in the
+                // v2 HostContext, and each dispatch receives this executive's seq by
+                // value — so two creates through one wrapper used to derive f(seq+1)
+                // twice and land both stubs on one address.
+                m_seq = seq() + 1;
             }
             EXECUTIVE_WRAPPER(TRACE) << "codeAddress:" << input->codeAddress;
             auto [hostContext, callResults] = create(std::move(input));

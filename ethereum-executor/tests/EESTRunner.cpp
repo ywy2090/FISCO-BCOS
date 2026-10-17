@@ -1485,6 +1485,23 @@ public:
             (receipt->status() == 0 ||
                 receipt->status() == static_cast<int32_t>(protocol::TransactionStatus::None));
 
+        // Vacuity guard (review F8): the verdict below only inspects post.state
+        // accounts. A fixture whose post entry carries ONLY the state root ("hash")
+        // has no accounts to compare, so an empty loop would score ANY non-throwing
+        // run as a pass. Refuse to score that shape: count it as a load failure so a
+        // corpus/format drift that drops per-account posts is loud, never green.
+        if (post.state.empty() && !post.stateRoot.empty())
+        {
+            std::ostringstream oss;
+            oss << "SKIP-REJECT: " << fixture.name << " [" << forkName
+                << "] post entry has only the state root (expected " << post.stateRoot
+                << ") and no per-account state — verdict would be vacuous";
+            printLine(oss.str());
+            g_failureDetails.push_back({fixture.name, forkName, "vacuous post (root-only)"});
+            ++g_loadFailures;
+            return false;
+        }
+
         // When expectException is empty but the transaction failed, the test
         // may still be correct if the post-state matches (transaction reverted
         // cleanly and only gas was deducted).  EEST v5.4.0 fixtures often omit

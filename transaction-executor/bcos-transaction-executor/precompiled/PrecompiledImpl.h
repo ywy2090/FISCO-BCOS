@@ -151,8 +151,22 @@ inline EVMCResult callBcosPrecompiled(
             protocol::TransactionStatus::PrecompiledError, EVMC_REVERT, errorGas(), e.what(),
             features.get(ledger::Features::Flag::bugfix_v1_error_handling));
     }
+    catch (bcos::Error& e)
+    {
+        // A node/infra fault (storage I/O, row decode) is NOT a contract decision
+        // (review F7): converting it to a PrecompiledError REVERT below sealed a
+        // wrong-but-successful-shaped receipt the rest of the network cannot
+        // reproduce — the identical fault through an EVMC callback fails the whole
+        // frame. Rethrow: executeCall()'s catch arm (FIB-88/92) decides the frame,
+        // and the EVM-callback path records the family instead.
+        PRECOMPILE_LOG(WARNING) << "Precompiled node fault (rethrowing to the ladder): "
+                                << boost::diagnostic_information(e);
+        throw;
+    }
     catch (std::exception& e)
     {
+        // Contract-domain failure from the precompiled's own logic (bcos::Exception
+        // derivatives): the REVERT receipt stands.
         PRECOMPILE_LOG(WARNING) << "Precompiled execute error: "
                                 << boost::diagnostic_information(e);
         return makeErrorEVMCResult(*executor::GlobalHashImpl::g_hashImpl,
